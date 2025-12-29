@@ -1,0 +1,51 @@
+{
+	"schemaVersion": 1,
+	"id": "vetsmod",
+	"version": "${version}",
+	"name": "vetsmod",
+	"description": "This is an example description! Tell everyone what your mod is about!",
+	"authors": [
+		"Me!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/vetsmod/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			{
+				"value": "org.wynnvets.Vetsmod",
+				"adapter": "kotlin"
+			}
+		],
+		"client": [
+			{
+				"value": "org.wynnvets.VetsmodClient",
+				"adapter": "kotlin"
+			}
+		],
+		"fabric-datagen": [
+			{
+				"value": "org.wynnvets.VetsmodDataGenerator",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"mixins": [
+		"vetsmod.mixins.json",
+		{
+			"config": "vetsmod.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.18.4",
+		"minecraft": "~1.21.4",
+		"java": ">=21",
+		"fabric-api": "*",
+		"fabric-language-kotlin": "*"
+	}
+}
