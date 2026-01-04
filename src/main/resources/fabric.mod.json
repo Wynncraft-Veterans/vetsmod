@@ -2,7 +2,7 @@
 	"schemaVersion": 1,
 	"id": "vetsmod",
 	"version": "${version}",
-	"name": "Vetsmod",
+	"name": "vetsmod",
 	"description": "This is an example description! Tell everyone what your mod is about!",
 	"authors": [
 		"Me!"
@@ -17,10 +17,17 @@
 	"entrypoints": {
 		"main": [
 			"org.wynnvets.Vetsmod"
+		],
+		"client": [
+			"org.wynnvets.VetsmodClient"
 		]
 	},
 	"mixins": [
-		"vetsmod.mixins.json"
+		"vetsmod.mixins.json",
+		{
+			"config": "vetsmod.client.mixins.json",
+			"environment": "client"
+		}
 	],
 	"depends": {
 		"fabricloader": ">=0.18.4",
