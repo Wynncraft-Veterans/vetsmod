@@ -3,7 +3,7 @@
 	"package": "org.wynnvets.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"ExampleClientMixin"
+		"ChatLogMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
