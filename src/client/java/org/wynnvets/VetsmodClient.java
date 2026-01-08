@@ -11,7 +11,7 @@ public class VetsmodClient implements ClientModInitializer {
 		// Register client-side commands using the Fabric client command API
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
 			dispatcher.register(ClientCommandManager.literal("motd").executes(ctx -> {
-				ctx.getSource().sendFeedback(Component.literal("hello world"));
+				ctx.getSource().sendFeedback(Component.literal("Hello World (Placeholder)"));
 				return 1;
 			}));
 		});
