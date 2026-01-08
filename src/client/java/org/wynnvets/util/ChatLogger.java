@@ -1,6 +1,7 @@
 package org.wynnvets.util;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
@@ -17,11 +18,12 @@ import java.util.concurrent.CompletableFuture;
 
 public class ChatLogger {
     private static final String LOG_FILE = "vetsmod/debug.log";
-    private static final String API_ENDPOINT = "https://api.wynnvets.org/v0/inbound";
+    private static final String API_ENDPOINT = "http://api.wynnvets.org/v0/inbound";
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     
     // HTTP client for sending data to API
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)  // Use HTTP/1.1 for better compatibility
             .connectTimeout(Duration.ofSeconds(10))
             .build();
     
@@ -68,9 +70,18 @@ public class ChatLogger {
             ParsedMessage parsed = parseMessage(processedMessage);
             if (parsed != null) {
                 String jsonEntry = createJsonLogEntry(timestamp, parsed);
-                try (BufferedWriter writer = new BufferedWriter(new FileWriter(LOG_FILE, true))) {
-                    writer.write(jsonEntry);
-                    writer.newLine();
+                try {
+                    // Ensure directory exists
+                    File logFile = new File(LOG_FILE);
+                    File parentDir = logFile.getParentFile();
+                    if (parentDir != null && !parentDir.exists()) {
+                        parentDir.mkdirs();
+                    }
+                    
+                    try (BufferedWriter writer = new BufferedWriter(new FileWriter(LOG_FILE, true))) {
+                        writer.write(jsonEntry);
+                        writer.newLine();
+                    }
                 } catch (IOException e) {
                     System.err.println("Failed to write to filtered chat log: " + e.getMessage());
                 }
@@ -87,6 +98,7 @@ public class ChatLogger {
             try {
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create(API_ENDPOINT))
+                        .version(HttpClient.Version.HTTP_1_1)  // Use HTTP/1.1 for compatibility
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(jsonData))
                         .timeout(Duration.ofSeconds(5))
