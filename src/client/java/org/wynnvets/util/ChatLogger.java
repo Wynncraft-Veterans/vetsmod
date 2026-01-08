@@ -11,6 +11,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -59,7 +60,7 @@ public class ChatLogger {
             recentMessages.put(message, currentTime);
         }
         
-        String timestamp = LocalDateTime.now().format(TIME_FORMATTER);
+        String timestamp = LocalDateTime.now(ZoneOffset.UTC).format(TIME_FORMATTER);
         
         // Process multi-line messages with truncation markers
         String processedMessage = processTruncatedMessage(message);
