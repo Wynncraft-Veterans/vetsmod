@@ -18,7 +18,6 @@ public class GuildInfoListener {
     private static boolean waitingForGuildStats = false;
     private static long guildStatsRequestTime = 0;
     private static final long GUILD_STATS_TIMEOUT = 5000; // 5 second timeout
-    private static long lastCommandSentTime = 0;
     
     // Track if the current guild stats request was initiated by the mod (not the user)
     private static boolean isModInitiatedGuildStats = false;
@@ -171,7 +170,6 @@ public class GuildInfoListener {
                             try {
                                 System.out.println("[VETSMOD] Sending /guild stats command (attempt " + attemptNum + ")");
                                 player.connection.sendCommand("guild stats");
-                                lastCommandSentTime = System.currentTimeMillis();
                                 commandSent[0] = true;
                             } catch (Exception e) {
                                 System.out.println("[VETSMOD] Exception sending /guild stats: " + e.getMessage());
