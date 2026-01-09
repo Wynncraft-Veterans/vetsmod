@@ -3,7 +3,8 @@
 	"package": "org.wynnvets.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"ChatLogMixin"
+		"ChatLogMixin",
+		"ToggleCommandMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

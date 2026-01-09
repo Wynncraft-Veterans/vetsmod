@@ -7,6 +7,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.wynnvets.config.VetsConfig;
 
 public class GuildInfoListener {
 	private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
@@ -129,6 +130,11 @@ public class GuildInfoListener {
             // This is the last line of guild stats output
             isModInitiatedGuildStats = false;
             waitingForGuildStats = false; // Signal that guild stats is complete
+            
+            // After guild stats completes, check for annihilation stamp if we're in Returners
+            if (isReturners) {
+                fetchAndDisplayStampMessage();
+            }
         }
     }
     
@@ -152,7 +158,6 @@ public class GuildInfoListener {
             while (attempts < maxAttempts) {
                 try {
                     Thread.sleep(delay);
-                    final int attemptNum = attempts + 1;
                     
                     boolean[] commandSent = {false};
                     minecraft.execute(() -> {
@@ -160,7 +165,6 @@ public class GuildInfoListener {
                         WorldState currentState = Models.WorldState.getCurrentState();
                         
                         if (currentState != WorldState.WORLD) {
-                            System.out.println("[VETSMOD] Waiting for WORLD state (attempt " + attemptNum + ", current: " + currentState + ")");
                             return;
                         }
                         
@@ -168,14 +172,11 @@ public class GuildInfoListener {
                         LocalPlayer player = minecraft.player;
                         if (player != null && player.connection != null) {
                             try {
-                                System.out.println("[VETSMOD] Sending /guild stats command (attempt " + attemptNum + ")");
                                 player.connection.sendCommand("guild stats");
                                 commandSent[0] = true;
                             } catch (Exception e) {
-                                System.out.println("[VETSMOD] Exception sending /guild stats: " + e.getMessage());
+                                LOGGER.warn("Failed to send guild stats command: {}", e.getMessage());
                             }
-                        } else {
-                            System.out.println("[VETSMOD] Failed to send /guild stats (attempt " + attemptNum + "): player or connection is null");
                         }
                     });
                     
@@ -192,19 +193,15 @@ public class GuildInfoListener {
                         
                         // If we got a response (waitingForGuildStats became false), we're done
                         if (!waitingForGuildStats) {
-                            System.out.println("[VETSMOD] Guild stats command successful");
                             guildStatsCompleted = true; // Mark as ready for user commands
                             break;
                         }
-                        
-                        // No response received, try again if we have attempts left
-                        System.out.println("[VETSMOD] No response from server, retrying...");
                     }
                     
                     attempts++;
                     
                 } catch (InterruptedException e) {
-                    System.out.println("[VETSMOD] Guild stats command interrupted");
+                    LOGGER.warn("Guild stats command interrupted");
                     waitingForGuildStats = false;
                     isModInitiatedGuildStats = false;
                     break;
@@ -212,7 +209,7 @@ public class GuildInfoListener {
             }
             
             if (attempts >= maxAttempts) {
-                System.out.println("[VETSMOD] Failed to send /guild stats after " + maxAttempts + " attempts");
+                LOGGER.warn("Failed to send guild stats command after {} attempts", maxAttempts);
                 waitingForGuildStats = false;
                 isModInitiatedGuildStats = false;
             }
@@ -223,6 +220,13 @@ public class GuildInfoListener {
      * Fetch and display the MOTD message
      */
     private static void fetchAndDisplayMotd() {
+        // Check if auto-messages are enabled
+        if (!VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE)) {
+            LOGGER.info("Auto-messages disabled, skipping MOTD");
+            return;
+        }
+        
+        LOGGER.info("Auto-messages enabled, fetching MOTD");
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         
@@ -230,6 +234,30 @@ public class GuildInfoListener {
             MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
                 // Send the MOTD to the player's chat
                 minecraft.execute(() -> player.displayClientMessage(motdComponent, false));
+            });
+        }
+    }
+    
+    /**
+     * Fetch and display the annihilation stamp message (if applicable)
+     */
+    private static void fetchAndDisplayStampMessage() {
+        // Check if auto-messages are enabled
+        if (!VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE)) {
+            LOGGER.info("Auto-messages disabled, skipping stamp message");
+            return;
+        }
+        
+        LOGGER.info("Auto-messages enabled, fetching stamp");
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        
+        if (player != null) {
+            StampFetcher.fetchStampAndCreateMessage().thenAccept(stampMessage -> {
+                if (stampMessage != null) {
+                    LOGGER.info("Displaying annihilation countdown");
+                    minecraft.execute(() -> player.displayClientMessage(stampMessage, false));
+                }
             });
         }
     }

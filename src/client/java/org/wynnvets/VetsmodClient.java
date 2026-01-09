@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.wynnvets.config.VetsConfig;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.util.MotdFetcher;
 import org.wynnvets.util.ReturnFetcher;
@@ -16,6 +17,10 @@ public class VetsmodClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		LOGGER.info("Initializing VetsMod client");
+		
+		// Load configuration from file
+		VetsConfig.load();
+		LOGGER.info("Configuration loaded");
 		
 		// Start the chat message fetcher
 		ChatMessageFetcher.start();
