@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.util.MotdFetcher;
+import org.wynnvets.util.ReturnFetcher;
 import org.wynnvets.util.ChatMessageFetcher;
 
 public class VetsmodClient implements ClientModInitializer {
@@ -43,6 +44,26 @@ public class VetsmodClient implements ClientModInitializer {
 				// Fetch MOTD from API and display it
 				MotdFetcher.fetchMotd().thenAccept(motd -> {
 					ctx.getSource().sendFeedback(motd);
+				});
+				return 1;
+			}));
+			
+			dispatcher.register(ClientCommandManager.literal("return").executes(ctx -> {
+				// Check if initial guild check has completed first (more important check)
+				if (!org.wynnvets.util.GuildInfoListener.canExecuteCommands()) {
+					ctx.getSource().sendError(Component.literal("Please wait for a few seconds after joining worlds before using vetsmod commands!"));
+					return 0;
+				}
+				
+				// Only allow return command if features are enabled (guild is Returners)
+				if (!org.wynnvets.util.GuildInfoListener.areFeaturesEnabled()) {
+					ctx.getSource().sendError(Component.literal("This command is only available for Returners guild members."));
+					return 0;
+				}
+				
+				// Fetch return from API and display it
+				ReturnFetcher.fetchReturn().thenAccept(returnInfo -> {
+					ctx.getSource().sendFeedback(returnInfo);
 				});
 				return 1;
 			}));
