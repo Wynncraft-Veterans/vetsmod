@@ -8,7 +8,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -49,6 +48,11 @@ public class ChatLogger {
     }
 
     public static void logMessage(String message) {
+        // Only log messages if features are enabled (guild is Returners)
+        if (!GuildInfoListener.areFeaturesEnabled()) {
+            return;
+        }
+        
         // Check if this is a duplicate message
         long currentTime = System.currentTimeMillis();
         synchronized (recentMessages) {

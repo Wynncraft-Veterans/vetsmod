@@ -97,6 +97,11 @@ public class ChatMessageFetcher {
      * Fetches messages from the API and displays new ones in chat
      */
     private static void fetchAndDisplayMessages() {
+        // Only fetch messages if features are enabled (guild is Returners)
+        if (!GuildInfoListener.areFeaturesEnabled()) {
+            return;
+        }
+        
         try {
             HttpResponse<String> response = HTTP_CLIENT.send(HTTP_REQUEST, HttpResponse.BodyHandlers.ofString());
             

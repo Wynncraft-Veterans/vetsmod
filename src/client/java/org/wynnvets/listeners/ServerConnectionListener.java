@@ -1,36 +1,23 @@
 package org.wynnvets.listeners;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientPacketListener;
-import net.minecraft.network.Connection;
-import org.wynnvets.util.MotdFetcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.wynnvets.util.GuildInfoListener;
 
 public class ServerConnectionListener {
-    private static boolean motdDisplayed = false;
+	private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
     
     public static void register() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            // Prevent duplicate MOTD display
-            if (motdDisplayed) {
-                return;
-            }
-            motdDisplayed = true;
-            
-            // Fetch and display MOTD when joining a server
-            MotdFetcher.fetchMotd().thenAccept(motd -> {
-                // Schedule on the main thread to ensure thread safety
-                client.execute(() -> {
-                    if (client.player != null) {
-                        client.player.displayClientMessage(motd, false);
-                    }
-                });
-            });
+            LOGGER.info("Connected to server");
         });
         
         // Reset the flag when disconnecting
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-            motdDisplayed = false;
+            // Reset guild info when disconnecting
+            GuildInfoListener.reset();
+            LOGGER.info("Disconnected from server");
         });
     }
 }
