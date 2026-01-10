@@ -5,6 +5,7 @@ import com.wynntils.models.worlds.type.WorldState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wynnvets.config.VetsConfig;
@@ -14,6 +15,7 @@ public class GuildInfoListener {
 
     // Stored guild information
     private static boolean isReturners = false;
+    private static String playerName = StringUtils.EMPTY;
     
     // State tracking for guild stats detection
     private static boolean waitingForGuildStats = false;
@@ -53,6 +55,14 @@ public class GuildInfoListener {
      */
     public static boolean canExecuteCommands() {
         return guildStatsCompleted;
+    }
+
+    /**
+     * Get the players name.
+     * @return The players name.
+     */
+    public static String playerName() {
+        return playerName;
     }
     
     /**
@@ -143,7 +153,7 @@ public class GuildInfoListener {
      */
     private static void sendGuildStatsCommand() {
         Minecraft minecraft = Minecraft.getInstance();
-        
+
         // Mark that we're waiting for guild stats response
         waitingForGuildStats = true;
         guildStatsRequestTime = System.currentTimeMillis();
@@ -171,6 +181,11 @@ public class GuildInfoListener {
                         // Re-fetch player instance to avoid stale references during world transfers
                         LocalPlayer player = minecraft.player;
                         if (player != null && player.connection != null) {
+                            // Get the player name.
+                            if (playerName.equals(StringUtils.EMPTY)) {
+                                playerName = player.getName().getString();
+                            }
+
                             try {
                                 player.connection.sendCommand("guild stats");
                                 commandSent[0] = true;

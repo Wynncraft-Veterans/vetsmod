@@ -8,6 +8,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class MotdFetcher {
@@ -61,16 +62,23 @@ public class MotdFetcher {
                     }
                 })
                 .exceptionally(e -> Component.literal("Error fetching UUID: " + e.getMessage()));
+    }
 
-        //if (uuidResponse == null || uuidResponse.trim().isEmpty()) return null;
-//        JsonElement result = parseString(uuidResponse);
-//        String uuid = result.getAsJsonObject().get("id").getAsString();
-//
-//        if (uuid != null && !uuid.trim().isEmpty() && (uuid.length() == 32 || uuid.length() == 36)) {
-//            cachedNames.put(uuid, name.toLowerCase());
-//            return uuid;
-//        }
-//
-//        return uuidResponse;
+    public static CompletableFuture<MutableComponent> getPlayerInformation(UUID uuid) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(String.format("https://api.wynncraft.com/v3/player/%s", uuid.toString())))
+                .timeout(Duration.ofSeconds(5))
+                .GET()
+                .build();
+
+        return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    if (response.statusCode() == 200) {
+                        return Component.literal(response.body());
+                    } else {
+                        return Component.literal("Failed to fetch player information (Status: " + response.statusCode() + ")");
+                    }
+                })
+                .exceptionally(e -> Component.literal("Error fetching player information: " + e.getMessage()));
     }
 }

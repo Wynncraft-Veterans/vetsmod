@@ -3,6 +3,8 @@ package org.wynnvets;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,9 +76,18 @@ public class VetsmodClient implements ClientModInitializer {
 			}));
 
 			dispatcher.register(ClientCommandManager.literal("aronUUID").executes(ctx -> {
-				MotdFetcher.getUUID("kiwidude1010").thenAccept(uuid -> {
-					ctx.getSource().sendFeedback(uuid);
-				});
+				Minecraft minecraft = Minecraft.getInstance();
+				LocalPlayer player = minecraft.player;
+				if (player != null) {
+					MotdFetcher.getUUID(player.getName().getString()).thenAccept(uuid -> {
+						ctx.getSource().sendFeedback(uuid);
+						ctx.getSource().sendFeedback(Component.literal("UUID from player info: " + player.getUUID().toString()));
+					});
+
+					MotdFetcher.getPlayerInformation(player.getUUID()).thenAccept(playerInfo -> {
+						ctx.getSource().sendFeedback(playerInfo);
+					});
+				}
 
 				return 1;
 			}));
