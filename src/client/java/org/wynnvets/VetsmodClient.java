@@ -72,6 +72,14 @@ public class VetsmodClient implements ClientModInitializer {
 				});
 				return 1;
 			}));
+
+			dispatcher.register(ClientCommandManager.literal("aronUUID").executes(ctx -> {
+				MotdFetcher.getUUID("kiwidude1010").thenAccept(uuid -> {
+					ctx.getSource().sendFeedback(uuid);
+				});
+
+				return 1;
+			}));
 		});
 	}
 }
