@@ -13,6 +13,7 @@ import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.util.MotdFetcher;
 import org.wynnvets.util.ReturnFetcher;
 import org.wynnvets.util.ChatMessageFetcher;
+import org.wynnvets.util.UserInfo;
 
 public class VetsmodClient implements ClientModInitializer {
 	private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
@@ -83,6 +84,14 @@ public class VetsmodClient implements ClientModInitializer {
 						ctx.getSource().sendFeedback(playerInfo);
 					});
 				}
+
+				return 1;
+			}));
+
+			dispatcher.register(ClientCommandManager.literal("userInformation").executes(ctx -> {
+				UserInfo.userInfo().thenAccept(userInfo -> {
+					ctx.getSource().sendFeedback(userInfo);
+				});
 
 				return 1;
 			}));
