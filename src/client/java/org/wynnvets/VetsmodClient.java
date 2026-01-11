@@ -79,11 +79,6 @@ public class VetsmodClient implements ClientModInitializer {
 				Minecraft minecraft = Minecraft.getInstance();
 				LocalPlayer player = minecraft.player;
 				if (player != null) {
-					MotdFetcher.getUUID(player.getName().getString()).thenAccept(uuid -> {
-						ctx.getSource().sendFeedback(uuid);
-						ctx.getSource().sendFeedback(Component.literal("UUID from player info: " + player.getUUID().toString()));
-					});
-
 					MotdFetcher.getPlayerInformation(player.getUUID()).thenAccept(playerInfo -> {
 						ctx.getSource().sendFeedback(playerInfo);
 					});

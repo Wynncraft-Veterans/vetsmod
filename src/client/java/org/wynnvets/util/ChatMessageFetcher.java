@@ -9,8 +9,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
+import org.wynnvets.constants.WVApi;
 
-import java.net.URI;
+import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -22,7 +23,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class ChatMessageFetcher {
-    private static final String CHAT_ENDPOINT = "http://api.wynnvets.org/v0/outbound/chat";
     private static final int FETCH_INTERVAL_SECONDS = 3;
     private static final int MAX_CACHED_MESSAGE_IDS = 1000;
     private static final String GUILD_BANNER_SYMBOL = "\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
@@ -37,9 +37,9 @@ public class ChatMessageFetcher {
             .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(5))
             .build();
-    
-    private static final HttpRequest HTTP_REQUEST = HttpRequest.newBuilder()
-            .uri(URI.create(CHAT_ENDPOINT))
+
+    private static final HttpRequest CHAT_REQUEST = HttpRequest.newBuilder()
+            .uri(WVApi.ChatEndpoint)
             .timeout(Duration.ofSeconds(5))
             .GET()
             .build();
@@ -103,9 +103,9 @@ public class ChatMessageFetcher {
         }
         
         try {
-            HttpResponse<String> response = HTTP_CLIENT.send(HTTP_REQUEST, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = HTTP_CLIENT.send(CHAT_REQUEST, HttpResponse.BodyHandlers.ofString());
             
-            if (response.statusCode() == 200) {
+            if (response.statusCode() == HttpURLConnection.HTTP_OK) {
                 processMessages(response.body());
             }
         } catch (Exception e) {

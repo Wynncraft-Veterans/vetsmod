@@ -7,7 +7,9 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.ChatFormatting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.net.URI;
+import org.wynnvets.constants.WVApi;
+
+import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -16,7 +18,6 @@ import java.util.concurrent.CompletableFuture;
 
 public class StampFetcher {
     private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
-    private static final String STAMP_ENDPOINT = "http://api.wynnvets.org/v0/outbound/stamp";
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(5))
@@ -28,14 +29,14 @@ public class StampFetcher {
      */
     public static CompletableFuture<MutableComponent> fetchStampAndCreateMessage() {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(STAMP_ENDPOINT))
+                .uri(WVApi.StampEndpoint)
                 .timeout(Duration.ofSeconds(5))
                 .GET()
                 .build();
 
         return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
-                    if (response.statusCode() == 200) {
+                    if (response.statusCode() == HttpURLConnection.HTTP_OK) {
                         try {
                             long stamp = Long.parseLong(response.body().trim());
                             return createMessageForStamp(stamp);
@@ -112,7 +113,7 @@ public class StampFetcher {
                                 .withItalic(true)
                                 .withUnderlined(true)
                                 .withBold(false)
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://wynnvets.org/anni"))))
+                                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, WVApi.AnniEndpoint.toString()))))
                 .append(Component.literal("!")
                         .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_RED).withBold(false)));
 
@@ -140,7 +141,7 @@ public class StampFetcher {
                         .withStyle(Style.EMPTY
                                 .withColor(ChatFormatting.DARK_GRAY)
                                 .withBold(false)
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://wynnvets.org/anni"))))
+                                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, WVApi.AnniEndpoint.toString()))))
                 .append(Component.literal(" for more info!")
                         .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_GRAY).withBold(false)));
 

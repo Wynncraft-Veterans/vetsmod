@@ -3,8 +3,9 @@ package org.wynnvets.util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import org.wynnvets.constants.WVApi;
 
-import java.net.URI;
+import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -12,7 +13,6 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 public class ReturnFetcher {
-    private static final String RETURN_ENDPOINT = "http://api.wynnvets.org/v0/outbound/return";
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(5))
@@ -24,14 +24,14 @@ public class ReturnFetcher {
      */
     public static CompletableFuture<MutableComponent> fetchReturn() {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(RETURN_ENDPOINT))
+                .uri(WVApi.ReturnEndpoint)
                 .timeout(Duration.ofSeconds(5))
                 .GET()
                 .build();
 
         return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .<MutableComponent>thenApply(response -> {
-                    if (response.statusCode() == 200) {
+                    if (response.statusCode() == HttpURLConnection.HTTP_OK) {
                         try {
                             // Parse the JSON response and convert it to a Component
                             Minecraft minecraft = Minecraft.getInstance();
