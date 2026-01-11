@@ -24,7 +24,7 @@ public class ReturnFetcher {
      */
     public static CompletableFuture<MutableComponent> fetchReturn() {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(WVApi.ReturnEndpoint)
+                .uri(WVApi.Return)
                 .timeout(Duration.ofSeconds(5))
                 .GET()
                 .build();

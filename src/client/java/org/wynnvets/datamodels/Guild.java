@@ -5,10 +5,9 @@ public class Guild {
     private String name;
     private String prefix;
     private String rank;
-    private String rankStars;
 
     @Override
     public String toString() {
-        return "GUILD INFO:\n" + uuid + "\n" + name;
+        return "GUILD INFO:\n" + uuid + "\n" + name + "\n" + prefix + "\n" + rank;
     }
 }

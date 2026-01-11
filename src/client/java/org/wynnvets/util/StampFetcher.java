@@ -29,7 +29,7 @@ public class StampFetcher {
      */
     public static CompletableFuture<MutableComponent> fetchStampAndCreateMessage() {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(WVApi.StampEndpoint)
+                .uri(WVApi.Stamp)
                 .timeout(Duration.ofSeconds(5))
                 .GET()
                 .build();
@@ -113,7 +113,7 @@ public class StampFetcher {
                                 .withItalic(true)
                                 .withUnderlined(true)
                                 .withBold(false)
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, WVApi.AnniEndpoint.toString()))))
+                                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, WVApi.Anni.toString()))))
                 .append(Component.literal("!")
                         .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_RED).withBold(false)));
 
@@ -141,7 +141,7 @@ public class StampFetcher {
                         .withStyle(Style.EMPTY
                                 .withColor(ChatFormatting.DARK_GRAY)
                                 .withBold(false)
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, WVApi.AnniEndpoint.toString()))))
+                                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, WVApi.Anni.toString()))))
                 .append(Component.literal(" for more info!")
                         .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_GRAY).withBold(false)));
 

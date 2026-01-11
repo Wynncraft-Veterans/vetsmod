@@ -25,7 +25,7 @@ public class MotdFetcher {
      */
     public static CompletableFuture<MutableComponent> fetchMotd() {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(WVApi.MotdEndpoint)
+                .uri(WVApi.Motd)
                 .timeout(Duration.ofSeconds(5))
                 .GET()
                 .build();
