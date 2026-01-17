@@ -5,10 +5,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import org.apache.http.protocol.HTTP;
 import org.wynnvets.constants.MJApi;
 import org.wynnvets.constants.WCApi;
-import org.wynnvets.constants.WVApi;
 import org.wynnvets.datamodels.User;
 import org.wynnvets.datamodels.UserUUID;
 
@@ -91,7 +89,7 @@ public class UserInfo {
             .thenApply(response -> {
               if (response.statusCode() == HttpURLConnection.HTTP_OK) {
                 User user = new Gson().fromJson(response.body(), User.class);
-                return Component.literal(user.getUserAge());
+                return Component.literal(user.getFirstJoinDate());
               } else {
                 return Component.literal("Failed to fetch player info (Status: " + response.statusCode() + ")\n" + WCApi.PlayerInfo(formatFromInput(uuid.id)));
               }

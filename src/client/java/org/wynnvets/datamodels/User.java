@@ -11,7 +11,7 @@ public class User {
         return "USER INFO:\n" + username + "\n" + uuid + "\n" + guild;
     }
 
-    public String getUserAge() {
-        return firstJoin;
+    public String getFirstJoinDate() {
+        return String.format("User %s joined on %s", username, firstJoin.split("T")[0]);
     }
 }
