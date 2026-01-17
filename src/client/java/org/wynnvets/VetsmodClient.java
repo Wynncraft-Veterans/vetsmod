@@ -1,5 +1,6 @@
 package org.wynnvets;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
@@ -95,6 +96,18 @@ public class VetsmodClient implements ClientModInitializer {
 
 				return 1;
 			}));
+
+			dispatcher.register(ClientCommandManager.literal("checkAge")
+					.then(ClientCommandManager.argument("playerName", StringArgumentType.string())
+						.executes(ctx -> {
+							UserInfo.wynnAge(StringArgumentType.getString(ctx, "playerName"))
+								.thenAccept(userInfo -> {
+									ctx.getSource().sendFeedback(userInfo);
+								});
+							return 1;
+						})
+					)
+			);
 		});
 	}
 }

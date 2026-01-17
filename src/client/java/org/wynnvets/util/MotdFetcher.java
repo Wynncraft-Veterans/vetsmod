@@ -41,12 +41,12 @@ public class MotdFetcher {
                 .exceptionally(e -> Component.literal("Error fetching MOTD: " + e.getMessage()));
     }
 
-    public static CompletableFuture<MutableComponent> getPlayerInformation(UUID uuid) {
+    public static CompletableFuture<MutableComponent> getPlayerInformation(UUID playerUUID) {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(WCApi.PlayerInfo(uuid))
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build();
+            .uri(WCApi.PlayerInfo(playerUUID))
+            .timeout(Duration.ofSeconds(5))
+            .GET()
+            .build();
 
         return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {

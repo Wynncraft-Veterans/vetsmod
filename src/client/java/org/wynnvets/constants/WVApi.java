@@ -9,9 +9,14 @@ public class WVApi {
     public static final URI Stamp = URI.create("http://api.wynnvets.org/v0/outbound/stamp");
 
     /**
-     * Chat endpoint
+     * Chat outbound endpoint
      */
-    public static final URI Chat = URI.create("http://api.wynnvets.org/v0/outbound/chat");
+    public static final URI ChatOutbound = URI.create("http://api.wynnvets.org/v0/outbound/chat");
+
+    /**
+     * Chat inbound endpoint
+     */
+    public static final URI ChatInbound = URI.create("http://api.wynnvets.org/v0/inbound");
 
     /**
      * Endpoint for information about the returns.

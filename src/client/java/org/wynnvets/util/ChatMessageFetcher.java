@@ -39,7 +39,7 @@ public class ChatMessageFetcher {
             .build();
 
     private static final HttpRequest CHAT_REQUEST = HttpRequest.newBuilder()
-            .uri(WVApi.Chat)
+            .uri(WVApi.ChatOutbound)
             .timeout(Duration.ofSeconds(5))
             .GET()
             .build();

@@ -1,10 +1,10 @@
 package org.wynnvets.util;
 
+import org.wynnvets.constants.WVApi;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -18,9 +18,9 @@ import java.util.concurrent.CompletableFuture;
 
 public class ChatLogger {
     private static final String LOG_FILE = "vetsmod/debug.log";
-    private static final String API_ENDPOINT = "http://api.wynnvets.org/v0/inbound";
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    
+    private static final long DUPLICATE_THRESHOLD_MS = 1000; // 1-second window for duplicates
+
     // HTTP client for sending data to API
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)  // Use HTTP/1.1 for better compatibility
@@ -35,7 +35,6 @@ public class ChatLogger {
             return size() > 100 || (System.currentTimeMillis() - eldest.getValue()) > 5000;
         }
     };
-    private static final long DUPLICATE_THRESHOLD_MS = 1000; // 1 second window for duplicates
 
     // Rank mapping - unicode indicators to rank names
     private static final Map<String, String> RANK_MAP = new LinkedHashMap<>();
@@ -102,7 +101,7 @@ public class ChatLogger {
         CompletableFuture.runAsync(() -> {
             try {
                 HttpRequest request = HttpRequest.newBuilder()
-                        .uri(URI.create(API_ENDPOINT))
+                        .uri(WVApi.ChatInbound)
                         .version(HttpClient.Version.HTTP_1_1)  // Use HTTP/1.1 for compatibility
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(jsonData))
