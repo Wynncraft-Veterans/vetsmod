@@ -13,40 +13,41 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 public class ReturnFetcher {
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .connectTimeout(Duration.ofSeconds(5))
-            .build();
+  private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+      .version(HttpClient.Version.HTTP_1_1)
+      .connectTimeout(Duration.ofSeconds(5))
+      .build();
 
-    /**
-     * Fetches the Return information from the API asynchronously
-     * @return CompletableFuture containing the Return Component
-     */
-    public static CompletableFuture<MutableComponent> fetchReturn() {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(WVApi.Return)
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build();
+  /**
+   * Fetches the Return information from the API asynchronously
+   *
+   * @return CompletableFuture containing the Return Component
+   */
+  public static CompletableFuture<MutableComponent> fetchReturn() {
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(WVApi.Return)
+        .timeout(Duration.ofSeconds(5))
+        .GET()
+        .build();
 
-        return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .<MutableComponent>thenApply(response -> {
-                    if (response.statusCode() == HttpURLConnection.HTTP_OK) {
-                        try {
-                            // Parse the JSON response and convert it to a Component
-                            Minecraft minecraft = Minecraft.getInstance();
-                            MutableComponent component = Component.Serializer.fromJson(
-                                response.body(), 
-                                minecraft.level.registryAccess()
-                            );
-                            return component != null ? component : Component.literal("Error: Received null component from API");
-                        } catch (Exception e) {
-                            return Component.literal("Error parsing return data: " + e.getMessage());
-                        }
-                    } else {
-                        return Component.literal("Failed to fetch return (Status: " + response.statusCode() + ")");
-                    }
-                })
-                .exceptionally(e -> Component.literal("Error fetching return: " + e.getMessage()));
-    }
+    return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        .<MutableComponent>thenApply(response -> {
+          if (response.statusCode() == HttpURLConnection.HTTP_OK) {
+            try {
+              // Parse the JSON response and convert it to a Component
+              Minecraft minecraft = Minecraft.getInstance();
+              MutableComponent component = Component.Serializer.fromJson(
+                  response.body(),
+                  minecraft.level.registryAccess()
+              );
+              return component != null ? component : Component.literal("Error: Received null component from API");
+            } catch (Exception e) {
+              return Component.literal("Error parsing return data: " + e.getMessage());
+            }
+          } else {
+            return Component.literal("Failed to fetch return (Status: " + response.statusCode() + ")");
+          }
+        })
+        .exceptionally(e -> Component.literal("Error fetching return: " + e.getMessage()));
+  }
 }
