@@ -58,7 +58,7 @@ public class UserInfo {
         .exceptionally(e -> Component.literal("Error fetching player info: " + e.getMessage()));
   }
 
-  public static CompletableFuture<MutableComponent> wynnAge(String playerName) {
+  public static CompletableFuture<MutableComponent> checkUser(String playerName) {
     HttpRequest USER_UUID_REQUEST = HttpRequest.newBuilder()
         .uri(MJApi.GetUserUUID(playerName))
         .timeout(Duration.ofSeconds(5))
@@ -91,7 +91,25 @@ public class UserInfo {
         .thenApply(response -> {
           if (response.statusCode() == HttpURLConnection.HTTP_OK) {
             User user = new Gson().fromJson(response.body(), User.class);
-            return Component.literal(user.getFirstJoinDate());
+
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.format("%s's automated eligibility: [TODO]", user.getUsername()));
+            sb.append(String.format("\nThis account joined on: %s", user.getFirstJoinDate()));
+
+            // Users current guild information
+            sb.append("\nThis account is currently ");
+            if (!user.isInGuild()) {
+              sb.append("guildless");
+            } else if (!user.isInVets()) {
+              sb.append("in another guild");
+            } else {
+              sb.append("in vets");
+            }
+
+            sb.append(String.format("\nThis account %s have the veteran tag", user.isVeteran() ? "does" : "doesn't"));
+            sb.append("\nThis account is [TODO] subject to special criteria");
+
+            return Component.literal(sb.toString());
           } else {
             return Component.literal("Failed to fetch player info (Status: " + response.statusCode() + ")\n" + WCApi.PlayerInfo(formatFromInput(uuid.id)));
           }

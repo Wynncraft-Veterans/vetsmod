@@ -93,7 +93,7 @@ public class VetsmodClient implements ClientModInitializer {
 
   // Check information about a player.
   private int check(CommandContext<FabricClientCommandSource> ctx) {
-    UserInfo.wynnAge(StringArgumentType.getString(ctx, "playerName"))
+    UserInfo.checkUser(StringArgumentType.getString(ctx, "playerName"))
         .thenAccept(userInfo -> ctx.getSource().sendFeedback(userInfo));
     return 1;
   }

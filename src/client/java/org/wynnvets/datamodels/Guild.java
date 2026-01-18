@@ -10,4 +10,8 @@ public class Guild {
   public String toString() {
     return "GUILD INFO:\n" + uuid + "\n" + name + "\n" + prefix + "\n" + rank;
   }
+
+  public String getUuid() {
+    return uuid;
+  }
 }

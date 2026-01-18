@@ -3,6 +3,8 @@ package org.wynnvets.constants;
 import java.net.URI;
 
 public class WVApi {
+  public static String guildUUID = "a36bd64c-c053-4727-872d-b0d0729f474a";
+
   /**
    * The endpoint for the outbound stamp.
    */
