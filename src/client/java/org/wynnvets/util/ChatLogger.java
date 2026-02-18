@@ -37,16 +37,16 @@ public class ChatLogger {
     }
   };
 
-  // Rank mapping - unicode indicators to rank names
-  private static final Map<String, String> RANK_MAP = new LinkedHashMap<>();
-
-  static {
-    RANK_MAP.put("󏿿󏿿󏿿󏿿󏿿󏿿󏿢󐀂", "Chief");
-    RANK_MAP.put("󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿄󐀂", "Strategist");
-    RANK_MAP.put("󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿖󐀂", "Captain");
-    RANK_MAP.put("󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿊󐀂", "Recruiter");
-    RANK_MAP.put("󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿿󏿖󐀂", "Recruit");
-  }
+    // Rank mapping - unicode indicators to rank names
+    private static final Map<String, String> RANK_MAP = new LinkedHashMap<>();
+    static {
+        RANK_MAP.put("󏿠󐀂", "Chief");
+        RANK_MAP.put("󏿢󐀂", "Chief");
+        RANK_MAP.put("󏿄󐀂", "Strategist");
+        RANK_MAP.put("󏿖󐀂", "Captain");
+        RANK_MAP.put("󏿊󐀂", "Recruiter");
+        RANK_MAP.put("󏿖󐀂", "Recruit");
+    }
 
   public static void logMessage(String message) {
     // Only log messages if features are enabled (guild is Returners)
