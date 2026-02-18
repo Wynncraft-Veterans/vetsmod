@@ -10,12 +10,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wynnvets.config.VetsConfig;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
 public class GuildInfoListener {
   private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
 
   // Stored guild information
   private static boolean isReturners = false;
+  private static boolean isGuildless = false;
+  private static boolean isUnlocked = false;
   private static String playerName = StringUtils.EMPTY;
+
+  // Password hash for unlock command
+  private static final String UNLOCK_PASSWORD_HASH = "36f35dd2744a8c648b30b2f84be9c148d32fbed0cdec06c030bdf917086fcada";
 
   // State tracking for guild stats detection
   private static boolean waitingForGuildStats = false;
@@ -39,6 +48,24 @@ public class GuildInfoListener {
    */
   public static boolean isReturners() {
     return isReturners;
+  }
+
+  /**
+   * Get whether the player is not in a guild
+   *
+   * @return true if player is not in a guild, false otherwise
+   */
+  public static boolean isGuildless() {
+    return isGuildless;
+  }
+
+  /**
+   * Get whether the mod is unlocked
+   *
+   * @return true if mod is unlocked, false otherwise
+   */
+  public static boolean isUnlocked() {
+    return isUnlocked;
   }
 
   /**
@@ -111,8 +138,19 @@ public class GuildInfoListener {
       return;
     }
 
-    // If we're waiting for guild stats, check for the guild name
+    // If we're waiting for guild stats, check for the guild name or error message
     if (waitingForGuildStats) {
+      // Check for the "not in a guild" error message
+      if (message.contains("You must be in a guild to use this")) {
+        LOGGER.info("Player is not in a guild - marking as guildless");
+        isGuildless = true;
+        isReturners = false;
+        waitingForGuildStats = false;
+        isModInitiatedGuildStats = false;
+        guildStatsCompleted = true; // Mark as completed since we got a response
+        return; // Exit early, no need to check further
+      }
+
       // Check if this message contains the formatted "Returners" guild name
       // Looking for "Returners" with gold color and bold formatting
       // The guild name appears as: literal{Returners}[style={color=gold,bold}]
@@ -126,6 +164,8 @@ public class GuildInfoListener {
         // Found "Returners" with gold+bold formatting - this is the Returners guild
         LOGGER.info("Detected guild: Returners - enabling features");
         isReturners = true;
+        isUnlocked = true; // Auto-unlock for Returners guild members
+        isGuildless = false;
         // Don't set waitingForGuildStats to false yet - wait for the full stats to complete
         // Don't clear isModInitiatedGuildStats yet - guild stats output continues
       } else if (hasGoldColor && hasBoldStyle &&
@@ -136,6 +176,7 @@ public class GuildInfoListener {
         // Found a different guild name (has gold+bold formatting but isn't Returners)
         // Temporarily exclude the MOTD message which also has gold+bold formatting
         LOGGER.info("Detected different guild - features disabled");
+        isGuildless = false;
         // Don't set waitingForGuildStats to false yet - wait for the full stats to complete
         // Don't clear isModInitiatedGuildStats yet - guild stats output continues
       }
@@ -284,10 +325,53 @@ public class GuildInfoListener {
   }
 
   /**
+   * Attempt to unlock with a password
+   *
+   * @param password The password to check
+   * @return true if unlock successful, false otherwise
+   */
+  public static boolean tryUnlock(String password) {
+    String hash = sha256(password);
+    if (hash != null && hash.equals(UNLOCK_PASSWORD_HASH)) {
+      isUnlocked = true;
+      LOGGER.info("Mod unlocked via password");
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Compute SHA-256 hash of a string
+   *
+   * @param input The input string
+   * @return The hex-encoded SHA-256 hash, or null on error
+   */
+  private static String sha256(String input) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+      StringBuilder hexString = new StringBuilder();
+      for (byte b : hash) {
+        String hex = Integer.toHexString(0xff & b);
+        if (hex.length() == 1) {
+          hexString.append('0');
+        }
+        hexString.append(hex);
+      }
+      return hexString.toString();
+    } catch (NoSuchAlgorithmException e) {
+      LOGGER.error("SHA-256 algorithm not available", e);
+      return null;
+    }
+  }
+
+  /**
    * Reset the stored guild information
    */
   public static void reset() {
     isReturners = false;
+    isGuildless = false;
+    isUnlocked = false;
     waitingForGuildStats = false;
     guildStatsRequestTime = 0;
     lastMotdFetchTime = 0;

@@ -16,6 +16,11 @@ public class WVApi {
   public static final URI ChatOutbound = URI.create("http://api.wynnvets.org/v0/outbound/chat");
 
   /**
+   * Bridge outbound endpoint (for guildless+unlocked users)
+   */
+  public static final URI BridgeOutbound = URI.create("http://api.wynnvets.org/v0/outbound/bridge");
+
+  /**
    * Chat inbound endpoint
    */
   public static final URI ChatInbound = URI.create("http://api.wynnvets.org/v0/inbound");

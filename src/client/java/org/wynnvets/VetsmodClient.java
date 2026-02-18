@@ -14,6 +14,7 @@ import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.util.MotdFetcher;
 import org.wynnvets.util.ReturnFetcher;
 import org.wynnvets.util.ChatMessageFetcher;
+import org.wynnvets.util.BridgeMessageFetcher;
 import org.wynnvets.util.UserInfo;
 
 public class VetsmodClient implements ClientModInitializer {
@@ -30,6 +31,10 @@ public class VetsmodClient implements ClientModInitializer {
     // Start the chat message fetcher
     ChatMessageFetcher.start();
     LOGGER.info("Started chat message fetcher");
+
+    // Start the bridge message fetcher (for guildless+unlocked users)
+    BridgeMessageFetcher.start();
+    LOGGER.info("Started bridge message fetcher");
 
     // Register server connection listener for auto-MOTD
     ServerConnectionListener.register();

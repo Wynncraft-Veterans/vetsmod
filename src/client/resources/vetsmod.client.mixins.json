@@ -4,7 +4,9 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"ChatLogMixin",
-		"ToggleCommandMixin"
+		"GuildChatCommandMixin",
+		"ToggleCommandMixin",
+		"UnlockCommandMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
