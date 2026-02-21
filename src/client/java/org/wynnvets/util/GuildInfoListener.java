@@ -24,7 +24,7 @@ public class GuildInfoListener {
   private static String playerName = StringUtils.EMPTY;
 
   // Password hash for unlock command
-  private static final String UNLOCK_PASSWORD_HASH = "36f35dd2744a8c648b30b2f84be9c148d32fbed0cdec06c030bdf917086fcada";
+  private static final String UNLOCK_PASSWORD_HASH = "d4c4f49d09ae0fc5e88f23f47a135d3e509a0799cebc711943370e80e58e145b";
 
   // State tracking for guild stats detection
   private static boolean waitingForGuildStats = false;

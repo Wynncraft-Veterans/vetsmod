@@ -5,16 +5,14 @@
 	"name": "vetsmod",
 	"description": "A minecraft client modification implementing various quality of life and cosmetic features for members of the VETS wynncraft guild. Also contains general features useful for Wynncraft users -- especially returning players and staff of community guilds -- more generally. !",
 	"authors": [
-		"SevenChords",
-		"Felixfex",
-		"Wenweia",
-		"Faulischlumpf"
+		"Kiwidude1010",
+		"Wenweia"
 	],
 	"contact": {
 		"homepage": "https://wynnvets.org/",
 		"sources": "https://github.com/Wynncraft-Veterans/vetsmod"
 	},
-	"license": "CC0-1.0",
+	"license": "MPL-2.0",
 	"icon": "assets/vetsmod/icon.png",
 	"environment": "*",
 	"entrypoints": {
