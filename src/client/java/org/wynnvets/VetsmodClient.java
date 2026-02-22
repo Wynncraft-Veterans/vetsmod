@@ -15,7 +15,11 @@ import org.wynnvets.util.MotdFetcher;
 import org.wynnvets.util.ReturnFetcher;
 import org.wynnvets.util.ChatMessageFetcher;
 import org.wynnvets.util.BridgeMessageFetcher;
+import org.wynnvets.util.GuildInfoListener;
 import org.wynnvets.util.UserInfo;
+import org.wynnvets.util.chat.ChatUtils;
+import org.wynnvets.util.colors.GradientTextBuilder;
+import org.wynnvets.util.colors.ShaderColorPalette;
 
 public class VetsmodClient implements ClientModInitializer {
   private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
@@ -70,6 +74,20 @@ public class VetsmodClient implements ClientModInitializer {
               .then(ClientCommandManager.literal("motd")
                   .requires(this::userIsVet)
                   .executes(this::motd))
+
+              // DEBUG COMMAND (temporary): remove once shader-color pipeline is verified.
+              .then(ClientCommandManager.literal("test")
+                  .executes(this::debugTestGradientCommand))
+
+                // DEBUG COMMAND (temporary): force guildless+unlocked behavior.
+                .then(ClientCommandManager.literal("debugbridge")
+                  .executes(this::toggleDebugBridgeOverride)
+                  .then(ClientCommandManager.literal("on")
+                    .executes(this::enableDebugBridgeOverride))
+                  .then(ClientCommandManager.literal("off")
+                    .executes(this::disableDebugBridgeOverride))
+                  .then(ClientCommandManager.literal("status")
+                    .executes(this::debugBridgeOverrideStatus)))
       );
     });
   }
@@ -99,7 +117,7 @@ public class VetsmodClient implements ClientModInitializer {
   // Check information about a player.
   private int check(CommandContext<FabricClientCommandSource> ctx) {
     UserInfo.checkUser(StringArgumentType.getString(ctx, "playerName"))
-        .thenAccept(userInfo -> ctx.getSource().sendFeedback(userInfo));
+        .thenAccept(userInfo -> ChatUtils.sendLocalMessage(userInfo));
     return 1;
   }
 
@@ -113,7 +131,7 @@ public class VetsmodClient implements ClientModInitializer {
 
     // Fetch MOTD from API and display it
     MotdFetcher.fetchMotd().thenAccept(motd -> {
-      ctx.getSource().sendFeedback(motd);
+      ChatUtils.sendLocalMessage(motd);
     });
     return 1;
   }
@@ -128,7 +146,7 @@ public class VetsmodClient implements ClientModInitializer {
 
     // Fetch return from API and display it
     ReturnFetcher.fetchReturn().thenAccept(returnInfo -> {
-      ctx.getSource().sendFeedback(returnInfo);
+      ChatUtils.sendLocalMessage(returnInfo);
     });
 
     return 1;
@@ -136,8 +154,49 @@ public class VetsmodClient implements ClientModInitializer {
 
   // Return information about how each command is used.
   private int help(CommandContext<FabricClientCommandSource> ctx) {
-    ctx.getSource().sendFeedback(Component.literal("VetsMod Help! More information to come soon."));
+    ChatUtils.sendLocalMessage(Component.literal("VetsMod Help! More information to come soon."));
 
+    return 1;
+  }
+
+  // DEBUG COMMAND (temporary): remove after /wv test gradient verification is complete.
+  private int debugTestGradientCommand(CommandContext<FabricClientCommandSource> ctx) {
+    ChatUtils.sendLocalMessage(
+        GradientTextBuilder.linear(
+            "this is a test message",
+            ShaderColorPalette.AQUA,
+            ShaderColorPalette.DARK_AQUA));
+    return 1;
+  }
+
+  // DEBUG COMMAND (temporary): force guildless+unlocked bridge behavior.
+  private int toggleDebugBridgeOverride(CommandContext<FabricClientCommandSource> ctx) {
+    boolean enabled = !GuildInfoListener.isDebugForceGuildlessUnlocked();
+    GuildInfoListener.setDebugForceGuildlessUnlocked(enabled);
+    ChatUtils.sendLocalMessage(Component.literal(
+        "Debug bridge override " + (enabled ? "enabled" : "disabled") +
+            " (treating user as guildless+unlocked: " + enabled + ")"));
+    return 1;
+  }
+
+  private int enableDebugBridgeOverride(CommandContext<FabricClientCommandSource> ctx) {
+    GuildInfoListener.setDebugForceGuildlessUnlocked(true);
+    ChatUtils.sendLocalMessage(Component.literal(
+        "Debug bridge override enabled (treating user as guildless+unlocked: true)"));
+    return 1;
+  }
+
+  private int disableDebugBridgeOverride(CommandContext<FabricClientCommandSource> ctx) {
+    GuildInfoListener.setDebugForceGuildlessUnlocked(false);
+    ChatUtils.sendLocalMessage(Component.literal(
+        "Debug bridge override disabled (treating user as guildless+unlocked: false)"));
+    return 1;
+  }
+
+  private int debugBridgeOverrideStatus(CommandContext<FabricClientCommandSource> ctx) {
+    boolean enabled = GuildInfoListener.isDebugForceGuildlessUnlocked();
+    ChatUtils.sendLocalMessage(Component.literal(
+        "Debug bridge override status: " + (enabled ? "enabled" : "disabled")));
     return 1;
   }
 }

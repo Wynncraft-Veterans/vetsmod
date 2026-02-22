@@ -1,7 +1,6 @@
 package org.wynnvets.mixin.client;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
@@ -9,6 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.wynnvets.util.GuildInfoListener;
+import org.wynnvets.util.chat.ChatUtils;
 
 @Mixin(ClientPacketListener.class)
 public class UnlockCommandMixin {
@@ -29,14 +29,10 @@ public class UnlockCommandMixin {
       } else if (parts.length == 1) {
         // Just "/unlock" with no password
         ci.cancel();
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player != null) {
-          minecraft.player.displayClientMessage(
-              Component.literal("Usage: /unlock <password>")
-                  .withStyle(ChatFormatting.RED),
-              false
-          );
-        }
+        ChatUtils.sendLocalMessage(
+            Component.literal("Usage: /unlock <password>")
+                .withStyle(ChatFormatting.RED)
+        );
       }
     }
   }
@@ -47,26 +43,18 @@ public class UnlockCommandMixin {
    * @param password The password to attempt
    */
   private void handleUnlock(String password) {
-    Minecraft minecraft = Minecraft.getInstance();
-
-    if (minecraft.player == null) {
-      return;
-    }
-
     // Attempt unlock
     boolean success = GuildInfoListener.tryUnlock(password);
 
     if (success) {
-      minecraft.player.displayClientMessage(
+      ChatUtils.sendLocalMessage(
           Component.literal("Mod unlocked successfully!")
-              .withStyle(ChatFormatting.GREEN),
-          false
+              .withStyle(ChatFormatting.GREEN)
       );
     } else {
-      minecraft.player.displayClientMessage(
+      ChatUtils.sendLocalMessage(
           Component.literal("Incorrect password")
-              .withStyle(ChatFormatting.RED),
-          false
+              .withStyle(ChatFormatting.RED)
       );
     }
   }

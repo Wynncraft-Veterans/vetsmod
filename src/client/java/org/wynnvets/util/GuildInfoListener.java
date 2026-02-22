@@ -9,6 +9,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.util.chat.ChatUtils;
+import org.wynnvets.util.chat.Prepend;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -20,7 +22,8 @@ public class GuildInfoListener {
   // Stored guild information
   private static boolean isReturners = false;
   private static boolean isGuildless = false;
-  private static boolean isUnlocked = false;
+  private static boolean passwordUnlocked = false;
+  private static boolean debugForceGuildlessUnlocked = false;
   private static String playerName = StringUtils.EMPTY;
 
   // Password hash for unlock command
@@ -56,6 +59,9 @@ public class GuildInfoListener {
    * @return true if player is not in a guild, false otherwise
    */
   public static boolean isGuildless() {
+    if (debugForceGuildlessUnlocked) {
+      return true;
+    }
     return isGuildless;
   }
 
@@ -65,7 +71,29 @@ public class GuildInfoListener {
    * @return true if mod is unlocked, false otherwise
    */
   public static boolean isUnlocked() {
-    return isUnlocked;
+    if (debugForceGuildlessUnlocked) {
+      return true;
+    }
+    return isReturners || passwordUnlocked;
+  }
+
+  /**
+   * Enable/disable debug override that forces the user to be treated as guildless and unlocked.
+   *
+   * @param enabled true to force guildless+unlocked behavior, false to use normal state
+   */
+  public static void setDebugForceGuildlessUnlocked(boolean enabled) {
+    debugForceGuildlessUnlocked = enabled;
+    LOGGER.info("Debug guildless+unlocked override: {}", enabled ? "enabled" : "disabled");
+  }
+
+  /**
+   * Check if debug override is active.
+   *
+   * @return true when guildless+unlocked override is enabled
+   */
+  public static boolean isDebugForceGuildlessUnlocked() {
+    return debugForceGuildlessUnlocked;
   }
 
   /**
@@ -164,7 +192,7 @@ public class GuildInfoListener {
         // Found "Returners" with gold+bold formatting - this is the Returners guild
         LOGGER.info("Detected guild: Returners - enabling features");
         isReturners = true;
-        isUnlocked = true; // Auto-unlock for Returners guild members
+        passwordUnlocked = false;
         isGuildless = false;
         // Don't set waitingForGuildStats to false yet - wait for the full stats to complete
         // Don't clear isModInitiatedGuildStats yet - guild stats output continues
@@ -176,6 +204,8 @@ public class GuildInfoListener {
         // Found a different guild name (has gold+bold formatting but isn't Returners)
         // Temporarily exclude the MOTD message which also has gold+bold formatting
         LOGGER.info("Detected different guild - features disabled");
+        isReturners = false;
+        passwordUnlocked = false;
         isGuildless = false;
         // Don't set waitingForGuildStats to false yet - wait for the full stats to complete
         // Don't clear isModInitiatedGuildStats yet - guild stats output continues
@@ -295,7 +325,7 @@ public class GuildInfoListener {
     if (player != null) {
       MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
         // Send the MOTD to the player's chat
-        minecraft.execute(() -> player.displayClientMessage(motdComponent, false));
+        ChatUtils.sendLocalMessage(motdComponent, Prepend.EMPTY);
       });
     }
   }
@@ -318,7 +348,7 @@ public class GuildInfoListener {
       StampFetcher.fetchStampAndCreateMessage().thenAccept(stampMessage -> {
         if (stampMessage != null) {
           LOGGER.info("Displaying annihilation countdown");
-          minecraft.execute(() -> player.displayClientMessage(stampMessage, false));
+          ChatUtils.sendLocalMessage(stampMessage, Prepend.EMPTY);
         }
       });
     }
@@ -333,7 +363,7 @@ public class GuildInfoListener {
   public static boolean tryUnlock(String password) {
     String hash = sha256(password);
     if (hash != null && hash.equals(UNLOCK_PASSWORD_HASH)) {
-      isUnlocked = true;
+      passwordUnlocked = true;
       LOGGER.info("Mod unlocked via password");
       return true;
     }
@@ -371,7 +401,7 @@ public class GuildInfoListener {
   public static void reset() {
     isReturners = false;
     isGuildless = false;
-    isUnlocked = false;
+    debugForceGuildlessUnlocked = false;
     waitingForGuildStats = false;
     guildStatsRequestTime = 0;
     lastMotdFetchTime = 0;

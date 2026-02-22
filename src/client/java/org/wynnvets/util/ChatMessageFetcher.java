@@ -3,13 +3,9 @@ package org.wynnvets.util;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
-import net.minecraft.resources.ResourceLocation;
 import org.wynnvets.constants.WVApi;
+import org.wynnvets.util.chat.ChatUtils;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
@@ -25,13 +21,6 @@ import java.util.concurrent.TimeUnit;
 public class ChatMessageFetcher {
   private static final int FETCH_INTERVAL_SECONDS = 3;
   private static final int MAX_CACHED_MESSAGE_IDS = 1000;
-  private static final String GUILD_BANNER_SYMBOL = "\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
-  private static final ResourceLocation CHAT_PREFIX_FONT = ResourceLocation.parse("chat/prefix");
-
-  // Cache Style objects to avoid creating new ones every message
-  private static final Style BANNER_STYLE = Style.EMPTY.withFont(CHAT_PREFIX_FONT).withColor(ChatFormatting.AQUA);
-  private static final Style RANK_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
-  private static final Style NAME_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
 
   private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
       .version(HttpClient.Version.HTTP_1_1)
@@ -48,8 +37,6 @@ public class ChatMessageFetcher {
   private static final Set<String> displayedMessageIds = new LinkedHashSet<>();
   private static ScheduledExecutorService scheduler;
   private static boolean isRunning = false;
-  private static volatile int pendingDisplayTasks = 0;
-  private static final int MAX_PENDING_TASKS = 50;
 
   /**
    * Starts the periodic fetching of chat messages
@@ -143,59 +130,13 @@ public class ChatMessageFetcher {
           String message = messageObj.get("message").getAsString();
           String rank = messageObj.get("rank").getAsString();
 
-          // Create the guild banner with proper font - use cached style
-          MutableComponent banner = Component.literal(GUILD_BANNER_SYMBOL)
-              .setStyle(BANNER_STYLE);
-
-          // Build message separately with default font (no style inheritance from banner)
-          MutableComponent textComponent = Component.literal(" ");
-
-          if (!rank.isEmpty()) {
-            textComponent.append(Component.literal(rank).setStyle(RANK_STYLE))
-                .append(" ");
-          }
-
-          textComponent.append(Component.literal(displayName).setStyle(NAME_STYLE))
-              .append(Component.literal(": ").setStyle(RANK_STYLE))
-              .append(Component.literal(message).setStyle(RANK_STYLE));
-
-          // Combine as separate component trees
-          Component formattedMessage = Component.empty()
-              .append(banner)
-              .append(textComponent);
-
-          displayInChat(formattedMessage);
+          ChatUtils.sendGuildChatMessage(rank, displayName, message);
           processedCount++;
         }
       }
     } catch (Exception e) {
       System.err.println("Error processing chat messages: " + e.getMessage());
     }
-  }
-
-  /**
-   * Displays a message in the Minecraft chat
-   */
-  private static void displayInChat(Component message) {
-    if (pendingDisplayTasks >= MAX_PENDING_TASKS) {
-      return;
-    }
-
-    Minecraft minecraft = Minecraft.getInstance();
-    if (minecraft.player == null || minecraft.level == null) {
-      return;
-    }
-
-    pendingDisplayTasks++;
-    minecraft.execute(() -> {
-      try {
-        if (minecraft.player != null) {
-          minecraft.player.displayClientMessage(message, false);
-        }
-      } finally {
-        pendingDisplayTasks--;
-      }
-    });
   }
 
   /**

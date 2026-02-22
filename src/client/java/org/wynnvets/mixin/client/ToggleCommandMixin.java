@@ -6,7 +6,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.wynnvets.config.VetsConfig;
-import net.minecraft.client.Minecraft;
+import org.wynnvets.util.chat.ChatUtils;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
 
@@ -42,21 +42,15 @@ public class ToggleCommandMixin {
    */
   private void handleVetsToggle(String[] parts) {
     String key = parts[1];
-    Minecraft minecraft = Minecraft.getInstance();
-
-    if (minecraft.player == null) {
-      return;
-    }
 
     // If no value provided, show current value
     if (parts.length < 3) {
       boolean currentValue = VetsConfig.get(key);
-      minecraft.player.displayClientMessage(
+      ChatUtils.sendLocalMessage(
           Component.literal(key + " is currently ")
               .withStyle(ChatFormatting.YELLOW)
               .append(Component.literal(String.valueOf(currentValue))
-                  .withStyle(currentValue ? ChatFormatting.GREEN : ChatFormatting.RED)),
-          false
+                  .withStyle(currentValue ? ChatFormatting.GREEN : ChatFormatting.RED))
       );
       return;
     }
@@ -72,10 +66,9 @@ public class ToggleCommandMixin {
     }
 
     if (newValue == null) {
-      minecraft.player.displayClientMessage(
+      ChatUtils.sendLocalMessage(
           Component.literal("Invalid value. Use: true/false, on/off, or enabled/disabled")
-              .withStyle(ChatFormatting.RED),
-          false
+              .withStyle(ChatFormatting.RED)
       );
       return;
     }
@@ -84,12 +77,11 @@ public class ToggleCommandMixin {
     VetsConfig.set(key, newValue);
 
     // Confirm to player
-    minecraft.player.displayClientMessage(
+    ChatUtils.sendLocalMessage(
         Component.literal(key + " set to ")
             .withStyle(ChatFormatting.YELLOW)
             .append(Component.literal(String.valueOf(newValue))
-                .withStyle(newValue ? ChatFormatting.GREEN : ChatFormatting.RED)),
-        false
+                .withStyle(newValue ? ChatFormatting.GREEN : ChatFormatting.RED))
     );
   }
 }
