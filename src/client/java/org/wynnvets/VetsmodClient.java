@@ -172,7 +172,7 @@ public class VetsmodClient implements ClientModInitializer {
     // and wraps the stored FormattedCharSequence with AnimatedGradientSequence,
     // which recomputes per-character colours from aqua↔white every frame.
     AnimatedGradientSequence.beginAnimation(
-        ShaderColorPalette.DARK_AQUA, 0xFFFFFF, 3000);
+      ShaderColorPalette.DARK_AQUA, 0x88FFE9, 3000);
     try {
       ChatUtils.sendLocalMessage(
           Component.literal("this is a test message")

@@ -5,6 +5,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import org.wynnvets.util.SupportersFetcher;
+import org.wynnvets.util.colors.AnimatedGradientSequence;
 import org.wynnvets.util.colors.GradientTextBuilder;
 import org.wynnvets.util.colors.ShaderColorPalette;
 
@@ -60,22 +61,32 @@ public final class PillFormatter {
                 // a two-tone colour structure (aqua frame + dark letters) baked into
                 // specific codepoints.  Applying a per-character gradient destroys
                 // this structure.  Instead, render the entire pill as a single
-                // component so the font can composite the badge correctly.
+                // component with the animation marker so the mixin can animate it.
                 return Component.literal(pillText)
                         .setStyle(baseStyle.withColor(
-                                TextColor.fromRgb(ShaderColorPalette.AQUA)));
+                                TextColor.fromRgb(AnimatedGradientSequence.MARKER_COLOR)));
             }
 
-            // ASCII pills (bridge messages) — per-character gradient is safe.
+            // ASCII pills (bridge messages) — per-character marker is safe.
+            // Each character gets the marker colour; the AnimatedChatMixin will
+            // replace it with animated gradient colours at render time.
             return GradientTextBuilder.linear(
                     pillText,
-                    ShaderColorPalette.AQUA,
-                    ShaderColorPalette.DARK_AQUA,
+                    AnimatedGradientSequence.MARKER_COLOR,
+                    AnimatedGradientSequence.MARKER_COLOR,
                     baseStyle);
         }
 
         // ── Default → flat style ──────────────────────────────────────
         return Component.literal(pillText).setStyle(baseStyle);
+    }
+
+    /**
+     * Returns {@code true} if the given username is a supporter and should
+     * therefore receive animated pill styling.
+     */
+    public static boolean isSupporterPill(String username) {
+        return SupportersFetcher.isSupporter(username);
     }
 
     /**

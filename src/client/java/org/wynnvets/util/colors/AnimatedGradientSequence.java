@@ -16,7 +16,7 @@ import net.minecraft.util.FormattedCharSink;
  *
  * <h3>Usage</h3>
  * <pre>{@code
- * AnimatedGradientSequence.beginAnimation(0x55FFFF, 0xFFFFFF, 3000);
+ * AnimatedGradientSequence.beginAnimation(0x55FFFF, 0x88FFE9, 3000);
  * try {
  *     ChatUtils.sendLocalMessage(
  *         Component.literal("hello")

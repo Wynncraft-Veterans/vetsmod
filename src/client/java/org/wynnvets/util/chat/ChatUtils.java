@@ -5,6 +5,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import org.wynnvets.util.colors.AnimatedGradientSequence;
+import org.wynnvets.util.colors.ShaderColorPalette;
 
 /**
  * Centralized utility for sending formatted chat messages to the local player.
@@ -74,6 +76,9 @@ public final class ChatUtils {
 
         MutableComponent body = Component.empty();
 
+        boolean isSupporter = !normalizedRank.isEmpty()
+                && PillFormatter.isSupporterPill(displayName);
+
         if (!normalizedRank.isEmpty()) {
             body.append(PillFormatter.formatPill(normalizedRank, displayName))
                     .append(" ");
@@ -87,10 +92,41 @@ public final class ChatUtils {
                 .append(badge)
                 .append(body);
 
-        dispatchToChat(full);
+        if (isSupporter) {
+            dispatchAnimatedChat(full);
+        } else {
+            dispatchToChat(full);
+        }
     }
 
     // ── Internal ───────────────────────────────────────────────────────
+
+    /**
+     * Dispatches a component with the animated gradient context active so that
+     * {@code AnimatedChatMixin} wraps the stored lines.
+     * Uses the supporter gradient (DARK_AQUA → white, 3 s cycle).
+     */
+    static void dispatchAnimatedChat(Component message) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null) {
+            return;
+        }
+
+        minecraft.execute(() -> {
+            if (minecraft.player != null) {
+                boolean previous = INTERNAL_CHAT_DISPATCH.get();
+                INTERNAL_CHAT_DISPATCH.set(true);
+                AnimatedGradientSequence.beginAnimation(
+                    ShaderColorPalette.DARK_AQUA, 0x88FFE9, 3000);
+                try {
+                    minecraft.player.displayClientMessage(message, false);
+                } finally {
+                    AnimatedGradientSequence.endAnimation();
+                    INTERNAL_CHAT_DISPATCH.set(previous);
+                }
+            }
+        });
+    }
 
     /**
      * Thread-safely dispatches a component to the player's chat HUD.

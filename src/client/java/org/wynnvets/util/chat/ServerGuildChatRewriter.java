@@ -7,7 +7,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import org.wynnvets.util.SupportersFetcher;
-import org.wynnvets.util.colors.ShaderColorPalette;
+import org.wynnvets.util.colors.AnimatedGradientSequence;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,7 +70,7 @@ public final class ServerGuildChatRewriter {
                 .append(Component.literal(": ").setStyle(ChatUtils.RANK_STYLE))
                 .append(Component.literal(parsed.message).setStyle(ChatUtils.RANK_STYLE));
 
-        ChatUtils.dispatchToChat(body);
+        ChatUtils.dispatchAnimatedChat(body);
         return true;
     }
 
@@ -146,10 +146,10 @@ public final class ServerGuildChatRewriter {
     // ── Gradient pill builder ─────────────────────────────────────────
 
     /**
-     * Builds a gradient pill from the extracted fragments.
+     * Builds a pill component from the extracted fragments.
      *
-     * <p>Background fragments (aqua-coloured) receive a gradient from
-     * {@link ShaderColorPalette#AQUA} to {@link ShaderColorPalette#DARK_AQUA}.
+     * <p>Background fragments (aqua-coloured) are marked with the animation
+     * sentinel colour so that {@code AnimatedChatMixin} can animate them.
      * Foreground fragments (dark-coloured letters) are kept dark so the
      * text remains legible against the gradient background.</p>
      */
@@ -158,29 +158,16 @@ public final class ServerGuildChatRewriter {
             return Component.empty();
         }
 
-        // Count total background codepoints for gradient interpolation
-        int totalBgCodePoints = 0;
-        for (StyledFragment frag : fragments) {
-            if (frag.isBackground()) {
-                totalBgCodePoints += frag.text.codePointCount(0, frag.text.length());
-            }
-        }
-
         MutableComponent result = Component.empty();
-        int bgCpSoFar = 0;
 
         for (StyledFragment frag : fragments) {
             if (frag.isBackground()) {
-                // Apply gradient colour to this background fragment
-                int fragCpCount = frag.text.codePointCount(0, frag.text.length());
-                float t = totalBgCodePoints <= 1 ? 0f
-                        : (bgCpSoFar + (fragCpCount - 1) / 2.0f) / (totalBgCodePoints - 1);
-                int rgb = interpolateRgb(ShaderColorPalette.AQUA, ShaderColorPalette.DARK_AQUA, t);
-
+                // Mark background fragments with the animation sentinel.
+                // AnimatedChatMixin will replace this with animated gradient
+                // colours at render time.
                 result.append(Component.literal(frag.text)
-                        .setStyle(PILL_FONT.withColor(TextColor.fromRgb(rgb))));
-
-                bgCpSoFar += fragCpCount;
+                        .setStyle(PILL_FONT.withColor(
+                                TextColor.fromRgb(AnimatedGradientSequence.MARKER_COLOR))));
             } else {
                 // Foreground letters — keep dark
                 result.append(Component.literal(frag.text)
@@ -189,15 +176,6 @@ public final class ServerGuildChatRewriter {
         }
 
         return result;
-    }
-
-    private static int interpolateRgb(int startRgb, int endRgb, float t) {
-        int sR = (startRgb >> 16) & 0xFF, sG = (startRgb >> 8) & 0xFF, sB = startRgb & 0xFF;
-        int eR = (endRgb >> 16) & 0xFF, eG = (endRgb >> 8) & 0xFF, eB = endRgb & 0xFF;
-        int r = Math.round(sR + (eR - sR) * t);
-        int g = Math.round(sG + (eG - sG) * t);
-        int b = Math.round(sB + (eB - sB) * t);
-        return (r << 16) | (g << 8) | b;
     }
 
     // ── Guild chat parsing ────────────────────────────────────────────
