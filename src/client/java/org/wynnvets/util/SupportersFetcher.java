@@ -93,7 +93,38 @@ public class SupportersFetcher {
     if (username == null || username.isEmpty()) {
       return false;
     }
-    return supporterUsernames.contains(username.toLowerCase());
+
+    String normalized = normalizeCandidate(username);
+    if (normalized.isEmpty()) {
+      return false;
+    }
+
+    if (supporterUsernames.contains(normalized)) {
+      return true;
+    }
+
+    // Nickname mode may render names as "real/nick" or "nick/real".
+    int slashIndex = normalized.indexOf('/');
+    if (slashIndex >= 0) {
+      String left = normalizeCandidate(normalized.substring(0, slashIndex));
+      String right = normalizeCandidate(normalized.substring(slashIndex + 1));
+      return (!left.isEmpty() && supporterUsernames.contains(left))
+          || (!right.isEmpty() && supporterUsernames.contains(right));
+    }
+
+    return false;
+  }
+
+  private static String normalizeCandidate(String value) {
+    if (value == null) {
+      return "";
+    }
+
+    return value
+        .trim()
+        .replace("\u00A0", "")
+        .replaceAll("(?i)<\\d+>", "")
+        .toLowerCase();
   }
 
   private static void fetchSupporters() {

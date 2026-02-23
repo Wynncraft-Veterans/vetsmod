@@ -25,6 +25,20 @@ public final class ChatUtils {
     /** Style used for the display-name portion of guild chat. */
     public static final Style NAME_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
 
+    /** Red style used for admin-locked guild message body text. */
+    public static final Style ADMIN_RANK_STYLE = Style.EMPTY.withColor(ChatFormatting.RED);
+
+    /** Dark-red style used for admin-locked guild message display names. */
+    public static final Style ADMIN_NAME_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_RED);
+
+    private static final String CAPTAIN = "captain";
+    private static final String STRATEGIST = "strategist";
+    private static final String CHIEF = "chief";
+    private static final String OWNER = "owner";
+    private static final String STAFF_PILL_FRAME_OPEN = "\uE010\u2064";
+    private static final String STAFF_PILL_FRAME_SEGMENT = "\uE00F\uE012";
+    private static final String STAFF_PILL_FRAME_CLOSE = "\uE011";
+
     private ChatUtils() {
     }
 
@@ -96,6 +110,109 @@ public final class ChatUtils {
             dispatchAnimatedChat(full);
         } else {
             dispatchToChat(full);
+        }
+    }
+
+    /**
+     * Sends a guild-chat–style message in admin-locked red styling:
+     * {@code &c<guild badge> <rank>&4 <displayName>&c: <message>}.
+     */
+    public static void sendGuildChatMessageRed(String rank, String displayName, String message) {
+        MutableComponent badge = Prepend.GUILD.get()
+                .withStyle(style -> style.withColor(ChatFormatting.RED));
+        String normalizedRank = rank == null ? "" : rank.trim();
+
+        MutableComponent body = Component.empty();
+
+        if (!normalizedRank.isEmpty()) {
+            body.append(PillFormatter.formatPill(normalizedRank, displayName, ADMIN_RANK_STYLE))
+                    .append(" ");
+        }
+
+        body.append(Component.literal(displayName).setStyle(ADMIN_NAME_STYLE))
+                .append(Component.literal(": ").setStyle(ADMIN_RANK_STYLE))
+                .append(Component.literal(message).setStyle(ADMIN_RANK_STYLE));
+
+        MutableComponent full = Component.empty()
+                .append(badge)
+                .append(body);
+
+        dispatchToChat(full);
+    }
+
+        /**
+         * Sends a guild-chat–style message in admin-locked red styling with a custom
+         * pre-styled rank pill component.
+         */
+        public static void sendGuildChatMessageRed(Component rankComponent, String displayName, String message) {
+        MutableComponent badge = Prepend.GUILD.get()
+            .withStyle(style -> style.withColor(ChatFormatting.RED));
+
+        MutableComponent body = Component.empty();
+
+        if (rankComponent != null && !rankComponent.getString().trim().isEmpty()) {
+            body.append(rankComponent)
+                .append(" ");
+        }
+
+        body.append(Component.literal(displayName).setStyle(ADMIN_NAME_STYLE))
+            .append(Component.literal(": ").setStyle(ADMIN_RANK_STYLE))
+            .append(Component.literal(message).setStyle(ADMIN_RANK_STYLE));
+
+        MutableComponent full = Component.empty()
+            .append(badge)
+            .append(body);
+
+        dispatchToChat(full);
+        }
+
+    /**
+     * Sends a staff-channel styled message using the same visuals as /v self echo.
+     * Defaults to Captain when rank is unknown.
+     */
+    public static void sendStaffChannelMessage(String displayName, String message, String rank) {
+        sendGuildChatMessageRed(buildStaffPillComponent(rank), displayName, message);
+    }
+
+    /**
+     * Builds a mixed red/dark staff pill glyph sequence.
+     */
+    public static Component buildStaffPillComponent(String rank) {
+        String label = normalizeStaffRank(rank);
+
+        MutableComponent component = Component.empty();
+        Style redStyle = ADMIN_RANK_STYLE;
+        Style darkStyle = Style.EMPTY.withColor(ChatFormatting.BLACK);
+
+        component.append(Component.literal(STAFF_PILL_FRAME_OPEN).setStyle(redStyle));
+
+        String upper = label.toUpperCase();
+        for (int i = 0; i < upper.length(); i++) {
+            char letter = upper.charAt(i);
+            if (letter < 'A' || letter > 'Z') {
+                continue;
+            }
+
+            component.append(Component.literal(STAFF_PILL_FRAME_SEGMENT).setStyle(redStyle));
+            component.append(Component.literal(String.valueOf((char) ('\uE040' + (letter - 'A')))).setStyle(darkStyle));
+        }
+
+        component.append(Component.literal(STAFF_PILL_FRAME_CLOSE).setStyle(redStyle));
+        return component;
+    }
+
+    private static String normalizeStaffRank(String rank) {
+        String normalized = rank == null ? CAPTAIN : rank.trim().toLowerCase();
+        switch (normalized) {
+            case STRATEGIST:
+                return STRATEGIST;
+            case CHIEF:
+                return CHIEF;
+            case OWNER:
+                return OWNER;
+            case CAPTAIN:
+            default:
+                return CAPTAIN;
         }
     }
 

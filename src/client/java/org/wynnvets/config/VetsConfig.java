@@ -2,6 +2,8 @@ package org.wynnvets.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
@@ -22,16 +24,23 @@ public class VetsConfig {
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
   private static final Path CONFIG_FILE = FabricLoader.getInstance().getGameDir().resolve("vetsmod/storage/config.json");
 
-  // Store all configuration values
+  // Store configuration values by type
   private static final Map<String, Boolean> config = new HashMap<>();
+  private static final Map<String, Long> longConfig = new HashMap<>();
 
   // Configuration keys
   public static final String VETS_AUTOMESSAGE = "vetsAutomessage";
+  public static final String VETS_IS_STAFF = "vetsIsStaff";
+  public static final String VETS_LAST_STAFF_CHECK = "vetsLastStaffCheck";
 
   // Default values
   static {
     // Default automessage to true (enabled)
     config.put(VETS_AUTOMESSAGE, true);
+    // Default staff status to false (unknown/non-staff until checked)
+    config.put(VETS_IS_STAFF, false);
+    // Default last staff-check timestamp to 0 (unknown)
+    longConfig.put(VETS_LAST_STAFF_CHECK, 0L);
   }
 
   /**
@@ -54,6 +63,32 @@ public class VetsConfig {
   public static boolean set(String key, boolean value) {
     if (config.containsKey(key)) {
       config.put(key, value);
+      save();
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get the value of a long configuration option.
+   *
+   * @param key The configuration key
+   * @return The current value, or 0 if the key doesn't exist
+   */
+  public static long getLong(String key) {
+    return longConfig.getOrDefault(key, 0L);
+  }
+
+  /**
+   * Set the value of a long configuration option.
+   *
+   * @param key   The configuration key
+   * @param value The new value
+   * @return true if the key exists and was updated, false otherwise
+   */
+  public static boolean setLong(String key, long value) {
+    if (longConfig.containsKey(key)) {
+      longConfig.put(key, value);
       save();
       return true;
     }
@@ -100,17 +135,29 @@ public class VetsConfig {
     try {
       String json = Files.readString(CONFIG_FILE);
       LOGGER.info("Loading config from: {}", CONFIG_FILE);
-      Map<String, Boolean> loadedConfig = GSON.fromJson(json, new TypeToken<Map<String, Boolean>>() {
-      }.getType());
+      JsonObject loadedConfig = GSON.fromJson(json, JsonObject.class);
 
       if (loadedConfig != null) {
-        // Only load values for keys that exist in our config
+        // Load booleans
         for (String key : config.keySet()) {
-          if (loadedConfig.containsKey(key)) {
-            config.put(key, loadedConfig.get(key));
-            LOGGER.info("Loaded config: {} = {}", key, loadedConfig.get(key));
+          JsonElement element = loadedConfig.get(key);
+          if (element != null && element.isJsonPrimitive() && element.getAsJsonPrimitive().isBoolean()) {
+            boolean value = element.getAsBoolean();
+            config.put(key, value);
+            LOGGER.info("Loaded config: {} = {}", key, value);
           }
         }
+
+        // Load longs
+        for (String key : longConfig.keySet()) {
+          JsonElement element = loadedConfig.get(key);
+          if (element != null && element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
+            long value = element.getAsLong();
+            longConfig.put(key, value);
+            LOGGER.info("Loaded config: {} = {}", key, value);
+          }
+        }
+
         LOGGER.info("Configuration loaded from file");
       }
     } catch (IOException e) {
@@ -127,7 +174,15 @@ public class VetsConfig {
       Files.createDirectories(CONFIG_FILE.getParent());
 
       // Write the config to file
-      String json = GSON.toJson(config);
+      JsonObject serialized = new JsonObject();
+      for (Map.Entry<String, Boolean> entry : config.entrySet()) {
+        serialized.addProperty(entry.getKey(), entry.getValue());
+      }
+      for (Map.Entry<String, Long> entry : longConfig.entrySet()) {
+        serialized.addProperty(entry.getKey(), entry.getValue());
+      }
+
+      String json = GSON.toJson(serialized);
       Files.writeString(CONFIG_FILE, json);
       LOGGER.debug("Configuration saved to file");
     } catch (IOException e) {

@@ -44,4 +44,9 @@ public class WVApi {
    * Endpoint for the list of supporters (users who receive special pill styling).
    */
   public static final URI Supporters = URI.create("http://api.wynnvets.org/v0/outbound/supporters");
+
+  /**
+   * Endpoint for confirmed staff members and their ranks.
+   */
+  public static final URI Staff = URI.create("http://api.wynnvets.org/v0/outbound/staff");
 }

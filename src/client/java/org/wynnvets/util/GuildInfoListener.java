@@ -34,6 +34,16 @@ public class GuildInfoListener {
   private static long guildStatsRequestTime = 0;
   private static final long GUILD_STATS_TIMEOUT = 5000; // 5 second timeout
 
+  // State tracking for staff detection via /gu rank
+  private static boolean isStaff = false;
+  private static long lastStaffCheckTime = 0;
+  private static boolean waitingForStaffRankCheck = false;
+  private static boolean isModInitiatedStaffRankCheck = false;
+  private static long staffRankRequestTime = 0;
+  private static final long STAFF_RANK_TIMEOUT = 5000; // 5 second timeout
+  private static final long STAFF_CHECK_COOLDOWN = 24 * 60 * 60 * 1000L; // once per day
+  private static String selfStaffRank = StringUtils.EMPTY;
+
   // Track if the current guild stats request was initiated by the mod (not the user)
   private static boolean isModInitiatedGuildStats = false;
 
@@ -134,16 +144,107 @@ public class GuildInfoListener {
   }
 
   /**
+   * Get whether the user is staff.
+   *
+   * @return true when staff, false otherwise
+   */
+  public static boolean isStaff() {
+    return isStaff;
+  }
+
+  /**
+   * Gets the known self staff rank for pill display.
+   *
+   * @return one of captain/strategist/chief/owner when known, otherwise empty
+   */
+  public static String selfStaffRank() {
+    return selfStaffRank;
+  }
+
+  /**
+   * Load persisted staff state from config.
+   */
+  public static void loadPersistedState() {
+    isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
+    long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
+    long now = System.currentTimeMillis();
+    lastStaffCheckTime = (persistedCheckTime >= 0 && persistedCheckTime <= now) ? persistedCheckTime : 0;
+  }
+
+  /**
+   * Update and persist staff status.
+   *
+   * @param value latest staff status
+   */
+  private static void setStaffStatus(boolean value) {
+    isStaff = value;
+    VetsConfig.set(VetsConfig.VETS_IS_STAFF, value);
+  }
+
+  private static void markStaffCheckCompletedNow() {
+    lastStaffCheckTime = System.currentTimeMillis();
+    VetsConfig.setLong(VetsConfig.VETS_LAST_STAFF_CHECK, lastStaffCheckTime);
+  }
+
+  /**
+   * Check if a mod-initiated staff rank check is currently running.
+   *
+   * @return true if currently waiting for /gu rank response
+   */
+  public static boolean isCheckingStaffStatus() {
+    return waitingForStaffRankCheck;
+  }
+
+  /**
+   * Check if currently processing a mod-initiated staff rank check command.
+   *
+   * @return true if rank check was initiated by the mod
+   */
+  public static boolean isProcessingModStaffRankCheck() {
+    return isModInitiatedStaffRankCheck;
+  }
+
+  /**
+   * Refresh staff status when needed.
+   *
+   * @param forceRefresh true to bypass daily cooldown
+   * @return true when a refresh was started, false otherwise
+   */
+  public static synchronized boolean refreshStaffStatusIfNeeded(boolean forceRefresh) {
+    if (waitingForStaffRankCheck) {
+      return false;
+    }
+
+    long now = System.currentTimeMillis();
+    boolean hasRecentCheck = lastStaffCheckTime > 0 && (now - lastStaffCheckTime) < STAFF_CHECK_COOLDOWN;
+    if (!forceRefresh && hasRecentCheck) {
+      return false;
+    }
+
+    sendStaffRankCheckCommand();
+    return true;
+  }
+
+  /**
    * Process incoming chat messages to detect guild information
    *
    * @param component The chat message Component (with formatting)
    * @param message   The plain text chat message
    */
   public static void processMessage(Component component, String message) {
+    updateSelfStaffRankFromGuildStatsMessage(message);
+
     // Check if we're waiting for guild stats and if we've timed out
     if (waitingForGuildStats && System.currentTimeMillis() - guildStatsRequestTime > GUILD_STATS_TIMEOUT) {
       waitingForGuildStats = false;
       isModInitiatedGuildStats = false; // Clear flag on timeout
+    }
+
+    // Check if we're waiting for staff rank check and if we've timed out
+    if (waitingForStaffRankCheck && System.currentTimeMillis() - staffRankRequestTime > STAFF_RANK_TIMEOUT) {
+      waitingForStaffRankCheck = false;
+      isModInitiatedStaffRankCheck = false;
+      markStaffCheckCompletedNow();
     }
 
     // Check for Wynncraft welcome message with gold+bold formatting
@@ -173,6 +274,7 @@ public class GuildInfoListener {
         LOGGER.info("Player is not in a guild - marking as guildless");
         isGuildless = true;
         isReturners = false;
+        selfStaffRank = StringUtils.EMPTY;
         waitingForGuildStats = false;
         isModInitiatedGuildStats = false;
         guildStatsCompleted = true; // Mark as completed since we got a response
@@ -222,6 +324,143 @@ public class GuildInfoListener {
       if (isReturners) {
         fetchAndDisplayStampMessage();
       }
+    }
+
+    // Process staff rank-check responses.
+    if (waitingForStaffRankCheck) {
+      if (isStaffRankUnauthorizedResponse(message)) {
+        setStaffStatus(false);
+        waitingForStaffRankCheck = false;
+        isModInitiatedStaffRankCheck = false;
+        markStaffCheckCompletedNow();
+        LOGGER.info("Staff check complete: user is not staff");
+      } else if (isStaffRankAuthorizedResponse(message)) {
+        setStaffStatus(true);
+        waitingForStaffRankCheck = false;
+        isModInitiatedStaffRankCheck = false;
+        markStaffCheckCompletedNow();
+        LOGGER.info("Staff check complete: user is staff");
+      }
+    }
+  }
+
+  /**
+   * Send /gu rank to determine if the user is staff.
+   */
+  private static void sendStaffRankCheckCommand() {
+    Minecraft minecraft = Minecraft.getInstance();
+
+    waitingForStaffRankCheck = true;
+    isModInitiatedStaffRankCheck = true;
+    staffRankRequestTime = System.currentTimeMillis();
+
+    new Thread(() -> {
+      int attempts = 0;
+      int maxAttempts = 20; // 5 seconds total
+      long delay = 250;
+
+      while (attempts < maxAttempts) {
+        try {
+          Thread.sleep(delay);
+
+          boolean[] commandSent = {false};
+          minecraft.execute(() -> {
+            WorldState currentState = Models.WorldState.getCurrentState();
+            if (currentState != WorldState.WORLD) {
+              return;
+            }
+
+            LocalPlayer player = minecraft.player;
+            if (player != null && player.connection != null) {
+              try {
+                player.connection.sendCommand("gu rank");
+                commandSent[0] = true;
+              } catch (Exception e) {
+                LOGGER.warn("Failed to send /gu rank staff check command: {}", e.getMessage());
+              }
+            }
+          });
+
+          Thread.sleep(50);
+
+          if (commandSent[0]) {
+            int responseWait = 0;
+            while (responseWait < 8 && waitingForStaffRankCheck) { // up to 2 seconds
+              Thread.sleep(250);
+              responseWait++;
+            }
+
+            if (!waitingForStaffRankCheck) {
+              break;
+            }
+          }
+
+          attempts++;
+        } catch (InterruptedException e) {
+          LOGGER.warn("Staff rank check command interrupted");
+          waitingForStaffRankCheck = false;
+          isModInitiatedStaffRankCheck = false;
+          break;
+        }
+      }
+
+      if (attempts >= maxAttempts) {
+        LOGGER.warn("Failed to send /gu rank staff check after {} attempts", maxAttempts);
+        waitingForStaffRankCheck = false;
+        isModInitiatedStaffRankCheck = false;
+        markStaffCheckCompletedNow();
+      }
+    }).start();
+  }
+
+  /**
+   * Detects the unauthorized /guild rank response indicating non-staff.
+   */
+  private static boolean isStaffRankUnauthorizedResponse(String message) {
+    if (message == null) {
+      return false;
+    }
+
+    String normalized = message.toLowerCase();
+    return normalized.contains("you must be a") &&
+        normalized.contains("captain") &&
+        normalized.contains("to use this command");
+  }
+
+  /**
+   * Detects the authorized /guild rank response indicating staff.
+   */
+  private static boolean isStaffRankAuthorizedResponse(String message) {
+    if (message == null) {
+      return false;
+    }
+
+    String normalized = message.toLowerCase();
+    return normalized.contains("invalid arguments, try:") &&
+        normalized.contains("rank [name] [rank]");
+  }
+
+  private static void updateSelfStaffRankFromGuildStatsMessage(String message) {
+    if (message == null) {
+      return;
+    }
+
+    String trimmed = message.trim();
+    if (!trimmed.regionMatches(true, 0, "Guild Rank:", 0, "Guild Rank:".length())) {
+      return;
+    }
+
+    String rank = trimmed.substring("Guild Rank:".length()).trim().toLowerCase();
+    switch (rank) {
+      case "captain":
+      case "strategist":
+      case "chief":
+      case "owner":
+        selfStaffRank = rank;
+        break;
+      default:
+        selfStaffRank = StringUtils.EMPTY;
+        break;
     }
   }
 
@@ -407,5 +646,12 @@ public class GuildInfoListener {
     lastMotdFetchTime = 0;
     isModInitiatedGuildStats = false;
     guildStatsCompleted = false;
+    isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
+    long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
+    long now = System.currentTimeMillis();
+    lastStaffCheckTime = (persistedCheckTime >= 0 && persistedCheckTime <= now) ? persistedCheckTime : 0;
+    waitingForStaffRankCheck = false;
+    isModInitiatedStaffRankCheck = false;
+    staffRankRequestTime = 0;
   }
 }

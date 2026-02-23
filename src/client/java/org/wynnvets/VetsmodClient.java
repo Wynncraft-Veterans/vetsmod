@@ -6,6 +6,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,8 +16,10 @@ import org.wynnvets.util.MotdFetcher;
 import org.wynnvets.util.ReturnFetcher;
 import org.wynnvets.util.ChatMessageFetcher;
 import org.wynnvets.util.BridgeMessageFetcher;
+import org.wynnvets.util.StaffRanksFetcher;
 import org.wynnvets.util.SupportersFetcher;
 import org.wynnvets.util.UserInfo;
+import org.wynnvets.util.GuildInfoListener;
 import org.wynnvets.util.chat.ChatUtils;
 
 public class VetsmodClient implements ClientModInitializer {
@@ -28,6 +31,7 @@ public class VetsmodClient implements ClientModInitializer {
 
     // Load configuration from file
     VetsConfig.load();
+    GuildInfoListener.loadPersistedState();
     LOGGER.info("Configuration loaded");
 
     // Start the chat message fetcher
@@ -41,6 +45,10 @@ public class VetsmodClient implements ClientModInitializer {
     // Start the supporters list fetcher (for gradient pill styling)
     SupportersFetcher.start();
     LOGGER.info("Started supporters fetcher");
+
+    // Start confirmed staff-rank fetcher (for staff pill replacement)
+    StaffRanksFetcher.start();
+    LOGGER.info("Started staff ranks fetcher");
 
     // Register server connection listener for auto-MOTD
     ServerConnectionListener.register();
@@ -104,6 +112,25 @@ public class VetsmodClient implements ClientModInitializer {
 
   // Check information about a player.
   private int check(CommandContext<FabricClientCommandSource> ctx) {
+    boolean isCurrentlyStaff = GuildInfoListener.isStaff();
+    boolean refreshStarted = GuildInfoListener.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
+
+    if (refreshStarted || GuildInfoListener.isCheckingStaffStatus()) {
+      ChatUtils.sendLocalMessage(
+          Component.literal("Checking staff permissions, please retry in a moment.")
+              .withStyle(ChatFormatting.YELLOW)
+      );
+      return 0;
+    }
+
+    if (!GuildInfoListener.isStaff()) {
+      ChatUtils.sendLocalMessage(
+          Component.literal("You must be staff to use /wv check.")
+              .withStyle(ChatFormatting.RED)
+      );
+      return 0;
+    }
+
     UserInfo.checkUser(StringArgumentType.getString(ctx, "playerName"))
         .thenAccept(userInfo -> ChatUtils.sendLocalMessage(userInfo));
     return 1;
