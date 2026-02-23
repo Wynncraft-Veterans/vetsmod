@@ -29,6 +29,7 @@ import java.time.format.DateTimeFormatter;
 public class GuildChatCommandMixin {
   private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
   private static final String API_ENDPOINT = "http://api.wynnvets.org/v0/inbound";
+  private static final int STAFF_CHAT_MAX_LENGTH = 234;
   private static final String GUILDLESS_SELF_RANK = "\uE010\uE056\uE040\uE048\uE053\uE04B\uE048\uE052\uE053\uE011";
   private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
   private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
@@ -73,6 +74,14 @@ public class GuildChatCommandMixin {
       if (message.isEmpty()) {
         ChatUtils.sendLocalMessage(
             Component.literal("Usage: /v <message>")
+                .withStyle(ChatFormatting.RED)
+        );
+        return;
+      }
+
+      if (message.length() > STAFF_CHAT_MAX_LENGTH) {
+        ChatUtils.sendLocalMessage(
+            Component.literal("/v messages are limited to " + STAFF_CHAT_MAX_LENGTH + " characters.")
                 .withStyle(ChatFormatting.RED)
         );
         return;
