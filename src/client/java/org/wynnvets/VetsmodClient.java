@@ -6,6 +6,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +20,6 @@ import org.wynnvets.util.GuildInfoListener;
 import org.wynnvets.util.SupportersFetcher;
 import org.wynnvets.util.UserInfo;
 import org.wynnvets.util.chat.ChatUtils;
-import org.wynnvets.util.colors.GradientTextBuilder;
 import org.wynnvets.util.colors.ShaderColorPalette;
 
 public class VetsmodClient implements ClientModInitializer {
@@ -164,13 +164,16 @@ public class VetsmodClient implements ClientModInitializer {
     return 1;
   }
 
-  // DEBUG COMMAND (temporary): remove after /wv test gradient verification is complete.
+  // DEBUG COMMAND (temporary): remove after /wv test verification is complete.
   private int debugTestGradientCommand(CommandContext<FabricClientCommandSource> ctx) {
+    // Wynncraft's resource-pack ships custom rendertype_text shaders that
+    // detect the sentinel colour 0x00F000 and replace it with an animated
+    // rainbow cycle on the GPU.  We just need to set the colour; the
+    // shader does the rest while the pack is active.
     ChatUtils.sendLocalMessage(
-        GradientTextBuilder.linear(
-            "this is a test message",
-            ShaderColorPalette.AQUA,
-            ShaderColorPalette.DARK_AQUA));
+        Component.literal("this is a test message")
+            .withColor(ShaderColorPalette.RAINBOW)
+            .withStyle(ChatFormatting.BOLD));
     return 1;
   }
 
