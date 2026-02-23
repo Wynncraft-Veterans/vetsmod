@@ -58,6 +58,9 @@ public final class ServerGuildChatRewriter {
         // Walk the Component tree and collect flattened (text, resolvedStyle) pairs
         // that make up the pill section.
         List<StyledFragment> pillFragments = extractPillFragments(component);
+        if (pillFragments.isEmpty() || pillFragments.stream().noneMatch(StyledFragment::isBackground)) {
+            return false;
+        }
 
         // Build gradient pill from the extracted fragments
         MutableComponent gradientPill = buildGradientPill(pillFragments);
