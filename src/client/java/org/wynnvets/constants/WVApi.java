@@ -39,4 +39,9 @@ public class WVApi {
    * Link to the WV anni website.
    */
   public static final URI Anni = URI.create("https://wynnvets.org/anni");
+
+  /**
+   * Endpoint for the list of supporters (users who receive special pill styling).
+   */
+  public static final URI Supporters = URI.create("http://api.wynnvets.org/v0/outbound/supporters");
 }

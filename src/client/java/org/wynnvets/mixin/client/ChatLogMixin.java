@@ -8,6 +8,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.wynnvets.util.ChatLogger;
 import org.wynnvets.util.GuildInfoListener;
+import org.wynnvets.util.chat.ChatUtils;
+import org.wynnvets.util.chat.ServerGuildChatRewriter;
 
 @Mixin(ChatComponent.class)
 public class ChatLogMixin {
@@ -27,6 +29,18 @@ public class ChatLogMixin {
     // Hide guild stats output if it was initiated by the mod (not the user)
     if (isGuildStats) {
       ci.cancel(); // Suppress the message from being displayed
+      return;
+    }
+
+    // Avoid recursively rewriting mod-injected chat messages.
+    if (ChatUtils.isInternalDispatch()) {
+      return;
+    }
+
+    // Rewrite server guild chat messages from supporters with gradient pill styling.
+    // Re-entry is blocked by ChatUtils internal dispatch guard above.
+    if (ServerGuildChatRewriter.tryRewrite(message, messageString)) {
+      ci.cancel();
     }
   }
 

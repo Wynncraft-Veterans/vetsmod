@@ -15,6 +15,8 @@ import net.minecraft.network.chat.Style;
  */
 public final class ChatUtils {
 
+    private static final ThreadLocal<Boolean> INTERNAL_CHAT_DISPATCH = ThreadLocal.withInitial(() -> false);
+
     /** Style used for rank "pill" text. */
     public static final Style RANK_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
 
@@ -22,6 +24,13 @@ public final class ChatUtils {
     public static final Style NAME_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
 
     private ChatUtils() {
+    }
+
+    /**
+     * Returns whether the current thread is dispatching a mod-generated chat message.
+     */
+    public static boolean isInternalDispatch() {
+        return Boolean.TRUE.equals(INTERNAL_CHAT_DISPATCH.get());
     }
 
     // ── Simple messages ────────────────────────────────────────────────
@@ -66,7 +75,7 @@ public final class ChatUtils {
         MutableComponent body = Component.empty();
 
         if (!normalizedRank.isEmpty()) {
-            body.append(Component.literal(normalizedRank).setStyle(RANK_STYLE))
+            body.append(PillFormatter.formatPill(normalizedRank, displayName))
                     .append(" ");
         }
 
@@ -86,8 +95,11 @@ public final class ChatUtils {
     /**
      * Thread-safely dispatches a component to the player's chat HUD.
      * If the player is not yet available the message is silently dropped.
+     *
+     * <p>Package-private so that {@code ServerGuildChatRewriter} can dispatch
+     * rebuilt messages without going through the public message-building API.</p>
      */
-    private static void dispatchToChat(Component message) {
+    static void dispatchToChat(Component message) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null) {
             return;
@@ -95,7 +107,13 @@ public final class ChatUtils {
 
         minecraft.execute(() -> {
             if (minecraft.player != null) {
-                minecraft.player.displayClientMessage(message, false);
+                boolean previous = INTERNAL_CHAT_DISPATCH.get();
+                INTERNAL_CHAT_DISPATCH.set(true);
+                try {
+                    minecraft.player.displayClientMessage(message, false);
+                } finally {
+                    INTERNAL_CHAT_DISPATCH.set(previous);
+                }
             }
         });
     }

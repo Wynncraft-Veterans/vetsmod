@@ -16,6 +16,7 @@ import org.wynnvets.util.ReturnFetcher;
 import org.wynnvets.util.ChatMessageFetcher;
 import org.wynnvets.util.BridgeMessageFetcher;
 import org.wynnvets.util.GuildInfoListener;
+import org.wynnvets.util.SupportersFetcher;
 import org.wynnvets.util.UserInfo;
 import org.wynnvets.util.chat.ChatUtils;
 import org.wynnvets.util.colors.GradientTextBuilder;
@@ -39,6 +40,10 @@ public class VetsmodClient implements ClientModInitializer {
     // Start the bridge message fetcher (for guildless+unlocked users)
     BridgeMessageFetcher.start();
     LOGGER.info("Started bridge message fetcher");
+
+    // Start the supporters list fetcher (for gradient pill styling)
+    SupportersFetcher.start();
+    LOGGER.info("Started supporters fetcher");
 
     // Register server connection listener for auto-MOTD
     ServerConnectionListener.register();
