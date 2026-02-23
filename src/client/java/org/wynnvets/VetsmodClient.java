@@ -20,6 +20,7 @@ import org.wynnvets.util.GuildInfoListener;
 import org.wynnvets.util.SupportersFetcher;
 import org.wynnvets.util.UserInfo;
 import org.wynnvets.util.chat.ChatUtils;
+import org.wynnvets.util.colors.AnimatedGradientSequence;
 import org.wynnvets.util.colors.ShaderColorPalette;
 
 public class VetsmodClient implements ClientModInitializer {
@@ -166,14 +167,20 @@ public class VetsmodClient implements ClientModInitializer {
 
   // DEBUG COMMAND (temporary): remove after /wv test verification is complete.
   private int debugTestGradientCommand(CommandContext<FabricClientCommandSource> ctx) {
-    // Wynncraft's resource-pack ships custom rendertype_text shaders that
-    // detect the sentinel colour 0x00F000 and replace it with an animated
-    // rainbow cycle on the GPU.  We just need to set the colour; the
-    // shader does the rest while the pack is active.
-    ChatUtils.sendLocalMessage(
-        Component.literal("this is a test message")
-            .withColor(ShaderColorPalette.RAINBOW)
-            .withStyle(ChatFormatting.BOLD));
+    // Client-side animated gradient: each character is coloured with the
+    // MARKER_COLOR sentinel.  AnimatedChatMixin detects the pending config
+    // and wraps the stored FormattedCharSequence with AnimatedGradientSequence,
+    // which recomputes per-character colours from aqua↔white every frame.
+    AnimatedGradientSequence.beginAnimation(
+        ShaderColorPalette.DARK_AQUA, 0xFFFFFF, 3000);
+    try {
+      ChatUtils.sendLocalMessage(
+          Component.literal("this is a test message")
+              .withColor(AnimatedGradientSequence.MARKER_COLOR)
+              .withStyle(ChatFormatting.BOLD));
+    } finally {
+      AnimatedGradientSequence.endAnimation();
+    }
     return 1;
   }
 
