@@ -26,6 +26,8 @@ public class BridgeMessageFetcher {
   private static final int MAX_CACHED_MESSAGE_IDS = 1000;
   private static final int MAX_PENDING_SELF_MESSAGES = 50;
   private static final long SELF_MESSAGE_TTL_MS = TimeUnit.SECONDS.toMillis(30);
+  private static final long SERVER_MESSAGE_DEDUP_WINDOW_MS = TimeUnit.SECONDS.toMillis(10);
+  private static final int MAX_RECENT_SERVER_MESSAGES = 200;
 
   private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
       .version(HttpClient.Version.HTTP_1_1)
@@ -42,8 +44,11 @@ public class BridgeMessageFetcher {
   private static final Set<String> displayedMessageIds = new LinkedHashSet<>();
   private static final Deque<PendingSelfMessage> pendingSelfMessages = new ArrayDeque<>();
   private static final Object pendingSelfMessagesLock = new Object();
+  private static final Deque<RecentServerMessage> recentServerMessages = new ArrayDeque<>();
+  private static final Object recentServerMessagesLock = new Object();
   private static ScheduledExecutorService scheduler;
   private static boolean isRunning = false;
+  private static volatile boolean frumaModeEnabled = false;
 
   private static final class PendingSelfMessage {
     private final String displayName;
@@ -51,6 +56,18 @@ public class BridgeMessageFetcher {
     private final long createdAtMs;
 
     private PendingSelfMessage(String displayName, String message, long createdAtMs) {
+      this.displayName = displayName;
+      this.message = message;
+      this.createdAtMs = createdAtMs;
+    }
+  }
+
+  private static final class RecentServerMessage {
+    private final String displayName;
+    private final String message;
+    private final long createdAtMs;
+
+    private RecentServerMessage(String displayName, String message, long createdAtMs) {
       this.displayName = displayName;
       this.message = message;
       this.createdAtMs = createdAtMs;
@@ -103,8 +120,10 @@ public class BridgeMessageFetcher {
    * Fetches messages from the API and displays new ones in chat
    */
   private static void fetchAndDisplayMessages() {
-    // Only fetch messages if user is guildless AND unlocked
-    if (!GuildInfoListener.isGuildless() || !GuildInfoListener.isUnlocked()) {
+    boolean isWaitlistBridgeEnabled = GuildInfoListener.isGuildless() && GuildInfoListener.isUnlocked();
+    boolean isFrumaBridgeEnabled = frumaModeEnabled && GuildInfoListener.canExecuteCommands() && !GuildInfoListener.isGuildless();
+
+    if (!isWaitlistBridgeEnabled && !isFrumaBridgeEnabled) {
       return;
     }
 
@@ -153,6 +172,10 @@ public class BridgeMessageFetcher {
               : "";
 
           if (shouldSuppressSelfMessage(displayName, message, source)) {
+            continue;
+          }
+
+          if (frumaModeEnabled && wasServerMessageRecentlySent(displayName, message)) {
             continue;
           }
 
@@ -222,6 +245,66 @@ public class BridgeMessageFetcher {
         return;
       }
       pendingSelfMessages.pollFirst();
+    }
+  }
+
+  /**
+   * TEMPORARY utility state for /frumamode bridge mirroring.
+   */
+  public static void setFrumaModeEnabled(boolean enabled) {
+    frumaModeEnabled = enabled;
+  }
+
+  /**
+   * TEMPORARY utility state for /frumamode bridge mirroring.
+   */
+  public static boolean isFrumaModeEnabled() {
+    return frumaModeEnabled;
+  }
+
+  public static void recordServerGuildMessage(String displayName, String message) {
+    if (displayName == null || displayName.isEmpty() || message == null || message.isEmpty()) {
+      return;
+    }
+
+    synchronized (recentServerMessagesLock) {
+      long now = System.currentTimeMillis();
+      pruneExpiredServerMessages(now);
+
+      if (recentServerMessages.size() >= MAX_RECENT_SERVER_MESSAGES) {
+        recentServerMessages.pollFirst();
+      }
+
+      recentServerMessages.addLast(new RecentServerMessage(displayName, message, now));
+    }
+  }
+
+  private static boolean wasServerMessageRecentlySent(String displayName, String message) {
+    if (displayName == null || displayName.isEmpty() || message == null || message.isEmpty()) {
+      return false;
+    }
+
+    synchronized (recentServerMessagesLock) {
+      long now = System.currentTimeMillis();
+      pruneExpiredServerMessages(now);
+
+      for (RecentServerMessage recent : recentServerMessages) {
+        if (recent.displayName.equalsIgnoreCase(displayName) && recent.message.equals(message)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  private static void pruneExpiredServerMessages(long nowMs) {
+    while (!recentServerMessages.isEmpty()) {
+      RecentServerMessage recent = recentServerMessages.peekFirst();
+      if (recent == null || nowMs - recent.createdAtMs <= SERVER_MESSAGE_DEDUP_WINDOW_MS) {
+        return;
+      }
+      recentServerMessages.pollFirst();
     }
   }
 }

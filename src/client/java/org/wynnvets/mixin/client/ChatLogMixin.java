@@ -6,11 +6,13 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.wynnvets.util.BridgeMessageFetcher;
 import org.wynnvets.util.ChatLogger;
 import org.wynnvets.util.GuildInfoListener;
 import org.wynnvets.util.chat.ChatUtils;
 import org.wynnvets.util.chat.ServerGuildChatRewriter;
 import org.wynnvets.util.chat.StaffChannelMessageRewriter;
+import org.wynnvets.util.chat.StaffGuildAlertRewriter;
 import org.wynnvets.util.chat.StaffOutboundMessenger;
 
 @Mixin(ChatComponent.class)
@@ -46,6 +48,17 @@ public class ChatLogMixin {
       return;
     }
 
+    // Rewrite/suppress staff guild alerts (‼ prefixed) into shout-style local output.
+    if (StaffGuildAlertRewriter.tryRewrite(messageString)) {
+      ci.cancel();
+      return;
+    }
+
+    String[] parsedGuildChat = parseGuildChat(messageString);
+    if (parsedGuildChat != null) {
+      BridgeMessageFetcher.recordServerGuildMessage(parsedGuildChat[0], parsedGuildChat[1]);
+    }
+
     // Rewrite lock-prefixed direct messages into /v-style staff chat output.
     if (StaffChannelMessageRewriter.tryRewrite(message, messageString)) {
       ci.cancel();
@@ -57,6 +70,50 @@ public class ChatLogMixin {
     if (ServerGuildChatRewriter.tryRewrite(message, messageString)) {
       ci.cancel();
     }
+  }
+
+  private String[] parseGuildChat(String message) {
+    int colonIndex = message.indexOf(':');
+    if (colonIndex <= 0) {
+      return null;
+    }
+
+    int usernameStart = message.lastIndexOf(' ', colonIndex - 1);
+    if (usernameStart <= 0) {
+      return null;
+    }
+
+    String username = message.substring(usernameStart + 1, colonIndex).trim();
+    if (username.isEmpty()) {
+      return null;
+    }
+
+    int rankStart = message.lastIndexOf(' ', usernameStart - 1);
+    if (rankStart <= 0) {
+      return null;
+    }
+
+    String rankIndicator = message.substring(rankStart + 1, usernameStart).trim();
+    if (rankIndicator.isEmpty() || !containsCustomFontGlyph(rankIndicator)) {
+      return null;
+    }
+
+    String messageContent = message.substring(colonIndex + 1).trim();
+    return new String[] {username, messageContent};
+  }
+
+  private boolean containsCustomFontGlyph(String text) {
+    int index = 0;
+    while (index < text.length()) {
+      int codePoint = text.codePointAt(index);
+      int type = Character.getType(codePoint);
+      if (type == Character.PRIVATE_USE
+          || (type == Character.UNASSIGNED && codePoint > 0xFFFF)) {
+        return true;
+      }
+      index += Character.charCount(codePoint);
+    }
+    return false;
   }
 
   /**

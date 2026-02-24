@@ -10,8 +10,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +38,7 @@ public class SupportersFetcher {
       .build();
 
   private static final Gson GSON = new Gson();
-  private static final Set<String> supporterUsernames = ConcurrentHashMap.newKeySet();
+  private static volatile Set<String> supporterUsernames = Set.of();
   private static ScheduledExecutorService scheduler;
   private static boolean isRunning = false;
 
@@ -99,7 +100,9 @@ public class SupportersFetcher {
       return false;
     }
 
-    if (supporterUsernames.contains(normalized)) {
+    Set<String> snapshot = supporterUsernames;
+
+    if (snapshot.contains(normalized)) {
       return true;
     }
 
@@ -108,8 +111,8 @@ public class SupportersFetcher {
     if (slashIndex >= 0) {
       String left = normalizeCandidate(normalized.substring(0, slashIndex));
       String right = normalizeCandidate(normalized.substring(slashIndex + 1));
-      return (!left.isEmpty() && supporterUsernames.contains(left))
-          || (!right.isEmpty() && supporterUsernames.contains(right));
+        return (!left.isEmpty() && snapshot.contains(left))
+          || (!right.isEmpty() && snapshot.contains(right));
     }
 
     return false;
@@ -143,7 +146,7 @@ public class SupportersFetcher {
   private static void parseSupporters(String jsonResponse) {
     try {
       JsonArray supporters = GSON.fromJson(jsonResponse, JsonArray.class);
-      Set<String> newSet = ConcurrentHashMap.newKeySet();
+      Set<String> newSet = new HashSet<>();
 
       for (int i = 0; i < supporters.size(); i++) {
         JsonObject supporter = supporters.get(i).getAsJsonObject();
@@ -153,9 +156,7 @@ public class SupportersFetcher {
         }
       }
 
-      // Atomic replacement
-      supporterUsernames.clear();
-      supporterUsernames.addAll(newSet);
+      supporterUsernames = Set.copyOf(newSet);
     } catch (Exception e) {
       System.err.println("Error parsing supporters: " + e.getMessage());
     }

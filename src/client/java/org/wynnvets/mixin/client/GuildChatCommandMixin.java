@@ -91,6 +91,46 @@ public class GuildChatCommandMixin {
       return;
     }
 
+    // Staff command alias: /a <message> -> /g ‼<message>
+    if (command.regionMatches(true, 0, "a ", 0, 2)) {
+      boolean isCurrentlyStaff = GuildInfoListener.isStaff();
+      boolean refreshStarted = GuildInfoListener.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
+
+      if (refreshStarted || GuildInfoListener.isCheckingStaffStatus()) {
+        ci.cancel();
+        ChatUtils.sendLocalMessage(
+            Component.literal("Checking staff permissions, please retry in a moment.")
+                .withStyle(ChatFormatting.YELLOW)
+        );
+        return;
+      }
+
+      if (!GuildInfoListener.isStaff()) {
+        ci.cancel();
+        ChatUtils.sendLocalMessage(
+            Component.literal("You must be staff to use /a.")
+                .withStyle(ChatFormatting.RED)
+        );
+        return;
+      }
+
+      ci.cancel();
+      String message = command.substring(2).trim();
+      if (message.isEmpty()) {
+        ChatUtils.sendLocalMessage(
+            Component.literal("Usage: /a <message>")
+                .withStyle(ChatFormatting.RED)
+        );
+        return;
+      }
+
+      Minecraft minecraft = Minecraft.getInstance();
+      if (minecraft.player != null && minecraft.player.connection != null) {
+        minecraft.player.connection.sendCommand("g ‼" + message);
+      }
+      return;
+    }
+
     // Fallback interception for /wv check <playerName> to keep it client-side.
     if (command.regionMatches(true, 0, "wv check ", 0, 9)) {
       boolean isCurrentlyStaff = GuildInfoListener.isStaff();

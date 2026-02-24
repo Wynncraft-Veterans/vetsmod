@@ -17,9 +17,11 @@ import org.wynnvets.util.ReturnFetcher;
 import org.wynnvets.util.ChatMessageFetcher;
 import org.wynnvets.util.BridgeMessageFetcher;
 import org.wynnvets.util.StaffRanksFetcher;
+import org.wynnvets.util.StaffFetcher;
 import org.wynnvets.util.SupportersFetcher;
 import org.wynnvets.util.UserInfo;
 import org.wynnvets.util.GuildInfoListener;
+import org.wynnvets.util.StampFetcher;
 import org.wynnvets.util.chat.ChatUtils;
 
 public class VetsmodClient implements ClientModInitializer {
@@ -80,10 +82,20 @@ public class VetsmodClient implements ClientModInitializer {
                   .executes(this::returnInfo)
               )
 
+                // /gu staff
+                .then(ClientCommandManager.literal("staff")
+                  .requires(this::userIsVet)
+                  .executes(this::staff)
+                )
+
               // /gu motd
               .then(ClientCommandManager.literal("motd")
                   .requires(this::userIsVet)
                   .executes(this::motd))
+
+              // /gu anni
+              .then(ClientCommandManager.literal("anni")
+                  .executes(this::anni))
       );
     });
   }
@@ -162,6 +174,39 @@ public class VetsmodClient implements ClientModInitializer {
     // Fetch return from API and display it
     ReturnFetcher.fetchReturn().thenAccept(returnInfo -> {
       ChatUtils.sendLocalMessage(returnInfo);
+    });
+
+    return 1;
+  }
+
+  // Get online guild staff information.
+  private int staff(CommandContext<FabricClientCommandSource> ctx) {
+    if (!GuildInfoListener.isUnlocked()) {
+      ChatUtils.sendLocalMessage(
+          Component.literal("You must be unlocked to use /wv staff.")
+              .withStyle(ChatFormatting.RED)
+      );
+      return 0;
+    }
+
+    StaffFetcher.fetchOnlineStaff().thenAccept(staffInfo -> {
+      ChatUtils.sendLocalMessage(staffInfo);
+    });
+
+    return 1;
+  }
+
+  // Get annihilation timer information.
+  private int anni(CommandContext<FabricClientCommandSource> ctx) {
+    StampFetcher.fetchStampAndCreateAnniCommandMessage().thenAccept(stampMessage -> {
+      if (stampMessage != null) {
+        ChatUtils.sendLocalMessage(stampMessage);
+      } else {
+        ChatUtils.sendLocalMessage(
+            Component.literal("Annihilation timer is currently unavailable.")
+                .withStyle(ChatFormatting.YELLOW)
+        );
+      }
     });
 
     return 1;

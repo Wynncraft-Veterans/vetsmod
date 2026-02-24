@@ -28,36 +28,38 @@ public class AnimatedChatMixin {
     @Shadow
     private List<GuiMessage.Line> trimmedMessages;
 
-    /** Size of {@code trimmedMessages} before the current message was added. */
+    /** First pre-existing line before current insertion, used as insertion boundary. */
     @Unique
-    private int vetsmod$prevTrimmedSize = -1;
+    private GuiMessage.Line vetsmod$prevFirstLine = null;
 
     @Inject(method = "addMessageToDisplayQueue", at = @At("HEAD"))
     private void vetsmod$beforeAddLines(GuiMessage message, CallbackInfo ci) {
-        if (AnimatedGradientSequence.currentConfig() != null) {
-            vetsmod$prevTrimmedSize = trimmedMessages.size();
-        }
+        vetsmod$prevFirstLine = trimmedMessages.isEmpty() ? null : trimmedMessages.get(0);
     }
 
     @Inject(method = "addMessageToDisplayQueue", at = @At("RETURN"))
     private void vetsmod$afterAddLines(GuiMessage message, CallbackInfo ci) {
-        AnimatedGradientSequence.AnimConfig config = AnimatedGradientSequence.currentConfig();
-        if (config == null || vetsmod$prevTrimmedSize == -1) {
-            vetsmod$prevTrimmedSize = -1;
-            return;
+        int added = 0;
+        if (vetsmod$prevFirstLine == null) {
+            added = trimmedMessages.size();
+        } else {
+            while (added < trimmedMessages.size() && trimmedMessages.get(added) != vetsmod$prevFirstLine) {
+                added++;
+            }
         }
-
-        int added = trimmedMessages.size() - vetsmod$prevTrimmedSize;
 
         // New lines are inserted at the front of the list (addFirst).
         for (int i = 0; i < added; i++) {
             GuiMessage.Line old = trimmedMessages.get(i);
             FormattedCharSequence animated = new AnimatedGradientSequence(
-                    old.content(), config.startColor(), config.endColor(), config.cycleTimeMs());
+                    old.content(),
+                    AnimatedGradientSequence.DEFAULT_START_COLOR,
+                    AnimatedGradientSequence.DEFAULT_END_COLOR,
+                    AnimatedGradientSequence.DEFAULT_CYCLE_TIME_MS);
             trimmedMessages.set(i, new GuiMessage.Line(
                     old.addedTime(), animated, old.tag(), old.endOfEntry()));
         }
 
-        vetsmod$prevTrimmedSize = -1;
+        vetsmod$prevFirstLine = null;
     }
 }

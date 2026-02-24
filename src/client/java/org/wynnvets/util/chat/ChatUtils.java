@@ -14,6 +14,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import org.wynnvets.util.colors.AnimatedGradientSequence;
 import org.wynnvets.util.colors.ShaderColorPalette;
+import org.wynnvets.util.SupportersFetcher;
 
 import java.util.List;
 
@@ -105,10 +106,10 @@ public final class ChatUtils {
         MutableComponent body = Component.empty();
 
         boolean isSupporter = !normalizedRank.isEmpty()
-                && PillFormatter.isSupporterPill(displayName);
+            && SupportersFetcher.isSupporter(displayName);
 
         if (!normalizedRank.isEmpty()) {
-            body.append(PillFormatter.formatPill(normalizedRank, displayName))
+            body.append(PillFormatter.formatPill(normalizedRank, displayName, isSupporter))
                     .append(" ");
         }
 

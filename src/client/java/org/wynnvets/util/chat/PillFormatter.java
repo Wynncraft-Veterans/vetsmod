@@ -39,6 +39,13 @@ public final class PillFormatter {
     }
 
     /**
+     * Formats a pill component using a caller-provided supporter determination.
+     */
+    public static MutableComponent formatPill(String pillText, String username, boolean isSupporter) {
+        return formatPill(pillText, username, ChatUtils.RANK_STYLE, isSupporter);
+    }
+
+    /**
      * Formats a pill component using the given base style.
      *
      * <p>If the username matches a supporter, the pill receives a gradient between
@@ -54,8 +61,12 @@ public final class PillFormatter {
      * @return a styled pill component
      */
     public static MutableComponent formatPill(String pillText, String username, Style baseStyle) {
+        return formatPill(pillText, username, baseStyle, SupportersFetcher.isSupporter(username));
+    }
+
+    private static MutableComponent formatPill(String pillText, String username, Style baseStyle, boolean isSupporter) {
         // ── Supporter ──────────────────────────────────────────────────
-        if (SupportersFetcher.isSupporter(username)) {
+        if (isSupporter) {
             if (containsCustomFontGlyph(pillText)) {
                 // PUA/supplementary pills from the server: the chat/prefix font uses
                 // a two-tone colour structure (aqua frame + dark letters) baked into

@@ -34,6 +34,7 @@ public final class StaffOutboundMessenger {
     private static final String LOCK_PREFIX = "🔐";
     private static final String PRIVATE_SEPARATOR_GLYPH = "\uE003";
     private static final long SUPPRESSION_TTL_MS = 15000L;
+    private static final long OFFLINE_GUIDANCE_SUPPRESSION_WINDOW_MS = 4000L;
     private static final long BASE_DISPATCH_DELAY_MS = 400L;
     private static final long MAX_DISPATCH_DELAY_MS = 2000L;
     private static final long DISPATCH_DELAY_STEP_MS = 100L;
@@ -55,6 +56,7 @@ public final class StaffOutboundMessenger {
     private static final ConcurrentLinkedQueue<PendingSuppression> PENDING_SUPPRESSIONS = new ConcurrentLinkedQueue<>();
     private static final Object SUPPRESSION_ACK_LOCK = new Object();
     private static volatile AwaitingSuppression awaitingSuppression;
+    private static volatile long suppressOfflineGuidanceUntilMs;
     private static volatile long adaptiveDispatchDelayMs = BASE_DISPATCH_DELAY_MS;
 
     private StaffOutboundMessenger() {
@@ -131,9 +133,13 @@ public final class StaffOutboundMessenger {
             return false;
         }
 
+        long now = System.currentTimeMillis();
         String lower = message.toLowerCase(Locale.ROOT);
         String lockPrefixLower = LOCK_PREFIX.toLowerCase(Locale.ROOT);
-        long now = System.currentTimeMillis();
+
+        if (now <= suppressOfflineGuidanceUntilMs && isOfflineGuidanceMessage(lower)) {
+            return true;
+        }
 
         Iterator<PendingSuppression> iterator = PENDING_SUPPRESSIONS.iterator();
         while (iterator.hasNext()) {
@@ -155,6 +161,11 @@ public final class StaffOutboundMessenger {
 
             iterator.remove();
             removeDuplicateSuppressions(pending);
+
+            if (isOfflineRecipientError) {
+                suppressOfflineGuidanceUntilMs = now + OFFLINE_GUIDANCE_SUPPRESSION_WINDOW_MS;
+            }
+
             acknowledgeSuppression(pending.usernameLower, pending.lockPayload);
             return true;
         }
@@ -318,6 +329,11 @@ public final class StaffOutboundMessenger {
 
     private static boolean isOfflineRecipientMessage(String lowerMessage, String usernameLower) {
         return lowerMessage.contains(usernameLower + " is not online");
+    }
+
+    private static boolean isOfflineGuidanceMessage(String lowerMessage) {
+        return lowerMessage.contains("be sure to use exact names, prediction does not work if")
+            || lowerMessage.contains("the user is on a separate server");
     }
 
     private static boolean containsNormalizedPayload(String message, String payload) {

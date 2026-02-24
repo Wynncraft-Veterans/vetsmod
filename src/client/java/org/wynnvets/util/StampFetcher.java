@@ -57,6 +57,49 @@ public class StampFetcher {
   }
 
   /**
+   * Fetches the stamp from the API and returns a message for /wv anni.
+   * If the stamp is in the past, returns a specific "not announced" message.
+   *
+   * @return CompletableFuture containing the message Component, or null when unavailable
+   */
+  public static CompletableFuture<MutableComponent> fetchStampAndCreateAnniCommandMessage() {
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(WVApi.Stamp)
+        .timeout(Duration.ofSeconds(5))
+        .GET()
+        .build();
+
+    return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        .thenApply(response -> {
+          if (response.statusCode() == HttpURLConnection.HTTP_OK) {
+            try {
+              long stamp = Long.parseLong(response.body().trim());
+              MutableComponent message = createMessageForStamp(stamp);
+              if (message != null) {
+                return message;
+              }
+
+              if (isStampInPast(stamp)) {
+                return Component.literal("The time for the next annihilation has not yet been announced");
+              }
+
+              return null;
+            } catch (NumberFormatException e) {
+              LOGGER.warn("Failed to parse annihilation stamp: {}", e.getMessage());
+              return null;
+            }
+          } else {
+            LOGGER.warn("Failed to fetch annihilation stamp (Status: {})", response.statusCode());
+            return null;
+          }
+        })
+        .exceptionally(e -> {
+          LOGGER.error("Error fetching annihilation stamp: {}", e.getMessage());
+          return null;
+        });
+  }
+
+  /**
    * Creates the appropriate message based on the stamp timestamp
    *
    * @param stamp Unix timestamp from the API
@@ -82,6 +125,11 @@ public class StampFetcher {
     } else {
       return createLongMessage((int) hours, (int) minutes);
     }
+  }
+
+  private static boolean isStampInPast(long stamp) {
+    long currentTime = System.currentTimeMillis() / 1000;
+    return stamp <= currentTime;
   }
 
   /**
