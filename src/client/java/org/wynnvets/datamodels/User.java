@@ -7,6 +7,7 @@ public class User {
   private String uuid;
   private Guild guild;
   private String firstJoin;
+  private String lastJoin;
   private Boolean veteran;
 
   @Override
@@ -20,6 +21,10 @@ public class User {
 
   public String getFirstJoinDate() {
     return String.format("%s", firstJoin.split("T")[0]);
+  }
+
+  public String getLastJoinDate() {
+    return String.format("%s", lastJoin.split("T")[0]);
   }
 
   public boolean isInVets() {

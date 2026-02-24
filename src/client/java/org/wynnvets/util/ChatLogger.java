@@ -21,6 +21,9 @@ public class ChatLogger {
   private static final String LOG_FILE = "vetsmod/debug.log";
   private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
   private static final long DUPLICATE_THRESHOLD_MS = 1000; // 1-second window for duplicates
+  private static final String GUILD_PREPEND_FULL = "\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
+  private static final String GUILD_PREPEND_COMPACT = "\uDAFF\uDFFC\uE001\uDB00\uDC06";
+  private static final String PRIVATE_SEPARATOR_GLYPH = "\uE003";
 
   // HTTP client for sending data to API
   private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
@@ -123,8 +126,14 @@ public class ChatLogger {
   }
 
   private static String processTruncatedMessage(String message) {
-    // Remove all truncation markers from the message
-    String processed = message.replace("󏿼󏿿󏿾 ", "").replace("󏿼󐀆 ", "");
+    // Convert wrapped prepend glyphs to a separator and remove remaining prepend markers
+    String processed = message
+        .replace("\n" + GUILD_PREPEND_FULL, "\n" + PRIVATE_SEPARATOR_GLYPH + " ")
+        .replace("\n" + GUILD_PREPEND_COMPACT, "\n" + PRIVATE_SEPARATOR_GLYPH + " ")
+        .replace(GUILD_PREPEND_FULL + " ", "")
+        .replace(GUILD_PREPEND_COMPACT + " ", "")
+        .replace(GUILD_PREPEND_FULL, "")
+        .replace(GUILD_PREPEND_COMPACT, "");
 
     // Split message into lines and join with spaces
     String[] lines = processed.split("\n");

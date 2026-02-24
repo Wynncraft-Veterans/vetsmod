@@ -2,11 +2,20 @@ package org.wynnvets.util.chat;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.StringSplitter;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.client.gui.components.ComponentRenderUtils;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.ResourceLocation;
 import org.wynnvets.util.colors.AnimatedGradientSequence;
 import org.wynnvets.util.colors.ShaderColorPalette;
+
+import java.util.List;
 
 /**
  * Centralized utility for sending formatted chat messages to the local player.
@@ -38,6 +47,10 @@ public final class ChatUtils {
     private static final String STAFF_PILL_FRAME_OPEN = "\uE010\u2064";
     private static final String STAFF_PILL_FRAME_SEGMENT = "\uE00F\uE012";
     private static final String STAFF_PILL_FRAME_CLOSE = "\uE011";
+    private static final String GUILD_PREPEND_FULL = "\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
+    private static final String GUILD_PREPEND_COMPACT = "\uDAFF\uDFFC\uE001\uDB00\uDC06";
+    private static final String PRIVATE_SEPARATOR_GLYPH = "\uE003";
+    private static final Style CHAT_PREFIX_STYLE = Style.EMPTY.withFont(ResourceLocation.parse("chat/prefix"));
 
     private ChatUtils() {
     }
@@ -67,11 +80,12 @@ public final class ChatUtils {
      * @param prepend the badge to prepend
      */
     public static void sendLocalMessage(Component message, Prepend prepend) {
+        MutableComponent badge = prepend.get();
         MutableComponent full = Component.empty()
-                .append(prepend.get())
+                .append(badge)
                 .append(message);
 
-        dispatchToChat(full);
+        dispatchToChat(full, badge.getStyle());
     }
 
     // ── Guild-style messages (<badge> <pill> <username>: <message>) ───
@@ -100,16 +114,17 @@ public final class ChatUtils {
 
         body.append(Component.literal(displayName).setStyle(NAME_STYLE))
                 .append(Component.literal(": ").setStyle(RANK_STYLE))
-                .append(Component.literal(message).setStyle(RANK_STYLE));
+            .append(formatMessageBody(message, RANK_STYLE));
 
         MutableComponent full = Component.empty()
                 .append(badge)
                 .append(body);
 
+        Style badgeStyle = badge.getStyle();
         if (isSupporter) {
-            dispatchAnimatedChat(full);
+            dispatchAnimatedChat(full, badgeStyle);
         } else {
-            dispatchToChat(full);
+            dispatchToChat(full, badgeStyle);
         }
     }
 
@@ -131,13 +146,13 @@ public final class ChatUtils {
 
         body.append(Component.literal(displayName).setStyle(ADMIN_NAME_STYLE))
                 .append(Component.literal(": ").setStyle(ADMIN_RANK_STYLE))
-                .append(Component.literal(message).setStyle(ADMIN_RANK_STYLE));
+            .append(formatMessageBody(message, ADMIN_RANK_STYLE));
 
         MutableComponent full = Component.empty()
                 .append(badge)
                 .append(body);
 
-        dispatchToChat(full);
+        dispatchToChat(full, badge.getStyle());
     }
 
         /**
@@ -157,13 +172,13 @@ public final class ChatUtils {
 
         body.append(Component.literal(displayName).setStyle(ADMIN_NAME_STYLE))
             .append(Component.literal(": ").setStyle(ADMIN_RANK_STYLE))
-            .append(Component.literal(message).setStyle(ADMIN_RANK_STYLE));
+            .append(formatMessageBody(message, ADMIN_RANK_STYLE));
 
         MutableComponent full = Component.empty()
             .append(badge)
             .append(body);
 
-        dispatchToChat(full);
+        dispatchToChat(full, badge.getStyle());
         }
 
     /**
@@ -216,14 +231,188 @@ public final class ChatUtils {
         }
     }
 
+    static MutableComponent formatMessageBody(String message, Style textStyle) {
+        String bodyText = message == null ? "" : message;
+        MutableComponent formatted = Component.empty();
+        int cursor = 0;
+
+        while (cursor < bodyText.length()) {
+            MarkerMatch match = nextPrefixMarker(bodyText, cursor);
+            if (match == null) {
+                formatted.append(Component.literal(bodyText.substring(cursor)).setStyle(textStyle));
+                break;
+            }
+
+            // Check whether a '\n' immediately precedes this marker.  If so, the
+            // marker is a server-injected line-continuation prefix — absorb both
+            // the '\n' and the marker (plus any trailing space) so that the text
+            // re-flows as a single paragraph for wrapBlockMessage() to re-wrap.
+            int markerStart = match.index;
+            boolean isServerWrap = markerStart > 0 && bodyText.charAt(markerStart - 1) == '\n';
+
+            if (isServerWrap) {
+                // Emit text up to the '\n' (excluding it)
+                int textEnd = markerStart - 1;
+                if (textEnd > cursor) {
+                    formatted.append(Component.literal(bodyText.substring(cursor, textEnd)).setStyle(textStyle));
+                }
+                // Skip the '\n', the marker itself, and any single trailing space
+                cursor = match.index + match.length;
+                if (cursor < bodyText.length() && bodyText.charAt(cursor) == ' ') {
+                    cursor++;
+                }
+                // Ensure words don't merge across the join point
+                if (cursor < bodyText.length()) {
+                    formatted.append(Component.literal(" ").setStyle(textStyle));
+                }
+            } else {
+                // Inline marker (not from server wrapping) — replace with the
+                // separator glyph in chat/prefix font, preserving the original
+                // visual intent.
+                if (markerStart > cursor) {
+                    formatted.append(Component.literal(bodyText.substring(cursor, markerStart)).setStyle(textStyle));
+                }
+                formatted.append(Component.literal(PRIVATE_SEPARATOR_GLYPH).setStyle(prefixStyleFor(textStyle)));
+                cursor = match.index + match.length;
+            }
+        }
+
+        return formatted;
+    }
+
+    private static MarkerMatch nextPrefixMarker(String text, int fromIndex) {
+        int fullIndex = text.indexOf(GUILD_PREPEND_FULL, fromIndex);
+        int compactIndex = text.indexOf(GUILD_PREPEND_COMPACT, fromIndex);
+        int separatorIndex = text.indexOf(PRIVATE_SEPARATOR_GLYPH, fromIndex);
+
+        int bestIndex = Integer.MAX_VALUE;
+        int bestLength = 0;
+
+        if (fullIndex >= 0 && fullIndex < bestIndex) {
+            bestIndex = fullIndex;
+            bestLength = GUILD_PREPEND_FULL.length();
+        }
+        if (compactIndex >= 0 && compactIndex < bestIndex) {
+            bestIndex = compactIndex;
+            bestLength = GUILD_PREPEND_COMPACT.length();
+        }
+        if (separatorIndex >= 0 && separatorIndex < bestIndex) {
+            bestIndex = separatorIndex;
+            bestLength = PRIVATE_SEPARATOR_GLYPH.length();
+        }
+
+        if (bestLength == 0) {
+            return null;
+        }
+
+        return new MarkerMatch(bestIndex, bestLength);
+    }
+
+    private static Style prefixStyleFor(Style textStyle) {
+        TextColor textColor = textStyle.getColor();
+        if (textColor == null) {
+            return CHAT_PREFIX_STYLE;
+        }
+
+        return CHAT_PREFIX_STYLE.withColor(textColor);
+    }
+
+    private static final class MarkerMatch {
+        final int index;
+        final int length;
+
+        MarkerMatch(int index, int length) {
+            this.index = index;
+            this.length = length;
+        }
+    }
+
+    // ── Block-message wrapping ──────────────────────────────────────────
+
+    /**
+     * Wraps a message in Wynncraft's block-message style: continuation lines are
+     * prefixed with the compact block indicator ({@code \uDAFF\uDFFC\uE001\uDB00\uDC06})
+     * in the {@code chat/prefix} font, matching the visual style of server-wrapped
+     * guild chat.
+     *
+     * <p>Uses {@link StringSplitter#splitLines(FormattedText, int, Style, FormattedText)}
+     * to word-wrap to the current chat width.</p>
+     *
+     * @param message      the full message component (badge + body)
+     * @param prependStyle the style for the continuation prefix (inherits colour from the badge)
+     * @return the wrapped message with {@code \n}-separated lines
+     */
+    private static Component wrapBlockMessage(Component message, Style prependStyle) {
+        Minecraft minecraft = Minecraft.getInstance();
+        ChatComponent chat = minecraft.gui.getChat();
+        Font font = minecraft.font;
+        StringSplitter splitter = font.getSplitter();
+
+        int chatWidth = chat.getWidth();
+
+        // Build the continuation prefix: block marker + space, styled like the badge
+        Style continuationStyle = CHAT_PREFIX_STYLE;
+        TextColor prependColor = prependStyle.getColor();
+        if (prependColor != null) {
+            continuationStyle = continuationStyle.withColor(prependColor);
+        }
+        MutableComponent continuation = Component.literal(GUILD_PREPEND_COMPACT)
+                .append(" ")
+                .setStyle(continuationStyle);
+
+        List<FormattedText> lines = splitter.splitLines(
+                message, chatWidth, message.getStyle(), continuation);
+
+        if (lines.size() <= 1) {
+            return message;
+        }
+
+        MutableComponent wrapped = toComponent(lines.get(0));
+        for (int i = 1; i < lines.size(); i++) {
+            wrapped.append("\n");
+            wrapped.append(toComponent(lines.get(i)));
+        }
+        return wrapped;
+    }
+
+    /**
+     * Converts a {@link FormattedText} back to a {@link MutableComponent}.
+     */
+    private static MutableComponent toComponent(FormattedText text) {
+        MutableComponent result = Component.empty();
+        text.visit((style, content) -> {
+            if (!content.isEmpty()) {
+                result.append(Component.literal(content).setStyle(style));
+            }
+            return java.util.Optional.empty();
+        }, Style.EMPTY);
+        return result;
+    }
+
+    /**
+     * Counts the number of rendered lines a component will occupy in chat and
+     * updates {@link Prepend}'s badge deduplication counter.
+     */
+    private static void countRenderedLines(Component message) {
+        Minecraft minecraft = Minecraft.getInstance();
+        ChatComponent chat = minecraft.gui.getChat();
+        int chatWidth = chat.getWidth();
+        int lineCount = ComponentRenderUtils.wrapComponents(
+                message, chatWidth, minecraft.font).size();
+        Prepend.addRenderedLines(lineCount);
+    }
+
     // ── Internal ───────────────────────────────────────────────────────
 
     /**
      * Dispatches a component with the animated gradient context active so that
      * {@code AnimatedChatMixin} wraps the stored lines.
      * Uses the supporter gradient (DARK_AQUA → white, 3 s cycle).
+     *
+     * @param message      the full message component
+     * @param prependStyle the badge style used for continuation-line block markers
      */
-    static void dispatchAnimatedChat(Component message) {
+    static void dispatchAnimatedChat(Component message, Style prependStyle) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null) {
             return;
@@ -231,12 +420,14 @@ public final class ChatUtils {
 
         minecraft.execute(() -> {
             if (minecraft.player != null) {
+                Component wrapped = wrapBlockMessage(message, prependStyle);
+                countRenderedLines(wrapped);
                 boolean previous = INTERNAL_CHAT_DISPATCH.get();
                 INTERNAL_CHAT_DISPATCH.set(true);
                 AnimatedGradientSequence.beginAnimation(
                     ShaderColorPalette.DARK_AQUA, 0x88FFE9, 3000);
                 try {
-                    minecraft.player.displayClientMessage(message, false);
+                    minecraft.player.displayClientMessage(wrapped, false);
                 } finally {
                     AnimatedGradientSequence.endAnimation();
                     INTERNAL_CHAT_DISPATCH.set(previous);
@@ -251,8 +442,11 @@ public final class ChatUtils {
      *
      * <p>Package-private so that {@code ServerGuildChatRewriter} can dispatch
      * rebuilt messages without going through the public message-building API.</p>
+     *
+     * @param message      the full message component
+     * @param prependStyle the badge style used for continuation-line block markers
      */
-    static void dispatchToChat(Component message) {
+    static void dispatchToChat(Component message, Style prependStyle) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null) {
             return;
@@ -260,10 +454,12 @@ public final class ChatUtils {
 
         minecraft.execute(() -> {
             if (minecraft.player != null) {
+                Component wrapped = wrapBlockMessage(message, prependStyle);
+                countRenderedLines(wrapped);
                 boolean previous = INTERNAL_CHAT_DISPATCH.get();
                 INTERNAL_CHAT_DISPATCH.set(true);
                 try {
-                    minecraft.player.displayClientMessage(message, false);
+                    minecraft.player.displayClientMessage(wrapped, false);
                 } finally {
                     INTERNAL_CHAT_DISPATCH.set(previous);
                 }

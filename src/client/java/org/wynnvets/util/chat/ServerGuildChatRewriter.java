@@ -65,15 +65,17 @@ public final class ServerGuildChatRewriter {
         // Build gradient pill from the extracted fragments
         MutableComponent gradientPill = buildGradientPill(pillFragments);
 
+        MutableComponent badge = Prepend.GUILD.get();
+
         MutableComponent body = Component.empty()
-                .append(Prepend.GUILD.get())
+                .append(badge)
                 .append(gradientPill)
                 .append(" ")
                 .append(Component.literal(parsed.username).setStyle(ChatUtils.NAME_STYLE))
                 .append(Component.literal(": ").setStyle(ChatUtils.RANK_STYLE))
-                .append(Component.literal(parsed.message).setStyle(ChatUtils.RANK_STYLE));
+                .append(ChatUtils.formatMessageBody(parsed.message, ChatUtils.RANK_STYLE));
 
-        ChatUtils.dispatchAnimatedChat(body);
+        ChatUtils.dispatchAnimatedChat(body, badge.getStyle());
         return true;
     }
 

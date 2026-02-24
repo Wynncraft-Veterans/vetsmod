@@ -15,6 +15,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
@@ -26,6 +28,33 @@ public class UserInfo {
       .build();
 
   private static final Pattern UUID_FIX = Pattern.compile("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})");
+
+  private static String toRelativeDateLabel(String dateText) {
+    LocalDate date;
+
+    try {
+      date = LocalDate.parse(dateText);
+    } catch (RuntimeException ignored) {
+      return dateText;
+    }
+
+    long days = ChronoUnit.DAYS.between(date, LocalDate.now());
+    if (days == 0) {
+      return "today";
+    }
+    if (days == 1) {
+      return "yesterday";
+    }
+    if (days > 1) {
+      return days + " days ago";
+    }
+
+    long daysUntil = Math.abs(days);
+    if (daysUntil == 1) {
+      return "tomorrow";
+    }
+    return "in " + daysUntil + " days";
+  }
 
   private static UUID formatFromInput(String uuid) {
     return UUID.fromString(UUID_FIX.matcher(uuid.replace("-", "")).replaceAll("$1-$2-$3-$4-$5"));
@@ -95,6 +124,7 @@ public class UserInfo {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("%s's automated eligibility: [TODO]", user.getUsername()));
             sb.append(String.format("\nThis account joined on: %s", user.getFirstJoinDate()));
+            sb.append(String.format("\nThis account was last seen on: %s", toRelativeDateLabel(user.getLastJoinDate())));
 
             // Users current guild information
             sb.append("\nThis account is currently ");
