@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.wynnvets.constants.WVApi;
 
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -164,7 +165,7 @@ public class StampFetcher {
                 .withItalic(true)
                 .withUnderlined(true)
                 .withBold(false)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, WVApi.Anni.toString()))))
+                .withClickEvent(new ClickEvent.OpenUrl(URI.create(WVApi.Anni.toString())))))
         .append(Component.literal("!")
             .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_RED).withBold(false)));
 
@@ -193,7 +194,7 @@ public class StampFetcher {
             .withStyle(Style.EMPTY
                 .withColor(ChatFormatting.DARK_GRAY)
                 .withBold(false)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, WVApi.Anni.toString()))))
+                .withClickEvent(new ClickEvent.OpenUrl(URI.create(WVApi.Anni.toString())))))
         .append(Component.literal(" for more info!")
             .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_GRAY).withBold(false)));
 

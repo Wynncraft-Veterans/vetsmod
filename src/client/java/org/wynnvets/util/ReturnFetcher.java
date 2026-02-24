@@ -1,7 +1,11 @@
 package org.wynnvets.util;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.constants.WVApi;
 
@@ -36,10 +40,10 @@ public class ReturnFetcher {
             try {
               // Parse the JSON response and convert it to a Component
               Minecraft minecraft = Minecraft.getInstance();
-              MutableComponent component = Component.Serializer.fromJson(
-                  response.body(),
-                  minecraft.level.registryAccess()
-              );
+              JsonElement json = JsonParser.parseString(response.body());
+              MutableComponent component = (MutableComponent) ComponentSerialization.CODEC
+                  .parse(minecraft.level.registryAccess().createSerializationContext(JsonOps.INSTANCE), json)
+                  .getOrThrow();
               return component != null ? component : Component.literal("Error: Received null component from API");
             } catch (Exception e) {
               return Component.literal("Error parsing return data: " + e.getMessage());

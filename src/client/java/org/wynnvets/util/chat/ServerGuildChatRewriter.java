@@ -2,10 +2,11 @@ package org.wynnvets.util.chat;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.wynnvets.util.SupportersFetcher;
 import org.wynnvets.util.colors.AnimatedGradientSequence;
 
@@ -26,7 +27,7 @@ public final class ServerGuildChatRewriter {
 
     /** The {@code banner/pill} font used for rank badge rendering. */
     private static final Style PILL_FONT = Style.EMPTY
-            .withFont(ResourceLocation.parse("banner/pill"));
+            .withFont(new FontDescription.Resource(Identifier.parse("banner/pill")));
 
     /** Aqua color value used by the server for pill background glyphs (§b). */
     private static final int SERVER_AQUA = ChatFormatting.AQUA.getColor();
@@ -110,7 +111,7 @@ public final class ServerGuildChatRewriter {
         List<StyledFragment> all = new ArrayList<>();
         flattenComponent(root, root.getStyle(), all);
 
-        ResourceLocation pillFontId = PILL_FONT.getFont();
+        FontDescription pillFontId = PILL_FONT.getFont();
         List<StyledFragment> pill = new ArrayList<>();
         for (StyledFragment frag : all) {
             if (pillFontId.equals(frag.style.getFont())) {

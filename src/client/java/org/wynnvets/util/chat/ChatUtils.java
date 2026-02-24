@@ -10,8 +10,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.wynnvets.util.colors.AnimatedGradientSequence;
 import org.wynnvets.util.colors.ShaderColorPalette;
 import org.wynnvets.util.SupportersFetcher;
@@ -51,7 +52,7 @@ public final class ChatUtils {
     private static final String GUILD_PREPEND_FULL = "\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
     private static final String GUILD_PREPEND_COMPACT = "\uDAFF\uDFFC\uE001\uDB00\uDC06";
     private static final String PRIVATE_SEPARATOR_GLYPH = "\uE003";
-    private static final Style CHAT_PREFIX_STYLE = Style.EMPTY.withFont(ResourceLocation.parse("chat/prefix"));
+    private static final Style CHAT_PREFIX_STYLE = Style.EMPTY.withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")));
 
     private ChatUtils() {
     }
@@ -345,11 +346,10 @@ public final class ChatUtils {
      */
     private static Component wrapBlockMessage(Component message, Style prependStyle) {
         Minecraft minecraft = Minecraft.getInstance();
-        ChatComponent chat = minecraft.gui.getChat();
         Font font = minecraft.font;
         StringSplitter splitter = font.getSplitter();
 
-        int chatWidth = chat.getWidth();
+        int chatWidth = ChatComponent.getWidth(minecraft.options.chatWidth().get());
 
         // Build the continuation prefix: block marker + space, styled like the badge
         Style continuationStyle = CHAT_PREFIX_STYLE;
@@ -362,7 +362,7 @@ public final class ChatUtils {
                 .setStyle(continuationStyle);
 
         List<FormattedText> lines = splitter.splitLines(
-                message, chatWidth, message.getStyle(), continuation);
+                message, chatWidth, message.getStyle());
 
         if (lines.size() <= 1) {
             return message;
@@ -371,7 +371,7 @@ public final class ChatUtils {
         MutableComponent wrapped = toComponent(lines.get(0));
         for (int i = 1; i < lines.size(); i++) {
             wrapped.append("\n");
-            wrapped.append(toComponent(lines.get(i)));
+            wrapped.append(continuation.copy()).append(toComponent(lines.get(i)));
         }
         return wrapped;
     }
@@ -396,8 +396,7 @@ public final class ChatUtils {
      */
     private static void countRenderedLines(Component message) {
         Minecraft minecraft = Minecraft.getInstance();
-        ChatComponent chat = minecraft.gui.getChat();
-        int chatWidth = chat.getWidth();
+        int chatWidth = ChatComponent.getWidth(minecraft.options.chatWidth().get());
         int lineCount = ComponentRenderUtils.wrapComponents(
                 message, chatWidth, minecraft.font).size();
         Prepend.addRenderedLines(lineCount);

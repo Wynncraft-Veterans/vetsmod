@@ -2,9 +2,10 @@ package org.wynnvets.util.chat;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * Manages badge/prepend components for chat messages.
@@ -22,12 +23,12 @@ public enum Prepend {
             Component.literal("\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE")
                     .append(" ")
                     .setStyle(Style.EMPTY
-                            .withFont(ResourceLocation.parse("chat/prefix"))
+                            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
                             .withColor(ChatFormatting.AQUA)),
             Component.literal("\uDAFF\uDFFC\uE001\uDB00\uDC06")
                     .append(" ")
                     .setStyle(Style.EMPTY
-                            .withFont(ResourceLocation.parse("chat/prefix"))
+                            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
                             .withColor(ChatFormatting.AQUA))),
     EMPTY(
             Component.empty());
