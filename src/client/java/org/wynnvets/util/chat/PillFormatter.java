@@ -75,7 +75,8 @@ public final class PillFormatter {
                 // component with the animation marker so the mixin can animate it.
                 return Component.literal(pillText)
                         .setStyle(baseStyle.withColor(
-                                TextColor.fromRgb(AnimatedGradientSequence.MARKER_COLOR)));
+                                TextColor.fromRgb(AnimatedGradientSequence.MARKER_COLOR))
+                                .withoutShadow());
             }
 
             // ASCII pills (bridge messages) — per-character marker is safe.
@@ -89,6 +90,9 @@ public final class PillFormatter {
         }
 
         // ── Default → flat style ──────────────────────────────────────
+        if (containsCustomFontGlyph(pillText)) {
+            return Component.literal(pillText).setStyle(baseStyle.withoutShadow());
+        }
         return Component.literal(pillText).setStyle(baseStyle);
     }
 

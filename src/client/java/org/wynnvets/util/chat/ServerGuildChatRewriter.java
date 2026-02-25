@@ -27,7 +27,8 @@ public final class ServerGuildChatRewriter {
 
     /** The {@code banner/pill} font used for rank badge rendering. */
     private static final Style PILL_FONT = Style.EMPTY
-            .withFont(new FontDescription.Resource(Identifier.parse("banner/pill")));
+            .withFont(new FontDescription.Resource(Identifier.parse("banner/pill")))
+            .withoutShadow();
 
     /** Aqua color value used by the server for pill background glyphs (§b). */
     private static final int SERVER_AQUA = ChatFormatting.AQUA.getColor();

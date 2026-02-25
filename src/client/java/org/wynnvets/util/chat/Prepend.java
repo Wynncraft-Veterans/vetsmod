@@ -24,12 +24,14 @@ public enum Prepend {
                     .append(" ")
                     .setStyle(Style.EMPTY
                             .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-                            .withColor(ChatFormatting.AQUA)),
+                            .withColor(ChatFormatting.AQUA)
+                            .withoutShadow()),
             Component.literal("\uDAFF\uDFFC\uE001\uDB00\uDC06")
                     .append(" ")
                     .setStyle(Style.EMPTY
                             .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-                            .withColor(ChatFormatting.AQUA))),
+                            .withColor(ChatFormatting.AQUA)
+                            .withoutShadow())),
     EMPTY(
             Component.empty());
 

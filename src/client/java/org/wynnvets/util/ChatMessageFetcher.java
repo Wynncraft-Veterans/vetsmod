@@ -130,6 +130,10 @@ public class ChatMessageFetcher {
           String message = messageObj.get("message").getAsString();
           String rank = messageObj.get("rank").getAsString();
 
+          if (BridgeMessageFetcher.shouldSuppressDuplicateApiMessage(displayName, message)) {
+            continue;
+          }
+
           ChatUtils.sendGuildChatMessage(rank, displayName, message);
           processedCount++;
         }

@@ -15,9 +15,12 @@ import org.wynnvets.util.chat.Prepend;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.regex.Pattern;
 
 public class GuildInfoListener {
   private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
+  private static final Pattern LEGACY_FORMAT_CODE_PATTERN = Pattern.compile("(?i)(?:§|&)[0-9A-FK-OR]");
+  private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_ ]+$");
 
   // Stored guild information
   private static boolean isReturners = false;
@@ -84,7 +87,8 @@ public class GuildInfoListener {
     if (debugForceGuildlessUnlocked) {
       return true;
     }
-    return isReturners || passwordUnlocked;
+    boolean unlocked = isReturners || passwordUnlocked;
+    return unlocked;
   }
 
   /**
@@ -232,6 +236,9 @@ public class GuildInfoListener {
    * @param message   The plain text chat message
    */
   public static void processMessage(Component component, String message) {
+    String safeMessage = message == null ? StringUtils.EMPTY : message;
+    String strippedMessage = stripLegacyFormatting(safeMessage);
+
     updateSelfStaffRankFromGuildStatsMessage(message);
 
     // Check if we're waiting for guild stats and if we've timed out
@@ -250,11 +257,8 @@ public class GuildInfoListener {
     // Check for Wynncraft welcome message with gold+bold formatting
     String literalContent = component.toString();
 
-    // Check if this is the welcome message with color=#FFAA00 (gold) and bold formatting
-    // The component string contains "literal{Welcome to Wynncraft!" and "color=#FFAA00,bold"
-    if (literalContent.contains("Welcome to Wynncraft!") &&
-        literalContent.contains("color=#FFAA00") &&
-        literalContent.contains("bold")) {
+    // Accept both old and new chat formats for the welcome trigger.
+    if (isWelcomeMessage(literalContent, safeMessage, strippedMessage)) {
       // Welcome message detected, send /guild stats command and fetch MOTD
       // Only process if we haven't recently processed a welcome message
       long currentTime = System.currentTimeMillis();
@@ -271,7 +275,6 @@ public class GuildInfoListener {
     if (waitingForGuildStats) {
       // Check for the "not in a guild" error message
       if (message.contains("You must be in a guild to use this")) {
-        LOGGER.info("Player is not in a guild - marking as guildless");
         isGuildless = true;
         isReturners = false;
         selfStaffRank = StringUtils.EMPTY;
@@ -285,27 +288,25 @@ public class GuildInfoListener {
       // Looking for "Returners" with gold color and bold formatting
       // The guild name appears as: literal{Returners}[style={color=gold,bold}]
       // Use regex-like check to ensure we match "bold" not "!bold"
-      boolean hasGoldColor = literalContent.contains("color=gold") || literalContent.contains("color=#FFAA00");
-      boolean hasBoldStyle = (literalContent.contains(",bold") || literalContent.contains("{bold") ||
+      boolean hasComponentGoldColor = literalContent.contains("color=gold") || literalContent.contains("color=#FFAA00");
+      boolean hasComponentBoldStyle = (literalContent.contains(",bold") || literalContent.contains("{bold") ||
           literalContent.contains("=bold") || literalContent.contains(" bold")) &&
           !literalContent.contains("!bold");
+      boolean hasLegacyGoldBold = safeMessage.contains("§6§l") || safeMessage.contains("&6&l");
+      boolean hasGoldBoldGuildStyle = (hasComponentGoldColor && hasComponentBoldStyle) || hasLegacyGoldBold;
+      boolean containsReturners = literalContent.contains("Returners") || strippedMessage.contains("Returners");
+      boolean isGuildNameLine = isLikelyGuildNameLine(strippedMessage);
 
-      if (literalContent.contains("Returners") && hasGoldColor && hasBoldStyle) {
+      if (containsReturners && hasGoldBoldGuildStyle) {
         // Found "Returners" with gold+bold formatting - this is the Returners guild
-        LOGGER.info("Detected guild: Returners - enabling features");
         isReturners = true;
         passwordUnlocked = false;
         isGuildless = false;
         // Don't set waitingForGuildStats to false yet - wait for the full stats to complete
         // Don't clear isModInitiatedGuildStats yet - guild stats output continues
-      } else if (hasGoldColor && hasBoldStyle &&
-          message.trim().length() > 0 &&
-          !message.trim().isEmpty() &&
-          !literalContent.contains("Returners") &&
-          !literalContent.contains("Welcome to an Alpha version of VETSMOD")) {
+      } else if (hasGoldBoldGuildStyle && isGuildNameLine && !containsReturners) {
         // Found a different guild name (has gold+bold formatting but isn't Returners)
         // Temporarily exclude the MOTD message which also has gold+bold formatting
-        LOGGER.info("Detected different guild - features disabled");
         isReturners = false;
         passwordUnlocked = false;
         isGuildless = false;
@@ -319,6 +320,7 @@ public class GuildInfoListener {
       // This is the last line of guild stats output
       isModInitiatedGuildStats = false;
       waitingForGuildStats = false; // Signal that guild stats is complete
+      guildStatsCompleted = true;
 
       // After guild stats completes, check for annihilation stamp if we're in Returners
       if (isReturners) {
@@ -342,6 +344,41 @@ public class GuildInfoListener {
         LOGGER.info("Staff check complete: user is staff");
       }
     }
+  }
+
+  private static String stripLegacyFormatting(String text) {
+    if (text == null) {
+      return StringUtils.EMPTY;
+    }
+    return LEGACY_FORMAT_CODE_PATTERN.matcher(text).replaceAll(StringUtils.EMPTY);
+  }
+
+  private static boolean isLikelyGuildNameLine(String strippedMessage) {
+    if (strippedMessage == null) {
+      return false;
+    }
+    String trimmed = strippedMessage.trim();
+    if (trimmed.isEmpty() || trimmed.length() >= 50) {
+      return false;
+    }
+    if (trimmed.contains(":")) {
+      return false;
+    }
+    if (trimmed.contains("Welcome") || trimmed.contains("VETSMOD")) {
+      return false;
+    }
+    return GUILD_NAME_PATTERN.matcher(trimmed).matches();
+  }
+
+  private static boolean isWelcomeMessage(String literalContent, String rawMessage, String strippedMessage) {
+    boolean containsWelcomeText = strippedMessage.contains("Welcome to Wynncraft!");
+    boolean hasComponentWelcomeStyle = literalContent.contains("Welcome to Wynncraft!") &&
+        literalContent.contains("color=#FFAA00") &&
+        literalContent.contains("bold");
+    boolean hasLegacyWelcomeStyle = rawMessage.contains("§6§lWelcome to Wynncraft!") ||
+        rawMessage.contains("&6&lWelcome to Wynncraft!");
+
+    return containsWelcomeText && (hasComponentWelcomeStyle || hasLegacyWelcomeStyle);
   }
 
   /**
@@ -468,6 +505,21 @@ public class GuildInfoListener {
    * Send the /guild stats command to the server
    */
   private static void sendGuildStatsCommand() {
+    sendGuildStatsCommand(false);
+  }
+
+  /**
+   * TEMP: Force /guild stats check regardless of world state due to Wynntils alpha prototype
+   * not updating world state reliably.
+   */
+  public static synchronized void forceGuildStatsCheckTemp() {
+    if (waitingForGuildStats) {
+      return;
+    }
+    sendGuildStatsCommand(true);
+  }
+
+  private static void sendGuildStatsCommand(boolean ignoreWorldState) {
     Minecraft minecraft = Minecraft.getInstance();
 
     // Mark that we're waiting for guild stats response
@@ -490,7 +542,7 @@ public class GuildInfoListener {
             // Check if we're in WORLD state using Wynntils API
             WorldState currentState = Models.WorldState.getCurrentState();
 
-            if (currentState != WorldState.WORLD) {
+            if (!ignoreWorldState && currentState != WorldState.WORLD) {
               return;
             }
 
@@ -508,6 +560,7 @@ public class GuildInfoListener {
               } catch (Exception e) {
                 LOGGER.warn("Failed to send guild stats command: {}", e.getMessage());
               }
+            } else {
             }
           });
 

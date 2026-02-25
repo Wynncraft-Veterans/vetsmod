@@ -28,6 +28,7 @@ public class BridgeMessageFetcher {
   private static final long SELF_MESSAGE_TTL_MS = TimeUnit.SECONDS.toMillis(30);
   private static final long SERVER_MESSAGE_DEDUP_WINDOW_MS = TimeUnit.SECONDS.toMillis(10);
   private static final int MAX_RECENT_SERVER_MESSAGES = 200;
+  private static final int MAX_RECENT_BRIDGE_MESSAGES = 200;
 
   private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
       .version(HttpClient.Version.HTTP_1_1)
@@ -46,6 +47,8 @@ public class BridgeMessageFetcher {
   private static final Object pendingSelfMessagesLock = new Object();
   private static final Deque<RecentServerMessage> recentServerMessages = new ArrayDeque<>();
   private static final Object recentServerMessagesLock = new Object();
+  private static final Deque<RecentBridgeMessage> recentBridgeMessages = new ArrayDeque<>();
+  private static final Object recentBridgeMessagesLock = new Object();
   private static ScheduledExecutorService scheduler;
   private static boolean isRunning = false;
   private static volatile boolean frumaModeEnabled = false;
@@ -68,6 +71,18 @@ public class BridgeMessageFetcher {
     private final long createdAtMs;
 
     private RecentServerMessage(String displayName, String message, long createdAtMs) {
+      this.displayName = displayName;
+      this.message = message;
+      this.createdAtMs = createdAtMs;
+    }
+  }
+
+  private static final class RecentBridgeMessage {
+    private final String displayName;
+    private final String message;
+    private final long createdAtMs;
+
+    private RecentBridgeMessage(String displayName, String message, long createdAtMs) {
       this.displayName = displayName;
       this.message = message;
       this.createdAtMs = createdAtMs;
@@ -175,6 +190,10 @@ public class BridgeMessageFetcher {
             continue;
           }
 
+          if (shouldSuppressDuplicateApiMessage(displayName, message)) {
+            continue;
+          }
+
           if (frumaModeEnabled && wasServerMessageRecentlySent(displayName, message)) {
             continue;
           }
@@ -193,6 +212,9 @@ public class BridgeMessageFetcher {
    */
   public static void clearCache() {
     displayedMessageIds.clear();
+    synchronized (recentBridgeMessagesLock) {
+      recentBridgeMessages.clear();
+    }
   }
 
   public static void queuePendingSelfMessage(String displayName, String message) {
@@ -284,12 +306,15 @@ public class BridgeMessageFetcher {
       return false;
     }
 
+    String normalizedMessage = normalizeForDedup(message);
+
     synchronized (recentServerMessagesLock) {
       long now = System.currentTimeMillis();
       pruneExpiredServerMessages(now);
 
       for (RecentServerMessage recent : recentServerMessages) {
-        if (recent.displayName.equalsIgnoreCase(displayName) && recent.message.equals(message)) {
+        if (recent.displayName.equalsIgnoreCase(displayName)
+            && normalizeForDedup(recent.message).equals(normalizedMessage)) {
           return true;
         }
       }
@@ -306,5 +331,92 @@ public class BridgeMessageFetcher {
       }
       recentServerMessages.pollFirst();
     }
+  }
+
+  public static boolean wasBridgeMessageRecentlyDisplayed(String displayName, String message) {
+    if (displayName == null || displayName.isEmpty() || message == null || message.isEmpty()) {
+      return false;
+    }
+
+    String normalizedMessage = normalizeForDedup(message);
+
+    synchronized (recentBridgeMessagesLock) {
+      long now = System.currentTimeMillis();
+      pruneExpiredBridgeMessages(now);
+
+      for (RecentBridgeMessage recent : recentBridgeMessages) {
+        if (recent.displayName.equalsIgnoreCase(displayName)
+            && normalizeForDedup(recent.message).equals(normalizedMessage)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  public static boolean shouldSuppressDuplicateApiMessage(String displayName, String message) {
+    if (displayName == null || displayName.isEmpty() || message == null || message.isEmpty()) {
+      return false;
+    }
+
+    String normalizedMessage = normalizeForDedup(message);
+
+    synchronized (recentBridgeMessagesLock) {
+      long now = System.currentTimeMillis();
+      pruneExpiredBridgeMessages(now);
+
+      for (RecentBridgeMessage recent : recentBridgeMessages) {
+        if (recent.displayName.equalsIgnoreCase(displayName)
+            && normalizeForDedup(recent.message).equals(normalizedMessage)) {
+          return true;
+        }
+      }
+
+      if (recentBridgeMessages.size() >= MAX_RECENT_BRIDGE_MESSAGES) {
+        recentBridgeMessages.pollFirst();
+      }
+
+      recentBridgeMessages.addLast(new RecentBridgeMessage(displayName, message, now));
+      return false;
+    }
+  }
+
+  private static void pruneExpiredBridgeMessages(long nowMs) {
+    while (!recentBridgeMessages.isEmpty()) {
+      RecentBridgeMessage recent = recentBridgeMessages.peekFirst();
+      if (recent == null || nowMs - recent.createdAtMs <= SERVER_MESSAGE_DEDUP_WINDOW_MS) {
+        return;
+      }
+      recentBridgeMessages.pollFirst();
+    }
+  }
+
+  /**
+   * Normalize a message for dedup comparison by stripping all custom-font
+   * glyphs (private-use and unassigned supplementary-plane characters) and
+   * collapsing line-wrapping differences so the same logical text matches
+   * regardless of how it was wrapped or which glyphs the server injected.
+   */
+  private static String normalizeForDedup(String message) {
+    if (message == null) return "";
+    StringBuilder sb = new StringBuilder(message.length());
+    int i = 0;
+    while (i < message.length()) {
+      int cp = message.codePointAt(i);
+      int charCount = Character.charCount(cp);
+      if (cp == '\n') {
+        sb.append(' ');
+      } else {
+        int type = Character.getType(cp);
+        boolean isCustomGlyph = type == Character.PRIVATE_USE
+            || (type == Character.UNASSIGNED && cp > 0xFFFF);
+        if (!isCustomGlyph) {
+          sb.appendCodePoint(cp);
+        }
+      }
+      i += charCount;
+    }
+    return sb.toString().replaceAll("  +", " ").trim();
   }
 }

@@ -52,7 +52,9 @@ public final class ChatUtils {
     private static final String GUILD_PREPEND_FULL = "\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
     private static final String GUILD_PREPEND_COMPACT = "\uDAFF\uDFFC\uE001\uDB00\uDC06";
     private static final String PRIVATE_SEPARATOR_GLYPH = "\uE003";
-    private static final Style CHAT_PREFIX_STYLE = Style.EMPTY.withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")));
+    private static final Style CHAT_PREFIX_STYLE = Style.EMPTY
+            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+            .withoutShadow();
 
     private ChatUtils() {
     }
@@ -198,8 +200,8 @@ public final class ChatUtils {
         String label = normalizeStaffRank(rank);
 
         MutableComponent component = Component.empty();
-        Style redStyle = ADMIN_RANK_STYLE;
-        Style darkStyle = Style.EMPTY.withColor(ChatFormatting.BLACK);
+        Style redStyle = ADMIN_RANK_STYLE.withoutShadow();
+        Style darkStyle = Style.EMPTY.withColor(ChatFormatting.BLACK).withoutShadow();
 
         component.append(Component.literal(STAFF_PILL_FRAME_OPEN).setStyle(redStyle));
 

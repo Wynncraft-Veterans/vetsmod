@@ -21,7 +21,8 @@ public final class StaffGuildAlertRewriter {
 
     private static final Style SHOUT_PREFIX_STYLE = Style.EMPTY
         .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-        .withColor(ChatFormatting.LIGHT_PURPLE);
+        .withColor(ChatFormatting.LIGHT_PURPLE)
+        .withoutShadow();
     private static final Style ALERT_FRAME_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_PURPLE);
     private static final Style ALERT_TEXT_STYLE = Style.EMPTY.withColor(ChatFormatting.WHITE);
     private static final Style ALERT_BODY_STYLE = Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE);

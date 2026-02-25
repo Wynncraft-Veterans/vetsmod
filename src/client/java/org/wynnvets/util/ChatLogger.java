@@ -57,26 +57,24 @@ public class ChatLogger {
       return;
     }
 
-    // Check if this is a duplicate message
+    // Parse the message to extract rank, username, and message content
+    String processedMessage = processTruncatedMessage(message);
+    ParsedMessage parsed = parseMessage(processedMessage);
+    String dedupKey = (parsed != null) ? parsed.message : processedMessage;
     long currentTime = System.currentTimeMillis();
     synchronized (recentMessages) {
-      Long lastTime = recentMessages.get(message);
+      Long lastTime = recentMessages.get(dedupKey);
       if (lastTime != null && (currentTime - lastTime) < DUPLICATE_THRESHOLD_MS) {
         // Duplicate message within threshold, skip logging
         return;
       }
-      recentMessages.put(message, currentTime);
+      recentMessages.put(dedupKey, currentTime);
     }
 
     String timestamp = LocalDateTime.now(ZoneOffset.UTC).format(TIME_FORMATTER);
 
-    // Process multi-line messages with truncation markers
-    String processedMessage = processTruncatedMessage(message);
-
     // Log to temporary.log if message contains a filter string
     if (containsFilterString(message)) {
-      // Parse the message to extract rank, username, and message content
-      ParsedMessage parsed = parseMessage(processedMessage);
       if (parsed != null) {
         String jsonEntry = createJsonLogEntry(timestamp, parsed);
         try {

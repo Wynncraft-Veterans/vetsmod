@@ -31,8 +31,9 @@ public class FrumaModeCommandMixin {
     }
 
     if (!GuildInfoListener.canExecuteCommands()) {
+      GuildInfoListener.forceGuildStatsCheckTemp();
       ChatUtils.sendLocalMessage(
-          Component.literal("[TEMP] /frumamode unavailable until guild status is known.")
+          Component.literal("[TEMP] Forcing /guild stats check (Wynntils alpha prototype does not update world state).")
               .withStyle(ChatFormatting.YELLOW)
       );
       return;

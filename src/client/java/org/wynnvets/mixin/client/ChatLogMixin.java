@@ -48,15 +48,21 @@ public class ChatLogMixin {
       return;
     }
 
+    String[] parsedGuildChat = parseGuildChat(messageString);
+    if (parsedGuildChat != null) {
+      BridgeMessageFetcher.recordServerGuildMessage(parsedGuildChat[0], parsedGuildChat[1]);
+
+      if (BridgeMessageFetcher.isFrumaModeEnabled()
+          && BridgeMessageFetcher.wasBridgeMessageRecentlyDisplayed(parsedGuildChat[0], parsedGuildChat[1])) {
+        ci.cancel();
+        return;
+      }
+    }
+
     // Rewrite/suppress staff guild alerts (‼ prefixed) into shout-style local output.
     if (StaffGuildAlertRewriter.tryRewrite(messageString)) {
       ci.cancel();
       return;
-    }
-
-    String[] parsedGuildChat = parseGuildChat(messageString);
-    if (parsedGuildChat != null) {
-      BridgeMessageFetcher.recordServerGuildMessage(parsedGuildChat[0], parsedGuildChat[1]);
     }
 
     // Rewrite lock-prefixed direct messages into /v-style staff chat output.
