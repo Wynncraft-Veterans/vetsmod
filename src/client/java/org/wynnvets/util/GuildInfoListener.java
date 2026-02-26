@@ -15,6 +15,8 @@ import org.wynnvets.util.chat.Prepend;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 public class GuildInfoListener {
@@ -49,6 +51,12 @@ public class GuildInfoListener {
 
   // Track if the current guild stats request was initiated by the mod (not the user)
   private static boolean isModInitiatedGuildStats = false;
+
+  // Grace period timestamps so that duplicate addMessage calls arriving after the
+  // flags are cleared are still suppressed.
+  private static long guildStatsSuppressUntil = 0;
+  private static long staffRankSuppressUntil = 0;
+  private static final long SUPPRESSION_GRACE_MS = 500;
 
   // State tracking for MOTD to prevent duplicate fetches
   private static long lastMotdFetchTime = 0;
@@ -144,7 +152,10 @@ public class GuildInfoListener {
    * @return true if guild stats was initiated by the mod, false if by user
    */
   public static boolean isProcessingModGuildStats() {
-    return isModInitiatedGuildStats;
+    if (isModInitiatedGuildStats) return true;
+    // Keep suppressing for a short grace period after the flag is cleared so that
+    // a second addMessage call for the same server message is still caught.
+    return guildStatsSuppressUntil > 0 && System.currentTimeMillis() < guildStatsSuppressUntil;
   }
 
   /**
@@ -205,7 +216,8 @@ public class GuildInfoListener {
    * @return true if rank check was initiated by the mod
    */
   public static boolean isProcessingModStaffRankCheck() {
-    return isModInitiatedStaffRankCheck;
+    if (isModInitiatedStaffRankCheck) return true;
+    return staffRankSuppressUntil > 0 && System.currentTimeMillis() < staffRankSuppressUntil;
   }
 
   /**
@@ -319,6 +331,7 @@ public class GuildInfoListener {
     if (isModInitiatedGuildStats && message.contains("Total Members:")) {
       // This is the last line of guild stats output
       isModInitiatedGuildStats = false;
+      guildStatsSuppressUntil = System.currentTimeMillis() + SUPPRESSION_GRACE_MS;
       waitingForGuildStats = false; // Signal that guild stats is complete
       guildStatsCompleted = true;
 
@@ -334,12 +347,14 @@ public class GuildInfoListener {
         setStaffStatus(false);
         waitingForStaffRankCheck = false;
         isModInitiatedStaffRankCheck = false;
+        staffRankSuppressUntil = System.currentTimeMillis() + SUPPRESSION_GRACE_MS;
         markStaffCheckCompletedNow();
         LOGGER.info("Staff check complete: user is not staff");
       } else if (isStaffRankAuthorizedResponse(message)) {
         setStaffStatus(true);
         waitingForStaffRankCheck = false;
         isModInitiatedStaffRankCheck = false;
+        staffRankSuppressUntil = System.currentTimeMillis() + SUPPRESSION_GRACE_MS;
         markStaffCheckCompletedNow();
         LOGGER.info("Staff check complete: user is staff");
       }
@@ -400,25 +415,31 @@ public class GuildInfoListener {
         try {
           Thread.sleep(delay);
 
+          CountDownLatch latch = new CountDownLatch(1);
           boolean[] commandSent = {false};
           minecraft.execute(() -> {
-            WorldState currentState = Models.WorldState.getCurrentState();
-            if (currentState != WorldState.WORLD) {
-              return;
-            }
-
-            LocalPlayer player = minecraft.player;
-            if (player != null && player.connection != null) {
-              try {
-                player.connection.sendCommand("gu rank");
-                commandSent[0] = true;
-              } catch (Exception e) {
-                LOGGER.warn("Failed to send /gu rank staff check command: {}", e.getMessage());
+            try {
+              WorldState currentState = Models.WorldState.getCurrentState();
+              if (currentState != WorldState.WORLD) {
+                return;
               }
+
+              LocalPlayer player = minecraft.player;
+              if (player != null && player.connection != null) {
+                try {
+                  player.connection.sendCommand("gu rank");
+                  commandSent[0] = true;
+                } catch (Exception e) {
+                  LOGGER.warn("Failed to send /gu rank staff check command: {}", e.getMessage());
+                }
+              }
+            } finally {
+              latch.countDown();
             }
           });
 
-          Thread.sleep(50);
+          // Block until the render thread has executed our lambda
+          latch.await(2, TimeUnit.SECONDS);
 
           if (commandSent[0]) {
             int responseWait = 0;
@@ -537,35 +558,39 @@ public class GuildInfoListener {
         try {
           Thread.sleep(delay);
 
+          CountDownLatch latch = new CountDownLatch(1);
           boolean[] commandSent = {false};
           minecraft.execute(() -> {
-            // Check if we're in WORLD state using Wynntils API
-            WorldState currentState = Models.WorldState.getCurrentState();
+            try {
+              // Check if we're in WORLD state using Wynntils API
+              WorldState currentState = Models.WorldState.getCurrentState();
 
-            if (!ignoreWorldState && currentState != WorldState.WORLD) {
-              return;
-            }
-
-            // Re-fetch player instance to avoid stale references during world transfers
-            LocalPlayer player = minecraft.player;
-            if (player != null && player.connection != null) {
-              // Get the player name.
-              if (playerName.equals(StringUtils.EMPTY)) {
-                playerName = player.getName().getString();
+              if (!ignoreWorldState && currentState != WorldState.WORLD) {
+                return;
               }
 
-              try {
-                player.connection.sendCommand("guild stats");
-                commandSent[0] = true;
-              } catch (Exception e) {
-                LOGGER.warn("Failed to send guild stats command: {}", e.getMessage());
+              // Re-fetch player instance to avoid stale references during world transfers
+              LocalPlayer player = minecraft.player;
+              if (player != null && player.connection != null) {
+                // Get the player name.
+                if (playerName.equals(StringUtils.EMPTY)) {
+                  playerName = player.getName().getString();
+                }
+
+                try {
+                  player.connection.sendCommand("guild stats");
+                  commandSent[0] = true;
+                } catch (Exception e) {
+                  LOGGER.warn("Failed to send guild stats command: {}", e.getMessage());
+                }
               }
-            } else {
+            } finally {
+              latch.countDown();
             }
           });
 
-          // Wait a bit for the execute to complete
-          Thread.sleep(50);
+          // Block until the render thread has executed our lambda
+          latch.await(2, TimeUnit.SECONDS);
 
           if (commandSent[0]) {
             // Wait up to 2 seconds for server response
@@ -698,6 +723,8 @@ public class GuildInfoListener {
     guildStatsRequestTime = 0;
     lastMotdFetchTime = 0;
     isModInitiatedGuildStats = false;
+    guildStatsSuppressUntil = 0;
+    staffRankSuppressUntil = 0;
     guildStatsCompleted = false;
     isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
     long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
