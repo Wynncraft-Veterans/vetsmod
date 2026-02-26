@@ -3,6 +3,7 @@ package org.wynnvets.util;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import org.wynnvets.constants.WVApi;
 import org.wynnvets.util.chat.ChatUtils;
@@ -16,12 +17,16 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class BridgeMessageFetcher {
+  private static final Pattern VERSION_PATTERN = Pattern.compile("(\\d+)\\.(\\d+)");
   private static final int FETCH_INTERVAL_SECONDS = 3;
   private static final int MAX_CACHED_MESSAGE_IDS = 1000;
   private static final int MAX_PENDING_SELF_MESSAGES = 50;
@@ -51,7 +56,30 @@ public class BridgeMessageFetcher {
   private static final Object recentBridgeMessagesLock = new Object();
   private static ScheduledExecutorService scheduler;
   private static boolean isRunning = false;
-  private static volatile boolean frumaModeEnabled = false;
+  private static volatile boolean frumaModeEnabled = shouldEnableFrumaModeByDefault();
+
+  private static boolean shouldEnableFrumaModeByDefault() {
+    try {
+      Optional<String> friendlyVersion = FabricLoader.getInstance()
+          .getModContainer("wynntils")
+          .map(modContainer -> modContainer.getMetadata().getVersion().getFriendlyString());
+
+      if (friendlyVersion.isEmpty()) {
+        return false;
+      }
+
+      Matcher matcher = VERSION_PATTERN.matcher(friendlyVersion.get());
+      if (!matcher.find()) {
+        return false;
+      }
+
+      int major = Integer.parseInt(matcher.group(1));
+      int minor = Integer.parseInt(matcher.group(2));
+      return major > 4 || (major == 4 && minor >= 1);
+    } catch (Exception ignored) {
+      return false;
+    }
+  }
 
   private static final class PendingSelfMessage {
     private final String displayName;
@@ -302,10 +330,14 @@ public class BridgeMessageFetcher {
   }
 
   private static boolean wasServerMessageRecentlySent(String displayName, String message) {
-    if (displayName == null || displayName.isEmpty() || message == null || message.isEmpty()) {
+    if (message == null || message.isEmpty()) {
       return false;
     }
 
+    // Match on message content only — the server-side name may be a nickname
+    // that bears no resemblance to the API display_name, so name comparison
+    // is unreliable.  If the message text was recorded from the server at all,
+    // the bridge echo is always redundant.
     String normalizedMessage = normalizeForDedup(message);
 
     synchronized (recentServerMessagesLock) {
@@ -313,8 +345,7 @@ public class BridgeMessageFetcher {
       pruneExpiredServerMessages(now);
 
       for (RecentServerMessage recent : recentServerMessages) {
-        if (recent.displayName.equalsIgnoreCase(displayName)
-            && normalizeForDedup(recent.message).equals(normalizedMessage)) {
+        if (normalizeForDedup(recent.message).equals(normalizedMessage)) {
           return true;
         }
       }
@@ -334,10 +365,13 @@ public class BridgeMessageFetcher {
   }
 
   public static boolean wasBridgeMessageRecentlyDisplayed(String displayName, String message) {
-    if (displayName == null || displayName.isEmpty() || message == null || message.isEmpty()) {
+    if (message == null || message.isEmpty()) {
       return false;
     }
 
+    // Match on message content only — same rationale as wasServerMessageRecentlySent:
+    // the bridge records the real username while the server shows a nickname,
+    // so name comparison is unreliable for cross-source dedup.
     String normalizedMessage = normalizeForDedup(message);
 
     synchronized (recentBridgeMessagesLock) {
@@ -345,8 +379,7 @@ public class BridgeMessageFetcher {
       pruneExpiredBridgeMessages(now);
 
       for (RecentBridgeMessage recent : recentBridgeMessages) {
-        if (recent.displayName.equalsIgnoreCase(displayName)
-            && normalizeForDedup(recent.message).equals(normalizedMessage)) {
+        if (normalizeForDedup(recent.message).equals(normalizedMessage)) {
           return true;
         }
       }
