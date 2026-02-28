@@ -115,42 +115,35 @@ public final class StaffGuildAlertRewriter {
             return null;
         }
 
-        int usernameStart = message.lastIndexOf(' ', colonIndex - 1);
-        if (usernameStart <= 0) {
+        // Find the last custom-font glyph before the colon.  The rank
+        // indicator always ends with such a glyph; everything after it
+        // (trimmed) up to the colon is the display name — which may
+        // contain spaces (e.g. "EYAL5555/First Mage").
+        int lastGlyphEnd = -1;
+        int idx = 0;
+        while (idx < colonIndex) {
+            int cp = message.codePointAt(idx);
+            int charCount = Character.charCount(cp);
+            int type = Character.getType(cp);
+            boolean isCustomGlyph = type == Character.PRIVATE_USE
+                || (type == Character.UNASSIGNED && cp > 0xFFFF);
+            if (isCustomGlyph) {
+                lastGlyphEnd = idx + charCount;
+            }
+            idx += charCount;
+        }
+
+        if (lastGlyphEnd <= 0 || lastGlyphEnd >= colonIndex) {
             return null;
         }
 
-        String username = message.substring(usernameStart + 1, colonIndex).trim();
+        String username = message.substring(lastGlyphEnd, colonIndex).trim();
         if (username.isEmpty()) {
-            return null;
-        }
-
-        int rankStart = message.lastIndexOf(' ', usernameStart - 1);
-        if (rankStart <= 0) {
-            return null;
-        }
-
-        String rankIndicator = message.substring(rankStart + 1, usernameStart).trim();
-        if (rankIndicator.isEmpty() || !containsCustomFontGlyph(rankIndicator)) {
             return null;
         }
 
         String messageContent = message.substring(colonIndex + 1).trim();
         return new ParsedGuildChat(username, messageContent);
-    }
-
-    private static boolean containsCustomFontGlyph(String text) {
-        int index = 0;
-        while (index < text.length()) {
-            int codePoint = text.codePointAt(index);
-            int type = Character.getType(codePoint);
-            if (type == Character.PRIVATE_USE
-                || (type == Character.UNASSIGNED && codePoint > 0xFFFF)) {
-                return true;
-            }
-            index += Character.charCount(codePoint);
-        }
-        return false;
     }
 
     private record ParsedGuildChat(String username, String message) {
