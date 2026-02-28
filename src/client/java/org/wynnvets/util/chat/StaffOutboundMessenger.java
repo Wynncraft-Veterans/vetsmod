@@ -4,8 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wynnvets.constants.WVApi;
@@ -68,18 +70,25 @@ public final class StaffOutboundMessenger {
         }
 
         new Thread(() -> {
+            boolean deliveredToAnyone = false;
             try {
                 List<String> usernames = fetchStaffUsernames();
                 if (usernames.isEmpty()) {
+                    showNoRecipientsWarning();
                     return;
                 }
 
                 Minecraft minecraft = Minecraft.getInstance();
                 String payload = LOCK_PREFIX + message;
                 long dispatchDelayMs = adaptiveDispatchDelayMs;
+                LocalPlayer selfPlayer = minecraft.player;
 
                 for (String username : usernames) {
                     if (username == null || username.isBlank()) {
+                        continue;
+                    }
+
+                    if (selfPlayer != null && isSelfRecipient(username, selfPlayer)) {
                         continue;
                     }
 
@@ -117,14 +126,32 @@ public final class StaffOutboundMessenger {
                         LOGGER.warn("Dropping outbound staff message to {} after {} attempts.", recipient, MAX_DISPATCH_RETRIES);
                     }
 
+                    if (delivered) {
+                        deliveredToAnyone = true;
+                    }
+
                     if (!sleepQuietly(dispatchDelayMs)) {
                         return;
                     }
                 }
+
+                if (!deliveredToAnyone) {
+                    showNoRecipientsWarning();
+                }
             } catch (Exception e) {
                 LOGGER.warn("Failed to dispatch staff /v broadcast: {}", e.getMessage());
+                if (!deliveredToAnyone) {
+                    showNoRecipientsWarning();
+                }
             }
         }, "VetsMod-StaffOutboundDispatch").start();
+    }
+
+    private static void showNoRecipientsWarning() {
+        ChatUtils.sendLocalMessage(
+            Component.literal("Nobody saw your message, the vets api is probably restarting")
+                .withStyle(ChatFormatting.YELLOW)
+        );
     }
 
     public static boolean shouldSuppressFeedback(String message) {
@@ -347,7 +374,51 @@ public final class StaffOutboundMessenger {
             return false;
         }
 
-        return normalizedMessage.contains(normalizedPayload);
+        if (normalizedMessage.contains(normalizedPayload)) {
+            return true;
+        }
+
+        List<String> messageTokens = extractEchoTokens(normalizedMessage);
+        List<String> payloadTokens = extractEchoTokens(normalizedPayload);
+        if (messageTokens.isEmpty() || payloadTokens.isEmpty()) {
+            return false;
+        }
+
+        return containsTokenSubsequence(messageTokens, payloadTokens);
+    }
+
+    private static List<String> extractEchoTokens(String input) {
+        List<String> tokens = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+
+        input.codePoints().forEach(cp -> {
+            if (Character.isLetterOrDigit(cp)) {
+                current.appendCodePoint(Character.toLowerCase(cp));
+            } else if (!current.isEmpty()) {
+                tokens.add(current.toString());
+                current.setLength(0);
+            }
+        });
+
+        if (!current.isEmpty()) {
+            tokens.add(current.toString());
+        }
+
+        return tokens;
+    }
+
+    private static boolean containsTokenSubsequence(List<String> messageTokens, List<String> payloadTokens) {
+        int messageIndex = 0;
+        int payloadIndex = 0;
+
+        while (messageIndex < messageTokens.size() && payloadIndex < payloadTokens.size()) {
+            if (messageTokens.get(messageIndex).equals(payloadTokens.get(payloadIndex))) {
+                payloadIndex++;
+            }
+            messageIndex++;
+        }
+
+        return payloadIndex == payloadTokens.size();
     }
 
     private static String normalizeForEchoComparison(String input) {
