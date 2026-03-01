@@ -18,7 +18,7 @@ import net.minecraft.resources.Identifier;
  */
 public enum Prepend {
     DEFAULT(
-            Component.literal("[VetsMod] ").withStyle(ChatFormatting.GOLD)),
+        buildDefaultBadge()),
     GUILD(
             Component.literal("\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE")
                     .append(" ")
@@ -36,6 +36,10 @@ public enum Prepend {
             Component.empty());
 
     private static final int MAX_LINES_BEFORE_REBADGE = 18;
+    private static final String DEFAULT_PREFIX = "\uDAFF\uDFFC\uE008\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
+    private static final String DEFAULT_PILL_FRAME_OPEN = "\uE010\u2064";
+    private static final String DEFAULT_PILL_FRAME_SEGMENT = "\uE00F\uE012";
+    private static final String DEFAULT_PILL_FRAME_CLOSE = "\uE011";
 
     private static Prepend lastPrepend = null;
     private static int linesSinceBadge = 0;
@@ -78,5 +82,43 @@ public enum Prepend {
      */
     public static void addRenderedLines(int lines) {
         linesSinceBadge += lines;
+    }
+
+    private static MutableComponent buildDefaultBadge() {
+        Style rootStyle = Style.EMPTY
+                .withColor(ChatFormatting.GOLD)
+                .withoutShadow();
+        Style prefixStyle = Style.EMPTY
+                .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+                .withColor(ChatFormatting.GOLD)
+                .withoutShadow();
+        Style pillFrameStyle = Style.EMPTY
+                .withColor(ChatFormatting.GOLD)
+                .withoutShadow();
+        Style pillTextStyle = Style.EMPTY
+                .withColor(ChatFormatting.DARK_GRAY)
+                .withoutShadow();
+
+        MutableComponent badge = Component.empty().setStyle(rootStyle);
+        badge.append(Component.literal(DEFAULT_PREFIX).setStyle(prefixStyle));
+        badge.append(Component.literal(" ").setStyle(pillFrameStyle));
+        badge.append(Component.literal(DEFAULT_PILL_FRAME_OPEN).setStyle(pillFrameStyle));
+
+        appendDefaultPillGlyph(badge, '\uE055', pillFrameStyle, pillTextStyle);
+        appendDefaultPillGlyph(badge, '\uE044', pillFrameStyle, pillTextStyle);
+        appendDefaultPillGlyph(badge, '\uE053', pillFrameStyle, pillTextStyle);
+        appendDefaultPillGlyph(badge, '\uE052', pillFrameStyle, pillTextStyle);
+        appendDefaultPillGlyph(badge, '\uE04C', pillFrameStyle, pillTextStyle);
+        appendDefaultPillGlyph(badge, '\uE04E', pillFrameStyle, pillTextStyle);
+        appendDefaultPillGlyph(badge, '\uE043', pillFrameStyle, pillTextStyle);
+
+        badge.append(Component.literal(DEFAULT_PILL_FRAME_CLOSE).setStyle(pillFrameStyle));
+        badge.append(Component.literal(" ").setStyle(pillFrameStyle));
+        return badge;
+    }
+
+    private static void appendDefaultPillGlyph(MutableComponent target, char glyph, Style frameStyle, Style textStyle) {
+        target.append(Component.literal(DEFAULT_PILL_FRAME_SEGMENT).setStyle(frameStyle));
+        target.append(Component.literal(String.valueOf(glyph)).setStyle(textStyle));
     }
 }

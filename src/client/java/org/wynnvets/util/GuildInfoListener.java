@@ -642,7 +642,7 @@ public class GuildInfoListener {
     if (player != null) {
       MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
         // Send the MOTD to the player's chat
-        ChatUtils.sendLocalMessage(motdComponent, Prepend.EMPTY);
+        ChatUtils.sendLocalMessage(motdComponent, Prepend.DEFAULT);
       });
     }
   }
@@ -665,7 +665,7 @@ public class GuildInfoListener {
       StampFetcher.fetchStampAndCreateMessage().thenAccept(stampMessage -> {
         if (stampMessage != null) {
           LOGGER.info("Displaying annihilation countdown");
-          ChatUtils.sendLocalMessage(stampMessage, Prepend.EMPTY);
+          ChatUtils.sendLocalMessage(stampMessage, Prepend.DEFAULT);
         }
       });
     }
