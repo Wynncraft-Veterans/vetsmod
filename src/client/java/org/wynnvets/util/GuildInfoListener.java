@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.util.chat.ChatUtils;
 import org.wynnvets.util.chat.Prepend;
+import org.wynnvets.util.chat.StaffOutboundMessenger;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -277,6 +278,7 @@ public class GuildInfoListener {
       if (currentTime - lastMotdFetchTime > MOTD_FETCH_COOLDOWN) {
         lastMotdFetchTime = currentTime;
         guildStatsCompleted = false; // Reset flag for new world join
+        StaffOutboundMessenger.resetStaffChatEligibilityCache();
         sendGuildStatsCommand();
         fetchAndDisplayMotd();
       }
@@ -733,5 +735,6 @@ public class GuildInfoListener {
     waitingForStaffRankCheck = false;
     isModInitiatedStaffRankCheck = false;
     staffRankRequestTime = 0;
+    StaffOutboundMessenger.resetStaffChatEligibilityCache();
   }
 }

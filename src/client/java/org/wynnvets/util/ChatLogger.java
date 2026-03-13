@@ -139,8 +139,9 @@ public class ChatLogger {
       return processed;
     }
 
-    // Join multiple lines with spaces
-    return String.join(" ", lines);
+    // Join lines directly — word-boundary wraps already have trailing spaces;
+    // mid-character wraps (e.g. URLs) must not have a space inserted.
+    return String.join("", lines);
   }
 
   private static boolean containsFilterString(String message) {

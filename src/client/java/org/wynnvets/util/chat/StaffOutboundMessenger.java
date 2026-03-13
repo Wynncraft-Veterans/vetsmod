@@ -42,6 +42,8 @@ public final class StaffOutboundMessenger {
     private static final long DISPATCH_DELAY_STEP_MS = 100L;
     private static final long MIN_SUPPRESSION_WAIT_MS = 1200L;
     private static final int MAX_DISPATCH_RETRIES = 6;
+    private static final String STAFF_CHAT_WAIT_ONLINE_STATUS_MESSAGE =
+        "Please wait until the server updates your online status before using staff chat.";
     private static final Gson GSON = new Gson();
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
@@ -60,8 +62,58 @@ public final class StaffOutboundMessenger {
     private static volatile AwaitingSuppression awaitingSuppression;
     private static volatile long suppressOfflineGuidanceUntilMs;
     private static volatile long adaptiveDispatchDelayMs = BASE_DISPATCH_DELAY_MS;
+    private static volatile boolean selfSeenInStaffFeedThisWorld;
+    private static final AtomicBoolean SELF_PRESENCE_CHECK_IN_FLIGHT = new AtomicBoolean(false);
 
     private StaffOutboundMessenger() {
+    }
+
+    /**
+     * Sends /v chat only after confirming this player has appeared in the WV online staff list.
+     * Once confirmed in the current world context, subsequent /v messages skip the check.
+     */
+    public static void dispatchStaffChatWithEligibilityGate(String displayName, String message, String rank) {
+        if (message == null || message.isBlank()) {
+            return;
+        }
+
+        if (selfSeenInStaffFeedThisWorld) {
+            ChatUtils.sendStaffChannelMessage(displayName, message, rank);
+            dispatchStaffBroadcast(message);
+            return;
+        }
+
+        if (!SELF_PRESENCE_CHECK_IN_FLIGHT.compareAndSet(false, true)) {
+            showStaffOnlineStatusWaitMessage();
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                boolean listed = selfSeenInStaffFeedThisWorld || isSelfListedInOnlineStaffFeed();
+                if (!listed) {
+                    showStaffOnlineStatusWaitMessage();
+                    return;
+                }
+
+                selfSeenInStaffFeedThisWorld = true;
+                ChatUtils.sendStaffChannelMessage(displayName, message, rank);
+                dispatchStaffBroadcast(message);
+            } catch (Exception e) {
+                LOGGER.warn("Failed to verify online staff status for /v: {}", e.getMessage());
+                showStaffOnlineStatusWaitMessage();
+            } finally {
+                SELF_PRESENCE_CHECK_IN_FLIGHT.set(false);
+            }
+        }, "VetsMod-StaffPresenceCheck").start();
+    }
+
+    /**
+     * Clears the per-world /v eligibility cache so the next message re-verifies feed presence.
+     */
+    public static void resetStaffChatEligibilityCache() {
+        selfSeenInStaffFeedThisWorld = false;
+        SELF_PRESENCE_CHECK_IN_FLIGHT.set(false);
     }
 
     public static void dispatchStaffBroadcast(String message) {
@@ -152,6 +204,105 @@ public final class StaffOutboundMessenger {
             Component.literal("Nobody saw your message, the vets api is probably restarting")
                 .withStyle(ChatFormatting.YELLOW)
         );
+    }
+
+    private static void showStaffOnlineStatusWaitMessage() {
+        ChatUtils.sendLocalMessage(
+            Component.literal(STAFF_CHAT_WAIT_ONLINE_STATUS_MESSAGE)
+                .withStyle(ChatFormatting.YELLOW)
+        );
+    }
+
+    private static boolean isSelfListedInOnlineStaffFeed() throws Exception {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer selfPlayer = minecraft.player;
+        if (selfPlayer == null) {
+            return false;
+        }
+
+        HttpResponse<String> response = HTTP_CLIENT.send(STAFF_REQUEST, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+            return false;
+        }
+
+        JsonArray staffMembers = GSON.fromJson(response.body(), JsonArray.class);
+        if (staffMembers == null) {
+            return false;
+        }
+
+        for (JsonElement element : staffMembers) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+
+            JsonObject staffMember = element.getAsJsonObject();
+            if (!isOnlineStaffMember(staffMember)) {
+                continue;
+            }
+
+            String username = stringOrNull(staffMember, "username");
+            if (username == null || username.isBlank()) {
+                continue;
+            }
+
+            if (isSelfRecipient(username, selfPlayer)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean isOnlineStaffMember(JsonObject staffMember) {
+        if (staffMember.has("online") && !staffMember.get("online").isJsonNull()) {
+            return staffMember.get("online").getAsBoolean();
+        }
+
+        if (staffMember.has("isOnline") && !staffMember.get("isOnline").isJsonNull()) {
+            return staffMember.get("isOnline").getAsBoolean();
+        }
+
+        String status = stringOrNull(staffMember, "status");
+        if (status != null) {
+            if (status.equalsIgnoreCase("online")) {
+                return true;
+            }
+            if (status.equalsIgnoreCase("offline")) {
+                return false;
+            }
+        }
+
+        String world = firstNonBlank(
+            stringOrNull(staffMember, "world"),
+            stringOrNull(staffMember, "server")
+        );
+        if (world != null) {
+            return true;
+        }
+
+        return true;
+    }
+
+    private static String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        if (second != null && !second.isBlank()) {
+            return second;
+        }
+        return null;
+    }
+
+    private static String stringOrNull(JsonObject obj, String key) {
+        if (!obj.has(key) || obj.get(key).isJsonNull()) {
+            return null;
+        }
+
+        try {
+            return obj.get(key).getAsString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public static boolean shouldSuppressFeedback(String message) {

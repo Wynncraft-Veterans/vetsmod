@@ -255,8 +255,7 @@ public class GuildChatCommandMixin {
           return (selfRank == null || selfRank.isEmpty()) ? "captain" : selfRank;
         });
 
-    ChatUtils.sendStaffChannelMessage(username, message, rank);
-    StaffOutboundMessenger.dispatchStaffBroadcast(message);
+    StaffOutboundMessenger.dispatchStaffChatWithEligibilityGate(username, message, rank);
   }
 
   /**
