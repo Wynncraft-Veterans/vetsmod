@@ -6,6 +6,7 @@ import net.minecraft.client.StringSplitter;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.gui.components.ComponentRenderUtils;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.MutableComponent;
@@ -17,7 +18,10 @@ import org.wynnvets.util.colors.AnimatedGradientSequence;
 import org.wynnvets.util.colors.ShaderColorPalette;
 import org.wynnvets.util.SupportersFetcher;
 
+import java.net.URI;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Centralized utility for sending formatted chat messages to the local player.
@@ -55,6 +59,9 @@ public final class ChatUtils {
     private static final Style CHAT_PREFIX_STYLE = Style.EMPTY
             .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
             .withoutShadow();
+
+    private static final Pattern URL_PATTERN = Pattern.compile(
+            "https?://\\S+", Pattern.CASE_INSENSITIVE);
 
     private ChatUtils() {
     }
@@ -243,7 +250,7 @@ public final class ChatUtils {
         while (cursor < bodyText.length()) {
             MarkerMatch match = nextPrefixMarker(bodyText, cursor);
             if (match == null) {
-                formatted.append(Component.literal(bodyText.substring(cursor)).setStyle(textStyle));
+                appendTextWithUrls(formatted, bodyText.substring(cursor), textStyle);
                 break;
             }
 
@@ -258,7 +265,7 @@ public final class ChatUtils {
                 // Emit text up to the '\n' (excluding it)
                 int textEnd = markerStart - 1;
                 if (textEnd > cursor) {
-                    formatted.append(Component.literal(bodyText.substring(cursor, textEnd)).setStyle(textStyle));
+                    appendTextWithUrls(formatted, bodyText.substring(cursor, textEnd), textStyle);
                 }
                 // Skip the '\n', the marker itself, and any single trailing space
                 cursor = match.index + match.length;
@@ -274,7 +281,7 @@ public final class ChatUtils {
                 // separator glyph in chat/prefix font, preserving the original
                 // visual intent.
                 if (markerStart > cursor) {
-                    formatted.append(Component.literal(bodyText.substring(cursor, markerStart)).setStyle(textStyle));
+                    appendTextWithUrls(formatted, bodyText.substring(cursor, markerStart), textStyle);
                 }
                 formatted.append(Component.literal(PRIVATE_SEPARATOR_GLYPH).setStyle(prefixStyleFor(textStyle)));
                 cursor = match.index + match.length;
@@ -282,6 +289,37 @@ public final class ChatUtils {
         }
 
         return formatted;
+    }
+
+    /**
+     * Appends a text segment to a parent component, detecting URLs and making
+     * them clickable with {@link ClickEvent.OpenUrl}.
+     */
+    private static void appendTextWithUrls(MutableComponent parent, String text, Style textStyle) {
+        if (text.isEmpty()) {
+            return;
+        }
+        Matcher matcher = URL_PATTERN.matcher(text);
+        int lastEnd = 0;
+        while (matcher.find()) {
+            if (matcher.start() > lastEnd) {
+                parent.append(Component.literal(text.substring(lastEnd, matcher.start())).setStyle(textStyle));
+            }
+            String url = matcher.group();
+            try {
+                URI uri = URI.create(url);
+                Style urlStyle = textStyle.withClickEvent(new ClickEvent.OpenUrl(uri));
+                parent.append(Component.literal(url).setStyle(urlStyle));
+            } catch (Exception e) {
+                parent.append(Component.literal(url).setStyle(textStyle));
+            }
+            lastEnd = matcher.end();
+        }
+        if (lastEnd == 0) {
+            parent.append(Component.literal(text).setStyle(textStyle));
+        } else if (lastEnd < text.length()) {
+            parent.append(Component.literal(text.substring(lastEnd)).setStyle(textStyle));
+        }
     }
 
     private static MarkerMatch nextPrefixMarker(String text, int fromIndex) {
@@ -427,7 +465,7 @@ public final class ChatUtils {
                 boolean previous = INTERNAL_CHAT_DISPATCH.get();
                 INTERNAL_CHAT_DISPATCH.set(true);
                 AnimatedGradientSequence.beginAnimation(
-                    ShaderColorPalette.DARK_AQUA, 0x88FFE9, 3000);
+                    ShaderColorPalette.DARK_AQUA, 0xAADDFF, 3000);
                 try {
                     minecraft.player.displayClientMessage(wrapped, false);
                 } finally {

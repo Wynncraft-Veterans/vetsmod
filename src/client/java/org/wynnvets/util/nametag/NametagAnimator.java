@@ -215,27 +215,27 @@ public final class NametagAnimator {
 
     /**
      * Lightens a colour by blending it {@value #LIGHTEN_FACTOR} of the way
-     * toward pure white.  Works across all hues — aqua, blue, green, yellow,
-     * etc. — producing a clearly visible but on-hue brightness shift.
+     * toward a very light lavender, producing a visible brightness shift with
+     * a subtle hue drift towards purple on high-brightness displays.
      *
-     * <p>Examples at 50% blend:</p>
-     * <ul>
-     *   <li>Aqua   {@code 0x55FFFF} → {@code 0xAAFFFF}</li>
-     *   <li>Blue   {@code 0x5555FF} → {@code 0xAAAAFF}</li>
-     *   <li>Green  {@code 0x55FF55} → {@code 0xAAFFAA}</li>
-     *   <li>Yellow {@code 0xFFFF55} → {@code 0xFFFFAA}</li>
-     *   <li>White  {@code 0xFFFFFF} → {@code 0xFFFFFF} (no change)</li>
-     * </ul>
+     * <p>The blend target {@code (255, 225, 255)} nudges green slightly below
+     * the red/blue channels, giving the bright end a faint purple tint.</p>
      */
     private static int lighten(int rgb) {
         int r = (rgb >> 16) & 0xFF;
         int g = (rgb >>  8) & 0xFF;
         int b =  rgb        & 0xFF;
 
+        // Blend towards light lavender (255, 225, 255) instead of pure white
+        // to add a slight hue shift towards purple at the bright end.
         int lr = Math.round(r + LIGHTEN_FACTOR * (255 - r));
-        int lg = Math.round(g + LIGHTEN_FACTOR * (255 - g));
+        int lg = Math.round(g + LIGHTEN_FACTOR * (225 - g));
         int lb = Math.round(b + LIGHTEN_FACTOR * (255 - b));
-        return (lr << 16) | (lg << 8) | lb;
+        return (clamp(lr) << 16) | (clamp(lg) << 8) | clamp(lb);
+    }
+
+    private static int clamp(int v) {
+        return Math.max(0, Math.min(255, v));
     }
 
     /**

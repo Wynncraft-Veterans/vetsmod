@@ -69,13 +69,16 @@ public final class ServerGuildChatRewriter {
 
         MutableComponent badge = Prepend.GUILD.get();
 
+        MutableComponent messageBody = extractBodyComponent(
+                component, parsed.bodyCharStart, ChatUtils.RANK_STYLE);
+
         MutableComponent body = Component.empty()
                 .append(badge)
                 .append(gradientPill)
                 .append(" ")
                 .append(Component.literal(parsed.username).setStyle(ChatUtils.NAME_STYLE))
                 .append(Component.literal(": ").setStyle(ChatUtils.RANK_STYLE))
-                .append(ChatUtils.formatMessageBody(parsed.message, ChatUtils.RANK_STYLE));
+                .append(messageBody);
 
         ChatUtils.dispatchAnimatedChat(body, badge.getStyle());
         return true;
@@ -185,6 +188,63 @@ public final class ServerGuildChatRewriter {
         return result;
     }
 
+    // ── Message body extraction ───────────────────────────────────────
+
+    /**
+     * Extracts the message body from the original component tree, preserving
+     * click and hover events from interactive elements (links, items).
+     * Non-interactive text is processed through {@link ChatUtils#formatMessageBody}
+     * for marker stripping and URL detection.
+     *
+     * @param root           the original chat Component
+     * @param bodyCharStart  char offset in the flattened string where the body begins
+     * @param defaultStyle   style for non-interactive body text
+     * @return a component containing the message body with preserved interactivity
+     */
+    private static MutableComponent extractBodyComponent(Component root, int bodyCharStart, Style defaultStyle) {
+        List<StyledFragment> allFragments = new ArrayList<>();
+        flattenComponent(root, root.getStyle(), allFragments);
+
+        MutableComponent result = Component.empty();
+        StringBuilder accumulated = new StringBuilder();
+        int charOffset = 0;
+
+        for (StyledFragment frag : allFragments) {
+            int fragEnd = charOffset + frag.text.length();
+            if (fragEnd <= bodyCharStart) {
+                charOffset = fragEnd;
+                continue;
+            }
+
+            String text;
+            if (charOffset < bodyCharStart) {
+                text = frag.text.substring(bodyCharStart - charOffset);
+            } else {
+                text = frag.text;
+            }
+
+            boolean isInteractive = frag.style.getClickEvent() != null
+                    || frag.style.getHoverEvent() != null;
+            if (isInteractive) {
+                if (accumulated.length() > 0) {
+                    result.append(ChatUtils.formatMessageBody(accumulated.toString(), defaultStyle));
+                    accumulated.setLength(0);
+                }
+                result.append(Component.literal(text).setStyle(frag.style));
+            } else {
+                accumulated.append(text);
+            }
+
+            charOffset = fragEnd;
+        }
+
+        if (accumulated.length() > 0) {
+            result.append(ChatUtils.formatMessageBody(accumulated.toString(), defaultStyle));
+        }
+
+        return result;
+    }
+
     // ── Guild chat parsing ────────────────────────────────────────────
 
     private static ParsedGuildChat parseGuildChat(String message) {
@@ -221,19 +281,25 @@ public final class ServerGuildChatRewriter {
         }
 
         String rankIndicator = message.substring(0, lastGlyphEnd);
+        int bodyStart = colonIndex + 1;
+        while (bodyStart < message.length() && message.charAt(bodyStart) == ' ') {
+            bodyStart++;
+        }
         String messageContent = message.substring(colonIndex + 1).trim();
-        return new ParsedGuildChat(rankIndicator, username, messageContent);
+        return new ParsedGuildChat(rankIndicator, username, messageContent, bodyStart);
     }
 
     private static final class ParsedGuildChat {
         final String rankIndicator;
         final String username;
         final String message;
+        final int bodyCharStart;
 
-        ParsedGuildChat(String rankIndicator, String username, String message) {
+        ParsedGuildChat(String rankIndicator, String username, String message, int bodyCharStart) {
             this.rankIndicator = rankIndicator;
             this.username = username;
             this.message = message;
+            this.bodyCharStart = bodyCharStart;
         }
     }
 }

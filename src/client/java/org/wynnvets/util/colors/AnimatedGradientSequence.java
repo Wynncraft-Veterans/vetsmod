@@ -38,7 +38,7 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
      */
     public static final int MARKER_COLOR = 0x00DEAD;
     public static final int DEFAULT_START_COLOR = ShaderColorPalette.DARK_AQUA;
-    public static final int DEFAULT_END_COLOR = 0x88FFE9;
+    public static final int DEFAULT_END_COLOR = 0xAADDFF;
     public static final int DEFAULT_CYCLE_TIME_MS = 3000;
 
     // ── Thread-local animation context ──────────────────────────────────
