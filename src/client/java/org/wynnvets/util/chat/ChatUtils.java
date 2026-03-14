@@ -67,6 +67,20 @@ public final class ChatUtils {
     }
 
     /**
+     * Returns {@code true} when {@code text} is purely server wrap-continuation
+     * structure: a lone newline or a known prefix marker glyph.  Interactive
+     * fragments matching this predicate should be accumulated rather than passed
+     * through directly so that {@link #formatMessageBody} can strip redundant
+     * server-injected continuation markers.
+     */
+    static boolean isWrapStructure(String text) {
+        return text.equals("\n")
+            || text.equals(GUILD_PREPEND_FULL)
+            || text.equals(GUILD_PREPEND_COMPACT)
+            || text.equals(PRIVATE_SEPARATOR_GLYPH);
+    }
+
+    /**
      * Returns whether the current thread is dispatching a mod-generated chat message.
      */
     public static boolean isInternalDispatch() {
@@ -271,6 +285,20 @@ public final class ChatUtils {
                 cursor = match.index + match.length;
                 if (cursor < bodyText.length() && bodyText.charAt(cursor) == ' ') {
                     cursor++;
+                }
+                // The server sometimes emits multiple consecutive markers on
+                // continuation lines (e.g. "\n<compact> <compact> text").
+                // Consume any additional marker+space pairs so that only one
+                // continuation bar is rendered after wrapBlockMessage() re-wraps.
+                while (cursor < bodyText.length()) {
+                    MarkerMatch extra = nextPrefixMarker(bodyText, cursor);
+                    if (extra == null || extra.index != cursor) {
+                        break;
+                    }
+                    cursor = extra.index + extra.length;
+                    if (cursor < bodyText.length() && bodyText.charAt(cursor) == ' ') {
+                        cursor++;
+                    }
                 }
                 // Ensure words don't merge across the join point
                 if (cursor < bodyText.length()) {

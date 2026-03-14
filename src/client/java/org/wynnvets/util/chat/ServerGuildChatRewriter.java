@@ -225,7 +225,7 @@ public final class ServerGuildChatRewriter {
 
             boolean isInteractive = frag.style.getClickEvent() != null
                     || frag.style.getHoverEvent() != null;
-            if (isInteractive) {
+            if (isInteractive && !ChatUtils.isWrapStructure(text)) {
                 if (accumulated.length() > 0) {
                     result.append(ChatUtils.formatMessageBody(accumulated.toString(), defaultStyle));
                     accumulated.setLength(0);
