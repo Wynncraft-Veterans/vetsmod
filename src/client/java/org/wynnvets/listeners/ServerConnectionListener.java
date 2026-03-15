@@ -3,8 +3,14 @@ package org.wynnvets.listeners;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.wynnvets.util.GuildInfoListener;
+import org.wynnvets.guild.GuildStateManager;
 
+/**
+ * Registers Fabric client networking callbacks for server join and disconnect events.
+ *
+ * <p>On disconnect, resets {@link GuildStateManager} so that guild state is
+ * re-evaluated when the player reconnects to a server.</p>
+ */
 public class ServerConnectionListener {
   private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
 
@@ -16,7 +22,7 @@ public class ServerConnectionListener {
     // Reset the flag when disconnecting
     ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
       // Reset guild info when disconnecting
-      GuildInfoListener.reset();
+      GuildStateManager.reset();
       LOGGER.info("Disconnected from server");
     });
   }

@@ -5,6 +5,13 @@ import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Server-side entry point for the VetsMod Fabric mod.
+ *
+ * <p>Performs minimal initialization since all mod functionality is client-side.
+ * The common initializer logs readiness and establishes the shared logger and
+ * mod ID constant used across the codebase.</p>
+ */
 public class Vetsmod implements ModInitializer {
   public static final String MOD_ID = "vetsmod";
 

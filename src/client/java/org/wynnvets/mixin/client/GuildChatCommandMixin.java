@@ -8,12 +8,12 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.util.BridgeMessageFetcher;
-import org.wynnvets.util.GuildInfoListener;
-import org.wynnvets.util.StaffRanksFetcher;
-import org.wynnvets.util.UserInfo;
-import org.wynnvets.util.chat.ChatUtils;
-import org.wynnvets.util.chat.StaffOutboundMessenger;
+import org.wynnvets.fetcher.polling.BridgeMessageFetcher;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.fetcher.polling.StaffRanksFetcher;
+import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
+import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.StaffOutboundMessenger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,6 +25,15 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * Intercepts outbound chat commands to handle guild chat ({@code /g}),
+ * staff chat ({@code /v}), and debug commands.
+ *
+ * <p>For guildless-but-unlocked users, {@code /g} messages are relayed
+ * through the VetsMod API instead of the server. Staff chat ({@code /v})
+ * fans out encrypted direct messages to all online staff members via
+ * {@link StaffOutboundMessenger}.</p>
+ */
 @Mixin(ClientPacketListener.class)
 public class GuildChatCommandMixin {
   private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
@@ -38,7 +47,7 @@ public class GuildChatCommandMixin {
   private void onSendCommand(String command, CallbackInfo ci) {
     // Check if this is a guild chat command for guildless+unlocked users
     if (command.regionMatches(true, 0, "g ", 0, 2)) {
-      if (GuildInfoListener.isGuildless() && GuildInfoListener.isUnlocked()) {
+      if (GuildStateManager.isGuildless() && GuildStateManager.isUnlocked()) {
         ci.cancel();
         String message = command.substring(2);
         handleGuildChat(message);
@@ -48,10 +57,10 @@ public class GuildChatCommandMixin {
 
     // Staff command variant: /v <message>
     if (command.regionMatches(true, 0, "v ", 0, 2)) {
-      boolean isCurrentlyStaff = GuildInfoListener.isStaff();
-      boolean refreshStarted = GuildInfoListener.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
+      boolean isCurrentlyStaff = GuildStateManager.isStaff();
+      boolean refreshStarted = GuildStateManager.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
 
-      if (refreshStarted || GuildInfoListener.isCheckingStaffStatus()) {
+      if (refreshStarted || GuildStateManager.isCheckingStaffStatus()) {
         ci.cancel();
         ChatUtils.sendLocalMessage(
             Component.literal("Checking staff permissions, please retry in a moment.")
@@ -60,7 +69,7 @@ public class GuildChatCommandMixin {
         return;
       }
 
-      if (!GuildInfoListener.isStaff()) {
+      if (!GuildStateManager.isStaff()) {
         ci.cancel();
         ChatUtils.sendLocalMessage(
             Component.literal("You must be staff to use /v.")
@@ -93,10 +102,10 @@ public class GuildChatCommandMixin {
 
     // Staff command alias: /a <message> -> /g ‼<message>
     if (command.regionMatches(true, 0, "a ", 0, 2)) {
-      boolean isCurrentlyStaff = GuildInfoListener.isStaff();
-      boolean refreshStarted = GuildInfoListener.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
+      boolean isCurrentlyStaff = GuildStateManager.isStaff();
+      boolean refreshStarted = GuildStateManager.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
 
-      if (refreshStarted || GuildInfoListener.isCheckingStaffStatus()) {
+      if (refreshStarted || GuildStateManager.isCheckingStaffStatus()) {
         ci.cancel();
         ChatUtils.sendLocalMessage(
             Component.literal("Checking staff permissions, please retry in a moment.")
@@ -105,7 +114,7 @@ public class GuildChatCommandMixin {
         return;
       }
 
-      if (!GuildInfoListener.isStaff()) {
+      if (!GuildStateManager.isStaff()) {
         ci.cancel();
         ChatUtils.sendLocalMessage(
             Component.literal("You must be staff to use /a.")
@@ -133,10 +142,10 @@ public class GuildChatCommandMixin {
 
     // Fallback interception for /wv check <playerName> to keep it client-side.
     if (command.regionMatches(true, 0, "wv check ", 0, 9)) {
-      boolean isCurrentlyStaff = GuildInfoListener.isStaff();
-      boolean refreshStarted = GuildInfoListener.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
+      boolean isCurrentlyStaff = GuildStateManager.isStaff();
+      boolean refreshStarted = GuildStateManager.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
 
-      if (refreshStarted || GuildInfoListener.isCheckingStaffStatus()) {
+      if (refreshStarted || GuildStateManager.isCheckingStaffStatus()) {
         ci.cancel();
         ChatUtils.sendLocalMessage(
             Component.literal("Checking staff permissions, please retry in a moment.")
@@ -145,7 +154,7 @@ public class GuildChatCommandMixin {
         return;
       }
 
-      if (!GuildInfoListener.isStaff()) {
+      if (!GuildStateManager.isStaff()) {
         ci.cancel();
         ChatUtils.sendLocalMessage(
             Component.literal("You must be staff to use /wv check.")
@@ -164,7 +173,7 @@ public class GuildChatCommandMixin {
         return;
       }
 
-      UserInfo.checkUser(playerName)
+      UserInfoFetcher.checkUser(playerName)
           .thenAccept(userInfo -> ChatUtils.sendLocalMessage(userInfo));
     }
   }
@@ -181,7 +190,7 @@ public class GuildChatCommandMixin {
       return;
     }
 
-    String username = GuildInfoListener.playerName();
+    String username = GuildStateManager.playerName();
     if (username == null || username.isEmpty()) {
       username = minecraft.player.getName().getString();
     }
@@ -244,14 +253,14 @@ public class GuildChatCommandMixin {
       return;
     }
 
-    String username = GuildInfoListener.playerName();
+    String username = GuildStateManager.playerName();
     if (username == null || username.isEmpty()) {
       username = minecraft.player.getName().getString();
     }
 
     String rank = StaffRanksFetcher.confirmedRankFor(username)
         .orElseGet(() -> {
-          String selfRank = GuildInfoListener.selfStaffRank();
+          String selfRank = GuildStateManager.selfStaffRank();
           return (selfRank == null || selfRank.isEmpty()) ? "captain" : selfRank;
         });
 

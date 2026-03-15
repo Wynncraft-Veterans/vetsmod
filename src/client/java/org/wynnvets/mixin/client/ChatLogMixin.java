@@ -6,15 +6,24 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.util.BridgeMessageFetcher;
-import org.wynnvets.util.ChatLogger;
-import org.wynnvets.util.GuildInfoListener;
-import org.wynnvets.util.chat.ChatUtils;
-import org.wynnvets.util.chat.ServerGuildChatRewriter;
-import org.wynnvets.util.chat.StaffChannelMessageRewriter;
-import org.wynnvets.util.chat.StaffGuildAlertRewriter;
-import org.wynnvets.util.chat.StaffOutboundMessenger;
+import org.wynnvets.fetcher.polling.BridgeMessageFetcher;
+import org.wynnvets.chat.ChatLogger;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.rewriter.ServerGuildChatRewriter;
+import org.wynnvets.chat.rewriter.StaffChannelMessageRewriter;
+import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
+import org.wynnvets.chat.StaffOutboundMessenger;
 
+/**
+ * Intercepts all incoming chat messages via {@link ChatComponent#addMessage}.
+ *
+ * <p>This is the primary chat pipeline hook. It performs, in order:
+ * logging to file, guild state detection, mod-initiated message suppression,
+ * staff outbound feedback suppression, Fruma-mode duplicate suppression,
+ * and chat rewriting (staff alerts, staff channel, supporter gradients).
+ * Messages generated internally by the mod are passed through unmodified.</p>
+ */
 @Mixin(ChatComponent.class)
 public class ChatLogMixin {
   @Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;)V", at = @At("HEAD"), cancellable = true)
@@ -25,11 +34,11 @@ public class ChatLogMixin {
     ChatLogger.logMessage(messageString);
 
     // Check if this is a guild stats message BEFORE processing
-    boolean isGuildStats = GuildInfoListener.isProcessingModGuildStats() && isGuildStatsMessage(messageString);
-    boolean isStaffRankCheck = GuildInfoListener.isProcessingModStaffRankCheck() && isStaffRankCheckMessage(messageString);
+    boolean isGuildStats = GuildStateManager.isProcessingModGuildStats() && isGuildStatsMessage(messageString);
+    boolean isStaffRankCheck = GuildStateManager.isProcessingModStaffRankCheck() && isStaffRankCheckMessage(messageString);
 
     // Always process the message for guild info detection (even if we'll suppress it)
-    GuildInfoListener.processMessage(message, messageString);
+    GuildStateManager.processMessage(message, messageString);
 
     // Hide guild stats output if it was initiated by the mod (not the user)
     if (isGuildStats || isStaffRankCheck) {

@@ -7,9 +7,16 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.util.GuildInfoListener;
-import org.wynnvets.util.chat.ChatUtils;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.chat.ChatUtils;
 
+/**
+ * Intercepts the {@code /unlock <password>} command to gate mod features
+ * behind a local password check.
+ *
+ * <p>The unlock state is managed by {@link GuildStateManager} and persisted
+ * across sessions via {@link org.wynnvets.config.VetsConfig}.</p>
+ */
 @Mixin(ClientPacketListener.class)
 public class UnlockCommandMixin {
 
@@ -44,7 +51,7 @@ public class UnlockCommandMixin {
    */
   private void handleUnlock(String password) {
     // Attempt unlock
-    boolean success = GuildInfoListener.tryUnlock(password);
+    boolean success = GuildStateManager.tryUnlock(password);
 
     if (success) {
       ChatUtils.sendLocalMessage(

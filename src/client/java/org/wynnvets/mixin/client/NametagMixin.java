@@ -13,8 +13,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.util.SupportersFetcher;
-import org.wynnvets.util.nametag.NametagAnimator;
+import org.wynnvets.fetcher.polling.SupportersFetcher;
+import org.wynnvets.rendering.nametag.NametagAnimator;
 
 /**
  * Intercepts nametag submission for player entities to apply a subtle

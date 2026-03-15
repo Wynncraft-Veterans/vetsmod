@@ -1,7 +1,14 @@
 package org.wynnvets.datamodels;
 
-import org.wynnvets.constants.WVApi;
+import org.wynnvets.api.VetsApi;
 
+/**
+ * GSON-deserialisable model for a WynnCraft player.
+ *
+ * <p>Fields are populated by GSON from the WynnCraft API response JSON.
+ * Provides convenience accessors for guild membership, veteran status,
+ * and formatted join dates used by the {@code /wv check} command.</p>
+ */
 public class User {
   private String username;
   private String uuid;
@@ -32,7 +39,7 @@ public class User {
       return false;
     }
 
-    return guild.getUuid().equals(WVApi.guildUUID);
+    return guild.getUuid().equals(VetsApi.GUILD_UUID);
   }
 
   public boolean isVeteran() {

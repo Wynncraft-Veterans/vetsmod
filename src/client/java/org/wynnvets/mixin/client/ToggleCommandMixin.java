@@ -6,10 +6,17 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.wynnvets.config.VetsConfig;
-import org.wynnvets.util.chat.ChatUtils;
+import org.wynnvets.chat.ChatUtils;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
 
+/**
+ * Intercepts {@code /toggle <key> [value]} commands to let users enable or
+ * disable individual VetsMod features via {@link VetsConfig}.
+ *
+ * <p>Only intercepts keys that are recognised VetsMod configuration keys;
+ * unrecognised keys are passed through to the server.</p>
+ */
 @Mixin(ClientPacketListener.class)
 public class ToggleCommandMixin {
 

@@ -7,10 +7,17 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.util.BridgeMessageFetcher;
-import org.wynnvets.util.GuildInfoListener;
-import org.wynnvets.util.chat.ChatUtils;
+import org.wynnvets.fetcher.polling.BridgeMessageFetcher;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.chat.ChatUtils;
 
+/**
+ * Intercepts the {@code /frumamode} command to toggle Fruma bridge mode.
+ *
+ * <p>When Fruma mode is active, guild chat messages received from the server
+ * are suppressed if they were already displayed via the bridge fetcher,
+ * preventing duplicate messages for players in the Fruma region.</p>
+ */
 @Mixin(ClientPacketListener.class)
 public class FrumaModeCommandMixin {
 
@@ -30,8 +37,8 @@ public class FrumaModeCommandMixin {
       return;
     }
 
-    if (!GuildInfoListener.canExecuteCommands()) {
-      GuildInfoListener.forceGuildStatsCheckTemp();
+    if (!GuildStateManager.canExecuteCommands()) {
+      GuildStateManager.forceGuildStatsCheckTemp();
       ChatUtils.sendLocalMessage(
           Component.literal("[TEMP] Forcing /guild stats check (Wynntils alpha prototype does not update world state).")
               .withStyle(ChatFormatting.YELLOW)
@@ -39,7 +46,7 @@ public class FrumaModeCommandMixin {
       return;
     }
 
-    if (GuildInfoListener.isGuildless()) {
+    if (GuildStateManager.isGuildless()) {
       ChatUtils.sendLocalMessage(
           Component.literal("[TEMP] You must be in a guild to use /frumamode.")
               .withStyle(ChatFormatting.RED)

@@ -1,5 +1,11 @@
 package org.wynnvets.datamodels;
 
+/**
+ * GSON-deserialisable model for a WynnCraft guild.
+ *
+ * <p>Fields are populated by GSON from the WynnCraft API response JSON.
+ * Only the subset of guild properties needed by VetsMod is mapped.</p>
+ */
 public class Guild {
   private String uuid;
   private String name;

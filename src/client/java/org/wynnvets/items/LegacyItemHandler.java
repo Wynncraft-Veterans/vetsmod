@@ -12,6 +12,15 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 
+/**
+ * Detects and re-styles legacy, enchanted, junk, and crafting items in
+ * Wynncraft item tooltips.
+ *
+ * <p>Works in concert with the mixin hooks ({@code LegacyItemTooltipMixin},
+ * {@code LegacyItemNameMixin}, {@code LegacyHotbarMixin}, {@code LegacyHighlightMixin})
+ * to identify special items by name pattern and rarity line, then rewrites
+ * their tooltip display names and rarity labels accordingly.</p>
+ */
 public class LegacyItemHandler {
 
   /** Set by the highlight mixin before tooltip processing to indicate the hovered item has foil. */
@@ -65,6 +74,12 @@ public class LegacyItemHandler {
       Pattern.compile(
           "^Crafted (?:Helmet|Chestplate|Pants|Boots|Ring|Potion|Scroll|Food|Wand|Spear|Relik|Bow|Dagger|by .+) \\[\\d+/\\d+ Durability\\]$");
 
+  /**
+   * Processes and rewrites tooltip lines for legacy/enchanted/junk/crafting items.
+   *
+   * @param tooltipLines the original tooltip lines
+   * @return the (possibly modified) tooltip lines
+   */
   public static List<Component> processTooltip(List<Component> tooltipLines) {
     if (tooltipLines.isEmpty()) return tooltipLines;
 
@@ -158,6 +173,7 @@ public class LegacyItemHandler {
     return false;
   }
 
+  /** Returns {@code true} if any tooltip line starts with "Misc. Item". */
   public static boolean hasMiscRarity(List<Component> lines) {
     for (Component line : lines) {
       String plain = ChatFormatting.stripFormatting(line.getString());
@@ -166,6 +182,7 @@ public class LegacyItemHandler {
     return false;
   }
 
+  /** Returns {@code true} if any tooltip line reads "Junk Item". */
   public static boolean hasJunkRarity(List<Component> lines) {
     for (Component line : lines) {
       String plain = ChatFormatting.stripFormatting(line.getString());
@@ -174,6 +191,7 @@ public class LegacyItemHandler {
     return false;
   }
 
+  /** Returns {@code true} if any tooltip line reads "Crafting Item". */
   public static boolean hasCraftingRarity(List<Component> lines) {
     for (Component line : lines) {
       String plain = ChatFormatting.stripFormatting(line.getString());
@@ -182,6 +200,7 @@ public class LegacyItemHandler {
     return false;
   }
 
+  /** Returns {@code true} if any tooltip line matches the standard rarity pattern. */
   public static boolean hasRarityLine(List<Component> lines) {
     for (Component line : lines) {
       String plain = ChatFormatting.stripFormatting(line.getString());
@@ -190,6 +209,7 @@ public class LegacyItemHandler {
     return false;
   }
 
+  /** Returns {@code true} if a gold-coloured "Lv. min" line is present (beta legacy marker). */
   public static boolean hasBetaLegacyMarker(List<Component> lines) {
     for (Component line : lines) {
       String raw = line.getString();

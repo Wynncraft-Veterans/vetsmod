@@ -10,6 +10,14 @@ import java.util.List;
 import java.util.regex.Pattern;
 import org.wynnvets.Vetsmod;
 
+/**
+ * Loads and evaluates item name patterns from {@code definitions.yml}.
+ *
+ * <p>Patterns are grouped into four categories: legacy items, miscellaneous legacy,
+ * unenchanted items, and not-junk items. Each category's regex patterns are loaded
+ * once at startup and matched against item display names at runtime to determine
+ * how items should be highlighted or filtered in tooltips.</p>
+ */
 public class ItemDefinitions {
   private static final List<Pattern> legacyPatterns = new ArrayList<>();
   private static final List<Pattern> miscPatterns = new ArrayList<>();

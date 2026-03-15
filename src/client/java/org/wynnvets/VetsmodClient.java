@@ -12,19 +12,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.listeners.ServerConnectionListener;
-import org.wynnvets.util.MotdFetcher;
-import org.wynnvets.util.ReturnFetcher;
-import org.wynnvets.util.ChatMessageFetcher;
-import org.wynnvets.util.BridgeMessageFetcher;
-import org.wynnvets.util.StaffRanksFetcher;
-import org.wynnvets.util.StaffFetcher;
-import org.wynnvets.util.SupportersFetcher;
-import org.wynnvets.util.UserInfo;
-import org.wynnvets.util.GuildInfoListener;
-import org.wynnvets.util.StampFetcher;
+import org.wynnvets.fetcher.ondemand.MotdFetcher;
+import org.wynnvets.fetcher.ondemand.ReturnFetcher;
+import org.wynnvets.fetcher.polling.ChatMessageFetcher;
+import org.wynnvets.fetcher.polling.BridgeMessageFetcher;
+import org.wynnvets.fetcher.polling.StaffRanksFetcher;
+import org.wynnvets.fetcher.ondemand.StaffFetcher;
+import org.wynnvets.fetcher.polling.SupportersFetcher;
+import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.fetcher.ondemand.StampFetcher;
 import org.wynnvets.items.ItemDefinitions;
-import org.wynnvets.util.chat.ChatUtils;
+import org.wynnvets.chat.ChatUtils;
 
+/**
+ * Client-side entry point for the VetsMod Fabric mod.
+ *
+ * <p>Bootstraps all mod subsystems on client initialisation: configuration,
+ * guild state, item definitions, message fetchers, server connection hooks,
+ * and the {@code /wv} client command tree. Each subsystem is started in
+ * dependency order so that later components can rely on earlier ones.</p>
+ */
 public class VetsmodClient implements ClientModInitializer {
   private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
 
@@ -34,7 +42,7 @@ public class VetsmodClient implements ClientModInitializer {
 
     // Load configuration from file
     VetsConfig.load();
-    GuildInfoListener.loadPersistedState();
+    GuildStateManager.loadPersistedState();
     LOGGER.info("Configuration loaded");
 
     // Load item definitions for legacy/enchanted detection
@@ -107,9 +115,9 @@ public class VetsmodClient implements ClientModInitializer {
   // TODO: Replace with correct code.
   private boolean userIsCaptain(FabricClientCommandSource src) {
     // TODO: This doesn't work correctly in .requires()
-    //if (!org.wynnvets.util.GuildInfoListener.canExecuteCommands()) {
-    //	src.sendError(Component.literal("Please wait for a few seconds after joining worlds before using vetsmod commands!"));
-    //	return false;
+    //if (!org.wynnvets.guild.GuildStateManager.canExecuteCommands()) {
+	//	src.sendError(Component.literal("Please wait for a few seconds after joining worlds before using vetsmod commands!"));
+	//	return false;
     //}
 
     return true;
@@ -118,7 +126,7 @@ public class VetsmodClient implements ClientModInitializer {
   // TODO: Replace with correct code.
   private boolean userIsVet(FabricClientCommandSource src) {
     // TODO: This doesn't work correctly in .requires()
-    //if (!org.wynnvets.util.GuildInfoListener.canExecuteCommands()) {
+    //if (!org.wynnvets.guild.GuildStateManager.canExecuteCommands()) {
     //	src.sendError(Component.literal("Please wait for a few seconds after joining worlds before using vetsmod commands!"));
     //	return false;
     //}
@@ -128,10 +136,10 @@ public class VetsmodClient implements ClientModInitializer {
 
   // Check information about a player.
   private int check(CommandContext<FabricClientCommandSource> ctx) {
-    boolean isCurrentlyStaff = GuildInfoListener.isStaff();
-    boolean refreshStarted = GuildInfoListener.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
+    boolean isCurrentlyStaff = GuildStateManager.isStaff();
+    boolean refreshStarted = GuildStateManager.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
 
-    if (refreshStarted || GuildInfoListener.isCheckingStaffStatus()) {
+    if (refreshStarted || GuildStateManager.isCheckingStaffStatus()) {
       ChatUtils.sendLocalMessage(
           Component.literal("Checking staff permissions, please retry in a moment.")
               .withStyle(ChatFormatting.YELLOW)
@@ -139,7 +147,7 @@ public class VetsmodClient implements ClientModInitializer {
       return 0;
     }
 
-    if (!GuildInfoListener.isStaff()) {
+    if (!GuildStateManager.isStaff()) {
       ChatUtils.sendLocalMessage(
           Component.literal("You must be staff to use /wv check.")
               .withStyle(ChatFormatting.RED)
@@ -147,7 +155,7 @@ public class VetsmodClient implements ClientModInitializer {
       return 0;
     }
 
-    UserInfo.checkUser(StringArgumentType.getString(ctx, "playerName"))
+    UserInfoFetcher.checkUser(StringArgumentType.getString(ctx, "playerName"))
         .thenAccept(userInfo -> ChatUtils.sendLocalMessage(userInfo));
     return 1;
   }
@@ -155,7 +163,7 @@ public class VetsmodClient implements ClientModInitializer {
   // Get the MOTD information.
   private int motd(CommandContext<FabricClientCommandSource> ctx) {
     // Only allow MOTD command if features are enabled (guild is Returners)
-    //if (!org.wynnvets.util.GuildInfoListener.areFeaturesEnabled()) {
+    //if (!org.wynnvets.guild.GuildStateManager.areFeaturesEnabled()) {
     //	ctx.getSource().sendError(Component.literal("This command is only available for Returners guild members."));
     //	return 0;
     //}
@@ -170,7 +178,7 @@ public class VetsmodClient implements ClientModInitializer {
   // Get information about the current return.
   private int returnInfo(CommandContext<FabricClientCommandSource> ctx) {
     // Only allow return command if features are enabled (guild is Returners)
-    //if (!org.wynnvets.util.GuildInfoListener.areFeaturesEnabled()) {
+    //if (!org.wynnvets.guild.GuildStateManager.areFeaturesEnabled()) {
     //ctx.getSource().sendError(Component.literal("This command is only available for Returners guild members."));
     //return 0;
     //}
@@ -185,7 +193,7 @@ public class VetsmodClient implements ClientModInitializer {
 
   // Get online guild staff information.
   private int staff(CommandContext<FabricClientCommandSource> ctx) {
-    if (!GuildInfoListener.isUnlocked()) {
+    if (!GuildStateManager.isUnlocked()) {
       ChatUtils.sendLocalMessage(
           Component.literal("You must be unlocked to use /wv staff.")
               .withStyle(ChatFormatting.RED)
