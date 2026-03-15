@@ -12,11 +12,13 @@ import org.wynnvets.Vetsmod;
 
 public class ItemDefinitions {
   private static final List<Pattern> legacyPatterns = new ArrayList<>();
+  private static final List<Pattern> miscPatterns = new ArrayList<>();
   private static final List<Pattern> unenchantedPatterns = new ArrayList<>();
   private static final List<Pattern> notjunkPatterns = new ArrayList<>();
 
   public static void load() {
     legacyPatterns.clear();
+    miscPatterns.clear();
     unenchantedPatterns.clear();
     notjunkPatterns.clear();
 
@@ -27,8 +29,9 @@ public class ItemDefinitions {
       }
       parse(is);
       Vetsmod.LOGGER.info(
-          "Loaded {} legacy definition(s), {} unenchanted definition(s), and {} notjunk definition(s)",
+          "Loaded {} legacy, {} misc, {} unenchanted, and {} notjunk definition(s)",
           legacyPatterns.size(),
+          miscPatterns.size(),
           unenchantedPatterns.size(),
           notjunkPatterns.size());
     } catch (IOException e) {
@@ -61,6 +64,9 @@ public class ItemDefinitions {
         if ("definitions".equals(currentSection) && trimmed.startsWith("- ")) {
           String pattern = extractQuotedString(trimmed.substring(2).trim());
           legacyPatterns.add(Pattern.compile(pattern));
+        } else if ("misc_definitions".equals(currentSection) && trimmed.startsWith("- ")) {
+          String pattern = extractQuotedString(trimmed.substring(2).trim());
+          miscPatterns.add(Pattern.compile(pattern));
         } else if ("unenchanted".equals(currentSection) && trimmed.startsWith("- ")) {
           String pattern = extractQuotedString(trimmed.substring(2).trim());
           unenchantedPatterns.add(Pattern.compile(pattern));
@@ -90,7 +96,17 @@ public class ItemDefinitions {
     return false;
   }
 
+  public static boolean isMiscLegacy(String itemName) {
+    for (Pattern pattern : miscPatterns) {
+      if (pattern.matcher(itemName).matches()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   public static boolean isUnenchanted(String itemName) {
+    if (isLegacy(itemName)) return false;
     for (Pattern pattern : unenchantedPatterns) {
       if (pattern.matcher(itemName).matches()) {
         return true;

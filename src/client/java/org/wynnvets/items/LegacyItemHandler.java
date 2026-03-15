@@ -25,11 +25,16 @@ public class LegacyItemHandler {
     if (name != null && ItemDefinitions.isLegacy(name)) return true;
 
     List<Component> lore = stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines();
+
+    if (name != null && ItemDefinitions.isMiscLegacy(name) && hasMiscRarity(lore)) return true;
+
     if (hasBetaLegacyMarker(lore)) return true;
 
     if (stack.hasFoil() && (name == null || !ItemDefinitions.isUnenchanted(name))) return true;
 
     if (hasJunkRarity(lore) && (name == null || !ItemDefinitions.isNotJunk(name))) return true;
+
+    if (hasCraftingRarity(lore)) return true;
 
     return false;
   }
@@ -90,6 +95,15 @@ public class LegacyItemHandler {
       return modified;
     }
 
+    if (plainText != null && ItemDefinitions.isMiscLegacy(plainText) && hasMiscRarity(tooltipLines)) {
+      List<Component> modified = new ArrayList<>(tooltipLines);
+      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      if (raritySuffix != null) name.append(raritySuffix);
+      modified.set(0, name);
+      replaceRarityLines(modified, null);
+      return modified;
+    }
+
     if (hasBetaLegacyMarker(tooltipLines)) {
       boolean alpha = !hasRarityLine(tooltipLines);
       List<Component> modified = new ArrayList<>(tooltipLines);
@@ -124,6 +138,15 @@ public class LegacyItemHandler {
       return modified;
     }
 
+    if (hasCraftingRarity(tooltipLines) && plainText != null) {
+      List<Component> modified = new ArrayList<>(tooltipLines);
+      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      if (raritySuffix != null) name.append(raritySuffix);
+      modified.set(0, name);
+      replaceRarityLines(modified, null);
+      return modified;
+    }
+
     return tooltipLines;
   }
 
@@ -135,10 +158,26 @@ public class LegacyItemHandler {
     return false;
   }
 
+  public static boolean hasMiscRarity(List<Component> lines) {
+    for (Component line : lines) {
+      String plain = ChatFormatting.stripFormatting(line.getString());
+      if (plain != null && plain.startsWith("Misc. Item")) return true;
+    }
+    return false;
+  }
+
   public static boolean hasJunkRarity(List<Component> lines) {
     for (Component line : lines) {
       String plain = ChatFormatting.stripFormatting(line.getString());
       if ("Junk Item".equals(plain)) return true;
+    }
+    return false;
+  }
+
+  public static boolean hasCraftingRarity(List<Component> lines) {
+    for (Component line : lines) {
+      String plain = ChatFormatting.stripFormatting(line.getString());
+      if ("Crafting Item".equals(plain)) return true;
     }
     return false;
   }
