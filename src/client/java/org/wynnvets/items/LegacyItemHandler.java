@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
@@ -52,6 +53,8 @@ public class LegacyItemHandler {
   private static final Pattern DEBUG_ID_PATTERN = Pattern.compile("^\\w+:\\w[\\w/.-]*$");
   private static final Pattern DEBUG_COMPONENTS_PATTERN =
       Pattern.compile("^\\d+ component\\(s\\)$");
+  private static final Pattern PERCENT_SUFFIX_PATTERN =
+      Pattern.compile("\\s*(\\[\\d+\\.?\\d*%\\])$");
   private static final Pattern CRAFTED_PATTERN =
       Pattern.compile(
           "^Crafted (?:Helmet|Chestplate|Pants|Boots|Ring|Potion|Scroll|Food|Wand|Spear|Relik|Bow|Dagger|by .+) \\[\\d+/\\d+ Durability\\]$");
@@ -65,9 +68,17 @@ public class LegacyItemHandler {
     String rawText = firstLine.getString();
     String plainText = normalizeName(ChatFormatting.stripFormatting(rawText));
 
+    // Extract Wynntils rarity suffix (e.g. "[61.7%]") with its original color
+    Component raritySuffix = extractColoredSuffix(firstLine, plainText);
+    if (raritySuffix != null) {
+      plainText = stripPercentSuffix(plainText);
+    }
+
     if (plainText != null && ItemDefinitions.isLegacy(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      modified.set(0, Component.literal(plainText).withStyle(ChatFormatting.GOLD));
+      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      if (raritySuffix != null) name.append(raritySuffix);
+      modified.set(0, name);
       replaceRarityLines(modified, null);
       return modified;
     }
@@ -76,7 +87,9 @@ public class LegacyItemHandler {
       boolean alpha = !hasRarityLine(tooltipLines);
       List<Component> modified = new ArrayList<>(tooltipLines);
       if (plainText != null) {
-        modified.set(0, Component.literal(plainText).withStyle(ChatFormatting.GOLD));
+        MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+        if (raritySuffix != null) name.append(raritySuffix);
+        modified.set(0, name);
       }
       replaceRarityLines(modified, alpha ? "Alpha" : "Beta");
       return modified;
@@ -84,19 +97,22 @@ public class LegacyItemHandler {
 
     if (currentItemHasFoil && plainText != null && !ItemDefinitions.isUnenchanted(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      modified.set(
-          0,
+      MutableComponent name =
           Component.literal("\u2B21 ")
               .withStyle(ChatFormatting.WHITE)
               .append(
-                  Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD)));
+                  Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
+      if (raritySuffix != null) name.append(raritySuffix);
+      modified.set(0, name);
       replaceRarityLines(modified, null);
       return modified;
     }
 
     if (hasJunkRarity(tooltipLines) && plainText != null && !ItemDefinitions.isNotJunk(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      modified.set(0, Component.literal(plainText).withStyle(ChatFormatting.GOLD));
+      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      if (raritySuffix != null) name.append(raritySuffix);
+      modified.set(0, name);
       replaceRarityLines(modified, null);
       return modified;
     }
@@ -196,6 +212,40 @@ public class LegacyItemHandler {
       }
     }
     return 1;
+  }
+
+  private static String stripPercentSuffix(String plainText) {
+    return PERCENT_SUFFIX_PATTERN.matcher(plainText).replaceFirst("");
+  }
+
+  /**
+   * Extracts a trailing Wynntils percentage suffix (e.g. "[61.7%]") from the original
+   * component, preserving its color. Returns null if no such suffix is present.
+   */
+  private static Component extractColoredSuffix(Component original, String plainText) {
+    if (plainText == null) return null;
+    Matcher m = PERCENT_SUFFIX_PATTERN.matcher(plainText);
+    if (!m.find()) return null;
+
+    String suffix = m.group(1);
+    String raw = original.getString();
+    int suffixStart = raw.lastIndexOf(suffix);
+    if (suffixStart < 0) return null;
+
+    // Walk backwards to find the color code preceding the suffix
+    ChatFormatting color = null;
+    for (int i = suffixStart - 1; i >= 1; i--) {
+      if (raw.charAt(i - 1) == '\u00A7') {
+        ChatFormatting fmt = ChatFormatting.getByCode(raw.charAt(i));
+        if (fmt != null && fmt.isColor()) {
+          color = fmt;
+          break;
+        }
+      }
+    }
+
+    if (color == null) return null;
+    return Component.literal(" " + suffix).withStyle(color);
   }
 
   private static Component buildLegacyLabel(String rarity, String count, String prefix) {
