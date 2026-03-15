@@ -55,6 +55,7 @@ public class LegacyItemHandler {
       Pattern.compile("^\\d+ component\\(s\\)$");
   private static final Pattern PERCENT_SUFFIX_PATTERN =
       Pattern.compile("\\s*(\\[\\d+\\.?\\d*%\\])$");
+  private static final String ENCHANTED_PREFIX = "\u2B21 Enchanted ";
   private static final Pattern CRAFTED_PATTERN =
       Pattern.compile(
           "^Crafted (?:Helmet|Chestplate|Pants|Boots|Ring|Potion|Scroll|Food|Wand|Spear|Relik|Bow|Dagger|by .+) \\[\\d+/\\d+ Durability\\]$");
@@ -68,9 +69,15 @@ public class LegacyItemHandler {
     String rawText = firstLine.getString();
     String plainText = normalizeName(ChatFormatting.stripFormatting(rawText));
 
-    // Extract Wynntils rarity suffix (e.g. "[61.7%]") with its original color
+    // Extract Wynntils rarity suffix (e.g. "[61.7%]") preserving its original color
     Component raritySuffix = extractColoredSuffix(firstLine, plainText);
-    if (raritySuffix != null) {
+
+    // Strip our own "⬡ Enchanted " prefix (added by the getHoverName mixin) so we
+    // don't apply it twice, and strip the Wynntils percentage for clean name matching.
+    if (plainText != null) {
+      if (plainText.startsWith(ENCHANTED_PREFIX)) {
+        plainText = plainText.substring(ENCHANTED_PREFIX.length());
+      }
       plainText = stripPercentSuffix(plainText);
     }
 
@@ -220,7 +227,10 @@ public class LegacyItemHandler {
 
   /**
    * Extracts a trailing Wynntils percentage suffix (e.g. "[61.7%]") from the original
-   * component, preserving its color. Returns null if no such suffix is present.
+   * component, preserving its color. Wynntils appends the percentage as a sibling
+   * Component with its own Style/TextColor, so we check siblings first.
+   * Falls back to scanning for §-codes in legacy-formatted text.
+   * Returns null if no colored suffix is present.
    */
   private static Component extractColoredSuffix(Component original, String plainText) {
     if (plainText == null) return null;
@@ -228,24 +238,32 @@ public class LegacyItemHandler {
     if (!m.find()) return null;
 
     String suffix = m.group(1);
+
+    // Wynntils adds the percentage as a sibling Component with its own Style.
+    // Walk siblings last-to-first to find it.
+    List<Component> siblings = original.getSiblings();
+    for (int i = siblings.size() - 1; i >= 0; i--) {
+      Component sibling = siblings.get(i);
+      if (sibling.getString().contains(suffix)) {
+        return sibling.copy();
+      }
+    }
+
+    // Fallback: scan raw text for §-codes (legacy formatting)
     String raw = original.getString();
     int suffixStart = raw.lastIndexOf(suffix);
     if (suffixStart < 0) return null;
 
-    // Walk backwards to find the color code preceding the suffix
-    ChatFormatting color = null;
     for (int i = suffixStart - 1; i >= 1; i--) {
       if (raw.charAt(i - 1) == '\u00A7') {
         ChatFormatting fmt = ChatFormatting.getByCode(raw.charAt(i));
         if (fmt != null && fmt.isColor()) {
-          color = fmt;
-          break;
+          return Component.literal(" " + suffix).withStyle(fmt);
         }
       }
     }
 
-    if (color == null) return null;
-    return Component.literal(" " + suffix).withStyle(color);
+    return null;
   }
 
   private static Component buildLegacyLabel(String rarity, String count, String prefix) {
