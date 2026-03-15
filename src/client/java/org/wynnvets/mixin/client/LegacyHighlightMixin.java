@@ -61,7 +61,12 @@ public class LegacyHighlightMixin {
       String foilName = ChatFormatting.stripFormatting(stack.getHoverName().getString());
       if (foilName == null || !ItemDefinitions.isUnenchanted(foilName)) {
         drawLegacyHighlight(guiGraphics, slot);
+        return;
       }
+    }
+
+    if (LegacyItemHandler.hasJunkRarity(lore) && (name == null || !ItemDefinitions.isNotJunk(name))) {
+      drawLegacyHighlight(guiGraphics, slot);
     }
   }
 

@@ -83,7 +83,7 @@ public class LegacyItemHandler {
     return false;
   }
 
-  private static boolean hasJunkRarity(List<Component> lines) {
+  public static boolean hasJunkRarity(List<Component> lines) {
     for (Component line : lines) {
       String plain = ChatFormatting.stripFormatting(line.getString());
       if ("Junk Item".equals(plain)) return true;
@@ -158,7 +158,7 @@ public class LegacyItemHandler {
         return i + 1;
       }
     }
-    return lines.size();
+    return 1;
   }
 
   private static Component buildLegacyLabel(String rarity, String count, String prefix) {

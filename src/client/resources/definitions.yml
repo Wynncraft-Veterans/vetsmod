@@ -11,4 +11,4 @@ notjunk:
   - "^Tanned Sunfish$"
   - "^Dusty Rum Bottle$"
   - "^.*Vine.*$"
-  - "^Ghostly .*"
+  #- "^Ghostly .*"
