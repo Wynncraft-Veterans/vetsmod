@@ -7,6 +7,8 @@
 		"ChatLogMixin",
 		"FrumaModeCommandMixin",
 		"GuildChatCommandMixin",
+		"LegacyHighlightMixin",
+		"LegacyItemTooltipMixin",
 		"NametagMixin",
 		"ToggleCommandMixin",
 		"UnlockCommandMixin"

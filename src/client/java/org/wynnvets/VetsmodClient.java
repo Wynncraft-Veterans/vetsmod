@@ -22,6 +22,7 @@ import org.wynnvets.util.SupportersFetcher;
 import org.wynnvets.util.UserInfo;
 import org.wynnvets.util.GuildInfoListener;
 import org.wynnvets.util.StampFetcher;
+import org.wynnvets.items.ItemDefinitions;
 import org.wynnvets.util.chat.ChatUtils;
 
 public class VetsmodClient implements ClientModInitializer {
@@ -35,6 +36,9 @@ public class VetsmodClient implements ClientModInitializer {
     VetsConfig.load();
     GuildInfoListener.loadPersistedState();
     LOGGER.info("Configuration loaded");
+
+    // Load item definitions for legacy/enchanted detection
+    ItemDefinitions.load();
 
     // Start the chat message fetcher
     ChatMessageFetcher.start();

@@ -1,0 +1,14 @@
+unenchanted:
+  - "^Breathing Helmet .*"
+  - "^.*Liquid Emerald.*$"
+  - "^.*Mythic Everlasting Pufferfish.*$"
+  - "^Shiny .*"
+---
+definitions:
+  - "^.*Boat Pass$"
+---
+notjunk:
+  - "^Tanned Sunfish$"
+  - "^Dusty Rum Bottle$"
+  - "^.*Vine.*$"
+  - "^Ghostly .*"
