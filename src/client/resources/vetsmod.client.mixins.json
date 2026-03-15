@@ -8,6 +8,8 @@
 		"FrumaModeCommandMixin",
 		"GuildChatCommandMixin",
 		"LegacyHighlightMixin",
+		"LegacyHotbarMixin",
+		"LegacyItemNameMixin",
 		"LegacyItemTooltipMixin",
 		"NametagMixin",
 		"ToggleCommandMixin",

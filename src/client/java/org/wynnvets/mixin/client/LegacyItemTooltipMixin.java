@@ -25,6 +25,7 @@ import org.wynnvets.items.LegacyItemHandler;
  */
 @Mixin(GuiGraphics.class)
 public class LegacyItemTooltipMixin {
+
   @Unique
   private boolean vetsmod$processing = false;
 
