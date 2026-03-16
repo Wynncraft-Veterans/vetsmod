@@ -171,7 +171,7 @@ public class StampFetcher {
                 .withItalic(true)
                 .withUnderlined(true)
                 .withBold(false)
-                .withClickEvent(new ClickEvent.OpenUrl(URI.create(VetsApi.ANNI.toString())))))
+                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, VetsApi.ANNI.toString()))))
         .append(Component.literal("!")
             .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_RED).withBold(false)));
 
@@ -200,7 +200,7 @@ public class StampFetcher {
             .withStyle(Style.EMPTY
                 .withColor(ChatFormatting.DARK_GRAY)
                 .withBold(false)
-                .withClickEvent(new ClickEvent.OpenUrl(URI.create(VetsApi.ANNI.toString())))))
+                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, VetsApi.ANNI.toString()))))
         .append(Component.literal(" for more info!")
             .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_GRAY).withBold(false)));
 

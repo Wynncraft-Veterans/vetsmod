@@ -777,7 +777,7 @@ public final class StaffOutboundMessenger {
             return true;
         }
 
-        if (matchesIdentityVariant(recipient, player.getGameProfile().name())) {
+        if (matchesIdentityVariant(recipient, player.getGameProfile().getName())) {
             return true;
         }
 

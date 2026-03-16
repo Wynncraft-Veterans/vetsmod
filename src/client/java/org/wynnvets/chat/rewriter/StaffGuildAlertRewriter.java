@@ -2,10 +2,9 @@ package org.wynnvets.chat.rewriter;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.fetcher.polling.StaffRanksFetcher;
 
@@ -21,9 +20,9 @@ public final class StaffGuildAlertRewriter {
     private static final String ALERT_FRAME_CLOSE = "\uE011";
 
     private static final Style SHOUT_PREFIX_STYLE = Style.EMPTY
-        .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+        .withFont(ResourceLocation.parse("chat/prefix"))
         .withColor(ChatFormatting.LIGHT_PURPLE)
-        .withoutShadow();
+        .withShadowColor(0);
     private static final Style ALERT_FRAME_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_PURPLE);
     private static final Style ALERT_TEXT_STYLE = Style.EMPTY.withColor(ChatFormatting.WHITE);
     private static final Style ALERT_BODY_STYLE = Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE);

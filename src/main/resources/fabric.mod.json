@@ -32,9 +32,9 @@
 	],
 	"depends": {
 		"fabricloader": ">=0.17.0",
-		"minecraft": "~1.21.11",
+		"minecraft": "~1.21.4",
 		"java": ">=21",
 		"fabric-api": "*",
-		"wynntils": ">=4.0.2"
+		"wynntils": ">=3.4.5 <4.0.0"
 	}
 }

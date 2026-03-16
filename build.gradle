@@ -1,5 +1,5 @@
 plugins {
-	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+	id 'fabric-loom' version "${loom_version}"
 	id 'maven-publish'
 }
 
@@ -46,7 +46,7 @@ dependencies {
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 	
 	// Wynntils dependency (users must have Wynntils installed separately)
-	modImplementation "maven.modrinth:wynntils:v4.0.2-fabric"
+	modImplementation "maven.modrinth:wynntils:v3.4.5-fabric"
 }
 
 processResources {

@@ -76,7 +76,7 @@ public final class PillFormatter {
                 return Component.literal(pillText)
                         .setStyle(baseStyle.withColor(
                                 TextColor.fromRgb(AnimatedGradientSequence.MARKER_COLOR))
-                                .withoutShadow());
+                                .withShadowColor(0));
             }
 
             // ASCII pills (bridge messages) — per-character marker is safe.
@@ -91,7 +91,7 @@ public final class PillFormatter {
 
         // ── Default → flat style ──────────────────────────────────────
         if (containsCustomFontGlyph(pillText)) {
-            return Component.literal(pillText).setStyle(baseStyle.withoutShadow());
+            return Component.literal(pillText).setStyle(baseStyle.withShadowColor(0));
         }
         return Component.literal(pillText).setStyle(baseStyle);
     }

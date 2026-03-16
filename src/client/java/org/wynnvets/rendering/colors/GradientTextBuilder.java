@@ -76,7 +76,7 @@ public final class GradientTextBuilder {
         String groupStr = text.substring(groupCharStart, charIndex);
         component.append(
             Component.literal(groupStr)
-                .setStyle(baseStyle.withColor(TextColor.fromRgb(rgb)).withoutShadow()));
+                .setStyle(baseStyle.withColor(TextColor.fromRgb(rgb)).withShadowColor(0)));
       } else {
         float t = cpIndex / (float) (cpCount - 1);
         int rgb = interpolateRgb(startRgb, endRgb, t);

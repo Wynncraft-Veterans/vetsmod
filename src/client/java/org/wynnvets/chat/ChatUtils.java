@@ -11,9 +11,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 import org.wynnvets.rendering.colors.ShaderColorPalette;
 import org.wynnvets.fetcher.polling.SupportersFetcher;
@@ -57,8 +56,8 @@ public final class ChatUtils {
     private static final String GUILD_PREPEND_COMPACT = "\uDAFF\uDFFC\uE001\uDB00\uDC06";
     private static final String PRIVATE_SEPARATOR_GLYPH = "\uE003";
     private static final Style CHAT_PREFIX_STYLE = Style.EMPTY
-            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-            .withoutShadow();
+            .withFont(ResourceLocation.parse("chat/prefix"))
+            .withShadowColor(0);
 
     private static final Pattern URL_PATTERN = Pattern.compile(
             "https?://\\S+", Pattern.CASE_INSENSITIVE);
@@ -221,8 +220,8 @@ public final class ChatUtils {
         String label = normalizeStaffRank(rank);
 
         MutableComponent component = Component.empty();
-        Style redStyle = ADMIN_RANK_STYLE.withoutShadow();
-        Style darkStyle = Style.EMPTY.withColor(ChatFormatting.BLACK).withoutShadow();
+        Style redStyle = ADMIN_RANK_STYLE.withShadowColor(0);
+        Style darkStyle = Style.EMPTY.withColor(ChatFormatting.BLACK).withShadowColor(0);
 
         component.append(Component.literal(STAFF_PILL_FRAME_OPEN).setStyle(redStyle));
 
@@ -344,7 +343,7 @@ public final class ChatUtils {
             String url = matcher.group();
             try {
                 URI uri = URI.create(url);
-                Style urlStyle = textStyle.withClickEvent(new ClickEvent.OpenUrl(uri));
+                Style urlStyle = textStyle.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, uri.toString()));
                 parent.append(Component.literal(url).setStyle(urlStyle));
             } catch (Exception e) {
                 parent.append(Component.literal(url).setStyle(textStyle));

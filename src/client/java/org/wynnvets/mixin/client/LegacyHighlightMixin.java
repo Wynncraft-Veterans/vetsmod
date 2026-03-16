@@ -4,10 +4,10 @@ import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
@@ -32,8 +32,8 @@ public class LegacyHighlightMixin {
   private static final int LEGACY_HIGHLIGHT_COLOR = 0xB0F0501E;
 
   // Wynntils highlight spritesheet: 256x256, each tile 18x18, WYNN variant at ordinal 0
-  private static final Identifier WYNNTILS_HIGHLIGHT =
-      Identifier.fromNamespaceAndPath("wynntils", "textures/ui_components/highlight.png");
+  private static final ResourceLocation WYNNTILS_HIGHLIGHT =
+      ResourceLocation.fromNamespaceAndPath("wynntils", "textures/ui_components/highlight.png");
   // Wynntils "unique" rarity tint — fully opaque yellow
   private static final int UNIQUE_HIGHLIGHT_COLOR = 0xFFFFFF00;
 
@@ -41,7 +41,7 @@ public class LegacyHighlightMixin {
 
   @Inject(method = "renderSlot", at = @At("HEAD"))
   private void vetsmod$renderLegacyHighlight(
-      GuiGraphics guiGraphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
+      GuiGraphics guiGraphics, Slot slot, CallbackInfo ci) {
     ItemStack stack = slot.getItem();
     if (stack.isEmpty()) return;
 
@@ -75,7 +75,7 @@ public class LegacyHighlightMixin {
   private static void drawLegacyHighlight(GuiGraphics guiGraphics, Slot slot) {
     guiGraphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, LEGACY_HIGHLIGHT_COLOR);
     guiGraphics.blit(
-        RenderPipelines.GUI_TEXTURED,
+        RenderType::guiTextured,
         WYNNTILS_HIGHLIGHT,
         slot.x - 1,
         slot.y - 1,

@@ -2,10 +2,9 @@ package org.wynnvets.chat;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * Manages badge/prepend components for chat messages.
@@ -23,15 +22,15 @@ public enum Prepend {
             Component.literal("\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE")
                     .append(" ")
                     .setStyle(Style.EMPTY
-                            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+                            .withFont(ResourceLocation.parse("chat/prefix"))
                             .withColor(ChatFormatting.AQUA)
-                            .withoutShadow()),
+                            .withShadowColor(0)),
             Component.literal("\uDAFF\uDFFC\uE001\uDB00\uDC06")
                     .append(" ")
                     .setStyle(Style.EMPTY
-                            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+                            .withFont(ResourceLocation.parse("chat/prefix"))
                             .withColor(ChatFormatting.AQUA)
-                            .withoutShadow())),
+                            .withShadowColor(0))),
     EMPTY(
             Component.empty());
 
@@ -87,17 +86,17 @@ public enum Prepend {
     private static MutableComponent buildDefaultBadge() {
         Style rootStyle = Style.EMPTY
                 .withColor(ChatFormatting.GOLD)
-                .withoutShadow();
+                .withShadowColor(0);
         Style prefixStyle = Style.EMPTY
-                .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+                .withFont(ResourceLocation.parse("chat/prefix"))
                 .withColor(ChatFormatting.GOLD)
-                .withoutShadow();
+                .withShadowColor(0);
         Style pillFrameStyle = Style.EMPTY
                 .withColor(ChatFormatting.GOLD)
-                .withoutShadow();
+                .withShadowColor(0);
         Style pillTextStyle = Style.EMPTY
                 .withColor(ChatFormatting.DARK_GRAY)
-                .withoutShadow();
+                .withShadowColor(0);
 
         MutableComponent badge = Component.empty().setStyle(rootStyle);
         badge.append(Component.literal(DEFAULT_PREFIX).setStyle(prefixStyle));

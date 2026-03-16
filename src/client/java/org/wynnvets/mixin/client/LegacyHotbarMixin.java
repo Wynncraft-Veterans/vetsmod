@@ -3,8 +3,8 @@ package org.wynnvets.mixin.client;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.resources.Identifier;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
@@ -23,8 +23,8 @@ public class LegacyHotbarMixin {
 
   private static final int LEGACY_HIGHLIGHT_COLOR = 0xB0F0501E;
 
-  private static final Identifier WYNNTILS_HIGHLIGHT =
-      Identifier.fromNamespaceAndPath("wynntils", "textures/ui_components/highlight.png");
+  private static final ResourceLocation WYNNTILS_HIGHLIGHT =
+      ResourceLocation.fromNamespaceAndPath("wynntils", "textures/ui_components/highlight.png");
   private static final int UNIQUE_HIGHLIGHT_COLOR = 0xFFFFFF00;
 
   @Inject(
@@ -45,7 +45,7 @@ public class LegacyHotbarMixin {
     if (LegacyItemHandler.isLegacyItem(stack)) {
       guiGraphics.fill(x, y, x + 16, y + 16, LEGACY_HIGHLIGHT_COLOR);
       guiGraphics.blit(
-          RenderPipelines.GUI_TEXTURED,
+          RenderType::guiTextured,
           WYNNTILS_HIGHLIGHT,
           x - 1,
           y - 1,

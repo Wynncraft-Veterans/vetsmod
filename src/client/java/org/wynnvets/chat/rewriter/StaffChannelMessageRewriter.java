@@ -105,7 +105,7 @@ public final class StaffChannelMessageRewriter {
             return false;
         }
 
-        if (matchesIdentityVariant(normalizedSender, player.getGameProfile().name())) {
+        if (matchesIdentityVariant(normalizedSender, player.getGameProfile().getName())) {
             return true;
         }
 
