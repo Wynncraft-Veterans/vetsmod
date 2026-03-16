@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.Minecraft;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.guild.GuildStateManager;

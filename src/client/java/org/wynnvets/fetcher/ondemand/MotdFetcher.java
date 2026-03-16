@@ -4,7 +4,6 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.api.WynnCraftApi;
 import org.wynnvets.api.VetsApi;
-import org.wynnvets.logging.VetsLogger;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
