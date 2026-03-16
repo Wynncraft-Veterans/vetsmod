@@ -26,6 +26,7 @@ public final class WynntilsEventListener {
      */
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
+        GuildStateManager.setWynntilsReady();
         VetsLogger.debug("Registered Wynntils event listeners");
     }
 

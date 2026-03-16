@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -26,9 +28,28 @@ public class LegacyItemHandler {
   /** Set by the highlight mixin before tooltip processing to indicate the hovered item has foil. */
   public static boolean currentItemHasFoil = false;
 
+  /**
+   * Screen titles where legacy-item processing is skipped entirely.
+   * Some Wynncraft menus (e.g. "Island Rules") apply enchantment glints as
+   * UI selectors, which the foil-based detection misidentifies as legacy items.
+   */
+  private static final List<String> BLOCKED_SCREEN_TITLES = List.of("Island Rules");
+
+  /**
+   * Returns {@code true} if the current screen title matches a known menu that
+   * should never be treated as containing legacy items.
+   */
+  public static boolean isBlockedScreen() {
+    Screen screen = Minecraft.getInstance().screen;
+    if (screen == null) return false;
+    String title = ChatFormatting.stripFormatting(screen.getTitle().getString());
+    return title != null && BLOCKED_SCREEN_TITLES.contains(title);
+  }
+
   /** Returns true if the given ItemStack should be treated as a legacy item. */
   public static boolean isLegacyItem(ItemStack stack) {
     if (stack.isEmpty()) return false;
+    if (isBlockedScreen()) return false;
 
     String name = normalizeName(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
     if (name != null && ItemDefinitions.isLegacy(name)) return true;
@@ -82,6 +103,7 @@ public class LegacyItemHandler {
    */
   public static List<Component> processTooltip(List<Component> tooltipLines) {
     if (tooltipLines.isEmpty()) return tooltipLines;
+    if (isBlockedScreen()) return tooltipLines;
 
     if (isCraftedItem(tooltipLines)) return tooltipLines;
 

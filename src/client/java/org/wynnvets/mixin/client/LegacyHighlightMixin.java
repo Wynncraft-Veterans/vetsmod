@@ -44,6 +44,8 @@ public class LegacyHighlightMixin {
       GuiGraphics guiGraphics, Slot slot, CallbackInfo ci) {
     ItemStack stack = slot.getItem();
     if (stack.isEmpty()) return;
+    // Skip menus that abuse enchantment glints as selectors (e.g. "Island Rules")
+    if (LegacyItemHandler.isBlockedScreen()) return;
 
     String name = LegacyItemHandler.normalizeName(
         ChatFormatting.stripFormatting(stack.getHoverName().getString()));
