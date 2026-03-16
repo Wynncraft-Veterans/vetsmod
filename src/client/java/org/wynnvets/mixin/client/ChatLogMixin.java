@@ -34,17 +34,16 @@ public class ChatLogMixin {
     // Always log the chat message to file
     ChatLogger.logMessage(messageString);
 
-    // Check if this is a guild stats message BEFORE processing
-    boolean isGuildStats = GuildStateManager.isProcessingModGuildStats() && isGuildStatsMessage(messageString);
+    // Check if this is a staff rank-check response BEFORE processing
     boolean isStaffRankCheck = GuildStateManager.isProcessingModStaffRankCheck() && isStaffRankCheckMessage(messageString);
 
-    // Always process the message for guild info detection (even if we'll suppress it)
+    // Process the message for staff rank detection
     GuildStateManager.processMessage(message, messageString);
 
-    // Hide guild stats output if it was initiated by the mod (not the user)
-    if (isGuildStats || isStaffRankCheck) {
-      VetsLogger.debug("Suppressing mod-initiated guild stats/rank check message");
-      ci.cancel(); // Suppress the message from being displayed
+    // Hide staff rank check output if it was initiated by the mod (not the user)
+    if (isStaffRankCheck) {
+      VetsLogger.debug("Suppressing mod-initiated staff rank check message");
+      ci.cancel();
       return;
     }
 
@@ -91,6 +90,7 @@ public class ChatLogMixin {
     }
   }
 
+  @SuppressWarnings("unused")
   private String[] parseGuildChat(String message) {
     int colonIndex = message.indexOf(':');
     if (colonIndex <= 0) {
@@ -128,36 +128,6 @@ public class ChatLogMixin {
     return new String[] {displayName, messageContent};
   }
 
-
-
-  /**
-   * Checks if a message is part of the guild stats output
-   */
-  private boolean isGuildStatsMessage(String message) {
-    String trimmed = message.trim();
-
-    // Empty lines are part of guild stats output
-    if (trimmed.isEmpty()) {
-      return true;
-    }
-
-    // Check for guild stats specific content
-    return trimmed.contains("Guild Since:") ||
-        trimmed.contains("Owner:") ||
-        trimmed.contains("Guild Level:") ||
-        trimmed.contains("Needed XP:") ||
-        trimmed.contains("Guild Rank:") ||
-        trimmed.contains("Total Members:") ||
-        // Match the guild name line - it's typically just the guild name alone
-        trimmed.equals("Returners") ||
-        // Match any reasonable guild name pattern (alphanumeric, spaces, underscores, etc.)
-        // But exclude MOTD and other formatted messages
-        (trimmed.length() > 0 && trimmed.length() < 50 &&
-            !trimmed.contains(":") &&
-            !trimmed.contains("Welcome") &&
-            !trimmed.contains("VETSMOD") &&
-            message.matches("^[A-Za-z0-9_ ]+$"));
-  }
 
   /**
    * Checks if a message is part of the /gu rank staff-check output.

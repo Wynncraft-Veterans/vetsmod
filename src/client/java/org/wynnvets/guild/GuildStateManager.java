@@ -1,6 +1,7 @@
 package org.wynnvets.guild;
 
 import com.wynntils.core.components.Models;
+import com.wynntils.models.guild.type.GuildRank;
 import com.wynntils.models.worlds.type.WorldState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -19,36 +20,31 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 /**
  * Central authority for the player's guild membership, staff rank, and
  * feature-gate state.
  *
- * <p>Detects guild affiliation by intercepting the output of the
- * {@code /guild stats} command via mixin hooks. Once the player's guild is
- * confirmed as the Returners guild, mod features (bridge, MOTD, staff chat,
- * etc.) are enabled. Also tracks unlock/lock state, guildless status, and
- * the player's staff rank for command permission checks.</p>
+ * <p>Reads guild affiliation directly from the Wynntils {@code Models.Guild}
+ * API (backed by scoreboard/character-info parsing) rather than sending
+ * {@code /guild stats}. World-join triggers are provided by
+ * {@link org.wynnvets.listeners.WynntilsEventListener} via
+ * {@code WorldStateEvent}. Once the player's guild is confirmed as the
+ * Returners guild, mod features (bridge, MOTD, staff chat, etc.) are
+ * enabled. Also tracks unlock/lock state, guildless status, and the
+ * player's staff rank for command permission checks.</p>
  */
 public class GuildStateManager {
-  private static final Pattern LEGACY_FORMAT_CODE_PATTERN = Pattern.compile("(?i)(?:§|&)[0-9A-FK-OR]");
-  private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_ ]+$");
 
-  // Stored guild information
-  private static boolean isReturners = false;
-  private static boolean isGuildless = false;
+  private static final String RETURNERS_GUILD_NAME = "Returners";
+
+  // Stored state
   private static boolean passwordUnlocked = false;
   private static boolean debugForceGuildlessUnlocked = false;
   private static String playerName = StringUtils.EMPTY;
 
   // Password hash for unlock command
   private static final String UNLOCK_PASSWORD_HASH = "d4c4f49d09ae0fc5e88f23f47a135d3e509a0799cebc711943370e80e58e145b";
-
-  // State tracking for guild stats detection
-  private static boolean waitingForGuildStats = false;
-  private static long guildStatsRequestTime = 0;
-  private static final long GUILD_STATS_TIMEOUT = 5000; // 5 second timeout
 
   // State tracking for staff detection via /gu rank
   private static boolean isStaff = false;
@@ -58,14 +54,9 @@ public class GuildStateManager {
   private static long staffRankRequestTime = 0;
   private static final long STAFF_RANK_TIMEOUT = 5000; // 5 second timeout
   private static final long STAFF_CHECK_COOLDOWN = 24 * 60 * 60 * 1000L; // once per day
-  private static String selfStaffRank = StringUtils.EMPTY;
 
-  // Track if the current guild stats request was initiated by the mod (not the user)
-  private static boolean isModInitiatedGuildStats = false;
-
-  // Grace period timestamps so that duplicate addMessage calls arriving after the
-  // flags are cleared are still suppressed.
-  private static long guildStatsSuppressUntil = 0;
+  // Grace period timestamp so that duplicate addMessage calls arriving after the
+  // flag is cleared are still suppressed.
   private static long staffRankSuppressUntil = 0;
   private static final long SUPPRESSION_GRACE_MS = 500;
 
@@ -73,20 +64,23 @@ public class GuildStateManager {
   private static long lastMotdFetchTime = 0;
   private static final long MOTD_FETCH_COOLDOWN = 1000; // 1 second cooldown
 
-  // Track whether initial guild stats check has completed after joining world
-  private static boolean guildStatsCompleted = false;
+  // Track whether we have entered a world at least once since reset, so that
+  // commands are not executed before initial guild info is available.
+  private static boolean enteredWorld = false;
 
   /**
-   * Get whether the guild is "Returners"
+   * Get whether the player's guild is "Returners", read live from
+   * {@code Models.Guild}.
    *
    * @return true if guild is "Returners", false otherwise
    */
   public static boolean isReturners() {
-    return isReturners;
+    return RETURNERS_GUILD_NAME.equals(Models.Guild.getGuildName());
   }
 
   /**
-   * Get whether the player is not in a guild
+   * Get whether the player is not in a guild, read live from
+   * {@code Models.Guild}.
    *
    * @return true if player is not in a guild, false otherwise
    */
@@ -94,7 +88,7 @@ public class GuildStateManager {
     if (debugForceGuildlessUnlocked) {
       return true;
     }
-    return isGuildless;
+    return !Models.Guild.isInGuild();
   }
 
   /**
@@ -106,7 +100,7 @@ public class GuildStateManager {
     if (debugForceGuildlessUnlocked) {
       return true;
     }
-    boolean unlocked = isReturners || passwordUnlocked;
+    boolean unlocked = isReturners() || passwordUnlocked;
     return unlocked;
   }
 
@@ -130,22 +124,23 @@ public class GuildStateManager {
   }
 
   /**
-   * Check if mod features should be enabled
-   * Features are only enabled when guild is Returners
+   * Check if mod features should be enabled.
+   * Features are only enabled when guild is Returners.
    *
    * @return true if features should be enabled, false otherwise
    */
   public static boolean areFeaturesEnabled() {
-    return isReturners;
+    return isReturners();
   }
 
   /**
-   * Check if initial guild stats check has completed after joining the world
+   * Check if the player has entered a world at least once since the last
+   * reset, meaning guild info from Wynntils should be available.
    *
-   * @return true if guild stats has completed, false otherwise
+   * @return true once the first world-join has been processed
    */
   public static boolean canExecuteCommands() {
-    return guildStatsCompleted;
+    return enteredWorld;
   }
 
   /**
@@ -158,18 +153,6 @@ public class GuildStateManager {
   }
 
   /**
-   * Check if currently processing a mod-initiated guild stats command
-   *
-   * @return true if guild stats was initiated by the mod, false if by user
-   */
-  public static boolean isProcessingModGuildStats() {
-    if (isModInitiatedGuildStats) return true;
-    // Keep suppressing for a short grace period after the flag is cleared so that
-    // a second addMessage call for the same server message is still caught.
-    return guildStatsSuppressUntil > 0 && System.currentTimeMillis() < guildStatsSuppressUntil;
-  }
-
-  /**
    * Get whether the user is staff.
    *
    * @return true when staff, false otherwise
@@ -179,12 +162,29 @@ public class GuildStateManager {
   }
 
   /**
-   * Gets the known self staff rank for pill display.
+   * Gets the player's guild rank as a lowercase string for pill display,
+   * read live from {@code Models.Guild}.
    *
-   * @return one of captain/strategist/chief/owner when known, otherwise empty
+   * @return one of "captain", "strategist", "chief", or "owner" when the
+   *         rank is staff-level, otherwise empty
    */
   public static String selfStaffRank() {
-    return selfStaffRank;
+    GuildRank rank = Models.Guild.getGuildRank();
+    if (rank == null) {
+      return StringUtils.EMPTY;
+    }
+    switch (rank) {
+      case CAPTAIN:
+        return "captain";
+      case STRATEGIST:
+        return "strategist";
+      case CHIEF:
+        return "chief";
+      case OWNER:
+        return "owner";
+      default:
+        return StringUtils.EMPTY;
+    }
   }
 
   /**
@@ -253,21 +253,25 @@ public class GuildStateManager {
   }
 
   /**
-   * Process incoming chat messages to detect guild information
+   * Process incoming chat messages to detect staff rank-check responses.
+   *
+   * <p>Guild name and rank detection is now handled by the Wynntils
+   * {@code Models.Guild} API. This method only needs to parse the
+   * {@code /gu rank} response to determine staff status.</p>
    *
    * @param component The chat message Component (with formatting)
    * @param message   The plain text chat message
    */
   public static void processMessage(Component component, String message) {
     String safeMessage = message == null ? StringUtils.EMPTY : message;
-    String strippedMessage = stripLegacyFormatting(safeMessage);
 
-    updateSelfStaffRankFromGuildStatsMessage(message);
-
-    // Check if we're waiting for guild stats and if we've timed out
-    if (waitingForGuildStats && System.currentTimeMillis() - guildStatsRequestTime > GUILD_STATS_TIMEOUT) {
-      waitingForGuildStats = false;
-      isModInitiatedGuildStats = false; // Clear flag on timeout
+    // Capture player name on first opportunity
+    if (playerName.equals(StringUtils.EMPTY)) {
+      Minecraft minecraft = Minecraft.getInstance();
+      LocalPlayer player = minecraft.player;
+      if (player != null) {
+        playerName = player.getName().getString();
+      }
     }
 
     // Check if we're waiting for staff rank check and if we've timed out
@@ -277,92 +281,16 @@ public class GuildStateManager {
       markStaffCheckCompletedNow();
     }
 
-    // Check for Wynncraft welcome message with gold+bold formatting
-    String literalContent = component.toString();
-
-    // Accept both old and new chat formats for the welcome trigger.
-    if (isWelcomeMessage(literalContent, safeMessage, strippedMessage)) {
-      // Welcome message detected, send /guild stats command and fetch MOTD
-      // Only process if we haven't recently processed a welcome message
-      long currentTime = System.currentTimeMillis();
-      if (currentTime - lastMotdFetchTime > MOTD_FETCH_COOLDOWN) {
-        lastMotdFetchTime = currentTime;
-        guildStatsCompleted = false; // Reset flag for new world join
-        StaffOutboundMessenger.resetStaffChatEligibilityCache();
-        sendGuildStatsCommand();
-        fetchAndDisplayMotd();
-      }
-      return;
-    }
-
-    // If we're waiting for guild stats, check for the guild name or error message
-    if (waitingForGuildStats) {
-      // Check for the "not in a guild" error message
-      if (message.contains("You must be in a guild to use this")) {
-        isGuildless = true;
-        isReturners = false;
-        selfStaffRank = StringUtils.EMPTY;
-        waitingForGuildStats = false;
-        isModInitiatedGuildStats = false;
-        guildStatsCompleted = true; // Mark as completed since we got a response
-        return; // Exit early, no need to check further
-      }
-
-      // Check if this message contains the formatted "Returners" guild name
-      // Looking for "Returners" with gold color and bold formatting
-      // The guild name appears as: literal{Returners}[style={color=gold,bold}]
-      // Use regex-like check to ensure we match "bold" not "!bold"
-      boolean hasComponentGoldColor = literalContent.contains("color=gold") || literalContent.contains("color=#FFAA00");
-      boolean hasComponentBoldStyle = (literalContent.contains(",bold") || literalContent.contains("{bold") ||
-          literalContent.contains("=bold") || literalContent.contains(" bold")) &&
-          !literalContent.contains("!bold");
-      boolean hasLegacyGoldBold = safeMessage.contains("§6§l") || safeMessage.contains("&6&l");
-      boolean hasGoldBoldGuildStyle = (hasComponentGoldColor && hasComponentBoldStyle) || hasLegacyGoldBold;
-      boolean containsReturners = literalContent.contains("Returners") || strippedMessage.contains("Returners");
-      boolean isGuildNameLine = isLikelyGuildNameLine(strippedMessage);
-
-      if (containsReturners && hasGoldBoldGuildStyle) {
-        // Found "Returners" with gold+bold formatting - this is the Returners guild
-        isReturners = true;
-        passwordUnlocked = false;
-        isGuildless = false;
-        // Don't set waitingForGuildStats to false yet - wait for the full stats to complete
-        // Don't clear isModInitiatedGuildStats yet - guild stats output continues
-      } else if (hasGoldBoldGuildStyle && isGuildNameLine && !containsReturners) {
-        // Found a different guild name (has gold+bold formatting but isn't Returners)
-        // Temporarily exclude the MOTD message which also has gold+bold formatting
-        isReturners = false;
-        passwordUnlocked = false;
-        isGuildless = false;
-        // Don't set waitingForGuildStats to false yet - wait for the full stats to complete
-        // Don't clear isModInitiatedGuildStats yet - guild stats output continues
-      }
-    }
-
-    // Check if this is the last message in guild stats output to clear the flags
-    if (isModInitiatedGuildStats && message.contains("Total Members:")) {
-      // This is the last line of guild stats output
-      isModInitiatedGuildStats = false;
-      guildStatsSuppressUntil = System.currentTimeMillis() + SUPPRESSION_GRACE_MS;
-      waitingForGuildStats = false; // Signal that guild stats is complete
-      guildStatsCompleted = true;
-
-      // After guild stats completes, check for annihilation stamp if we're in Returners
-      if (isReturners) {
-        fetchAndDisplayStampMessage();
-      }
-    }
-
     // Process staff rank-check responses.
     if (waitingForStaffRankCheck) {
-      if (isStaffRankUnauthorizedResponse(message)) {
+      if (isStaffRankUnauthorizedResponse(safeMessage)) {
         setStaffStatus(false);
         waitingForStaffRankCheck = false;
         isModInitiatedStaffRankCheck = false;
         staffRankSuppressUntil = System.currentTimeMillis() + SUPPRESSION_GRACE_MS;
         markStaffCheckCompletedNow();
         VetsLogger.debug("Staff rank check result: not staff");
-      } else if (isStaffRankAuthorizedResponse(message)) {
+      } else if (isStaffRankAuthorizedResponse(safeMessage)) {
         setStaffStatus(true);
         waitingForStaffRankCheck = false;
         isModInitiatedStaffRankCheck = false;
@@ -371,41 +299,6 @@ public class GuildStateManager {
         VetsLogger.debug("Staff rank check result: is staff");
       }
     }
-  }
-
-  private static String stripLegacyFormatting(String text) {
-    if (text == null) {
-      return StringUtils.EMPTY;
-    }
-    return LEGACY_FORMAT_CODE_PATTERN.matcher(text).replaceAll(StringUtils.EMPTY);
-  }
-
-  private static boolean isLikelyGuildNameLine(String strippedMessage) {
-    if (strippedMessage == null) {
-      return false;
-    }
-    String trimmed = strippedMessage.trim();
-    if (trimmed.isEmpty() || trimmed.length() >= 50) {
-      return false;
-    }
-    if (trimmed.contains(":")) {
-      return false;
-    }
-    if (trimmed.contains("Welcome") || trimmed.contains("VETSMOD")) {
-      return false;
-    }
-    return GUILD_NAME_PATTERN.matcher(trimmed).matches();
-  }
-
-  private static boolean isWelcomeMessage(String literalContent, String rawMessage, String strippedMessage) {
-    boolean containsWelcomeText = strippedMessage.contains("Welcome to Wynncraft!");
-    boolean hasComponentWelcomeStyle = literalContent.contains("Welcome to Wynncraft!") &&
-        literalContent.contains("color=#FFAA00") &&
-        literalContent.contains("bold");
-    boolean hasLegacyWelcomeStyle = rawMessage.contains("§6§lWelcome to Wynncraft!") ||
-        rawMessage.contains("&6&lWelcome to Wynncraft!");
-
-    return containsWelcomeText && (hasComponentWelcomeStyle || hasLegacyWelcomeStyle);
   }
 
   /**
@@ -510,135 +403,60 @@ public class GuildStateManager {
         normalized.contains("rank [name] [rank]");
   }
 
-  private static void updateSelfStaffRankFromGuildStatsMessage(String message) {
-    if (message == null) {
-      return;
-    }
-
-    String trimmed = message.trim();
-    if (!trimmed.regionMatches(true, 0, "Guild Rank:", 0, "Guild Rank:".length())) {
-      return;
-    }
-
-    String rank = trimmed.substring("Guild Rank:".length()).trim().toLowerCase();
-    switch (rank) {
-      case "captain":
-      case "strategist":
-      case "chief":
-      case "owner":
-        selfStaffRank = rank;
-        break;
-      default:
-        selfStaffRank = StringUtils.EMPTY;
-        break;
-    }
-  }
-
   /**
-   * Send the /guild stats command to the server
+   * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when the
+   * player enters a Wynncraft world ({@code WorldStateEvent} with
+   * {@code newState == WORLD}).
+   *
+   * <p>Replaces the old "Welcome to Wynncraft!" chat-message detection.
+   * Reads guild info straight from {@code Models.Guild}, fetches MOTD and
+   * stamp, and triggers a staff-rank refresh when needed.</p>
    */
-  private static void sendGuildStatsCommand() {
-    sendGuildStatsCommand(false);
-  }
+  public static void onEnteredWorld() {
+    enteredWorld = true;
+    StaffOutboundMessenger.resetStaffChatEligibilityCache();
 
-  /**
-   * TEMP: Force /guild stats check regardless of world state due to Wynntils alpha prototype
-   * not updating world state reliably.
-   */
-  public static synchronized void forceGuildStatsCheckTemp() {
-    if (waitingForGuildStats) {
-      return;
-    }
-    sendGuildStatsCommand(true);
-  }
-
-  private static void sendGuildStatsCommand(boolean ignoreWorldState) {
+    // Capture player name
     Minecraft minecraft = Minecraft.getInstance();
+    LocalPlayer player = minecraft.player;
+    if (player != null && playerName.equals(StringUtils.EMPTY)) {
+      playerName = player.getName().getString();
+    }
 
-    // Mark that we're waiting for guild stats response
-    waitingForGuildStats = true;
-    guildStatsRequestTime = System.currentTimeMillis();
-    isModInitiatedGuildStats = true; // Mark as mod-initiated
+    long currentTime = System.currentTimeMillis();
+    if (currentTime - lastMotdFetchTime > MOTD_FETCH_COOLDOWN) {
+      lastMotdFetchTime = currentTime;
+      fetchAndDisplayMotd();
+    }
 
-    // Schedule command to wait for proper world state
-    new Thread(() -> {
-      int attempts = 0;
-      int maxAttempts = 20; // 20 attempts * 250ms = 5 second timeout
-      long delay = 250; // Check every 250ms
+    if (isReturners()) {
+      fetchAndDisplayStampMessage();
+    }
 
-      while (attempts < maxAttempts) {
-        try {
-          Thread.sleep(delay);
+    refreshStaffStatusIfNeeded(false);
 
-          CountDownLatch latch = new CountDownLatch(1);
-          boolean[] commandSent = {false};
-          minecraft.execute(() -> {
-            try {
-              // Check if we're in WORLD state using Wynntils API
-              WorldState currentState = Models.WorldState.getCurrentState();
-
-              if (!ignoreWorldState && currentState != WorldState.WORLD) {
-                return;
-              }
-
-              // Re-fetch player instance to avoid stale references during world transfers
-              LocalPlayer player = minecraft.player;
-              if (player != null && player.connection != null) {
-                // Get the player name.
-                if (playerName.equals(StringUtils.EMPTY)) {
-                  playerName = player.getName().getString();
-                }
-
-                try {
-                  player.connection.sendCommand("guild stats");
-                  commandSent[0] = true;
-                } catch (Exception e) {
-                  VetsLogger.warn("Failed to send guild stats command: {}", e.getMessage());
-                }
-              }
-            } finally {
-              latch.countDown();
-            }
-          });
-
-          // Block until the render thread has executed our lambda
-          latch.await(2, TimeUnit.SECONDS);
-
-          if (commandSent[0]) {
-            // Wait up to 2 seconds for server response
-            int responseWait = 0;
-            while (responseWait < 8 && waitingForGuildStats) { // 8 * 250ms = 2 seconds
-              Thread.sleep(250);
-              responseWait++;
-            }
-
-            // If we got a response (waitingForGuildStats became false), we're done
-            if (!waitingForGuildStats) {
-              guildStatsCompleted = true; // Mark as ready for user commands
-              break;
-            }
-          }
-
-          attempts++;
-
-        } catch (InterruptedException e) {
-          VetsLogger.warn("Guild stats command interrupted");
-          waitingForGuildStats = false;
-          isModInitiatedGuildStats = false;
-          break;
-        }
-      }
-
-      if (attempts >= maxAttempts) {
-        VetsLogger.warn("Guild stats command timed out after {} attempts", maxAttempts);
-        waitingForGuildStats = false;
-        isModInitiatedGuildStats = false;
-      }
-    }).start();
+    VetsLogger.debug("onEnteredWorld: guild={}, guildless={}, returners={}",
+        Models.Guild.getGuildName(), isGuildless(), isReturners());
   }
 
   /**
-   * Fetch and display the MOTD message
+   * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when
+   * a {@code GuildEvent.Joined} or {@code GuildEvent.Left} event fires.
+   *
+   * <p>Re-evaluates guild-dependent state so that feature gates update
+   * immediately when the player joins or leaves a guild mid-session.</p>
+   */
+  public static void onGuildInfoUpdated() {
+    VetsLogger.debug("onGuildInfoUpdated: guild={}, guildless={}, returners={}",
+        Models.Guild.getGuildName(), isGuildless(), isReturners());
+
+    if (isReturners()) {
+      fetchAndDisplayStampMessage();
+    }
+  }
+
+  /**
+   * Fetch and display the MOTD message.
    */
   private static void fetchAndDisplayMotd() {
     // Check if auto-messages are enabled
@@ -725,19 +543,14 @@ public class GuildStateManager {
   }
 
   /**
-   * Reset the stored guild information
+   * Reset all transient state. Called on server disconnect so that the next
+   * world join starts fresh.
    */
   public static void reset() {
-    isReturners = false;
-    isGuildless = false;
     debugForceGuildlessUnlocked = false;
-    waitingForGuildStats = false;
-    guildStatsRequestTime = 0;
     lastMotdFetchTime = 0;
-    isModInitiatedGuildStats = false;
-    guildStatsSuppressUntil = 0;
     staffRankSuppressUntil = 0;
-    guildStatsCompleted = false;
+    enteredWorld = false;
     isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
     long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
     long now = System.currentTimeMillis();

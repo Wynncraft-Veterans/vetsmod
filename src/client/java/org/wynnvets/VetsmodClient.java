@@ -10,6 +10,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.listeners.ServerConnectionListener;
+import org.wynnvets.listeners.WynntilsEventListener;
 import org.wynnvets.logging.DebugCommand;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
@@ -41,6 +42,7 @@ public class VetsmodClient implements ClientModInitializer {
 
     VetsConfig.load();
     GuildStateManager.loadPersistedState();
+    WynntilsEventListener.register();
     ItemDefinitions.load();
 
     ChatMessageFetcher.start();
