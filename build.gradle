@@ -45,8 +45,8 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 	
-	// Wynntils dependency (users must have Wynntils installed separately)
-	modImplementation "maven.modrinth:wynntils:v4.0.2-fabric"
+	// Wynntils dependency (compile only - users must have Wynntils installed separately)
+	modCompileOnly "maven.modrinth:wynntils:v4.0.2-fabric"
 }
 
 processResources {

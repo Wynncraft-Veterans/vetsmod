@@ -8,6 +8,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
+
 /**
  * Subscribes to Wynntils events for world state and guild changes, replacing
  * the previous approach of sending {@code /guild stats} and parsing chat output.
@@ -26,6 +27,7 @@ public final class WynntilsEventListener {
      */
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
+        GuildStateManager.setWynntilsReady();
         VetsLogger.debug("Registered Wynntils event listeners");
     }
 

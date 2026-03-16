@@ -38,6 +38,12 @@ public class GuildStateManager {
 
   private static final String RETURNERS_GUILD_NAME = "Returners";
 
+  // Wynntils readiness gate — set to true once CLIENT_STARTED fires and
+  // WynntilsEventListener has successfully registered.  All Models.* access
+  // must check this first to avoid triggering Models.<clinit> before the
+  // Wynntils event bus is initialised.
+  private static volatile boolean wynntilsReady = false;
+
   // Stored state
   private static boolean passwordUnlocked = false;
   private static boolean debugForceGuildlessUnlocked = false;
@@ -75,6 +81,7 @@ public class GuildStateManager {
    * @return true if guild is "Returners", false otherwise
    */
   public static boolean isReturners() {
+    if (!wynntilsReady) return false;
     return RETURNERS_GUILD_NAME.equals(Models.Guild.getGuildName());
   }
 
@@ -88,6 +95,7 @@ public class GuildStateManager {
     if (debugForceGuildlessUnlocked) {
       return true;
     }
+    if (!wynntilsReady) return true;
     return !Models.Guild.isInGuild();
   }
 
@@ -134,6 +142,15 @@ public class GuildStateManager {
   }
 
   /**
+   * Mark Wynntils as fully initialised.  Called once from
+   * {@link org.wynnvets.listeners.WynntilsEventListener#register()} after
+   * the event bus is available.
+   */
+  public static void setWynntilsReady() {
+    wynntilsReady = true;
+  }
+
+  /**
    * Check if the player has entered a world at least once since the last
    * reset, meaning guild info from Wynntils should be available.
    *
@@ -169,6 +186,7 @@ public class GuildStateManager {
    *         rank is staff-level, otherwise empty
    */
   public static String selfStaffRank() {
+    if (!wynntilsReady) return StringUtils.EMPTY;
     GuildRank rank = Models.Guild.getGuildRank();
     if (rank == null) {
       return StringUtils.EMPTY;
@@ -324,6 +342,7 @@ public class GuildStateManager {
           boolean[] commandSent = {false};
           minecraft.execute(() -> {
             try {
+              if (!wynntilsReady) return;
               WorldState currentState = Models.WorldState.getCurrentState();
               if (currentState != WorldState.WORLD) {
                 return;
