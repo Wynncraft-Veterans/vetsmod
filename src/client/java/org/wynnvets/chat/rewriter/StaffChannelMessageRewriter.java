@@ -12,7 +12,6 @@ import org.wynnvets.fetcher.polling.StaffRanksFetcher;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
