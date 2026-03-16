@@ -442,8 +442,18 @@ public final class StaffOutboundMessenger {
             }
 
             boolean payloadEchoMatch = containsNormalizedPayload(message, pending.lockPayload);
-            boolean isDirectMessageEcho = payloadEchoMatch
-                && (isOutboundRecipientTarget(lower, pending.usernameLower) || lower.contains(lockPrefixLower));
+            boolean recipientMatch = isOutboundRecipientTarget(lower, pending.usernameLower);
+            boolean lockPrefixPresent = lower.contains(lockPrefixLower);
+            boolean isDirectMessageEcho = payloadEchoMatch && (recipientMatch || lockPrefixPresent);
+
+            // Fallback: if payload comparison fails (e.g. Wynntils rewrites coordinates
+            // in the Component before we see it), still accept when both the lock prefix
+            // and the expected recipient are present. Safe because dispatch is serialized
+            // and only VetsMod uses the 🔐 prefix.
+            if (!isDirectMessageEcho && lockPrefixPresent && recipientMatch) {
+                isDirectMessageEcho = true;
+            }
+
             boolean isOfflineRecipientError = isOfflineRecipientMessage(lower, pending.usernameLower);
 
             if (!isDirectMessageEcho && !isOfflineRecipientError) {
@@ -705,6 +715,10 @@ public final class StaffOutboundMessenger {
             return true;
         }
 
+        if (containsCensoredVariant(normalizedMessage, normalizedPayload)) {
+            return true;
+        }
+
         List<String> messageTokens = extractEchoTokens(normalizedMessage);
         List<String> payloadTokens = extractEchoTokens(normalizedPayload);
         if (messageTokens.isEmpty() || payloadTokens.isEmpty()) {
@@ -746,6 +760,34 @@ public final class StaffOutboundMessenger {
         }
 
         return payloadIndex == payloadTokens.size();
+    }
+
+    /**
+     * Checks whether {@code message} contains a censored variant of {@code payload}.
+     * Wynncraft's profanity filter replaces characters with {@code *}, so
+     * "hello" might echo back as "h***o". This matches when every non-{@code *}
+     * character in the candidate region equals the corresponding payload character.
+     */
+    private static boolean containsCensoredVariant(String message, String payload) {
+        if (payload.isEmpty()) {
+            return false;
+        }
+
+        int payloadLen = payload.length();
+
+        outer:
+        for (int start = 0; start <= message.length() - payloadLen; start++) {
+            for (int i = 0; i < payloadLen; i++) {
+                char mc = message.charAt(start + i);
+                char pc = payload.charAt(i);
+                if (mc != '*' && mc != pc) {
+                    continue outer;
+                }
+            }
+            return true;
+        }
+
+        return false;
     }
 
     private static String normalizeForEchoComparison(String input) {
