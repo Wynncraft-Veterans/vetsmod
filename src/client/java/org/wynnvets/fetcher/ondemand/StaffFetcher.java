@@ -8,6 +8,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.api.VetsApi;
+import org.wynnvets.logging.VetsLogger;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
@@ -50,6 +51,7 @@ public final class StaffFetcher {
     return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
         .thenApply(response -> {
           if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+            VetsLogger.debug("Staff fetch failed: {}", response.statusCode());
             return Component.literal("Failed to fetch staff (Status: " + response.statusCode() + ")")
                 .withStyle(ChatFormatting.RED);
           }

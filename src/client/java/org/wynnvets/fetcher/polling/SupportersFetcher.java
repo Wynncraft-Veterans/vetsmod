@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.wynnvets.api.VetsApi;
+import org.wynnvets.logging.VetsLogger;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
@@ -61,7 +62,7 @@ public class SupportersFetcher {
       try {
         fetchSupporters();
       } catch (Exception e) {
-        System.err.println("Error fetching supporters: " + e.getMessage());
+        VetsLogger.warn("Error fetching supporters: {}", e.getMessage());
       }
     }, 0, REFRESH_INTERVAL_MINUTES, TimeUnit.MINUTES);
   }
@@ -139,7 +140,7 @@ public class SupportersFetcher {
         parseSupporters(response.body());
       }
     } catch (Exception e) {
-      // Silently fail to avoid spamming console
+      VetsLogger.debug("Failed to fetch supporters: {}", e.getMessage());
     }
   }
 
@@ -158,7 +159,7 @@ public class SupportersFetcher {
 
       supporterUsernames = Set.copyOf(newSet);
     } catch (Exception e) {
-      System.err.println("Error parsing supporters: " + e.getMessage());
+      VetsLogger.debug("Error parsing supporters: {}", e.getMessage());
     }
   }
 }

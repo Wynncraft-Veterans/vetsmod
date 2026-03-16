@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.api.VetsApi;
+import org.wynnvets.logging.VetsLogger;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
@@ -42,6 +43,7 @@ public class ReturnFetcher {
 
     return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
         .<MutableComponent>thenApply(response -> {
+          VetsLogger.debug("Return fetch response: {}", response.statusCode());
           if (response.statusCode() == HttpURLConnection.HTTP_OK) {
             try {
               // Parse the JSON response and convert it to a Component

@@ -5,8 +5,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.ChatFormatting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.api.VetsApi;
 
 import java.net.HttpURLConnection;
@@ -26,7 +25,6 @@ import java.util.concurrent.CompletableFuture;
  * stamp message on world join.</p>
  */
 public class StampFetcher {
-  private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
   private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
       .version(HttpClient.Version.HTTP_1_1)
       .connectTimeout(Duration.ofSeconds(5))
@@ -51,16 +49,16 @@ public class StampFetcher {
               long stamp = Long.parseLong(response.body().trim());
               return createMessageForStamp(stamp);
             } catch (NumberFormatException e) {
-              LOGGER.warn("Failed to parse annihilation stamp: {}", e.getMessage());
+              VetsLogger.warn("Failed to parse annihilation stamp: {}", e.getMessage());
               return null;
             }
           } else {
-            LOGGER.warn("Failed to fetch annihilation stamp (Status: {})", response.statusCode());
+            VetsLogger.warn("Failed to fetch annihilation stamp (Status: {})", response.statusCode());
             return null;
           }
         })
         .exceptionally(e -> {
-          LOGGER.error("Error fetching annihilation stamp: {}", e.getMessage());
+          VetsLogger.error("Error fetching annihilation stamp: {}", e.getMessage());
           return null;
         });
   }
@@ -94,16 +92,16 @@ public class StampFetcher {
 
               return null;
             } catch (NumberFormatException e) {
-              LOGGER.warn("Failed to parse annihilation stamp: {}", e.getMessage());
+              VetsLogger.warn("Failed to parse annihilation stamp: {}", e.getMessage());
               return null;
             }
           } else {
-            LOGGER.warn("Failed to fetch annihilation stamp (Status: {})", response.statusCode());
+            VetsLogger.warn("Failed to fetch annihilation stamp (Status: {})", response.statusCode());
             return null;
           }
         })
         .exceptionally(e -> {
-          LOGGER.error("Error fetching annihilation stamp: {}", e.getMessage());
+          VetsLogger.error("Error fetching annihilation stamp: {}", e.getMessage());
           return null;
         });
   }

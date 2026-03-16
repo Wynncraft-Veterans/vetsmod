@@ -14,8 +14,7 @@ import org.wynnvets.fetcher.polling.StaffRanksFetcher;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.StaffOutboundMessenger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.wynnvets.logging.VetsLogger;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -36,7 +35,6 @@ import java.time.format.DateTimeFormatter;
  */
 @Mixin(ClientPacketListener.class)
 public class GuildChatCommandMixin {
-  private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
   private static final String API_ENDPOINT = "http://api.wynnvets.org/v0/inbound";
   private static final int STAFF_CHAT_MAX_LENGTH = 234;
   private static final String GUILDLESS_SELF_RANK = "\uE010\uE056\uE040\uE048\uE053\uE04B\uE048\uE052\uE053\uE011";
@@ -48,6 +46,7 @@ public class GuildChatCommandMixin {
     // Check if this is a guild chat command for guildless+unlocked users
     if (command.regionMatches(true, 0, "g ", 0, 2)) {
       if (GuildStateManager.isGuildless() && GuildStateManager.isUnlocked()) {
+        VetsLogger.debug("Intercepted /g for guildless+unlocked bridge relay");
         ci.cancel();
         String message = command.substring(2);
         handleGuildChat(message);
@@ -221,9 +220,9 @@ public class GuildChatCommandMixin {
         HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
-          LOGGER.info("Guild chat message sent successfully to API");
+          VetsLogger.debug("Guild chat message sent to API");
         } else {
-          LOGGER.warn("Failed to send guild chat message. Status: {}, Response: {}", 
+          VetsLogger.warn("Failed to send guild chat message. Status: {}, Response: {}", 
               response.statusCode(), response.body());
           
           ChatUtils.sendLocalMessage(
@@ -232,7 +231,7 @@ public class GuildChatCommandMixin {
           );
         }
       } catch (Exception e) {
-        LOGGER.error("Error sending guild chat message to API", e);
+        VetsLogger.error("Error sending guild chat message to API", e);
         
         ChatUtils.sendLocalMessage(
             Component.literal("Error sending guild message: " + e.getMessage())

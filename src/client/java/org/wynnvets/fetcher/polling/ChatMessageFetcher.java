@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
@@ -67,7 +68,7 @@ public class ChatMessageFetcher {
       try {
         fetchAndDisplayMessages();
       } catch (Exception e) {
-        System.err.println("Error fetching chat messages: " + e.getMessage());
+        VetsLogger.warn("Error fetching chat messages: {}", e.getMessage());
       }
     }, 0, FETCH_INTERVAL_SECONDS, TimeUnit.SECONDS);
   }
@@ -105,7 +106,7 @@ public class ChatMessageFetcher {
         processMessages(response.body());
       }
     } catch (Exception e) {
-      // Silently fail to avoid spamming console
+      VetsLogger.debug("Failed to fetch chat messages: {}", e.getMessage());
     }
   }
 
@@ -148,7 +149,7 @@ public class ChatMessageFetcher {
         }
       }
     } catch (Exception e) {
-      System.err.println("Error processing chat messages: " + e.getMessage());
+      VetsLogger.warn("Error processing chat messages: {}", e.getMessage());
     }
   }
 

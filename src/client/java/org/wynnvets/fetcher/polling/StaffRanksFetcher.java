@@ -5,6 +5,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.wynnvets.api.VetsApi;
+import org.wynnvets.logging.VetsLogger;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
@@ -67,8 +68,8 @@ public final class StaffRanksFetcher {
     scheduler.scheduleAtFixedRate(() -> {
       try {
         fetchStaffRanks();
-      } catch (Exception ignored) {
-        // Keep scheduler alive.
+      } catch (Exception e) {
+        VetsLogger.debug("Failed to refresh staff ranks: {}", e.getMessage());
       }
     }, 0, REFRESH_INTERVAL_MINUTES, TimeUnit.MINUTES);
   }
@@ -109,8 +110,8 @@ public final class StaffRanksFetcher {
       if (response.statusCode() == HttpURLConnection.HTTP_OK) {
         parseStaffRanks(response.body());
       }
-    } catch (Exception ignored) {
-      // Silently fail.
+    } catch (Exception e) {
+      VetsLogger.debug("Failed to fetch staff ranks: {}", e.getMessage());
     }
   }
 
@@ -141,8 +142,8 @@ public final class StaffRanksFetcher {
 
       staffRanksByUsername.clear();
       staffRanksByUsername.putAll(newRanks);
-    } catch (Exception ignored) {
-      // Ignore malformed payloads.
+    } catch (Exception e) {
+      VetsLogger.debug("Failed to parse staff ranks response: {}", e.getMessage());
     }
   }
 

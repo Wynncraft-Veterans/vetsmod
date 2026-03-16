@@ -1,8 +1,7 @@
 package org.wynnvets.listeners;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.guild.GuildStateManager;
 
 /**
@@ -12,18 +11,17 @@ import org.wynnvets.guild.GuildStateManager;
  * re-evaluated when the player reconnects to a server.</p>
  */
 public class ServerConnectionListener {
-  private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
 
   public static void register() {
     ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-      LOGGER.info("Connected to server");
+      VetsLogger.debug("Connected to server");
     });
 
     // Reset the flag when disconnecting
     ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
       // Reset guild info when disconnecting
       GuildStateManager.reset();
-      LOGGER.info("Disconnected from server");
+      VetsLogger.debug("Disconnected from server, guild state reset");
     });
   }
 }

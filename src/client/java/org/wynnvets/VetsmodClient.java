@@ -8,10 +8,10 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.listeners.ServerConnectionListener;
+import org.wynnvets.logging.DebugCommand;
+import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
 import org.wynnvets.fetcher.ondemand.ReturnFetcher;
 import org.wynnvets.fetcher.polling.ChatMessageFetcher;
@@ -34,42 +34,20 @@ import org.wynnvets.chat.ChatUtils;
  * dependency order so that later components can rely on earlier ones.</p>
  */
 public class VetsmodClient implements ClientModInitializer {
-  private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
 
   @Override
   public void onInitializeClient() {
-    LOGGER.info("Initializing VetsMod client");
+    VetsLogger.info("Client initializing");
 
-    // Load configuration from file
     VetsConfig.load();
     GuildStateManager.loadPersistedState();
-    LOGGER.info("Configuration loaded");
-
-    // Load item definitions for legacy/enchanted detection
     ItemDefinitions.load();
 
-    // Start the chat message fetcher
     ChatMessageFetcher.start();
-    LOGGER.info("Started chat message fetcher");
-
-    // Start the bridge message fetcher (for guildless+unlocked users)
     BridgeMessageFetcher.start();
-    LOGGER.info("Started bridge message fetcher");
-
-    // Start the supporters list fetcher (for gradient pill styling)
     SupportersFetcher.start();
-    LOGGER.info("Started supporters fetcher");
-
-    // Start confirmed staff-rank fetcher (for staff pill replacement)
     StaffRanksFetcher.start();
-    LOGGER.info("Started staff ranks fetcher");
-
-    // Register server connection listener for auto-MOTD
     ServerConnectionListener.register();
-    LOGGER.info("Registered server connection listener");
-
-    // Register client-side commands using the Fabric client command API
-    LOGGER.info("Registering client commands");
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
       dispatcher.register(ClientCommandManager.literal("motd").executes(this::motd));
 
@@ -108,8 +86,21 @@ public class VetsmodClient implements ClientModInitializer {
               // /gu anni
               .then(ClientCommandManager.literal("anni")
                   .executes(this::anni))
+
+              // /wv debug [true|false]
+              .then(ClientCommandManager.literal("debug")
+                  .executes(ctx -> { DebugCommand.execute(null); return 1; })
+                  .then(ClientCommandManager.argument("enabled", StringArgumentType.word())
+                      .executes(ctx -> {
+                        DebugCommand.execute(StringArgumentType.getString(ctx, "enabled"));
+                        return 1;
+                      })
+                  )
+              )
       );
     });
+
+    VetsLogger.info("Client initialized");
   }
 
   // TODO: Replace with correct code.

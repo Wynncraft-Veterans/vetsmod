@@ -6,8 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import net.fabricmc.loader.api.FabricLoader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.wynnvets.logging.VetsLogger;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,7 +19,6 @@ import java.util.Map;
  * Provides an expandable system for managing boolean configuration options
  */
 public class VetsConfig {
-  private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
   private static final Path CONFIG_FILE = FabricLoader.getInstance().getGameDir().resolve("vetsmod/storage/config.json");
 
@@ -127,14 +125,14 @@ public class VetsConfig {
    */
   public static void load() {
     if (!Files.exists(CONFIG_FILE)) {
-      LOGGER.info("Config file not found, using defaults");
+      VetsLogger.debug("Config file not found, creating with defaults");
       save(); // Create the file with defaults
       return;
     }
 
     try {
       String json = Files.readString(CONFIG_FILE);
-      LOGGER.info("Loading config from: {}", CONFIG_FILE);
+      VetsLogger.debug("Loading config from: {}", CONFIG_FILE);
       JsonObject loadedConfig = GSON.fromJson(json, JsonObject.class);
 
       if (loadedConfig != null) {
@@ -144,7 +142,7 @@ public class VetsConfig {
           if (element != null && element.isJsonPrimitive() && element.getAsJsonPrimitive().isBoolean()) {
             boolean value = element.getAsBoolean();
             config.put(key, value);
-            LOGGER.info("Loaded config: {} = {}", key, value);
+            VetsLogger.debug("Config: {} = {}", key, value);
           }
         }
 
@@ -154,14 +152,14 @@ public class VetsConfig {
           if (element != null && element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
             long value = element.getAsLong();
             longConfig.put(key, value);
-            LOGGER.info("Loaded config: {} = {}", key, value);
+            VetsLogger.debug("Config: {} = {}", key, value);
           }
         }
 
-        LOGGER.info("Configuration loaded from file");
+        VetsLogger.debug("Configuration loaded");
       }
     } catch (IOException e) {
-      LOGGER.error("Failed to load config file: {}", e.getMessage());
+      VetsLogger.warn("Failed to load config: {}", e.getMessage());
     }
   }
 
@@ -184,9 +182,9 @@ public class VetsConfig {
 
       String json = GSON.toJson(serialized);
       Files.writeString(CONFIG_FILE, json);
-      LOGGER.debug("Configuration saved to file");
+      VetsLogger.debug("Configuration saved");
     } catch (IOException e) {
-      LOGGER.error("Failed to save config file: {}", e.getMessage());
+      VetsLogger.warn("Failed to save config: {}", e.getMessage());
     }
   }
 }

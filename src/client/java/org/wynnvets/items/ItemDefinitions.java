@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
-import org.wynnvets.Vetsmod;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Loads and evaluates item name patterns from {@code definitions.yml}.
@@ -32,18 +32,18 @@ public class ItemDefinitions {
 
     try (InputStream is = ItemDefinitions.class.getResourceAsStream("/definitions.yml")) {
       if (is == null) {
-        Vetsmod.LOGGER.warn("definitions.yml not found in resources");
+        VetsLogger.warn("definitions.yml not found in resources");
         return;
       }
       parse(is);
-      Vetsmod.LOGGER.info(
+      VetsLogger.debug(
           "Loaded {} legacy, {} misc, {} unenchanted, and {} notjunk definition(s)",
           legacyPatterns.size(),
           miscPatterns.size(),
           unenchantedPatterns.size(),
           notjunkPatterns.size());
     } catch (IOException e) {
-      Vetsmod.LOGGER.error("Failed to load definitions.yml", e);
+      VetsLogger.error("Failed to load definitions.yml", e);
     }
   }
 

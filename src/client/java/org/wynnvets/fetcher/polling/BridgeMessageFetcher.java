@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
@@ -147,7 +148,7 @@ public class BridgeMessageFetcher {
       try {
         fetchAndDisplayMessages();
       } catch (Exception e) {
-        System.err.println("Error fetching bridge messages: " + e.getMessage());
+        VetsLogger.warn("Error fetching bridge messages: {}", e.getMessage());
       }
     }, 0, FETCH_INTERVAL_SECONDS, TimeUnit.SECONDS);
   }
@@ -187,7 +188,7 @@ public class BridgeMessageFetcher {
         processMessages(response.body());
       }
     } catch (Exception e) {
-      // Silently fail to avoid spamming console
+      VetsLogger.debug("Failed to fetch bridge messages: {}", e.getMessage());
     }
   }
 
@@ -241,7 +242,7 @@ public class BridgeMessageFetcher {
         }
       }
     } catch (Exception e) {
-      System.err.println("Error processing bridge messages: " + e.getMessage());
+      VetsLogger.warn("Error processing bridge messages: {}", e.getMessage());
     }
   }
 

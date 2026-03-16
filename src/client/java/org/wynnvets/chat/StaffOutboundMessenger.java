@@ -8,8 +8,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.guild.GuildStateManager;
 
@@ -42,7 +41,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class StaffOutboundMessenger {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
     private static final String LOCK_PREFIX = "🔐";
     private static final String PRIVATE_SEPARATOR_GLYPH = "\uE003";
     private static final long SUPPRESSION_TTL_MS = 15000L;
@@ -126,7 +124,7 @@ public final class StaffOutboundMessenger {
                 ChatUtils.sendStaffChannelMessage(displayName, message, rank);
                 enqueueAndDispatch(message);
             } catch (Exception e) {
-                LOGGER.warn("Failed to verify online staff status for /v: {}", e.getMessage());
+                VetsLogger.warn("Failed to verify online staff status for /v: {}", e.getMessage());
                 showStaffOnlineStatusWaitMessage();
             } finally {
                 SELF_PRESENCE_CHECK_IN_FLIGHT.set(false);
@@ -175,7 +173,7 @@ public final class StaffOutboundMessenger {
             LocalPlayer selfPlayer = minecraft.player;
 
             if (selfPlayer == null) {
-                LOGGER.warn("Cannot dispatch staff broadcast: player is null");
+                VetsLogger.warn("Cannot dispatch staff broadcast: player is null");
                 return;
             }
 
@@ -215,10 +213,10 @@ public final class StaffOutboundMessenger {
                             break;
                         case OFFLINE:
                             offlineUsers.add(recipientLower);
-                            LOGGER.info("Staff member {} is offline, skipping for remaining messages.", recipient);
+                            VetsLogger.debug("Staff member {} is offline, skipping for remaining messages", recipient);
                             break;
                         case FAILED:
-                            LOGGER.warn("Failed to deliver message to {} after {} retries.", recipient, MAX_DISPATCH_RETRIES);
+                            VetsLogger.warn("Failed to deliver message to {} after {} retries", recipient, MAX_DISPATCH_RETRIES);
                             break;
                     }
 
@@ -235,7 +233,7 @@ public final class StaffOutboundMessenger {
                 showNoRecipientsWarning();
             }
         } catch (Exception e) {
-            LOGGER.warn("Failed to dispatch staff /v broadcast batch: {}", e.getMessage());
+            VetsLogger.warn("Failed to dispatch staff /v broadcast batch: {}", e.getMessage());
             // Drain remaining messages to avoid retrying a failed batch indefinitely
             while (MESSAGE_QUEUE.poll() != null) {
                 // drained
@@ -273,7 +271,7 @@ public final class StaffOutboundMessenger {
 
             // FAILED (timeout) — retry after a delay
             if (attempt < MAX_DISPATCH_RETRIES) {
-                LOGGER.warn("No /msg feedback for {} attempt {}. Retrying...", recipient, attempt);
+                VetsLogger.debug("No /msg feedback for {} attempt {}. Retrying...", recipient, attempt);
                 sleepQuietly(INTER_SEND_DELAY_MS);
             }
         }

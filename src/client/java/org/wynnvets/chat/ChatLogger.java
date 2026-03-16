@@ -2,6 +2,7 @@ package org.wynnvets.chat;
 
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -100,7 +101,7 @@ public class ChatLogger {
             writer.newLine();
           }
         } catch (IOException e) {
-          System.err.println("Failed to write to filtered chat log: " + e.getMessage());
+          VetsLogger.warn("Failed to write to filtered chat log: {}", e.getMessage());
         }
 
         // Send to API asynchronously
@@ -125,10 +126,10 @@ public class ChatLogger {
 
         // Log if the request failed
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-          System.err.println("Failed to send data to API: HTTP " + response.statusCode());
+          VetsLogger.debug("Failed to send data to API: HTTP {}", response.statusCode());
         }
       } catch (Exception e) {
-        System.err.println("Error sending data to API: " + e.getMessage());
+        VetsLogger.debug("Error sending data to API: {}", e.getMessage());
       }
     });
   }

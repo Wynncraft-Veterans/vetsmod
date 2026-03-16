@@ -6,8 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.Prepend;
@@ -33,7 +32,6 @@ import java.util.regex.Pattern;
  * the player's staff rank for command permission checks.</p>
  */
 public class GuildStateManager {
-  private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
   private static final Pattern LEGACY_FORMAT_CODE_PATTERN = Pattern.compile("(?i)(?:§|&)[0-9A-FK-OR]");
   private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_ ]+$");
 
@@ -119,7 +117,7 @@ public class GuildStateManager {
    */
   public static void setDebugForceGuildlessUnlocked(boolean enabled) {
     debugForceGuildlessUnlocked = enabled;
-    LOGGER.info("Debug guildless+unlocked override: {}", enabled ? "enabled" : "disabled");
+    VetsLogger.debug("Debug guildless+unlocked override: {}", enabled ? "enabled" : "disabled");
   }
 
   /**
@@ -363,14 +361,14 @@ public class GuildStateManager {
         isModInitiatedStaffRankCheck = false;
         staffRankSuppressUntil = System.currentTimeMillis() + SUPPRESSION_GRACE_MS;
         markStaffCheckCompletedNow();
-        LOGGER.info("Staff check complete: user is not staff");
+        VetsLogger.debug("Staff rank check result: not staff");
       } else if (isStaffRankAuthorizedResponse(message)) {
         setStaffStatus(true);
         waitingForStaffRankCheck = false;
         isModInitiatedStaffRankCheck = false;
         staffRankSuppressUntil = System.currentTimeMillis() + SUPPRESSION_GRACE_MS;
         markStaffCheckCompletedNow();
-        LOGGER.info("Staff check complete: user is staff");
+        VetsLogger.debug("Staff rank check result: is staff");
       }
     }
   }
@@ -444,7 +442,7 @@ public class GuildStateManager {
                   player.connection.sendCommand("gu rank");
                   commandSent[0] = true;
                 } catch (Exception e) {
-                  LOGGER.warn("Failed to send /gu rank staff check command: {}", e.getMessage());
+                  VetsLogger.warn("Failed to send /gu rank staff check: {}", e.getMessage());
                 }
               }
             } finally {
@@ -469,7 +467,7 @@ public class GuildStateManager {
 
           attempts++;
         } catch (InterruptedException e) {
-          LOGGER.warn("Staff rank check command interrupted");
+          VetsLogger.warn("Staff rank check interrupted");
           waitingForStaffRankCheck = false;
           isModInitiatedStaffRankCheck = false;
           break;
@@ -477,7 +475,7 @@ public class GuildStateManager {
       }
 
       if (attempts >= maxAttempts) {
-        LOGGER.warn("Failed to send /gu rank staff check after {} attempts", maxAttempts);
+        VetsLogger.warn("Staff rank check timed out after {} attempts", maxAttempts);
         waitingForStaffRankCheck = false;
         isModInitiatedStaffRankCheck = false;
         markStaffCheckCompletedNow();
@@ -595,7 +593,7 @@ public class GuildStateManager {
                   player.connection.sendCommand("guild stats");
                   commandSent[0] = true;
                 } catch (Exception e) {
-                  LOGGER.warn("Failed to send guild stats command: {}", e.getMessage());
+                  VetsLogger.warn("Failed to send guild stats command: {}", e.getMessage());
                 }
               }
             } finally {
@@ -624,7 +622,7 @@ public class GuildStateManager {
           attempts++;
 
         } catch (InterruptedException e) {
-          LOGGER.warn("Guild stats command interrupted");
+          VetsLogger.warn("Guild stats command interrupted");
           waitingForGuildStats = false;
           isModInitiatedGuildStats = false;
           break;
@@ -632,7 +630,7 @@ public class GuildStateManager {
       }
 
       if (attempts >= maxAttempts) {
-        LOGGER.warn("Failed to send guild stats command after {} attempts", maxAttempts);
+        VetsLogger.warn("Guild stats command timed out after {} attempts", maxAttempts);
         waitingForGuildStats = false;
         isModInitiatedGuildStats = false;
       }
@@ -645,11 +643,11 @@ public class GuildStateManager {
   private static void fetchAndDisplayMotd() {
     // Check if auto-messages are enabled
     if (!VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE)) {
-      LOGGER.info("Auto-messages disabled, skipping MOTD");
+      VetsLogger.debug("Auto-messages disabled, skipping MOTD");
       return;
     }
 
-    LOGGER.info("Auto-messages enabled, fetching MOTD");
+    VetsLogger.debug("Fetching MOTD");
     Minecraft minecraft = Minecraft.getInstance();
     LocalPlayer player = minecraft.player;
 
@@ -667,18 +665,18 @@ public class GuildStateManager {
   private static void fetchAndDisplayStampMessage() {
     // Check if auto-messages are enabled
     if (!VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE)) {
-      LOGGER.info("Auto-messages disabled, skipping stamp message");
+      VetsLogger.debug("Auto-messages disabled, skipping stamp");
       return;
     }
 
-    LOGGER.info("Auto-messages enabled, fetching stamp");
+    VetsLogger.debug("Fetching annihilation stamp");
     Minecraft minecraft = Minecraft.getInstance();
     LocalPlayer player = minecraft.player;
 
     if (player != null) {
       StampFetcher.fetchStampAndCreateMessage().thenAccept(stampMessage -> {
         if (stampMessage != null) {
-          LOGGER.info("Displaying annihilation countdown");
+          VetsLogger.debug("Displaying annihilation countdown");
           ChatUtils.sendLocalMessage(stampMessage, Prepend.DEFAULT);
         }
       });
@@ -695,7 +693,7 @@ public class GuildStateManager {
     String hash = sha256(password);
     if (hash != null && hash.equals(UNLOCK_PASSWORD_HASH)) {
       passwordUnlocked = true;
-      LOGGER.info("Mod unlocked via password");
+      VetsLogger.debug("Mod unlocked via password");
       return true;
     }
     return false;
@@ -721,7 +719,7 @@ public class GuildStateManager {
       }
       return hexString.toString();
     } catch (NoSuchAlgorithmException e) {
-      LOGGER.error("SHA-256 algorithm not available", e);
+      VetsLogger.error("SHA-256 algorithm not available", e);
       return null;
     }
   }
