@@ -3,6 +3,7 @@ package org.wynnvets;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -42,7 +43,7 @@ public class VetsmodClient implements ClientModInitializer {
 
     VetsConfig.load();
     GuildStateManager.loadPersistedState();
-    WynntilsEventListener.register();
+    ClientLifecycleEvents.CLIENT_STARTED.register(client -> WynntilsEventListener.register());
     ItemDefinitions.load();
 
     ChatMessageFetcher.start();

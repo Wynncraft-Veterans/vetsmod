@@ -133,6 +133,41 @@ public final class StaffOutboundMessenger {
     }
 
     /**
+     * Runs the given action only after confirming this player appears in the WV online staff feed.
+     * Shares the same per-world cache as {@link #dispatchStaffChatWithEligibilityGate}.
+     * If the check must be performed asynchronously, the action is scheduled back on the render thread.
+     */
+    public static void executeWithStaffEligibilityGate(Runnable action) {
+        if (selfSeenInStaffFeedThisWorld) {
+            action.run();
+            return;
+        }
+
+        if (!SELF_PRESENCE_CHECK_IN_FLIGHT.compareAndSet(false, true)) {
+            showStaffOnlineStatusWaitMessage();
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                boolean listed = selfSeenInStaffFeedThisWorld || isSelfListedInOnlineStaffFeed();
+                if (!listed) {
+                    showStaffOnlineStatusWaitMessage();
+                    return;
+                }
+
+                selfSeenInStaffFeedThisWorld = true;
+                Minecraft.getInstance().execute(action);
+            } catch (Exception e) {
+                VetsLogger.warn("Failed to verify online staff status: {}", e.getMessage());
+                showStaffOnlineStatusWaitMessage();
+            } finally {
+                SELF_PRESENCE_CHECK_IN_FLIGHT.set(false);
+            }
+        }, "VetsMod-StaffPresenceCheck").start();
+    }
+
+    /**
      * Clears the per-world /v eligibility cache so the next message re-verifies feed presence.
      */
     public static void resetStaffChatEligibilityCache() {

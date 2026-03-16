@@ -132,10 +132,12 @@ public class GuildChatCommandMixin {
         return;
       }
 
-      Minecraft minecraft = Minecraft.getInstance();
-      if (minecraft.player != null && minecraft.player.connection != null) {
-        minecraft.player.connection.sendCommand("g ‼" + message);
-      }
+      StaffOutboundMessenger.executeWithStaffEligibilityGate(() -> {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player != null && minecraft.player.connection != null) {
+          minecraft.player.connection.sendCommand("g ‼" + message);
+        }
+      });
       return;
     }
 
