@@ -39,3 +39,4 @@ replay_*.log
 sample.log
 *.hprof
 *.jfr
+debug.log
