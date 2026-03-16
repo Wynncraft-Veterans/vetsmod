@@ -68,7 +68,7 @@ definitions:
   - "(?i)^.*Spider Key$"
   - "(?i)^.*Zombie Key$"
   - "(?i)^Treat.*$"
-  - "(?i)^Trick.*$"
+  - "(?i)^Trick$"
   - "(?i)^Wynnter Fair.*$"
   - "(?i)^Hallowynn Mask.*$"
   - "(?i)^Seeker.*$"

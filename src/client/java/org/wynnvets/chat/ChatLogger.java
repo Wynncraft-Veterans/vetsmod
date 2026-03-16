@@ -4,6 +4,8 @@ import org.wynnvets.api.VetsApi;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
+import net.fabricmc.loader.api.FabricLoader;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -114,15 +116,20 @@ public class ChatLogger {
     // Send asynchronously to avoid blocking the game thread
     CompletableFuture.runAsync(() -> {
       try {
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
             .uri(VetsApi.CHAT_INBOUND)
             .version(HttpClient.Version.HTTP_1_1)  // Use HTTP/1.1 for compatibility
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(jsonData))
-            .timeout(Duration.ofSeconds(5))
-            .build();
+            .timeout(Duration.ofSeconds(5));
 
-        HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        FabricLoader.getInstance()
+            .getModContainer("vetsmod")
+            .ifPresent(mod -> builder.header(
+                "X-VetsMod-Version",
+                mod.getMetadata().getVersion().getFriendlyString()));
+
+        HttpResponse<String> response = HTTP_CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofString());
 
         // Log if the request failed
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -179,12 +186,28 @@ public class ChatLogger {
         int colonIndex = afterRank.indexOf(':');
         if (colonIndex > 0) {
           String username = afterRank.substring(0, colonIndex).trim();
-          String messageContent = afterRank.substring(colonIndex + 1).trim();
+          String messageContent = stripConcatenatedContent(afterRank.substring(colonIndex + 1).trim());
           return new ParsedMessage(rankName, username, messageContent);
         }
       }
     }
     return null;
+  }
+
+  /**
+   * Truncate message content at the first Supplementary Private Use Area character.
+   * These mark the start of the next guild message's rank indicator when multiple
+   * chat messages have been concatenated into a single buffer dump.
+   */
+  private static String stripConcatenatedContent(String message) {
+    for (int i = 0; i < message.length(); ) {
+      int cp = message.codePointAt(i);
+      if ((cp >= 0xF0000 && cp <= 0xFFFFD) || (cp >= 0x100000 && cp <= 0x10FFFD)) {
+        return message.substring(0, i).trim();
+      }
+      i += Character.charCount(cp);
+    }
+    return message;
   }
 
   private static String createJsonLogEntry(String timestamp, ParsedMessage parsed) {
