@@ -24,6 +24,8 @@ public class LegacyItemNameMixin {
 
   @Inject(method = "getHoverName", at = @At("RETURN"), cancellable = true)
   private void vetsmod$goldLegacyName(CallbackInfoReturnable<Component> cir) {
+    // Skip menus that abuse enchantment glints as selectors (e.g. "Island Rules")
+    if (LegacyItemHandler.isBlockedScreen()) return;
     ItemStack self = (ItemStack) (Object) this;
     Component original = cir.getReturnValue();
     String plain =
