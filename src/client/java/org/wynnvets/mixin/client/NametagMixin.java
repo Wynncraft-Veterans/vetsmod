@@ -61,6 +61,9 @@ public class NametagMixin {
         }
         if (username == null || !SupportersFetcher.isSupporter(username)) return;
 
+        // Skip animation when supporter glints are disabled
+        if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS)) return;
+
         Component animated = NametagAnimator.tryAnimate(state.nameTag, username);
         if (animated != null) {
             state.nameTag = animated;

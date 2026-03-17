@@ -66,7 +66,9 @@ public final class PillFormatter {
 
     private static MutableComponent formatPill(String pillText, String username, Style baseStyle, boolean isSupporter) {
         // ── Supporter ──────────────────────────────────────────────────
-        if (isSupporter) {
+        // Only apply gradient styling when the user has supporter glints enabled.
+        if (isSupporter
+                && org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS)) {
             if (containsCustomFontGlyph(pillText)) {
                 // PUA/supplementary pills from the server: the chat/prefix font uses
                 // a two-tone colour structure (aqua frame + dark letters) baked into

@@ -24,6 +24,8 @@ public class LegacyItemNameMixin {
 
   @Inject(method = "getHoverName", at = @At("RETURN"), cancellable = true)
   private void vetsmod$goldLegacyName(CallbackInfoReturnable<Component> cir) {
+    // Bail out when legacy item highlighting is disabled
+    if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return;
     // Skip menus that abuse enchantment glints as selectors (e.g. "Island Rules")
     if (LegacyItemHandler.isBlockedScreen()) return;
     ItemStack self = (ItemStack) (Object) this;

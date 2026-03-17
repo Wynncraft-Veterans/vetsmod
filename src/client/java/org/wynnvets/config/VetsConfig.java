@@ -14,8 +14,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Configuration manager for VetsMod toggleable features
- * Provides an expandable system for managing boolean configuration options
+ * Configuration manager for VetsMod toggleable features.
+ *
+ * <p>Provides an expandable system for managing boolean and long configuration
+ * options, persisted as JSON to {@code vetsmod/storage/config.json}.  Keys fall
+ * into two categories:</p>
+ * <ul>
+ *   <li><b>Internal</b> — used by the mod to cache transient state (e.g.
+ *       {@link #VETS_IS_STAFF}, {@link #VETS_LAST_STAFF_CHECK}).  These are
+ *       <em>not</em> exposed to the {@code /wv config} command.</li>
+ *   <li><b>User-facing</b> — toggleable by the player via {@code /wv config
+ *       &lt;key&gt; &lt;value&gt;}.  Listed in {@link #USER_CONFIG_KEYS}.</li>
+ * </ul>
  */
 public class VetsConfig {
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -25,19 +35,54 @@ public class VetsConfig {
   private static final Map<String, Boolean> config = new HashMap<>();
   private static final Map<String, Long> longConfig = new HashMap<>();
 
-  // Configuration keys
+  // ── Internal configuration keys (not user-facing) ───────────────────────
   public static final String VETS_AUTOMESSAGE = "vetsAutomessage";
   public static final String VETS_IS_STAFF = "vetsIsStaff";
   public static final String VETS_LAST_STAFF_CHECK = "vetsLastStaffCheck";
 
+  // ── User-facing configuration keys (toggled via /wv config) ─────────────
+
+  /** Whether legacy/enchanted/junk item highlighting is shown in tooltips and inventory slots. */
+  public static final String LEGACY_ITEM_HIGHLIGHTING = "legacyItemHighlighting";
+
+  /** Whether the MOTD is automatically printed on world join. */
+  public static final String PRINT_MOTD = "printMOTD";
+
+  /** Whether the annihilation stamp is automatically printed on world join. */
+  public static final String PRINT_ANNI = "printANNI";
+
+  /** Whether bridge (guild chat relay) messages are displayed in chat. */
+  public static final String PRINT_BRIDGE_MESSAGES = "printBridgeMessages";
+
+  /** Whether supporter animated gradient glints are shown on nametags and pills. */
+  public static final String SHOW_SUPPORTER_GLINTS = "showSupporterGlints";
+
+  /**
+   * Ordered list of configuration keys that can be toggled by the player via
+   * {@code /wv config <key> <value>}.  Internal keys (staff status, timestamps,
+   * etc.) are intentionally excluded.
+   */
+  public static final String[] USER_CONFIG_KEYS = {
+      LEGACY_ITEM_HIGHLIGHTING,
+      PRINT_MOTD,
+      PRINT_ANNI,
+      PRINT_BRIDGE_MESSAGES,
+      SHOW_SUPPORTER_GLINTS,
+  };
+
   // Default values
   static {
-    // Default automessage to true (enabled)
+    // Internal defaults
     config.put(VETS_AUTOMESSAGE, true);
-    // Default staff status to false (unknown/non-staff until checked)
     config.put(VETS_IS_STAFF, false);
-    // Default last staff-check timestamp to 0 (unknown)
     longConfig.put(VETS_LAST_STAFF_CHECK, 0L);
+
+    // User-facing defaults (all enabled by default)
+    config.put(LEGACY_ITEM_HIGHLIGHTING, true);
+    config.put(PRINT_MOTD, true);
+    config.put(PRINT_ANNI, true);
+    config.put(PRINT_BRIDGE_MESSAGES, true);
+    config.put(SHOW_SUPPORTER_GLINTS, true);
   }
 
   /**
@@ -93,7 +138,7 @@ public class VetsConfig {
   }
 
   /**
-   * Check if a configuration key exists
+   * Check if a configuration key exists.
    *
    * @param key The configuration key to check
    * @return true if the key exists, false otherwise
@@ -103,7 +148,20 @@ public class VetsConfig {
   }
 
   /**
-   * Get all configuration keys
+   * Check if a configuration key is user-facing (togglable via {@code /wv config}).
+   *
+   * @param key The configuration key to check
+   * @return true if it is a user-configurable key
+   */
+  public static boolean isUserConfigKey(String key) {
+    for (String userKey : USER_CONFIG_KEYS) {
+      if (userKey.equals(key)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get all configuration keys.
    *
    * @return Array of all valid configuration keys
    */

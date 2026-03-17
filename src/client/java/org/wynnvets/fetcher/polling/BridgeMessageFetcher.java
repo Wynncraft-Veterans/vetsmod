@@ -170,9 +170,15 @@ public class BridgeMessageFetcher {
   }
 
   /**
-   * Fetches messages from the API and displays new ones in chat
+   * Fetches messages from the API and displays new ones in chat.
+   * Skipped entirely when bridge messages are disabled via config.
    */
   private static void fetchAndDisplayMessages() {
+    // Check if bridge messages are enabled (user toggle)
+    if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.PRINT_BRIDGE_MESSAGES)) {
+      return;
+    }
+
     boolean isWaitlistBridgeEnabled = GuildStateManager.isGuildless() && GuildStateManager.isUnlocked();
     boolean isFrumaBridgeEnabled = frumaModeEnabled && GuildStateManager.canExecuteCommands() && !GuildStateManager.isGuildless();
 

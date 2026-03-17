@@ -46,8 +46,11 @@ public class LegacyItemHandler {
     return title != null && BLOCKED_SCREEN_TITLES.contains(title);
   }
 
-  /** Returns true if the given ItemStack should be treated as a legacy item. */
+  /** Returns true if the given ItemStack should be treated as a legacy item.
+   *  Always returns false when {@link org.wynnvets.config.VetsConfig#LEGACY_ITEM_HIGHLIGHTING}
+   *  is disabled. */
   public static boolean isLegacyItem(ItemStack stack) {
+    if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return false;
     if (stack.isEmpty()) return false;
     if (isBlockedScreen()) return false;
 
@@ -97,11 +100,14 @@ public class LegacyItemHandler {
 
   /**
    * Processes and rewrites tooltip lines for legacy/enchanted/junk/crafting items.
+   * Returns the unmodified list when {@link org.wynnvets.config.VetsConfig#LEGACY_ITEM_HIGHLIGHTING}
+   * is disabled.
    *
    * @param tooltipLines the original tooltip lines
    * @return the (possibly modified) tooltip lines
    */
   public static List<Component> processTooltip(List<Component> tooltipLines) {
+    if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return tooltipLines;
     if (tooltipLines.isEmpty()) return tooltipLines;
     if (isBlockedScreen()) return tooltipLines;
 

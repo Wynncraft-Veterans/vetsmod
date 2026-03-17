@@ -478,9 +478,15 @@ public class GuildStateManager {
    * Fetch and display the MOTD message.
    */
   private static void fetchAndDisplayMotd() {
-    // Check if auto-messages are enabled
+    // Check if auto-messages are enabled (global gate)
     if (!VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE)) {
       VetsLogger.debug("Auto-messages disabled, skipping MOTD");
+      return;
+    }
+
+    // Check if MOTD printing is enabled (user toggle)
+    if (!VetsConfig.get(VetsConfig.PRINT_MOTD)) {
+      VetsLogger.debug("printMOTD disabled, skipping MOTD");
       return;
     }
 
@@ -500,9 +506,15 @@ public class GuildStateManager {
    * Fetch and display the annihilation stamp message (if applicable)
    */
   private static void fetchAndDisplayStampMessage() {
-    // Check if auto-messages are enabled
+    // Check if auto-messages are enabled (global gate)
     if (!VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE)) {
       VetsLogger.debug("Auto-messages disabled, skipping stamp");
+      return;
+    }
+
+    // Check if annihilation printing is enabled (user toggle)
+    if (!VetsConfig.get(VetsConfig.PRINT_ANNI)) {
+      VetsLogger.debug("printANNI disabled, skipping stamp");
       return;
     }
 
