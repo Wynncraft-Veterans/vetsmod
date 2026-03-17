@@ -1,4 +1,5 @@
 unenchanted:
+  - "^\?\?\?$"
   - "^Ability Shard$"
   - "^Breathing Helmet .*"
   - "^.*Liquid Emerald.*$"
