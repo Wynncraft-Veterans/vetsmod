@@ -125,7 +125,14 @@ public class LegacyItemHandler {
 
     if (plainText != null && ItemDefinitions.isLegacy(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      MutableComponent name;
+      if (currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
+        name = Component.literal("\u2B21 ")
+            .withStyle(ChatFormatting.WHITE)
+            .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
+      } else {
+        name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      }
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
       replaceRarityLines(modified, null);
@@ -134,7 +141,14 @@ public class LegacyItemHandler {
 
     if (plainText != null && ItemDefinitions.isMiscLegacy(plainText) && hasMiscRarity(tooltipLines)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      MutableComponent name;
+      if (currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
+        name = Component.literal("\u2B21 ")
+            .withStyle(ChatFormatting.WHITE)
+            .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
+      } else {
+        name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      }
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
       replaceRarityLines(modified, null);
@@ -145,7 +159,14 @@ public class LegacyItemHandler {
       boolean alpha = !hasRarityLine(tooltipLines);
       List<Component> modified = new ArrayList<>(tooltipLines);
       if (plainText != null) {
-        MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+        MutableComponent name;
+        if (currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
+          name = Component.literal("\u2B21 ")
+              .withStyle(ChatFormatting.WHITE)
+              .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
+        } else {
+          name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+        }
         if (raritySuffix != null) name.append(raritySuffix);
         modified.set(0, name);
       }

@@ -55,6 +55,14 @@ public class LegacyHighlightMixin {
     }
 
     List<Component> lore = stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines();
+
+    // Misc-category legacy items (e.g. Raw Cod, Gunpowder) — matched by name in
+    // misc_definitions AND confirmed by a "Misc. Item" rarity line in lore.
+    if (name != null && ItemDefinitions.isMiscLegacy(name) && LegacyItemHandler.hasMiscRarity(lore)) {
+      drawLegacyHighlight(guiGraphics, slot);
+      return;
+    }
+
     if (LegacyItemHandler.hasBetaLegacyMarker(lore)) {
       drawLegacyHighlight(guiGraphics, slot);
       return;
@@ -70,6 +78,12 @@ public class LegacyHighlightMixin {
     }
 
     if (LegacyItemHandler.hasJunkRarity(lore) && (name == null || !ItemDefinitions.isNotJunk(name))) {
+      drawLegacyHighlight(guiGraphics, slot);
+      return;
+    }
+
+    // Crafting-rarity items — any item whose lore contains a "Crafting Item" rarity line.
+    if (LegacyItemHandler.hasCraftingRarity(lore)) {
       drawLegacyHighlight(guiGraphics, slot);
     }
   }

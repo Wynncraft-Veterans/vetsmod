@@ -33,7 +33,15 @@ public class LegacyItemNameMixin {
 
     // Name-based legacy pattern
     if (plain != null && ItemDefinitions.isLegacy(plain)) {
-      cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
+      if (self.hasFoil() && !ItemDefinitions.isUnenchanted(plain)) {
+        cir.setReturnValue(
+            Component.literal("\u2B21 ")
+                .withStyle(ChatFormatting.WHITE)
+                .append(
+                    Component.literal("Enchanted " + plain).withStyle(ChatFormatting.GOLD)));
+      } else {
+        cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
+      }
       return;
     }
 
@@ -50,9 +58,32 @@ public class LegacyItemNameMixin {
     // Lore-based checks
     List<Component> lore = self.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines();
     if (!lore.isEmpty()) {
+      // Misc-category legacy items (e.g. Raw Cod, Gunpowder) — matched by name in
+      // misc_definitions AND confirmed by a "Misc. Item" rarity line in lore.
+      if (plain != null && ItemDefinitions.isMiscLegacy(plain) && LegacyItemHandler.hasMiscRarity(lore)) {
+        if (self.hasFoil() && !ItemDefinitions.isUnenchanted(plain)) {
+          cir.setReturnValue(
+              Component.literal("\u2B21 ")
+                  .withStyle(ChatFormatting.WHITE)
+                  .append(
+                      Component.literal("Enchanted " + plain).withStyle(ChatFormatting.GOLD)));
+        } else {
+          cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
+        }
+        return;
+      }
+
       if (LegacyItemHandler.hasBetaLegacyMarker(lore)) {
         if (plain != null) {
-          cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
+          if (self.hasFoil() && !ItemDefinitions.isUnenchanted(plain)) {
+            cir.setReturnValue(
+                Component.literal("\u2B21 ")
+                    .withStyle(ChatFormatting.WHITE)
+                    .append(
+                        Component.literal("Enchanted " + plain).withStyle(ChatFormatting.GOLD)));
+          } else {
+            cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
+          }
         }
         return;
       }
@@ -62,6 +93,12 @@ public class LegacyItemNameMixin {
         if (plain != null) {
           cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
         }
+        return;
+      }
+
+      // Crafting-rarity items — any item whose lore contains a "Crafting Item" rarity line.
+      if (LegacyItemHandler.hasCraftingRarity(lore) && plain != null) {
+        cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
       }
     }
   }
