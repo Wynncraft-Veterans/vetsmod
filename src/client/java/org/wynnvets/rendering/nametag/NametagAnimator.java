@@ -33,10 +33,10 @@ public final class NametagAnimator {
 
     /**
      * How far to blend the original colour toward white when computing the
-     * animation end-colour.  0.5 produces a clearly visible lightening that
+     * animation end-colour.  0.65 produces a clearly visible lightening that
      * works across all nametag colours (aqua, blue, green, yellow, etc.).
      */
-    private static final float LIGHTEN_FACTOR = 0.5f;
+    private static final float LIGHTEN_FACTOR = 0.65f;
 
     /** Fallback colour when the username has no explicit style colour.
      *  Minecraft's default text colour (white / light grey). */
