@@ -70,7 +70,7 @@ public class LegacyHighlightMixin {
       return;
     }
 
-    if (stack.hasFoil()) {
+    if (stack.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(stack)) {
       String foilName = LegacyItemHandler.normalizeName(
           ChatFormatting.stripFormatting(stack.getHoverName().getString()));
       if (foilName == null || !ItemDefinitions.isUnenchanted(foilName)) {
@@ -110,7 +110,8 @@ public class LegacyHighlightMixin {
   private void vetsmod$captureHoveredItemFoil(
       GuiGraphics guiGraphics, int mouseX, int mouseY, CallbackInfo ci) {
     if (hoveredSlot != null && hoveredSlot.hasItem()) {
-      LegacyItemHandler.currentItemHasFoil = hoveredSlot.getItem().hasFoil();
+      ItemStack hovered = hoveredSlot.getItem();
+      LegacyItemHandler.currentItemHasFoil = hovered.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(hovered);
     } else {
       LegacyItemHandler.currentItemHasFoil = false;
     }

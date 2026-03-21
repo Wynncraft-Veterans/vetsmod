@@ -63,7 +63,7 @@ public class LegacyItemHandler {
 
     if (hasBetaLegacyMarker(lore)) return true;
 
-    if (stack.hasFoil() && (name == null || !ItemDefinitions.isUnenchanted(name))) return true;
+    if (stack.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(stack) && (name == null || !ItemDefinitions.isUnenchanted(name))) return true;
 
     if (hasJunkRarity(lore) && (name == null || !ItemDefinitions.isNotJunk(name))) return true;
 

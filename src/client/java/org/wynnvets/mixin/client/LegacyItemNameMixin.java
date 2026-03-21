@@ -35,7 +35,7 @@ public class LegacyItemNameMixin {
 
     // Name-based legacy pattern
     if (plain != null && ItemDefinitions.isLegacy(plain)) {
-      if (self.hasFoil() && !ItemDefinitions.isUnenchanted(plain)) {
+      if (self.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(self) && !ItemDefinitions.isUnenchanted(plain)) {
         cir.setReturnValue(
             Component.literal("\u2B21 ")
                 .withStyle(ChatFormatting.WHITE)
@@ -48,7 +48,7 @@ public class LegacyItemNameMixin {
     }
 
     // Foil check (enchanted unidentified) — cheap, no lore access
-    if (self.hasFoil() && plain != null && !ItemDefinitions.isUnenchanted(plain)) {
+    if (self.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(self) && plain != null && !ItemDefinitions.isUnenchanted(plain)) {
       cir.setReturnValue(
           Component.literal("\u2B21 ")
               .withStyle(ChatFormatting.WHITE)
@@ -63,7 +63,7 @@ public class LegacyItemNameMixin {
       // Misc-category legacy items (e.g. Raw Cod, Gunpowder) — matched by name in
       // misc_definitions AND confirmed by a "Misc. Item" rarity line in lore.
       if (plain != null && ItemDefinitions.isMiscLegacy(plain) && LegacyItemHandler.hasMiscRarity(lore)) {
-        if (self.hasFoil() && !ItemDefinitions.isUnenchanted(plain)) {
+        if (self.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(self) && !ItemDefinitions.isUnenchanted(plain)) {
           cir.setReturnValue(
               Component.literal("\u2B21 ")
                   .withStyle(ChatFormatting.WHITE)
@@ -77,7 +77,7 @@ public class LegacyItemNameMixin {
 
       if (LegacyItemHandler.hasBetaLegacyMarker(lore)) {
         if (plain != null) {
-          if (self.hasFoil() && !ItemDefinitions.isUnenchanted(plain)) {
+          if (self.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(self) && !ItemDefinitions.isUnenchanted(plain)) {
             cir.setReturnValue(
                 Component.literal("\u2B21 ")
                     .withStyle(ChatFormatting.WHITE)

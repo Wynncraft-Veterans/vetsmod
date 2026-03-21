@@ -101,7 +101,6 @@ definitions:
 ---
 misc_definitions:
   - "(?i)^Carved Quartz Block.*$"
-  - "(?i)^Corrupted Remains.*$"
   - "(?i)^Crystal Of Destiny.*$"
   - "(?i)^Firefly Wing.*$"
   - "(?i)^Glass Bottle.*$"
@@ -128,3 +127,8 @@ notjunk:
   - "^Dusty Rum Bottle$"
   - "^.*Vine.*$"
   - "^Ghostly .*"
+  - "^Rubble$"
+---
+enchant_excluded_items:
+  - "minecraft:experience_bottle"
+  - "minecraft:enchanted_book"
