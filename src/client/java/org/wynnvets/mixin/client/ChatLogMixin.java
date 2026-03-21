@@ -31,8 +31,14 @@ public class ChatLogMixin {
   private void onChatMessage(Component message, CallbackInfo ci) {
     String messageString = message.getString();
 
-    // Always log the chat message to file
-    ChatLogger.logMessage(messageString);
+    // Skip logging for mod-injected messages (bridge display, rewritten chat, etc.)
+    // to prevent a feedback loop where displayed bridge messages are re-sent to the API.
+    boolean isInternalDispatch = ChatUtils.isInternalDispatch();
+
+    if (!isInternalDispatch) {
+      // Only log externally-sourced chat messages to file and API
+      ChatLogger.logMessage(messageString);
+    }
 
     // Check if this is a staff rank-check response BEFORE processing
     boolean isStaffRankCheck = GuildStateManager.isProcessingModStaffRankCheck() && isStaffRankCheckMessage(messageString);
@@ -55,7 +61,7 @@ public class ChatLogMixin {
     }
 
     // Avoid recursively rewriting mod-injected chat messages.
-    if (ChatUtils.isInternalDispatch()) {
+    if (isInternalDispatch) {
       return;
     }
 
