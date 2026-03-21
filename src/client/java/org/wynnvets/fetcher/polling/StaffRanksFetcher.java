@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
  * lowercase username and store one of: captain/strategist/chief/owner.</p>
  */
 public final class StaffRanksFetcher {
-  private static final int REFRESH_INTERVAL_MINUTES = 5;
+  private static final int REFRESH_INTERVAL_MINUTES = 2;
 
   private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
       .version(HttpClient.Version.HTTP_1_1)
