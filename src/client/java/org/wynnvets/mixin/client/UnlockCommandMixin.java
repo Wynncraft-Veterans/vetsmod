@@ -50,19 +50,27 @@ public class UnlockCommandMixin {
    * @param password The password to attempt
    */
   private void handleUnlock(String password) {
-    // Attempt unlock
-    boolean success = GuildStateManager.tryUnlock(password);
+    GuildStateManager.UnlockType result = GuildStateManager.tryUnlock(password);
 
-    if (success) {
-      ChatUtils.sendLocalMessage(
-          Component.literal("Mod unlocked successfully!")
-              .withStyle(ChatFormatting.GREEN)
-      );
-    } else {
-      ChatUtils.sendLocalMessage(
-          Component.literal("Incorrect password")
-              .withStyle(ChatFormatting.RED)
-      );
+    switch (result) {
+      case WAITLIST:
+        ChatUtils.sendLocalMessage(
+            Component.literal("Mod unlocked (waitlist mode). Use /g to relay messages.")
+                .withStyle(ChatFormatting.GREEN)
+        );
+        break;
+      case HONOURARY:
+        ChatUtils.sendLocalMessage(
+            Component.literal("Mod unlocked (honourary mode). Use /wg to relay messages.")
+                .withStyle(ChatFormatting.GREEN)
+        );
+        break;
+      default:
+        ChatUtils.sendLocalMessage(
+            Component.literal("Incorrect password")
+                .withStyle(ChatFormatting.RED)
+        );
+        break;
     }
   }
 }

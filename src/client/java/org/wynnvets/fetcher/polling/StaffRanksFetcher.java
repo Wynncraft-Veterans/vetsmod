@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Periodically fetches confirmed staff ranks and caches them locally.
  *
- * <p>Data source: {@code /v0/outbound/staff}. Cached values are keyed by
+ * <p>Data source: {@code /v1/outbound/staff}. Cached values are keyed by
  * lowercase username and store one of: captain/strategist/chief/owner.</p>
  */
 public final class StaffRanksFetcher {

@@ -1,6 +1,8 @@
 package org.wynnvets.listeners;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.guild.GuildStateManager;
 
@@ -21,6 +23,9 @@ public class ServerConnectionListener {
     ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
       // Reset guild info when disconnecting
       GuildStateManager.reset();
+      V1ApiManager.disconnect();
+      OutboundDisplayHandler.unregister();
+      OutboundDisplayHandler.clearCaches();
       VetsLogger.debug("Disconnected from server, guild state reset");
     });
   }

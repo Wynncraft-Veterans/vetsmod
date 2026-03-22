@@ -18,8 +18,8 @@ import org.wynnvets.logging.DebugCommand;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
 import org.wynnvets.fetcher.ondemand.ReturnFetcher;
-import org.wynnvets.fetcher.polling.ChatMessageFetcher;
-import org.wynnvets.fetcher.polling.BridgeMessageFetcher;
+import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.fetcher.polling.StaffRanksFetcher;
 import org.wynnvets.fetcher.ondemand.StaffFetcher;
 import org.wynnvets.fetcher.polling.SupportersFetcher;
@@ -48,8 +48,8 @@ public class VetsmodClient implements ClientModInitializer {
     ClientLifecycleEvents.CLIENT_STARTED.register(client -> WynntilsEventListener.register());
     ItemDefinitions.load();
 
-    ChatMessageFetcher.start();
-    BridgeMessageFetcher.start();
+    V1ApiManager.connect();
+    OutboundDisplayHandler.register();
     SupportersFetcher.start();
     StaffRanksFetcher.start();
     ServerConnectionListener.register();

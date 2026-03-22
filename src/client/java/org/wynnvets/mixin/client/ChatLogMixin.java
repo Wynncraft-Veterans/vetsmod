@@ -6,7 +6,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.fetcher.polling.BridgeMessageFetcher;
+import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.chat.ChatLogger;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.chat.ChatUtils;
@@ -67,10 +67,10 @@ public class ChatLogMixin {
 
     String[] parsedGuildChat = parseGuildChat(messageString);
     if (parsedGuildChat != null) {
-      BridgeMessageFetcher.recordServerGuildMessage(parsedGuildChat[0], parsedGuildChat[1]);
+      OutboundDisplayHandler.recordServerGuildMessage(parsedGuildChat[0], parsedGuildChat[1]);
 
-      if (BridgeMessageFetcher.isFrumaModeEnabled()
-          && BridgeMessageFetcher.wasBridgeMessageRecentlyDisplayed(parsedGuildChat[0], parsedGuildChat[1])) {
+      if (OutboundDisplayHandler.isFrumaModeEnabled()
+          && OutboundDisplayHandler.wasOutboundMessageRecentlyDisplayed(parsedGuildChat[0], parsedGuildChat[1])) {
         VetsLogger.debug("Suppressed Fruma-mode duplicate from server guild chat");
         ci.cancel();
         return;

@@ -12,7 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
-import org.wynnvets.fetcher.polling.BridgeMessageFetcher;
+import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.guild.GuildStateManager;
 
 import java.util.Collection;
@@ -83,7 +83,7 @@ public final class DebugCommand {
         String selfRank = GuildStateManager.selfStaffRank();
         boolean canExecute = GuildStateManager.canExecuteCommands();
         boolean debugOverride = GuildStateManager.isDebugForceGuildlessUnlocked();
-        boolean frumaModeEnabled = BridgeMessageFetcher.isFrumaModeEnabled();
+        boolean frumaModeEnabled = OutboundDisplayHandler.isFrumaModeEnabled();
         boolean automessageEnabled = VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE);
         boolean debugLogging = VetsLogger.isDebugEnabled();
         String playerName = GuildStateManager.playerName();
