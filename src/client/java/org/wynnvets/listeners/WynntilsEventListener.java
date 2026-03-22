@@ -204,6 +204,7 @@ public final class WynntilsEventListener {
         // Client-side dedup: normalize message by stripping PUA (item encodings
         // produce multiple event variants with different PUA content but the same
         // surrounding text).  Only the first variant within the TTL window is sent.
+        boolean hadItemPua = containsSupplementaryPua(messageContent);
         String normalizedMsg = stripPuaCharacters(messageContent).replaceAll("  +", " ").trim();
         if (wasSentRecently(trueUsername, normalizedMsg)) {
             VetsLogger.debug("onGuildChat: duplicate suppressed for [{}] [{}]", trueUsername, normalizedMsg);
@@ -218,7 +219,7 @@ public final class WynntilsEventListener {
         VetsLogger.debug("onGuildChat SENDING rank=[{}] user=[{}] msg=[{}]", rank, trueUsername, repairedMessage);
 
         V1ApiManager.sendInbound("guild", rank, trueUsername, repairedMessage);
-        recordSentFingerprint(trueUsername, normalizedMsg);
+        recordSentFingerprint(trueUsername, normalizedMsg, hadItemPua);
 
         // Record the REPAIRED message for outbound echo suppression so that
         // the outbound (which carries the repaired URL) matches when checked
@@ -405,12 +406,18 @@ public final class WynntilsEventListener {
                 if (recent.fingerprint.equals(fp)) {
                     return true;
                 }
+                // Item-encoded messages fire twice via Wynntils: once with PUA
+                // glyphs (stripped here) and again with the decoded item name.
+                // The decoded variant's fingerprint starts with the stripped one.
+                if (recent.hadItemPua && fp.startsWith(recent.fingerprint)) {
+                    return true;
+                }
             }
         }
         return false;
     }
 
-    private static void recordSentFingerprint(String username, String normalizedMsg) {
+    private static void recordSentFingerprint(String username, String normalizedMsg, boolean hadItemPua) {
         String truncated = normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
                 ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS) : normalizedMsg;
         String fp = username.toLowerCase() + "\0" + truncated;
@@ -420,7 +427,7 @@ public final class WynntilsEventListener {
             if (recentSentFingerprints.size() >= MAX_SENT_FINGERPRINTS) {
                 recentSentFingerprints.pollFirst();
             }
-            recentSentFingerprints.addLast(new SentFingerprint(fp, now));
+            recentSentFingerprints.addLast(new SentFingerprint(fp, hadItemPua, now));
         }
     }
 
@@ -436,10 +443,12 @@ public final class WynntilsEventListener {
 
     private static final class SentFingerprint {
         final String fingerprint;
+        final boolean hadItemPua;
         final long createdAtMs;
 
-        SentFingerprint(String fingerprint, long createdAtMs) {
+        SentFingerprint(String fingerprint, boolean hadItemPua, long createdAtMs) {
             this.fingerprint = fingerprint;
+            this.hadItemPua = hadItemPua;
             this.createdAtMs = createdAtMs;
         }
     }
@@ -535,5 +544,22 @@ public final class WynntilsEventListener {
             i += charCount;
         }
         return sb.toString();
+    }
+
+    /**
+     * Returns {@code true} if the text contains any supplementary Private Use
+     * Area codepoints (U+F0000 and above).  These are used by Wynncraft for
+     * item encoding; Wynntils fires the chat event twice for such messages
+     * (once with the raw PUA glyphs, once with decoded item names).
+     */
+    private static boolean containsSupplementaryPua(String text) {
+        if (text == null) return false;
+        int i = 0;
+        while (i < text.length()) {
+            int cp = text.codePointAt(i);
+            if (cp >= 0xF0000) return true;
+            i += Character.charCount(cp);
+        }
+        return false;
     }
 }

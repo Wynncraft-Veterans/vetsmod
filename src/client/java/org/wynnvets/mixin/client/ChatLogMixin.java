@@ -65,12 +65,18 @@ public class ChatLogMixin {
       return;
     }
 
+    // Record server guild chat for Fruma mode cross-source dedup.
+    // With the hard gate in OutboundDisplayHandler (Returners + guild +
+    // non-Fruma → skip), outbound guild messages are never displayed for
+    // Returners, so the old wasOutboundMessageRecentlyDisplayed race is
+    // no longer needed.  In Fruma mode the outbound IS displayed and
+    // this recording feeds wasOutboundMessageRecentlyDisplayed.
     String[] parsedGuildChat = parseGuildChat(messageString);
     if (parsedGuildChat != null) {
       OutboundDisplayHandler.recordServerGuildMessage(parsedGuildChat[0], parsedGuildChat[1]);
 
-      if (OutboundDisplayHandler.wasOutboundMessageRecentlyDisplayed(parsedGuildChat[0], parsedGuildChat[1])) {
-        VetsLogger.debug("Suppressed duplicate server guild chat (already shown via outbound)");
+      if (OutboundDisplayHandler.isFrumaModeEnabled() && OutboundDisplayHandler.wasOutboundMessageRecentlyDisplayed(parsedGuildChat[0], parsedGuildChat[1])) {
+        VetsLogger.debug("Suppressed duplicate server guild chat (Fruma mode — already shown via outbound)");
         ci.cancel();
         return;
       }

@@ -193,12 +193,15 @@ public final class OutboundDisplayHandler {
             return;
         }
 
-        // For Returners members, suppress outbound guild messages that were
-        // already displayed by the server's native guild chat
-        if (GuildStateManager.isReturners() && "guild".equals(type)) {
-            if (wasServerMessageRecentlySeen(message)) {
-                return;
-            }
+        // Returners members already receive guild chat from the Wynncraft
+        // server with proper pill rendering, nicknames, and supporter
+        // gradients.  Never display outbound guild echoes for them — the
+        // old race-condition dedup (wasServerMessageRecentlySeen) was
+        // unreliable and caused intermittent Tag-instead-of-Pill display.
+        // In Fruma mode the server doesn't deliver guild chat, so the
+        // outbound must be shown.
+        if (GuildStateManager.isReturners() && "guild".equals(type) && !frumaModeEnabled) {
+            return;
         }
 
         // Record bridge messages for echo suppression in onGuildChat.
