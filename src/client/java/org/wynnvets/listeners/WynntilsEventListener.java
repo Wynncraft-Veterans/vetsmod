@@ -49,6 +49,10 @@ public final class WynntilsEventListener {
      *  variants for item links). */
     private static final long SENT_DEDUP_TTL_MS = TimeUnit.SECONDS.toMillis(5);
     private static final int MAX_SENT_FINGERPRINTS = 100;
+    /** Max characters of message text used for dedup fingerprints.
+     *  Wynntils line-wrapping can alter trailing chars; truncating
+     *  prevents wrapped variants from escaping dedup. */
+    private static final int DEDUP_FINGERPRINT_MAX_CHARS = 200;
     private static final Deque<SentFingerprint> recentSentFingerprints = new ArrayDeque<>();
     private static final Object sentDedupLock = new Object();
 
@@ -184,6 +188,16 @@ public final class WynntilsEventListener {
         String trueUsername = extractTrueUsername(unwrapped, displayName);
         VetsLogger.debug("onGuildChat trueUsername [{}] (displayName was [{}])", trueUsername, displayName);
 
+        // Bridge echo suppression: if this message was recently displayed by
+        // the outbound handler as a bridge message, skip it.  isInternalDispatch
+        // is unreliable for wrapped multi-line messages, so this catch-all
+        // comparison (whitespace-stripped) handles both the re-fire from the
+        // mod's own display and any Wynncraft server echo.
+        if (OutboundDisplayHandler.wasBridgeEcho(messageContent)) {
+            VetsLogger.debug("onGuildChat: bridge echo suppressed for [{}] [{}]", trueUsername, messageContent);
+            return;
+        }
+
         // Resolve the sender's rank: try hover text first, then pill glyph
         // decoding, and finally the Wynntils guild model for the current player.
         String rank = resolveRank(unwrapped, plain, trueUsername);
@@ -196,16 +210,20 @@ public final class WynntilsEventListener {
             return;
         }
 
-        VetsLogger.debug("onGuildChat SENDING rank=[{}] user=[{}] msg=[{}]", rank, trueUsername, messageContent);
+        // Repair URLs broken by Wynncraft line-wrapping (spaces injected at
+        // wrap points within a URL).  Must happen before sending to the server
+        // so that Discord receives intact clickable links.
+        String repairedMessage = repairWrappedUrls(messageContent);
 
-        V1ApiManager.sendInbound("guild", rank, trueUsername, messageContent);
+        VetsLogger.debug("onGuildChat SENDING rank=[{}] user=[{}] msg=[{}]", rank, trueUsername, repairedMessage);
+
+        V1ApiManager.sendInbound("guild", rank, trueUsername, repairedMessage);
         recordSentFingerprint(trueUsername, normalizedMsg);
 
-        // Record the RAW message (including PUA) for outbound echo suppression.
-        // The raw version is needed because normalizeForDedup strips PUA from
-        // both sides at comparison time, ensuring a match even when ChatLogMixin
-        // only saw a Wynntils-decoded variant (e.g. "Idol" instead of raw PUA).
-        OutboundDisplayHandler.recordServerGuildMessage(trueUsername, messageContent);
+        // Record the REPAIRED message for outbound echo suppression so that
+        // the outbound (which carries the repaired URL) matches when checked
+        // by wasServerMessageRecentlySeen.
+        OutboundDisplayHandler.recordServerGuildMessage(trueUsername, repairedMessage);
     }
 
     /**
@@ -307,25 +325,40 @@ public final class WynntilsEventListener {
      */
     private static String decodePillRank(String plainText) {
         // Scan for pill foreground letter glyphs in the E030-E049 range
-        // and also the E040-E059 range (used by the mod's own pill builder).
-        // Try both ranges since the server and mod may use different offsets.
+        // (used by the Wynncraft server) and the E040-E059 range (used by
+        // the mod's own pill builder).  The ranges partially overlap
+        // (E040-E049), so a non-empty decode from one range may be garbage.
+        // Try each range and accept the first that matches a known rank.
         String decoded = tryDecodeRange(plainText, '\uE030', '\uE049');
         VetsLogger.debug("decodePillRank E030-E049 decoded [{}]", decoded);
-        if (decoded.isEmpty()) {
-            decoded = tryDecodeRange(plainText, '\uE040', '\uE059');
-            VetsLogger.debug("decodePillRank E040-E059 decoded [{}]", decoded);
-        }
-        if (decoded.isEmpty()) {
-            return "";
+        String matched = matchRankName(decoded);
+        if (!matched.isEmpty()) {
+            return matched;
         }
 
+        decoded = tryDecodeRange(plainText, '\uE040', '\uE059');
+        VetsLogger.debug("decodePillRank E040-E059 decoded [{}]", decoded);
+        matched = matchRankName(decoded);
+        if (!matched.isEmpty()) {
+            return matched;
+        }
+
+        if (!decoded.isEmpty()) {
+            VetsLogger.debug("decodePillRank decoded [{}] did not match any known rank", decoded);
+        }
+        return "";
+    }
+
+    private static String matchRankName(String decoded) {
+        if (decoded == null || decoded.isEmpty()) {
+            return "";
+        }
         String upper = decoded.toUpperCase();
         for (String rankName : new String[]{"OWNER", "CHIEF", "STRATEGIST", "CAPTAIN", "RECRUITER", "RECRUIT"}) {
             if (upper.equals(rankName)) {
                 return rankName.charAt(0) + rankName.substring(1).toLowerCase();
             }
         }
-        VetsLogger.debug("decodePillRank decoded [{}] did not match any known rank", decoded);
         return "";
     }
 
@@ -362,7 +395,9 @@ public final class WynntilsEventListener {
     // ── Client-side dedup helpers ──────────────────────────────────────
 
     private static boolean wasSentRecently(String username, String normalizedMsg) {
-        String fp = username.toLowerCase() + "\0" + normalizedMsg;
+        String truncated = normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
+                ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS) : normalizedMsg;
+        String fp = username.toLowerCase() + "\0" + truncated;
         synchronized (sentDedupLock) {
             long now = System.currentTimeMillis();
             pruneSentFingerprints(now);
@@ -376,7 +411,9 @@ public final class WynntilsEventListener {
     }
 
     private static void recordSentFingerprint(String username, String normalizedMsg) {
-        String fp = username.toLowerCase() + "\0" + normalizedMsg;
+        String truncated = normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
+                ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS) : normalizedMsg;
+        String fp = username.toLowerCase() + "\0" + truncated;
         synchronized (sentDedupLock) {
             long now = System.currentTimeMillis();
             pruneSentFingerprints(now);
@@ -405,6 +442,78 @@ public final class WynntilsEventListener {
             this.fingerprint = fingerprint;
             this.createdAtMs = createdAtMs;
         }
+    }
+
+    // ── URL repair ─────────────────────────────────────────────────
+
+    private static final Pattern URL_START = Pattern.compile("https?://\\S+");
+
+    /**
+     * Repairs URLs broken by Wynncraft line-wrapping.  When a long guild
+     * message is wrapped, spaces are inserted at wrap points — including
+     * inside URLs.  This method detects URL patterns followed by space +
+     * continuation tokens that look like URL fragments (contain digits,
+     * uppercase, or URL-special characters) and merges them.
+     */
+    private static String repairWrappedUrls(String text) {
+        if (text == null || !text.contains("://")) {
+            return text;
+        }
+        Matcher m = URL_START.matcher(text);
+        if (!m.find()) {
+            return text;
+        }
+
+        StringBuilder result = new StringBuilder(text.length());
+        int lastEnd = 0;
+
+        do {
+            result.append(text, lastEnd, m.start());
+
+            // Collect the URL token and greedily absorb wrapped continuations
+            int urlEnd = m.end();
+            while (urlEnd < text.length() && text.charAt(urlEnd) == ' ') {
+                int spaceEnd = urlEnd;
+                while (spaceEnd < text.length() && text.charAt(spaceEnd) == ' ') {
+                    spaceEnd++;
+                }
+                if (spaceEnd >= text.length()) break;
+
+                // Find the next non-space token
+                int tokenEnd = spaceEnd;
+                while (tokenEnd < text.length() && text.charAt(tokenEnd) != ' ') {
+                    tokenEnd++;
+                }
+                String token = text.substring(spaceEnd, tokenEnd);
+                if (looksLikeUrlContinuation(token)) {
+                    urlEnd = tokenEnd;
+                } else {
+                    break;
+                }
+            }
+            result.append(text, m.start(), urlEnd);
+            lastEnd = urlEnd;
+        } while (m.find(lastEnd));
+
+        result.append(text, lastEnd, text.length());
+        return result.toString();
+    }
+
+    /**
+     * Returns true if the token looks like a URL fragment rather than a
+     * regular English word.  All-lowercase ASCII tokens are treated as
+     * natural words; anything else (mixed case, digits, URL-special chars)
+     * is treated as a URL continuation.
+     */
+    private static boolean looksLikeUrlContinuation(String token) {
+        if (token.isEmpty()) return false;
+        for (int i = 0; i < token.length(); i++) {
+            char c = token.charAt(i);
+            if (!(c >= 'a' && c <= 'z')) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

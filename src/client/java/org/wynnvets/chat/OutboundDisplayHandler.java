@@ -42,6 +42,9 @@ public final class OutboundDisplayHandler {
     private static final Deque<RecentOutboundMessage> recentOutboundMessages = new ArrayDeque<>();
     private static final Object recentOutboundLock = new Object();
     private static final int MAX_RECENT_OUTBOUND_MESSAGES = 200;
+    private static final Deque<RecentBridgeMessage> recentBridgeMessages = new ArrayDeque<>();
+    private static final Object recentBridgeLock = new Object();
+    private static final int MAX_RECENT_BRIDGE_MESSAGES = 200;
 
     private static Consumer<JsonObject> registeredListener;
     private static volatile boolean frumaModeEnabled = false;
@@ -127,6 +130,9 @@ public final class OutboundDisplayHandler {
         synchronized (recentOutboundLock) {
             recentOutboundMessages.clear();
         }
+        synchronized (recentBridgeLock) {
+            recentBridgeMessages.clear();
+        }
     }
 
     /** Enable or disable Fruma mode bridge mirroring. */
@@ -193,6 +199,15 @@ public final class OutboundDisplayHandler {
             if (wasServerMessageRecentlySeen(message)) {
                 return;
             }
+        }
+
+        // Record bridge messages for echo suppression in onGuildChat.
+        // When the mod displays a bridge message, isInternalDispatch can
+        // fail for wrapped multi-line messages, causing Wynntils to re-fire
+        // the event.  Recording the message here lets onGuildChat detect
+        // and suppress the re-fire.
+        if ("bridge".equals(type)) {
+            recordBridgeOutbound(message);
         }
 
         // Record this message for Fruma mode cross-source dedup
@@ -290,6 +305,84 @@ public final class OutboundDisplayHandler {
         }
     }
 
+    // ── Bridge echo suppression ─────────────────────────────────────
+
+    /**
+     * Checks whether a guild-chat message is an echo of a recently displayed
+     * bridge outbound message.  Comparison strips all whitespace and PUA
+     * characters so that Wynncraft line-wrap artefacts (spaces injected at
+     * wrap points) do not prevent a match.
+     *
+     * @param message the guild-chat message text extracted by Wynntils
+     * @return true if the message matches a recent bridge outbound
+     */
+    public static boolean wasBridgeEcho(String message) {
+        if (message == null || message.isEmpty()) {
+            return false;
+        }
+        String normalized = normalizeBridgeDedup(message);
+        synchronized (recentBridgeLock) {
+            long now = System.currentTimeMillis();
+            pruneExpiredBridgeMessages(now);
+            for (RecentBridgeMessage recent : recentBridgeMessages) {
+                if (recent.normalizedMessage.equals(normalized)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void recordBridgeOutbound(String message) {
+        if (message == null || message.isEmpty()) {
+            return;
+        }
+        String normalized = normalizeBridgeDedup(message);
+        synchronized (recentBridgeLock) {
+            long now = System.currentTimeMillis();
+            pruneExpiredBridgeMessages(now);
+            if (recentBridgeMessages.size() >= MAX_RECENT_BRIDGE_MESSAGES) {
+                recentBridgeMessages.pollFirst();
+            }
+            recentBridgeMessages.addLast(new RecentBridgeMessage(normalized, now));
+        }
+    }
+
+    /**
+     * Normalizes a message for bridge echo dedup by stripping all whitespace
+     * and PUA/unassigned codepoints.  This allows matching despite Wynncraft
+     * line-wrap spaces and PUA badge/pill differences.
+     */
+    private static String normalizeBridgeDedup(String text) {
+        if (text == null) return "";
+        StringBuilder sb = new StringBuilder(text.length());
+        int i = 0;
+        while (i < text.length()) {
+            int cp = text.codePointAt(i);
+            int charCount = Character.charCount(cp);
+            if (!Character.isWhitespace(cp)) {
+                int type = Character.getType(cp);
+                boolean isCustomGlyph = type == Character.PRIVATE_USE
+                        || (type == Character.UNASSIGNED && cp > 0xFFFF);
+                if (!isCustomGlyph) {
+                    sb.appendCodePoint(cp);
+                }
+            }
+            i += charCount;
+        }
+        return sb.toString();
+    }
+
+    private static void pruneExpiredBridgeMessages(long nowMs) {
+        while (!recentBridgeMessages.isEmpty()) {
+            RecentBridgeMessage head = recentBridgeMessages.peekFirst();
+            if (head == null || nowMs - head.createdAtMs <= SERVER_MESSAGE_DEDUP_WINDOW_MS) {
+                return;
+            }
+            recentBridgeMessages.pollFirst();
+        }
+    }
+
     private static String normalizeForDedup(String message) {
         if (message == null) return "";
         StringBuilder sb = new StringBuilder(message.length());
@@ -351,6 +444,16 @@ public final class OutboundDisplayHandler {
         RecentOutboundMessage(String displayName, String message, long createdAtMs) {
             this.displayName = displayName;
             this.message = message;
+            this.createdAtMs = createdAtMs;
+        }
+    }
+
+    private static final class RecentBridgeMessage {
+        final String normalizedMessage;
+        final long createdAtMs;
+
+        RecentBridgeMessage(String normalizedMessage, long createdAtMs) {
+            this.normalizedMessage = normalizedMessage;
             this.createdAtMs = createdAtMs;
         }
     }
