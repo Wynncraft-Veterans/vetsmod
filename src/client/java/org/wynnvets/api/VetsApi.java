@@ -19,21 +19,21 @@ public final class VetsApi {
     // ── Information endpoints ─────────────────────────────────────────
 
     /** GET the message of the day. */
-    public static final URI MOTD = URI.create("http://api.wynnvets.org/v1/outbound/motd");
+    public static final URI MOTD = URI.create("https://api.wynnvets.org/v1/outbound/motd");
 
     /** GET return event information. */
-    public static final URI RETURN = URI.create("http://api.wynnvets.org/v1/outbound/return");
+    public static final URI RETURN = URI.create("https://api.wynnvets.org/v1/outbound/return");
 
     /** GET the annihilation event timestamp. */
-    public static final URI STAMP = URI.create("http://api.wynnvets.org/v1/outbound/stamp");
+    public static final URI STAMP = URI.create("https://api.wynnvets.org/v1/outbound/stamp");
 
     // ── Staff & supporter endpoints ───────────────────────────────────
 
     /** GET confirmed staff members and their ranks. */
-    public static final URI STAFF = URI.create("http://api.wynnvets.org/v1/outbound/staff");
+    public static final URI STAFF = URI.create("https://api.wynnvets.org/v1/outbound/staff");
 
     /** GET the list of users who receive special supporter styling. */
-    public static final URI SUPPORTERS = URI.create("http://api.wynnvets.org/v1/outbound/supporters");
+    public static final URI SUPPORTERS = URI.create("https://api.wynnvets.org/v1/outbound/supporters");
 
     // ── External links ────────────────────────────────────────────────
 

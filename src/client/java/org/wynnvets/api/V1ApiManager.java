@@ -16,8 +16,8 @@ import java.util.function.Consumer;
  */
 public final class V1ApiManager {
 
-    private static final URI INBOUND_URI = URI.create("ws://api.wynnvets.org/v1/inbound");
-    private static final URI OUTBOUND_URI = URI.create("ws://api.wynnvets.org/v1/outbound");
+    private static final URI INBOUND_URI = URI.create("wss://api.wynnvets.org/v1/inbound");
+    private static final URI OUTBOUND_URI = URI.create("wss://api.wynnvets.org/v1/outbound");
 
     private static WsClient inboundClient;
     private static WsClient outboundClient;
