@@ -201,10 +201,11 @@ public final class WynntilsEventListener {
         V1ApiManager.sendInbound("guild", rank, trueUsername, messageContent);
         recordSentFingerprint(trueUsername, normalizedMsg);
 
-        // Record a PUA-stripped version so the outbound echo handler can match
-        // the returning message even when the server-displayed version was
-        // rewritten by Wynntils (e.g. item decoding changes PUA to text).
-        OutboundDisplayHandler.recordServerGuildMessage(trueUsername, normalizedMsg);
+        // Record the RAW message (including PUA) for outbound echo suppression.
+        // The raw version is needed because normalizeForDedup strips PUA from
+        // both sides at comparison time, ensuring a match even when ChatLogMixin
+        // only saw a Wynntils-decoded variant (e.g. "Idol" instead of raw PUA).
+        OutboundDisplayHandler.recordServerGuildMessage(trueUsername, messageContent);
     }
 
     /**
