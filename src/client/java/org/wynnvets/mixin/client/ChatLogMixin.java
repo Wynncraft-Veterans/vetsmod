@@ -69,9 +69,8 @@ public class ChatLogMixin {
     if (parsedGuildChat != null) {
       OutboundDisplayHandler.recordServerGuildMessage(parsedGuildChat[0], parsedGuildChat[1]);
 
-      if (OutboundDisplayHandler.isFrumaModeEnabled()
-          && OutboundDisplayHandler.wasOutboundMessageRecentlyDisplayed(parsedGuildChat[0], parsedGuildChat[1])) {
-        VetsLogger.debug("Suppressed Fruma-mode duplicate from server guild chat");
+      if (OutboundDisplayHandler.wasOutboundMessageRecentlyDisplayed(parsedGuildChat[0], parsedGuildChat[1])) {
+        VetsLogger.debug("Suppressed duplicate server guild chat (already shown via outbound)");
         ci.cancel();
         return;
       }

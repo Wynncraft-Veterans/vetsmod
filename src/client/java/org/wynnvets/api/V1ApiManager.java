@@ -1,6 +1,8 @@
 package org.wynnvets.api;
 
 import com.google.gson.JsonObject;
+import net.fabricmc.loader.api.FabricLoader;
+import org.wynnvets.Vetsmod;
 import org.wynnvets.logging.VetsLogger;
 
 import java.net.URI;
@@ -16,7 +18,7 @@ import java.util.function.Consumer;
  */
 public final class V1ApiManager {
 
-    private static final URI INBOUND_URI = URI.create("wss://api.wynnvets.org/v1/inbound");
+    private static final String INBOUND_BASE = "wss://api.wynnvets.org/v1/inbound";
     private static final URI OUTBOUND_URI = URI.create("wss://api.wynnvets.org/v1/outbound");
 
     private static WsClient inboundClient;
@@ -27,11 +29,19 @@ public final class V1ApiManager {
     private V1ApiManager() {
     }
 
+    private static String getModVersion() {
+        return FabricLoader.getInstance()
+                .getModContainer(Vetsmod.MOD_ID)
+                .map(mod -> mod.getMetadata().getVersion().getFriendlyString())
+                .orElse("unknown");
+    }
+
     /** Starts both inbound and outbound WebSocket connections. */
     public static void connect() {
         if (inboundClient != null) return;
 
-        inboundClient = new WsClient(INBOUND_URI, "inbound", json -> {
+        URI inboundUri = URI.create(INBOUND_BASE + "?version=" + getModVersion());
+        inboundClient = new WsClient(inboundUri, "inbound", json -> {
             // Acknowledgements from the server — log errors
             if (json.has("status")) {
                 String status = json.get("status").getAsString();
