@@ -16,9 +16,14 @@ import com.wynntils.utils.type.Pair;
 import net.minecraft.network.chat.HoverEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,6 +43,14 @@ public final class WynntilsEventListener {
      */
     private static final Pattern GUILD_CHAT_PATTERN =
             Pattern.compile("^\\s*(.+?):\\s+(.+)$");
+
+    /** Client-side dedup — prevents multiple sends when Wynntils fires the
+     *  same guild message event more than once (e.g. PUA-encoded and decoded
+     *  variants for item links). */
+    private static final long SENT_DEDUP_TTL_MS = TimeUnit.SECONDS.toMillis(5);
+    private static final int MAX_SENT_FINGERPRINTS = 100;
+    private static final Deque<SentFingerprint> recentSentFingerprints = new ArrayDeque<>();
+    private static final Object sentDedupLock = new Object();
 
     /** Singleton instance registered with the Wynntils event bus. */
     private static final WynntilsEventListener INSTANCE = new WynntilsEventListener();
@@ -129,6 +142,15 @@ public final class WynntilsEventListener {
             return;
         }
 
+        // Skip messages dispatched locally by the mod (bridge display, rewritten
+        // chat, etc.).  displayClientMessage → ChatListener.handleSystemMessage
+        // → Wynntils event pipeline, so this guard prevents the feedback loop
+        // where bridge messages are re-sent to the server as guild messages.
+        if (ChatUtils.isInternalDispatch()) {
+            VetsLogger.debug("onGuildChat: skipping internal dispatch");
+            return;
+        }
+
         StyledText styledMessage = event.getMessage();
 
         // Unwrap soft-wrapped lines from Wynncraft
@@ -165,9 +187,24 @@ public final class WynntilsEventListener {
         // Resolve the sender's rank: try hover text first, then pill glyph
         // decoding, and finally the Wynntils guild model for the current player.
         String rank = resolveRank(unwrapped, plain, trueUsername);
+        // Client-side dedup: normalize message by stripping PUA (item encodings
+        // produce multiple event variants with different PUA content but the same
+        // surrounding text).  Only the first variant within the TTL window is sent.
+        String normalizedMsg = stripPuaCharacters(messageContent).replaceAll("  +", " ").trim();
+        if (wasSentRecently(trueUsername, normalizedMsg)) {
+            VetsLogger.debug("onGuildChat: duplicate suppressed for [{}] [{}]", trueUsername, normalizedMsg);
+            return;
+        }
+
         VetsLogger.debug("onGuildChat SENDING rank=[{}] user=[{}] msg=[{}]", rank, trueUsername, messageContent);
 
         V1ApiManager.sendInbound("guild", rank, trueUsername, messageContent);
+        recordSentFingerprint(trueUsername, normalizedMsg);
+
+        // Record a PUA-stripped version so the outbound echo handler can match
+        // the returning message even when the server-displayed version was
+        // rewritten by Wynntils (e.g. item decoding changes PUA to text).
+        OutboundDisplayHandler.recordServerGuildMessage(trueUsername, normalizedMsg);
     }
 
     /**
@@ -319,6 +356,54 @@ public final class WynntilsEventListener {
             i += Character.charCount(cp);
         }
         return sb.toString();
+    }
+
+    // ── Client-side dedup helpers ──────────────────────────────────────
+
+    private static boolean wasSentRecently(String username, String normalizedMsg) {
+        String fp = username.toLowerCase() + "\0" + normalizedMsg;
+        synchronized (sentDedupLock) {
+            long now = System.currentTimeMillis();
+            pruneSentFingerprints(now);
+            for (SentFingerprint recent : recentSentFingerprints) {
+                if (recent.fingerprint.equals(fp)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void recordSentFingerprint(String username, String normalizedMsg) {
+        String fp = username.toLowerCase() + "\0" + normalizedMsg;
+        synchronized (sentDedupLock) {
+            long now = System.currentTimeMillis();
+            pruneSentFingerprints(now);
+            if (recentSentFingerprints.size() >= MAX_SENT_FINGERPRINTS) {
+                recentSentFingerprints.pollFirst();
+            }
+            recentSentFingerprints.addLast(new SentFingerprint(fp, now));
+        }
+    }
+
+    private static void pruneSentFingerprints(long nowMs) {
+        while (!recentSentFingerprints.isEmpty()) {
+            SentFingerprint head = recentSentFingerprints.peekFirst();
+            if (head == null || nowMs - head.createdAtMs <= SENT_DEDUP_TTL_MS) {
+                return;
+            }
+            recentSentFingerprints.pollFirst();
+        }
+    }
+
+    private static final class SentFingerprint {
+        final String fingerprint;
+        final long createdAtMs;
+
+        SentFingerprint(String fingerprint, long createdAtMs) {
+            this.fingerprint = fingerprint;
+            this.createdAtMs = createdAtMs;
+        }
     }
 
     /**
