@@ -16,6 +16,8 @@ public class ServerConnectionListener {
 
   public static void register() {
     ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+      V1ApiManager.connect();
+      OutboundDisplayHandler.register();
       VetsLogger.debug("Connected to server");
     });
 
