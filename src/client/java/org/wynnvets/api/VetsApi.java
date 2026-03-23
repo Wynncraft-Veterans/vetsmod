@@ -21,6 +21,9 @@ public final class VetsApi {
     /** GET the message of the day. */
     public static final URI MOTD = URI.create("https://api.wynnvets.org/v1/outbound/motd");
 
+    /** GET the guild-specific message of the day (for members/waitlist/honourary). */
+    public static final URI GUILD_MOTD = URI.create("https://api.wynnvets.org/v1/outbound/guild_motd");
+
     /** GET return event information. */
     public static final URI RETURN = URI.create("https://api.wynnvets.org/v1/outbound/return");
 

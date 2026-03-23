@@ -515,10 +515,28 @@ public class GuildStateManager {
     LocalPlayer player = minecraft.player;
 
     if (player != null) {
-      MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
-        // Send the MOTD to the player's chat
-        ChatUtils.sendLocalMessage(motdComponent, Prepend.DEFAULT);
-      });
+      // Use guild MOTD for eligible users (Returners, waitlist-unlocked, honourary-unlocked)
+      boolean useGuildMotd = isReturners()
+          || (isGuildless() && isWaitlistUnlocked())
+          || isHonouraryUnlocked();
+
+      if (useGuildMotd) {
+        MotdFetcher.fetchGuildMotd().thenAccept(guildMotdComponent -> {
+          String text = guildMotdComponent.getString();
+          if (text != null && !text.isEmpty()) {
+            ChatUtils.sendLocalMessage(guildMotdComponent, Prepend.DEFAULT);
+          } else {
+            // Fall back to standard MOTD if guild MOTD is empty
+            MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
+              ChatUtils.sendLocalMessage(motdComponent, Prepend.DEFAULT);
+            });
+          }
+        });
+      } else {
+        MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
+          ChatUtils.sendLocalMessage(motdComponent, Prepend.DEFAULT);
+        });
+      }
     }
   }
 
