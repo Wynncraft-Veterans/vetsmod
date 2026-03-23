@@ -18,8 +18,8 @@ import org.wynnvets.logging.DebugCommand;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
 import org.wynnvets.fetcher.ondemand.ReturnFetcher;
-import org.wynnvets.fetcher.polling.ChatMessageFetcher;
-import org.wynnvets.fetcher.polling.BridgeMessageFetcher;
+import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.fetcher.polling.StaffRanksFetcher;
 import org.wynnvets.fetcher.ondemand.StaffFetcher;
 import org.wynnvets.fetcher.polling.SupportersFetcher;
@@ -28,6 +28,8 @@ import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.fetcher.ondemand.StampFetcher;
 import org.wynnvets.items.ItemDefinitions;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.rendering.territory.TerritoryLineManager;
+import org.wynnvets.rendering.territory.TerritoryLineRenderer;
 
 /**
  * Client-side entry point for the VetsMod Fabric mod.
@@ -48,11 +50,12 @@ public class VetsmodClient implements ClientModInitializer {
     ClientLifecycleEvents.CLIENT_STARTED.register(client -> WynntilsEventListener.register());
     ItemDefinitions.load();
 
-    ChatMessageFetcher.start();
-    BridgeMessageFetcher.start();
+    V1ApiManager.connect();
+    OutboundDisplayHandler.register();
     SupportersFetcher.start();
     StaffRanksFetcher.start();
     ServerConnectionListener.register();
+    TerritoryLineRenderer.register();
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
       dispatcher.register(ClientCommandManager.literal("motd").executes(this::motd));
 
@@ -102,6 +105,16 @@ public class VetsmodClient implements ClientModInitializer {
                           .suggests(SUGGEST_BOOLEAN_VALUES)
                           .executes(this::configSet)
                       )
+                  )
+              )
+
+              // /wv line church|scrap — toggle territory boundary lines (Returners only)
+              .then(ClientCommandManager.literal("line")
+                  .then(ClientCommandManager.literal("church")
+                      .executes(ctx -> lineToggle(ctx, "church"))
+                  )
+                  .then(ClientCommandManager.literal("scrap")
+                      .executes(ctx -> lineToggle(ctx, "scrap"))
                   )
               )
 
@@ -237,6 +250,19 @@ public class VetsmodClient implements ClientModInitializer {
   private int help(CommandContext<FabricClientCommandSource> ctx) {
     ChatUtils.sendLocalMessage(Component.literal("VetsMod Help! More information to come soon."));
 
+    return 1;
+  }
+
+  // Toggle territory boundary line display.
+  private int lineToggle(CommandContext<FabricClientCommandSource> ctx, String alias) {
+    if (!GuildStateManager.areFeaturesEnabled()) {
+      ChatUtils.sendLocalMessage(
+          Component.literal("You must be a Returners guild member to use /wv line.")
+              .withStyle(ChatFormatting.RED)
+      );
+      return 0;
+    }
+    TerritoryLineManager.toggle(alias);
     return 1;
   }
 

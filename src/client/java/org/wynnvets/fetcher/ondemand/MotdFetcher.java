@@ -31,8 +31,22 @@ public class MotdFetcher {
    * @return CompletableFuture containing the MOTD Component
    */
   public static CompletableFuture<MutableComponent> fetchMotd() {
+    return fetchFromUri(VetsApi.MOTD);
+  }
+
+  /**
+   * Fetches the guild MOTD from the API asynchronously.
+   *
+   * @return CompletableFuture containing the guild MOTD Component, or empty
+   *         literal if the server returned an empty body
+   */
+  public static CompletableFuture<MutableComponent> fetchGuildMotd() {
+    return fetchFromUri(VetsApi.GUILD_MOTD);
+  }
+
+  private static CompletableFuture<MutableComponent> fetchFromUri(java.net.URI uri) {
     HttpRequest request = HttpRequest.newBuilder()
-        .uri(VetsApi.MOTD)
+        .uri(uri)
         .timeout(Duration.ofSeconds(5))
         .GET()
         .build();

@@ -45,12 +45,14 @@ public class GuildStateManager {
   private static volatile boolean wynntilsReady = false;
 
   // Stored state
-  private static boolean passwordUnlocked = false;
+  private static boolean waitlistUnlocked = false;
+  private static boolean honouraryUnlocked = false;
   private static boolean debugForceGuildlessUnlocked = false;
   private static String playerName = StringUtils.EMPTY;
 
-  // Password hash for unlock command
-  private static final String UNLOCK_PASSWORD_HASH = "d4c4f49d09ae0fc5e88f23f47a135d3e509a0799cebc711943370e80e58e145b";
+  // Password hashes for unlock command (SHA-256)
+  private static final String WAITLIST_PASSWORD_HASH = "d4c4f49d09ae0fc5e88f23f47a135d3e509a0799cebc711943370e80e58e145b";
+  private static final String HONOURARY_PASSWORD_HASH = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
 
   // State tracking for staff detection via /gu rank
   private static boolean isStaff = false;
@@ -108,8 +110,26 @@ public class GuildStateManager {
     if (debugForceGuildlessUnlocked) {
       return true;
     }
-    boolean unlocked = isReturners() || passwordUnlocked;
+    boolean unlocked = isReturners() || waitlistUnlocked || honouraryUnlocked;
     return unlocked;
+  }
+
+  /**
+   * Check if the player has unlocked as a waitlist (guildless) user.
+   *
+   * @return true if waitlist-unlocked, false otherwise
+   */
+  public static boolean isWaitlistUnlocked() {
+    return debugForceGuildlessUnlocked || waitlistUnlocked;
+  }
+
+  /**
+   * Check if the player has unlocked as an honourary member.
+   *
+   * @return true if honourary-unlocked, false otherwise
+   */
+  public static boolean isHonouraryUnlocked() {
+    return honouraryUnlocked;
   }
 
   /**
@@ -495,10 +515,28 @@ public class GuildStateManager {
     LocalPlayer player = minecraft.player;
 
     if (player != null) {
-      MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
-        // Send the MOTD to the player's chat
-        ChatUtils.sendLocalMessage(motdComponent, Prepend.DEFAULT);
-      });
+      // Use guild MOTD for eligible users (Returners, waitlist-unlocked, honourary-unlocked)
+      boolean useGuildMotd = isReturners()
+          || (isGuildless() && isWaitlistUnlocked())
+          || isHonouraryUnlocked();
+
+      if (useGuildMotd) {
+        MotdFetcher.fetchGuildMotd().thenAccept(guildMotdComponent -> {
+          String text = guildMotdComponent.getString();
+          if (text != null && !text.isEmpty()) {
+            ChatUtils.sendLocalMessage(guildMotdComponent, Prepend.DEFAULT);
+          } else {
+            // Fall back to standard MOTD if guild MOTD is empty
+            MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
+              ChatUtils.sendLocalMessage(motdComponent, Prepend.DEFAULT);
+            });
+          }
+        });
+      } else {
+        MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
+          ChatUtils.sendLocalMessage(motdComponent, Prepend.DEFAULT);
+        });
+      }
     }
   }
 
@@ -533,19 +571,38 @@ public class GuildStateManager {
   }
 
   /**
-   * Attempt to unlock with a password
+   * The type of unlock granted by a password.
+   */
+  public enum UnlockType {
+    NONE,
+    WAITLIST,
+    HONOURARY
+  }
+
+  /**
+   * Attempt to unlock with a password. Checks against both the waitlist
+   * and honourary password hashes.
    *
    * @param password The password to check
-   * @return true if unlock successful, false otherwise
+   * @return the type of unlock granted, or {@link UnlockType#NONE} if the
+   *         password did not match
    */
-  public static boolean tryUnlock(String password) {
+  public static UnlockType tryUnlock(String password) {
     String hash = sha256(password);
-    if (hash != null && hash.equals(UNLOCK_PASSWORD_HASH)) {
-      passwordUnlocked = true;
-      VetsLogger.debug("Mod unlocked via password");
-      return true;
+    if (hash == null) {
+      return UnlockType.NONE;
     }
-    return false;
+    if (hash.equals(WAITLIST_PASSWORD_HASH)) {
+      waitlistUnlocked = true;
+      VetsLogger.debug("Mod unlocked via waitlist password");
+      return UnlockType.WAITLIST;
+    }
+    if (hash.equals(HONOURARY_PASSWORD_HASH)) {
+      honouraryUnlocked = true;
+      VetsLogger.debug("Mod unlocked via honourary password");
+      return UnlockType.HONOURARY;
+    }
+    return UnlockType.NONE;
   }
 
   /**

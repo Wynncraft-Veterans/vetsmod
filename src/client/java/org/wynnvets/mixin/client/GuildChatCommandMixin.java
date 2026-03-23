@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.fetcher.polling.BridgeMessageFetcher;
+import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.fetcher.polling.StaffRanksFetcher;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
@@ -16,40 +16,49 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.StaffOutboundMessenger;
 import org.wynnvets.logging.VetsLogger;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-
 /**
  * Intercepts outbound chat commands to handle guild chat ({@code /g}),
- * staff chat ({@code /v}), and debug commands.
+ * honourary guild chat ({@code /wg}), staff chat ({@code /v}), and
+ * debug commands.
  *
- * <p>For guildless-but-unlocked users, {@code /g} messages are relayed
- * through the VetsMod API instead of the server. Staff chat ({@code /v})
- * fans out encrypted direct messages to all online staff members via
- * {@link StaffOutboundMessenger}.</p>
+ * <p>For guildless-but-unlocked (waitlist) users, {@code /g} messages are
+ * relayed through the v1 WebSocket inbound endpoint. For honourary-unlocked
+ * users, {@code /wg} messages are relayed as honourary type. Staff chat
+ * ({@code /v}) fans out encrypted direct messages to all online staff
+ * members via {@link StaffOutboundMessenger}.</p>
  */
 @Mixin(ClientPacketListener.class)
 public class GuildChatCommandMixin {
-  private static final String API_ENDPOINT = "http://api.wynnvets.org/v0/inbound";
   private static final int STAFF_CHAT_MAX_LENGTH = 234;
   private static final String GUILDLESS_SELF_RANK = "\uE010\uE056\uE040\uE048\uE053\uE04B\uE048\uE052\uE053\uE011";
-  private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-  private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+  private static final String HONOURARY_SELF_RANK = "\uE010\uE047\uE04E\uE04D\uE04E\uE056\uE051\uE040\uE051\uE058\uE011";
 
   @Inject(method = "sendCommand", at = @At("HEAD"), cancellable = true)
   private void onSendCommand(String command, CallbackInfo ci) {
-    // Check if this is a guild chat command for guildless+unlocked users
+    // Check if this is a guild chat command for guildless+waitlist-unlocked users
     if (command.regionMatches(true, 0, "g ", 0, 2)) {
-      if (GuildStateManager.isGuildless() && GuildStateManager.isUnlocked()) {
-        VetsLogger.debug("Intercepted /g for guildless+unlocked bridge relay");
+      if (GuildStateManager.isGuildless() && GuildStateManager.isWaitlistUnlocked()) {
+        VetsLogger.debug("Intercepted /g for waitlist bridge relay");
         ci.cancel();
         String message = command.substring(2);
-        handleGuildChat(message);
+        handleWaitlistChat(message);
+      }
+      return;
+    }
+
+    // Honourary guild chat command: /wg <message>
+    if (command.regionMatches(true, 0, "wg ", 0, 3)) {
+      if (GuildStateManager.isHonouraryUnlocked()) {
+        VetsLogger.debug("Intercepted /wg for honourary bridge relay");
+        ci.cancel();
+        String message = command.substring(3);
+        handleHonouraryChat(message);
+      } else {
+        ci.cancel();
+        ChatUtils.sendLocalMessage(
+            Component.literal("You must unlock with an honourary password to use /wg.")
+                .withStyle(ChatFormatting.RED)
+        );
       }
       return;
     }
@@ -180,13 +189,13 @@ public class GuildChatCommandMixin {
   }
 
   /**
-   * Handle /g guild chat bridge by sending to API endpoint
+   * Handle /g guild chat bridge for waitlist (guildless) users by sending
+   * to the v1 inbound WebSocket.
    *
    * @param message The message to send
    */
-  private void handleGuildChat(String message) {
+  private void handleWaitlistChat(String message) {
     Minecraft minecraft = Minecraft.getInstance();
-
     if (minecraft.player == null) {
       return;
     }
@@ -197,50 +206,28 @@ public class GuildChatCommandMixin {
     }
 
     ChatUtils.sendGuildChatMessage(GUILDLESS_SELF_RANK, username, message);
-    BridgeMessageFetcher.queuePendingSelfMessage(username, message);
+    V1ApiManager.sendInbound("waitlist", "Waitlist", username, message);
+  }
 
-    // Get current timestamp
-    String timestamp = LocalDateTime.now(ZoneOffset.UTC).format(TIMESTAMP_FORMATTER);
+  /**
+   * Handle /wg guild chat bridge for honourary users by sending to the v1
+   * inbound WebSocket.
+   *
+   * @param message The message to send
+   */
+  private void handleHonouraryChat(String message) {
+    Minecraft minecraft = Minecraft.getInstance();
+    if (minecraft.player == null) {
+      return;
+    }
 
-    // Build JSON payload
-    String jsonPayload = String.format(
-        "{\"message\":\"%s\",\"rank\":\"Waitlist\",\"timestamp\":\"%s\",\"username\":\"%s\"}",
-        escapeJson(message),
-        timestamp,
-        escapeJson(username)
-    );
+    String username = GuildStateManager.playerName();
+    if (username == null || username.isEmpty()) {
+      username = minecraft.player.getName().getString();
+    }
 
-    // Send the request asynchronously
-    new Thread(() -> {
-      try {
-        HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(API_ENDPOINT))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
-            .build();
-
-        HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() >= 200 && response.statusCode() < 300) {
-          VetsLogger.debug("Guild chat message sent to API");
-        } else {
-          VetsLogger.warn("Failed to send guild chat message. Status: {}, Response: {}", 
-              response.statusCode(), response.body());
-          
-          ChatUtils.sendLocalMessage(
-              Component.literal("Failed to send guild message (status: " + response.statusCode() + ")")
-                  .withStyle(ChatFormatting.RED)
-          );
-        }
-      } catch (Exception e) {
-        VetsLogger.error("Error sending guild chat message to API", e);
-        
-        ChatUtils.sendLocalMessage(
-            Component.literal("Error sending guild message: " + e.getMessage())
-                .withStyle(ChatFormatting.RED)
-        );
-      }
-    }).start();
+    ChatUtils.sendGuildChatMessage(HONOURARY_SELF_RANK, username, message);
+    V1ApiManager.sendInbound("honourary", "Honourary", username, message);
   }
 
   /**
@@ -266,23 +253,5 @@ public class GuildChatCommandMixin {
         });
 
     StaffOutboundMessenger.dispatchStaffChatWithEligibilityGate(username, message, rank);
-  }
-
-  /**
-   * Escape special characters for JSON
-   *
-   * @param input The input string
-   * @return The escaped string
-   */
-  private String escapeJson(String input) {
-    if (input == null) {
-      return "";
-    }
-    return input
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t");
   }
 }

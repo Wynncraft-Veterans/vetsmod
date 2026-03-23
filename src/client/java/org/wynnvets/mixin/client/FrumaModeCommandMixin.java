@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.fetcher.polling.BridgeMessageFetcher;
+import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.chat.ChatUtils;
 
@@ -53,8 +53,8 @@ public class FrumaModeCommandMixin {
       return;
     }
 
-    boolean nextState = !BridgeMessageFetcher.isFrumaModeEnabled();
-    BridgeMessageFetcher.setFrumaModeEnabled(nextState);
+    boolean nextState = !OutboundDisplayHandler.isFrumaModeEnabled();
+    OutboundDisplayHandler.setFrumaModeEnabled(nextState);
 
     ChatUtils.sendLocalMessage(
         Component.literal("[TEMP] Fruma mode ")
