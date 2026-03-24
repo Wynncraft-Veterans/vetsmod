@@ -76,7 +76,14 @@ public class WsClient implements WebSocket.Listener {
                         VetsLogger.debug("[{}] WebSocket connect failed: {}", label, ex.getMessage());
                         scheduleReconnect();
                     } else {
-                        wsRef.set(ws);
+                        WebSocket old = wsRef.getAndSet(ws);
+                        if (old != null) {
+                            try {
+                                old.abort();
+                            } catch (Exception ignored) {
+                                // Previous connection may already be closed
+                            }
+                        }
                         VetsLogger.debug("[{}] WebSocket connected", label);
                         schedulePing();
                     }
@@ -142,7 +149,7 @@ public class WsClient implements WebSocket.Listener {
     @Override
     public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
         VetsLogger.debug("[{}] WebSocket closed: {} {}", label, statusCode, reason);
-        wsRef.set(null);
+        wsRef.compareAndSet(webSocket, null);
         scheduleReconnect();
         return CompletableFuture.completedFuture(null);
     }
@@ -150,7 +157,12 @@ public class WsClient implements WebSocket.Listener {
     @Override
     public void onError(WebSocket webSocket, Throwable error) {
         VetsLogger.debug("[{}] WebSocket error: {}", label, error.getMessage());
-        wsRef.set(null);
+        wsRef.compareAndSet(webSocket, null);
+        try {
+            webSocket.abort();
+        } catch (Exception ignored) {
+            // WebSocket may already be closed
+        }
         scheduleReconnect();
     }
 
