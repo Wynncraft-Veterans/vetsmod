@@ -72,6 +72,12 @@ public class GuildStateManager {
   private static long lastMotdFetchTime = 0;
   private static final long MOTD_FETCH_COOLDOWN = 1000; // 1 second cooldown
 
+  // Tracks whether the guild-specific MOTD was shown this session.
+  // When guild info isn't available at world-join time, the standard MOTD is
+  // shown instead; this flag lets onGuildInfoUpdated() fix that once the
+  // guild model is populated.
+  private static boolean guildMotdDisplayedThisSession = false;
+
   // Track whether we have entered a world at least once since reset, so that
   // commands are not executed before initial guild info is available.
   private static boolean enteredWorld = false;
@@ -491,6 +497,15 @@ public class GuildStateManager {
 
     if (isReturners()) {
       fetchAndDisplayStampMessage();
+
+      // If the MOTD was already fetched but guild info wasn't available yet
+      // (race between WorldStateEvent and GuildEvent.Joined), the standard
+      // MOTD was shown instead of the guild MOTD.  Re-fetch now that we know
+      // the player is in Returners.
+      if (enteredWorld && !guildMotdDisplayedThisSession) {
+        VetsLogger.debug("Guild info now available — re-fetching guild MOTD");
+        fetchAndDisplayMotd();
+      }
     }
   }
 
@@ -524,6 +539,7 @@ public class GuildStateManager {
         MotdFetcher.fetchGuildMotd().thenAccept(guildMotdComponent -> {
           String text = guildMotdComponent.getString();
           if (text != null && !text.isEmpty()) {
+            guildMotdDisplayedThisSession = true;
             ChatUtils.sendLocalMessage(guildMotdComponent, Prepend.DEFAULT);
           } else {
             // Fall back to standard MOTD if guild MOTD is empty
@@ -637,6 +653,7 @@ public class GuildStateManager {
   public static void reset() {
     debugForceGuildlessUnlocked = false;
     lastMotdFetchTime = 0;
+    guildMotdDisplayedThisSession = false;
     staffRankSuppressUntil = 0;
     enteredWorld = false;
     isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
