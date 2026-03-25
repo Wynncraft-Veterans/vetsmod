@@ -150,6 +150,49 @@ public class GuildChatCommandMixin {
       return;
     }
 
+    // Staff command: /encourage <version> -> /g ⚠⚠⚠ ... ⚠⚠⚠
+    if (command.regionMatches(true, 0, "encourage ", 0, 10)) {
+      boolean isCurrentlyStaff = GuildStateManager.isStaff();
+      boolean refreshStarted = GuildStateManager.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
+
+      if (refreshStarted || GuildStateManager.isCheckingStaffStatus()) {
+        ci.cancel();
+        ChatUtils.sendLocalMessage(
+            Component.literal("Checking staff permissions, please retry in a moment.")
+                .withStyle(ChatFormatting.YELLOW)
+        );
+        return;
+      }
+
+      if (!GuildStateManager.isStaff()) {
+        ci.cancel();
+        ChatUtils.sendLocalMessage(
+            Component.literal("You must be staff to use /encourage.")
+                .withStyle(ChatFormatting.RED)
+        );
+        return;
+      }
+
+      ci.cancel();
+      String version = command.substring(10).trim();
+      if (version.isEmpty()) {
+        ChatUtils.sendLocalMessage(
+            Component.literal("Usage: /encourage <version>")
+                .withStyle(ChatFormatting.RED)
+        );
+        return;
+      }
+
+      StaffOutboundMessenger.executeWithStaffEligibilityGate(() -> {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player != null && minecraft.player.connection != null) {
+          minecraft.player.connection.sendCommand(
+              "g ⚠⚠⚠ If you are using vetsmod, it's outdated (current version " + version + ") ⚠⚠⚠");
+        }
+      });
+      return;
+    }
+
     // Fallback interception for /wv check <playerName> to keep it client-side.
     if (command.regionMatches(true, 0, "wv check ", 0, 9)) {
       boolean isCurrentlyStaff = GuildStateManager.isStaff();

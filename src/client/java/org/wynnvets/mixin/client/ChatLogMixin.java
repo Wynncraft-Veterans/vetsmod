@@ -10,6 +10,7 @@ import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.chat.ChatLogger;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.rewriter.EncourageUpdateRewriter;
 import org.wynnvets.chat.rewriter.ServerGuildChatRewriter;
 import org.wynnvets.chat.rewriter.StaffChannelMessageRewriter;
 import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
@@ -80,6 +81,12 @@ public class ChatLogMixin {
         ci.cancel();
         return;
       }
+    }
+
+    // Rewrite encourage-update messages (⚠⚠⚠ ... ⚠⚠⚠) into version status output.
+    if (EncourageUpdateRewriter.tryRewrite(message, messageString)) {
+      ci.cancel();
+      return;
     }
 
     // Rewrite/suppress staff guild alerts (‼ prefixed) into shout-style local output.
