@@ -60,7 +60,8 @@ public final class EncourageUpdateRewriter {
             return false;
         }
 
-        Matcher matcher = ENCOURAGE_PATTERN.matcher(parsed.message);
+        String cleanedMessage = stripWrapArtifacts(parsed.message);
+        Matcher matcher = ENCOURAGE_PATTERN.matcher(cleanedMessage);
         if (!matcher.matches()) {
             return false;
         }
@@ -124,6 +125,32 @@ public final class EncourageUpdateRewriter {
                 .getModContainer(Vetsmod.MOD_ID)
                 .map(mod -> mod.getMetadata().getVersion().getFriendlyString())
                 .orElse("0.0.0");
+    }
+
+    /**
+     * Strips server-injected wrap artifacts (newlines, continuation-prefix PUA
+     * characters) from a message so that regex matching works on long messages
+     * that Wynncraft splits across multiple visual lines.
+     */
+    private static String stripWrapArtifacts(String message) {
+        StringBuilder sb = new StringBuilder(message.length());
+        for (int i = 0; i < message.length(); ) {
+            int cp = message.codePointAt(i);
+            int charCount = Character.charCount(cp);
+            if (cp == '\n') {
+                i += charCount;
+                continue;
+            }
+            int type = Character.getType(cp);
+            if (type == Character.PRIVATE_USE
+                    || (type == Character.UNASSIGNED && cp > 0xFFFF)) {
+                i += charCount;
+                continue;
+            }
+            sb.appendCodePoint(cp);
+            i += charCount;
+        }
+        return sb.toString().replaceAll("\\s+", " ").trim();
     }
 
     // ── Guild chat parsing (shared pattern with StaffGuildAlertRewriter) ──
