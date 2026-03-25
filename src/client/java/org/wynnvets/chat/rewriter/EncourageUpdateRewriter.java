@@ -1,5 +1,6 @@
 package org.wynnvets.chat.rewriter;
 
+import com.wynntils.utils.mc.ComponentUtils;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -7,10 +8,8 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.Vetsmod;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.Prepend;
 import org.wynnvets.fetcher.polling.StaffRanksFetcher;
 import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.rendering.colors.VersionAnimations;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -71,20 +70,16 @@ public final class EncourageUpdateRewriter {
 
         VetsLogger.debug("Encourage update: announced={}, local={}", announcedVersion, localVersion);
 
-        MutableComponent badge = Prepend.GUILD.get();
-        MutableComponent body;
+        String senderRank = resolveStaffRank(senderUsername);
 
+        MutableComponent body;
         if (isVersionLessThan(localVersion, announcedVersion)) {
-            body = VersionAnimations.makeObfuscated("Your vetsmod is outdated", 0, 0);
+            body = ComponentUtils.makeObfuscated("Your vetsmod is outdated", 0.4f, 0.7f);
         } else {
-            body = VersionAnimations.makeRainbow("You have up to date vetsmod");
+            body = ComponentUtils.makeRainbowStyle("You have up to date vetsmod", true);
         }
 
-        MutableComponent full = Component.empty()
-                .append(badge)
-                .append(body);
-
-        ChatUtils.dispatchToChat(full, badge.getStyle());
+        ChatUtils.sendGuildChatMessageWithBody(senderRank, senderUsername, body);
         return true;
     }
 
@@ -154,6 +149,26 @@ public final class EncourageUpdateRewriter {
     }
 
     // ── Guild chat parsing (shared pattern with StaffGuildAlertRewriter) ──
+
+    private static String resolveStaffRank(String username) {
+        if (username == null || username.isBlank()) {
+            return "Captain";
+        }
+
+        String normalized = username.trim();
+        return StaffRanksFetcher.confirmedRankFor(normalized)
+                .or(() -> {
+                    for (String variant : normalized.split("/")) {
+                        String candidate = variant.trim();
+                        if (!candidate.isEmpty()) {
+                            var rank = StaffRanksFetcher.confirmedRankFor(candidate);
+                            if (rank.isPresent()) return rank;
+                        }
+                    }
+                    return java.util.Optional.empty();
+                })
+                .orElse("Captain");
+    }
 
     private static boolean isCurrentStaffSender(String username) {
         if (username == null || username.isBlank()) {

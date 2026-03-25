@@ -212,6 +212,42 @@ public final class ChatUtils {
         }
 
     /**
+     * Sends a guild-chat–style message where the body is a pre-built component.
+     * Used when the message body requires special formatting (e.g. animated text)
+     * that cannot be expressed as a plain string.
+     *
+     * @param rank        the rank text (pill); may be empty
+     * @param displayName the player display name
+     * @param bodyComponent the pre-built message body component
+     */
+    public static void sendGuildChatMessageWithBody(String rank, String displayName, Component bodyComponent) {
+        MutableComponent badge = Prepend.GUILD.get();
+        String normalizedRank = rank == null ? "" : rank.trim();
+
+        String pillText = normalizedRank.isEmpty() ? "" : encodePillIfAscii(normalizedRank);
+
+        MutableComponent body = Component.empty();
+
+        boolean isSupporter = !pillText.isEmpty()
+            && SupportersFetcher.isSupporter(displayName);
+
+        if (!pillText.isEmpty()) {
+            body.append(PillFormatter.formatPill(pillText, displayName, isSupporter))
+                    .append(" ");
+        }
+
+        body.append(Component.literal(displayName).setStyle(NAME_STYLE))
+                .append(Component.literal(": ").setStyle(RANK_STYLE))
+                .append(bodyComponent);
+
+        MutableComponent full = Component.empty()
+                .append(badge)
+                .append(body);
+
+        dispatchToChat(full, badge.getStyle());
+    }
+
+    /**
      * Sends a staff-channel styled message using the same visuals as /v self echo.
      * Defaults to Captain when rank is unknown.
      */
