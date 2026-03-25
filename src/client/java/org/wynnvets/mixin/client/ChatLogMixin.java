@@ -83,7 +83,7 @@ public class ChatLogMixin {
     }
 
     // Rewrite/suppress staff guild alerts (‼ prefixed) into shout-style local output.
-    if (StaffGuildAlertRewriter.tryRewrite(messageString)) {
+    if (StaffGuildAlertRewriter.tryRewrite(message, messageString)) {
       ci.cancel();
       return;
     }

@@ -3,11 +3,17 @@ package org.wynnvets.chat.rewriter;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FontDescription;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.fetcher.polling.StaffRanksFetcher;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Rewrites incoming guild chat alerts from staff that begin with the double-bang marker.
@@ -19,6 +25,9 @@ public final class StaffGuildAlertRewriter {
     private static final String ALERT_FRAME_OPEN = "\uE010\u2064";
     private static final String ALERT_FRAME_SEGMENT = "\uE00F\uE012";
     private static final String ALERT_FRAME_CLOSE = "\uE011";
+
+    private static final Pattern REAL_NAME_PATTERN =
+        Pattern.compile("real\\s+name\\s+is\\s+([A-Za-z0-9_]{1,16})", Pattern.CASE_INSENSITIVE);
 
     private static final Style SHOUT_PREFIX_STYLE = Style.EMPTY
         .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
@@ -35,16 +44,22 @@ public final class StaffGuildAlertRewriter {
     /**
      * Attempts to rewrite a guild chat message as a staff alert.
      *
+     * @param message       the original chat component (used to resolve nicknames via hover text)
      * @param messageString the raw chat line
      * @return {@code true} if the message was rewritten (caller should cancel)
      */
-    public static boolean tryRewrite(String messageString) {
+    public static boolean tryRewrite(Component message, String messageString) {
         ParsedGuildChat parsed = parseGuildChat(messageString);
         if (parsed == null) {
             return false;
         }
 
-        if (!isCurrentStaffSender(parsed.username)) {
+        // The parsed username may be a Wynncraft nickname (e.g. "Wencrobat"
+        // instead of "Wenweia").  Resolve the true username from hover text
+        // so the staff check works for nicknamed players.
+        String senderUsername = resolveRealUsername(message, parsed.username);
+
+        if (!isCurrentStaffSender(senderUsername)) {
             return false;
         }
 
@@ -110,6 +125,47 @@ public final class StaffGuildAlertRewriter {
         }
 
         return false;
+    }
+
+    /**
+     * Resolves the real Minecraft username from hover text on the Component tree.
+     * Wynncraft attaches {@code <nick>'s real name is <username>} as a SHOW_TEXT
+     * HoverEvent when a player has a nickname.  Falls back to the display name.
+     */
+    private static String resolveRealUsername(Component root, String fallback) {
+        List<FlatPart> parts = new ArrayList<>();
+        flattenParts(root, root.getStyle(), parts);
+
+        for (FlatPart part : parts) {
+            HoverEvent hover = part.style.getHoverEvent();
+            if (hover instanceof HoverEvent.ShowText st) {
+                Matcher matcher = REAL_NAME_PATTERN.matcher(st.value().getString());
+                if (matcher.find()) {
+                    return matcher.group(1);
+                }
+            }
+        }
+
+        return fallback;
+    }
+
+    private static void flattenParts(Component component, Style inherited, List<FlatPart> out) {
+        Style resolved = inherited.applyTo(component.getStyle());
+        StringBuilder sb = new StringBuilder();
+        component.getContents().visit(s -> {
+            sb.append(s);
+            return java.util.Optional.empty();
+        });
+        String text = sb.toString();
+        if (!text.isEmpty()) {
+            out.add(new FlatPart(text, resolved));
+        }
+        for (Component sibling : component.getSiblings()) {
+            flattenParts(sibling, resolved, out);
+        }
+    }
+
+    private record FlatPart(String text, Style style) {
     }
 
     private static ParsedGuildChat parseGuildChat(String message) {
