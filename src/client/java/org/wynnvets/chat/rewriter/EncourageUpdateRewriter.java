@@ -74,7 +74,7 @@ public final class EncourageUpdateRewriter {
 
         MutableComponent body;
         if (isVersionLessThan(localVersion, announcedVersion)) {
-            body = ComponentUtils.makeObfuscated("Your vetsmod is outdated", 0.4f, 0.7f);
+            body = ComponentUtils.makeObfuscated("Your vetsmod is outdated", 0.08f, 0.04f);
         } else {
             body = ComponentUtils.makeRainbowStyle("You have up to date vetsmod", true);
         }
