@@ -51,8 +51,8 @@ public class GuildStateManager {
   private static String playerName = StringUtils.EMPTY;
 
   // Password hashes for unlock command (SHA-256)
-  private static final String WAITLIST_PASSWORD_HASH = "d4c4f49d09ae0fc5e88f23f47a135d3e509a0799cebc711943370e80e58e145b";
-  private static final String HONOURARY_PASSWORD_HASH = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
+  private static final String WAITLIST_PASSWORD_HASH = "8f74db5451e8e6e74189fa5e8a2d31efbb1853629fb80b30461bafc8a97fe07e";
+  private static final String HONOURARY_PASSWORD_HASH = "4fe3af27e525245e9f3f3764e06b4eb5997ac09d553b4fdf59f9c9420caebca4";
 
   // State tracking for staff detection via /gu rank
   private static boolean isStaff = false;
