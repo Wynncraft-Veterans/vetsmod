@@ -44,6 +44,8 @@ public class LegacyHighlightMixin {
       GuiGraphics guiGraphics, Slot slot, CallbackInfo ci) {
     ItemStack stack = slot.getItem();
     if (stack.isEmpty()) return;
+    // Bail out when legacy item highlighting is disabled
+    if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return;
     // Skip menus that abuse enchantment glints as selectors (e.g. "Island Rules")
     if (LegacyItemHandler.isBlockedScreen()) return;
 
@@ -55,12 +57,20 @@ public class LegacyHighlightMixin {
     }
 
     List<Component> lore = stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines();
+
+    // Misc-category legacy items (e.g. Raw Cod, Gunpowder) — matched by name in
+    // misc_definitions AND confirmed by a "Misc. Item" rarity line in lore.
+    if (name != null && ItemDefinitions.isMiscLegacy(name) && LegacyItemHandler.hasMiscRarity(lore)) {
+      drawLegacyHighlight(guiGraphics, slot);
+      return;
+    }
+
     if (LegacyItemHandler.hasBetaLegacyMarker(lore)) {
       drawLegacyHighlight(guiGraphics, slot);
       return;
     }
 
-    if (stack.hasFoil()) {
+    if (stack.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(stack)) {
       String foilName = LegacyItemHandler.normalizeName(
           ChatFormatting.stripFormatting(stack.getHoverName().getString()));
       if (foilName == null || !ItemDefinitions.isUnenchanted(foilName)) {
@@ -70,6 +80,12 @@ public class LegacyHighlightMixin {
     }
 
     if (LegacyItemHandler.hasJunkRarity(lore) && (name == null || !ItemDefinitions.isNotJunk(name))) {
+      drawLegacyHighlight(guiGraphics, slot);
+      return;
+    }
+
+    // Crafting-rarity items — any item whose lore contains a "Crafting Item" rarity line.
+    if (LegacyItemHandler.hasCraftingRarity(lore)) {
       drawLegacyHighlight(guiGraphics, slot);
     }
   }
@@ -94,7 +110,8 @@ public class LegacyHighlightMixin {
   private void vetsmod$captureHoveredItemFoil(
       GuiGraphics guiGraphics, int mouseX, int mouseY, CallbackInfo ci) {
     if (hoveredSlot != null && hoveredSlot.hasItem()) {
-      LegacyItemHandler.currentItemHasFoil = hoveredSlot.getItem().hasFoil();
+      ItemStack hovered = hoveredSlot.getItem();
+      LegacyItemHandler.currentItemHasFoil = hovered.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(hovered);
     } else {
       LegacyItemHandler.currentItemHasFoil = false;
     }

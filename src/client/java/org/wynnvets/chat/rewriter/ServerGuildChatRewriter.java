@@ -58,6 +58,11 @@ public final class ServerGuildChatRewriter {
             return false;
         }
 
+        // Respect the user's showSupporterGlints preference
+        if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS)) {
+            return false;
+        }
+
         // Walk the Component tree and collect flattened (text, resolvedStyle) pairs
         // that make up the pill section.
         List<StyledFragment> pillFragments = extractPillFragments(component);

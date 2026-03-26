@@ -6,10 +6,11 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.fetcher.polling.BridgeMessageFetcher;
+import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.chat.ChatLogger;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.rewriter.EncourageUpdateRewriter;
 import org.wynnvets.chat.rewriter.ServerGuildChatRewriter;
 import org.wynnvets.chat.rewriter.StaffChannelMessageRewriter;
 import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
@@ -31,8 +32,14 @@ public class ChatLogMixin {
   private void onChatMessage(Component message, CallbackInfo ci) {
     String messageString = message.getString();
 
-    // Always log the chat message to file
-    ChatLogger.logMessage(messageString);
+    // Skip logging for mod-injected messages (bridge display, rewritten chat, etc.)
+    // to prevent a feedback loop where displayed bridge messages are re-sent to the API.
+    boolean isInternalDispatch = ChatUtils.isInternalDispatch();
+
+    if (!isInternalDispatch) {
+      // Only log externally-sourced chat messages to file and API
+      ChatLogger.logMessage(messageString);
+    }
 
     // Check if this is a staff rank-check response BEFORE processing
     boolean isStaffRankCheck = GuildStateManager.isProcessingModStaffRankCheck() && isStaffRankCheckMessage(messageString);
@@ -55,24 +62,35 @@ public class ChatLogMixin {
     }
 
     // Avoid recursively rewriting mod-injected chat messages.
-    if (ChatUtils.isInternalDispatch()) {
+    if (isInternalDispatch) {
       return;
     }
 
+    // Record server guild chat for Fruma mode cross-source dedup.
+    // With the hard gate in OutboundDisplayHandler (Returners + guild +
+    // non-Fruma → skip), outbound guild messages are never displayed for
+    // Returners, so the old wasOutboundMessageRecentlyDisplayed race is
+    // no longer needed.  In Fruma mode the outbound IS displayed and
+    // this recording feeds wasOutboundMessageRecentlyDisplayed.
     String[] parsedGuildChat = parseGuildChat(messageString);
     if (parsedGuildChat != null) {
-      BridgeMessageFetcher.recordServerGuildMessage(parsedGuildChat[0], parsedGuildChat[1]);
+      OutboundDisplayHandler.recordServerGuildMessage(parsedGuildChat[0], parsedGuildChat[1]);
 
-      if (BridgeMessageFetcher.isFrumaModeEnabled()
-          && BridgeMessageFetcher.wasBridgeMessageRecentlyDisplayed(parsedGuildChat[0], parsedGuildChat[1])) {
-        VetsLogger.debug("Suppressed Fruma-mode duplicate from server guild chat");
+      if (OutboundDisplayHandler.isFrumaModeEnabled() && OutboundDisplayHandler.wasOutboundMessageRecentlyDisplayed(parsedGuildChat[0], parsedGuildChat[1])) {
+        VetsLogger.debug("Suppressed duplicate server guild chat (Fruma mode — already shown via outbound)");
         ci.cancel();
         return;
       }
     }
 
+    // Rewrite encourage-update messages (⚠⚠⚠ ... ⚠⚠⚠) into version status output.
+    if (EncourageUpdateRewriter.tryRewrite(message, messageString)) {
+      ci.cancel();
+      return;
+    }
+
     // Rewrite/suppress staff guild alerts (‼ prefixed) into shout-style local output.
-    if (StaffGuildAlertRewriter.tryRewrite(messageString)) {
+    if (StaffGuildAlertRewriter.tryRewrite(message, messageString)) {
       ci.cancel();
       return;
     }

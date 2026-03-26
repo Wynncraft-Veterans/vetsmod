@@ -46,8 +46,11 @@ public class LegacyItemHandler {
     return title != null && BLOCKED_SCREEN_TITLES.contains(title);
   }
 
-  /** Returns true if the given ItemStack should be treated as a legacy item. */
+  /** Returns true if the given ItemStack should be treated as a legacy item.
+   *  Always returns false when {@link org.wynnvets.config.VetsConfig#LEGACY_ITEM_HIGHLIGHTING}
+   *  is disabled. */
   public static boolean isLegacyItem(ItemStack stack) {
+    if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return false;
     if (stack.isEmpty()) return false;
     if (isBlockedScreen()) return false;
 
@@ -60,7 +63,7 @@ public class LegacyItemHandler {
 
     if (hasBetaLegacyMarker(lore)) return true;
 
-    if (stack.hasFoil() && (name == null || !ItemDefinitions.isUnenchanted(name))) return true;
+    if (stack.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(stack) && (name == null || !ItemDefinitions.isUnenchanted(name))) return true;
 
     if (hasJunkRarity(lore) && (name == null || !ItemDefinitions.isNotJunk(name))) return true;
 
@@ -97,11 +100,14 @@ public class LegacyItemHandler {
 
   /**
    * Processes and rewrites tooltip lines for legacy/enchanted/junk/crafting items.
+   * Returns the unmodified list when {@link org.wynnvets.config.VetsConfig#LEGACY_ITEM_HIGHLIGHTING}
+   * is disabled.
    *
    * @param tooltipLines the original tooltip lines
    * @return the (possibly modified) tooltip lines
    */
   public static List<Component> processTooltip(List<Component> tooltipLines) {
+    if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return tooltipLines;
     if (tooltipLines.isEmpty()) return tooltipLines;
     if (isBlockedScreen()) return tooltipLines;
 
@@ -125,7 +131,14 @@ public class LegacyItemHandler {
 
     if (plainText != null && ItemDefinitions.isLegacy(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      MutableComponent name;
+      if (currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
+        name = Component.literal("\u2B21 ")
+            .withStyle(ChatFormatting.WHITE)
+            .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
+      } else {
+        name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      }
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
       replaceRarityLines(modified, null);
@@ -134,7 +147,14 @@ public class LegacyItemHandler {
 
     if (plainText != null && ItemDefinitions.isMiscLegacy(plainText) && hasMiscRarity(tooltipLines)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      MutableComponent name;
+      if (currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
+        name = Component.literal("\u2B21 ")
+            .withStyle(ChatFormatting.WHITE)
+            .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
+      } else {
+        name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      }
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
       replaceRarityLines(modified, null);
@@ -145,7 +165,14 @@ public class LegacyItemHandler {
       boolean alpha = !hasRarityLine(tooltipLines);
       List<Component> modified = new ArrayList<>(tooltipLines);
       if (plainText != null) {
-        MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+        MutableComponent name;
+        if (currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
+          name = Component.literal("\u2B21 ")
+              .withStyle(ChatFormatting.WHITE)
+              .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
+        } else {
+          name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+        }
         if (raritySuffix != null) name.append(raritySuffix);
         modified.set(0, name);
       }

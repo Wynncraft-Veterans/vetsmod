@@ -126,13 +126,18 @@ public final class ChatUtils {
         MutableComponent badge = Prepend.GUILD.get();
         String normalizedRank = rank == null ? "" : rank.trim();
 
+        // Convert ASCII rank text (e.g. "Recruiter" from the outbound WebSocket)
+        // to PUA pill characters for the chat/prefix font.  Ranks that are
+        // already PUA-encoded (waitlist/honourary self-messages) pass through.
+        String pillText = normalizedRank.isEmpty() ? "" : encodePillIfAscii(normalizedRank);
+
         MutableComponent body = Component.empty();
 
-        boolean isSupporter = !normalizedRank.isEmpty()
+        boolean isSupporter = !pillText.isEmpty()
             && SupportersFetcher.isSupporter(displayName);
 
-        if (!normalizedRank.isEmpty()) {
-            body.append(PillFormatter.formatPill(normalizedRank, displayName, isSupporter))
+        if (!pillText.isEmpty()) {
+            body.append(PillFormatter.formatPill(pillText, displayName, isSupporter))
                     .append(" ");
         }
 
@@ -206,6 +211,42 @@ public final class ChatUtils {
         }
 
     /**
+     * Sends a guild-chat–style message where the body is a pre-built component.
+     * Used when the message body requires special formatting (e.g. animated text)
+     * that cannot be expressed as a plain string.
+     *
+     * @param rank        the rank text (pill); may be empty
+     * @param displayName the player display name
+     * @param bodyComponent the pre-built message body component
+     */
+    public static void sendGuildChatMessageWithBody(String rank, String displayName, Component bodyComponent) {
+        MutableComponent badge = Prepend.GUILD.get();
+        String normalizedRank = rank == null ? "" : rank.trim();
+
+        String pillText = normalizedRank.isEmpty() ? "" : encodePillIfAscii(normalizedRank);
+
+        MutableComponent body = Component.empty();
+
+        boolean isSupporter = !pillText.isEmpty()
+            && SupportersFetcher.isSupporter(displayName);
+
+        if (!pillText.isEmpty()) {
+            body.append(PillFormatter.formatPill(pillText, displayName, isSupporter))
+                    .append(" ");
+        }
+
+        body.append(Component.literal(displayName).setStyle(NAME_STYLE))
+                .append(Component.literal(": ").setStyle(RANK_STYLE))
+                .append(bodyComponent);
+
+        MutableComponent full = Component.empty()
+                .append(badge)
+                .append(body);
+
+        dispatchToChat(full, badge.getStyle());
+    }
+
+    /**
      * Sends a staff-channel styled message using the same visuals as /v self echo.
      * Defaults to Captain when rank is unknown.
      */
@@ -238,6 +279,30 @@ public final class ChatUtils {
 
         component.append(Component.literal(STAFF_PILL_FRAME_CLOSE).setStyle(redStyle));
         return component;
+    }
+
+    /**
+     * Encodes an ASCII rank name to PUA pill characters (E040 letter range
+     * with E06B/E06C frame) for the {@code chat/prefix} font.  Strings that
+     * already contain PUA codepoints are returned as-is.
+     */
+    static String encodePillIfAscii(String text) {
+        for (int i = 0; i < text.length(); ) {
+            int cp = text.codePointAt(i);
+            if (Character.getType(cp) == Character.PRIVATE_USE) {
+                return text;
+            }
+            i += Character.charCount(cp);
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append('\uE06B');
+        for (char c : text.toUpperCase().toCharArray()) {
+            if (c >= 'A' && c <= 'Z') {
+                sb.append((char) ('\uE040' + (c - 'A')));
+            }
+        }
+        sb.append('\uE06C');
+        return sb.toString();
     }
 
     private static String normalizeStaffRank(String rank) {

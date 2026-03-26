@@ -6,8 +6,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.ItemStack;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -23,12 +27,14 @@ public class ItemDefinitions {
   private static final List<Pattern> miscPatterns = new ArrayList<>();
   private static final List<Pattern> unenchantedPatterns = new ArrayList<>();
   private static final List<Pattern> notjunkPatterns = new ArrayList<>();
+  private static final Set<String> enchantExcludedItems = new HashSet<>();
 
   public static void load() {
     legacyPatterns.clear();
     miscPatterns.clear();
     unenchantedPatterns.clear();
     notjunkPatterns.clear();
+    enchantExcludedItems.clear();
 
     try (InputStream is = ItemDefinitions.class.getResourceAsStream("/definitions.yml")) {
       if (is == null) {
@@ -37,11 +43,12 @@ public class ItemDefinitions {
       }
       parse(is);
       VetsLogger.debug(
-          "Loaded {} legacy, {} misc, {} unenchanted, and {} notjunk definition(s)",
+          "Loaded {} legacy, {} misc, {} unenchanted, {} notjunk, and {} enchant-excluded definition(s)",
           legacyPatterns.size(),
           miscPatterns.size(),
           unenchantedPatterns.size(),
-          notjunkPatterns.size());
+          notjunkPatterns.size(),
+          enchantExcludedItems.size());
     } catch (IOException e) {
       VetsLogger.error("Failed to load definitions.yml", e);
     }
@@ -83,6 +90,11 @@ public class ItemDefinitions {
           if (!pattern.isEmpty()) {
             notjunkPatterns.add(Pattern.compile(pattern));
           }
+        } else if ("enchant_excluded_items".equals(currentSection) && trimmed.startsWith("- ")) {
+          String itemId = extractQuotedString(trimmed.substring(2).trim());
+          if (!itemId.isEmpty()) {
+            enchantExcludedItems.add(itemId);
+          }
         }
       }
     }
@@ -121,6 +133,12 @@ public class ItemDefinitions {
       }
     }
     return false;
+  }
+
+  public static boolean isEnchantExcludedItem(ItemStack stack) {
+    if (enchantExcludedItems.isEmpty()) return false;
+    String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+    return enchantExcludedItems.contains(id);
   }
 
   public static boolean isNotJunk(String itemName) {

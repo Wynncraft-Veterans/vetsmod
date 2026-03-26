@@ -24,6 +24,8 @@ public class LegacyItemNameMixin {
 
   @Inject(method = "getHoverName", at = @At("RETURN"), cancellable = true)
   private void vetsmod$goldLegacyName(CallbackInfoReturnable<Component> cir) {
+    // Bail out when legacy item highlighting is disabled
+    if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return;
     // Skip menus that abuse enchantment glints as selectors (e.g. "Island Rules")
     if (LegacyItemHandler.isBlockedScreen()) return;
     ItemStack self = (ItemStack) (Object) this;
@@ -33,12 +35,20 @@ public class LegacyItemNameMixin {
 
     // Name-based legacy pattern
     if (plain != null && ItemDefinitions.isLegacy(plain)) {
-      cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
+      if (self.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(self) && !ItemDefinitions.isUnenchanted(plain)) {
+        cir.setReturnValue(
+            Component.literal("\u2B21 ")
+                .withStyle(ChatFormatting.WHITE)
+                .append(
+                    Component.literal("Enchanted " + plain).withStyle(ChatFormatting.GOLD)));
+      } else {
+        cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
+      }
       return;
     }
 
     // Foil check (enchanted unidentified) — cheap, no lore access
-    if (self.hasFoil() && plain != null && !ItemDefinitions.isUnenchanted(plain)) {
+    if (self.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(self) && plain != null && !ItemDefinitions.isUnenchanted(plain)) {
       cir.setReturnValue(
           Component.literal("\u2B21 ")
               .withStyle(ChatFormatting.WHITE)
@@ -50,9 +60,32 @@ public class LegacyItemNameMixin {
     // Lore-based checks
     List<Component> lore = self.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines();
     if (!lore.isEmpty()) {
+      // Misc-category legacy items (e.g. Raw Cod, Gunpowder) — matched by name in
+      // misc_definitions AND confirmed by a "Misc. Item" rarity line in lore.
+      if (plain != null && ItemDefinitions.isMiscLegacy(plain) && LegacyItemHandler.hasMiscRarity(lore)) {
+        if (self.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(self) && !ItemDefinitions.isUnenchanted(plain)) {
+          cir.setReturnValue(
+              Component.literal("\u2B21 ")
+                  .withStyle(ChatFormatting.WHITE)
+                  .append(
+                      Component.literal("Enchanted " + plain).withStyle(ChatFormatting.GOLD)));
+        } else {
+          cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
+        }
+        return;
+      }
+
       if (LegacyItemHandler.hasBetaLegacyMarker(lore)) {
         if (plain != null) {
-          cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
+          if (self.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(self) && !ItemDefinitions.isUnenchanted(plain)) {
+            cir.setReturnValue(
+                Component.literal("\u2B21 ")
+                    .withStyle(ChatFormatting.WHITE)
+                    .append(
+                        Component.literal("Enchanted " + plain).withStyle(ChatFormatting.GOLD)));
+          } else {
+            cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
+          }
         }
         return;
       }
@@ -62,6 +95,12 @@ public class LegacyItemNameMixin {
         if (plain != null) {
           cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
         }
+        return;
+      }
+
+      // Crafting-rarity items — any item whose lore contains a "Crafting Item" rarity line.
+      if (LegacyItemHandler.hasCraftingRarity(lore) && plain != null) {
+        cir.setReturnValue(Component.literal(plain).withStyle(ChatFormatting.GOLD));
       }
     }
   }

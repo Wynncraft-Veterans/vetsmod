@@ -45,12 +45,14 @@ public class GuildStateManager {
   private static volatile boolean wynntilsReady = false;
 
   // Stored state
-  private static boolean passwordUnlocked = false;
+  private static boolean waitlistUnlocked = false;
+  private static boolean honouraryUnlocked = false;
   private static boolean debugForceGuildlessUnlocked = false;
   private static String playerName = StringUtils.EMPTY;
 
-  // Password hash for unlock command
-  private static final String UNLOCK_PASSWORD_HASH = "d4c4f49d09ae0fc5e88f23f47a135d3e509a0799cebc711943370e80e58e145b";
+  // Password hashes for unlock command (SHA-256)
+  private static final String WAITLIST_PASSWORD_HASH = "8f74db5451e8e6e74189fa5e8a2d31efbb1853629fb80b30461bafc8a97fe07e";
+  private static final String HONOURARY_PASSWORD_HASH = "4fe3af27e525245e9f3f3764e06b4eb5997ac09d553b4fdf59f9c9420caebca4";
 
   // State tracking for staff detection via /gu rank
   private static boolean isStaff = false;
@@ -69,6 +71,12 @@ public class GuildStateManager {
   // State tracking for MOTD to prevent duplicate fetches
   private static long lastMotdFetchTime = 0;
   private static final long MOTD_FETCH_COOLDOWN = 1000; // 1 second cooldown
+
+  // Tracks whether the guild-specific MOTD was shown this session.
+  // When guild info isn't available at world-join time, the standard MOTD is
+  // shown instead; this flag lets onGuildInfoUpdated() fix that once the
+  // guild model is populated.
+  private static boolean guildMotdDisplayedThisSession = false;
 
   // Track whether we have entered a world at least once since reset, so that
   // commands are not executed before initial guild info is available.
@@ -108,8 +116,26 @@ public class GuildStateManager {
     if (debugForceGuildlessUnlocked) {
       return true;
     }
-    boolean unlocked = isReturners() || passwordUnlocked;
+    boolean unlocked = isReturners() || waitlistUnlocked || honouraryUnlocked;
     return unlocked;
+  }
+
+  /**
+   * Check if the player has unlocked as a waitlist (guildless) user.
+   *
+   * @return true if waitlist-unlocked, false otherwise
+   */
+  public static boolean isWaitlistUnlocked() {
+    return debugForceGuildlessUnlocked || waitlistUnlocked;
+  }
+
+  /**
+   * Check if the player has unlocked as an honourary member.
+   *
+   * @return true if honourary-unlocked, false otherwise
+   */
+  public static boolean isHonouraryUnlocked() {
+    return honouraryUnlocked;
   }
 
   /**
@@ -471,6 +497,15 @@ public class GuildStateManager {
 
     if (isReturners()) {
       fetchAndDisplayStampMessage();
+
+      // If the MOTD was already fetched but guild info wasn't available yet
+      // (race between WorldStateEvent and GuildEvent.Joined), the standard
+      // MOTD was shown instead of the guild MOTD.  Re-fetch now that we know
+      // the player is in Returners.
+      if (enteredWorld && !guildMotdDisplayedThisSession) {
+        VetsLogger.debug("Guild info now available — re-fetching guild MOTD");
+        fetchAndDisplayMotd();
+      }
     }
   }
 
@@ -478,9 +513,15 @@ public class GuildStateManager {
    * Fetch and display the MOTD message.
    */
   private static void fetchAndDisplayMotd() {
-    // Check if auto-messages are enabled
+    // Check if auto-messages are enabled (global gate)
     if (!VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE)) {
       VetsLogger.debug("Auto-messages disabled, skipping MOTD");
+      return;
+    }
+
+    // Check if MOTD printing is enabled (user toggle)
+    if (!VetsConfig.get(VetsConfig.PRINT_MOTD)) {
+      VetsLogger.debug("printMOTD disabled, skipping MOTD");
       return;
     }
 
@@ -489,10 +530,29 @@ public class GuildStateManager {
     LocalPlayer player = minecraft.player;
 
     if (player != null) {
-      MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
-        // Send the MOTD to the player's chat
-        ChatUtils.sendLocalMessage(motdComponent, Prepend.DEFAULT);
-      });
+      // Use guild MOTD for eligible users (Returners, waitlist-unlocked, honourary-unlocked)
+      boolean useGuildMotd = isReturners()
+          || (isGuildless() && isWaitlistUnlocked())
+          || isHonouraryUnlocked();
+
+      if (useGuildMotd) {
+        MotdFetcher.fetchGuildMotd().thenAccept(guildMotdComponent -> {
+          String text = guildMotdComponent.getString();
+          if (text != null && !text.isEmpty()) {
+            guildMotdDisplayedThisSession = true;
+            ChatUtils.sendLocalMessage(guildMotdComponent, Prepend.DEFAULT);
+          } else {
+            // Fall back to standard MOTD if guild MOTD is empty
+            MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
+              ChatUtils.sendLocalMessage(motdComponent, Prepend.DEFAULT);
+            });
+          }
+        });
+      } else {
+        MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
+          ChatUtils.sendLocalMessage(motdComponent, Prepend.DEFAULT);
+        });
+      }
     }
   }
 
@@ -500,9 +560,15 @@ public class GuildStateManager {
    * Fetch and display the annihilation stamp message (if applicable)
    */
   private static void fetchAndDisplayStampMessage() {
-    // Check if auto-messages are enabled
+    // Check if auto-messages are enabled (global gate)
     if (!VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE)) {
       VetsLogger.debug("Auto-messages disabled, skipping stamp");
+      return;
+    }
+
+    // Check if annihilation printing is enabled (user toggle)
+    if (!VetsConfig.get(VetsConfig.PRINT_ANNI)) {
+      VetsLogger.debug("printANNI disabled, skipping stamp");
       return;
     }
 
@@ -521,19 +587,38 @@ public class GuildStateManager {
   }
 
   /**
-   * Attempt to unlock with a password
+   * The type of unlock granted by a password.
+   */
+  public enum UnlockType {
+    NONE,
+    WAITLIST,
+    HONOURARY
+  }
+
+  /**
+   * Attempt to unlock with a password. Checks against both the waitlist
+   * and honourary password hashes.
    *
    * @param password The password to check
-   * @return true if unlock successful, false otherwise
+   * @return the type of unlock granted, or {@link UnlockType#NONE} if the
+   *         password did not match
    */
-  public static boolean tryUnlock(String password) {
+  public static UnlockType tryUnlock(String password) {
     String hash = sha256(password);
-    if (hash != null && hash.equals(UNLOCK_PASSWORD_HASH)) {
-      passwordUnlocked = true;
-      VetsLogger.debug("Mod unlocked via password");
-      return true;
+    if (hash == null) {
+      return UnlockType.NONE;
     }
-    return false;
+    if (hash.equals(WAITLIST_PASSWORD_HASH)) {
+      waitlistUnlocked = true;
+      VetsLogger.debug("Mod unlocked via waitlist password");
+      return UnlockType.WAITLIST;
+    }
+    if (hash.equals(HONOURARY_PASSWORD_HASH)) {
+      honouraryUnlocked = true;
+      VetsLogger.debug("Mod unlocked via honourary password");
+      return UnlockType.HONOURARY;
+    }
+    return UnlockType.NONE;
   }
 
   /**
@@ -568,6 +653,7 @@ public class GuildStateManager {
   public static void reset() {
     debugForceGuildlessUnlocked = false;
     lastMotdFetchTime = 0;
+    guildMotdDisplayedThisSession = false;
     staffRankSuppressUntil = 0;
     enteredWorld = false;
     isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
