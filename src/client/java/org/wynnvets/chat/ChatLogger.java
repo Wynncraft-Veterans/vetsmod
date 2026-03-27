@@ -50,6 +50,10 @@ public class ChatLogger {
       return;
     }
 
+    if (!VetsLogger.isDebugEnabled()) {
+      return;
+    }
+
     String processedMessage = processTruncatedMessage(message);
     ParsedMessage parsed = parseMessage(processedMessage);
     String dedupKey = (parsed != null) ? parsed.message : processedMessage;

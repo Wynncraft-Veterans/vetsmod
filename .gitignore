@@ -42,3 +42,4 @@ sample.log
 debug.log
 /refactor-project
 *.log
+/src/client/java/org/wynnvets/debug
