@@ -12,9 +12,12 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.config.VetsConfig;
+// New debug subsystem imports — replaces the old single-class DebugCommand
+import org.wynnvets.debug.DebugCommands;        // Builds the /wv debug command tree
+import org.wynnvets.debug.DebugConfigManager;   // Registers debug-specific config keys
+import org.wynnvets.debug.dump.DebugKeyHandler; // Keybind-triggered item/state dump
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.listeners.WynntilsEventListener;
-import org.wynnvets.logging.DebugCommand;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
 import org.wynnvets.fetcher.ondemand.ReturnFetcher;
@@ -45,6 +48,9 @@ public class VetsmodClient implements ClientModInitializer {
   public void onInitializeClient() {
     VetsLogger.info("Client initializing");
 
+    // Initialise debug config keys *before* VetsConfig.load() so that any
+    // persisted debug settings are picked up when config values are read.
+    DebugConfigManager.init();
     VetsConfig.load();
     GuildStateManager.loadPersistedState();
     ClientLifecycleEvents.CLIENT_STARTED.register(client -> WynntilsEventListener.register());
@@ -56,6 +62,9 @@ public class VetsmodClient implements ClientModInitializer {
     StaffRanksFetcher.start();
     ServerConnectionListener.register();
     TerritoryLineRenderer.register();
+    // Register the debug keybind so users can dump item/state info on demand
+    DebugKeyHandler.register();
+
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
       dispatcher.register(ClientCommandManager.literal("motd").executes(this::motd));
 
@@ -118,16 +127,10 @@ public class VetsmodClient implements ClientModInitializer {
                   )
               )
 
-              // /wv debug [true|false]
-              .then(ClientCommandManager.literal("debug")
-                  .executes(ctx -> { DebugCommand.execute(null); return 1; })
-                  .then(ClientCommandManager.argument("enabled", StringArgumentType.word())
-                      .executes(ctx -> {
-                        DebugCommand.execute(StringArgumentType.getString(ctx, "enabled"));
-                        return 1;
-                      })
-                  )
-              )
+              // /wv debug — replaced the old inline debug true/false toggle with a
+              // full command tree built by DebugCommands.  Supports sub-commands for
+              // diagnostics dump, logging toggle, and debug-config management.
+              .then(DebugCommands.buildCommandTree())
       );
     });
 

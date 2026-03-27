@@ -59,7 +59,10 @@ public class LegacyItemHandler {
     if (stack.isEmpty()) return false;
     if (isBlockedScreen()) return false;
 
-    String name = normalizeName(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
+    String rawHover = stack.getHoverName().getString();
+    String stripped = ChatFormatting.stripFormatting(rawHover);
+    String name = normalizeName(stripped);
+
     if (name != null && ItemDefinitions.isLegacy(name)) return true;
 
     List<Component> lore = stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines();
