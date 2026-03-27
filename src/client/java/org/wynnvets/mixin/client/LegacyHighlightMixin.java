@@ -112,8 +112,10 @@ public class LegacyHighlightMixin {
     if (hoveredSlot != null && hoveredSlot.hasItem()) {
       ItemStack hovered = hoveredSlot.getItem();
       LegacyItemHandler.currentItemHasFoil = hovered.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(hovered);
+      LegacyItemHandler.currentItemStack = hovered;
     } else {
       LegacyItemHandler.currentItemHasFoil = false;
+      LegacyItemHandler.currentItemStack = ItemStack.EMPTY;
     }
   }
 }

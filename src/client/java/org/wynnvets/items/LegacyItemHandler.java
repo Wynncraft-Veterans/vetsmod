@@ -2,6 +2,7 @@ package org.wynnvets.items;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
@@ -11,6 +12,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 
@@ -27,6 +29,9 @@ public class LegacyItemHandler {
 
   /** Set by the highlight mixin before tooltip processing to indicate the hovered item has foil. */
   public static boolean currentItemHasFoil = false;
+
+  /** Set by the highlight mixin before tooltip processing to provide item context for tooltip_style access. */
+  public static ItemStack currentItemStack = ItemStack.EMPTY;
 
   /**
    * Screen titles where legacy-item processing is skipped entirely.
@@ -73,14 +78,45 @@ public class LegacyItemHandler {
   }
 
   /**
-   * Strips the trailing À (U+00C0) that Wynncraft appends to item names
-   * in certain contexts (e.g. trade market listings).
+   * Normalizes item names for pattern matching by stripping:
+   * <ul>
+   *   <li>Supplementary PUA characters (U+F0000-U+10FFFF) used by Wynncraft's
+   *       new item format as invisible spacing/formatting glyphs</li>
+   *   <li>Trailing À (U+00C0) appended in trade market listings</li>
+   * </ul>
    */
   public static String normalizeName(String name) {
-    if (name != null && name.endsWith("\u00C0")) {
-      return name.substring(0, name.length() - 1).stripTrailing();
+    if (name == null) return null;
+    String result = stripSupplementaryPua(name);
+    if (result.endsWith("\u00C0")) {
+      result = result.substring(0, result.length() - 1).stripTrailing();
     }
-    return name;
+    return result;
+  }
+
+  /**
+   * Strips all supplementary PUA (Private Use Area) code points from text.
+   * Wynncraft's new item format wraps item names with characters from
+   * Supplementary PUA-A (U+F0000-U+FFFFF) and PUA-B (U+100000-U+10FFFF).
+   * These are invisible spacing/font-switching glyphs that must be removed
+   * before name pattern matching.
+   */
+  private static String stripSupplementaryPua(String text) {
+    StringBuilder sb = null;
+    for (int i = 0; i < text.length(); ) {
+      int cp = text.codePointAt(i);
+      int charCount = Character.charCount(cp);
+      if (cp >= 0xF0000) {
+        if (sb == null) {
+          sb = new StringBuilder(text.length());
+          sb.append(text, 0, i);
+        }
+      } else if (sb != null) {
+        sb.appendCodePoint(cp);
+      }
+      i += charCount;
+    }
+    return sb != null ? sb.toString().strip() : text;
   }
 
   private static final Pattern RARITY_PATTERN =
@@ -308,6 +344,15 @@ public class LegacyItemHandler {
       }
     }
 
+    // New-format items encode rarity in the tooltip_style data component instead
+    // of a plain-text lore line. Fall back to that when no lore rarity was found.
+    if (legacyLabel == null && !currentItemStack.isEmpty()) {
+      String rarity = getTooltipStyleRarity(currentItemStack);
+      if (rarity != null) {
+        legacyLabel = buildLegacyLabel(rarity, null, prefix);
+      }
+    }
+
     if (legacyLabel == null) {
       String label = prefix != null ? prefix + " Legacy Item" : "Legacy Item";
       legacyLabel = Component.literal(label).withStyle(ChatFormatting.GOLD);
@@ -381,5 +426,31 @@ public class LegacyItemHandler {
             ? base + " (" + rarity + " " + count + ")"
             : base + " (" + rarity + ")";
     return Component.literal(label).withStyle(ChatFormatting.GOLD);
+  }
+
+  /** Maps {@code tooltip_style} data component paths to human-readable rarity names. */
+  private static final Map<String, String> TOOLTIP_STYLE_TO_RARITY = Map.of(
+      "common", "Normal",
+      "unique", "Unique",
+      "rare", "Rare",
+      "set", "Set",
+      "legendary", "Legendary",
+      "fabled", "Fabled",
+      "mythic", "Mythic",
+      "crafted", "Crafted");
+
+  /**
+   * Extracts the item rarity from the {@code tooltip_style} data component.
+   * New-format Wynncraft items encode their rarity tier as a {@code tooltip_style}
+   * identifier (e.g. {@code minecraft:rare}, {@code minecraft:unique}) rather than
+   * including a plain-text rarity line in the lore.
+   *
+   * @return the human-readable rarity name, or {@code null} if unavailable
+   */
+  public static String getTooltipStyleRarity(ItemStack stack) {
+    if (stack == null || stack.isEmpty()) return null;
+    Identifier tooltipStyle = stack.get(DataComponents.TOOLTIP_STYLE);
+    if (tooltipStyle == null) return null;
+    return TOOLTIP_STYLE_TO_RARITY.get(tooltipStyle.getPath());
   }
 }
