@@ -44,6 +44,11 @@ public class LegacyHighlightMixin {
       GuiGraphics guiGraphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
     ItemStack stack = slot.getItem();
     if (stack.isEmpty()) return;
+    // BEGIN PATCH(old-server-compat): Remove this block.
+    if (!LegacyItemHandler.newTooltipStylesAvailable && stack.has(DataComponents.TOOLTIP_STYLE)) {
+      LegacyItemHandler.newTooltipStylesAvailable = true;
+    }
+    // END PATCH(old-server-compat)
     // Bail out when legacy item highlighting is disabled
     if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return;
     // Skip menus that abuse enchantment glints as selectors (e.g. "Island Rules")

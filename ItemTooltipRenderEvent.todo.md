@@ -408,6 +408,7 @@ public final class WynntilsItemListener {
 - [ ] Tooltip renders without lag (no per-frame allocation churn beyond existing)
 - [ ] Hotbar tooltip works (not just inventory)
 - [ ] Creative mode search results tooltip works
+- [ ] Remove the temporary `PATCH(old-server-compat)` tooltip-border fallback once Fruma exits beta and all servers use the new tooltip border resource pack
 - [ ] `LegacyItemTooltipMixin` is deleted, mixin json updated
 - [ ] `LegacyHighlightMixin` `renderTooltip` injection is deleted
 - [ ] `currentItemHasFoil` static field is removed (or replaced with ItemStack param)

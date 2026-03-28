@@ -36,6 +36,18 @@ public class LegacyItemHandler {
    */
   public static boolean lastProcessedWasLegacy = false;
 
+  // BEGIN PATCH(old-server-compat): Remove field once all servers use new tooltip borders.
+  /**
+   * Sticky server-session flag: set to {@code true} when any item with a
+   * {@code tooltip_style} data component or new-format emblem/frame font is
+   * encountered.  When {@code false} (i.e. on old servers that lack the new
+   * resource pack), the gold tooltip border override is suppressed to avoid
+   * garish fallback colours.
+   * <p>Reset on disconnect by {@link org.wynnvets.listeners.ServerConnectionListener}.</p>
+   */
+  public static boolean newTooltipStylesAvailable = false;
+  // END PATCH(old-server-compat)
+
   /** Gold tooltip border identifier — matches the vanilla "unique" rarity border. */
   public static final Identifier LEGACY_BORDER = Identifier.parse("unique");
 

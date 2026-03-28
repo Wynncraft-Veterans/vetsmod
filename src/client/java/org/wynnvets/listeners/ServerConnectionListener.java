@@ -3,6 +3,7 @@ package org.wynnvets.listeners;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.OutboundDisplayHandler;
+import org.wynnvets.items.LegacyItemHandler;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.guild.GuildStateManager;
 
@@ -25,6 +26,9 @@ public class ServerConnectionListener {
     ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
       // Reset guild info when disconnecting
       GuildStateManager.reset();
+      // BEGIN PATCH(old-server-compat): Remove this line.
+      LegacyItemHandler.newTooltipStylesAvailable = false;
+      // END PATCH(old-server-compat)
       V1ApiManager.disconnect();
       OutboundDisplayHandler.unregister();
       OutboundDisplayHandler.clearCaches();

@@ -267,7 +267,12 @@ final class LegacyTooltipRenderer {
    */
   private static boolean isNewFormatItem(List<Component> lines) {
     for (Component line : lines) {
-      if (containsFont(line, EMBLEM_FRAME_FONT)) return true;
+      if (containsFont(line, EMBLEM_FRAME_FONT)) {
+        // BEGIN PATCH(old-server-compat)
+        LegacyItemHandler.newTooltipStylesAvailable = true;
+        // END PATCH(old-server-compat)
+        return true;
+      }
     }
     return false;
   }
