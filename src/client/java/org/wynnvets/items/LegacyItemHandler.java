@@ -213,10 +213,17 @@ public class LegacyItemHandler {
         // Restore PUA-wrapped custom name as line 0 to preserve spacer layout.
         // The visible name is in the emblem/frame lore line, not the hover name.
         Component customName = currentItemStack.get(DataComponents.CUSTOM_NAME);
+        boolean enchanted = currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
         if (customName != null) {
-          modified.set(0, customName);
+          modified.set(0, enchanted
+              ? deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.YELLOW))
+              : customName);
         }
-        recolorNewFormatNameLine(modified);
+        if (enchanted) {
+          applyEnchantedToNewFormatNameLine(modified, plainText);
+        } else {
+          recolorNewFormatNameLine(modified);
+        }
         if (insertLegacyBoxLine(modified)) {
           lastProcessedWasLegacy = true;
           return modified;
@@ -242,10 +249,17 @@ public class LegacyItemHandler {
       boolean newFormat = isNewFormatItem(modified);
       if (newFormat) {
         Component customName = currentItemStack.get(DataComponents.CUSTOM_NAME);
+        boolean enchanted = currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
         if (customName != null) {
-          modified.set(0, customName);
+          modified.set(0, enchanted
+              ? deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.YELLOW))
+              : customName);
         }
-        recolorNewFormatNameLine(modified);
+        if (enchanted) {
+          applyEnchantedToNewFormatNameLine(modified, plainText);
+        } else {
+          recolorNewFormatNameLine(modified);
+        }
         if (insertLegacyBoxLine(modified)) {
           lastProcessedWasLegacy = true;
           return modified;
@@ -292,9 +306,10 @@ public class LegacyItemHandler {
       if (newFormat) {
         Component customName = currentItemStack.get(DataComponents.CUSTOM_NAME);
         if (customName != null) {
-          modified.set(0, customName);
+          modified.set(0, deepEnchantName(customName, plainText,
+              TextColor.fromLegacyFormat(ChatFormatting.YELLOW)));
         }
-        recolorNewFormatNameLine(modified);
+        applyEnchantedToNewFormatNameLine(modified, plainText);
         if (insertLegacyBoxLine(modified)) {
           lastProcessedWasLegacy = true;
           return modified;
@@ -466,6 +481,44 @@ public class LegacyItemHandler {
     copy.setStyle(style);
     for (Component sibling : component.getSiblings()) {
       copy.append(deepRecolor(sibling, from, to));
+    }
+    return copy;
+  }
+
+  /**
+   * Modifies the new-format emblem/frame name line to show
+   * "Enchanted [name]" in yellow, preserving font structure and PUA spacing.
+   */
+  private static void applyEnchantedToNewFormatNameLine(List<Component> lines, String itemName) {
+    TextColor yellow = TextColor.fromLegacyFormat(ChatFormatting.YELLOW);
+    for (int i = 1; i < lines.size(); i++) {
+      if (containsFont(lines.get(i), EMBLEM_FRAME_FONT)) {
+        lines.set(i, deepEnchantName(lines.get(i), itemName, yellow));
+        return;
+      }
+    }
+  }
+
+  /**
+   * Deep-copies a Component tree, finding the literal containing the exact
+   * item name and replacing it with "Enchanted [name]" in the target color.
+   * Other components (sprites, spacers, fonts) are preserved unchanged.
+   */
+  private static MutableComponent deepEnchantName(Component component, String originalName, TextColor targetColor) {
+    String contentStr = component.getContents().toString();
+    MutableComponent copy;
+    Style style = component.getStyle();
+
+    if (contentStr.equals("literal{" + originalName + "}")) {
+      copy = Component.literal("Enchanted " + originalName);
+      style = style.withColor(targetColor);
+    } else {
+      copy = component.plainCopy();
+    }
+
+    copy.setStyle(style);
+    for (Component sibling : component.getSiblings()) {
+      copy.append(deepEnchantName(sibling, originalName, targetColor));
     }
     return copy;
   }
