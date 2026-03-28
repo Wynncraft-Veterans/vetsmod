@@ -98,10 +98,11 @@ public class LegacyItemHandler {
   }
 
   /**
-   * Strips all supplementary PUA (Private Use Area) code points from text.
-   * Wynncraft's new item format wraps item names with characters from
-   * Supplementary PUA-A (U+F0000-U+FFFFF) and PUA-B (U+100000-U+10FFFF).
-   * These are invisible spacing/font-switching glyphs that must be removed
+   * Strips all supplementary Unicode code points (U+10000 and above) from text.
+   * Wynncraft's new item format wraps item names with invisible spacing and
+   * font-switching glyphs from various supplementary planes (observed at
+   * U+CF000 and in Supplementary PUA-A/B). Since item display names only
+   * contain BMP characters, all supplementary code points are removed
    * before name pattern matching.
    */
   private static String stripSupplementaryPua(String text) {
@@ -109,7 +110,7 @@ public class LegacyItemHandler {
     for (int i = 0; i < text.length(); ) {
       int cp = text.codePointAt(i);
       int charCount = Character.charCount(cp);
-      if (cp >= 0xF0000) {
+      if (cp >= 0x10000) {
         if (sb == null) {
           sb = new StringBuilder(text.length());
           sb.append(text, 0, i);
