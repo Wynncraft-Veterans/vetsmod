@@ -50,6 +50,10 @@ public class LegacyItemHandler {
   private static final FontDescription BANNER_BOX_FONT =
       new FontDescription.Resource(Identifier.parse("banner/box"));
 
+  /** Font used by Wynncraft's spacing characters (leading spacer on rarity/emblem lines). */
+  private static final FontDescription SPACE_FONT =
+      new FontDescription.Resource(Identifier.parse("space"));
+
   /** Gold tooltip border identifier — matches the vanilla "unique" rarity border. */
   public static final Identifier LEGACY_BORDER = Identifier.parse("unique");
 
@@ -204,6 +208,20 @@ public class LegacyItemHandler {
 
     if (plainText != null && ItemDefinitions.isLegacy(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
+      boolean newFormat = isNewFormatItem(modified);
+      if (newFormat) {
+        // Restore PUA-wrapped custom name as line 0 to preserve spacer layout.
+        // The visible name is in the emblem/frame lore line, not the hover name.
+        Component customName = currentItemStack.get(DataComponents.CUSTOM_NAME);
+        if (customName != null) {
+          modified.set(0, customName);
+        }
+        recolorNewFormatNameLine(modified);
+        if (insertLegacyBoxLine(modified)) {
+          lastProcessedWasLegacy = true;
+          return modified;
+        }
+      }
       MutableComponent name;
       if (currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
         name = Component.literal("\u2B21 ")
@@ -214,14 +232,6 @@ public class LegacyItemHandler {
       }
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
-      boolean newFormat = isNewFormatItem(modified);
-      if (newFormat) {
-        recolorNewFormatNameLine(modified);
-        if (insertLegacyBoxLine(modified)) {
-          lastProcessedWasLegacy = true;
-          return modified;
-        }
-      }
       replaceRarityLines(modified, null);
       lastProcessedWasLegacy = true;
       return modified;
@@ -229,6 +239,18 @@ public class LegacyItemHandler {
 
     if (plainText != null && ItemDefinitions.isMiscLegacy(plainText) && hasMiscRarity(tooltipLines)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
+      boolean newFormat = isNewFormatItem(modified);
+      if (newFormat) {
+        Component customName = currentItemStack.get(DataComponents.CUSTOM_NAME);
+        if (customName != null) {
+          modified.set(0, customName);
+        }
+        recolorNewFormatNameLine(modified);
+        if (insertLegacyBoxLine(modified)) {
+          lastProcessedWasLegacy = true;
+          return modified;
+        }
+      }
       MutableComponent name;
       if (currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
         name = Component.literal("\u2B21 ")
@@ -239,14 +261,6 @@ public class LegacyItemHandler {
       }
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
-      boolean newFormat = isNewFormatItem(modified);
-      if (newFormat) {
-        recolorNewFormatNameLine(modified);
-        if (insertLegacyBoxLine(modified)) {
-          lastProcessedWasLegacy = true;
-          return modified;
-        }
-      }
       replaceRarityLines(modified, null);
       lastProcessedWasLegacy = true;
       return modified;
@@ -274,6 +288,18 @@ public class LegacyItemHandler {
 
     if (currentItemHasFoil && plainText != null && !ItemDefinitions.isUnenchanted(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
+      boolean newFormat = isNewFormatItem(modified);
+      if (newFormat) {
+        Component customName = currentItemStack.get(DataComponents.CUSTOM_NAME);
+        if (customName != null) {
+          modified.set(0, customName);
+        }
+        recolorNewFormatNameLine(modified);
+        if (insertLegacyBoxLine(modified)) {
+          lastProcessedWasLegacy = true;
+          return modified;
+        }
+      }
       MutableComponent name =
           Component.literal("\u2B21 ")
               .withStyle(ChatFormatting.WHITE)
@@ -281,14 +307,6 @@ public class LegacyItemHandler {
                   Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
-      boolean newFormat = isNewFormatItem(modified);
-      if (newFormat) {
-        recolorNewFormatNameLine(modified);
-        if (insertLegacyBoxLine(modified)) {
-          lastProcessedWasLegacy = true;
-          return modified;
-        }
-      }
       replaceRarityLines(modified, null);
       lastProcessedWasLegacy = true;
       return modified;
@@ -453,19 +471,41 @@ public class LegacyItemHandler {
   }
 
   /**
-   * Inserts a gold-colored LEGACY box line (using the banner/box font) before
-   * the existing banner/box rarity line in new-format tooltips.  Returns
-   * {@code true} if such a line was found and the LEGACY line was inserted.
+   * Prepends a gold-colored LEGACY box to the existing banner/box rarity line
+   * in new-format tooltips (e.g. [LEGACY][RARE][WAND] on a single line).
+   * Returns {@code true} if such a line was found and modified.
    */
   private static boolean insertLegacyBoxLine(List<Component> lines) {
     for (int i = 1; i < lines.size(); i++) {
       if (containsFont(lines.get(i), BANNER_BOX_FONT)) {
-        Style boxStyle = Style.EMPTY
-            .withColor(ChatFormatting.GOLD)
-            .withoutShadow()
-            .withFont(BANNER_BOX_FONT);
-        Component legacyLine = Component.literal(LEGACY_BOX_TEXT).setStyle(boxStyle);
-        lines.add(i, legacyLine);
+        Component original = lines.get(i);
+        List<Component> origSiblings = original.getSiblings();
+
+        // Build combined line: leading spacer + LEGACY box + inter-box space + original boxes
+        MutableComponent combined = Component.empty().withStyle(original.getStyle());
+
+        // Copy leading spacer (first sibling is the horizontal offset in space font)
+        if (!origSiblings.isEmpty()) {
+          combined.append(origSiblings.get(0).copy());
+        }
+
+        // Gold LEGACY box
+        combined.append(Component.literal(LEGACY_BOX_TEXT)
+            .setStyle(Style.EMPTY
+                .withColor(ChatFormatting.GOLD)
+                .withoutShadow()
+                .withFont(BANNER_BOX_FONT)));
+
+        // Inter-box space (U+D0001 in space font, same as between RARE and WAND)
+        combined.append(Component.literal("\uDB00\uDC01")
+            .setStyle(Style.EMPTY.withFont(SPACE_FONT)));
+
+        // Remaining siblings (the actual rarity/type box content)
+        for (int j = 1; j < origSiblings.size(); j++) {
+          combined.append(origSiblings.get(j).copy());
+        }
+
+        lines.set(i, combined);
         return true;
       }
     }
