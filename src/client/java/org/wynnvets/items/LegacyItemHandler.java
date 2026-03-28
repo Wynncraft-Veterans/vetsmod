@@ -54,6 +54,18 @@ public class LegacyItemHandler {
   public static final Identifier LEGACY_BORDER = Identifier.parse("unique");
 
   /**
+   * PUA-encoded "LEGACY" text for the banner/box font.
+   * Structure: box_start + [neg_space + letter_bg]×6 + box_end + spacing + §0(black) + foreground_letters + terminator.
+   * Letter mapping: background = U+E030 + (letter - 'A'), foreground = U+E000 + (letter - 'A').
+   * Spacing byte U+CFFDA matches 6-letter words (same width class as COMMON).
+   */
+  private static final String LEGACY_BOX_TEXT =
+      "\uE060\uDAFF\uDFFF\uE03B\uDAFF\uDFFF\uE034\uDAFF\uDFFF\uE036"
+      + "\uDAFF\uDFFF\uE030\uDAFF\uDFFF\uE032\uDAFF\uDFFF\uE048"
+      + "\uDAFF\uDFFF\uE062\uDAFF\uDFDA\u00A70\uE00B\uE004\uE006"
+      + "\uE000\uE002\uE018\uDB00\uDC02";
+
+  /**
    * Screen titles where legacy-item processing is skipped entirely.
    * Some Wynncraft menus (e.g. "Island Rules") apply enchantment glints as
    * UI selectors, which the foil-based detection misidentifies as legacy items.
@@ -204,8 +216,8 @@ public class LegacyItemHandler {
       modified.set(0, name);
       boolean newFormat = isNewFormatItem(modified);
       if (newFormat) {
-        removeNewFormatNameLine(modified);
-        if (prependLegacyToBoxLine(modified, null)) {
+        recolorNewFormatNameLine(modified);
+        if (insertLegacyBoxLine(modified)) {
           lastProcessedWasLegacy = true;
           return modified;
         }
@@ -229,8 +241,8 @@ public class LegacyItemHandler {
       modified.set(0, name);
       boolean newFormat = isNewFormatItem(modified);
       if (newFormat) {
-        removeNewFormatNameLine(modified);
-        if (prependLegacyToBoxLine(modified, null)) {
+        recolorNewFormatNameLine(modified);
+        if (insertLegacyBoxLine(modified)) {
           lastProcessedWasLegacy = true;
           return modified;
         }
@@ -271,8 +283,8 @@ public class LegacyItemHandler {
       modified.set(0, name);
       boolean newFormat = isNewFormatItem(modified);
       if (newFormat) {
-        removeNewFormatNameLine(modified);
-        if (prependLegacyToBoxLine(modified, null)) {
+        recolorNewFormatNameLine(modified);
+        if (insertLegacyBoxLine(modified)) {
           lastProcessedWasLegacy = true;
           return modified;
         }
@@ -409,31 +421,51 @@ public class LegacyItemHandler {
   }
 
   /**
-   * Removes the new-format emblem/name line (lore[0]) which duplicates the
-   * hover-name the {@code LegacyItemNameMixin} has already recolored.
+   * Recolors the new-format emblem/wynncraft-font name line from pink (#FF55FF)
+   * to gold, preserving the emblem frame, sprites, and wynncraft font.
    */
-  private static void removeNewFormatNameLine(List<Component> lines) {
+  private static void recolorNewFormatNameLine(List<Component> lines) {
+    TextColor pink = TextColor.fromRgb(0xFF55FF);
+    TextColor gold = TextColor.fromLegacyFormat(ChatFormatting.GOLD);
     for (int i = 1; i < lines.size(); i++) {
       if (containsFont(lines.get(i), EMBLEM_FRAME_FONT)) {
-        lines.remove(i);
+        lines.set(i, deepRecolor(lines.get(i), pink, gold));
         return;
       }
     }
   }
 
   /**
-   * Prepends a gold "Legacy " label before the existing banner/box rarity
-   * line in new-format tooltips, and returns {@code true} if such a line was
-   * found and modified.
+   * Recursively deep-copies a Component tree, replacing all occurrences of
+   * {@code from} color with {@code to} color.
    */
-  private static boolean prependLegacyToBoxLine(List<Component> lines, String prefix) {
+  private static MutableComponent deepRecolor(Component component, TextColor from, TextColor to) {
+    MutableComponent copy = component.plainCopy();
+    Style style = component.getStyle();
+    if (from.equals(style.getColor())) {
+      style = style.withColor(to);
+    }
+    copy.setStyle(style);
+    for (Component sibling : component.getSiblings()) {
+      copy.append(deepRecolor(sibling, from, to));
+    }
+    return copy;
+  }
+
+  /**
+   * Inserts a gold-colored LEGACY box line (using the banner/box font) before
+   * the existing banner/box rarity line in new-format tooltips.  Returns
+   * {@code true} if such a line was found and the LEGACY line was inserted.
+   */
+  private static boolean insertLegacyBoxLine(List<Component> lines) {
     for (int i = 1; i < lines.size(); i++) {
       if (containsFont(lines.get(i), BANNER_BOX_FONT)) {
-        String label = prefix != null ? prefix + " Legacy " : "Legacy ";
-        MutableComponent replacement =
-            Component.literal(label).withStyle(ChatFormatting.GOLD)
-                .append(lines.get(i).copy());
-        lines.set(i, replacement);
+        Style boxStyle = Style.EMPTY
+            .withColor(ChatFormatting.GOLD)
+            .withoutShadow()
+            .withFont(BANNER_BOX_FONT);
+        Component legacyLine = Component.literal(LEGACY_BOX_TEXT).setStyle(boxStyle);
+        lines.add(i, legacyLine);
         return true;
       }
     }
