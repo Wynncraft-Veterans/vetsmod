@@ -1,16 +1,15 @@
 package org.wynnvets.items;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
+import java.util.Map;
 import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 
@@ -27,6 +26,30 @@ public class LegacyItemHandler {
 
   /** Set by the highlight mixin before tooltip processing to indicate the hovered item has foil. */
   public static boolean currentItemHasFoil = false;
+
+  /** Set by the highlight mixin before tooltip processing to provide item context for tooltip_style access. */
+  public static ItemStack currentItemStack = ItemStack.EMPTY;
+
+  /**
+   * Set by {@link #processTooltip} when it modifies a legacy item's tooltip.
+   * The tooltip mixin reads this to override the border colour.
+   */
+  public static boolean lastProcessedWasLegacy = false;
+
+  // BEGIN PATCH(old-server-compat): Remove field once all servers use new tooltip borders.
+  /**
+   * Sticky server-session flag: set to {@code true} when any item with a
+   * {@code tooltip_style} data component or new-format emblem/frame font is
+   * encountered.  When {@code false} (i.e. on old servers that lack the new
+   * resource pack), the gold tooltip border override is suppressed to avoid
+   * garish fallback colours.
+   * <p>Reset on disconnect by {@link org.wynnvets.listeners.ServerConnectionListener}.</p>
+   */
+  public static boolean newTooltipStylesAvailable = false;
+  // END PATCH(old-server-compat)
+
+  /** Gold tooltip border identifier — matches the vanilla "unique" rarity border. */
+  public static final Identifier LEGACY_BORDER = Identifier.parse("unique");
 
   /**
    * Screen titles where legacy-item processing is skipped entirely.
@@ -54,7 +77,10 @@ public class LegacyItemHandler {
     if (stack.isEmpty()) return false;
     if (isBlockedScreen()) return false;
 
-    String name = normalizeName(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
+    String rawHover = stack.getHoverName().getString();
+    String stripped = ChatFormatting.stripFormatting(rawHover);
+    String name = normalizeName(stripped);
+
     if (name != null && ItemDefinitions.isLegacy(name)) return true;
 
     List<Component> lore = stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines();
@@ -73,30 +99,53 @@ public class LegacyItemHandler {
   }
 
   /**
-   * Strips the trailing À (U+00C0) that Wynncraft appends to item names
-   * in certain contexts (e.g. trade market listings).
+   * Normalizes item names for pattern matching by stripping:
+   * <ul>
+   *   <li>Supplementary PUA characters (U+F0000-U+10FFFF) used by Wynncraft's
+   *       new item format as invisible spacing/formatting glyphs</li>
+   *   <li>Trailing À (U+00C0) appended in trade market listings</li>
+   * </ul>
    */
   public static String normalizeName(String name) {
-    if (name != null && name.endsWith("\u00C0")) {
-      return name.substring(0, name.length() - 1).stripTrailing();
+    if (name == null) return null;
+    String result = stripSupplementaryPua(name);
+    if (result.endsWith("\u00C0")) {
+      result = result.substring(0, result.length() - 1).stripTrailing();
     }
-    return name;
+    return result;
   }
 
-  private static final Pattern RARITY_PATTERN =
+  /**
+   * Strips all supplementary Unicode code points (U+10000 and above) from text.
+   * Wynncraft's new item format wraps item names with invisible spacing and
+   * font-switching glyphs from various supplementary planes (observed at
+   * U+CF000 and in Supplementary PUA-A/B). Since item display names only
+   * contain BMP characters, all supplementary code points are removed
+   * before name pattern matching.
+   */
+  private static String stripSupplementaryPua(String text) {
+    StringBuilder sb = null;
+    for (int i = 0; i < text.length(); ) {
+      int cp = text.codePointAt(i);
+      int charCount = Character.charCount(cp);
+      if (cp >= 0x10000) {
+        if (sb == null) {
+          sb = new StringBuilder(text.length());
+          sb.append(text, 0, i);
+        }
+      } else if (sb != null) {
+        sb.appendCodePoint(cp);
+      }
+      i += charCount;
+    }
+    return sb != null ? sb.toString().strip() : text;
+  }
+
+  static final Pattern RARITY_PATTERN =
       Pattern.compile(
         "^(Mythic|Fabled|Set|Legendary|Rare|Unique|Normal|Junk|Misc\\.|Crafting) Item(?: (\\[\\d+\\]))?$");
 
   private static final Pattern LV_MIN_PATTERN = Pattern.compile("^Lv\\.? min: \\d+$");
-  private static final Pattern DEBUG_ID_PATTERN = Pattern.compile("^\\w+:\\w[\\w/.-]*$");
-  private static final Pattern DEBUG_COMPONENTS_PATTERN =
-      Pattern.compile("^\\d+ component\\(s\\)$");
-  private static final Pattern PERCENT_SUFFIX_PATTERN =
-      Pattern.compile("\\s*(\\[\\d+\\.?\\d*%\\])$");
-  private static final String ENCHANTED_PREFIX = "\u2B21 Enchanted ";
-  private static final Pattern CRAFTED_PATTERN =
-      Pattern.compile(
-          "^Crafted (?:Helmet|Chestplate|Pants|Boots|Ring|Potion|Scroll|Food|Wand|Spear|Relik|Bow|Dagger|by .+) \\[\\d+/\\d+ Durability\\]$");
 
   /**
    * Processes and rewrites tooltip lines for legacy/enchanted/junk/crafting items.
@@ -107,119 +156,7 @@ public class LegacyItemHandler {
    * @return the (possibly modified) tooltip lines
    */
   public static List<Component> processTooltip(List<Component> tooltipLines) {
-    if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return tooltipLines;
-    if (tooltipLines.isEmpty()) return tooltipLines;
-    if (isBlockedScreen()) return tooltipLines;
-
-    if (isCraftedItem(tooltipLines)) return tooltipLines;
-
-    Component firstLine = tooltipLines.get(0);
-    String rawText = firstLine.getString();
-    String plainText = normalizeName(ChatFormatting.stripFormatting(rawText));
-
-    // Extract Wynntils rarity suffix (e.g. "[61.7%]") preserving its original color
-    Component raritySuffix = extractColoredSuffix(firstLine, plainText);
-
-    // Strip our own "⬡ Enchanted " prefix (added by the getHoverName mixin) so we
-    // don't apply it twice, and strip the Wynntils percentage for clean name matching.
-    if (plainText != null) {
-      if (plainText.startsWith(ENCHANTED_PREFIX)) {
-        plainText = plainText.substring(ENCHANTED_PREFIX.length());
-      }
-      plainText = stripPercentSuffix(plainText);
-    }
-
-    if (plainText != null && ItemDefinitions.isLegacy(plainText)) {
-      List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name;
-      if (currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
-        name = Component.literal("\u2B21 ")
-            .withStyle(ChatFormatting.WHITE)
-            .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
-      } else {
-        name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
-      }
-      if (raritySuffix != null) name.append(raritySuffix);
-      modified.set(0, name);
-      replaceRarityLines(modified, null);
-      return modified;
-    }
-
-    if (plainText != null && ItemDefinitions.isMiscLegacy(plainText) && hasMiscRarity(tooltipLines)) {
-      List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name;
-      if (currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
-        name = Component.literal("\u2B21 ")
-            .withStyle(ChatFormatting.WHITE)
-            .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
-      } else {
-        name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
-      }
-      if (raritySuffix != null) name.append(raritySuffix);
-      modified.set(0, name);
-      replaceRarityLines(modified, null);
-      return modified;
-    }
-
-    if (hasBetaLegacyMarker(tooltipLines)) {
-      boolean alpha = !hasRarityLine(tooltipLines);
-      List<Component> modified = new ArrayList<>(tooltipLines);
-      if (plainText != null) {
-        MutableComponent name;
-        if (currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
-          name = Component.literal("\u2B21 ")
-              .withStyle(ChatFormatting.WHITE)
-              .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
-        } else {
-          name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
-        }
-        if (raritySuffix != null) name.append(raritySuffix);
-        modified.set(0, name);
-      }
-      replaceRarityLines(modified, alpha ? "Alpha" : "Beta");
-      return modified;
-    }
-
-    if (currentItemHasFoil && plainText != null && !ItemDefinitions.isUnenchanted(plainText)) {
-      List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name =
-          Component.literal("\u2B21 ")
-              .withStyle(ChatFormatting.WHITE)
-              .append(
-                  Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
-      if (raritySuffix != null) name.append(raritySuffix);
-      modified.set(0, name);
-      replaceRarityLines(modified, null);
-      return modified;
-    }
-
-    if (hasJunkRarity(tooltipLines) && plainText != null && !ItemDefinitions.isNotJunk(plainText)) {
-      List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
-      if (raritySuffix != null) name.append(raritySuffix);
-      modified.set(0, name);
-      replaceRarityLines(modified, null);
-      return modified;
-    }
-
-    if (hasCraftingRarity(tooltipLines) && plainText != null) {
-      List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
-      if (raritySuffix != null) name.append(raritySuffix);
-      modified.set(0, name);
-      replaceRarityLines(modified, null);
-      return modified;
-    }
-
-    return tooltipLines;
-  }
-
-  private static boolean isCraftedItem(List<Component> lines) {
-    for (Component line : lines) {
-      String plain = ChatFormatting.stripFormatting(line.getString());
-      if (plain != null && CRAFTED_PATTERN.matcher(plain).matches()) return true;
-    }
-    return false;
+    return LegacyTooltipRenderer.processTooltip(tooltipLines);
   }
 
   /** Returns {@code true} if any tooltip line starts with "Misc. Item". */
@@ -290,96 +227,29 @@ public class LegacyItemHandler {
     return gold.equals(styleColor);
   }
 
-  private static void replaceRarityLines(List<Component> lines, String prefix) {
-    if (lines.size() < 2) return;
-
-    Component legacyLabel = null;
-
-    // Scan bottom-up to find and remove the rarity line
-    for (int i = lines.size() - 1; i >= 1; i--) {
-      String plain = ChatFormatting.stripFormatting(lines.get(i).getString());
-      if (plain == null) continue;
-
-      Matcher m = RARITY_PATTERN.matcher(plain);
-      if (m.matches()) {
-        legacyLabel = buildLegacyLabel(m.group(1), m.group(2), prefix);
-        lines.remove(i);
-        break;
-      }
-    }
-
-    if (legacyLabel == null) {
-      String label = prefix != null ? prefix + " Legacy Item" : "Legacy Item";
-      legacyLabel = Component.literal(label).withStyle(ChatFormatting.GOLD);
-    }
-
-    // Insert before any F3+H debug lines (resource id / component count)
-    lines.add(debugLinesStart(lines), legacyLabel);
-  }
-
-  private static int debugLinesStart(List<Component> lines) {
-    for (int i = lines.size() - 1; i >= 1; i--) {
-      String plain = ChatFormatting.stripFormatting(lines.get(i).getString());
-      if (plain == null) continue;
-      if (!DEBUG_ID_PATTERN.matcher(plain).matches()
-          && !DEBUG_COMPONENTS_PATTERN.matcher(plain).matches()) {
-        return i + 1;
-      }
-    }
-    return 1;
-  }
-
-  private static String stripPercentSuffix(String plainText) {
-    return PERCENT_SUFFIX_PATTERN.matcher(plainText).replaceFirst("");
-  }
+  /** Maps {@code tooltip_style} data component paths to human-readable rarity names. */
+  private static final Map<String, String> TOOLTIP_STYLE_TO_RARITY = Map.of(
+      "common", "Normal",
+      "unique", "Unique",
+      "rare", "Rare",
+      "set", "Set",
+      "legendary", "Legendary",
+      "fabled", "Fabled",
+      "mythic", "Mythic",
+      "crafted", "Crafted");
 
   /**
-   * Extracts a trailing Wynntils percentage suffix (e.g. "[61.7%]") from the original
-   * component, preserving its color. Wynntils appends the percentage as a sibling
-   * Component with its own Style/TextColor, so we check siblings first.
-   * Falls back to scanning for §-codes in legacy-formatted text.
-   * Returns null if no colored suffix is present.
+   * Extracts the item rarity from the {@code tooltip_style} data component.
+   * New-format Wynncraft items encode their rarity tier as a {@code tooltip_style}
+   * identifier (e.g. {@code minecraft:rare}, {@code minecraft:unique}) rather than
+   * including a plain-text rarity line in the lore.
+   *
+   * @return the human-readable rarity name, or {@code null} if unavailable
    */
-  private static Component extractColoredSuffix(Component original, String plainText) {
-    if (plainText == null) return null;
-    Matcher m = PERCENT_SUFFIX_PATTERN.matcher(plainText);
-    if (!m.find()) return null;
-
-    String suffix = m.group(1);
-
-    // Wynntils adds the percentage as a sibling Component with its own Style.
-    // Walk siblings last-to-first to find it.
-    List<Component> siblings = original.getSiblings();
-    for (int i = siblings.size() - 1; i >= 0; i--) {
-      Component sibling = siblings.get(i);
-      if (sibling.getString().contains(suffix)) {
-        return sibling.copy();
-      }
-    }
-
-    // Fallback: scan raw text for §-codes (legacy formatting)
-    String raw = original.getString();
-    int suffixStart = raw.lastIndexOf(suffix);
-    if (suffixStart < 0) return null;
-
-    for (int i = suffixStart - 1; i >= 1; i--) {
-      if (raw.charAt(i - 1) == '\u00A7') {
-        ChatFormatting fmt = ChatFormatting.getByCode(raw.charAt(i));
-        if (fmt != null && fmt.isColor()) {
-          return Component.literal(" " + suffix).withStyle(fmt);
-        }
-      }
-    }
-
-    return null;
-  }
-
-  private static Component buildLegacyLabel(String rarity, String count, String prefix) {
-    String base = prefix != null ? prefix + " Legacy Item" : "Legacy Item";
-    String label =
-        count != null
-            ? base + " (" + rarity + " " + count + ")"
-            : base + " (" + rarity + ")";
-    return Component.literal(label).withStyle(ChatFormatting.GOLD);
+  public static String getTooltipStyleRarity(ItemStack stack) {
+    if (stack == null || stack.isEmpty()) return null;
+    Identifier tooltipStyle = stack.get(DataComponents.TOOLTIP_STYLE);
+    if (tooltipStyle == null) return null;
+    return TOOLTIP_STYLE_TO_RARITY.get(tooltipStyle.getPath());
   }
 }

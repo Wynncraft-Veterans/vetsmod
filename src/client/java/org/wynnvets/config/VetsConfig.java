@@ -138,6 +138,20 @@ public class VetsConfig {
   }
 
   /**
+   * Registers a boolean configuration key with its default value.
+   * If the key already exists, this is a no-op.  Intended for use by
+   * subsystems that own their own config keys (e.g. debug utilities).
+   * Must be called <em>before</em> {@link #load()} so that the key is
+   * present when persisted values are read from disk.
+   *
+   * @param key          The configuration key
+   * @param defaultValue The default value
+   */
+  public static void registerDefault(String key, boolean defaultValue) {
+    config.putIfAbsent(key, defaultValue);
+  }
+
+  /**
    * Check if a configuration key exists.
    *
    * @param key The configuration key to check

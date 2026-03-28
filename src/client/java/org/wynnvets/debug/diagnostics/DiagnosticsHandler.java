@@ -1,4 +1,4 @@
-package org.wynnvets.logging;
+package org.wynnvets.debug.diagnostics;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.models.worlds.type.WorldState;
@@ -11,24 +11,28 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.config.VetsConfig;
 import org.wynnvets.chat.OutboundDisplayHandler;
+import org.wynnvets.config.VetsConfig;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
 
 import java.util.Collection;
 import java.util.StringJoiner;
 
 /**
- * Handles the {@code /wv debug [true|false]} command.
+ * Handles the {@code /wv debug} diagnostics dump and the
+ * {@code /wv debug true|false} logging toggle.
  *
  * <p>With no arguments, dumps diagnostic information to chat and a more
- * detailed report to the log file. With {@code true}/{@code false}, toggles
+ * detailed report to the log file.  With {@code true}/{@code false}, toggles
  * the debug logging level on or off.</p>
+ *
+ * <p>This is a <b>debug-only</b> utility — invoked from the
+ * {@link org.wynnvets.debug.DebugCommands} command tree.</p>
  */
-public final class DebugCommand {
+public final class DiagnosticsHandler {
 
-    private DebugCommand() {
-    }
+    private DiagnosticsHandler() {}
 
     /**
      * Executes the debug command with the given argument.

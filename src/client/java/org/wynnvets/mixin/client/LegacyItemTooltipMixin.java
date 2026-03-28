@@ -55,8 +55,14 @@ public class LegacyItemTooltipMixin {
       ci.cancel();
       vetsmod$processing = true;
       try {
+        // BEGIN PATCH(old-server-compat): Revert to just lastProcessedWasLegacy check.
+        Identifier border = LegacyItemHandler.lastProcessedWasLegacy
+                && LegacyItemHandler.newTooltipStylesAvailable
+            ? LegacyItemHandler.LEGACY_BORDER
+            : background;
+        // END PATCH(old-server-compat)
         ((GuiGraphics) (Object) this)
-            .setTooltipForNextFrame(font, modified, image, mouseX, mouseY, background);
+            .setTooltipForNextFrame(font, modified, image, mouseX, mouseY, border);
       } finally {
         vetsmod$processing = false;
       }
