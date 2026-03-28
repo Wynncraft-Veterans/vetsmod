@@ -3,6 +3,7 @@ package org.wynnvets.items;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
@@ -10,7 +11,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -32,6 +35,23 @@ public class LegacyItemHandler {
 
   /** Set by the highlight mixin before tooltip processing to provide item context for tooltip_style access. */
   public static ItemStack currentItemStack = ItemStack.EMPTY;
+
+  /**
+   * Set by {@link #processTooltip} when it modifies a legacy item's tooltip.
+   * The tooltip mixin reads this to override the border colour.
+   */
+  public static boolean lastProcessedWasLegacy = false;
+
+  /** Font used by Wynncraft's new-format emblem/frame line (lore[0] — the duplicate item name). */
+  private static final FontDescription EMBLEM_FRAME_FONT =
+      new FontDescription.Resource(Identifier.parse("tooltip/emblem/frame"));
+
+  /** Font used by Wynncraft's new-format banner/box rarity line (lore[1] — RARE / WAND boxes). */
+  private static final FontDescription BANNER_BOX_FONT =
+      new FontDescription.Resource(Identifier.parse("banner/box"));
+
+  /** Gold tooltip border identifier — matches the vanilla "unique" rarity border. */
+  public static final Identifier LEGACY_BORDER = Identifier.parse("unique");
 
   /**
    * Screen titles where legacy-item processing is skipped entirely.
@@ -147,6 +167,7 @@ public class LegacyItemHandler {
    * @return the (possibly modified) tooltip lines
    */
   public static List<Component> processTooltip(List<Component> tooltipLines) {
+    lastProcessedWasLegacy = false;
     if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return tooltipLines;
     if (tooltipLines.isEmpty()) return tooltipLines;
     if (isBlockedScreen()) return tooltipLines;
@@ -181,7 +202,16 @@ public class LegacyItemHandler {
       }
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
+      boolean newFormat = isNewFormatItem(modified);
+      if (newFormat) {
+        removeNewFormatNameLine(modified);
+        if (prependLegacyToBoxLine(modified, null)) {
+          lastProcessedWasLegacy = true;
+          return modified;
+        }
+      }
       replaceRarityLines(modified, null);
+      lastProcessedWasLegacy = true;
       return modified;
     }
 
@@ -197,7 +227,16 @@ public class LegacyItemHandler {
       }
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
+      boolean newFormat = isNewFormatItem(modified);
+      if (newFormat) {
+        removeNewFormatNameLine(modified);
+        if (prependLegacyToBoxLine(modified, null)) {
+          lastProcessedWasLegacy = true;
+          return modified;
+        }
+      }
       replaceRarityLines(modified, null);
+      lastProcessedWasLegacy = true;
       return modified;
     }
 
@@ -217,6 +256,7 @@ public class LegacyItemHandler {
         modified.set(0, name);
       }
       replaceRarityLines(modified, alpha ? "Alpha" : "Beta");
+      lastProcessedWasLegacy = true;
       return modified;
     }
 
@@ -229,7 +269,16 @@ public class LegacyItemHandler {
                   Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
+      boolean newFormat = isNewFormatItem(modified);
+      if (newFormat) {
+        removeNewFormatNameLine(modified);
+        if (prependLegacyToBoxLine(modified, null)) {
+          lastProcessedWasLegacy = true;
+          return modified;
+        }
+      }
       replaceRarityLines(modified, null);
+      lastProcessedWasLegacy = true;
       return modified;
     }
 
@@ -239,6 +288,7 @@ public class LegacyItemHandler {
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
       replaceRarityLines(modified, null);
+      lastProcessedWasLegacy = true;
       return modified;
     }
 
@@ -248,6 +298,7 @@ public class LegacyItemHandler {
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
       replaceRarityLines(modified, null);
+      lastProcessedWasLegacy = true;
       return modified;
     }
 
@@ -328,6 +379,65 @@ public class LegacyItemHandler {
     if (gold == null) return false;
     TextColor styleColor = component.getStyle().getColor();
     return gold.equals(styleColor);
+  }
+
+  /**
+   * Returns {@code true} if the given Component tree contains any node whose
+   * resolved font matches {@code target}.
+   */
+  private static boolean containsFont(Component root, FontDescription target) {
+    boolean[] found = {false};
+    root.visit((Style style, String text) -> {
+      if (target.equals(style.getFont())) {
+        found[0] = true;
+        return Optional.of(Boolean.TRUE);
+      }
+      return Optional.empty();
+    }, Style.EMPTY);
+    return found[0];
+  }
+
+  /**
+   * Returns {@code true} if the item uses Wynncraft's new tooltip format.
+   * Detected by the presence of the {@code tooltip/emblem/frame} font in a lore line.
+   */
+  private static boolean isNewFormatItem(List<Component> lines) {
+    for (Component line : lines) {
+      if (containsFont(line, EMBLEM_FRAME_FONT)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Removes the new-format emblem/name line (lore[0]) which duplicates the
+   * hover-name the {@code LegacyItemNameMixin} has already recolored.
+   */
+  private static void removeNewFormatNameLine(List<Component> lines) {
+    for (int i = 1; i < lines.size(); i++) {
+      if (containsFont(lines.get(i), EMBLEM_FRAME_FONT)) {
+        lines.remove(i);
+        return;
+      }
+    }
+  }
+
+  /**
+   * Prepends a gold "Legacy " label before the existing banner/box rarity
+   * line in new-format tooltips, and returns {@code true} if such a line was
+   * found and modified.
+   */
+  private static boolean prependLegacyToBoxLine(List<Component> lines, String prefix) {
+    for (int i = 1; i < lines.size(); i++) {
+      if (containsFont(lines.get(i), BANNER_BOX_FONT)) {
+        String label = prefix != null ? prefix + " Legacy " : "Legacy ";
+        MutableComponent replacement =
+            Component.literal(label).withStyle(ChatFormatting.GOLD)
+                .append(lines.get(i).copy());
+        lines.set(i, replacement);
+        return true;
+      }
+    }
+    return false;
   }
 
   private static void replaceRarityLines(List<Component> lines, String prefix) {
