@@ -20,8 +20,17 @@ import org.wynnvets.items.LegacyItemHandler;
  */
 public final class DebugKeyHandler {
 
+    /** Prevent accidental duplicate event registration. */
+    private static boolean registered = false;
+
     /** Tracks previous frame's key state so we fire once per press. */
     private static boolean itemDumpKeyWasDown = false;
+
+    /**
+     * When focus is lost, ignore key presses until we observe a release after
+     * focus returns. This prevents stale key state from triggering a dump.
+     */
+    private static boolean suppressUntilKeyRelease = false;
 
     private DebugKeyHandler() {}
 
@@ -30,14 +39,47 @@ public final class DebugKeyHandler {
      * in practice because Fabric appends listeners).
      */
     public static void register() {
+        if (registered) {
+            return;
+        }
+        registered = true;
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (!VetsConfig.get(DebugConfigManager.ITEM_DUMP)) {
                 itemDumpKeyWasDown = false;
+                suppressUntilKeyRelease = false;
+                return;
+            }
+
+            if (client == null || client.getWindow() == null) {
+                itemDumpKeyWasDown = false;
+                suppressUntilKeyRelease = true;
                 return;
             }
 
             long window = client.getWindow().handle();
+            if (window == 0L) {
+                itemDumpKeyWasDown = false;
+                suppressUntilKeyRelease = true;
+                return;
+            }
+
+            boolean isFocused = GLFW.glfwGetWindowAttrib(window, GLFW.GLFW_FOCUSED) == GLFW.GLFW_TRUE;
+            if (!isFocused) {
+                itemDumpKeyWasDown = false;
+                suppressUntilKeyRelease = true;
+                return;
+            }
+
             boolean isDown = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_KP_ADD) == GLFW.GLFW_PRESS;
+
+            if (suppressUntilKeyRelease) {
+                if (!isDown) {
+                    suppressUntilKeyRelease = false;
+                }
+                itemDumpKeyWasDown = isDown;
+                return;
+            }
 
             if (isDown && !itemDumpKeyWasDown) {
                 ItemStack hovered = LegacyItemHandler.currentItemStack;
