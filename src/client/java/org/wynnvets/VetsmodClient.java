@@ -187,16 +187,28 @@ public class VetsmodClient implements ClientModInitializer {
 
   // Get the MOTD information.
   private int motd(CommandContext<FabricClientCommandSource> ctx) {
-    // Only allow MOTD command if features are enabled (guild is Returners)
-    //if (!org.wynnvets.guild.GuildStateManager.areFeaturesEnabled()) {
-    //	ctx.getSource().sendError(Component.literal("This command is only available for Returners guild members."));
-    //	return 0;
-    //}
+    // Use guild MOTD for eligible users (Returners, waitlist-unlocked, honourary-unlocked)
+    boolean useGuildMotd = GuildStateManager.isReturners()
+        || (GuildStateManager.isGuildless() && GuildStateManager.isWaitlistUnlocked())
+        || GuildStateManager.isHonouraryUnlocked();
 
-    // Fetch MOTD from API and display it
-    MotdFetcher.fetchMotd().thenAccept(motd -> {
-      ChatUtils.sendLocalMessage(motd);
-    });
+    if (useGuildMotd) {
+      MotdFetcher.fetchGuildMotd().thenAccept(guildMotd -> {
+        String text = guildMotd.getString();
+        if (text != null && !text.isEmpty()) {
+          ChatUtils.sendLocalMessage(guildMotd);
+        } else {
+          // Fall back to standard MOTD if guild MOTD is empty
+          MotdFetcher.fetchMotd().thenAccept(motd -> {
+            ChatUtils.sendLocalMessage(motd);
+          });
+        }
+      });
+    } else {
+      MotdFetcher.fetchMotd().thenAccept(motd -> {
+        ChatUtils.sendLocalMessage(motd);
+      });
+    }
     return 1;
   }
 
