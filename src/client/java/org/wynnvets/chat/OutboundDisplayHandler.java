@@ -9,6 +9,8 @@ import org.wynnvets.logging.VetsLogger;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -48,6 +50,14 @@ public final class OutboundDisplayHandler {
 
     private static Consumer<JsonObject> registeredListener;
     private static volatile boolean frumaModeEnabled = false;
+
+    // UUID-based dedup: prevents duplicate display when the same outbound
+    // message is delivered more than once (e.g. dual WebSocket connections).
+    private static final int MAX_RECENT_UUIDS = 200;
+    private static final long UUID_TTL_MS = TimeUnit.SECONDS.toMillis(10);
+    private static final LinkedHashMap<String, Long> recentUuids =
+            new LinkedHashMap<>(MAX_RECENT_UUIDS + 1, 0.75f, false);
+    private static final Object recentUuidLock = new Object();
 
     private OutboundDisplayHandler() {
     }
@@ -133,6 +143,9 @@ public final class OutboundDisplayHandler {
         synchronized (recentBridgeLock) {
             recentBridgeMessages.clear();
         }
+        synchronized (recentUuidLock) {
+            recentUuids.clear();
+        }
     }
 
     /** Enable or disable Fruma mode bridge mirroring. */
@@ -176,6 +189,15 @@ public final class OutboundDisplayHandler {
         }
 
         if (!shouldDisplayMessages()) {
+            return;
+        }
+
+        // UUID dedup: skip messages already processed within the TTL window.
+        // Guards against duplicate delivery from dual WebSocket connections or
+        // network-level frame duplication.
+        String uuid = getStringOrEmpty(json, "uuid");
+        if (!uuid.isEmpty() && isDuplicateUuid(uuid)) {
+            VetsLogger.debug("onOutboundMessage: duplicate UUID suppressed [{}]", uuid);
             return;
         }
 
@@ -243,8 +265,9 @@ public final class OutboundDisplayHandler {
     }
 
     private static boolean shouldSuppressSelfMessage(String username, String message, String type) {
-        // Only suppress game-sourced messages (sent by this client through the server)
-        if (!"guild".equals(type)) {
+        // Only suppress game-sourced messages (sent by this client through the temp server).
+        // Covers guild (Returners), waitlist (guildless relay), and honourary relay types.
+        if (!"guild".equals(type) && !"waitlist".equals(type) && !"honourary".equals(type)) {
             return false;
         }
 
@@ -262,6 +285,38 @@ public final class OutboundDisplayHandler {
             }
         }
         return false;
+    }
+
+    /**
+     * Checks whether a message UUID has been seen recently, and records it
+     * if not.  Returns true when the UUID is a duplicate (already processed).
+     */
+    private static boolean isDuplicateUuid(String uuid) {
+        synchronized (recentUuidLock) {
+            long now = System.currentTimeMillis();
+            // Prune expired entries
+            Iterator<Map.Entry<String, Long>> it = recentUuids.entrySet().iterator();
+            while (it.hasNext()) {
+                if (now - it.next().getValue() > UUID_TTL_MS) {
+                    it.remove();
+                } else {
+                    break; // insertion-ordered, remaining are newer
+                }
+            }
+            if (recentUuids.containsKey(uuid)) {
+                return true;
+            }
+            if (recentUuids.size() >= MAX_RECENT_UUIDS) {
+                // Remove eldest
+                it = recentUuids.entrySet().iterator();
+                if (it.hasNext()) {
+                    it.next();
+                    it.remove();
+                }
+            }
+            recentUuids.put(uuid, now);
+            return false;
+        }
     }
 
     private static boolean wasServerMessageRecentlySeen(String message) {

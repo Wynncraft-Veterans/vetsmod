@@ -13,6 +13,7 @@ import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.fetcher.polling.StaffRanksFetcher;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.chat.StaffOutboundMessenger;
 import org.wynnvets.logging.VetsLogger;
 
@@ -248,6 +249,7 @@ public class GuildChatCommandMixin {
       username = minecraft.player.getName().getString();
     }
 
+    OutboundDisplayHandler.queuePendingSelfMessage(username, message);
     ChatUtils.sendGuildChatMessage(GUILDLESS_SELF_RANK, username, message);
     V1ApiManager.sendInbound("waitlist", "Waitlist", username, message);
   }
@@ -269,6 +271,7 @@ public class GuildChatCommandMixin {
       username = minecraft.player.getName().getString();
     }
 
+    OutboundDisplayHandler.queuePendingSelfMessage(username, message);
     ChatUtils.sendGuildChatMessage(HONOURARY_SELF_RANK, username, message);
     V1ApiManager.sendInbound("honourary", "Honourary", username, message);
   }
