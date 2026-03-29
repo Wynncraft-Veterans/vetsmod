@@ -78,6 +78,7 @@ public class WsClient implements WebSocket.Listener {
                     } else {
                         WebSocket old = wsRef.getAndSet(ws);
                         if (old != null) {
+                            VetsLogger.warn("[{}] Replacing existing WebSocket connection (possible dual-connection)", label);
                             try {
                                 old.abort();
                             } catch (Exception ignored) {
