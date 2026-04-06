@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.fetcher.polling.SupportersFetcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
@@ -89,6 +90,7 @@ public final class DiagnosticsHandler {
         boolean automessageEnabled = VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE);
         boolean debugLogging = VetsLogger.isDebugEnabled();
         String playerName = GuildStateManager.playerName();
+        boolean isSupporter = playerName != null && SupportersFetcher.isSupporter(playerName);
 
         // Server info
         String serverAddress = "unknown";
@@ -129,6 +131,8 @@ public final class DiagnosticsHandler {
         chatMsg.append(Component.literal(mcVersion).withStyle(ChatFormatting.WHITE));
         chatMsg.append(Component.literal(" | Fabric: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(Component.literal(fabricLoaderVersion).withStyle(ChatFormatting.WHITE));
+        chatMsg.append(Component.literal(" | Fabric API: ").withStyle(ChatFormatting.GRAY));
+        chatMsg.append(Component.literal(fabricApiVersion).withStyle(ChatFormatting.WHITE));
         chatMsg.append(Component.literal(" | Wynntils: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(Component.literal(wynntilsVersion + "\n").withStyle(ChatFormatting.WHITE));
         chatMsg.append(Component.literal("Server: ").withStyle(ChatFormatting.GRAY));
@@ -152,6 +156,8 @@ public final class DiagnosticsHandler {
         chatMsg.append(boolComponent(debugLogging));
         chatMsg.append(Component.literal(" | Automessage: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(boolComponent(automessageEnabled));
+        chatMsg.append(Component.literal(" | Supporter: ").withStyle(ChatFormatting.GRAY));
+        chatMsg.append(boolComponent(isSupporter));
 
         ChatUtils.sendLocalMessage(chatMsg);
 
@@ -165,7 +171,7 @@ public final class DiagnosticsHandler {
         VetsLogger.info("Player: {}", playerName);
         VetsLogger.info("Guild state: returners={}, guildless={}, unlocked={}, canExecute={}", isReturners, isGuildless, isUnlocked, canExecute);
         VetsLogger.info("Staff: {}, rank={}", isStaff, selfRank.isEmpty() ? "none" : selfRank);
-        VetsLogger.info("Config: automessage={}, debugLogging={}, debugGuildlessOverride={}", automessageEnabled, debugLogging, debugOverride);
+        VetsLogger.info("Config: automessage={}, debugLogging={}, debugGuildlessOverride={}, supporter={}", automessageEnabled, debugLogging, debugOverride, isSupporter);
 
         // Mod list
         Collection<ModContainer> mods = FabricLoader.getInstance().getAllMods();
