@@ -52,9 +52,17 @@ public class GuildChatCommandMixin {
       // to the server so that non-vetsmod users cannot be spoiled.
       if (GuildStateManager.isReturners() && SpoilerCodec.containsPipeSpoiler(message)) {
         ci.cancel();
+        String encoded = SpoilerCodec.encodeSpoilers(message);
+        if (encoded.length() > 253) {
+          ChatUtils.sendLocalMessage(
+              Component.literal("Encoding your spoilers would exceed Wynn's 253 character limit.")
+                  .withStyle(ChatFormatting.RED)
+          );
+          return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player != null && minecraft.player.connection != null) {
-          minecraft.player.connection.sendCommand("g " + SpoilerCodec.encodeSpoilers(message));
+          minecraft.player.connection.sendCommand("g " + encoded);
         }
       }
 

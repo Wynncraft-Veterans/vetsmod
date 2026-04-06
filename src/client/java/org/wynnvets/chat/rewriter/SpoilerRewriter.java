@@ -6,6 +6,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.Prepend;
 import org.wynnvets.chat.SpoilerCodec;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.guild.GuildStateManager;
@@ -51,7 +52,7 @@ public final class SpoilerRewriter {
 
         VetsLogger.debug("SpoilerRewriter: rewriting message with encoded spoiler (len={})", messageString.length());
         MutableComponent result = rebuildWithDecodedSpoilers(component);
-        ChatUtils.dispatchToChat(result, Style.EMPTY);
+        ChatUtils.dispatchToChat(result, Prepend.GUILD.get().getStyle());
         return true;
     }
 
@@ -75,19 +76,31 @@ public final class SpoilerRewriter {
 
         // Fast path: if any single fragment contains a complete spoiler pair,
         // process fragments individually (works for short, unwrapped spoilers).
+        // However, if the message has server-injected line continuations (\n),
+        // we must always use the cross-fragment path which strips the
+        // continuation markers via formatMessageBody → stripServerContinuations.
+        // Otherwise the single-fragment path preserves embedded \n + marker
+        // fragments, causing wrapBlockMessage to add a second prepend.
         boolean anySingleFragmentHasSpoiler = false;
+        boolean hasServerWrapping = false;
         for (StyledFragment frag : fragments) {
             if (SpoilerCodec.containsEncodedSpoiler(frag.text)) {
                 anySingleFragmentHasSpoiler = true;
-                break;
+            }
+            if (frag.text.contains("\n")) {
+                hasServerWrapping = true;
             }
         }
 
-        if (!anySingleFragmentHasSpoiler) {
-            // Spoiler spans multiple fragments (Wynncraft line-wrapping).
+        if (!anySingleFragmentHasSpoiler || hasServerWrapping) {
+            // Spoiler spans multiple fragments, or server wrapping is present
+            // — use the cross-fragment path that strips continuation markers.
+            VetsLogger.debug("SpoilerRewriter: using cross-fragment path (singleFrag={}, serverWrap={})",
+                    anySingleFragmentHasSpoiler, hasServerWrapping);
             return rebuildCrossFragmentSpoilers(fragments);
         }
 
+        VetsLogger.debug("SpoilerRewriter: using single-fragment fast path ({} fragments)", fragments.size());
         MutableComponent result = Component.empty();
         for (StyledFragment frag : fragments) {
             if (!SpoilerCodec.containsEncodedSpoiler(frag.text)) {
@@ -109,8 +122,14 @@ public final class SpoilerRewriter {
                     break;
                 }
 
-                if (start > cursor) {
-                    result.append(Component.literal(text.substring(cursor, start)).setStyle(frag.style));
+                // Strip [Spoiler: ] wrapper if present around the PUA block.
+                int emitEnd = start;
+                if (start >= SpoilerCodec.WRAPPER_PREFIX.length()
+                        && text.startsWith(SpoilerCodec.WRAPPER_PREFIX, start - SpoilerCodec.WRAPPER_PREFIX.length())) {
+                    emitEnd = start - SpoilerCodec.WRAPPER_PREFIX.length();
+                }
+                if (emitEnd > cursor) {
+                    result.append(Component.literal(text.substring(cursor, emitEnd)).setStyle(frag.style));
                 }
 
                 String encoded = text.substring(start + 1, end);
@@ -120,6 +139,10 @@ public final class SpoilerRewriter {
                 result.append(Component.literal("[Spoiler - Hover to see]").setStyle(hoverStyle));
 
                 cursor = end + 1;
+                // Skip wrapper suffix
+                if (cursor < text.length() && text.charAt(cursor) == ']') {
+                    cursor++;
+                }
             }
         }
         return result;

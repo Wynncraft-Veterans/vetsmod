@@ -61,8 +61,14 @@ public final class SpoilerFormatter {
                 break;
             }
 
-            if (start > cursor) {
-                parent.append(Component.literal(text.substring(cursor, start)).setStyle(textStyle));
+            // Strip [Spoiler: ] wrapper if present around the PUA block.
+            int emitEnd = start;
+            if (start >= SpoilerCodec.WRAPPER_PREFIX.length()
+                    && text.startsWith(SpoilerCodec.WRAPPER_PREFIX, start - SpoilerCodec.WRAPPER_PREFIX.length())) {
+                emitEnd = start - SpoilerCodec.WRAPPER_PREFIX.length();
+            }
+            if (emitEnd > cursor) {
+                parent.append(Component.literal(text.substring(cursor, emitEnd)).setStyle(textStyle));
             }
 
             String encoded = text.substring(start + 1, end);
@@ -72,6 +78,10 @@ public final class SpoilerFormatter {
             parent.append(Component.literal("[Spoiler - Hover to see]").setStyle(hoverStyle));
 
             cursor = end + 1;
+            // Skip wrapper suffix
+            if (cursor < text.length() && text.charAt(cursor) == ']') {
+                cursor++;
+            }
         }
     }
 

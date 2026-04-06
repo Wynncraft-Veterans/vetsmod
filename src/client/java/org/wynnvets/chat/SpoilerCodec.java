@@ -28,6 +28,15 @@ public final class SpoilerCodec {
     /** Marks the end of a PUA-encoded spoiler block. */
     public static final char SPOILER_END = '\uF601';
 
+    /**
+     * Visible wrapper placed around PUA-encoded spoiler blocks so that
+     * vanilla / non-vetsmod clients see {@code [Spoiler: ]} instead of
+     * invisible PUA characters.
+     */
+    public static final String WRAPPER_PREFIX = "[Spoiler: ";
+    public static final String WRAPPER_SUFFIX = "]";
+    private static final int WRAPPER_OVERHEAD = WRAPPER_PREFIX.length() + WRAPPER_SUFFIX.length();
+
     /** Base codepoint for direct character encoding (chars 0–253). */
     private static final char ENCODE_BASE = '\uF602';
 
@@ -81,9 +90,11 @@ public final class SpoilerCodec {
         matcher.reset();
         while (matcher.find()) {
             sb.append(message, lastEnd, matcher.start());
+            sb.append(WRAPPER_PREFIX);
             sb.append(SPOILER_START);
             encodeContent(matcher.group(1), sb);
             sb.append(SPOILER_END);
+            sb.append(WRAPPER_SUFFIX);
             VetsLogger.debug("SpoilerCodec.encodeSpoilers: encoded spoiler content=\"{}\"", matcher.group(1));
             lastEnd = matcher.end();
         }
@@ -149,9 +160,20 @@ public final class SpoilerCodec {
                 sb.append(text, cursor, text.length());
                 break;
             }
-            sb.append(text, cursor, start);
+
+            // Strip [Spoiler: ] wrapper if present around the PUA block.
+            int emitEnd = start;
+            if (start >= WRAPPER_PREFIX.length()
+                    && text.startsWith(WRAPPER_PREFIX, start - WRAPPER_PREFIX.length())) {
+                emitEnd = start - WRAPPER_PREFIX.length();
+            }
+            sb.append(text, cursor, emitEnd);
             sb.append("||").append(decodeContent(text.substring(start + 1, end))).append("||");
             cursor = end + 1;
+            // Skip wrapper suffix
+            if (cursor < text.length() && text.charAt(cursor) == ']') {
+                cursor++;
+            }
         }
         return sb.toString();
     }
