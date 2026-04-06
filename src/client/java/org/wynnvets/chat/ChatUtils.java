@@ -331,6 +331,7 @@ public final class ChatUtils {
      */
     public static MutableComponent formatMessageBody(String message, Style textStyle) {
         String bodyText = message == null ? "" : message;
+        bodyText = stripServerContinuations(bodyText);
         MutableComponent formatted = Component.empty();
         int cursor = 0;
 
@@ -393,6 +394,55 @@ public final class ChatUtils {
     }
 
     /**
+     * Strips server-injected line-continuation sequences ({@code \n<marker>}) from
+     * the body text, joining wrapped lines with a single space.  This ensures that
+     * inline patterns like {@code ||spoiler||} are not split across segments before
+     * spoiler and URL processing.
+     *
+     * <p>Inline markers (not preceded by {@code \n}) are left intact for the main
+     * loop in {@link #formatMessageBody} to handle.</p>
+     */
+    private static String stripServerContinuations(String text) {
+        if (text.indexOf('\n') < 0) {
+            return text;
+        }
+        StringBuilder sb = new StringBuilder();
+        int cursor = 0;
+        while (cursor < text.length()) {
+            int nlIndex = text.indexOf('\n', cursor);
+            if (nlIndex < 0) {
+                sb.append(text, cursor, text.length());
+                break;
+            }
+            MarkerMatch match = nextPrefixMarker(text, nlIndex + 1);
+            if (match != null && match.index == nlIndex + 1) {
+                sb.append(text, cursor, nlIndex);
+                cursor = match.index + match.length;
+                if (cursor < text.length() && text.charAt(cursor) == ' ') {
+                    cursor++;
+                }
+                while (cursor < text.length()) {
+                    MarkerMatch extra = nextPrefixMarker(text, cursor);
+                    if (extra == null || extra.index != cursor) {
+                        break;
+                    }
+                    cursor = extra.index + extra.length;
+                    if (cursor < text.length() && text.charAt(cursor) == ' ') {
+                        cursor++;
+                    }
+                }
+                if (cursor < text.length() && sb.length() > 0) {
+                    sb.append(' ');
+                }
+            } else {
+                sb.append(text, cursor, nlIndex + 1);
+                cursor = nlIndex + 1;
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
      * Appends a text segment to a parent component, detecting URLs and making
      * them clickable with {@link ClickEvent.OpenUrl}.
      */
@@ -404,7 +454,7 @@ public final class ChatUtils {
         int lastEnd = 0;
         while (matcher.find()) {
             if (matcher.start() > lastEnd) {
-                parent.append(Component.literal(text.substring(lastEnd, matcher.start())).setStyle(textStyle));
+                SpoilerFormatter.appendWithSpoilers(parent, text.substring(lastEnd, matcher.start()), textStyle);
             }
             String url = matcher.group();
             try {
@@ -417,9 +467,9 @@ public final class ChatUtils {
             lastEnd = matcher.end();
         }
         if (lastEnd == 0) {
-            parent.append(Component.literal(text).setStyle(textStyle));
+            SpoilerFormatter.appendWithSpoilers(parent, text, textStyle);
         } else if (lastEnd < text.length()) {
-            parent.append(Component.literal(text.substring(lastEnd)).setStyle(textStyle));
+            SpoilerFormatter.appendWithSpoilers(parent, text.substring(lastEnd), textStyle);
         }
     }
 

@@ -12,6 +12,7 @@ import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.rewriter.EncourageUpdateRewriter;
 import org.wynnvets.chat.rewriter.ServerGuildChatRewriter;
+import org.wynnvets.chat.rewriter.SpoilerRewriter;
 import org.wynnvets.chat.rewriter.StaffChannelMessageRewriter;
 import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
 import org.wynnvets.chat.StaffOutboundMessenger;
@@ -104,6 +105,13 @@ public class ChatLogMixin {
     // Rewrite server guild chat messages from supporters with gradient pill styling.
     // Re-entry is blocked by ChatUtils internal dispatch guard above.
     if (ServerGuildChatRewriter.tryRewrite(message, messageString)) {
+      ci.cancel();
+      return;
+    }
+
+    // Rewrite guild chat messages containing ||spoiler|| markers (non-supporters).
+    // Supporter messages are already processed above via ServerGuildChatRewriter.
+    if (SpoilerRewriter.tryRewrite(message, messageString)) {
       ci.cancel();
     }
   }

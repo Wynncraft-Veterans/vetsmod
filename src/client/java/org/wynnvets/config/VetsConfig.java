@@ -57,6 +57,9 @@ public class VetsConfig {
   /** Whether supporter animated gradient glints are shown on nametags and pills. */
   public static final String SHOW_SUPPORTER_GLINTS = "showSupporterGlints";
 
+  /** Whether {@code ||spoiler||} markers are rendered as hoverable spoiler labels. */
+  public static final String HANDLE_SPOILERS = "handleSpoilers";
+
   /**
    * Ordered list of configuration keys that can be toggled by the player via
    * {@code /wv config <key> <value>}.  Internal keys (staff status, timestamps,
@@ -68,6 +71,7 @@ public class VetsConfig {
       PRINT_ANNI,
       PRINT_BRIDGE_MESSAGES,
       SHOW_SUPPORTER_GLINTS,
+      HANDLE_SPOILERS,
   };
 
   // Default values
@@ -83,6 +87,7 @@ public class VetsConfig {
     config.put(PRINT_ANNI, true);
     config.put(PRINT_BRIDGE_MESSAGES, true);
     config.put(SHOW_SUPPORTER_GLINTS, true);
+    config.put(HANDLE_SPOILERS, true);
   }
 
   /**

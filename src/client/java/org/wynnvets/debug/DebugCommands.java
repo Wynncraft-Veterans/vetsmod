@@ -8,7 +8,10 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.debug.diagnostics.DiagnosticsHandler;
@@ -77,6 +80,11 @@ public final class DebugCommands {
                         .suggests(SUGGEST_BOOLEAN_VALUES)
                         .executes(DebugCommands::debugConfigSet)
                     )
+                )
+            )
+            .then(ClientCommandManager.literal("trigger")
+                .then(ClientCommandManager.literal("charDump")
+                    .executes(DebugCommands::triggerCharDump)
                 )
             );
     }
@@ -158,6 +166,62 @@ public final class DebugCommands {
                 .withStyle(ChatFormatting.GRAY)
                 .append(Component.literal(String.valueOf(value))
                     .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED))
+        );
+        return 1;
+    }
+
+    // ── /wv debug trigger handlers ──────────────────────────────────
+
+    /**
+     * Surrogate pair prefix used by Wynncraft's resource pack to render
+     * PUA icon characters in the {@code chat/prefix} font.
+     */
+    private static final String PREFIX = "\uDAFF\uDFFC";
+    private static final String SUFFIX = "\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
+
+    private static final Style CHAT_PREFIX_FONT = Style.EMPTY
+            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+            .withoutShadow();
+
+    /**
+     * {@code /wv debug trigger charDump} — renders PUA characters U+E001
+     * through U+E040 in the resource pack's {@code chat/prefix} font,
+     * displayed as badge-style sequences so their glyphs are visible.
+     */
+    private static int triggerCharDump(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessage(
+            Component.literal("PUA Icon Character Dump (U+E001 – U+E040)")
+                .withStyle(ChatFormatting.GOLD)
+        );
+
+        // Print 8 characters per line
+        for (int row = 0xE001; row <= 0xE040; row += 8) {
+            MutableComponent line = Component.empty();
+            int end = Math.min(row + 8, 0xE041);
+
+            for (int cp = row; cp < end; cp++) {
+                if (cp > row) {
+                    line.append(Component.literal("  ").withStyle(ChatFormatting.DARK_GRAY));
+                }
+
+                // Label: "E001" etc.
+                String label = String.format("E%03X", cp & 0xFFF);
+                line.append(Component.literal(label + " ")
+                    .withStyle(ChatFormatting.GRAY));
+
+                // Render the icon in the resource pack font using the
+                // full badge sequence: PREFIX + icon char + SUFFIX
+                String iconSeq = PREFIX + (char) cp + SUFFIX;
+                line.append(Component.literal(iconSeq)
+                    .setStyle(CHAT_PREFIX_FONT));
+            }
+
+            ChatUtils.sendLocalMessage(line);
+        }
+
+        ChatUtils.sendLocalMessage(
+            Component.literal("End of dump. Characters without glyphs will appear blank.")
+                .withStyle(ChatFormatting.GRAY)
         );
         return 1;
     }
