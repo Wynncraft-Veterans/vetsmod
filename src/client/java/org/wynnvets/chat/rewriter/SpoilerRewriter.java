@@ -2,12 +2,11 @@ package org.wynnvets.chat.rewriter;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FontDescription;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.SpoilerFormatter;
+import org.wynnvets.chat.SpoilerCodec;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.guild.GuildStateManager;
 
@@ -15,27 +14,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Rewrites server guild chat messages that contain {@code ||spoiler||} markers,
- * replacing them with hoverable "[Spoiler - Hover to see]" labels.
+ * Rewrites any incoming chat message that contains PUA-encoded spoiler blocks
+ * ({@code \uF600…\uF601}), replacing them with hoverable
+ * "[Spoiler - Hover to see]" labels.
  *
- * <p>This rewriter fires for non-supporter guild chat messages (supporter
- * messages are already handled by {@link ServerGuildChatRewriter}, which
- * processes spoilers via {@link ChatUtils#formatMessageBody}).  The original
- * component structure (badge, pill, username styling) is preserved; only the
- * message body is reprocessed for spoiler rendering.</p>
+ * <p>This rewriter fires for server-originating messages (guild chat from
+ * other players).  Bridge and mod-constructed messages are handled by
+ * {@link org.wynnvets.chat.SpoilerFormatter} through the
+ * {@link ChatUtils#formatMessageBody} path instead.</p>
  */
 public final class SpoilerRewriter {
 
-    /** Aqua style matching the server guild chat badge, used for continuation markers. */
-    private static final Style PREPEND_STYLE = Style.EMPTY
-            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-            .withoutShadow()
-            .withColor(ChatFormatting.AQUA);
+    private static final Style SPOILER_LABEL_STYLE = Style.EMPTY.withColor(ChatFormatting.GREEN);
 
     private SpoilerRewriter() {}
 
     /**
-     * Attempts to rewrite a guild chat message containing spoiler markers.
+     * Attempts to rewrite a chat message containing PUA-encoded spoiler blocks.
      *
      * @param component     the original chat component
      * @param messageString the plain-text form of the message
@@ -48,112 +43,145 @@ public final class SpoilerRewriter {
         if (!isEligible()) {
             return false;
         }
-        if (!SpoilerFormatter.containsSpoilers(messageString)) {
+        if (!SpoilerCodec.containsEncodedSpoiler(messageString)) {
             return false;
         }
 
-        int colonIndex = findGuildChatColon(messageString);
-        if (colonIndex < 0) {
-            return false;
-        }
-
-        int bodyStart = colonIndex + 1;
-        while (bodyStart < messageString.length() && messageString.charAt(bodyStart) == ' ') {
-            bodyStart++;
-        }
-        if (bodyStart >= messageString.length()) {
-            return false;
-        }
-
-        String bodyText = messageString.substring(bodyStart);
-        if (!SpoilerFormatter.containsSpoilers(bodyText)) {
-            return false;
-        }
-
-        MutableComponent result = rebuildWithSpoilers(component, bodyStart);
-        ChatUtils.dispatchToChat(result, PREPEND_STYLE);
+        MutableComponent result = rebuildWithDecodedSpoilers(component);
+        ChatUtils.dispatchToChat(result, Style.EMPTY);
         return true;
     }
 
-    // ── Guild chat detection ──────────────────────────────────────────
+    // ── Component rebuild ─────────────────────────────────────────────
 
     /**
-     * Finds the colon separating the username from the message body in a guild
-     * chat message.  Returns -1 if the message is not in guild chat format
-     * (requires PUA glyphs before the colon, indicating a badge/pill prefix).
+     * Walks the component tree, replacing any PUA-encoded spoiler blocks in
+     * text fragments with hoverable spoiler labels.  All other fragments
+     * (badges, pills, interactive elements) are preserved as-is.
+     *
+     * <p>When Wynncraft wraps a long message across multiple lines, the encoded
+     * spoiler ({@code \uF600…\uF601}) may be split across separate component
+     * fragments.  If no single fragment contains a complete spoiler pair, we
+     * fall back to accumulating the message body across fragments and processing
+     * it through {@link ChatUtils#formatMessageBody}, which strips continuation
+     * markers and handles spoiler formatting correctly.</p>
      */
-    private static int findGuildChatColon(String message) {
-        int colonIndex = message.indexOf(':');
-        if (colonIndex <= 0) {
-            return -1;
-        }
-
-        int lastGlyphEnd = -1;
-        int idx = 0;
-        while (idx < colonIndex) {
-            int cp = message.codePointAt(idx);
-            int charCount = Character.charCount(cp);
-            int type = Character.getType(cp);
-            boolean isCustomGlyph = type == Character.PRIVATE_USE
-                    || (type == Character.UNASSIGNED && cp > 0xFFFF);
-            if (isCustomGlyph) {
-                lastGlyphEnd = idx + charCount;
-            }
-            idx += charCount;
-        }
-
-        if (lastGlyphEnd <= 0 || lastGlyphEnd >= colonIndex) {
-            return -1;
-        }
-        return colonIndex;
-    }
-
-    // ── Body extraction and rebuild ───────────────────────────────────
-
-    /**
-     * Rebuilds the message component, copying prefix fragments (badge, pill,
-     * username) as-is and reprocessing body fragments through
-     * {@link ChatUtils#formatMessageBody} for spoiler detection.
-     */
-    private static MutableComponent rebuildWithSpoilers(Component component, int bodyStart) {
+    private static MutableComponent rebuildWithDecodedSpoilers(Component component) {
         List<StyledFragment> fragments = new ArrayList<>();
         flattenComponent(component, component.getStyle(), fragments);
 
-        MutableComponent result = Component.empty();
-        int charOffset = 0;
-        StringBuilder bodyAccum = new StringBuilder();
-        Style bodyStyle = ChatUtils.RANK_STYLE;
-
+        // Fast path: if any single fragment contains a complete spoiler pair,
+        // process fragments individually (works for short, unwrapped spoilers).
+        boolean anySingleFragmentHasSpoiler = false;
         for (StyledFragment frag : fragments) {
-            int fragEnd = charOffset + frag.text.length();
+            if (SpoilerCodec.containsEncodedSpoiler(frag.text)) {
+                anySingleFragmentHasSpoiler = true;
+                break;
+            }
+        }
 
-            if (fragEnd <= bodyStart) {
+        if (!anySingleFragmentHasSpoiler) {
+            // Spoiler spans multiple fragments (Wynncraft line-wrapping).
+            return rebuildCrossFragmentSpoilers(fragments);
+        }
+
+        MutableComponent result = Component.empty();
+        for (StyledFragment frag : fragments) {
+            if (!SpoilerCodec.containsEncodedSpoiler(frag.text)) {
                 result.append(Component.literal(frag.text).setStyle(frag.style));
-            } else if (charOffset >= bodyStart) {
-                boolean isInteractive = frag.style.getClickEvent() != null
-                        || frag.style.getHoverEvent() != null;
-                if (isInteractive && !ChatUtils.isWrapStructure(frag.text)) {
-                    if (bodyAccum.length() > 0) {
-                        result.append(ChatUtils.formatMessageBody(bodyAccum.toString(), bodyStyle));
-                        bodyAccum.setLength(0);
-                    }
-                    result.append(Component.literal(frag.text).setStyle(frag.style));
-                } else {
-                    bodyAccum.append(frag.text);
-                }
-            } else {
-                String prefix = frag.text.substring(0, bodyStart - charOffset);
-                String body = frag.text.substring(bodyStart - charOffset);
-                result.append(Component.literal(prefix).setStyle(frag.style));
-                bodyAccum.append(body);
+                continue;
             }
 
-            charOffset = fragEnd;
+            int cursor = 0;
+            String text = frag.text;
+            while (cursor < text.length()) {
+                int start = text.indexOf(SpoilerCodec.SPOILER_START, cursor);
+                if (start < 0) {
+                    result.append(Component.literal(text.substring(cursor)).setStyle(frag.style));
+                    break;
+                }
+                int end = text.indexOf(SpoilerCodec.SPOILER_END, start + 1);
+                if (end < 0) {
+                    result.append(Component.literal(text.substring(cursor)).setStyle(frag.style));
+                    break;
+                }
+
+                if (start > cursor) {
+                    result.append(Component.literal(text.substring(cursor, start)).setStyle(frag.style));
+                }
+
+                String encoded = text.substring(start + 1, end);
+                String decoded = SpoilerCodec.decodeContent(encoded);
+                Style hoverStyle = SPOILER_LABEL_STYLE.withHoverEvent(
+                        new HoverEvent.ShowText(Component.literal(decoded)));
+                result.append(Component.literal("[Spoiler - Hover to see]").setStyle(hoverStyle));
+
+                cursor = end + 1;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Handles spoilers that span multiple component fragments due to Wynncraft
+     * line-wrapping.  Prefix fragments (rank pill, badge, display name, colon)
+     * are preserved as-is; body fragments are accumulated and processed through
+     * {@link ChatUtils#formatMessageBody} which strips continuation markers and
+     * handles spoiler formatting via {@link org.wynnvets.chat.SpoilerFormatter}.
+     */
+    private static MutableComponent rebuildCrossFragmentSpoilers(List<StyledFragment> fragments) {
+        MutableComponent result = Component.empty();
+
+        // Find the colon that separates the prefix (rank/name) from the body.
+        int colonFragIdx = -1;
+        int colonInFrag = -1;
+        for (int i = 0; i < fragments.size(); i++) {
+            int pos = fragments.get(i).text.indexOf(':');
+            if (pos >= 0) {
+                colonFragIdx = i;
+                colonInFrag = pos;
+                break;
+            }
         }
 
-        if (bodyAccum.length() > 0) {
-            result.append(ChatUtils.formatMessageBody(bodyAccum.toString(), bodyStyle));
+        if (colonFragIdx < 0) {
+            // No colon found — pass through unchanged.
+            for (StyledFragment frag : fragments) {
+                result.append(Component.literal(frag.text).setStyle(frag.style));
+            }
+            return result;
         }
+
+        // Emit prefix fragments (before the colon fragment) as-is.
+        for (int i = 0; i < colonFragIdx; i++) {
+            result.append(Component.literal(fragments.get(i).text).setStyle(fragments.get(i).style));
+        }
+
+        // Split the colon fragment: prefix up to and including ": ", body after.
+        StyledFragment colonFrag = fragments.get(colonFragIdx);
+        int bodyStart = colonInFrag + 1;
+        boolean hadSpace = false;
+        if (bodyStart < colonFrag.text.length() && colonFrag.text.charAt(bodyStart) == ' ') {
+            bodyStart++;
+            hadSpace = true;
+        }
+        result.append(Component.literal(colonFrag.text.substring(0, bodyStart)).setStyle(colonFrag.style));
+        // Ensure a space follows the colon even when the fragment boundary
+        // falls right after ":" (Wynncraft often starts a new style there).
+        if (!hadSpace) {
+            result.append(Component.literal(" ").setStyle(colonFrag.style));
+        }
+
+        // Accumulate body text from remaining fragments.
+        StringBuilder bodyBuilder = new StringBuilder();
+        bodyBuilder.append(colonFrag.text.substring(bodyStart));
+        for (int i = colonFragIdx + 1; i < fragments.size(); i++) {
+            bodyBuilder.append(fragments.get(i).text);
+        }
+
+        // Process accumulated body through formatMessageBody, which strips
+        // continuation markers, detects URLs, and formats spoilers.
+        result.append(ChatUtils.formatMessageBody(bodyBuilder.toString(), ChatUtils.RANK_STYLE));
 
         return result;
     }

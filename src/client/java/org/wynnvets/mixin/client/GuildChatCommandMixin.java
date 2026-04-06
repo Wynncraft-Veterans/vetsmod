@@ -14,6 +14,7 @@ import org.wynnvets.fetcher.polling.StaffRanksFetcher;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.OutboundDisplayHandler;
+import org.wynnvets.chat.SpoilerCodec;
 import org.wynnvets.chat.StaffOutboundMessenger;
 import org.wynnvets.logging.VetsLogger;
 
@@ -38,12 +39,25 @@ public class GuildChatCommandMixin {
   private void onSendCommand(String command, CallbackInfo ci) {
     // Check if this is a guild chat command for guildless+waitlist-unlocked users
     if (command.regionMatches(true, 0, "g ", 0, 2)) {
+      String message = command.substring(2);
+
       if (GuildStateManager.isGuildless() && GuildStateManager.isWaitlistUnlocked()) {
         VetsLogger.debug("Intercepted /g for waitlist bridge relay");
         ci.cancel();
-        String message = command.substring(2);
-        handleWaitlistChat(message);
+        handleWaitlistChat(SpoilerCodec.encodeSpoilers(message));
+        return;
       }
+
+      // Returners members: encode ||spoiler|| markers to PUA before sending
+      // to the server so that non-vetsmod users cannot be spoiled.
+      if (GuildStateManager.isReturners() && SpoilerCodec.containsPipeSpoiler(message)) {
+        ci.cancel();
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player != null && minecraft.player.connection != null) {
+          minecraft.player.connection.sendCommand("g " + SpoilerCodec.encodeSpoilers(message));
+        }
+      }
+
       return;
     }
 
@@ -53,7 +67,7 @@ public class GuildChatCommandMixin {
         VetsLogger.debug("Intercepted /wg for honourary bridge relay");
         ci.cancel();
         String message = command.substring(3);
-        handleHonouraryChat(message);
+        handleHonouraryChat(SpoilerCodec.encodeSpoilers(message));
       } else {
         ci.cancel();
         ChatUtils.sendLocalMessage(
