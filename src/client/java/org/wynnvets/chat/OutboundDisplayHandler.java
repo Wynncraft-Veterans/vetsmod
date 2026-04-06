@@ -41,9 +41,6 @@ public final class OutboundDisplayHandler {
     private static final Object pendingSelfLock = new Object();
     private static final Deque<RecentServerMessage> recentServerMessages = new ArrayDeque<>();
     private static final Object recentServerLock = new Object();
-    private static final Deque<RecentOutboundMessage> recentOutboundMessages = new ArrayDeque<>();
-    private static final Object recentOutboundLock = new Object();
-    private static final int MAX_RECENT_OUTBOUND_MESSAGES = 200;
     private static final Deque<RecentBridgeMessage> recentBridgeMessages = new ArrayDeque<>();
     private static final Object recentBridgeLock = new Object();
     private static final int MAX_RECENT_BRIDGE_MESSAGES = 200;
@@ -136,9 +133,6 @@ public final class OutboundDisplayHandler {
         synchronized (recentServerLock) {
             recentServerMessages.clear();
         }
-        synchronized (recentOutboundLock) {
-            recentOutboundMessages.clear();
-        }
         synchronized (recentBridgeLock) {
             recentBridgeMessages.clear();
         }
@@ -197,20 +191,11 @@ public final class OutboundDisplayHandler {
             recordBridgeOutbound(message);
         }
 
-        synchronized (recentOutboundLock) {
-            long now = System.currentTimeMillis();
-            pruneExpiredOutboundMessages(now);
-            if (recentOutboundMessages.size() >= MAX_RECENT_OUTBOUND_MESSAGES) {
-                recentOutboundMessages.pollFirst();
-            }
-            recentOutboundMessages.addLast(new RecentOutboundMessage(username, message, now));
-        }
-
         ChatUtils.sendGuildChatMessage(rank, username, message);
     }
 
     private static boolean shouldDisplayMessages() {
-        // Returners members see outbound messages (bridge/Fruma support)
+        // Returners members see outbound messages (bridge messages)
         if (GuildStateManager.isReturners()) {
             return true;
         }
@@ -311,16 +296,6 @@ public final class OutboundDisplayHandler {
                 return;
             }
             recentServerMessages.pollFirst();
-        }
-    }
-
-    private static void pruneExpiredOutboundMessages(long nowMs) {
-        while (!recentOutboundMessages.isEmpty()) {
-            RecentOutboundMessage head = recentOutboundMessages.peekFirst();
-            if (head == null || nowMs - head.createdAtMs <= SERVER_MESSAGE_DEDUP_WINDOW_MS) {
-                return;
-            }
-            recentOutboundMessages.pollFirst();
         }
     }
 
@@ -449,18 +424,6 @@ public final class OutboundDisplayHandler {
         final long createdAtMs;
 
         RecentServerMessage(String displayName, String message, long createdAtMs) {
-            this.displayName = displayName;
-            this.message = message;
-            this.createdAtMs = createdAtMs;
-        }
-    }
-
-    private static final class RecentOutboundMessage {
-        final String displayName;
-        final String message;
-        final long createdAtMs;
-
-        RecentOutboundMessage(String displayName, String message, long createdAtMs) {
             this.displayName = displayName;
             this.message = message;
             this.createdAtMs = createdAtMs;

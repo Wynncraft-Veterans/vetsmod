@@ -9,6 +9,7 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.SpoilerCodec;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +39,7 @@ public final class SpoilerRewriter {
      */
     public static boolean tryRewrite(Component component, String messageString) {
         if (!VetsConfig.get(VetsConfig.HANDLE_SPOILERS)) {
+            VetsLogger.debug("SpoilerRewriter: skipped — handleSpoilers config disabled");
             return false;
         }
         if (!isEligible()) {
@@ -47,6 +49,7 @@ public final class SpoilerRewriter {
             return false;
         }
 
+        VetsLogger.debug("SpoilerRewriter: rewriting message with encoded spoiler (len={})", messageString.length());
         MutableComponent result = rebuildWithDecodedSpoilers(component);
         ChatUtils.dispatchToChat(result, Style.EMPTY);
         return true;

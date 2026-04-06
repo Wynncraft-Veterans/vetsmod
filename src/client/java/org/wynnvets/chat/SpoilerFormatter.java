@@ -7,6 +7,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Processes PUA-encoded spoiler blocks ({@code \uF600…\uF601}) in chat
@@ -44,6 +45,8 @@ public final class SpoilerFormatter {
             parent.append(Component.literal(text).setStyle(textStyle));
             return;
         }
+
+        VetsLogger.debug("SpoilerFormatter: processing text with encoded spoiler (len={})", text.length());
 
         int cursor = 0;
         while (cursor < text.length()) {

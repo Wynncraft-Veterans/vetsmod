@@ -2,6 +2,7 @@ package org.wynnvets.chat;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Encodes and decodes spoiler content between Discord-style {@code ||text||}
@@ -74,6 +75,7 @@ public final class SpoilerCodec {
             return message;
         }
 
+        VetsLogger.debug("SpoilerCodec.encodeSpoilers: input=\"{}\"", message);
         StringBuilder sb = new StringBuilder();
         int lastEnd = 0;
         matcher.reset();
@@ -82,10 +84,13 @@ public final class SpoilerCodec {
             sb.append(SPOILER_START);
             encodeContent(matcher.group(1), sb);
             sb.append(SPOILER_END);
+            VetsLogger.debug("SpoilerCodec.encodeSpoilers: encoded spoiler content=\"{}\"", matcher.group(1));
             lastEnd = matcher.end();
         }
         sb.append(message, lastEnd, message.length());
-        return sb.toString();
+        String result = sb.toString();
+        VetsLogger.debug("SpoilerCodec.encodeSpoilers: output length={}", result.length());
+        return result;
     }
 
     /**
@@ -108,15 +113,18 @@ public final class SpoilerCodec {
                     sb.append((char) (DIRECT_MAX + 1 + d0 + d1 * RADIX + d2 * RADIX * RADIX));
                     i += 4;
                 } else {
+                    VetsLogger.debug("SpoilerCodec.decodeContent: truncated escape at index {}, remaining={}", i, encoded.length() - i);
                     i++;
                 }
             } else if (ch >= ENCODE_BASE && ch < ESCAPE) {
                 sb.append((char) (ch - ENCODE_BASE));
                 i++;
             } else {
+                VetsLogger.debug("SpoilerCodec.decodeContent: unexpected char U+{} at index {}", String.format("%04X", (int) ch), i);
                 i++;
             }
         }
+        VetsLogger.debug("SpoilerCodec.decodeContent: decoded \"{}\" (len={})", sb, sb.length());
         return sb.toString();
     }
 
