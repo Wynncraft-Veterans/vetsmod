@@ -49,7 +49,6 @@ public final class OutboundDisplayHandler {
     private static final int MAX_RECENT_BRIDGE_MESSAGES = 200;
 
     private static Consumer<JsonObject> registeredListener;
-    private static volatile boolean frumaModeEnabled = false;
 
     // UUID-based dedup: prevents duplicate display when the same outbound
     // message is delivered more than once (e.g. dual WebSocket connections).
@@ -148,40 +147,7 @@ public final class OutboundDisplayHandler {
         }
     }
 
-    /** Enable or disable Fruma mode bridge mirroring. */
-    public static void setFrumaModeEnabled(boolean enabled) {
-        frumaModeEnabled = enabled;
-    }
 
-    /** Returns whether Fruma mode bridge mirroring is enabled. */
-    public static boolean isFrumaModeEnabled() {
-        return frumaModeEnabled;
-    }
-
-    /**
-     * Checks whether a message was recently displayed from the outbound WebSocket.
-     * Used by Fruma mode to suppress the corresponding server guild message.
-     *
-     * @param displayName the sender's display name
-     * @param message     the message content
-     * @return true if a matching outbound message was recently shown
-     */
-    public static boolean wasOutboundMessageRecentlyDisplayed(String displayName, String message) {
-        if (message == null || message.isEmpty()) {
-            return false;
-        }
-        String normalized = normalizeForDedup(message);
-        synchronized (recentOutboundLock) {
-            long now = System.currentTimeMillis();
-            pruneExpiredOutboundMessages(now);
-            for (RecentOutboundMessage recent : recentOutboundMessages) {
-                if (normalizeForDedup(recent.message).equals(normalized)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
 
     private static void onOutboundMessage(JsonObject json) {
         if (!VetsConfig.get(VetsConfig.PRINT_BRIDGE_MESSAGES)) {
@@ -217,12 +183,8 @@ public final class OutboundDisplayHandler {
 
         // Returners members already receive guild chat from the Wynncraft
         // server with proper pill rendering, nicknames, and supporter
-        // gradients.  Never display outbound guild echoes for them — the
-        // old race-condition dedup (wasServerMessageRecentlySeen) was
-        // unreliable and caused intermittent Tag-instead-of-Pill display.
-        // In Fruma mode the server doesn't deliver guild chat, so the
-        // outbound must be shown.
-        if (GuildStateManager.isReturners() && "guild".equals(type) && !frumaModeEnabled) {
+        // gradients.  Never display outbound guild echoes for them.
+        if (GuildStateManager.isReturners() && "guild".equals(type)) {
             return;
         }
 
@@ -235,7 +197,6 @@ public final class OutboundDisplayHandler {
             recordBridgeOutbound(message);
         }
 
-        // Record this message for Fruma mode cross-source dedup
         synchronized (recentOutboundLock) {
             long now = System.currentTimeMillis();
             pruneExpiredOutboundMessages(now);

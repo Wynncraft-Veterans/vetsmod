@@ -11,7 +11,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
@@ -87,7 +86,6 @@ public final class DiagnosticsHandler {
         String selfRank = GuildStateManager.selfStaffRank();
         boolean canExecute = GuildStateManager.canExecuteCommands();
         boolean debugOverride = GuildStateManager.isDebugForceGuildlessUnlocked();
-        boolean frumaModeEnabled = OutboundDisplayHandler.isFrumaModeEnabled();
         boolean automessageEnabled = VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE);
         boolean debugLogging = VetsLogger.isDebugEnabled();
         String playerName = GuildStateManager.playerName();
@@ -154,8 +152,6 @@ public final class DiagnosticsHandler {
         chatMsg.append(boolComponent(debugLogging));
         chatMsg.append(Component.literal(" | Automessage: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(boolComponent(automessageEnabled));
-        chatMsg.append(Component.literal(" | Fruma: ").withStyle(ChatFormatting.GRAY));
-        chatMsg.append(boolComponent(frumaModeEnabled));
 
         ChatUtils.sendLocalMessage(chatMsg);
 
@@ -169,7 +165,7 @@ public final class DiagnosticsHandler {
         VetsLogger.info("Player: {}", playerName);
         VetsLogger.info("Guild state: returners={}, guildless={}, unlocked={}, canExecute={}", isReturners, isGuildless, isUnlocked, canExecute);
         VetsLogger.info("Staff: {}, rank={}", isStaff, selfRank.isEmpty() ? "none" : selfRank);
-        VetsLogger.info("Config: automessage={}, debugLogging={}, frumaMode={}, debugGuildlessOverride={}", automessageEnabled, debugLogging, frumaModeEnabled, debugOverride);
+        VetsLogger.info("Config: automessage={}, debugLogging={}, debugGuildlessOverride={}", automessageEnabled, debugLogging, debugOverride);
 
         // Mod list
         Collection<ModContainer> mods = FabricLoader.getInstance().getAllMods();

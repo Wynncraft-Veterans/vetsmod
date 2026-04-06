@@ -5,7 +5,6 @@
 	"client": [
 		"AnimatedChatMixin",
 		"ChatLogMixin",
-		"FrumaModeCommandMixin",
 		"GuildChatCommandMixin",
 		"LegacyHighlightMixin",
 		"LegacyHotbarMixin",

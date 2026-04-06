@@ -23,7 +23,7 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>This is the primary chat pipeline hook. It performs, in order:
  * logging to file, guild state detection, mod-initiated message suppression,
- * staff outbound feedback suppression, Fruma-mode duplicate suppression,
+ * staff outbound feedback suppression,
  * and chat rewriting (staff alerts, staff channel, supporter gradients).
  * Messages generated internally by the mod are passed through unmodified.</p>
  */
@@ -67,21 +67,10 @@ public class ChatLogMixin {
       return;
     }
 
-    // Record server guild chat for Fruma mode cross-source dedup.
-    // With the hard gate in OutboundDisplayHandler (Returners + guild +
-    // non-Fruma → skip), outbound guild messages are never displayed for
-    // Returners, so the old wasOutboundMessageRecentlyDisplayed race is
-    // no longer needed.  In Fruma mode the outbound IS displayed and
-    // this recording feeds wasOutboundMessageRecentlyDisplayed.
+    // Record server guild chat for cross-source dedup.
     String[] parsedGuildChat = parseGuildChat(messageString);
     if (parsedGuildChat != null) {
       OutboundDisplayHandler.recordServerGuildMessage(parsedGuildChat[0], parsedGuildChat[1]);
-
-      if (OutboundDisplayHandler.isFrumaModeEnabled() && OutboundDisplayHandler.wasOutboundMessageRecentlyDisplayed(parsedGuildChat[0], parsedGuildChat[1])) {
-        VetsLogger.debug("Suppressed duplicate server guild chat (Fruma mode — already shown via outbound)");
-        ci.cancel();
-        return;
-      }
     }
 
     // Rewrite encourage-update messages (⚠⚠⚠ ... ⚠⚠⚠) into version status output.
