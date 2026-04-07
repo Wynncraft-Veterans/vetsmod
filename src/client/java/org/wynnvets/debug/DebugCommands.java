@@ -15,6 +15,7 @@ import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.debug.diagnostics.DiagnosticsHandler;
+import org.wynnvets.guild.GuildStateManager;
 
 /**
  * Builds the entire {@code /wv debug} command subtree.
@@ -30,6 +31,8 @@ import org.wynnvets.debug.diagnostics.DiagnosticsHandler;
  *   <li>{@code /wv debug set} — list debug config keys</li>
  *   <li>{@code /wv debug set <key>} — get value of a debug config key</li>
  *   <li>{@code /wv debug set <key> <value>} — set a debug config key</li>
+ *   <li>{@code /wv debug trigger charDump} — render PUA icon characters</li>
+ *   <li>{@code /wv debug trigger forceChecks} — force re-check guild membership, rank, and staff status</li>
  * </ul>
  */
 public final class DebugCommands {
@@ -85,6 +88,9 @@ public final class DebugCommands {
             .then(ClientCommandManager.literal("trigger")
                 .then(ClientCommandManager.literal("charDump")
                     .executes(DebugCommands::triggerCharDump)
+                )
+                .then(ClientCommandManager.literal("forceChecks")
+                    .executes(DebugCommands::triggerForceChecks)
                 )
             );
     }
@@ -223,6 +229,16 @@ public final class DebugCommands {
             Component.literal("End of dump. Characters without glyphs will appear blank.")
                 .withStyle(ChatFormatting.GRAY)
         );
+        return 1;
+    }
+
+    /**
+     * {@code /wv debug trigger forceChecks} — forces a re-read of guild
+     * membership, rank, and staff status from the Wynntils API, reporting
+     * all current values to chat.
+     */
+    private static int triggerForceChecks(CommandContext<FabricClientCommandSource> ctx) {
+        GuildStateManager.forceGuildRecheck();
         return 1;
     }
 }

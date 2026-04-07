@@ -3,9 +3,11 @@ package org.wynnvets.guild;
 import com.wynntils.core.components.Models;
 import com.wynntils.models.guild.type.GuildRank;
 import com.wynntils.models.worlds.type.WorldState;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import org.apache.commons.lang3.StringUtils;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.config.VetsConfig;
@@ -71,6 +73,13 @@ public class GuildStateManager {
   // State tracking for MOTD to prevent duplicate fetches
   private static long lastMotdFetchTime = 0;
   private static final long MOTD_FETCH_COOLDOWN = 1000; // 1 second cooldown
+
+  // Delayed guild re-check for guildless users after world switch.
+  // Wynntils' compass scan is asynchronous — guild info may not be
+  // available when onEnteredWorld() fires.
+  private static final long GUILD_RECHECK_DELAY_MS = 3000;
+  private static final int GUILD_RECHECK_MAX_ATTEMPTS = 3;
+  private static final long GUILD_RECHECK_INTERVAL_MS = 2000;
 
   // Tracks whether the guild-specific MOTD was shown this session.
   // When guild info isn't available at world-join time, the standard MOTD is
@@ -482,6 +491,13 @@ public class GuildStateManager {
 
     VetsLogger.debug("onEnteredWorld: guild={}, guildless={}, returners={}",
         Models.Guild.getGuildName(), isGuildless(), isReturners());
+
+    // When guild info is not yet available (empty name), Wynntils may still
+    // be scanning the compass menu asynchronously.  Schedule a delayed
+    // re-check so we don't stay stuck as "guildless" for the entire session.
+    if (!debugForceGuildlessUnlocked && wynntilsReady && !Models.Guild.isInGuild()) {
+      scheduleGuildRecheck();
+    }
   }
 
   /**
@@ -644,6 +660,151 @@ public class GuildStateManager {
       VetsLogger.error("SHA-256 algorithm not available", e);
       return null;
     }
+  }
+
+  /**
+   * Schedules a delayed guild info re-check.  Wynntils' compass scan runs
+   * asynchronously after world join, so guild info may not be populated yet.
+   * This method polls {@code Models.Guild} after an initial delay and retries
+   * a few times if the guild name is still empty.
+   */
+  private static void scheduleGuildRecheck() {
+    new Thread(() -> {
+      try {
+        Thread.sleep(GUILD_RECHECK_DELAY_MS);
+
+        for (int attempt = 1; attempt <= GUILD_RECHECK_MAX_ATTEMPTS; attempt++) {
+          if (!wynntilsReady || !enteredWorld) {
+            VetsLogger.debug("Guild recheck aborted: wynntilsReady={}, enteredWorld={}",
+                wynntilsReady, enteredWorld);
+            return;
+          }
+
+          boolean inGuild = Models.Guild.isInGuild();
+          String name = Models.Guild.getGuildName();
+          VetsLogger.debug("Guild recheck attempt {}/{}: inGuild={}, name={}",
+              attempt, GUILD_RECHECK_MAX_ATTEMPTS, inGuild, name);
+
+          if (inGuild) {
+            VetsLogger.info("Guild info now available after recheck: {}", name);
+            onGuildInfoUpdated();
+            return;
+          }
+
+          if (attempt < GUILD_RECHECK_MAX_ATTEMPTS) {
+            Thread.sleep(GUILD_RECHECK_INTERVAL_MS);
+          }
+        }
+
+        VetsLogger.debug("Guild recheck exhausted — player appears genuinely guildless");
+      } catch (InterruptedException e) {
+        VetsLogger.debug("Guild recheck interrupted");
+      }
+    }, "vetsmod-guild-recheck").start();
+  }
+
+  /**
+   * Force an immediate re-read of guild info from the Wynntils
+   * {@code Models.Guild} API.  Reports current state to chat and triggers
+   * {@link #onGuildInfoUpdated()} if guild info is present.  Also forces a
+   * staff rank refresh regardless of cooldown.
+   *
+   * <p>Intended for use from {@code /wv debug trigger forceChecks}.</p>
+   */
+  public static void forceGuildRecheck() {
+    if (!wynntilsReady) {
+      ChatUtils.sendLocalMessage(
+          Component.literal("Wynntils is not ready yet — cannot check guild state.")
+              .withStyle(ChatFormatting.RED)
+      );
+      return;
+    }
+
+    String guildName = Models.Guild.getGuildName();
+    boolean inGuild = Models.Guild.isInGuild();
+    GuildRank rank = Models.Guild.getGuildRank();
+
+    MutableComponent header = Component.literal("Force Guild Check Results:")
+        .withStyle(ChatFormatting.GOLD);
+    ChatUtils.sendLocalMessage(header);
+
+    ChatUtils.sendLocalMessage(
+        Component.literal("  Wynntils Guild Name: ")
+            .withStyle(ChatFormatting.GRAY)
+            .append(Component.literal(guildName.isEmpty() ? "(empty)" : guildName)
+                .withStyle(guildName.isEmpty()
+                    ? ChatFormatting.RED
+                    : ChatFormatting.GREEN))
+    );
+
+    ChatUtils.sendLocalMessage(
+        Component.literal("  Wynntils isInGuild: ")
+            .withStyle(ChatFormatting.GRAY)
+            .append(Component.literal(String.valueOf(inGuild))
+                .withStyle(inGuild
+                    ? ChatFormatting.GREEN
+                    : ChatFormatting.RED))
+    );
+
+    ChatUtils.sendLocalMessage(
+        Component.literal("  Wynntils Guild Rank: ")
+            .withStyle(ChatFormatting.GRAY)
+            .append(Component.literal(rank == null ? "(null)" : rank.name())
+                .withStyle(rank == null
+                    ? ChatFormatting.RED
+                    : ChatFormatting.GREEN))
+    );
+
+    ChatUtils.sendLocalMessage(
+        Component.literal("  VetsMod isReturners: ")
+            .withStyle(ChatFormatting.GRAY)
+            .append(Component.literal(String.valueOf(isReturners()))
+                .withStyle(isReturners()
+                    ? ChatFormatting.GREEN
+                    : ChatFormatting.RED))
+    );
+
+    ChatUtils.sendLocalMessage(
+        Component.literal("  VetsMod isGuildless: ")
+            .withStyle(ChatFormatting.GRAY)
+            .append(Component.literal(String.valueOf(isGuildless()))
+                .withStyle(isGuildless()
+                    ? ChatFormatting.YELLOW
+                    : ChatFormatting.GREEN))
+    );
+
+    ChatUtils.sendLocalMessage(
+        Component.literal("  VetsMod isStaff: ")
+            .withStyle(ChatFormatting.GRAY)
+            .append(Component.literal(String.valueOf(isStaff()))
+                .withStyle(isStaff()
+                    ? ChatFormatting.GREEN
+                    : ChatFormatting.GRAY))
+    );
+
+    ChatUtils.sendLocalMessage(
+        Component.literal("  VetsMod selfStaffRank: ")
+            .withStyle(ChatFormatting.GRAY)
+            .append(Component.literal(selfStaffRank().isEmpty() ? "(none)" : selfStaffRank())
+                .withStyle(ChatFormatting.AQUA))
+    );
+
+    // Trigger guild info update path
+    if (inGuild) {
+      VetsLogger.info("forceGuildRecheck: triggering onGuildInfoUpdated()");
+      onGuildInfoUpdated();
+    }
+
+    // Force staff rank refresh regardless of cooldown
+    boolean staffRefreshStarted = refreshStaffStatusIfNeeded(true);
+    ChatUtils.sendLocalMessage(
+        Component.literal("  Staff rank refresh: ")
+            .withStyle(ChatFormatting.GRAY)
+            .append(Component.literal(staffRefreshStarted ? "started" : "already in progress")
+                .withStyle(staffRefreshStarted
+                    ? ChatFormatting.GREEN
+                    : ChatFormatting.YELLOW))
+    );
   }
 
   /**
