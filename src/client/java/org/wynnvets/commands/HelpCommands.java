@@ -231,19 +231,64 @@ final class HelpCommands {
     msg.append(Component.literal("Run diagnostics and dump mod state to chat and log.\n\n")
         .withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Subcommands:\n").withStyle(ChatFormatting.GOLD));
-    msg.append(Component.literal("/wv debug true|false").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal("/wv debug <boolean>").withStyle(ChatFormatting.YELLOW));
     msg.append(Component.literal(" — Toggle debug logging\n").withStyle(ChatFormatting.GRAY));
-    msg.append(Component.literal("/wv debug set [<key> [<value>]]").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal("/wv debug set <key> <value>").withStyle(ChatFormatting.YELLOW));
     msg.append(Component.literal(" — Manage debug config keys\n").withStyle(ChatFormatting.GRAY));
-    msg.append(Component.literal("/wv debug trigger charDump").withStyle(ChatFormatting.YELLOW));
-    msg.append(Component.literal(" — Render PUA icon characters\n").withStyle(ChatFormatting.GRAY));
-    msg.append(Component.literal("/wv debug trigger forceChecks").withStyle(ChatFormatting.YELLOW));
-    msg.append(Component.literal(" — Force guild and staff state refresh\n").withStyle(ChatFormatting.GRAY));
-    msg.append(Component.literal("  Runs /gu stats (guild check) and /gu rank (staff check)\n")
+    msg.append(Component.literal("/wv debug trigger <action>").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal(" — Run a one-shot debug action\n\n").withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("Use /wv help debug <set|trigger> for details.\n")
         .withStyle(ChatFormatting.DARK_GRAY));
-    msg.append(Component.literal("  via Wynntils' command queue. Reports Wynntils and\n")
+    msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
+    ChatUtils.sendLocalMessage(msg);
+    return 1;
+  }
+
+  static int helpDebugSet(CommandContext<FabricClientCommandSource> ctx) {
+    MutableComponent msg = Component.empty();
+    msg.append(Component.literal("/wv debug set [<key> [<value>]]\n").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal("Manage debug-only configuration keys.\n\n")
+        .withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("Usage:\n").withStyle(ChatFormatting.GOLD));
+    msg.append(Component.literal("/wv debug set").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal(" — List all debug config keys and their values\n")
+        .withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("/wv debug set <key>").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal(" — Show the current value of a key\n")
+        .withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("/wv debug set <key> <true|false>").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal(" — Set a debug key to true or false\n\n")
+        .withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("Available keys:\n").withStyle(ChatFormatting.GOLD));
+    msg.append(Component.literal("itemDump").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal(" — When true, pressing numpad + while hovering\n")
+        .withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("  an item dumps its full component tree\n")
         .withStyle(ChatFormatting.DARK_GRAY));
-    msg.append(Component.literal("  GuildChecker state to chat.\n")
+    msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
+    ChatUtils.sendLocalMessage(msg);
+    return 1;
+  }
+
+  static int helpDebugTrigger(CommandContext<FabricClientCommandSource> ctx) {
+    MutableComponent msg = Component.empty();
+    msg.append(Component.literal("/wv debug trigger <action>\n").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal("Run a one-shot debug action.\n\n")
+        .withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("Actions:\n").withStyle(ChatFormatting.GOLD));
+    msg.append(Component.literal("/wv debug trigger charDump\n").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal("  Render PUA characters U+E001–U+E040 in the resource\n")
+        .withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("  pack's chat/prefix font as badge-style sequences.\n")
+        .withStyle(ChatFormatting.DARK_GRAY));
+    msg.append(Component.literal("/wv debug trigger forceChecks\n").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal("  Force re-check of guild membership, rank, and staff\n")
+        .withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("  status. Runs /gu stats and /gu rank via Wynntils'\n")
+        .withStyle(ChatFormatting.DARK_GRAY));
+    msg.append(Component.literal("  command queue and reports state to chat.\n")
         .withStyle(ChatFormatting.DARK_GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));

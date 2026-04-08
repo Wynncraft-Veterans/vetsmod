@@ -55,6 +55,9 @@ public class GuildStateManager {
   // Tracks whether the guild MOTD was shown this session.
   private static volatile boolean guildMotdDisplayedThisSession = false;
 
+  // Tracks whether the annihilation stamp was shown this session.
+  private static volatile boolean stampDisplayedThisSession = false;
+
   // Whether the player has entered a world at least once since reset.
   private static volatile boolean enteredWorld = false;
 
@@ -372,7 +375,9 @@ public class GuildStateManager {
         Models.Guild.getGuildName(), isGuildless(), isReturners());
 
     if (isReturners()) {
-      fetchAndDisplayStampMessage();
+      if (!stampDisplayedThisSession) {
+        fetchAndDisplayStampMessage();
+      }
 
       // If the MOTD was already fetched but guild info wasn't available yet
       // (race between WorldStateEvent and GuildEvent.Joined), the standard
@@ -459,6 +464,7 @@ public class GuildStateManager {
       StampFetcher.fetchStampAndCreateMessage().thenAccept(stampMessage -> {
         if (stampMessage != null) {
           VetsLogger.debug("Displaying annihilation countdown");
+          stampDisplayedThisSession = true;
           ChatUtils.sendLocalMessage(stampMessage, Prepend.DEFAULT);
         }
       });
@@ -687,6 +693,7 @@ public class GuildStateManager {
   public static void reset() {
     lastMotdFetchTime = 0;
     guildMotdDisplayedThisSession = false;
+    stampDisplayedThisSession = false;
     enteredWorld = false;
     V1ApiManager.clearRegistration();
     StaffRankChecker.reset();
@@ -705,7 +712,7 @@ public class GuildStateManager {
 
     sendRegistrationIfReady();
 
-    if (result == GuildChecker.GuildCheckResult.RETURNERS) {
+    if (result == GuildChecker.GuildCheckResult.RETURNERS && !stampDisplayedThisSession) {
       fetchAndDisplayStampMessage();
     }
   }

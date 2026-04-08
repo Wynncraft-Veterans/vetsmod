@@ -69,7 +69,11 @@ public final class CommandRegistry {
                 .then(ClientCommandManager.literal("line")
                     .executes(HelpCommands::helpLine))
                 .then(ClientCommandManager.literal("debug")
-                    .executes(HelpCommands::helpDebug)))
+                    .executes(HelpCommands::helpDebug)
+                    .then(ClientCommandManager.literal("set")
+                        .executes(HelpCommands::helpDebugSet))
+                    .then(ClientCommandManager.literal("trigger")
+                        .executes(HelpCommands::helpDebugTrigger))))
 
             // /wv check <playerName>
             .then(ClientCommandManager.literal("check")
