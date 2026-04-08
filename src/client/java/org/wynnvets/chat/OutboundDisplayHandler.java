@@ -2,6 +2,7 @@ package org.wynnvets.chat;
 
 import com.google.gson.JsonObject;
 import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
@@ -189,6 +190,15 @@ public final class OutboundDisplayHandler {
         // and suppress the re-fire.
         if ("bridge".equals(type)) {
             recordBridgeOutbound(message);
+        }
+
+        // Staff alert display: rewrite ‼-prefixed guild messages from staff
+        // into the shout-style ALERT box.  For Returners this is handled by
+        // StaffGuildAlertRewriter via ChatLogMixin on the server message;
+        // for waitlist/honourary users it must be handled here instead.
+        if ("guild".equals(type)
+                && StaffGuildAlertRewriter.tryRewriteOutbound(username, message)) {
+            return;
         }
 
         ChatUtils.sendGuildChatMessage(rank, username, message);

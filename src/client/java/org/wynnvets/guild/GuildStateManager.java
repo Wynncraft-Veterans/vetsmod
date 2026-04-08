@@ -56,6 +56,10 @@ public class GuildStateManager {
   private static final String WAITLIST_PASSWORD_HASH = "8f74db5451e8e6e74189fa5e8a2d31efbb1853629fb80b30461bafc8a97fe07e";
   private static final String HONOURARY_PASSWORD_HASH = "4fe3af27e525245e9f3f3764e06b4eb5997ac09d553b4fdf59f9c9420caebca4";
 
+  // Unlock persistence: codes persist for 1 week before requiring re-entry
+  private static final long UNLOCK_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000L;
+  private static final long MAX_EXPIRY_WARNINGS = 3;
+
   // State tracking for staff detection via /gu rank
   private static boolean isStaff = false;
   private static long lastStaffCheckTime = 0;
@@ -241,13 +245,20 @@ public class GuildStateManager {
   }
 
   /**
-   * Load persisted staff state from config.
+   * Load persisted staff and unlock state from config.
+   * Unlock timestamps older than {@link #UNLOCK_EXPIRY_MS} are treated as expired.
    */
   public static void loadPersistedState() {
     isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
     long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
     long now = System.currentTimeMillis();
     lastStaffCheckTime = (persistedCheckTime >= 0 && persistedCheckTime <= now) ? persistedCheckTime : 0;
+
+    long waitlistTime = VetsConfig.getLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME);
+    waitlistUnlocked = waitlistTime > 0 && (now - waitlistTime) < UNLOCK_EXPIRY_MS;
+
+    long honouraryTime = VetsConfig.getLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME);
+    honouraryUnlocked = honouraryTime > 0 && (now - honouraryTime) < UNLOCK_EXPIRY_MS;
   }
 
   /**
@@ -458,6 +469,52 @@ public class GuildStateManager {
   }
 
   /**
+   * Checks whether a previously-persisted unlock has expired and, if so,
+   * warns the player.  Warns up to {@link #MAX_EXPIRY_WARNINGS} times across
+   * sessions, then silently clears the expired timestamps to stop nagging.
+   */
+  private static void checkAndWarnUnlockExpiry() {
+    long now = System.currentTimeMillis();
+
+    long waitlistTime = VetsConfig.getLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME);
+    long honouraryTime = VetsConfig.getLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME);
+    boolean waitlistExpired = waitlistTime > 0 && (now - waitlistTime) >= UNLOCK_EXPIRY_MS;
+    boolean honouraryExpired = honouraryTime > 0 && (now - honouraryTime) >= UNLOCK_EXPIRY_MS;
+
+    if (!waitlistExpired && !honouraryExpired) {
+      return;
+    }
+
+    long warnings = VetsConfig.getLong(VetsConfig.VETS_UNLOCK_EXPIRY_WARNINGS);
+    if (warnings >= MAX_EXPIRY_WARNINGS) {
+      // Stop nagging — silently clear stale timestamps
+      if (waitlistExpired) {
+        VetsConfig.setLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME, 0L);
+      }
+      if (honouraryExpired) {
+        VetsConfig.setLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME, 0L);
+      }
+      VetsConfig.setLong(VetsConfig.VETS_UNLOCK_EXPIRY_WARNINGS, 0L);
+      return;
+    }
+
+    VetsConfig.setLong(VetsConfig.VETS_UNLOCK_EXPIRY_WARNINGS, warnings + 1);
+
+    if (waitlistExpired) {
+      ChatUtils.sendLocalMessage(
+          Component.literal("Your waitlist unlock has expired. Use /unlock <password> to re-activate.")
+              .withStyle(ChatFormatting.YELLOW)
+      );
+    }
+    if (honouraryExpired) {
+      ChatUtils.sendLocalMessage(
+          Component.literal("Your honourary unlock has expired. Use /unlock <password> to re-activate.")
+              .withStyle(ChatFormatting.YELLOW)
+      );
+    }
+  }
+
+  /**
    * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when the
    * player enters a Wynncraft world ({@code WorldStateEvent} with
    * {@code newState == WORLD}).
@@ -476,6 +533,9 @@ public class GuildStateManager {
     if (player != null && playerName.equals(StringUtils.EMPTY)) {
       playerName = player.getName().getString();
     }
+
+    // Warn if a previously-persisted unlock has expired since last session
+    checkAndWarnUnlockExpiry();
 
     long currentTime = System.currentTimeMillis();
     if (currentTime - lastMotdFetchTime > MOTD_FETCH_COOLDOWN) {
@@ -624,13 +684,18 @@ public class GuildStateManager {
     if (hash == null) {
       return UnlockType.NONE;
     }
+    long now = System.currentTimeMillis();
     if (hash.equals(WAITLIST_PASSWORD_HASH)) {
       waitlistUnlocked = true;
+      VetsConfig.setLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME, now);
+      VetsConfig.setLong(VetsConfig.VETS_UNLOCK_EXPIRY_WARNINGS, 0L);
       VetsLogger.debug("Mod unlocked via waitlist password");
       return UnlockType.WAITLIST;
     }
     if (hash.equals(HONOURARY_PASSWORD_HASH)) {
       honouraryUnlocked = true;
+      VetsConfig.setLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME, now);
+      VetsConfig.setLong(VetsConfig.VETS_UNLOCK_EXPIRY_WARNINGS, 0L);
       VetsLogger.debug("Mod unlocked via honourary password");
       return UnlockType.HONOURARY;
     }
@@ -825,5 +890,12 @@ public class GuildStateManager {
     isModInitiatedStaffRankCheck = false;
     staffRankRequestTime = 0;
     StaffOutboundMessenger.resetStaffChatEligibilityCache();
+
+    // Reload persisted unlock state (respects expiry)
+    long waitlistTime = VetsConfig.getLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME);
+    waitlistUnlocked = waitlistTime > 0 && (now - waitlistTime) < UNLOCK_EXPIRY_MS;
+
+    long honouraryTime = VetsConfig.getLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME);
+    honouraryUnlocked = honouraryTime > 0 && (now - honouraryTime) < UNLOCK_EXPIRY_MS;
   }
 }

@@ -42,6 +42,47 @@ public final class StaffGuildAlertRewriter {
     }
 
     /**
+     * Attempts to display an outbound WebSocket guild message as a staff alert.
+     *
+     * <p>Unlike {@link #tryRewrite}, this variant works with pre-parsed fields
+     * from the outbound JSON (no Minecraft {@link Component} parsing needed).
+     * Used for honorary and waitlist users who receive {@code /a} alerts via
+     * the WebSocket rather than the Wynncraft server chat.</p>
+     *
+     * @param username the sender's username (already resolved by the server)
+     * @param message  the message body (may start with {@code ‼})
+     * @return {@code true} if the message was displayed as an alert
+     */
+    public static boolean tryRewriteOutbound(String username, String message) {
+        if (!isCurrentStaffSender(username)) {
+            return false;
+        }
+
+        String trimmed = message.stripLeading();
+        if (!trimmed.startsWith(ALERT_PREFIX)) {
+            return false;
+        }
+
+        String alertMessage = trimmed.substring(ALERT_PREFIX.length()).stripLeading();
+        boolean boldBody = alertMessage.startsWith("!");
+        if (boldBody) {
+            alertMessage = alertMessage.substring(1).stripLeading();
+        }
+
+        Style bodyStyle = boldBody ? ALERT_BODY_BOLD_STYLE : ALERT_BODY_STYLE;
+
+        MutableComponent body = Component.empty()
+            .append(Component.literal(SHOUT_SYMBOL_PREFIX).setStyle(SHOUT_PREFIX_STYLE))
+            .append(Component.literal(" ").setStyle(bodyStyle))
+            .append(buildAlertPill())
+            .append(Component.literal(": ").setStyle(bodyStyle))
+            .append(ChatUtils.formatMessageBody(alertMessage, bodyStyle));
+
+        ChatUtils.dispatchToChat(body, SHOUT_PREFIX_STYLE);
+        return true;
+    }
+
+    /**
      * Attempts to rewrite a guild chat message as a staff alert.
      *
      * @param message       the original chat component (used to resolve nicknames via hover text)

@@ -39,6 +39,9 @@ public class VetsConfig {
   public static final String VETS_AUTOMESSAGE = "vetsAutomessage";
   public static final String VETS_IS_STAFF = "vetsIsStaff";
   public static final String VETS_LAST_STAFF_CHECK = "vetsLastStaffCheck";
+  public static final String VETS_WAITLIST_UNLOCK_TIME = "vetsWaitlistUnlockTime";
+  public static final String VETS_HONOURARY_UNLOCK_TIME = "vetsHonouraryUnlockTime";
+  public static final String VETS_UNLOCK_EXPIRY_WARNINGS = "vetsUnlockExpiryWarnings";
 
   // ── User-facing configuration keys (toggled via /wv config) ─────────────
 
@@ -80,6 +83,9 @@ public class VetsConfig {
     config.put(VETS_AUTOMESSAGE, true);
     config.put(VETS_IS_STAFF, false);
     longConfig.put(VETS_LAST_STAFF_CHECK, 0L);
+    longConfig.put(VETS_WAITLIST_UNLOCK_TIME, 0L);
+    longConfig.put(VETS_HONOURARY_UNLOCK_TIME, 0L);
+    longConfig.put(VETS_UNLOCK_EXPIRY_WARNINGS, 0L);
 
     // User-facing defaults (all enabled by default)
     config.put(LEGACY_ITEM_HIGHLIGHTING, true);
