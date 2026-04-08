@@ -23,6 +23,7 @@ public final class V1ApiManager {
 
     private static WsClient inboundClient;
     private static WsClient outboundClient;
+    private static volatile JsonObject pendingRegistration;
 
     private static final CopyOnWriteArrayList<Consumer<JsonObject>> outboundListeners = new CopyOnWriteArrayList<>();
 
@@ -48,6 +49,16 @@ public final class V1ApiManager {
                 if (!"ok".equals(status) && json.has("detail")) {
                     VetsLogger.warn("Inbound API error: {}", json.get("detail").getAsString());
                 }
+            }
+        });
+
+        // Re-send registration after every (re)connect so the server's
+        // presence list stays accurate across network hiccups.
+        inboundClient.setOnConnectCallback(() -> {
+            JsonObject reg = pendingRegistration;
+            if (reg != null && inboundClient != null) {
+                inboundClient.send(reg);
+                VetsLogger.debug("Re-sent pending registration on inbound reconnect");
             }
         });
 
@@ -77,6 +88,37 @@ public final class V1ApiManager {
             outboundClient = null;
         }
         VetsLogger.debug("V1 API connections closed");
+    }
+
+    /**
+     * Sends a registration frame to identify this client for presence tracking.
+     *
+     * <p>The payload is cached so it is automatically re-sent on reconnect.
+     * Old clients that never call this method are unaffected — they simply
+     * won’t appear in the connected-users list.</p>
+     *
+     * @param uuid     the player’s Minecraft UUID (with dashes)
+     * @param username the player’s current username
+     * @param tier     one of "guild", "waitlist", "honourary"
+     */
+    public static void sendRegistration(String uuid, String username, String tier) {
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "register");
+        payload.addProperty("uuid", uuid);
+        payload.addProperty("username", username);
+        payload.addProperty("tier", tier);
+        pendingRegistration = payload;
+
+        if (inboundClient != null && inboundClient.isConnected()) {
+            inboundClient.send(payload);
+            VetsLogger.debug("Sent registration: {} ({}…, tier={})", username,
+                uuid.length() >= 8 ? uuid.substring(0, 8) : uuid, tier);
+        }
+    }
+
+    /** Clears cached registration (e.g. on disconnect / reset). */
+    public static void clearRegistration() {
+        pendingRegistration = null;
     }
 
     /**

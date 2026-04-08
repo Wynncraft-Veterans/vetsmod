@@ -28,6 +28,7 @@ import org.wynnvets.fetcher.ondemand.StaffFetcher;
 import org.wynnvets.fetcher.polling.SupportersFetcher;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.fetcher.ondemand.ListFetcher;
 import org.wynnvets.fetcher.ondemand.StampFetcher;
 import org.wynnvets.items.ItemDefinitions;
 import org.wynnvets.chat.ChatUtils;
@@ -82,6 +83,8 @@ public class VetsmodClient implements ClientModInitializer {
                       .executes(this::helpReturn))
                   .then(ClientCommandManager.literal("staff")
                       .executes(this::helpStaff))
+                  .then(ClientCommandManager.literal("list")
+                      .executes(this::helpList))
                   .then(ClientCommandManager.literal("motd")
                       .executes(this::helpMotd))
                   .then(ClientCommandManager.literal("anni")
@@ -103,6 +106,12 @@ public class VetsmodClient implements ClientModInitializer {
               .then(ClientCommandManager.literal("return")
                   .requires(this::userIsVet)
                   .executes(this::returnInfo)
+              )
+
+              // /wv list
+              .then(ClientCommandManager.literal("list")
+                  .requires(this::userIsVet)
+                  .executes(this::list)
               )
 
                 // /gu staff
@@ -261,6 +270,20 @@ public class VetsmodClient implements ClientModInitializer {
     return 1;
   }
 
+  // Show online members and VetsMod status.
+  private int list(CommandContext<FabricClientCommandSource> ctx) {
+    ChatUtils.sendLocalMessage(
+        Component.literal("Looking up online members...")
+            .withStyle(ChatFormatting.GREEN)
+    );
+
+    ListFetcher.fetchList().thenAccept(listInfo -> {
+      ChatUtils.sendLocalMessage(listInfo);
+    });
+
+    return 1;
+  }
+
   // Get annihilation timer information.
   private int anni(CommandContext<FabricClientCommandSource> ctx) {
     StampFetcher.fetchStampAndCreateAnniCommandMessage().thenAccept(stampMessage -> {
@@ -297,6 +320,11 @@ public class VetsmodClient implements ClientModInitializer {
     msg.append(Component.literal(" — Show annihilation timer\n")
         .withStyle(ChatFormatting.GRAY));
 
+    msg.append(Component.literal("/wv list")
+        .withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal(" — Show online members and VetsMod status\n")
+        .withStyle(ChatFormatting.GRAY));
+
     msg.append(Component.literal("/wv config [<key> [<value>]]")
         .withStyle(ChatFormatting.YELLOW));
     msg.append(Component.literal(" — View or change mod settings\n")
@@ -311,6 +339,11 @@ public class VetsmodClient implements ClientModInitializer {
       msg.append(Component.literal("/wv motd")
           .withStyle(ChatFormatting.YELLOW));
       msg.append(Component.literal(" — Show the message of the day\n")
+          .withStyle(ChatFormatting.GRAY));
+
+      msg.append(Component.literal("/wv list")
+          .withStyle(ChatFormatting.YELLOW));
+      msg.append(Component.literal(" — Show online members and VetsMod status\n")
           .withStyle(ChatFormatting.GRAY));
     }
 
@@ -425,6 +458,17 @@ public class VetsmodClient implements ClientModInitializer {
         .withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Unlocked").withStyle(ChatFormatting.GREEN));
+    ChatUtils.sendLocalMessage(msg);
+    return 1;
+  }
+
+  private int helpList(CommandContext<FabricClientCommandSource> ctx) {
+    MutableComponent msg = Component.empty();
+    msg.append(Component.literal("/wv list\n").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal("Show online Returners members, grouped by VetsMod usage, "
+        + "honourary, and waitlist status.\n").withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("Veteran (Returners, waitlist, or honourary)").withStyle(ChatFormatting.GREEN));
     ChatUtils.sendLocalMessage(msg);
     return 1;
   }

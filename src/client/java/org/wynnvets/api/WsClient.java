@@ -42,6 +42,7 @@ public class WsClient implements WebSocket.Listener {
 
     private final HttpClient httpClient;
     private final ScheduledExecutorService scheduler;
+    private volatile Runnable onConnectCallback;
 
     /**
      * @param uri            the WebSocket endpoint URI
@@ -60,6 +61,14 @@ public class WsClient implements WebSocket.Listener {
             t.setDaemon(true);
             return t;
         });
+    }
+
+    /**
+     * Sets a callback to be invoked every time the WebSocket (re)connects.
+     * Used by {@link V1ApiManager} to re-send registration after reconnects.
+     */
+    public void setOnConnectCallback(Runnable callback) {
+        this.onConnectCallback = callback;
     }
 
     /** Opens the WebSocket connection. Safe to call multiple times. */
@@ -87,6 +96,14 @@ public class WsClient implements WebSocket.Listener {
                         }
                         VetsLogger.debug("[{}] WebSocket connected", label);
                         schedulePing();
+                        Runnable cb = onConnectCallback;
+                        if (cb != null) {
+                            try {
+                                cb.run();
+                            } catch (Exception e) {
+                                VetsLogger.debug("[{}] onConnect callback error: {}", label, e.getMessage());
+                            }
+                        }
                     }
                 });
     }

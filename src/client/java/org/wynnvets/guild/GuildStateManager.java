@@ -14,6 +14,7 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.Prepend;
 import org.wynnvets.chat.StaffOutboundMessenger;
+import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
 import org.wynnvets.fetcher.ondemand.StampFetcher;
 
@@ -94,6 +95,15 @@ public class GuildStateManager {
   // Track whether we have entered a world at least once since reset, so that
   // commands are not executed before initial guild info is available.
   private static boolean enteredWorld = false;
+
+  /**
+   * Check if Wynntils is fully initialised and safe to access Models.
+   *
+   * @return true once Wynntils event bus registration has completed
+   */
+  public static boolean isWynntilsReady() {
+    return wynntilsReady;
+  }
 
   /**
    * Get whether the player's guild is "Returners", read live from
@@ -549,6 +559,9 @@ public class GuildStateManager {
 
     refreshStaffStatusIfNeeded(false);
 
+    // Send presence registration to the server.
+    sendRegistrationIfReady();
+
     VetsLogger.debug("onEnteredWorld: guild={}, guildless={}, returners={}",
         Models.Guild.getGuildName(), isGuildless(), isReturners());
 
@@ -582,6 +595,9 @@ public class GuildStateManager {
         VetsLogger.debug("Guild info now available — re-fetching guild MOTD");
         fetchAndDisplayMotd();
       }
+
+      // Re-register now that guild membership is confirmed.
+      sendRegistrationIfReady();
     }
   }
 
@@ -690,6 +706,7 @@ public class GuildStateManager {
       VetsConfig.setLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME, now);
       VetsConfig.setLong(VetsConfig.VETS_UNLOCK_EXPIRY_WARNINGS, 0L);
       VetsLogger.debug("Mod unlocked via waitlist password");
+      sendRegistrationIfReady();
       return UnlockType.WAITLIST;
     }
     if (hash.equals(HONOURARY_PASSWORD_HASH)) {
@@ -697,6 +714,7 @@ public class GuildStateManager {
       VetsConfig.setLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME, now);
       VetsConfig.setLong(VetsConfig.VETS_UNLOCK_EXPIRY_WARNINGS, 0L);
       VetsLogger.debug("Mod unlocked via honourary password");
+      sendRegistrationIfReady();
       return UnlockType.HONOURARY;
     }
     return UnlockType.NONE;
@@ -882,6 +900,7 @@ public class GuildStateManager {
     guildMotdDisplayedThisSession = false;
     staffRankSuppressUntil = 0;
     enteredWorld = false;
+    V1ApiManager.clearRegistration();
     isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
     long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
     long now = System.currentTimeMillis();
@@ -897,5 +916,36 @@ public class GuildStateManager {
 
     long honouraryTime = VetsConfig.getLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME);
     honouraryUnlocked = honouraryTime > 0 && (now - honouraryTime) < UNLOCK_EXPIRY_MS;
+  }
+
+  /**
+   * Send a presence registration to the server if the player is eligible.
+   *
+   * <p>Determines the player's tier (guild / waitlist / honourary) and sends
+   * a {@code register} frame via the inbound WebSocket.  The payload is
+   * cached inside {@link V1ApiManager} so it is automatically re-sent on
+   * reconnect.  Called from {@link #onEnteredWorld()},
+   * {@link #onGuildInfoUpdated()}, and {@link #tryUnlock}.</p>
+   */
+  public static void sendRegistrationIfReady() {
+    Minecraft mc = Minecraft.getInstance();
+    LocalPlayer player = mc.player;
+    if (player == null) return;
+
+    String uuid = player.getUUID().toString();
+    String username = player.getName().getString();
+
+    String tier;
+    if (isReturners()) {
+      tier = "guild";
+    } else if (isHonouraryUnlocked()) {
+      tier = "honourary";
+    } else if (isGuildless() && isWaitlistUnlocked()) {
+      tier = "waitlist";
+    } else {
+      return; // not eligible for registration
+    }
+
+    V1ApiManager.sendRegistration(uuid, username, tier);
   }
 }

@@ -38,6 +38,9 @@ public final class VetsApi {
     /** GET the list of users who receive special supporter styling. */
     public static final URI SUPPORTERS = URI.create("https://api.wynnvets.org/v1/outbound/supporters");
 
+    /** GET the list of currently connected VetsMod users. */
+    public static final URI LIST = URI.create("https://api.wynnvets.org/v1/outbound/list");
+
     // ── External links ────────────────────────────────────────────────
 
     /** Link to the WynnVets annihilation schedule page. */
