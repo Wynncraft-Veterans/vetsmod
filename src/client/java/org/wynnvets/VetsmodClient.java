@@ -127,7 +127,7 @@ public class VetsmodClient implements ClientModInitializer {
                       .suggests(SUGGEST_CONFIG_KEYS)
                       .executes(this::configGet)
                       .then(ClientCommandManager.argument("value", StringArgumentType.word())
-                          .suggests(SUGGEST_BOOLEAN_VALUES)
+                          .suggests(SUGGEST_CONFIG_VALUES)
                           .executes(this::configSet)
                       )
                   )
@@ -510,12 +510,20 @@ public class VetsmodClient implements ClientModInitializer {
         return builder.buildFuture();
       };
 
-  /** Tab-completion provider that suggests "true" / "false". */
-  private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_BOOLEAN_VALUES =
+  /** Tab-completion provider that suggests config values (true/false, plus default for tri-state keys). */
+  private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_CONFIG_VALUES =
       (ctx, builder) -> {
         String partial = builder.getRemaining().toLowerCase();
         if ("true".startsWith(partial)) builder.suggest("true");
         if ("false".startsWith(partial)) builder.suggest("false");
+        try {
+          String key = StringArgumentType.getString(ctx, "key");
+          if (VetsConfig.isTriStateKey(key) && "default".startsWith(partial)) {
+            builder.suggest("default");
+          }
+        } catch (IllegalArgumentException ignored) {
+          // Key argument not yet entered
+        }
         return builder.buildFuture();
       };
 
@@ -528,13 +536,25 @@ public class VetsmodClient implements ClientModInitializer {
     ChatUtils.sendLocalMessage(header);
 
     for (String key : VetsConfig.USER_CONFIG_KEYS) {
-      boolean value = VetsConfig.get(key);
-      ChatUtils.sendLocalMessage(
-          Component.literal("  " + key + " = ")
-              .withStyle(ChatFormatting.GRAY)
-              .append(Component.literal(String.valueOf(value))
-                  .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED))
-      );
+      if (VetsConfig.isTriStateKey(key)) {
+        Boolean triValue = VetsConfig.getTriState(key);
+        String display = triValue == null ? "default" : String.valueOf(triValue);
+        ChatFormatting color = triValue == null ? ChatFormatting.YELLOW
+            : (triValue ? ChatFormatting.GREEN : ChatFormatting.RED);
+        ChatUtils.sendLocalMessage(
+            Component.literal("  " + key + " = ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(display).withStyle(color))
+        );
+      } else {
+        boolean value = VetsConfig.get(key);
+        ChatUtils.sendLocalMessage(
+            Component.literal("  " + key + " = ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(String.valueOf(value))
+                    .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED))
+        );
+      }
     }
     return 1;
   }
@@ -553,13 +573,25 @@ public class VetsmodClient implements ClientModInitializer {
       return 0;
     }
 
-    boolean value = VetsConfig.get(key);
-    ChatUtils.sendLocalMessage(
-        Component.literal(key + " = ")
-            .withStyle(ChatFormatting.GRAY)
-            .append(Component.literal(String.valueOf(value))
-                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED))
-    );
+    if (VetsConfig.isTriStateKey(key)) {
+      Boolean triValue = VetsConfig.getTriState(key);
+      String display = triValue == null ? "default" : String.valueOf(triValue);
+      ChatFormatting color = triValue == null ? ChatFormatting.YELLOW
+          : (triValue ? ChatFormatting.GREEN : ChatFormatting.RED);
+      ChatUtils.sendLocalMessage(
+          Component.literal(key + " = ")
+              .withStyle(ChatFormatting.GRAY)
+              .append(Component.literal(display).withStyle(color))
+      );
+    } else {
+      boolean value = VetsConfig.get(key);
+      ChatUtils.sendLocalMessage(
+          Component.literal(key + " = ")
+              .withStyle(ChatFormatting.GRAY)
+              .append(Component.literal(String.valueOf(value))
+                  .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED))
+      );
+    }
     return 1;
   }
 
@@ -579,6 +611,33 @@ public class VetsmodClient implements ClientModInitializer {
               .withStyle(ChatFormatting.RED)
       );
       return 0;
+    }
+
+    if (VetsConfig.isTriStateKey(key)) {
+      Boolean triValue;
+      if ("default".equalsIgnoreCase(rawValue)) {
+        triValue = null;
+      } else if ("true".equalsIgnoreCase(rawValue)) {
+        triValue = Boolean.TRUE;
+      } else if ("false".equalsIgnoreCase(rawValue)) {
+        triValue = Boolean.FALSE;
+      } else {
+        ChatUtils.sendLocalMessage(
+            Component.literal("Value must be 'true', 'false', or 'default'.")
+                .withStyle(ChatFormatting.RED)
+        );
+        return 0;
+      }
+      VetsConfig.setTriState(key, triValue);
+      String display = triValue == null ? "default" : String.valueOf(triValue);
+      ChatFormatting color = triValue == null ? ChatFormatting.YELLOW
+          : (triValue ? ChatFormatting.GREEN : ChatFormatting.RED);
+      ChatUtils.sendLocalMessage(
+          Component.literal(key + " set to ")
+              .withStyle(ChatFormatting.GRAY)
+              .append(Component.literal(display).withStyle(color))
+      );
+      return 1;
     }
 
     if (!"true".equalsIgnoreCase(rawValue) && !"false".equalsIgnoreCase(rawValue)) {

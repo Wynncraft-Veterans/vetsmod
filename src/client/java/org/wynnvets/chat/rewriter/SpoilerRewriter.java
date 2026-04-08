@@ -9,7 +9,6 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.Prepend;
 import org.wynnvets.chat.SpoilerCodec;
 import org.wynnvets.config.VetsConfig;
-import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
 import java.util.ArrayList;
@@ -39,11 +38,8 @@ public final class SpoilerRewriter {
      * @return {@code true} if rewritten (caller should cancel the original)
      */
     public static boolean tryRewrite(Component component, String messageString) {
-        if (!VetsConfig.get(VetsConfig.HANDLE_SPOILERS)) {
+        if (Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))) {
             VetsLogger.debug("SpoilerRewriter: skipped — handleSpoilers config disabled");
-            return false;
-        }
-        if (!isEligible()) {
             return false;
         }
         if (!SpoilerCodec.containsEncodedSpoiler(messageString)) {
@@ -242,11 +238,5 @@ public final class SpoilerRewriter {
             this.text = text;
             this.style = style;
         }
-    }
-
-    private static boolean isEligible() {
-        return GuildStateManager.isReturners()
-            || (GuildStateManager.isGuildless() && GuildStateManager.isWaitlistUnlocked())
-            || GuildStateManager.isHonouraryUnlocked();
     }
 }

@@ -6,7 +6,6 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.config.VetsConfig;
-import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -36,7 +35,7 @@ public final class SpoilerFormatter {
      * @param textStyle the style applied to non-spoiler text
      */
     public static void appendWithSpoilers(MutableComponent parent, String text, Style textStyle) {
-        if (!VetsConfig.get(VetsConfig.HANDLE_SPOILERS) || !isEligible()) {
+        if (Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))) {
             parent.append(Component.literal(text).setStyle(textStyle));
             return;
         }
@@ -83,15 +82,5 @@ public final class SpoilerFormatter {
                 cursor++;
             }
         }
-    }
-
-    /**
-     * Returns {@code true} when the local player is part of the Returners
-     * ecosystem (guild member, waitlist-unlocked, or honourary-unlocked).
-     */
-    private static boolean isEligible() {
-        return GuildStateManager.isReturners()
-            || (GuildStateManager.isGuildless() && GuildStateManager.isWaitlistUnlocked())
-            || GuildStateManager.isHonouraryUnlocked();
     }
 }

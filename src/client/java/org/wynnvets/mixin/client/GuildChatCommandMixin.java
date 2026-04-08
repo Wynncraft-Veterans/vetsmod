@@ -16,6 +16,7 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.chat.SpoilerCodec;
 import org.wynnvets.chat.StaffOutboundMessenger;
+import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -44,13 +45,17 @@ public class GuildChatCommandMixin {
       if (GuildStateManager.isGuildless() && GuildStateManager.isWaitlistUnlocked()) {
         VetsLogger.debug("Intercepted /g for waitlist bridge relay");
         ci.cancel();
-        handleWaitlistChat(SpoilerCodec.encodeSpoilers(message));
+        String outMessage = Boolean.TRUE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
+            ? SpoilerCodec.encodeSpoilers(message) : message;
+        handleWaitlistChat(outMessage);
         return;
       }
 
       // Returners members: encode ||spoiler|| markers to PUA before sending
       // to the server so that non-vetsmod users cannot be spoiled.
-      if (GuildStateManager.isReturners() && SpoilerCodec.containsPipeSpoiler(message)) {
+      if (GuildStateManager.isReturners()
+          && !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
+          && SpoilerCodec.containsPipeSpoiler(message)) {
         ci.cancel();
         String encoded = SpoilerCodec.encodeSpoilers(message);
         if (encoded.length() > 253) {
@@ -75,7 +80,9 @@ public class GuildChatCommandMixin {
         VetsLogger.debug("Intercepted /wg for honourary bridge relay");
         ci.cancel();
         String message = command.substring(3);
-        handleHonouraryChat(SpoilerCodec.encodeSpoilers(message));
+        String outMessage = Boolean.TRUE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
+            ? SpoilerCodec.encodeSpoilers(message) : message;
+        handleHonouraryChat(outMessage);
       } else {
         ci.cancel();
         ChatUtils.sendLocalMessage(

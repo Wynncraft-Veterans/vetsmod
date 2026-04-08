@@ -34,6 +34,7 @@ public class VetsConfig {
   // Store configuration values by type
   private static final Map<String, Boolean> config = new HashMap<>();
   private static final Map<String, Long> longConfig = new HashMap<>();
+  private static final Map<String, Boolean> triStateConfig = new HashMap<>();
 
   // ── Internal configuration keys (not user-facing) ───────────────────────
   public static final String VETS_AUTOMESSAGE = "vetsAutomessage";
@@ -77,6 +78,14 @@ public class VetsConfig {
       HANDLE_SPOILERS,
   };
 
+  /**
+   * Subset of user-facing keys that support tri-state values: {@code true},
+   * {@code false}, or {@code null} (meaning "use default behaviour").
+   */
+  public static final String[] TRISTATE_KEYS = {
+      HANDLE_SPOILERS,
+  };
+
   // Default values
   static {
     // Internal defaults
@@ -93,7 +102,9 @@ public class VetsConfig {
     config.put(PRINT_ANNI, true);
     config.put(PRINT_BRIDGE_MESSAGES, true);
     config.put(SHOW_SUPPORTER_GLINTS, true);
-    config.put(HANDLE_SPOILERS, true);
+
+    // Tri-state defaults (null = use default behaviour)
+    triStateConfig.put(HANDLE_SPOILERS, null);
   }
 
   /**
@@ -120,6 +131,31 @@ public class VetsConfig {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Get the tri-state value of a configuration option.
+   *
+   * @param key The configuration key
+   * @return {@code Boolean.TRUE}, {@code Boolean.FALSE}, or {@code null} (default)
+   */
+  public static Boolean getTriState(String key) {
+    if (!triStateConfig.containsKey(key)) return null;
+    return triStateConfig.get(key);
+  }
+
+  /**
+   * Set the tri-state value of a configuration option.
+   *
+   * @param key   The configuration key
+   * @param value {@code true}, {@code false}, or {@code null} for default
+   * @return true if the key exists and was updated, false otherwise
+   */
+  public static boolean setTriState(String key, Boolean value) {
+    if (!triStateConfig.containsKey(key)) return false;
+    triStateConfig.put(key, value);
+    save();
+    return true;
   }
 
   /**
@@ -169,7 +205,7 @@ public class VetsConfig {
    * @return true if the key exists, false otherwise
    */
   public static boolean hasKey(String key) {
-    return config.containsKey(key);
+    return config.containsKey(key) || triStateConfig.containsKey(key);
   }
 
   /**
@@ -181,6 +217,19 @@ public class VetsConfig {
   public static boolean isUserConfigKey(String key) {
     for (String userKey : USER_CONFIG_KEYS) {
       if (userKey.equals(key)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if a configuration key is a tri-state key (supports true/false/default).
+   *
+   * @param key The configuration key to check
+   * @return true if it is a tri-state key
+   */
+  public static boolean isTriStateKey(String key) {
+    for (String tsKey : TRISTATE_KEYS) {
+      if (tsKey.equals(key)) return true;
     }
     return false;
   }
@@ -238,6 +287,19 @@ public class VetsConfig {
           }
         }
 
+        // Load tri-state values (absent or null in JSON → default)
+        for (String key : triStateConfig.keySet()) {
+          JsonElement element = loadedConfig.get(key);
+          if (element != null && element.isJsonPrimitive() && element.getAsJsonPrimitive().isBoolean()) {
+            Boolean value = element.getAsBoolean();
+            triStateConfig.put(key, value);
+            VetsLogger.debug("Config: {} = {}", key, value);
+          } else {
+            triStateConfig.put(key, null);
+            VetsLogger.debug("Config: {} = default", key);
+          }
+        }
+
         VetsLogger.debug("Configuration loaded");
       }
     } catch (IOException e) {
@@ -260,6 +322,11 @@ public class VetsConfig {
       }
       for (Map.Entry<String, Long> entry : longConfig.entrySet()) {
         serialized.addProperty(entry.getKey(), entry.getValue());
+      }
+      for (Map.Entry<String, Boolean> entry : triStateConfig.entrySet()) {
+        if (entry.getValue() != null) {
+          serialized.addProperty(entry.getKey(), entry.getValue());
+        }
       }
 
       String json = GSON.toJson(serialized);
