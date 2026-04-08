@@ -1,4 +1,4 @@
-package org.wynnvets.mixin.client;
+package org.wynnvets.mixin.client.legacy;
 
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;

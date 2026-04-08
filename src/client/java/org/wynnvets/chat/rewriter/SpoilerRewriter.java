@@ -7,7 +7,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.Prepend;
-import org.wynnvets.chat.SpoilerCodec;
+import org.wynnvets.chat.spoiler.SpoilerCodec;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
 
@@ -21,7 +21,7 @@ import java.util.List;
  *
  * <p>This rewriter fires for server-originating messages (guild chat from
  * other players).  Bridge and mod-constructed messages are handled by
- * {@link org.wynnvets.chat.SpoilerFormatter} through the
+ * {@link org.wynnvets.chat.spoiler.SpoilerFormatter} through the
  * {@link ChatUtils#formatMessageBody} path instead.</p>
  */
 public final class SpoilerRewriter {
@@ -149,7 +149,7 @@ public final class SpoilerRewriter {
      * line-wrapping.  Prefix fragments (rank pill, badge, display name, colon)
      * are preserved as-is; body fragments are accumulated and processed through
      * {@link ChatUtils#formatMessageBody} which strips continuation markers and
-     * handles spoiler formatting via {@link org.wynnvets.chat.SpoilerFormatter}.
+     * handles spoiler formatting via {@link org.wynnvets.chat.spoiler.SpoilerFormatter}.
      */
     private static MutableComponent rebuildCrossFragmentSpoilers(List<StyledFragment> fragments) {
         MutableComponent result = Component.empty();

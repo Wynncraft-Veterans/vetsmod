@@ -1,4 +1,4 @@
-package org.wynnvets.chat;
+package org.wynnvets.chat.spoiler;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;

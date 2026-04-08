@@ -1,4 +1,4 @@
-package org.wynnvets.mixin.client;
+package org.wynnvets.mixin.client.chat;
 
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import org.spongepowered.asm.mixin.Mixin;

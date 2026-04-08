@@ -16,7 +16,7 @@ import net.minecraft.network.chat.Style;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.StaffOutboundMessenger;
+import org.wynnvets.chat.dispatcher.FindDispatcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.guild.OnlineGuildCache;
 import org.wynnvets.guild.TabListGuildParser;
@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
  *
  * <p>Combines the same data sources as {@link ListFetcher} to determine online
  * members, then fans out {@code /find <username>} commands through
- * {@link StaffOutboundMessenger}'s shared single-threaded dispatcher to
+ * {@link FindDispatcher}'s shared single-threaded dispatcher to
  * discover each player's current Wynncraft server.  Results are grouped by
  * region and server, sorted by member count (descending).</p>
  */
@@ -119,7 +119,7 @@ public final class WorldListFetcher {
                     .collect(Collectors.toList());
 
             CompletableFuture<Map<String, String>> findFuture = new CompletableFuture<>();
-            StaffOutboundMessenger.enqueueFindBatch(usernames, findFuture);
+            FindDispatcher.enqueueFindBatch(usernames, findFuture);
 
             findFuture.thenAccept(worldMap -> {
                 MutableComponent result = formatWorldList(players, worldMap, staffNames);
@@ -414,7 +414,7 @@ public final class WorldListFetcher {
         int foundCount = players.size() - notFound.size();
         // Don't count the PRIVATE sentinel as a real server.
         int serverCount = (int) serverToPlayers.keySet().stream()
-                .filter(s -> !StaffOutboundMessenger.PRIVATE_SERVER.equalsIgnoreCase(s))
+                .filter(s -> !FindDispatcher.PRIVATE_SERVER.equalsIgnoreCase(s))
                 .count();
 
         MutableComponent msg = Component.empty();
@@ -523,10 +523,10 @@ public final class WorldListFetcher {
      * Classifies a server name into a display region.  Standard Wynncraft servers
      * use GeoLite2 / GeoIP2 continent codes ({@code AF, AS, EU, NA, OC, SA}) followed
      * by a numeric ID.  Players on private servers (media, dev, staff, etc.) are
-     * identified by the {@link StaffOutboundMessenger#PRIVATE_SERVER} sentinel.
+     * identified by the {@link FindDispatcher#PRIVATE_SERVER} sentinel.
      */
     private static String classifyRegion(String server) {
-        if (StaffOutboundMessenger.PRIVATE_SERVER.equalsIgnoreCase(server)) {
+        if (FindDispatcher.PRIVATE_SERVER.equalsIgnoreCase(server)) {
             return PRIVATE_REGION;
         }
 

@@ -6,8 +6,8 @@ import net.minecraft.network.chat.Component;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.OutboundDisplayHandler;
-import org.wynnvets.chat.SpoilerCodec;
-import org.wynnvets.chat.StaffOutboundMessenger;
+import org.wynnvets.chat.spoiler.SpoilerCodec;
+import org.wynnvets.chat.dispatcher.CommandDispatcher;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.fetcher.polling.StaffRanksFetcher;
@@ -156,7 +156,7 @@ public final class GuildChatDispatcher {
       return true;
     }
 
-    StaffOutboundMessenger.executeWithStaffEligibilityGate(() -> {
+    CommandDispatcher.executeWithStaffEligibilityGate(() -> {
       Minecraft minecraft = Minecraft.getInstance();
       if (minecraft.player != null && minecraft.player.connection != null) {
         minecraft.player.connection.sendCommand("g \u203C" + message);
@@ -177,7 +177,7 @@ public final class GuildChatDispatcher {
       return true;
     }
 
-    StaffOutboundMessenger.executeWithStaffEligibilityGate(() -> {
+    CommandDispatcher.executeWithStaffEligibilityGate(() -> {
       Minecraft minecraft = Minecraft.getInstance();
       if (minecraft.player != null && minecraft.player.connection != null) {
         minecraft.player.connection.sendCommand(
@@ -268,7 +268,7 @@ public final class GuildChatDispatcher {
           return (selfRank == null || selfRank.isEmpty()) ? "captain" : selfRank;
         });
 
-    StaffOutboundMessenger.dispatchStaffChatWithEligibilityGate(username, message, rank);
+    CommandDispatcher.dispatchStaffChatWithEligibilityGate(username, message, rank);
   }
 
   private static String resolveUsername(Minecraft minecraft) {

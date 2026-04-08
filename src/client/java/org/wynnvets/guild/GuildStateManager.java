@@ -12,7 +12,7 @@ import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.Prepend;
-import org.wynnvets.chat.StaffOutboundMessenger;
+import org.wynnvets.chat.dispatcher.CommandDispatcher;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
 import org.wynnvets.fetcher.ondemand.StampFetcher;
@@ -316,7 +316,7 @@ public class GuildStateManager {
    */
   public static void onEnteredWorld() {
     enteredWorld = true;
-    StaffOutboundMessenger.resetStaffChatEligibilityCache();
+    CommandDispatcher.resetStaffChatEligibilityCache();
 
     // Capture player name
     Minecraft minecraft = Minecraft.getInstance();
@@ -699,7 +699,7 @@ public class GuildStateManager {
     StaffRankChecker.reset();
     GuildChecker.reset();
     UnlockManager.reset();
-    StaffOutboundMessenger.resetStaffChatEligibilityCache();
+    CommandDispatcher.resetStaffChatEligibilityCache();
   }
 
   /**

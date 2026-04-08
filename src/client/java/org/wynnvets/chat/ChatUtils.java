@@ -17,6 +17,7 @@ import net.minecraft.resources.Identifier;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 import org.wynnvets.rendering.colors.ShaderColorPalette;
 import org.wynnvets.fetcher.polling.SupportersFetcher;
+import org.wynnvets.chat.spoiler.SpoilerFormatter;
 
 import java.net.URI;
 import java.util.List;

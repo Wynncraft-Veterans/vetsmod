@@ -3,16 +3,16 @@
 	"package": "org.wynnvets.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"AnimatedChatMixin",
-		"ChatLogMixin",
-		"GuildChatCommandMixin",
-		"LegacyHighlightMixin",
-		"LegacyHotbarMixin",
-		"LegacyItemNameMixin",
-		"LegacyItemTooltipMixin",
+		"chat.AnimatedChatMixin",
+		"chat.ChatLogMixin",
+		"chat.GuildChatCommandMixin",
+		"legacy.LegacyHighlightMixin",
+		"legacy.LegacyHotbarMixin",
+		"legacy.LegacyItemNameMixin",
+		"legacy.LegacyItemTooltipMixin",
 		"NametagMixin",
-		"ToggleCommandMixin",
-		"UnlockCommandMixin"
+		"command.ToggleCommandMixin",
+		"command.UnlockCommandMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -1,4 +1,4 @@
-package org.wynnvets.mixin.client;
+package org.wynnvets.mixin.client.legacy;
 
 import java.util.List;
 import net.minecraft.ChatFormatting;

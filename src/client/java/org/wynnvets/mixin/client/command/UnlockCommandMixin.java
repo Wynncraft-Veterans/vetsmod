@@ -1,4 +1,4 @@
-package org.wynnvets.mixin.client;
+package org.wynnvets.mixin.client.command;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.multiplayer.ClientPacketListener;
