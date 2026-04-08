@@ -47,6 +47,7 @@ public class VetsConfig {
   public static final String VETS_UNLOCK_EXPIRY_WARNINGS = "vetsUnlockExpiryWarnings";
   public static final String VETS_GUILD_CHECK_RESULT = "vetsGuildCheckResult";
   public static final String VETS_LAST_GUILD_CHECK = "vetsLastGuildCheck";
+  public static final String VETS_DEBUG_ENABLED_AT = "vetsDebugEnabledAt";
 
   // ── User-facing configuration keys (toggled via /wv config) ─────────────
 
@@ -106,6 +107,7 @@ public class VetsConfig {
     longConfig.put(VETS_UNLOCK_EXPIRY_WARNINGS, 0L);
     longConfig.put(VETS_GUILD_CHECK_RESULT, 0L);
     longConfig.put(VETS_LAST_GUILD_CHECK, 0L);
+    longConfig.put(VETS_DEBUG_ENABLED_AT, 0L);
 
     // User-facing defaults (all enabled by default, except moreReliableGuildCheck)
     config.put(LEGACY_ITEM_HIGHLIGHTING, true);

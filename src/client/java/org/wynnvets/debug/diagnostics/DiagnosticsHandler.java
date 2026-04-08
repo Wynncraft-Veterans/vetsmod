@@ -44,16 +44,18 @@ public final class DiagnosticsHandler {
             dumpDiagnostics();
         } else if (arg.equalsIgnoreCase("true")) {
             VetsLogger.setDebugEnabled(true);
+            VetsConfig.setLong(VetsConfig.VETS_DEBUG_ENABLED_AT, System.currentTimeMillis());
             ChatUtils.sendLocalMessage(
                 Component.literal("Debug logging ")
                     .withStyle(ChatFormatting.YELLOW)
                     .append(Component.literal("enabled")
                         .withStyle(ChatFormatting.GREEN))
-                    .append(Component.literal(". Verbose output is now being written to your log file.")
+                    .append(Component.literal(". Verbose output is now being written to your log file. (persists for 3 days)")
                         .withStyle(ChatFormatting.YELLOW))
             );
         } else if (arg.equalsIgnoreCase("false")) {
             VetsLogger.setDebugEnabled(false);
+            VetsConfig.setLong(VetsConfig.VETS_DEBUG_ENABLED_AT, 0L);
             ChatUtils.sendLocalMessage(
                 Component.literal("Debug logging ")
                     .withStyle(ChatFormatting.YELLOW)

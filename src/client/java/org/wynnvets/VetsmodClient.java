@@ -38,6 +38,21 @@ public class VetsmodClient implements ClientModInitializer {
     // persisted debug settings are picked up when config values are read.
     DebugConfigManager.init();
     VetsConfig.load();
+
+    // Restore persisted debug logging if enabled within the last 3 days
+    long debugEnabledAt = VetsConfig.getLong(VetsConfig.VETS_DEBUG_ENABLED_AT);
+    if (debugEnabledAt > 0) {
+      long threeDaysMs = 3L * 24 * 60 * 60 * 1000;
+      if (System.currentTimeMillis() - debugEnabledAt < threeDaysMs) {
+        VetsLogger.setDebugEnabled(true);
+        VetsLogger.info("Debug logging restored (enabled {} hours ago)",
+            (System.currentTimeMillis() - debugEnabledAt) / 3_600_000);
+      } else {
+        VetsConfig.setLong(VetsConfig.VETS_DEBUG_ENABLED_AT, 0L);
+        VetsLogger.info("Debug logging expired after 3 days, auto-disabled");
+      }
+    }
+
     GuildStateManager.loadPersistedState();
     ClientLifecycleEvents.CLIENT_STARTED.register(client -> WynntilsEventListener.register());
     ItemDefinitions.load();
