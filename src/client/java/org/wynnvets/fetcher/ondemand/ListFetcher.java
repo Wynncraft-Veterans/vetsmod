@@ -12,10 +12,16 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
+import org.wynnvets.config.VetsConfig;
 import org.wynnvets.fetcher.polling.GuildRosterCache;
+import org.wynnvets.fetcher.polling.StaffRanksFetcher;
+import org.wynnvets.fetcher.polling.SupportersFetcher;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 import org.wynnvets.guild.OnlineGuildCache;
 import org.wynnvets.guild.TabListGuildParser;
 import org.wynnvets.logging.VetsLogger;
@@ -297,14 +303,14 @@ public final class ListFetcher {
     if (!withMod.isEmpty()) {
       msg.append(Component.literal("\nGuild — with VetsMod (" + withMod.size() + "):\n")
           .withStyle(ChatFormatting.GREEN));
-      appendPlayerList(msg, withMod, ChatFormatting.AQUA);
+      appendPlayerList(msg, withMod, ChatFormatting.AQUA, false);
     }
 
     // Guild without vetsmod
     if (!withoutMod.isEmpty()) {
       msg.append(Component.literal("\nGuild — without VetsMod (" + withoutMod.size() + "):\n")
           .withStyle(ChatFormatting.YELLOW));
-      appendPlayerList(msg, withoutMod, ChatFormatting.GRAY);
+      appendPlayerList(msg, withoutMod, ChatFormatting.GRAY, false);
     }
 
     if (totalGuild == 0) {
@@ -316,14 +322,14 @@ public final class ListFetcher {
     if (!honourary.isEmpty()) {
       msg.append(Component.literal("\nHonourary (" + honourary.size() + "):\n")
           .withStyle(ChatFormatting.LIGHT_PURPLE));
-      appendPlayerList(msg, honourary, ChatFormatting.AQUA);
+      appendPlayerList(msg, honourary, ChatFormatting.AQUA, true);
     }
 
     // Waitlist
     if (!waitlist.isEmpty()) {
       msg.append(Component.literal("\nWaitlist (" + waitlist.size() + "):\n")
           .withStyle(ChatFormatting.BLUE));
-      appendPlayerList(msg, waitlist, ChatFormatting.AQUA);
+      appendPlayerList(msg, waitlist, ChatFormatting.AQUA, true);
     }
 
     if (guildInfo == null) {
@@ -338,16 +344,33 @@ public final class ListFetcher {
    * Appends a comma-separated list of clickable player names.
    */
   private static void appendPlayerList(
-      MutableComponent parent, List<String> names, ChatFormatting color) {
+      MutableComponent parent, List<String> names, ChatFormatting color, boolean italic) {
+    boolean glintEnabled = VetsConfig.get(VetsConfig.SHOW_SUPPORTER_GLINTS);
     for (int i = 0; i < names.size(); i++) {
       String name = names.get(i);
-      parent.append(Component.literal(name)
-          .withStyle(color)
-          .withStyle(style -> style
-              .withHoverEvent(new HoverEvent.ShowText(
-                  Component.literal("Click to message " + name)
-                      .withStyle(ChatFormatting.GRAY)))
-              .withClickEvent(new ClickEvent.SuggestCommand("/msg " + name + " "))));
+      boolean supporter = glintEnabled && SupportersFetcher.isSupporter(name);
+      boolean staff = StaffRanksFetcher.confirmedRankFor(name).isPresent();
+
+      Style base;
+      if (supporter) {
+        base = Style.EMPTY.withColor(TextColor.fromRgb(AnimatedGradientSequence.MARKER_COLOR));
+      } else {
+        base = Style.EMPTY.withColor(color);
+      }
+      if (italic) {
+        base = base.withItalic(true);
+      }
+      if (staff) {
+        base = base.withUnderlined(true);
+      }
+
+      MutableComponent nameComp = Component.literal(name).withStyle(base);
+      nameComp.withStyle(style -> style
+          .withHoverEvent(new HoverEvent.ShowText(
+              Component.literal("Click to message " + name)
+                  .withStyle(ChatFormatting.GRAY)))
+          .withClickEvent(new ClickEvent.SuggestCommand("/msg " + name + " ")));
+      parent.append(nameComp);
       if (i < names.size() - 1) {
         parent.append(Component.literal(", ").withStyle(ChatFormatting.DARK_GRAY));
       }
