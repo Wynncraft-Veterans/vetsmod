@@ -41,6 +41,9 @@ public final class VetsApi {
     /** GET the list of currently connected VetsMod users. */
     public static final URI LIST = URI.create("https://api.wynnvets.org/v1/outbound/list");
 
+    /** GET the full guild UUID→current-username mapping (resolved via Minecraft Services API). */
+    public static final URI ROSTER = URI.create("https://api.wynnvets.org/v1/outbound/roster");
+
     // ── External links ────────────────────────────────────────────────
 
     /** Link to the WynnVets annihilation schedule page. */

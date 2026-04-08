@@ -17,6 +17,7 @@ import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.dispatcher.FindDispatcher;
+import org.wynnvets.fetcher.polling.GuildRosterCache;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.guild.OnlineGuildCache;
 import org.wynnvets.guild.TabListGuildParser;
@@ -200,6 +201,13 @@ public final class WorldListFetcher {
                 uuidToUsername.put(uuid, m.username());
                 usernameToUuid.put(m.username().toLowerCase(Locale.ROOT), uuid);
             }
+        }
+        // Overlay resolved roster names (from Minecraft Services API via tempserver).
+        // These are authoritative and override potentially stale Wynncraft API names.
+        Map<String, String> resolvedRoster = GuildRosterCache.getRoster();
+        for (Map.Entry<String, String> entry : resolvedRoster.entrySet()) {
+            uuidToUsername.put(entry.getKey(), entry.getValue());
+            usernameToUuid.put(entry.getValue().toLowerCase(Locale.ROOT), entry.getKey());
         }
         for (ConnectedUser cu : connected) {
             uuidToUsername.putIfAbsent(cu.uuid, cu.username);

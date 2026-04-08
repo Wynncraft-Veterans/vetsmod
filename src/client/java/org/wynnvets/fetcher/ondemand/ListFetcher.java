@@ -14,6 +14,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
+import org.wynnvets.fetcher.polling.GuildRosterCache;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.guild.OnlineGuildCache;
 import org.wynnvets.guild.TabListGuildParser;
@@ -185,6 +186,13 @@ public final class ListFetcher {
         uuidToUsername.put(uuid, m.username());
         usernameToUuid.put(m.username().toLowerCase(), uuid);
       }
+    }
+    // Overlay resolved roster names (from Minecraft Services API via tempserver).
+    // These are authoritative and override potentially stale Wynncraft API names.
+    Map<String, String> resolvedRoster = GuildRosterCache.getRoster();
+    for (Map.Entry<String, String> entry : resolvedRoster.entrySet()) {
+      uuidToUsername.put(entry.getKey(), entry.getValue());
+      usernameToUuid.put(entry.getValue().toLowerCase(), entry.getKey());
     }
     // Supplement with vetsmod usernames for UUIDs the API doesn't know.
     for (ConnectedUser cu : connected) {
