@@ -29,6 +29,7 @@ import org.wynnvets.fetcher.polling.SupportersFetcher;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.fetcher.ondemand.ListFetcher;
+import org.wynnvets.fetcher.ondemand.WorldListFetcher;
 import org.wynnvets.fetcher.ondemand.StampFetcher;
 import org.wynnvets.items.ItemDefinitions;
 import org.wynnvets.chat.ChatUtils;
@@ -112,6 +113,10 @@ public class VetsmodClient implements ClientModInitializer {
               .then(ClientCommandManager.literal("list")
                   .requires(this::userIsVet)
                   .executes(this::list)
+                  .then(ClientCommandManager.literal("world")
+                      .requires(this::userIsCaptain)
+                      .executes(this::listWorld)
+                  )
               )
 
                 // /gu staff
@@ -281,6 +286,31 @@ public class VetsmodClient implements ClientModInitializer {
       ChatUtils.sendLocalMessage(listInfo);
     });
 
+    return 1;
+  }
+
+  // Show online members grouped by Wynncraft server/world (staff only).
+  private int listWorld(CommandContext<FabricClientCommandSource> ctx) {
+    boolean isCurrentlyStaff = GuildStateManager.isStaff();
+    boolean refreshStarted = GuildStateManager.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
+
+    if (refreshStarted || GuildStateManager.isCheckingStaffStatus()) {
+      ChatUtils.sendLocalMessage(
+          Component.literal("Checking staff permissions, please retry in a moment.")
+              .withStyle(ChatFormatting.YELLOW)
+      );
+      return 0;
+    }
+
+    if (!GuildStateManager.isStaff()) {
+      ChatUtils.sendLocalMessage(
+          Component.literal("You must be staff to use /wv list world.")
+              .withStyle(ChatFormatting.RED)
+      );
+      return 0;
+    }
+
+    WorldListFetcher.fetchWorldList();
     return 1;
   }
 

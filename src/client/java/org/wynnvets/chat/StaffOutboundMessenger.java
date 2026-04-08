@@ -20,9 +20,12 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -86,6 +89,13 @@ public final class StaffOutboundMessenger {
     // Per-world eligibility gate for the self-presence check.
     private static volatile boolean selfSeenInStaffFeedThisWorld;
     private static final AtomicBoolean SELF_PRESENCE_CHECK_IN_FLIGHT = new AtomicBoolean(false);
+
+    // Find-batch state — reuses DISPATCH_EXECUTOR for single-threaded safety so that
+    // /find commands never interleave with /msg fanout.
+    private static final ConcurrentLinkedQueue<FindBatch> FIND_BATCH_QUEUE = new ConcurrentLinkedQueue<>();
+    private static final Object FIND_RESPONSE_LOCK = new Object();
+    private static volatile AwaitingFindResponse awaitingFindResponse;
+    private static final long FIND_RESPONSE_WAIT_MS = 3000L;
 
     private StaffOutboundMessenger() {
     }
@@ -188,6 +198,22 @@ public final class StaffOutboundMessenger {
         startBatchIfIdle();
     }
 
+    /**
+     * Enqueues a batch of {@code /find} lookups to run on the shared dispatch executor.
+     * The find commands are serialized behind any pending {@code /msg} broadcasts so the
+     * two never interleave. Results are delivered via the returned future as a map of
+     * username → server (or {@code null} value for offline / not-found users).
+     */
+    public static void enqueueFindBatch(List<String> usernames, CompletableFuture<Map<String, String>> resultFuture) {
+        if (usernames == null || usernames.isEmpty()) {
+            resultFuture.complete(Map.of());
+            return;
+        }
+
+        FIND_BATCH_QUEUE.add(new FindBatch(new ArrayList<>(usernames), resultFuture));
+        startBatchIfIdle();
+    }
+
     // ──────────────────────────── Batch dispatch ────────────────────────────
 
     private static void startBatchIfIdle() {
@@ -198,10 +224,38 @@ public final class StaffOutboundMessenger {
     }
 
     /**
-     * Drains all queued messages, sending each to every online staff member in order.
-     * Staff list is fetched once per batch; offline users are tracked and skipped.
+     * Coordinates the shared dispatch executor: drains /msg broadcasts first, then any
+     * queued /find batches.  Both use the same single thread to guarantee serial command
+     * dispatch to Wynncraft.
      */
     private static void processBatch() {
+        try {
+            if (!MESSAGE_QUEUE.isEmpty()) {
+                processMessageBatch();
+            }
+
+            FindBatch findBatch;
+            while ((findBatch = FIND_BATCH_QUEUE.poll()) != null) {
+                try {
+                    processFindBatch(findBatch);
+                } catch (Exception e) {
+                    VetsLogger.warn("Failed to process find batch: {}", e.getMessage());
+                    findBatch.resultFuture().completeExceptionally(e);
+                }
+            }
+        } finally {
+            BATCH_IN_PROGRESS.set(false);
+            if (!MESSAGE_QUEUE.isEmpty() || !FIND_BATCH_QUEUE.isEmpty()) {
+                startBatchIfIdle();
+            }
+        }
+    }
+
+    /**
+     * Drains all queued /msg broadcasts, sending each to every online staff member in order.
+     * Staff list is fetched once per batch; offline users are tracked and skipped.
+     */
+    private static void processMessageBatch() {
         try {
             List<String> staffUsernames = fetchOnlineStaffUsernames();
             Minecraft minecraft = Minecraft.getInstance();
@@ -274,14 +328,199 @@ public final class StaffOutboundMessenger {
                 // drained
             }
             showNoRecipientsWarning();
-        } finally {
-            BATCH_IN_PROGRESS.set(false);
-            // If messages arrived while we were processing (after our last poll),
-            // start a new batch to handle them.
-            if (!MESSAGE_QUEUE.isEmpty()) {
-                startBatchIfIdle();
+        }
+    }
+
+    // ──────────────────────────── Find-batch dispatch ────────────────────────────
+
+    /**
+     * Processes a single /find batch: sends {@code /find <username>} for each name,
+     * waits for the server response, and collects results into the future.
+     */
+    private static void processFindBatch(FindBatch batch) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+
+        if (player == null) {
+            batch.resultFuture().complete(Map.of());
+            return;
+        }
+
+        Map<String, String> results = new LinkedHashMap<>();
+
+        for (String username : batch.usernames()) {
+            String server = tryFindUser(minecraft, player, username);
+            results.put(username, server);
+            sleepQuietly(INTER_SEND_DELAY_MS);
+        }
+
+        batch.resultFuture().complete(results);
+    }
+
+    /**
+     * Sends {@code /find <username>} and waits for the server response.
+     * Returns the server name (e.g. "AS25") or {@code null} if offline/not found.
+     */
+    private static String tryFindUser(Minecraft minecraft, LocalPlayer player, String username) {
+        CountDownLatch submitted = new CountDownLatch(1);
+        AtomicBoolean commandSent = new AtomicBoolean(false);
+        String usernameLower = username.toLowerCase(Locale.ROOT);
+
+        minecraft.execute(() -> {
+            try {
+                if (player.connection == null) {
+                    return;
+                }
+
+                synchronized (FIND_RESPONSE_LOCK) {
+                    awaitingFindResponse = new AwaitingFindResponse(usernameLower);
+                }
+
+                player.connection.sendCommand("find " + username);
+                commandSent.set(true);
+            } finally {
+                submitted.countDown();
+            }
+        });
+
+        try {
+            if (!submitted.await(2, TimeUnit.SECONDS)) {
+                clearAwaitingFind(usernameLower);
+                return null;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            clearAwaitingFind(usernameLower);
+            return null;
+        }
+
+        if (!commandSent.get()) {
+            clearAwaitingFind(usernameLower);
+            return null;
+        }
+
+        return waitForFindResponse(usernameLower);
+    }
+
+    /**
+     * Blocks until the find-response system signals that the server responded
+     * to a {@code /find} command.
+     */
+    private static String waitForFindResponse(String usernameLower) {
+        long deadline = System.currentTimeMillis() + FIND_RESPONSE_WAIT_MS;
+
+        synchronized (FIND_RESPONSE_LOCK) {
+            while (true) {
+                AwaitingFindResponse awaiting = awaitingFindResponse;
+                if (awaiting != null && awaiting.usernameLower.equals(usernameLower) && awaiting.resultReady) {
+                    awaitingFindResponse = null;
+                    return awaiting.server;
+                }
+
+                long remaining = deadline - System.currentTimeMillis();
+                if (remaining <= 0) {
+                    clearAwaitingFind(usernameLower);
+                    return null;
+                }
+
+                try {
+                    FIND_RESPONSE_LOCK.wait(remaining);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    clearAwaitingFind(usernameLower);
+                    return null;
+                }
             }
         }
+    }
+
+    private static void clearAwaitingFind(String usernameLower) {
+        synchronized (FIND_RESPONSE_LOCK) {
+            AwaitingFindResponse awaiting = awaitingFindResponse;
+            if (awaiting != null && awaiting.usernameLower.equals(usernameLower)) {
+                awaitingFindResponse = null;
+            }
+        }
+    }
+
+    // ──────────────────────────── Find-response suppression (ChatLogMixin) ────────────────────────────
+
+    /**
+     * Called from {@code ChatLogMixin} on the render thread for every incoming chat message.
+     * Matches {@code /find} response lines, suppresses them from display, and signals the
+     * dispatch thread with the result.
+     *
+     * @return {@code true} if the message was consumed (should be suppressed)
+     */
+    public static boolean shouldSuppressFindResponse(String message) {
+        AwaitingFindResponse awaiting = awaitingFindResponse;
+        if (awaiting == null) {
+            return false;
+        }
+
+        String sanitized = stripFormattingAndPua(message).toLowerCase(Locale.ROOT);
+        String target = awaiting.usernameLower;
+
+        // "username is currently on server XX##"
+        String onlineMarker = target + " is currently on server ";
+        int onlineIdx = sanitized.indexOf(onlineMarker);
+        if (onlineIdx >= 0) {
+            String afterMarker = sanitized.substring(onlineIdx + onlineMarker.length()).trim();
+            String server = afterMarker.split("\\s")[0];
+            signalFindResponse(target, server.isEmpty() ? null : server);
+            return true;
+        }
+
+        // "username is not currently online"
+        if (sanitized.contains(target + " is not currently online")) {
+            signalFindResponse(target, null);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void signalFindResponse(String usernameLower, String server) {
+        synchronized (FIND_RESPONSE_LOCK) {
+            AwaitingFindResponse awaiting = awaitingFindResponse;
+            if (awaiting != null && awaiting.usernameLower.equals(usernameLower)) {
+                awaiting.server = server;
+                awaiting.resultReady = true;
+                FIND_RESPONSE_LOCK.notifyAll();
+            }
+        }
+    }
+
+    /**
+     * Strips {@code §x} formatting codes and PUA/surrogate characters for reliable
+     * text matching against Wynncraft server responses.
+     */
+    private static String stripFormattingAndPua(String text) {
+        if (text == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder(text.length());
+        int i = 0;
+        while (i < text.length()) {
+            int cp = text.codePointAt(i);
+            int len = Character.charCount(cp);
+
+            if (cp == '\u00a7' && i + 1 < text.length()) {
+                i += 2;
+                continue;
+            }
+
+            int type = Character.getType(cp);
+            if (type == Character.PRIVATE_USE || type == Character.SURROGATE
+                    || type == Character.UNASSIGNED || type == Character.FORMAT) {
+                i += len;
+                continue;
+            }
+
+            sb.appendCodePoint(cp);
+            i += len;
+        }
+        return sb.toString();
     }
 
     // ──────────────────────────── Single-message dispatch ────────────────────────────
@@ -860,6 +1099,19 @@ public final class StaffOutboundMessenger {
 
         private boolean matches(String otherUsernameLower, String otherLockPayload) {
             return this.usernameLower.equals(otherUsernameLower) && this.lockPayload.equals(otherLockPayload);
+        }
+    }
+
+    private record FindBatch(List<String> usernames, CompletableFuture<Map<String, String>> resultFuture) {
+    }
+
+    private static final class AwaitingFindResponse {
+        private final String usernameLower;
+        private volatile String server;
+        private volatile boolean resultReady;
+
+        private AwaitingFindResponse(String usernameLower) {
+            this.usernameLower = usernameLower;
         }
     }
 }
