@@ -7,7 +7,6 @@ import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.commands.CommandRegistry;
 import org.wynnvets.config.VetsConfig;
-import org.wynnvets.debug.DebugCommands;
 import org.wynnvets.debug.DebugConfigManager;
 import org.wynnvets.debug.dump.DebugKeyHandler;
 import org.wynnvets.fetcher.polling.StaffRanksFetcher;

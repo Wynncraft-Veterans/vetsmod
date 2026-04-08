@@ -222,8 +222,7 @@ public final class WynntilsEventListener {
         recordSentFingerprint(trueUsername, normalizedMsg, hadItemPua);
 
         // Record the REPAIRED message for outbound echo suppression so that
-        // the outbound (which carries the repaired URL) matches when checked
-        // by wasServerMessageRecentlySeen.
+        // the outbound (which carries the repaired URL) matches at dedup time.
         OutboundDisplayHandler.recordServerGuildMessage(trueUsername, repairedMessage);
     }
 

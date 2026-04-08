@@ -3,7 +3,6 @@ package org.wynnvets.guild;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.Prepend;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
 

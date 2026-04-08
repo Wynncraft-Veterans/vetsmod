@@ -35,7 +35,6 @@ public final class SpoilerCodec {
      */
     public static final String WRAPPER_PREFIX = "[Spoiler: ";
     public static final String WRAPPER_SUFFIX = "]";
-    private static final int WRAPPER_OVERHEAD = WRAPPER_PREFIX.length() + WRAPPER_SUFFIX.length();
 
     /** Base codepoint for direct character encoding (chars 0–253). */
     private static final char ENCODE_BASE = '\uF602';

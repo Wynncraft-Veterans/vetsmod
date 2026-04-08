@@ -120,7 +120,7 @@ public final class OutboundDisplayHandler {
             if (recentServerMessages.size() >= MAX_RECENT_SERVER_MESSAGES) {
                 recentServerMessages.pollFirst();
             }
-            recentServerMessages.addLast(new RecentServerMessage(displayName, message, now));
+            recentServerMessages.addLast(new RecentServerMessage(message, now));
         }
     }
 
@@ -275,20 +275,6 @@ public final class OutboundDisplayHandler {
         }
     }
 
-    private static boolean wasServerMessageRecentlySeen(String message) {
-        String normalized = normalizeForDedup(message);
-        synchronized (recentServerLock) {
-            long now = System.currentTimeMillis();
-            pruneExpiredServerMessages(now);
-            for (RecentServerMessage recent : recentServerMessages) {
-                if (normalizeForDedup(recent.message).equals(normalized)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     private static void pruneExpiredSelfMessages(long nowMs) {
         while (!pendingSelfMessages.isEmpty()) {
             PendingSelfMessage head = pendingSelfMessages.peekFirst();
@@ -429,12 +415,10 @@ public final class OutboundDisplayHandler {
     }
 
     private static final class RecentServerMessage {
-        final String displayName;
         final String message;
         final long createdAtMs;
 
-        RecentServerMessage(String displayName, String message, long createdAtMs) {
-            this.displayName = displayName;
+        RecentServerMessage(String message, long createdAtMs) {
             this.message = message;
             this.createdAtMs = createdAtMs;
         }
