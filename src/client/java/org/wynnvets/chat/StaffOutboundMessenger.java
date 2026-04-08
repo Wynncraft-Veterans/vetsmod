@@ -98,6 +98,12 @@ public final class StaffOutboundMessenger {
     private static volatile AwaitingFindResponse awaitingFindResponse;
     private static final long FIND_RESPONSE_WAIT_MS = 6_000L;
 
+    /**
+     * Sentinel server value returned by {@code /find} when a player is on a
+     * private server (media, dev, staff, etc.).
+     */
+    public static final String PRIVATE_SERVER = "PRIVATE";
+
     private StaffOutboundMessenger() {
     }
 
@@ -468,6 +474,12 @@ public final class StaffOutboundMessenger {
             String afterMarker = sanitized.substring(onlineIdx + onlineMarker.length()).trim();
             String server = afterMarker.split("\\s")[0];
             signalFindResponse(target, server.isEmpty() ? null : server);
+            return true;
+        }
+
+        // "username is currently on a private server."
+        if (sanitized.contains(target + " is currently on a private server")) {
+            signalFindResponse(target, PRIVATE_SERVER);
             return true;
         }
 

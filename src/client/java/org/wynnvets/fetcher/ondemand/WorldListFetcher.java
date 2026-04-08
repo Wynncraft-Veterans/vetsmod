@@ -77,6 +77,9 @@ public final class WorldListFetcher {
             "SA", "South America"
     );
 
+    // Display label for the private-server group.
+    private static final String PRIVATE_REGION = "Private";
+
     private WorldListFetcher() {
     }
 
@@ -409,7 +412,10 @@ public final class WorldListFetcher {
         // ── Build the component ──────────────────────────────────────
 
         int foundCount = players.size() - notFound.size();
-        int serverCount = serverToPlayers.size();
+        // Don't count the PRIVATE sentinel as a real server.
+        int serverCount = (int) serverToPlayers.keySet().stream()
+                .filter(s -> !StaffOutboundMessenger.PRIVATE_SERVER.equalsIgnoreCase(s))
+                .count();
 
         MutableComponent msg = Component.empty();
         msg.append(Component.literal("——— World List ———\n")
@@ -421,6 +427,23 @@ public final class WorldListFetcher {
         for (Map.Entry<String, Map<String, List<OnlinePlayer>>> regionEntry : sortedRegions) {
             String region = regionEntry.getKey();
             Map<String, List<OnlinePlayer>> servers = regionEntry.getValue();
+
+            if (PRIVATE_REGION.equals(region)) {
+                // Private server players are lumped together without individual server rows.
+                List<OnlinePlayer> allPrivate = servers.values().stream()
+                        .flatMap(List::stream)
+                        .toList();
+                msg.append(Component.literal("\nPrivate Servers (" + allPrivate.size() + "):\n")
+                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+                for (int i = 0; i < allPrivate.size(); i++) {
+                    msg.append(styledPlayerName(allPrivate.get(i), staffNames));
+                    if (i < allPrivate.size() - 1) {
+                        msg.append(Component.literal(", ").withStyle(ChatFormatting.DARK_GRAY));
+                    }
+                }
+                msg.append(Component.literal("\n"));
+                continue;
+            }
 
             msg.append(Component.literal("\n" + region + " Servers:\n")
                     .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
@@ -499,33 +522,23 @@ public final class WorldListFetcher {
     /**
      * Classifies a server name into a display region.  Standard Wynncraft servers
      * use GeoLite2 / GeoIP2 continent codes ({@code AF, AS, EU, NA, OC, SA}) followed
-     * by a numeric ID.  Special servers (e.g. {@code MEDIA1}) are grouped separately.
+     * by a numeric ID.  Players on private servers (media, dev, staff, etc.) are
+     * identified by the {@link StaffOutboundMessenger#PRIVATE_SERVER} sentinel.
      */
     private static String classifyRegion(String server) {
+        if (StaffOutboundMessenger.PRIVATE_SERVER.equalsIgnoreCase(server)) {
+            return PRIVATE_REGION;
+        }
+
         String upper = server.toUpperCase(Locale.ROOT);
 
-        // Try known 2-letter continent prefixes first.
+        // Try known 2-letter continent prefixes.
         if (upper.length() >= 2) {
             String prefix = upper.substring(0, 2);
             String continent = CONTINENT_NAMES.get(prefix);
             if (continent != null) {
                 return continent;
             }
-        }
-
-        // Extract alphabetic prefix for special servers (MEDIA, LOBBY, etc.)
-        StringBuilder prefix = new StringBuilder();
-        for (int i = 0; i < upper.length(); i++) {
-            char c = upper.charAt(i);
-            if (Character.isLetter(c)) {
-                prefix.append(c);
-            } else {
-                break;
-            }
-        }
-
-        if (prefix.length() > 0) {
-            return prefix.toString();
         }
 
         return "Other";
