@@ -68,25 +68,37 @@ public class GuildStateManager {
   }
 
   /**
-   * Get whether the player's guild is "Returners", read live from
-   * {@code Models.Guild}.
+   * Get whether the player's guild is "Returners".
+   *
+   * <p>If the mod's own guild check ({@link GuildChecker}) has a valid
+   * (non-expired) result, that takes precedence over Wynntils'
+   * {@code Models.Guild} data, which can remain {@code null} for
+   * extended periods after world join.</p>
    *
    * @return true if guild is "Returners", false otherwise
    */
   public static boolean isReturners() {
+    if (GuildChecker.hasValidResult()) {
+      return GuildChecker.getResult() == GuildChecker.GuildCheckResult.RETURNERS;
+    }
     if (!wynntilsReady) return false;
     return RETURNERS_GUILD_NAME.equals(Models.Guild.getGuildName());
   }
 
   /**
-   * Get whether the player is not in a guild, read live from
-   * {@code Models.Guild}.
+   * Get whether the player is not in a guild.
+   *
+   * <p>Checks the mod's own guild check result first, falling back to
+   * Wynntils' {@code Models.Guild}.</p>
    *
    * @return true if player is not in a guild, false otherwise
    */
   public static boolean isGuildless() {
     if (UnlockManager.isDebugForceGuildlessUnlocked()) {
       return true;
+    }
+    if (GuildChecker.hasValidResult()) {
+      return GuildChecker.getResult() == GuildChecker.GuildCheckResult.GUILDLESS;
     }
     if (!wynntilsReady) return true;
     return !Models.Guild.isInGuild();
@@ -215,10 +227,11 @@ public class GuildStateManager {
   }
 
   /**
-   * Load persisted staff and unlock state from config.
+   * Load persisted staff, guild check, and unlock state from config.
    */
   public static void loadPersistedState() {
     StaffRankChecker.loadPersistedState();
+    GuildChecker.loadPersistedState();
     UnlockManager.loadPersistedState();
   }
 
@@ -270,6 +283,26 @@ public class GuildStateManager {
   }
 
   /**
+   * Process incoming chat messages for guild check responses.
+   * Returns {@code true} when the message should be suppressed from display.
+   *
+   * @param message the plain text chat message
+   * @return {@code true} if the message was consumed by the guild checker
+   */
+  public static boolean processGuildCheckMessage(String message) {
+    return GuildChecker.processAndShouldSuppress(message);
+  }
+
+  /**
+   * Check if currently processing a mod-initiated guild check.
+   *
+   * @return true if guild check is active or in suppression grace period
+   */
+  public static boolean isProcessingModGuildCheck() {
+    return GuildChecker.isProcessingModGuildCheck();
+  }
+
+  /**
    * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when the
    * player enters a Wynncraft world ({@code WorldStateEvent} with
    * {@code newState == WORLD}).
@@ -310,6 +343,13 @@ public class GuildStateManager {
     VetsLogger.debug("onEnteredWorld: guild={}, guildless={}, returners={}",
         Models.Guild.getGuildName(), isGuildless(), isReturners());
 
+    // When moreReliableGuildCheck is enabled, schedule our own /gu stats
+    // check after a delay so Wynntils has time to finish its own
+    // world-join commands and the command queue is clear.
+    if (VetsConfig.get(VetsConfig.MORE_RELIABLE_GUILD_CHECK)) {
+      scheduleDelayedGuildCheck();
+    }
+
     // When guild info is not yet available (empty name), Wynntils may still
     // be scanning the compass menu asynchronously.  Schedule a delayed
     // re-check so we don't stay stuck as "guildless" for the entire session.
@@ -322,10 +362,12 @@ public class GuildStateManager {
    * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when
    * a {@code GuildEvent.Joined} or {@code GuildEvent.Left} event fires.
    *
-   * <p>Re-evaluates guild-dependent state so that feature gates update
-   * immediately when the player joins or leaves a guild mid-session.</p>
+   * <p>Clears the mod's own guild check result (since the Wynntils event
+   * is authoritative) and re-evaluates guild-dependent state.</p>
    */
   public static void onGuildInfoUpdated() {
+    // Wynntils guild events are authoritative — clear our override
+    GuildChecker.clearResult();
     VetsLogger.debug("onGuildInfoUpdated: guild={}, guildless={}, returners={}",
         Models.Guild.getGuildName(), isGuildless(), isReturners());
 
@@ -492,9 +534,10 @@ public class GuildStateManager {
 
   /**
    * Force an immediate re-read of guild info from the Wynntils
-   * {@code Models.Guild} API.  Reports current state to chat and triggers
-   * {@link #onGuildInfoUpdated()} if guild info is present.  Also forces a
-   * staff rank refresh regardless of cooldown.
+   * {@code Models.Guild} API.  Reports current state to chat, triggers
+   * {@link #onGuildInfoUpdated()} if guild info is present, forces a
+   * staff rank refresh, and always runs our own {@code /gu stats}
+   * guild check.
    *
    * <p>Intended for use from {@code /wv debug trigger forceChecks}.</p>
    */
@@ -542,6 +585,32 @@ public class GuildStateManager {
                     : ChatFormatting.GREEN))
     );
 
+    // GuildChecker state
+    GuildChecker.GuildCheckResult gcResult = GuildChecker.getResult();
+    boolean gcValid = GuildChecker.hasValidResult();
+    long gcAge = GuildChecker.getLastCheckTime() > 0
+        ? (System.currentTimeMillis() - GuildChecker.getLastCheckTime()) / 1000
+        : -1;
+
+    ChatUtils.sendLocalMessage(
+        Component.literal("  GuildChecker result: ")
+            .withStyle(ChatFormatting.GRAY)
+            .append(Component.literal(gcResult.name() + (gcValid ? "" : " (expired)"))
+                .withStyle(gcValid ? ChatFormatting.GREEN : ChatFormatting.RED))
+    );
+
+    if (gcAge >= 0) {
+      String ageStr = gcAge < 3600 ? gcAge + "s"
+          : gcAge < 86400 ? (gcAge / 3600) + "h"
+          : (gcAge / 86400) + "d";
+      ChatUtils.sendLocalMessage(
+          Component.literal("  GuildChecker age: ")
+              .withStyle(ChatFormatting.GRAY)
+              .append(Component.literal(ageStr)
+                  .withStyle(ChatFormatting.AQUA))
+      );
+    }
+
     ChatUtils.sendLocalMessage(
         Component.literal("  VetsMod isReturners: ")
             .withStyle(ChatFormatting.GRAY)
@@ -576,10 +645,16 @@ public class GuildStateManager {
                 .withStyle(ChatFormatting.AQUA))
     );
 
-    // Trigger guild info update path
+    // Trigger guild info update path (without clearing GuildChecker —
+    // that only happens on GuildEvent from Wynntils, not on forced recheck)
     if (inGuild) {
-      VetsLogger.info("forceGuildRecheck: triggering onGuildInfoUpdated()");
-      onGuildInfoUpdated();
+      VetsLogger.info("forceGuildRecheck: Wynntils has guild info, re-evaluating");
+      // Don't call onGuildInfoUpdated() here as it clears GuildChecker.
+      // Just re-evaluate dependent state directly.
+      if (isReturners()) {
+        fetchAndDisplayStampMessage();
+      }
+      sendRegistrationIfReady();
     }
 
     // Force staff rank refresh regardless of cooldown
@@ -589,6 +664,17 @@ public class GuildStateManager {
             .withStyle(ChatFormatting.GRAY)
             .append(Component.literal(staffRefreshStarted ? "started" : "already in progress")
                 .withStyle(staffRefreshStarted
+                    ? ChatFormatting.GREEN
+                    : ChatFormatting.YELLOW))
+    );
+
+    // Always run our own /gu stats check from forceChecks
+    boolean guildCheckStarted = GuildChecker.refreshGuildStatus();
+    ChatUtils.sendLocalMessage(
+        Component.literal("  Guild check (/gu stats): ")
+            .withStyle(ChatFormatting.GRAY)
+            .append(Component.literal(guildCheckStarted ? "started" : "already in progress")
+                .withStyle(guildCheckStarted
                     ? ChatFormatting.GREEN
                     : ChatFormatting.YELLOW))
     );
@@ -604,8 +690,60 @@ public class GuildStateManager {
     enteredWorld = false;
     V1ApiManager.clearRegistration();
     StaffRankChecker.reset();
+    GuildChecker.reset();
     UnlockManager.reset();
     StaffOutboundMessenger.resetStaffChatEligibilityCache();
+  }
+
+  /**
+   * Called by {@link GuildChecker} when its {@code /gu stats} check completes.
+   * Re-evaluates guild-dependent state and updates registration.
+   */
+  static void onGuildCheckCompleted() {
+    GuildChecker.GuildCheckResult result = GuildChecker.getResult();
+    VetsLogger.debug("onGuildCheckCompleted: result={}", result);
+
+    sendRegistrationIfReady();
+
+    if (result == GuildChecker.GuildCheckResult.RETURNERS) {
+      fetchAndDisplayStampMessage();
+    }
+  }
+
+  /** Delay before running our /gu stats check after world join, giving
+   *  Wynntils time to finish its own world-join commands. */
+  private static final long GUILD_CHECK_WORLD_JOIN_DELAY_MS = 5_000L;
+
+  /**
+   * Schedules a {@code /gu stats} guild check to run after a delay,
+   * ensuring Wynntils has finished its own world-join processing and
+   * the command queue is clear.
+   */
+  private static void scheduleDelayedGuildCheck() {
+    new Thread(() -> {
+      try {
+        Thread.sleep(GUILD_CHECK_WORLD_JOIN_DELAY_MS);
+
+        if (!wynntilsReady || !enteredWorld) {
+          VetsLogger.debug("Delayed guild check aborted: wynntilsReady={}, enteredWorld={}",
+              wynntilsReady, enteredWorld);
+          return;
+        }
+
+        // Verify the world is still loaded before queuing the command
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.execute(() -> {
+          if (!Models.WorldState.onWorld()) {
+            VetsLogger.debug("Delayed guild check aborted: not on world");
+            return;
+          }
+          GuildChecker.refreshGuildStatus();
+        });
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        VetsLogger.debug("Delayed guild check interrupted");
+      }
+    }, "vetsmod-delayed-guild-check").start();
   }
 
   /**

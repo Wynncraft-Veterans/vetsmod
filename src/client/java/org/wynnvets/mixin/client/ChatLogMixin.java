@@ -42,6 +42,13 @@ public class ChatLogMixin {
       ChatLogger.logMessage(messageString);
     }
 
+    // Process guild check messages first — may suppress /gu stats output
+    if (!isInternalDispatch && GuildStateManager.processGuildCheckMessage(messageString)) {
+      VetsLogger.debug("Suppressing mod-initiated guild check message");
+      ci.cancel();
+      return;
+    }
+
     // Check if this is a staff rank-check response BEFORE processing
     boolean isStaffRankCheck = GuildStateManager.isProcessingModStaffRankCheck() && isStaffRankCheckMessage(messageString);
 

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.wynntils.core.components.Handlers;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -49,7 +50,7 @@ public final class StaffOutboundMessenger {
     private static final long SUPPRESSION_TTL_MS = 15000L;
     private static final long OFFLINE_GUIDANCE_SUPPRESSION_WINDOW_MS = 4000L;
     private static final long INTER_SEND_DELAY_MS = 600L;
-    private static final long SUPPRESSION_WAIT_MS = 1800L;
+    private static final long SUPPRESSION_WAIT_MS = 5_000L;
     private static final int MAX_DISPATCH_RETRIES = 3;
     private static final String STAFF_CHAT_WAIT_ONLINE_STATUS_MESSAGE =
         "Please wait until the server updates your online status before using staff chat.";
@@ -95,7 +96,7 @@ public final class StaffOutboundMessenger {
     private static final ConcurrentLinkedQueue<FindBatch> FIND_BATCH_QUEUE = new ConcurrentLinkedQueue<>();
     private static final Object FIND_RESPONSE_LOCK = new Object();
     private static volatile AwaitingFindResponse awaitingFindResponse;
-    private static final long FIND_RESPONSE_WAIT_MS = 3000L;
+    private static final long FIND_RESPONSE_WAIT_MS = 6_000L;
 
     private StaffOutboundMessenger() {
     }
@@ -309,8 +310,7 @@ public final class StaffOutboundMessenger {
                             break;
                     }
 
-                    // Rate-limit between sends to avoid Wynncraft throttling
-                    sleepQuietly(INTER_SEND_DELAY_MS);
+                    // Wynntils command queue handles rate-limiting between sends
                 }
 
                 if (deliveredThisMessage) {
@@ -351,7 +351,7 @@ public final class StaffOutboundMessenger {
         for (String username : batch.usernames()) {
             String server = tryFindUser(minecraft, player, username);
             results.put(username, server);
-            sleepQuietly(INTER_SEND_DELAY_MS);
+            // Wynntils command queue handles rate-limiting between sends
         }
 
         batch.resultFuture().complete(results);
@@ -376,7 +376,7 @@ public final class StaffOutboundMessenger {
                     awaitingFindResponse = new AwaitingFindResponse(usernameLower);
                 }
 
-                player.connection.sendCommand("find " + username);
+                Handlers.Command.queueCommand("find " + username);
                 commandSent.set(true);
             } finally {
                 submitted.countDown();
@@ -580,7 +580,7 @@ public final class StaffOutboundMessenger {
                     awaitingSuppression = new AwaitingSuppression(recipientLower, payload);
                 }
 
-                player.connection.sendCommand("msg " + recipient + " " + payload);
+                Handlers.Command.queueCommand("msg " + recipient + " " + payload);
                 commandSent.set(true);
             } finally {
                 submitted.countDown();

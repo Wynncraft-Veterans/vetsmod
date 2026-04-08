@@ -45,6 +45,8 @@ public class VetsConfig {
   public static final String VETS_WAITLIST_UNLOCK_TIME = "vetsWaitlistUnlockTime";
   public static final String VETS_HONOURARY_UNLOCK_TIME = "vetsHonouraryUnlockTime";
   public static final String VETS_UNLOCK_EXPIRY_WARNINGS = "vetsUnlockExpiryWarnings";
+  public static final String VETS_GUILD_CHECK_RESULT = "vetsGuildCheckResult";
+  public static final String VETS_LAST_GUILD_CHECK = "vetsLastGuildCheck";
 
   // ── User-facing configuration keys (toggled via /wv config) ─────────────
 
@@ -66,6 +68,10 @@ public class VetsConfig {
   /** Whether {@code ||spoiler||} markers are rendered as hoverable spoiler labels. */
   public static final String HANDLE_SPOILERS = "handleSpoilers";
 
+  /** Whether the mod runs its own {@code /gu stats} check on world join instead of
+   *  relying solely on Wynntils' guild detection (which can remain null). */
+  public static final String MORE_RELIABLE_GUILD_CHECK = "moreReliableGuildCheck";
+
   /**
    * Ordered list of configuration keys that can be toggled by the player via
    * {@code /wv config <key> <value>}.  Internal keys (staff status, timestamps,
@@ -78,6 +84,7 @@ public class VetsConfig {
       PRINT_BRIDGE_MESSAGES,
       SHOW_SUPPORTER_GLINTS,
       HANDLE_SPOILERS,
+      MORE_RELIABLE_GUILD_CHECK,
   };
 
   /**
@@ -97,13 +104,16 @@ public class VetsConfig {
     longConfig.put(VETS_WAITLIST_UNLOCK_TIME, 0L);
     longConfig.put(VETS_HONOURARY_UNLOCK_TIME, 0L);
     longConfig.put(VETS_UNLOCK_EXPIRY_WARNINGS, 0L);
+    longConfig.put(VETS_GUILD_CHECK_RESULT, 0L);
+    longConfig.put(VETS_LAST_GUILD_CHECK, 0L);
 
-    // User-facing defaults (all enabled by default)
+    // User-facing defaults (all enabled by default, except moreReliableGuildCheck)
     config.put(LEGACY_ITEM_HIGHLIGHTING, true);
     config.put(PRINT_MOTD, true);
     config.put(PRINT_ANNI, true);
     config.put(PRINT_BRIDGE_MESSAGES, true);
     config.put(SHOW_SUPPORTER_GLINTS, true);
+    config.put(MORE_RELIABLE_GUILD_CHECK, true);
 
     // Tri-state defaults (null = use default behaviour)
     triStateConfig.put(HANDLE_SPOILERS, null);

@@ -1,14 +1,8 @@
 package org.wynnvets.guild;
 
-import com.wynntils.core.components.Models;
-import com.wynntils.models.worlds.type.WorldState;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
+import com.wynntils.core.components.Handlers;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Detects and tracks the player's staff rank by issuing {@code /gu rank}
@@ -26,8 +20,9 @@ final class StaffRankChecker {
 
     // ── Constants ──────────────────────────────────────────────────────
 
-    /** Timeout for a single /gu rank response. */
-    private static final long STAFF_RANK_TIMEOUT_MS = 5_000L;
+    /** Timeout for a single /gu rank response (generous to account for
+     *  Wynntils command queue depth). */
+    private static final long STAFF_RANK_TIMEOUT_MS = 10_000L;
 
     /** Minimum interval between automatic staff rank checks (24 hours). */
     private static final long STAFF_CHECK_COOLDOWN_MS = 24 * 60 * 60 * 1_000L;
@@ -186,75 +181,17 @@ final class StaffRankChecker {
     }
 
     /**
-     * Issues {@code /gu rank} on the render thread from a background thread,
-     * retrying until a response is detected or attempts are exhausted.
+     * Queues {@code /gu rank} through the Wynntils rate-limited command
+     * queue.  The response is processed asynchronously by
+     * {@link #processMessage(String)} as chat messages arrive.
      */
     private static void sendStaffRankCheckCommand() {
-        Minecraft minecraft = Minecraft.getInstance();
-
         waitingForStaffRankCheck = true;
         isModInitiatedStaffRankCheck = true;
         staffRankRequestTime = System.currentTimeMillis();
 
-        new Thread(() -> {
-            int attempts = 0;
-            int maxAttempts = 20; // 5 seconds total
-            long delay = 250;
-
-            while (attempts < maxAttempts) {
-                try {
-                    Thread.sleep(delay);
-
-                    CountDownLatch latch = new CountDownLatch(1);
-                    boolean[] commandSent = {false};
-                    minecraft.execute(() -> {
-                        try {
-                            if (!GuildStateManager.isWynntilsReady()) return;
-                            WorldState currentState = Models.WorldState.getCurrentState();
-                            if (currentState != WorldState.WORLD) return;
-
-                            LocalPlayer player = minecraft.player;
-                            if (player != null && player.connection != null) {
-                                try {
-                                    player.connection.sendCommand("gu rank");
-                                    commandSent[0] = true;
-                                } catch (Exception e) {
-                                    VetsLogger.warn("Failed to send /gu rank: {}", e.getMessage());
-                                }
-                            }
-                        } finally {
-                            latch.countDown();
-                        }
-                    });
-
-                    latch.await(2, TimeUnit.SECONDS);
-
-                    if (commandSent[0]) {
-                        int responseWait = 0;
-                        while (responseWait < 8 && waitingForStaffRankCheck) {
-                            Thread.sleep(250);
-                            responseWait++;
-                        }
-                        if (!waitingForStaffRankCheck) break;
-                    }
-
-                    attempts++;
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    VetsLogger.warn("Staff rank check interrupted");
-                    waitingForStaffRankCheck = false;
-                    isModInitiatedStaffRankCheck = false;
-                    break;
-                }
-            }
-
-            if (attempts >= maxAttempts) {
-                VetsLogger.warn("Staff rank check timed out after {} attempts", maxAttempts);
-                waitingForStaffRankCheck = false;
-                isModInitiatedStaffRankCheck = false;
-                markStaffCheckCompletedNow();
-            }
-        }, "vetsmod-staff-rank-check").start();
+        Handlers.Command.queueCommand("gu rank");
+        VetsLogger.debug("Staff rank check queued via Wynntils command queue");
     }
 
     private static boolean isStaffRankUnauthorizedResponse(String message) {
