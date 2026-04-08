@@ -35,9 +35,9 @@ import java.util.regex.Pattern;
  */
 public final class TabListGuildParser {
 
-    /** Matches {@code [SERVER] Username} where SERVER is like NA58, EU1, etc. */
+    /** Matches {@code [SERVER] Username} where SERVER is like NA58, EU1, MEDIA, DEV, etc. */
     private static final Pattern SERVER_USERNAME_PATTERN =
-            Pattern.compile("\\[([A-Za-z]+\\d+)]\\s+(.+)");
+            Pattern.compile("\\[([A-Za-z]+\\d*)]\\s+(.+)");
 
     /** Same comparator Wynncraft / Wynntils uses for tab list ordering. */
     private static final Comparator<PlayerInfo> TAB_SORT =

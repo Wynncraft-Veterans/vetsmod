@@ -12,8 +12,10 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
+import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.guild.OnlineGuildCache;
 import org.wynnvets.guild.TabListGuildParser;
 import org.wynnvets.logging.VetsLogger;
 
@@ -80,6 +82,13 @@ public final class ListFetcher {
     // 1. Read tab list immediately (synchronous, local state).
     List<TabListGuildParser.GuildEntry> tabEntries = TabListGuildParser.parseOnlineGuildMembers();
     VetsLogger.debug("Tab list returned {} guild entries", tabEntries.size());
+
+    // Forward tab list to the server so !list can use it too.
+    if (!tabEntries.isEmpty()) {
+      V1ApiManager.sendTabList(tabEntries.stream()
+          .map(e -> new V1ApiManager.TabListEntry(e.server(), e.username()))
+          .toList());
+    }
 
     // 2. Fetch connected vetsmod users from the server.
     CompletableFuture<List<ConnectedUser>> serverFuture = fetchConnectedUsers()
@@ -234,7 +243,6 @@ public final class ListFetcher {
         withoutMod.add(tabName);
       }
     }
-    withoutMod.sort(String.CASE_INSENSITIVE_ORDER);
 
     // Honourary + waitlist (always vetsmod users).
     List<String> honourary = modByUuid.values().stream()
@@ -248,6 +256,21 @@ public final class ListFetcher {
         .map(cu -> uuidToUsername.getOrDefault(cu.uuid(), cu.username()))
         .sorted(String.CASE_INSENSITIVE_ORDER)
         .collect(Collectors.toList());
+
+    // Record all currently-known online names, then pull in grace-period names.
+    Set<String> allCurrentlyOnline = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    allCurrentlyOnline.addAll(withMod);
+    allCurrentlyOnline.addAll(withoutMod);
+    allCurrentlyOnline.addAll(honourary);
+    allCurrentlyOnline.addAll(waitlist);
+    OnlineGuildCache.markSeen(allCurrentlyOnline);
+
+    for (String graceName : OnlineGuildCache.getGracePeriodNames(allCurrentlyOnline)) {
+      if (!allCurrentlyOnline.contains(graceName)) {
+        withoutMod.add(graceName);
+      }
+    }
+    withoutMod.sort(String.CASE_INSENSITIVE_ORDER);
 
     // ── Build the chat component ──────────────────────────────────────
 

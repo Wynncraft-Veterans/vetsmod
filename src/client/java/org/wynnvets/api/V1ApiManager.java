@@ -6,6 +6,7 @@ import org.wynnvets.Vetsmod;
 import org.wynnvets.logging.VetsLogger;
 
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
@@ -145,6 +146,34 @@ public final class V1ApiManager {
 
         inboundClient.send(payload);
     }
+
+    /**
+     * Sends the current tab list guild entries to the server so its {@code !list}
+     * command can include players not connected via VetsMod.
+     *
+     * @param entries list of {@code {server, username}} pairs parsed from the tab list
+     */
+    public static void sendTabList(List<TabListEntry> entries) {
+        if (inboundClient == null || !inboundClient.isConnected()) {
+            return;
+        }
+
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "tablist");
+        com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+        for (TabListEntry e : entries) {
+            JsonObject obj = new JsonObject();
+            obj.addProperty("server", e.server());
+            obj.addProperty("username", e.username());
+            arr.add(obj);
+        }
+        payload.add("entries", arr);
+        inboundClient.send(payload);
+        VetsLogger.debug("Sent tablist with {} guild entries", entries.size());
+    }
+
+    /** Lightweight record for tab list entries sent to the server. */
+    public record TabListEntry(String server, String username) {}
 
     /**
      * Registers a listener that receives every outbound message from the server.

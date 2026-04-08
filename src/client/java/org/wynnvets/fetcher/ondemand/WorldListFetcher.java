@@ -13,10 +13,13 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.StaffOutboundMessenger;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.guild.OnlineGuildCache;
+import org.wynnvets.guild.TabListGuildParser;
 import org.wynnvets.logging.VetsLogger;
 
 import java.net.HttpURLConnection;
@@ -139,6 +142,17 @@ public final class WorldListFetcher {
     // ── Gather online players (same merge logic as ListFetcher) ─────
 
     private static CompletableFuture<List<OnlinePlayer>> gatherOnlinePlayers() {
+        // 1. Read tab list immediately (synchronous, local state).
+        List<TabListGuildParser.GuildEntry> tabEntries = TabListGuildParser.parseOnlineGuildMembers();
+        VetsLogger.debug("Tab list returned {} guild entries for world list", tabEntries.size());
+
+        // Forward tab list to the server so !list can use it too.
+        if (!tabEntries.isEmpty()) {
+            V1ApiManager.sendTabList(tabEntries.stream()
+                .map(e -> new V1ApiManager.TabListEntry(e.server(), e.username()))
+                .toList());
+        }
+
         CompletableFuture<List<ConnectedUser>> serverFuture = fetchConnectedUsers()
                 .exceptionally(e -> {
                     VetsLogger.debug("Failed to fetch connected users: {}", e.getMessage());
@@ -156,11 +170,13 @@ public final class WorldListFetcher {
             guildFuture = CompletableFuture.completedFuture(null);
         }
 
-        return serverFuture.thenCombine(guildFuture, WorldListFetcher::mergeOnlinePlayers);
+        return serverFuture.thenCombine(guildFuture,
+                (connected, guildInfo) -> mergeOnlinePlayers(connected, guildInfo, tabEntries));
     }
 
     private static List<OnlinePlayer> mergeOnlinePlayers(
-            List<ConnectedUser> connected, GuildInfo guildInfo) {
+            List<ConnectedUser> connected, GuildInfo guildInfo,
+            List<TabListGuildParser.GuildEntry> tabEntries) {
 
         Map<String, ConnectedUser> modByUuid = new LinkedHashMap<>();
         for (ConnectedUser cu : connected) {
@@ -174,16 +190,20 @@ public final class WorldListFetcher {
 
         // Build authoritative UUID → username map from Wynntils.
         Map<String, String> uuidToUsername = new LinkedHashMap<>();
+        Map<String, String> usernameToUuid = new LinkedHashMap<>();
         if (guildInfo != null) {
             for (GuildMemberInfo m : guildInfo.guildMembers()) {
-                uuidToUsername.put(m.uuid().toString(), m.username());
+                String uuid = m.uuid().toString();
+                uuidToUsername.put(uuid, m.username());
+                usernameToUuid.put(m.username().toLowerCase(Locale.ROOT), uuid);
             }
         }
         for (ConnectedUser cu : connected) {
             uuidToUsername.putIfAbsent(cu.uuid, cu.username);
+            usernameToUuid.putIfAbsent(cu.username.toLowerCase(Locale.ROOT), cu.uuid);
         }
 
-        // Online guild members = API online ∪ vetsmod guild users.
+        // Online guild members = API online ∪ vetsmod guild users ∪ tab list.
         Set<String> apiOnlineUuids = new TreeSet<>();
         if (guildInfo != null) {
             for (GuildMemberInfo m : guildInfo.guildMembers()) {
@@ -194,6 +214,17 @@ public final class WorldListFetcher {
         }
         Set<String> mergedOnlineGuild = new TreeSet<>(apiOnlineUuids);
         mergedOnlineGuild.addAll(modGuildUuids);
+
+        // Tab list entries: resolve to UUID when possible.
+        Set<String> tabOnlyUsernames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (TabListGuildParser.GuildEntry entry : tabEntries) {
+            String uuid = usernameToUuid.get(entry.username().toLowerCase(Locale.ROOT));
+            if (uuid != null) {
+                mergedOnlineGuild.add(uuid);
+            } else {
+                tabOnlyUsernames.add(entry.username());
+            }
+        }
 
         List<OnlinePlayer> result = new ArrayList<>();
 
@@ -209,6 +240,30 @@ public final class WorldListFetcher {
             } else if (TIER_HONOURARY.equals(cu.tier)) {
                 String username = uuidToUsername.getOrDefault(cu.uuid, cu.username);
                 result.add(new OnlinePlayer(username, cu.uuid, TIER_HONOURARY));
+            }
+        }
+
+        // Add tab-only usernames (no UUID match) as guild-tier players.
+        Set<String> allResolvedUsernames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (OnlinePlayer p : result) {
+            allResolvedUsernames.add(p.username());
+        }
+        for (String tabName : tabOnlyUsernames) {
+            if (!allResolvedUsernames.contains(tabName)) {
+                result.add(new OnlinePlayer(tabName, "", TIER_GUILD));
+            }
+        }
+
+        // Record all currently-known online names, then pull in grace-period names.
+        Set<String> allCurrentlyOnline = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (OnlinePlayer p : result) {
+            allCurrentlyOnline.add(p.username());
+        }
+        OnlineGuildCache.markSeen(allCurrentlyOnline);
+
+        for (String graceName : OnlineGuildCache.getGracePeriodNames(allCurrentlyOnline)) {
+            if (!allCurrentlyOnline.contains(graceName)) {
+                result.add(new OnlinePlayer(graceName, "", TIER_GUILD));
             }
         }
 
