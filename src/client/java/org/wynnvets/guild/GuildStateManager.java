@@ -2,7 +2,6 @@ package org.wynnvets.guild;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.models.guild.type.GuildRank;
-import com.wynntils.models.worlds.type.WorldState;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -18,83 +17,46 @@ import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
 import org.wynnvets.fetcher.ondemand.StampFetcher;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
 /**
  * Central authority for the player's guild membership, staff rank, and
  * feature-gate state.
  *
  * <p>Reads guild affiliation directly from the Wynntils {@code Models.Guild}
- * API (backed by scoreboard/character-info parsing) rather than sending
- * {@code /guild stats}. World-join triggers are provided by
- * {@link org.wynnvets.listeners.WynntilsEventListener} via
+ * API (backed by scoreboard/character-info parsing). World-join triggers are
+ * provided by {@link org.wynnvets.listeners.WynntilsEventListener} via
  * {@code WorldStateEvent}. Once the player's guild is confirmed as the
  * Returners guild, mod features (bridge, MOTD, staff chat, etc.) are
- * enabled. Also tracks unlock/lock state, guildless status, and the
- * player's staff rank for command permission checks.</p>
+ * enabled.</p>
+ *
+ * <p>Delegates staff-rank detection to {@link StaffRankChecker} and
+ * password-based unlock management to {@link UnlockManager}. External
+ * callers should use this class's facade methods rather than accessing
+ * those helpers directly.</p>
  */
 public class GuildStateManager {
 
   private static final String RETURNERS_GUILD_NAME = "Returners";
 
   // Wynntils readiness gate — set to true once CLIENT_STARTED fires and
-  // WynntilsEventListener has successfully registered.  All Models.* access
-  // must check this first to avoid triggering Models.<clinit> before the
-  // Wynntils event bus is initialised.
+  // WynntilsEventListener has successfully registered.
   private static volatile boolean wynntilsReady = false;
 
-  // Stored state
-  private static boolean waitlistUnlocked = false;
-  private static boolean honouraryUnlocked = false;
-  private static boolean debugForceGuildlessUnlocked = false;
-  private static String playerName = StringUtils.EMPTY;
-
-  // Password hashes for unlock command (SHA-256)
-  private static final String WAITLIST_PASSWORD_HASH = "8f74db5451e8e6e74189fa5e8a2d31efbb1853629fb80b30461bafc8a97fe07e";
-  private static final String HONOURARY_PASSWORD_HASH = "4fe3af27e525245e9f3f3764e06b4eb5997ac09d553b4fdf59f9c9420caebca4";
-
-  // Unlock persistence: codes persist for 1 week before requiring re-entry
-  private static final long UNLOCK_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000L;
-  private static final long MAX_EXPIRY_WARNINGS = 3;
-
-  // State tracking for staff detection via /gu rank
-  private static boolean isStaff = false;
-  private static long lastStaffCheckTime = 0;
-  private static boolean waitingForStaffRankCheck = false;
-  private static boolean isModInitiatedStaffRankCheck = false;
-  private static long staffRankRequestTime = 0;
-  private static final long STAFF_RANK_TIMEOUT = 5000; // 5 second timeout
-  private static final long STAFF_CHECK_COOLDOWN = 24 * 60 * 60 * 1000L; // once per day
-
-  // Grace period timestamp so that duplicate addMessage calls arriving after the
-  // flag is cleared are still suppressed.
-  private static long staffRankSuppressUntil = 0;
-  private static final long SUPPRESSION_GRACE_MS = 500;
+  private static volatile String playerName = StringUtils.EMPTY;
 
   // State tracking for MOTD to prevent duplicate fetches
-  private static long lastMotdFetchTime = 0;
-  private static final long MOTD_FETCH_COOLDOWN = 1000; // 1 second cooldown
+  private static volatile long lastMotdFetchTime = 0;
+  private static final long MOTD_FETCH_COOLDOWN_MS = 1_000L;
 
   // Delayed guild re-check for guildless users after world switch.
-  // Wynntils' compass scan is asynchronous — guild info may not be
-  // available when onEnteredWorld() fires.
-  private static final long GUILD_RECHECK_DELAY_MS = 3000;
+  private static final long GUILD_RECHECK_DELAY_MS = 3_000L;
   private static final int GUILD_RECHECK_MAX_ATTEMPTS = 3;
-  private static final long GUILD_RECHECK_INTERVAL_MS = 2000;
+  private static final long GUILD_RECHECK_INTERVAL_MS = 2_000L;
 
-  // Tracks whether the guild-specific MOTD was shown this session.
-  // When guild info isn't available at world-join time, the standard MOTD is
-  // shown instead; this flag lets onGuildInfoUpdated() fix that once the
-  // guild model is populated.
-  private static boolean guildMotdDisplayedThisSession = false;
+  // Tracks whether the guild MOTD was shown this session.
+  private static volatile boolean guildMotdDisplayedThisSession = false;
 
-  // Track whether we have entered a world at least once since reset, so that
-  // commands are not executed before initial guild info is available.
-  private static boolean enteredWorld = false;
+  // Whether the player has entered a world at least once since reset.
+  private static volatile boolean enteredWorld = false;
 
   /**
    * Check if Wynntils is fully initialised and safe to access Models.
@@ -123,7 +85,7 @@ public class GuildStateManager {
    * @return true if player is not in a guild, false otherwise
    */
   public static boolean isGuildless() {
-    if (debugForceGuildlessUnlocked) {
+    if (UnlockManager.isDebugForceGuildlessUnlocked()) {
       return true;
     }
     if (!wynntilsReady) return true;
@@ -131,16 +93,15 @@ public class GuildStateManager {
   }
 
   /**
-   * Get whether the mod is unlocked
+   * Get whether the mod is unlocked (Returners, waitlist, or honourary).
    *
    * @return true if mod is unlocked, false otherwise
    */
   public static boolean isUnlocked() {
-    if (debugForceGuildlessUnlocked) {
+    if (UnlockManager.isDebugForceGuildlessUnlocked()) {
       return true;
     }
-    boolean unlocked = isReturners() || waitlistUnlocked || honouraryUnlocked;
-    return unlocked;
+    return isReturners() || UnlockManager.isWaitlistUnlocked() || UnlockManager.isHonouraryUnlocked();
   }
 
   /**
@@ -149,7 +110,7 @@ public class GuildStateManager {
    * @return true if waitlist-unlocked, false otherwise
    */
   public static boolean isWaitlistUnlocked() {
-    return debugForceGuildlessUnlocked || waitlistUnlocked;
+    return UnlockManager.isWaitlistUnlocked();
   }
 
   /**
@@ -158,7 +119,7 @@ public class GuildStateManager {
    * @return true if honourary-unlocked, false otherwise
    */
   public static boolean isHonouraryUnlocked() {
-    return honouraryUnlocked;
+    return UnlockManager.isHonouraryUnlocked();
   }
 
   /**
@@ -167,8 +128,7 @@ public class GuildStateManager {
    * @param enabled true to force guildless+unlocked behavior, false to use normal state
    */
   public static void setDebugForceGuildlessUnlocked(boolean enabled) {
-    debugForceGuildlessUnlocked = enabled;
-    VetsLogger.debug("Debug guildless+unlocked override: {}", enabled ? "enabled" : "disabled");
+    UnlockManager.setDebugForceGuildlessUnlocked(enabled);
   }
 
   /**
@@ -177,7 +137,7 @@ public class GuildStateManager {
    * @return true when guildless+unlocked override is enabled
    */
   public static boolean isDebugForceGuildlessUnlocked() {
-    return debugForceGuildlessUnlocked;
+    return UnlockManager.isDebugForceGuildlessUnlocked();
   }
 
   /**
@@ -219,12 +179,12 @@ public class GuildStateManager {
   }
 
   /**
-   * Get whether the user is staff.
+   * Get whether the user is staff (Captain+ rank in Returners).
    *
    * @return true when staff, false otherwise
    */
   public static boolean isStaff() {
-    return isStaff;
+    return StaffRankChecker.isStaff();
   }
 
   /**
@@ -256,34 +216,10 @@ public class GuildStateManager {
 
   /**
    * Load persisted staff and unlock state from config.
-   * Unlock timestamps older than {@link #UNLOCK_EXPIRY_MS} are treated as expired.
    */
   public static void loadPersistedState() {
-    isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
-    long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
-    long now = System.currentTimeMillis();
-    lastStaffCheckTime = (persistedCheckTime >= 0 && persistedCheckTime <= now) ? persistedCheckTime : 0;
-
-    long waitlistTime = VetsConfig.getLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME);
-    waitlistUnlocked = waitlistTime > 0 && (now - waitlistTime) < UNLOCK_EXPIRY_MS;
-
-    long honouraryTime = VetsConfig.getLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME);
-    honouraryUnlocked = honouraryTime > 0 && (now - honouraryTime) < UNLOCK_EXPIRY_MS;
-  }
-
-  /**
-   * Update and persist staff status.
-   *
-   * @param value latest staff status
-   */
-  private static void setStaffStatus(boolean value) {
-    isStaff = value;
-    VetsConfig.set(VetsConfig.VETS_IS_STAFF, value);
-  }
-
-  private static void markStaffCheckCompletedNow() {
-    lastStaffCheckTime = System.currentTimeMillis();
-    VetsConfig.setLong(VetsConfig.VETS_LAST_STAFF_CHECK, lastStaffCheckTime);
+    StaffRankChecker.loadPersistedState();
+    UnlockManager.loadPersistedState();
   }
 
   /**
@@ -292,7 +228,7 @@ public class GuildStateManager {
    * @return true if currently waiting for /gu rank response
    */
   public static boolean isCheckingStaffStatus() {
-    return waitingForStaffRankCheck;
+    return StaffRankChecker.isCheckingStaffStatus();
   }
 
   /**
@@ -301,8 +237,7 @@ public class GuildStateManager {
    * @return true if rank check was initiated by the mod
    */
   public static boolean isProcessingModStaffRankCheck() {
-    if (isModInitiatedStaffRankCheck) return true;
-    return staffRankSuppressUntil > 0 && System.currentTimeMillis() < staffRankSuppressUntil;
+    return StaffRankChecker.isProcessingModStaffRankCheck();
   }
 
   /**
@@ -311,34 +246,17 @@ public class GuildStateManager {
    * @param forceRefresh true to bypass daily cooldown
    * @return true when a refresh was started, false otherwise
    */
-  public static synchronized boolean refreshStaffStatusIfNeeded(boolean forceRefresh) {
-    if (waitingForStaffRankCheck) {
-      return false;
-    }
-
-    long now = System.currentTimeMillis();
-    boolean hasRecentCheck = lastStaffCheckTime > 0 && (now - lastStaffCheckTime) < STAFF_CHECK_COOLDOWN;
-    if (!forceRefresh && hasRecentCheck) {
-      return false;
-    }
-
-    sendStaffRankCheckCommand();
-    return true;
+  public static boolean refreshStaffStatusIfNeeded(boolean forceRefresh) {
+    return StaffRankChecker.refreshStaffStatusIfNeeded(forceRefresh);
   }
 
   /**
    * Process incoming chat messages to detect staff rank-check responses.
    *
-   * <p>Guild name and rank detection is now handled by the Wynntils
-   * {@code Models.Guild} API. This method only needs to parse the
-   * {@code /gu rank} response to determine staff status.</p>
-   *
    * @param component The chat message Component (with formatting)
    * @param message   The plain text chat message
    */
   public static void processMessage(Component component, String message) {
-    String safeMessage = message == null ? StringUtils.EMPTY : message;
-
     // Capture player name on first opportunity
     if (playerName.equals(StringUtils.EMPTY)) {
       Minecraft minecraft = Minecraft.getInstance();
@@ -348,180 +266,7 @@ public class GuildStateManager {
       }
     }
 
-    // Check if we're waiting for staff rank check and if we've timed out
-    if (waitingForStaffRankCheck && System.currentTimeMillis() - staffRankRequestTime > STAFF_RANK_TIMEOUT) {
-      waitingForStaffRankCheck = false;
-      isModInitiatedStaffRankCheck = false;
-      markStaffCheckCompletedNow();
-    }
-
-    // Process staff rank-check responses.
-    if (waitingForStaffRankCheck) {
-      if (isStaffRankUnauthorizedResponse(safeMessage)) {
-        setStaffStatus(false);
-        waitingForStaffRankCheck = false;
-        isModInitiatedStaffRankCheck = false;
-        staffRankSuppressUntil = System.currentTimeMillis() + SUPPRESSION_GRACE_MS;
-        markStaffCheckCompletedNow();
-        VetsLogger.debug("Staff rank check result: not staff");
-      } else if (isStaffRankAuthorizedResponse(safeMessage)) {
-        setStaffStatus(true);
-        waitingForStaffRankCheck = false;
-        isModInitiatedStaffRankCheck = false;
-        staffRankSuppressUntil = System.currentTimeMillis() + SUPPRESSION_GRACE_MS;
-        markStaffCheckCompletedNow();
-        VetsLogger.debug("Staff rank check result: is staff");
-      }
-    }
-  }
-
-  /**
-   * Send /gu rank to determine if the user is staff.
-   */
-  private static void sendStaffRankCheckCommand() {
-    Minecraft minecraft = Minecraft.getInstance();
-
-    waitingForStaffRankCheck = true;
-    isModInitiatedStaffRankCheck = true;
-    staffRankRequestTime = System.currentTimeMillis();
-
-    new Thread(() -> {
-      int attempts = 0;
-      int maxAttempts = 20; // 5 seconds total
-      long delay = 250;
-
-      while (attempts < maxAttempts) {
-        try {
-          Thread.sleep(delay);
-
-          CountDownLatch latch = new CountDownLatch(1);
-          boolean[] commandSent = {false};
-          minecraft.execute(() -> {
-            try {
-              if (!wynntilsReady) return;
-              WorldState currentState = Models.WorldState.getCurrentState();
-              if (currentState != WorldState.WORLD) {
-                return;
-              }
-
-              LocalPlayer player = minecraft.player;
-              if (player != null && player.connection != null) {
-                try {
-                  player.connection.sendCommand("gu rank");
-                  commandSent[0] = true;
-                } catch (Exception e) {
-                  VetsLogger.warn("Failed to send /gu rank staff check: {}", e.getMessage());
-                }
-              }
-            } finally {
-              latch.countDown();
-            }
-          });
-
-          // Block until the render thread has executed our lambda
-          latch.await(2, TimeUnit.SECONDS);
-
-          if (commandSent[0]) {
-            int responseWait = 0;
-            while (responseWait < 8 && waitingForStaffRankCheck) { // up to 2 seconds
-              Thread.sleep(250);
-              responseWait++;
-            }
-
-            if (!waitingForStaffRankCheck) {
-              break;
-            }
-          }
-
-          attempts++;
-        } catch (InterruptedException e) {
-          VetsLogger.warn("Staff rank check interrupted");
-          waitingForStaffRankCheck = false;
-          isModInitiatedStaffRankCheck = false;
-          break;
-        }
-      }
-
-      if (attempts >= maxAttempts) {
-        VetsLogger.warn("Staff rank check timed out after {} attempts", maxAttempts);
-        waitingForStaffRankCheck = false;
-        isModInitiatedStaffRankCheck = false;
-        markStaffCheckCompletedNow();
-      }
-    }).start();
-  }
-
-  /**
-   * Detects the unauthorized /guild rank response indicating non-staff.
-   */
-  private static boolean isStaffRankUnauthorizedResponse(String message) {
-    if (message == null) {
-      return false;
-    }
-
-    String normalized = message.toLowerCase();
-    return normalized.contains("you must be a") &&
-        normalized.contains("captain") &&
-        normalized.contains("to use this command");
-  }
-
-  /**
-   * Detects the authorized /guild rank response indicating staff.
-   */
-  private static boolean isStaffRankAuthorizedResponse(String message) {
-    if (message == null) {
-      return false;
-    }
-
-    String normalized = message.toLowerCase();
-    return normalized.contains("invalid arguments, try:") &&
-        normalized.contains("rank [name] [rank]");
-  }
-
-  /**
-   * Checks whether a previously-persisted unlock has expired and, if so,
-   * warns the player.  Warns up to {@link #MAX_EXPIRY_WARNINGS} times across
-   * sessions, then silently clears the expired timestamps to stop nagging.
-   */
-  private static void checkAndWarnUnlockExpiry() {
-    long now = System.currentTimeMillis();
-
-    long waitlistTime = VetsConfig.getLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME);
-    long honouraryTime = VetsConfig.getLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME);
-    boolean waitlistExpired = waitlistTime > 0 && (now - waitlistTime) >= UNLOCK_EXPIRY_MS;
-    boolean honouraryExpired = honouraryTime > 0 && (now - honouraryTime) >= UNLOCK_EXPIRY_MS;
-
-    if (!waitlistExpired && !honouraryExpired) {
-      return;
-    }
-
-    long warnings = VetsConfig.getLong(VetsConfig.VETS_UNLOCK_EXPIRY_WARNINGS);
-    if (warnings >= MAX_EXPIRY_WARNINGS) {
-      // Stop nagging — silently clear stale timestamps
-      if (waitlistExpired) {
-        VetsConfig.setLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME, 0L);
-      }
-      if (honouraryExpired) {
-        VetsConfig.setLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME, 0L);
-      }
-      VetsConfig.setLong(VetsConfig.VETS_UNLOCK_EXPIRY_WARNINGS, 0L);
-      return;
-    }
-
-    VetsConfig.setLong(VetsConfig.VETS_UNLOCK_EXPIRY_WARNINGS, warnings + 1);
-
-    if (waitlistExpired) {
-      ChatUtils.sendLocalMessage(
-          Component.literal("Your waitlist unlock has expired. Use /unlock <password> to re-activate.")
-              .withStyle(ChatFormatting.YELLOW)
-      );
-    }
-    if (honouraryExpired) {
-      ChatUtils.sendLocalMessage(
-          Component.literal("Your honourary unlock has expired. Use /unlock <password> to re-activate.")
-              .withStyle(ChatFormatting.YELLOW)
-      );
-    }
+    StaffRankChecker.processMessage(message);
   }
 
   /**
@@ -545,10 +290,10 @@ public class GuildStateManager {
     }
 
     // Warn if a previously-persisted unlock has expired since last session
-    checkAndWarnUnlockExpiry();
+    UnlockManager.checkAndWarnUnlockExpiry();
 
     long currentTime = System.currentTimeMillis();
-    if (currentTime - lastMotdFetchTime > MOTD_FETCH_COOLDOWN) {
+    if (currentTime - lastMotdFetchTime > MOTD_FETCH_COOLDOWN_MS) {
       lastMotdFetchTime = currentTime;
       fetchAndDisplayMotd();
     }
@@ -568,7 +313,7 @@ public class GuildStateManager {
     // When guild info is not yet available (empty name), Wynntils may still
     // be scanning the compass menu asynchronously.  Schedule a delayed
     // re-check so we don't stay stuck as "guildless" for the entire session.
-    if (!debugForceGuildlessUnlocked && wynntilsReady && !Models.Guild.isInGuild()) {
+    if (!UnlockManager.isDebugForceGuildlessUnlocked() && wynntilsReady && !Models.Guild.isInGuild()) {
       scheduleGuildRecheck();
     }
   }
@@ -688,61 +433,19 @@ public class GuildStateManager {
   }
 
   /**
-   * Attempt to unlock with a password. Checks against both the waitlist
-   * and honourary password hashes.
+   * Attempt to unlock with a password. Delegates to {@link UnlockManager}
+   * and sends a registration if the unlock succeeds.
    *
    * @param password The password to check
    * @return the type of unlock granted, or {@link UnlockType#NONE} if the
    *         password did not match
    */
   public static UnlockType tryUnlock(String password) {
-    String hash = sha256(password);
-    if (hash == null) {
-      return UnlockType.NONE;
-    }
-    long now = System.currentTimeMillis();
-    if (hash.equals(WAITLIST_PASSWORD_HASH)) {
-      waitlistUnlocked = true;
-      VetsConfig.setLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME, now);
-      VetsConfig.setLong(VetsConfig.VETS_UNLOCK_EXPIRY_WARNINGS, 0L);
-      VetsLogger.debug("Mod unlocked via waitlist password");
+    UnlockType result = UnlockManager.tryUnlock(password);
+    if (result != UnlockType.NONE) {
       sendRegistrationIfReady();
-      return UnlockType.WAITLIST;
     }
-    if (hash.equals(HONOURARY_PASSWORD_HASH)) {
-      honouraryUnlocked = true;
-      VetsConfig.setLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME, now);
-      VetsConfig.setLong(VetsConfig.VETS_UNLOCK_EXPIRY_WARNINGS, 0L);
-      VetsLogger.debug("Mod unlocked via honourary password");
-      sendRegistrationIfReady();
-      return UnlockType.HONOURARY;
-    }
-    return UnlockType.NONE;
-  }
-
-  /**
-   * Compute SHA-256 hash of a string
-   *
-   * @param input The input string
-   * @return The hex-encoded SHA-256 hash, or null on error
-   */
-  private static String sha256(String input) {
-    try {
-      MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-      StringBuilder hexString = new StringBuilder();
-      for (byte b : hash) {
-        String hex = Integer.toHexString(0xff & b);
-        if (hex.length() == 1) {
-          hexString.append('0');
-        }
-        hexString.append(hex);
-      }
-      return hexString.toString();
-    } catch (NoSuchAlgorithmException e) {
-      VetsLogger.error("SHA-256 algorithm not available", e);
-      return null;
-    }
+    return result;
   }
 
   /**
@@ -781,6 +484,7 @@ public class GuildStateManager {
 
         VetsLogger.debug("Guild recheck exhausted — player appears genuinely guildless");
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         VetsLogger.debug("Guild recheck interrupted");
       }
     }, "vetsmod-guild-recheck").start();
@@ -895,27 +599,13 @@ public class GuildStateManager {
    * world join starts fresh.
    */
   public static void reset() {
-    debugForceGuildlessUnlocked = false;
     lastMotdFetchTime = 0;
     guildMotdDisplayedThisSession = false;
-    staffRankSuppressUntil = 0;
     enteredWorld = false;
     V1ApiManager.clearRegistration();
-    isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
-    long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
-    long now = System.currentTimeMillis();
-    lastStaffCheckTime = (persistedCheckTime >= 0 && persistedCheckTime <= now) ? persistedCheckTime : 0;
-    waitingForStaffRankCheck = false;
-    isModInitiatedStaffRankCheck = false;
-    staffRankRequestTime = 0;
+    StaffRankChecker.reset();
+    UnlockManager.reset();
     StaffOutboundMessenger.resetStaffChatEligibilityCache();
-
-    // Reload persisted unlock state (respects expiry)
-    long waitlistTime = VetsConfig.getLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME);
-    waitlistUnlocked = waitlistTime > 0 && (now - waitlistTime) < UNLOCK_EXPIRY_MS;
-
-    long honouraryTime = VetsConfig.getLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME);
-    honouraryUnlocked = honouraryTime > 0 && (now - honouraryTime) < UNLOCK_EXPIRY_MS;
   }
 
   /**

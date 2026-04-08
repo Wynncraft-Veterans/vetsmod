@@ -90,8 +90,8 @@ public class WsClient implements WebSocket.Listener {
                             VetsLogger.warn("[{}] Replacing existing WebSocket connection (possible dual-connection)", label);
                             try {
                                 old.abort();
-                            } catch (Exception ignored) {
-                                // Previous connection may already be closed
+                            } catch (Exception e) {
+                                VetsLogger.debug("[{}] Old connection abort failed: {}", label, e.getMessage());
                             }
                         }
                         VetsLogger.debug("[{}] WebSocket connected", label);
@@ -133,8 +133,8 @@ public class WsClient implements WebSocket.Listener {
         if (ws != null) {
             try {
                 ws.sendClose(WebSocket.NORMAL_CLOSURE, "client closing");
-            } catch (Exception ignored) {
-                // already closed or error
+            } catch (Exception e) {
+                VetsLogger.debug("[{}] WebSocket close send failed: {}", label, e.getMessage());
             }
         }
     }
@@ -178,8 +178,8 @@ public class WsClient implements WebSocket.Listener {
         wsRef.compareAndSet(webSocket, null);
         try {
             webSocket.abort();
-        } catch (Exception ignored) {
-            // WebSocket may already be closed
+        } catch (Exception e) {
+            VetsLogger.debug("[{}] WebSocket abort on error failed: {}", label, e.getMessage());
         }
         scheduleReconnect();
     }
@@ -209,8 +209,8 @@ public class WsClient implements WebSocket.Listener {
             if (ws != null && !ws.isOutputClosed()) {
                 try {
                     ws.sendPing(ByteBuffer.allocate(0));
-                } catch (Exception ignored) {
-                    // will trigger onError → reconnect
+                } catch (Exception e) {
+                    VetsLogger.debug("[{}] WebSocket ping failed: {}", label, e.getMessage());
                 }
             }
         }, PING_INTERVAL_MS, PING_INTERVAL_MS, TimeUnit.MILLISECONDS);

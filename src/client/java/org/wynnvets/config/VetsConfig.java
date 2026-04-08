@@ -10,8 +10,10 @@ import org.wynnvets.logging.VetsLogger;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Configuration manager for VetsMod toggleable features.
@@ -32,9 +34,9 @@ public class VetsConfig {
   private static final Path CONFIG_FILE = FabricLoader.getInstance().getGameDir().resolve("vetsmod/storage/config.json");
 
   // Store configuration values by type
-  private static final Map<String, Boolean> config = new HashMap<>();
-  private static final Map<String, Long> longConfig = new HashMap<>();
-  private static final Map<String, Boolean> triStateConfig = new HashMap<>();
+  private static final Map<String, Boolean> config = new ConcurrentHashMap<>();
+  private static final Map<String, Long> longConfig = new ConcurrentHashMap<>();
+  private static final Map<String, Boolean> triStateConfig = Collections.synchronizedMap(new HashMap<>());
 
   // ── Internal configuration keys (not user-facing) ───────────────────────
   public static final String VETS_AUTOMESSAGE = "vetsAutomessage";
