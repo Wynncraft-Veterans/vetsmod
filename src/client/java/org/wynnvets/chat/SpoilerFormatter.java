@@ -10,7 +10,7 @@ import org.wynnvets.logging.VetsLogger;
 
 /**
  * Processes PUA-encoded spoiler blocks ({@code \uF600…\uF601}) in chat
- * messages, replacing them with hoverable "[Spoiler - Hover to see]" labels.
+ * messages, replacing them with hoverable "[Spoiler]" labels.
  */
 public final class SpoilerFormatter {
 
@@ -74,7 +74,7 @@ public final class SpoilerFormatter {
             String decoded = SpoilerCodec.decodeContent(encoded);
             Style hoverStyle = SPOILER_LABEL_STYLE.withHoverEvent(
                     new HoverEvent.ShowText(Component.literal(decoded)));
-            parent.append(Component.literal("[Spoiler - Hover to see]").setStyle(hoverStyle));
+            parent.append(Component.literal("[Spoiler]").setStyle(hoverStyle));
 
             cursor = end + 1;
             // Skip wrapper suffix

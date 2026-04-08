@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * Rewrites any incoming chat message that contains PUA-encoded spoiler blocks
  * ({@code \uF600…\uF601}), replacing them with hoverable
- * "[Spoiler - Hover to see]" labels.
+ * "[Spoiler]" labels.
  *
  * <p>This rewriter fires for server-originating messages (guild chat from
  * other players).  Bridge and mod-constructed messages are handled by
@@ -132,7 +132,7 @@ public final class SpoilerRewriter {
                 String decoded = SpoilerCodec.decodeContent(encoded);
                 Style hoverStyle = SPOILER_LABEL_STYLE.withHoverEvent(
                         new HoverEvent.ShowText(Component.literal(decoded)));
-                result.append(Component.literal("[Spoiler - Hover to see]").setStyle(hoverStyle));
+                result.append(Component.literal("[Spoiler]").setStyle(hoverStyle));
 
                 cursor = end + 1;
                 // Skip wrapper suffix
