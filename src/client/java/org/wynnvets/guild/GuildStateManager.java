@@ -420,10 +420,10 @@ public class GuildStateManager {
           || isHonouraryUnlocked();
 
       if (useGuildMotd) {
+        guildMotdDisplayedThisSession = true;
         MotdFetcher.fetchGuildMotd().thenAccept(guildMotdComponent -> {
           String text = guildMotdComponent.getString();
           if (text != null && !text.isEmpty()) {
-            guildMotdDisplayedThisSession = true;
             ChatUtils.sendLocalMessage(guildMotdComponent, Prepend.DEFAULT);
           } else {
             // Fall back to standard MOTD if guild MOTD is empty
@@ -461,10 +461,10 @@ public class GuildStateManager {
     LocalPlayer player = minecraft.player;
 
     if (player != null) {
+      stampDisplayedThisSession = true;
       StampFetcher.fetchStampAndCreateMessage().thenAccept(stampMessage -> {
         if (stampMessage != null) {
           VetsLogger.debug("Displaying annihilation countdown");
-          stampDisplayedThisSession = true;
           ChatUtils.sendLocalMessage(stampMessage, Prepend.DEFAULT);
         }
       });

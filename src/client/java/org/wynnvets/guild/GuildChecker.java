@@ -200,9 +200,10 @@ final class GuildChecker {
     static boolean processAndShouldSuppress(String message) {
         String safeMessage = message == null ? "" : message;
 
-        // During suppression grace, suppress known stat output lines
+        // During suppression grace, suppress known stat output lines and
+        // empty separator lines from the /gu stats response.
         if (!waitingForGuildCheck && isInSuppressionGrace()) {
-            return isGuildStatsOutputLine(safeMessage);
+            return isGuildStatsOutputLine(safeMessage) || safeMessage.trim().isEmpty();
         }
 
         if (!waitingForGuildCheck) {

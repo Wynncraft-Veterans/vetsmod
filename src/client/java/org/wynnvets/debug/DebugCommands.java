@@ -15,6 +15,7 @@ import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.debug.diagnostics.DiagnosticsHandler;
+import org.wynnvets.debug.dump.TabDumpHandler;
 import org.wynnvets.guild.GuildStateManager;
 
 /**
@@ -91,6 +92,9 @@ public final class DebugCommands {
                 )
                 .then(ClientCommandManager.literal("forceChecks")
                     .executes(DebugCommands::triggerForceChecks)
+                )
+                .then(ClientCommandManager.literal("tabDump")
+                    .executes(ctx -> { TabDumpHandler.execute(); return 1; })
                 )
             );
     }

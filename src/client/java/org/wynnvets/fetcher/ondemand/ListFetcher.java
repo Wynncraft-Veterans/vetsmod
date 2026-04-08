@@ -14,6 +14,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.guild.TabListGuildParser;
 import org.wynnvets.logging.VetsLogger;
 
 import java.net.HttpURLConnection;
@@ -33,8 +34,12 @@ import java.util.stream.Collectors;
 /**
  * On-demand fetcher for the {@code /wv list} command.
  *
- * <p>Combines two data sources to build a comprehensive online-member view:
+ * <p>Combines three data sources to build a comprehensive online-member view:
  * <ol>
+ *   <li><b>Tab list</b> ({@link TabListGuildParser}) — instant, local
+ *       read of the Guild column in the Wynncraft tab list. Provides
+ *       up to 19 online guild members with their server and username.
+ *       No network call required.</li>
  *   <li><b>VetsMod server</b> ({@code GET /v1/outbound/list}) — returns
  *       UUIDs of users currently connected via vetsmod, with their tier
  *       (guild / waitlist / honourary).</li>
@@ -43,9 +48,11 @@ import java.util.stream.Collectors;
  *       Wynncraft API, providing UUID↔username mappings.</li>
  * </ol>
  *
- * <p>VetsMod presence data is <b>prioritised</b> over the Wynncraft API's
- * {@code online} flag, which can be inaccurate. A guild member connected
- * via vetsmod is always considered online even if the API disagrees.</p>
+ * <p>The tab list is the fastest and most reliable source for up to 19
+ * online guild members. VetsMod presence data is <b>prioritised</b> over
+ * the Wynncraft API's {@code online} flag, which can be inaccurate.
+ * A guild member connected via vetsmod is always considered online even
+ * if the API disagrees.</p>
  */
 public final class ListFetcher {
 
@@ -70,14 +77,18 @@ public final class ListFetcher {
    * Fetch online member data and return a formatted chat component.
    */
   public static CompletableFuture<MutableComponent> fetchList() {
-    // 1. Fetch connected vetsmod users from the server.
+    // 1. Read tab list immediately (synchronous, local state).
+    List<TabListGuildParser.GuildEntry> tabEntries = TabListGuildParser.parseOnlineGuildMembers();
+    VetsLogger.debug("Tab list returned {} guild entries", tabEntries.size());
+
+    // 2. Fetch connected vetsmod users from the server.
     CompletableFuture<List<ConnectedUser>> serverFuture = fetchConnectedUsers()
         .exceptionally(e -> {
           VetsLogger.debug("Failed to fetch connected users: {}", e.getMessage());
           return List.of();
         });
 
-    // 2. Fetch guild info from Wynntils (Wynncraft API).
+    // 3. Fetch guild info from Wynntils (Wynncraft API).
     CompletableFuture<GuildInfo> guildFuture;
     if (GuildStateManager.isWynntilsReady()) {
       guildFuture = Models.Guild.getGuild("Returners")
@@ -89,8 +100,9 @@ public final class ListFetcher {
       guildFuture = CompletableFuture.completedFuture(null);
     }
 
-    // 3. Combine both results.
-    return serverFuture.thenCombine(guildFuture, ListFetcher::mergeAndFormat);
+    // 4. Combine all three results.
+    return serverFuture.thenCombine(guildFuture,
+        (connected, guildInfo) -> mergeAndFormat(connected, guildInfo, tabEntries));
   }
 
   // ── Server fetch ──────────────────────────────────────────────────
@@ -140,7 +152,8 @@ public final class ListFetcher {
   // ── Merge + format ────────────────────────────────────────────────
 
   private static MutableComponent mergeAndFormat(
-      List<ConnectedUser> connected, GuildInfo guildInfo) {
+      List<ConnectedUser> connected, GuildInfo guildInfo,
+      List<TabListGuildParser.GuildEntry> tabEntries) {
 
     // Index connected users by UUID.
     Map<String, ConnectedUser> modByUuid = new LinkedHashMap<>();
@@ -155,14 +168,19 @@ public final class ListFetcher {
 
     // Build the master UUID→username map from Wynntils (authoritative).
     Map<String, String> uuidToUsername = new LinkedHashMap<>();
+    // Also build a reverse map for tab list matching.
+    Map<String, String> usernameToUuid = new LinkedHashMap<>();
     if (guildInfo != null) {
       for (GuildMemberInfo m : guildInfo.guildMembers()) {
-        uuidToUsername.put(m.uuid().toString(), m.username());
+        String uuid = m.uuid().toString();
+        uuidToUsername.put(uuid, m.username());
+        usernameToUuid.put(m.username().toLowerCase(), uuid);
       }
     }
     // Supplement with vetsmod usernames for UUIDs the API doesn't know.
     for (ConnectedUser cu : connected) {
       uuidToUsername.putIfAbsent(cu.uuid(), cu.username());
+      usernameToUuid.putIfAbsent(cu.username().toLowerCase(), cu.uuid());
     }
 
     // Collect online guild member UUIDs from the Wynncraft API.
@@ -175,12 +193,25 @@ public final class ListFetcher {
       }
     }
 
-    // Merged online guild = API online ∪ vetsmod guild users.
-    // VetsMod presence is prioritised: if the API missed them, add them.
+    // Merged online guild = API online ∪ vetsmod guild users ∪ tab list.
     Set<String> mergedOnlineGuild = new TreeSet<>(apiOnlineUuids);
     mergedOnlineGuild.addAll(modGuildUuids);
 
-    // Partition guild members.
+    // Tab list entries: resolve to UUID if possible, otherwise track by username.
+    // tabOnlyUsernames holds names from the tab list that couldn't be
+    // mapped to a UUID (API was unavailable or member not in response).
+    Set<String> tabOnlyUsernames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    for (TabListGuildParser.GuildEntry entry : tabEntries) {
+      String uuid = usernameToUuid.get(entry.username().toLowerCase());
+      if (uuid != null) {
+        mergedOnlineGuild.add(uuid);
+      } else {
+        // No UUID available — track by username so they still appear.
+        tabOnlyUsernames.add(entry.username());
+      }
+    }
+
+    // Partition guild members (UUID-backed).
     List<String> withMod = mergedOnlineGuild.stream()
         .filter(modGuildUuids::contains)
         .map(uuid -> uuidToUsername.getOrDefault(uuid, uuid.substring(0, 8) + "…"))
@@ -192,6 +223,18 @@ public final class ListFetcher {
         .map(uuid -> uuidToUsername.getOrDefault(uuid, uuid.substring(0, 8) + "…"))
         .sorted(String.CASE_INSENSITIVE_ORDER)
         .collect(Collectors.toList());
+
+    // Append tab-only usernames (no UUID match) to the "without mod" list
+    // since we know they're online but can't confirm vetsmod status.
+    Set<String> allResolvedUsernames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    allResolvedUsernames.addAll(withMod);
+    allResolvedUsernames.addAll(withoutMod);
+    for (String tabName : tabOnlyUsernames) {
+      if (!allResolvedUsernames.contains(tabName)) {
+        withoutMod.add(tabName);
+      }
+    }
+    withoutMod.sort(String.CASE_INSENSITIVE_ORDER);
 
     // Honourary + waitlist (always vetsmod users).
     List<String> honourary = modByUuid.values().stream()
