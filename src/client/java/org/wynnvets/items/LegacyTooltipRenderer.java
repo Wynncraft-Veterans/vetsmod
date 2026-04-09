@@ -102,7 +102,7 @@ final class LegacyTooltipRenderer {
         boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
         if (customName != null) {
           modified.set(0, enchanted
-              ? deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.YELLOW))
+              ? deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.GOLD))
               : customName);
         }
         if (enchanted) {
@@ -138,7 +138,7 @@ final class LegacyTooltipRenderer {
         boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
         if (customName != null) {
           modified.set(0, enchanted
-              ? deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.YELLOW))
+              ? deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.GOLD))
               : customName);
         }
         if (enchanted) {
@@ -193,7 +193,7 @@ final class LegacyTooltipRenderer {
         Component customName = LegacyItemHandler.currentItemStack.get(DataComponents.CUSTOM_NAME);
         if (customName != null) {
           modified.set(0, deepEnchantName(customName, plainText,
-              TextColor.fromLegacyFormat(ChatFormatting.YELLOW)));
+              TextColor.fromLegacyFormat(ChatFormatting.GOLD)));
         }
         applyEnchantedToNewFormatNameLine(modified, plainText);
         if (insertLegacyBoxLine(modified)) {
@@ -313,10 +313,10 @@ final class LegacyTooltipRenderer {
    * "Enchanted [name]" in yellow, preserving font structure and PUA spacing.
    */
   private static void applyEnchantedToNewFormatNameLine(List<Component> lines, String itemName) {
-    TextColor yellow = TextColor.fromLegacyFormat(ChatFormatting.YELLOW);
+    TextColor gold = TextColor.fromLegacyFormat(ChatFormatting.GOLD);
     for (int i = 1; i < lines.size(); i++) {
       if (containsFont(lines.get(i), EMBLEM_FRAME_FONT)) {
-        lines.set(i, deepEnchantName(lines.get(i), itemName, yellow));
+        lines.set(i, deepEnchantName(lines.get(i), itemName, gold));
         return;
       }
     }

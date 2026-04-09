@@ -50,6 +50,25 @@ public class LegacyItemTooltipMixin {
       CallbackInfo ci) {
     if (vetsmod$processing) return;
 
+    // If the Wynntils event handler already processed this tooltip,
+    // skip redundant re-processing but still apply the border override.
+    if (LegacyItemHandler.eventProcessedTooltip) {
+      LegacyItemHandler.eventProcessedTooltip = false;
+      if (LegacyItemHandler.lastProcessedWasLegacy
+              && LegacyItemHandler.newTooltipStylesAvailable) {
+        ci.cancel();
+        vetsmod$processing = true;
+        try {
+          ((GuiGraphics) (Object) this)
+              .setTooltipForNextFrame(font, components, image, mouseX, mouseY,
+                  LegacyItemHandler.LEGACY_BORDER);
+        } finally {
+          vetsmod$processing = false;
+        }
+      }
+      return;
+    }
+
     List<Component> modified = LegacyItemHandler.processTooltip(components);
     if (modified != components) {
       ci.cancel();
