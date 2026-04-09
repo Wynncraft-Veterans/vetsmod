@@ -55,7 +55,7 @@ definitions:
   - "(?i)^Impure Morph Gold.*$"
   - "(?i)^Ba'al's Betrayal.*$"
   - "^Corrupted Treasure$"
-  - "^Pigman Meat$"
+  #- "^Pigman Meat$" // Why was this even there to begin with.
   - "^Wolf Fang$"
   - "(?i)^Santa's.*$"
   - "(?i)^Rusted Lost Sanctuary Key.*$"
@@ -96,8 +96,8 @@ definitions:
   - "(?i)^Harmstick.*$"
   - "(?i)^Hotline.*$"
   - "(?i)^Poinsettia.*$"
-  - "(?i)^Short Cutter.*$"
-  - "(?i)^Silver Short Spear.*$"
+  #- "(?i)^Short Cutter.*$" // These are obtainable in the Regular Island cave
+  #- "(?i)^Silver Short Spear.*$" // These are obtainable in the Regular Island cave
 ---
 misc_definitions:
   - "(?i)^Carved Quartz Block.*$"

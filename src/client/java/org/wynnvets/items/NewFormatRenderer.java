@@ -205,7 +205,8 @@ final class NewFormatRenderer {
     // Phase 1: Direct banner/box child — insert before it.
     for (int i = 0; i < siblings.size(); i++) {
       if (BANNER_BOX_FONT.equals(siblings.get(i).getStyle().getFont())) {
-        siblings.add(i, Component.literal("\uDB00\uDC01"));
+        siblings.add(i, Component.literal("\uDB00\uDC01")
+            .setStyle(Style.EMPTY.withFont(BANNER_BOX_FONT)));
         siblings.add(i, Component.literal(LEGACY_BOX_TEXT)
             .setStyle(Style.EMPTY
                 .withColor(ChatFormatting.GOLD)
@@ -227,7 +228,8 @@ final class NewFormatRenderer {
     if (hasSymbolSibling) {
       for (int i = 0; i < siblings.size(); i++) {
         if (containsFont(siblings.get(i), BANNER_BOX_FONT)) {
-          siblings.add(i, Component.literal("\uDB00\uDC01"));
+          siblings.add(i, Component.literal("\uDB00\uDC01")
+              .setStyle(Style.EMPTY.withFont(BANNER_BOX_FONT)));
           siblings.add(i, Component.literal(LEGACY_BOX_TEXT)
               .setStyle(Style.EMPTY
                   .withColor(ChatFormatting.GOLD)
