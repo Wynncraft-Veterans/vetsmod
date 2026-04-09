@@ -354,35 +354,60 @@ final class LegacyTooltipRenderer {
   private static boolean insertLegacyBoxLine(List<Component> lines) {
     for (int i = 1; i < lines.size(); i++) {
       if (containsFont(lines.get(i), BANNER_BOX_FONT)) {
-        Component original = lines.get(i);
-        List<Component> origSiblings = original.getSiblings();
-
-        // Build combined line: leading spacer + LEGACY box + inter-box space + original boxes
-        MutableComponent combined = Component.empty().withStyle(original.getStyle());
-
-        // Copy leading spacer (first sibling is the horizontal offset in space font)
-        if (!origSiblings.isEmpty()) {
-          combined.append(origSiblings.get(0).copy());
+        MutableComponent lineCopy = mutableDeepCopy(lines.get(i));
+        if (insertLegacyIntoTree(lineCopy)) {
+          lines.set(i, lineCopy);
+          return true;
         }
+      }
+    }
+    return false;
+  }
 
-        // Gold LEGACY box
-        combined.append(Component.literal(LEGACY_BOX_TEXT)
+  /**
+   * Deep-copies a Component tree into a fully mutable MutableComponent clone.
+   * Unlike {@code Component.copy()}, the returned tree has mutable sibling
+   * lists at every level, and all styles (including fonts) are preserved.
+   */
+  private static MutableComponent mutableDeepCopy(Component component) {
+    MutableComponent copy = component.plainCopy().withStyle(component.getStyle());
+    for (Component sibling : component.getSiblings()) {
+      copy.append(mutableDeepCopy(sibling));
+    }
+    return copy;
+  }
+
+  /**
+   * Walks a mutable-deep-copied MutableComponent tree and inserts a gold LEGACY box
+   * (with inter-box delimiter) immediately before the first child whose own
+   * style uses the {@code banner/box} font. Mutates the tree in place.
+   *
+   * <p>The inter-box delimiter uses the same character and inherited font as
+   * Wynncraft's native delimiters between boxes (U+D0001, no explicit font).</p>
+   */
+  private static boolean insertLegacyIntoTree(MutableComponent node) {
+    List<Component> siblings = node.getSiblings();
+
+    // Check if any direct child's own style uses the banner/box font
+    for (int i = 0; i < siblings.size(); i++) {
+      if (BANNER_BOX_FONT.equals(siblings.get(i).getStyle().getFont())) {
+        // Insert inter-box delimiter then LEGACY box before the first box child.
+        // add(i, ...) shifts existing elements right; insert delimiter first so
+        // the final order is: LEGACY, delimiter, [original boxes...]
+        siblings.add(i, Component.literal("\uDB00\uDC01"));
+        siblings.add(i, Component.literal(LEGACY_BOX_TEXT)
             .setStyle(Style.EMPTY
                 .withColor(ChatFormatting.GOLD)
                 .withoutShadow()
                 .withFont(BANNER_BOX_FONT)));
-
-        // Inter-box space (U+D0001 in space font, same as between RARE and WAND)
-        combined.append(Component.literal("\uDB00\uDC01")
-            .setStyle(Style.EMPTY.withFont(SPACE_FONT)));
-
-        // Remaining siblings (the actual rarity/type box content)
-        for (int j = 1; j < origSiblings.size(); j++) {
-          combined.append(origSiblings.get(j).copy());
-        }
-
-        lines.set(i, combined);
         return true;
+      }
+    }
+
+    // Recurse into children that contain the banner/box font
+    for (Component sibling : siblings) {
+      if (sibling instanceof MutableComponent mc && containsFont(mc, BANNER_BOX_FONT)) {
+        if (insertLegacyIntoTree(mc)) return true;
       }
     }
     return false;
