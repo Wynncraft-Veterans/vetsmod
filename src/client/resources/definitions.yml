@@ -62,6 +62,7 @@ definitions:
   #- "^Pigman Meat$" // Why was this even there to begin with.
   - "^Wolf Fang$"
   - "(?i)^Santa's.*$"
+  - "(?i)^Santa.*$" # Apparently the helmet and boots are santa items, the chestplate and leggings are santa's.
   - "(?i)^Rusted Lost Sanctuary Key.*$"
   - "(?i)^Animal Key.*$"
   - "(?i)^Silverfish Key.*$"
