@@ -2,51 +2,22 @@ package org.wynnvets.items;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.resources.Identifier;
 
 /**
- * Tooltip rewriting and Component tree manipulation for legacy items.
+ * Tooltip rewriting orchestration for legacy items.
  *
- * <p>Handles the visual transformation of tooltip lines — recoloring names,
- * inserting LEGACY box markers, replacing rarity lines, and managing the
- * new-format PUA-encoded tooltip structure. Detection logic remains in
- * {@link LegacyItemHandler}.</p>
+ * <p>Coordinates detection state from {@link LegacyItemHandler}, delegates
+ * new-format PUA-encoded operations to {@link NewFormatRenderer}, and handles
+ * old-format rarity line replacement and text helpers locally.</p>
  */
 final class LegacyTooltipRenderer {
-
-  /** Font used by Wynncraft's new-format emblem/frame line (lore[0] — the duplicate item name). */
-  private static final FontDescription EMBLEM_FRAME_FONT =
-      new FontDescription.Resource(Identifier.parse("tooltip/emblem/frame"));
-
-  /** Font used by Wynncraft's new-format banner/box rarity line (lore[1] — RARE / WAND boxes). */
-  private static final FontDescription BANNER_BOX_FONT =
-      new FontDescription.Resource(Identifier.parse("banner/box"));
-
-  /** Font used by Wynncraft's spacing characters (leading spacer on rarity/emblem lines). */
-  private static final FontDescription SPACE_FONT =
-      new FontDescription.Resource(Identifier.parse("space"));
-
-  /**
-   * PUA-encoded "LEGACY" text for the banner/box font.
-   * Structure: box_start + [neg_space + letter_bg]×6 + box_end + spacing + §0(black) + foreground_letters + terminator.
-   * Letter mapping: background = U+E030 + (letter - 'A'), foreground = U+E000 + (letter - 'A').
-   * Spacing byte U+CFFDA matches 6-letter words (same width class as COMMON).
-   */
-  private static final String LEGACY_BOX_TEXT =
-      "\uE060\uDAFF\uDFFF\uE03B\uDAFF\uDFFF\uE034\uDAFF\uDFFF\uE036"
-      + "\uDAFF\uDFFF\uE030\uDAFF\uDFFF\uE032\uDAFF\uDFFF\uE048"
-      + "\uDAFF\uDFFF\uE062\uDAFF\uDFDA\u00A70\uE00B\uE004\uE006"
-      + "\uE000\uE002\uE018\uDB00\uDC02";
 
   private static final Pattern DEBUG_ID_PATTERN = Pattern.compile("^\\w+:\\w[\\w/.-]*$");
   private static final Pattern DEBUG_COMPONENTS_PATTERN =
@@ -94,7 +65,7 @@ final class LegacyTooltipRenderer {
 
     if (plainText != null && ItemDefinitions.isLegacy(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      boolean newFormat = isNewFormatItem(modified);
+      boolean newFormat = NewFormatRenderer.isNewFormatItem(modified);
       if (newFormat) {
         // Restore PUA-wrapped custom name as line 0 to preserve spacer layout.
         // The visible name is in the emblem/frame lore line, not the hover name.
@@ -102,15 +73,15 @@ final class LegacyTooltipRenderer {
         boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
         if (customName != null) {
           modified.set(0, enchanted
-              ? deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.GOLD))
+              ? NewFormatRenderer.deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.GOLD))
               : customName);
         }
         if (enchanted) {
-          applyEnchantedToNewFormatNameLine(modified, plainText);
+          NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
         } else {
-          recolorNewFormatNameLine(modified);
+          NewFormatRenderer.recolorNewFormatNameLine(modified, plainText);
         }
-        if (insertLegacyBoxLine(modified)) {
+        if (NewFormatRenderer.insertLegacyBoxLine(modified)) {
           LegacyItemHandler.lastProcessedWasLegacy = true;
           return modified;
         }
@@ -132,21 +103,21 @@ final class LegacyTooltipRenderer {
 
     if (plainText != null && ItemDefinitions.isMiscLegacy(plainText) && LegacyItemHandler.hasMiscRarity(tooltipLines)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      boolean newFormat = isNewFormatItem(modified);
+      boolean newFormat = NewFormatRenderer.isNewFormatItem(modified);
       if (newFormat) {
         Component customName = LegacyItemHandler.currentItemStack.get(DataComponents.CUSTOM_NAME);
         boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
         if (customName != null) {
           modified.set(0, enchanted
-              ? deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.GOLD))
+              ? NewFormatRenderer.deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.GOLD))
               : customName);
         }
         if (enchanted) {
-          applyEnchantedToNewFormatNameLine(modified, plainText);
+          NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
         } else {
-          recolorNewFormatNameLine(modified);
+          NewFormatRenderer.recolorNewFormatNameLine(modified, plainText);
         }
-        if (insertLegacyBoxLine(modified)) {
+        if (NewFormatRenderer.insertLegacyBoxLine(modified)) {
           LegacyItemHandler.lastProcessedWasLegacy = true;
           return modified;
         }
@@ -188,15 +159,15 @@ final class LegacyTooltipRenderer {
 
     if (LegacyItemHandler.currentItemHasFoil && plainText != null && !ItemDefinitions.isUnenchanted(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      boolean newFormat = isNewFormatItem(modified);
+      boolean newFormat = NewFormatRenderer.isNewFormatItem(modified);
       if (newFormat) {
         Component customName = LegacyItemHandler.currentItemStack.get(DataComponents.CUSTOM_NAME);
         if (customName != null) {
-          modified.set(0, deepEnchantName(customName, plainText,
+          modified.set(0, NewFormatRenderer.deepEnchantName(customName, plainText,
               TextColor.fromLegacyFormat(ChatFormatting.GOLD)));
         }
-        applyEnchantedToNewFormatNameLine(modified, plainText);
-        if (insertLegacyBoxLine(modified)) {
+        NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
+        if (NewFormatRenderer.insertLegacyBoxLine(modified)) {
           LegacyItemHandler.lastProcessedWasLegacy = true;
           return modified;
         }
@@ -240,175 +211,6 @@ final class LegacyTooltipRenderer {
     for (Component line : lines) {
       String plain = ChatFormatting.stripFormatting(line.getString());
       if (plain != null && CRAFTED_PATTERN.matcher(plain).matches()) return true;
-    }
-    return false;
-  }
-
-  /**
-   * Returns {@code true} if the given Component tree contains any node whose
-   * resolved font matches {@code target}.
-   */
-  private static boolean containsFont(Component root, FontDescription target) {
-    boolean[] found = {false};
-    root.visit((Style style, String text) -> {
-      if (target.equals(style.getFont())) {
-        found[0] = true;
-        return Optional.of(Boolean.TRUE);
-      }
-      return Optional.empty();
-    }, Style.EMPTY);
-    return found[0];
-  }
-
-  /**
-   * Returns {@code true} if the item uses Wynncraft's new tooltip format.
-   * Detected by the presence of the {@code tooltip/emblem/frame} font in a lore line.
-   */
-  private static boolean isNewFormatItem(List<Component> lines) {
-    for (Component line : lines) {
-      if (containsFont(line, EMBLEM_FRAME_FONT)) {
-        // BEGIN PATCH(old-server-compat)
-        LegacyItemHandler.newTooltipStylesAvailable = true;
-        // END PATCH(old-server-compat)
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Recolors the new-format emblem/wynncraft-font name line from pink (#FF55FF)
-   * to gold, preserving the emblem frame, sprites, and wynncraft font.
-   */
-  private static void recolorNewFormatNameLine(List<Component> lines) {
-    TextColor pink = TextColor.fromRgb(0xFF55FF);
-    TextColor gold = TextColor.fromLegacyFormat(ChatFormatting.GOLD);
-    for (int i = 1; i < lines.size(); i++) {
-      if (containsFont(lines.get(i), EMBLEM_FRAME_FONT)) {
-        lines.set(i, deepRecolor(lines.get(i), pink, gold));
-        return;
-      }
-    }
-  }
-
-  /**
-   * Recursively deep-copies a Component tree, replacing all occurrences of
-   * {@code from} color with {@code to} color.
-   */
-  private static MutableComponent deepRecolor(Component component, TextColor from, TextColor to) {
-    MutableComponent copy = component.plainCopy();
-    Style style = component.getStyle();
-    if (from.equals(style.getColor())) {
-      style = style.withColor(to);
-    }
-    copy.setStyle(style);
-    for (Component sibling : component.getSiblings()) {
-      copy.append(deepRecolor(sibling, from, to));
-    }
-    return copy;
-  }
-
-  /**
-   * Modifies the new-format emblem/frame name line to show
-   * "Enchanted [name]" in yellow, preserving font structure and PUA spacing.
-   */
-  private static void applyEnchantedToNewFormatNameLine(List<Component> lines, String itemName) {
-    TextColor gold = TextColor.fromLegacyFormat(ChatFormatting.GOLD);
-    for (int i = 1; i < lines.size(); i++) {
-      if (containsFont(lines.get(i), EMBLEM_FRAME_FONT)) {
-        lines.set(i, deepEnchantName(lines.get(i), itemName, gold));
-        return;
-      }
-    }
-  }
-
-  /**
-   * Deep-copies a Component tree, finding the literal containing the exact
-   * item name and replacing it with "Enchanted [name]" in the target color.
-   * Other components (sprites, spacers, fonts) are preserved unchanged.
-   */
-  private static MutableComponent deepEnchantName(Component component, String originalName, TextColor targetColor) {
-    String contentStr = component.getContents().toString();
-    MutableComponent copy;
-    Style style = component.getStyle();
-
-    if (contentStr.equals("literal{" + originalName + "}")) {
-      copy = Component.literal("Enchanted " + originalName);
-      style = style.withColor(targetColor);
-    } else {
-      copy = component.plainCopy();
-    }
-
-    copy.setStyle(style);
-    for (Component sibling : component.getSiblings()) {
-      copy.append(deepEnchantName(sibling, originalName, targetColor));
-    }
-    return copy;
-  }
-
-  /**
-   * Prepends a gold-colored LEGACY box to the existing banner/box rarity line
-   * in new-format tooltips (e.g. [LEGACY][RARE][WAND] on a single line).
-   * Returns {@code true} if such a line was found and modified.
-   */
-  private static boolean insertLegacyBoxLine(List<Component> lines) {
-    for (int i = 1; i < lines.size(); i++) {
-      if (containsFont(lines.get(i), BANNER_BOX_FONT)) {
-        MutableComponent lineCopy = mutableDeepCopy(lines.get(i));
-        if (insertLegacyIntoTree(lineCopy)) {
-          lines.set(i, lineCopy);
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Deep-copies a Component tree into a fully mutable MutableComponent clone.
-   * Unlike {@code Component.copy()}, the returned tree has mutable sibling
-   * lists at every level, and all styles (including fonts) are preserved.
-   */
-  private static MutableComponent mutableDeepCopy(Component component) {
-    MutableComponent copy = component.plainCopy().withStyle(component.getStyle());
-    for (Component sibling : component.getSiblings()) {
-      copy.append(mutableDeepCopy(sibling));
-    }
-    return copy;
-  }
-
-  /**
-   * Walks a mutable-deep-copied MutableComponent tree and inserts a gold LEGACY box
-   * (with inter-box delimiter) immediately before the first child whose own
-   * style uses the {@code banner/box} font. Mutates the tree in place.
-   *
-   * <p>The inter-box delimiter uses the same character and inherited font as
-   * Wynncraft's native delimiters between boxes (U+D0001, no explicit font).</p>
-   */
-  private static boolean insertLegacyIntoTree(MutableComponent node) {
-    List<Component> siblings = node.getSiblings();
-
-    // Check if any direct child's own style uses the banner/box font
-    for (int i = 0; i < siblings.size(); i++) {
-      if (BANNER_BOX_FONT.equals(siblings.get(i).getStyle().getFont())) {
-        // Insert inter-box delimiter then LEGACY box before the first box child.
-        // add(i, ...) shifts existing elements right; insert delimiter first so
-        // the final order is: LEGACY, delimiter, [original boxes...]
-        siblings.add(i, Component.literal("\uDB00\uDC01"));
-        siblings.add(i, Component.literal(LEGACY_BOX_TEXT)
-            .setStyle(Style.EMPTY
-                .withColor(ChatFormatting.GOLD)
-                .withoutShadow()
-                .withFont(BANNER_BOX_FONT)));
-        return true;
-      }
-    }
-
-    // Recurse into children that contain the banner/box font
-    for (Component sibling : siblings) {
-      if (sibling instanceof MutableComponent mc && containsFont(mc, BANNER_BOX_FONT)) {
-        if (insertLegacyIntoTree(mc)) return true;
-      }
     }
     return false;
   }
