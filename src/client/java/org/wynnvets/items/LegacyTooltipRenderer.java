@@ -9,6 +9,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Tooltip rewriting orchestration for legacy items.
@@ -24,7 +25,6 @@ final class LegacyTooltipRenderer {
       Pattern.compile("^\\d+ component\\(s\\)$");
   private static final Pattern PERCENT_SUFFIX_PATTERN =
       Pattern.compile("\\s*(\\[\\d+\\.?\\d*%\\])$");
-  private static final String ENCHANTED_PREFIX = "\u2B21 Enchanted ";
   private static final Pattern CRAFTED_PATTERN =
       Pattern.compile(
           "^Crafted (?:Helmet|Chestplate|Pants|Boots|Ring|Potion|Scroll|Food|Wand|Spear|Relik|Bow|Dagger|by .+) \\[\\d+/\\d+ Durability\\]$");
@@ -54,12 +54,8 @@ final class LegacyTooltipRenderer {
     // Extract Wynntils rarity suffix (e.g. "[61.7%]") preserving its original color
     Component raritySuffix = extractColoredSuffix(firstLine, plainText);
 
-    // Strip our own "⬡ Enchanted " prefix (added by the getHoverName mixin) so we
-    // don't apply it twice, and strip the Wynntils percentage for clean name matching.
+    // Strip the Wynntils percentage suffix for clean name matching.
     if (plainText != null) {
-      if (plainText.startsWith(ENCHANTED_PREFIX)) {
-        plainText = plainText.substring(ENCHANTED_PREFIX.length());
-      }
       plainText = stripPercentSuffix(plainText);
     }
 
@@ -158,8 +154,15 @@ final class LegacyTooltipRenderer {
     }
 
     if (LegacyItemHandler.currentItemHasFoil && plainText != null && !ItemDefinitions.isUnenchanted(plainText)) {
+      VetsLogger.debug("processTooltip: foil branch entered, plainText='{}' (len={}), hasFoil={}", plainText, plainText.length(), LegacyItemHandler.currentItemHasFoil);
+      StringBuilder hexDump = new StringBuilder();
+      for (int ci = 0; ci < plainText.length(); ci++) {
+        hexDump.append(String.format("%04x ", (int)plainText.charAt(ci)));
+      }
+      VetsLogger.debug("processTooltip: plainText hex: {}", hexDump.toString().trim());
       List<Component> modified = new ArrayList<>(tooltipLines);
       boolean newFormat = NewFormatRenderer.isNewFormatItem(modified);
+      VetsLogger.debug("processTooltip: foil branch newFormat={}, tooltipSize={}", newFormat, modified.size());
       if (newFormat) {
         Component customName = LegacyItemHandler.currentItemStack.get(DataComponents.CUSTOM_NAME);
         if (customName != null) {

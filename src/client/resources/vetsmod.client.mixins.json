@@ -8,7 +8,6 @@
 		"chat.GuildChatCommandMixin",
 		"legacy.LegacyHighlightMixin",
 		"legacy.LegacyHotbarMixin",
-		"legacy.LegacyItemNameMixin",
 		"legacy.LegacyItemTooltipMixin",
 		"NametagMixin",
 		"command.ToggleCommandMixin",

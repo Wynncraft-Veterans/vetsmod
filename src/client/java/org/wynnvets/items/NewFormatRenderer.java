@@ -9,6 +9,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * New-format (PUA-encoded) tooltip manipulation for legacy items.
@@ -109,10 +110,14 @@ final class NewFormatRenderer {
     TextColor gold = TextColor.fromLegacyFormat(ChatFormatting.GOLD);
     for (int i = 1; i < lines.size(); i++) {
       if (containsFont(lines.get(i), EMBLEM_FRAME_FONT)) {
+        VetsLogger.debug("applyEnchantedToNewFormatNameLine: found emblem/frame at line {}, itemName='{}'", i, itemName);
+        Component before = lines.get(i);
         lines.set(i, deepEnchantName(lines.get(i), itemName, gold));
+        VetsLogger.debug("applyEnchantedToNewFormatNameLine: before='{}' after='{}'", before.getString(), lines.get(i).getString());
         return;
       }
     }
+    VetsLogger.debug("applyEnchantedToNewFormatNameLine: NO emblem/frame line found for '{}'", itemName);
   }
 
   /**
@@ -126,9 +131,16 @@ final class NewFormatRenderer {
     Style style = component.getStyle();
 
     if (contentStr.equals("literal{" + originalName + "}")) {
+      VetsLogger.debug("deepEnchantName MATCH: '{}' -> 'Enchanted {}'", originalName, originalName);
       copy = Component.literal("Enchanted " + originalName);
       style = style.withColor(targetColor);
     } else {
+      if (contentStr.contains(originalName)) {
+        VetsLogger.debug("deepEnchantName NEAR-MISS: contentStr='{}' (len={}), looking for='literal{{}}'", contentStr, contentStr.length(), originalName);
+        StringBuilder hexC = new StringBuilder();
+        for (int ci = 0; ci < contentStr.length(); ci++) hexC.append(String.format("%04x ", (int)contentStr.charAt(ci)));
+        VetsLogger.debug("deepEnchantName NEAR-MISS hex: {}", hexC.toString().trim());
+      }
       copy = component.plainCopy();
     }
 

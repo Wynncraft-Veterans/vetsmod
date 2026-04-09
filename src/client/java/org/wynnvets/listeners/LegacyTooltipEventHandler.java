@@ -66,9 +66,7 @@ public final class LegacyTooltipEventHandler {
     // Strip the italic that getStyledHoverName() applies to CUSTOM_NAME items.
     // The event tooltips come from Screen.getTooltipFromItem → getTooltipLines
     // → getStyledHoverName, which wraps getHoverName() in a parent Component
-    // with ITALIC if the item has a custom name.  Our getHoverName mixin
-    // already provides the correct gold/enchanted name — we just need to
-    // remove the spurious italic wrapper.
+    // with ITALIC if the item has a custom name.
     List<Component> tooltips = stripItalicFirstLine(original, stack);
 
     // Run the full legacy tooltip processing (rarity line replacement, etc.)

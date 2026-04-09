@@ -18,7 +18,7 @@ import net.minecraft.world.item.component.ItemLore;
  * Wynncraft item tooltips.
  *
  * <p>Works in concert with the mixin hooks ({@code LegacyItemTooltipMixin},
- * {@code LegacyItemNameMixin}, {@code LegacyHotbarMixin}, {@code LegacyHighlightMixin})
+ * {@code LegacyHotbarMixin}, {@code LegacyHighlightMixin})
  * to identify special items by name pattern and rarity line, then rewrites
  * their tooltip display names and rarity labels accordingly.</p>
  */
@@ -143,19 +143,21 @@ public class LegacyItemHandler {
   }
 
   /**
-   * Strips all supplementary Unicode code points (U+10000 and above) from text.
+   * Strips all supplementary Unicode code points (U+10000 and above) and
+   * BMP Private Use Area characters (U+E000-U+F8FF) from text.
    * Wynncraft's new item format wraps item names with invisible spacing and
    * font-switching glyphs from various supplementary planes (observed at
-   * U+CF000 and in Supplementary PUA-A/B). Since item display names only
-   * contain BMP characters, all supplementary code points are removed
-   * before name pattern matching.
+   * U+CF000 and in Supplementary PUA-A/B), and uses BMP PUA glyphs for
+   * inline sprites (e.g. U+E008 lock icon on unidentified items).
+   * Since item display names only contain standard BMP characters, all
+   * PUA code points are removed before name pattern matching.
    */
   private static String stripSupplementaryPua(String text) {
     StringBuilder sb = null;
     for (int i = 0; i < text.length(); ) {
       int cp = text.codePointAt(i);
       int charCount = Character.charCount(cp);
-      if (cp >= 0x10000) {
+      if (cp >= 0x10000 || (cp >= 0xE000 && cp <= 0xF8FF)) {
         if (sb == null) {
           sb = new StringBuilder(text.length());
           sb.append(text, 0, i);
