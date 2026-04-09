@@ -29,6 +29,10 @@ definitions:
   - "(?i)^Flawed Leather Boots.*$"
   - "(?i)^Flawed Leather Cap.*$"
   - "(?i)^Flawless Chain Boots.*$"
+  - "(?i)^Ghostly Boots.*$"
+  - "(?i)^Ghostly Cap.*$"
+  - "(?i)^Ghostly Pants.*$"
+  - "(?i)^Ghostly Tunic.*$"
   - "(?i)^Flawless Chain Chestplate.*$"
   - "(?i)^Flawless Chain Helmet.*$"
   - "(?i)^Flawless Chain Leggings.*$"
@@ -76,6 +80,7 @@ definitions:
   - "(?i)^Seeker.*$"
   - "(?i)^Drawing of the Spirits.*$"
   - "(?i)^Hide N' Seek Helmet.*$"
+  - "(?i)^Hide N' Seek Token.*$"
   - "(?i)^Legendary Medallion.*$"
   - "(?i)^Warm Cinders.*$"
   - "(?i)^Repair Scrap.*$"
@@ -87,7 +92,7 @@ definitions:
   - "(?i)^Block Of Red Wool.*$"
   - "(?i)^Feather$"
   - "(?i)^Cow Pass.*$"
-  - "(?i)^Galleon's Graveyard Pass.*$"
+  - "(?i)^Galleon's Graveyard Pass.*$" # Apparently this boat pass is a "Pass" instead of a boat pass. Inconsistent.
   - "(?i)^Faded.*.Teleportation Scroll$"
   - "(?i)^Skill Reset Scroll.*$"
   - "(?i)^Unprocessed.*$"
@@ -101,7 +106,8 @@ definitions:
 misc_definitions:
   - "(?i)^Carved Quartz Block.*$"
   - "(?i)^Crystal Of Destiny.*$"
-  - "(?i)^Firefly Wing.*$"
+  - "(?i)^Firefly Wing.*$" # Is this still obtainable?
+  - "(?i)^Wybel Plushie.*$"
   - "(?i)^Glass Bottle.*$"
   - "(?i)^Golden Root.*$"
   - "(?i)^Gunpowder.*$"
@@ -137,3 +143,5 @@ enchant_excluded_items:
 # display format (PUA in custom_name), the legacy name match is suppressed.
 new_format_override:
   - "(?i)^Skeleton Key$"
+### ---
+### Todo: Statless items are not detected, but when they are, they should include bob's weapons and a few others.
