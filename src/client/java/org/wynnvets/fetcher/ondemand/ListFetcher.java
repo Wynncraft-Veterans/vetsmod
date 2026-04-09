@@ -353,7 +353,10 @@ public final class ListFetcher {
 
       Style base;
       if (supporter) {
-        base = Style.EMPTY.withColor(TextColor.fromRgb(AnimatedGradientSequence.MARKER_COLOR));
+        int marker = color == ChatFormatting.GRAY
+            ? AnimatedGradientSequence.GREY_MARKER_COLOR
+            : AnimatedGradientSequence.MARKER_COLOR;
+        base = Style.EMPTY.withColor(TextColor.fromRgb(marker));
       } else {
         base = Style.EMPTY.withColor(color);
       }

@@ -37,8 +37,11 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
      * Characters with any other colour are passed through unchanged.
      */
     public static final int MARKER_COLOR = 0x00DEAD;
+    public static final int GREY_MARKER_COLOR = 0x00DEAF;
     public static final int DEFAULT_START_COLOR = ShaderColorPalette.DARK_AQUA;
     public static final int DEFAULT_END_COLOR = 0xAADDFF;
+    public static final int DEFAULT_GREY_START_COLOR = 0x888888;
+    public static final int DEFAULT_GREY_END_COLOR = 0xBBBBBB;
     public static final int DEFAULT_CYCLE_TIME_MS = 3000;
 
     // ── Thread-local animation context ──────────────────────────────────
@@ -82,7 +85,7 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
         // Count animated characters once at construction time.
         int[] count = {0};
         delegate.accept((index, style, cp) -> {
-            if (isMarker(style)) count[0]++;
+            if (isAnyMarker(style)) count[0]++;
             return true;
         });
         this.animatedCharCount = count[0];
@@ -100,7 +103,7 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
         int[] animIdx = {0};
 
         return delegate.accept((index, style, cp) -> {
-            if (isMarker(style)) {
+            if (isAnyMarker(style)) {
                 float charPhase = animatedCharCount <= 1
                         ? 0f
                         : animIdx[0] / (float) (animatedCharCount - 1);
@@ -110,7 +113,15 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
                 // Ping-pong so the gradient oscillates between the two colours.
                 float t = phase < 0.5f ? phase * 2.0f : 2.0f - phase * 2.0f;
 
-                int color = interpolateColor(startColor, endColor, t);
+                int start, end;
+                if (isGreyMarker(style)) {
+                    start = DEFAULT_GREY_START_COLOR;
+                    end = DEFAULT_GREY_END_COLOR;
+                } else {
+                    start = startColor;
+                    end = endColor;
+                }
+                int color = interpolateColor(start, end, t);
                 style = style.withColor(TextColor.fromRgb(color));
                 animIdx[0]++;
             }
@@ -120,9 +131,15 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
-    private static boolean isMarker(Style style) {
+    private static boolean isAnyMarker(Style style) {
         TextColor color = style.getColor();
-        return color != null && color.getValue() == MARKER_COLOR;
+        return color != null
+                && (color.getValue() == MARKER_COLOR || color.getValue() == GREY_MARKER_COLOR);
+    }
+
+    private static boolean isGreyMarker(Style style) {
+        TextColor color = style.getColor();
+        return color != null && color.getValue() == GREY_MARKER_COLOR;
     }
 
     private static int interpolateColor(int c1, int c2, float t) {
