@@ -32,9 +32,10 @@ public class LegacyItemNameMixin {
     Component original = cir.getReturnValue();
     String plain =
         LegacyItemHandler.normalizeName(ChatFormatting.stripFormatting(original.getString()));
+    boolean newFormatOverridden = plain != null && LegacyItemHandler.isNewFormatItem(self) && ItemDefinitions.isNewFormatOverride(plain);
 
     // Name-based legacy pattern
-    if (plain != null && ItemDefinitions.isLegacy(plain)) {
+    if (!newFormatOverridden && plain != null && ItemDefinitions.isLegacy(plain)) {
       if (self.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(self) && !ItemDefinitions.isUnenchanted(plain)) {
         cir.setReturnValue(
             Component.literal("\u2B21 ")
@@ -62,7 +63,7 @@ public class LegacyItemNameMixin {
     if (!lore.isEmpty()) {
       // Misc-category legacy items (e.g. Raw Cod, Gunpowder) — matched by name in
       // misc_definitions AND confirmed by a "Misc. Item" rarity line in lore.
-      if (plain != null && ItemDefinitions.isMiscLegacy(plain) && LegacyItemHandler.hasMiscRarity(lore)) {
+      if (!newFormatOverridden && plain != null && ItemDefinitions.isMiscLegacy(plain) && LegacyItemHandler.hasMiscRarity(lore)) {
         if (self.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(self) && !ItemDefinitions.isUnenchanted(plain)) {
           cir.setReturnValue(
               Component.literal("\u2B21 ")

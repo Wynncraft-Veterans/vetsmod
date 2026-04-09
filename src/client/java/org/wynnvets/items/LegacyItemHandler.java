@@ -64,7 +64,7 @@ public class LegacyItemHandler {
    * Some Wynncraft menus (e.g. "Island Rules") apply enchantment glints as
    * UI selectors, which the foil-based detection misidentifies as legacy items.
    */
-  private static final List<String> BLOCKED_SCREEN_TITLES = List.of("Island Rules");
+  private static final List<String> BLOCKED_SCREEN_TITLES = List.of("Island Rules", "Move here!");
 
   /**
    * Returns {@code true} if the current screen title matches a known menu that
@@ -75,6 +75,24 @@ public class LegacyItemHandler {
     if (screen == null) return false;
     String title = ChatFormatting.stripFormatting(screen.getTitle().getString());
     return title != null && BLOCKED_SCREEN_TITLES.contains(title);
+  }
+
+  /**
+   * Returns {@code true} if the item uses Wynncraft's new display format,
+   * identified by supplementary PUA characters (U+10000+) in the custom name
+   * component.  Used with {@link ItemDefinitions#isNewFormatOverride} to suppress
+   * legacy name matches for specific items that exist in both old and new formats.
+   */
+  public static boolean isNewFormatItem(ItemStack stack) {
+    Component customName = stack.get(DataComponents.CUSTOM_NAME);
+    if (customName == null) return false;
+    String raw = customName.getString();
+    for (int i = 0; i < raw.length(); ) {
+      int cp = raw.codePointAt(i);
+      if (cp >= 0x10000) return true;
+      i += Character.charCount(cp);
+    }
+    return false;
   }
 
   /** Returns true if the given ItemStack should be treated as a legacy item.
@@ -88,12 +106,13 @@ public class LegacyItemHandler {
     String rawHover = stack.getHoverName().getString();
     String stripped = ChatFormatting.stripFormatting(rawHover);
     String name = normalizeName(stripped);
+    boolean newFormatOverridden = name != null && isNewFormatItem(stack) && ItemDefinitions.isNewFormatOverride(name);
 
-    if (name != null && ItemDefinitions.isLegacy(name)) return true;
+    if (!newFormatOverridden && name != null && ItemDefinitions.isLegacy(name)) return true;
 
     List<Component> lore = stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines();
 
-    if (name != null && ItemDefinitions.isMiscLegacy(name) && hasMiscRarity(lore)) return true;
+    if (!newFormatOverridden && name != null && ItemDefinitions.isMiscLegacy(name) && hasMiscRarity(lore)) return true;
 
     if (hasBetaLegacyMarker(lore)) return true;
 

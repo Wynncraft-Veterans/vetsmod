@@ -27,6 +27,7 @@ public class ItemDefinitions {
   private static final List<Pattern> miscPatterns = new ArrayList<>();
   private static final List<Pattern> unenchantedPatterns = new ArrayList<>();
   private static final List<Pattern> notjunkPatterns = new ArrayList<>();
+  private static final List<Pattern> newFormatOverridePatterns = new ArrayList<>();
   private static final Set<String> enchantExcludedItems = new HashSet<>();
 
   public static void load() {
@@ -34,6 +35,7 @@ public class ItemDefinitions {
     miscPatterns.clear();
     unenchantedPatterns.clear();
     notjunkPatterns.clear();
+    newFormatOverridePatterns.clear();
     enchantExcludedItems.clear();
 
     try (InputStream is = ItemDefinitions.class.getResourceAsStream("/definitions.yml")) {
@@ -43,11 +45,12 @@ public class ItemDefinitions {
       }
       parse(is);
       VetsLogger.debug(
-          "Loaded {} legacy, {} misc, {} unenchanted, {} notjunk, and {} enchant-excluded definition(s)",
+          "Loaded {} legacy, {} misc, {} unenchanted, {} notjunk, {} new-format-override, and {} enchant-excluded definition(s)",
           legacyPatterns.size(),
           miscPatterns.size(),
           unenchantedPatterns.size(),
           notjunkPatterns.size(),
+          newFormatOverridePatterns.size(),
           enchantExcludedItems.size());
     } catch (IOException e) {
       VetsLogger.error("Failed to load definitions.yml", e);
@@ -89,6 +92,11 @@ public class ItemDefinitions {
           String pattern = extractQuotedString(trimmed.substring(2).trim());
           if (!pattern.isEmpty()) {
             notjunkPatterns.add(Pattern.compile(pattern));
+          }
+        } else if ("new_format_override".equals(currentSection) && trimmed.startsWith("- ")) {
+          String pattern = extractQuotedString(trimmed.substring(2).trim());
+          if (!pattern.isEmpty()) {
+            newFormatOverridePatterns.add(Pattern.compile(pattern));
           }
         } else if ("enchant_excluded_items".equals(currentSection) && trimmed.startsWith("- ")) {
           String itemId = extractQuotedString(trimmed.substring(2).trim());
@@ -143,6 +151,20 @@ public class ItemDefinitions {
 
   public static boolean isNotJunk(String itemName) {
     for (Pattern pattern : notjunkPatterns) {
+      if (pattern.matcher(itemName).matches()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Returns {@code true} if the given name matches a new-format override pattern.
+   * Items matching these patterns should not be treated as legacy when they appear
+   * in the new display format (PUA-encoded custom name).
+   */
+  public static boolean isNewFormatOverride(String itemName) {
+    for (Pattern pattern : newFormatOverridePatterns) {
       if (pattern.matcher(itemName).matches()) {
         return true;
       }

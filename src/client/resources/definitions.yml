@@ -41,7 +41,7 @@ definitions:
   - "(?i)^Refined Iron Boots.*$"
   - "(?i)^Refined Iron Chainmail.*$"
   - "(?i)^Refined Iron Leggings.*$"
-  - "(?i)^Sacred.*$"
+  - "(?i)^Sacred$"
   - "(?i)^The Juggernaut.*$"
   - "(?i)^Factory Helmet.*$"
   - "(?i)^Female Pirate Wig.*$"
@@ -86,7 +86,6 @@ definitions:
   - "(?i)^Potion of Hunger.*$"
   - "(?i)^Block Of Red Wool.*$"
   - "(?i)^Feather$"
-  - "(?i)^Leather$"
   - "(?i)^Cow Pass.*$"
   - "(?i)^Galleon's Graveyard Pass.*$"
   - "(?i)^Faded.*.Teleportation Scroll$"
@@ -132,3 +131,9 @@ notjunk:
 enchant_excluded_items:
   - "minecraft:experience_bottle"
   - "minecraft:enchanted_book"
+---
+# Items whose names collide with legacy patterns but also exist as current
+# new-format items.  When a name matches here AND the item uses the new
+# display format (PUA in custom_name), the legacy name match is suppressed.
+new_format_override:
+  - "(?i)^Skeleton Key$"

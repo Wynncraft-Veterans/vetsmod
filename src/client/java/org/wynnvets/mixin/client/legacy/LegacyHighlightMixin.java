@@ -56,7 +56,8 @@ public class LegacyHighlightMixin {
 
     String name = LegacyItemHandler.normalizeName(
         ChatFormatting.stripFormatting(stack.getHoverName().getString()));
-    if (name != null && ItemDefinitions.isLegacy(name)) {
+    boolean newFormatOverridden = name != null && LegacyItemHandler.isNewFormatItem(stack) && ItemDefinitions.isNewFormatOverride(name);
+    if (!newFormatOverridden && name != null && ItemDefinitions.isLegacy(name)) {
       drawLegacyHighlight(guiGraphics, slot);
       return;
     }
@@ -65,7 +66,7 @@ public class LegacyHighlightMixin {
 
     // Misc-category legacy items (e.g. Raw Cod, Gunpowder) — matched by name in
     // misc_definitions AND confirmed by a "Misc. Item" rarity line in lore.
-    if (name != null && ItemDefinitions.isMiscLegacy(name) && LegacyItemHandler.hasMiscRarity(lore)) {
+    if (!newFormatOverridden && name != null && ItemDefinitions.isMiscLegacy(name) && LegacyItemHandler.hasMiscRarity(lore)) {
       drawLegacyHighlight(guiGraphics, slot);
       return;
     }
