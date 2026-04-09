@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -37,6 +38,7 @@ public class VetsConfig {
   private static final Map<String, Boolean> config = new ConcurrentHashMap<>();
   private static final Map<String, Long> longConfig = new ConcurrentHashMap<>();
   private static final Map<String, Boolean> triStateConfig = Collections.synchronizedMap(new HashMap<>());
+  private static final Map<String, String> stringConfig = new ConcurrentHashMap<>();
 
   // ── Internal configuration keys (not user-facing) ───────────────────────
   public static final String VETS_AUTOMESSAGE = "vetsAutomessage";
@@ -73,6 +75,32 @@ public class VetsConfig {
    *  relying solely on Wynntils' guild detection (which can remain null). */
   public static final String MORE_RELIABLE_GUILD_CHECK = "moreReliableGuildCheck";
 
+  /** CSS/Minecraft colour name for the top of the gradient drawn behind legacy item icons.
+   *  Defaults to {@code orange}. */
+  public static final String LEGACY_ITEM_BACKGROUND_GRADIENT_TOP = "legacyItemBackgroundGradientTop";
+
+  /** CSS/Minecraft colour name for the bottom of the gradient drawn behind legacy item icons.
+   *  Defaults to {@code crimson}. */
+  public static final String LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM = "legacyItemBackgroundGradientBottom";
+
+  /** Opacity (0–100%) for the top of the legacy-item background gradient.
+   *  Defaults to 69 (~69%, matching the old 0xB0 alpha). */
+  public static final String LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY = "legacyItemBackgroundGradientTopOpacity";
+
+  /** Opacity (0–100%) for the bottom of the legacy-item background gradient.
+   *  Defaults to 69. */
+  public static final String LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY = "legacyItemBackgroundGradientBottomOpacity";
+
+  /** Which Wynntils highlight-spritesheet tile to draw over the gradient.
+   *  One of: wynn, tag, circle_transparent, circle_opaque, circle_outline_large,
+   *  circle_outline_small, box_transparent, box_opaque, box_gradient_1, box_gradient_2.
+   *  Defaults to {@code wynn}. */
+  public static final String LEGACY_ITEM_FOREGROUND_SPRITE = "legacyItemForegroundSprite";
+
+  /** CSS/Minecraft colour name used to tint the foreground sprite on legacy item slots.
+   *  Defaults to {@code gold} (Minecraft §6). */
+  public static final String LEGACY_ITEM_FOREGROUND_COLOR = "legacyItemForegroundColor";
+
   /**
    * Ordered list of configuration keys that can be toggled by the player via
    * {@code /wv config <key> <value>}.  Internal keys (staff status, timestamps,
@@ -80,6 +108,12 @@ public class VetsConfig {
    */
   public static final String[] USER_CONFIG_KEYS = {
       LEGACY_ITEM_HIGHLIGHTING,
+      LEGACY_ITEM_BACKGROUND_GRADIENT_TOP,
+      LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY,
+      LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM,
+      LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY,
+      LEGACY_ITEM_FOREGROUND_SPRITE,
+      LEGACY_ITEM_FOREGROUND_COLOR,
       PRINT_MOTD,
       PRINT_ANNI,
       PRINT_BRIDGE_MESSAGES,
@@ -95,6 +129,157 @@ public class VetsConfig {
   public static final String[] TRISTATE_KEYS = {
       HANDLE_SPOILERS,
   };
+
+  /**
+   * Subset of user-facing keys that store a string value.
+   */
+  public static final String[] STRING_CONFIG_KEYS = {
+      LEGACY_ITEM_BACKGROUND_GRADIENT_TOP,
+      LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM,
+      LEGACY_ITEM_FOREGROUND_SPRITE,
+      LEGACY_ITEM_FOREGROUND_COLOR,
+  };
+
+  /**
+   * Subset of user-facing keys that store an integer value (persisted as long).
+   */
+  public static final String[] INT_CONFIG_KEYS = {
+      LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY,
+      LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY,
+  };
+
+  /** Valid sprite names for {@link #LEGACY_ITEM_FOREGROUND_SPRITE}, matching
+   *  the Wynntils {@code HighlightTexture} enum order (ordinal = tile index). */
+  public static final String[] VALID_SPRITES = {
+      "wynn", "tag", "circle_transparent", "circle_opaque",
+      "circle_outline_large", "circle_outline_small",
+      "box_transparent", "box_opaque", "box_gradient_1", "box_gradient_2",
+  };
+
+  // ── Colour helpers (delegated to NamedColor) ─────────────────────────
+
+  /**
+   * Returns the ordered set of valid colour names.
+   */
+  public static Set<String> getColorNames() {
+    return NamedColor.getNames();
+  }
+
+  /**
+   * Check whether a value is a valid colour name.
+   */
+  public static boolean isValidColor(String value) {
+    return NamedColor.isValid(value);
+  }
+
+  /**
+   * Check whether a value is a valid sprite name.
+   */
+  public static boolean isValidSprite(String value) {
+    if (value == null) return false;
+    for (String s : VALID_SPRITES) {
+      if (s.equalsIgnoreCase(value)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Parse {@link #LEGACY_ITEM_BACKGROUND_GRADIENT_TOP} into an ARGB int,
+   * combining the colour name with the top opacity setting.
+   *
+   * @return the computed ARGB colour, or orange at 69% on error
+   */
+  public static int getLegacyBackgroundGradientTopColor() {
+    String name = getString(LEGACY_ITEM_BACKGROUND_GRADIENT_TOP);
+    int rgb = NamedColor.getRgbOrDefault(name, 0xFFA500);
+    int opacity = (int) getLong(LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY);
+    if ("transparent".equalsIgnoreCase(name)) return 0x00000000;
+    return NamedColor.withAlpha(rgb, opacity);
+  }
+
+  /**
+   * Parse {@link #LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM} into an ARGB int,
+   * combining the colour name with the bottom opacity setting.
+   *
+   * @return the computed ARGB colour, or crimson at 100% on error
+   */
+  public static int getLegacyBackgroundGradientBottomColor() {
+    String name = getString(LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM);
+    int rgb = NamedColor.getRgbOrDefault(name, 0xDC143C);
+    int opacity = (int) getLong(LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY);
+    if ("transparent".equalsIgnoreCase(name)) return 0x00000000;
+    return NamedColor.withAlpha(rgb, opacity);
+  }
+
+  /**
+   * Parse {@link #LEGACY_ITEM_FOREGROUND_COLOR} into a fully-opaque ARGB int.
+   *
+   * @return the parsed colour, or {@code 0xFFFFA500} (orange) on error
+   */
+  public static int getLegacyForegroundColor() {
+    String name = getString(LEGACY_ITEM_FOREGROUND_COLOR);
+    if (name != null) {
+      if ("transparent".equalsIgnoreCase(name)) return 0x00000000;
+      Integer rgb = NamedColor.getRgb(name);
+      if (rgb != null) return 0xFF000000 | rgb;
+    }
+    return 0xFFFFA500;
+  }
+
+  /**
+   * Resolve a colour name to its RGB int (no alpha), for display in chat.
+   * Returns 0xFFA500 (orange) on error.
+   */
+  public static int getColorRgb(String name) {
+    return NamedColor.getRgbOrDefault(name, 0xFFA500);
+  }
+
+  /**
+   * Get the spritesheet U-offset (in pixels) for {@link #LEGACY_ITEM_FOREGROUND_SPRITE}.
+   *
+   * @return ordinal × 18, defaulting to 0 (wynn)
+   */
+  public static int getLegacyForegroundSpriteOffset() {
+    String name = getString(LEGACY_ITEM_FOREGROUND_SPRITE);
+    if (name != null) {
+      for (int i = 0; i < VALID_SPRITES.length; i++) {
+        if (VALID_SPRITES[i].equalsIgnoreCase(name)) return i * 18;
+      }
+    }
+    return 0;
+  }
+
+  // ── Int config defaults (for reset) ─────────────────────────────────
+
+  private static final Map<String, Long> INT_DEFAULTS = Map.of(
+      LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY, 69L,
+      LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY, 100L
+  );
+
+  /**
+   * Returns the default value for an int config key, or {@code null} if
+   * the key is not an int config key.
+   */
+  public static Long getIntDefault(String key) {
+    return INT_DEFAULTS.get(key);
+  }
+
+  // ── String config defaults (for reset) ──────────────────────────────
+
+  private static final Map<String, String> STRING_DEFAULTS = Map.of(
+      LEGACY_ITEM_BACKGROUND_GRADIENT_TOP, "orange",
+      LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM, "crimson",
+      LEGACY_ITEM_FOREGROUND_SPRITE, "box_gradient_2",
+      LEGACY_ITEM_FOREGROUND_COLOR, "orange"
+  );
+
+  /**
+   * Returns the default value for a string config key, or {@code null} if
+   * the key is not a string config key.
+   */
+  public static String getStringDefault(String key) {
+    return STRING_DEFAULTS.get(key);
+  }
 
   // Default values
   static {
@@ -119,6 +304,16 @@ public class VetsConfig {
 
     // Tri-state defaults (null = use default behaviour)
     triStateConfig.put(HANDLE_SPOILERS, null);
+
+    // String defaults
+    stringConfig.put(LEGACY_ITEM_BACKGROUND_GRADIENT_TOP, "orange");
+    stringConfig.put(LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM, "crimson");
+    stringConfig.put(LEGACY_ITEM_FOREGROUND_SPRITE, "box_gradient_2");
+    stringConfig.put(LEGACY_ITEM_FOREGROUND_COLOR, "orange");
+
+    // Int defaults (stored as long)
+    longConfig.put(LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY, 69L);
+    longConfig.put(LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY, 100L);
   }
 
   /**
@@ -219,7 +414,7 @@ public class VetsConfig {
    * @return true if the key exists, false otherwise
    */
   public static boolean hasKey(String key) {
-    return config.containsKey(key) || triStateConfig.containsKey(key);
+    return config.containsKey(key) || triStateConfig.containsKey(key) || stringConfig.containsKey(key);
   }
 
   /**
@@ -246,6 +441,57 @@ public class VetsConfig {
       if (tsKey.equals(key)) return true;
     }
     return false;
+  }
+
+  /**
+   * Check if a configuration key is a string key (stores one of a fixed set
+   * of string values).
+   *
+   * @param key The configuration key to check
+   * @return true if it is a string config key
+   */
+  public static boolean isStringKey(String key) {
+    for (String sk : STRING_CONFIG_KEYS) {
+      if (sk.equals(key)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if a configuration key is an integer key (stored as long).
+   *
+   * @param key The configuration key to check
+   * @return true if it is an int config key
+   */
+  public static boolean isIntKey(String key) {
+    for (String ik : INT_CONFIG_KEYS) {
+      if (ik.equals(key)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get the string value of a configuration option.
+   *
+   * @param key The configuration key
+   * @return The current value, or {@code null} if the key doesn't exist
+   */
+  public static String getString(String key) {
+    return stringConfig.get(key);
+  }
+
+  /**
+   * Set the string value of a configuration option.
+   *
+   * @param key   The configuration key
+   * @param value The new value (must be one of the valid options for this key)
+   * @return true if the key exists and was updated, false otherwise
+   */
+  public static boolean setString(String key, String value) {
+    if (!stringConfig.containsKey(key)) return false;
+    stringConfig.put(key, value);
+    save();
+    return true;
   }
 
   /**
@@ -314,6 +560,16 @@ public class VetsConfig {
           }
         }
 
+        // Load string values
+        for (String key : stringConfig.keySet()) {
+          JsonElement element = loadedConfig.get(key);
+          if (element != null && element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            String value = element.getAsString();
+            stringConfig.put(key, value);
+            VetsLogger.debug("Config: {} = {}", key, value);
+          }
+        }
+
         VetsLogger.debug("Configuration loaded");
       }
     } catch (IOException e) {
@@ -341,6 +597,9 @@ public class VetsConfig {
         if (entry.getValue() != null) {
           serialized.addProperty(entry.getKey(), entry.getValue());
         }
+      }
+      for (Map.Entry<String, String> entry : stringConfig.entrySet()) {
+        serialized.addProperty(entry.getKey(), entry.getValue());
       }
 
       String json = GSON.toJson(serialized);

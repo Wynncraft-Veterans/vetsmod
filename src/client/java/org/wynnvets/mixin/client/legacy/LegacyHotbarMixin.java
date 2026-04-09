@@ -21,11 +21,8 @@ import org.wynnvets.items.LegacyItemHandler;
 @Mixin(Gui.class)
 public class LegacyHotbarMixin {
 
-  private static final int LEGACY_HIGHLIGHT_COLOR = 0xB0F0501E;
-
   private static final Identifier WYNNTILS_HIGHLIGHT =
       Identifier.fromNamespaceAndPath("wynntils", "textures/ui_components/highlight.png");
-  private static final int UNIQUE_HIGHLIGHT_COLOR = 0xFFFFFF00;
 
   @Inject(
       method =
@@ -45,19 +42,21 @@ public class LegacyHotbarMixin {
     // Bail out when legacy item highlighting is disabled
     if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return;
     if (LegacyItemHandler.isLegacyItem(stack)) {
-      guiGraphics.fill(x, y, x + 16, y + 16, LEGACY_HIGHLIGHT_COLOR);
+      guiGraphics.fillGradient(x, y, x + 16, y + 16,
+          org.wynnvets.config.VetsConfig.getLegacyBackgroundGradientTopColor(),
+          org.wynnvets.config.VetsConfig.getLegacyBackgroundGradientBottomColor());
       guiGraphics.blit(
           RenderPipelines.GUI_TEXTURED,
           WYNNTILS_HIGHLIGHT,
           x - 1,
           y - 1,
-          0f,
+          (float) org.wynnvets.config.VetsConfig.getLegacyForegroundSpriteOffset(),
           0f,
           18,
           18,
           256,
           256,
-          UNIQUE_HIGHLIGHT_COLOR);
+          org.wynnvets.config.VetsConfig.getLegacyForegroundColor());
     }
   }
 }
