@@ -17,15 +17,25 @@ import org.wynnvets.logging.VetsLogger;
 /**
  * Loads and evaluates item name patterns from {@code definitions.yml}.
  *
- * <p>Patterns are grouped into four categories: legacy items, miscellaneous legacy,
- * unenchanted items, and not-junk items. Each category's regex patterns are loaded
- * once at startup and matched against item display names at runtime to determine
- * how items should be highlighted or filtered in tooltips.</p>
+ * <p>Patterns are grouped into categories that control how items are highlighted
+ * or filtered in tooltips.  Each category's regex patterns are loaded once at
+ * startup and matched against item display names at runtime.</p>
+ *
+ * <h2>Pattern categories</h2>
+ * <ul>
+ *   <li><b>definitions</b> — exact legacy item name patterns (matched regardless of lore).</li>
+ *   <li><b>no_lore_legacy</b> — items that are legacy ONLY when they also have
+ *       no lore lines (e.g. old keys, vanilla materials, holiday items).</li>
+ *   <li><b>misc_definitions</b> — items requiring a "Misc. Item" rarity line.</li>
+ *   <li><b>unenchanted</b> — items excluded from enchanted/foil detection.</li>
+ *   <li><b>notjunk</b> — modern junk-tier items that should NOT be highlighted.</li>
+ *   <li><b>new_format_override</b> — names that collide between old and new formats.</li>
+ *   <li><b>enchant_excluded_items</b> — Minecraft item IDs excluded from foil detection.</li>
+ * </ul>
  */
 public class ItemDefinitions {
   private static final List<Pattern> legacyPatterns = new ArrayList<>();
-  private static final List<Pattern> noLoreExcludedPatterns = new ArrayList<>();
-  private static final List<Pattern> vanillaStatlessPatterns = new ArrayList<>();
+  private static final List<Pattern> noLoreLegacyPatterns = new ArrayList<>();
   private static final List<Pattern> miscPatterns = new ArrayList<>();
   private static final List<Pattern> unenchantedPatterns = new ArrayList<>();
   private static final List<Pattern> notjunkPatterns = new ArrayList<>();
@@ -34,8 +44,7 @@ public class ItemDefinitions {
 
   public static void load() {
     legacyPatterns.clear();
-    noLoreExcludedPatterns.clear();
-    vanillaStatlessPatterns.clear();
+    noLoreLegacyPatterns.clear();
     miscPatterns.clear();
     unenchantedPatterns.clear();
     notjunkPatterns.clear();
@@ -49,10 +58,9 @@ public class ItemDefinitions {
       }
       parse(is);
       VetsLogger.debug(
-          "Loaded {} legacy, {} no-lore-excluded, {} vanilla-statless, {} misc, {} unenchanted, {} notjunk, {} new-format-override, and {} enchant-excluded definition(s)",
+          "Loaded {} legacy, {} no-lore-legacy, {} misc, {} unenchanted, {} notjunk, {} new-format-override, and {} enchant-excluded definition(s)",
           legacyPatterns.size(),
-          noLoreExcludedPatterns.size(),
-          vanillaStatlessPatterns.size(),
+          noLoreLegacyPatterns.size(),
           miscPatterns.size(),
           unenchantedPatterns.size(),
           notjunkPatterns.size(),
@@ -88,12 +96,9 @@ public class ItemDefinitions {
         if ("definitions".equals(currentSection) && trimmed.startsWith("- ")) {
           String pattern = extractQuotedString(trimmed.substring(2).trim());
           legacyPatterns.add(Pattern.compile(pattern));
-        } else if ("no_lore_excluded".equals(currentSection) && trimmed.startsWith("- ")) {
+        } else if ("no_lore_legacy".equals(currentSection) && trimmed.startsWith("- ")) {
           String pattern = extractQuotedString(trimmed.substring(2).trim());
-          noLoreExcludedPatterns.add(Pattern.compile(pattern));
-        } else if ("vanilla_statless".equals(currentSection) && trimmed.startsWith("- ")) {
-          String pattern = extractQuotedString(trimmed.substring(2).trim());
-          vanillaStatlessPatterns.add(Pattern.compile(pattern));
+          noLoreLegacyPatterns.add(Pattern.compile(pattern));
         } else if ("misc_definitions".equals(currentSection) && trimmed.startsWith("- ")) {
           String pattern = extractQuotedString(trimmed.substring(2).trim());
           miscPatterns.add(Pattern.compile(pattern));
@@ -136,17 +141,8 @@ public class ItemDefinitions {
     return false;
   }
 
-  public static boolean isNoLoreExcluded(String itemName) {
-    for (Pattern pattern : noLoreExcludedPatterns) {
-      if (pattern.matcher(itemName).matches()) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  public static boolean isVanillaStatless(String itemName) {
-    for (Pattern pattern : vanillaStatlessPatterns) {
+  public static boolean isNoLoreLegacy(String itemName) {
+    for (Pattern pattern : noLoreLegacyPatterns) {
       if (pattern.matcher(itemName).matches()) {
         return true;
       }

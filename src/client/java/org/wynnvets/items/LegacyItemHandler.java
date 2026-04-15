@@ -106,11 +106,7 @@ public class LegacyItemHandler {
 
     if (!newFormatOverridden && name != null && ItemDefinitions.isMiscLegacy(name) && hasMiscRarity(lore)) return true;
 
-    if (lore.isEmpty() && name != null && !name.isBlank() && stack.get(DataComponents.CUSTOM_NAME) != null
-        && !isNewFormatItem(stack) && !ItemDefinitions.isNoLoreExcluded(name)
-        && name.indexOf('\uFFFD') < 0) return true;
-
-    if (lore.isEmpty() && name != null && !name.isBlank() && ItemDefinitions.isVanillaStatless(name)) return true;
+    if (lore.isEmpty() && name != null && !name.isBlank() && ItemDefinitions.isNoLoreLegacy(name)) return true;
 
     if (hasBetaLegacyMarker(lore)) return true;
 
@@ -171,10 +167,13 @@ public class LegacyItemHandler {
   /**
    * Derives a rarity name from the section-sign colour code at the start of
    * the item's custom name (e.g. {@code §b} → "Legendary").
+   * Used by the no-lore-legacy tooltip branch to infer a rarity tier for
+   * items that lack both a lore rarity line and a {@code tooltip_style}
+   * data component.
    * Returns {@code null} when the custom name is absent or starts with an
    * unmapped colour code.
    */
-  public static String getStatlessRarityFromColor(ItemStack stack) {
+  public static String getRarityFromNameColor(ItemStack stack) {
     Component customName = stack.get(DataComponents.CUSTOM_NAME);
     if (customName == null) return null;
     String raw = customName.getString();

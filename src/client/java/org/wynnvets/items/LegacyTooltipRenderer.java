@@ -32,14 +32,12 @@ import org.wynnvets.logging.VetsLogger;
  *       {@code definitions} section.</li>
  *   <li><b>Misc legacy</b> — name is in {@code misc_definitions} AND the
  *       item has a "Misc. Item" rarity line.</li>
- *   <li><b>Statless no-lore (custom name)</b> — item has a {@code custom_name}
- *       component, empty lore, is NOT new-format PUA, is NOT excluded, and
- *       has no U+FFFD corruption. Rarity is inferred from the §-colour code
- *       of the custom name (§b=Legendary, §5=Mythic, etc.).</li>
- *   <li><b>Statless no-lore (vanilla name)</b> — item's vanilla name matches
- *       the {@code vanilla_statless} whitelist and it has empty lore.
- *       These items lack a custom_name component. Label is simply
- *       "Statless Legacy Item".</li>
+ *   <li><b>No-lore legacy whitelist</b> — name matches the
+ *       {@code no_lore_legacy} section in {@code definitions.yml} AND the
+ *       item has no lore lines.  This is an explicit whitelist of confirmed
+ *       loreless legacy items (old keys, vanilla materials, holiday items).
+ *       Rarity is inferred from the {@code tooltip_style} data component or
+ *       the §-colour code prefix of the custom name.</li>
  *   <li><b>Beta/alpha legacy marker</b> — lore contains a gold "Lv. min"
  *       line (the old Wynncraft stat format). Alpha vs beta is decided by
  *       whether a standard rarity line exists.</li>
@@ -234,43 +232,31 @@ final class LegacyTooltipRenderer {
       return modified;
     }
 
-    // ── Branch 4: Statless no-lore auto-detection (custom_name present) ─
-    // Any item with a custom_name, empty lore, non-PUA format, non-excluded,
-    // and no U+FFFD corruption is assumed to be a statless legacy item.
-    // The rarity tier is inferred from the §-colour code prefix of the
-    // custom name (e.g. §b → Legendary, §5 → Mythic).
-    if (plainText != null && !plainText.isBlank() && !ItemDefinitions.isNoLoreExcluded(plainText)
-        && plainText.indexOf('\uFFFD') < 0
-        && LegacyItemHandler.currentItemStack.get(DataComponents.CUSTOM_NAME) != null
-        && LegacyItemHandler.currentItemStack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines().isEmpty()
-        && !LegacyItemHandler.isNewFormatItem(LegacyItemHandler.currentItemStack)) {
-      List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
-      if (raritySuffix != null) name.append(raritySuffix);
-      modified.set(0, name);
-      String rarity = LegacyItemHandler.getStatlessRarityFromColor(LegacyItemHandler.currentItemStack);
-      String label = rarity != null ? "Statless Legacy Item (" + rarity + ")" : "Statless Legacy Item";
-      modified.add(debugLinesStart(modified), Component.literal(label).withStyle(ChatFormatting.GOLD));
-      LegacyItemHandler.lastProcessedWasLegacy = true;
-      return modified;
-    }
-
-    // ── Branch 5: Statless no-lore (vanilla-named items, whitelist) ─────
-    // Specific vanilla-named items (no custom_name component) that are
-    // statless legacy when they have no lore.  Matched against the
-    // vanilla_statless whitelist in definitions.yml.
-    if (plainText != null && !plainText.isBlank() && ItemDefinitions.isVanillaStatless(plainText)
+    // ── Branch 4: No-lore legacy whitelist ────────────────────────────────
+    // Items whose names match the "no_lore_legacy" whitelist in
+    // definitions.yml AND have no lore lines.  This is an explicit list of
+    // confirmed loreless legacy items (old keys, vanilla materials, holiday
+    // items, etc.) — unlike the old auto-detection system that treated ANY
+    // custom-named loreless item as legacy, which produced false positives.
+    // Rarity is inferred first from the tooltip_style data component, then
+    // from the §-colour code prefix of the custom name when available.
+    if (plainText != null && !plainText.isBlank() && ItemDefinitions.isNoLoreLegacy(plainText)
         && LegacyItemHandler.currentItemStack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines().isEmpty()) {
       List<Component> modified = new ArrayList<>(tooltipLines);
       MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
       if (raritySuffix != null) name.append(raritySuffix);
       modified.set(0, name);
-      modified.add(debugLinesStart(modified), Component.literal("Statless Legacy Item").withStyle(ChatFormatting.GOLD));
+      String rarity = LegacyItemHandler.getTooltipStyleRarity(LegacyItemHandler.currentItemStack);
+      if (rarity == null) {
+        rarity = LegacyItemHandler.getRarityFromNameColor(LegacyItemHandler.currentItemStack);
+      }
+      String label = rarity != null ? "Legacy Item (" + rarity + ")" : "Legacy Item";
+      modified.add(debugLinesStart(modified), Component.literal(label).withStyle(ChatFormatting.GOLD));
       LegacyItemHandler.lastProcessedWasLegacy = true;
       return modified;
     }
 
-    // ── Branch 6: Beta/alpha legacy marker (gold "Lv. min" in lore) ─────
+    // ── Branch 5: Beta/alpha legacy marker (gold "Lv. min" in lore) ─────
     // Old Wynncraft beta/alpha items have a gold-coloured "Lv. min: X" line
     // in lore instead of the modern format.  If a standard rarity line also
     // exists, it's beta; if not, it's alpha (predates rarity lines).
@@ -294,7 +280,7 @@ final class LegacyTooltipRenderer {
       return modified;
     }
 
-    // ── Branch 7: Enchanted items (foil/glint detection) ────────────────
+    // ── Branch 6: Enchanted items (foil/glint detection) ────────────────
     // Items with the enchantment glint that aren't in the unenchanted
     // exclusion list.  Modern Wynncraft items never have foil, so any
     // foil-bearing item is legacy.  Displayed as "⬡ Enchanted <name>".
@@ -332,7 +318,7 @@ final class LegacyTooltipRenderer {
       return modified;
     }
 
-    // ── Branch 8: Junk rarity ──────────────────────────────────────────
+    // ── Branch 7: Junk rarity ──────────────────────────────────────────
     // Items whose lore contains a "Junk Item" rarity line, unless the
     // name is in the notjunk exclusion list (modern junk-tier items).
     if (LegacyItemHandler.hasJunkRarity(tooltipLines) && plainText != null && !ItemDefinitions.isNotJunk(plainText)) {
@@ -345,7 +331,7 @@ final class LegacyTooltipRenderer {
       return modified;
     }
 
-    // ── Branch 9: Crafting rarity ──────────────────────────────────────
+    // ── Branch 8: Crafting rarity ──────────────────────────────────────
     // Items whose lore contains a "Crafting Item" rarity line.
     // All crafting-rarity items are legacy (modern crafting uses a
     // different system).

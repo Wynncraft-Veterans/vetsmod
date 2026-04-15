@@ -105,17 +105,31 @@ definitions:
   #- "(?i)^Short Cutter.*$" // These are obtainable in the Regular Island cave
   #- "(?i)^Silver Short Spear.*$" // These are obtainable in the Regular Island cave
 ---
-# Items with a custom name but no lore are auto-detected as statless legacy.
-# Patterns here EXCLUDE items from that auto-detection (blacklist).
-no_lore_excluded:
----
-# Vanilla-named items (no custom_name) that are statless legacy when they have no lore.
-vanilla_statless:
-  - "(?i)^Glass Bottle$"
-  - "(?i)^Wheat$"
-  - "(?i)^Rotten Flesh$"
-  - "(?i)^Bone Meal$"
+# Items that are legacy ONLY when they have no lore lines.
+# Unlike the "definitions" section (which matches regardless of lore), items here
+# must ALSO have an empty lore to be treated as legacy.  This covers old keys,
+# vanilla materials, holiday items, and other confirmed loreless legacy items.
+# Items that also appear in "definitions" are listed here for completeness but
+# will be caught by the earlier definitions check first.
+no_lore_legacy:
+  - "(?i)^Animal Key$"
   - "(?i)^Block of Quartz$"
+  - "(?i)^Block of Red Wool$"
+  - "(?i)^Bone Meal$"
+  - "(?i)^Cow Pass$"
+  - "(?i)^Drawing of the Spirits.*$"
+  - "(?i)^Fiert\u00e9$"
+  - "(?i)^Gert Mask$"
+  - "(?i)^Glass Bottle$"
+  - "(?i)^Grian's Trusty Ocean Map$"
+  - "(?i)^Pigman's Meat$"
+  - "(?i)^Rotten Flesh$"
+  - "(?i)^Salted's Trusty Poop$"
+  - "(?i)^Silverfish Key$"
+  - "(?i)^Skeleton Key$"
+  - "(?i)^Spider Key$"
+  - "(?i)^Wheat$"
+  - "(?i)^Zombie Key$"
 ---
 misc_definitions:
   - "(?i)^Carved Quartz Block.*$"
@@ -159,5 +173,3 @@ enchant_excluded_items:
 # display format (PUA in custom_name), the legacy name match is suppressed.
 new_format_override:
   - "(?i)^Skeleton Key$"
-### ---
-### Todo: Statless items are not detected, but when they are, they should include bob's weapons and a few others.
