@@ -6,7 +6,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import org.apache.commons.lang3.StringUtils;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.config.VetsConfig;
@@ -215,18 +214,13 @@ public class GuildStateManager {
     if (rank == null) {
       return StringUtils.EMPTY;
     }
-    switch (rank) {
-      case CAPTAIN:
-        return "captain";
-      case STRATEGIST:
-        return "strategist";
-      case CHIEF:
-        return "chief";
-      case OWNER:
-        return "owner";
-      default:
-        return StringUtils.EMPTY;
-    }
+    return switch (rank) {
+      case CAPTAIN    -> "captain";
+      case STRATEGIST -> "strategist";
+      case CHIEF      -> "chief";
+      case OWNER      -> "owner";
+      default         -> StringUtils.EMPTY;
+    };
   }
 
   /**
@@ -560,36 +554,18 @@ public class GuildStateManager {
     boolean inGuild = Models.Guild.isInGuild();
     GuildRank rank = Models.Guild.getGuildRank();
 
-    MutableComponent header = Component.literal("Force Guild Check Results:")
-        .withStyle(ChatFormatting.GOLD);
-    ChatUtils.sendLocalMessage(header);
+    ChatUtils.sendLocalMessage(Component.literal("Force Guild Check Results:")
+        .withStyle(ChatFormatting.GOLD));
 
-    ChatUtils.sendLocalMessage(
-        Component.literal("  Wynntils Guild Name: ")
-            .withStyle(ChatFormatting.GRAY)
-            .append(Component.literal(guildName.isEmpty() ? "(empty)" : guildName)
-                .withStyle(guildName.isEmpty()
-                    ? ChatFormatting.RED
-                    : ChatFormatting.GREEN))
-    );
-
-    ChatUtils.sendLocalMessage(
-        Component.literal("  Wynntils isInGuild: ")
-            .withStyle(ChatFormatting.GRAY)
-            .append(Component.literal(String.valueOf(inGuild))
-                .withStyle(inGuild
-                    ? ChatFormatting.GREEN
-                    : ChatFormatting.RED))
-    );
-
-    ChatUtils.sendLocalMessage(
-        Component.literal("  Wynntils Guild Rank: ")
-            .withStyle(ChatFormatting.GRAY)
-            .append(Component.literal(rank == null ? "(null)" : rank.name())
-                .withStyle(rank == null
-                    ? ChatFormatting.RED
-                    : ChatFormatting.GREEN))
-    );
+    sendDiagLine("Wynntils Guild Name",
+        guildName.isEmpty() ? "(empty)" : guildName,
+        guildName.isEmpty() ? ChatFormatting.RED : ChatFormatting.GREEN);
+    sendDiagLine("Wynntils isInGuild",
+        String.valueOf(inGuild),
+        inGuild ? ChatFormatting.GREEN : ChatFormatting.RED);
+    sendDiagLine("Wynntils Guild Rank",
+        rank == null ? "(null)" : rank.name(),
+        rank == null ? ChatFormatting.RED : ChatFormatting.GREEN);
 
     // GuildChecker state
     GuildChecker.GuildCheckResult gcResult = GuildChecker.getResult();
@@ -598,58 +574,25 @@ public class GuildStateManager {
         ? (System.currentTimeMillis() - GuildChecker.getLastCheckTime()) / 1000
         : -1;
 
-    ChatUtils.sendLocalMessage(
-        Component.literal("  GuildChecker result: ")
-            .withStyle(ChatFormatting.GRAY)
-            .append(Component.literal(gcResult.name() + (gcValid ? "" : " (expired)"))
-                .withStyle(gcValid ? ChatFormatting.GREEN : ChatFormatting.RED))
-    );
-
+    sendDiagLine("GuildChecker result",
+        gcResult.name() + (gcValid ? "" : " (expired)"),
+        gcValid ? ChatFormatting.GREEN : ChatFormatting.RED);
     if (gcAge >= 0) {
       String ageStr = gcAge < 3600 ? gcAge + "s"
           : gcAge < 86400 ? (gcAge / 3600) + "h"
           : (gcAge / 86400) + "d";
-      ChatUtils.sendLocalMessage(
-          Component.literal("  GuildChecker age: ")
-              .withStyle(ChatFormatting.GRAY)
-              .append(Component.literal(ageStr)
-                  .withStyle(ChatFormatting.AQUA))
-      );
+      sendDiagLine("GuildChecker age", ageStr, ChatFormatting.AQUA);
     }
 
-    ChatUtils.sendLocalMessage(
-        Component.literal("  VetsMod isReturners: ")
-            .withStyle(ChatFormatting.GRAY)
-            .append(Component.literal(String.valueOf(isReturners()))
-                .withStyle(isReturners()
-                    ? ChatFormatting.GREEN
-                    : ChatFormatting.RED))
-    );
-
-    ChatUtils.sendLocalMessage(
-        Component.literal("  VetsMod isGuildless: ")
-            .withStyle(ChatFormatting.GRAY)
-            .append(Component.literal(String.valueOf(isGuildless()))
-                .withStyle(isGuildless()
-                    ? ChatFormatting.YELLOW
-                    : ChatFormatting.GREEN))
-    );
-
-    ChatUtils.sendLocalMessage(
-        Component.literal("  VetsMod isStaff: ")
-            .withStyle(ChatFormatting.GRAY)
-            .append(Component.literal(String.valueOf(isStaff()))
-                .withStyle(isStaff()
-                    ? ChatFormatting.GREEN
-                    : ChatFormatting.GRAY))
-    );
-
-    ChatUtils.sendLocalMessage(
-        Component.literal("  VetsMod selfStaffRank: ")
-            .withStyle(ChatFormatting.GRAY)
-            .append(Component.literal(selfStaffRank().isEmpty() ? "(none)" : selfStaffRank())
-                .withStyle(ChatFormatting.AQUA))
-    );
+    sendDiagLine("VetsMod isReturners", String.valueOf(isReturners()),
+        isReturners() ? ChatFormatting.GREEN : ChatFormatting.RED);
+    sendDiagLine("VetsMod isGuildless", String.valueOf(isGuildless()),
+        isGuildless() ? ChatFormatting.YELLOW : ChatFormatting.GREEN);
+    sendDiagLine("VetsMod isStaff", String.valueOf(isStaff()),
+        isStaff() ? ChatFormatting.GREEN : ChatFormatting.GRAY);
+    sendDiagLine("VetsMod selfStaffRank",
+        selfStaffRank().isEmpty() ? "(none)" : selfStaffRank(),
+        ChatFormatting.AQUA);
 
     // Trigger guild info update path (without clearing GuildChecker —
     // that only happens on GuildEvent from Wynntils, not on forced recheck)
@@ -665,24 +608,22 @@ public class GuildStateManager {
 
     // Force staff rank refresh regardless of cooldown
     boolean staffRefreshStarted = refreshStaffStatusIfNeeded(true);
-    ChatUtils.sendLocalMessage(
-        Component.literal("  Staff rank refresh: ")
-            .withStyle(ChatFormatting.GRAY)
-            .append(Component.literal(staffRefreshStarted ? "started" : "already in progress")
-                .withStyle(staffRefreshStarted
-                    ? ChatFormatting.GREEN
-                    : ChatFormatting.YELLOW))
-    );
+    sendDiagLine("Staff rank refresh",
+        staffRefreshStarted ? "started" : "already in progress",
+        staffRefreshStarted ? ChatFormatting.GREEN : ChatFormatting.YELLOW);
 
     // Always run our own /gu stats check from forceChecks
     boolean guildCheckStarted = GuildChecker.refreshGuildStatus();
+    sendDiagLine("Guild check (/gu stats)",
+        guildCheckStarted ? "started" : "already in progress",
+        guildCheckStarted ? ChatFormatting.GREEN : ChatFormatting.YELLOW);
+  }
+
+  private static void sendDiagLine(String label, String value, ChatFormatting color) {
     ChatUtils.sendLocalMessage(
-        Component.literal("  Guild check (/gu stats): ")
+        Component.literal("  " + label + ": ")
             .withStyle(ChatFormatting.GRAY)
-            .append(Component.literal(guildCheckStarted ? "started" : "already in progress")
-                .withStyle(guildCheckStarted
-                    ? ChatFormatting.GREEN
-                    : ChatFormatting.YELLOW))
+            .append(Component.literal(value).withStyle(color))
     );
   }
 

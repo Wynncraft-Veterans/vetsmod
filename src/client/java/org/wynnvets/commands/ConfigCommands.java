@@ -188,30 +188,7 @@ final class ConfigCommands {
     }
 
     if (VetsConfig.isTriStateKey(key)) {
-      Boolean triValue;
-      if ("default".equalsIgnoreCase(rawValue)) {
-        triValue = null;
-      } else if ("true".equalsIgnoreCase(rawValue)) {
-        triValue = Boolean.TRUE;
-      } else if ("false".equalsIgnoreCase(rawValue)) {
-        triValue = Boolean.FALSE;
-      } else {
-        ChatUtils.sendLocalMessage(
-            Component.literal("Value must be 'true', 'false', or 'default'.")
-                .withStyle(ChatFormatting.RED)
-        );
-        return 0;
-      }
-      VetsConfig.setTriState(key, triValue);
-      String display = triValue == null ? "default" : String.valueOf(triValue);
-      ChatFormatting color = triValue == null ? ChatFormatting.YELLOW
-          : (triValue ? ChatFormatting.GREEN : ChatFormatting.RED);
-      ChatUtils.sendLocalMessage(
-          Component.literal(key + " set to ")
-              .withStyle(ChatFormatting.GRAY)
-              .append(Component.literal(display).withStyle(color))
-      );
-      return 1;
+      return handleTriStateConfigSet(key, rawValue);
     }
 
     if (!"true".equalsIgnoreCase(rawValue) && !"false".equalsIgnoreCase(rawValue)) {
@@ -230,6 +207,35 @@ final class ConfigCommands {
             .withStyle(ChatFormatting.GRAY)
             .append(Component.literal(String.valueOf(value))
                 .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED))
+    );
+    return 1;
+  }
+
+  // ── TriState-config helpers ─────────────────────────────────────────
+
+  private static int handleTriStateConfigSet(String key, String rawValue) {
+    Boolean triValue;
+    if ("default".equalsIgnoreCase(rawValue)) {
+      triValue = null;
+    } else if ("true".equalsIgnoreCase(rawValue)) {
+      triValue = Boolean.TRUE;
+    } else if ("false".equalsIgnoreCase(rawValue)) {
+      triValue = Boolean.FALSE;
+    } else {
+      ChatUtils.sendLocalMessage(
+          Component.literal("Value must be 'true', 'false', or 'default'.")
+              .withStyle(ChatFormatting.RED)
+      );
+      return 0;
+    }
+    VetsConfig.setTriState(key, triValue);
+    String display = triValue == null ? "default" : String.valueOf(triValue);
+    ChatFormatting color = triValue == null ? ChatFormatting.YELLOW
+        : (triValue ? ChatFormatting.GREEN : ChatFormatting.RED);
+    ChatUtils.sendLocalMessage(
+        Component.literal(key + " set to ")
+            .withStyle(ChatFormatting.GRAY)
+            .append(Component.literal(display).withStyle(color))
     );
     return 1;
   }

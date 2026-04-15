@@ -153,40 +153,12 @@ final class LegacyTooltipRenderer {
     // "definitions" section.  These are known legacy items by name.
     if (plainText != null && ItemDefinitions.isLegacy(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      boolean newFormat = NewFormatRenderer.isNewFormatItem(modified);
-      if (newFormat) {
-        // New-format path: restore the PUA-wrapped custom name as line 0
-        // (preserves the invisible spacer glyphs that align the emblem/frame),
-        // recolour it gold, and insert the "LEGACY" box into the PUA line.
-        Component customName = LegacyItemHandler.currentItemStack.get(DataComponents.CUSTOM_NAME);
-        boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
-        if (customName != null) {
-          modified.set(0, enchanted
-              ? NewFormatRenderer.deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.GOLD))
-              : customName);
-        }
-        if (enchanted) {
-          NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
-        } else {
-          NewFormatRenderer.recolorNewFormatNameLine(modified, plainText);
-        }
-        if (NewFormatRenderer.insertLegacyBoxLine(modified)) {
-          LegacyItemHandler.lastProcessedWasLegacy = true;
-          return modified;
-        }
+      if (tryNewFormatRewrite(modified, plainText)) {
+        LegacyItemHandler.lastProcessedWasLegacy = true;
+        return modified;
       }
-      // Old-format fallback: rewrite the name line to gold text.
-      // If the item has foil (enchantment glint), prefix with "⬡ Enchanted".
-      MutableComponent name;
-      if (LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
-        name = Component.literal("\u2B21 ")
-            .withStyle(ChatFormatting.WHITE)
-            .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
-      } else {
-        name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
-      }
-      if (raritySuffix != null) name.append(raritySuffix);
-      modified.set(0, name);
+      boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
+      modified.set(0, buildGoldName(plainText, enchanted, raritySuffix));
       replaceRarityLines(modified, null);
       LegacyItemHandler.lastProcessedWasLegacy = true;
       return modified;
@@ -198,35 +170,12 @@ final class LegacyTooltipRenderer {
     // items can also exist as modern server items.
     if (plainText != null && ItemDefinitions.isMiscLegacy(plainText) && LegacyItemHandler.hasMiscRarity(tooltipLines)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      boolean newFormat = NewFormatRenderer.isNewFormatItem(modified);
-      if (newFormat) {
-        Component customName = LegacyItemHandler.currentItemStack.get(DataComponents.CUSTOM_NAME);
-        boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
-        if (customName != null) {
-          modified.set(0, enchanted
-              ? NewFormatRenderer.deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.GOLD))
-              : customName);
-        }
-        if (enchanted) {
-          NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
-        } else {
-          NewFormatRenderer.recolorNewFormatNameLine(modified, plainText);
-        }
-        if (NewFormatRenderer.insertLegacyBoxLine(modified)) {
-          LegacyItemHandler.lastProcessedWasLegacy = true;
-          return modified;
-        }
+      if (tryNewFormatRewrite(modified, plainText)) {
+        LegacyItemHandler.lastProcessedWasLegacy = true;
+        return modified;
       }
-      MutableComponent name;
-      if (LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
-        name = Component.literal("\u2B21 ")
-            .withStyle(ChatFormatting.WHITE)
-            .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
-      } else {
-        name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
-      }
-      if (raritySuffix != null) name.append(raritySuffix);
-      modified.set(0, name);
+      boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
+      modified.set(0, buildGoldName(plainText, enchanted, raritySuffix));
       replaceRarityLines(modified, null);
       LegacyItemHandler.lastProcessedWasLegacy = true;
       return modified;
@@ -243,9 +192,7 @@ final class LegacyTooltipRenderer {
     if (plainText != null && !plainText.isBlank() && ItemDefinitions.isNoLoreLegacy(plainText)
         && LegacyItemHandler.currentItemStack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines().isEmpty()) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
-      if (raritySuffix != null) name.append(raritySuffix);
-      modified.set(0, name);
+      modified.set(0, buildGoldName(plainText, false, raritySuffix));
       String rarity = LegacyItemHandler.getTooltipStyleRarity(LegacyItemHandler.currentItemStack);
       if (rarity == null) {
         rarity = LegacyItemHandler.getRarityFromNameColor(LegacyItemHandler.currentItemStack);
@@ -264,16 +211,8 @@ final class LegacyTooltipRenderer {
       boolean alpha = !LegacyItemHandler.hasRarityLine(tooltipLines);
       List<Component> modified = new ArrayList<>(tooltipLines);
       if (plainText != null) {
-        MutableComponent name;
-        if (LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
-          name = Component.literal("\u2B21 ")
-              .withStyle(ChatFormatting.WHITE)
-              .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
-        } else {
-          name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
-        }
-        if (raritySuffix != null) name.append(raritySuffix);
-        modified.set(0, name);
+        boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
+        modified.set(0, buildGoldName(plainText, enchanted, raritySuffix));
       }
       replaceRarityLines(modified, alpha ? "Alpha" : "Beta");
       LegacyItemHandler.lastProcessedWasLegacy = true;
@@ -294,25 +233,11 @@ final class LegacyTooltipRenderer {
       List<Component> modified = new ArrayList<>(tooltipLines);
       boolean newFormat = NewFormatRenderer.isNewFormatItem(modified);
       VetsLogger.debug("processTooltip: foil branch newFormat={}, tooltipSize={}", newFormat, modified.size());
-      if (newFormat) {
-        Component customName = LegacyItemHandler.currentItemStack.get(DataComponents.CUSTOM_NAME);
-        if (customName != null) {
-          modified.set(0, NewFormatRenderer.deepEnchantName(customName, plainText,
-              TextColor.fromLegacyFormat(ChatFormatting.GOLD)));
-        }
-        NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
-        if (NewFormatRenderer.insertLegacyBoxLine(modified)) {
-          LegacyItemHandler.lastProcessedWasLegacy = true;
-          return modified;
-        }
+      if (tryNewFormatRewrite(modified, plainText)) {
+        LegacyItemHandler.lastProcessedWasLegacy = true;
+        return modified;
       }
-      MutableComponent name =
-          Component.literal("\u2B21 ")
-              .withStyle(ChatFormatting.WHITE)
-              .append(
-                  Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
-      if (raritySuffix != null) name.append(raritySuffix);
-      modified.set(0, name);
+      modified.set(0, buildGoldName(plainText, true, raritySuffix));
       replaceRarityLines(modified, null);
       LegacyItemHandler.lastProcessedWasLegacy = true;
       return modified;
@@ -323,9 +248,7 @@ final class LegacyTooltipRenderer {
     // name is in the notjunk exclusion list (modern junk-tier items).
     if (LegacyItemHandler.hasJunkRarity(tooltipLines) && plainText != null && !ItemDefinitions.isNotJunk(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
-      if (raritySuffix != null) name.append(raritySuffix);
-      modified.set(0, name);
+      modified.set(0, buildGoldName(plainText, false, raritySuffix));
       replaceRarityLines(modified, null);
       LegacyItemHandler.lastProcessedWasLegacy = true;
       return modified;
@@ -337,9 +260,7 @@ final class LegacyTooltipRenderer {
     // different system).
     if (LegacyItemHandler.hasCraftingRarity(tooltipLines) && plainText != null) {
       List<Component> modified = new ArrayList<>(tooltipLines);
-      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
-      if (raritySuffix != null) name.append(raritySuffix);
-      modified.set(0, name);
+      modified.set(0, buildGoldName(plainText, false, raritySuffix));
       replaceRarityLines(modified, null);
       LegacyItemHandler.lastProcessedWasLegacy = true;
       return modified;
@@ -347,6 +268,47 @@ final class LegacyTooltipRenderer {
 
     // No detection branch matched — return the tooltip unmodified.
     return tooltipLines;
+  }
+
+  /**
+   * Attempts new-format (PUA) tooltip rewriting: restores the custom name
+   * (enchanted if applicable), recolours the emblem/frame line, and inserts
+   * the LEGACY box.
+   *
+   * @return {@code true} if the new-format rewrite succeeded
+   */
+  private static boolean tryNewFormatRewrite(List<Component> modified, String plainText) {
+    if (!NewFormatRenderer.isNewFormatItem(modified)) return false;
+    boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
+    Component customName = LegacyItemHandler.currentItemStack.get(DataComponents.CUSTOM_NAME);
+    if (customName != null) {
+      modified.set(0, enchanted
+          ? NewFormatRenderer.deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.GOLD))
+          : customName);
+    }
+    if (enchanted) {
+      NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
+    } else {
+      NewFormatRenderer.recolorNewFormatNameLine(modified, plainText);
+    }
+    return NewFormatRenderer.insertLegacyBoxLine(modified);
+  }
+
+  /**
+   * Builds the gold-coloured name component for old-format legacy items.
+   * When {@code enchanted} is true, prefixes with "⬡ Enchanted".
+   */
+  private static MutableComponent buildGoldName(String plainText, boolean enchanted, Component raritySuffix) {
+    MutableComponent name;
+    if (enchanted) {
+      name = Component.literal("\u2B21 ")
+          .withStyle(ChatFormatting.WHITE)
+          .append(Component.literal("Enchanted " + plainText).withStyle(ChatFormatting.GOLD));
+    } else {
+      name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+    }
+    if (raritySuffix != null) name.append(raritySuffix);
+    return name;
   }
 
   /**

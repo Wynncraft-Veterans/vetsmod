@@ -6,7 +6,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.chat.ChatLogger;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.chat.ChatUtils;
@@ -81,12 +80,6 @@ public class ChatLogMixin {
       return;
     }
 
-    // Record server guild chat for cross-source dedup.
-    String[] parsedGuildChat = parseGuildChat(messageString);
-    if (parsedGuildChat != null) {
-      OutboundDisplayHandler.recordServerGuildMessage(parsedGuildChat[0], parsedGuildChat[1]);
-    }
-
     // Rewrite encourage-update messages (⚠⚠⚠ ... ⚠⚠⚠) into version status output.
     if (EncourageUpdateRewriter.tryRewrite(message, messageString)) {
       ci.cancel();
@@ -117,44 +110,6 @@ public class ChatLogMixin {
     if (SpoilerRewriter.tryRewrite(message, messageString)) {
       ci.cancel();
     }
-  }
-
-  @SuppressWarnings("unused")
-  private String[] parseGuildChat(String message) {
-    int colonIndex = message.indexOf(':');
-    if (colonIndex <= 0) {
-      return null;
-    }
-
-    // Scan forward to find the end of the last custom-font glyph before the
-    // colon.  The rank indicator ends with such a glyph; everything after it
-    // (trimmed) up to the colon is the display name, which may contain spaces
-    // (e.g. "EYAL5555/First Mage").
-    int lastGlyphEnd = -1;
-    int idx = 0;
-    while (idx < colonIndex) {
-      int cp = message.codePointAt(idx);
-      int charCount = Character.charCount(cp);
-      int type = Character.getType(cp);
-      boolean isCustomGlyph = type == Character.PRIVATE_USE
-          || (type == Character.UNASSIGNED && cp > 0xFFFF);
-      if (isCustomGlyph) {
-        lastGlyphEnd = idx + charCount;
-      }
-      idx += charCount;
-    }
-
-    if (lastGlyphEnd <= 0 || lastGlyphEnd >= colonIndex) {
-      return null;
-    }
-
-    String displayName = message.substring(lastGlyphEnd, colonIndex).trim();
-    if (displayName.isEmpty()) {
-      return null;
-    }
-
-    String messageContent = message.substring(colonIndex + 1).trim();
-    return new String[] {displayName, messageContent};
   }
 
 

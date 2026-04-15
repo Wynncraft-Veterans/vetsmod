@@ -35,13 +35,10 @@ public final class OutboundDisplayHandler {
 
     private static final int MAX_PENDING_SELF_MESSAGES = 50;
     private static final long SELF_MESSAGE_TTL_MS = TimeUnit.SECONDS.toMillis(30);
-    private static final long SERVER_MESSAGE_DEDUP_WINDOW_MS = TimeUnit.SECONDS.toMillis(10);
-    private static final int MAX_RECENT_SERVER_MESSAGES = 200;
+    private static final long DEDUP_WINDOW_MS = TimeUnit.SECONDS.toMillis(10);
 
     private static final Deque<PendingSelfMessage> pendingSelfMessages = new ArrayDeque<>();
     private static final Object pendingSelfLock = new Object();
-    private static final Deque<RecentServerMessage> recentServerMessages = new ArrayDeque<>();
-    private static final Object recentServerLock = new Object();
     private static final Deque<RecentBridgeMessage> recentBridgeMessages = new ArrayDeque<>();
     private static final Object recentBridgeLock = new Object();
     private static final int MAX_RECENT_BRIDGE_MESSAGES = 200;
@@ -104,36 +101,13 @@ public final class OutboundDisplayHandler {
     }
 
     /**
-     * Records a guild chat message received from the Minecraft server for
-     * cross-source deduplication with outbound bridge messages.
-     *
-     * @param displayName the sender's display name
-     * @param message     the message content
-     */
-    public static void recordServerGuildMessage(String displayName, String message) {
-        if (displayName == null || displayName.isEmpty() || message == null || message.isEmpty()) {
-            return;
-        }
-        synchronized (recentServerLock) {
-            long now = System.currentTimeMillis();
-            pruneExpiredServerMessages(now);
-            if (recentServerMessages.size() >= MAX_RECENT_SERVER_MESSAGES) {
-                recentServerMessages.pollFirst();
-            }
-            recentServerMessages.addLast(new RecentServerMessage(message, now));
-        }
-    }
-
-    /**
      * Clears all dedup caches. Called on server disconnect.
      */
     public static void clearCaches() {
         synchronized (pendingSelfLock) {
             pendingSelfMessages.clear();
         }
-        synchronized (recentServerLock) {
-            recentServerMessages.clear();
-        }
+
         synchronized (recentBridgeLock) {
             recentBridgeMessages.clear();
         }
@@ -285,16 +259,6 @@ public final class OutboundDisplayHandler {
         }
     }
 
-    private static void pruneExpiredServerMessages(long nowMs) {
-        while (!recentServerMessages.isEmpty()) {
-            RecentServerMessage head = recentServerMessages.peekFirst();
-            if (head == null || nowMs - head.createdAtMs <= SERVER_MESSAGE_DEDUP_WINDOW_MS) {
-                return;
-            }
-            recentServerMessages.pollFirst();
-        }
-    }
-
     // ── Bridge echo suppression ─────────────────────────────────────
 
     /**
@@ -366,33 +330,11 @@ public final class OutboundDisplayHandler {
     private static void pruneExpiredBridgeMessages(long nowMs) {
         while (!recentBridgeMessages.isEmpty()) {
             RecentBridgeMessage head = recentBridgeMessages.peekFirst();
-            if (head == null || nowMs - head.createdAtMs <= SERVER_MESSAGE_DEDUP_WINDOW_MS) {
+            if (head == null || nowMs - head.createdAtMs <= DEDUP_WINDOW_MS) {
                 return;
             }
             recentBridgeMessages.pollFirst();
         }
-    }
-
-    private static String normalizeForDedup(String message) {
-        if (message == null) return "";
-        StringBuilder sb = new StringBuilder(message.length());
-        int i = 0;
-        while (i < message.length()) {
-            int cp = message.codePointAt(i);
-            int charCount = Character.charCount(cp);
-            if (cp == '\n') {
-                sb.append(' ');
-            } else {
-                int type = Character.getType(cp);
-                boolean isCustomGlyph = type == Character.PRIVATE_USE
-                        || (type == Character.UNASSIGNED && cp > 0xFFFF);
-                if (!isCustomGlyph) {
-                    sb.appendCodePoint(cp);
-                }
-            }
-            i += charCount;
-        }
-        return sb.toString().replaceAll("  +", " ").trim();
     }
 
     private static String getStringOrEmpty(JsonObject json, String key) {
@@ -409,16 +351,6 @@ public final class OutboundDisplayHandler {
 
         PendingSelfMessage(String username, String message, long createdAtMs) {
             this.username = username;
-            this.message = message;
-            this.createdAtMs = createdAtMs;
-        }
-    }
-
-    private static final class RecentServerMessage {
-        final String message;
-        final long createdAtMs;
-
-        RecentServerMessage(String message, long createdAtMs) {
             this.message = message;
             this.createdAtMs = createdAtMs;
         }
