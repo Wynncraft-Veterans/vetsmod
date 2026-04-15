@@ -8,7 +8,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.fetcher.polling.StaffRanksFetcher;
+import org.wynnvets.fetcher.polling.StaffRanksPoller;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -72,7 +72,7 @@ public final class StaffChannelMessageRewriter {
 
         String selfName = GuildStateManager.playerName();
         String resolvedSender = sender;
-        String knownRank = StaffRanksFetcher.confirmedRankFor(resolvedSender)
+        String knownRank = StaffRanksPoller.confirmedRankFor(resolvedSender)
             .orElseGet(() -> (selfName != null && !selfName.isEmpty() && resolvedSender.equalsIgnoreCase(selfName))
                 ? GuildStateManager.selfStaffRank()
                 : null);

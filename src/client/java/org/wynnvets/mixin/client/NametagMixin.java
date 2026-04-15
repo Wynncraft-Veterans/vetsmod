@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.fetcher.polling.SupportersFetcher;
+import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.rendering.nametag.NametagAnimator;
 
 /**
@@ -59,7 +59,7 @@ public class NametagMixin {
                 username = player.getGameProfile().name();
             }
         }
-        if (username == null || !SupportersFetcher.isSupporter(username)) return;
+        if (username == null || !SupportersPoller.isSupporter(username)) return;
 
         // Skip animation when supporter glints are disabled
         if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS)) return;

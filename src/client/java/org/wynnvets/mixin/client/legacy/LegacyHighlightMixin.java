@@ -18,7 +18,7 @@ import org.wynnvets.items.LegacyItemHandler;
  * hovered item's foil state for tooltip processing.
  *
  * <p>Highlight drawing for legacy items is handled by
- * {@link org.wynnvets.listeners.LegacyHighlightEventHandler} via the Wynntils
+ * {@link org.wynnvets.listeners.LegacyHighlightEventListener} via the Wynntils
  * event bus, which draws OVER any Wynntils rarity highlight at
  * {@code EventPriority.LOWEST}.</p>
  */

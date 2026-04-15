@@ -10,8 +10,8 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.debug.DebugConfigManager;
 import org.wynnvets.debug.dump.DebugKeyHandler;
 import org.wynnvets.fetcher.polling.GuildRosterCache;
-import org.wynnvets.fetcher.polling.StaffRanksFetcher;
-import org.wynnvets.fetcher.polling.SupportersFetcher;
+import org.wynnvets.fetcher.polling.StaffRanksPoller;
+import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.items.ItemDefinitions;
 import org.wynnvets.listeners.ServerConnectionListener;
@@ -59,8 +59,8 @@ public class VetsmodClient implements ClientModInitializer {
 
     V1ApiManager.connect();
     OutboundDisplayHandler.register();
-    SupportersFetcher.start();
-    StaffRanksFetcher.start();
+    SupportersPoller.start();
+    StaffRanksPoller.start();
     GuildRosterCache.start();
     ServerConnectionListener.register();
     TerritoryLineRenderer.register();

@@ -87,9 +87,17 @@ public class LegacyItemHandler {
     return false;
   }
 
-  /** Returns true if the given ItemStack should be treated as a legacy item.
-   *  Always returns false when {@link org.wynnvets.config.VetsConfig#LEGACY_ITEM_HIGHLIGHTING}
-   *  is disabled. */
+  /**
+   * Returns true if the given ItemStack should be treated as a legacy item.
+   * Always returns false when {@link org.wynnvets.config.VetsConfig#LEGACY_ITEM_HIGHLIGHTING}
+   * is disabled.
+   *
+   * <p>Detection uses a priority cascade of 7 independent checks, each targeting
+   * a different category of legacy item.  The {@code newFormatOverridden} flag
+   * prevents false positives on items that exist in both old and new Wynncraft
+   * item formats — those are only treated as legacy when explicitly listed in
+   * the new-format override table.</p>
+   */
   public static boolean isLegacyItem(ItemStack stack) {
     if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return false;
     if (stack.isEmpty()) return false;
@@ -100,20 +108,27 @@ public class LegacyItemHandler {
     String name = normalizeName(stripped);
     boolean newFormatOverridden = name != null && isNewFormatItem(stack) && ItemDefinitions.isNewFormatOverride(name);
 
+    // 1. Direct legacy lookup: item name appears in the primary legacy database
     if (!newFormatOverridden && name != null && ItemDefinitions.isLegacy(name)) return true;
 
     List<Component> lore = stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines();
 
+    // 2. Misc-legacy with rarity: name in misc-legacy list AND has a misc rarity line
     if (!newFormatOverridden && name != null && ItemDefinitions.isMiscLegacy(name) && hasMiscRarity(lore)) return true;
 
+    // 3. No-lore legacy: known legacy item that has lost its lore (pre-update relics)
     if (lore.isEmpty() && name != null && !name.isBlank() && ItemDefinitions.isNoLoreLegacy(name)) return true;
 
+    // 4. Beta marker: lore contains the explicit beta-legacy indicator line
     if (hasBetaLegacyMarker(lore)) return true;
 
+    // 5. Enchant glint: item has enchant shimmer and isn't in the exclusion list
     if (stack.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(stack) && (name == null || !ItemDefinitions.isUnenchanted(name))) return true;
 
+    // 6. Junk rarity: lore has "Junk" rarity tier (removed in modern Wynncraft)
     if (hasJunkRarity(lore) && (name == null || !ItemDefinitions.isNotJunk(name))) return true;
 
+    // 7. Crafting rarity: lore has the pre-removal "Crafting" rarity line
     if (hasCraftingRarity(lore)) return true;
 
     return false;

@@ -4,7 +4,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-import org.wynnvets.fetcher.polling.SupportersFetcher;
+import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 import org.wynnvets.rendering.colors.GradientTextBuilder;
 import org.wynnvets.rendering.colors.ShaderColorPalette;
@@ -61,7 +61,7 @@ public final class PillFormatter {
      * @return a styled pill component
      */
     public static MutableComponent formatPill(String pillText, String username, Style baseStyle) {
-        return formatPill(pillText, username, baseStyle, SupportersFetcher.isSupporter(username));
+        return formatPill(pillText, username, baseStyle, SupportersPoller.isSupporter(username));
     }
 
     private static MutableComponent formatPill(String pillText, String username, Style baseStyle, boolean isSupporter) {
@@ -103,7 +103,7 @@ public final class PillFormatter {
      * therefore receive animated pill styling.
      */
     public static boolean isSupporterPill(String username) {
-        return SupportersFetcher.isSupporter(username);
+        return SupportersPoller.isSupporter(username);
     }
 
     /**

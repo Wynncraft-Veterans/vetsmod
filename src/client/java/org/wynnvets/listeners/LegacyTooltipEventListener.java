@@ -18,11 +18,11 @@ import org.wynnvets.logging.VetsLogger;
  * and thus cannot be overwritten by later Wynntils handlers (e.g.
  * {@code onTooltipPreFinalize} at LOWEST).</p>
  */
-public final class LegacyTooltipEventHandler {
+public final class LegacyTooltipEventListener {
 
-  private static final LegacyTooltipEventHandler INSTANCE = new LegacyTooltipEventHandler();
+  private static final LegacyTooltipEventListener INSTANCE = new LegacyTooltipEventListener();
 
-  private LegacyTooltipEventHandler() {}
+  private LegacyTooltipEventListener() {}
 
   /** Registers this handler with the Wynntils event bus. */
   public static void register() {

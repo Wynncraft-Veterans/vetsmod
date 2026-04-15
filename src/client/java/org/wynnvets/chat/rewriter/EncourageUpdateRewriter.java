@@ -8,7 +8,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.Vetsmod;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.fetcher.polling.StaffRanksFetcher;
+import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.logging.VetsLogger;
 
 import java.util.ArrayList;
@@ -156,12 +156,12 @@ public final class EncourageUpdateRewriter {
         }
 
         String normalized = username.trim();
-        return StaffRanksFetcher.confirmedRankFor(normalized)
+        return StaffRanksPoller.confirmedRankFor(normalized)
                 .or(() -> {
                     for (String variant : normalized.split("/")) {
                         String candidate = variant.trim();
                         if (!candidate.isEmpty()) {
-                            var rank = StaffRanksFetcher.confirmedRankFor(candidate);
+                            var rank = StaffRanksPoller.confirmedRankFor(candidate);
                             if (rank.isPresent()) return rank;
                         }
                     }
@@ -176,14 +176,14 @@ public final class EncourageUpdateRewriter {
         }
 
         String normalized = username.trim();
-        if (StaffRanksFetcher.confirmedRankFor(normalized).isPresent()) {
+        if (StaffRanksPoller.confirmedRankFor(normalized).isPresent()) {
             return true;
         }
 
         String[] variants = normalized.split("/");
         for (String variant : variants) {
             String candidate = variant.trim();
-            if (!candidate.isEmpty() && StaffRanksFetcher.confirmedRankFor(candidate).isPresent()) {
+            if (!candidate.isEmpty() && StaffRanksPoller.confirmedRankFor(candidate).isPresent()) {
                 return true;
             }
         }

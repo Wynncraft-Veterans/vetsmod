@@ -8,7 +8,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.fetcher.polling.StaffRanksFetcher;
+import org.wynnvets.fetcher.polling.StaffRanksPoller;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -153,14 +153,14 @@ public final class StaffGuildAlertRewriter {
         }
 
         String normalized = username.trim();
-        if (StaffRanksFetcher.confirmedRankFor(normalized).isPresent()) {
+        if (StaffRanksPoller.confirmedRankFor(normalized).isPresent()) {
             return true;
         }
 
         String[] variants = normalized.split("/");
         for (String variant : variants) {
             String candidate = variant.trim();
-            if (!candidate.isEmpty() && StaffRanksFetcher.confirmedRankFor(candidate).isPresent()) {
+            if (!candidate.isEmpty() && StaffRanksPoller.confirmedRankFor(candidate).isPresent()) {
                 return true;
             }
         }

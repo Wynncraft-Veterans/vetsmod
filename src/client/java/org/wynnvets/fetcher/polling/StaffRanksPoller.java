@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
  * <p>Data source: {@code /v1/outbound/staff}. Cached values are keyed by
  * lowercase username and store one of: captain/strategist/chief/owner.</p>
  */
-public final class StaffRanksFetcher {
+public final class StaffRanksPoller {
   private static final int REFRESH_INTERVAL_MINUTES = 2;
 
   private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
@@ -47,7 +47,7 @@ public final class StaffRanksFetcher {
   private static ScheduledExecutorService scheduler;
   private static boolean isRunning = false;
 
-  private StaffRanksFetcher() {
+  private StaffRanksPoller() {
   }
 
   /**

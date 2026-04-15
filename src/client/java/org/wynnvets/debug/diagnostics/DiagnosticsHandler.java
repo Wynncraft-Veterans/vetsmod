@@ -12,7 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
-import org.wynnvets.fetcher.polling.SupportersFetcher;
+import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
@@ -92,7 +92,7 @@ public final class DiagnosticsHandler {
         boolean automessageEnabled = VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE);
         boolean debugLogging = VetsLogger.isDebugEnabled();
         String playerName = GuildStateManager.playerName();
-        boolean isSupporter = playerName != null && SupportersFetcher.isSupporter(playerName);
+        boolean isSupporter = playerName != null && SupportersPoller.isSupporter(playerName);
 
         // Server info
         String serverAddress = "unknown";

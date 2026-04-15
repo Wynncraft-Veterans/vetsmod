@@ -9,7 +9,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.Prepend;
-import org.wynnvets.fetcher.polling.SupportersFetcher;
+import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 
 import java.util.ArrayList;
@@ -55,7 +55,7 @@ public final class ServerGuildChatRewriter {
             return false;
         }
 
-        if (!SupportersFetcher.isSupporter(parsed.username)) {
+        if (!SupportersPoller.isSupporter(parsed.username)) {
             return false;
         }
 

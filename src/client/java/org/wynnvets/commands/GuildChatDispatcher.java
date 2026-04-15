@@ -10,7 +10,7 @@ import org.wynnvets.chat.spoiler.SpoilerCodec;
 import org.wynnvets.chat.dispatcher.CommandDispatcher;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
-import org.wynnvets.fetcher.polling.StaffRanksFetcher;
+import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
@@ -262,7 +262,7 @@ public final class GuildChatDispatcher {
     if (minecraft.player == null) return;
 
     String username = resolveUsername(minecraft);
-    String rank = StaffRanksFetcher.confirmedRankFor(username)
+    String rank = StaffRanksPoller.confirmedRankFor(username)
         .orElseGet(() -> {
           String selfRank = GuildStateManager.selfStaffRank();
           return (selfRank == null || selfRank.isEmpty()) ? "captain" : selfRank;

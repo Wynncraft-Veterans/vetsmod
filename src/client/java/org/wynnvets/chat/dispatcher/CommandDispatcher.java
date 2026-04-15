@@ -35,6 +35,68 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>Callers outside this package should use only the public methods on this class.
  * The two dispatcher classes are implementation details.</p>
+ *
+ * <h3>Architecture — Threading and Data Flow</h3>
+ * <pre>
+ *   Render Thread                   Dispatch Thread            ChatLogMixin (Render Thread)
+ *   ─────────────                   ───────────────            ────────────────────────────
+ *
+ *   /v command entered
+ *        │
+ *        ├─► eligibility gate
+ *        │   (async staff API check,
+ *        │    cached per world)
+ *        │
+ *        ▼
+ *   enqueueAndDispatch(msg)
+ *        │
+ *        ├─► MESSAGE_QUEUE.add(msg)
+ *        │
+ *        ▼
+ *   startBatchIfIdle()
+ *        │                           processBatch()
+ *        └─► DISPATCH_EXECUTOR ──►      │
+ *                                       ├─► MessageFanoutDispatcher
+ *                                       │     .processMessageBatch()
+ *                                       │       │
+ *                                       │       ├─► fetchOnlineStaffUsernames()
+ *                                       │       │     (HTTP GET → staff API)
+ *                                       │       │
+ *                                       │       └─► for each recipient:
+ *                                       │             /msg recipient 🔐message
+ *                                       │                │
+ *                                       │                ├─► queueSuppression()
+ *                                       │                ├─► awaitingSuppression = ...
+ *                                       │                └─► wait on SUPPRESSION_ACK_LOCK
+ *                                       │                         ▲
+ *                                       │                         │ notifyAll()
+ *                                       │                         │
+ *                                       │              shouldSuppressFeedback(msg) ◄── ChatLogMixin
+ *                                       │                  │
+ *                                       │                  ├─► match echo / offline error
+ *                                       │                  └─► signalFeedbackReceived()
+ *                                       │
+ *                                       └─► FindDispatcher
+ *                                             .processFindBatch()
+ *                                               │
+ *                                               └─► for each username:
+ *                                                     /find username
+ *                                                        │
+ *                                                        └─► wait on FIND_RESPONSE_LOCK
+ *                                                                 ▲
+ *                                                                 │ notifyAll()
+ *                                                                 │
+ *                                                  shouldSuppressFindResponse(msg) ◄── ChatLogMixin
+ * </pre>
+ *
+ * <h3>Key Invariants</h3>
+ * <ul>
+ *   <li>Exactly one command in-flight at a time (single-threaded executor).</li>
+ *   <li>/msg batches drain before /find batches (priority ordering).</li>
+ *   <li>Suppression matching uses the 🔐 lock prefix as a unique discriminator.</li>
+ *   <li>Offline users are tracked per-batch and skipped for remaining messages.</li>
+ *   <li>Self-presence in the staff API feed is verified once per world session.</li>
+ * </ul>
  */
 public final class CommandDispatcher {
 

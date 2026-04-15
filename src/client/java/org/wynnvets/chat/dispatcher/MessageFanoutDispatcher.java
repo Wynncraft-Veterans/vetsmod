@@ -256,6 +256,20 @@ public final class MessageFanoutDispatcher {
      * Called from {@code ChatLogMixin} on the render thread for every incoming chat message.
      * Matches outbound /msg echo lines and offline-player errors, suppresses them from display,
      * and signals the dispatch thread so it can proceed strategically.
+     *
+     * <p>Matching strategy (in order of attempt):</p>
+     * <ol>
+     *   <li>Offline guidance suppression — blanket-suppress "be sure to use exact names..."
+     *       messages within a short window after an offline-user error.</li>
+     *   <li>Direct payload echo — the server echoes our /msg back; match by normalized
+     *       payload content AND (recipient name OR 🔐 lock prefix).</li>
+     *   <li>Lock-prefix + recipient fallback — when Wynntils rewrites coordinates in the
+     *       echo Component, payload comparison fails; fall back to prefix + recipient.</li>
+     *   <li>Censored variant — Wynncraft's profanity filter replaces characters with
+     *       {@code *}; match when non-star characters align with the payload.</li>
+     *   <li>Token subsequence — last resort: tokenize both strings and check if the
+     *       payload tokens appear as a subsequence in the message tokens.</li>
+     * </ol>
      */
     public static boolean shouldSuppressFeedback(String message) {
         if (message == null || message.isEmpty()) {

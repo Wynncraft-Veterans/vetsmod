@@ -16,7 +16,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 import org.wynnvets.rendering.colors.ShaderColorPalette;
-import org.wynnvets.fetcher.polling.SupportersFetcher;
+import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.chat.spoiler.SpoilerFormatter;
 
 import java.net.URI;
@@ -136,7 +136,7 @@ public final class ChatUtils {
         MutableComponent body = Component.empty();
 
         boolean isSupporter = !pillText.isEmpty()
-            && SupportersFetcher.isSupporter(displayName);
+            && SupportersPoller.isSupporter(displayName);
 
         if (!pillText.isEmpty()) {
             body.append(PillFormatter.formatPill(pillText, displayName, isSupporter))
@@ -230,7 +230,7 @@ public final class ChatUtils {
         MutableComponent body = Component.empty();
 
         boolean isSupporter = !pillText.isEmpty()
-            && SupportersFetcher.isSupporter(displayName);
+            && SupportersPoller.isSupporter(displayName);
 
         if (!pillText.isEmpty()) {
             body.append(PillFormatter.formatPill(pillText, displayName, isSupporter))

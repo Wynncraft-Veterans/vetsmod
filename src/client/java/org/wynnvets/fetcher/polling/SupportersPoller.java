@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
  * <p>Supporters receive special pill styling (gradient) in guild chat.
  * The list is refreshed every {@value #REFRESH_INTERVAL_MINUTES} minutes.</p>
  */
-public class SupportersFetcher {
+public class SupportersPoller {
   private static final int REFRESH_INTERVAL_MINUTES = 5;
 
   private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()

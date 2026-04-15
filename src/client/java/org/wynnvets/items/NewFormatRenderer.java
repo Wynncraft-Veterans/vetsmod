@@ -38,10 +38,32 @@ final class NewFormatRenderer {
       new FontDescription.Resource(Identifier.parse("space"));
 
   /**
-   * PUA-encoded "LEGACY" text for the banner/box font.
-   * Structure: box_start + [neg_space + letter_bg]×6 + box_end + spacing + §0(black) + foreground_letters + terminator.
-   * Letter mapping: background = U+E030 + (letter - 'A'), foreground = U+E000 + (letter - 'A').
-   * Spacing byte U+CFFDA matches 6-letter words (same width class as COMMON).
+   * PUA-encoded "LEGACY" text for the {@code banner/box} font.
+   *
+   * <p>Wynncraft's box font renders rarity labels (RARE, LEGENDARY, etc.) using
+   * a two-layer PUA encoding: background letter glyphs provide the coloured box
+   * fill, and foreground letter glyphs render the text on top.  Negative-width
+   * spacing characters overlap the layers.</p>
+   *
+   * <p>Byte-level structure of this constant:</p>
+   * <pre>
+   *   E060                  — box_start (opens the coloured box frame)
+   *   [DAFF DFFF  E03B]     — neg_space + bg 'L'  (E030 + 11)
+   *   [DAFF DFFF  E034]     — neg_space + bg 'E'  (E030 + 4)
+   *   [DAFF DFFF  E036]     — neg_space + bg 'G'  (E030 + 6)
+   *   [DAFF DFFF  E030]     — neg_space + bg 'A'  (E030 + 0)
+   *   [DAFF DFFF  E032]     — neg_space + bg 'C'  (E030 + 2)
+   *   [DAFF DFFF  E048]     — neg_space + bg 'Y'  (E030 + 24)
+   *   DAFF DFFF  E062       — neg_space + box_end (closes the coloured box frame)
+   *   DAFF DFDA             — inter-box spacing (same width class as 6-letter words like COMMON)
+   *   00A7 30               — §0 = black colour code (section sign + '0')
+   *   E00B E004 E006        — fg 'L' 'E' 'G'      (E000 + letter offset)
+   *   E000 E002 E018        — fg 'A' 'C' 'Y'      (E000 + letter offset)
+   *   DB00 DC02             — terminator (surrogate pair)
+   * </pre>
+   *
+   * <p>Letter mapping: background = {@code U+E030 + (letter - 'A')},
+   * foreground = {@code U+E000 + (letter - 'A')}.</p>
    */
   private static final String LEGACY_BOX_TEXT =
       "\uE060\uDAFF\uDFFF\uE03B\uDAFF\uDFFF\uE034\uDAFF\uDFFF\uE036"
@@ -155,8 +177,13 @@ final class NewFormatRenderer {
 
   /**
    * Prepends a gold-colored LEGACY box to the existing banner/box rarity line
-   * in new-format tooltips (e.g. [LEGACY][RARE][WAND] on a single line).
+   * in new-format tooltips (e.g. {@code [LEGACY][RARE][WAND]} on a single line).
    * Returns {@code true} if such a line was found and modified.
+   *
+   * <p>The Component tree for a rarity line is complex: the banner/box font
+   * node may be a direct child, wrapped in a colour node, or nested deeper.
+   * {@link #insertLegacyIntoTree} handles all three layouts via a 3-phase
+   * search (direct child → symbol-sibling heuristic → recursive descent).</p>
    */
   static boolean insertLegacyBoxLine(List<Component> lines) {
     for (int i = 1; i < lines.size(); i++) {

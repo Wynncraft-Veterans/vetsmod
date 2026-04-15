@@ -21,14 +21,14 @@ import org.wynnvets.logging.VetsLogger;
  * {@code ItemHighlightFeature} (which subscribes at {@code HIGH}), effectively
  * replacing Wynntils' highlight with our configurable gradient + sprite.</p>
  */
-public final class LegacyHighlightEventHandler {
+public final class LegacyHighlightEventListener {
 
     private static final Identifier WYNNTILS_HIGHLIGHT =
         Identifier.fromNamespaceAndPath("wynntils", "textures/ui_components/highlight.png");
 
-    private static final LegacyHighlightEventHandler INSTANCE = new LegacyHighlightEventHandler();
+    private static final LegacyHighlightEventListener INSTANCE = new LegacyHighlightEventListener();
 
-    private LegacyHighlightEventHandler() {}
+    private LegacyHighlightEventListener() {}
 
     /** Registers this handler with the Wynntils event bus. */
     public static void register() {

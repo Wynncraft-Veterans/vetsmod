@@ -68,8 +68,8 @@ public final class WynntilsEventListener {
      */
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
-        LegacyTooltipEventHandler.register();
-        LegacyHighlightEventHandler.register();
+        LegacyTooltipEventListener.register();
+        LegacyHighlightEventListener.register();
         GuildStateManager.setWynntilsReady();
         VetsLogger.debug("Registered Wynntils event listeners");
     }
@@ -79,8 +79,8 @@ public final class WynntilsEventListener {
      */
     public static void unregister() {
         WynntilsMod.unregisterEventListener(INSTANCE);
-        LegacyTooltipEventHandler.unregister();
-        LegacyHighlightEventHandler.unregister();
+        LegacyTooltipEventListener.unregister();
+        LegacyHighlightEventListener.unregister();
     }
 
     /**

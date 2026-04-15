@@ -4,23 +4,15 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.wynntils.core.components.Models;
-import com.wynntils.models.guild.type.GuildInfo;
-import com.wynntils.models.guild.type.GuildMemberInfo;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.dispatcher.FindDispatcher;
-import org.wynnvets.fetcher.polling.GuildRosterCache;
-import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.guild.OnlineGuildCache;
-import org.wynnvets.guild.TabListGuildParser;
 import org.wynnvets.logging.VetsLogger;
 
 import java.net.HttpURLConnection;
@@ -51,22 +43,17 @@ import java.util.stream.Collectors;
  */
 public final class WorldListFetcher {
 
+    // Styling for each tier.
+    private static final Style MEMBER_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
+    private static final Style WAITLIST_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA).withItalic(true);
+    private static final Style HONOURARY_STYLE = Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE).withItalic(true);
+
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
     private static final Gson GSON = new Gson();
-
-    // Tier constants matching the server's outbound/list response.
-    private static final String TIER_GUILD = "guild";
-    private static final String TIER_WAITLIST = "waitlist";
-    private static final String TIER_HONOURARY = "honourary";
-
-    // Styling for each tier.
-    private static final Style MEMBER_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
-    private static final Style WAITLIST_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA).withItalic(true);
-    private static final Style HONOURARY_STYLE = Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE).withItalic(true);
 
     // GeoLite2 / GeoIP2 continent code → display name.
     private static final Map<String, String> CONTINENT_NAMES = Map.of(
@@ -84,11 +71,6 @@ public final class WorldListFetcher {
     private WorldListFetcher() {
     }
 
-    // ── Data holders ────────────────────────────────────────────────
-
-    private record OnlinePlayer(String username, String uuid, String tier) {
-    }
-
     // ── Public entry point ──────────────────────────────────────────
 
     /**
@@ -100,7 +82,9 @@ public final class WorldListFetcher {
                 Component.literal("Looking up online members...")
                         .withStyle(ChatFormatting.GREEN));
 
-        CompletableFuture<List<OnlinePlayer>> playersFuture = gatherOnlinePlayers();
+        CompletableFuture<List<OnlineMemberService.OnlinePlayer>> playersFuture =
+                OnlineMemberService.gatherOnlinePlayers()
+                        .thenApply(OnlineMemberService.GatherResult::players);
         CompletableFuture<Set<String>> staffFuture = fetchStaffUsernames();
 
         playersFuture.thenCombine(staffFuture, (players, staffNames) -> {
@@ -116,7 +100,7 @@ public final class WorldListFetcher {
                             .withStyle(ChatFormatting.GRAY));
 
             List<String> usernames = players.stream()
-                    .map(OnlinePlayer::username)
+                    .map(OnlineMemberService.OnlinePlayer::username)
                     .collect(Collectors.toList());
 
             CompletableFuture<Map<String, String>> findFuture = new CompletableFuture<>();
@@ -141,189 +125,6 @@ public final class WorldListFetcher {
                             .withStyle(ChatFormatting.RED));
             return null;
         });
-    }
-
-    // ── Gather online players (same merge logic as ListFetcher) ─────
-
-    private static CompletableFuture<List<OnlinePlayer>> gatherOnlinePlayers() {
-        // 1. Read tab list immediately (synchronous, local state).
-        List<TabListGuildParser.GuildEntry> tabEntries = TabListGuildParser.parseOnlineGuildMembers();
-        VetsLogger.debug("Tab list returned {} guild entries for world list", tabEntries.size());
-
-        // Forward tab list to the server so !list can use it too.
-        if (!tabEntries.isEmpty()) {
-            V1ApiManager.sendTabList(tabEntries.stream()
-                .map(e -> new V1ApiManager.TabListEntry(e.server(), e.username()))
-                .toList());
-        }
-
-        CompletableFuture<List<ConnectedUser>> serverFuture = fetchConnectedUsers()
-                .exceptionally(e -> {
-                    VetsLogger.debug("Failed to fetch connected users: {}", e.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<GuildInfo> guildFuture;
-        if (GuildStateManager.isWynntilsReady()) {
-            guildFuture = Models.Guild.getGuild("Returners")
-                    .exceptionally(e -> {
-                        VetsLogger.debug("Failed to fetch guild info: {}", e.getMessage());
-                        return null;
-                    });
-        } else {
-            guildFuture = CompletableFuture.completedFuture(null);
-        }
-
-        return serverFuture.thenCombine(guildFuture,
-                (connected, guildInfo) -> mergeOnlinePlayers(connected, guildInfo, tabEntries));
-    }
-
-    private static List<OnlinePlayer> mergeOnlinePlayers(
-            List<ConnectedUser> connected, GuildInfo guildInfo,
-            List<TabListGuildParser.GuildEntry> tabEntries) {
-
-        Map<String, ConnectedUser> modByUuid = new LinkedHashMap<>();
-        for (ConnectedUser cu : connected) {
-            modByUuid.put(cu.uuid, cu);
-        }
-
-        Set<String> modGuildUuids = modByUuid.values().stream()
-                .filter(cu -> TIER_GUILD.equals(cu.tier))
-                .map(cu -> cu.uuid)
-                .collect(Collectors.toSet());
-
-        // Build authoritative UUID → username map from Wynntils.
-        Map<String, String> uuidToUsername = new LinkedHashMap<>();
-        Map<String, String> usernameToUuid = new LinkedHashMap<>();
-        if (guildInfo != null) {
-            for (GuildMemberInfo m : guildInfo.guildMembers()) {
-                String uuid = m.uuid().toString();
-                uuidToUsername.put(uuid, m.username());
-                usernameToUuid.put(m.username().toLowerCase(Locale.ROOT), uuid);
-            }
-        }
-        // Overlay resolved roster names (from Minecraft Services API via tempserver).
-        // These are authoritative and override potentially stale Wynncraft API names.
-        Map<String, String> resolvedRoster = GuildRosterCache.getRoster();
-        for (Map.Entry<String, String> entry : resolvedRoster.entrySet()) {
-            uuidToUsername.put(entry.getKey(), entry.getValue());
-            usernameToUuid.put(entry.getValue().toLowerCase(Locale.ROOT), entry.getKey());
-        }
-        for (ConnectedUser cu : connected) {
-            uuidToUsername.putIfAbsent(cu.uuid, cu.username);
-            usernameToUuid.putIfAbsent(cu.username.toLowerCase(Locale.ROOT), cu.uuid);
-        }
-
-        // Online guild members = API online ∪ vetsmod guild users ∪ tab list.
-        Set<String> apiOnlineUuids = new TreeSet<>();
-        if (guildInfo != null) {
-            for (GuildMemberInfo m : guildInfo.guildMembers()) {
-                if (m.online()) {
-                    apiOnlineUuids.add(m.uuid().toString());
-                }
-            }
-        }
-        Set<String> mergedOnlineGuild = new TreeSet<>(apiOnlineUuids);
-        mergedOnlineGuild.addAll(modGuildUuids);
-
-        // Tab list entries: resolve to UUID when possible.
-        Set<String> tabOnlyUsernames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        for (TabListGuildParser.GuildEntry entry : tabEntries) {
-            String uuid = usernameToUuid.get(entry.username().toLowerCase(Locale.ROOT));
-            if (uuid != null) {
-                mergedOnlineGuild.add(uuid);
-            } else {
-                tabOnlyUsernames.add(entry.username());
-            }
-        }
-
-        List<OnlinePlayer> result = new ArrayList<>();
-
-        for (String uuid : mergedOnlineGuild) {
-            String username = uuidToUsername.getOrDefault(uuid, uuid.substring(0, 8) + "…");
-            result.add(new OnlinePlayer(username, uuid, TIER_GUILD));
-        }
-
-        for (ConnectedUser cu : modByUuid.values()) {
-            if (TIER_WAITLIST.equals(cu.tier)) {
-                String username = uuidToUsername.getOrDefault(cu.uuid, cu.username);
-                result.add(new OnlinePlayer(username, cu.uuid, TIER_WAITLIST));
-            } else if (TIER_HONOURARY.equals(cu.tier)) {
-                String username = uuidToUsername.getOrDefault(cu.uuid, cu.username);
-                result.add(new OnlinePlayer(username, cu.uuid, TIER_HONOURARY));
-            }
-        }
-
-        // Add tab-only usernames (no UUID match) as guild-tier players.
-        Set<String> allResolvedUsernames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        for (OnlinePlayer p : result) {
-            allResolvedUsernames.add(p.username());
-        }
-        for (String tabName : tabOnlyUsernames) {
-            if (!allResolvedUsernames.contains(tabName)) {
-                result.add(new OnlinePlayer(tabName, "", TIER_GUILD));
-            }
-        }
-
-        // Record all currently-known online names, then pull in grace-period names.
-        Set<String> allCurrentlyOnline = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        for (OnlinePlayer p : result) {
-            allCurrentlyOnline.add(p.username());
-        }
-        OnlineGuildCache.markSeen(allCurrentlyOnline);
-
-        for (String graceName : OnlineGuildCache.getGracePeriodNames(allCurrentlyOnline)) {
-            if (!allCurrentlyOnline.contains(graceName)) {
-                result.add(new OnlinePlayer(graceName, "", TIER_GUILD));
-            }
-        }
-
-        return result;
-    }
-
-    // ── Server fetch (identical to ListFetcher) ─────────────────────
-
-    private record ConnectedUser(String uuid, String username, String tier) {
-    }
-
-    private static CompletableFuture<List<ConnectedUser>> fetchConnectedUsers() {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(VetsApi.LIST)
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build();
-
-        return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-                        return List.<ConnectedUser>of();
-                    }
-                    return parseConnectedUsers(response.body());
-                });
-    }
-
-    private static List<ConnectedUser> parseConnectedUsers(String body) {
-        try {
-            JsonObject root = GSON.fromJson(body, JsonObject.class);
-            if (root == null || !root.has("connected")) {
-                return List.of();
-            }
-            JsonArray arr = root.getAsJsonArray("connected");
-            List<ConnectedUser> result = new ArrayList<>();
-            for (JsonElement el : arr) {
-                if (!el.isJsonObject()) continue;
-                JsonObject obj = el.getAsJsonObject();
-                String uuid = stringOrEmpty(obj, "uuid");
-                String username = stringOrEmpty(obj, "username");
-                String tier = stringOrEmpty(obj, "tier");
-                if (!uuid.isEmpty() && !username.isEmpty()) {
-                    result.add(new ConnectedUser(uuid, username, tier));
-                }
-            }
-            return result;
-        } catch (Exception e) {
-            return List.of();
-        }
     }
 
     // ── Staff fetch ─────────────────────────────────────────────────
@@ -358,7 +159,7 @@ public final class WorldListFetcher {
             for (JsonElement el : arr) {
                 if (!el.isJsonObject()) continue;
                 JsonObject obj = el.getAsJsonObject();
-                String username = stringOrEmpty(obj, "username");
+                String username = OnlineMemberService.stringOrEmpty(obj, "username");
                 if (!username.isEmpty()) {
                     names.add(username);
                 }
@@ -372,15 +173,15 @@ public final class WorldListFetcher {
     // ── Formatting ──────────────────────────────────────────────────
 
     private static MutableComponent formatWorldList(
-            List<OnlinePlayer> players,
+            List<OnlineMemberService.OnlinePlayer> players,
             Map<String, String> worldMap,
             Set<String> staffNames) {
 
         // Build server → list of players.
-        Map<String, List<OnlinePlayer>> serverToPlayers = new LinkedHashMap<>();
-        List<OnlinePlayer> notFound = new ArrayList<>();
+        Map<String, List<OnlineMemberService.OnlinePlayer>> serverToPlayers = new LinkedHashMap<>();
+        List<OnlineMemberService.OnlinePlayer> notFound = new ArrayList<>();
 
-        for (OnlinePlayer p : players) {
+        for (var p : players) {
             String server = worldMap.get(p.username());
             if (server != null && !server.isEmpty()) {
                 serverToPlayers.computeIfAbsent(server.toUpperCase(Locale.ROOT), k -> new ArrayList<>()).add(p);
@@ -390,8 +191,8 @@ public final class WorldListFetcher {
         }
 
         // Group servers by continent/region.
-        Map<String, Map<String, List<OnlinePlayer>>> regionToServers = new TreeMap<>();
-        for (Map.Entry<String, List<OnlinePlayer>> entry : serverToPlayers.entrySet()) {
+        Map<String, Map<String, List<OnlineMemberService.OnlinePlayer>>> regionToServers = new TreeMap<>();
+        for (Map.Entry<String, List<OnlineMemberService.OnlinePlayer>> entry : serverToPlayers.entrySet()) {
             String server = entry.getKey();
             String region = classifyRegion(server);
             regionToServers.computeIfAbsent(region, k -> new LinkedHashMap<>())
@@ -399,19 +200,19 @@ public final class WorldListFetcher {
         }
 
         // Sort regions by total member count descending.
-        List<Map.Entry<String, Map<String, List<OnlinePlayer>>>> sortedRegions =
+        List<Map.Entry<String, Map<String, List<OnlineMemberService.OnlinePlayer>>>> sortedRegions =
                 new ArrayList<>(regionToServers.entrySet());
-        sortedRegions.sort(Comparator.<Map.Entry<String, Map<String, List<OnlinePlayer>>>, Integer>comparing(
+        sortedRegions.sort(Comparator.<Map.Entry<String, Map<String, List<OnlineMemberService.OnlinePlayer>>>, Integer>comparing(
                 e -> e.getValue().values().stream().mapToInt(List::size).sum()).reversed());
 
         // Sort servers within each region by member count descending.
-        for (Map.Entry<String, Map<String, List<OnlinePlayer>>> regionEntry : sortedRegions) {
-            List<Map.Entry<String, List<OnlinePlayer>>> sorted =
+        for (Map.Entry<String, Map<String, List<OnlineMemberService.OnlinePlayer>>> regionEntry : sortedRegions) {
+            List<Map.Entry<String, List<OnlineMemberService.OnlinePlayer>>> sorted =
                     new ArrayList<>(regionEntry.getValue().entrySet());
-            sorted.sort(Comparator.<Map.Entry<String, List<OnlinePlayer>>, Integer>comparing(
+            sorted.sort(Comparator.<Map.Entry<String, List<OnlineMemberService.OnlinePlayer>>, Integer>comparing(
                     e -> e.getValue().size()).reversed());
-            LinkedHashMap<String, List<OnlinePlayer>> reordered = new LinkedHashMap<>();
-            for (Map.Entry<String, List<OnlinePlayer>> s : sorted) {
+            LinkedHashMap<String, List<OnlineMemberService.OnlinePlayer>> reordered = new LinkedHashMap<>();
+            for (Map.Entry<String, List<OnlineMemberService.OnlinePlayer>> s : sorted) {
                 reordered.put(s.getKey(), s.getValue());
             }
             regionEntry.setValue(reordered);
@@ -432,13 +233,13 @@ public final class WorldListFetcher {
                         "%d members found across %d servers\n", foundCount, serverCount))
                 .withStyle(ChatFormatting.GRAY));
 
-        for (Map.Entry<String, Map<String, List<OnlinePlayer>>> regionEntry : sortedRegions) {
+        for (Map.Entry<String, Map<String, List<OnlineMemberService.OnlinePlayer>>> regionEntry : sortedRegions) {
             String region = regionEntry.getKey();
-            Map<String, List<OnlinePlayer>> servers = regionEntry.getValue();
+            Map<String, List<OnlineMemberService.OnlinePlayer>> servers = regionEntry.getValue();
 
             if (PRIVATE_REGION.equals(region)) {
                 // Private server players are lumped together without individual server rows.
-                List<OnlinePlayer> allPrivate = servers.values().stream()
+                List<OnlineMemberService.OnlinePlayer> allPrivate = servers.values().stream()
                         .flatMap(List::stream)
                         .toList();
                 msg.append(Component.literal("\nPrivate Servers (" + allPrivate.size() + "):\n")
@@ -456,9 +257,9 @@ public final class WorldListFetcher {
             msg.append(Component.literal("\n" + region + " Servers:\n")
                     .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
 
-            for (Map.Entry<String, List<OnlinePlayer>> serverEntry : servers.entrySet()) {
+            for (Map.Entry<String, List<OnlineMemberService.OnlinePlayer>> serverEntry : servers.entrySet()) {
                 String server = serverEntry.getKey();
-                List<OnlinePlayer> serverPlayers = serverEntry.getValue();
+                List<OnlineMemberService.OnlinePlayer> serverPlayers = serverEntry.getValue();
 
                 msg.append(Component.literal(server)
                         .withStyle(ChatFormatting.YELLOW));
@@ -466,7 +267,7 @@ public final class WorldListFetcher {
                         .withStyle(ChatFormatting.GRAY));
 
                 for (int i = 0; i < serverPlayers.size(); i++) {
-                    OnlinePlayer p = serverPlayers.get(i);
+                    var p = serverPlayers.get(i);
                     msg.append(styledPlayerName(p, staffNames));
                     if (i < serverPlayers.size() - 1) {
                         msg.append(Component.literal(", ").withStyle(ChatFormatting.DARK_GRAY));
@@ -480,7 +281,7 @@ public final class WorldListFetcher {
             msg.append(Component.literal("\nOffline / Not Found (" + notFound.size() + "):\n")
                     .withStyle(ChatFormatting.GRAY));
             for (int i = 0; i < notFound.size(); i++) {
-                OnlinePlayer p = notFound.get(i);
+                var p = notFound.get(i);
                 msg.append(styledPlayerName(p, staffNames));
                 if (i < notFound.size() - 1) {
                     msg.append(Component.literal(", ").withStyle(ChatFormatting.DARK_GRAY));
@@ -496,13 +297,13 @@ public final class WorldListFetcher {
      * Returns a styled, clickable player name.  Colour is determined by tier,
      * and staff members receive an underline overlay.
      */
-    private static MutableComponent styledPlayerName(OnlinePlayer player, Set<String> staffNames) {
+    private static MutableComponent styledPlayerName(OnlineMemberService.OnlinePlayer player, Set<String> staffNames) {
         Style base;
         switch (player.tier()) {
-            case TIER_WAITLIST:
+            case "waitlist":
                 base = WAITLIST_STYLE;
                 break;
-            case TIER_HONOURARY:
+            case "honourary":
                 base = HONOURARY_STYLE;
                 break;
             default:
@@ -552,10 +353,4 @@ public final class WorldListFetcher {
         return "Other";
     }
 
-    private static String stringOrEmpty(JsonObject obj, String key) {
-        if (obj.has(key) && !obj.get(key).isJsonNull()) {
-            return obj.get(key).getAsString();
-        }
-        return "";
-    }
 }

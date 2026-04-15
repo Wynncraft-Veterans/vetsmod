@@ -85,15 +85,34 @@ public class ChatLogger {
     }
   }
 
+  /**
+   * Normalizes a raw chat buffer dump for logging by removing guild prefix
+   * glyphs and joining continuation lines.
+   *
+   * <p>Wynncraft's chat buffer often contains multiple concatenated guild
+   * messages.  Each continuation line is prefixed with invisible PUA rank
+   * glyphs ({@code GUILD_PREPEND_FULL} / {@code GUILD_PREPEND_COMPACT}).
+   * This method:
+   * <ol>
+   *   <li>Replaces continuation-line prefixes ({@code \n + glyph}) with
+   *       the visible separator glyph so the rank boundary is preserved.</li>
+   *   <li>Strips standalone guild prepend glyphs (not preceded by newline)
+   *       that appear at the start of the first message or after joins.</li>
+   *   <li>Joins all remaining lines into a single string for dedup/parse.</li>
+   * </ol></p>
+   */
   private static String processTruncatedMessage(String message) {
     String processed = message
+        // Step 1: continuation-line prefixes → visible separator
         .replace("\n" + GUILD_PREPEND_FULL, "\n" + PRIVATE_SEPARATOR_GLYPH + " ")
         .replace("\n" + GUILD_PREPEND_COMPACT, "\n" + PRIVATE_SEPARATOR_GLYPH + " ")
+        // Step 2: strip standalone prepend glyphs (with/without trailing space)
         .replace(GUILD_PREPEND_FULL + " ", "")
         .replace(GUILD_PREPEND_COMPACT + " ", "")
         .replace(GUILD_PREPEND_FULL, "")
         .replace(GUILD_PREPEND_COMPACT, "");
 
+    // Step 3: join continuation lines into a single string
     String[] lines = processed.split("\n");
     if (lines.length == 1) {
       return processed;
@@ -110,6 +129,17 @@ public class ChatLogger {
     return false;
   }
 
+  /**
+   * Parses a processed chat message into its structured parts (rank, username,
+   * message body) by scanning for PUA rank indicator sequences.
+   *
+   * <p>Guild chat messages contain invisible PUA rank indicators (defined in
+   * {@link #RANK_MAP}) that identify the sender's guild rank.  This method
+   * scans for the first matching indicator, then extracts the username
+   * (text between the indicator and {@code ':'}) and the message body
+   * (text after {@code ':'}, truncated at the next concatenated message
+   * boundary via {@link #stripConcatenatedContent}).</p>
+   */
   private static ParsedMessage parseMessage(String message) {
     for (Map.Entry<String, String> entry : RANK_MAP.entrySet()) {
       String rankIndicator = entry.getKey();
