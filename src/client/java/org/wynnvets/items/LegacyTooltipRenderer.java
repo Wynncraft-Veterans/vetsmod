@@ -246,7 +246,7 @@ final class LegacyTooltipRenderer {
   }
 
   private static void replaceRarityLines(List<Component> lines, String prefix) {
-    if (lines.size() < 2) return;
+    if (lines.isEmpty()) return;
 
     Component legacyLabel = null;
 

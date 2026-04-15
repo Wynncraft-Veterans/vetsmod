@@ -96,7 +96,8 @@ definitions:
   - "(?i)^Galleon's Graveyard Pass.*$" # Apparently this boat pass is a "Pass" instead of a boat pass. Inconsistent.
   - "(?i)^Faded.*.Teleportation Scroll$"
   - "(?i)^Skill Reset Scroll.*$"
-  - "(?i)^Unprocessed.*$"
+  - "(?i)^(Tutorial )?Unprocessed.*$"
+  - "^A Washer$"
   - "(?i)^Foehn Wind.*$"
   - "(?i)^Harmstick.*$"
   - "(?i)^Hotline.*$"
