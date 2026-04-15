@@ -9,10 +9,63 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.world.item.component.ItemLore;
 import org.wynnvets.logging.VetsLogger;
 
 /**
  * Tooltip rewriting orchestration for legacy items.
+ *
+ * <p>This class is the visual counterpart to {@link LegacyItemHandler#isLegacyItem}.
+ * While {@code isLegacyItem} answers "should this item glow gold?",
+ * this class answers "what should the tooltip look like?"</p>
+ *
+ * <h2>Detection cascade (order matters!)</h2>
+ * <p>{@link #processTooltip} checks items against a priority-ordered chain of
+ * detection branches. The FIRST matching branch wins and rewrites the tooltip.
+ * The branches, in order, are:</p>
+ * <ol>
+ *   <li><b>Crafted items</b> — skip entirely (player-made, never legacy).</li>
+ *   <li><b>Blank first-line fallback</b> — Wynntils' ItemStatInfoFeature can
+ *       blank out line 0; recover the name from the hover component and try
+ *       to insert the LEGACY box into the PUA rarity line.</li>
+ *   <li><b>Exact legacy match</b> — name is in {@code definitions.yml}'s
+ *       {@code definitions} section.</li>
+ *   <li><b>Misc legacy</b> — name is in {@code misc_definitions} AND the
+ *       item has a "Misc. Item" rarity line.</li>
+ *   <li><b>Statless no-lore (custom name)</b> — item has a {@code custom_name}
+ *       component, empty lore, is NOT new-format PUA, is NOT excluded, and
+ *       has no U+FFFD corruption. Rarity is inferred from the §-colour code
+ *       of the custom name (§b=Legendary, §5=Mythic, etc.).</li>
+ *   <li><b>Statless no-lore (vanilla name)</b> — item's vanilla name matches
+ *       the {@code vanilla_statless} whitelist and it has empty lore.
+ *       These items lack a custom_name component. Label is simply
+ *       "Statless Legacy Item".</li>
+ *   <li><b>Beta/alpha legacy marker</b> — lore contains a gold "Lv. min"
+ *       line (the old Wynncraft stat format). Alpha vs beta is decided by
+ *       whether a standard rarity line exists.</li>
+ *   <li><b>Enchanted (foil)</b> — item has the glint effect and is not in
+ *       the unenchanted exclusion list. Displayed as "⬡ Enchanted Name".</li>
+ *   <li><b>Junk rarity</b> — lore contains "Junk Item" and the name is
+ *       not in the notjunk exclusion list.</li>
+ *   <li><b>Crafting rarity</b> — lore contains "Crafting Item".</li>
+ * </ol>
+ *
+ * <h2>Old format vs new format</h2>
+ * <p>Wynncraft has two item display formats:</p>
+ * <ul>
+ *   <li><b>Old format:</b> Plain text names with §-colour codes, rarity shown
+ *       as a lore line (e.g. "Legendary Item"). Tooltip is rewritten by
+ *       replacing line 0 with a gold name and swapping the rarity line for
+ *       a "Legacy Item (Legendary)" label.</li>
+ *   <li><b>New format:</b> Names wrapped in PUA (Private Use Area) Unicode
+ *       for custom fonts/spacing, rarity encoded in the {@code tooltip_style}
+ *       data component instead of lore. Tooltip is rewritten by delegating
+ *       to {@link NewFormatRenderer} which inserts a LEGACY box into the
+ *       PUA emblem/frame line and recolours the name gold.</li>
+ * </ul>
+ * <p>Each detection branch tries the new-format path first (PUA box insertion),
+ * and falls back to old-format rewriting (gold name + rarity line swap) when
+ * the item is old-format or the PUA insertion fails.</p>
  *
  * <p>Coordinates detection state from {@link LegacyItemHandler}, delegates
  * new-format PUA-encoded operations to {@link NewFormatRenderer}, and handles
@@ -20,11 +73,15 @@ import org.wynnvets.logging.VetsLogger;
  */
 final class LegacyTooltipRenderer {
 
+  /** Matches Minecraft's F3+H debug line showing the item's registry ID (e.g. "minecraft:paper"). */
   private static final Pattern DEBUG_ID_PATTERN = Pattern.compile("^\\w+:\\w[\\w/.-]*$");
+  /** Matches Minecraft's F3+H debug line showing component count (e.g. "12 component(s)"). */
   private static final Pattern DEBUG_COMPONENTS_PATTERN =
       Pattern.compile("^\\d+ component\\(s\\)$");
+  /** Matches a Wynntils percentage suffix like " [61.7%]" appended to item names. */
   private static final Pattern PERCENT_SUFFIX_PATTERN =
       Pattern.compile("\\s*(\\[\\d+\\.?\\d*%\\])$");
+  /** Matches Wynncraft crafted items (e.g. "Crafted Helmet [30/30 Durability]") which are never legacy. */
   private static final Pattern CRAFTED_PATTERN =
       Pattern.compile(
           "^Crafted (?:Helmet|Chestplate|Pants|Boots|Ring|Potion|Scroll|Food|Wand|Spear|Relik|Bow|Dagger|by .+) \\[\\d+/\\d+ Durability\\]$");
@@ -40,13 +97,19 @@ final class LegacyTooltipRenderer {
    * @return the (possibly modified) tooltip lines
    */
   static List<Component> processTooltip(List<Component> tooltipLines) {
+    // ── Guard clauses ──────────────────────────────────────────────────
+    // Reset the flag that tells the mixin whether to apply the gold border.
     LegacyItemHandler.lastProcessedWasLegacy = false;
     if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return tooltipLines;
     if (tooltipLines.isEmpty()) return tooltipLines;
     if (LegacyItemHandler.isBlockedScreen()) return tooltipLines;
 
+    // Crafted items (player-made gear with durability) are never legacy.
     if (isCraftedItem(tooltipLines)) return tooltipLines;
 
+    // ── Name extraction ────────────────────────────────────────────────
+    // Get the first tooltip line (the item name), strip formatting codes
+    // and PUA characters to get a clean name for pattern matching.
     Component firstLine = tooltipLines.get(0);
     String rawText = firstLine.getString();
     String plainText = LegacyItemHandler.normalizeName(ChatFormatting.stripFormatting(rawText));
@@ -59,6 +122,7 @@ final class LegacyTooltipRenderer {
       plainText = stripPercentSuffix(plainText);
     }
 
+    // ── Branch 1: Blank first-line fallback (Wynntils ItemStatInfoFeature) ──
     // Wynntils' ItemStatInfoFeature (when enabled) rebuilds identified-gear
     // tooltips from scratch.  The rebuilt layout starts with an empty spacer
     // line, so line 0 is blank and the item name is no longer there.
@@ -86,12 +150,16 @@ final class LegacyTooltipRenderer {
       return tooltipLines;
     }
 
+    // ── Branch 2: Exact legacy name match (definitions section) ─────────
+    // The item's normalized name matches a pattern in definitions.yml's
+    // "definitions" section.  These are known legacy items by name.
     if (plainText != null && ItemDefinitions.isLegacy(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
       boolean newFormat = NewFormatRenderer.isNewFormatItem(modified);
       if (newFormat) {
-        // Restore PUA-wrapped custom name as line 0 to preserve spacer layout.
-        // The visible name is in the emblem/frame lore line, not the hover name.
+        // New-format path: restore the PUA-wrapped custom name as line 0
+        // (preserves the invisible spacer glyphs that align the emblem/frame),
+        // recolour it gold, and insert the "LEGACY" box into the PUA line.
         Component customName = LegacyItemHandler.currentItemStack.get(DataComponents.CUSTOM_NAME);
         boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
         if (customName != null) {
@@ -109,6 +177,8 @@ final class LegacyTooltipRenderer {
           return modified;
         }
       }
+      // Old-format fallback: rewrite the name line to gold text.
+      // If the item has foil (enchantment glint), prefix with "⬡ Enchanted".
       MutableComponent name;
       if (LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText)) {
         name = Component.literal("\u2B21 ")
@@ -124,6 +194,10 @@ final class LegacyTooltipRenderer {
       return modified;
     }
 
+    // ── Branch 3: Misc legacy (misc_definitions + "Misc. Item" rarity) ──
+    // The item's name matches misc_definitions AND the tooltip contains a
+    // "Misc. Item" rarity line.  Both conditions are required because misc
+    // items can also exist as modern server items.
     if (plainText != null && ItemDefinitions.isMiscLegacy(plainText) && LegacyItemHandler.hasMiscRarity(tooltipLines)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
       boolean newFormat = NewFormatRenderer.isNewFormatItem(modified);
@@ -160,6 +234,46 @@ final class LegacyTooltipRenderer {
       return modified;
     }
 
+    // ── Branch 4: Statless no-lore auto-detection (custom_name present) ─
+    // Any item with a custom_name, empty lore, non-PUA format, non-excluded,
+    // and no U+FFFD corruption is assumed to be a statless legacy item.
+    // The rarity tier is inferred from the §-colour code prefix of the
+    // custom name (e.g. §b → Legendary, §5 → Mythic).
+    if (plainText != null && !plainText.isBlank() && !ItemDefinitions.isNoLoreExcluded(plainText)
+        && plainText.indexOf('\uFFFD') < 0
+        && LegacyItemHandler.currentItemStack.get(DataComponents.CUSTOM_NAME) != null
+        && LegacyItemHandler.currentItemStack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines().isEmpty()
+        && !LegacyItemHandler.isNewFormatItem(LegacyItemHandler.currentItemStack)) {
+      List<Component> modified = new ArrayList<>(tooltipLines);
+      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      if (raritySuffix != null) name.append(raritySuffix);
+      modified.set(0, name);
+      String rarity = LegacyItemHandler.getStatlessRarityFromColor(LegacyItemHandler.currentItemStack);
+      String label = rarity != null ? "Statless Legacy Item (" + rarity + ")" : "Statless Legacy Item";
+      modified.add(debugLinesStart(modified), Component.literal(label).withStyle(ChatFormatting.GOLD));
+      LegacyItemHandler.lastProcessedWasLegacy = true;
+      return modified;
+    }
+
+    // ── Branch 5: Statless no-lore (vanilla-named items, whitelist) ─────
+    // Specific vanilla-named items (no custom_name component) that are
+    // statless legacy when they have no lore.  Matched against the
+    // vanilla_statless whitelist in definitions.yml.
+    if (plainText != null && !plainText.isBlank() && ItemDefinitions.isVanillaStatless(plainText)
+        && LegacyItemHandler.currentItemStack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines().isEmpty()) {
+      List<Component> modified = new ArrayList<>(tooltipLines);
+      MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
+      if (raritySuffix != null) name.append(raritySuffix);
+      modified.set(0, name);
+      modified.add(debugLinesStart(modified), Component.literal("Statless Legacy Item").withStyle(ChatFormatting.GOLD));
+      LegacyItemHandler.lastProcessedWasLegacy = true;
+      return modified;
+    }
+
+    // ── Branch 6: Beta/alpha legacy marker (gold "Lv. min" in lore) ─────
+    // Old Wynncraft beta/alpha items have a gold-coloured "Lv. min: X" line
+    // in lore instead of the modern format.  If a standard rarity line also
+    // exists, it's beta; if not, it's alpha (predates rarity lines).
     if (LegacyItemHandler.hasBetaLegacyMarker(tooltipLines)) {
       boolean alpha = !LegacyItemHandler.hasRarityLine(tooltipLines);
       List<Component> modified = new ArrayList<>(tooltipLines);
@@ -180,6 +294,10 @@ final class LegacyTooltipRenderer {
       return modified;
     }
 
+    // ── Branch 7: Enchanted items (foil/glint detection) ────────────────
+    // Items with the enchantment glint that aren't in the unenchanted
+    // exclusion list.  Modern Wynncraft items never have foil, so any
+    // foil-bearing item is legacy.  Displayed as "⬡ Enchanted <name>".
     if (LegacyItemHandler.currentItemHasFoil && plainText != null && !ItemDefinitions.isUnenchanted(plainText)) {
       VetsLogger.debug("processTooltip: foil branch entered, plainText='{}' (len={}), hasFoil={}", plainText, plainText.length(), LegacyItemHandler.currentItemHasFoil);
       StringBuilder hexDump = new StringBuilder();
@@ -214,6 +332,9 @@ final class LegacyTooltipRenderer {
       return modified;
     }
 
+    // ── Branch 8: Junk rarity ──────────────────────────────────────────
+    // Items whose lore contains a "Junk Item" rarity line, unless the
+    // name is in the notjunk exclusion list (modern junk-tier items).
     if (LegacyItemHandler.hasJunkRarity(tooltipLines) && plainText != null && !ItemDefinitions.isNotJunk(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
       MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
@@ -224,6 +345,10 @@ final class LegacyTooltipRenderer {
       return modified;
     }
 
+    // ── Branch 9: Crafting rarity ──────────────────────────────────────
+    // Items whose lore contains a "Crafting Item" rarity line.
+    // All crafting-rarity items are legacy (modern crafting uses a
+    // different system).
     if (LegacyItemHandler.hasCraftingRarity(tooltipLines) && plainText != null) {
       List<Component> modified = new ArrayList<>(tooltipLines);
       MutableComponent name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
@@ -234,9 +359,14 @@ final class LegacyTooltipRenderer {
       return modified;
     }
 
+    // No detection branch matched — return the tooltip unmodified.
     return tooltipLines;
   }
 
+  /**
+   * Returns {@code true} if the tooltip belongs to a player-crafted item.
+   * Crafted items are never legacy and are skipped before any detection logic.
+   */
   private static boolean isCraftedItem(List<Component> lines) {
     for (Component line : lines) {
       String plain = ChatFormatting.stripFormatting(line.getString());
@@ -245,6 +375,16 @@ final class LegacyTooltipRenderer {
     return false;
   }
 
+  /**
+   * Finds and replaces the standard rarity line (e.g. "Legendary Item") with
+   * a gold "Legacy Item (Legendary)" label.  For old-format items this scans
+   * lore bottom-up; for new-format items it falls back to the tooltip_style
+   * data component.  If neither source yields a rarity, a plain "Legacy Item"
+   * label is used.
+   *
+   * @param lines  the mutable tooltip lines (rarity line is removed in-place)
+   * @param prefix optional prefix like "Alpha" or "Beta" prepended to the label
+   */
   private static void replaceRarityLines(List<Component> lines, String prefix) {
     if (lines.isEmpty()) return;
 
@@ -281,6 +421,11 @@ final class LegacyTooltipRenderer {
     lines.add(debugLinesStart(lines), legacyLabel);
   }
 
+  /**
+   * Returns the index at which to insert the legacy label, just before any
+   * F3+H advanced tooltip debug lines (resource ID and component count).
+   * If no debug lines are present, returns the end of the list.
+   */
   private static int debugLinesStart(List<Component> lines) {
     for (int i = lines.size() - 1; i >= 1; i--) {
       String plain = ChatFormatting.stripFormatting(lines.get(i).getString());
@@ -338,6 +483,13 @@ final class LegacyTooltipRenderer {
     return null;
   }
 
+  /**
+   * Builds the gold "Legacy Item (Rarity)" or "Beta Legacy Item (Rarity [3])" label.
+   *
+   * @param rarity the rarity name (e.g. "Legendary", "Normal")
+   * @param count  optional Wynntils count suffix like "[3]", or null
+   * @param prefix optional era prefix like "Alpha" or "Beta", or null
+   */
   private static Component buildLegacyLabel(String rarity, String count, String prefix) {
     String base = prefix != null ? prefix + " Legacy Item" : "Legacy Item";
     String label =

@@ -106,6 +106,12 @@ public class LegacyItemHandler {
 
     if (!newFormatOverridden && name != null && ItemDefinitions.isMiscLegacy(name) && hasMiscRarity(lore)) return true;
 
+    if (lore.isEmpty() && name != null && !name.isBlank() && stack.get(DataComponents.CUSTOM_NAME) != null
+        && !isNewFormatItem(stack) && !ItemDefinitions.isNoLoreExcluded(name)
+        && name.indexOf('\uFFFD') < 0) return true;
+
+    if (lore.isEmpty() && name != null && !name.isBlank() && ItemDefinitions.isVanillaStatless(name)) return true;
+
     if (hasBetaLegacyMarker(lore)) return true;
 
     if (stack.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(stack) && (name == null || !ItemDefinitions.isUnenchanted(name))) return true;
@@ -160,6 +166,32 @@ public class LegacyItemHandler {
       i += charCount;
     }
     return sb != null ? sb.toString().strip() : text;
+  }
+
+  /**
+   * Derives a rarity name from the section-sign colour code at the start of
+   * the item's custom name (e.g. {@code §b} → "Legendary").
+   * Returns {@code null} when the custom name is absent or starts with an
+   * unmapped colour code.
+   */
+  public static String getStatlessRarityFromColor(ItemStack stack) {
+    Component customName = stack.get(DataComponents.CUSTOM_NAME);
+    if (customName == null) return null;
+    String raw = customName.getString();
+    if (raw.length() >= 2 && raw.charAt(0) == '\u00A7') {
+      return switch (Character.toLowerCase(raw.charAt(1))) {
+        case 'f' -> "Normal";
+        case 'e' -> "Unique";
+        case 'd' -> "Rare";
+        case 'b' -> "Legendary";
+        case 'c' -> "Fabled";
+        case '5' -> "Mythic";
+        case 'a' -> "Set";
+        case '3' -> "Crafted";
+        default -> null;
+      };
+    }
+    return null;
   }
 
   static final Pattern RARITY_PATTERN =

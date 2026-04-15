@@ -24,6 +24,8 @@ import org.wynnvets.logging.VetsLogger;
  */
 public class ItemDefinitions {
   private static final List<Pattern> legacyPatterns = new ArrayList<>();
+  private static final List<Pattern> noLoreExcludedPatterns = new ArrayList<>();
+  private static final List<Pattern> vanillaStatlessPatterns = new ArrayList<>();
   private static final List<Pattern> miscPatterns = new ArrayList<>();
   private static final List<Pattern> unenchantedPatterns = new ArrayList<>();
   private static final List<Pattern> notjunkPatterns = new ArrayList<>();
@@ -32,6 +34,8 @@ public class ItemDefinitions {
 
   public static void load() {
     legacyPatterns.clear();
+    noLoreExcludedPatterns.clear();
+    vanillaStatlessPatterns.clear();
     miscPatterns.clear();
     unenchantedPatterns.clear();
     notjunkPatterns.clear();
@@ -45,8 +49,10 @@ public class ItemDefinitions {
       }
       parse(is);
       VetsLogger.debug(
-          "Loaded {} legacy, {} misc, {} unenchanted, {} notjunk, {} new-format-override, and {} enchant-excluded definition(s)",
+          "Loaded {} legacy, {} no-lore-excluded, {} vanilla-statless, {} misc, {} unenchanted, {} notjunk, {} new-format-override, and {} enchant-excluded definition(s)",
           legacyPatterns.size(),
+          noLoreExcludedPatterns.size(),
+          vanillaStatlessPatterns.size(),
           miscPatterns.size(),
           unenchantedPatterns.size(),
           notjunkPatterns.size(),
@@ -82,6 +88,12 @@ public class ItemDefinitions {
         if ("definitions".equals(currentSection) && trimmed.startsWith("- ")) {
           String pattern = extractQuotedString(trimmed.substring(2).trim());
           legacyPatterns.add(Pattern.compile(pattern));
+        } else if ("no_lore_excluded".equals(currentSection) && trimmed.startsWith("- ")) {
+          String pattern = extractQuotedString(trimmed.substring(2).trim());
+          noLoreExcludedPatterns.add(Pattern.compile(pattern));
+        } else if ("vanilla_statless".equals(currentSection) && trimmed.startsWith("- ")) {
+          String pattern = extractQuotedString(trimmed.substring(2).trim());
+          vanillaStatlessPatterns.add(Pattern.compile(pattern));
         } else if ("misc_definitions".equals(currentSection) && trimmed.startsWith("- ")) {
           String pattern = extractQuotedString(trimmed.substring(2).trim());
           miscPatterns.add(Pattern.compile(pattern));
@@ -117,6 +129,24 @@ public class ItemDefinitions {
 
   public static boolean isLegacy(String itemName) {
     for (Pattern pattern : legacyPatterns) {
+      if (pattern.matcher(itemName).matches()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static boolean isNoLoreExcluded(String itemName) {
+    for (Pattern pattern : noLoreExcludedPatterns) {
+      if (pattern.matcher(itemName).matches()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static boolean isVanillaStatless(String itemName) {
+    for (Pattern pattern : vanillaStatlessPatterns) {
       if (pattern.matcher(itemName).matches()) {
         return true;
       }

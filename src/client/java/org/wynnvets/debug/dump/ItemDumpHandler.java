@@ -189,6 +189,8 @@ public final class ItemDumpHandler {
         String plainName = LegacyItemHandler.normalizeName(ChatFormatting.stripFormatting(hoverName.getString()));
         analysis.addProperty("normalizedName", plainName);
         analysis.addProperty("isLegacy", plainName != null && ItemDefinitions.isLegacy(plainName));
+        analysis.addProperty("isNoLoreExcluded", plainName != null && ItemDefinitions.isNoLoreExcluded(plainName));
+        analysis.addProperty("isVanillaStatless", plainName != null && ItemDefinitions.isVanillaStatless(plainName));
         analysis.addProperty("isMiscLegacy", plainName != null && ItemDefinitions.isMiscLegacy(plainName));
         analysis.addProperty("isUnenchanted", plainName != null && ItemDefinitions.isUnenchanted(plainName));
         analysis.addProperty("isNotJunk", plainName != null && ItemDefinitions.isNotJunk(plainName));
