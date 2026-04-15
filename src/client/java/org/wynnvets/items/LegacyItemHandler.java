@@ -36,14 +36,6 @@ public class LegacyItemHandler {
    */
   public static boolean lastProcessedWasLegacy = false;
 
-  /**
-   * Set by {@link org.wynnvets.listeners.LegacyTooltipEventHandler} when it
-   * processes a tooltip via the Wynntils event bus.  Cleared by
-   * {@code LegacyItemTooltipMixin} so the mixin skips redundant re-processing
-   * of the same tooltip list.
-   */
-  public static boolean eventProcessedTooltip = false;
-
   // BEGIN PATCH(old-server-compat): Remove field once all servers use new tooltip borders.
   /**
    * Sticky server-session flag: set to {@code true} when any item with a

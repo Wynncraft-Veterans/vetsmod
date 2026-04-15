@@ -53,11 +53,13 @@ final class NewFormatRenderer {
 
   /**
    * Returns {@code true} if the item uses Wynncraft's new tooltip format.
-   * Detected by the presence of the {@code tooltip/emblem/frame} font in a lore line.
+   * Detected by the presence of {@code tooltip/emblem/frame} or {@code banner/box}
+   * font in a tooltip line.  The latter covers Wynntils-rebuilt tooltips that
+   * preserve PUA rarity boxes but use a different font for the emblem/name.
    */
   static boolean isNewFormatItem(List<Component> lines) {
     for (Component line : lines) {
-      if (containsFont(line, EMBLEM_FRAME_FONT)) {
+      if (containsFont(line, EMBLEM_FRAME_FONT) || containsFont(line, BANNER_BOX_FONT)) {
         // BEGIN PATCH(old-server-compat)
         LegacyItemHandler.newTooltipStylesAvailable = true;
         // END PATCH(old-server-compat)

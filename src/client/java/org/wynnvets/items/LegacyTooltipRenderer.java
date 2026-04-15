@@ -59,6 +59,33 @@ final class LegacyTooltipRenderer {
       plainText = stripPercentSuffix(plainText);
     }
 
+    // Wynntils' ItemStatInfoFeature (when enabled) rebuilds identified-gear
+    // tooltips from scratch.  The rebuilt layout starts with an empty spacer
+    // line, so line 0 is blank and the item name is no longer there.
+    // Detect this and insert the LEGACY box into the rebuilt PUA rarity line.
+    boolean firstLineBlank = plainText == null || plainText.isBlank();
+    if (firstLineBlank && !LegacyItemHandler.currentItemStack.isEmpty()) {
+      String hover = LegacyItemHandler.currentItemStack.getHoverName().getString();
+      String fallbackName = LegacyItemHandler.normalizeName(
+          ChatFormatting.stripFormatting(hover));
+      if (fallbackName != null) {
+        fallbackName = stripPercentSuffix(fallbackName);
+      }
+      if (fallbackName != null && !fallbackName.isBlank()) {
+        plainText = fallbackName;
+      }
+      List<Component> modified = new ArrayList<>(tooltipLines);
+      boolean isNew = NewFormatRenderer.isNewFormatItem(modified);
+      boolean isLeg = LegacyItemHandler.isLegacyItem(LegacyItemHandler.currentItemStack);
+      if (isNew && isLeg) {
+        if (NewFormatRenderer.insertLegacyBoxLine(modified)) {
+          LegacyItemHandler.lastProcessedWasLegacy = true;
+          return modified;
+        }
+      }
+      return tooltipLines;
+    }
+
     if (plainText != null && ItemDefinitions.isLegacy(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
       boolean newFormat = NewFormatRenderer.isNewFormatItem(modified);

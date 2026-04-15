@@ -19,6 +19,10 @@ import org.wynnvets.items.LegacyItemHandler;
  * tooltip funnels through — including lists Wynntils may have already
  * rebuilt and wrapped in {@code Collections.unmodifiableList}.
  *
+ * <p>Runs <em>after</em> the entire Wynntils event chain (including handlers
+ * at LOWEST priority that may replace the tooltip list), so VetsMod's
+ * modifications cannot be overwritten by downstream event handlers.</p>
+ *
  * <p>Uses {@code @Inject} with cancellation to replace the (potentially
  * unmodifiable) list with a new mutable copy containing our gold name,
  * then re-invokes the method.  A reentry guard prevents infinite recursion.</p>
@@ -49,25 +53,6 @@ public class LegacyItemTooltipMixin {
       Identifier background,
       CallbackInfo ci) {
     if (vetsmod$processing) return;
-
-    // If the Wynntils event handler already processed this tooltip,
-    // skip redundant re-processing but still apply the border override.
-    if (LegacyItemHandler.eventProcessedTooltip) {
-      LegacyItemHandler.eventProcessedTooltip = false;
-      if (LegacyItemHandler.lastProcessedWasLegacy
-              && LegacyItemHandler.newTooltipStylesAvailable) {
-        ci.cancel();
-        vetsmod$processing = true;
-        try {
-          ((GuiGraphics) (Object) this)
-              .setTooltipForNextFrame(font, components, image, mouseX, mouseY,
-                  LegacyItemHandler.LEGACY_BORDER);
-        } finally {
-          vetsmod$processing = false;
-        }
-      }
-      return;
-    }
 
     List<Component> modified = LegacyItemHandler.processTooltip(components);
     if (modified != components) {
