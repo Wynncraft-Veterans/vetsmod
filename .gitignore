@@ -46,3 +46,4 @@ debug.log
 # Debug
 /src/client/java/org/wynnvets/debug_data
 /legacy_debug
+/.temp

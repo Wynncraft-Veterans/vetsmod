@@ -30,7 +30,7 @@ public final class GuildChatDispatcher {
   private static final String GUILDLESS_SELF_RANK =
       "\uE010\uE056\uE040\uE048\uE053\uE04B\uE048\uE052\uE053\uE011";
   private static final String HONOURARY_SELF_RANK =
-      "\uE010\uE047\uE04E\uE04D\uE04E\uE056\uE051\uE040\uE051\uE058\uE011";
+      "\uE010\uE047\uE04E\uE04D\uE04E\uE054\uE051\uE040\uE051\uE058\uE011";
 
   private GuildChatDispatcher() {}
 
@@ -75,7 +75,7 @@ public final class GuildChatDispatcher {
     // Waitlist (guildless) relay
     if (GuildStateManager.isGuildless() && GuildStateManager.isWaitlistUnlocked()) {
       VetsLogger.debug("Intercepted /g for waitlist bridge relay");
-      String outMessage = Boolean.TRUE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
+      String outMessage = !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
           ? SpoilerCodec.encodeSpoilers(message) : message;
       relayWaitlistChat(outMessage);
       return true;
@@ -108,7 +108,7 @@ public final class GuildChatDispatcher {
   private static boolean handleHonouraryChat(String message) {
     if (GuildStateManager.isHonouraryUnlocked()) {
       VetsLogger.debug("Intercepted /wg for honourary bridge relay");
-      String outMessage = Boolean.TRUE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
+      String outMessage = !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
           ? SpoilerCodec.encodeSpoilers(message) : message;
       relayHonouraryChat(outMessage);
     } else {
