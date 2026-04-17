@@ -408,13 +408,16 @@ public class GuildStateManager {
     LocalPlayer player = minecraft.player;
 
     if (player != null) {
+      // Mark MOTD as shown now — prevents onGuildInfoUpdated() from re-fetching
+      // if guild info arrives after WorldStateEvent.WORLD (race condition).
+      guildMotdDisplayedThisSession = true;
+
       // Use guild MOTD for eligible users (Returners, waitlist-unlocked, honourary-unlocked)
       boolean useGuildMotd = isReturners()
           || (isGuildless() && isWaitlistUnlocked())
           || isHonouraryUnlocked();
 
       if (useGuildMotd) {
-        guildMotdDisplayedThisSession = true;
         MotdFetcher.fetchGuildMotd().thenAccept(guildMotdComponent -> {
           String text = guildMotdComponent.getString();
           if (text != null && !text.isEmpty()) {
