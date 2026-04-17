@@ -40,10 +40,14 @@ sample.log
 *.hprof
 *.jfr
 debug.log
-/refactor-project
+#/refactor-project
 *.log
 
-# Debug
-/src/client/java/org/wynnvets/debug_data
-/legacy_debug
-/.temp
+# Debug / local data
+#/src/client/java/org/wynnvets/debug_data
+#/legacy_debug
+#/debug
+#/com
+
+./temp
+./claude
