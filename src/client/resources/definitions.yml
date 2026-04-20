@@ -2,6 +2,8 @@ unenchanted:
   - "^\?\?\?$"
   - "^Ability Shard$"
   - "^Breathing Helmet .*"
+  - "^Battlemaster's Crest$"
+  - "^Cycle$"
   - "^.*Liquid Emerald.*$"
   - "^.*Mythic Everlasting Pufferfish.*$"
   - "^Shiny .*"
