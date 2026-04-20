@@ -17,6 +17,7 @@ import org.wynnvets.items.ItemDefinitions;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.listeners.WynntilsEventListener;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.queue.QueueDetector;
 import org.wynnvets.rendering.territory.TerritoryLineRenderer;
 
 /**
@@ -54,7 +55,10 @@ public class VetsmodClient implements ClientModInitializer {
     }
 
     GuildStateManager.loadPersistedState();
-    ClientLifecycleEvents.CLIENT_STARTED.register(client -> WynntilsEventListener.register());
+    ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+      WynntilsEventListener.register();
+      QueueDetector.register();
+    });
     ItemDefinitions.load();
 
     V1ApiManager.connect();

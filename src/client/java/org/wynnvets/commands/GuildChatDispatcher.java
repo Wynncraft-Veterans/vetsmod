@@ -1,5 +1,7 @@
 package org.wynnvets.commands;
 
+import com.wynntils.core.components.Models;
+import com.wynntils.models.guild.type.GuildRank;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -13,6 +15,7 @@ import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.queue.QueueStateManager;
 
 /**
  * Handles outbound chat-command interception for guild chat ({@code /g}),
@@ -78,6 +81,17 @@ public final class GuildChatDispatcher {
       String outMessage = !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
           ? SpoilerCodec.encodeSpoilers(message) : message;
       relayWaitlistChat(outMessage);
+      return true;
+    }
+
+    // Queued Returners relay: the game server drops /g while the client sits
+    // in a world queue.  Route the message through the WebSocket bridge so
+    // Discord and other vetsmod clients still see it.  See QueueDetector.
+    if (GuildStateManager.isReturners() && QueueStateManager.isInQueue()) {
+      VetsLogger.debug("Intercepted /g for queued-Returners bridge relay");
+      String outMessage = !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
+          ? SpoilerCodec.encodeSpoilers(message) : message;
+      relayQueuedReturnersChat(outMessage);
       return true;
     }
 
@@ -245,6 +259,55 @@ public final class GuildChatDispatcher {
     OutboundDisplayHandler.queuePendingSelfMessage(username, message);
     ChatUtils.sendGuildChatMessage(GUILDLESS_SELF_RANK, username, message);
     V1ApiManager.sendInbound("waitlist", "Waitlist", username, message);
+  }
+
+  /**
+   * Relays a Returners guild message over the WebSocket bridge while the
+   * client is sitting in a world queue.  The Wynncraft game server ignores
+   * {@code /g} commands in this state, so the message never touches the
+   * guild chat channel — we instead mimic the game-server delivery locally
+   * and push the message via the v1 inbound WebSocket.
+   *
+   * <p>The message is sent with {@code type="queue"}, a distinct protocol
+   * type that semantically equals a guild message but skips the
+   * in-game-guild suppression every client applies to {@code "guild"}
+   * outbound echoes.  This lets <em>all</em> vetsmod clients — including
+   * older ones that predate queue awareness — render queue-originated
+   * messages in chat.</p>
+   *
+   * <p>Receivers:</p>
+   * <ul>
+   *   <li>Discord bridge: the server maps {@code queue} to the
+   *       {@code [Guild]} prefix — indistinguishable from a normal guild
+   *       message on the Discord side.</li>
+   *   <li>All other vetsmod clients (any version): the {@code "queue"}
+   *       type falls through the Returners {@code guild}-suppression gate,
+   *       so the message renders as ordinary guild chat.</li>
+   * </ul>
+   */
+  private static void relayQueuedReturnersChat(String message) {
+    Minecraft minecraft = Minecraft.getInstance();
+    if (minecraft.player == null) return;
+
+    String username = resolveUsername(minecraft);
+    String rank = resolveReturnersRank();
+    OutboundDisplayHandler.queuePendingSelfMessage(username, message);
+    ChatUtils.sendGuildChatMessage(rank, username, message);
+    V1ApiManager.sendInbound("queue", rank, username, message);
+  }
+
+  /**
+   * Resolves the local player's Wynncraft guild rank using the Wynntils
+   * guild model.  Falls back to an empty string when the rank is not
+   * available, which {@link ChatUtils#sendGuildChatMessage(String, String, String)}
+   * handles gracefully (no pill rendered).
+   */
+  private static String resolveReturnersRank() {
+    GuildRank guildRank = Models.Guild.getGuildRank();
+    if (guildRank != null) {
+      return guildRank.getName();
+    }
+    return "";
   }
 
   private static void relayHonouraryChat(String message) {

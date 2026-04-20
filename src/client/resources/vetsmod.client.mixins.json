@@ -9,7 +9,9 @@
 		"legacy.LegacyHighlightMixin",
 		"legacy.LegacyHotbarMixin",
 		"legacy.LegacyItemTooltipMixin",
+		"CommandSuggestionsMixin",
 		"NametagMixin",
+		"QueueTitleMixin",
 		"command.ToggleCommandMixin",
 		"command.UnlockCommandMixin"
 	],

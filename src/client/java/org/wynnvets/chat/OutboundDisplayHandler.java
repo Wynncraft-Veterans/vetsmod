@@ -6,6 +6,7 @@ import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.queue.QueueStateManager;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -152,8 +153,12 @@ public final class OutboundDisplayHandler {
 
         // Returners members already receive guild chat from the Wynncraft
         // server with proper pill rendering, nicknames, and supporter
-        // gradients.  Never display outbound guild echoes for them.
-        if (GuildStateManager.isReturners() && "guild".equals(type)) {
+        // gradients — normally we suppress outbound guild echoes to avoid
+        // double-display.  While queued, however, the game-server channel
+        // is silent, so we must render WS-delivered guild chat ourselves.
+        if (GuildStateManager.isReturners()
+                && "guild".equals(type)
+                && !QueueStateManager.isInQueue()) {
             return;
         }
 
@@ -170,7 +175,7 @@ public final class OutboundDisplayHandler {
         // into the shout-style ALERT box.  For Returners this is handled by
         // StaffGuildAlertRewriter via ChatLogMixin on the server message;
         // for waitlist/honourary users it must be handled here instead.
-        if ("guild".equals(type)
+        if (("guild".equals(type) || "queue".equals(type))
                 && StaffGuildAlertRewriter.tryRewriteOutbound(username, message)) {
             return;
         }
@@ -197,7 +202,10 @@ public final class OutboundDisplayHandler {
     private static boolean shouldSuppressSelfMessage(String username, String message, String type) {
         // Only suppress game-sourced messages (sent by this client through the temp server).
         // Covers guild (Returners), waitlist (guildless relay), and honourary relay types.
-        if (!"guild".equals(type) && !"waitlist".equals(type) && !"honourary".equals(type)) {
+        if (!"guild".equals(type)
+                && !"queue".equals(type)
+                && !"waitlist".equals(type)
+                && !"honourary".equals(type)) {
             return false;
         }
 
