@@ -123,6 +123,25 @@ public final class V1ApiManager {
     }
 
     /**
+     * Sends a queue status update so the server can track which users are
+     * currently sitting in a Wynncraft world queue.
+     *
+     * @param queued true if the client just entered a queue, false if exited
+     * @param world  the target world name (e.g. "NA30"), or empty
+     */
+    public static void sendQueueStatus(boolean queued, String world) {
+        if (inboundClient == null || !inboundClient.isConnected()) {
+            return;
+        }
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "queue_status");
+        payload.addProperty("queued", queued);
+        payload.addProperty("world", world != null ? world : "");
+        inboundClient.send(payload);
+        VetsLogger.debug("Sent queue_status: queued={}, world={}", queued, world);
+    }
+
+    /**
      * Sends a message to the v1/inbound endpoint.
      *
      * @param type     one of "guild", "waitlist", "honourary"

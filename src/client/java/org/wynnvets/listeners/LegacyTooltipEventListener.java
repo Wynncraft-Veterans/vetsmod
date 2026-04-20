@@ -1,7 +1,10 @@
 package org.wynnvets.listeners;
 
 import com.wynntils.core.WynntilsMod;
+import com.wynntils.mc.event.InventoryKeyPressEvent;
 import com.wynntils.mc.event.ItemTooltipRenderEvent;
+import com.wynntils.utils.mc.McUtils;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -47,6 +50,30 @@ public final class LegacyTooltipEventListener {
       LegacyItemHandler.currentItemHasFoil =
           stack.hasFoil()
               && !org.wynnvets.items.ItemDefinitions.isEnchantExcludedItem(stack);
+    }
+  }
+
+  /**
+   * Detects when the Wynntils screenshot keybind is pressed in an inventory
+   * screen.  Sets a flag consumed by {@link LegacyScreenshotHandler} so the
+   * mixin can take its own screenshot after applying legacy modifications.
+   *
+   * <p>Wynntils processes this same event in {@code KeyBindManager} and
+   * passes it to {@code ItemScreenshotFeature.onInventoryPress}, which
+   * stores the slot for the next render frame.  By the time our mixin in
+   * {@code setTooltipForNextFrame} runs, the physical key state may already
+   * be released, so we capture the press here instead of polling.</p>
+   */
+  @SubscribeEvent
+  public void onInventoryKeyPress(InventoryKeyPressEvent event) {
+    for (KeyMapping km : McUtils.options().keyMappings) {
+      if (km.getName().contains("screenshotItem")) {
+        if (km.matches(event.getKeyEvent())) {
+          LegacyItemHandler.notifyScreenshotKeyPressed();
+          VetsLogger.info("Screenshot keybind press detected via InventoryKeyPressEvent");
+        }
+        return;
+      }
     }
   }
 }

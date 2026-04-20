@@ -1,5 +1,6 @@
 package org.wynnvets.items;
 
+import com.wynntils.core.components.Models;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -60,9 +61,11 @@ public class LegacyItemHandler {
 
   /**
    * Returns {@code true} if the current screen title matches a known menu that
-   * should never be treated as containing legacy items.
+   * should never be treated as containing legacy items, or if the player is in
+   * housing edit mode (where items are furniture, not real inventory items).
    */
   public static boolean isBlockedScreen() {
+    if (Models.Housing.isInEditMode()) return true;
     Screen screen = Minecraft.getInstance().screen;
     if (screen == null) return false;
     String title = ChatFormatting.stripFormatting(screen.getTitle().getString());
@@ -224,6 +227,31 @@ public class LegacyItemHandler {
    */
   public static List<Component> processTooltip(List<Component> tooltipLines) {
     return LegacyTooltipRenderer.processTooltip(tooltipLines);
+  }
+
+  /**
+   * If the last processed tooltip was legacy AND the Wynntils screenshot keybind
+   * is currently held, takes a legacy-aware screenshot of the given tooltip and
+   * copies it to the clipboard, overwriting Wynntils' pre-modification screenshot.
+   */
+  public static void screenshotIfRequested(net.minecraft.client.gui.Font font, List<Component> tooltip) {
+    boolean requested = LegacyScreenshotHandler.isScreenshotRequested();
+    if (requested) {
+      org.wynnvets.logging.VetsLogger.info(
+          "Screenshot key detected — lastProcessedWasLegacy={}, tooltipSize={}",
+          lastProcessedWasLegacy, tooltip.size());
+    }
+    if (lastProcessedWasLegacy && requested) {
+      LegacyScreenshotHandler.takeScreenshot(font, tooltip);
+    }
+  }
+
+  /**
+   * Called by {@link org.wynnvets.listeners.LegacyTooltipEventListener}
+   * when the Wynntils screenshot keybind is pressed in an inventory.
+   */
+  public static void notifyScreenshotKeyPressed() {
+    LegacyScreenshotHandler.screenshotKeyPressed = true;
   }
 
   /** Returns {@code true} if any tooltip line starts with "Misc. Item". */

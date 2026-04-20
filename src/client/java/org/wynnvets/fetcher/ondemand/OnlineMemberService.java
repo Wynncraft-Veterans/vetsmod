@@ -55,14 +55,14 @@ final class OnlineMemberService {
 
     // ── Data holders ────────────────────────────────────────────────
 
-    record ConnectedUser(String uuid, String username, String tier) {
+    record ConnectedUser(String uuid, String username, String tier, boolean queued) {
     }
 
     record OnlinePlayer(String username, String uuid, String tier) {
     }
 
     record GatherResult(List<OnlinePlayer> players, Set<String> modGuildUuids,
-                         boolean wynntilsAvailable) {
+                         Set<String> queuedUuids, boolean wynntilsAvailable) {
     }
 
     // ── Public API ──────────────────────────────────────────────────
@@ -142,7 +142,8 @@ final class OnlineMemberService {
                 String username = stringOrEmpty(obj, "username");
                 String tier = stringOrEmpty(obj, "tier");
                 if (!uuid.isEmpty() && !username.isEmpty()) {
-                    result.add(new ConnectedUser(uuid, username, tier));
+                    boolean queued = obj.has("queued") && obj.get("queued").getAsBoolean();
+                    result.add(new ConnectedUser(uuid, username, tier, queued));
                 }
             }
             return result;
@@ -166,6 +167,11 @@ final class OnlineMemberService {
 
         Set<String> modGuildUuids = modByUuid.values().stream()
                 .filter(cu -> TIER_GUILD.equals(cu.tier()))
+                .map(ConnectedUser::uuid)
+                .collect(Collectors.toSet());
+
+        Set<String> queuedUuids = modByUuid.values().stream()
+                .filter(ConnectedUser::queued)
                 .map(ConnectedUser::uuid)
                 .collect(Collectors.toSet());
 
@@ -259,7 +265,7 @@ final class OnlineMemberService {
             }
         }
 
-        return new GatherResult(result, modGuildUuids, guildInfo != null);
+        return new GatherResult(result, modGuildUuids, queuedUuids, guildInfo != null);
     }
 
     static String stringOrEmpty(JsonObject obj, String key) {

@@ -1,0 +1,4 @@
+accessWidener v2 named
+
+# For legacy item screenshot rendering (mirroring Wynntils' ItemScreenshotFeature)
+accessible field net/minecraft/client/renderer/GameRenderer fogRenderer Lnet/minecraft/client/renderer/fog/FogRenderer;

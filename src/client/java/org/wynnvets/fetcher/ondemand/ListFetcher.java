@@ -42,9 +42,26 @@ public final class ListFetcher {
   private static MutableComponent formatList(OnlineMemberService.GatherResult result) {
     List<OnlineMemberService.OnlinePlayer> players = result.players();
 
+    // Build a username→uuid lookup for queued checking.
+    java.util.Map<String, String> usernameToUuid = new java.util.HashMap<>();
+    for (OnlineMemberService.OnlinePlayer p : players) {
+      if (!p.uuid().isEmpty()) {
+        usernameToUuid.put(p.username(), p.uuid());
+      }
+    }
+
     List<String> withMod = players.stream()
         .filter(p -> OnlineMemberService.TIER_GUILD.equals(p.tier())
-                     && result.modGuildUuids().contains(p.uuid()))
+                     && result.modGuildUuids().contains(p.uuid())
+                     && !result.queuedUuids().contains(p.uuid()))
+        .map(OnlineMemberService.OnlinePlayer::username)
+        .sorted(String.CASE_INSENSITIVE_ORDER)
+        .collect(Collectors.toList());
+
+    List<String> withModQueued = players.stream()
+        .filter(p -> OnlineMemberService.TIER_GUILD.equals(p.tier())
+                     && result.modGuildUuids().contains(p.uuid())
+                     && result.queuedUuids().contains(p.uuid()))
         .map(OnlineMemberService.OnlinePlayer::username)
         .sorted(String.CASE_INSENSITIVE_ORDER)
         .collect(Collectors.toList());
@@ -90,6 +107,13 @@ public final class ListFetcher {
       msg.append(Component.literal("\nGuild — with VetsMod (" + withMod.size() + "):\n")
           .withStyle(ChatFormatting.GREEN));
       appendPlayerList(msg, withMod, ChatFormatting.AQUA, false);
+    }
+
+    // Guild with vetsmod, in queue
+    if (!withModQueued.isEmpty()) {
+      msg.append(Component.literal("\nGuild — in Queue (" + withModQueued.size() + "):\n")
+          .withStyle(ChatFormatting.GREEN));
+      appendPlayerList(msg, withModQueued, ChatFormatting.LIGHT_PURPLE, false);
     }
 
     // Guild without vetsmod

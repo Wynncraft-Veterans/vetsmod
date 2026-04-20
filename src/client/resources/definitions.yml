@@ -173,3 +173,4 @@ enchant_excluded_items:
 # display format (PUA in custom_name), the legacy name match is suppressed.
 new_format_override:
   - "(?i)^Skeleton Key$"
+  - "(?i)^Wolf Fang$"

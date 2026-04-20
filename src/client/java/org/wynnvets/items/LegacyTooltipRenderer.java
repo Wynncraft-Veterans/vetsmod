@@ -98,6 +98,7 @@ final class LegacyTooltipRenderer {
     // ── Guard clauses ──────────────────────────────────────────────────
     // Reset the flag that tells the mixin whether to apply the gold border.
     LegacyItemHandler.lastProcessedWasLegacy = false;
+
     if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return tooltipLines;
     if (tooltipLines.isEmpty()) return tooltipLines;
     if (LegacyItemHandler.isBlockedScreen()) return tooltipLines;
@@ -119,6 +120,13 @@ final class LegacyTooltipRenderer {
     if (plainText != null) {
       plainText = stripPercentSuffix(plainText);
     }
+
+    // Suppress name-based legacy checks for new-format items whose names
+    // also appear in the override list (items that exist in both old and new
+    // formats — when seen in new format, they are modern and not legacy).
+    boolean newFormatOverridden = !LegacyItemHandler.currentItemStack.isEmpty()
+        && LegacyItemHandler.isNewFormatItem(LegacyItemHandler.currentItemStack)
+        && plainText != null && ItemDefinitions.isNewFormatOverride(plainText);
 
     // ── Branch 1: Blank first-line fallback (Wynntils ItemStatInfoFeature) ──
     // Wynntils' ItemStatInfoFeature (when enabled) rebuilds identified-gear
@@ -151,7 +159,7 @@ final class LegacyTooltipRenderer {
     // ── Branch 2: Exact legacy name match (definitions section) ─────────
     // The item's normalized name matches a pattern in definitions.yml's
     // "definitions" section.  These are known legacy items by name.
-    if (plainText != null && ItemDefinitions.isLegacy(plainText)) {
+    if (!newFormatOverridden && plainText != null && ItemDefinitions.isLegacy(plainText)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
       if (tryNewFormatRewrite(modified, plainText)) {
         LegacyItemHandler.lastProcessedWasLegacy = true;
@@ -168,7 +176,7 @@ final class LegacyTooltipRenderer {
     // The item's name matches misc_definitions AND the tooltip contains a
     // "Misc. Item" rarity line.  Both conditions are required because misc
     // items can also exist as modern server items.
-    if (plainText != null && ItemDefinitions.isMiscLegacy(plainText) && LegacyItemHandler.hasMiscRarity(tooltipLines)) {
+    if (!newFormatOverridden && plainText != null && ItemDefinitions.isMiscLegacy(plainText) && LegacyItemHandler.hasMiscRarity(tooltipLines)) {
       List<Component> modified = new ArrayList<>(tooltipLines);
       if (tryNewFormatRewrite(modified, plainText)) {
         LegacyItemHandler.lastProcessedWasLegacy = true;

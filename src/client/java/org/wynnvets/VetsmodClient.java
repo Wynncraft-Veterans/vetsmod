@@ -18,6 +18,8 @@ import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.listeners.WynntilsEventListener;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.queue.QueueDetector;
+import org.wynnvets.queue.QueueStateListener;
+import org.wynnvets.queue.QueueStateManager;
 import org.wynnvets.rendering.territory.TerritoryLineRenderer;
 
 /**
@@ -58,6 +60,17 @@ public class VetsmodClient implements ClientModInitializer {
     ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
       WynntilsEventListener.register();
       QueueDetector.register();
+      QueueStateManager.addListener(new QueueStateListener() {
+        @Override
+        public void onQueueEntered(String worldName) {
+          V1ApiManager.sendQueueStatus(true, worldName);
+        }
+
+        @Override
+        public void onQueueExited(String reason) {
+          V1ApiManager.sendQueueStatus(false, "");
+        }
+      });
     });
     ItemDefinitions.load();
 

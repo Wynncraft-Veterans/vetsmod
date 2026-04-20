@@ -67,6 +67,9 @@ public class LegacyItemTooltipMixin {
         // END PATCH(old-server-compat)
         ((GuiGraphics) (Object) this)
             .setTooltipForNextFrame(font, modified, image, mouseX, mouseY, border);
+        // If Wynntils' screenshot keybind is held, take our own screenshot
+        // with the fully-modified legacy tooltip and overwrite the clipboard.
+        LegacyItemHandler.screenshotIfRequested(font, modified);
       } finally {
         vetsmod$processing = false;
       }
