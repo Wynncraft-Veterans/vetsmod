@@ -279,21 +279,25 @@ final class LegacyTooltipRenderer {
   }
 
   /**
-   * Attempts new-format (PUA) tooltip rewriting: restores the custom name
-   * (enchanted if applicable), recolours the emblem/frame line, and inserts
-   * the LEGACY box.
+   * Attempts new-format (PUA) tooltip rewriting: recolours the emblem/frame
+   * name line gold (with optional "Enchanted" prefix), and inserts the
+   * LEGACY box into the banner/box rarity line.
    *
-   * @return {@code true} if the new-format rewrite succeeded
+   * <p>Does <em>not</em> mutate line 0 by index. The Wynntils-default tooltip
+   * layout uses a customName placeholder at line 0 with the structured PUA
+   * name line at line 1; some third-party processors (e.g. wynnmod's
+   * {@code DecorateTooltipFeature}) regenerate the tooltip with the PUA name
+   * line promoted to line 0 and no placeholder. Both layouts are handled
+   * because {@code recolorNewFormatNameLine}, {@code applyEnchantedToNewFormatNameLine},
+   * and {@code insertLegacyBoxLine} all locate their target lines by font
+   * marker rather than by position.</p>
+   *
+   * @return {@code true} if the LEGACY box was inserted (the visible signal
+   *         that the new-format rewrite succeeded)
    */
   private static boolean tryNewFormatRewrite(List<Component> modified, String plainText) {
     if (!NewFormatRenderer.isNewFormatItem(modified)) return false;
     boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
-    Component customName = LegacyItemHandler.currentItemStack.get(DataComponents.CUSTOM_NAME);
-    if (customName != null) {
-      modified.set(0, enchanted
-          ? NewFormatRenderer.deepEnchantName(customName, plainText, TextColor.fromLegacyFormat(ChatFormatting.GOLD))
-          : customName);
-    }
     if (enchanted) {
       NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
     } else {

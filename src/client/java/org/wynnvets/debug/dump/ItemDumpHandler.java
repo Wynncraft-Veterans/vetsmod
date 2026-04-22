@@ -5,13 +5,20 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import java.util.LinkedHashSet;
+import java.util.Optional;
+import java.util.Set;
 import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
@@ -42,6 +49,18 @@ import java.util.List;
  */
 public final class ItemDumpHandler {
 
+    /**
+     * Dump format version. Bump whenever the JSON schema changes in a way
+     * that would break diff tooling or analysis scripts.
+     *
+     * <ul>
+     *   <li><b>1</b> — initial version (unversioned in file; inferred when absent)</li>
+     *   <li><b>2</b> — adds {@code dumpFormatVersion}, {@code loadedMods},
+     *       {@code freshTooltip}, {@code capturedTooltip}, {@code newFormatProbes}</li>
+     * </ul>
+     */
+    public static final int DUMP_FORMAT_VERSION = 2;
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
     private static final Path DUMP_DIR = FabricLoader.getInstance().getGameDir().resolve("vetsmod/dumps");
@@ -69,12 +88,22 @@ public final class ItemDumpHandler {
 
         LocalDateTime now = LocalDateTime.now();
         root.addProperty("dumpTime", now.toString());
+        root.addProperty("dumpFormatVersion", DUMP_FORMAT_VERSION);
 
         // Version info
         root.addProperty("vetsmodVersion", getModVersion("vetsmod"));
         root.addProperty("mcVersion", getModVersion("minecraft"));
         root.addProperty("wynntilsVersion", getModVersion("wynntils"));
         root.addProperty("fabricLoaderVersion", getModVersion("fabricloader"));
+        root.addProperty("wynnmodVersion", getModVersion("wynnmod"));
+
+        // All loaded mods (id -> version). Useful for correlating tooltip
+        // anomalies to specific third-party mods.
+        JsonObject mods = new JsonObject();
+        for (ModContainer mc : FabricLoader.getInstance().getAllMods()) {
+            mods.addProperty(mc.getMetadata().getId(), mc.getMetadata().getVersion().getFriendlyString());
+        }
+        root.add("loadedMods", mods);
 
         // Item basics
         String registryId = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
@@ -211,6 +240,52 @@ public final class ItemDumpHandler {
         }
         root.add("lore_codepoints", loreCp);
 
+        // ── Tooltip captures ──────────────────────────────────────────────
+        //
+        // Two views of the rendered tooltip line list:
+        //
+        //  - freshTooltip    : built right now via Screen.getTooltipFromItem.
+        //                      Fires Wynntils tooltip events (post-Wynntils),
+        //                      but does NOT trigger render-time wraps such as
+        //                      wynnmod's LowAbstractContainerScreenMixin
+        //                      because we are not inside renderTooltip's call
+        //                      chain to setTooltipForNextFrame.
+        //                      → "pre-wynnmod" view.
+        //
+        //  - capturedTooltip : recorded by LegacyItemTooltipMixin the last time
+        //                      it ran. The mixin fires from inside the inner
+        //                      setTooltipForNextFrame, after wynnmod's wrap has
+        //                      replaced the list via event.setText(...).
+        //                      → "post-wynnmod" view.
+        //
+        // Diffing the two cleanly fingerprints any third-party tooltip
+        // rewrite (wynnmod, future processors, etc.).
+        root.add("freshTooltip", buildFreshTooltipDump(stack));
+        root.add("capturedTooltip", buildCapturedTooltipDump(stack));
+
+        // NewFormatRenderer probes against the fresh tooltip — surface the
+        // exact predicates the legacy renderer uses for branch selection.
+        JsonObject probes = new JsonObject();
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.screen != null) {
+                List<Component> fresh = Screen.getTooltipFromItem(mc, stack);
+                probes.addProperty("freshLineCount", fresh.size());
+                probes.addProperty("isNewFormatItem", containsNewFormatFont(fresh));
+                if (!fresh.isEmpty()) {
+                    probes.addProperty("freshLine0_equalsCustomName",
+                            customName != null && fresh.get(0).getString().equals(customName.getString()));
+                    probes.addProperty("freshLine0_equalsHoverName",
+                            fresh.get(0).getString().equals(hoverName.getString()));
+                }
+            } else {
+                probes.addProperty("unavailable", "no screen open");
+            }
+        } catch (Throwable t) {
+            probes.addProperty("error", t.toString());
+        }
+        root.add("newFormatProbes", probes);
+
         // Build filename: Name_YYYYMMDD_HHmmss_SSS_nanos.json
         String safeName = plainName != null ? plainName.replaceAll("[^a-zA-Z0-9_]", "_") : "Unknown";
         if (safeName.length() > 40) safeName = safeName.substring(0, 40);
@@ -305,5 +380,132 @@ public final class ItemDumpHandler {
                 .getModContainer(modId)
                 .map(mod -> mod.getMetadata().getVersion().getFriendlyString())
                 .orElse("not found");
+    }
+
+    // ── Tooltip-line dumping ─────────────────────────────────────────
+
+    /**
+     * Builds a fresh tooltip via {@link Screen#getTooltipFromItem} and
+     * serializes each line. Returns a JsonObject with status info and an
+     * array of line dumps. The fresh tooltip is post-Wynntils-events but
+     * pre-render-time wraps (so it bypasses wynnmod's decoration).
+     */
+    private static JsonObject buildFreshTooltipDump(ItemStack stack) {
+        JsonObject obj = new JsonObject();
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) {
+            obj.addProperty("status", "no Minecraft instance");
+            return obj;
+        }
+        if (mc.screen == null) {
+            obj.addProperty("status", "no screen open (Screen.getTooltipFromItem requires a screen for context)");
+            return obj;
+        }
+        try {
+            List<Component> fresh = Screen.getTooltipFromItem(mc, stack);
+            obj.addProperty("status", "ok");
+            obj.addProperty("lineCount", fresh.size());
+            obj.add("lines", dumpComponentLines(fresh));
+        } catch (Throwable t) {
+            obj.addProperty("status", "error");
+            obj.addProperty("error", t.toString());
+        }
+        return obj;
+    }
+
+    /**
+     * Serializes the most recent capture from {@link TooltipCapture}, with
+     * staleness flags and the metadata recorded at capture time.
+     */
+    private static JsonObject buildCapturedTooltipDump(ItemStack stack) {
+        JsonObject obj = new JsonObject();
+        if (!TooltipCapture.hasCapture()) {
+            obj.addProperty("status", "no capture recorded yet (hover a tooltip first)");
+            return obj;
+        }
+        long ageNanos = System.nanoTime() - TooltipCapture.capturedAtNanos();
+        obj.addProperty("status", "ok");
+        obj.addProperty("ageMillis", ageNanos / 1_000_000L);
+        obj.addProperty("capturedStackMatchesDumpedStack",
+                ItemStack.isSameItemSameComponents(TooltipCapture.capturedStack(), stack));
+        obj.addProperty("processed", TooltipCapture.processed());
+        obj.addProperty("reentryGuardActive", TooltipCapture.reentryGuardActive());
+        Identifier border = TooltipCapture.borderIdentifier();
+        obj.addProperty("borderIdentifier", border != null ? border.toString() : null);
+        obj.addProperty("lastProcessedWasLegacyAfter", TooltipCapture.lastProcessedWasLegacyAfter());
+
+        List<Component> input = TooltipCapture.inputSnapshot();
+        List<Component> output = TooltipCapture.outputSnapshot();
+        obj.addProperty("inputLineCount", input.size());
+        obj.addProperty("outputLineCount", output.size());
+        obj.addProperty("outputIsSameInstance", TooltipCapture.inputOutputSameInstance());
+        obj.add("inputLines", dumpComponentLines(input));
+        // Avoid duplicating the giant tree when no rewrite happened.
+        if (input != output) {
+            obj.add("outputLines", dumpComponentLines(output));
+        }
+        return obj;
+    }
+
+    /**
+     * Dumps a list of components as an array of per-line objects, each with
+     * raw text, formatted text, codepoint string, font usage summary, and
+     * the full component tree.
+     */
+    private static JsonArray dumpComponentLines(List<Component> lines) {
+        JsonArray arr = new JsonArray();
+        for (int i = 0; i < lines.size(); i++) {
+            Component line = lines.get(i);
+            JsonObject lineObj = new JsonObject();
+            lineObj.addProperty("index", i);
+            lineObj.addProperty("raw", line.getString());
+            lineObj.addProperty("formatted", formatComponentWithCodes(line));
+            lineObj.addProperty("codepoints", toCodepointString(line.getString()));
+            lineObj.add("fonts", collectFontsAsArray(line));
+            lineObj.add("tree", componentToJson(line));
+            arr.add(lineObj);
+        }
+        return arr;
+    }
+
+    /**
+     * Walks a Component tree and collects every distinct font identifier
+     * encountered (including the implicit minecraft:default for unstyled
+     * nodes). Order is insertion order to make diffs stable.
+     */
+    private static JsonArray collectFontsAsArray(Component root) {
+        Set<String> fonts = new LinkedHashSet<>();
+        root.visit((Style style, String text) -> {
+            FontDescription fd = style.getFont();
+            fonts.add(fd != null ? fd.toString() : "<inherited>");
+            return Optional.empty();
+        }, Style.EMPTY);
+        JsonArray arr = new JsonArray();
+        for (String f : fonts) arr.add(f);
+        return arr;
+    }
+
+    /**
+     * Mirrors {@code NewFormatRenderer.isNewFormatItem} without coupling
+     * the dump command to that package-private class. Returns true if any
+     * line uses the {@code tooltip/emblem/frame} or {@code banner/box}
+     * fonts (the markers Wynncraft's new tooltip format relies on).
+     */
+    private static boolean containsNewFormatFont(List<Component> lines) {
+        for (Component line : lines) {
+            boolean[] hit = {false};
+            line.visit((Style style, String text) -> {
+                FontDescription fd = style.getFont();
+                if (fd == null) return Optional.empty();
+                String s = fd.toString();
+                if (s.contains("tooltip/emblem/frame") || s.contains("banner/box")) {
+                    hit[0] = true;
+                    return Optional.of(Boolean.TRUE);
+                }
+                return Optional.empty();
+            }, Style.EMPTY);
+            if (hit[0]) return true;
+        }
+        return false;
     }
 }

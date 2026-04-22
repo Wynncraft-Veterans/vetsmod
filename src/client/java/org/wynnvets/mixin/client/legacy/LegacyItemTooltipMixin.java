@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.wynnvets.debug.dump.TooltipCapture;
 import org.wynnvets.items.LegacyItemHandler;
 
 /**
@@ -52,7 +53,19 @@ public class LegacyItemTooltipMixin {
       int mouseY,
       Identifier background,
       CallbackInfo ci) {
-    if (vetsmod$processing) return;
+    boolean reentry = vetsmod$processing;
+    if (reentry) {
+      TooltipCapture.record(
+          false,
+          LegacyItemHandler.currentItemStack,
+          components,
+          components,
+          false,
+          true,
+          background,
+          LegacyItemHandler.lastProcessedWasLegacy);
+      return;
+    }
 
     List<Component> modified = LegacyItemHandler.processTooltip(components);
     if (modified != components) {
@@ -65,6 +78,15 @@ public class LegacyItemTooltipMixin {
             ? LegacyItemHandler.LEGACY_BORDER
             : background;
         // END PATCH(old-server-compat)
+        TooltipCapture.record(
+            true,
+            LegacyItemHandler.currentItemStack,
+            components,
+            modified,
+            true,
+            false,
+            border,
+            LegacyItemHandler.lastProcessedWasLegacy);
         ((GuiGraphics) (Object) this)
             .setTooltipForNextFrame(font, modified, image, mouseX, mouseY, border);
         // If Wynntils' screenshot keybind is held, take our own screenshot
@@ -73,6 +95,16 @@ public class LegacyItemTooltipMixin {
       } finally {
         vetsmod$processing = false;
       }
+    } else {
+      TooltipCapture.record(
+          true,
+          LegacyItemHandler.currentItemStack,
+          components,
+          components,
+          false,
+          false,
+          background,
+          LegacyItemHandler.lastProcessedWasLegacy);
     }
   }
 }

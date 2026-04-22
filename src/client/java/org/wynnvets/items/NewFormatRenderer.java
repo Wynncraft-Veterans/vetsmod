@@ -93,11 +93,15 @@ final class NewFormatRenderer {
 
   /**
    * Recolors the new-format emblem/wynncraft-font name line to gold,
-   * targeting the literal node containing the item name.
+   * targeting the literal node containing the item name. Scans from line 0
+   * so wynnmod-decorated layouts (which promote the emblem/frame line to
+   * index 0) are handled identically to the Wynntils-default layout (which
+   * keeps a customName placeholder at index 0 and the emblem/frame line at
+   * index 1).
    */
   static void recolorNewFormatNameLine(List<Component> lines, String itemName) {
     TextColor gold = TextColor.fromLegacyFormat(ChatFormatting.GOLD);
-    for (int i = 1; i < lines.size(); i++) {
+    for (int i = 0; i < lines.size(); i++) {
       if (containsFont(lines.get(i), EMBLEM_FRAME_FONT)) {
         lines.set(i, deepRecolorName(lines.get(i), itemName, gold));
         return;
@@ -129,10 +133,14 @@ final class NewFormatRenderer {
   /**
    * Modifies the new-format emblem/frame name line to show
    * "Enchanted [name]" in yellow, preserving font structure and PUA spacing.
+   * Scans from line 0 so wynnmod-decorated layouts (which promote the
+   * emblem/frame line to index 0) are handled identically to the
+   * Wynntils-default layout (which keeps a customName placeholder at
+   * index 0 and the emblem/frame line at index 1).
    */
   static void applyEnchantedToNewFormatNameLine(List<Component> lines, String itemName) {
     TextColor gold = TextColor.fromLegacyFormat(ChatFormatting.GOLD);
-    for (int i = 1; i < lines.size(); i++) {
+    for (int i = 0; i < lines.size(); i++) {
       if (containsFont(lines.get(i), EMBLEM_FRAME_FONT)) {
         VetsLogger.debug("applyEnchantedToNewFormatNameLine: found emblem/frame at line {}, itemName='{}'", i, itemName);
         Component before = lines.get(i);
@@ -186,7 +194,7 @@ final class NewFormatRenderer {
    * search (direct child → symbol-sibling heuristic → recursive descent).</p>
    */
   static boolean insertLegacyBoxLine(List<Component> lines) {
-    for (int i = 1; i < lines.size(); i++) {
+    for (int i = 0; i < lines.size(); i++) {
       if (containsFont(lines.get(i), BANNER_BOX_FONT)) {
         MutableComponent lineCopy = mutableDeepCopy(lines.get(i));
         if (insertLegacyIntoTree(lineCopy)) {
