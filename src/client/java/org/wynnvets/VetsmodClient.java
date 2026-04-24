@@ -10,6 +10,7 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.debug.DebugConfigManager;
 import org.wynnvets.debug.dump.DebugKeyHandler;
 import org.wynnvets.fetcher.polling.GuildRosterCache;
+import org.wynnvets.fetcher.polling.WynnAliasCache;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.guild.GuildStateManager;
@@ -79,6 +80,7 @@ public class VetsmodClient implements ClientModInitializer {
     SupportersPoller.start();
     StaffRanksPoller.start();
     GuildRosterCache.start();
+    WynnAliasCache.start();
     ServerConnectionListener.register();
     TerritoryLineRenderer.register();
     DebugKeyHandler.register();

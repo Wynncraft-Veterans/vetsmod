@@ -44,6 +44,9 @@ public final class VetsApi {
     /** GET the full guild UUID→current-username mapping (resolved via Minecraft Services API). */
     public static final URI ROSTER = URI.create("https://api.wynnvets.org/v1/outbound/roster");
 
+    /** GET stale-Wynncraft-name → UUID aliases for renamed players. */
+    public static final URI ALIASES = URI.create("https://api.wynnvets.org/v1/outbound/aliases");
+
     // ── External links ────────────────────────────────────────────────
 
     /** Link to the WynnVets annihilation schedule page. */
