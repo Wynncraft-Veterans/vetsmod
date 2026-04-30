@@ -20,6 +20,7 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.queue.QueueStateManager;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -157,6 +158,12 @@ public final class WynntilsEventListener {
         if (ChatUtils.isInternalDispatch()) {
             VetsLogger.debug("onGuildChat: skipping internal dispatch");
             return;
+        }
+
+        // Server-native guild chat only arrives on a real game world, never in
+        // a Wynncraft queue. Clear queue state immediately if still set.
+        if (QueueStateManager.isInQueue()) {
+            QueueStateManager.exit("guild_message");
         }
 
         StyledText styledMessage = event.getMessage();
