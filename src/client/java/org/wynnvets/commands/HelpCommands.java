@@ -290,6 +290,11 @@ final class HelpCommands {
         .withStyle(ChatFormatting.DARK_GRAY));
     msg.append(Component.literal("  command queue and reports state to chat.\n")
         .withStyle(ChatFormatting.DARK_GRAY));
+    msg.append(Component.literal("/wv debug trigger tabDump\n").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal("  Dump the raw tab list to chat, split into labelled\n")
+        .withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("  columns, then show parsed guild members.\n")
+        .withStyle(ChatFormatting.DARK_GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
     ChatUtils.sendLocalMessage(msg);
