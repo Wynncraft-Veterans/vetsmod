@@ -37,7 +37,10 @@ public final class TerritoryLineManager {
     /** Maps command alias → Wynncraft territory name. */
     private static final Map<String, String> LINE_ALIASES = Map.of(
             "church", "Forest of Eyes",
-            "scrap", "Corkus Sea Cove"
+            "scrap", "Corkus Sea Cove",
+            "bat", "Royal Barracks",
+            "fox", "Fort Hegea",
+            "lighthouse", "Contested District"
     );
 
     /** Active toggle state per alias. */
@@ -52,7 +55,7 @@ public final class TerritoryLineManager {
     /**
      * Toggle the display of a territory boundary line.
      *
-     * @param alias the shorthand name ("church" or "scrap")
+     * @param alias the shorthand name ("church", "scrap", "bat", "fox", or "lighthouse")
      */
     public static void toggle(String alias) {
         String territoryName = LINE_ALIASES.get(alias);
