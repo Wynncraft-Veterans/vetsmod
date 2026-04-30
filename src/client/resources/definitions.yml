@@ -8,6 +8,7 @@ unenchanted:
   - "^.*Mythic Everlasting Pufferfish.*$"
   - "^Shiny .*"
   - "^.*Transcriber$"
+  - "^.*The Axe of Llevigar$"
 ---
 definitions:
   - "(?i)^.*Boat Pass$"
