@@ -148,6 +148,15 @@ final class LegacyTooltipRenderer {
       boolean isNew = NewFormatRenderer.isNewFormatItem(modified);
       boolean isLeg = LegacyItemHandler.isLegacyItem(LegacyItemHandler.currentItemStack);
       if (isNew && isLeg) {
+        boolean enchanted = LegacyItemHandler.currentItemHasFoil
+            && plainText != null && !ItemDefinitions.isUnenchanted(plainText);
+        if (plainText != null) {
+          if (enchanted) {
+            NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
+          } else {
+            NewFormatRenderer.recolorNewFormatNameLine(modified, plainText);
+          }
+        }
         if (NewFormatRenderer.insertLegacyBoxLine(modified)) {
           LegacyItemHandler.lastProcessedWasLegacy = true;
           return modified;
