@@ -22,7 +22,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap; // LEGACY-NAME-PATCH
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -200,28 +199,9 @@ final class OnlineMemberService {
             usernameToUuid.putIfAbsent(cu.username().toLowerCase(Locale.ROOT), cu.uuid());
         }
 
-        // v3.8 legacyName: the server's GuildRosterPoller reads legacyName from the
-        // guild payload and populates /v1/outbound/aliases.  WynnAliasCache polls that
-        // endpoint, so WynnAliasCache.getUuid() in the first loop below resolves all
-        // renamed players without any change on this side.
-        //
-        // Once v3.8 is confirmed stable, remove the LEGACY-NAME-PATCH begin/end block
-        // below (the per-server correlation fallback) and its HashMap import.
-        // WynnAliasCache, VetsApi.ALIASES, and WynnAliasCache.start() all stay.
-        //
-        // Optional further cleanup if Wynntils ever exposes GuildMemberInfo#legacyName():
-        // replace WynnAliasCache.getUuid() in the first loop with this, and then
-        // WynnAliasCache + the server alias infrastructure can also be removed.
-        //
-        // if (guildInfo != null) {
-        //     for (GuildMemberInfo m : guildInfo.guildMembers()) {
-        //         String legacy = m.legacyName();
-        //         if (legacy != null && !legacy.isEmpty()) {
-        //             usernameToUuid.putIfAbsent(
-        //                     legacy.toLowerCase(Locale.ROOT), m.uuid().toString());
-        //         }
-        //     }
-        // }
+        // Renamed players: the server's GuildRosterPoller reads legacyName from the
+        // v3.8 guild payload and populates /v1/outbound/aliases; WynnAliasCache polls
+        // that endpoint, so WynnAliasCache.getUuid() below resolves stale tab names.
 
         // Collect online guild member UUIDs from the Wynncraft API.
         Set<String> apiOnlineUuids = new TreeSet<>();
@@ -237,64 +217,22 @@ final class OnlineMemberService {
         Set<String> mergedOnlineGuild = new TreeSet<>(apiOnlineUuids);
         mergedOnlineGuild.addAll(modGuildUuids);
 
-        // LEGACY-NAME-PATCH begin ── stale rename workaround; see skeleton above ──
         // Tab list entries: resolve to UUID by current username, falling back to
-        // per-server correlation against the API online list. Wynncraft's server-
-        // side tab list can show stale names (frozen when a player renamed on
-        // Mojang), while the v3 guild API returns the current name — so direct
-        // name-matching fails for renamed users. When exactly one API member on
-        // a server is unclaimed after name matching, pair it with the unresolved
-        // tab entry on that server (their Wynncraft-stale alias).
-        Map<String, List<String>> unclaimedApiByServer = new HashMap<>();
-        if (guildInfo != null) {
-            for (GuildMemberInfo m : guildInfo.guildMembers()) {
-                if (!m.online() || m.server() == null || m.server().isEmpty()) continue;
-                unclaimedApiByServer.computeIfAbsent(
-                        m.server().toUpperCase(Locale.ROOT),
-                        k -> new ArrayList<>()).add(m.uuid().toString());
-            }
-        }
-
-        List<TabListGuildParser.GuildEntry> unmatchedTabs = new ArrayList<>();
+        // the server-learned legacyName alias (v3.8 populates WynnAliasCache via
+        // /v1/outbound/aliases).  Unresolved names are kept as tab-only entries.
+        Set<String> tabOnlyUsernames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         for (TabListGuildParser.GuildEntry entry : tabEntries) {
             String key = entry.username().toLowerCase(Locale.ROOT);
             String uuid = usernameToUuid.get(key);
             if (uuid == null) {
-                // Server-learned alias (tab list shows Wynncraft's stale name).
                 uuid = WynnAliasCache.getUuid(entry.username());
             }
             if (uuid != null) {
                 mergedOnlineGuild.add(uuid);
-                List<String> slot = unclaimedApiByServer.get(entry.server().toUpperCase(Locale.ROOT));
-                if (slot != null) slot.remove(uuid);
             } else {
-                unmatchedTabs.add(entry);
+                tabOnlyUsernames.add(entry.username());
             }
         }
-
-        Set<String> tabOnlyUsernames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        Map<String, List<TabListGuildParser.GuildEntry>> unmatchedByServer = new HashMap<>();
-        for (TabListGuildParser.GuildEntry entry : unmatchedTabs) {
-            unmatchedByServer.computeIfAbsent(
-                    entry.server().toUpperCase(Locale.ROOT),
-                    k -> new ArrayList<>()).add(entry);
-        }
-        for (Map.Entry<String, List<TabListGuildParser.GuildEntry>> e : unmatchedByServer.entrySet()) {
-            List<TabListGuildParser.GuildEntry> tabs = e.getValue();
-            List<String> candidates = unclaimedApiByServer.getOrDefault(e.getKey(), List.of());
-            if (tabs.size() == 1 && candidates.size() == 1) {
-                String uuid = candidates.get(0);
-                mergedOnlineGuild.add(uuid);
-                VetsLogger.debug("Tab-list stale-name correlation: [{}] {} -> {} ({})",
-                        e.getKey(), tabs.get(0).username(),
-                        uuidToUsername.getOrDefault(uuid, uuid), uuid);
-            } else {
-                for (TabListGuildParser.GuildEntry t : tabs) {
-                    tabOnlyUsernames.add(t.username());
-                }
-            }
-        }
-        // LEGACY-NAME-PATCH end ────────────────────────────────────────────────
 
         // Build the result list.
         List<OnlinePlayer> result = new ArrayList<>();
