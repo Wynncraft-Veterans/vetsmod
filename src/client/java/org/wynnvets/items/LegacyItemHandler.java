@@ -213,7 +213,7 @@ public class LegacyItemHandler {
 
   static final Pattern RARITY_PATTERN =
       Pattern.compile(
-        "^(Mythic|Fabled|Set|Legendary|Rare|Unique|Normal|Junk|Misc\\.|Crafting) Item(?: (\\[\\d+\\]))?$");
+        "^(Mythic|Fabled|Set|Legendary|Rare|Unique|Normal|Junk|Misc\\.|Crafting) [Ii]tem(?: (\\[\\d+\\]))?$");
 
   private static final Pattern LV_MIN_PATTERN = Pattern.compile("^Lv\\.? min: \\d+$");
 
@@ -272,11 +272,11 @@ public class LegacyItemHandler {
     return false;
   }
 
-  /** Returns {@code true} if any tooltip line reads "Crafting Item". */
+  /** Returns {@code true} if any tooltip line reads "Crafting Item" or "Crafting item". */
   public static boolean hasCraftingRarity(List<Component> lines) {
     for (Component line : lines) {
       String plain = ChatFormatting.stripFormatting(line.getString());
-      if ("Crafting Item".equals(plain)) return true;
+      if ("Crafting Item".equalsIgnoreCase(plain)) return true;
     }
     return false;
   }
