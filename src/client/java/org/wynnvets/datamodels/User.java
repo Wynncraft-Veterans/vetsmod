@@ -27,11 +27,11 @@ public class User {
   }
 
   public String getFirstJoinDate() {
-    return String.format("%s", firstJoin.split("T")[0]);
+    return firstJoin == null ? null : firstJoin.split("T")[0];
   }
 
   public String getLastJoinDate() {
-    return String.format("%s", lastJoin.split("T")[0]);
+    return lastJoin == null ? null : lastJoin.split("T")[0];
   }
 
   public boolean isInVets() {

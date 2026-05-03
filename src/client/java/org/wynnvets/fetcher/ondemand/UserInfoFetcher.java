@@ -221,8 +221,12 @@ public class UserInfoFetcher {
             return returnersCheckFuture.thenApply(isInReturners -> {
               StringBuilder sb = new StringBuilder();
               sb.append(String.format("%s's automated eligibility: [TODO]", user.getUsername()));
-              sb.append(String.format("\nThis account joined on: %s", user.getFirstJoinDate()));
-              sb.append(String.format("\nThis account was last seen on: %s", toRelativeDateLabel(user.getLastJoinDate())));
+              String firstJoin = user.getFirstJoinDate();
+              String lastJoin = user.getLastJoinDate();
+              sb.append(String.format("\nThis account joined on: %s",
+                  firstJoin != null ? firstJoin : "unknown (profile private)"));
+              sb.append(String.format("\nThis account was last seen on: %s",
+                  lastJoin != null ? toRelativeDateLabel(lastJoin) : "unknown (profile private)"));
 
               // User's current guild information. If player API says vets, verify against
               // the Returners roster endpoint; missing UUID means guildless.
