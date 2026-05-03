@@ -41,6 +41,12 @@ public final class ChatUtils {
     /** Style used for the display-name portion of guild chat. */
     public static final Style NAME_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
 
+    /** Style used for the rank pill / separator / message body of honourary chat. */
+    public static final Style HONOURARY_RANK_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
+
+    /** Style used for the display-name portion of honourary chat. */
+    public static final Style HONOURARY_NAME_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
+
     /** Red style used for admin-locked guild message body text. */
     public static final Style ADMIN_RANK_STYLE = Style.EMPTY.withColor(ChatFormatting.RED);
 
@@ -146,6 +152,48 @@ public final class ChatUtils {
         body.append(Component.literal(displayName).setStyle(NAME_STYLE))
                 .append(Component.literal(": ").setStyle(RANK_STYLE))
             .append(formatMessageBody(message, RANK_STYLE));
+
+        MutableComponent full = Component.empty()
+                .append(badge)
+                .append(body);
+
+        Style badgeStyle = badge.getStyle();
+        if (isSupporter) {
+            dispatchAnimatedChat(full, badgeStyle);
+        } else {
+            dispatchToChat(full, badgeStyle);
+        }
+    }
+
+    /**
+     * Sends an honourary-chat–style message:
+     * {@code &9<guild badge> &3<rank> &b<displayName>&3: <message>}.
+     *
+     * <p>Used for outgoing {@code /wg} echoes and for inbound messages with
+     * {@code type="honourary"}.  The badge uses the {@code U+E013} glyph
+     * instead of the regular {@code U+E006}, and the colour scheme inverts
+     * the rank/name relationship so honourary chat is distinguishable from
+     * Returners guild chat.</p>
+     */
+    public static void sendHonouraryChatMessage(String rank, String displayName, String message) {
+        MutableComponent badge = Prepend.GUILD_HONOURARY.get();
+        String normalizedRank = rank == null ? "" : rank.trim();
+
+        String pillText = normalizedRank.isEmpty() ? "" : encodePillIfAscii(normalizedRank);
+
+        MutableComponent body = Component.empty();
+
+        boolean isSupporter = !pillText.isEmpty()
+            && SupportersPoller.isSupporter(displayName);
+
+        if (!pillText.isEmpty()) {
+            body.append(PillFormatter.formatPill(pillText, displayName, HONOURARY_RANK_STYLE, isSupporter))
+                    .append(" ");
+        }
+
+        body.append(Component.literal(displayName).setStyle(HONOURARY_NAME_STYLE))
+                .append(Component.literal(": ").setStyle(HONOURARY_RANK_STYLE))
+                .append(formatMessageBody(message, HONOURARY_RANK_STYLE));
 
         MutableComponent full = Component.empty()
                 .append(badge)

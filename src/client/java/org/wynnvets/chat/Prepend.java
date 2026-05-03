@@ -32,6 +32,19 @@ public enum Prepend {
                             .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
                             .withColor(ChatFormatting.AQUA)
                             .withoutShadow())),
+    GUILD_HONOURARY(
+            Component.literal("\uDAFF\uDFFC\uE013\uDAFF\uDFFF\uE002\uDAFF\uDFFE")
+                    .append(" ")
+                    .setStyle(Style.EMPTY
+                            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+                            .withColor(ChatFormatting.BLUE)
+                            .withoutShadow()),
+            Component.literal("\uDAFF\uDFFC\uE001\uDB00\uDC06")
+                    .append(" ")
+                    .setStyle(Style.EMPTY
+                            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+                            .withColor(ChatFormatting.BLUE)
+                            .withoutShadow())),
     EMPTY(
             Component.empty());
 

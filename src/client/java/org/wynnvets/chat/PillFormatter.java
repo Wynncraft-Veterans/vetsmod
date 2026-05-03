@@ -64,7 +64,7 @@ public final class PillFormatter {
         return formatPill(pillText, username, baseStyle, SupportersPoller.isSupporter(username));
     }
 
-    private static MutableComponent formatPill(String pillText, String username, Style baseStyle, boolean isSupporter) {
+    public static MutableComponent formatPill(String pillText, String username, Style baseStyle, boolean isSupporter) {
         // ── Supporter ──────────────────────────────────────────────────
         // Only apply gradient styling when the user has supporter glints enabled.
         if (isSupporter

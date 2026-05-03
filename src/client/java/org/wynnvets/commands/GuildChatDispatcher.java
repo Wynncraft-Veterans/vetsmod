@@ -316,7 +316,7 @@ public final class GuildChatDispatcher {
 
     String username = resolveUsername(minecraft);
     OutboundDisplayHandler.queuePendingSelfMessage(username, message);
-    ChatUtils.sendGuildChatMessage(HONOURARY_SELF_RANK, username, message);
+    ChatUtils.sendHonouraryChatMessage(HONOURARY_SELF_RANK, username, message);
     V1ApiManager.sendInbound("honourary", "Honourary", username, message);
   }
 

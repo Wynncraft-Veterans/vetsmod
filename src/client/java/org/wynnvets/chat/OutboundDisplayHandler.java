@@ -180,7 +180,11 @@ public final class OutboundDisplayHandler {
             return;
         }
 
-        ChatUtils.sendGuildChatMessage(rank, username, message);
+        if (GuildStateManager.isHonouraryUnlocked()) {
+            ChatUtils.sendHonouraryChatMessage(rank, username, message);
+        } else {
+            ChatUtils.sendGuildChatMessage(rank, username, message);
+        }
     }
 
     private static boolean shouldDisplayMessages() {
