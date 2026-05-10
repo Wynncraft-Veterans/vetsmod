@@ -57,11 +57,20 @@ public final class RankChangeListener {
      * We widen Wynntils' regex to also capture the actor and old rank
      * (Wynntils only captures target+toRank since it just tracks the local
      * player's own rank).</p>
+     *
+     * <p><b>Alternation order matters.</b> Java regex alternation is
+     * left-to-right-first-match, and this pattern has no {@code $} anchor
+     * (we want to tolerate trailing styled codes after the new rank). So
+     * {@code Recruiter} MUST come before {@code Recruit}, otherwise a real
+     * {@code Recruit → Recruiter} promotion would partial-match as
+     * {@code Recruit → Recruit} (group 4 would capture "Recruit") and be
+     * misclassified as a KICK notice. Wynntils' upstream regex hides this
+     * with a {@code $} anchor that forces backtracking; we do not.</p>
      */
     private static final Pattern PATTERN = Pattern.compile(
             "§b(?:|) (\\w{1,16}) has set (\\w{1,16}) guild rank "
-                    + "from §3(?: )?(Recruit|Recruiter|Captain|Strategist|Chief|Owner)"
-                    + "§b to §3(?: )?(Recruit|Recruiter|Captain|Strategist|Chief|Owner)"
+                    + "from §3(?: )?(Recruiter|Recruit|Captain|Strategist|Chief|Owner)"
+                    + "§b to §3(?: )?(Recruiter|Recruit|Captain|Strategist|Chief|Owner)"
     );
 
     private static final long DEDUP_TTL_MS = TimeUnit.SECONDS.toMillis(30);
