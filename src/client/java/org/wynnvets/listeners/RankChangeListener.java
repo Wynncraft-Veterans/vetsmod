@@ -28,17 +28,20 @@ import java.util.regex.Pattern;
  * that also captures the actor and old rank, then classifies the event:</p>
  *
  * <ul>
- *   <li><b>ban</b> — {@code from ∈ {Captain, Strategist, Chief, Owner}} and
- *       {@code to = Recruit}. Senior member dropped to recruit; alert staff.</li>
+ *   <li><b>ban</b> — {@code from ∈ {Recruiter, Captain, Strategist, Chief, Owner}}
+ *       and {@code to = Recruit}. Any non-trivial demotion to recruit is a
+ *       ban request: the captain who set this is asking admins to remove
+ *       the player.</li>
  *   <li><b>kick</b> — {@code from = Recruit} and {@code to = Recruit}. Used
- *       in the guild as a "failed onboarding" signal.</li>
+ *       in the guild as a "failed onboarding" signal — the only case
+ *       where a {@code → Recruit} broadcast is *not* a ban request.</li>
  *   <li><b>mote</b> — {@code from == to} and that rank is not Recruit. Used
  *       in the guild as a celebratory non-promotion-promotion.</li>
  * </ul>
  *
- * <p>{@code Recruiter → Recruit} is intentionally ignored — it is the normal
- * recruiter-driven failed-eval demotion and not actionable. Real promotions
- * across distinct ranks are also not handled (no guidance from product).</p>
+ * <p>Real promotions across distinct ranks (e.g. {@code Recruit → Recruiter},
+ * {@code Captain → Strategist}) are not handled — no guidance from product
+ * on what they should do. They are dropped client-side.</p>
  *
  * <p>Client-side dedup over a 30s window prevents the same Wynntils chat
  * event firing twice (e.g. via {@code .Match} and {@code .Edit}) from
@@ -137,11 +140,14 @@ public final class RankChangeListener {
     static String classify(String fromRank, String toRank) {
         boolean toRecruit = "Recruit".equals(toRank);
         boolean fromRecruit = "Recruit".equals(fromRank);
-        boolean fromRecruiter = "Recruiter".equals(fromRank);
         if (toRecruit) {
-            if (fromRecruit) return "kick";
-            if (fromRecruiter) return null;
-            return "ban";
+            // The only "→ Recruit" event that is *not* a ban request is the
+            // self-loop Recruit→Recruit (failed-onboarding KICK signal).
+            // Every other demotion to recruit — including the routine
+            // Recruiter→Recruit case — is the captain asking admins to
+            // remove the player. WAPI cross-checks the post-fact rank a
+            // few minutes later for confidence.
+            return fromRecruit ? "kick" : "ban";
         }
         if (fromRank.equals(toRank)) {
             return "mote";
