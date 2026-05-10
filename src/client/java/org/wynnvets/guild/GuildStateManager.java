@@ -524,6 +524,19 @@ public class GuildStateManager {
     return UnlockManager.legacyWaitlistMarker() || UnlockManager.legacyHonouraryMarker();
   }
 
+  /** @return the tier string from the most recent successful auth this
+   *  session (e.g. {@code "member"}, {@code "waitlist"}, {@code "honourary"},
+   *  {@code "other"}), or empty string if not yet authenticated. */
+  public static String currentAuthTier() {
+    return UnlockManager.currentTier();
+  }
+
+  /** @return the most recent auth-frame failure reason from the server,
+   *  or empty string if there hasn't been one this session. */
+  public static String lastAuthFailureReason() {
+    return UnlockManager.lastAuthFailureReason();
+  }
+
   /**
    * Schedules a delayed guild info re-check.  Wynntils' compass scan runs
    * asynchronously after world join, so guild info may not be populated yet.

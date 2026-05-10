@@ -94,6 +94,15 @@ public final class DiagnosticsHandler {
         String playerName = GuildStateManager.playerName();
         boolean isSupporter = playerName != null && SupportersPoller.isSupporter(playerName);
 
+        // Bearer-key auth state (new /unlock <key> flow)
+        boolean hasAuthKey = GuildStateManager.hasStoredAuthKey();
+        boolean authVerified = GuildStateManager.isAuthenticatedThisSession();
+        String authTier = GuildStateManager.currentAuthTier();
+        String authFailureReason = GuildStateManager.lastAuthFailureReason();
+        boolean hasLegacyUnlock = GuildStateManager.hasLegacyPasswordUnlock();
+        long authVerifiedAt = VetsConfig.getLong(VetsConfig.VETS_AUTH_VERIFIED_AT);
+        String persistedTier = VetsConfig.getString(VetsConfig.VETS_AUTH_TIER);
+
         // Server info
         String serverAddress = "unknown";
         String serverBrand = "unknown";
@@ -160,6 +169,23 @@ public final class DiagnosticsHandler {
         chatMsg.append(boolComponent(automessageEnabled));
         chatMsg.append(Component.literal(" | Supporter: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(boolComponent(isSupporter));
+        chatMsg.append(Component.literal("\n").withStyle(ChatFormatting.GRAY));
+        chatMsg.append(Component.literal("Auth: ").withStyle(ChatFormatting.GRAY));
+        chatMsg.append(authStatusComponent(hasAuthKey, authVerified, authFailureReason));
+        if (authVerified || !authTier.isEmpty()) {
+            chatMsg.append(Component.literal(" | Tier: ").withStyle(ChatFormatting.GRAY));
+            chatMsg.append(Component.literal(authTier.isEmpty() ? "?" : authTier)
+                .withStyle(ChatFormatting.WHITE));
+        }
+        if (authVerifiedAt > 0L) {
+            chatMsg.append(Component.literal(" | Verified: ").withStyle(ChatFormatting.GRAY));
+            chatMsg.append(Component.literal(formatRelative(authVerifiedAt) + " ago")
+                .withStyle(ChatFormatting.WHITE));
+        }
+        if (hasLegacyUnlock) {
+            chatMsg.append(Component.literal(" | Legacy unlock: ").withStyle(ChatFormatting.GRAY));
+            chatMsg.append(Component.literal("yes").withStyle(ChatFormatting.YELLOW));
+        }
 
         ChatUtils.sendLocalMessage(chatMsg);
 
@@ -174,6 +200,14 @@ public final class DiagnosticsHandler {
         VetsLogger.info("Guild state: returners={}, guildless={}, unlocked={}, canExecute={}", isReturners, isGuildless, isUnlocked, canExecute);
         VetsLogger.info("Staff: {}, rank={}", isStaff, selfRank.isEmpty() ? "none" : selfRank);
         VetsLogger.info("Config: automessage={}, debugLogging={}, debugGuildlessOverride={}, supporter={}", automessageEnabled, debugLogging, debugOverride, isSupporter);
+        VetsLogger.info("Auth: hasKey={}, verifiedThisSession={}, tier={}, persistedTier={}, verifiedAt={}, legacyUnlock={}, lastFailure={}",
+            hasAuthKey,
+            authVerified,
+            authTier.isEmpty() ? "none" : authTier,
+            persistedTier == null || persistedTier.isEmpty() ? "none" : persistedTier,
+            authVerifiedAt == 0L ? "never" : Long.toString(authVerifiedAt),
+            hasLegacyUnlock,
+            authFailureReason.isEmpty() ? "none" : authFailureReason);
 
         // Mod list
         Collection<ModContainer> mods = FabricLoader.getInstance().getAllMods();
@@ -200,6 +234,36 @@ public final class DiagnosticsHandler {
     private static MutableComponent boolComponent(boolean value) {
         return Component.literal(value ? "true" : "false")
             .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED);
+    }
+
+    private static MutableComponent authStatusComponent(
+            boolean hasKey, boolean verified, String failureReason) {
+        if (verified) {
+            return Component.literal("verified").withStyle(ChatFormatting.GREEN);
+        }
+        if (hasKey) {
+            MutableComponent c = Component.literal("stored, unverified")
+                .withStyle(ChatFormatting.YELLOW);
+            if (!failureReason.isEmpty()) {
+                c.append(Component.literal(" (" + failureReason + ")")
+                    .withStyle(ChatFormatting.RED));
+            }
+            return c;
+        }
+        return Component.literal("none").withStyle(ChatFormatting.RED);
+    }
+
+    private static String formatRelative(long epochMillis) {
+        long delta = System.currentTimeMillis() - epochMillis;
+        if (delta < 0L) return "0s";
+        long seconds = delta / 1000L;
+        if (seconds < 60L) return seconds + "s";
+        long minutes = seconds / 60L;
+        if (minutes < 60L) return minutes + "m";
+        long hours = minutes / 60L;
+        if (hours < 24L) return hours + "h";
+        long days = hours / 24L;
+        return days + "d";
     }
 
     private static String getModVersion(String modId) {
