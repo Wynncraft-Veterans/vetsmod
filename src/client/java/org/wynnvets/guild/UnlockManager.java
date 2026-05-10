@@ -1,6 +1,7 @@
 package org.wynnvets.guild;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
@@ -214,10 +215,14 @@ final class UnlockManager {
         lastAuthFailureReason = "";
         VetsLogger.info("Auth verified by server: tier={}", currentTier);
 
-        ChatUtils.sendLocalMessage(
-            Component.literal("✅ vetsmod authentication verified — tier: " + currentTier)
-                .withStyle(ChatFormatting.GREEN)
-        );
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            mc.player.displayClientMessage(
+                Component.literal("✅ vetsmod authentication verified — tier: " + currentTier)
+                    .withStyle(ChatFormatting.GREEN),
+                true
+            );
+        }
 
         // Refresh presence registration so the server's connected_users
         // list reflects our (server-confirmed) tier rather than whatever

@@ -251,6 +251,38 @@ public final class V1ApiManager {
     }
 
     /**
+     * Sends a {@code rank_change} control frame describing a guild rank-change
+     * broadcast observed in chat. The server deduplicates across reporting
+     * clients and dispatches the alert (BAN/KICK to dazebot, MOTE to the
+     * bridge channel). See v1_protocol.md §1.9.
+     *
+     * @param actor          the captain/chief who issued the rank change
+     * @param target         the player whose rank was changed
+     * @param fromRank       previous rank (Recruit, Recruiter, Captain, Strategist, Chief, Owner)
+     * @param toRank         new rank
+     * @param classification one of {@code "ban"}, {@code "kick"}, {@code "mote"}
+     */
+    public static void sendRankChange(String actor, String target, String fromRank,
+                                      String toRank, String classification) {
+        if (inboundClient == null || !inboundClient.isConnected()) {
+            VetsLogger.debug("Inbound WebSocket not connected, dropping rank_change");
+            return;
+        }
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "rank_change");
+        payload.addProperty("uuid", UUID.randomUUID().toString());
+        payload.addProperty("timestamp", System.currentTimeMillis() / 1000.0);
+        payload.addProperty("actor", actor);
+        payload.addProperty("target", target);
+        payload.addProperty("from_rank", fromRank);
+        payload.addProperty("to_rank", toRank);
+        payload.addProperty("classification", classification);
+        inboundClient.send(payload);
+        VetsLogger.debug("Sent rank_change: {} set {} {} -> {} ({})",
+                actor, target, fromRank, toRank, classification);
+    }
+
+    /**
      * Sends the current tab list guild entries to the server so its {@code !list}
      * command can include players not connected via VetsMod.
      *

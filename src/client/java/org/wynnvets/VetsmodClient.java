@@ -15,6 +15,7 @@ import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.items.ItemDefinitions;
+import org.wynnvets.listeners.RankChangeListener;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.listeners.WynntilsEventListener;
 import org.wynnvets.logging.VetsLogger;
@@ -60,6 +61,7 @@ public class VetsmodClient implements ClientModInitializer {
     GuildStateManager.loadPersistedState();
     ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
       WynntilsEventListener.register();
+      RankChangeListener.register();
       QueueDetector.register();
       QueueStateManager.addListener(new QueueStateListener() {
         @Override

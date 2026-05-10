@@ -81,7 +81,7 @@ Flow:
 3. Local checks: length ∈ [32, 200], charset is URL-safe base64 (`a-zA-Z0-9_-`).
 4. Persists to `vetsAuthKey` and dispatches an `auth` frame on the inbound WS via `V1ApiManager.sendAuth(key)`.
 5. Player sees `⏳ Saved your vetsmod key. Verifying with the server…` (yellow).
-6. Server's auth-frame ack lands asynchronously → `GuildStateManager.onAuthSuccess(tier)` displays `✅ vetsmod authentication verified — tier: <tier>` (green) or `onAuthFailure(detail)` displays `❌ vetsmod authentication failed: <reason>` (red).
+6. Server's auth-frame ack lands asynchronously → `GuildStateManager.onAuthSuccess(tier)` shows `✅ vetsmod authentication verified — tier: <tier>` (green) on the **action bar** (it fires on every reconnect, so chat real estate isn't worth it), or `onAuthFailure(detail)` displays `❌ vetsmod authentication failed: <reason>` (red) **in chat** (it carries an actionable Discord URL that the action bar would truncate).
 
 The legacy SHA-256 password matching has been removed. Users with stored `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` markers from before the migration get a session-start warning prompting them to run `/vetsmod` in Discord — see [vetsmod_guild_system.md §5](vetsmod_guild_system.md#5-sessionauthwarning).
 

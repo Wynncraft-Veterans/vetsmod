@@ -85,6 +85,10 @@ StyledText, ComponentUtils, McUtils
 
 Wynntils fires `ChatMessageEvent.Match` → rewriters (`SpoilerRewriter`, `StaffGuildAlertRewriter`, `StaffChannelMessageRewriter`, `ServerGuildChatRewriter`) → `ChatMessageEvent.Edit` → display.
 
+## Guild rank-change alerts
+
+[`RankChangeListener`](../src/client/java/org/wynnvets/listeners/RankChangeListener.java) subscribes to `ChatMessageEvent.Match`, detects Wynncraft's `"X has set Y guild rank from A to B"` broadcast (regex widens Wynntils' `GuildModel.MSG_RANK_CHANGED` to also capture actor + old rank), classifies it as `ban` / `kick` / `mote`, and emits a `rank_change` control frame on `/v1/inbound`. Server-side dispatch and the trust model are documented in [server_api_reference.md](server_api_reference.md) and authoritatively in [`temporary-server/v1_protocol.md` §1.9](../../temporary-server/v1_protocol.md).
+
 ## Item definitions
 
 `src/client/resources/definitions.yml` — regex categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `notjunk`, `new_format_override`, `enchant_excluded_items`. Edit this file to add/change item patterns without touching Java.

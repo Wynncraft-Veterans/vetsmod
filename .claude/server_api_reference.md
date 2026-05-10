@@ -66,7 +66,35 @@ Validates: UUID hex format, username `^[a-zA-Z0-9_]{3,16}$`, tier in allowed set
 {"type": "auth", "key": "<43-char base64url bearer token>"}
 ```
 
-Server validates the key by HTTP introspection against dazebot (`POST /api/auth/introspect`, 60s LRU cache). Reply on success:
+#### Rank-change frame
+```json
+{
+  "type":           "rank_change",
+  "uuid":           "...",
+  "timestamp":      1234567890.0,
+  "actor":          "RealPuffy",
+  "target":         "1xMelody",
+  "from_rank":      "Recruiter",
+  "to_rank":        "Recruiter",
+  "classification": "ban|kick|mote"
+}
+```
+
+Sent when vetsmod sees `"X has set Y guild rank from A to B"` in guild chat. Classification rules:
+
+- `ban` — `from ∈ {Captain, Strategist, Chief, Owner}` and `to = Recruit` → forwarded to dazebot for staff-channel post + role @ping.
+- `kick` — `from = Recruit` and `to = Recruit` (failed-onboarding signal) → forwarded to dazebot, no ping.
+- `mote` — `from == to` and that rank is not Recruit → bridge-channel post `"**<target> got moted!**"`.
+
+`Recruiter → Recruit` and real promotions across distinct ranks are intentionally not classified — they are dropped client-side and never frame'd. Server-side dedup window is 60s on `(actor.lower, target.lower, from_rank, to_rank)` so the N reporting clients only trigger one alert. Trust model: **single authenticated client report is authoritative**; dazebot's posted alerts schedule async WAPI verification (5min delay for cache turn-over) and edit the message with `[VERIFIED]` / `[UNVERIFIED — ...]`.
+
+Auth gate is identical to chat: when `unauth` is disabled, only authenticated sessions may submit. Frames are **not** tier-gated — any tier may report.
+
+See [v1_protocol.md §1.9](../../temporary-server/v1_protocol.md) for the authoritative spec.
+
+---
+
+Server validates the auth key by HTTP introspection against dazebot (`POST /api/auth/introspect`, 60s LRU cache). Reply on success:
 
 ```json
 {
