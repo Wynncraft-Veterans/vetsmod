@@ -1,55 +1,52 @@
-# gradle
-
+# --- Gradle ---
 .gradle/
 build/
 out/
 classes/
 
-# eclipse
-
+# --- Eclipse ---
 *.launch
+.classpath
+.project
+.settings/
 
-# idea
-
+# --- IntelliJ ---
 .idea/
 *.iml
 *.ipr
 *.iws
 
-# vscode
-
-.settings/
+# --- VS Code (per-user IDE state, not project config) ---
 .vscode/
 bin/
-.classpath
-.project
 
-# macos
-
+# --- macOS ---
 *.DS_Store
 
-# fabric
-
+# --- Fabric ---
 run/
 
-# java
-
+# --- Java ---
 hs_err_*.log
 replay_*.log
 sample.log
 *.hprof
 *.jfr
 debug.log
-#/refactor-project
 *.log
 
-# Debug / local data
-#/src/client/java/org/wynnvets/debug_data
-#/legacy_debug
-#/debug
-#/com
+# --- Local scratch ---
+/.temp/
+/temp/
 
-./temp
-./claude
-/.claude
-/.temp
+# --- Claude Code state ---
+# Track curated project docs in .claude/, but skip per-user state and ephemeral
+# task notes. The README inside ephemeral/ is committed so the convention is
+# discoverable; everything else in there is local.
+/.claude/settings.local.json
+/.claude/projects/
+/.claude/ephemeral/*
+!/.claude/ephemeral/README.md
+# user_profile.md is a Claude auto-memory file (type: user) — describes the
+# individual developer, not the codebase. Stays local.
+/.claude/user_profile.md

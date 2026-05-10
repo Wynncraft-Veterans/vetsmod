@@ -319,8 +319,12 @@ public class GuildStateManager {
       playerName = player.getName().getString();
     }
 
-    // Warn if a previously-persisted unlock has expired since last session
-    UnlockManager.checkAndWarnUnlockExpiry();
+    // Once-per-session warning when our auth state diverges from what the
+    // user probably expects (key present but unverified, or no key at all
+    // with legacy unlock markers / Returners membership). We schedule it
+    // shortly after world join so the WS reconnect + auth round-trip has
+    // a chance to land first.
+    SessionAuthWarning.scheduleOnceForThisSession();
 
     long currentTime = System.currentTimeMillis();
     if (currentTime - lastMotdFetchTime > MOTD_FETCH_COOLDOWN_MS) {
@@ -468,29 +472,56 @@ public class GuildStateManager {
     }
   }
 
-  /**
-   * The type of unlock granted by a password.
-   */
-  public enum UnlockType {
-    NONE,
-    WAITLIST,
-    HONOURARY
+  /** Local-only outcome of running {@code /unlock &lt;key&gt;}. The eventual
+   *  server verdict on the key arrives asynchronously via
+   *  {@link #onAuthSuccess(String)} / {@link #onAuthFailure(String)}. */
+  public enum UnlockAttemptResult {
+    /** No key was provided (empty string). */
+    MISSING_KEY,
+    /** The key didn't pass the local shape sanity check (length / charset). */
+    MALFORMED,
+    /** Key passed local checks, was persisted, and an auth frame is in flight. */
+    STORED_VERIFYING,
   }
 
   /**
-   * Attempt to unlock with a password. Delegates to {@link UnlockManager}
-   * and sends a registration if the unlock succeeds.
+   * Attempt to store a vetsmod auth key and verify it with the server.
+   * Delegates to {@link UnlockManager}; the network outcome is reported
+   * asynchronously via {@link #onAuthSuccess(String)} /
+   * {@link #onAuthFailure(String)}.
    *
-   * @param password The password to check
-   * @return the type of unlock granted, or {@link UnlockType#NONE} if the
-   *         password did not match
+   * @param key The bearer key (43-char URL-safe base64 from /vetsmod)
+   * @return the local-only outcome
    */
-  public static UnlockType tryUnlock(String password) {
-    UnlockType result = UnlockManager.tryUnlock(password);
-    if (result != UnlockType.NONE) {
-      sendRegistrationIfReady();
-    }
-    return result;
+  public static UnlockAttemptResult tryUnlock(String key) {
+    return UnlockManager.tryUnlock(key);
+  }
+
+  /** Called by {@link V1ApiManager} when the server's auth-frame ack returns ok. */
+  public static void onAuthSuccess(String tier) {
+    UnlockManager.onAuthSuccess(tier);
+  }
+
+  /** Called by {@link V1ApiManager} when the server rejects our auth frame. */
+  public static void onAuthFailure(String detail) {
+    UnlockManager.onAuthFailure(detail);
+  }
+
+  /** @return {@code true} once an auth frame has been server-confirmed
+   *  during the current session. */
+  public static boolean isAuthenticatedThisSession() {
+    return UnlockManager.isAuthenticatedThisSession();
+  }
+
+  /** @return {@code true} when a key is stored locally regardless of validation */
+  public static boolean hasStoredAuthKey() {
+    return UnlockManager.hasStoredKey();
+  }
+
+  /** @return {@code true} if the player has any legacy SHA-256 unlock state
+   *  (waitlist or honourary) on disk from before the migration. */
+  public static boolean hasLegacyPasswordUnlock() {
+    return UnlockManager.legacyWaitlistMarker() || UnlockManager.legacyHonouraryMarker();
   }
 
   /**
@@ -643,6 +674,7 @@ public class GuildStateManager {
     StaffRankChecker.reset();
     GuildChecker.reset();
     UnlockManager.reset();
+    SessionAuthWarning.reset();
     CommandDispatcher.resetStaffChatEligibilityCache();
   }
 

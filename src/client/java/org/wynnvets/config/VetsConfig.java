@@ -51,6 +51,19 @@ public class VetsConfig {
   public static final String VETS_LAST_GUILD_CHECK = "vetsLastGuildCheck";
   public static final String VETS_DEBUG_ENABLED_AT = "vetsDebugEnabledAt";
 
+  // ── Vetsmod /unlock <key> auth state ─────────────────────────────────
+  /** Bearer key issued by dazebot's /vetsmod command and stored on disk so
+   *  it survives mod restarts. Sent in an `auth` frame on every WebSocket
+   *  (re)connect. Empty string when the user hasn't run /unlock yet. */
+  public static final String VETS_AUTH_KEY = "vetsAuthKey";
+  /** Last server-confirmed tier (member/waitlist/honourary/other) for the
+   *  stored key. Refreshed on every auth-frame success. Persisted only as
+   *  a UX hint — the authoritative value comes from the server each session. */
+  public static final String VETS_AUTH_TIER = "vetsAuthTier";
+  /** Epoch millis of the last successful auth-frame response, or 0. Used
+   *  for staleness display and to gate "previously authenticated" warnings. */
+  public static final String VETS_AUTH_VERIFIED_AT = "vetsAuthVerifiedAt";
+
   // ── User-facing configuration keys (toggled via /wv config) ─────────────
 
   /** Whether legacy/enchanted/junk item highlighting is shown in tooltips and inventory slots. */
@@ -244,6 +257,12 @@ public class VetsConfig {
     longConfig.put(VETS_GUILD_CHECK_RESULT, 0L);
     longConfig.put(VETS_LAST_GUILD_CHECK, 0L);
     longConfig.put(VETS_DEBUG_ENABLED_AT, 0L);
+
+    // /unlock <key> auth state — keys are persisted strings, the timestamp
+    // is a long. Defaults to empty key + epoch=0 = "never authenticated".
+    stringConfig.put(VETS_AUTH_KEY, "");
+    stringConfig.put(VETS_AUTH_TIER, "");
+    longConfig.put(VETS_AUTH_VERIFIED_AT, 0L);
 
     // User-facing defaults (all enabled by default, except moreReliableGuildCheck)
     config.put(LEGACY_ITEM_HIGHLIGHTING, true);
