@@ -195,10 +195,47 @@ public class GuildStateManager {
   /**
    * Get whether the user is staff (Captain+ rank in Returners).
    *
+   * <p><b>Note:</b> This reads the client-side {@link StaffRankChecker}
+   * cache (refreshed daily via {@code /gu rank}). It is suitable for UX
+   * gates ({@code /v}, {@code /a}, {@code /encourage}, {@code /wv check})
+   * but NOT for high-trust actions like {@code /caution} / {@code /warn}
+   * / {@code /eject}, which dispatch real in-game commands. Those use
+   * {@link #isConfirmedStaff()} instead -- the server-side roster check
+   * resolved at WS auth time.</p>
+   *
    * @return true when staff, false otherwise
    */
   public static boolean isStaff() {
     return StaffRankChecker.isStaff();
+  }
+
+  /**
+   * Server-confirmed staff status from the most recent successful WS
+   * auth. Resolved by temporary-server against the canonical staff
+   * roster (see v1_protocol.md §1.8). This is the only staff signal
+   * that should gate {@code /caution} / {@code /warn} / {@code /eject},
+   * because those commands dispatch real {@code /gu kick} / {@code /gu
+   * rank} commands on success.
+   *
+   * @return true iff the current session is authenticated AND the
+   *         server reported {@code is_staff=true} on the auth ack
+   */
+  public static boolean isConfirmedStaff() {
+    return V1ApiManager.isConfirmedStaff();
+  }
+
+  /**
+   * Server-confirmed in-game guild rank for the authenticated user --
+   * one of "chief", "strategist", "captain", "owner", or empty string
+   * when not confirmed-staff. Used by {@code /eject} to decide whether
+   * to dispatch {@code /gu kick} (chiefs) or {@code /gu rank ... recruit}
+   * (captains / strategists -- the workaround for "only chiefs can
+   * kick").
+   *
+   * @return server-confirmed staff rank, or empty when not staff
+   */
+  public static String confirmedStaffRank() {
+    return V1ApiManager.confirmedStaffRank();
   }
 
   /**

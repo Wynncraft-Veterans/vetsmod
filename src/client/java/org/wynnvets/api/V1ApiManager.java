@@ -34,7 +34,29 @@ public final class V1ApiManager {
      *  arrive as `{"status": "ok"}` from the server. */
     private static volatile boolean expectingAuthAck = false;
 
+    /** Server-confirmed staff status from the most recent successful auth.
+     *  Cleared on disconnect. The value is "modern verification token +
+     *  WAPI-confirmed staff" -- not the local /gu rank cache. Used to gate
+     *  /caution, /warn, /eject, and /wv check (caution view). */
+    private static volatile boolean confirmedStaff = false;
+    /** In-game guild rank from the staff roster ("chief"/"strategist"/
+     *  "captain"/"owner"), populated alongside {@link #confirmedStaff}.
+     *  Empty when not staff. */
+    private static volatile String confirmedStaffRank = "";
+
     private static final CopyOnWriteArrayList<Consumer<JsonObject>> outboundListeners = new CopyOnWriteArrayList<>();
+
+    /** FIFO queue of callbacks awaiting a staff-action ack frame. Each
+     *  outgoing caution_check / caution_add / warn_add / eject_add frame
+     *  enqueues one callback; each incoming ack with a staff-action
+     *  shape ({@code kind}, {@code triggered}, or {@code would_trigger})
+     *  pops the head callback and invokes it. The protocol has no
+     *  per-frame correlation ID, so this is a strict-order queue --
+     *  rapidly-fired commands without an interleaving wait may receive
+     *  reordered callbacks, but the alternative (correlation IDs) was
+     *  judged not worth the wire-protocol churn for the current scale. */
+    private static final java.util.concurrent.ConcurrentLinkedDeque<Consumer<JsonObject>>
+        staffActionCallbacks = new java.util.concurrent.ConcurrentLinkedDeque<>();
 
     private V1ApiManager() {
     }
@@ -59,6 +81,45 @@ public final class V1ApiManager {
             if (!json.has("status")) return;
             String status = json.get("status").getAsString();
             boolean wasAuthAck = expectingAuthAck;
+
+            // Staff-action ack shape: commits carry `kind`+`triggered`,
+            // checks carry `total_points`, preflight carries
+            // `status:"would_trigger"`. We pop ONE pending callback per
+            // matching ack so multiple in-flight staff actions resolve
+            // in send order. Errors (status=="error") are also routed to
+            // the callback queue when one is pending and we aren't
+            // currently waiting on an auth ack -- the alternative would
+            // strand the caller's UI in "loading" forever on a
+            // server-side validation failure.
+            //
+            // Auth responses are explicitly excluded by the `tier` key
+            // (only auth acks carry it) so a future `total_points`
+            // collision can't misroute auth into the staff queue.
+            boolean isAuthShaped = json.has("tier");
+            boolean staffShaped = !isAuthShaped && (
+                json.has("kind")
+                || json.has("triggered")
+                || json.has("total_points")
+                || "would_trigger".equals(status));
+            boolean staffOrphanError = "error".equals(status)
+                && !wasAuthAck
+                && !staffActionCallbacks.isEmpty();
+            if (staffShaped || staffOrphanError) {
+                Consumer<JsonObject> cb = staffActionCallbacks.pollFirst();
+                if (cb != null) {
+                    try {
+                        cb.accept(json);
+                    } catch (Exception e) {
+                        VetsLogger.warn("Staff-action callback error: {}", e.getMessage());
+                    }
+                    return;
+                }
+                VetsLogger.debug("Staff-action ack with empty callback queue: {}", json);
+                // Without a callback the response is unactionable; swallow it
+                // so it doesn't leak into the auth/chat error path below.
+                return;
+            }
+
             // Auth success responses carry a `tier` key — chat acks don't.
             // This double-check protects against ack reordering on lossy nets.
             if ("ok".equals(status) && json.has("tier")) {
@@ -67,6 +128,18 @@ public final class V1ApiManager {
                 long now = System.currentTimeMillis();
                 VetsConfig.setString(VetsConfig.VETS_AUTH_TIER, tier);
                 VetsConfig.setLong(VetsConfig.VETS_AUTH_VERIFIED_AT, now);
+                // Capture server-confirmed staff status from the auth ack.
+                // The roster lookup happens server-side; the client just
+                // reads whatever the server resolved.
+                confirmedStaff = json.has("is_staff")
+                    && !json.get("is_staff").isJsonNull()
+                    && json.get("is_staff").getAsBoolean();
+                if (confirmedStaff && json.has("staff_rank")
+                    && !json.get("staff_rank").isJsonNull()) {
+                    confirmedStaffRank = json.get("staff_rank").getAsString();
+                } else {
+                    confirmedStaffRank = "";
+                }
                 GuildStateManager.onAuthSuccess(tier);
                 return;
             }
@@ -75,6 +148,8 @@ public final class V1ApiManager {
                 if (wasAuthAck || detail.startsWith("auth rejected")
                         || detail.startsWith("Authentication required")) {
                     expectingAuthAck = false;
+                    confirmedStaff = false;
+                    confirmedStaffRank = "";
                     GuildStateManager.onAuthFailure(detail);
                 } else {
                     VetsLogger.warn("Inbound API error: {}", detail);
@@ -135,6 +210,22 @@ public final class V1ApiManager {
         if (outboundClient != null) {
             outboundClient.close();
             outboundClient = null;
+        }
+        confirmedStaff = false;
+        confirmedStaffRank = "";
+        // Drain any in-flight staff-action callbacks with synthetic
+        // errors so callers don't hang waiting on responses that will
+        // never arrive.
+        Consumer<JsonObject> pending;
+        while ((pending = staffActionCallbacks.pollFirst()) != null) {
+            JsonObject err = new JsonObject();
+            err.addProperty("status", "error");
+            err.addProperty("detail", "Connection closed before reply.");
+            try {
+                pending.accept(err);
+            } catch (Exception e) {
+                VetsLogger.warn("Staff-action drain callback error: {}", e.getMessage());
+            }
         }
         VetsLogger.debug("V1 API connections closed");
     }
@@ -321,6 +412,64 @@ public final class V1ApiManager {
     /** Removes a previously registered outbound listener. */
     public static void removeOutboundListener(Consumer<JsonObject> listener) {
         outboundListeners.remove(listener);
+    }
+
+    /**
+     * Sends a staff-action control frame (caution_check / caution_add /
+     * warn_add / eject_add) and registers a callback for the matching
+     * server ack.
+     *
+     * <p>Callers MUST verify {@link #isConfirmedStaff()} before calling --
+     * the server will reject the frame otherwise, and the rejection
+     * burns a callback slot. The {@code fields} map is merged into the
+     * outgoing JSON; do NOT include {@code "type"} (this method sets
+     * it). The callback runs on the WebSocket reader thread and is
+     * single-use.</p>
+     *
+     * @param type     "caution_check" / "caution_add" / "warn_add" / "eject_add"
+     * @param fields   frame-specific fields (e.g. target_username, message, confirm)
+     * @param callback invoked with the server's ack JSON. May be a
+     *                 {"status":"ok",...} (success), {"status":"would_trigger",...}
+     *                 (caution preflight), or {"status":"error","detail":...}.
+     */
+    public static void sendStaffActionFrame(
+            String type, JsonObject fields, Consumer<JsonObject> callback) {
+        if (inboundClient == null || !inboundClient.isConnected()) {
+            JsonObject err = new JsonObject();
+            err.addProperty("status", "error");
+            err.addProperty("detail", "Inbound WebSocket not connected.");
+            if (callback != null) callback.accept(err);
+            return;
+        }
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", type);
+        if (fields != null) {
+            for (var entry : fields.entrySet()) {
+                payload.add(entry.getKey(), entry.getValue());
+            }
+        }
+        if (callback != null) {
+            staffActionCallbacks.addLast(callback);
+        }
+        inboundClient.send(payload);
+        VetsLogger.debug("Sent staff-action frame: {}", type);
+    }
+
+    /** @return whether the most recent successful auth ack reported the
+     *  user as confirmed staff. False until auth completes; cleared on
+     *  auth failure or disconnect. This is the *only* gate that should
+     *  be used for /caution, /warn, /eject -- {@code GuildStateManager.isStaff()}
+     *  reads the spoofable client-side /gu rank cache. */
+    public static boolean isConfirmedStaff() {
+        return confirmedStaff;
+    }
+
+    /** @return the server-confirmed in-game guild rank (one of "chief",
+     *  "strategist", "captain", "owner") for the authenticated user, or
+     *  empty string when not confirmed-staff. Used to map /eject
+     *  outcomes to the right /gu kick vs /gu rank dispatch. */
+    public static String confirmedStaffRank() {
+        return confirmedStaffRank;
     }
 
     /** Returns true if the inbound connection is active. */

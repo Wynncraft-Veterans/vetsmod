@@ -63,6 +63,27 @@ public final class GuildChatDispatcher {
     if (command.regionMatches(true, 0, "wv check ", 0, 9)) {
       return handleWvCheck(command.substring(9).trim());
     }
+    // Caution / warning / eject system. The /caution path runs a
+    // server-side preflight that may reply "would_trigger" with a
+    // clickable confirm prompt rendered by CautionCommands; the
+    // /caution-go path skips the preflight (used by the click
+    // handler) and is also the manual-bypass entry point.
+    if (command.regionMatches(true, 0, "caution-go ", 0, 11)) {
+      CautionCommands.runCautionGo(command.substring(11));
+      return true;
+    }
+    if (command.regionMatches(true, 0, "caution ", 0, 8)) {
+      CautionCommands.runCaution(command.substring(8));
+      return true;
+    }
+    if (command.regionMatches(true, 0, "warn ", 0, 5)) {
+      CautionCommands.runWarn(command.substring(5));
+      return true;
+    }
+    if (command.regionMatches(true, 0, "eject ", 0, 6)) {
+      CautionCommands.runEject(command.substring(6));
+      return true;
+    }
     return false;
   }
 
@@ -216,6 +237,13 @@ public final class GuildChatDispatcher {
 
     UserInfoFetcher.checkUser(playerName)
         .thenAccept(userInfo -> ChatUtils.sendLocalMessage(userInfo));
+    // Append the caution history readout -- same data shown by Discord's
+    // ~warnings command. Gated on confirmed-staff inside
+    // CautionCommands.runCheckCautions so it is silently skipped for
+    // non-confirmed users (avoids a spurious "you must be staff" line
+    // since the legacy /wv check already gated on the StaffRankChecker
+    // cache above).
+    CautionCommands.runCheckCautions(playerName);
     return true;
   }
 

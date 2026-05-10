@@ -185,8 +185,13 @@ public final class CommandRegistry {
       return 0;
     }
 
-    UserInfoFetcher.checkUser(StringArgumentType.getString(ctx, "playerName"))
+    String playerName = StringArgumentType.getString(ctx, "playerName");
+    UserInfoFetcher.checkUser(playerName)
         .thenAccept(userInfo -> ChatUtils.sendLocalMessage(userInfo));
+    // Append caution-history readout (same as Discord's ~warnings).
+    // Silently skipped when the user is not yet WS-auth confirmed
+    // staff -- the legacy gate above already showed user info.
+    CautionCommands.runCheckCautions(playerName);
     return 1;
   }
 

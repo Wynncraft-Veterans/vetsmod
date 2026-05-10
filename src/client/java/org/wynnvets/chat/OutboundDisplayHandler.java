@@ -3,6 +3,7 @@ package org.wynnvets.chat;
 import com.google.gson.JsonObject;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
+import org.wynnvets.chat.rewriter.WarningRewriter;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
@@ -120,6 +121,17 @@ public final class OutboundDisplayHandler {
 
 
     private static void onOutboundMessage(JsonObject json) {
+        // Staff-pushed private warning / eject frames (v1_protocol.md §2.5)
+        // bypass every display gate -- the warned player must always see
+        // their own warning even if PRINT_BRIDGE_MESSAGES is off or they
+        // aren't a tier that normally renders outbound chat. Targeting is
+        // enforced server-side by mc_uuid match before the frame is
+        // pushed, so receiving the frame here implies it's for us.
+        if ("warning".equals(getStringOrEmpty(json, "type"))) {
+            WarningRewriter.render(json);
+            return;
+        }
+
         if (!VetsConfig.get(VetsConfig.PRINT_BRIDGE_MESSAGES)) {
             return;
         }
