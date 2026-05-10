@@ -216,12 +216,25 @@ final class UnlockManager {
         VetsLogger.info("Auth verified by server: tier={}", currentTier);
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null) {
-            mc.player.displayClientMessage(
-                Component.literal("✅ vetsmod authentication verified — tier: " + currentTier)
-                    .withStyle(ChatFormatting.GREEN),
-                true
-            );
+        if (mc.player != null && VetsConfig.get(VetsConfig.PRINT_SUCCESSFUL_AUTH)) {
+            Component msg = Component.literal(
+                    "✅ vetsmod authentication verified — tier: " + currentTier)
+                .withStyle(ChatFormatting.GREEN);
+            if (mc.screen != null) {
+                // The action-bar overlay is suppressed while a Screen is
+                // open (e.g. Wynncraft's class-selection screen shown on
+                // login), but chat scrollback still renders through the
+                // screen — fall back to chat so the player sees the
+                // confirmation in the one moment per login it really
+                // matters.
+                ChatUtils.sendLocalMessage(msg);
+            } else {
+                mc.player.displayClientMessage(msg, true);
+            }
+            // Latch off so the message doesn't re-fire on every WS reconnect.
+            // onAuthFailure() flips it back on so a transient error→recovery
+            // re-shows the confirmation.
+            VetsConfig.set(VetsConfig.PRINT_SUCCESSFUL_AUTH, false);
         }
 
         // Refresh presence registration so the server's connected_users
@@ -237,6 +250,10 @@ final class UnlockManager {
         authVerifiedThisSession = false;
         lastAuthFailureReason = detail == null ? "unknown" : detail;
         VetsLogger.warn("Auth rejected by server: {}", lastAuthFailureReason);
+
+        // Re-arm the success notification so the next error→recovery cycle
+        // surfaces a fresh "verified" confirmation rather than staying silent.
+        VetsConfig.set(VetsConfig.PRINT_SUCCESSFUL_AUTH, true);
 
         ChatUtils.sendLocalMessage(
             Component.literal("❌ vetsmod authentication failed: " + lastAuthFailureReason

@@ -88,6 +88,17 @@ public class VetsConfig {
    *  relying solely on Wynntils' guild detection (which can remain null). */
   public static final String MORE_RELIABLE_GUILD_CHECK = "moreReliableGuildCheck";
 
+  /** Whether to show the {@code ✅ vetsmod authentication verified — tier: …}
+   *  notification on the next successful auth-frame ack. The auth flag is
+   *  re-sent on every WebSocket (re)connect, so without gating the message
+   *  would fire repeatedly. {@link org.wynnvets.guild.UnlockManager} flips
+   *  this to {@code false} after rendering once and resets it to {@code true}
+   *  whenever an auth failure occurs, so a single confirmation is shown after
+   *  each error→success transition. The user can also manually re-enable it
+   *  via {@code /wv config printSuccessfulAuth true} to force the next ack
+   *  to display. */
+  public static final String PRINT_SUCCESSFUL_AUTH = "printSuccessfulAuth";
+
   /** CSS/Minecraft colour name for the top of the gradient drawn behind legacy item icons.
    *  Defaults to {@code orange}. */
   public static final String LEGACY_ITEM_BACKGROUND_GRADIENT_TOP = "legacyItemBackgroundGradientTop";
@@ -130,6 +141,7 @@ public class VetsConfig {
       PRINT_MOTD,
       PRINT_ANNI,
       PRINT_BRIDGE_MESSAGES,
+      PRINT_SUCCESSFUL_AUTH,
       SHOW_SUPPORTER_GLINTS,
       HANDLE_SPOILERS,
       MORE_RELIABLE_GUILD_CHECK,
@@ -269,6 +281,7 @@ public class VetsConfig {
     config.put(PRINT_MOTD, true);
     config.put(PRINT_ANNI, true);
     config.put(PRINT_BRIDGE_MESSAGES, true);
+    config.put(PRINT_SUCCESSFUL_AUTH, true);
     config.put(SHOW_SUPPORTER_GLINTS, true);
     config.put(MORE_RELIABLE_GUILD_CHECK, true);
 
