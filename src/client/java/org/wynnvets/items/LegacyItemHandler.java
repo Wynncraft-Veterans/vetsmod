@@ -264,7 +264,7 @@ public class LegacyItemHandler {
    * §a/§b/§d/§e colour code prefix, and the underlying item type is a vanilla
    * armour piece ({@code *_helmet}/{@code *_chestplate}/{@code *_leggings}/
    * {@code *_boots}) or one of the Wynncraft weapon-class proxies
-   * ({@code *_shovel}, {@code shears}, {@code bow}, {@code stick},
+   * ({@code iron_shovel}, {@code shears}, {@code bow}, {@code stick},
    * {@code cocoa_beans}, {@code paper}).
    *
    * <p>The pedestal mechanic strips all lore from a legendary/rare/unique item
@@ -289,7 +289,7 @@ public class LegacyItemHandler {
         || path.endsWith("_chestplate")
         || path.endsWith("_leggings")
         || path.endsWith("_boots")
-        || path.endsWith("_shovel")
+        || path.equals("iron_shovel")
         || path.equals("shears")
         || path.equals("bow")
         || path.equals("stick")
