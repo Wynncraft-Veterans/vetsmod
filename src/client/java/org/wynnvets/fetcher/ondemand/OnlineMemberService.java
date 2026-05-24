@@ -79,7 +79,11 @@ final class OnlineMemberService {
         VetsLogger.debug("Tab list returned {} guild entries", tabEntries.size());
 
         // Forward tab list to the server so !list can use it too.
-        if (!tabEntries.isEmpty()) {
+        // Only Returners members are safe to forward from: the tab list
+        // reflects whichever guild the local player is in, so honourary or
+        // waitlist users who happen to be in some other guild would
+        // otherwise leak that guild's roster into the vets dataset.
+        if (!tabEntries.isEmpty() && GuildStateManager.isReturners()) {
             V1ApiManager.sendTabList(tabEntries.stream()
                     .map(e -> new V1ApiManager.TabListEntry(e.server(), e.username()))
                     .toList());

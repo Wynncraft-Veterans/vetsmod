@@ -66,11 +66,16 @@ public class VetsmodClient implements ClientModInitializer {
       QueueStateManager.addListener(new QueueStateListener() {
         @Override
         public void onQueueEntered(String worldName) {
+          // Only report queue state from vets-context users -- the server
+          // can't usefully attribute queue status from sessions that
+          // never sent a `register` frame.
+          if (!GuildStateManager.isUnlocked()) return;
           V1ApiManager.sendQueueStatus(true, worldName);
         }
 
         @Override
         public void onQueueExited(String reason) {
+          if (!GuildStateManager.isUnlocked()) return;
           V1ApiManager.sendQueueStatus(false, "");
         }
       });
