@@ -399,16 +399,22 @@ public class UserInfoFetcher {
         ? user.getUsername()
         : requestedName;
 
-    // For Returners members, the local tab list is a fresh, no-cost "is
-    // this player online right now?" signal — and it works even when the
-    // player has Wynncraft API privacy on. Non-Returners players: tab
-    // list only sees our own guild, so the lookup would always miss.
-    boolean inReturners = (returners != null && returners.inGuild())
-        || (snapshot != null && snapshot.isInReturnersGuild());
-    String tabListServer = inReturners
-        ? OnlineMemberService.getCurrentServer(displayName)
+    // Tab list is our freshest signal — local Minecraft state, no HTTP
+    // round-trip, no CDN cache. It's bounded to whichever guild the local
+    // player is in, so a lookup miss is normal for cross-guild targets;
+    // a hit is authoritative. Cheap O(N) scan over <100 entries, always
+    // run.
+    String tabListServer = OnlineMemberService.getCurrentServer(displayName);
+
+    // Self-check: by definition we're online right now. Skips the whole
+    // signal-aggregation dance below and avoids the "Wynn's cached
+    // online=false for the local player" trap.
+    String localName = (Minecraft.getInstance().player != null)
+        ? Minecraft.getInstance().player.getName().getString()
         : null;
-    boolean currentlyOnline = isCurrentlyOnline(user, snapshot, tabListServer);
+    boolean isSelf = localName != null && localName.equalsIgnoreCase(displayName);
+
+    boolean currentlyOnline = isCurrentlyOnline(user, snapshot, tabListServer, isSelf);
 
     // Item 0: username + UUID
     ChatUtils.sendLocalMessage(
@@ -428,7 +434,7 @@ public class UserInfoFetcher {
       ChatUtils.sendLocalMessage(label("Wynncraft profile: ")
           .append(Component.literal("(no Wynncraft data)").setStyle(HIDDEN_STYLE)));
     } else {
-      renderWynnLines(user, snapshot, tabListServer);
+      renderWynnLines(user, snapshot, tabListServer, isSelf);
     }
 
     renderGuildLine(user, returners, snapshot);
@@ -440,20 +446,24 @@ public class UserInfoFetcher {
   }
 
   /**
-   * Aggregates "is this player on Wynncraft right now?" across three
-   * signals (in order of authoritativeness): Wynn live {@code online}
-   * field, local tab list, and a recent ({@literal <}10 min) server-change
-   * observation from dazebot's {@code server_watcher}. Used to qualify
-   * the {@code (hiatus)} discord-line annotation: if any signal says
-   * "yes" while the role still says "hiatus", staff need to know the
-   * role state is stale.
+   * Aggregates "is this player on Wynncraft right now?" across four
+   * signals, in order of authoritativeness: trivially true for self,
+   * then local tab list (live), then Wynn's {@code online} field
+   * (2-min CDN cache, can lag), then a recent ({@literal <}10 min)
+   * server-change observation from dazebot's {@code server_watcher}.
+   * Used to qualify the {@code (hiatus)} discord-line annotation:
+   * any positive signal means staff should be told the role state
+   * may be stale.
    */
   private static boolean isCurrentlyOnline(
-      User user, MembershipSnapshot snapshot, String tabListServer) {
-    if (user != null && Boolean.TRUE.equals(user.getOnline())) {
+      User user, MembershipSnapshot snapshot, String tabListServer, boolean isSelf) {
+    if (isSelf) {
       return true;
     }
     if (tabListServer != null) {
+      return true;
+    }
+    if (user != null && Boolean.TRUE.equals(user.getOnline())) {
       return true;
     }
     MembershipSnapshot.LastSeenObserved obs =
@@ -466,7 +476,7 @@ public class UserInfoFetcher {
   }
 
   private static void renderWynnLines(
-      User user, MembershipSnapshot snapshot, String tabListServer) {
+      User user, MembershipSnapshot snapshot, String tabListServer, boolean isSelf) {
     // Item 1: first seen. Show coarse "N years ago" as the headline value
     // (raw days are unreadable for old accounts) with the ISO date as the
     // muted parenthetical.
@@ -488,7 +498,7 @@ public class UserInfoFetcher {
           .append(Component.literal(toRelativeDateLabel(lastJoin)).setStyle(VALUE_STYLE))
           .append(Component.literal("  (" + lastJoin + ")").setStyle(MUTED_STYLE)));
     } else {
-      renderLastSeenFallback(snapshot, tabListServer);
+      renderLastSeenFallback(snapshot, tabListServer, isSelf);
     }
 
     // Item 3: playtime
@@ -504,12 +514,18 @@ public class UserInfoFetcher {
     // it's the most actionable signal for a staff vetting decision — and
     // because it directly resolves whether a `(hiatus)` annotation below is
     // stale (see Discord line).
-    renderOnlineLine(user, snapshot, tabListServer);
+    renderOnlineLine(user, snapshot, tabListServer, isSelf);
   }
 
   private static void renderLastSeenFallback(
-      MembershipSnapshot snapshot, String tabListServer) {
+      MembershipSnapshot snapshot, String tabListServer, boolean isSelf) {
     MutableComponent line = label("Last seen on Wynncraft: ");
+    if (isSelf) {
+      line.append(Component.literal("now").setStyle(HIDDEN_STYLE))
+          .append(Component.literal("  (self)").setStyle(MUTED_STYLE));
+      ChatUtils.sendLocalMessage(line);
+      return;
+    }
     if (tabListServer != null) {
       // Tab list is "right now" by construction.
       line.append(Component.literal("now").setStyle(HIDDEN_STYLE))
@@ -534,8 +550,32 @@ public class UserInfoFetcher {
   }
 
   private static void renderOnlineLine(
-      User user, MembershipSnapshot snapshot, String tabListServer) {
+      User user, MembershipSnapshot snapshot, String tabListServer, boolean isSelf) {
     MutableComponent line = label("Currently online: ");
+
+    // Self is trivially online — the local player wouldn't be running
+    // /wv check otherwise.
+    if (isSelf) {
+      line.append(Component.literal("yes").setStyle(Style.EMPTY.withColor(ChatFormatting.GREEN)));
+      if (tabListServer != null) {
+        line.append(Component.literal("  (" + tabListServer + ")").setStyle(MUTED_STYLE));
+      } else {
+        line.append(Component.literal("  (self)").setStyle(MUTED_STYLE));
+      }
+      ChatUtils.sendLocalMessage(line);
+      return;
+    }
+
+    // Tab list beats Wynn's /v3/player.online (the latter is CDN-cached
+    // for up to 2 min and routinely says "false" for a player who joined
+    // seconds ago — matches the /wv list behaviour staff are used to).
+    if (tabListServer != null) {
+      line.append(Component.literal("yes").setStyle(Style.EMPTY.withColor(ChatFormatting.GREEN)))
+          .append(Component.literal("  (" + tabListServer + ", tab-list)").setStyle(MUTED_STYLE));
+      ChatUtils.sendLocalMessage(line);
+      return;
+    }
+
     Boolean wynnOnline = user != null ? user.getOnline() : null;
     String wynnServer = user != null ? user.getServer() : null;
 
@@ -552,13 +592,7 @@ public class UserInfoFetcher {
       return;
     }
 
-    // Wynn hidden — try tab list, then recent server-watcher observation.
-    if (tabListServer != null) {
-      line.append(Component.literal("yes").setStyle(Style.EMPTY.withColor(ChatFormatting.GREEN)))
-          .append(Component.literal("  (" + tabListServer + ", tab-list)").setStyle(MUTED_STYLE));
-      ChatUtils.sendLocalMessage(line);
-      return;
-    }
+    // Wynn hidden — try recent server-watcher observation.
     MembershipSnapshot.LastSeenObserved obs =
         snapshot != null ? snapshot.getLastSeenObserved() : null;
     if (obs != null && obs.getTs() > 0) {
