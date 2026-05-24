@@ -12,7 +12,6 @@
 		"CommandSuggestionsMixin",
 		"NametagMixin",
 		"QueueTitleMixin",
-		"command.ToggleCommandMixin",
 		"command.UnlockCommandMixin"
 	],
 	"injectors": {

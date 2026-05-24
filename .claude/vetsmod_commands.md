@@ -1,6 +1,6 @@
 ---
 name: vetsmod /wv Command Reference
-description: Complete /wv command tree — subcommands, permissions, handlers, chat-command mixins (/unlock, /toggle, /g/wg/v)
+description: Complete /wv command tree — subcommands, permissions, handlers, chat-command mixins (/unlock, /g/wg/v)
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
@@ -84,11 +84,6 @@ Flow:
 6. Server's auth-frame ack lands asynchronously → `GuildStateManager.onAuthSuccess(tier)` shows `✅ vetsmod authentication verified — tier: <tier>` (green) **at most once per error→recovery cycle**, gated by the persisted `printSuccessfulAuth` flag (defaults `true`; latched to `false` after a successful render; reset to `true` by `onAuthFailure`). Display path: **action bar** during normal in-world play, **chat fallback** when a `Screen` is open at dispatch time (Wynncraft's class-selection screen on login is the canonical case — action-bar overlays are suppressed under screens but chat renders through). `onAuthFailure(detail)` always displays `❌ vetsmod authentication failed: <reason>` (red) **in chat** (it carries an actionable Discord URL that the action bar would truncate). Manually re-show the next ack with `/wv config printSuccessfulAuth true`.
 
 The legacy SHA-256 password matching has been removed. Users with stored `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` markers from before the migration get a session-start warning prompting them to run `/vetsmod` in Discord — see [vetsmod_guild_system.md §5](vetsmod_guild_system.md#5-sessionauthwarning).
-
-### ToggleCommandMixin
-[src/client/java/org/wynnvets/mixin/client/command/ToggleCommandMixin.java:20-94](src/client/java/org/wynnvets/mixin/client/command/ToggleCommandMixin.java#L20-L94)
-
-Legacy `/toggle <key> [value]`. Only intercepts keys known to `VetsConfig.hasKey()`. Likely superseded by `/wv config` but still present for backwards compat.
 
 ### GuildChatCommandMixin
 [src/client/java/org/wynnvets/mixin/client/chat/GuildChatCommandMixin.java:18-27](src/client/java/org/wynnvets/mixin/client/chat/GuildChatCommandMixin.java#L18-L27)

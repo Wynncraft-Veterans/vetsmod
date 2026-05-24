@@ -1,12 +1,12 @@
 ---
 name: vetsmod Mixins Reference
-description: All 11 mixin classes — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy) and the three top-level mixins.
+description: All 10 mixin classes — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy) and the three top-level mixins.
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Mixins Reference
 
-11 mixins total, all client-side (under `src/client/java/org/wynnvets/mixin/client/`). Authoritative list: [src/client/resources/vetsmod.client.mixins.json](src/client/resources/vetsmod.client.mixins.json). Grouped by subpackage below.
+10 mixins total, all client-side (under `src/client/java/org/wynnvets/mixin/client/`). Authoritative list: [src/client/resources/vetsmod.client.mixins.json](src/client/resources/vetsmod.client.mixins.json). Grouped by subpackage below.
 
 ## Chat (3)
 
@@ -31,7 +31,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 - **Purpose:** Routes `/g`, `/wg`, `/v`, `/msg` through `GuildChatDispatcher.intercept(command)`
 - **Why:** Staff `/v` gets fanned out to all online staff via `MessageFanoutDispatcher`; Wynncraft natively has no multi-staff chat
 
-## Command (2)
+## Command (1)
 
 ### UnlockCommandMixin
 [src/client/java/org/wynnvets/mixin/client/command/UnlockCommandMixin.java](src/client/java/org/wynnvets/mixin/client/command/UnlockCommandMixin.java)
@@ -39,13 +39,6 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 - **Method:** `sendCommand(String command)` at `@At("HEAD")`, `cancellable=true`
 - **Purpose:** Intercepts `/unlock <key>` before server. Validates the key shape locally (32–200 char URL-safe base64), persists it to `vetsAuthKey`, and dispatches an `auth` frame on the inbound WS via `V1ApiManager.sendAuth(key)`.
 - **Why:** The key is a bearer token issued by dazebot's `/vetsmod` Discord command; it must never be sent to the Wynncraft server. Server-side validation happens asynchronously via dazebot HTTP introspection — see [vetsmod_guild_system.md §4](vetsmod_guild_system.md) and [vetsmod_networking.md §8](vetsmod_networking.md).
-
-### ToggleCommandMixin
-[src/client/java/org/wynnvets/mixin/client/command/ToggleCommandMixin.java:20-94](src/client/java/org/wynnvets/mixin/client/command/ToggleCommandMixin.java#L20-L94)
-- **Target:** `@Mixin(ClientPacketListener.class)`
-- **Method:** `sendCommand(String command)` at `@At("HEAD")`, `cancellable=true`
-- **Purpose:** Intercepts `/toggle <key> [value]`. Only for keys known to `VetsConfig.hasKey()`
-- **Why:** Legacy command — likely superseded by `/wv config`, kept for backwards compat
 
 ## Legacy item (3)
 
