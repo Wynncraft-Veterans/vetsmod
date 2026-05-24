@@ -108,7 +108,7 @@ public final class WorldListFetcher {
 
             findFuture.thenAccept(worldMap -> {
                 MutableComponent result = formatWorldList(players, worldMap, staffNames);
-                ChatUtils.sendLocalMessage(result);
+                ChatUtils.sendLocalMessageNewBlock(result);
             }).exceptionally(e -> {
                 VetsLogger.warn("World list find batch failed: {}", e.getMessage());
                 ChatUtils.sendLocalMessage(
@@ -227,7 +227,7 @@ public final class WorldListFetcher {
                 .count();
 
         MutableComponent msg = Component.empty();
-        msg.append(Component.literal("——— World List ———\n")
+        msg.append(Component.literal("World List\n")
                 .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
         msg.append(Component.literal(String.format(
                         "%d members found across %d servers\n", foundCount, serverCount))

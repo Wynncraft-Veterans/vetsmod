@@ -94,7 +94,7 @@ public final class ListFetcher {
 
     MutableComponent msg = Component.empty();
 
-    msg.append(Component.literal("——— Online Members ———\n")
+    msg.append(Component.literal("Online Members\n")
         .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
 
     msg.append(Component.literal(String.format(

@@ -135,7 +135,7 @@ public final class DiagnosticsHandler {
 
         // ── Chat output (concise) ──────────────────────────────────
         MutableComponent chatMsg = Component.empty();
-        chatMsg.append(Component.literal("VetsMod Diagnostics\n").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+        chatMsg.append(Component.literal("Diagnostics\n").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
         chatMsg.append(Component.literal("Version: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(Component.literal(vetsmodVersion + "\n").withStyle(ChatFormatting.WHITE));
         chatMsg.append(Component.literal("MC: ").withStyle(ChatFormatting.GRAY));
@@ -187,7 +187,7 @@ public final class DiagnosticsHandler {
             chatMsg.append(Component.literal("yes").withStyle(ChatFormatting.YELLOW));
         }
 
-        ChatUtils.sendLocalMessage(chatMsg);
+        ChatUtils.sendLocalMessageNewBlock(chatMsg);
 
         // ── Detailed log dump ───────────────────────────────────────
         VetsLogger.info("=== VetsMod Diagnostics Dump ===");

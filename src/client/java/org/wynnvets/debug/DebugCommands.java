@@ -105,9 +105,9 @@ public final class DebugCommands {
      * {@code /wv debug set} — lists all debug config keys and their current values.
      */
     private static int debugConfigList(CommandContext<FabricClientCommandSource> ctx) {
-        MutableComponent header = Component.literal("VetsMod Debug Configuration:")
+        MutableComponent header = Component.literal("Debug Configuration:")
             .withStyle(ChatFormatting.GOLD);
-        ChatUtils.sendLocalMessage(header);
+        ChatUtils.sendLocalMessageNewBlock(header);
 
         for (String key : DebugConfigManager.DEBUG_CONFIG_KEYS) {
             boolean value = VetsConfig.get(key);

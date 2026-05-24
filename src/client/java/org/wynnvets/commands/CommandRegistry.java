@@ -218,19 +218,19 @@ public final class CommandRegistry {
       MotdFetcher.fetchGuildMotd().thenAccept(guildMotd -> {
         String text = guildMotd.getString();
         if (text != null && !text.isEmpty()) {
-          ChatUtils.sendLocalMessage(guildMotd);
+          ChatUtils.sendLocalMessageNewBlock(guildMotd);
         } else {
-          MotdFetcher.fetchMotd().thenAccept(motd -> ChatUtils.sendLocalMessage(motd));
+          MotdFetcher.fetchMotd().thenAccept(motd -> ChatUtils.sendLocalMessageNewBlock(motd));
         }
       });
     } else {
-      MotdFetcher.fetchMotd().thenAccept(motd -> ChatUtils.sendLocalMessage(motd));
+      MotdFetcher.fetchMotd().thenAccept(motd -> ChatUtils.sendLocalMessageNewBlock(motd));
     }
     return 1;
   }
 
   private static int returnInfo(CommandContext<FabricClientCommandSource> ctx) {
-    ReturnFetcher.fetchReturn().thenAccept(returnInfo -> ChatUtils.sendLocalMessage(returnInfo));
+    ReturnFetcher.fetchReturn().thenAccept(returnInfo -> ChatUtils.sendLocalMessageNewBlock(returnInfo));
     return 1;
   }
 
@@ -243,7 +243,7 @@ public final class CommandRegistry {
       return 0;
     }
 
-    StaffFetcher.fetchOnlineStaff().thenAccept(staffInfo -> ChatUtils.sendLocalMessage(staffInfo));
+    StaffFetcher.fetchOnlineStaff().thenAccept(staffInfo -> ChatUtils.sendLocalMessageNewBlock(staffInfo));
     return 1;
   }
 
@@ -256,12 +256,15 @@ public final class CommandRegistry {
       return 0;
     }
 
+    // "Looking up..." is a transient progress line, not the real response —
+    // let it dedup to the compact indicator. The new-block separator is
+    // reserved for the actual "Online Members" header that follows.
     ChatUtils.sendLocalMessage(
         Component.literal("Looking up online members...")
             .withStyle(ChatFormatting.GREEN)
     );
 
-    ListFetcher.fetchList().thenAccept(listInfo -> ChatUtils.sendLocalMessage(listInfo));
+    ListFetcher.fetchList().thenAccept(listInfo -> ChatUtils.sendLocalMessageNewBlock(listInfo));
     return 1;
   }
 
@@ -292,9 +295,9 @@ public final class CommandRegistry {
   private static int anni(CommandContext<FabricClientCommandSource> ctx) {
     StampFetcher.fetchStampAndCreateAnniCommandMessage().thenAccept(stampMessage -> {
       if (stampMessage != null) {
-        ChatUtils.sendLocalMessage(stampMessage);
+        ChatUtils.sendLocalMessageNewBlock(stampMessage);
       } else {
-        ChatUtils.sendLocalMessage(
+        ChatUtils.sendLocalMessageNewBlock(
             Component.literal("Annihilation timer is currently unavailable.")
                 .withStyle(ChatFormatting.YELLOW)
         );

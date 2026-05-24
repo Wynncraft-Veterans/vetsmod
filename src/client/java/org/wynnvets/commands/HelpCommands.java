@@ -22,7 +22,7 @@ final class HelpCommands {
   static int help(CommandContext<FabricClientCommandSource> ctx) {
     MutableComponent msg = Component.empty();
 
-    msg.append(Component.literal("——— VetsMod Commands ———\n")
+    msg.append(Component.literal("Commands\n")
         .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
     msg.append(Component.literal("Use /wv help <command> for details on a specific command.\n\n")
         .withStyle(ChatFormatting.GRAY));
@@ -94,14 +94,14 @@ final class HelpCommands {
     msg.append(Component.literal(" — Diagnostics & debug tools")
         .withStyle(ChatFormatting.GRAY));
 
-    ChatUtils.sendLocalMessage(msg);
+    ChatUtils.sendLocalMessageNewBlock(msg);
     return 1;
   }
 
   static int helpConfig(CommandContext<FabricClientCommandSource> ctx) {
     MutableComponent msg = Component.empty();
 
-    msg.append(Component.literal("——— VetsMod Config Options ———\n")
+    msg.append(Component.literal("Config Options\n")
         .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
     msg.append(Component.literal("Toggle with: /wv config <key> <true|false>\n\n")
         .withStyle(ChatFormatting.GRAY));
@@ -143,7 +143,7 @@ final class HelpCommands {
     msg.append(Component.literal(" instead of relying solely on Wynntils (which can stay null)")
         .withStyle(ChatFormatting.GRAY));
 
-    ChatUtils.sendLocalMessage(msg);
+    ChatUtils.sendLocalMessageNewBlock(msg);
     return 1;
   }
 
@@ -154,7 +154,7 @@ final class HelpCommands {
         .withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Staff").withStyle(ChatFormatting.RED));
-    ChatUtils.sendLocalMessage(msg);
+    ChatUtils.sendLocalMessageNewBlock(msg);
     return 1;
   }
 
@@ -165,7 +165,7 @@ final class HelpCommands {
         + "as fetched from the guild-announcements channel.\n").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Returners guild member").withStyle(ChatFormatting.GREEN));
-    ChatUtils.sendLocalMessage(msg);
+    ChatUtils.sendLocalMessageNewBlock(msg);
     return 1;
   }
 
@@ -176,7 +176,7 @@ final class HelpCommands {
         .withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Unlocked").withStyle(ChatFormatting.GREEN));
-    ChatUtils.sendLocalMessage(msg);
+    ChatUtils.sendLocalMessageNewBlock(msg);
     return 1;
   }
 
@@ -187,7 +187,7 @@ final class HelpCommands {
         + "honourary, and waitlist status.\n").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Veteran (Returners, waitlist, or honourary)").withStyle(ChatFormatting.GREEN));
-    ChatUtils.sendLocalMessage(msg);
+    ChatUtils.sendLocalMessageNewBlock(msg);
     return 1;
   }
 
@@ -198,7 +198,7 @@ final class HelpCommands {
         + "a standalone /motd command.\n").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Veteran (Returners, waitlist, or honourary)").withStyle(ChatFormatting.GREEN));
-    ChatUtils.sendLocalMessage(msg);
+    ChatUtils.sendLocalMessageNewBlock(msg);
     return 1;
   }
 
@@ -209,7 +209,7 @@ final class HelpCommands {
         + "if one has been announced.\n").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
-    ChatUtils.sendLocalMessage(msg);
+    ChatUtils.sendLocalMessageNewBlock(msg);
     return 1;
   }
 
@@ -223,7 +223,7 @@ final class HelpCommands {
         .withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Returners guild member").withStyle(ChatFormatting.GREEN));
-    ChatUtils.sendLocalMessage(msg);
+    ChatUtils.sendLocalMessageNewBlock(msg);
     return 1;
   }
 
@@ -243,7 +243,7 @@ final class HelpCommands {
         .withStyle(ChatFormatting.DARK_GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
-    ChatUtils.sendLocalMessage(msg);
+    ChatUtils.sendLocalMessageNewBlock(msg);
     return 1;
   }
 
@@ -270,7 +270,7 @@ final class HelpCommands {
         .withStyle(ChatFormatting.DARK_GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
-    ChatUtils.sendLocalMessage(msg);
+    ChatUtils.sendLocalMessageNewBlock(msg);
     return 1;
   }
 
@@ -299,7 +299,7 @@ final class HelpCommands {
         .withStyle(ChatFormatting.DARK_GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
-    ChatUtils.sendLocalMessage(msg);
+    ChatUtils.sendLocalMessageNewBlock(msg);
     return 1;
   }
 }

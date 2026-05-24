@@ -76,9 +76,9 @@ final class ConfigCommands {
   // ── Command handlers ────────────────────────────────────────────────
 
   static int configList(CommandContext<FabricClientCommandSource> ctx) {
-    MutableComponent header = Component.literal("VetsMod Configuration:")
+    MutableComponent header = Component.literal("Configuration:")
         .withStyle(ChatFormatting.GOLD);
-    ChatUtils.sendLocalMessage(header);
+    ChatUtils.sendLocalMessageNewBlock(header);
 
     for (String key : VetsConfig.USER_CONFIG_KEYS) {
       if (VetsConfig.isIntKey(key)) {

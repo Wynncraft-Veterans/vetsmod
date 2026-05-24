@@ -13,6 +13,7 @@ import org.wynnvets.api.MojangApi;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.WynnCraftApi;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.Prepend;
 import org.wynnvets.datamodels.Guild;
 import org.wynnvets.datamodels.MembershipSnapshot;
 import org.wynnvets.datamodels.User;
@@ -395,6 +396,13 @@ public class UserInfoFetcher {
       User user,
       ReturnersMembership returners,
       MembershipSnapshot snapshot) {
+    // Mark the start of a new render block so the first line re-extends
+    // the badge — this is what gives staff a visual divider between two
+    // back-to-back /wv check responses (and between this snapshot block
+    // and the preceding caution-history block, which arrive on separate
+    // WS frames).
+    Prepend.resetDedup();
+
     String displayName = (user != null && user.getUsername() != null)
         ? user.getUsername()
         : requestedName;

@@ -103,6 +103,22 @@ public enum Prepend {
         linesSinceBadge += lines;
     }
 
+    /**
+     * Forces the next call to {@link #get()} on any prepend to return the
+     * full badge regardless of recent dedup state. Use at the boundary
+     * between temporally-distinct render blocks (e.g. the start of a new
+     * {@code /wv check} response) so staff get a clear visual separator
+     * between back-to-back command outputs instead of one long undivided
+     * compact-indicator wall.
+     *
+     * <p>Dedup within the new block continues to work normally — this
+     * only re-extends the *first* line of the next block.</p>
+     */
+    public static void resetDedup() {
+        lastPrepend = null;
+        linesSinceBadge = 0;
+    }
+
     private static MutableComponent buildDefaultBadge() {
         Style rootStyle = Style.EMPTY
                 .withColor(ChatFormatting.GOLD)

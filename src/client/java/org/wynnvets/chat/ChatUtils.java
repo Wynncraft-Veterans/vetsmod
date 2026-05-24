@@ -106,6 +106,21 @@ public final class ChatUtils {
     }
 
     /**
+     * Same as {@link #sendLocalMessage(Component)} but marks this as the
+     * start of a new render block first ({@link Prepend#resetDedup()}).
+     * The next badge dedup hit re-extends to the full banner, giving
+     * staff a visual divider between back-to-back command outputs.
+     * Use for the *first* line of any new command response; subsequent
+     * lines in the same block should keep using plain
+     * {@link #sendLocalMessage(Component)} so they demote to the compact
+     * indicator as usual.
+     */
+    public static void sendLocalMessageNewBlock(Component message) {
+        Prepend.resetDedup();
+        sendLocalMessage(message, Prepend.DEFAULT);
+    }
+
+    /**
      * Sends a message to the player's chat with the given badge prepended.
      *
      * @param message the message component to display
