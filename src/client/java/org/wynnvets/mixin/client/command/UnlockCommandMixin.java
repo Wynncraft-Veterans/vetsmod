@@ -40,7 +40,7 @@ public class UnlockCommandMixin {
     String[] parts = command.split(" ", 2);
     if (parts.length < 2 || parts[1].isEmpty()) {
       ChatUtils.sendLocalMessage(
-          Component.literal("Usage: /unlock <key>  (run /vetsmod in #bot-commands "
+          Component.literal("Usage: /unlock <key>  (run ~vetsmod in #bot-commands "
                   + "at https://wynnvets.org/discord to get a key)")
               .withStyle(ChatFormatting.RED)
       );
@@ -69,7 +69,7 @@ public class UnlockCommandMixin {
       case MALFORMED ->
           ChatUtils.sendLocalMessage(
               Component.literal("❌ That doesn't look like a vetsmod key. "
-                      + "Run /vetsmod in #bot-commands at https://wynnvets.org/discord "
+                      + "Run ~vetsmod in #bot-commands at https://wynnvets.org/discord "
                       + "to get one.")
                   .withStyle(ChatFormatting.RED)
           );

@@ -110,7 +110,7 @@ public final class SessionAuthWarning {
             String reasonSuffix = reason.isEmpty() ? "" : " (" + reason + ")";
             ChatUtils.sendLocalMessage(makeWarning(
                 "Your stored vetsmod key was rejected" + reasonSuffix
-                    + ". Run /vetsmod in #bot-commands to issue a new one.",
+                    + ". Run ~vetsmod in #bot-commands to issue a new one.",
                 ChatFormatting.RED
             ));
             return;
@@ -123,14 +123,14 @@ public final class SessionAuthWarning {
                 ChatUtils.sendLocalMessage(makeWarning(
                     "vetsmod is running unauthenticated. Vets chat still works "
                         + "for now, but authentication will become mandatory soon. "
-                        + "Run /vetsmod in #bot-commands to /unlock.",
+                        + "Run ~vetsmod in #bot-commands to /unlock.",
                     ChatFormatting.YELLOW
                 ));
             } else {
                 ChatUtils.sendLocalMessage(makeWarning(
                     "You aren't authenticated, so vetsmod cannot send or receive "
                         + "VETS chat or use guild-specific features until you "
-                        + "/unlock. Run /vetsmod in #bot-commands to get a key.",
+                        + "/unlock. Run ~vetsmod in #bot-commands to get a key.",
                     ChatFormatting.RED
                 ));
             }

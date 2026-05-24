@@ -279,7 +279,7 @@ final class UnlockManager {
 
         ChatUtils.sendLocalMessage(
             Component.literal("❌ vetsmod authentication failed: " + lastAuthFailureReason
-                    + ". Run `/vetsmod` in #bot-commands at https://wynnvets.org/discord "
+                    + ". Run `~vetsmod` in #bot-commands at https://wynnvets.org/discord "
                     + "to issue a new key.")
                 .withStyle(ChatFormatting.RED)
         );
