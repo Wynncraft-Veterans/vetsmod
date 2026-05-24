@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.guild.GuildStateManager;
@@ -149,6 +150,18 @@ public final class CommandDispatcher {
             return;
         }
 
+        // Fast path: the v1 auth ack already told us the server resolved this
+        // session as staff against the canonical roster. Skip the WAPI-probe
+        // wait entirely -- the recipient-side rewriter consults its own
+        // (push-fed) staff cache, so as long as auth succeeded, fanout will
+        // be transformed correctly on the receiver.
+        if (V1ApiManager.isConfirmedStaff()) {
+            selfSeenInStaffFeedThisWorld = true;
+            ChatUtils.sendStaffChannelMessage(displayName, message, rank);
+            enqueueAndDispatch(message);
+            return;
+        }
+
         if (selfSeenInStaffFeedThisWorld) {
             ChatUtils.sendStaffChannelMessage(displayName, message, rank);
             enqueueAndDispatch(message);
@@ -186,6 +199,13 @@ public final class CommandDispatcher {
      * If the check must be performed asynchronously, the action is scheduled back on the render thread.
      */
     public static void executeWithStaffEligibilityGate(Runnable action) {
+        // Fast path: same rationale as dispatchStaffChatWithEligibilityGate.
+        if (V1ApiManager.isConfirmedStaff()) {
+            selfSeenInStaffFeedThisWorld = true;
+            action.run();
+            return;
+        }
+
         if (selfSeenInStaffFeedThisWorld) {
             action.run();
             return;

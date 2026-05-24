@@ -3,7 +3,9 @@ package org.wynnvets.api;
 import com.google.gson.JsonObject;
 import net.fabricmc.loader.api.FabricLoader;
 import org.wynnvets.Vetsmod;
+import org.wynnvets.chat.dispatcher.CommandDispatcher;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
@@ -131,6 +133,7 @@ public final class V1ApiManager {
                 // Capture server-confirmed staff status from the auth ack.
                 // The roster lookup happens server-side; the client just
                 // reads whatever the server resolved.
+                boolean wasStaff = confirmedStaff;
                 confirmedStaff = json.has("is_staff")
                     && !json.get("is_staff").isJsonNull()
                     && json.get("is_staff").getAsBoolean();
@@ -140,6 +143,17 @@ public final class V1ApiManager {
                 } else {
                     confirmedStaffRank = "";
                 }
+                // Same-world demotion clears the eligibility cache so the
+                // fast-path bypass in CommandDispatcher doesn't keep treating
+                // us as staff. World change already resets it via
+                // GuildStateManager.onEnteredWorld -> resetStaffChatEligibilityCache.
+                if (wasStaff && !confirmedStaff) {
+                    CommandDispatcher.resetStaffChatEligibilityCache();
+                }
+                // Close the cold-start gap: the next scheduled poll may be up
+                // to two minutes away, so trigger an immediate refresh of the
+                // receiver-side staff cache as soon as auth completes.
+                StaffRanksPoller.refreshNow();
                 GuildStateManager.onAuthSuccess(tier);
                 return;
             }
@@ -148,8 +162,12 @@ public final class V1ApiManager {
                 if (wasAuthAck || detail.startsWith("auth rejected")
                         || detail.startsWith("Authentication required")) {
                     expectingAuthAck = false;
+                    boolean wasStaff = confirmedStaff;
                     confirmedStaff = false;
                     confirmedStaffRank = "";
+                    if (wasStaff) {
+                        CommandDispatcher.resetStaffChatEligibilityCache();
+                    }
                     GuildStateManager.onAuthFailure(detail);
                 } else {
                     VetsLogger.warn("Inbound API error: {}", detail);
@@ -181,11 +199,18 @@ public final class V1ApiManager {
             // us the current `unauth` toggle state. Routed straight to
             // SessionAuthWarning so its session-start warning can pick the
             // right copy. Other frames are real chat — fan out to listeners.
-            if (json.has("type") && "server_info".equals(json.get("type").getAsString())) {
-                boolean unauthEnabled = json.has("unauth_enabled")
-                    && json.get("unauth_enabled").getAsBoolean();
-                org.wynnvets.guild.SessionAuthWarning.onServerInfo(unauthEnabled);
-                return;
+            if (json.has("type")) {
+                String frameType = json.get("type").getAsString();
+                if ("server_info".equals(frameType)) {
+                    boolean unauthEnabled = json.has("unauth_enabled")
+                        && json.get("unauth_enabled").getAsBoolean();
+                    org.wynnvets.guild.SessionAuthWarning.onServerInfo(unauthEnabled);
+                    return;
+                }
+                if ("staff_online".equals(frameType) || "staff_offline".equals(frameType)) {
+                    handleStaffPresenceFrame(frameType, json);
+                    return;
+                }
             }
             for (Consumer<JsonObject> listener : outboundListeners) {
                 try {
@@ -400,6 +425,30 @@ public final class V1ApiManager {
 
     /** Lightweight record for tab list entries sent to the server. */
     public record TabListEntry(String server, String username) {}
+
+    /**
+     * Routes a {@code staff_online} / {@code staff_offline} frame to
+     * {@link StaffRanksPoller}. These deltas keep the receiver-side
+     * staff-rank cache fresh between scheduled polls so the chat
+     * rewriters recognise a newly-online staff member's whispers
+     * within milliseconds rather than waiting up to two minutes.
+     */
+    private static void handleStaffPresenceFrame(String type, JsonObject json) {
+        String username = json.has("username") && !json.get("username").isJsonNull()
+            ? json.get("username").getAsString()
+            : "";
+        if (username.isEmpty()) {
+            return;
+        }
+        if ("staff_online".equals(type)) {
+            String rank = json.has("rank") && !json.get("rank").isJsonNull()
+                ? json.get("rank").getAsString()
+                : "";
+            StaffRanksPoller.applyLiveStaffEvent(username, rank, true);
+        } else {
+            StaffRanksPoller.applyLiveStaffEvent(username, null, false);
+        }
+    }
 
     /**
      * Registers a listener that receives every outbound message from the server.

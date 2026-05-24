@@ -23,8 +23,19 @@ import java.util.concurrent.TimeUnit;
 /**
  * Periodically fetches confirmed staff ranks and caches them locally.
  *
- * <p>Data source: {@code /v1/outbound/staff}. Cached values are keyed by
- * lowercase username and store one of: captain/strategist/chief/owner.</p>
+ * <p>Two-tier cache:
+ * <ul>
+ *   <li>{@code staffRanksByUsername} — entries populated by the periodic
+ *       2-minute poll of {@code /v1/outbound/staff}.</li>
+ *   <li>{@code liveStaffRanksByUsername} — entries pushed via
+ *       {@code staff_online} outbound frames; preserved across poll
+ *       cycles so a push-known staff member is never temporarily
+ *       evicted by a stale poll snapshot.</li>
+ * </ul>
+ *
+ * <p>{@link #confirmedRankFor} checks the live map first, then the poll
+ * map. Both are keyed by lowercase username and store one of
+ * captain/strategist/chief/owner.</p>
  */
 public final class StaffRanksPoller {
   private static final int REFRESH_INTERVAL_MINUTES = 2;
@@ -42,6 +53,9 @@ public final class StaffRanksPoller {
 
   private static final Gson GSON = new Gson();
   private static final Map<String, String> staffRanksByUsername = new ConcurrentHashMap<>();
+  // Push-sourced overlay. Survives poll cycles so live presence
+  // monotonically wins over the slower 2-minute resync.
+  private static final Map<String, String> liveStaffRanksByUsername = new ConcurrentHashMap<>();
   private static final Set<String> ALLOWED_RANKS = Set.of("captain", "strategist", "chief", "owner");
 
   private static ScheduledExecutorService scheduler;
@@ -94,14 +108,68 @@ public final class StaffRanksPoller {
 
   /**
    * Returns a confirmed rank for the given username when available.
+   *
+   * <p>Live push-sourced state takes priority over the periodic poll
+   * cache. This guarantees that a staff member announced via
+   * {@code staff_online} is recognised by the recipient's chat
+   * rewriters within milliseconds, even if the 2-minute poll has not
+   * yet refreshed.</p>
    */
   public static Optional<String> confirmedRankFor(String username) {
     if (username == null || username.isEmpty()) {
       return Optional.empty();
     }
 
-    String rank = staffRanksByUsername.get(username.toLowerCase());
-    return Optional.ofNullable(rank);
+    String key = username.toLowerCase();
+    String rank = liveStaffRanksByUsername.get(key);
+    if (rank != null) {
+      return Optional.of(rank);
+    }
+    return Optional.ofNullable(staffRanksByUsername.get(key));
+  }
+
+  /**
+   * Applies a live {@code staff_online} / {@code staff_offline} delta
+   * from the v1 outbound WebSocket.
+   *
+   * <p>When {@code online} is {@code true}, {@code rank} must be one of
+   * the allowed ranks; malformed ranks are dropped silently.</p>
+   *
+   * <p>When {@code online} is {@code false}, the username is removed
+   * from both caches eagerly -- waiting for the next poll would leave a
+   * up-to-two-minute window in which the rewriter still treats the
+   * stale entry as staff.</p>
+   */
+  public static void applyLiveStaffEvent(String username, String rank, boolean online) {
+    if (username == null || username.isEmpty()) {
+      return;
+    }
+    String key = username.toLowerCase();
+    if (online) {
+      String normalized = normalizeRank(rank);
+      if (normalized == null) {
+        VetsLogger.debug("Dropping staff_online with unrecognised rank: {} ({})", username, rank);
+        return;
+      }
+      liveStaffRanksByUsername.put(key, normalized);
+    } else {
+      liveStaffRanksByUsername.remove(key);
+      staffRanksByUsername.remove(key);
+    }
+  }
+
+  /**
+   * Triggers an off-schedule fetch of {@code /v1/outbound/staff}.
+   *
+   * <p>Called on inbound auth-ack to close the cold-start gap before
+   * the first scheduled poll fires (the initial scheduled poll fires
+   * on mod init, which may be minutes before the player joins a world
+   * and authenticates).</p>
+   */
+  public static void refreshNow() {
+    Thread t = new Thread(StaffRanksPoller::fetchStaffRanks, "VetsMod-StaffRanksRefreshNow");
+    t.setDaemon(true);
+    t.start();
   }
 
   private static void fetchStaffRanks() {
