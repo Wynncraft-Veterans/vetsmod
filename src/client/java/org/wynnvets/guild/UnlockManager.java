@@ -60,6 +60,13 @@ final class UnlockManager {
      *  "unknown key"), shown to the user on world join when relevant. */
     private static volatile String lastAuthFailureReason = "";
 
+    /** {@code true} when the user has just run {@code /unlock} and is awaiting
+     *  the resulting auth-frame ack. Forces the next success ack to render its
+     *  confirmation message regardless of {@link VetsConfig#PRINT_SUCCESSFUL_AUTH}
+     *  so the player always sees the result of their attempt. Cleared by both
+     *  the success and failure handlers. */
+    private static volatile boolean pendingUnlockNotify = false;
+
     /** Debug-only override: pretend the user is guildless+unlocked. */
     private static boolean debugForceGuildlessUnlocked = false;
 
@@ -147,6 +154,7 @@ final class UnlockManager {
         currentTier = "";
         authVerifiedThisSession = false;
         lastAuthFailureReason = "";
+        pendingUnlockNotify = false;
     }
 
     // ── Unlock command ────────────────────────────────────────────────
@@ -194,6 +202,9 @@ final class UnlockManager {
         currentTier = "";
         authVerifiedThisSession = false;
         lastAuthFailureReason = "";
+        // Force the next auth ack to surface its result to the user, even if
+        // printSuccessfulAuth is latched off.
+        pendingUnlockNotify = true;
 
         // Push the new key out immediately so the user sees a result this
         // session rather than only on the next reconnect. V1ApiManager will
@@ -215,8 +226,12 @@ final class UnlockManager {
         lastAuthFailureReason = "";
         VetsLogger.info("Auth verified by server: tier={}", currentTier);
 
+        boolean fromUnlock = pendingUnlockNotify;
+        pendingUnlockNotify = false;
+        boolean configWantsPrint = VetsConfig.get(VetsConfig.PRINT_SUCCESSFUL_AUTH);
+
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null && VetsConfig.get(VetsConfig.PRINT_SUCCESSFUL_AUTH)) {
+        if (mc.player != null && (fromUnlock || configWantsPrint)) {
             Component msg = Component.literal(
                     "✅ vetsmod authentication verified — tier: " + currentTier)
                 .withStyle(ChatFormatting.GREEN);
@@ -233,8 +248,12 @@ final class UnlockManager {
             }
             // Latch off so the message doesn't re-fire on every WS reconnect.
             // onAuthFailure() flips it back on so a transient error→recovery
-            // re-shows the confirmation.
-            VetsConfig.set(VetsConfig.PRINT_SUCCESSFUL_AUTH, false);
+            // re-shows the confirmation. Only do this when the config was
+            // what triggered the display — a /unlock-driven render shouldn't
+            // overwrite the user's standing preference.
+            if (configWantsPrint) {
+                VetsConfig.set(VetsConfig.PRINT_SUCCESSFUL_AUTH, false);
+            }
         }
 
         // Refresh presence registration so the server's connected_users
@@ -249,6 +268,9 @@ final class UnlockManager {
         currentTier = "";
         authVerifiedThisSession = false;
         lastAuthFailureReason = detail == null ? "unknown" : detail;
+        // Failure path always renders its own message below, so the /unlock
+        // notify request is satisfied by that — no special-casing needed.
+        pendingUnlockNotify = false;
         VetsLogger.warn("Auth rejected by server: {}", lastAuthFailureReason);
 
         // Re-arm the success notification so the next error→recovery cycle
