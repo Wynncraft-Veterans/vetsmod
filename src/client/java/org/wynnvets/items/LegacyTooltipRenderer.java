@@ -220,6 +220,23 @@ final class LegacyTooltipRenderer {
       return modified;
     }
 
+    // ── Branch 4b: Pedestal-wiped vanilla armour/weapon shells ──────────
+    // The item is a vanilla armour piece (helmet/chestplate/leggings/boots)
+    // or weapon-class proxy (shears/shovel/bow/stick), has no lore, and its
+    // custom name carries a §b/§d/§e colour-code prefix.  The pedestal item-
+    // wipe strips lore from legendary/rare/unique items while preserving the
+    // coloured name and vanilla item ID, so these bare shells get a dedicated
+    // "Legacy Item (Pedestal-Wiped)" label instead of falling through to the
+    // foil/beta-marker branches below.
+    if (LegacyItemHandler.isPedestalWipedItem(LegacyItemHandler.currentItemStack)) {
+      List<Component> modified = new ArrayList<>(tooltipLines);
+      modified.set(0, buildGoldName(plainText, false, raritySuffix));
+      modified.add(debugLinesStart(modified),
+          Component.literal("Legacy Item (Pedestal-Wiped)").withStyle(ChatFormatting.GOLD));
+      LegacyItemHandler.lastProcessedWasLegacy = true;
+      return modified;
+    }
+
     // ── Branch 5: Beta/alpha legacy marker (gold "Lv. min" in lore) ─────
     // Old Wynncraft beta/alpha items have a gold-coloured "Lv. min: X" line
     // in lore instead of the modern format.  If a standard rarity line also

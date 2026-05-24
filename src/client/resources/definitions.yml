@@ -101,7 +101,7 @@ definitions:
   - "(?i)^Skill Reset Scroll.*$"
   - "(?i)^(Tutorial )?Unprocessed.*$"
   - "^A Washer$"
-  - "(?i)^Foehn Wind.*$"
+  #- "(?i)^Foehn Wind.*$" // Obtainable in nesaak merchant
   - "(?i)^Harmstick.*$"
   - "(?i)^Hotline.*$"
   - "(?i)^Poinsettia.*$"
@@ -166,6 +166,7 @@ notjunk:
   - "^Ghostly .*"
   - "^Roasted Flesh$"
   - "^Rubble$"
+  - "^Golden Teeth$"
 ---
 enchant_excluded_items:
   - "minecraft:experience_bottle"

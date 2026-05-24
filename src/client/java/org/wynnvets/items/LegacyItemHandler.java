@@ -8,6 +8,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
@@ -122,16 +123,19 @@ public class LegacyItemHandler {
     // 3. No-lore legacy: known legacy item that has lost its lore (pre-update relics)
     if (lore.isEmpty() && name != null && !name.isBlank() && ItemDefinitions.isNoLoreLegacy(name)) return true;
 
-    // 4. Beta marker: lore contains the explicit beta-legacy indicator line
+    // 4. Pedestal-wiped: vanilla armour/weapon shells with a §b/§d/§e custom name and no lore
+    if (isPedestalWipedItem(stack)) return true;
+
+    // 5. Beta marker: lore contains the explicit beta-legacy indicator line
     if (hasBetaLegacyMarker(lore)) return true;
 
-    // 5. Enchant glint: item has enchant shimmer and isn't in the exclusion list
+    // 6. Enchant glint: item has enchant shimmer and isn't in the exclusion list
     if (stack.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(stack) && (name == null || !ItemDefinitions.isUnenchanted(name))) return true;
 
-    // 6. Junk rarity: lore has "Junk" rarity tier (removed in modern Wynncraft)
+    // 7. Junk rarity: lore has "Junk" rarity tier (removed in modern Wynncraft)
     if (hasJunkRarity(lore) && (name == null || !ItemDefinitions.isNotJunk(name))) return true;
 
-    // 7. Crafting rarity: lore has the pre-removal "Crafting" rarity line
+    // 8. Crafting rarity: lore has the pre-removal "Crafting" rarity line
     if (hasCraftingRarity(lore)) return true;
 
     return false;
@@ -252,6 +256,42 @@ public class LegacyItemHandler {
    */
   public static void notifyScreenshotKeyPressed() {
     LegacyScreenshotHandler.screenshotKeyPressed = true;
+  }
+
+  /**
+   * Returns {@code true} for vanilla armour/weapon shells that have been wiped
+   * clean at the item pedestal: lore is empty, the custom name carries a
+   * §b/§d/§e colour code prefix, and the underlying item type is a vanilla
+   * armour piece ({@code *_helmet}/{@code *_chestplate}/{@code *_leggings}/
+   * {@code *_boots}) or one of the Wynncraft weapon-class proxies
+   * ({@code *_shovel}, {@code shears}, {@code bow}, {@code stick}).
+   *
+   * <p>The pedestal mechanic strips all lore from a legendary/rare/unique item
+   * while preserving its coloured name and vanilla item ID; this detector
+   * gives those bare shells a "Legacy Item (Pedestal-Wiped)" tooltip.</p>
+   */
+  public static boolean isPedestalWipedItem(ItemStack stack) {
+    if (stack.isEmpty()) return false;
+    if (!stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines().isEmpty()) return false;
+
+    Component customName = stack.get(DataComponents.CUSTOM_NAME);
+    if (customName == null) return false;
+    String raw = customName.getString();
+    if (raw.length() < 2 || raw.charAt(0) != '§') return false;
+    char code = Character.toLowerCase(raw.charAt(1));
+    if (code != 'b' && code != 'd' && code != 'e') return false;
+
+    Identifier key = BuiltInRegistries.ITEM.getKey(stack.getItem());
+    if (!"minecraft".equals(key.getNamespace())) return false;
+    String path = key.getPath();
+    return path.endsWith("_helmet")
+        || path.endsWith("_chestplate")
+        || path.endsWith("_leggings")
+        || path.endsWith("_boots")
+        || path.endsWith("_shovel")
+        || path.equals("shears")
+        || path.equals("bow")
+        || path.equals("stick");
   }
 
   /** Returns {@code true} if any tooltip line starts with "Misc. Item". */
