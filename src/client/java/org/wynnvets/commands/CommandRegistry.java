@@ -77,7 +77,7 @@ public final class CommandRegistry {
 
             // /wv check <playerName>
             .then(ClientCommandManager.literal("check")
-                .requires(CommandRegistry::userIsCaptain)
+                .requires(src -> GuildStateManager.isConfirmedStaff())
                 .then(ClientCommandManager.argument("playerName", StringArgumentType.string())
                     .executes(CommandRegistry::check)
                 )
@@ -166,31 +166,17 @@ public final class CommandRegistry {
   // â”€â”€ Command handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private static int check(CommandContext<FabricClientCommandSource> ctx) {
-    boolean isCurrentlyStaff = GuildStateManager.isStaff();
-    boolean refreshStarted = GuildStateManager.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
-
-    if (refreshStarted || GuildStateManager.isCheckingStaffStatus()) {
+    if (!GuildStateManager.isConfirmedStaff()) {
       ChatUtils.sendLocalMessage(
-          Component.literal("Checking staff permissions, please retry in a moment.")
-              .withStyle(ChatFormatting.YELLOW)
-      );
-      return 0;
-    }
-
-    if (!GuildStateManager.isStaff()) {
-      ChatUtils.sendLocalMessage(
-          Component.literal("You must be staff to use /wv check.")
+          Component.literal("You must be confirmed staff (vetsmod authenticated) "
+                  + "to use /wv check.")
               .withStyle(ChatFormatting.RED)
       );
       return 0;
     }
 
     String playerName = StringArgumentType.getString(ctx, "playerName");
-    UserInfoFetcher.checkUser(playerName)
-        .thenAccept(userInfo -> ChatUtils.sendLocalMessage(userInfo));
-    // Append caution-history readout (same as Discord's ~warnings).
-    // Silently skipped when the user is not yet WS-auth confirmed
-    // staff -- the legacy gate above already showed user info.
+    UserInfoFetcher.checkUser(playerName);
     CautionCommands.runCheckCautions(playerName);
     return 1;
   }

@@ -16,6 +16,7 @@ public class User {
   private String firstJoin;
   private String lastJoin;
   private Boolean veteran;
+  private Float playtime;
 
   @Override
   public String toString() {
@@ -24,6 +25,14 @@ public class User {
 
   public String getUsername() {
     return username;
+  }
+
+  public String getUuid() {
+    return uuid;
+  }
+
+  public Guild getGuild() {
+    return guild;
   }
 
   public String getFirstJoinDate() {
@@ -42,6 +51,15 @@ public class User {
     return guild.getUuid().equals(VetsApi.GUILD_UUID);
   }
 
+  /**
+   * Wynncraft veteran badge state. {@code null} when the player has hidden
+   * their profile via Wynncraft privacy settings -- the renderer must
+   * distinguish that from {@code false}.
+   */
+  public Boolean getVeteran() {
+    return veteran;
+  }
+
   public boolean isVeteran() {
     if (veteran == null) {
       return false;
@@ -52,5 +70,13 @@ public class User {
 
   public boolean isInGuild() {
     return guild != null;
+  }
+
+  /**
+   * Cumulative playtime in hours as reported by the Wynncraft API.
+   * {@code null} when hidden by player privacy settings.
+   */
+  public Float getPlaytime() {
+    return playtime;
   }
 }

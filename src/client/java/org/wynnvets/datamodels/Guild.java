@@ -20,4 +20,16 @@ public class Guild {
   public String getUuid() {
     return uuid;
   }
+
+  public String getName() {
+    return name;
+  }
+
+  public String getPrefix() {
+    return prefix;
+  }
+
+  public String getRank() {
+    return rank;
+  }
 }

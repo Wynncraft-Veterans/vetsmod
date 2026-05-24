@@ -78,7 +78,13 @@ public final class GuildChatDispatcher {
       return handleEncourage(command.substring(10).trim());
     }
     if (command.regionMatches(true, 0, "wv check ", 0, 9)) {
-      if (!staffOrRefresh()) return false;
+      if (!GuildStateManager.isConfirmedStaff()) {
+        ChatUtils.sendLocalMessage(
+            Component.literal("You must be confirmed staff (vetsmod authenticated) "
+                    + "to use /wv check.")
+                .withStyle(ChatFormatting.RED));
+        return true;
+      }
       return handleWvCheck(command.substring(9).trim());
     }
 
@@ -261,14 +267,11 @@ public final class GuildChatDispatcher {
       return true;
     }
 
-    UserInfoFetcher.checkUser(playerName)
-        .thenAccept(userInfo -> ChatUtils.sendLocalMessage(userInfo));
+    UserInfoFetcher.checkUser(playerName);
     // Append the caution history readout -- same data shown by Discord's
     // ~warnings command. Gated on confirmed-staff inside
     // CautionCommands.runCheckCautions so it is silently skipped for
-    // non-confirmed users (avoids a spurious "you must be staff" line
-    // since the legacy /wv check already gated on the StaffRankChecker
-    // cache above).
+    // non-confirmed users.
     CautionCommands.runCheckCautions(playerName);
     return true;
   }

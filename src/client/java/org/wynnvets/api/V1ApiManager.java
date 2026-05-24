@@ -102,6 +102,7 @@ public final class V1ApiManager {
                 json.has("kind")
                 || json.has("triggered")
                 || json.has("total_points")
+                || json.has("target_uuid")
                 || "would_trigger".equals(status));
             boolean staffOrphanError = "error".equals(status)
                 && !wasAuthAck
