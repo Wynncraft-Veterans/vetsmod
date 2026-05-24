@@ -23,6 +23,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
@@ -89,6 +90,52 @@ public class UserInfoFetcher {
       return "tomorrow";
     }
     return "in " + daysUntil + " days";
+  }
+
+  /**
+   * Coarse-grained relative date label: years > months > days, picking the
+   * coarsest unit that yields a value ≥ 1. Falls back to {@link
+   * #toRelativeDateLabel} for sub-month spans. Used for "first seen" where
+   * "4342 days ago" is unreadable but "11 years ago" is at-a-glance useful.
+   */
+  private static String toCoarseRelativeDateLabel(String dateText) {
+    LocalDate date;
+    try {
+      date = LocalDate.parse(dateText);
+    } catch (RuntimeException ignored) {
+      return dateText;
+    }
+    LocalDate now = LocalDate.now();
+    long years = ChronoUnit.YEARS.between(date, now);
+    if (years >= 1) {
+      return years == 1 ? "1 year ago" : years + " years ago";
+    }
+    long months = ChronoUnit.MONTHS.between(date, now);
+    if (months >= 1) {
+      return months == 1 ? "1 month ago" : months + " months ago";
+    }
+    return toRelativeDateLabel(dateText);
+  }
+
+  /**
+   * Coarse "age" formatter for "{@code N ago}" presentations of a duration
+   * in seconds. Picks the coarsest unit that yields ≥ 1: years > months >
+   * days > hours > minutes > seconds. Used for best-guess timestamps where
+   * we have unix seconds (not an ISO date) — e.g. dazebot's
+   * {@code last_seen_observed.ts}.
+   */
+  private static String humanizeAge(long secs) {
+    if (secs < 0) secs = 0;
+    if (secs < 60) return secs + "s";
+    if (secs < 3600) return (secs / 60) + "m";
+    if (secs < 86400) return (secs / 3600) + "h";
+    if (secs < 86400L * 30) return (secs / 86400) + "d";
+    if (secs < 86400L * 365) {
+      long m = secs / (86400L * 30);
+      return m + (m == 1 ? " month" : " months");
+    }
+    long y = secs / (86400L * 365);
+    return y + (y == 1 ? " year" : " years");
   }
 
   private static UUID formatFromInput(String uuid) {
@@ -352,6 +399,17 @@ public class UserInfoFetcher {
         ? user.getUsername()
         : requestedName;
 
+    // For Returners members, the local tab list is a fresh, no-cost "is
+    // this player online right now?" signal — and it works even when the
+    // player has Wynncraft API privacy on. Non-Returners players: tab
+    // list only sees our own guild, so the lookup would always miss.
+    boolean inReturners = (returners != null && returners.inGuild())
+        || (snapshot != null && snapshot.isInReturnersGuild());
+    String tabListServer = inReturners
+        ? OnlineMemberService.getCurrentServer(displayName)
+        : null;
+    boolean currentlyOnline = isCurrentlyOnline(user, snapshot, tabListServer);
+
     // Item 0: username + UUID
     ChatUtils.sendLocalMessage(
         Component.literal(displayName).withStyle(VALUE_STYLE)
@@ -370,37 +428,67 @@ public class UserInfoFetcher {
       ChatUtils.sendLocalMessage(label("Wynncraft profile: ")
           .append(Component.literal("(no Wynncraft data)").setStyle(HIDDEN_STYLE)));
     } else {
-      renderWynnLines(user);
+      renderWynnLines(user, snapshot, tabListServer);
     }
 
     renderGuildLine(user, returners, snapshot);
     renderVeteranLine(user);
     renderBlocklistLine(snapshot);
-    renderDiscordLinkLine(snapshot);
+    renderDiscordLinkLine(snapshot, currentlyOnline);
     renderStage2Line(snapshot);
     renderCultLine(snapshot);
   }
 
-  private static void renderWynnLines(User user) {
-    // Item 1: first seen
+  /**
+   * Aggregates "is this player on Wynncraft right now?" across three
+   * signals (in order of authoritativeness): Wynn live {@code online}
+   * field, local tab list, and a recent ({@literal <}10 min) server-change
+   * observation from dazebot's {@code server_watcher}. Used to qualify
+   * the {@code (hiatus)} discord-line annotation: if any signal says
+   * "yes" while the role still says "hiatus", staff need to know the
+   * role state is stale.
+   */
+  private static boolean isCurrentlyOnline(
+      User user, MembershipSnapshot snapshot, String tabListServer) {
+    if (user != null && Boolean.TRUE.equals(user.getOnline())) {
+      return true;
+    }
+    if (tabListServer != null) {
+      return true;
+    }
+    MembershipSnapshot.LastSeenObserved obs =
+        snapshot != null ? snapshot.getLastSeenObserved() : null;
+    if (obs != null && obs.getTs() > 0) {
+      long ageSec = Instant.now().getEpochSecond() - obs.getTs();
+      return ageSec >= 0 && ageSec < 600;
+    }
+    return false;
+  }
+
+  private static void renderWynnLines(
+      User user, MembershipSnapshot snapshot, String tabListServer) {
+    // Item 1: first seen. Show coarse "N years ago" as the headline value
+    // (raw days are unreadable for old accounts) with the ISO date as the
+    // muted parenthetical.
     String firstJoin = user.getFirstJoinDate();
     if (firstJoin == null) {
       ChatUtils.sendLocalMessage(label("First seen on Wynncraft: ").append(hidden()));
     } else {
       ChatUtils.sendLocalMessage(label("First seen on Wynncraft: ")
-          .append(Component.literal(firstJoin).setStyle(VALUE_STYLE))
-          .append(Component.literal("  (" + toRelativeDateLabel(firstJoin) + ")")
-              .setStyle(MUTED_STYLE)));
+          .append(Component.literal(toCoarseRelativeDateLabel(firstJoin)).setStyle(VALUE_STYLE))
+          .append(Component.literal("  (" + firstJoin + ")").setStyle(MUTED_STYLE)));
     }
 
-    // Item 2: last seen
+    // Item 2: last seen. Fall back to dazebot's server_watcher observation
+    // when Wynn API hides lastJoin (privacy on); finally `(hidden)` only
+    // when we have nothing at all.
     String lastJoin = user.getLastJoinDate();
-    if (lastJoin == null) {
-      ChatUtils.sendLocalMessage(label("Last seen on Wynncraft: ").append(hidden()));
-    } else {
+    if (lastJoin != null) {
       ChatUtils.sendLocalMessage(label("Last seen on Wynncraft: ")
           .append(Component.literal(toRelativeDateLabel(lastJoin)).setStyle(VALUE_STYLE))
           .append(Component.literal("  (" + lastJoin + ")").setStyle(MUTED_STYLE)));
+    } else {
+      renderLastSeenFallback(snapshot, tabListServer);
     }
 
     // Item 3: playtime
@@ -411,6 +499,82 @@ public class UserInfoFetcher {
       ChatUtils.sendLocalMessage(label("Playtime: ")
           .append(Component.literal(formatHours(playtime) + " hours").setStyle(VALUE_STYLE)));
     }
+
+    // Item 3b: currently online. Surfaced between playtime and guild because
+    // it's the most actionable signal for a staff vetting decision — and
+    // because it directly resolves whether a `(hiatus)` annotation below is
+    // stale (see Discord line).
+    renderOnlineLine(user, snapshot, tabListServer);
+  }
+
+  private static void renderLastSeenFallback(
+      MembershipSnapshot snapshot, String tabListServer) {
+    MutableComponent line = label("Last seen on Wynncraft: ");
+    if (tabListServer != null) {
+      // Tab list is "right now" by construction.
+      line.append(Component.literal("now").setStyle(HIDDEN_STYLE))
+          .append(Component.literal("  (tab-list: " + tabListServer + ")").setStyle(MUTED_STYLE));
+      ChatUtils.sendLocalMessage(line);
+      return;
+    }
+    MembershipSnapshot.LastSeenObserved obs =
+        snapshot != null ? snapshot.getLastSeenObserved() : null;
+    if (obs != null && obs.getTs() > 0) {
+      long ageSec = Instant.now().getEpochSecond() - obs.getTs();
+      line.append(Component.literal(humanizeAge(ageSec) + " ago").setStyle(HIDDEN_STYLE))
+          .append(Component.literal("  (best guess — server-change observed").setStyle(MUTED_STYLE));
+      if (obs.getServerAtObservation() != null && !obs.getServerAtObservation().isEmpty()) {
+        line.append(Component.literal(" on " + obs.getServerAtObservation()).setStyle(MUTED_STYLE));
+      }
+      line.append(Component.literal(")").setStyle(MUTED_STYLE));
+    } else {
+      line.append(hidden());
+    }
+    ChatUtils.sendLocalMessage(line);
+  }
+
+  private static void renderOnlineLine(
+      User user, MembershipSnapshot snapshot, String tabListServer) {
+    MutableComponent line = label("Currently online: ");
+    Boolean wynnOnline = user != null ? user.getOnline() : null;
+    String wynnServer = user != null ? user.getServer() : null;
+
+    if (wynnOnline != null) {
+      if (wynnOnline) {
+        line.append(Component.literal("yes").setStyle(Style.EMPTY.withColor(ChatFormatting.GREEN)));
+        if (wynnServer != null && !wynnServer.isEmpty()) {
+          line.append(Component.literal("  (" + wynnServer + ")").setStyle(MUTED_STYLE));
+        }
+      } else {
+        line.append(Component.literal("no").setStyle(LABEL_STYLE));
+      }
+      ChatUtils.sendLocalMessage(line);
+      return;
+    }
+
+    // Wynn hidden — try tab list, then recent server-watcher observation.
+    if (tabListServer != null) {
+      line.append(Component.literal("yes").setStyle(Style.EMPTY.withColor(ChatFormatting.GREEN)))
+          .append(Component.literal("  (" + tabListServer + ", tab-list)").setStyle(MUTED_STYLE));
+      ChatUtils.sendLocalMessage(line);
+      return;
+    }
+    MembershipSnapshot.LastSeenObserved obs =
+        snapshot != null ? snapshot.getLastSeenObserved() : null;
+    if (obs != null && obs.getTs() > 0) {
+      long ageSec = Instant.now().getEpochSecond() - obs.getTs();
+      if (ageSec >= 0 && ageSec < 600) {
+        line.append(Component.literal("~" + humanizeAge(ageSec) + " ago").setStyle(HIDDEN_STYLE));
+        if (obs.getServerAtObservation() != null && !obs.getServerAtObservation().isEmpty()) {
+          line.append(Component.literal("  (" + obs.getServerAtObservation() + ", best guess)")
+              .setStyle(MUTED_STYLE));
+        }
+        ChatUtils.sendLocalMessage(line);
+        return;
+      }
+    }
+    line.append(Component.literal("(unknown)").setStyle(HIDDEN_STYLE));
+    ChatUtils.sendLocalMessage(line);
   }
 
   private static String formatHours(float hours) {
@@ -485,18 +649,16 @@ public class UserInfoFetcher {
   }
 
   private static void renderVeteranLine(User user) {
+    // Wynncraft's /v3/player returns `veteran: true` for vets and omits the
+    // field for everyone else; an explicit `false` never appears on the wire.
+    // Treat null as "no" — the privacy-hidden interpretation is wrong here.
     MutableComponent line = label("Veteran tag: ");
     if (user == null) {
       line.append(Component.literal("(no Wynncraft data)").setStyle(HIDDEN_STYLE));
+    } else if (Boolean.TRUE.equals(user.getVeteran())) {
+      line.append(Component.literal("yes").setStyle(Style.EMPTY.withColor(ChatFormatting.GREEN)));
     } else {
-      Boolean vet = user.getVeteran();
-      if (vet == null) {
-        line.append(hidden());
-      } else if (vet) {
-        line.append(Component.literal("yes").setStyle(Style.EMPTY.withColor(ChatFormatting.GREEN)));
-      } else {
-        line.append(Component.literal("no").setStyle(LABEL_STYLE));
-      }
+      line.append(Component.literal("no").setStyle(LABEL_STYLE));
     }
     ChatUtils.sendLocalMessage(line);
   }
@@ -525,7 +687,7 @@ public class UserInfoFetcher {
     ChatUtils.sendLocalMessage(line);
   }
 
-  private static void renderDiscordLinkLine(MembershipSnapshot snapshot) {
+  private static void renderDiscordLinkLine(MembershipSnapshot snapshot, boolean currentlyOnline) {
     MutableComponent line = label("Discord link: ");
     MembershipSnapshot.Discord disc = snapshot != null ? snapshot.getDiscord() : null;
     if (disc == null) {
@@ -584,7 +746,16 @@ public class UserInfoFetcher {
       line.append(Component.literal("  +waitlist").setStyle(Style.EMPTY.withColor(ChatFormatting.AQUA)));
     }
     if (disc.isHiatus()) {
-      line.append(Component.literal("  (hiatus)").setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
+      // dazebot already attempts a state-machine refresh during the
+      // snapshot fetch; if HIATUS still rides through AND the player is
+      // currently online, the role is stale and staff should know.
+      Style hiatusStyle = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
+      line.append(Component.literal("  (hiatus").setStyle(hiatusStyle));
+      if (currentlyOnline) {
+        line.append(Component.literal(" — but currently online; role may be stale")
+            .setStyle(Style.EMPTY.withColor(ChatFormatting.YELLOW)));
+      }
+      line.append(Component.literal(")").setStyle(hiatusStyle));
     }
     ChatUtils.sendLocalMessage(line);
   }

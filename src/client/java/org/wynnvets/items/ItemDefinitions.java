@@ -126,8 +126,9 @@ public class ItemDefinitions {
   }
 
   private static String extractQuotedString(String value) {
-    if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
-      return value.substring(1, value.length() - 1);
+    if (value.length() >= 2 && value.startsWith("\"")) {
+      int end = value.indexOf('"', 1);
+      if (end >= 0) return value.substring(1, end);
     }
     return value;
   }

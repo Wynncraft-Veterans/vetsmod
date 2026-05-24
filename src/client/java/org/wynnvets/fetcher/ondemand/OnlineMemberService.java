@@ -113,6 +113,29 @@ final class OnlineMemberService {
                 (connected, guildInfo) -> merge(connected, guildInfo, tabEntries));
     }
 
+    /**
+     * Looks up the current server name (e.g. {@code "NA35"}) for
+     * {@code username} by scanning the local Minecraft tab list.
+     * Returns {@code null} when the player is not visible — either
+     * offline, in a different guild, or the local player isn't in
+     * any guild.
+     *
+     * <p>Cheap synchronous call: does not trigger any of the three
+     * async fetches used by {@link #gatherOnlinePlayers()}. Safe to
+     * call inline from per-player commands like {@code /wv check}.
+     */
+    static String getCurrentServer(String username) {
+        if (username == null || username.isEmpty()) {
+            return null;
+        }
+        for (TabListGuildParser.GuildEntry entry : TabListGuildParser.parseOnlineGuildMembers()) {
+            if (entry.username().equalsIgnoreCase(username)) {
+                return entry.server();
+            }
+        }
+        return null;
+    }
+
     // ── Server fetch ────────────────────────────────────────────────
 
     private static CompletableFuture<List<ConnectedUser>> fetchConnectedUsers() {

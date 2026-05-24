@@ -17,6 +17,8 @@ public class User {
   private String lastJoin;
   private Boolean veteran;
   private Float playtime;
+  private Boolean online;
+  private String server;
 
   @Override
   public String toString() {
@@ -52,9 +54,10 @@ public class User {
   }
 
   /**
-   * Wynncraft veteran badge state. {@code null} when the player has hidden
-   * their profile via Wynncraft privacy settings -- the renderer must
-   * distinguish that from {@code false}.
+   * Wynncraft veteran badge state. The API returns {@code true} when the
+   * player has the in-game veteran badge and omits the field (→ {@code null})
+   * otherwise; an explicit {@code false} is never sent. Renderers should
+   * treat {@code null} as "not a veteran", not as "hidden".
    */
   public Boolean getVeteran() {
     return veteran;
@@ -78,5 +81,23 @@ public class User {
    */
   public Float getPlaytime() {
     return playtime;
+  }
+
+  /**
+   * Live online state from Wynncraft's {@code /v3/player/{uuid}} response.
+   * {@code null} when the player has API privacy enabled (the field is
+   * omitted entirely). Renderers should distinguish null (unknown) from
+   * {@code false} (definitely offline).
+   */
+  public Boolean getOnline() {
+    return online;
+  }
+
+  /**
+   * Current server name (e.g. {@code "NA35"}) when {@link #getOnline()}
+   * is {@code true}. {@code null} when offline or hidden by privacy.
+   */
+  public String getServer() {
+    return server;
   }
 }

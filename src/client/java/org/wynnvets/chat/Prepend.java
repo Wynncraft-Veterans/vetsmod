@@ -18,7 +18,13 @@ import net.minecraft.resources.Identifier;
  */
 public enum Prepend {
     DEFAULT(
-        buildDefaultBadge()),
+            buildDefaultBadge(),
+            Component.literal("󏿼󐀆")
+                    .append(" ")
+                    .setStyle(Style.EMPTY
+                            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+                            .withColor(ChatFormatting.GOLD)
+                            .withoutShadow())),
     GUILD(
             Component.literal("\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE")
                     .append(" ")

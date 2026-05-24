@@ -21,6 +21,7 @@ public class MembershipSnapshot {
   private Boolean in_returners_guild;
   private Integer waitlist_count;
   private Cult cult;
+  private LastSeenObserved last_seen_observed;
 
   public String getTargetUuid() {
     return target_uuid;
@@ -67,6 +68,49 @@ public class MembershipSnapshot {
    */
   public Cult getCult() {
     return cult;
+  }
+
+  /**
+   * Best-guess last-seen derived from dazebot's {@code server_watcher}
+   * observation cache. Used as a fallback when the Wynncraft API hides
+   * {@code lastJoin} / {@code online} due to player privacy settings.
+   * {@code null} or {@code ts == 0} means "no observation on record".
+   */
+  public LastSeenObserved getLastSeenObserved() {
+    return last_seen_observed;
+  }
+
+  /**
+   * Best-guess activity signal derived from dazebot's {@code server_watcher}
+   * (a periodic poll that records a {@code last_online} timestamp whenever
+   * the player's {@code server} field changes, even for API-hidden players).
+   */
+  public static class LastSeenObserved {
+    private Long ts;
+    private String server_at_observation;
+    private Long observed_at;
+
+    /**
+     * Unix seconds of the most recent recorded activity. {@code 0} (the
+     * dazebot epoch sentinel) means "never observed" — treat as absent.
+     */
+    public long getTs() {
+      return ts == null ? 0L : ts;
+    }
+
+    /** Server name at the moment of the last observation; may be {@code null}. */
+    public String getServerAtObservation() {
+      return server_at_observation;
+    }
+
+    /**
+     * Unix seconds of when the server-change was observed (distinct from
+     * {@link #getTs()} which is the most recent overall activity time).
+     * {@code null} when no server-change has ever been recorded.
+     */
+    public Long getObservedAt() {
+      return observed_at;
+    }
   }
 
   /** Sub-object describing the player's cult affiliation. */
