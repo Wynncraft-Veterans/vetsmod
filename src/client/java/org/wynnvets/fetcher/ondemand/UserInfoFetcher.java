@@ -6,7 +6,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
@@ -379,6 +378,7 @@ public class UserInfoFetcher {
     renderBlocklistLine(snapshot);
     renderDiscordLinkLine(snapshot);
     renderStage2Line(snapshot);
+    renderCultLine(snapshot);
   }
 
   private static void renderWynnLines(User user) {
@@ -597,6 +597,22 @@ public class UserInfoFetcher {
       line.append(Component.literal("active").setStyle(Style.EMPTY.withColor(ChatFormatting.GREEN)));
     } else {
       line.append(Component.literal("inactive").setStyle(LABEL_STYLE));
+    }
+    ChatUtils.sendLocalMessage(line);
+  }
+
+  private static void renderCultLine(MembershipSnapshot snapshot) {
+    // Suppressed when not in any cult per the "when applicable" spec.
+    if (snapshot == null || snapshot.getCult() == null
+        || snapshot.getCult().getName() == null) {
+      return;
+    }
+    MembershipSnapshot.Cult cult = snapshot.getCult();
+    MutableComponent line = label("Cult: ")
+        .append(Component.literal(cult.getName()).setStyle(VALUE_STYLE));
+    if (cult.isFigurehead()) {
+      line.append(Component.literal("  (figurehead)")
+          .setStyle(Style.EMPTY.withColor(ChatFormatting.GOLD)));
     }
     ChatUtils.sendLocalMessage(line);
   }

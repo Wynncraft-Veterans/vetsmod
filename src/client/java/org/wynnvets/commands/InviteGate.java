@@ -54,11 +54,6 @@ public final class InviteGate {
 
   private static final Gson GSON = new Gson();
 
-  /** Returners is HERO-tier (80-slot cap). Wynncraft's V3 guild endpoint
-   *  doesn't expose the tier max directly, so it's hardcoded. Adjust here
-   *  if Returners is ever re-tiered (extremely unlikely). */
-  private static final int RETURNERS_MAX_MEMBERS = 80;
-
   /** Players who joined Wynncraft on or after this date do not qualify
    *  under the "vet" criterion (legacy account requirement). */
   private static final LocalDate VET_JOIN_CUTOFF = LocalDate.of(2020, 1, 1);
@@ -134,16 +129,16 @@ public final class InviteGate {
     CompletableFuture<MembershipSnapshot> snapFuture = membershipSnapshot(target);
 
     // Staff skip the slot-pressure check entirely (#5), so no roster fetch.
-    CompletableFuture<Integer> rosterFuture = isStaff
+    CompletableFuture<GuildSnapshot> guildFuture = isStaff
         ? CompletableFuture.completedFuture(null)
-        : fetchReturnersMemberCount();
+        : fetchReturnersSnapshot();
 
-    CompletableFuture.allOf(wynnFuture, snapFuture, rosterFuture).thenAccept(_ignore -> {
+    CompletableFuture.allOf(wynnFuture, snapFuture, guildFuture).thenAccept(_ignore -> {
       User wynn = wynnFuture.join();
       MembershipSnapshot snap = snapFuture.join();
-      Integer rosterCount = rosterFuture.join();
+      GuildSnapshot guildSnap = guildFuture.join();
       Minecraft.getInstance().execute(
-          () -> decide(target, wynn, snap, rosterCount, isStaff));
+          () -> decide(target, wynn, snap, guildSnap, isStaff));
     });
   }
 
@@ -151,7 +146,7 @@ public final class InviteGate {
       String target,
       User wynn,
       MembershipSnapshot snap,
-      Integer rosterCount,
+      GuildSnapshot guildSnap,
       boolean isStaff) {
 
     String canonicalName = (wynn != null && wynn.getUsername() != null)
@@ -201,9 +196,9 @@ public final class InviteGate {
     }
 
     // Slot-pressure check (non-staff only).
-    if (!isStaff && rosterCount != null && rosterCount >= 0) {
+    if (!isStaff && guildSnap != null) {
       int waitlistCount = snap.getWaitlistCount();
-      int openSlots = RETURNERS_MAX_MEMBERS - rosterCount;
+      int openSlots = getMaxGuildMembers(guildSnap.level()) - guildSnap.total();
       if (waitlistCount > 0 && openSlots <= waitlistCount + 1) {
         ChatUtils.sendLocalMessage(
             Component.literal(
@@ -297,7 +292,7 @@ public final class InviteGate {
     return cf;
   }
 
-  private static CompletableFuture<Integer> fetchReturnersMemberCount() {
+  private static CompletableFuture<GuildSnapshot> fetchReturnersSnapshot() {
     HttpRequest req = HttpRequest.newBuilder()
         .uri(WynnCraftApi.guildInfo("Returners"))
         .timeout(Duration.ofSeconds(5))
@@ -309,16 +304,48 @@ public final class InviteGate {
           try {
             JsonElement payload = GSON.fromJson(resp.body(), JsonElement.class);
             if (payload == null || !payload.isJsonObject()) return null;
-            JsonElement members = payload.getAsJsonObject().get("members");
+            JsonObject obj = payload.getAsJsonObject();
+            JsonElement members = obj.get("members");
+            JsonElement levelEl = obj.get("level");
             if (members == null || !members.isJsonObject()) return null;
+            if (levelEl == null || !levelEl.isJsonPrimitive()) return null;
             JsonElement total = members.getAsJsonObject().get("total");
             if (total == null || !total.isJsonPrimitive()) return null;
-            return total.getAsInt();
+            return new GuildSnapshot(total.getAsInt(), levelEl.getAsInt());
           } catch (Exception e) {
             return null;
           }
         })
         .exceptionally(e -> null);
+  }
+
+  private record GuildSnapshot(int total, int level) {}
+
+  // Wynncraft V3 /guild exposes level but not the slot cap. Table mirrors Wynnpool's getMaxGuildMembers (github.com/AiverAiva/Wynnpool apps/web/src/lib/guildUtils.ts).
+  private static int getMaxGuildMembers(int level) {
+    if (level == 1) return 4;
+    if (level <= 5) return 8;
+    if (level <= 14) return 16;
+    if (level <= 23) return 26;
+    if (level <= 32) return 38;
+    if (level <= 41) return 48;
+    if (level <= 53) return 60;
+    if (level <= 65) return 72;
+    if (level <= 74) return 80;
+    if (level <= 80) return 86;
+    if (level <= 86) return 92;
+    if (level <= 92) return 98;
+    if (level <= 95) return 102;
+    if (level <= 98) return 106;
+    if (level <= 100) return 110;
+    if (level <= 103) return 114;
+    if (level <= 106) return 118;
+    if (level <= 109) return 122;
+    if (level <= 112) return 126;
+    if (level <= 115) return 130;
+    if (level <= 118) return 140;
+    if (level >= 119) return 150;
+    return 0;
   }
 
   private static UUID formatUuid(String raw) {

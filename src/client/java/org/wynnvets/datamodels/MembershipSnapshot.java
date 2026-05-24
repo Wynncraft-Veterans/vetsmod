@@ -20,6 +20,7 @@ public class MembershipSnapshot {
   private String blocklist_reason;
   private Boolean in_returners_guild;
   private Integer waitlist_count;
+  private Cult cult;
 
   public String getTargetUuid() {
     return target_uuid;
@@ -57,6 +58,29 @@ public class MembershipSnapshot {
    */
   public int getWaitlistCount() {
     return waitlist_count == null ? 0 : waitlist_count;
+  }
+
+  /**
+   * {@code /return 0} cult affiliation, or {@code null} when the
+   * player is not in any cult. Owning a cult (figurehead) takes
+   * precedence over plain membership when both apply.
+   */
+  public Cult getCult() {
+    return cult;
+  }
+
+  /** Sub-object describing the player's cult affiliation. */
+  public static class Cult {
+    private String name;
+    private Boolean is_figurehead;
+
+    public String getName() {
+      return name;
+    }
+
+    public boolean isFigurehead() {
+      return Boolean.TRUE.equals(is_figurehead);
+    }
   }
 
   /**
