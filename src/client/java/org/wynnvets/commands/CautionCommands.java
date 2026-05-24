@@ -55,8 +55,6 @@ public final class CautionCommands {
    *             (e.g. {@code "Wenweia"} or {@code "Wenweia confirm"})
    */
   public static void runCaution(String args) {
-    if (!requireStaff("/caution")) return;
-
     ParsedArgs parsed = parseTwoPart(args);
     if (parsed.target.isEmpty()) {
       ChatUtils.sendLocalMessage(
@@ -84,8 +82,6 @@ public final class CautionCommands {
    * staff want to skip the preflight.
    */
   public static void runCautionGo(String args) {
-    if (!requireStaff("/caution-go")) return;
-
     ParsedArgs parsed = parseTwoPart(args);
     if (parsed.target.isEmpty()) {
       ChatUtils.sendLocalMessage(
@@ -111,8 +107,6 @@ public final class CautionCommands {
    * commits, always DMs the target.
    */
   public static void runWarn(String args) {
-    if (!requireStaff("/warn")) return;
-
     ParsedArgs parsed = parseTwoPart(args);
     if (parsed.target.isEmpty()) {
       ChatUtils.sendLocalMessage(
@@ -142,8 +136,6 @@ public final class CautionCommands {
    * formal reason).</p>
    */
   public static void runEject(String args) {
-    if (!requireStaff("/eject")) return;
-
     ParsedArgs parsed = parseTwoPart(args);
     if (parsed.target.isEmpty() || parsed.rest.isEmpty()) {
       ChatUtils.sendLocalMessage(
@@ -386,23 +378,6 @@ public final class CautionCommands {
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────
-
-  /** Same gate as {@link GuildChatDispatcher#requireStaff(String)} but
-   *  reads the *server-confirmed* staff bit. Refuses outright when the
-   *  WS auth hasn't completed (or returned not-staff), since /eject
-   *  dispatches real /gu commands and we don't want a spoofable
-   *  client-side cache to be load-bearing. */
-  private static boolean requireStaff(String label) {
-    if (!GuildStateManager.isConfirmedStaff()) {
-      ChatUtils.sendLocalMessage(
-          Component.literal(
-              "You must be server-confirmed staff to use " + label
-              + ". (Run /unlock <key>; if you are staff, the next auth "
-              + "ack will enable this command.)").withStyle(ChatFormatting.RED));
-      return false;
-    }
-    return true;
-  }
 
   private record ParsedArgs(String target, String rest) {}
 

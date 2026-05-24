@@ -234,6 +234,14 @@ public final class CommandRegistry {
   }
 
   private static int list(CommandContext<FabricClientCommandSource> ctx) {
+    if (!GuildStateManager.isUnlocked()) {
+      ChatUtils.sendLocalMessage(
+          Component.literal("You must be unlocked to use /wv list.")
+              .withStyle(ChatFormatting.RED)
+      );
+      return 0;
+    }
+
     ChatUtils.sendLocalMessage(
         Component.literal("Looking up online members...")
             .withStyle(ChatFormatting.GREEN)

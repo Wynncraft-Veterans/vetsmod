@@ -45,45 +45,79 @@ public final class GuildChatDispatcher {
    *         {@code false} to let it pass through to the server
    */
   public static boolean intercept(String command) {
+    // /g: handler already falls through to vanilla for non-vets users
+    // via its internal isReturners / isWaitlistUnlocked / queue checks.
     if (command.regionMatches(true, 0, "g ", 0, 2)) {
       return handleGuildChat(command.substring(2));
     }
+
+    // Past /g, vetsmod stays out of the way for users who aren't part
+    // of the vets community at all -- Wynncraft handles these commands
+    // as if the mod weren't installed.
+    if (!GuildStateManager.isUnlocked()) {
+      return false;
+    }
+
     if (command.regionMatches(true, 0, "wg ", 0, 3)) {
       return handleHonouraryChat(command.substring(3));
     }
+
+    // Client-side-staff-gated commands: passthrough silently when the
+    // local rank cache doesn't show staff, opportunistically refreshing
+    // so the next attempt has a chance to succeed.
     if (command.regionMatches(true, 0, "v ", 0, 2)) {
+      if (!staffOrRefresh()) return false;
       return handleStaffChat(command.substring(2).trim());
     }
     if (command.regionMatches(true, 0, "a ", 0, 2)) {
+      if (!staffOrRefresh()) return false;
       return handleAnnounce(command.substring(2).trim());
     }
     if (command.regionMatches(true, 0, "encourage ", 0, 10)) {
+      if (!staffOrRefresh()) return false;
       return handleEncourage(command.substring(10).trim());
     }
     if (command.regionMatches(true, 0, "wv check ", 0, 9)) {
+      if (!staffOrRefresh()) return false;
       return handleWvCheck(command.substring(9).trim());
     }
+
     // Caution / warning / eject system. The /caution path runs a
     // server-side preflight that may reply "would_trigger" with a
     // clickable confirm prompt rendered by CautionCommands; the
     // /caution-go path skips the preflight (used by the click
     // handler) and is also the manual-bypass entry point.
+    //
+    // These dispatch real /gu kick / /gu rank commands on success, so
+    // they can't trust the local rank cache -- the WS-auth-derived
+    // isConfirmedStaff() is the only signal that gates them.
+    // Passthrough silently when not confirmed staff.
     if (command.regionMatches(true, 0, "caution-go ", 0, 11)) {
+      if (!GuildStateManager.isConfirmedStaff()) return false;
       CautionCommands.runCautionGo(command.substring(11));
       return true;
     }
     if (command.regionMatches(true, 0, "caution ", 0, 8)) {
+      if (!GuildStateManager.isConfirmedStaff()) return false;
       CautionCommands.runCaution(command.substring(8));
       return true;
     }
     if (command.regionMatches(true, 0, "warn ", 0, 5)) {
+      if (!GuildStateManager.isConfirmedStaff()) return false;
       CautionCommands.runWarn(command.substring(5));
       return true;
     }
     if (command.regionMatches(true, 0, "eject ", 0, 6)) {
+      if (!GuildStateManager.isConfirmedStaff()) return false;
       CautionCommands.runEject(command.substring(6));
       return true;
     }
+    return false;
+  }
+
+  private static boolean staffOrRefresh() {
+    if (GuildStateManager.isStaff()) return true;
+    GuildStateManager.refreshStaffStatusIfNeeded(true);
     return false;
   }
 
@@ -158,8 +192,6 @@ public final class GuildChatDispatcher {
   // ── /v — Staff chat ─────────────────────────────────────────────────
 
   private static boolean handleStaffChat(String message) {
-    if (!requireStaff("/v")) return true;
-
     if (message.isEmpty()) {
       ChatUtils.sendLocalMessage(
           Component.literal("Usage: /v <message>").withStyle(ChatFormatting.RED)
@@ -182,8 +214,6 @@ public final class GuildChatDispatcher {
   // ── /a — Staff announcement ─────────────────────────────────────────
 
   private static boolean handleAnnounce(String message) {
-    if (!requireStaff("/a")) return true;
-
     if (message.isEmpty()) {
       ChatUtils.sendLocalMessage(
           Component.literal("Usage: /a <message>").withStyle(ChatFormatting.RED)
@@ -203,8 +233,6 @@ public final class GuildChatDispatcher {
   // ── /encourage — Encourage update ───────────────────────────────────
 
   private static boolean handleEncourage(String version) {
-    if (!requireStaff("/encourage")) return true;
-
     if (version.isEmpty()) {
       ChatUtils.sendLocalMessage(
           Component.literal("Usage: /encourage <version>").withStyle(ChatFormatting.RED)
@@ -226,8 +254,6 @@ public final class GuildChatDispatcher {
   // ── /wv check — Player lookup ───────────────────────────────────────
 
   private static boolean handleWvCheck(String playerName) {
-    if (!requireStaff("/wv check")) return true;
-
     if (playerName.isEmpty()) {
       ChatUtils.sendLocalMessage(
           Component.literal("Usage: /wv check <playerName>").withStyle(ChatFormatting.RED)
@@ -248,36 +274,6 @@ public final class GuildChatDispatcher {
   }
 
   // ── Shared helpers ──────────────────────────────────────────────────
-
-  /**
-   * Common staff permission gate. Triggers a refresh if needed and warns
-   * the user when permissions are still being checked.
-   *
-   * @param commandLabel the command name for error messages
-   * @return {@code true} if the user has staff access; {@code false} if not
-   */
-  private static boolean requireStaff(String commandLabel) {
-    boolean isCurrentlyStaff = GuildStateManager.isStaff();
-    boolean refreshStarted = GuildStateManager.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
-
-    if (refreshStarted || GuildStateManager.isCheckingStaffStatus()) {
-      ChatUtils.sendLocalMessage(
-          Component.literal("Checking staff permissions, please retry in a moment.")
-              .withStyle(ChatFormatting.YELLOW)
-      );
-      return false;
-    }
-
-    if (!GuildStateManager.isStaff()) {
-      ChatUtils.sendLocalMessage(
-          Component.literal("You must be staff to use " + commandLabel + ".")
-              .withStyle(ChatFormatting.RED)
-      );
-      return false;
-    }
-
-    return true;
-  }
 
   private static void relayWaitlistChat(String message) {
     Minecraft minecraft = Minecraft.getInstance();
