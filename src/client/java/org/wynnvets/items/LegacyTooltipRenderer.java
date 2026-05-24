@@ -222,8 +222,8 @@ final class LegacyTooltipRenderer {
 
     // ── Branch 4b: Pedestal-wiped vanilla armour/weapon shells ──────────
     // The item is a vanilla armour piece (helmet/chestplate/leggings/boots)
-    // or weapon-class proxy (shears/shovel/bow/stick), has no lore, and its
-    // custom name carries a §b/§d/§e colour-code prefix.  The pedestal item-
+    // or weapon-class proxy (shears/shovel/bow/stick/cocoa_beans/paper), has no lore, and its
+    // custom name carries a §a/§b/§d/§e colour-code prefix.  The pedestal item-
     // wipe strips lore from legendary/rare/unique items while preserving the
     // coloured name and vanilla item ID, so these bare shells get a dedicated
     // "Legacy Item (Pedestal-Wiped)" label instead of falling through to the

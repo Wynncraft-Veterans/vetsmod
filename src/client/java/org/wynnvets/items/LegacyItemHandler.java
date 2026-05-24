@@ -261,10 +261,11 @@ public class LegacyItemHandler {
   /**
    * Returns {@code true} for vanilla armour/weapon shells that have been wiped
    * clean at the item pedestal: lore is empty, the custom name carries a
-   * §b/§d/§e colour code prefix, and the underlying item type is a vanilla
+   * §a/§b/§d/§e colour code prefix, and the underlying item type is a vanilla
    * armour piece ({@code *_helmet}/{@code *_chestplate}/{@code *_leggings}/
    * {@code *_boots}) or one of the Wynncraft weapon-class proxies
-   * ({@code *_shovel}, {@code shears}, {@code bow}, {@code stick}).
+   * ({@code *_shovel}, {@code shears}, {@code bow}, {@code stick},
+   * {@code cocoa_beans}, {@code paper}).
    *
    * <p>The pedestal mechanic strips all lore from a legendary/rare/unique item
    * while preserving its coloured name and vanilla item ID; this detector
@@ -279,7 +280,7 @@ public class LegacyItemHandler {
     String raw = customName.getString();
     if (raw.length() < 2 || raw.charAt(0) != '§') return false;
     char code = Character.toLowerCase(raw.charAt(1));
-    if (code != 'b' && code != 'd' && code != 'e') return false;
+    if (code != 'a' && code != 'b' && code != 'd' && code != 'e') return false;
 
     Identifier key = BuiltInRegistries.ITEM.getKey(stack.getItem());
     if (!"minecraft".equals(key.getNamespace())) return false;
@@ -291,7 +292,9 @@ public class LegacyItemHandler {
         || path.endsWith("_shovel")
         || path.equals("shears")
         || path.equals("bow")
-        || path.equals("stick");
+        || path.equals("stick")
+        || path.equals("cocoa_beans")
+        || path.equals("paper");
   }
 
   /** Returns {@code true} if any tooltip line starts with "Misc. Item". */
