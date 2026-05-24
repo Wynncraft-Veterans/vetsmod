@@ -39,7 +39,7 @@ public final class TerritoryLineManager {
             "church", "Forest of Eyes",
             "scrap", "Corkus Sea Cove",
             "bat", "Royal Barracks",
-            "fox", "Fort Hegea",
+            "hegea", "Fort Hegea",
             "lighthouse", "Contested District"
     );
 
@@ -55,7 +55,7 @@ public final class TerritoryLineManager {
     /**
      * Toggle the display of a territory boundary line.
      *
-     * @param alias the shorthand name ("church", "scrap", "bat", "fox", or "lighthouse")
+     * @param alias the shorthand name ("church", "scrap", "bat", "hegea", or "lighthouse")
      */
     public static void toggle(String alias) {
         String territoryName = LINE_ALIASES.get(alias);

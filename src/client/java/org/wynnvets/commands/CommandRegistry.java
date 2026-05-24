@@ -127,7 +127,7 @@ public final class CommandRegistry {
                 )
             )
 
-            // /wv line church|scrap|bat|fox|lighthouse
+            // /wv line church|scrap|bat|hegea|lighthouse
             .then(ClientCommandManager.literal("line")
                 .then(ClientCommandManager.literal("church")
                     .executes(ctx -> lineToggle(ctx, "church"))
@@ -138,8 +138,8 @@ public final class CommandRegistry {
                 .then(ClientCommandManager.literal("bat")
                     .executes(ctx -> lineToggle(ctx, "bat"))
                 )
-                .then(ClientCommandManager.literal("fox")
-                    .executes(ctx -> lineToggle(ctx, "fox"))
+                .then(ClientCommandManager.literal("hegea")
+                    .executes(ctx -> lineToggle(ctx, "hegea"))
                 )
                 .then(ClientCommandManager.literal("lighthouse")
                     .executes(ctx -> lineToggle(ctx, "lighthouse"))

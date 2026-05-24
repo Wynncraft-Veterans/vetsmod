@@ -76,7 +76,7 @@ final class HelpCommands {
       msg.append(Component.literal(" — Show info about this week's event\n")
           .withStyle(ChatFormatting.GRAY));
 
-      msg.append(Component.literal("/wv line <church|scrap|bat|fox|lighthouse>")
+      msg.append(Component.literal("/wv line <church|scrap|bat|hegea|lighthouse>")
           .withStyle(ChatFormatting.YELLOW));
       msg.append(Component.literal(" — Toggle gxp boundary lines\n")
           .withStyle(ChatFormatting.GRAY));
@@ -215,10 +215,10 @@ final class HelpCommands {
 
   static int helpLine(CommandContext<FabricClientCommandSource> ctx) {
     MutableComponent msg = Component.empty();
-    msg.append(Component.literal("/wv line <church|scrap|bat|fox|lighthouse>\n").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal("/wv line <church|scrap|bat|hegea|lighthouse>\n").withStyle(ChatFormatting.YELLOW));
     msg.append(Component.literal("Toggle the rendering of territory boundary lines for the "
         + "specified territory. Use \"church\" (Witness Church - Forest of Eyes), \"scrap\" (Scrapyard - Corkus Sea Cove), "
-        + "\"bat\" (Batcave - Royal Barracks), \"fox\" (Foxcave - Fort Hegea), or \"lighthouse\" (Lighthouse - Contested District) "
+        + "\"bat\" (Batcave - Royal Barracks), \"hegea\" (Training Grounds - Fort Hegea), or \"lighthouse\" (Lighthouse - Contested District) "
         + "to pick which boundaries to show.\n")
         .withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
