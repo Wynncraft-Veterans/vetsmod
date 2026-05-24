@@ -19,6 +19,7 @@ public class MembershipSnapshot {
   private Boolean blocklisted;
   private String blocklist_reason;
   private Boolean in_returners_guild;
+  private Integer waitlist_count;
 
   public String getTargetUuid() {
     return target_uuid;
@@ -46,6 +47,16 @@ public class MembershipSnapshot {
 
   public boolean isInReturnersGuild() {
     return Boolean.TRUE.equals(in_returners_guild);
+  }
+
+  /**
+   * Total rows in dazebot's {@code Waitlist} table. Guild-wide stat
+   * (does not depend on the snapshot's target). Used by the
+   * {@code /gu invite} gate to predict whether the target should be
+   * routed through the waitlist instead.
+   */
+  public int getWaitlistCount() {
+    return waitlist_count == null ? 0 : waitlist_count;
   }
 
   /**

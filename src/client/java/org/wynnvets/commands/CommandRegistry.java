@@ -83,6 +83,16 @@ public final class CommandRegistry {
                 )
             )
 
+            // /wv invite-force <playerName> — staff-only bypass of the
+            // /gu invite gate. Wired up to the [Invite anyway] click in
+            // InviteGate's warning UI; also typeable directly.
+            .then(ClientCommandManager.literal("invite-force")
+                .requires(src -> GuildStateManager.isConfirmedStaff())
+                .then(ClientCommandManager.argument("playerName", StringArgumentType.string())
+                    .executes(CommandRegistry::inviteForce)
+                )
+            )
+
             // /wv return
             .then(ClientCommandManager.literal("return")
                 .requires(CommandRegistry::userIsVet)
@@ -178,6 +188,24 @@ public final class CommandRegistry {
     String playerName = StringArgumentType.getString(ctx, "playerName");
     UserInfoFetcher.checkUser(playerName);
     CautionCommands.runCheckCautions(playerName);
+    return 1;
+  }
+
+  private static int inviteForce(CommandContext<FabricClientCommandSource> ctx) {
+    if (!GuildStateManager.isConfirmedStaff()) {
+      ChatUtils.sendLocalMessage(
+          Component.literal("You must be confirmed staff to use /wv invite-force.")
+              .withStyle(ChatFormatting.RED)
+      );
+      return 0;
+    }
+    String playerName = StringArgumentType.getString(ctx, "playerName");
+    InviteGate.forceDispatch(playerName);
+    ChatUtils.sendLocalMessage(
+        Component.literal("Dispatching /gu invite " + playerName
+                + " (vetsmod gate bypassed).")
+            .withStyle(ChatFormatting.YELLOW)
+    );
     return 1;
   }
 

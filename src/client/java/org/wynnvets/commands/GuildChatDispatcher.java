@@ -88,6 +88,29 @@ public final class GuildChatDispatcher {
       return handleWvCheck(command.substring(9).trim());
     }
 
+    // /gu invite + /guild invite gate. Only Returners members can
+    // actually issue invites server-side, so we pass non-Returners
+    // typing this command straight through (the server will reject).
+    // For Returners members, hand off to InviteGate which fans out the
+    // pre-checks and either dispatches the invite or renders a
+    // block/warn explanation. Returning true cancels the typed command
+    // so the server doesn't see a duplicate when the gate dispatches
+    // via sendCommand on the allow path.
+    if (command.regionMatches(true, 0, "gu invite ", 0, 10)) {
+      if (!GuildStateManager.isReturners()) return false;
+      String target = extractFirstToken(command.substring(10));
+      if (target.isEmpty()) return false;
+      InviteGate.checkInvite(target);
+      return true;
+    }
+    if (command.regionMatches(true, 0, "guild invite ", 0, 13)) {
+      if (!GuildStateManager.isReturners()) return false;
+      String target = extractFirstToken(command.substring(13));
+      if (target.isEmpty()) return false;
+      InviteGate.checkInvite(target);
+      return true;
+    }
+
     // Caution / warning / eject system. The /caution path runs a
     // server-side preflight that may reply "would_trigger" with a
     // clickable confirm prompt rendered by CautionCommands; the
@@ -125,6 +148,16 @@ public final class GuildChatDispatcher {
     if (GuildStateManager.isStaff()) return true;
     GuildStateManager.refreshStaffStatusIfNeeded(true);
     return false;
+  }
+
+  /** Returns the first whitespace-delimited token of {@code args}, or
+   *  empty string if {@code args} has none. Used by the /gu invite
+   *  intercept to pull the target name out of the raw command tail. */
+  private static String extractFirstToken(String args) {
+    String trimmed = args.trim();
+    if (trimmed.isEmpty()) return "";
+    int sp = trimmed.indexOf(' ');
+    return sp < 0 ? trimmed : trimmed.substring(0, sp);
   }
 
   // ── /g — Guild chat ─────────────────────────────────────────────────
