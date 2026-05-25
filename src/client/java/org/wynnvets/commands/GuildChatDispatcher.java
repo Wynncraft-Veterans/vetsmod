@@ -35,7 +35,36 @@ public final class GuildChatDispatcher {
   private static final String HONOURARY_SELF_RANK =
       "\uE010\uE047\uE04E\uE04D\uE04E\uE054\uE051\uE040\uE051\uE058\uE011";
 
+  // The mixin intercepts every ClientPacketListener.sendCommand call, not
+  // just typed ones, so vetsmod-issued sendCommands would otherwise bounce
+  // back through intercept() and re-enter the same handler that issued
+  // them (e.g. /wv invite-force \u2192 forceDispatch \u2192 "gu invite ..." \u2192
+  // re-intercepted as a typed /gu invite \u2192 InviteGate runs the gate again
+  // and blocks the very dispatch the bypass was meant to perform).
+  private static final ThreadLocal<Boolean> BYPASS =
+      ThreadLocal.withInitial(() -> Boolean.FALSE);
+
   private GuildChatDispatcher() {}
+
+  /**
+   * Sends {@code command} via the local player's connection while
+   * suppressing this dispatcher for the duration of the call, so the
+   * mixin re-entry never reaches the prefix handlers. Use this anywhere
+   * vetsmod itself needs to issue a command that would otherwise match
+   * one of the intercept patterns.
+   *
+   * <p>No-op when the player or connection is missing.</p>
+   */
+  public static void sendCommandBypassed(String command) {
+    Minecraft minecraft = Minecraft.getInstance();
+    if (minecraft.player == null || minecraft.player.connection == null) return;
+    BYPASS.set(Boolean.TRUE);
+    try {
+      minecraft.player.connection.sendCommand(command);
+    } finally {
+      BYPASS.set(Boolean.FALSE);
+    }
+  }
 
   /**
    * Attempts to intercept an outbound chat command.
@@ -45,6 +74,7 @@ public final class GuildChatDispatcher {
    *         {@code false} to let it pass through to the server
    */
   public static boolean intercept(String command) {
+    if (BYPASS.get()) return false;
     // /g: handler already falls through to vanilla for non-vets users
     // via its internal isReturners / isWaitlistUnlocked / queue checks.
     if (command.regionMatches(true, 0, "g ", 0, 2)) {
@@ -201,10 +231,7 @@ public final class GuildChatDispatcher {
         );
         return true;
       }
-      Minecraft minecraft = Minecraft.getInstance();
-      if (minecraft.player != null && minecraft.player.connection != null) {
-        minecraft.player.connection.sendCommand("g " + encoded);
-      }
+      sendCommandBypassed("g " + encoded);
       return true;
     }
 
@@ -260,12 +287,8 @@ public final class GuildChatDispatcher {
       return true;
     }
 
-    CommandDispatcher.executeWithStaffEligibilityGate(() -> {
-      Minecraft minecraft = Minecraft.getInstance();
-      if (minecraft.player != null && minecraft.player.connection != null) {
-        minecraft.player.connection.sendCommand("g \u203C" + message);
-      }
-    });
+    CommandDispatcher.executeWithStaffEligibilityGate(
+        () -> sendCommandBypassed("g \u203C" + message));
     return true;
   }
 
@@ -279,14 +302,10 @@ public final class GuildChatDispatcher {
       return true;
     }
 
-    CommandDispatcher.executeWithStaffEligibilityGate(() -> {
-      Minecraft minecraft = Minecraft.getInstance();
-      if (minecraft.player != null && minecraft.player.connection != null) {
-        minecraft.player.connection.sendCommand(
+    CommandDispatcher.executeWithStaffEligibilityGate(
+        () -> sendCommandBypassed(
             "g \u26A0\u26A0\u26A0 If you are using vetsmod, it's outdated (current version "
-                + version + ") \u26A0\u26A0\u26A0");
-      }
-    });
+                + version + ") \u26A0\u26A0\u26A0"));
     return true;
   }
 

@@ -100,14 +100,12 @@ public final class InviteGate {
   /**
    * Bypass entry point used by {@code /wv invite-force}. Skips all
    * vetsmod-side checks and sends {@code /gu invite <target>} directly
-   * to the server. {@code sendCommand} bypasses chat interception
-   * (which only fires on typed messages), so this won't re-trigger
+   * to the server via {@link GuildChatDispatcher#sendCommandBypassed},
+   * which suppresses the chat-command mixin so this won't re-trigger
    * {@link #checkInvite}.
    */
   public static void forceDispatch(String target) {
-    Minecraft minecraft = Minecraft.getInstance();
-    if (minecraft.player == null || minecraft.player.connection == null) return;
-    minecraft.player.connection.sendCommand("gu invite " + target);
+    GuildChatDispatcher.sendCommandBypassed("gu invite " + target);
   }
 
   // ── Async fan-out + decision ────────────────────────────────────────

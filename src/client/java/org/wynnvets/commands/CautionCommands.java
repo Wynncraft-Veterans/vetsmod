@@ -379,7 +379,7 @@ public final class CautionCommands {
       VetsLogger.warn("Eject dispatch: unknown suggestion {}", suggested);
       return;
     }
-    player.connection.sendCommand(command);
+    GuildChatDispatcher.sendCommandBypassed(command);
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────
