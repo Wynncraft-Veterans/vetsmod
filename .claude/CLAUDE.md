@@ -128,3 +128,20 @@ Wynntils fires `ChatMessageEvent.Match` → rewriters (`SpoilerRewriter`, `Staff
 ./gradlew build          # produces jar in build/libs/
 ./gradlew runClient      # launches Minecraft with the mod loaded
 ```
+
+## External name-resolution providers
+
+Reliability ladder: `ashcon < wynncraft < playerdb < mojang`.
+
+| Provider | Accuracy | Rate limit |
+|---|---|---|
+| ashcon | low (frequently stale) | very permissive |
+| PlayerDB | medium | medium-permissive (not unlimited) |
+| Wynncraft `/v3/player` | only authoritative for Wynncraft-internal state | shared with the user's other traffic |
+| Mojang | source of truth | very restrictive |
+
+**This repo is client-side.** The Mojang rate-limit bucket is shared with whatever else the user has installed (Wynntils, other mods), so the remaining budget is unpredictable. Be conservative — try permissive sources first.
+
+Implementation: [`org.wynnvets.fetcher.lookup.PlayerLookup`](../src/client/java/org/wynnvets/fetcher/lookup/PlayerLookup.java) already does this. Its cascade is `WynncraftProvider → VetsSnapshotProvider → PlayerDbProvider → AshconProvider → MojangServicesProvider → MojangLegacyProvider`, with Mojang as the last resort. Preserve that ordering; do **not** promote Mojang earlier without a strong reason.
+
+When a permissive provider returns a player record, treat its `username` field as potentially stale (we've observed PlayerDB and ashcon both returning old names long after Mojang has the rename live). If you need to write a name to a long-lived cache, confirm against Mojang first; if that fails, skip the cache write rather than persisting a known-stale value.

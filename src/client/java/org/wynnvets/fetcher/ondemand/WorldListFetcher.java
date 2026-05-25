@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Style;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.dispatcher.FindDispatcher;
+import org.wynnvets.fetcher.lookup.PlayerLookup;
 import org.wynnvets.logging.VetsLogger;
 
 import java.net.HttpURLConnection;
@@ -23,6 +24,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -30,6 +32,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -106,16 +109,18 @@ public final class WorldListFetcher {
             CompletableFuture<Map<String, String>> findFuture = new CompletableFuture<>();
             FindDispatcher.enqueueFindBatch(usernames, findFuture);
 
-            findFuture.thenAccept(worldMap -> {
-                MutableComponent result = formatWorldList(players, worldMap, staffNames);
-                ChatUtils.sendLocalMessageNewBlock(result);
-            }).exceptionally(e -> {
-                VetsLogger.warn("World list find batch failed: {}", e.getMessage());
-                ChatUtils.sendLocalMessage(
-                        Component.literal("Failed to locate players: " + e.getMessage())
-                                .withStyle(ChatFormatting.RED));
-                return null;
-            });
+            findFuture
+                .thenCompose(worldMap -> retryStragglersUnderCanonicalNames(players, worldMap))
+                .thenAccept(finalMap -> {
+                    MutableComponent result = formatWorldList(players, finalMap, staffNames);
+                    ChatUtils.sendLocalMessageNewBlock(result);
+                }).exceptionally(e -> {
+                    VetsLogger.warn("World list find batch failed: {}", e.getMessage());
+                    ChatUtils.sendLocalMessage(
+                            Component.literal("Failed to locate players: " + e.getMessage())
+                                    .withStyle(ChatFormatting.RED));
+                    return null;
+                });
 
             return null;
         }).exceptionally(e -> {
@@ -125,6 +130,86 @@ public final class WorldListFetcher {
                             .withStyle(ChatFormatting.RED));
             return null;
         });
+    }
+
+    // ── Straggler retry under canonical names ───────────────────────
+
+    /**
+     * Re-queries the {@code /find} dispatcher for any players the initial batch
+     * could not place, using each player's canonical current name (resolved via
+     * {@link PlayerLookup}).
+     *
+     * <p>Motivation: a player whose Mojang name has changed may still appear in
+     * the merged online list under their *old* name (e.g. because temp-server's
+     * Mojang-resolved roster is stale). Wynncraft's {@code /find <oldname>}
+     * returns "not currently online", and the player buckets into "Offline /
+     * Not Found" even though they are in fact online under their new name.
+     * This pass detects those cases and re-queries under the canonical name.</p>
+     *
+     * <p>Strictly additive: only inspects players the first batch could not
+     * place. A retry success moves the player from {@code notFound} into the
+     * correct server bucket; a retry miss / timeout leaves the original
+     * {@code worldMap} entry untouched (= original behaviour).</p>
+     *
+     * <p>Returns a copy of {@code worldMap} with augmented entries; never
+     * mutates the input.</p>
+     */
+    private static CompletableFuture<Map<String, String>> retryStragglersUnderCanonicalNames(
+            List<OnlineMemberService.OnlinePlayer> players,
+            Map<String, String> worldMap) {
+
+        List<OnlineMemberService.OnlinePlayer> stragglers = new ArrayList<>();
+        for (var p : players) {
+            String server = worldMap.get(p.username());
+            if (server == null || server.isEmpty()) {
+                stragglers.add(p);
+            }
+        }
+        if (stragglers.isEmpty()) {
+            return CompletableFuture.completedFuture(worldMap);
+        }
+
+        // originalUsername (case preserved) -> canonicalCurrentName.
+        // ConcurrentHashMap because the resolve futures complete on arbitrary
+        // pool threads.
+        Map<String, String> renameMap = new ConcurrentHashMap<>();
+        List<CompletableFuture<Void>> resolves = new ArrayList<>(stragglers.size());
+        for (var p : stragglers) {
+            String original = p.username();
+            resolves.add(PlayerLookup.resolve(original).thenAccept(result -> {
+                if (!result.isSuccess()) return;
+                String canonical = result.canonicalName();
+                if (canonical == null || canonical.equalsIgnoreCase(original)) return;
+                renameMap.put(original, canonical);
+            }));
+        }
+
+        return CompletableFuture.allOf(resolves.toArray(new CompletableFuture[0]))
+                .thenCompose(v -> {
+                    if (renameMap.isEmpty()) {
+                        return CompletableFuture.completedFuture(worldMap);
+                    }
+                    // Dedup the canonical names sent to /find; order preserved
+                    // for predictable dispatch.
+                    List<String> canonicalNames = new ArrayList<>(
+                            new LinkedHashSet<>(renameMap.values()));
+                    CompletableFuture<Map<String, String>> retryFuture =
+                            new CompletableFuture<>();
+                    FindDispatcher.enqueueFindBatch(canonicalNames, retryFuture);
+                    return retryFuture.thenApply(retryMap -> {
+                        // Defensive copy: enqueueFindBatch can return Map.of()
+                        // in some edge paths, and we don't want to surprise
+                        // downstream readers by mutating the input.
+                        Map<String, String> augmented = new LinkedHashMap<>(worldMap);
+                        for (var e : renameMap.entrySet()) {
+                            String server = retryMap.get(e.getValue());
+                            if (server != null && !server.isEmpty()) {
+                                augmented.put(e.getKey(), server);
+                            }
+                        }
+                        return augmented;
+                    });
+                });
     }
 
     // ── Staff fetch ─────────────────────────────────────────────────
