@@ -19,6 +19,25 @@ The five repos in this workspace make up one auth/chat ecosystem. Read each repo
 - `../vets-deploy` — Docker stack definitions + ops docs for the VPS at `timasca.wynnvets.org`. Where the four above actually run.
 - `../Wynntils` — Read-only reference copy of the Wynntils mod source. Do not edit.
 
+## Discord bots in this workspace — command prefixes
+
+vetsmod doesn't own a Discord bot, but its in-game chat strings reference Discord commands run on **dazebot** (e.g. the `~vetsmod` link mentioned in `SessionAuthWarning`, `UnlockCommandMixin`, `UnlockManager`). The vets ecosystem runs four Discord bots; the table is duplicated across each bot's repo so the mapping is discoverable from any vantage point:
+
+| Bot | Repo | Prefix |
+|-----|------|--------|
+| **dazebot** | `../dazebot` | `~` |
+| nazbot | `../temporary-server` | `!` |
+| fishbot | `../vets-anni` | `\` |
+| dynobot | (third-party, no repo) | `?` |
+
+### In-game chat string convention
+
+In any user-facing chat string emitted from vetsmod (i.e. anything sent via `ChatUtils.sendLocalMessage` / `Component.literal` that the player sees in Minecraft chat), refer to the dazebot Discord command as **`~vetsmod`**, not `/vetsmod`. Minecraft treats `/` as the client-command prefix, so showing `/vetsmod` invites the player to type it as a Minecraft client command, which fails locally and is confusing.
+
+- Applies only to **user-facing chat strings** inside Java source (callers of `ChatUtils.sendLocalMessage*` — `UnlockCommandMixin`, `UnlockManager`, `SessionAuthWarning`, etc.).
+- Does **not** apply to Javadoc, code comments, this CLAUDE.md, or any documentation describing the Discord command itself — those keep `/vetsmod` (the real Discord slash command).
+- Does **not** apply to `/unlock` — that is a real *client-side* command intercepted by `UnlockCommandMixin`, so the slash is correct there.
+
 ## Architecture overview
 
 ```
@@ -56,6 +75,16 @@ Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `a
 **Chat message fields:** `uuid`, `type` (`guild`|`queue`|`waitlist`|`honourary`|`bridge`), `timestamp`, `rank`, `username`, `message`. `queue` carries guild chat originated by a sender stuck in a world queue (the game server drops `/g` while queued); semantically a guild message but routed via the WS so it still reaches the rest of the guild. Inbound dedup is skipped for `queue` since only the queued sender originates it.
 
 **Tier gating:** when authenticated, the mod can only send/receive chat types its tier permits — `guild`-tier covers `guild`+`queue`, `waitlist`/`honourary` cover only their own type. `bridge` is visible to every authenticated tier. Unauthenticated sessions get unrestricted access *only* while the server's `unauth` toggle is enabled (see `../temporary-server/v1_protocol.md` §3).
+
+### API boundary — vetsmod talks to temporary-server, NOT to dazebot
+
+vetsmod MUST NOT call dazebot directly. All vets-backend interactions go through **temporary-server** at `https://api.wynnvets.org` or the WebSockets `wss://api.wynnvets.org/v1/{inbound,outbound}`. dazebot's `/api/internal/*` endpoints are network-gated to the private `verify` Docker network and would reject a vetsmod client anyway; on top of that, vetsmod `/unlock` keys are per-user bearer tokens, not credentials for hitting dazebot's internal control plane.
+
+When designing a new vetsmod feature that needs data from dazebot, route it through a temporary-server WS frame (`V1ApiManager.sendStaffActionFrame`, `sendInbound`, etc.) — the existing `check_membership` staff-action frame is the canonical pattern (vetsmod → `wss://api.wynnvets.org/v1/inbound` → temporary-server forwards to dazebot's `/api/internal/check-snapshot` → ack flows back through the same WebSocket).
+
+In vetsmod-side docs, name the **immediate counterparty** (temporary-server / `api.wynnvets.org`), not the eventual upstream (dazebot). Calling the upstream by name in vetsmod-side docs invites the wrong mental model and the wrong implementation.
+
+Allowed-from-vetsmod surface: anything fronted by `api.wynnvets.org` or `wss://api.wynnvets.org`. NOT allowed: any dazebot host, any `/api/internal/*` path, or any URL that requires being on the vets server network.
 
 ## User tiers (brief)
 
