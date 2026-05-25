@@ -7,7 +7,7 @@ Fabric client mod for the Wynncraft "Returners" veterans guild community. Requir
 - **Mod ID:** `vetsmod` | **Version:** see `gradle.properties` (`mod_version`) | **MC:** 1.21.11 | **Java:** 21
 - **Wynntils dependency:** `v4.1.4-fabric` via Modrinth Maven (`modCompileOnly`)
 - Most client code lives under `src/client/`. `src/main/` holds a tiny server stub plus `org.wynnvets.logging.VetsLogger` (shared by both sides).
-- No unit tests (standard for Fabric mods with tight Minecraft coupling)
+- JUnit 5 harness under `src/test/java/` for pure-logic classes (`VetsLogger`, `SpoilerCodec`, `RankChangeListener.classify`). Run via `./gradlew test` (also runs with `./gradlew build`). Anything importing `net.minecraft.*` or `com.wynntils.*` stays untested — out of scope for the harness.
 
 ## Related repos (same workspace)
 

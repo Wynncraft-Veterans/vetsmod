@@ -49,6 +49,11 @@ dependencies {
 	
 	// Wynntils dependency (compile only - users must have Wynntils installed separately)
 	modCompileOnly "maven.modrinth:wynntils:v4.1.4-fabric"
+
+	// Test harness (pure-logic unit tests, no Minecraft boot)
+	testImplementation platform('org.junit:junit-bom:5.11.4')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 processResources {
@@ -71,6 +76,24 @@ java {
 
 	sourceCompatibility = JavaVersion.VERSION_21
 	targetCompatibility = JavaVersion.VERSION_21
+}
+
+// Make the unified `test` source set see both main + client outputs so
+// pure-logic tests can reference SpoilerCodec / RankChangeListener (client) and
+// VetsLogger (main) from a single src/test/java/ tree.
+sourceSets {
+	test {
+		compileClasspath += sourceSets.client.output + sourceSets.client.compileClasspath
+		runtimeClasspath += sourceSets.client.output + sourceSets.client.runtimeClasspath
+	}
+}
+
+test {
+	useJUnitPlatform()
+	testLogging {
+		events 'passed', 'skipped', 'failed'
+		exceptionFormat 'full'
+	}
 }
 
 jar {
