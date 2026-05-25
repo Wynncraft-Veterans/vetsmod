@@ -9,8 +9,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-import org.wynnvets.api.MojangApi;
-import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.WynnCraftApi;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.Prepend;
@@ -18,6 +16,10 @@ import org.wynnvets.datamodels.Guild;
 import org.wynnvets.datamodels.MembershipSnapshot;
 import org.wynnvets.datamodels.User;
 import org.wynnvets.datamodels.UserUUID;
+import org.wynnvets.fetcher.lookup.FailureReason;
+import org.wynnvets.fetcher.lookup.LookupResult;
+import org.wynnvets.fetcher.lookup.PlayerLookup;
+import org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
@@ -31,7 +33,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Pattern;
 
 /**
  * On-demand fetcher for the {@code /wv check} command.
@@ -49,8 +50,6 @@ public class UserInfoFetcher {
       .version(HttpClient.Version.HTTP_1_1)
       .connectTimeout(Duration.ofSeconds(5))
       .build();
-
-  private static final Pattern UUID_FIX = Pattern.compile("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})");
 
   private static final Gson GSON = new Gson();
 
@@ -137,10 +136,6 @@ public class UserInfoFetcher {
     }
     long y = secs / (86400L * 365);
     return y + (y == 1 ? " year" : " years");
-  }
-
-  private static UUID formatFromInput(String uuid) {
-    return UUID.fromString(UUID_FIX.matcher(uuid.replace("-", "")).replaceAll("$1-$2-$3-$4-$5"));
   }
 
   private static String normalizeUuidText(String raw) {
@@ -262,43 +257,6 @@ public class UserInfoFetcher {
     return Character.toUpperCase(rank.charAt(0)) + rank.substring(1);
   }
 
-  /**
-   * Sends a {@code check_membership} WS frame and exposes the parsed
-   * response as a future. Server-side errors complete the future with a
-   * sentinel snapshot whose {@code discord} field is {@code null} so
-   * the renderer can show "(snapshot unavailable: ...)" while still
-   * rendering the Wynncraft-derived lines.
-   */
-  private static CompletableFuture<MembershipSnapshot> membershipSnapshot(String playerName) {
-    CompletableFuture<MembershipSnapshot> cf = new CompletableFuture<>();
-    JsonObject fields = new JsonObject();
-    fields.addProperty("target_username", playerName);
-    V1ApiManager.sendStaffActionFrame("check_membership", fields, ack -> {
-      try {
-        cf.complete(parseSnapshotAck(ack));
-      } catch (Exception e) {
-        cf.complete(snapshotUnavailable(e.getMessage()));
-      }
-    });
-    return cf;
-  }
-
-  private static MembershipSnapshot parseSnapshotAck(JsonObject ack) {
-    if (ack == null) {
-      return snapshotUnavailable("empty ack");
-    }
-    String status = ack.has("status") && !ack.get("status").isJsonNull()
-        ? ack.get("status").getAsString()
-        : "error";
-    if (!"ok".equals(status)) {
-      String detail = ack.has("detail") && !ack.get("detail").isJsonNull()
-          ? ack.get("detail").getAsString()
-          : "unknown error";
-      return snapshotUnavailable(detail);
-    }
-    return GSON.fromJson(ack, MembershipSnapshot.class);
-  }
-
   private static MembershipSnapshot snapshotUnavailable(String detail) {
     // GSON-deserialise from a synthetic JSON object so optional fields
     // default cleanly. The renderer keys off `discord == null` to decide
@@ -316,70 +274,82 @@ public class UserInfoFetcher {
 
   /**
    * Orchestrates the full {@code /wv check} readout for {@code playerName}:
-   * Mojang lookup → Wynncraft player profile → Returners roster + dazebot
-   * snapshot, then renders the combined block line-by-line.
+   * resolves name → UUID via {@link PlayerLookup} (Wynncraft, temporary-server,
+   * playerdb, ashcon, Mojang), then fans out the remaining lookups (Wynn
+   * player profile, Returners roster, dazebot snapshot) and renders the
+   * combined block line-by-line.
    *
    * <p>Failures are surfaced as a single error line; partial results
    * (e.g. Wynn fetch succeeds but the snapshot doesn't) still render the
    * portions that resolved.</p>
    */
   public static void checkUser(String playerName) {
-    HttpRequest uuidRequest = HttpRequest.newBuilder()
-        .uri(MojangApi.getUserUUID(playerName))
-        .timeout(Duration.ofSeconds(5))
-        .GET()
-        .build();
-
-    HTTP_CLIENT.sendAsync(uuidRequest, HttpResponse.BodyHandlers.ofString())
-        .thenCompose(response -> {
-          if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-            renderError("Mojang lookup failed for '" + playerName + "' (status "
-                + response.statusCode() + ")");
-            return CompletableFuture.completedFuture(null);
-          }
-          UserUUID userUUID = GSON.fromJson(response.body(), UserUUID.class);
-          return fetchAndRender(playerName, userUUID);
-        })
-        .exceptionally(e -> {
-          renderError("Lookup failed: " + e.getMessage());
-          return null;
-        });
+    PlayerLookup.resolve(playerName).thenAccept(lookup -> {
+      if (lookup.isSuccess()) {
+        fetchAndRender(playerName, lookup);
+        return;
+      }
+      if (lookup.failureReason() == FailureReason.PLAYER_NOT_FOUND) {
+        renderError("No player named '" + playerName + "' on any lookup source.");
+        return;
+      }
+      renderError("Could not look up '" + playerName
+          + "' — all UUID sources unavailable (Mojang rate-limited / Wynncraft "
+          + "down). Try again shortly.");
+    });
   }
 
-  private static CompletableFuture<Void> fetchAndRender(String playerName, UserUUID uuid) {
-    HttpRequest wynnRequest = HttpRequest.newBuilder()
-        .uri(WynnCraftApi.playerInfo(formatFromInput(uuid.id)))
-        .timeout(Duration.ofSeconds(5))
-        .GET()
-        .build();
+  private static void fetchAndRender(String requestedName, LookupResult lookup) {
+    UUID uuid = lookup.uuid();
+    String canonical = lookup.canonicalName() != null ? lookup.canonicalName() : requestedName;
+    UserUUID synthUuid = makeUserUUID(uuid, canonical);
 
-    // Three independent fetches: Wynn player, Returners roster (only if
-    // Wynn says they're in vets), dazebot snapshot. We wait for all three
-    // before rendering so the block is contiguous in chat.
-    CompletableFuture<User> wynnFuture = HTTP_CLIENT
-        .sendAsync(wynnRequest, HttpResponse.BodyHandlers.ofString())
-        .thenApply(response -> {
-          if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-            return null;
-          }
-          return GSON.fromJson(response.body(), User.class);
-        })
-        .exceptionally(e -> null);
+    // Reuse the cascade's attached payload when present; fetch only what's
+    // missing. When the Vets snapshot wasn't part of the resolving provider's
+    // payload, we synthesise a sentinel rather than re-firing the WS frame —
+    // the cascade just tried Vets and the renderer handles "(snapshot
+    // unavailable)" gracefully.
+    CompletableFuture<User> wynnFuture = lookup.wynnProfile() != null
+        ? CompletableFuture.completedFuture(lookup.wynnProfile())
+        : fetchWynnProfileByUuid(uuid);
 
-    CompletableFuture<MembershipSnapshot> snapFuture = membershipSnapshot(playerName);
+    CompletableFuture<MembershipSnapshot> snapFuture = lookup.vetsSnapshot() != null
+        ? CompletableFuture.completedFuture(lookup.vetsSnapshot())
+        : VetsSnapshotProvider.requestSnapshot(canonical)
+            .thenApply(s -> s != null ? s : snapshotUnavailable("snapshot unavailable"));
 
-    return wynnFuture.thenCompose(user -> {
+    wynnFuture.thenCompose(user -> {
       CompletableFuture<ReturnersMembership> returnersFuture =
           (user != null && user.isInVets())
-              ? returnersMembership(uuid.id)
+              ? returnersMembership(synthUuid.id)
               : CompletableFuture.completedFuture(ReturnersMembership.notInGuild());
       return returnersFuture.thenCombine(snapFuture,
           (returners, snapshot) -> {
             Minecraft.getInstance().execute(
-                () -> renderCheck(playerName, uuid, user, returners, snapshot));
+                () -> renderCheck(requestedName, synthUuid, user, returners, snapshot));
             return null;
           });
     });
+  }
+
+  private static CompletableFuture<User> fetchWynnProfileByUuid(UUID uuid) {
+    HttpRequest req = HttpRequest.newBuilder()
+        .uri(WynnCraftApi.playerInfo(uuid))
+        .timeout(Duration.ofSeconds(5))
+        .GET()
+        .build();
+    return HTTP_CLIENT.sendAsync(req, HttpResponse.BodyHandlers.ofString())
+        .thenApply(resp -> resp.statusCode() == HttpURLConnection.HTTP_OK
+            ? GSON.fromJson(resp.body(), User.class)
+            : null)
+        .exceptionally(e -> null);
+  }
+
+  private static UserUUID makeUserUUID(UUID uuid, String name) {
+    UserUUID u = new UserUUID();
+    u.id = uuid.toString().replace("-", "");
+    u.name = name;
+    return u;
   }
 
   // ── Rendering ──────────────────────────────────────────────────────

@@ -10,13 +10,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-import org.wynnvets.api.MojangApi;
-import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.WynnCraftApi;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.datamodels.MembershipSnapshot;
 import org.wynnvets.datamodels.User;
-import org.wynnvets.datamodels.UserUUID;
+import org.wynnvets.fetcher.lookup.FailureReason;
+import org.wynnvets.fetcher.lookup.LookupResult;
+import org.wynnvets.fetcher.lookup.PlayerLookup;
+import org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider;
 import org.wynnvets.guild.GuildStateManager;
 
 import java.net.HttpURLConnection;
@@ -44,6 +45,13 @@ import java.util.concurrent.CompletableFuture;
  * surfaces the exact reason and offers a clickable
  * {@code /wv invite-force <name>} bypass. The slot-pressure check is
  * skipped for staff entirely — they're trusted to make the call.</p>
+ *
+ * <p>Name → UUID resolution runs through {@link PlayerLookup}, which
+ * tries Wynncraft / temporary-server / PlayerDB / Ashcon / Mojang
+ * Services / Mojang legacy in that order. If every source fails
+ * transiently the gate fails open (dispatches the invite anyway with a
+ * warning); if every source returns a definite 404 the gate blocks with
+ * a "no such player" message.</p>
  */
 public final class InviteGate {
 
@@ -74,27 +82,22 @@ public final class InviteGate {
     if (target == null || target.isBlank()) return;
     boolean isStaff = GuildStateManager.isConfirmedStaff();
 
-    HttpRequest uuidReq = HttpRequest.newBuilder()
-        .uri(MojangApi.getUserUUID(target))
-        .timeout(Duration.ofSeconds(5))
-        .GET()
-        .build();
-
-    HTTP_CLIENT.sendAsync(uuidReq, HttpResponse.BodyHandlers.ofString())
-        .thenAccept(resp -> {
-          if (resp.statusCode() != HttpURLConnection.HTTP_OK) {
-            renderError("Could not resolve '" + target + "' on Mojang (status "
-                + resp.statusCode() + "). Invite cancelled."
-                + (isStaff ? " Staff: use /wv invite-force to override." : ""));
-            return;
-          }
-          UserUUID uuid = GSON.fromJson(resp.body(), UserUUID.class);
-          gatherAndDecide(target, uuid, isStaff);
-        })
-        .exceptionally(e -> {
-          renderError("Mojang lookup failed: " + e.getMessage());
-          return null;
-        });
+    PlayerLookup.resolve(target).thenAccept(lookup -> {
+      if (lookup.isSuccess()) {
+        gatherAndDecide(target, lookup, isStaff);
+        return;
+      }
+      if (lookup.failureReason() == FailureReason.PLAYER_NOT_FOUND) {
+        renderError("No player named '" + target + "' on any lookup source. "
+            + "Check spelling.");
+        return;
+      }
+      // ALL_PROVIDERS_TRANSIENT / INPUT_INVALID — fail open: every UUID
+      // source we tried was either down or rate-limited, so we can't
+      // verify the cutoff but the player almost certainly exists. Let
+      // the server make the final call.
+      failOpenInvite(target);
+    });
   }
 
   /**
@@ -110,23 +113,22 @@ public final class InviteGate {
 
   // ── Async fan-out + decision ────────────────────────────────────────
 
-  private static void gatherAndDecide(String target, UserUUID uuid, boolean isStaff) {
-    HttpRequest wynnReq = HttpRequest.newBuilder()
-        .uri(WynnCraftApi.playerInfo(formatUuid(uuid.id)))
-        .timeout(Duration.ofSeconds(5))
-        .GET()
-        .build();
+  private static void gatherAndDecide(String target, LookupResult lookup, boolean isStaff) {
+    UUID uuid = lookup.uuid();
+    String canonical = lookup.canonicalName() != null ? lookup.canonicalName() : target;
 
-    CompletableFuture<User> wynnFuture = HTTP_CLIENT
-        .sendAsync(wynnReq, HttpResponse.BodyHandlers.ofString())
-        .thenApply(resp -> resp.statusCode() == HttpURLConnection.HTTP_OK
-            ? GSON.fromJson(resp.body(), User.class)
-            : null)
-        .exceptionally(e -> null);
+    // Reuse the cascade's attached Wynncraft profile when the Wynncraft
+    // provider was the one that hit; otherwise issue a secondary fetch
+    // by UUID. Same pattern for the membership snapshot.
+    CompletableFuture<User> wynnFuture = lookup.wynnProfile() != null
+        ? CompletableFuture.completedFuture(lookup.wynnProfile())
+        : fetchWynnProfile(uuid);
 
-    CompletableFuture<MembershipSnapshot> snapFuture = membershipSnapshot(target);
+    CompletableFuture<MembershipSnapshot> snapFuture = lookup.vetsSnapshot() != null
+        ? CompletableFuture.completedFuture(lookup.vetsSnapshot())
+        : VetsSnapshotProvider.requestSnapshot(canonical);
 
-    // Staff skip the slot-pressure check entirely (#5), so no roster fetch.
+    // Staff skip the slot-pressure check entirely, so no roster fetch.
     CompletableFuture<GuildSnapshot> guildFuture = isStaff
         ? CompletableFuture.completedFuture(null)
         : fetchReturnersSnapshot();
@@ -136,32 +138,50 @@ public final class InviteGate {
       MembershipSnapshot snap = snapFuture.join();
       GuildSnapshot guildSnap = guildFuture.join();
       Minecraft.getInstance().execute(
-          () -> decide(target, wynn, snap, guildSnap, isStaff));
+          () -> decide(canonical, wynn, snap, guildSnap, isStaff));
     });
   }
 
   private static void decide(
-      String target,
+      String canonicalName,
       User wynn,
       MembershipSnapshot snap,
       GuildSnapshot guildSnap,
       boolean isStaff) {
 
-    String canonicalName = (wynn != null && wynn.getUsername() != null)
+    String displayName = (wynn != null && wynn.getUsername() != null)
         ? wynn.getUsername()
-        : target;
+        : canonicalName;
 
-    // Both checks depend on data we may have failed to fetch. Safety-block.
+    // Snapshot null = internal WS infrastructure failure (temporary-server
+    // unreachable, ack drained on disconnect, etc.). Distinct from the
+    // upstream-UUID-source failure that triggered the failOpenInvite path
+    // above. Keep the existing safety-block here.
     if (snap == null || snap.getDiscord() == null) {
-      renderError("Membership snapshot lookup failed for '" + canonicalName
+      renderError("Membership snapshot lookup failed for '" + displayName
           + "'. Invite cancelled."
           + (isStaff ? " Use /wv invite-force to override." : ""));
       return;
     }
+    // Wynncraft profile null after secondary fetch — we got a UUID from a
+    // non-Wynncraft provider but Wynncraft itself didn't reply. Fail open
+    // with a warning: the membership snapshot still gates against the
+    // blocklist (preserved below), but we can't run the vet-cutoff check.
     if (wynn == null) {
-      renderError("Wynncraft profile lookup failed for '" + canonicalName
-          + "'. Invite cancelled."
-          + (isStaff ? " Use /wv invite-force to override." : ""));
+      ChatUtils.sendLocalMessage(
+          Component.literal(
+                  "Could not fetch Wynncraft profile for '" + displayName
+                      + "' — vet-cutoff unverified. Dispatching /gu invite anyway.")
+              .withStyle(ChatFormatting.YELLOW));
+      // Blocklist is still authoritative even without a Wynn profile.
+      if (snap.isBlocklisted()) {
+        String reason = snap.getBlocklistReason();
+        if (reason == null || reason.isEmpty()) reason = "(no reason on file)";
+        renderError("'" + displayName + "' is on the dazebot blocklist: \""
+            + reason + "\". Invite cancelled.");
+        return;
+      }
+      forceDispatch(displayName);
       return;
     }
 
@@ -184,7 +204,7 @@ public final class InviteGate {
 
     if (blocked || tooRecent || joinHidden) {
       if (isStaff) {
-        renderStaffWarning(canonicalName, blocked, snap, tooRecent, joinHidden, firstJoin);
+        renderStaffWarning(displayName, blocked, snap, tooRecent, joinHidden, firstJoin);
       } else {
         // Non-staff get the generic line regardless of which check failed.
         ChatUtils.sendLocalMessage(
@@ -203,7 +223,7 @@ public final class InviteGate {
                     "Returners is near capacity (" + Math.max(0, openSlots)
                         + " open slot" + (openSlots == 1 ? "" : "s")
                         + " vs " + waitlistCount + " on the waitlist). "
-                        + "Please ask " + canonicalName
+                        + "Please ask " + displayName
                         + " to join the waitlist instead of inviting them directly.")
                 .withStyle(ChatFormatting.YELLOW));
         return;
@@ -211,7 +231,27 @@ public final class InviteGate {
     }
 
     // All gates passed -> dispatch the original /gu invite to the server.
-    forceDispatch(canonicalName);
+    forceDispatch(displayName);
+  }
+
+  /**
+   * Fail-open path: every UUID provider failed transiently (Mojang
+   * rate-limited, Wynncraft 5xx, etc.), so we can't run the gate. Dispatch
+   * the invite anyway with a yellow warning so staff know to verify
+   * manually once sources recover. Per the cascade design, this should be
+   * rare — Wynncraft alone has historically been resilient even when
+   * Mojang isn't.
+   */
+  private static void failOpenInvite(String target) {
+    Minecraft.getInstance().execute(() -> {
+      ChatUtils.sendLocalMessage(
+          Component.literal(
+                  "Could not verify '" + target + "' through any lookup source "
+                      + "(Mojang/Wynncraft/etc. all unreachable). "
+                      + "Dispatching /gu invite anyway.")
+              .withStyle(ChatFormatting.YELLOW));
+      forceDispatch(target);
+    });
   }
 
   // ── Render helpers ──────────────────────────────────────────────────
@@ -267,27 +307,19 @@ public final class InviteGate {
             .append(Component.literal("[Invite anyway]").setStyle(overrideStyle)));
   }
 
-  // ── Fetch helpers (duplicated from UserInfoFetcher; small + private) ─
+  // ── Fetch helpers ───────────────────────────────────────────────────
 
-  private static CompletableFuture<MembershipSnapshot> membershipSnapshot(String target) {
-    CompletableFuture<MembershipSnapshot> cf = new CompletableFuture<>();
-    JsonObject fields = new JsonObject();
-    fields.addProperty("target_username", target);
-    V1ApiManager.sendStaffActionFrame("check_membership", fields, ack -> {
-      try {
-        String status = ack.has("status") && !ack.get("status").isJsonNull()
-            ? ack.get("status").getAsString()
-            : "error";
-        if ("ok".equals(status)) {
-          cf.complete(GSON.fromJson(ack, MembershipSnapshot.class));
-        } else {
-          cf.complete(null);
-        }
-      } catch (Exception e) {
-        cf.complete(null);
-      }
-    });
-    return cf;
+  private static CompletableFuture<User> fetchWynnProfile(UUID uuid) {
+    HttpRequest req = HttpRequest.newBuilder()
+        .uri(WynnCraftApi.playerInfo(uuid))
+        .timeout(Duration.ofSeconds(5))
+        .GET()
+        .build();
+    return HTTP_CLIENT.sendAsync(req, HttpResponse.BodyHandlers.ofString())
+        .thenApply(resp -> resp.statusCode() == HttpURLConnection.HTTP_OK
+            ? GSON.fromJson(resp.body(), User.class)
+            : null)
+        .exceptionally(e -> null);
   }
 
   private static CompletableFuture<GuildSnapshot> fetchReturnersSnapshot() {
@@ -344,13 +376,5 @@ public final class InviteGate {
     if (level <= 118) return 140;
     if (level >= 119) return 150;
     return 0;
-  }
-
-  private static UUID formatUuid(String raw) {
-    String c = raw.replace("-", "");
-    return UUID.fromString(
-        c.substring(0, 8) + "-" + c.substring(8, 12) + "-"
-            + c.substring(12, 16) + "-" + c.substring(16, 20) + "-"
-            + c.substring(20));
   }
 }
