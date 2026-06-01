@@ -24,7 +24,7 @@ import org.wynnvets.logging.VetsLogger;
 public final class LegacyHighlightEventListener {
 
     private static final Identifier WYNNTILS_HIGHLIGHT =
-        Identifier.fromNamespaceAndPath("wynntils", "textures/ui_components/highlight.png");
+        Identifier.fromNamespaceAndPath("wynntils", "textures/ui_components/sprites/highlight_wynn.png");
 
     private static final LegacyHighlightEventListener INSTANCE = new LegacyHighlightEventListener();
 
