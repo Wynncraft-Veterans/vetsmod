@@ -22,7 +22,7 @@ import org.wynnvets.items.LegacyItemHandler;
 public class LegacyHotbarMixin {
 
   private static final Identifier WYNNTILS_HIGHLIGHT =
-      Identifier.fromNamespaceAndPath("wynntils", "textures/ui_components/highlight.png");
+      Identifier.fromNamespaceAndPath("wynntils", "textures/ui_components/sprites/highlight_wynn.png");
 
   @Inject(
       method =
