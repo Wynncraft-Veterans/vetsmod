@@ -1,4 +1,4 @@
-package org.wynnvets.distribute;
+package org.wynnvets.distribute.distributor;
 
 import com.wynntils.core.WynntilsMod;
 import com.wynntils.core.components.Managers;
@@ -40,7 +40,7 @@ import java.util.regex.Pattern;
  * next press is scheduled {@link #PRESS_DELAY_TICKS} ticks after the
  * refresh is observed, not after a fixed wall-clock delay.</p>
  */
-public final class MemberDistributor {
+public final class MemberSlotPresser {
 
     /** Maps a resource label to the hotbar button index used by the
      *  {@code ClickType.SWAP} click. */
@@ -79,7 +79,7 @@ public final class MemberDistributor {
      *  hanging indefinitely. ~2 seconds covers a generous network RTT. */
     private static final int REFRESH_TIMEOUT_TICKS = 40;
 
-    private static final MemberDistributor INSTANCE = new MemberDistributor();
+    private static final MemberSlotPresser INSTANCE = new MemberSlotPresser();
 
     // Pending-press state. Non-null/true iff a press has been fired and
     // we're waiting on the server's menu refresh before firing the next.
@@ -97,11 +97,11 @@ public final class MemberDistributor {
      *  the Members menu between distributions. */
     private static volatile Runnable pendingOnComplete;
 
-    private MemberDistributor() {}
+    private MemberSlotPresser() {}
 
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
-        VetsLogger.debug("Registered MemberDistributor on Wynntils event bus");
+        VetsLogger.debug("Registered MemberSlotPresser on Wynntils event bus");
     }
 
     /**
@@ -117,7 +117,7 @@ public final class MemberDistributor {
      * &mdash; the single-user command closes the GUI when done.</p>
      */
     public static void fire(int slot, Resource resource, int count, String recipientName) {
-        fire(slot, resource, count, recipientName, MemberDistributor::closeMembersScreen);
+        fire(slot, resource, count, recipientName, MemberSlotPresser::closeMembersScreen);
     }
 
     /**
@@ -146,7 +146,7 @@ public final class MemberDistributor {
     private static void sendPressAndArm(int slot, Resource resource, int total, int sent) {
         AbstractContainerScreen<?> screen = currentMembersScreen();
         if (screen == null) {
-            VetsLogger.debug("MemberDistributor: members screen gone after {}/{} presses",
+            VetsLogger.debug("MemberSlotPresser: members screen gone after {}/{} presses",
                     sent, total);
             clearPending();
             return;
@@ -155,7 +155,7 @@ public final class MemberDistributor {
         int containerId = screen.getMenu().containerId;
         List<ItemStack> items = screen.getMenu().getItems();
         ContainerUtils.pressKeyOnSlot(slot, containerId, resource.hotbarButton(), items);
-        VetsLogger.debug("MemberDistributor: sent press {}/{} on slot {} of container {}",
+        VetsLogger.debug("MemberSlotPresser: sent press {}/{} on slot {} of container {}",
                 sent + 1, total, slot, containerId);
 
         pendingSlot = slot;
@@ -172,7 +172,7 @@ public final class MemberDistributor {
         Managers.TickScheduler.scheduleLater(() -> {
             if (!awaitingRefresh) return;
             if (myToken != timeoutToken) return;
-            VetsLogger.debug("MemberDistributor: refresh wait timed out after {}/{} presses",
+            VetsLogger.debug("MemberSlotPresser: refresh wait timed out after {}/{} presses",
                     sentSoFar, total);
             ChatUtils.sendLocalMessage(
                     Component.literal("Send timed out after " + sentSoFar + "/" + total
@@ -195,7 +195,7 @@ public final class MemberDistributor {
     public void onMenuOpenPre(MenuEvent.MenuOpenedEvent.Pre event) {
         if (!awaitingRefresh) return;
         if (!StyledText.fromComponent(event.getTitle()).matches(MEMBERS_TITLE_PATTERN)) return;
-        VetsLogger.debug("MemberDistributor: refresh observed via MenuOpened (new id={}, prev={})",
+        VetsLogger.debug("MemberSlotPresser: refresh observed via MenuOpened (new id={}, prev={})",
                 event.getContainerId(), pendingContainerId);
         onRefreshObserved();
     }
@@ -210,7 +210,7 @@ public final class MemberDistributor {
         AbstractContainerScreen<?> screen = currentMembersScreen();
         if (screen == null) return;
         if (event.getContainerId() != screen.getMenu().containerId) return;
-        VetsLogger.debug("MemberDistributor: refresh observed via SetContent (id={})",
+        VetsLogger.debug("MemberSlotPresser: refresh observed via SetContent (id={})",
                 event.getContainerId());
         onRefreshObserved();
     }
@@ -223,7 +223,7 @@ public final class MemberDistributor {
         final int sent = pendingSent;
         Managers.TickScheduler.scheduleLater(() -> {
             if (sent >= total) {
-                VetsLogger.debug("MemberDistributor: completed {} presses on slot {}",
+                VetsLogger.debug("MemberSlotPresser: completed {} presses on slot {}",
                         total, slot);
                 Runnable cb = pendingOnComplete;
                 clearPending();

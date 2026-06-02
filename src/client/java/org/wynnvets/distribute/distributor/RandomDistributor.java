@@ -1,9 +1,12 @@
-package org.wynnvets.distribute;
+package org.wynnvets.distribute.distributor;
 
 import com.wynntils.core.components.Managers;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.opener.GuildManageOpener;
+import org.wynnvets.distribute.utils.NameResolver;
+import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
@@ -18,7 +21,7 @@ import java.util.Random;
  * Implements the {@code /wv distribute @random <resource> <count>} flow:
  * picks {@code count} random members of the local player's guild, opens
  * the Members GUI once, and visits each pick sequentially &mdash; one
- * {@link MembersListSearcher} arm + one-press {@link MemberDistributor}
+ * {@link MembersListSearcher} arm + one-press {@link MemberSlotPresser}
  * call per recipient &mdash; before closing the menu at the end.
  *
  * <h2>Count semantics</h2>
@@ -47,7 +50,7 @@ import java.util.Random;
  * <p>If a picked member can't be located (e.g. they were just kicked
  * between the wapi fetch and the menu open), the searcher's not-found
  * callback advances the queue so the remaining picks still proceed.
- * Same for {@link MemberDistributor}'s refresh-timeout path. The user
+ * Same for {@link MemberSlotPresser}'s refresh-timeout path. The user
  * gets a chat line per failure.</p>
  */
 public final class RandomDistributor {
@@ -62,7 +65,7 @@ public final class RandomDistributor {
      * each. No-op (with a chat hint) if Wynntils isn't ready or the
      * wapi fetch returns no members.
      */
-    public static void dispatch(int count, MemberDistributor.Resource resource) {
+    public static void dispatch(int count, MemberSlotPresser.Resource resource) {
         dispatch(count, resource, null);
     }
 
@@ -72,7 +75,7 @@ public final class RandomDistributor {
      * like {@link SplitDistributor} can advance to the next phase
      * without stalling on a partial failure.
      */
-    public static void dispatch(int count, MemberDistributor.Resource resource,
+    public static void dispatch(int count, MemberSlotPresser.Resource resource,
                                 Runnable onComplete) {
         if (!GuildStateManager.isWynntilsReady()) {
             ChatUtils.sendLocalMessage(
@@ -91,7 +94,7 @@ public final class RandomDistributor {
     }
 
     private static void beginPicks(List<String> legacyNames, int count,
-                                   MemberDistributor.Resource resource,
+                                   MemberSlotPresser.Resource resource,
                                    Runnable onComplete) {
         if (legacyNames.isEmpty()) {
             ChatUtils.sendLocalMessage(
@@ -120,13 +123,13 @@ public final class RandomDistributor {
     }
 
     private static void processNext(Deque<String> queue,
-                                    MemberDistributor.Resource resource,
+                                    MemberSlotPresser.Resource resource,
                                     Runnable onComplete) {
         if (queue.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Distribution complete.")
                             .withStyle(ChatFormatting.GREEN));
-            MemberDistributor.closeMembersScreen();
+            MemberSlotPresser.closeMembersScreen();
             if (onComplete != null) onComplete.run();
             return;
         }
@@ -139,7 +142,7 @@ public final class RandomDistributor {
         // NameResolver call needed.
         MembersListSearcher.armSearch(
                 name,
-                slot -> MemberDistributor.fire(slot, resource, 1, name,
+                slot -> MemberSlotPresser.fire(slot, resource, 1, name,
                         () -> processNext(queue, resource, onComplete)),
                 () -> processNext(queue, resource, onComplete));
     }

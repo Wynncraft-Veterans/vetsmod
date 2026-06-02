@@ -1,4 +1,4 @@
-package org.wynnvets.distribute;
+package org.wynnvets.distribute.command;
 
 import com.wynntils.core.components.Handlers;
 import com.wynntils.handlers.command.CommandHandler;

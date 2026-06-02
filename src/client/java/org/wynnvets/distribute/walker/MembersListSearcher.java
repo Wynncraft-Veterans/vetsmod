@@ -1,4 +1,4 @@
-package org.wynnvets.distribute;
+package org.wynnvets.distribute.walker;
 
 import com.wynntils.core.WynntilsMod;
 import com.wynntils.core.components.Managers;
@@ -15,6 +15,8 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.lwjgl.glfw.GLFW;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.distributor.RandomDistributor;
+import org.wynnvets.distribute.utils.NameResolver;
 import org.wynnvets.logging.VetsLogger;
 
 import java.util.List;
@@ -261,6 +263,28 @@ public final class MembersListSearcher {
 
         List<ItemStack> items = screen.getMenu().getItems();
 
+        if (scanVisiblePageForMatch(items)) return;
+
+        if (pagesClicked >= MAX_PAGES) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal("Could not find " + displayQuery + " (reached page limit).")
+                            .withStyle(ChatFormatting.YELLOW));
+            invokeNotFound();
+            return;
+        }
+
+        if (!advancePagination(items)) {
+            stopNotFound();
+        }
+    }
+
+    /**
+     * Scans the bounded slot area of the current page for any of the
+     * armed names. On a hit, invokes the match handler (and clears
+     * state via {@link #stop()}) and returns {@code true}. Returns
+     * {@code false} if no slot on this page matched.
+     */
+    private static boolean scanVisiblePageForMatch(List<ItemStack> items) {
         for (int slot = 0; slot < items.size(); slot++) {
             int row = slot / 9;
             int col = slot % 9;
@@ -277,22 +301,25 @@ public final class MembersListSearcher {
                 SlotMatchHandler handler = matchHandler;
                 stop();
                 handler.onMatch(slot);
-                return;
+                return true;
             }
         }
+        return false;
+    }
 
-        if (pagesClicked >= MAX_PAGES) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Could not find " + displayQuery + " (reached page limit).")
-                            .withStyle(ChatFormatting.YELLOW));
-            invokeNotFound();
-            return;
-        }
-
+    /**
+     * Issues one pagination click in the current direction, or
+     * transparently flips forward&rarr;backward when the forward sweep
+     * runs out. Returns {@code true} if a click was issued (with
+     * {@code pagesClicked} incremented); {@code false} if no further
+     * pages are reachable in either direction &mdash; caller should
+     * surface a "not found" outcome.
+     */
+    private static boolean advancePagination(List<ItemStack> items) {
         if (direction == Direction.FORWARD) {
             if (clickPaginationIfPresent(items, NEXT_PAGE_SLOT, NEXT_PAGE_PATTERN)) {
                 pagesClicked++;
-                return;
+                return true;
             }
             // Forward exhausted. Switch to backward to cover any pages
             // that came before the page where the search started (the
@@ -300,18 +327,17 @@ public final class MembersListSearcher {
             direction = Direction.BACKWARD;
             if (clickPaginationIfPresent(items, PREVIOUS_PAGE_SLOT, PREVIOUS_PAGE_PATTERN)) {
                 pagesClicked++;
-                return;
+                return true;
             }
             // No previous either — single-page guild, name isn't in it.
-            stopNotFound();
-        } else {
-            if (clickPaginationIfPresent(items, PREVIOUS_PAGE_SLOT, PREVIOUS_PAGE_PATTERN)) {
-                pagesClicked++;
-                return;
-            }
-            // At page 1 going backward: every page has been visited.
-            stopNotFound();
+            return false;
         }
+        if (clickPaginationIfPresent(items, PREVIOUS_PAGE_SLOT, PREVIOUS_PAGE_PATTERN)) {
+            pagesClicked++;
+            return true;
+        }
+        // At page 1 going backward: every page has been visited.
+        return false;
     }
 
     private static boolean clickPaginationIfPresent(

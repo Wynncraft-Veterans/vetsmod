@@ -1,4 +1,4 @@
-package org.wynnvets.distribute;
+package org.wynnvets.distribute.distributor;
 
 import com.wynntils.core.components.Managers;
 import net.minecraft.ChatFormatting;
@@ -61,7 +61,7 @@ public final class SplitDistributor {
 
     private SplitDistributor() {}
 
-    public static void dispatch(int count, MemberDistributor.Resource resource) {
+    public static void dispatch(int count, MemberSlotPresser.Resource resource) {
         int[] pools = splitCount(count);
 
         ChatUtils.sendLocalMessage(

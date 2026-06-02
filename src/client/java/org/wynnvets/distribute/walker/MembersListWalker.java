@@ -1,4 +1,4 @@
-package org.wynnvets.distribute;
+package org.wynnvets.distribute.walker;
 
 import com.wynntils.core.WynntilsMod;
 import com.wynntils.core.components.Managers;
@@ -15,6 +15,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.lwjgl.glfw.GLFW;
+import org.wynnvets.distribute.distributor.ObjectivesDistributor;
+import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.logging.VetsLogger;
 
 import java.util.ArrayList;
@@ -172,9 +174,17 @@ public final class MembersListWalker {
 
         List<ItemStack> items = screen.getMenu().getItems();
 
-        // Collect every bounded player-head on this page. Names are
-        // deduped by legacyName so re-scans of the same page (rare but
-        // possible if SetContent + SetSlot both fire) don't double-count.
+        collectVisiblePage(items);
+        advanceOrFinish(items);
+    }
+
+    /**
+     * Appends every bounded player-head tile on the current page to
+     * {@link #collected}. Names are deduped by legacyName so re-scans
+     * of the same page (rare but possible if SetContent + SetSlot both
+     * fire) don't double-count.
+     */
+    private static void collectVisiblePage(List<ItemStack> items) {
         for (int slot = 0; slot < items.size(); slot++) {
             int row = slot / 9;
             int col = slot % 9;
@@ -190,7 +200,16 @@ public final class MembersListWalker {
 
             collected.add(new MemberEntry(name, readLore(stack)));
         }
+    }
 
+    /**
+     * Either clicks {@code Next Page} (incrementing
+     * {@link #pagesClicked}) or finalises the walk via
+     * {@link #finishWalk()}. Finalises when: the page-click cap is hit,
+     * the next-page slot is out of bounds, or that slot doesn't carry
+     * the Next Page pattern (we've reached the last page).
+     */
+    private static void advanceOrFinish(List<ItemStack> items) {
         if (pagesClicked >= MAX_PAGES) {
             finishWalk();
             return;

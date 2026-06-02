@@ -11,6 +11,15 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.command.NameOrSelectorArgument;
+import org.wynnvets.distribute.distributor.GraidsDistributor;
+import org.wynnvets.distribute.distributor.MemberSlotPresser;
+import org.wynnvets.distribute.distributor.ObjectivesDistributor;
+import org.wynnvets.distribute.distributor.RandomDistributor;
+import org.wynnvets.distribute.distributor.SplitDistributor;
+import org.wynnvets.distribute.opener.GuildManageOpener;
+import org.wynnvets.distribute.utils.NameResolver;
+import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
 
 import java.util.Locale;
@@ -28,7 +37,7 @@ import java.util.concurrent.CompletableFuture;
  *       the top-left "Manage Members" tile.</li>
  *   <li>{@link MembersListSearcher} paginates through the resulting
  *       members list until it locates {@code <user>}'s player-head slot.</li>
- *   <li>{@link MemberDistributor} synthesises {@code <count>} hotbar-key
+ *   <li>{@link MemberSlotPresser} synthesises {@code <count>} hotbar-key
  *       presses against that slot &mdash; one press per resource send
  *       (1 Aspect, 1 Guild Tome, or 1024 Emeralds depending on resource).</li>
  * </ol>
@@ -107,14 +116,14 @@ public final class DistributeCommands {
         .requires(src -> GuildStateManager.isStaffOfAnyGuild())
         .then(ClientCommandManager.argument("name", NameOrSelectorArgument.nameOrSelector())
             .suggests(DistributeCommands::suggestGuildMembers)
-            .then(resourceLeaf("aspects", MemberDistributor.Resource.ASPECTS))
-            .then(resourceLeaf("tomes", MemberDistributor.Resource.TOMES))
-            .then(resourceLeaf("emeralds", MemberDistributor.Resource.EMERALDS)));
+            .then(resourceLeaf("aspects", MemberSlotPresser.Resource.ASPECTS))
+            .then(resourceLeaf("tomes", MemberSlotPresser.Resource.TOMES))
+            .then(resourceLeaf("emeralds", MemberSlotPresser.Resource.EMERALDS)));
   }
 
   /** Builds one {@code <literal> <count>} branch under the {@code name} argument. */
   private static LiteralArgumentBuilder<FabricClientCommandSource> resourceLeaf(
-      String literal, MemberDistributor.Resource resource) {
+      String literal, MemberSlotPresser.Resource resource) {
     return ClientCommandManager.literal(literal)
         .then(ClientCommandManager.argument("count",
                 IntegerArgumentType.integer(COUNT_MIN, COUNT_MAX))
@@ -125,7 +134,7 @@ public final class DistributeCommands {
   // ── Executor ─────────────────────────────────────────────────────────
 
   private static int distribute(CommandContext<FabricClientCommandSource> ctx,
-                                MemberDistributor.Resource resource) {
+                                MemberSlotPresser.Resource resource) {
     if (!ensureChief()) return 0;
     String name = NameOrSelectorArgument.get(ctx, "name");
     int count = IntegerArgumentType.getInteger(ctx, "count");
@@ -160,7 +169,7 @@ public final class DistributeCommands {
     // Arm with the literal input first so the search starts immediately —
     // covers the case where the user already typed the legacy name.
     MembersListSearcher.armSearch(name,
-        slot -> MemberDistributor.fire(slot, resource, count, name));
+        slot -> MemberSlotPresser.fire(slot, resource, count, name));
 
     // Fire async current→legacy resolution against wapi.  When it
     // resolves to a different name (e.g. user typed a current Mojang

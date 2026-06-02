@@ -9,11 +9,11 @@ import org.wynnvets.commands.CommandRegistry;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.debug.DebugConfigManager;
 import org.wynnvets.debug.dump.DebugKeyHandler;
-import org.wynnvets.distribute.GuildLogWalker;
-import org.wynnvets.distribute.GuildManageOpener;
-import org.wynnvets.distribute.MemberDistributor;
-import org.wynnvets.distribute.MembersListSearcher;
-import org.wynnvets.distribute.MembersListWalker;
+import org.wynnvets.distribute.distributor.MemberSlotPresser;
+import org.wynnvets.distribute.opener.GuildManageOpener;
+import org.wynnvets.distribute.walker.GuildLogWalker;
+import org.wynnvets.distribute.walker.MembersListSearcher;
+import org.wynnvets.distribute.walker.MembersListWalker;
 import org.wynnvets.fetcher.polling.GuildRosterCache;
 import org.wynnvets.fetcher.polling.WynnAliasCache;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
@@ -70,7 +70,7 @@ public class VetsmodClient implements ClientModInitializer {
       MembersListSearcher.register();
       MembersListWalker.register();
       GuildLogWalker.register();
-      MemberDistributor.register();
+      MemberSlotPresser.register();
       RankChangeListener.register();
       QueueDetector.register();
       QueueStateManager.addListener(new QueueStateListener() {

@@ -1,4 +1,4 @@
-package org.wynnvets.distribute;
+package org.wynnvets.distribute.opener;
 
 import com.wynntils.core.WynntilsMod;
 import com.wynntils.core.text.StyledText;
@@ -11,6 +11,8 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.lwjgl.glfw.GLFW;
+import org.wynnvets.distribute.command.OutboundCommand;
+import org.wynnvets.distribute.distributor.GraidsDistributor;
 import org.wynnvets.logging.VetsLogger;
 
 import java.util.List;

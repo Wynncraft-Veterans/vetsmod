@@ -1,4 +1,4 @@
-package org.wynnvets.distribute;
+package org.wynnvets.distribute.walker;
 
 import com.wynntils.core.WynntilsMod;
 import com.wynntils.core.components.Models;

@@ -1,10 +1,12 @@
-package org.wynnvets.distribute;
+package org.wynnvets.distribute.utils;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wynntils.core.components.Models;
 import org.wynnvets.api.WynnCraftApi;
+import org.wynnvets.distribute.distributor.RandomDistributor;
+import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
@@ -131,43 +133,15 @@ public final class NameResolver {
     }
 
     private static List<String> extractAllLegacyNames(String body) {
-        try {
-            JsonElement root = GSON.fromJson(body, JsonElement.class);
-            if (root == null || !root.isJsonObject()) return List.of();
-            JsonElement membersEl = root.getAsJsonObject().get("members");
-            if (membersEl == null || !membersEl.isJsonObject()) return List.of();
-
-            List<String> names = new ArrayList<>();
-            for (Map.Entry<String, JsonElement> rankBucket
-                    : membersEl.getAsJsonObject().entrySet()) {
-                if ("total".equals(rankBucket.getKey())) continue;
-                JsonElement bucketEl = rankBucket.getValue();
-                if (bucketEl == null || !bucketEl.isJsonObject()) continue;
-
-                for (Map.Entry<String, JsonElement> memberEntry
-                        : bucketEl.getAsJsonObject().entrySet()) {
-                    String currentName = memberEntry.getKey();
-                    JsonElement memberEl = memberEntry.getValue();
-                    if (memberEl == null || !memberEl.isJsonObject()) {
-                        names.add(currentName);
-                        continue;
-                    }
-                    JsonObject member = memberEl.getAsJsonObject();
-                    if (member.has("legacyName") && !member.get("legacyName").isJsonNull()) {
-                        // Renamed member — the tile shows their original name.
-                        names.add(member.get("legacyName").getAsString());
-                    } else {
-                        // No rename — the tile shows their current name.
-                        names.add(currentName);
-                    }
-                }
-            }
-            return names;
-        } catch (Exception e) {
-            VetsLogger.debug("NameResolver: extractAllLegacyNames parse error: {}",
-                    e.getMessage());
-            return List.of();
-        }
+        List<String> names = new ArrayList<>();
+        forEachGuildMember(body, (currentName, member) -> {
+            String legacy = legacyNameOf(member);
+            // Renamed member → tile shows legacy; otherwise → current
+            // (also covers malformed entries where member is null).
+            names.add(legacy != null ? legacy : currentName);
+            return false;
+        });
+        return names;
     }
 
     /**
@@ -217,86 +191,98 @@ public final class NameResolver {
     }
 
     private static Map<String, String> extractNameIndex(String body) {
-        try {
-            JsonElement root = GSON.fromJson(body, JsonElement.class);
-            if (root == null || !root.isJsonObject()) return Map.of();
-            JsonElement membersEl = root.getAsJsonObject().get("members");
-            if (membersEl == null || !membersEl.isJsonObject()) return Map.of();
-
-            Map<String, String> index = new HashMap<>();
-            for (Map.Entry<String, JsonElement> rankBucket
-                    : membersEl.getAsJsonObject().entrySet()) {
-                if ("total".equals(rankBucket.getKey())) continue;
-                JsonElement bucketEl = rankBucket.getValue();
-                if (bucketEl == null || !bucketEl.isJsonObject()) continue;
-                for (Map.Entry<String, JsonElement> memberEntry
-                        : bucketEl.getAsJsonObject().entrySet()) {
-                    String currentName = memberEntry.getKey();
-                    JsonElement memberEl = memberEntry.getValue();
-                    String legacyName = currentName;
-                    if (memberEl != null && memberEl.isJsonObject()) {
-                        JsonObject member = memberEl.getAsJsonObject();
-                        if (member.has("legacyName") && !member.get("legacyName").isJsonNull()) {
-                            legacyName = member.get("legacyName").getAsString();
-                        }
-                    }
-                    // Both forms point at the canonical legacy (= tile)
-                    // name. equalsIgnoreCase-style lookup is achieved by
-                    // lowercasing the key.
-                    index.put(currentName.toLowerCase(Locale.ROOT), legacyName);
-                    index.put(legacyName.toLowerCase(Locale.ROOT), legacyName);
-                }
-            }
-            return index;
-        } catch (Exception e) {
-            VetsLogger.debug("NameResolver: extractNameIndex parse error: {}", e.getMessage());
-            return Map.of();
-        }
+        Map<String, String> index = new HashMap<>();
+        forEachGuildMember(body, (currentName, member) -> {
+            String legacy = legacyNameOf(member);
+            String legacyName = legacy != null ? legacy : currentName;
+            // Both forms point at the canonical legacy (= tile) name.
+            // equalsIgnoreCase-style lookup is achieved by lowercasing
+            // the key.
+            index.put(currentName.toLowerCase(Locale.ROOT), legacyName);
+            index.put(legacyName.toLowerCase(Locale.ROOT), legacyName);
+            return false;
+        });
+        return index;
     }
 
     private static String findLegacyName(String body, String input) {
+        String lowerInput = input.toLowerCase(Locale.ROOT);
+        // One-element box so the lambda can publish its hit; default to
+        // input so the not-found and parse-error paths both fall back
+        // to the literal input the caller supplied.
+        String[] result = {input};
+        forEachGuildMember(body, (currentName, member) -> {
+            // Original skipped malformed entries entirely — preserve that
+            // so an input matching a malformed entry's currentName still
+            // returns the not-found fallback rather than the currentName.
+            if (member == null) return false;
+            String legacyName = legacyNameOf(member);
+            if (currentName.toLowerCase(Locale.ROOT).equals(lowerInput)) {
+                // Input matched a current name — return its legacy
+                // (or the current name itself if no rename happened).
+                result[0] = legacyName != null ? legacyName : currentName;
+                return true;
+            }
+            if (legacyName != null
+                    && legacyName.toLowerCase(Locale.ROOT).equals(lowerInput)) {
+                // Input was already a legacy name — return verbatim.
+                result[0] = legacyName;
+                return true;
+            }
+            return false;
+        });
+        return result[0];
+    }
+
+    /** Callback invoked once per guild member by {@link #forEachGuildMember}.
+     *  Return {@code true} to stop traversal early. */
+    @FunctionalInterface
+    private interface MemberHandler {
+        boolean accept(String currentName, /* nullable */ JsonObject member);
+    }
+
+    /**
+     * Walks {@code members.<rank>.<currentName>.<obj>} in a wapi guild
+     * payload, calling {@code handler} once per member with the current
+     * (Mojang) name and the member's JSON object (or {@code null} if the
+     * value is missing or non-object). Skips the {@code "total"} bucket
+     * the same way the upstream payload labels it. Silently swallows
+     * parse / GSON exceptions &mdash; callers should pre-initialise
+     * their accumulator so the empty-on-error case Just Works.
+     */
+    private static void forEachGuildMember(String body, MemberHandler handler) {
         try {
             JsonElement root = GSON.fromJson(body, JsonElement.class);
-            if (root == null || !root.isJsonObject()) return input;
+            if (root == null || !root.isJsonObject()) return;
             JsonElement membersEl = root.getAsJsonObject().get("members");
-            if (membersEl == null || !membersEl.isJsonObject()) return input;
-
-            String lowerInput = input.toLowerCase(Locale.ROOT);
-
+            if (membersEl == null || !membersEl.isJsonObject()) return;
             for (Map.Entry<String, JsonElement> rankBucket
                     : membersEl.getAsJsonObject().entrySet()) {
                 if ("total".equals(rankBucket.getKey())) continue;
                 JsonElement bucketEl = rankBucket.getValue();
                 if (bucketEl == null || !bucketEl.isJsonObject()) continue;
-
                 for (Map.Entry<String, JsonElement> memberEntry
                         : bucketEl.getAsJsonObject().entrySet()) {
                     String currentName = memberEntry.getKey();
                     JsonElement memberEl = memberEntry.getValue();
-                    if (memberEl == null || !memberEl.isJsonObject()) continue;
-                    JsonObject member = memberEl.getAsJsonObject();
-
-                    String legacyName = null;
-                    if (member.has("legacyName") && !member.get("legacyName").isJsonNull()) {
-                        legacyName = member.get("legacyName").getAsString();
-                    }
-
-                    if (currentName.toLowerCase(Locale.ROOT).equals(lowerInput)) {
-                        // Input matched a current name — return its legacy
-                        // (or the current name itself if no rename happened).
-                        return legacyName != null ? legacyName : currentName;
-                    }
-                    if (legacyName != null
-                            && legacyName.toLowerCase(Locale.ROOT).equals(lowerInput)) {
-                        // Input was already a legacy name — return verbatim.
-                        return legacyName;
-                    }
+                    JsonObject member = (memberEl != null && memberEl.isJsonObject())
+                            ? memberEl.getAsJsonObject() : null;
+                    if (handler.accept(currentName, member)) return;
                 }
             }
-            return input;
         } catch (Exception e) {
             VetsLogger.debug("NameResolver: parse error: {}", e.getMessage());
-            return input;
         }
+    }
+
+    /** Returns the member's {@code legacyName} field if present and
+     *  non-null, else {@code null}. Tolerates a {@code null} member
+     *  argument (returns {@code null}). */
+    private static String legacyNameOf(JsonObject member) {
+        if (member == null) return null;
+        if (member.has("legacyName") && !member.get("legacyName").isJsonNull()) {
+            return member.get("legacyName").getAsString();
+        }
+        return null;
     }
 }

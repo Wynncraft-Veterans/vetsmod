@@ -1,8 +1,11 @@
-package org.wynnvets.distribute;
+package org.wynnvets.distribute.distributor;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.opener.GuildManageOpener;
+import org.wynnvets.distribute.walker.MembersListSearcher;
+import org.wynnvets.distribute.walker.MembersListWalker;
 import org.wynnvets.logging.VetsLogger;
 
 import java.util.ArrayDeque;
@@ -64,7 +67,7 @@ public final class ObjectivesDistributor {
      * completed their guild objective, computes the per-recipient
      * counts, and dispatches each in sequence.
      */
-    public static void dispatch(int count, MemberDistributor.Resource resource) {
+    public static void dispatch(int count, MemberSlotPresser.Resource resource) {
         dispatch(count, resource, null);
     }
 
@@ -73,7 +76,7 @@ public final class ObjectivesDistributor {
      * (success, no completers, count drop-out) so multi-phase chains
      * like {@link SplitDistributor} can advance without stalling.
      */
-    public static void dispatch(int count, MemberDistributor.Resource resource,
+    public static void dispatch(int count, MemberSlotPresser.Resource resource,
                                 Runnable onComplete) {
         MembersListWalker.armWalk(members ->
                 onWalkComplete(members, count, resource, onComplete));
@@ -81,7 +84,7 @@ public final class ObjectivesDistributor {
     }
 
     private static void onWalkComplete(List<MembersListWalker.MemberEntry> members,
-                                       int count, MemberDistributor.Resource resource,
+                                       int count, MemberSlotPresser.Resource resource,
                                        Runnable onComplete) {
         List<String> completers = new ArrayList<>();
         for (MembersListWalker.MemberEntry m : members) {
@@ -96,7 +99,7 @@ public final class ObjectivesDistributor {
             ChatUtils.sendLocalMessage(
                     Component.literal("No members have completed their guild objective.")
                             .withStyle(ChatFormatting.YELLOW));
-            MemberDistributor.closeMembersScreen();
+            MemberSlotPresser.closeMembersScreen();
             if (onComplete != null) onComplete.run();
             return;
         }
@@ -105,7 +108,7 @@ public final class ObjectivesDistributor {
         if (queue.isEmpty()) {
             // Can happen if count == 0 (excluded by brigadier bounds, but
             // defensive); nothing to send.
-            MemberDistributor.closeMembersScreen();
+            MemberSlotPresser.closeMembersScreen();
             if (onComplete != null) onComplete.run();
             return;
         }
@@ -142,13 +145,13 @@ public final class ObjectivesDistributor {
     }
 
     private static void processNext(Deque<Distribution> queue,
-                                    MemberDistributor.Resource resource,
+                                    MemberSlotPresser.Resource resource,
                                     Runnable onComplete) {
         if (queue.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Distribution complete.")
                             .withStyle(ChatFormatting.GREEN));
-            MemberDistributor.closeMembersScreen();
+            MemberSlotPresser.closeMembersScreen();
             if (onComplete != null) onComplete.run();
             return;
         }
@@ -161,7 +164,7 @@ public final class ObjectivesDistributor {
         // NameResolver needed.
         MembersListSearcher.armSearch(
                 d.legacyName(),
-                slot -> MemberDistributor.fire(slot, resource, d.count(), d.legacyName(),
+                slot -> MemberSlotPresser.fire(slot, resource, d.count(), d.legacyName(),
                         () -> processNext(queue, resource, onComplete)),
                 () -> processNext(queue, resource, onComplete));
     }

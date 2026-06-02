@@ -1,4 +1,4 @@
-package org.wynnvets.distribute;
+package org.wynnvets.distribute.distributor;
 
 import com.wynntils.core.components.Managers;
 import com.wynntils.core.text.StyledText;
@@ -6,6 +6,10 @@ import com.wynntils.models.items.items.gui.GuildLogItem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.opener.GuildManageOpener;
+import org.wynnvets.distribute.utils.NameResolver;
+import org.wynnvets.distribute.walker.GuildLogWalker;
+import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.logging.VetsLogger;
 
 import java.util.ArrayDeque;
@@ -79,7 +83,7 @@ public final class GraidsDistributor {
      * Kicks off the full @graids flow: fetch the name index, open the
      * log, walk it, compute per-user shares, then dispatch.
      */
-    public static void dispatch(int count, MemberDistributor.Resource resource) {
+    public static void dispatch(int count, MemberSlotPresser.Resource resource) {
         dispatch(count, resource, null);
     }
 
@@ -88,7 +92,7 @@ public final class GraidsDistributor {
      * multi-phase chains like {@link SplitDistributor} advance even
      * when this phase finds no graids or fails to read the roster.
      */
-    public static void dispatch(int count, MemberDistributor.Resource resource,
+    public static void dispatch(int count, MemberSlotPresser.Resource resource,
                                 Runnable onComplete) {
         NameResolver.fetchNameIndex().thenAccept(index ->
                 Managers.TickScheduler.scheduleLater(
@@ -96,7 +100,7 @@ public final class GraidsDistributor {
     }
 
     private static void beginWalk(Map<String, String> nameIndex, int count,
-                                  MemberDistributor.Resource resource,
+                                  MemberSlotPresser.Resource resource,
                                   Runnable onComplete) {
         if (nameIndex.isEmpty()) {
             ChatUtils.sendLocalMessage(
@@ -121,7 +125,7 @@ public final class GraidsDistributor {
     }
 
     private static void onLogReady(List<GuildLogItem> entries, Map<String, String> nameIndex,
-                                   int count, MemberDistributor.Resource resource,
+                                   int count, MemberSlotPresser.Resource resource,
                                    Runnable onComplete) {
         Map<String, Integer> freq = countGraidFrequencies(entries, nameIndex);
         VetsLogger.debug("GraidsDistributor: scanned {} log entries, {} distinct graid participants",
@@ -237,13 +241,13 @@ public final class GraidsDistributor {
     }
 
     private static void processNext(Deque<Distribution> queue,
-                                    MemberDistributor.Resource resource,
+                                    MemberSlotPresser.Resource resource,
                                     Runnable onComplete) {
         if (queue.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Distribution complete.")
                             .withStyle(ChatFormatting.GREEN));
-            MemberDistributor.closeMembersScreen();
+            MemberSlotPresser.closeMembersScreen();
             if (onComplete != null) onComplete.run();
             return;
         }
@@ -256,7 +260,7 @@ public final class GraidsDistributor {
         // Members GUI tile directly — no per-pick NameResolver call.
         MembersListSearcher.armSearch(
                 d.legacyName(),
-                slot -> MemberDistributor.fire(slot, resource, d.count(), d.legacyName(),
+                slot -> MemberSlotPresser.fire(slot, resource, d.count(), d.legacyName(),
                         () -> processNext(queue, resource, onComplete)),
                 () -> processNext(queue, resource, onComplete));
     }
