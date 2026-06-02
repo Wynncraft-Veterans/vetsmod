@@ -10,6 +10,7 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.debug.DebugConfigManager;
 import org.wynnvets.debug.dump.DebugKeyHandler;
 import org.wynnvets.distribute.GuildManageOpener;
+import org.wynnvets.distribute.MemberDistributor;
 import org.wynnvets.distribute.MembersListSearcher;
 import org.wynnvets.fetcher.polling.GuildRosterCache;
 import org.wynnvets.fetcher.polling.WynnAliasCache;
@@ -65,6 +66,7 @@ public class VetsmodClient implements ClientModInitializer {
       WynntilsEventListener.register();
       GuildManageOpener.register();
       MembersListSearcher.register();
+      MemberDistributor.register();
       RankChangeListener.register();
       QueueDetector.register();
       QueueStateManager.addListener(new QueueStateListener() {
