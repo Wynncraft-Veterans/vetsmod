@@ -1,7 +1,6 @@
 package org.wynnvets.distribute;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
@@ -22,7 +21,7 @@ import java.util.concurrent.CompletableFuture;
  * Builds the {@code /wv distribute <user> <aspects|tomes|emeralds> <count>}
  * client command.
  *
- * <p>Drives the in-game "send to member" hand-over by composing the three
+ * <p>Drives the in-game "send to member" hand-over by composing the
  * sibling helpers in this package:</p>
  * <ol>
  *   <li>{@link GuildManageOpener} sends {@code /guild manage} and clicks
@@ -38,6 +37,26 @@ import java.util.concurrent.CompletableFuture;
  * or the {@code legacyName} shown on the in-game tile. {@link NameResolver}
  * translates current&rarr;legacy via the Wynncraft API so renamed players
  * are locatable by either form.</p>
+ *
+ * <h2>{@code @-selectors}</h2>
+ * <ul>
+ *   <li>{@code @random} &mdash; pick {@code <count>} random guild
+ *       members and give each one of the resource. Count means
+ *       "recipients" in this mode. See {@link RandomDistributor}.</li>
+ *   <li>{@code @objectives} &mdash; spread {@code <count>} rewards
+ *       evenly across members who've finished their guild objective.
+ *       Count means "total rewards", with {@code count % completers}
+ *       random completers receiving a bonus +1. See
+ *       {@link ObjectivesDistributor}.</li>
+ *   <li>{@code @graids} &mdash; spread {@code <count>} rewards
+ *       proportionally to each member's graid participation count in
+ *       the guild log (Wynncraft caps at ~100 most-recent entries).
+ *       See {@link GraidsDistributor}.</li>
+ *   <li>{@code @split} &mdash; divide {@code <count>} by 3 and run
+ *       {@code @random}, {@code @graids}, {@code @objectives}
+ *       sequentially, each with a third (modulo distributed randomly
+ *       among the three pools). See {@link SplitDistributor}.</li>
+ * </ul>
  *
  * <h2>Gating</h2>
  * <p>Visibility ({@code .requires}) uses
@@ -59,6 +78,23 @@ public final class DistributeCommands {
   /** Common counts surfaced in the {@code <count>} suggester. */
   private static final int[] COMMON_COUNTS = {1, 5, 10, 25, 50, 100};
 
+  /** Selector token that means "pick N random guild members". */
+  private static final String RANDOM_SELECTOR = "@random";
+
+  /** Selector token that means "members who completed their guild
+   *  objective, with N spread evenly across them". */
+  private static final String OBJECTIVES_SELECTOR = "@objectives";
+
+  /** Selector token that means "members who appear in the guild log's
+   *  graid completions, with N spread proportionally to participation
+   *  frequency". */
+  private static final String GRAIDS_SELECTOR = "@graids";
+
+  /** Selector token that means "split N three ways and run @random,
+   *  @graids, @objectives back-to-back with a third each (random
+   *  remainder)". */
+  private static final String SPLIT_SELECTOR = "@split";
+
   private DistributeCommands() {}
 
   public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommandTree() {
@@ -69,7 +105,7 @@ public final class DistributeCommands {
         // guild model is briefly null after a world transition.
         // Execution is still gated to Chief/Owner via ensureChief().
         .requires(src -> GuildStateManager.isStaffOfAnyGuild())
-        .then(ClientCommandManager.argument("name", StringArgumentType.string())
+        .then(ClientCommandManager.argument("name", NameOrSelectorArgument.nameOrSelector())
             .suggests(DistributeCommands::suggestGuildMembers)
             .then(resourceLeaf("aspects", MemberDistributor.Resource.ASPECTS))
             .then(resourceLeaf("tomes", MemberDistributor.Resource.TOMES))
@@ -91,8 +127,35 @@ public final class DistributeCommands {
   private static int distribute(CommandContext<FabricClientCommandSource> ctx,
                                 MemberDistributor.Resource resource) {
     if (!ensureChief()) return 0;
-    String name = StringArgumentType.getString(ctx, "name");
+    String name = NameOrSelectorArgument.get(ctx, "name");
     int count = IntegerArgumentType.getInteger(ctx, "count");
+
+    // @random selector: delegate to RandomDistributor (count = recipients).
+    if (RANDOM_SELECTOR.equalsIgnoreCase(name)) {
+      RandomDistributor.dispatch(count, resource);
+      return 1;
+    }
+
+    // @objectives selector: delegate to ObjectivesDistributor (count =
+    // total rewards, spread evenly across objective-completers).
+    if (OBJECTIVES_SELECTOR.equalsIgnoreCase(name)) {
+      ObjectivesDistributor.dispatch(count, resource);
+      return 1;
+    }
+
+    // @graids selector: delegate to GraidsDistributor (count = total
+    // rewards, spread proportionally to graid participation in the log).
+    if (GRAIDS_SELECTOR.equalsIgnoreCase(name)) {
+      GraidsDistributor.dispatch(count, resource);
+      return 1;
+    }
+
+    // @split selector: divide count by 3 and run @random + @graids +
+    // @objectives sequentially, each with a third (remainder randomised).
+    if (SPLIT_SELECTOR.equalsIgnoreCase(name)) {
+      SplitDistributor.dispatch(count, resource);
+      return 1;
+    }
 
     // Arm with the literal input first so the search starts immediately —
     // covers the case where the user already typed the legacy name.
@@ -132,6 +195,24 @@ public final class DistributeCommands {
    */
   private static CompletableFuture<Suggestions> suggestGuildMembers(
       CommandContext<FabricClientCommandSource> ctx, SuggestionsBuilder builder) {
+    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
+
+    // Always offer the @-selectors — their dispatchers read the live
+    // guild roster, so they work even when the Wynntils member cache is
+    // cold.
+    if (RANDOM_SELECTOR.startsWith(remaining)) {
+      builder.suggest(RANDOM_SELECTOR);
+    }
+    if (OBJECTIVES_SELECTOR.startsWith(remaining)) {
+      builder.suggest(OBJECTIVES_SELECTOR);
+    }
+    if (GRAIDS_SELECTOR.startsWith(remaining)) {
+      builder.suggest(GRAIDS_SELECTOR);
+    }
+    if (SPLIT_SELECTOR.startsWith(remaining)) {
+      builder.suggest(SPLIT_SELECTOR);
+    }
+
     if (!GuildStateManager.isWynntilsReady()) {
       return builder.buildFuture();
     }
@@ -140,7 +221,6 @@ public final class DistributeCommands {
       Models.Guild.requestGuildMembers();
       return builder.buildFuture();
     }
-    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
     for (String name : members) {
       if (name.toLowerCase(Locale.ROOT).startsWith(remaining)) {
         builder.suggest(name);

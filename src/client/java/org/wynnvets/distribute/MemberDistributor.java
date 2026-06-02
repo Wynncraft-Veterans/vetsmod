@@ -91,6 +91,11 @@ public final class MemberDistributor {
     private static volatile boolean awaitingRefresh;
     /** Monotonic token so a stale scheduled timeout doesn't trip a later run. */
     private static volatile int timeoutToken;
+    /** Callback invoked when the full press batch finishes — on success
+     *  (last press confirmed) or on timeout. Lets {@link RandomDistributor}
+     *  chain another {@code fire()} for the next pick instead of closing
+     *  the Members menu between distributions. */
+    private static volatile Runnable pendingOnComplete;
 
     private MemberDistributor() {}
 
@@ -106,9 +111,31 @@ public final class MemberDistributor {
      * Aborts cleanly if the Members screen is closed or replaced
      * mid-loop, or if the refresh never arrives within
      * {@link #REFRESH_TIMEOUT_TICKS}.
+     *
+     * <p>Equivalent to
+     * {@link #fire(int, Resource, int, String, Runnable) fire(..., closeMembersScreen)}
+     * &mdash; the single-user command closes the GUI when done.</p>
      */
     public static void fire(int slot, Resource resource, int count, String recipientName) {
-        if (count <= 0) return;
+        fire(slot, resource, count, recipientName, MemberDistributor::closeMembersScreen);
+    }
+
+    /**
+     * Variant with a completion callback invoked when the last press is
+     * confirmed by a refresh event, OR when the refresh wait times out.
+     * The screen is intentionally left open so the callback can chain
+     * another {@code fire()} call &mdash; used by {@link RandomDistributor}
+     * to visit multiple recipients in one menu session. Pass
+     * {@link #closeMembersScreen()} as {@code onComplete} to restore the
+     * single-user "close when done" behavior.
+     */
+    public static void fire(int slot, Resource resource, int count, String recipientName,
+                            Runnable onComplete) {
+        if (count <= 0) {
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+        pendingOnComplete = onComplete;
         ChatUtils.sendLocalMessage(
                 Component.literal("Sending " + count + "x " + resource.displayName()
                         + " to " + recipientName + "…")
@@ -151,7 +178,12 @@ public final class MemberDistributor {
                     Component.literal("Send timed out after " + sentSoFar + "/" + total
                             + " (server didn't refresh the menu).")
                             .withStyle(ChatFormatting.YELLOW));
+            // Capture and invoke onComplete so chained callers (e.g.
+            // RandomDistributor) advance past the timed-out recipient
+            // rather than stalling.
+            Runnable cb = pendingOnComplete;
             clearPending();
+            if (cb != null) cb.run();
         }, REFRESH_TIMEOUT_TICKS);
     }
 
@@ -193,8 +225,9 @@ public final class MemberDistributor {
             if (sent >= total) {
                 VetsLogger.debug("MemberDistributor: completed {} presses on slot {}",
                         total, slot);
+                Runnable cb = pendingOnComplete;
                 clearPending();
-                closeMembersScreen();
+                if (cb != null) cb.run();
             } else {
                 sendPressAndArm(slot, resource, total, sent);
             }
@@ -204,6 +237,7 @@ public final class MemberDistributor {
     private static void clearPending() {
         awaitingRefresh = false;
         pendingResource = null;
+        pendingOnComplete = null;
         // Bumping the token cancels any in-flight timeout for the
         // run we're tearing down.
         timeoutToken++;
@@ -216,8 +250,11 @@ public final class MemberDistributor {
      * dismiss and the server-side {@code ServerboundContainerClosePacket}
      * happen in one call. Guarded so it never closes an unrelated screen
      * the user happens to have open by the time we get here.
+     *
+     * <p>Package-private so {@link RandomDistributor} can use it as the
+     * final step after the multi-user queue drains.</p>
      */
-    private static void closeMembersScreen() {
+    static void closeMembersScreen() {
         if (currentMembersScreen() == null) return;
         McUtils.mc().setScreen(null);
     }
