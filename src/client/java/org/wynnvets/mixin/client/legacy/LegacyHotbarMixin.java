@@ -46,10 +46,10 @@ public class LegacyHotbarMixin {
           guiGraphics,
           org.wynnvets.config.VetsConfig.getLegacyForegroundTexture(),
           CustomColor.fromARGBInt(org.wynnvets.config.VetsConfig.getLegacyForegroundColor()),
-          x - 1,
-          y - 1,
-          18,
-          18);
+          x - 10,
+          y - 10,
+          36,
+          36);
     }
   }
 }

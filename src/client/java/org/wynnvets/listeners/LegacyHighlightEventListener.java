@@ -53,9 +53,9 @@ public final class LegacyHighlightEventListener {
             guiGraphics,
             VetsConfig.getLegacyForegroundTexture(),
             CustomColor.fromARGBInt(VetsConfig.getLegacyForegroundColor()),
-            slot.x - 1,
-            slot.y - 1,
-            18,
-            18);
+            slot.x - 10,
+            slot.y - 10,
+            36,
+            36);
     }
 }
