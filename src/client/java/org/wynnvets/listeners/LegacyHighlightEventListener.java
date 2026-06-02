@@ -2,9 +2,9 @@ package org.wynnvets.listeners;
 
 import com.wynntils.core.WynntilsMod;
 import com.wynntils.mc.event.SlotRenderEvent;
+import com.wynntils.utils.colors.CustomColor;
+import com.wynntils.utils.render.RenderUtils;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.EventPriority;
@@ -22,9 +22,6 @@ import org.wynnvets.logging.VetsLogger;
  * replacing Wynntils' highlight with our configurable gradient + sprite.</p>
  */
 public final class LegacyHighlightEventListener {
-
-    private static final Identifier WYNNTILS_HIGHLIGHT =
-        Identifier.fromNamespaceAndPath("wynntils", "textures/ui_components/sprites/highlight_wynn.png");
 
     private static final LegacyHighlightEventListener INSTANCE = new LegacyHighlightEventListener();
 
@@ -52,17 +49,13 @@ public final class LegacyHighlightEventListener {
         guiGraphics.fillGradient(slot.x, slot.y, slot.x + 16, slot.y + 16,
             VetsConfig.getLegacyBackgroundGradientTopColor(),
             VetsConfig.getLegacyBackgroundGradientBottomColor());
-        guiGraphics.blit(
-            RenderPipelines.GUI_TEXTURED,
-            WYNNTILS_HIGHLIGHT,
+        RenderUtils.drawSprite(
+            guiGraphics,
+            VetsConfig.getLegacyForegroundTexture(),
+            CustomColor.fromARGBInt(VetsConfig.getLegacyForegroundColor()),
             slot.x - 1,
             slot.y - 1,
-            (float) VetsConfig.getLegacyForegroundSpriteOffset(),
-            0f,
             18,
-            18,
-            256,
-            256,
-            VetsConfig.getLegacyForegroundColor());
+            18);
     }
 }

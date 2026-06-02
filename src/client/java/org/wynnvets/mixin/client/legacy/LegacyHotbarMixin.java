@@ -1,10 +1,10 @@
 package org.wynnvets.mixin.client.legacy;
 
+import com.wynntils.utils.colors.CustomColor;
+import com.wynntils.utils.render.RenderUtils;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,9 +20,6 @@ import org.wynnvets.items.LegacyItemHandler;
  */
 @Mixin(Gui.class)
 public class LegacyHotbarMixin {
-
-  private static final Identifier WYNNTILS_HIGHLIGHT =
-      Identifier.fromNamespaceAndPath("wynntils", "textures/ui_components/sprites/highlight_wynn.png");
 
   @Inject(
       method =
@@ -45,18 +42,14 @@ public class LegacyHotbarMixin {
       guiGraphics.fillGradient(x, y, x + 16, y + 16,
           org.wynnvets.config.VetsConfig.getLegacyBackgroundGradientTopColor(),
           org.wynnvets.config.VetsConfig.getLegacyBackgroundGradientBottomColor());
-      guiGraphics.blit(
-          RenderPipelines.GUI_TEXTURED,
-          WYNNTILS_HIGHLIGHT,
+      RenderUtils.drawSprite(
+          guiGraphics,
+          org.wynnvets.config.VetsConfig.getLegacyForegroundTexture(),
+          CustomColor.fromARGBInt(org.wynnvets.config.VetsConfig.getLegacyForegroundColor()),
           x - 1,
           y - 1,
-          (float) org.wynnvets.config.VetsConfig.getLegacyForegroundSpriteOffset(),
-          0f,
           18,
-          18,
-          256,
-          256,
-          org.wynnvets.config.VetsConfig.getLegacyForegroundColor());
+          18);
     }
   }
 }
