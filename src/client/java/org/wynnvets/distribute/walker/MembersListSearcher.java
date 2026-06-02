@@ -85,6 +85,42 @@ public final class MembersListSearcher {
      *  backward sweep on a max-size guild. */
     private static final int MAX_PAGES = 60;
 
+    /** Cap on rebind attempts when the bound container id has gone stale
+     *  mid-search. See {@link #scanAndPaginate()}. */
+    private static final int MAX_REBIND_ATTEMPTS = 3;
+
+    /** Debounce delay before {@link #scanAndPaginate()} runs. Each fresh
+     *  event bumps {@link #scanToken}, and only the latest-scheduled task
+     *  survives the token check — so the scan happens this many ticks
+     *  after the <em>last</em> slot update, not the first. 2 ticks gives
+     *  Wynncraft enough breathing room to finish streaming a page's
+     *  {@code SetSlot} packets when they cross a tick boundary, which is
+     *  the root cause of the false-negative scans that triggered this
+     *  whole mechanism (a partially-updated page being scanned and the
+     *  target player missed). */
+    private static final int SCAN_DELAY_TICKS = 2;
+
+    /** After a forward+backward sweep exhausts without a match, wait this
+     *  many ticks then start a fresh sweep from the current page (which
+     *  is page 1 after a successful backward exhaustion). The retry
+     *  re-clicks NEXT to navigate forward, which forces the server to
+     *  re-stream {@code SetSlot} updates for each page — fresh data that
+     *  sidesteps any stale-update race the first sweep may have hit. */
+    private static final int RETRY_DELAY_TICKS = 10;
+
+    /** Number of full sweep retries before giving up. One retry catches
+     *  the common stale-data false negative; more would just delay the
+     *  not-found verdict without meaningful recovery. */
+    private static final int MAX_RETRY_ATTEMPTS = 1;
+
+    /** Hard upper bound on a single search's wall-clock time. A 4-page
+     *  guild traversed forward+backward+retry should comfortably finish
+     *  in under 10s; 15s gives margin without the user noticing if a
+     *  search completes normally. If we hit this, something is genuinely
+     *  stuck (dropped click, server stopped responding, etc.) and the
+     *  watchdog force-advances the chain so distribution can continue. */
+    private static final int WATCHDOG_TICKS = 300;
+
     private enum Direction { FORWARD, BACKWARD }
 
     private static final MembersListSearcher INSTANCE = new MembersListSearcher();
@@ -97,11 +133,28 @@ public final class MembersListSearcher {
     /** Container id of the Members menu we're currently driving. */
     private static volatile int membersContainerId = -1;
     private static volatile int pagesClicked = 0;
-    /** Set when a scan has been scheduled for the next tick — prevents
-     *  double-scheduling when both SetContent and SetSlot fire for the
-     *  same page transition. */
-    private static volatile boolean scanScheduled = false;
+    /** Monotonic token bumped on every {@link #scheduleScan()} and every
+     *  {@link #stop()}. Scheduled scan tasks capture the token at
+     *  schedule time and bail at fire time if it's been superseded —
+     *  which gives us tail-debouncing (scan happens
+     *  {@link #SCAN_DELAY_TICKS} after the <em>last</em> event, not the
+     *  first) plus automatic cancellation of pending scans when a
+     *  search ends. */
+    private static volatile int scanToken = 0;
     private static volatile Direction direction = Direction.FORWARD;
+    /** Number of times {@link #scanAndPaginate()} has rebound to a
+     *  refreshed container id during the current search. Bounded by
+     *  {@link #MAX_REBIND_ATTEMPTS} so a thrashing refresh loop can't
+     *  pin the searcher forever. Reset per {@link #armSearch} / {@link #stop}. */
+    private static volatile int rebindAttempts = 0;
+    /** Number of full forward+backward sweep retries used so far on the
+     *  current search. Bounded by {@link #MAX_RETRY_ATTEMPTS}. */
+    private static volatile int retryAttempts = 0;
+    /** Monotonic token bumped on every {@link #armSearch}; the per-search
+     *  watchdog task captures it at arm time and bails at fire time if
+     *  a newer search has replaced it. Lets the search complete normally
+     *  (via match or stopNotFound) without needing the watchdog to know. */
+    private static volatile int watchdogToken = 0;
     /** Callback invoked when the armed name is located. */
     private static volatile SlotMatchHandler matchHandler = null;
     /** Optional callback invoked when the search exhausts both directions
@@ -151,8 +204,28 @@ public final class MembersListSearcher {
         matchHandler = handler;
         notFoundHandler = onNotFound;
         pagesClicked = 0;
-        scanScheduled = false;
+        rebindAttempts = 0;
+        retryAttempts = 0;
         direction = Direction.FORWARD;
+
+        // Arm the per-search watchdog. The token capture pattern means a
+        // newer armSearch (or stop()) automatically invalidates this
+        // task — no explicit cancellation needed. The watchdog is the
+        // backstop for any silent-stall mechanism we haven't otherwise
+        // covered: dropped pagination clicks, server-side menu close
+        // without an event, exceptions in the scheduler, etc.
+        final int myWatchdog = ++watchdogToken;
+        Managers.TickScheduler.scheduleLater(() -> {
+            if (myWatchdog != watchdogToken) return;
+            if (displayQuery == null) return;
+            VetsLogger.debug("MembersListSearcher: watchdog timeout for [{}] after {} ticks",
+                    displayQuery, WATCHDOG_TICKS);
+            ChatUtils.sendLocalMessage(
+                    Component.literal("Search for " + displayQuery
+                                    + " timed out — advancing.")
+                            .withStyle(ChatFormatting.YELLOW));
+            invokeNotFound();
+        }, WATCHDOG_TICKS);
 
         // Re-arm fast-path: when the Members menu is already open (multi-user
         // flow), bind to its container id and kick off a scan now. Otherwise
@@ -187,10 +260,15 @@ public final class MembersListSearcher {
         queryLower.clear();
         membersContainerId = -1;
         pagesClicked = 0;
-        scanScheduled = false;
+        rebindAttempts = 0;
+        retryAttempts = 0;
         direction = Direction.FORWARD;
         matchHandler = null;
         notFoundHandler = null;
+        // Bump tokens so any pending scan or watchdog task fires into
+        // the void instead of acting on the cleared state.
+        scanToken++;
+        watchdogToken++;
     }
 
     @SubscribeEvent
@@ -227,37 +305,87 @@ public final class MembersListSearcher {
     /**
      * Wynncraft updates paginated views in-place by sending {@code SetSlot}
      * packets for each changed slot rather than a fresh {@code SetContent}.
-     * Either pagination-button update is the signal that the new page's
-     * contents have been streamed in &mdash; mirrors Wynntils' approach in
-     * {@code ContainerSearchFeature.onContainerSetSlot}.
+     * We trigger a scan on updates to either pagination button (signals a
+     * new page is loading) <em>and</em> on any slot inside the player-tile
+     * bounds (signals a player slot has actually been updated). The
+     * original implementation triggered only on the pagination buttons,
+     * which races when Wynncraft fires the button update before all the
+     * page's player-slot packets — the scan ran on a half-updated page
+     * and silently missed the target. {@link #scheduleScan()}'s debounce
+     * guarantees the scan only fires after the slot stream goes quiet.
      */
     @SubscribeEvent
     public void onSetSlot(ContainerSetSlotEvent.Post event) {
         if (displayQuery == null) return;
         if (event.getContainerId() != membersContainerId) return;
-        if (event.getSlot() != NEXT_PAGE_SLOT && event.getSlot() != PREVIOUS_PAGE_SLOT) return;
-        scheduleScan();
+        int slot = event.getSlot();
+        if (slot == NEXT_PAGE_SLOT || slot == PREVIOUS_PAGE_SLOT
+                || isPlayerBoundsSlot(slot)) {
+            scheduleScan();
+        }
+    }
+
+    /** Returns true if {@code slot} falls within the bounded scan area
+     *  ({@code [BOUNDS_START_ROW, BOUNDS_END_ROW] × [BOUNDS_START_COL,
+     *  BOUNDS_END_COL]}). Matches the slots that
+     *  {@link #scanVisiblePageForMatch} actually inspects. */
+    private static boolean isPlayerBoundsSlot(int slot) {
+        int row = slot / 9;
+        int col = slot % 9;
+        return row >= BOUNDS_START_ROW && row <= BOUNDS_END_ROW
+                && col >= BOUNDS_START_COL && col <= BOUNDS_END_COL;
     }
 
     /**
-     * Schedule a scan-and-paginate run for the next tick. Coalesces
-     * multiple events that fire for the same page transition into a
-     * single scan, and the one-tick delay lets straggling slot updates
-     * land before we read {@code screen.getMenu().getItems()}.
+     * Schedule a scan-and-paginate run. Tail-debounced via {@link #scanToken}:
+     * every call bumps the token and posts its own task, and only the
+     * <em>last</em>-posted task survives the token check at fire time.
+     * The net effect is that {@link #scanAndPaginate()} runs
+     * {@link #SCAN_DELAY_TICKS} ticks after the most recent triggering
+     * event — so a burst of {@code SetSlot} packets that spans a tick or
+     * two collapses into one scan against the fully-settled page state.
      */
     private static void scheduleScan() {
-        if (scanScheduled) return;
-        scanScheduled = true;
-        Managers.TickScheduler.scheduleLater(MembersListSearcher::scanAndPaginate, 1);
+        final int myToken = ++scanToken;
+        Managers.TickScheduler.scheduleLater(() -> {
+            if (myToken != scanToken) return;
+            if (displayQuery == null) return;
+            scanAndPaginate();
+        }, SCAN_DELAY_TICKS);
     }
 
     private static void scanAndPaginate() {
-        scanScheduled = false;
         if (displayQuery == null) return;
 
         AbstractContainerScreen<?> screen = currentMembersScreen();
         if (screen == null) {
-            stop();
+            // Container id mismatch — typically a server-side close+reopen
+            // of the Members menu between scheduleScan and now. In a
+            // multi-pick chain the next pick's armSearch fires immediately
+            // after the previous press's refresh; if Wynncraft happens to
+            // refresh the menu again inside that 1-tick gap, our bound id
+            // is stale before the scan runs. Try to rebind to whichever
+            // Members menu is currently open before giving up — but cap
+            // rebinds so a thrashing refresh loop can't pin the searcher.
+            AbstractContainerScreen<?> reopened = openMembersScreen();
+            if (reopened != null && rebindAttempts < MAX_REBIND_ATTEMPTS) {
+                rebindAttempts++;
+                int newId = reopened.getMenu().containerId;
+                VetsLogger.debug("MembersListSearcher: rebinding from container {} to {} "
+                        + "(attempt {}/{}) for [{}]",
+                        membersContainerId, newId, rebindAttempts, MAX_REBIND_ATTEMPTS,
+                        displayQuery);
+                membersContainerId = newId;
+                scheduleScan();
+                return;
+            }
+            // No Members menu open at all, or we've exhausted rebinds.
+            // Invoke not-found so chained callers (RandomDistributor,
+            // GraidsDistributor, ObjectivesDistributor) advance their
+            // queue rather than silently stalling with the menu open.
+            VetsLogger.debug("MembersListSearcher: lost Members menu mid-search for [{}], advancing",
+                    displayQuery);
+            invokeNotFound();
             return;
         }
 
@@ -274,6 +402,24 @@ public final class MembersListSearcher {
         }
 
         if (!advancePagination(items)) {
+            if (retryAttempts < MAX_RETRY_ATTEMPTS) {
+                retryAttempts++;
+                VetsLogger.debug("MembersListSearcher: sweep exhausted for [{}], "
+                                + "retrying from page 1 in {} ticks (attempt {}/{})",
+                        displayQuery, RETRY_DELAY_TICKS, retryAttempts, MAX_RETRY_ATTEMPTS);
+                // After backward exhaustion we're sitting on page 1.
+                // Reset sweep state and rescan; the next advancePagination
+                // will click NEXT, forcing the server to re-stream
+                // SetSlot updates for page 2 onwards — fresh data that
+                // sidesteps the stale-update race that caused the first
+                // miss. pagesClicked resets too so the retry isn't
+                // throttled by the MAX_PAGES cap.
+                pagesClicked = 0;
+                direction = Direction.FORWARD;
+                Managers.TickScheduler.scheduleLater(
+                        MembersListSearcher::scheduleScan, RETRY_DELAY_TICKS);
+                return;
+            }
             stopNotFound();
         }
     }
@@ -365,6 +511,21 @@ public final class MembersListSearcher {
     private static AbstractContainerScreen<?> currentMembersScreen() {
         if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
                 && screen.getMenu().containerId == membersContainerId) {
+            return screen;
+        }
+        return null;
+    }
+
+    /**
+     * Returns the currently-open container screen iff its title matches
+     * the Members pattern, <em>regardless</em> of its container id.
+     * Companion to {@link #currentMembersScreen()} which only accepts the
+     * already-bound id — used by {@link #scanAndPaginate()} to rebind
+     * after a server-side close+reopen refresh.
+     */
+    private static AbstractContainerScreen<?> openMembersScreen() {
+        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
+                && StyledText.fromComponent(screen.getTitle()).matches(MEMBERS_TITLE_PATTERN)) {
             return screen;
         }
         return null;
