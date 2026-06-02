@@ -54,23 +54,18 @@ public class LegacyItemHandler {
   public static final Identifier LEGACY_BORDER = Identifier.parse("unique");
 
   /**
-   * Screen titles where legacy-item processing is skipped entirely.
-   * Some Wynncraft menus (e.g. "Island Rules") apply enchantment glints as
-   * UI selectors, which the foil-based detection misidentifies as legacy items.
-   */
-  private static final List<String> BLOCKED_SCREEN_TITLES = List.of("Island Rules", "Move here!");
-
-  /**
    * Returns {@code true} if the current screen title matches a known menu that
    * should never be treated as containing legacy items, or if the player is in
    * housing edit mode (where items are furniture, not real inventory items).
+   * The blocked-screen patterns themselves live in
+   * {@code definitions.yml > blocked_screen_titles}.
    */
   public static boolean isBlockedScreen() {
     if (Models.Housing.isInEditMode()) return true;
     Screen screen = Minecraft.getInstance().screen;
     if (screen == null) return false;
     String title = ChatFormatting.stripFormatting(screen.getTitle().getString());
-    return title != null && BLOCKED_SCREEN_TITLES.contains(title);
+    return ItemDefinitions.isBlockedScreenTitle(title);
   }
 
   /**

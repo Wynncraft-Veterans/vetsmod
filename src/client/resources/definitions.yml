@@ -184,3 +184,19 @@ enchant_excluded_items:
 new_format_override:
   - "(?i)^Skeleton Key$"
   - "(?i)^Wolf Fang$"
+---
+# Screen titles where legacy-item processing is skipped entirely.  Some
+# Wynncraft menus apply enchantment glints as UI selectors and reuse vanilla
+# armour shells as toggles, both of which the foil/pedestal detectors
+# misidentify as legacy items.  Patterns are matched against the formatting-
+# stripped screen title.
+blocked_screen_titles:
+  - "^Island Settings$"
+  - "^Island Rules$"
+  - "^Island Weather$"
+  - "^Background Song$"
+  - "^Select a Song$"
+  - "^Permission Groups$"
+  - "^Permissions for .*$"
+  - "^Available .* Locations$"
+  - "^Move here!$"

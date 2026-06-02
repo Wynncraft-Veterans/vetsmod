@@ -33,6 +33,8 @@ import org.wynnvets.logging.VetsLogger;
  *   <li><b>notjunk</b> — modern junk-tier items that should NOT be highlighted.</li>
  *   <li><b>new_format_override</b> — names that collide between old and new formats.</li>
  *   <li><b>enchant_excluded_items</b> — Minecraft item IDs excluded from foil detection.</li>
+ *   <li><b>blocked_screen_titles</b> — screen titles (not item names) where legacy
+ *       processing is skipped entirely.</li>
  * </ul>
  */
 public class ItemDefinitions {
@@ -44,6 +46,7 @@ public class ItemDefinitions {
   private static final List<Pattern> notjunkPatterns = new ArrayList<>();
   private static final List<Pattern> newFormatOverridePatterns = new ArrayList<>();
   private static final Set<String> enchantExcludedItems = new HashSet<>();
+  private static final List<Pattern> blockedScreenTitlePatterns = new ArrayList<>();
 
   public static void load() {
     legacyPatterns.clear();
@@ -54,6 +57,7 @@ public class ItemDefinitions {
     notjunkPatterns.clear();
     newFormatOverridePatterns.clear();
     enchantExcludedItems.clear();
+    blockedScreenTitlePatterns.clear();
 
     try (InputStream is = ItemDefinitions.class.getResourceAsStream("/definitions.yml")) {
       if (is == null) {
@@ -62,7 +66,7 @@ public class ItemDefinitions {
       }
       parse(is);
       VetsLogger.debug(
-          "Loaded {} legacy, {} no-lore-legacy, {} misc, {} unenchanted, {} not-pedestal, {} notjunk, {} new-format-override, and {} enchant-excluded definition(s)",
+          "Loaded {} legacy, {} no-lore-legacy, {} misc, {} unenchanted, {} not-pedestal, {} notjunk, {} new-format-override, {} enchant-excluded, and {} blocked-screen-title definition(s)",
           legacyPatterns.size(),
           noLoreLegacyPatterns.size(),
           miscPatterns.size(),
@@ -70,7 +74,8 @@ public class ItemDefinitions {
           notPedestalPatterns.size(),
           notjunkPatterns.size(),
           newFormatOverridePatterns.size(),
-          enchantExcludedItems.size());
+          enchantExcludedItems.size(),
+          blockedScreenTitlePatterns.size());
     } catch (IOException e) {
       VetsLogger.error("Failed to load definitions.yml", e);
     }
@@ -129,6 +134,11 @@ public class ItemDefinitions {
           String itemId = extractQuotedString(trimmed.substring(2).trim());
           if (!itemId.isEmpty()) {
             enchantExcludedItems.add(itemId);
+          }
+        } else if ("blocked_screen_titles".equals(currentSection) && trimmed.startsWith("- ")) {
+          String pattern = extractQuotedString(trimmed.substring(2).trim());
+          if (!pattern.isEmpty()) {
+            blockedScreenTitlePatterns.add(Pattern.compile(pattern));
           }
         }
       }
@@ -218,6 +228,22 @@ public class ItemDefinitions {
   public static boolean isNewFormatOverride(String itemName) {
     for (Pattern pattern : newFormatOverridePatterns) {
       if (pattern.matcher(itemName).matches()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Returns {@code true} if the given screen title matches a blocked-screen
+   * pattern.  Items inside these screens (housing UI panels, song pickers,
+   * permission editors, etc.) reuse glints and armour shells as UI affordances
+   * and must never be routed through any legacy-detection branch.
+   */
+  public static boolean isBlockedScreenTitle(String screenTitle) {
+    if (screenTitle == null) return false;
+    for (Pattern pattern : blockedScreenTitlePatterns) {
+      if (pattern.matcher(screenTitle).matches()) {
         return true;
       }
     }
