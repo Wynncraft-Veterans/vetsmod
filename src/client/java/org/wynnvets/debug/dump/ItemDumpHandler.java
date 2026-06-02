@@ -13,6 +13,7 @@ import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
@@ -23,6 +24,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomModelData;
 import net.minecraft.world.item.component.ItemLore;
@@ -57,9 +59,11 @@ public final class ItemDumpHandler {
      *   <li><b>1</b> — initial version (unversioned in file; inferred when absent)</li>
      *   <li><b>2</b> — adds {@code dumpFormatVersion}, {@code loadedMods},
      *       {@code freshTooltip}, {@code capturedTooltip}, {@code newFormatProbes}</li>
+     *   <li><b>3</b> — adds {@code hoveredSlot} (menu/container indices, grid
+     *       row/column, screen title) for guild-bank macro debugging</li>
      * </ul>
      */
-    public static final int DUMP_FORMAT_VERSION = 2;
+    public static final int DUMP_FORMAT_VERSION = 3;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
@@ -240,6 +244,15 @@ public final class ItemDumpHandler {
         }
         root.add("lore_codepoints", loreCp);
 
+        // ── Hovered-slot info ─────────────────────────────────────────────
+        //
+        // The slot the user was hovering when they pressed the dump key.
+        // Useful for debugging guild-bank macros that target slots by index:
+        // the menuSlotIndex matches what ServerboundContainerClickPacket
+        // expects (i.e. the same number Wynntils' GuildBankHotkeyFeature
+        // hard-codes as GUILD_BANK_SLOT = 15).
+        root.add("hoveredSlot", buildHoveredSlotDump(stack));
+
         // ── Tooltip captures ──────────────────────────────────────────────
         //
         // Two views of the rendered tooltip line list:
@@ -380,6 +393,56 @@ public final class ItemDumpHandler {
                 .getModContainer(modId)
                 .map(mod -> mod.getMetadata().getVersion().getFriendlyString())
                 .orElse("not found");
+    }
+
+    // ── Hovered-slot dumping ─────────────────────────────────────────
+
+    /**
+     * Records which slot was being hovered when the dump was triggered.
+     * Validates the stashed slot reference against the current screen and
+     * its menu so that stale state (e.g. dump key pressed after the
+     * container closed) is reported as unavailable rather than silently
+     * emitting bogus indices.
+     */
+    private static JsonObject buildHoveredSlotDump(ItemStack stack) {
+        JsonObject obj = new JsonObject();
+        Slot slot = LegacyItemHandler.currentHoveredSlot;
+        if (slot == null) {
+            obj.addProperty("status", "no slot recorded (hover an item in a container first)");
+            return obj;
+        }
+
+        Minecraft mc = Minecraft.getInstance();
+        Screen screen = mc != null ? mc.screen : null;
+        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
+            obj.addProperty("status", "no container screen open (stashed slot reference may be stale)");
+            return obj;
+        }
+        // Reject stale references — Slot belongs to the previous menu.
+        if (slot.container != null
+                && containerScreen.getMenu().slots.indexOf(slot) < 0) {
+            obj.addProperty("status", "stashed slot does not belong to current menu (stale)");
+            return obj;
+        }
+
+        obj.addProperty("status", "ok");
+        // The number macros / ServerboundContainerClickPacket want.
+        obj.addProperty("menuSlotIndex", slot.index);
+        obj.addProperty("containerSlotIndex", slot.getContainerSlot());
+        int containerSize = slot.container != null ? slot.container.getContainerSize() : -1;
+        obj.addProperty("containerSize", containerSize);
+        // Wynncraft chest GUIs are always 9 columns wide; derive row/col so
+        // macro authors can cross-check against the in-game grid layout.
+        int containerSlot = slot.getContainerSlot();
+        obj.addProperty("row", containerSlot / 9);
+        obj.addProperty("column", containerSlot % 9);
+        obj.addProperty("x", slot.x);
+        obj.addProperty("y", slot.y);
+        obj.addProperty("containerId", containerScreen.getMenu().containerId);
+        obj.addProperty("screenTitle", screen.getTitle().getString());
+        obj.addProperty("stackMatchesSlotItem",
+                ItemStack.isSameItemSameComponents(slot.getItem(), stack));
+        return obj;
     }
 
     // ── Tooltip-line dumping ─────────────────────────────────────────

@@ -70,6 +70,46 @@ public class GuildStateManager {
   }
 
   /**
+   * Returns {@code true} when the local player can <em>execute</em>
+   * {@code /wv distribute} &mdash; i.e. is {@code CHIEF} or {@code OWNER}
+   * of some guild.
+   *
+   * <p>Two sources, in order: first the server-confirmed rank from the
+   * vetsmod WS auth ack ({@link #confirmedStaffRank()}, stable for the
+   * whole session), then Wynntils' live {@code Models.Guild.getGuildRank()}
+   * for non-Returners chiefs.  Falling back to Wynntils only when the
+   * confirmed path doesn't apply avoids the autocomplete-time race where
+   * the live model returns {@code null} briefly after world joins.</p>
+   */
+  public static boolean isChiefOfAnyGuild() {
+    String confirmed = confirmedStaffRank();
+    if ("chief".equals(confirmed) || "owner".equals(confirmed)) return true;
+    if (!wynntilsReady) return false;
+    GuildRank rank = Models.Guild.getGuildRank();
+    return rank == GuildRank.CHIEF || rank == GuildRank.OWNER;
+  }
+
+  /**
+   * Returns {@code true} when the local player is at least {@code CAPTAIN}
+   * in any guild &mdash; the visibility tier for guild-management
+   * commands.  Mirrors {@link #isChiefOfAnyGuild()}'s dual-source logic
+   * but accepts the wider Captain&plus; band, since vetsmod staff
+   * includes captains and strategists who aren't allowed to execute
+   * chief-only actions but benefit from knowing the commands exist.
+   *
+   * <p>Used by {@code /wv distribute}'s {@code .requires(...)} predicate
+   * so brigadier surfaces it in autocomplete reliably for the user's
+   * own chief without leaking it to non-staff.</p>
+   */
+  public static boolean isStaffOfAnyGuild() {
+    if (isConfirmedStaff()) return true;
+    if (!wynntilsReady) return false;
+    GuildRank rank = Models.Guild.getGuildRank();
+    if (rank == null) return false;
+    return rank.ordinal() >= GuildRank.CAPTAIN.ordinal();
+  }
+
+  /**
    * Get whether the player's guild is "Returners".
    *
    * <p>If the mod's own guild check ({@link GuildChecker}) has a valid

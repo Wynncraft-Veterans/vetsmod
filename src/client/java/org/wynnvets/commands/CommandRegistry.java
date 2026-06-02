@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.debug.DebugCommands;
+import org.wynnvets.distribute.DistributeCommands;
 import org.wynnvets.fetcher.ondemand.ListFetcher;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
 import org.wynnvets.fetcher.ondemand.ReturnFetcher;
@@ -158,6 +159,9 @@ public final class CommandRegistry {
 
             // /wv debug â€” full sub-tree built by DebugCommands
             .then(DebugCommands.buildCommandTree())
+
+            // /wv distribute â€” full sub-tree built by DistributeCommands
+            .then(DistributeCommands.buildCommandTree())
     );
   }
 

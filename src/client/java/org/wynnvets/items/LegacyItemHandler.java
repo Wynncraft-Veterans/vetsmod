@@ -12,6 +12,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 
@@ -31,6 +32,11 @@ public class LegacyItemHandler {
 
   /** Set by the highlight mixin before tooltip processing to provide item context for tooltip_style access. */
   public static ItemStack currentItemStack = ItemStack.EMPTY;
+
+  /** Set by the highlight mixin alongside {@link #currentItemStack}.  Provides
+   *  slot context (menu index, container index, screen position) used by the
+   *  item-dump debug tool to record which slot was being hovered. */
+  public static Slot currentHoveredSlot = null;
 
   /**
    * Set by {@link #processTooltip} when it modifies a legacy item's tooltip.
