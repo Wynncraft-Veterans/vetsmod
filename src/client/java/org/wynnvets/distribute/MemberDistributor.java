@@ -88,6 +88,7 @@ public final class MemberDistributor {
         if (sent >= total) {
             VetsLogger.debug("MemberDistributor: completed {} presses on slot {}",
                     total, slot);
+            closeMembersScreen();
             return;
         }
 
@@ -107,6 +108,19 @@ public final class MemberDistributor {
         Managers.TickScheduler.scheduleLater(
                 () -> firePress(slot, resource, total, sent + 1),
                 PRESS_DELAY_TICKS);
+    }
+
+    /**
+     * Closes the Members GUI client-side. {@code setScreen(null)} triggers
+     * {@code AbstractContainerScreen.removed()}, which calls
+     * {@code player.closeContainer()} &mdash; so both the visual screen
+     * dismiss and the server-side {@code ServerboundContainerClosePacket}
+     * happen in one call. Guarded so it never closes an unrelated screen
+     * the user happens to have open by the time we get here.
+     */
+    private static void closeMembersScreen() {
+        if (currentMembersScreen() == null) return;
+        McUtils.mc().setScreen(null);
     }
 
     /**
