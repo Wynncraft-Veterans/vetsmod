@@ -158,6 +158,12 @@ misc_definitions:
   - "(?i)^Warm Blood.*$"
   - "(?i)^Wheat$"
 ---
+# Items whose names match these patterns are never routed through the
+# pedestal-wiped detection branch. Useful for preventing loreless GUI
+# components from ending up as pedestal items.
+not_pedestal:
+  - "(?i)^.*Merchant.*$"
+---
 notjunk:
   - "(?i)^Leather$"
   - "^Tanned Sunfish$"

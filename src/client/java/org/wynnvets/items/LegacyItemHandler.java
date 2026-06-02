@@ -282,6 +282,9 @@ public class LegacyItemHandler {
     char code = Character.toLowerCase(raw.charAt(1));
     if (code != 'a' && code != 'b' && code != 'd' && code != 'e') return false;
 
+    String normalized = normalizeName(ChatFormatting.stripFormatting(raw));
+    if (normalized != null && ItemDefinitions.isNotPedestal(normalized)) return false;
+
     Identifier key = BuiltInRegistries.ITEM.getKey(stack.getItem());
     if (!"minecraft".equals(key.getNamespace())) return false;
     String path = key.getPath();

@@ -28,6 +28,8 @@ import org.wynnvets.logging.VetsLogger;
  *       no lore lines (e.g. old keys, vanilla materials, holiday items).</li>
  *   <li><b>misc_definitions</b> — items requiring a "Misc. Item" rarity line.</li>
  *   <li><b>unenchanted</b> — items excluded from enchanted/foil detection.</li>
+ *   <li><b>not_pedestal</b> — names excluded from the pedestal-wiped branch
+ *       (NPCs that render as coloured-name armour shells with no lore).</li>
  *   <li><b>notjunk</b> — modern junk-tier items that should NOT be highlighted.</li>
  *   <li><b>new_format_override</b> — names that collide between old and new formats.</li>
  *   <li><b>enchant_excluded_items</b> — Minecraft item IDs excluded from foil detection.</li>
@@ -38,6 +40,7 @@ public class ItemDefinitions {
   private static final List<Pattern> noLoreLegacyPatterns = new ArrayList<>();
   private static final List<Pattern> miscPatterns = new ArrayList<>();
   private static final List<Pattern> unenchantedPatterns = new ArrayList<>();
+  private static final List<Pattern> notPedestalPatterns = new ArrayList<>();
   private static final List<Pattern> notjunkPatterns = new ArrayList<>();
   private static final List<Pattern> newFormatOverridePatterns = new ArrayList<>();
   private static final Set<String> enchantExcludedItems = new HashSet<>();
@@ -47,6 +50,7 @@ public class ItemDefinitions {
     noLoreLegacyPatterns.clear();
     miscPatterns.clear();
     unenchantedPatterns.clear();
+    notPedestalPatterns.clear();
     notjunkPatterns.clear();
     newFormatOverridePatterns.clear();
     enchantExcludedItems.clear();
@@ -58,11 +62,12 @@ public class ItemDefinitions {
       }
       parse(is);
       VetsLogger.debug(
-          "Loaded {} legacy, {} no-lore-legacy, {} misc, {} unenchanted, {} notjunk, {} new-format-override, and {} enchant-excluded definition(s)",
+          "Loaded {} legacy, {} no-lore-legacy, {} misc, {} unenchanted, {} not-pedestal, {} notjunk, {} new-format-override, and {} enchant-excluded definition(s)",
           legacyPatterns.size(),
           noLoreLegacyPatterns.size(),
           miscPatterns.size(),
           unenchantedPatterns.size(),
+          notPedestalPatterns.size(),
           notjunkPatterns.size(),
           newFormatOverridePatterns.size(),
           enchantExcludedItems.size());
@@ -105,6 +110,11 @@ public class ItemDefinitions {
         } else if ("unenchanted".equals(currentSection) && trimmed.startsWith("- ")) {
           String pattern = extractQuotedString(trimmed.substring(2).trim());
           unenchantedPatterns.add(Pattern.compile(pattern));
+        } else if ("not_pedestal".equals(currentSection) && trimmed.startsWith("- ")) {
+          String pattern = extractQuotedString(trimmed.substring(2).trim());
+          if (!pattern.isEmpty()) {
+            notPedestalPatterns.add(Pattern.compile(pattern));
+          }
         } else if ("notjunk".equals(currentSection) && trimmed.startsWith("- ")) {
           String pattern = extractQuotedString(trimmed.substring(2).trim());
           if (!pattern.isEmpty()) {
@@ -174,6 +184,21 @@ public class ItemDefinitions {
     if (enchantExcludedItems.isEmpty()) return false;
     String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
     return enchantExcludedItems.contains(id);
+  }
+
+  /**
+   * Returns {@code true} if the given name matches a not-pedestal blacklist
+   * pattern.  Items matching these patterns must never be routed through the
+   * pedestal-wiped detection branch (typically NPCs that render as bare
+   * coloured-name armour shells).
+   */
+  public static boolean isNotPedestal(String itemName) {
+    for (Pattern pattern : notPedestalPatterns) {
+      if (pattern.matcher(itemName).matches()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public static boolean isNotJunk(String itemName) {
