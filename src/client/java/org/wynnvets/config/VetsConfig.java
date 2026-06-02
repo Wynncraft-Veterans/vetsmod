@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.wynntils.utils.render.Texture;
 import net.fabricmc.loader.api.FabricLoader;
 import org.wynnvets.logging.VetsLogger;
 
@@ -115,10 +116,10 @@ public class VetsConfig {
    *  Defaults to 69. */
   public static final String LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY = "legacyItemBackgroundGradientBottomOpacity";
 
-  /** Which Wynntils highlight-spritesheet tile to draw over the gradient.
+  /** Which Wynntils highlight sprite to draw over the gradient.
    *  One of: wynn, tag, circle_transparent, circle_opaque, circle_outline_large,
    *  circle_outline_small, box_transparent, box_opaque, box_gradient_1, box_gradient_2.
-   *  Defaults to {@code wynn}. */
+   *  Defaults to {@code box_gradient_2}. */
   public static final String LEGACY_ITEM_FOREGROUND_SPRITE = "legacyItemForegroundSprite";
 
   /** CSS/Minecraft colour name used to tint the foreground sprite on legacy item slots.
@@ -174,7 +175,8 @@ public class VetsConfig {
   };
 
   /** Valid sprite names for {@link #LEGACY_ITEM_FOREGROUND_SPRITE}, matching
-   *  the Wynntils {@code HighlightTexture} enum order (ordinal = tile index). */
+   *  the Wynntils {@code HighlightTexture} enum order (parallel to
+   *  {@code LegacyItemStyle.FOREGROUND_TEXTURES}). */
   public static final String[] VALID_SPRITES = {
       "wynn", "tag", "circle_transparent", "circle_opaque",
       "circle_outline_large", "circle_outline_small",
@@ -220,9 +222,9 @@ public class VetsConfig {
     return LegacyItemStyle.getColorRgb(name);
   }
 
-  /** @see LegacyItemStyle#getForegroundSpriteOffset() */
-  public static int getLegacyForegroundSpriteOffset() {
-    return LegacyItemStyle.getForegroundSpriteOffset();
+  /** @see LegacyItemStyle#getForegroundTexture() */
+  public static Texture getLegacyForegroundTexture() {
+    return LegacyItemStyle.getForegroundTexture();
   }
 
   // ── Int config defaults (for reset) ─────────────────────────────────

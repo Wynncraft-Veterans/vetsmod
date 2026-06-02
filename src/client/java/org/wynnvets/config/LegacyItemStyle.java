@@ -1,5 +1,6 @@
 package org.wynnvets.config;
 
+import com.wynntils.utils.render.Texture;
 import java.util.Set;
 
 /**
@@ -8,11 +9,25 @@ import java.util.Set;
  *
  * <p>Legacy item highlights use a two-layer visual: a colour gradient fill
  * (top + bottom colours with independent opacity) overlaid by a tinted
- * Wynntils spritesheet tile.  This class reads the named-colour and
+ * Wynntils highlight sprite.  This class reads the named-colour and
  * sprite config values from {@link VetsConfig} and resolves them to
- * ARGB ints / pixel offsets for the renderer.</p>
+ * ARGB ints / {@link Texture} constants for the renderer.</p>
  */
 public final class LegacyItemStyle {
+
+    /** Parallel to {@link VetsConfig#VALID_SPRITES} (same index = same sprite). */
+    private static final Texture[] FOREGROUND_TEXTURES = {
+        Texture.HIGHLIGHT_WYNN,
+        Texture.HIGHLIGHT_TAG,
+        Texture.HIGHLIGHT_CIRCLE_TRANSPARENT,
+        Texture.HIGHLIGHT_CIRCLE_OPAQUE,
+        Texture.HIGHLIGHT_CIRCLE_OUTLINE_LARGE,
+        Texture.HIGHLIGHT_CIRCLE_OUTLINE_SMALL,
+        Texture.HIGHLIGHT_BOX_TRANSPARENT,
+        Texture.HIGHLIGHT_BOX_OPAQUE,
+        Texture.HIGHLIGHT_BOX_GRADIENT_1,
+        Texture.HIGHLIGHT_BOX_GRADIENT_2,
+    };
 
     private LegacyItemStyle() {}
 
@@ -97,17 +112,19 @@ public final class LegacyItemStyle {
     }
 
     /**
-     * Get the spritesheet U-offset (in pixels) for {@link VetsConfig#LEGACY_ITEM_FOREGROUND_SPRITE}.
+     * Resolve {@link VetsConfig#LEGACY_ITEM_FOREGROUND_SPRITE} to its
+     * corresponding Wynntils atlas-backed {@link Texture}.
      *
-     * @return ordinal × 18, defaulting to 0 (wynn)
+     * @return the matching highlight {@link Texture}; falls back to
+     *         {@link Texture#HIGHLIGHT_WYNN} on unknown values
      */
-    public static int getForegroundSpriteOffset() {
+    public static Texture getForegroundTexture() {
         String name = VetsConfig.getString(VetsConfig.LEGACY_ITEM_FOREGROUND_SPRITE);
         if (name != null) {
             for (int i = 0; i < VetsConfig.VALID_SPRITES.length; i++) {
-                if (VetsConfig.VALID_SPRITES[i].equalsIgnoreCase(name)) return i * 18;
+                if (VetsConfig.VALID_SPRITES[i].equalsIgnoreCase(name)) return FOREGROUND_TEXTURES[i];
             }
         }
-        return 0;
+        return Texture.HIGHLIGHT_WYNN;
     }
 }
