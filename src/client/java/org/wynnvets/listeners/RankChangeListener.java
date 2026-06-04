@@ -159,7 +159,8 @@ public final class RankChangeListener {
         return actor + "\0" + target + "\0" + fromRank + "\0" + toRank;
     }
 
-    private static boolean wasRecent(String actor, String target, String fromRank, String toRank) {
+    // Package-private for unit tests. See RankChangeListenerTest.
+    static boolean wasRecent(String actor, String target, String fromRank, String toRank) {
         String fp = fingerprint(actor, target, fromRank, toRank);
         synchronized (lock) {
             long now = System.currentTimeMillis();
@@ -173,7 +174,7 @@ public final class RankChangeListener {
         return false;
     }
 
-    private static void recordRecent(String actor, String target, String fromRank, String toRank) {
+    static void recordRecent(String actor, String target, String fromRank, String toRank) {
         String fp = fingerprint(actor, target, fromRank, toRank);
         synchronized (lock) {
             long now = System.currentTimeMillis();
@@ -185,13 +186,21 @@ public final class RankChangeListener {
         }
     }
 
-    private static void prune(long now) {
+    // Package-private so tests can drive the TTL boundary without sleeping.
+    static void prune(long now) {
         while (!recent.isEmpty()) {
             DedupEntry head = recent.peekFirst();
             if (head == null || now - head.timestamp <= DEDUP_TTL_MS) {
                 return;
             }
             recent.pollFirst();
+        }
+    }
+
+    // Test-only: wipes the dedup deque so static state doesn't leak across tests.
+    static void clearForTesting() {
+        synchronized (lock) {
+            recent.clear();
         }
     }
 
