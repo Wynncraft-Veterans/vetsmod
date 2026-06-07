@@ -13,8 +13,8 @@ import java.util.Random;
 /**
  * Implements {@code /wv distribute @split <resource> <count>}: divides
  * {@code <count>} three ways and chains the existing pool dispatchers
- * &mdash; {@link RandomDistributor}, {@link GraidsDistributor},
- * {@link ObjectivesDistributor} &mdash; one after the other, each with
+ * &mdash; {@link GraidsDistributor}, {@link ObjectivesDistributor},
+ * {@link RandomDistributor} &mdash; one after the other, each with
  * its third of the total.
  *
  * <h2>Split arithmetic</h2>
@@ -25,14 +25,14 @@ import java.util.Random;
  * {@link ObjectivesDistributor} and {@link GraidsDistributor}.</p>
  *
  * <h2>Phase ordering</h2>
- * <p>Phases run in a fixed sequence: {@code @random} &rarr;
- * {@code @graids} &rarr; {@code @objectives}. The ordering is fixed
- * rather than randomised because each phase opens its own menu and
- * the third phase ({@code @objectives}) can leave the Members menu
- * scrolled to a useful page for the operator to inspect afterwards.
- * The choice of which pool gets which third <em>is</em> randomised
- * via the remainder shuffle above, so the operator can't game the
- * split.</p>
+ * <p>Phases run in a fixed sequence: {@code @graids} &rarr;
+ * {@code @objectives} &rarr; {@code @random}. {@code @graids} must
+ * run first because it scans the guild log for raid completions, and
+ * Wynncraft caps that log at ~100 most-recent entries &mdash;
+ * distributing aspects (or anything else that emits log entries) first
+ * would push graid records off the back of the window. The choice of
+ * which pool gets which third <em>is</em> randomised via the remainder
+ * shuffle above, so the operator can't game the split.</p>
  *
  * <h2>Pool failures</h2>
  * <p>Each underlying dispatcher invokes its {@code onComplete}
@@ -66,9 +66,9 @@ public final class SplitDistributor {
 
         ChatUtils.sendLocalMessage(
                 Component.literal("Splitting " + count + "x " + resource.displayName()
-                        + ": " + pools[0] + " @random, "
-                        + pools[1] + " @graids, "
-                        + pools[2] + " @objectives")
+                        + ": " + pools[0] + " @graids, "
+                        + pools[1] + " @objectives, "
+                        + pools[2] + " @random")
                         .withStyle(ChatFormatting.AQUA));
 
         // Chain backwards so each phase's onComplete closure already
@@ -81,19 +81,19 @@ public final class SplitDistributor {
                 Component.literal("Split distribution complete.")
                         .withStyle(ChatFormatting.GREEN));
 
-        final Runnable objectivesPhase = pools[2] > 0
-                ? delayed(() -> ObjectivesDistributor.dispatch(pools[2], resource, terminal))
+        final Runnable randomPhase = pools[2] > 0
+                ? delayed(() -> RandomDistributor.dispatch(pools[2], resource, terminal))
                 : terminal;
 
-        final Runnable graidsPhase = pools[1] > 0
-                ? delayed(() -> GraidsDistributor.dispatch(pools[1], resource, objectivesPhase))
+        final Runnable objectivesPhase = pools[1] > 0
+                ? delayed(() -> ObjectivesDistributor.dispatch(pools[1], resource, randomPhase))
+                : randomPhase;
+
+        final Runnable graidsPhase = pools[0] > 0
+                ? () -> GraidsDistributor.dispatch(pools[0], resource, objectivesPhase)
                 : objectivesPhase;
 
-        final Runnable randomPhase = pools[0] > 0
-                ? () -> RandomDistributor.dispatch(pools[0], resource, graidsPhase)
-                : graidsPhase;
-
-        randomPhase.run();
+        graidsPhase.run();
     }
 
     /** Wraps {@code body} in a {@link #PHASE_DELAY_TICKS}-tick scheduler
@@ -104,8 +104,8 @@ public final class SplitDistributor {
     }
 
     /**
-     * Splits {@code count} into three pools — [@random, @graids,
-     * @objectives] — each getting {@code count / 3} as a floor and
+     * Splits {@code count} into three pools — [@graids, @objectives,
+     * @random] — each getting {@code count / 3} as a floor and
      * the {@code count % 3} remainder awarded to a random subset.
      */
     private static int[] splitCount(int count) {
