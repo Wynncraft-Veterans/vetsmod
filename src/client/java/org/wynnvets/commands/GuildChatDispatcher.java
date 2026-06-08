@@ -258,6 +258,14 @@ public final class GuildChatDispatcher {
   // ── /v — Staff chat ─────────────────────────────────────────────────
 
   private static boolean handleStaffChat(String message) {
+    if (Models.StreamerMode.isInStream()) {
+      ChatUtils.sendLocalMessage(
+          Component.literal("Cannot send /v messages while in /stream mode.")
+              .withStyle(ChatFormatting.RED)
+      );
+      return true;
+    }
+
     if (message.isEmpty()) {
       ChatUtils.sendLocalMessage(
           Component.literal("Usage: /v <message>").withStyle(ChatFormatting.RED)

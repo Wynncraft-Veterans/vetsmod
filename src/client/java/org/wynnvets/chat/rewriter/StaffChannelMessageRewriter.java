@@ -1,5 +1,6 @@
 package org.wynnvets.chat.rewriter;
 
+import com.wynntils.core.components.Models;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.ClickEvent;
@@ -55,6 +56,13 @@ public final class StaffChannelMessageRewriter {
         String content = messageString.substring(colonIndex + 1).trim();
         if (!content.startsWith(LOCK_PREFIX)) {
             return false;
+        }
+
+        // Privacy guard: while in /stream mode, drop incoming vchat entirely so
+        // staff conversations aren't shown to viewers. Returning true causes
+        // ChatLogMixin to ci.cancel() the original 🔐-prefixed /msg line too.
+        if (Models.StreamerMode.isInStream()) {
+            return true;
         }
 
         String message = content.substring(LOCK_PREFIX.length()).stripLeading();
