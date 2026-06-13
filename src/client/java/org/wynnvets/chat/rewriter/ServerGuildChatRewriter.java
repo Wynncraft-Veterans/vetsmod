@@ -85,11 +85,15 @@ public final class ServerGuildChatRewriter {
         MutableComponent messageBody = extractBodyComponent(
                 component, parsed.bodyCharStart, ChatUtils.RANK_STYLE);
 
+        // Preserve the original name span's italic + hover for nicked players;
+        // fall back to the flat NAME_STYLE for non-nicked supporters.
+        Style nameStyle = NickResolver.realNameSpanStyleOrFallback(component, ChatUtils.NAME_STYLE);
+
         MutableComponent body = Component.empty()
                 .append(badge)
                 .append(gradientPill)
                 .append(" ")
-                .append(Component.literal(parsed.username).setStyle(ChatUtils.NAME_STYLE))
+                .append(Component.literal(parsed.username).setStyle(nameStyle))
                 .append(Component.literal(": ").setStyle(ChatUtils.RANK_STYLE))
                 .append(messageBody);
 

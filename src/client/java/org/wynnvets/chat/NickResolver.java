@@ -49,6 +49,24 @@ public final class NickResolver {
     }
 
     /**
+     * Walks {@code root} for the first part that carries a real-name hover and
+     * returns its {@link Style}, or {@code fallback} when none match.  The
+     * returned style carries the original italic flag, colour, and hover event
+     * — letting callers rebuild a name span that hovers and renders like the
+     * vanilla Wynncraft nick.
+     */
+    public static Style realNameSpanStyleOrFallback(Component root, Style fallback) {
+        List<FlatPart> parts = new ArrayList<>();
+        flattenComponent(root, root.getStyle(), parts);
+        for (FlatPart part : parts) {
+            if (realUsernameFromHover(part.style().getHoverEvent()) != null) {
+                return part.style();
+            }
+        }
+        return fallback;
+    }
+
+    /**
      * Extracts the real username from a {@link HoverEvent}, or {@code null} if the
      * hover is not a {@code SHOW_TEXT} match for {@link #REAL_NAME_PATTERN}.
      */
