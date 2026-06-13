@@ -68,7 +68,11 @@ public final class ChatUtils {
             .withoutShadow();
 
     private static final Pattern URL_PATTERN = Pattern.compile(
-            "https?://\\S+", Pattern.CASE_INSENSITIVE);
+            "(?<!§)("
+            + "https?://\\S+"
+            + "|[A-Za-z0-9][A-Za-z0-9-]*(?:\\.[A-Za-z0-9][A-Za-z0-9-]*)+/\\S*"
+            + ")",
+            Pattern.CASE_INSENSITIVE);
 
     private ChatUtils() {
     }
@@ -507,6 +511,17 @@ public final class ChatUtils {
     }
 
     /**
+     * Builds a fresh {@link MutableComponent} from plain text, detecting URLs
+     * and making them clickable. Bare hosts (e.g. {@code example.com/path})
+     * are displayed as-typed but linked to {@code https://}-prefixed URIs.
+     */
+    public static MutableComponent literalWithUrls(String text, Style style) {
+        MutableComponent parent = Component.empty();
+        appendTextWithUrls(parent, text, style);
+        return parent;
+    }
+
+    /**
      * Appends a text segment to a parent component, detecting URLs and making
      * them clickable with {@link ClickEvent.OpenUrl}.
      */
@@ -522,7 +537,8 @@ public final class ChatUtils {
             }
             String url = matcher.group();
             try {
-                URI uri = URI.create(url);
+                String href = url.matches("(?i)^https?://.*") ? url : "https://" + url;
+                URI uri = URI.create(href);
                 Style urlStyle = textStyle.withClickEvent(new ClickEvent.OpenUrl(uri));
                 parent.append(Component.literal(url).setStyle(urlStyle));
             } catch (Exception e) {

@@ -2,8 +2,10 @@ package org.wynnvets.fetcher.ondemand;
 
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import org.wynnvets.api.WynnCraftApi;
 import org.wynnvets.api.VetsApi;
+import org.wynnvets.chat.ChatUtils;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
@@ -54,7 +56,7 @@ public class MotdFetcher {
     return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
         .thenApply(response -> {
           if (response.statusCode() == HttpURLConnection.HTTP_OK) {
-            return Component.literal(response.body());
+            return ChatUtils.literalWithUrls(response.body(), Style.EMPTY);
           } else {
             return Component.literal("Failed to fetch MOTD (Status: " + response.statusCode() + ")");
           }
