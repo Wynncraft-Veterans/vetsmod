@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.utils.NameResolver;
+import org.wynnvets.distribute.utils.NoAspectsFilter;
 import org.wynnvets.distribute.walker.GuildLogWalker;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.logging.VetsLogger;
@@ -94,9 +95,32 @@ public final class GraidsDistributor {
      */
     public static void dispatch(int count, MemberSlotPresser.Resource resource,
                                 Runnable onComplete) {
-        NameResolver.fetchNameIndex().thenAccept(index ->
-                Managers.TickScheduler.scheduleLater(
-                        () -> beginWalk(index, count, resource, onComplete), 0));
+        // Fetch the name index and the NoAspects opt-out list in
+        // parallel; strip excluded legacy names from the index so they
+        // never match a graid-log username token. Per-command refresh,
+        // fail-open via NoAspectsFilter on any HTTP error.
+        NameResolver.fetchNameIndex().thenCombine(
+                NoAspectsFilter.fetchExcludedLegacyNames(),
+                GraidsDistributor::filterIndex)
+                .thenAccept(index ->
+                        Managers.TickScheduler.scheduleLater(
+                                () -> beginWalk(index, count, resource, onComplete), 0));
+    }
+
+    private static Map<String, String> filterIndex(Map<String, String> index,
+                                                   Set<String> excludeNames) {
+        if (excludeNames.isEmpty()) return index;
+        Map<String, String> out = new HashMap<>(index.size());
+        for (Map.Entry<String, String> e : index.entrySet()) {
+            // Drop both lookup keys (current + legacy lowercase) whose
+            // canonical legacy name is opted-out. The frequency counter
+            // in countGraidFrequencies will then miss the username token
+            // and skip the member entirely.
+            if (!excludeNames.contains(e.getValue())) {
+                out.put(e.getKey(), e.getValue());
+            }
+        }
+        return out;
     }
 
     private static void beginWalk(Map<String, String> nameIndex, int count,

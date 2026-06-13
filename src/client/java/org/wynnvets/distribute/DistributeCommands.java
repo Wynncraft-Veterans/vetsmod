@@ -5,6 +5,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import com.wynntils.core.components.Managers;
 import com.wynntils.core.components.Models;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -19,6 +20,7 @@ import org.wynnvets.distribute.distributor.RandomDistributor;
 import org.wynnvets.distribute.distributor.SplitDistributor;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.utils.NameResolver;
+import org.wynnvets.distribute.utils.NoAspectsFilter;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
 
@@ -166,23 +168,56 @@ public final class DistributeCommands {
       return 1;
     }
 
-    // Arm with the literal input first so the search starts immediately —
-    // covers the case where the user already typed the legacy name.
+    // Fan out two HTTP calls in parallel: legacy-name resolution (so we
+    // know the canonical tile name for renamed targets) and the
+    // NoAspects opt-out list (so we can reject before opening the menu).
+    // We deliberately wait on both before arming the searcher — even
+    // though it costs ~200-500ms upfront, rejecting after the menu has
+    // already opened would be a confusing UX. Per-command refresh and
+    // fail-open semantics (see NoAspectsFilter) keep this safe.
+    CompletableFuture<String> resolveF = NameResolver.resolveLegacyName(name);
+    CompletableFuture<Set<String>> excludeF = NoAspectsFilter.fetchExcludedLegacyNames();
+    resolveF.thenCombine(excludeF, (resolved, excludeNames) -> {
+      Managers.TickScheduler.scheduleLater(
+          () -> dispatchSingleTarget(name, resolved, excludeNames, resource, count), 0);
+      return null;
+    });
+    return 1;
+  }
+
+  /**
+   * Runs on the Minecraft tick thread. Rejects the dispatch with a chat
+   * line if either the literal input or the wapi-resolved name is on
+   * the NoAspects opt-out list; otherwise arms the searcher (with both
+   * forms when a rename is detected) and opens the Members menu.
+   */
+  private static void dispatchSingleTarget(String name, String resolved,
+                                           Set<String> excludeNames,
+                                           MemberSlotPresser.Resource resource,
+                                           int count) {
+    // Check both forms — staff could have opted out the player by
+    // current name OR legacy name, depending on which was in the live
+    // roster at !noaspects-add time.
+    String optedOutForm = null;
+    if (excludeNames.contains(name)) optedOutForm = name;
+    else if (resolved != null && excludeNames.contains(resolved)) optedOutForm = resolved;
+    if (optedOutForm != null) {
+      ChatUtils.sendLocalMessage(
+          Component.literal(optedOutForm
+              + " is on the NoAspects list. Ask staff to run !noaspects remove "
+              + optedOutForm + " if this is in error.")
+              .withStyle(ChatFormatting.RED));
+      return;
+    }
+    // Arm with the literal input — covers the case where the user
+    // already typed the legacy name. addAlternative covers the rename
+    // case where the wapi resolution returns a different canonical name.
     MembersListSearcher.armSearch(name,
         slot -> MemberSlotPresser.fire(slot, resource, count, name));
-
-    // Fire async current→legacy resolution against wapi.  When it
-    // resolves to a different name (e.g. user typed a current Mojang
-    // username for a renamed player), add it as a search alternative so
-    // the in-flight pagination picks it up.
-    NameResolver.resolveLegacyName(name).thenAccept(resolved -> {
-      if (resolved != null && !resolved.equalsIgnoreCase(name)) {
-        MembersListSearcher.addAlternative(resolved);
-      }
-    });
-
+    if (resolved != null && !resolved.equalsIgnoreCase(name)) {
+      MembersListSearcher.addAlternative(resolved);
+    }
     GuildManageOpener.openManageMembers();
-    return 1;
   }
 
   // ── Suggestion providers ─────────────────────────────────────────────

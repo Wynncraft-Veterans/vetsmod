@@ -5,9 +5,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.NickResolver;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 
@@ -26,8 +26,6 @@ public final class StaffChannelMessageRewriter {
     private static final Pattern USERNAME_AT_END = Pattern.compile("([A-Za-z0-9_]{1,16})\\s*$");
     private static final Pattern MSG_COMMAND_PATTERN =
         Pattern.compile("/msg\\s+([A-Za-z0-9_]{1,16})", Pattern.CASE_INSENSITIVE);
-    private static final Pattern REAL_NAME_PATTERN =
-        Pattern.compile("real\\s+name\\s+is\\s+([A-Za-z0-9_]{1,16})", Pattern.CASE_INSENSITIVE);
 
     private StaffChannelMessageRewriter() {
     }
@@ -116,22 +114,22 @@ public final class StaffChannelMessageRewriter {
             return null;
         }
 
-        List<FlatPart> parts = new ArrayList<>();
-        flattenParts(component, component.getStyle(), parts);
+        List<NickResolver.FlatPart> parts = new ArrayList<>();
+        NickResolver.flattenComponent(component, component.getStyle(), parts);
 
-        for (FlatPart part : parts) {
-            if (part.text.contains(PRIVATE_SEPARATOR_GLYPH)) {
+        for (NickResolver.FlatPart part : parts) {
+            if (part.text().contains(PRIVATE_SEPARATOR_GLYPH)) {
                 break;
             }
 
-            Style style = part.style;
+            Style style = part.style();
 
             String fromClick = extractUsernameFromClick(style.getClickEvent());
             if (fromClick != null) {
                 return fromClick;
             }
 
-            String fromHover = extractUsernameFromHover(style.getHoverEvent());
+            String fromHover = NickResolver.realUsernameFromHover(style.getHoverEvent());
             if (fromHover != null) {
                 return fromHover;
             }
@@ -148,36 +146,6 @@ public final class StaffChannelMessageRewriter {
             }
         }
         return null;
-    }
-
-    private static String extractUsernameFromHover(HoverEvent hover) {
-        if (hover instanceof HoverEvent.ShowText st) {
-            String hoverText = st.value().getString();
-            Matcher matcher = REAL_NAME_PATTERN.matcher(hoverText);
-            if (matcher.find()) {
-                return matcher.group(1);
-            }
-        }
-        return null;
-    }
-
-    private static void flattenParts(Component component, Style inherited, List<FlatPart> out) {
-        Style resolved = inherited.applyTo(component.getStyle());
-        StringBuilder sb = new StringBuilder();
-        component.getContents().visit(s -> {
-            sb.append(s);
-            return java.util.Optional.empty();
-        });
-        String text = sb.toString();
-        if (!text.isEmpty()) {
-            out.add(new FlatPart(text, resolved));
-        }
-        for (Component sibling : component.getSiblings()) {
-            flattenParts(sibling, resolved, out);
-        }
-    }
-
-    private record FlatPart(String text, Style style) {
     }
 
     private static boolean isSelfSender(String sender) {

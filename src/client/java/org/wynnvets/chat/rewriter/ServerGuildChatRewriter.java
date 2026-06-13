@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.NickResolver;
 import org.wynnvets.chat.Prepend;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
@@ -55,7 +56,12 @@ public final class ServerGuildChatRewriter {
             return false;
         }
 
-        if (!SupportersPoller.isSupporter(parsed.username)) {
+        // Nicked players appear in chat as the nickname alone (no slash form)
+        // when they aren't running a name-revealing client mod, so the visible
+        // username won't match the supporter list.  The real username is
+        // attached as a hover event on the name span.
+        String lookupUsername = NickResolver.realUsernameOrFallback(component, parsed.username);
+        if (!SupportersPoller.isSupporter(lookupUsername)) {
             return false;
         }
 

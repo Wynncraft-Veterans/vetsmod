@@ -162,6 +162,25 @@ public final class NameResolver {
         });
     }
 
+    /**
+     * Fetches the guild roster and returns a map from each member's
+     * normalized (dashless lowercase) Mojang UUID to the tile-displayed
+     * (legacy) name shown in the Members GUI.
+     *
+     * <p>Used by {@link NoAspectsFilter} to translate an opt-out UUID
+     * set served by {@code /v1/outbound/no-aspects} into the legacy-name
+     * set the distributors filter against. UUID is preferred over name
+     * as the load-bearing key because it survives renames.</p>
+     *
+     * <p>Returns an empty map on failure.</p>
+     */
+    public static CompletableFuture<Map<String, String>> fetchUuidToLegacyName() {
+        return fetchGuildJson().thenApply(body -> {
+            if (body == null) return Map.of();
+            return extractUuidToLegacyName(body);
+        });
+    }
+
     private static CompletableFuture<String> fetchGuildJson() {
         if (!GuildStateManager.isWynntilsReady()) {
             return CompletableFuture.completedFuture(null);
@@ -203,6 +222,19 @@ public final class NameResolver {
             return false;
         });
         return index;
+    }
+
+    private static Map<String, String> extractUuidToLegacyName(String body) {
+        Map<String, String> map = new HashMap<>();
+        forEachGuildMember(body, (currentName, member) -> {
+            if (member == null) return false;
+            String uuid = uuidOf(member);
+            if (uuid == null) return false;
+            String legacy = legacyNameOf(member);
+            map.put(normalizeUuid(uuid), legacy != null ? legacy : currentName);
+            return false;
+        });
+        return map;
     }
 
     private static String findLegacyName(String body, String input) {
@@ -284,5 +316,25 @@ public final class NameResolver {
             return member.get("legacyName").getAsString();
         }
         return null;
+    }
+
+    /** Returns the member's {@code uuid} field as a raw string if
+     *  present and non-null, else {@code null}. Callers should pass
+     *  the result through {@link #normalizeUuid} before comparing. */
+    private static String uuidOf(JsonObject member) {
+        if (member == null) return null;
+        if (member.has("uuid") && !member.get("uuid").isJsonNull()) {
+            return member.get("uuid").getAsString();
+        }
+        return null;
+    }
+
+    /** Strips dashes and lowercases — wapi may emit either form, and
+     *  the no-aspects endpoint emits dashed UUIDs; both reduce to the
+     *  same 32-char hex string for equality comparison. Mirrors
+     *  {@code UserInfoFetcher.normalizeUuidText}. */
+    static String normalizeUuid(String uuid) {
+        if (uuid == null) return "";
+        return uuid.replace("-", "").toLowerCase(Locale.ROOT);
     }
 }

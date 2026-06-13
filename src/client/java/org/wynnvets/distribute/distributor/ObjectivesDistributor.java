@@ -1,9 +1,11 @@
 package org.wynnvets.distribute.distributor;
 
+import com.wynntils.core.components.Managers;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.opener.GuildManageOpener;
+import org.wynnvets.distribute.utils.NoAspectsFilter;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.distribute.walker.MembersListWalker;
 import org.wynnvets.logging.VetsLogger;
@@ -14,6 +16,8 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -78,19 +82,39 @@ public final class ObjectivesDistributor {
      */
     public static void dispatch(int count, MemberSlotPresser.Resource resource,
                                 Runnable onComplete) {
+        // Fire the NoAspects fetch in parallel with the GUI walk so the
+        // HTTP round-trip overlaps the (much slower) menu pagination.
+        // The walk callback waits on the fetch before filtering — by
+        // the time the walker completes, the HTTP is almost always
+        // already resolved.
+        CompletableFuture<Set<String>> excludeF =
+                NoAspectsFilter.fetchExcludedLegacyNames();
         MembersListWalker.armWalk(members ->
-                onWalkComplete(members, count, resource, onComplete));
+                excludeF.thenAccept(excludeNames ->
+                        Managers.TickScheduler.scheduleLater(
+                                () -> onWalkComplete(members, count, resource,
+                                        onComplete, excludeNames), 0)));
         GuildManageOpener.openManageMembers();
     }
 
     private static void onWalkComplete(List<MembersListWalker.MemberEntry> members,
                                        int count, MemberSlotPresser.Resource resource,
-                                       Runnable onComplete) {
+                                       Runnable onComplete,
+                                       Set<String> excludeNames) {
         List<String> completers = new ArrayList<>();
+        int skippedOptOut = 0;
         for (MembersListWalker.MemberEntry m : members) {
+            if (excludeNames.contains(m.legacyName())) {
+                skippedOptOut++;
+                continue;
+            }
             if (hasCompletedObjective(m.loreLines())) {
                 completers.add(m.legacyName());
             }
+        }
+        if (skippedOptOut > 0) {
+            VetsLogger.debug("ObjectivesDistributor: skipped {} opted-out members",
+                    skippedOptOut);
         }
         VetsLogger.debug("ObjectivesDistributor: {} / {} members completed their objective",
                 completers.size(), members.size());

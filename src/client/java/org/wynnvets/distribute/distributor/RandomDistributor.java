@@ -6,6 +6,7 @@ import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.utils.NameResolver;
+import org.wynnvets.distribute.utils.NoAspectsFilter;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
@@ -16,6 +17,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Implements the {@code /wv distribute @random <resource> <count>} flow:
@@ -85,12 +87,28 @@ public final class RandomDistributor {
             return;
         }
 
-        NameResolver.fetchAllLegacyNames().thenAccept(legacyNames ->
-                // Hop back to the Minecraft tick thread before touching the
-                // menu / event-bus state. The HTTP completion callback runs
-                // on the HttpClient's executor.
-                Managers.TickScheduler.scheduleLater(
-                        () -> beginPicks(legacyNames, count, resource, onComplete), 0));
+        // Fetch the guild roster and the NoAspects opt-out list in
+        // parallel; combine into a filtered legacy-name pool before
+        // dispatching. Per-command refresh keeps the list responsive to
+        // staff mutations (see NoAspectsFilter for fail-open semantics).
+        NameResolver.fetchAllLegacyNames().thenCombine(
+                NoAspectsFilter.fetchExcludedLegacyNames(),
+                RandomDistributor::filterNames)
+                .thenAccept(legacyNames ->
+                        // Hop back to the Minecraft tick thread before touching the
+                        // menu / event-bus state. The HTTP completion callback runs
+                        // on the HttpClient's executor.
+                        Managers.TickScheduler.scheduleLater(
+                                () -> beginPicks(legacyNames, count, resource, onComplete), 0));
+    }
+
+    private static List<String> filterNames(List<String> names, Set<String> exclude) {
+        if (exclude.isEmpty()) return names;
+        List<String> out = new ArrayList<>(names.size());
+        for (String name : names) {
+            if (!exclude.contains(name)) out.add(name);
+        }
+        return out;
     }
 
     private static void beginPicks(List<String> legacyNames, int count,

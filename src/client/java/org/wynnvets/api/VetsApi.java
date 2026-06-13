@@ -47,6 +47,16 @@ public final class VetsApi {
     /** GET stale-Wynncraft-name → UUID aliases for renamed players. */
     public static final URI ALIASES = URI.create("https://api.wynnvets.org/v1/outbound/aliases");
 
+    /**
+     * GET the list of guild members who have opted out of
+     * {@code /wv distribute} selectors. Each entry is a JSON object of
+     * shape {@code {"uuid", "username"}}; consumers filter against the
+     * UUID set (translated to legacy/tile names via the wapi guild
+     * response) before dispatching. See
+     * {@link org.wynnvets.distribute.utils.NoAspectsFilter}.
+     */
+    public static final URI NO_ASPECTS = URI.create("https://api.wynnvets.org/v1/outbound/no-aspects");
+
     // ── External links ────────────────────────────────────────────────
 
     /** Link to the WynnVets annihilation schedule page. */
