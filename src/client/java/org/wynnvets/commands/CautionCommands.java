@@ -44,35 +44,43 @@ public final class CautionCommands {
   // ── Top-level command bodies ────────────────────────────────────────
 
   /**
-   * {@code /caution <username>} -- preflight. The server checks the
-   * target's running point total; if a +1 caution would push them over
-   * the warning (or eject) threshold and the staff member did not
-   * supply an explicit confirmation, the response is
-   * {@code "would_trigger"} and we render a clickable
-   * "type a custom warning / send a generic warning" prompt instead of
-   * committing.
+   * {@code /caution <username> [message]} -- preflight + commit. The
+   * server checks the target's running point total; if a +1 caution
+   * would push them over the warning (or eject) threshold and the
+   * staff member did not supply an explicit confirmation, the response
+   * is {@code "would_trigger"} and we render a clickable prompt
+   * instead of committing -- with any typed {@code message} prefilled
+   * so the staff can confirm with one click.
+   *
+   * <p>If the staff supplies a {@code message} and the caution does
+   * NOT cross a threshold, the server commits cleanly with the message
+   * attached -- same shape as a direct {@code /caution-go}.</p>
    *
    * @param args the raw argument string after the command literal
-   *             (e.g. {@code "Wenweia"} or {@code "Wenweia confirm"})
+   *             (e.g. {@code "Wenweia"} or
+   *             {@code "Wenweia harassed someone in #general"})
    */
   public static void runCaution(String args) {
     ParsedArgs parsed = parseTwoPart(args);
     if (parsed.target.isEmpty()) {
       ChatUtils.sendLocalMessage(
-          Component.literal("Usage: /caution <username>").withStyle(ChatFormatting.RED));
+          Component.literal("Usage: /caution <username> [message]")
+              .withStyle(ChatFormatting.RED));
       return;
     }
 
     JsonObject fields = new JsonObject();
     fields.addProperty("target_username", parsed.target);
-    // No `confirm` and no `message` -> server preflights, returns
-    // either "would_trigger" or commits cleanly when the threshold
-    // wouldn't be crossed.
+    // No `confirm` -> server preflights. If a message was typed we
+    // forward it; the server commits with it on the clean-threshold
+    // path or returns would_trigger and the renderer below carries
+    // the message into the prompt.
+    if (!parsed.rest.isEmpty()) fields.addProperty("message", parsed.rest);
     V1ApiManager.sendStaffActionFrame(
         "caution_add",
         fields,
         ack -> Minecraft.getInstance().execute(
-            () -> renderCautionPreflightOrCommit(parsed.target, ack)));
+            () -> renderCautionPreflightOrCommit(parsed.target, parsed.rest, ack)));
   }
 
   /**
@@ -185,7 +193,8 @@ public final class CautionCommands {
 
   // ── Response rendering ──────────────────────────────────────────────
 
-  private static void renderCautionPreflightOrCommit(String target, JsonObject ack) {
+  private static void renderCautionPreflightOrCommit(
+      String target, String requestedMessage, JsonObject ack) {
     String status = optString(ack, "status", "error");
     if ("would_trigger".equals(status)) {
       String trigger = optString(ack, "trigger", "warning");
@@ -203,22 +212,41 @@ public final class CautionCommands {
               .withStyle(ChatFormatting.GRAY));
       ChatUtils.sendLocalMessage(line);
 
+      // If staff already typed a reason, carry it into both buttons so
+      // the click commits (or pre-fills the chat box) with the reason
+      // attached -- the server dropped the message when it returned
+      // would_trigger, so the only place it still lives is here.
+      boolean haveReason = !requestedMessage.isEmpty();
+      String confirmCmd = haveReason
+          ? "/caution-go " + resolved + " " + requestedMessage
+          : "/caution-go " + resolved;
+      String editCmd = haveReason
+          ? "/caution-go " + resolved + " " + requestedMessage
+          : "/caution-go " + resolved + " ";
       MutableComponent prompt = Component.literal("  ").withStyle(ChatFormatting.GRAY)
-          .append(clickRun("[Send generic warning]",
-              "/caution-go " + resolved,
-              "Click to commit this caution and send a generic warning DM.",
+          .append(clickRun(
+              haveReason ? "[Confirm and send]" : "[Send generic warning]",
+              confirmCmd,
+              haveReason
+                  ? "Click to commit this caution with your typed reason."
+                  : "Click to commit this caution and send a generic warning DM.",
               ChatFormatting.GREEN))
           .append(Component.literal("  ").withStyle(ChatFormatting.GRAY))
-          .append(clickSuggest("[Type a custom warning]",
-              "/caution-go " + resolved + " ",
-              "Click to fill in a /caution-go command, then type your warning text.",
+          .append(clickSuggest(
+              haveReason ? "[Edit reason]" : "[Type a custom warning]",
+              editCmd,
+              haveReason
+                  ? "Click to edit your reason before sending."
+                  : "Click to fill in a /caution-go command, then type your warning text.",
               ChatFormatting.AQUA));
       ChatUtils.sendLocalMessage(prompt);
       return;
     }
     // No threshold crossed -> server committed the caution. Render
-    // the same way as an explicit /caution-go.
-    renderCommitResult("caution", target, "", ack);
+    // the same way as an explicit /caution-go, including the message
+    // the staff actually typed (if any) so the local readout matches
+    // what landed in the audit row.
+    renderCommitResult("caution", target, requestedMessage, ack);
   }
 
   private static void renderCommitResult(
