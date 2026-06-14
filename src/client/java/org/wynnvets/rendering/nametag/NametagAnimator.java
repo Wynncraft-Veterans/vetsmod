@@ -38,9 +38,21 @@ public final class NametagAnimator {
      */
     private static final float LIGHTEN_FACTOR = 0.65f;
 
+    // CVD-friendly variants. The default shimmer only varies brightness slightly
+    // toward lavender; for protan/deutan users the hue shift is mostly imperceptible
+    // and the small luminance delta gets lost. CV mode oscillates between a darkened
+    // and a much-more-lightened version of the base nametag colour so the wave
+    // becomes a brightness pulse regardless of hue.
+    private static final float CV_DARKEN_FACTOR = 0.30f;
+    private static final float CV_LIGHTEN_FACTOR = 0.85f;
+
     /** Fallback colour when the username has no explicit style colour.
      *  Minecraft's default text colour (white / light grey). */
     private static final int DEFAULT_TEXT_COLOR = 0xFFFFFF;
+
+    private static boolean colorBlindMode() {
+        return org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.COLOR_BLIND_MODE);
+    }
 
     private NametagAnimator() {}
 
@@ -77,9 +89,14 @@ public final class NametagAnimator {
 
         int usernameEnd = usernameStart + usernameLen;
 
-        // Resolve the original colour of the first username character.
+        // Resolve the original colour of the first username character, then
+        // pick the wave's two endpoints. CV mode swings from a darkened to a
+        // strongly-lightened copy of the base so the wave is a brightness
+        // pulse rather than a hue ripple.
         int origColor = resolveColorAt(segments, usernameStart);
-        int lightenedColor = lighten(origColor);
+        boolean cv = colorBlindMode();
+        int startColor = cv ? darken(origColor, CV_DARKEN_FACTOR) : origColor;
+        int endColor   = cv ? mixToward(origColor, 0xFFFFFF, CV_LIGHTEN_FACTOR) : lighten(origColor);
 
         // Time-based phase — identical maths to AnimatedGradientSequence.
         float time = (System.currentTimeMillis() % CYCLE_TIME_MS) / (float) CYCLE_TIME_MS;
@@ -98,7 +115,7 @@ public final class NametagAnimator {
             } else if (segStart >= usernameStart && segEnd <= usernameEnd) {
                 // Entirely within username — animate each character.
                 appendAnimatedChars(result, seg, segStart - usernameStart,
-                        usernameLen, origColor, lightenedColor, time);
+                        usernameLen, startColor, endColor, time);
             } else {
                 // Segment spans a boundary — split into up to 3 parts.
                 int animStart = Math.max(segStart, usernameStart);
@@ -117,7 +134,7 @@ public final class NametagAnimator {
                         seg.style);
                 appendAnimatedChars(result, animSeg,
                         animStart - usernameStart, usernameLen,
-                        origColor, lightenedColor, time);
+                        startColor, endColor, time);
 
                 // Part after animated region
                 if (animEnd < segEnd) {
@@ -232,6 +249,25 @@ public final class NametagAnimator {
         int lg = Math.round(g + LIGHTEN_FACTOR * (225 - g));
         int lb = Math.round(b + LIGHTEN_FACTOR * (255 - b));
         return (clamp(lr) << 16) | (clamp(lg) << 8) | clamp(lb);
+    }
+
+    /** Blends {@code rgb} toward {@code targetRgb} by {@code factor} (0..1). */
+    private static int mixToward(int rgb, int targetRgb, float factor) {
+        int r = (rgb >> 16) & 0xFF;
+        int g = (rgb >>  8) & 0xFF;
+        int b =  rgb        & 0xFF;
+        int tr = (targetRgb >> 16) & 0xFF;
+        int tg = (targetRgb >>  8) & 0xFF;
+        int tb =  targetRgb        & 0xFF;
+        int mr = Math.round(r + factor * (tr - r));
+        int mg = Math.round(g + factor * (tg - g));
+        int mb = Math.round(b + factor * (tb - b));
+        return (clamp(mr) << 16) | (clamp(mg) << 8) | clamp(mb);
+    }
+
+    /** Blends {@code rgb} toward black by {@code factor} (0..1). */
+    private static int darken(int rgb, float factor) {
+        return mixToward(rgb, 0x000000, factor);
     }
 
     private static int clamp(int v) {

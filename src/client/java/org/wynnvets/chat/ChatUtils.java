@@ -15,7 +15,6 @@ import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
-import org.wynnvets.rendering.colors.ShaderColorPalette;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.chat.spoiler.SpoilerFormatter;
 
@@ -757,7 +756,9 @@ public final class ChatUtils {
                 boolean previous = INTERNAL_CHAT_DISPATCH.get();
                 INTERNAL_CHAT_DISPATCH.set(true);
                 AnimatedGradientSequence.beginAnimation(
-                    ShaderColorPalette.DARK_AQUA, 0xAADDFF, 3000);
+                    AnimatedGradientSequence.effectiveDefaultStart(),
+                    AnimatedGradientSequence.effectiveDefaultEnd(),
+                    AnimatedGradientSequence.DEFAULT_CYCLE_TIME_MS);
                 try {
                     minecraft.player.displayClientMessage(wrapped, false);
                 } finally {

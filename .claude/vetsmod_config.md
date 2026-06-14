@@ -39,6 +39,7 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `printANNI` | true | Auto-print annihilation timer on world join |
 | `printBridgeMessages` | true | Display bridge (Discord relay) messages |
 | `showSupporterGlints` | true | Animated gradient glints on nametags + pills |
+| `colorBlindMode` | false | Swap the supporter-glint colour pairs (chat + nametag) for a high-luminance-delta variant so the shimmer is visible under protan/deutan CVD. Still subtle; same cyan/blue family. |
 | `moreReliableGuildCheck` | true | Run `/gu stats` on world join for guild detection |
 
 ### Strings (colour names or sprite names)
@@ -100,8 +101,9 @@ Approximate order (check the source for authoritative):
 9. `printANNI`
 10. `printBridgeMessages`
 11. `showSupporterGlints`
-12. `handleSpoilers`
-13. `moreReliableGuildCheck`
+12. `colorBlindMode`
+13. `handleSpoilers`
+14. `moreReliableGuildCheck`
 
 ## 5. Static defaults
 

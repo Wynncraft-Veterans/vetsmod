@@ -4,6 +4,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.FormattedCharSink;
+import org.wynnvets.config.VetsConfig;
 
 /**
  * A {@link FormattedCharSequence} wrapper that applies an animated, moving,
@@ -43,6 +44,35 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
     public static final int DEFAULT_GREY_START_COLOR = 0x888888;
     public static final int DEFAULT_GREY_END_COLOR = 0xBBBBBB;
     public static final int DEFAULT_CYCLE_TIME_MS = 3000;
+
+    // CVD-friendly variants. The default cyan pair differs by ~5 units of
+    // luminance (255 scale); for protan/deutan users the alternation
+    // collapses to a single tone. Same cyan/blue family, ~90 units of
+    // luminance delta — still subtle, but the shimmer is now perceptible.
+    public static final int CV_DEFAULT_START_COLOR = 0x6699BB;
+    public static final int CV_DEFAULT_END_COLOR   = 0xDDF0FF;
+    public static final int CV_GREY_START_COLOR    = 0x666666;
+    public static final int CV_GREY_END_COLOR      = 0xCCCCCC;
+
+    /** Start colour for the supporter shimmer, honouring {@code colorBlindMode}. */
+    public static int effectiveDefaultStart() {
+        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE) ? CV_DEFAULT_START_COLOR : DEFAULT_START_COLOR;
+    }
+
+    /** End colour for the supporter shimmer, honouring {@code colorBlindMode}. */
+    public static int effectiveDefaultEnd() {
+        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE) ? CV_DEFAULT_END_COLOR : DEFAULT_END_COLOR;
+    }
+
+    /** Start colour for the offline/queued supporter shimmer, honouring {@code colorBlindMode}. */
+    public static int effectiveGreyStart() {
+        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE) ? CV_GREY_START_COLOR : DEFAULT_GREY_START_COLOR;
+    }
+
+    /** End colour for the offline/queued supporter shimmer, honouring {@code colorBlindMode}. */
+    public static int effectiveGreyEnd() {
+        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE) ? CV_GREY_END_COLOR : DEFAULT_GREY_END_COLOR;
+    }
 
     // ── Thread-local animation context ──────────────────────────────────
 
@@ -115,8 +145,8 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
 
                 int start, end;
                 if (isGreyMarker(style)) {
-                    start = DEFAULT_GREY_START_COLOR;
-                    end = DEFAULT_GREY_END_COLOR;
+                    start = effectiveGreyStart();
+                    end = effectiveGreyEnd();
                 } else {
                     start = startColor;
                     end = endColor;

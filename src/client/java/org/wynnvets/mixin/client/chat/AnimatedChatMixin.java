@@ -53,8 +53,8 @@ public class AnimatedChatMixin {
             GuiMessage.Line old = trimmedMessages.get(i);
             FormattedCharSequence animated = new AnimatedGradientSequence(
                     old.content(),
-                    AnimatedGradientSequence.DEFAULT_START_COLOR,
-                    AnimatedGradientSequence.DEFAULT_END_COLOR,
+                    AnimatedGradientSequence.effectiveDefaultStart(),
+                    AnimatedGradientSequence.effectiveDefaultEnd(),
                     AnimatedGradientSequence.DEFAULT_CYCLE_TIME_MS);
             trimmedMessages.set(i, new GuiMessage.Line(
                     old.addedTime(), animated, old.tag(), old.endOfEntry()));

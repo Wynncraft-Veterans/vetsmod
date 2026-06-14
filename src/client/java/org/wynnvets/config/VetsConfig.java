@@ -82,6 +82,12 @@ public class VetsConfig {
   /** Whether supporter animated gradient glints are shown on nametags and pills. */
   public static final String SHOW_SUPPORTER_GLINTS = "showSupporterGlints";
 
+  /** Whether to render glints (and other future colour-coded UI) with a colour-vision-deficiency
+   *  friendly palette: the supporter glint's two-colour shimmer keeps the cyan/blue family but
+   *  widens the luminance delta so the alternation is visible to protan/deutan users for whom
+   *  the default {@code 0x55FFFF ↔ 0xAADDFF} pair flattens to a single tone. Off by default. */
+  public static final String COLOR_BLIND_MODE = "colorBlindMode";
+
   /** Whether {@code ||spoiler||} markers are rendered as hoverable spoiler labels. */
   public static final String HANDLE_SPOILERS = "handleSpoilers";
 
@@ -144,6 +150,7 @@ public class VetsConfig {
       PRINT_BRIDGE_MESSAGES,
       PRINT_SUCCESSFUL_AUTH,
       SHOW_SUPPORTER_GLINTS,
+      COLOR_BLIND_MODE,
       HANDLE_SPOILERS,
       MORE_RELIABLE_GUILD_CHECK,
   };
@@ -285,6 +292,7 @@ public class VetsConfig {
     config.put(PRINT_BRIDGE_MESSAGES, true);
     config.put(PRINT_SUCCESSFUL_AUTH, true);
     config.put(SHOW_SUPPORTER_GLINTS, true);
+    config.put(COLOR_BLIND_MODE, false);
     config.put(MORE_RELIABLE_GUILD_CHECK, true);
 
     // Tri-state defaults (null = use default behaviour)

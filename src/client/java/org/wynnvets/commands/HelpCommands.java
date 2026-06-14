@@ -131,6 +131,12 @@ final class HelpCommands {
     msg.append(Component.literal("  Show supporter animated gradient glints on nametags\n")
         .withStyle(ChatFormatting.GRAY));
 
+    msg.append(Component.literal("colorBlindMode\n")
+        .withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal("  Use a higher-contrast colour pair for supporter glints "
+        + "so the shimmer is visible to red/green colour-blind users\n")
+        .withStyle(ChatFormatting.GRAY));
+
     msg.append(Component.literal("handleSpoilers\n")
         .withStyle(ChatFormatting.YELLOW));
     msg.append(Component.literal("  Render ||spoiler|| markers as hoverable spoiler labels\n")
