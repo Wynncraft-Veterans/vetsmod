@@ -35,14 +35,25 @@ import java.util.stream.Collectors;
  * Shared service for fetching and merging online guild member data.
  *
  * <p>Combines three sources — tab list, VetsMod server, Wynntils guild API —
- * into a unified online member list.  Used by both {@link ListFetcher}
- * and {@link WorldListFetcher}.
+ * into a unified online member list.  Used by {@link ListFetcher},
+ * {@link WorldListFetcher}, and (for its public cache surface only) by
+ * {@code PartyRosterListener} for {@code party_status} privacy gating.
+ *
+ * <p>Most of the surface is package-private (records, internals); only the
+ * narrow {@link #lastVetsTierUsernamesIfFreshOrNull} and
+ * {@link #refreshAsync} accessors are public, to keep the privacy-gating
+ * predicate from peeking at internal shapes.
  */
-final class OnlineMemberService {
+public final class OnlineMemberService {
 
     static final String TIER_GUILD = "guild";
     static final String TIER_WAITLIST = "waitlist";
     static final String TIER_HONOURARY = "honourary";
+
+    /** Vets cohort tiers — used both for the existing merge and the
+     *  privacy-gating cache. */
+    private static final Set<String> VETS_TIERS =
+            Set.of(TIER_GUILD, TIER_WAITLIST, TIER_HONOURARY);
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
@@ -51,7 +62,51 @@ final class OnlineMemberService {
 
     private static final Gson GSON = new Gson();
 
+    /** Last-good cache of vets-tier connected usernames (lowercase), populated
+     *  on every successful {@link #gatherOnlinePlayers()} completion. Empty
+     *  is a legitimate value (no vets-tier users connected); {@code null}
+     *  means "never populated". */
+    private static volatile Set<String> cachedVetsTierUsernames = null;
+    /** Wall-clock epoch-seconds when {@link #cachedVetsTierUsernames} was
+     *  last written. {@code 0} = never. */
+    private static volatile long cachedAtEpochSec = 0L;
+
     private OnlineMemberService() {
+    }
+
+    // ── Privacy-gating cache (public surface) ────────────────────────
+
+    /**
+     * Returns the lowercase usernames of vets-tier vetsmod-connected users
+     * if the cache was written within {@code maxAgeSec}; otherwise {@code
+     * null}. Used by {@code PartyRosterListener} to gate {@code party_status}
+     * sends without paying for a fresh fetch on every Wynntils party event.
+     *
+     * <p>The {@code null} return is the "cold cache" signal — callers should
+     * fire {@link #refreshAsync()} and skip the current send rather than
+     * over-collecting on a stale guess.
+     */
+    public static Set<String> lastVetsTierUsernamesIfFreshOrNull(long maxAgeSec) {
+        Set<String> snapshot = cachedVetsTierUsernames;
+        if (snapshot == null) return null;
+        long now = System.currentTimeMillis() / 1000L;
+        if ((now - cachedAtEpochSec) > maxAgeSec) return null;
+        return snapshot;
+    }
+
+    /**
+     * Fire-and-forget refresh of the cache. Triggers
+     * {@link #gatherOnlinePlayers()} in the background; errors and tab/
+     * Wynntils unavailability degrade silently the same way the existing
+     * callers tolerate them. Safe to call from any thread.
+     */
+    public static void refreshAsync() {
+        try {
+            gatherOnlinePlayers();
+        } catch (Exception e) {
+            VetsLogger.debug("OnlineMemberService refreshAsync failed: {}",
+                    e.getMessage());
+        }
     }
 
     // ── Data holders ────────────────────────────────────────────────
@@ -108,9 +163,27 @@ final class OnlineMemberService {
             guildFuture = CompletableFuture.completedFuture(null);
         }
 
-        // 4. Combine all three results.
+        // 4. Combine all three results, then warm the privacy-gating cache
+        // from the connected-users list before returning.
         return serverFuture.thenCombine(guildFuture,
-                (connected, guildInfo) -> merge(connected, guildInfo, tabEntries));
+                (connected, guildInfo) -> {
+                    updateVetsTierCache(connected);
+                    return merge(connected, guildInfo, tabEntries);
+                });
+    }
+
+    /** Index the just-fetched connected users into the vets-tier cache.
+     *  Empty results (no connected users, server down) still write an empty
+     *  set — that's a legitimate "nobody's online" cache value, not stale. */
+    private static void updateVetsTierCache(List<ConnectedUser> connected) {
+        Set<String> next = new java.util.HashSet<>();
+        for (ConnectedUser cu : connected) {
+            if (VETS_TIERS.contains(cu.tier())) {
+                next.add(cu.username().toLowerCase(Locale.ROOT));
+            }
+        }
+        cachedVetsTierUsernames = Set.copyOf(next);
+        cachedAtEpochSec = System.currentTimeMillis() / 1000L;
     }
 
     /**

@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.ChatFormatting;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.api.VetsApi;
+import org.wynnvets.fetcher.polling.AnniStampPoller;
 
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -47,6 +48,7 @@ public class StampFetcher {
           if (response.statusCode() == HttpURLConnection.HTTP_OK) {
             try {
               long stamp = Long.parseLong(response.body().trim());
+              AnniStampPoller.updateFromExternalFetch(stamp);
               return createMessageForStamp(stamp);
             } catch (NumberFormatException e) {
               VetsLogger.warn("Failed to parse annihilation stamp: {}", e.getMessage());
@@ -81,6 +83,7 @@ public class StampFetcher {
           if (response.statusCode() == HttpURLConnection.HTTP_OK) {
             try {
               long stamp = Long.parseLong(response.body().trim());
+              AnniStampPoller.updateFromExternalFetch(stamp);
               MutableComponent message = createMessageForStamp(stamp);
               if (message != null) {
                 return message;

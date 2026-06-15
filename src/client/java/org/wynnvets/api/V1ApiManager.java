@@ -428,6 +428,46 @@ public final class V1ApiManager {
     public record TabListEntry(String server, String username) {}
 
     /**
+     * Sends a {@code party_status} control frame describing the local player's
+     * current Wynncraft party roster (sourced from Wynntils' {@code PartyModel}).
+     * The server aggregates these reports across connected clients and exposes
+     * them via {@code /v1/outbound/party_status} so vets-anni can flip the
+     * dashboard from {@code ONLINE_WORLD} to {@code ONLINE_PARTY} once a
+     * party-assigned player has actually joined the host's MC party.
+     *
+     * <p>Names are sent verbatim — server-side resolves to UUIDs via the
+     * roster cache (same path the {@code !list} discord command uses for
+     * tab-only entries). An empty leader + empty members signals "I am not
+     * in a party right now," which is how disband / self-leave propagates
+     * (Wynntils has no dedicated event for those — see
+     * {@code PartyRosterListener}).</p>
+     *
+     * @param leaderName   the party leader's Minecraft username, or {@code ""} if not in a party
+     * @param memberNames  every party member's username (including the leader
+     *                     and the local player — Wynntils' convention), or empty list
+     */
+    public static void sendPartyStatus(String leaderName, List<String> memberNames) {
+        if (inboundClient == null || !inboundClient.isConnected()) {
+            return;
+        }
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "party_status");
+        payload.addProperty("leader_name", leaderName != null ? leaderName : "");
+        com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+        if (memberNames != null) {
+            for (String name : memberNames) {
+                if (name != null && !name.isEmpty()) {
+                    arr.add(name);
+                }
+            }
+        }
+        payload.add("member_names", arr);
+        inboundClient.send(payload);
+        VetsLogger.debug("Sent party_status: leader={}, members={}",
+                leaderName, arr.size());
+    }
+
+    /**
      * Routes a {@code staff_online} / {@code staff_offline} frame to
      * {@link StaffRanksPoller}. These deltas keep the receiver-side
      * staff-rank cache fresh between scheduled polls so the chat

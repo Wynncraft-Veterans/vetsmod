@@ -14,12 +14,14 @@ import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.walker.GuildLogWalker;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.distribute.walker.MembersListWalker;
+import org.wynnvets.fetcher.polling.AnniStampPoller;
 import org.wynnvets.fetcher.polling.GuildRosterCache;
 import org.wynnvets.fetcher.polling.WynnAliasCache;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.items.ItemDefinitions;
+import org.wynnvets.listeners.PartyRosterListener;
 import org.wynnvets.listeners.RankChangeListener;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.listeners.WynntilsEventListener;
@@ -72,6 +74,7 @@ public class VetsmodClient implements ClientModInitializer {
       GuildLogWalker.register();
       MemberSlotPresser.register();
       RankChangeListener.register();
+      PartyRosterListener.register();
       QueueDetector.register();
       QueueStateManager.addListener(new QueueStateListener() {
         @Override
@@ -96,6 +99,7 @@ public class VetsmodClient implements ClientModInitializer {
     OutboundDisplayHandler.register();
     SupportersPoller.start();
     StaffRanksPoller.start();
+    AnniStampPoller.start();
     GuildRosterCache.start();
     WynnAliasCache.start();
     ServerConnectionListener.register();
