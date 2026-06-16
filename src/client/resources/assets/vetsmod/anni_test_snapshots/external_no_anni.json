@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "mc_uuid": "00000000-0000-0000-0000-000000000002",
+  "mc_username": "ExternalUser",
+  "event": {
+    "stamp_epoch": null,
+    "announced": false,
+    "prediction": {
+      "earliest_epoch": 2000000000,
+      "median_epoch": 2000019080,
+      "latest_epoch": 2000038160,
+      "window_hours": 10.6
+    }
+  },
+  "registration": {
+    "registered": false,
+    "core": false,
+    "roles": []
+  },
+  "rsvp": null,
+  "board": {
+    "state": "unplaced",
+    "party": null,
+    "role": null,
+    "wont_reason": null
+  },
+  "attendance": {
+    "band": 1,
+    "label": "Most Unlikely",
+    "notice_effective": null
+  },
+  "organisers": []
+}

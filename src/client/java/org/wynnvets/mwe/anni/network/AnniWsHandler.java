@@ -16,17 +16,23 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * exclusive consumer model):</p>
  *
  * <ul>
- *   <li>{@code anni_state}: server-initiated push. Snapshot is dropped
- *       into {@link AnniSnapshotCache#update(AnniSnapshot)} so all
- *       subscribed surfaces re-render.</li>
- *   <li>{@code anni_query_response}: ack for an
+ *   <li>{@code anni_state} (outbound channel): server-initiated push.
+ *       Snapshot is dropped into
+ *       {@link AnniSnapshotCache#update(AnniSnapshot)} so all subscribed
+ *       surfaces re-render.</li>
+ *   <li>{@code anni_query_response} (inbound channel): ack for an
  *       {@link AnniQueryClient#query()} call. Routed to the next pending
- *       future in the query client's single-flight queue.</li>
+ *       future in the query client's single-flight queue. Lives on the
+ *       inbound channel because it's a request/response pair on the
+ *       same WS the request went out on.</li>
  * </ul>
  *
  * <p>Idempotent registration via the static {@link #register()} method —
  * call from {@link org.wynnvets.VetsmodClient#onInitializeClient()} after
- * {@code V1ApiManager.connect()}. Calling twice is a no-op.</p>
+ * {@code V1ApiManager.connect()}. Calling twice is a no-op. Subscribes
+ * to both inbound and outbound channels via
+ * {@link org.wynnvets.api.V1ApiManager#addInboundListener(java.util.function.Consumer)}
+ * and {@code addOutboundListener(...)}.</p>
  */
 public final class AnniWsHandler {
 
@@ -35,12 +41,13 @@ public final class AnniWsHandler {
     private AnniWsHandler() {
     }
 
-    /** Wire up the outbound listener. Safe to call repeatedly. */
+    /** Wire up the inbound + outbound listeners. Safe to call repeatedly. */
     public static void register() {
         if (registered) {
             return;
         }
         registered = true;
+        V1ApiManager.addInboundListener(AnniWsHandler::onInbound);
         V1ApiManager.addOutboundListener(AnniWsHandler::onOutbound);
         VetsLogger.debug("AnniWsHandler registered");
     }
@@ -49,11 +56,17 @@ public final class AnniWsHandler {
         if (json == null || !json.has("type")) {
             return;
         }
-        String type = json.get("type").getAsString();
-        switch (type) {
-            case "anni_state" -> handleAnniState(json);
-            case "anni_query_response" -> AnniQueryClient.onResponse(json);
-            default -> { /* not ours */ }
+        if ("anni_state".equals(json.get("type").getAsString())) {
+            handleAnniState(json);
+        }
+    }
+
+    private static void onInbound(JsonObject json) {
+        if (json == null || !json.has("type")) {
+            return;
+        }
+        if ("anni_query_response".equals(json.get("type").getAsString())) {
+            AnniQueryClient.onResponse(json);
         }
     }
 

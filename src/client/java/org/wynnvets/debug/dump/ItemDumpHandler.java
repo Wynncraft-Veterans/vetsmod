@@ -42,8 +42,10 @@ import java.util.List;
 
 /**
  * Dumps the full component tree of an {@link ItemStack} to a JSON file
- * under {@code vetsmod/dumps/}. Each invocation creates a new file so
- * multiple states of the same item can be compared side-by-side.
+ * under {@code vetsmod/dumps/items/}. Each invocation creates a new file
+ * so multiple states of the same item can be compared side-by-side.
+ * Sibling of {@code vetsmod/dumps/anni/} — every dump artifact lives
+ * under {@code vetsmod/dumps/} organised per-type.
  *
  * <p>This is a <b>debug-only</b> utility — not part of normal mod
  * functionality.  Activated via {@code /wv debug set itemDump true}
@@ -67,7 +69,7 @@ public final class ItemDumpHandler {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
-    private static final Path DUMP_DIR = FabricLoader.getInstance().getGameDir().resolve("vetsmod/dumps");
+    private static final Path DUMP_DIR = FabricLoader.getInstance().getGameDir().resolve("vetsmod/dumps/items");
 
     private ItemDumpHandler() {}
 

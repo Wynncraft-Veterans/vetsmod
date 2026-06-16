@@ -48,6 +48,14 @@ public final class V1ApiManager {
 
     private static final CopyOnWriteArrayList<Consumer<JsonObject>> outboundListeners = new CopyOnWriteArrayList<>();
 
+    /** Listeners that receive every typed inbound frame. V1ApiManager's own
+     *  inbound handler only processes ``{"status":...}``-shaped acks (auth,
+     *  staff-action, chat); anything carrying a ``type`` field is a typed
+     *  response and gets fanned out here so consumers (currently:
+     *  {@link org.wynnvets.mwe.anni.network.AnniWsHandler}) can route by
+     *  type. Symmetric to {@link #outboundListeners}. */
+    private static final CopyOnWriteArrayList<Consumer<JsonObject>> inboundListeners = new CopyOnWriteArrayList<>();
+
     /** FIFO queue of callbacks awaiting a staff-action ack frame. Each
      *  outgoing caution_check / caution_add / warn_add / eject_add frame
      *  enqueues one callback; each incoming ack with a staff-action
@@ -76,6 +84,24 @@ public final class V1ApiManager {
 
         URI inboundUri = URI.create(INBOUND_BASE + "?version=" + getModVersion());
         inboundClient = new WsClient(inboundUri, "inbound", json -> {
+            // Typed inbound frames (carrying a `type` field, no `status`)
+            // are server replies whose contract has a dedicated response
+            // shape rather than the generic {"status":...} ack. Fan them
+            // out to registered inbound listeners — V1ApiManager doesn't
+            // know about specific MWE/feature types here. Symmetric to
+            // the outbound listener fan-out below.
+            if (json.has("type")) {
+                for (Consumer<JsonObject> listener : inboundListeners) {
+                    try {
+                        listener.accept(json);
+                    } catch (Exception e) {
+                        VetsLogger.warn("Inbound listener error: {}",
+                                e.getMessage());
+                    }
+                }
+                return;
+            }
+
             // Acknowledgements from the server. Auth-frame responses share
             // the {"status":...} shape with chat acks; we route them based on
             // whether an auth was the most recent frame we sent (and on the
@@ -547,6 +573,29 @@ public final class V1ApiManager {
     /** Removes a previously registered outbound listener. */
     public static void removeOutboundListener(Consumer<JsonObject> listener) {
         outboundListeners.remove(listener);
+    }
+
+    /**
+     * Registers a listener that receives every typed inbound frame (any
+     * frame carrying a {@code type} field). Listeners are invoked on the
+     * WebSocket reader thread; bounce to the main thread via
+     * {@code Minecraft.getInstance().execute(...)} for any work that
+     * touches game state.
+     *
+     * <p>V1ApiManager's own inbound routing handles only
+     * {@code {"status":...}}-shaped acks (auth, staff-action, chat).
+     * Anything with a {@code type} field is fanned out to these
+     * listeners. Listeners MUST filter by type — they will see every
+     * typed inbound frame, including frames from features they don't
+     * own.</p>
+     */
+    public static void addInboundListener(Consumer<JsonObject> listener) {
+        inboundListeners.add(listener);
+    }
+
+    /** Removes a previously registered inbound listener. */
+    public static void removeInboundListener(Consumer<JsonObject> listener) {
+        inboundListeners.remove(listener);
     }
 
     /**

@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "mc_uuid": "00000000-0000-0000-0000-000000000003",
+  "mc_username": "TestMember",
+  "event": {
+    "stamp_epoch": 2000000000,
+    "announced": true,
+    "prediction": null
+  },
+  "registration": {
+    "registered": true,
+    "core": true,
+    "roles": [
+      {
+        "role": "TANK",
+        "title": "Tank (Party Tank)",
+        "url": "https://www.wynnvets.org/docs/guild/anni/#tank"
+      }
+    ]
+  },
+  "rsvp": {
+    "notice": "hard",
+    "updated_at": 1999900000,
+    "revoked": false
+  },
+  "board": {
+    "state": "party",
+    "party": {
+      "ordinal": 2,
+      "world": "EU5",
+      "result": null,
+      "host": {
+        "uuid": "00000000-0000-0000-0000-0000000000aa",
+        "username": "OrganiserAlpha"
+      },
+      "members": [
+        {
+          "uuid": "00000000-0000-0000-0000-0000000000aa",
+          "username": "OrganiserAlpha",
+          "role": "PRIMARY"
+        },
+        {
+          "uuid": "00000000-0000-0000-0000-000000000003",
+          "username": "TestMember",
+          "role": "TANK"
+        },
+        {
+          "uuid": "00000000-0000-0000-0000-0000000000b1",
+          "username": "PartyHealer",
+          "role": "HEALER"
+        },
+        {
+          "uuid": "00000000-0000-0000-0000-0000000000b2",
+          "username": "PartySun",
+          "role": "SECONDARY"
+        },
+        {
+          "uuid": "00000000-0000-0000-0000-0000000000b3",
+          "username": "PartyMobs",
+          "role": "TERTIARY"
+        },
+        {
+          "uuid": "00000000-0000-0000-0000-0000000000b4",
+          "username": "FillRecruit",
+          "role": "FILL"
+        }
+      ]
+    },
+    "role": "TANK",
+    "wont_reason": null
+  },
+  "attendance": {
+    "band": 6,
+    "label": "Most Likely",
+    "notice_effective": "rsvp_hard"
+  },
+  "organisers": [
+    "00000000-0000-0000-0000-0000000000aa"
+  ]
+}
