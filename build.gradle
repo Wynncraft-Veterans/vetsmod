@@ -104,6 +104,12 @@ jar {
 	}
 }
 
+// Optional per-developer extensions (e.g. deploy-to-launcher tasks).
+// See local.gradle.example for the pattern.
+if (file('local.gradle').exists()) {
+	apply from: 'local.gradle'
+}
+
 // configure the maven publication
 publishing {
 	publications {

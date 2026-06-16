@@ -17,6 +17,7 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.debug.diagnostics.DiagnosticsHandler;
 import org.wynnvets.debug.dump.TabDumpHandler;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.mwe.anni.debug.AnniDebugCommands;
 
 /**
  * Builds the entire {@code /wv debug} command subtree.
@@ -96,7 +97,8 @@ public final class DebugCommands {
                 .then(ClientCommandManager.literal("tabDump")
                     .executes(ctx -> { TabDumpHandler.execute(); return 1; })
                 )
-            );
+            )
+            .then(AnniDebugCommands.buildCommandTree());
     }
 
     // ── /wv debug set handlers ──────────────────────────────────────

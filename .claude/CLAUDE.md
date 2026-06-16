@@ -129,6 +129,16 @@ Wynntils fires `ChatMessageEvent.Match` → rewriters (`SpoilerRewriter`, `Staff
 ./gradlew runClient      # launches Minecraft with the mod loaded
 ```
 
+If a gitignored `local.gradle` is present (see `local.gradle.example`), `./gradlew build` is wired via `build.finalizedBy 'deployToPrism'` to also drop `vetsmod-dev.jar` into the developer's PrismLauncher mods folder, scrubbing prior `vetsmod-*.jar` to avoid duplicate-mod-ID load failures. Restart Minecraft to pick up changes — Fabric mods can't hot-reload mixins or registries.
+
+**Sanity-check builds must NOT touch the live mods folder.** If the goal is verifying a change compiles, type-checks, or passes tests — anything short of "the user is actively iterating on the mod in MC right now" — use one of these instead, since the user's Wynntils instance may be in active use and they don't want their session interrupted by a swapped jar:
+
+- `./gradlew build -x deployToPrism` — full build, skips the deploy hook
+- `./gradlew compileJava compileClientJava` — compile-only, fastest
+- `./gradlew test` — tests are unaffected by the deploy hook
+
+Only use the deploying form (`./gradlew build`) when the user has explicitly asked for an end-to-end build-and-deploy, or is mid-iteration on the mod.
+
 ## External name-resolution providers
 
 Reliability ladder: `ashcon < wynncraft < playerdb < mojang`.

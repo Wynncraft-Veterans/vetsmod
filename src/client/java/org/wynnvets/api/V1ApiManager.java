@@ -156,6 +156,19 @@ public final class V1ApiManager {
                 // receiver-side staff cache as soon as auth completes.
                 StaffRanksPoller.refreshNow();
                 GuildStateManager.onAuthSuccess(tier);
+                // MWE auto-enable: a tier-vets user (member/waitlist/
+                // honourary) gets the anni subsystem on for free. Don't
+                // disable on tier downgrade — the user may have toggled
+                // it on manually and we don't want to override that. The
+                // tier downgrade itself will gate eligibility server-side.
+                if (("member".equals(tier) || "waitlist".equals(tier)
+                        || "honourary".equals(tier))
+                        && !VetsConfig.get(VetsConfig.VETS_ANNI_ENABLED)) {
+                    VetsConfig.set(VetsConfig.VETS_ANNI_ENABLED, true);
+                    VetsLogger.debug(
+                            "vetsAnniEnabled auto-set on tier={} auth ack",
+                            tier);
+                }
                 return;
             }
             if (!"ok".equals(status)) {
@@ -426,6 +439,38 @@ public final class V1ApiManager {
 
     /** Lightweight record for tab list entries sent to the server. */
     public record TabListEntry(String server, String username) {}
+
+    /**
+     * Sends an {@code anni_query} control frame to the server.
+     *
+     * <p>The frame body omits {@code mc_uuid} — the server falls back to
+     * the authenticated session's identity, so a key-authed vetsmod
+     * client always asks "give me my own snapshot." (Unauthenticated
+     * sessions get an {@code error: "mc_uuid required"} response, which
+     * surfaces as a null snapshot via {@link org.wynnvets.mwe.anni.network.AnniQueryClient#query()}.)</p>
+     *
+     * <p>The actual single-flight queue + response routing lives in
+     * {@link org.wynnvets.mwe.anni.network.AnniQueryClient}; this method
+     * just dispatches the frame and reports whether it went out. The
+     * dedicated frame type ({@code anni_query_response}) means we don't
+     * need to share the staff-action callback queue or expose extra
+     * state-shaping hooks here — the V1 outbound listener fans the ack
+     * straight to {@code AnniQueryClient} via {@code AnniWsHandler}.</p>
+     *
+     * @return true iff the frame was actually sent (inbound connection up);
+     *         false when the caller must fall back to a null snapshot.
+     */
+    public static boolean sendAnniQuery() {
+        if (inboundClient == null || !inboundClient.isConnected()) {
+            VetsLogger.debug("sendAnniQuery: inbound not connected");
+            return false;
+        }
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "anni_query");
+        inboundClient.send(payload);
+        VetsLogger.debug("Sent anni_query");
+        return true;
+    }
 
     /**
      * Sends a {@code party_status} control frame describing the local player's

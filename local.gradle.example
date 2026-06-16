@@ -1,0 +1,23 @@
+// Copy to `local.gradle` (gitignored) and edit the path for your launcher.
+// Auto-deploys the built jar with a stable filename, so `./gradlew build`
+// is the only command needed to push changes into your Minecraft instance.
+//
+// Restart Minecraft to pick up changes — Fabric mods can't hot-reload mixins
+// or registry hooks.
+
+def prismMods = file("C:/path/to/PrismLauncher/instances/<instance>/minecraft/mods")
+
+tasks.register('deployToPrism', Copy) {
+	dependsOn remapJar
+	// Scrub any older vetsmod-*.jar so Fabric doesn't refuse to load on
+	// duplicate mod IDs (e.g. previously-deployed versioned jars).
+	doFirst {
+		delete fileTree(prismMods) {
+			include "${archives_base_name}-*.jar"
+		}
+	}
+	from "$buildDir/libs/${archives_base_name}-${mod_version}.jar"
+	into prismMods
+	rename { "${archives_base_name}-dev.jar" }
+}
+build.finalizedBy 'deployToPrism'

@@ -40,6 +40,9 @@ debug.log
 /.temp/
 /temp/
 
+# --- Per-developer gradle extensions (see local.gradle.example) ---
+/local.gradle
+
 # --- Claude Code state ---
 # Track curated project docs in .claude/, but skip per-user state and ephemeral
 # task notes. The README inside ephemeral/ is committed so the convention is

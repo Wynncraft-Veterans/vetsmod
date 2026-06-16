@@ -26,6 +26,7 @@ import org.wynnvets.listeners.RankChangeListener;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.listeners.WynntilsEventListener;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.network.AnniWsHandler;
 import org.wynnvets.queue.QueueDetector;
 import org.wynnvets.queue.QueueStateListener;
 import org.wynnvets.queue.QueueStateManager;
@@ -97,6 +98,7 @@ public class VetsmodClient implements ClientModInitializer {
 
     V1ApiManager.connect();
     OutboundDisplayHandler.register();
+    AnniWsHandler.register();
     SupportersPoller.start();
     StaffRanksPoller.start();
     AnniStampPoller.start();

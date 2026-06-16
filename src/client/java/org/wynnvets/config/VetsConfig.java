@@ -52,6 +52,20 @@ public class VetsConfig {
   public static final String VETS_LAST_GUILD_CHECK = "vetsLastGuildCheck";
   public static final String VETS_DEBUG_ENABLED_AT = "vetsDebugEnabledAt";
 
+  /** Master toggle for the MWE (Major World Event / anni) integration —
+   *  the snapshot listener, anni-aware {@code /wv anni} renderer, boss bar
+   *  (S3), outlines (S4), etc. Off by default. Auto-set to {@code true}
+   *  on the first successful auth ack whose tier ∈ {@code {member,
+   *  waitlist, honourary}}, so vets players just get the enriched view
+   *  without a manual toggle. Non-vets users can still opt in via
+   *  {@code /wv config vetsAnniEnabled true} if they want the on-demand
+   *  pull (Hard Rule #3: pulls are open to anyone).
+   *
+   *  Internal-only — not in {@link #USER_CONFIG_KEYS} because S1 doesn't
+   *  yet ship the {@code /wv config} grouping promoted in the MWE plan.
+   *  S2+ promotes this and adds the per-mode trees. */
+  public static final String VETS_ANNI_ENABLED = "vetsAnniEnabled";
+
   // ── Vetsmod /unlock <key> auth state ─────────────────────────────────
   /** Bearer key issued by dazebot's /vetsmod command and stored on disk so
    *  it survives mod restarts. Sent in an `auth` frame on every WebSocket
@@ -278,6 +292,7 @@ public class VetsConfig {
     longConfig.put(VETS_GUILD_CHECK_RESULT, 0L);
     longConfig.put(VETS_LAST_GUILD_CHECK, 0L);
     longConfig.put(VETS_DEBUG_ENABLED_AT, 0L);
+    config.put(VETS_ANNI_ENABLED, false);
 
     // /unlock <key> auth state — keys are persisted strings, the timestamp
     // is a long. Defaults to empty key + epoch=0 = "never authenticated".
