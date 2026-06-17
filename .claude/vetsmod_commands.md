@@ -38,8 +38,16 @@ Unlocked. [CommandRegistry.java:209-220](src/client/java/org/wynnvets/commands/C
 ### /wv motd
 Vet. [CommandRegistry.java:184-202](src/client/java/org/wynnvets/commands/CommandRegistry.java#L184-L202). Returns guild MOTD (`VetsApi.GUILD_MOTD`) for Returners/waitlist/honourary, else plain MOTD.
 
-### /wv anni
-Public. [CommandRegistry.java:256-268](src/client/java/org/wynnvets/commands/CommandRegistry.java#L256-L268). GETs `VetsApi.STAMP` (Unix seconds), formats countdown. Less than 1 hour: red `Annihilation is in X mins!`; 1+ hours: `Annihilation returns in X hours Y mins!`; past: "not announced".
+### /wv anni [silent | passive | aggressive]
+Public. [CommandRegistry.java](src/client/java/org/wynnvets/commands/CommandRegistry.java). Dispatches via [StampFetcher.fetchStampAndCreateAnniCommandMessage()](src/client/java/org/wynnvets/fetcher/ondemand/StampFetcher.java):
+
+- **Snapshot-driven (S2):** when `vetsAnniEnabled` is on and `AnniSnapshotCache.latest()` is non-null, renders the rich multi-section view via [AnniCommandRenderer](src/client/java/org/wynnvets/mwe/anni/render/AnniCommandRenderer.java). Three sub-branches:
+  - *Not announced* — `\guess`-style prediction window (earliest/median/latest), registration status, role chips or registration nudge. Prediction gated by `vetsAnniShowPrediction`.
+  - *Announced 2h+ out* — relative countdown, role chips, RSVP widget, attendance bar, board state. When assigned to a party also surfaces party ordinal, role, world, host.
+  - *Announced within 2h* — compact status row + `[silent] [passive] [aggressive]` suggest-command widget. The mode literals are S2 stubs (real wiring in S3).
+- **Legacy fallback:** when `vetsAnniEnabled` is off or no snapshot is cached, GETs `VetsApi.STAMP` (Unix seconds) and formats the original countdown. Less than 1 hour: red `Annihilation is in X mins!`; 1+ hours: `Annihilation returns in X hours Y mins!`; past: `The time for the next annihilation has not yet been announced`.
+
+`silent`/`passive`/`aggressive` — route through [`AnniModeManager.transitionTo`](src/client/java/org/wynnvets/mwe/anni/mode/AnniModeManager.java). Refused when `Models.StreamerMode.isInStream()` OR the chat-line [`StreamerModeChatDetector`](src/client/java/org/wynnvets/mwe/anni/mode/StreamerModeChatDetector.java) signals stream-on (spec §3.1: silent is the ONLY mode allowed with `/stream`). Successful transitions update `vetsAnniMode`; the [`VetsBossBarManager`](src/client/java/org/wynnvets/mwe/anni/bossbar/VetsBossBarManager.java) tick-loop picks up the change on the next tick.
 
 ### /wv config [<key> [<value>]]
 No permission. [ConfigCommands.java:78-347](src/client/java/org/wynnvets/commands/ConfigCommands.java#L78-L347). Three forms:

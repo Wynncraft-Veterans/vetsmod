@@ -10,7 +10,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.Prepend;
 import org.wynnvets.chat.dispatcher.CommandDispatcher;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
@@ -498,21 +497,24 @@ public class GuildStateManager {
           || (isGuildless() && isWaitlistUnlocked())
           || isHonouraryUnlocked();
 
+      // Use NewBlock so the motd gets a fresh full [VETSMOD] badge —
+      // it visually separates from the anni-motd block that follows
+      // (rather than the two collapsing into one compact-badged run).
       if (useGuildMotd) {
         MotdFetcher.fetchGuildMotd().thenAccept(guildMotdComponent -> {
           String text = guildMotdComponent.getString();
           if (text != null && !text.isEmpty()) {
-            ChatUtils.sendLocalMessage(guildMotdComponent, Prepend.DEFAULT);
+            ChatUtils.sendLocalMessageNewBlock(guildMotdComponent);
           } else {
             // Fall back to standard MOTD if guild MOTD is empty
             MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
-              ChatUtils.sendLocalMessage(motdComponent, Prepend.DEFAULT);
+              ChatUtils.sendLocalMessageNewBlock(motdComponent);
             });
           }
         });
       } else {
         MotdFetcher.fetchMotd().thenAccept(motdComponent -> {
-          ChatUtils.sendLocalMessage(motdComponent, Prepend.DEFAULT);
+          ChatUtils.sendLocalMessageNewBlock(motdComponent);
         });
       }
     }
@@ -543,7 +545,9 @@ public class GuildStateManager {
       StampFetcher.fetchStampAndCreateMessage().thenAccept(stampMessage -> {
         if (stampMessage != null) {
           VetsLogger.debug("Displaying annihilation countdown");
-          ChatUtils.sendLocalMessage(stampMessage, Prepend.DEFAULT);
+          // NewBlock so the anni-motd gets a fresh full [VETSMOD] badge
+          // — visually separates it from the guild motd above.
+          ChatUtils.sendLocalMessageNewBlock(stampMessage);
         }
       });
     }

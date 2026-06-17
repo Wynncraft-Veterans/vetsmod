@@ -54,6 +54,14 @@ final class ConfigCommands {
               for (String s : VetsConfig.VALID_SPRITES) {
                 if (s.startsWith(partial)) builder.suggest(s);
               }
+            } else if (key.equals(VetsConfig.VETS_ANNI_ROLE_STYLE)) {
+              for (String s : VetsConfig.VALID_ROLE_STYLES) {
+                if (s.startsWith(partial)) builder.suggest(s);
+              }
+            } else if (key.equals(VetsConfig.VETS_ANNI_MODE)) {
+              for (String s : VetsConfig.VALID_ANNI_MODES) {
+                if (s.startsWith(partial)) builder.suggest(s);
+              }
             } else {
               // Colour name keys (gradient top/bottom, foreground color)
               for (String name : VetsConfig.getColorNames()) {

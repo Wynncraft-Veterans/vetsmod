@@ -16,6 +16,7 @@ import org.wynnvets.chat.rewriter.StaffChannelMessageRewriter;
 import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
 import org.wynnvets.chat.dispatcher.CommandDispatcher;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.mode.StreamerModeChatDetector;
 
 /**
  * Intercepts all incoming chat messages via {@link ChatComponent#addMessage}.
@@ -31,6 +32,12 @@ public class ChatLogMixin {
   @Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;)V", at = @At("HEAD"), cancellable = true)
   private void onChatMessage(Component message, CallbackInfo ci) {
     String messageString = message.getString();
+
+    // /stream-mode chat-line detector — belt-and-braces backup for
+    // Wynntils' Models.StreamerMode signal (boss-bar.md §3 Option B
+    // mitigation 1). Auto-flips an active anni mode to silent on
+    // detected stream-on.
+    StreamerModeChatDetector.observe(message);
 
     // Skip logging for mod-injected messages (bridge display, rewritten chat, etc.)
     // to prevent a feedback loop where displayed bridge messages are re-sent to the API.

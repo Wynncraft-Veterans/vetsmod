@@ -12,6 +12,8 @@
 		"CommandSuggestionsMixin",
 		"NametagMixin",
 		"QueueTitleMixin",
+		"BossHealthOverlayMixin",
+		"accessors.BossHealthOverlayAccessor",
 		"command.UnlockCommandMixin"
 	],
 	"injectors": {

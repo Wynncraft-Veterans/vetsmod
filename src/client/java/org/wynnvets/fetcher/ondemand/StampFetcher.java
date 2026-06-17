@@ -7,7 +7,13 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.ChatFormatting;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.api.VetsApi;
+import org.wynnvets.config.VetsConfig;
 import org.wynnvets.fetcher.polling.AnniStampPoller;
+import org.wynnvets.mwe.anni.network.AnniQueryClient;
+import org.wynnvets.mwe.anni.render.AnniCommandRenderer;
+import org.wynnvets.mwe.anni.render.AnniMotdRenderer;
+import org.wynnvets.mwe.anni.state.AnniSnapshot;
+import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -15,15 +21,34 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * On-demand fetcher for the annihilation event countdown timer.
  *
- * <p>Parses the epoch-seconds timestamp from the VetsMod API and formats
- * it as either a long-form or short-form countdown message depending on
- * the remaining time. Used by both {@code /wv anni} and the auto-display
- * stamp message on world join.</p>
+ * <p>Two callers:</p>
+ * <ul>
+ *   <li>{@link #fetchStampAndCreateMessage()} — invoked by the world-join
+ *       auto-display path ({@code GuildStateManager.fetchAndDisplayStampMessage}).
+ *       Prefers {@link AnniMotdRenderer} (snapshot-driven, condensed) when
+ *       a cached snapshot is present <em>and</em> {@code vetsAnniEnabled}
+ *       is true; otherwise falls back to {@link #fetchSimple()} — the legacy
+ *       stamp-only text. This keeps the world-join behaviour for external
+ *       users completely unchanged.</li>
+ *   <li>{@link #fetchStampAndCreateAnniCommandMessage()} — invoked by
+ *       {@code /wv anni} (no args). Prefers {@link AnniCommandRenderer}
+ *       when a cached snapshot is present; otherwise falls back to the
+ *       legacy stamp message, with the past-stamp branch expanded to
+ *       the legacy "not announced" string. Per spec, the manual
+ *       invocation never returns null — it always has something to say.</li>
+ * </ul>
+ *
+ * <p>S2's snapshot path requires the MWE master toggle to be on. S1
+ * auto-enables {@link VetsConfig#VETS_ANNI_ENABLED} for vets-tier users on
+ * the first auth ack; everyone else can opt in via
+ * {@code /wv config vetsAnniEnabled true} if they want the enriched
+ * view (Hard Rule #3: pulls are open to anyone).</p>
  */
 public class StampFetcher {
   private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
@@ -32,11 +57,101 @@ public class StampFetcher {
       .build();
 
   /**
-   * Fetches the stamp from the API and returns an appropriate message component
+   * Auto-display path (world-join). Returns the snapshot-driven motd
+   * line when available, else the legacy stamp-only message.
    *
-   * @return CompletableFuture containing the message Component, or null if no message should be displayed
+   * @return CompletableFuture containing the message Component, or null
+   *         if nothing should be displayed (e.g. stamp in past + no
+   *         snapshot)
    */
   public static CompletableFuture<MutableComponent> fetchStampAndCreateMessage() {
+    if (anniIntegrationActive()) {
+      AnniSnapshot snapshot = AnniSnapshotCache.latest();
+      if (snapshot != null) {
+        MutableComponent line = AnniMotdRenderer.render(snapshot);
+        if (line != null) {
+          return CompletableFuture.completedFuture(line);
+        }
+        // The renderer suppresses itself when no confirmed future stamp
+        // exists (spec §"For external users"). Fall through to the
+        // legacy stamp path, which also suppresses past stamps —
+        // matches the spec exactly.
+      }
+    }
+    return fetchSimple();
+  }
+
+  /**
+   * /wv anni (manual). Returns one or more snapshot-driven blocks, or
+   * the legacy stamp message + "not announced" fallback as a single
+   * block. Each list element is rendered as its own {@code [VETSMOD]}
+   * chat block by the caller — the imminent (within-2h) render uses
+   * this to break the mode-switch UI out into its own prefixed block.
+   *
+   * <p>Returns {@code null} from the future when nothing is available
+   * (parse failures, request errors). Empty lists are never returned —
+   * the renderer either produces ≥1 element or returns {@code null} to
+   * signal "fall back to legacy."</p>
+   */
+  public static CompletableFuture<List<MutableComponent>> fetchStampAndCreateAnniCommandMessage() {
+    if (anniIntegrationActive()) {
+      AnniSnapshot cached = AnniSnapshotCache.latest();
+      if (cached != null) {
+        List<MutableComponent> rendered = AnniCommandRenderer.render(cached);
+        if (rendered != null) {
+          return CompletableFuture.completedFuture(rendered);
+        }
+        // The renderer returns null for external + announced (the
+        // anni.wynnvets.org dashboard is reserved for vets-anni users);
+        // fall through to the legacy stamp text, which matches the
+        // spec's "keep wv anni as is" for external users.
+        return legacyFallback();
+      }
+      // Cache cold — try a fresh on-demand pull before giving up.
+      // This is the standard cold-start path: vetsmod just logged in,
+      // the push poller hasn't ticked yet, but the user invoked the
+      // command. AnniQueryClient.query() resolves null when the
+      // inbound WS is down or the player isn't in vets-anni's DB
+      // (e.g. an external user); both cases drop to legacy.
+      return AnniQueryClient.query().thenCompose(pulled -> {
+        if (pulled != null) {
+          List<MutableComponent> rendered = AnniCommandRenderer.render(pulled);
+          if (rendered != null) {
+            return CompletableFuture.completedFuture(rendered);
+          }
+        }
+        return legacyFallback();
+      });
+    }
+    return legacyFallback();
+  }
+
+  /** Shared legacy fallback returning the stamp/"not announced" line
+   *  as a single-element list. {@code null} from the future when the
+   *  stamp is missing AND the cache poller has nothing either (true
+   *  cold start with network errors). */
+  private static CompletableFuture<List<MutableComponent>> legacyFallback() {
+    return fetchSimple().thenApply(message -> {
+      if (message != null) {
+        return List.of(message);
+      }
+      long stamp = AnniStampPoller.getLatestStamp();
+      if (stamp == 0L || isStampInPast(stamp)) {
+        return List.of((MutableComponent) Component.literal(
+                "The time for the next annihilation has not yet been announced")
+            .withStyle(ChatFormatting.RED));
+      }
+      return null;
+    });
+  }
+
+  /**
+   * Legacy stamp-only fetcher (the pre-S2 behaviour). Issues a GET to
+   * {@code /v1/outbound/stamp}, parses the epoch-seconds, and returns
+   * either a long-form or short-form countdown Component. Null when
+   * the stamp is past, missing, or the request errors.
+   */
+  public static CompletableFuture<MutableComponent> fetchSimple() {
     HttpRequest request = HttpRequest.newBuilder()
         .uri(VetsApi.STAMP)
         .timeout(Duration.ofSeconds(5))
@@ -65,48 +180,11 @@ public class StampFetcher {
         });
   }
 
-  /**
-   * Fetches the stamp from the API and returns a message for /wv anni.
-   * If the stamp is in the past, returns a specific "not announced" message.
-   *
-   * @return CompletableFuture containing the message Component, or null when unavailable
-   */
-  public static CompletableFuture<MutableComponent> fetchStampAndCreateAnniCommandMessage() {
-    HttpRequest request = HttpRequest.newBuilder()
-        .uri(VetsApi.STAMP)
-        .timeout(Duration.ofSeconds(5))
-        .GET()
-        .build();
-
-    return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-        .thenApply(response -> {
-          if (response.statusCode() == HttpURLConnection.HTTP_OK) {
-            try {
-              long stamp = Long.parseLong(response.body().trim());
-              AnniStampPoller.updateFromExternalFetch(stamp);
-              MutableComponent message = createMessageForStamp(stamp);
-              if (message != null) {
-                return message;
-              }
-
-              if (isStampInPast(stamp)) {
-                return Component.literal("The time for the next annihilation has not yet been announced");
-              }
-
-              return null;
-            } catch (NumberFormatException e) {
-              VetsLogger.warn("Failed to parse annihilation stamp: {}", e.getMessage());
-              return null;
-            }
-          } else {
-            VetsLogger.warn("Failed to fetch annihilation stamp (Status: {})", response.statusCode());
-            return null;
-          }
-        })
-        .exceptionally(e -> {
-          VetsLogger.error("Error fetching annihilation stamp: {}", e.getMessage());
-          return null;
-        });
+  /** True when the S2 snapshot-driven path is allowed to short-circuit
+   *  the legacy stamp call. Gated by the master MWE toggle so non-vets
+   *  users keep the unchanged legacy experience until they opt in. */
+  private static boolean anniIntegrationActive() {
+    return VetsConfig.get(VetsConfig.VETS_ANNI_ENABLED);
   }
 
   /**

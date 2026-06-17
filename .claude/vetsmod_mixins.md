@@ -1,12 +1,12 @@
 ---
 name: vetsmod Mixins Reference
-description: All 10 mixin classes — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy) and the three top-level mixins.
+description: All 12 mixin classes — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy, accessors) and the top-level mixins.
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Mixins Reference
 
-10 mixins total, all client-side (under `src/client/java/org/wynnvets/mixin/client/`). Authoritative list: [src/client/resources/vetsmod.client.mixins.json](src/client/resources/vetsmod.client.mixins.json). Grouped by subpackage below.
+12 mixins total, all client-side (under `src/client/java/org/wynnvets/mixin/client/`). Authoritative list: [src/client/resources/vetsmod.client.mixins.json](src/client/resources/vetsmod.client.mixins.json). Grouped by subpackage below.
 
 ## Chat (3)
 
@@ -90,6 +90,22 @@ These three live directly under `mixin/client/` rather than a subpackage. They'r
 - **Purpose:** Feeds the raw title text into [`QueueDetector.handleTitleText`](src/client/java/org/wynnvets/queue/QueueDetector.java) so we can detect the `Queueing for XX##.` queue title.
 - **Why:** Reads the packet directly at the network handler — robust against other mods (e.g. WynnLimbo) that inject earlier and cancel Wynntils' `TitleSetTextEvent` before vetsmod would see it.
 
+### BossHealthOverlayMixin
+[src/client/java/org/wynnvets/mixin/client/BossHealthOverlayMixin.java](src/client/java/org/wynnvets/mixin/client/BossHealthOverlayMixin.java)
+- **Target:** `@Mixin(value = BossHealthOverlay.class, priority = 500)`
+- **Method:** `render(GuiGraphics)`; `@Redirect` on `Ljava/util/Map;values()Ljava/util/Collection;`
+- **Purpose:** While `VetsBossBarManager.isActive()`, replace the `events.values()` iteration with a single-element collection holding only our synthetic bar (or empty if it isn't present); otherwise pass through the full collection. Vanilla render still iterates and positions normally — it just sees one entry.
+- **Why:** Earlier S3 design cancelled `update(ClientboundBossEventPacket)` and called `events.clear()` on activation (Option B per `boss-bar.md` §3). That left the server's view inconsistent with the local map — subsequent UpdateProgress / UpdateName packets dereferenced `null` in vanilla's `events.get(uuid).setName(...)` and crashed the client (reproduced 2026-06-16). Filtering on the render side lets vanilla + Wynntils track bars normally; Wynntils' `Models.StreamerMode.isInStream()` works without the let-through hack.
+
+## Accessors (1)
+
+### accessors.BossHealthOverlayAccessor
+[src/client/java/org/wynnvets/mixin/client/accessors/BossHealthOverlayAccessor.java](src/client/java/org/wynnvets/mixin/client/accessors/BossHealthOverlayAccessor.java)
+- **Target:** `@Mixin(BossHealthOverlay.class)` (interface)
+- **Field:** `@Accessor("events") Map<UUID, LerpingBossEvent> getEvents()`
+- **Purpose:** Lets `VetsBossBarManager` insert and remove its synthetic `LerpingBossEvent` directly in the overlay's tracked map without going through the vanilla packet pipeline (which is cancelled by `BossHealthOverlayMixin`).
+- **Why:** Wynntils already replaces the `events` field with a `ConcurrentHashMap` in its own mixin's `<init>` injector, so our reads/writes from the tick driver are thread-safe relative to vanilla and Wynntils render-thread access.
+
 ## Items (beyond legacy)
 
 No non-legacy item mixins. All item behaviour lives in:
@@ -104,6 +120,7 @@ No non-legacy item mixins. All item behaviour lives in:
 | Mixin | Priority |
 |-------|----------|
 | `QueueTitleMixin` | 500 (very high — fires before other title mixins) |
+| `BossHealthOverlayMixin` | 500 (so we cancel before Wynntils sees the packet) |
 | `NametagMixin` | 900 (before Wynntils default 1000) |
 | All other mixins | Default 1000 |
 

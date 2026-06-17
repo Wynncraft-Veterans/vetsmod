@@ -20,6 +20,8 @@ import org.wynnvets.fetcher.ondemand.StampFetcher;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.fetcher.ondemand.WorldListFetcher;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.mwe.anni.mode.AnniMode;
+import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.rendering.territory.TerritoryLineManager;
 
 /**
@@ -121,9 +123,18 @@ public final class CommandRegistry {
                 .requires(CommandRegistry::userIsVet)
                 .executes(CommandRegistry::motd))
 
-            // /wv anni
+            // /wv anni — base form runs the dispatcher; mode subcommands
+            // route through AnniModeManager.transitionTo so the /stream
+            // mutex is enforced and the boss-bar / outline subsystems
+            // pick up the change on the next tick.
             .then(ClientCommandManager.literal("anni")
-                .executes(CommandRegistry::anni))
+                .executes(CommandRegistry::anni)
+                .then(ClientCommandManager.literal("silent")
+                    .executes(ctx -> anniMode(ctx, AnniMode.SILENT)))
+                .then(ClientCommandManager.literal("passive")
+                    .executes(ctx -> anniMode(ctx, AnniMode.PASSIVE)))
+                .then(ClientCommandManager.literal("aggressive")
+                    .executes(ctx -> anniMode(ctx, AnniMode.AGGRESSIVE))))
 
             // /wv config
             .then(ClientCommandManager.literal("config")
@@ -297,16 +308,30 @@ public final class CommandRegistry {
   }
 
   private static int anni(CommandContext<FabricClientCommandSource> ctx) {
-    StampFetcher.fetchStampAndCreateAnniCommandMessage().thenAccept(stampMessage -> {
-      if (stampMessage != null) {
-        ChatUtils.sendLocalMessageNewBlock(stampMessage);
-      } else {
+    StampFetcher.fetchStampAndCreateAnniCommandMessage().thenAccept(blocks -> {
+      if (blocks == null || blocks.isEmpty()) {
         ChatUtils.sendLocalMessageNewBlock(
             Component.literal("Annihilation timer is currently unavailable.")
                 .withStyle(ChatFormatting.YELLOW)
         );
+        return;
+      }
+      // Each block gets its own [VETSMOD] prefix — the imminent render
+      // uses this to break out the "Change Anni Mode?" UI visually.
+      for (net.minecraft.network.chat.MutableComponent block : blocks) {
+        ChatUtils.sendLocalMessageNewBlock(block);
       }
     });
+    return 1;
+  }
+
+  /** {@code /wv anni silent|passive|aggressive} — request a mode
+   *  transition. The actual config write, /stream mutex check, and
+   *  chat feedback live in {@link AnniModeManager#transitionTo}; this
+   *  is just the brigadier shim. */
+  private static int anniMode(
+      CommandContext<FabricClientCommandSource> ctx, AnniMode target) {
+    AnniModeManager.transitionTo(target, AnniModeManager.Source.USER_COMMAND);
     return 1;
   }
 

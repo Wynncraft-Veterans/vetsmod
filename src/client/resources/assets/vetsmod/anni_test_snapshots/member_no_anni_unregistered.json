@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "mc_uuid": "00000000-0000-0000-0000-000000000002",
-  "mc_username": "ExternalUser",
+  "mc_uuid": "00000000-0000-0000-0000-000000000004",
+  "mc_username": "UnregisteredMember",
   "event": {
     "stamp_epoch": null,
     "announced": false,
@@ -25,9 +25,11 @@
     "wont_reason": null
   },
   "attendance": {
-    "band": 1,
-    "label": "Most Unlikely",
+    "band": 2,
+    "label": "Unlikely",
     "notice_effective": null
   },
-  "organisers": []
+  "organisers": [
+    "00000000-0000-0000-0000-0000000000aa"
+  ]
 }

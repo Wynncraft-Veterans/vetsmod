@@ -34,7 +34,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.stream.Stream;
 
 /**
- * {@code /wv debug anni …} — simulation hooks for the MWE/anni subsystem.
+ * {@code /wv debug tree anni …} — simulation hooks for the MWE/anni subsystem.
  *
  * <p>Anni is infrequent and hard to test against live events; these commands
  * let a developer reproduce every render branch without waiting for a real
@@ -90,6 +90,9 @@ public final class AnniDebugCommands {
             "external_no_anni",
             "member_announced",
             "member_in_party",
+            "member_no_anni",
+            "member_no_anni_fill",
+            "member_no_anni_unregistered",
     };
 
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_MODES =
@@ -147,6 +150,40 @@ public final class AnniDebugCommands {
                 return builder.buildFuture();
             };
 
+    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_EXTERNAL_MODES =
+            (ctx, builder) -> {
+                String partial = builder.getRemaining().toLowerCase();
+                for (String m : new String[] {"auto", "true", "false"}) {
+                    if (m.startsWith(partial)) {
+                        builder.suggest(m);
+                    }
+                }
+                return builder.buildFuture();
+            };
+
+    /** Common offsets the user is likely to want when iterating on the
+     *  imminent / far-out / past render branches. */
+    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_TIME_OFFSETS =
+            (ctx, builder) -> {
+                String partial = builder.getRemaining().toLowerCase();
+                for (String s : new String[] {
+                        "60",     // 1m  — within T-2m boss-bar window (S3)
+                        "120",    // 2m  — edge of T-2m window
+                        "600",    // 10m
+                        "1800",   // 30m
+                        "3600",   // 1h
+                        "7200",   // 2h  — boundary between far-out and imminent
+                        "28800",  // 8h  — realistic announced-anni offset
+                        "43200",  // 12h — max real announce window
+                        "-60",    // 1m ago
+                }) {
+                    if (s.startsWith(partial)) {
+                        builder.suggest(s);
+                    }
+                }
+                return builder.buildFuture();
+            };
+
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_FLASH_FIELDS =
             (ctx, builder) -> {
                 String partial = builder.getRemaining().toLowerCase();
@@ -190,10 +227,18 @@ public final class AnniDebugCommands {
                                 .executes(AnniDebugCommands::snapshotClear))
                         .then(ClientCommandManager.literal("refresh")
                                 .executes(AnniDebugCommands::snapshotRefresh)))
-                .then(ClientCommandManager.literal("fastforward")
+                .then(ClientCommandManager.literal("guess")
+                        .executes(AnniDebugCommands::guess))
+                .then(ClientCommandManager.literal("external")
+                        .then(ClientCommandManager.argument("mode",
+                                        StringArgumentType.word())
+                                .suggests(SUGGEST_EXTERNAL_MODES)
+                                .executes(AnniDebugCommands::externalSet)))
+                .then(ClientCommandManager.literal("time")
                         .then(ClientCommandManager.argument("seconds",
                                         StringArgumentType.word())
-                                .executes(AnniDebugCommands::fastforward)))
+                                .suggests(SUGGEST_TIME_OFFSETS)
+                                .executes(AnniDebugCommands::timeSet)))
                 .then(ClientCommandManager.literal("zone")
                         .then(ClientCommandManager.argument("action",
                                         StringArgumentType.word())
@@ -286,7 +331,37 @@ public final class AnniDebugCommands {
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
-        return parseAndInject(raw, "preset:" + name);
+        int result = parseAndInject(raw, "preset:" + name);
+        if (result == 1) {
+            // Preset names encode their intended render context — auto-set
+            // the renderer's external override so the user doesn't have to
+            // remember to flip it before each test. "external_*" presets
+            // force external rendering; "member_*" presets force vets;
+            // anything else (e.g. "empty") clears the override back to
+            // auto. Explicit `/wv debug tree anni external …` after the
+            // inject still wins.
+            String lower = name.toLowerCase();
+            Boolean override;
+            String reason;
+            if (lower.startsWith("external")) {
+                override = Boolean.TRUE;
+                reason = "external-tier preset";
+            } else if (lower.startsWith("member")) {
+                override = Boolean.FALSE;
+                reason = "vets-tier preset";
+            } else {
+                override = null;
+                reason = "no tier hint in preset name";
+            }
+            org.wynnvets.mwe.anni.render.AnniCommandRenderer.setExternalOverride(override);
+            String summary = override == null
+                    ? "auto (rank signals)"
+                    : ("forced " + (override ? "external" : "vets"));
+            ChatUtils.sendLocalMessage(
+                    Component.literal("(external override → " + summary + " — " + reason + ")")
+                            .withStyle(ChatFormatting.DARK_GRAY));
+        }
+        return result;
     }
 
     /** Parse {@code raw} as a snapshot JSON, push into the cache, and
@@ -295,9 +370,19 @@ public final class AnniDebugCommands {
      *  "file:foo", or "preset:foo" — included in the success line so the
      *  user can tell which path actually ran. */
     private static int parseAndInject(String raw, String source) {
+        String resolved;
+        try {
+            resolved = substituteNowTokens(raw);
+        } catch (NumberFormatException e) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal("anni snapshot inject (" + source
+                            + "): bad NOW token: " + e.getMessage())
+                            .withStyle(ChatFormatting.RED));
+            return 0;
+        }
         JsonObject json;
         try {
-            json = JsonParser.parseString(raw).getAsJsonObject();
+            json = JsonParser.parseString(resolved).getAsJsonObject();
         } catch (JsonSyntaxException | IllegalStateException e) {
             ChatUtils.sendLocalMessage(
                     Component.literal("anni snapshot inject (" + source
@@ -323,6 +408,54 @@ public final class AnniDebugCommands {
                         .withStyle(ChatFormatting.GREEN));
         return 1;
     }
+
+    /** Replace {@code "{NOW}"} and {@code "{NOW±<n>(h|m|s)}"} tokens in
+     *  a raw snapshot JSON string with the current epoch-seconds.
+     *  Lets bundled preset fixtures stay valid across long stretches
+     *  of time — without substitution, fixtures bake in absolute
+     *  epochs that read poorly months later (e.g. "60664 hours from
+     *  now"). Tokens are matched as JSON string literals so post-
+     *  substitution the document remains valid JSON with a numeric
+     *  value where the placeholder lived.
+     *
+     *  Inline JSON arguments are unaffected unless they happen to
+     *  include the same token syntax. */
+    static String substituteNowTokens(String raw) {
+        long now = java.time.Instant.now().getEpochSecond();
+        java.util.regex.Matcher m = NOW_TOKEN.matcher(raw);
+        StringBuilder out = new StringBuilder();
+        while (m.find()) {
+            String sign = m.group(1);
+            String amount = m.group(2);
+            String unit = m.group(3);
+            long delta = 0L;
+            if (amount != null) {
+                double v = Double.parseDouble(amount);
+                long perUnit;
+                switch (unit) {
+                    case "h": perUnit = 3600L; break;
+                    case "m": perUnit = 60L; break;
+                    case "s": perUnit = 1L; break;
+                    default: perUnit = 1L; break;
+                }
+                delta = (long) (v * perUnit);
+                if ("-".equals(sign)) delta = -delta;
+            }
+            // Matcher.appendReplacement reinterprets $-references; bypass
+            // by replacing through Matcher.quoteReplacement.
+            m.appendReplacement(out,
+                    java.util.regex.Matcher.quoteReplacement(Long.toString(now + delta)));
+        }
+        m.appendTail(out);
+        return out.toString();
+    }
+
+    /** {@code "{NOW}"} or {@code "{NOW+76h}"} or {@code "{NOW-1.5m}"}.
+     *  The whole token (including the JSON quotes) is consumed so the
+     *  replacement leaves a bare number. */
+    private static final java.util.regex.Pattern NOW_TOKEN =
+            java.util.regex.Pattern.compile(
+                    "\"\\{NOW(?:([+\\-])(\\d+(?:\\.\\d+)?)([hms]))?\\}\"");
 
     private static int snapshotDump(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
@@ -441,18 +574,233 @@ public final class AnniDebugCommands {
         return 1;
     }
 
-    // ───────────────────────────────────────── S3+ placeholders
+    // ───────────────────────────────────── guess (read-only snapshot peek)
 
-    private static int fastforward(CommandContext<FabricClientCommandSource> ctx) {
+    /** {@code /wv debug anni guess} — pull a fresh snapshot from
+     *  temp-server and print whatever the prediction / announcement
+     *  currently is, in a one-liner. Useful for sanity-checking that
+     *  fishbot's {@code \guess} model agrees with what vetsmod sees,
+     *  without going through the full {@code /wv anni} renderer.
+     *
+     *  <p>Always pulls fresh (not from cache) so the user gets the
+     *  actual current model output rather than whatever was last pushed.
+     *  If the pull fails it falls back to printing what's in cache,
+     *  flagged as stale.</p> */
+    private static int guess(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
-        String seconds = StringArgumentType.getString(ctx, "seconds");
+
         ChatUtils.sendLocalMessage(
-                Component.literal("anni fastforward " + seconds
-                        + ": registered intent (S3+ — boss bar consumer not yet wired)")
-                        .withStyle(ChatFormatting.YELLOW));
+                Component.literal("anni guess: querying fishbot prediction…")
+                        .withStyle(ChatFormatting.GRAY));
+
+        AnniQueryClient.query().whenComplete((snapshot, throwable) -> {
+            Minecraft.getInstance().execute(() -> {
+                if (throwable != null || snapshot == null) {
+                    AnniSnapshot stale = AnniSnapshotCache.latest();
+                    if (stale != null) {
+                        ChatUtils.sendLocalMessage(
+                                Component.literal("anni guess (stale cache — pull failed): ")
+                                        .withStyle(ChatFormatting.YELLOW)
+                                        .append(formatGuess(stale)));
+                    } else {
+                        String reason = throwable != null && throwable.getMessage() != null
+                                ? throwable.getMessage()
+                                : "no snapshot returned";
+                        ChatUtils.sendLocalMessage(
+                                Component.literal("anni guess: " + reason)
+                                        .withStyle(ChatFormatting.RED));
+                    }
+                    return;
+                }
+                ChatUtils.sendLocalMessage(
+                        Component.literal("anni guess: ")
+                                .withStyle(ChatFormatting.GRAY)
+                                .append(formatGuess(snapshot)));
+            });
+        });
         return 1;
     }
+
+    /** One-line render of the snapshot's event field — either the
+     *  announced stamp + countdown, or the prediction window. Mirrors
+     *  what fishbot's {@code \guess} returns in Discord. */
+    private static net.minecraft.network.chat.MutableComponent formatGuess(
+            AnniSnapshot snapshot) {
+        AnniSnapshot.Event event = snapshot.event();
+        if (event == null) {
+            return Component.literal("no AnniEvent on file (vets-anni has no anchor)")
+                    .withStyle(ChatFormatting.GRAY);
+        }
+        long now = java.time.Instant.now().getEpochSecond();
+        Long stamp = event.stampEpoch();
+        if (event.announced() && stamp != null && stamp > now) {
+            long delta = stamp - now;
+            String when = java.time.format.DateTimeFormatter
+                    .ofPattern("MMM d '@'HH:mm")
+                    .withZone(java.time.ZoneId.systemDefault())
+                    .format(java.time.Instant.ofEpochSecond(stamp));
+            long hours = Math.round(delta / 3600.0);
+            return Component.literal("announced ")
+                    .withStyle(ChatFormatting.GREEN)
+                    .append(Component.literal(hours + "h from now")
+                            .withStyle(ChatFormatting.WHITE))
+                    .append(Component.literal(" (" + when + ")")
+                            .withStyle(ChatFormatting.DARK_GRAY));
+        }
+        AnniSnapshot.Prediction prediction = event.prediction();
+        if (prediction == null || prediction.medianEpoch() == null) {
+            return Component.literal("not announced; no prediction available")
+                    .withStyle(ChatFormatting.GRAY);
+        }
+        long median = prediction.medianEpoch();
+        long delta = median - now;
+        long absHours = Math.round(Math.abs(delta) / 3600.0);
+        String qualifier = delta <= 0 ? " overdue " : " from now ";
+        String when = java.time.format.DateTimeFormatter
+                .ofPattern("MMM d '@'HH:mm")
+                .withZone(java.time.ZoneId.systemDefault())
+                .format(java.time.Instant.ofEpochSecond(median));
+        // σ = window/√12 — see AnniCommandRenderer.predictionLine for why
+        // this is what ± should represent (not half-window).
+        double sigma = prediction.windowHours() / Math.sqrt(12.0);
+        long sigmaRounded = Math.round(sigma);
+        String sigmaStr = sigmaRounded < 1
+                ? Math.round(sigma * 60) + "min"
+                : sigmaRounded + "h";
+        return Component.literal("not announced; predicted ")
+                .withStyle(ChatFormatting.GOLD)
+                .append(Component.literal(absHours + "h").withStyle(ChatFormatting.YELLOW))
+                .append(Component.literal(qualifier).withStyle(ChatFormatting.GOLD))
+                .append(Component.literal("| ").withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD))
+                .append(Component.literal(when).withStyle(ChatFormatting.YELLOW))
+                .append(Component.literal(" ±~" + sigmaStr)
+                        .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
+    }
+
+    // ────────────────────────────── external override (rendering only)
+
+    /** {@code /wv debug anni external <auto|true|false>} — override the
+     *  renderer's {@code isExternal} classification, which normally
+     *  reads vetsmod's rank signals (Returners guild, waitlist,
+     *  honourary). Lets a vets-tier developer test the external render
+     *  branch with the {@code external_no_anni} preset without having
+     *  to switch accounts. Not persisted; resets on vetsmod reload. */
+    private static int externalSet(CommandContext<FabricClientCommandSource> ctx) {
+        int gate = requireDebug(ctx);
+        if (gate == 0) return 0;
+        String mode = StringArgumentType.getString(ctx, "mode").toLowerCase();
+        Boolean override;
+        switch (mode) {
+            case "auto":  override = null;          break;
+            case "true":  override = Boolean.TRUE;  break;
+            case "false": override = Boolean.FALSE; break;
+            default:
+                ChatUtils.sendLocalMessage(
+                        Component.literal("anni external: mode must be auto|true|false")
+                                .withStyle(ChatFormatting.RED));
+                return 0;
+        }
+        org.wynnvets.mwe.anni.render.AnniCommandRenderer.setExternalOverride(override);
+        String summary = override == null
+                ? "auto (use rank signals)"
+                : ("forced " + (override ? "external" : "vets"));
+        ChatUtils.sendLocalMessage(
+                Component.literal("anni external override: " + summary)
+                        .withStyle(ChatFormatting.GREEN));
+        return 1;
+    }
+
+    // ──────────────────────── time (mutate the cached snapshot's stamp)
+
+    /** {@code /wv debug anni time <seconds>} — mutate the cached
+     *  snapshot's {@code event.stamp_epoch} to {@code NOW + seconds},
+     *  preserving every other field. Round-trips through JSON because
+     *  {@link AnniSnapshot} is immutable.
+     *
+     *  <p>Positive seconds → future stamp; sets {@code announced=true}
+     *  and clears any prediction so the imminent/far-out render branch
+     *  fires cleanly. Zero or negative → null stamp + {@code announced=false}
+     *  (the snapshot's own prediction, if any, is left untouched).</p>
+     *
+     *  <p>Useful for nudging the existing injected preset across the
+     *  T-2h boundary (far-out ↔ imminent) without re-injecting a whole
+     *  new fixture every time.</p> */
+    private static int timeSet(CommandContext<FabricClientCommandSource> ctx) {
+        int gate = requireDebug(ctx);
+        if (gate == 0) return 0;
+
+        String secondsArg = StringArgumentType.getString(ctx, "seconds");
+        long secondsFromNow;
+        try {
+            secondsFromNow = Long.parseLong(secondsArg);
+        } catch (NumberFormatException e) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal("anni time: expected integer seconds, got '"
+                            + secondsArg + "'")
+                            .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+
+        AnniSnapshot current = AnniSnapshotCache.latest();
+        if (current == null) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal("anni time: no snapshot in cache "
+                            + "(inject one first with `/wv debug anni snapshot inject preset …`)")
+                            .withStyle(ChatFormatting.YELLOW));
+            return 0;
+        }
+
+        JsonObject json;
+        try {
+            json = JsonParser.parseString(GSON.toJson(current)).getAsJsonObject();
+        } catch (Exception e) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal("anni time: failed to serialise current snapshot: "
+                            + e.getMessage())
+                            .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+
+        long newStamp = java.time.Instant.now().getEpochSecond() + secondsFromNow;
+        JsonObject event = (json.has("event") && !json.get("event").isJsonNull())
+                ? json.getAsJsonObject("event")
+                : new JsonObject();
+        if (secondsFromNow > 0) {
+            event.addProperty("stamp_epoch", newStamp);
+            event.addProperty("announced", true);
+            event.add("prediction", com.google.gson.JsonNull.INSTANCE);
+        } else {
+            event.add("stamp_epoch", com.google.gson.JsonNull.INSTANCE);
+            event.addProperty("announced", false);
+            // Leave prediction alone — caller might want to see the
+            // not-announced render with whatever prediction was there.
+        }
+        if (!json.has("event") || json.get("event").isJsonNull()) {
+            json.add("event", event);
+        }
+
+        AnniSnapshot updated;
+        try {
+            updated = AnniSnapshot.fromJson(json);
+        } catch (Exception e) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal("anni time: failed to deserialise mutated snapshot: "
+                            + e.getMessage())
+                            .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        AnniSnapshotCache.update(updated);
+        String summary = secondsFromNow > 0
+                ? ("stamp_epoch=NOW+" + secondsFromNow + "s (epoch=" + newStamp + ", announced)")
+                : ("stamp_epoch=null, announced=false");
+        ChatUtils.sendLocalMessage(
+                Component.literal("anni time: " + summary)
+                        .withStyle(ChatFormatting.GREEN));
+        return 1;
+    }
+
+    // ───────────────────────────────────────── S3 consumers
 
     private static int zone(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
@@ -471,17 +819,36 @@ public final class AnniDebugCommands {
         return 1;
     }
 
+    /** {@code /wv debug tree anni flash <field>} — force a FlashTracker
+     *  pulse for one of {@code role|party|world|rsvp}. Useful for
+     *  visually verifying the {@code &l ↔ &n&l} pulse + sound without
+     *  having to ginger a snapshot diff. */
     private static int flash(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
         String field = StringArgumentType.getString(ctx, "field");
-        ChatUtils.sendLocalMessage(
-                Component.literal("anni flash " + field
-                        + ": registered intent (S3+ — FlashTracker not yet wired)")
-                        .withStyle(ChatFormatting.YELLOW));
-        return 1;
+        String normalised = field == null ? "" : field.toLowerCase();
+        switch (normalised) {
+            case "role":
+            case "party":
+            case "world":
+            case "rsvp":
+                org.wynnvets.mwe.anni.bossbar.FlashTracker.forceFlash(normalised);
+                ChatUtils.sendLocalMessage(
+                        Component.literal("anni flash " + normalised + " triggered")
+                                .withStyle(ChatFormatting.GREEN));
+                return 1;
+            default:
+                ChatUtils.sendLocalMessage(
+                        Component.literal("anni flash: field must be one of role|party|world|rsvp, got " + field)
+                                .withStyle(ChatFormatting.RED));
+                return 0;
+        }
     }
 
+    /** {@code /wv debug tree anni mode set <silent|passive|aggressive>} —
+     *  unconditional mode transition that bypasses the /stream mutex
+     *  for testing rendering during a screen capture. */
     private static int modeSet(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
@@ -492,10 +859,9 @@ public final class AnniDebugCommands {
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
-        ChatUtils.sendLocalMessage(
-                Component.literal("anni mode set " + mode
-                        + ": registered intent (S3+ — AnniModeManager not yet wired)")
-                        .withStyle(ChatFormatting.YELLOW));
+        org.wynnvets.mwe.anni.mode.AnniModeManager.transitionTo(
+                org.wynnvets.mwe.anni.mode.AnniMode.fromString(mode),
+                org.wynnvets.mwe.anni.mode.AnniModeManager.Source.DEBUG_BYPASS_MUTEX);
         return 1;
     }
 }

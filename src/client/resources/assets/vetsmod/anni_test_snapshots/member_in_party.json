@@ -3,7 +3,7 @@
   "mc_uuid": "00000000-0000-0000-0000-000000000003",
   "mc_username": "TestMember",
   "event": {
-    "stamp_epoch": 2000000000,
+    "stamp_epoch": "{NOW+8h}",
     "announced": true,
     "prediction": null
   },
@@ -20,7 +20,7 @@
   },
   "rsvp": {
     "notice": "hard",
-    "updated_at": 1999900000,
+    "updated_at": "{NOW-2h}",
     "revoked": false
   },
   "board": {

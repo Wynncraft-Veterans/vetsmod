@@ -57,13 +57,9 @@ public class VetsConfig {
    *  (S3), outlines (S4), etc. Off by default. Auto-set to {@code true}
    *  on the first successful auth ack whose tier ∈ {@code {member,
    *  waitlist, honourary}}, so vets players just get the enriched view
-   *  without a manual toggle. Non-vets users can still opt in via
+   *  without a manual toggle. Non-vets users can opt in via
    *  {@code /wv config vetsAnniEnabled true} if they want the on-demand
-   *  pull (Hard Rule #3: pulls are open to anyone).
-   *
-   *  Internal-only — not in {@link #USER_CONFIG_KEYS} because S1 doesn't
-   *  yet ship the {@code /wv config} grouping promoted in the MWE plan.
-   *  S2+ promotes this and adds the per-mode trees. */
+   *  pull (Hard Rule #3: pulls are open to anyone). */
   public static final String VETS_ANNI_ENABLED = "vetsAnniEnabled";
 
   // ── Vetsmod /unlock <key> auth state ─────────────────────────────────
@@ -89,6 +85,85 @@ public class VetsConfig {
 
   /** Whether the annihilation stamp is automatically printed on world join. */
   public static final String PRINT_ANNI = "printANNI";
+
+  /** Whether the snapshot-driven {@code /wv anni} and anni-motd populate
+   *  hover tooltips on segments (role chips, RSVP badges, attendance bar,
+   *  party world chip). When {@code false}, the same lines render with no
+   *  hover — keeps the click-to-open URLs but strips the descriptive
+   *  hover text. */
+  public static final String VETS_ANNI_SHOW_HOVER_DETAILS = "vetsAnniShowHoverDetails";
+
+  /** Whether the snapshot-driven anni-motd nags an un-RSVP'd vets-anni user
+   *  with the "RSVP via /wv anni rsvp …" prompt. The {@code /wv anni}
+   *  manual invocation always shows the RSVP widget when applicable; this
+   *  key only suppresses the auto-print nag for users who find it noisy. */
+  public static final String VETS_ANNI_PROMPT_RSVP = "vetsAnniPromptRsvp";
+
+  /** Whether {@code /wv anni} shows the {@code \\guess}-style prediction
+   *  window (earliest/median/latest) when the stamp is past or unknown.
+   *  The anni-motd auto-print never shows the prediction unsolicited (per
+   *  spec §"For external users"); this key only affects the manual
+   *  {@code /wv anni} invocation. */
+  public static final String VETS_ANNI_SHOW_PREDICTION = "vetsAnniShowPrediction";
+
+  /** Active anni mode — {@code silent}, {@code passive}, or
+   *  {@code aggressive}. Set by {@code /wv anni <mode>} and read by
+   *  the boss-bar (S3+), outline (S4+), and waypoint (S5+) subsystems.
+   *  Auto-resets to {@code silent} when the anni window closes
+   *  (T+30 min after stamp_epoch) — see {@code AnniWindowWatcher}. */
+  public static final String VETS_ANNI_MODE = "vetsAnniMode";
+
+  /** Valid values for {@link #VETS_ANNI_MODE}. */
+  public static final String[] VALID_ANNI_MODES = {
+      "silent", "passive", "aggressive",
+  };
+
+  /** Role-naming style for {@code /wv anni} role chips. Three values:
+   *  <ul>
+   *    <li>{@code descriptive} (default) — TANK, HEALER, SUNKILL,
+   *        MOBKILL, BOSSKILL, FILL. Action-flavoured names that map to
+   *        what each role actually does in the fight.</li>
+   *    <li>{@code short} — TANK, HEAL, MOBK, SUNK, PRIM, FILL.
+   *        Compact 4-char codes for tight chat layouts.</li>
+   *    <li>{@code formal} — TANK, HEALER, PRIMARY, SECONDARY,
+   *        TERTIARY, FILL. The spec-canonical role names verbatim, for
+   *        users who prefer the dashboard's terminology.</li>
+   *  </ul>
+   *  Unknown values fall through to the raw role code (uppercase),
+   *  same as if the role isn't recognised in any style table. */
+  public static final String VETS_ANNI_ROLE_STYLE = "vetsAnniRoleStyle";
+
+  /** Valid values for {@link #VETS_ANNI_ROLE_STYLE}, in suggest-completion
+   *  order. */
+  public static final String[] VALID_ROLE_STYLES = {
+      "descriptive", "short", "formal",
+  };
+
+  /** Master kill-switch for the synthetic vets-anni boss bar (S3).
+   *  Default {@code true}; only honoured when {@link #VETS_ANNI_MODE}
+   *  is {@code passive} or {@code aggressive} — silent is a strict
+   *  no-op regardless. Lets advanced users keep the rest of the
+   *  passive/aggressive subsystem (outlines, waypoint, alerts) while
+   *  opting out of the boss bar specifically. */
+  public static final String VETS_ANNI_BOSSBAR_ENABLED = "vetsAnniBossbarEnabled";
+
+  /** Boss-bar pulse intensity controlling the {@code &l ↔ &n&l} flash
+   *  duration on a per-field change (role / party / world / RSVP).
+   *  {@code subtle} = 3 s, {@code normal} = 5 s (default),
+   *  {@code strong} = 10 s. The pulse half-period (250 ms) is fixed —
+   *  this knob only affects the on-change flash duration, not the
+   *  rate at which the bold/underline alternates. */
+  public static final String VETS_ANNI_FLASH_INTENSITY = "vetsAnniFlashIntensity";
+
+  /** Whether per-field change flashes also play the Wynntils-style
+   *  name-ping sound twice (per spec §3.1.1). On by default; toggle
+   *  off if the audio cue becomes spammy during heavy snapshot churn. */
+  public static final String VETS_ANNI_FLASH_SOUND = "vetsAnniFlashSound";
+
+  /** Valid values for {@link #VETS_ANNI_FLASH_INTENSITY}. */
+  public static final String[] VALID_FLASH_INTENSITIES = {
+      "subtle", "normal", "strong",
+  };
 
   /** Whether bridge (guild chat relay) messages are displayed in chat. */
   public static final String PRINT_BRIDGE_MESSAGES = "printBridgeMessages";
@@ -161,6 +236,14 @@ public class VetsConfig {
       LEGACY_ITEM_FOREGROUND_COLOR,
       PRINT_MOTD,
       PRINT_ANNI,
+      VETS_ANNI_ENABLED,
+      VETS_ANNI_SHOW_HOVER_DETAILS,
+      VETS_ANNI_PROMPT_RSVP,
+      VETS_ANNI_SHOW_PREDICTION,
+      VETS_ANNI_ROLE_STYLE,
+      VETS_ANNI_BOSSBAR_ENABLED,
+      VETS_ANNI_FLASH_INTENSITY,
+      VETS_ANNI_FLASH_SOUND,
       PRINT_BRIDGE_MESSAGES,
       PRINT_SUCCESSFUL_AUTH,
       SHOW_SUPPORTER_GLINTS,
@@ -185,6 +268,9 @@ public class VetsConfig {
       LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM,
       LEGACY_ITEM_FOREGROUND_SPRITE,
       LEGACY_ITEM_FOREGROUND_COLOR,
+      VETS_ANNI_ROLE_STYLE,
+      VETS_ANNI_MODE,
+      VETS_ANNI_FLASH_INTENSITY,
   };
 
   /**
@@ -269,7 +355,10 @@ public class VetsConfig {
       LEGACY_ITEM_BACKGROUND_GRADIENT_TOP, "orange",
       LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM, "crimson",
       LEGACY_ITEM_FOREGROUND_SPRITE, "box_gradient_2",
-      LEGACY_ITEM_FOREGROUND_COLOR, "orange"
+      LEGACY_ITEM_FOREGROUND_COLOR, "orange",
+      VETS_ANNI_ROLE_STYLE, "descriptive",
+      VETS_ANNI_MODE, "silent",
+      VETS_ANNI_FLASH_INTENSITY, "normal"
   );
 
   /**
@@ -304,6 +393,11 @@ public class VetsConfig {
     config.put(LEGACY_ITEM_HIGHLIGHTING, true);
     config.put(PRINT_MOTD, true);
     config.put(PRINT_ANNI, true);
+    config.put(VETS_ANNI_SHOW_HOVER_DETAILS, true);
+    config.put(VETS_ANNI_PROMPT_RSVP, true);
+    config.put(VETS_ANNI_SHOW_PREDICTION, true);
+    config.put(VETS_ANNI_BOSSBAR_ENABLED, true);
+    config.put(VETS_ANNI_FLASH_SOUND, true);
     config.put(PRINT_BRIDGE_MESSAGES, true);
     config.put(PRINT_SUCCESSFUL_AUTH, true);
     config.put(SHOW_SUPPORTER_GLINTS, true);
@@ -318,6 +412,9 @@ public class VetsConfig {
     stringConfig.put(LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM, "crimson");
     stringConfig.put(LEGACY_ITEM_FOREGROUND_SPRITE, "box_gradient_2");
     stringConfig.put(LEGACY_ITEM_FOREGROUND_COLOR, "orange");
+    stringConfig.put(VETS_ANNI_ROLE_STYLE, "descriptive");
+    stringConfig.put(VETS_ANNI_MODE, "silent");
+    stringConfig.put(VETS_ANNI_FLASH_INTENSITY, "normal");
 
     // Int defaults (stored as long)
     longConfig.put(LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY, 69L);

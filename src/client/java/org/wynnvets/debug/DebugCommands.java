@@ -26,6 +26,13 @@ import org.wynnvets.mwe.anni.debug.AnniDebugCommands;
  * in {@link org.wynnvets.VetsmodClient} only needs a single integration
  * point: {@link #buildCommandTree()}.</p>
  *
+ * <h3>Top-level shape</h3>
+ * The top level is intentionally generic — only the universally-applicable
+ * verbs ({@code set} for toggles, {@code trigger} for one-shots, plus the
+ * diagnostics-dump default) live there. Feature-specific subsystem trees
+ * (e.g. the MWE/anni harness) nest under {@code /wv debug tree …} so they
+ * stay discoverable as siblings but don't crowd the top level.
+ *
  * <h3>Subcommands</h3>
  * <ul>
  *   <li>{@code /wv debug} — diagnostics dump (delegated to {@link DiagnosticsHandler})</li>
@@ -35,6 +42,7 @@ import org.wynnvets.mwe.anni.debug.AnniDebugCommands;
  *   <li>{@code /wv debug set <key> <value>} — set a debug config key</li>
  *   <li>{@code /wv debug trigger charDump} — render PUA icon characters</li>
  *   <li>{@code /wv debug trigger forceChecks} — force re-check guild membership, rank, and staff status</li>
+ *   <li>{@code /wv debug tree anni …} — MWE/anni subsystem debug tree</li>
  * </ul>
  */
 public final class DebugCommands {
@@ -98,7 +106,12 @@ public final class DebugCommands {
                     .executes(ctx -> { TabDumpHandler.execute(); return 1; })
                 )
             )
-            .then(AnniDebugCommands.buildCommandTree());
+            // Subsystem trees nest under `tree` — they're neither toggles
+            // nor triggers, so they don't belong at the top level alongside
+            // `set` / `trigger`.
+            .then(ClientCommandManager.literal("tree")
+                .then(AnniDebugCommands.buildCommandTree())
+            );
     }
 
     // ── /wv debug set handlers ──────────────────────────────────────

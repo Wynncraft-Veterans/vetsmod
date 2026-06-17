@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "mc_uuid": "00000000-0000-0000-0000-000000000002",
-  "mc_username": "ExternalUser",
+  "mc_uuid": "00000000-0000-0000-0000-000000000005",
+  "mc_username": "FillOnlyMember",
   "event": {
     "stamp_epoch": null,
     "announced": false,
@@ -13,8 +13,8 @@
     }
   },
   "registration": {
-    "registered": false,
-    "core": false,
+    "registered": true,
+    "core": true,
     "roles": []
   },
   "rsvp": null,
@@ -25,9 +25,11 @@
     "wont_reason": null
   },
   "attendance": {
-    "band": 1,
-    "label": "Most Unlikely",
+    "band": 3,
+    "label": "Possible",
     "notice_effective": null
   },
-  "organisers": []
+  "organisers": [
+    "00000000-0000-0000-0000-0000000000aa"
+  ]
 }

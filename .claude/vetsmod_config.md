@@ -37,6 +37,12 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `legacyItemHighlighting` | true | Show legacy/enchanted/junk highlighting + tooltip rewrite |
 | `printMOTD` | true | Auto-print MOTD on world join |
 | `printANNI` | true | Auto-print annihilation timer on world join |
+| `vetsAnniEnabled` | false | Master MWE/anni toggle — the kill switch for the snapshot-driven `/wv anni` renderer, anni-motd, boss bar (S3+), outlines (S4+). Auto-set to `true` on the first auth ack whose tier ∈ {member, waitlist, honourary}; non-vets users can opt in manually. |
+| `vetsAnniShowHoverDetails` | true | Populate descriptive hover tooltips on `/wv anni` and motd widgets (role chips, RSVP badge, attendance bar, party world chip). When off, lines render with no hover but keep click-to-open URLs. |
+| `vetsAnniPromptRsvp` | true | Show the RSVP / registration nag pill on the auto-displayed anni-motd. `/wv anni` always shows the RSVP widget when applicable; this key only suppresses the auto-print nudge. |
+| `vetsAnniShowPrediction` | true | Show the `\guess`-style prediction window (earliest/median/latest) in `/wv anni` when no anni stamp is announced. The auto-motd never shows the prediction unsolicited regardless of this flag. |
+| `vetsAnniBossbarEnabled` | true | Master kill-switch for the synthetic vets-anni boss bar (S3). Only consulted when `vetsAnniMode` is `passive`/`aggressive`; silent mode is a strict no-op regardless. Lets advanced users keep outline/waypoint behaviours while opting out of the boss bar specifically. |
+| `vetsAnniFlashSound` | true | Whether per-field change flashes (role/party/world/RSVP) also play the Wynntils-style name-ping sound twice (spec §3.1.1). Toggle off if audio cues get noisy during heavy snapshot churn. |
 | `printBridgeMessages` | true | Display bridge (Discord relay) messages |
 | `showSupporterGlints` | true | Animated gradient glints on nametags + pills |
 | `colorBlindMode` | false | Swap the supporter-glint colour pairs (chat + nametag) for a high-luminance-delta variant so the shimmer is visible under protan/deutan CVD. Still subtle; same cyan/blue family. |
@@ -49,6 +55,9 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `legacyItemBackgroundGradientBottom` | `crimson` | CSS/Minecraft colour names |
 | `legacyItemForegroundColor` | `orange` | CSS/Minecraft colour names |
 | `legacyItemForegroundSprite` | `box_gradient_2` | `wynn`, `tag`, `circle_transparent`, `circle_opaque`, `circle_outline_large`, `circle_outline_small`, `box_transparent`, `box_opaque`, `box_gradient_1`, `box_gradient_2` |
+| `vetsAnniRoleStyle` | `descriptive` | `descriptive` (TANK/HEALER/SUNKILL/MOBKILL/BOSSKILL/FILL — action-flavoured), `short` (TANK/HEAL/SUNK/MOBK/PRIM/FILL — 4-char compact), `formal` (TANK/HEALER/SECONDARY/TERTIARY/PRIMARY/FILL — spec-canonical) |
+| `vetsAnniMode` | `silent` | `silent` (no boss bar / outlines / waypoints), `passive` (synthetic boss bar, outlines coming in S4), `aggressive` (S5: + zone lines, scroll waypoint, chat alerts). Auto-resets to `silent` at T+30m via `AnniWindowWatcher`. Refused → silent when `/stream` is on. |
+| `vetsAnniFlashIntensity` | `normal` | `subtle` (5s flash window), `normal` (10s), `strong` (20s). Controls the per-field on-change flash duration; the bold↔underline pulse half-period (250ms) is fixed. |
 
 ### Integers (0–100 opacity)
 | Key | Default |
@@ -99,11 +108,14 @@ Approximate order (check the source for authoritative):
 7. `legacyItemForegroundColor`
 8. `printMOTD`
 9. `printANNI`
-10. `printBridgeMessages`
-11. `showSupporterGlints`
-12. `colorBlindMode`
-13. `handleSpoilers`
-14. `moreReliableGuildCheck`
+10. `vetsAnniShowHoverDetails`
+11. `vetsAnniPromptRsvp`
+12. `vetsAnniShowPrediction`
+13. `printBridgeMessages`
+14. `showSupporterGlints`
+15. `colorBlindMode`
+16. `handleSpoilers`
+17. `moreReliableGuildCheck`
 
 ## 5. Static defaults
 

@@ -3,9 +3,14 @@
   "mc_uuid": "00000000-0000-0000-0000-000000000003",
   "mc_username": "TestMember",
   "event": {
-    "stamp_epoch": "{NOW+8h}",
-    "announced": true,
-    "prediction": null
+    "stamp_epoch": null,
+    "announced": false,
+    "prediction": {
+      "earliest_epoch": "{NOW+67h}",
+      "median_epoch": "{NOW+72h}",
+      "latest_epoch": "{NOW+78h}",
+      "window_hours": 10.6
+    }
   },
   "registration": {
     "registered": true,
@@ -23,21 +28,17 @@
       }
     ]
   },
-  "rsvp": {
-    "notice": "hard",
-    "updated_at": "{NOW-2h}",
-    "revoked": false
-  },
+  "rsvp": null,
   "board": {
-    "state": "unassigned",
+    "state": "unplaced",
     "party": null,
     "role": null,
     "wont_reason": null
   },
   "attendance": {
-    "band": 6,
-    "label": "Most Likely",
-    "notice_effective": "rsvp_hard"
+    "band": 4,
+    "label": "Likely",
+    "notice_effective": null
   },
   "organisers": [
     "00000000-0000-0000-0000-0000000000aa"

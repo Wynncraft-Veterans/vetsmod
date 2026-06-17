@@ -244,7 +244,10 @@ final class HelpCommands {
     msg.append(Component.literal("/wv debug set <key> <value>").withStyle(ChatFormatting.YELLOW));
     msg.append(Component.literal(" — Manage debug config keys\n").withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("/wv debug trigger <action>").withStyle(ChatFormatting.YELLOW));
-    msg.append(Component.literal(" — Run a one-shot debug action\n\n").withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal(" — Run a one-shot debug action\n").withStyle(ChatFormatting.GRAY));
+    msg.append(Component.literal("/wv debug tree <subsystem>").withStyle(ChatFormatting.YELLOW));
+    msg.append(Component.literal(" — Open a subsystem-specific debug tree (e.g. anni)\n\n")
+        .withStyle(ChatFormatting.GRAY));
     msg.append(Component.literal("Use /wv help debug <set|trigger> for details.\n")
         .withStyle(ChatFormatting.DARK_GRAY));
     msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
