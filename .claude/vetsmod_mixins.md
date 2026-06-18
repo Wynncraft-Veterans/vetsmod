@@ -1,12 +1,12 @@
 ---
 name: vetsmod Mixins Reference
-description: All 12 mixin classes — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy, accessors) and the top-level mixins.
+description: All 14 mixin classes — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy, accessors) and the top-level mixins.
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Mixins Reference
 
-12 mixins total, all client-side (under `src/client/java/org/wynnvets/mixin/client/`). Authoritative list: [src/client/resources/vetsmod.client.mixins.json](src/client/resources/vetsmod.client.mixins.json). Grouped by subpackage below.
+14 mixins total, all client-side (under `src/client/java/org/wynnvets/mixin/client/`). Authoritative list: [src/client/resources/vetsmod.client.mixins.json](src/client/resources/vetsmod.client.mixins.json). Grouped by subpackage below.
 
 ## Chat (3)
 
@@ -70,11 +70,12 @@ These three live directly under `mixin/client/` rather than a subpackage. They'r
 
 ### NametagMixin
 [src/client/java/org/wynnvets/mixin/client/NametagMixin.java](src/client/java/org/wynnvets/mixin/client/NametagMixin.java)
-- **Target:** `@Mixin(AvatarRenderer.class, priority = 900)` (fires before default 1000)
-- **Method:** `submitNameTag(AvatarRenderState, PoseStack, SubmitNodeCollector, CameraRenderState)` at `@At("HEAD")`
-- **Purpose:** Replaces static nametag component with `NametagAnimator.tryAnimate()` result for supporters
-- **Why:** Animated gradient glint effect on usernames. Gated by `SHOW_SUPPORTER_GLINTS` config and `SupportersPoller.isSupporter()`
-- **Data access:** Uses Wynntils `EntityRenderStateExtension` to get real `Player` entity + `GameProfile.getName()`, bypassing nametag text parsing
+- **Target:** `@Mixin(AvatarRenderer.class)` (default priority)
+- **Method:** `extractRenderState(Avatar, AvatarRenderState, F)` at `@At("TAIL")`
+- **Purpose:** Two-branch nametag overlay. **Anni branch (S4)** runs first: while `AnniOutlineTicker.isOutlineSuppressionActive()` AND `vetsAnniNametagsEnabled`, registry hits get the tier `ChatFormatting` colour and outsiders get `DARK_GRAY`. **Crucially:** the inject calls `ChatFormatting.stripFormatting(state.nameTag.getString())` before building the literal — Wynncraft embeds the team colour as a legacy `§<code>` prefix INSIDE the string content (`§awonderkas`, etc.), and without the strip, vanilla's text renderer parses it at draw time and overrides our `.withStyle(...)` colour silently. **Supporter branch** runs only if the anni branch didn't fire: replaces static nametag with `NametagAnimator.tryAnimate()` result for supporters.
+- **Why TAIL of extractRenderState, not HEAD of submitNameTag (which it used to be):** Wynntils' `CustomNametagRendererFeature` (subscribed to `PlayerNametagRenderEvent`, dispatched from Wynntils' own HEAD inject on `submitNameTag`) **cancels** the call whenever it adds gear-hover lines or a Wynntils account-type badge. The cancel propagates via the mixin processor's `if (ci.isCancelled()) return;` guard and skips every later-priority HEAD inject on the same method. Moving to `extractRenderState` TAIL writes the override into `state.nameTag` *before* Wynntils' event handler reads it; Wynntils' prefixed-name component picks up our colour unchanged. See `vetsmod_mwe_anni.md` §"NametagMixin anni branch" for the full forensic.
+- **Why anni branch first:** A supporter who is also in a vets-anni party shows their role colour for the duration of the highlight gate, and reverts to the animated glint after the gate closes.
+- **Data access:** Entity is passed as the first parameter; `instanceof AbstractClientPlayer` check + `getGameProfile().name()` for the username key.
 
 ### CommandSuggestionsMixin
 [src/client/java/org/wynnvets/mixin/client/CommandSuggestionsMixin.java](src/client/java/org/wynnvets/mixin/client/CommandSuggestionsMixin.java)
@@ -96,6 +97,21 @@ These three live directly under `mixin/client/` rather than a subpackage. They'r
 - **Method:** `render(GuiGraphics)`; `@Redirect` on `Ljava/util/Map;values()Ljava/util/Collection;`
 - **Purpose:** While `VetsBossBarManager.isActive()`, replace the `events.values()` iteration with a single-element collection holding only our synthetic bar (or empty if it isn't present); otherwise pass through the full collection. Vanilla render still iterates and positions normally — it just sees one entry.
 - **Why:** Earlier S3 design cancelled `update(ClientboundBossEventPacket)` and called `events.clear()` on activation (Option B per `boss-bar.md` §3). That left the server's view inconsistent with the local map — subsequent UpdateProgress / UpdateName packets dereferenced `null` in vanilla's `events.get(uuid).setName(...)` and crashed the client (reproduced 2026-06-16). Filtering on the render side lets vanilla + Wynntils track bars normally; Wynntils' `Models.StreamerMode.isInStream()` works without the let-through hack.
+
+### EntityGlowingMixin
+[src/client/java/org/wynnvets/mixin/client/EntityGlowingMixin.java](src/client/java/org/wynnvets/mixin/client/EntityGlowingMixin.java)
+- **Target:** `@Mixin(Entity.class)` (default priority)
+- **Method:** `isCurrentlyGlowing()` at `@At("HEAD")`, `cancellable=true`
+- **Purpose:** Returns `true` whenever the entity's Wynntils glow colour is non-`NONE`. Forces vanilla's outline-render path to fire for players the `AnniOutlineTicker` enrolled, even when Wynncraft never put them in a relationship team (no native glow flag).
+- **Why:** Per outlines.md §3 Option C "Cons" — Wynntils' `EntityRendererMixin` will happily override `state.outlineColor` from the glow-colour field, but vanilla won't TRIGGER outline rendering without `isCurrentlyGlowing()` returning true. Without this six-liner, "other vets party" players in light-grey would silently render no outline.
+
+### EntityOutlineColorMixin
+[src/client/java/org/wynnvets/mixin/client/EntityOutlineColorMixin.java](src/client/java/org/wynnvets/mixin/client/EntityOutlineColorMixin.java)
+- **Target:** `@Mixin(EntityRenderer.class)` (default priority)
+- **Method:** `extractRenderState(Entity, EntityRenderState, F)` at `@At("TAIL")`
+- **Purpose:** Sets `state.outlineColor = 0` for `AbstractClientPlayer` outsiders while `AnniOutlineTicker.isOutlineSuppressionActive()` AND `vetsAnniOutlinesEnabled`. Registry members fall through (Wynntils' own `EntityRendererMixin` TAIL inject overrides `state.outlineColor` from `EntityExtension.getGlowColor()` which the ticker has set).
+- **Why this and not a getTeamColor mixin (first try):** Earlier draft was `EntityTeamColorMixin` — HEAD-cancellable on `Entity.getTeamColor()`, returning `0` for outsiders. It rendered every outsider with an **opaque black** outline because vanilla 1.21.11's `extractRenderState` body does `state.outlineColor = ARGB.opaque(getTeamColor())` and `ARGB.opaque(0)` = `0xFF000000`. The outline buffer happily renders that as a solid black glow. Skipping the wrap entirely by clobbering `state.outlineColor` at TAIL of extract sidesteps the issue. Bonus: tab-list colour for outsiders is **not** affected (the read-side `getTeamColor` filter would have neutralised tab list too).
+- **Why packet-side never happened:** The original plan called for an `EntityTeamPacketMixin` mutating `ClientboundSetPlayerTeamPacket.color`, requiring an in-dev packet capture to discover Wynncraft's relationship-team patterns. Skipped entirely — the render-side approach needs zero packet inspection and behaves correctly when toggled on/off mid-window (no lingering scoreboard state, no pre-existing-membership leak-through).
 
 ## Accessors (1)
 
@@ -121,8 +137,7 @@ No non-legacy item mixins. All item behaviour lives in:
 |-------|----------|
 | `QueueTitleMixin` | 500 (very high — fires before other title mixins) |
 | `BossHealthOverlayMixin` | 500 (so we cancel before Wynntils sees the packet) |
-| `NametagMixin` | 900 (before Wynntils default 1000) |
-| All other mixins | Default 1000 |
+| All other mixins | Default 1000 (priority is not load-bearing — S4 nametag work moved off priority-based HEAD ordering to TAIL-of-earlier-method to avoid Wynntils' cancel) |
 
 For event-based integrations, vetsmod uses `@SubscribeEvent(priority=EventPriority.LOWEST)` on `LegacyHighlightEventListener` so it runs AFTER Wynntils' `ItemHighlightFeature` (registered at HIGH). Drawing at LOWEST effectively overwrites Wynntils' rarity highlight.
 

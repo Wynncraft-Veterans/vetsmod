@@ -31,6 +31,8 @@ import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.mwe.anni.mode.AnniWindowWatcher;
 import org.wynnvets.mwe.anni.mode.StreamerModeChatDetector;
 import org.wynnvets.mwe.anni.network.AnniWsHandler;
+import org.wynnvets.mwe.anni.outline.AnniOutlineRegistry;
+import org.wynnvets.mwe.anni.outline.AnniOutlineTicker;
 import org.wynnvets.mwe.anni.zone.AnniZone;
 import org.wynnvets.queue.QueueDetector;
 import org.wynnvets.queue.QueueStateListener;
@@ -108,6 +110,8 @@ public class VetsmodClient implements ClientModInitializer {
     AnniModeManager.register();
     StreamerModeChatDetector.register();
     VetsBossBarManager.register();
+    AnniOutlineRegistry.register();
+    AnniOutlineTicker.register();
     AnniZone.start();
     SupportersPoller.start();
     StaffRanksPoller.start();

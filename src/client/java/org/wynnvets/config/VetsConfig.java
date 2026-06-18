@@ -160,6 +160,26 @@ public class VetsConfig {
    *  off if the audio cue becomes spammy during heavy snapshot churn. */
   public static final String VETS_ANNI_FLASH_SOUND = "vetsAnniFlashSound";
 
+  /** S4 — Master toggle for the per-player outline overlay (role-coloured
+   *  glow on own-party members, light-grey glow on other-vets-party
+   *  members, native Wynncraft team outlines suppressed for outsiders).
+   *  Only consulted while the highlight gate is held (mode != silent,
+   *  within T-2h..T+30m, in the anni zone). Default {@code true}.
+   *  Separable from {@link #VETS_ANNI_NAMETAGS_ENABLED} so users who
+   *  want nametag recolouring without outlines (or vice versa) can pick
+   *  exactly one half. */
+  public static final String VETS_ANNI_OUTLINES_ENABLED = "vetsAnniOutlinesEnabled";
+
+  /** S4 — Master toggle for the per-player nametag overlay (role colour
+   *  on own-party members, light-grey on other-vets-party members, dark-
+   *  grey on outsiders). Gated on the same window+zone+mode predicate as
+   *  {@link #VETS_ANNI_OUTLINES_ENABLED}. Default {@code true}. The
+   *  branch added to {@code NametagMixin} runs before the supporter
+   *  glint branch — so an own-party supporter shows the role colour
+   *  for the duration of the highlight gate and reverts to the
+   *  animated supporter glint afterwards. */
+  public static final String VETS_ANNI_NAMETAGS_ENABLED = "vetsAnniNametagsEnabled";
+
   /** Valid values for {@link #VETS_ANNI_FLASH_INTENSITY}. */
   public static final String[] VALID_FLASH_INTENSITIES = {
       "subtle", "normal", "strong",
@@ -244,6 +264,8 @@ public class VetsConfig {
       VETS_ANNI_BOSSBAR_ENABLED,
       VETS_ANNI_FLASH_INTENSITY,
       VETS_ANNI_FLASH_SOUND,
+      VETS_ANNI_OUTLINES_ENABLED,
+      VETS_ANNI_NAMETAGS_ENABLED,
       PRINT_BRIDGE_MESSAGES,
       PRINT_SUCCESSFUL_AUTH,
       SHOW_SUPPORTER_GLINTS,
@@ -398,6 +420,8 @@ public class VetsConfig {
     config.put(VETS_ANNI_SHOW_PREDICTION, true);
     config.put(VETS_ANNI_BOSSBAR_ENABLED, true);
     config.put(VETS_ANNI_FLASH_SOUND, true);
+    config.put(VETS_ANNI_OUTLINES_ENABLED, true);
+    config.put(VETS_ANNI_NAMETAGS_ENABLED, true);
     config.put(PRINT_BRIDGE_MESSAGES, true);
     config.put(PRINT_SUCCESSFUL_AUTH, true);
     config.put(SHOW_SUPPORTER_GLINTS, true);

@@ -806,16 +806,20 @@ public final class AnniDebugCommands {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
         String action = StringArgumentType.getString(ctx, "action");
-        if (!"enter".equalsIgnoreCase(action) && !"exit".equalsIgnoreCase(action)) {
+        boolean enter = "enter".equalsIgnoreCase(action);
+        boolean exit  = "exit".equalsIgnoreCase(action);
+        if (!enter && !exit) {
             ChatUtils.sendLocalMessage(
                     Component.literal("anni zone: action must be enter or exit")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
+        org.wynnvets.mwe.anni.outline.AnniOutlineTicker.setForceInZone(enter);
         ChatUtils.sendLocalMessage(
                 Component.literal("anni zone " + action.toLowerCase()
-                        + ": registered intent (S4+ — zone consumer not yet wired)")
-                        .withStyle(ChatFormatting.YELLOW));
+                        + ": forceInZone=" + enter
+                        + " (S4 highlights gate)")
+                        .withStyle(ChatFormatting.GREEN));
         return 1;
     }
 

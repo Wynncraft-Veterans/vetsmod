@@ -200,7 +200,10 @@ public final class AnniMotdRenderer {
         if (hours >= 0.1) {
             return String.format(Locale.ROOT, "%.1fh", hours);
         }
-        long minutes = Math.max(1L, seconds / 60L);
-        return minutes + "m";
+        long minutes = seconds / 60L;
+        if (minutes >= 1L) {
+            return String.format(Locale.ROOT, "%dm %02ds", minutes, seconds % 60L);
+        }
+        return seconds + "s";
     }
 }

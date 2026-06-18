@@ -60,8 +60,16 @@ public final class VetsBossBarContentBuilder {
      * Recommend a {@link BossEvent.BossBarColor} that mirrors the
      * "Attendance Chance" pill on {@code /wv anni}:
      * <ul>
-     *   <li>board state {@code party} (ASSIGNED) → {@link BossEvent.BossBarColor#PINK}
-     *       (vanilla's closest match to LIGHT_PURPLE)</li>
+     *   <li>board state {@code party} (ASSIGNED) → {@link BossEvent.BossBarColor#PURPLE}
+     *       (NOT pink — Wynncraft's resource pack overrides
+     *       {@code boss_bar/pink_background.png} to be fully transparent,
+     *       so any pink bar renders as text-only; reproducible on bare
+     *       vanilla MC with Wynncraft connected. Confirmed empirically
+     *       in {@code .claude/ephemeral/BossBarExploration/} — every
+     *       Wynncraft text-only bar (Returners XP, Corrupted Road, etc.)
+     *       carries {@code color=PINK overlay=PROGRESS}; mob health bars
+     *       use non-pink colours and render normally. Purple is the
+     *       nearest visual neighbour that isn't suppressed.)</li>
      *   <li>board state {@code wont_assign} (COULD NOT ASSIGN) → RED</li>
      *   <li>otherwise → quantised from {@link AnniSnapshot.Attendance#band()}
      *       (1-2 = RED, 3-4 = YELLOW, 5-6 = GREEN). Mirrors the dashboard
@@ -76,7 +84,10 @@ public final class VetsBossBarContentBuilder {
         AnniSnapshot.Board board = snapshot.board();
         String state = (board != null && board.state() != null)
                 ? board.state().toLowerCase() : null;
-        if ("party".equals(state)) return BossEvent.BossBarColor.PINK;
+        // PURPLE rather than PINK — pink is suppressed by Wynncraft's
+        // resource pack; see the class-level javadoc for the empirical
+        // evidence.
+        if ("party".equals(state)) return BossEvent.BossBarColor.PURPLE;
         if ("wont_assign".equals(state)) return BossEvent.BossBarColor.RED;
         AnniSnapshot.Attendance att = snapshot.attendance();
         if (att != null && att.band() > 0) {

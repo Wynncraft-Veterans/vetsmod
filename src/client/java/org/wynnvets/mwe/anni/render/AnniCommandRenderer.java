@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Pure-function renderer for {@code /wv anni} (no args) when an
@@ -382,8 +383,6 @@ public final class AnniCommandRenderer {
      *  primary info (countdown) is in aqua-family colors above. */
     private static MutableComponent renderFarOut(AnniSnapshot snapshot,
                                                  long secondsUntil, long stamp) {
-        long hours = secondsUntil / 3600;
-        long minutes = (secondsUntil % 3600) / 60;
         String stampStr = STAMP_FMT.format(Instant.ofEpochSecond(stamp));
 
         MutableComponent out = Component.literal("");
@@ -392,11 +391,8 @@ public final class AnniCommandRenderer {
                 "Open the anni dashboard",
                 ChatFormatting.AQUA));
         out.append(Component.literal(" returns in ").withStyle(ChatFormatting.DARK_AQUA));
-        out.append(Component.literal(Long.toString(hours)).withStyle(ChatFormatting.AQUA));
-        out.append(Component.literal("h ").withStyle(ChatFormatting.DARK_AQUA));
-        out.append(Component.literal(Long.toString(minutes)).withStyle(ChatFormatting.AQUA));
-        out.append(Component.literal("m ").withStyle(ChatFormatting.DARK_AQUA));
-        out.append(Component.literal("(" + stampStr + ")")
+        appendCountdown(out, secondsUntil);
+        out.append(Component.literal(" (" + stampStr + ")")
                 .withStyle(ChatFormatting.DARK_GRAY));
 
         out.append(Component.literal("\n"));
@@ -420,6 +416,44 @@ public final class AnniCommandRenderer {
         }
         out.append(boardSection(snapshot, true));
         return out;
+    }
+
+    /** Append the countdown segment ("71h 59m" / "23m 04s" / "47s") to
+     *  the header. Picks resolution by magnitude so a sub-minute window
+     *  isn't rounded to "0h 1m" — at this timescale the user wants
+     *  seconds, same as the S3 boss-bar countdown.
+     *
+     *  <ul>
+     *    <li>≥ 1h → {@code Xh Ym} (current long-form)</li>
+     *    <li>≥ 1m → {@code Xm Ys} with zero-padded seconds</li>
+     *    <li>&lt; 1m → {@code Ys} (drops the redundant {@code 0m})</li>
+     *  </ul>
+     *
+     *  Numerics aqua, qualifiers dark-aqua — matches the existing
+     *  aqua/dark-aqua header pairing. */
+    private static void appendCountdown(MutableComponent out, long secondsUntil) {
+        long s = Math.max(0L, secondsUntil);
+        long hours = s / 3600L;
+        long minutes = (s % 3600L) / 60L;
+        long seconds = s % 60L;
+
+        if (hours > 0L) {
+            out.append(Component.literal(Long.toString(hours)).withStyle(ChatFormatting.AQUA));
+            out.append(Component.literal("h ").withStyle(ChatFormatting.DARK_AQUA));
+            out.append(Component.literal(Long.toString(minutes)).withStyle(ChatFormatting.AQUA));
+            out.append(Component.literal("m").withStyle(ChatFormatting.DARK_AQUA));
+            return;
+        }
+        if (minutes > 0L) {
+            out.append(Component.literal(Long.toString(minutes)).withStyle(ChatFormatting.AQUA));
+            out.append(Component.literal("m ").withStyle(ChatFormatting.DARK_AQUA));
+            out.append(Component.literal(String.format(Locale.ROOT, "%02d", seconds))
+                    .withStyle(ChatFormatting.AQUA));
+            out.append(Component.literal("s").withStyle(ChatFormatting.DARK_AQUA));
+            return;
+        }
+        out.append(Component.literal(Long.toString(seconds)).withStyle(ChatFormatting.AQUA));
+        out.append(Component.literal("s").withStyle(ChatFormatting.DARK_AQUA));
     }
 
     /** "Assigned Role: TANK" — used in {@link #renderFarOut} when the

@@ -63,11 +63,17 @@ public final class VetsBossBarManager {
      *  perpetual boss bar. */
     private static final long ANNI_WINDOW_SECONDS = 90L * 60L; // 90 min
 
-    /** Progress fills to 100% at T-90m (= activation in the time-only
-     *  case), drains linearly to 0% at T-20s. When the player is in
-     *  the zone earlier than T-90m, the bar also shows but the
-     *  progress is clamped at 100% until the time gate catches up. */
-    private static final long PROGRESS_FULL_AT_SECONDS = ANNI_WINDOW_SECONDS;
+    /** Progress nominally fills to 100% at T-100m and drains linearly
+     *  to 0% at T-20s — a 100-minute progress window. Decoupled from
+     *  {@link #ANNI_WINDOW_SECONDS} (the activation gate) so the
+     *  {@link BossEvent.BossBarOverlay#NOTCHED_10} overlay's ten segment
+     *  dividers land exactly every 10 minutes of wall-clock time. At
+     *  activation (T-90m or zone-entry) the bar already reads
+     *  {@code 90% ≈ 9-of-10 sections filled} — the spec-requested
+     *  "90 mins = 9 notches" mapping. Each subsequent 10-minute step
+     *  drops one section, giving a reliable readout of how much time
+     *  is left without the user having to read the countdown text. */
+    private static final long PROGRESS_FULL_AT_SECONDS = 100L * 60L; // 100 min
 
     /** Hard T-20s gate — independent of the content builder. */
     private static final long DROP_DEAD_SECONDS_BEFORE_ANNI = 20L;
@@ -90,7 +96,13 @@ public final class VetsBossBarManager {
             Component.literal(""),
             1.0f,
             BossEvent.BossBarColor.PURPLE,
-            BossEvent.BossBarOverlay.PROGRESS,
+            // NOTCHED_10 paired with the 100-minute progress window above:
+            // 10 segments × 10 minutes each = a notch every 10 minutes of
+            // real time. At activation (T-90m) the bar reads 90% ≈ 9
+            // notches filled, matching the user-asked "90 mins = 9 notches"
+            // readability target. Closest vanilla offers — there is no
+            // NOTCHED_9.
+            BossEvent.BossBarOverlay.NOTCHED_10,
             false, false, false);
 
     private VetsBossBarManager() {

@@ -14,6 +14,8 @@
 		"QueueTitleMixin",
 		"BossHealthOverlayMixin",
 		"accessors.BossHealthOverlayAccessor",
+		"EntityGlowingMixin",
+		"EntityOutlineColorMixin",
 		"command.UnlockCommandMixin"
 	],
 	"injectors": {

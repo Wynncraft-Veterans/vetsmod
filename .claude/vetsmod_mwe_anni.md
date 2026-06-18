@@ -1,12 +1,12 @@
 ---
 name: vetsmod MWE/anni subsystem
-description: Architecture-as-built for the anni integration after S1+S2+S3 (snapshot pipeline, /wv anni renderer, anni-motd, debug harness, mode state, passive-mode boss bar). Source-of-truth for S4+ implementers.
+description: Architecture-as-built for the anni integration after S1+S2+S3+S4 (snapshot pipeline, /wv anni renderer, anni-motd, debug harness, mode state, passive-mode boss bar, passive-mode player highlights). Source-of-truth for S5+ implementers.
 type: project
 ---
 
-# vetsmod MWE/anni subsystem (S1+S2+S3 reference)
+# vetsmod MWE/anni subsystem (S1+S2+S3+S4 reference)
 
-Reference for the **as-built** state after S1 (snapshot pipeline), S2 (`/wv anni` + anni-motd renderers, debug harness, mode state), and S3 (passive-mode boss bar) of the multi-stage plan at `C:/Users/tjpas/.claude/plans/this-is-a-massive-drifting-moth.md`. Read this first if you're picking up S4+; the plan file is the architectural intent, this doc is what the codebase actually does.
+Reference for the **as-built** state after S1 (snapshot pipeline), S2 (`/wv anni` + anni-motd renderers, debug harness, mode state), S3 (passive-mode boss bar), and S4 (passive-mode player highlights) of the multi-stage plan at `C:/Users/tjpas/.claude/plans/this-is-a-massive-drifting-moth.md`. Read this first if you're picking up S5+; the plan file is the architectural intent, this doc is what the codebase actually does.
 
 ## Package layout
 
@@ -33,6 +33,10 @@ mwe/anni/
 │   └── FlashTracker.java               — per-field diff + bold↔underline pulse + name-ping sound
 ├── zone/
 │   └── AnniZone.java               — 60s cached fetcher for api.wynncraft.com/v3/map/world-events; 48-block disc test
+├── outline/
+│   ├── AnniOutlinePalette.java   — ChatFormatting-derived role/tier colour table
+│   ├── AnniOutlineRegistry.java  — username → tier entry, rebuilt off snapshot (lowercase-keyed)
+│   └── AnniOutlineTicker.java    — per-tick driver; applies glow via EntityExtension; exposes isOutlineSuppressionActive() flag for the mixins
 └── render/
     ├── AnniHoverBuilder.java      — colour tokens, role chips, rsvp badges, link/click/hover helpers
     ├── AnniCommandRenderer.java   — /wv anni payload builder; returns List<MutableComponent>
@@ -62,7 +66,7 @@ Entry: `CommandRegistry.anni()` → `StampFetcher.fetchStampAndCreateAnniCommand
 
 Three branches:
 - **Not announced** — header (or red headline for external) + prediction line + (if vets) the not-announced registration block. No board section here (no anni to be placed in).
-- **Far-out (T-2h+)** — header (link + "returns in Xh Ym (HH:MM, day d)") + Assigned Role *or* Eligible Roles + RSVP Type + Attendance Chance + Party Assignment + Host.
+- **Far-out (T-2h+)** — header (link + "returns in Xh Ym (HH:MM, day d)") + Assigned Role *or* Eligible Roles + RSVP Type + Attendance Chance + Party Assignment + Host. Countdown resolution scales with magnitude (`AnniCommandRenderer.appendCountdown`): `≥ 1h → Xh Ym`, `< 1h ≥ 1m → Xm Ys`, `< 1m → Ys`. Matches the S4 user request that sub-hour readouts surface seconds. Same scaling in `AnniMotdRenderer.formatHours` for the world-join motd.
 - **Imminent (within 2h)** — same body as far-out + a second block with `Change Anni Mode? (Click:) / [Silent] | [Passive] | [Aggressive]`.
 
 ### Not-announced registration block
@@ -196,6 +200,10 @@ Originally implemented as Option B from [`boss-bar.md`](C:/Low-Perm-Program-File
 - Seeking (no party + no committed slot) → `Seeking a <HRSVP|SRSVP|WALKIN|LATE> <CORE|FILL> SLOT for anni.wynnvets.org in <X>min` (spec §3.1.1.1). Slot type derived from `registration.roles` (specific role = CORE).
 - All chips wrap via `FlashTracker.styleFor(fieldKey, base)` so the bold↔underline pulse applies per-field.
 
+**Bar colour: never PINK.** `colorFor("party")` returns `PURPLE`, not PINK as the original spec suggested. Wynncraft's forced resource pack overrides `boss_bar/pink_background.png` (and its progress sprite) to be fully transparent so they can repurpose pink-bar slots as text-only HUD strips (the Lv.92 Returners XP line, territory/region names like "Corrupted Road", "ROOTS OF CORRUPTION"). Reproducible on bare vanilla MC 1.21.11 with the Wynncraft pack loaded. Empirical evidence captured in `.claude/ephemeral/BossBarExploration/`. Confirmed via `/wv debug trigger bossBarsDump` — every Wynncraft text-only bar shipped `color=PINK overlay=PROGRESS`. **Future colour additions: pick from `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` only.**
+
+**Overlay style: NOTCHED_10 with a 100-min progress window.** Per-user request — segment dividers every 10 minutes for readability. Vanilla only ships `NOTCHED_6/10/12/20` (no `NOTCHED_9`). `PROGRESS_FULL_AT_SECONDS` decoupled from `ANNI_WINDOW_SECONDS` (still 90 min activation gate) and stretched to 100 min so each of 10 segments = exactly 10 minutes of wall-clock time. At T-90m activation the bar reads ~90% = 9 of 10 segments filled, matching the "90 mins = 9 notches" mapping. Drains one segment per 10 min through T-20s.
+
 **`FlashTracker`** (`bossbar/FlashTracker.java`):
 - Subscribes to `AnniSnapshotCache`. Two flash models:
   - **Role / party / RSVP**: timed-window flash. On a snapshot diff against last-seen, marks the field "flashing" for `vetsAnniFlashIntensity` ms (`subtle=5000`, `normal=10000` default, `strong=20000`). First observation skipped via `roleObserved` / `partyObserved` / `rsvpObserved` sentinels — login with existing state doesn't bing on every reconnect, but **null → set** transitions during the session DO flash + ping.
@@ -259,7 +267,7 @@ So fixtures stay valid across long stretches of time. Use it for any new preset 
 | `member_announced` | Vets + announced (NOW+8h) + unassigned (attendance bar) |
 | `member_in_party` | Vets + announced (NOW+8h) + party (ASSIGNED + party block) |
 
-## Config keys (S1 + S2 + S3)
+## Config keys (S1 + S2 + S3 + S4)
 
 | Key | Type | Default | Purpose |
 |--|--|--|--|
@@ -272,6 +280,8 @@ So fixtures stay valid across long stretches of time. Use it for any new preset 
 | `vetsAnniBossbarEnabled` | bool | true | Master kill-switch for the synthetic boss bar (S3). Only consulted in passive/aggressive. |
 | `vetsAnniFlashIntensity` | string | `normal` | `subtle`=5s / `normal`=10s / `strong`=20s flash duration per field change. |
 | `vetsAnniFlashSound` | bool | true | Whether per-field changes also play the name-ping sound twice. |
+| `vetsAnniOutlinesEnabled` | bool | true | S4 outline overlay (role-coloured glow on party / light-grey on other vets parties / no glow on outsiders). Only consulted while the highlight gate holds. |
+| `vetsAnniNametagsEnabled` | bool | true | S4 nametag overlay (matching colour scheme). Separable from outlines. |
 
 ## Open follow-ups not done in S2/S3
 
@@ -279,15 +289,170 @@ So fixtures stay valid across long stretches of time. Use it for any new preset 
 - **Active-mode highlight on the mode-switch UI** — current state isn't visually indicated. User clicks to switch; no "you are here" marker.
 - **Boss-bar countdown stamp source** — spec §3.1.1.3 footnote suggests T-5m text should derive from Wynntils' world-event countdown rather than purely from `stamp_epoch`. S3 uses the stamp; revisit if a real anni test reveals drift.
 
-## For the S4 agent
+## Player highlights (S4)
 
-S3 prepared more than it strictly needed; pickup notes:
+The S4 highlight overlay recolours nearby players' outlines + nametags while the user is at the anni in the active window. Three tiers, single ticker.
 
-- **`AnniZone.isInZone(x, z)` is shipped and live-tested.** S4's outline-window gate (T-2h to T+30m, in-zone) calls this directly. The fetcher polls `api.wynncraft.com/v3/map/world-events` for event `a63b2c02` every 60 s with stale-fallback.
-- **`Models.WorldState.getCurrentWorldName()` is the canonical "what world am I on" source** — used by `FlashTracker.tick()` already. S4's per-tick driver can reuse without re-deriving.
-- **Mixin architecture lesson from S3:** prefer **render-side suppression** to update-path cancellation when the destination might dereference on missing entries. Cancelling vanilla packets at HEAD looks clean in theory but leaves the server's view inconsistent with the local map — `BossHealthOverlay` NPE'd within hours. The render-filter pattern in `BossHealthOverlayMixin` (`@Redirect` on `Ljava/util/Map;values()Ljava/util/Collection;` inside `render(GuiGraphics)`) is the working precedent. If S4's `EntityTeamPacketMixin` faces a similar choice, lean toward filtering the read side, not the write side.
-- **`AnniModeManager.current()` returns the live mode** — S4 outline gate reads this for `mode != SILENT`.
-- **`/wv debug tree anni snapshot inject preset member_in_party`** sets up the most useful S4 test fixture (assigned to party, in EU5, with party members for the outline rules to act on).
+### Snapshot schema bump (v1 → v2)
+
+S4 shipped `schema_version = 2` on the vets-anni side. The single addition is `event.all_parties`: a lightweight per-party member listing keyed off the active event. Each entry is `{ordinal, members: [{uuid, username, role}, ...]}` — same `_party_member_refs` projection as `board.party.members`, so the two views never drift. Used by `AnniOutlineRegistry` to tier "in another vets-anni party" players without per-uuid round-trips. Empty list when no parties exist yet for the active event. `AnniSnapshot.Event#allParties()` returns `Collections.emptyList()` on v1 payloads (Gson leaves unknown fields null, accessor coerces), so older snapshots remain consumable.
+
+### Activation gate — strictly tighter than the boss bar
+
+| Subsystem | Gate |
+|--|--|
+| Boss bar (S3) | `mode != SILENT` AND ( `secondsUntilAnni ≤ 90m` **OR** `in zone` ) |
+| Highlights (S4) | `mode != SILENT` AND `in window (T-2h..T+30m)` **AND** `in zone` AND ( `vetsAnniOutlinesEnabled` OR `vetsAnniNametagsEnabled` ) |
+
+Highlights are the high-intrusiveness UI; the boss bar is the low-intrusiveness one. Both ride the same mode + snapshot data but evaluate window/zone independently. `AnniOutlineTicker` re-evaluates the four-condition gate every client tick.
+
+### `AnniOutlinePalette` (`outline/AnniOutlinePalette.java`)
+
+Spec-canonical ChatFormatting-derived table. `CustomColor` values come from `CustomColor.fromChatFormatting(ChatFormatting.X)` so the outline ARGB stays in sync with vanilla's interpretation of the matching colour code elsewhere (chat text, scoreboard).
+
+| Role / tier | ChatFormatting | Source |
+|--|--|--|
+| FILL | `WHITE` (§f) | `forRole("FILL")` |
+| TANK | `AQUA` (§b) | `forRole("TANK")` |
+| HEAL / HEALER | `GREEN` (§a) | `forRole("HEAL")` |
+| TERTIARY | `LIGHT_PURPLE` (§d) | `forRole("TERTIARY")` |
+| SECONDARY | `YELLOW` (§e) | `forRole("SECONDARY")` |
+| PRIMARY | `RED` (§c) | `forRole("PRIMARY")` |
+| Other vets party | `GRAY` (§7) | `OTHER_VETS_PARTY` |
+| Outsider nametag | `DARK_GRAY` (§8) | `OUTSIDER_NAMETAG` |
+
+Single source of truth: the ticker (outline glow) and `NametagMixin`'s anni branch (text component) both read from here. Drift would be a bug.
+
+### `AnniOutlineRegistry` (`outline/AnniOutlineRegistry.java`)
+
+Username → `Entry(tier, role, outlineColor, nametagFormatting)`. Keys are lowercase (matches whatever `GameProfile.name()` gives the consumer, defensive against snapshot case mismatches). Rebuilt off every `AnniSnapshotCache` push:
+
+1. Own-party members (from `snapshot.board.party.members`) added first → `Tier.OWN_PARTY` with role-coloured entry.
+2. Every other vets party (from `snapshot.event.all_parties`) added via `putIfAbsent` — own-party entries already win, so a player who appears in both lists (always — own party IS one of all_parties) keeps their role colour.
+3. The local player (matched by `snapshot.mc_username`) is excluded — no self-outline.
+
+`isAnyActive()` for quick "anything to do" checks. `getEntry(String username)` for the consumer lookups. `clearAll()` for unit-test teardown (no production caller; the rebuild path overwrites). Concurrent hashmap; reads from main / render threads, writes from the WS reader thread.
+
+### `AnniOutlineTicker` (`outline/AnniOutlineTicker.java`)
+
+Subscribes `ClientTickEvents.END_CLIENT_TICK` once at init. Each tick:
+
+1. Evaluate the four-condition gate (mode, window, zone, at-least-one-toggle).
+2. If the gate fails and `suppressionActive` was true → clear every glow we previously applied (walk `level.players()`, set `setGlowColor(NONE)` for tracked usernames), reset the flag, return.
+3. If the gate holds → walk `level.players()`:
+   - Skip the local player.
+   - Registry hit → `setGlowColor(entry.outlineColor())`.
+   - Was applied last tick + no longer in registry → `setGlowColor(NONE)`.
+   - Otherwise → leave alone.
+4. Maintain the `appliedUsernames` set so the cleanup walk only touches entities we coloured.
+
+Exposes `isOutlineSuppressionActive()` for the two mixins to read. Debug `setForceInZone(boolean)` lets `/wv debug tree anni zone enter|exit` bypass the geo-check during dev.
+
+### `EntityGlowingMixin` (`mixin/client/EntityGlowingMixin.java`)
+
+Six-line HEAD-cancellable inject on `Entity.isCurrentlyGlowing()`. Returns `true` whenever `getGlowColor() != CustomColor.NONE`. Lets us outline players Wynncraft never put in a relationship team. No mode gate — the glow-colour field is `NONE` by default, so this only fires for entities the ticker has explicitly enrolled. Per outlines.md §3 Option C "Cons".
+
+### `EntityOutlineColorMixin` (`mixin/client/EntityOutlineColorMixin.java`)
+
+TAIL inject on `EntityRenderer.extractRenderState(Entity, EntityRenderState, F)`. While `AnniOutlineTicker.isOutlineSuppressionActive()` AND `vetsAnniOutlinesEnabled` AND the entity is an `AbstractClientPlayer` NOT in the registry → sets `state.outlineColor = 0` directly. Native team-colour outline vanishes; registry members fall through (Wynntils' own `EntityRendererMixin` TAIL inject overrides `state.outlineColor` from `EntityExtension.getGlowColor`, which `AnniOutlineTicker` has already set to the tier colour).
+
+**Why this and not a getTeamColor mixin (first try).** Earlier draft was `EntityTeamColorMixin` — HEAD-cancellable on `Entity.getTeamColor()`, returning `0` for outsiders. It rendered every outsider with an **opaque black** outline because vanilla 1.21.11's `extractRenderState` body does:
+
+```java
+state.outlineColor = shouldEntityAppearGlowing(entity)
+    ? ARGB.opaque(entity.getTeamColor())   // forces alpha=0xFF
+    : 0;
+```
+
+`ARGB.opaque(0)` = `0xFF000000`, an opaque black RGBA — the outline buffer happily renders that as a solid black glow halo. Skipping the wrap entirely by clobbering `state.outlineColor` at TAIL of extract sidesteps the issue.
+
+Mixin order vs. Wynntils' own TAIL inject doesn't matter because the branches are disjoint: registry members get their colour via the glow-colour pipeline (which we don't touch), and outsiders get `state.outlineColor = 0` regardless of which TAIL inject runs first — Wynntils' inject only fires when `getGlowColor() != NONE`, which is the registry-member case.
+
+Side effect: tab-list colour for outsiders is **not** affected — only `state.outlineColor` is touched, which is render-state-only.
+
+### `NametagMixin` anni branch (`mixin/client/NametagMixin.java`)
+
+TAIL inject on `AvatarRenderer.extractRenderState(Avatar, AvatarRenderState, F)`. The anni branch runs BEFORE the existing supporter glint branch in the same inject body. While `AnniOutlineTicker.isOutlineSuppressionActive()` AND `vetsAnniNametagsEnabled`:
+
+- Registry hit → recolour to `entry.nametagFormatting()` (matches the outline colour family).
+- Registry miss → recolour to `ChatFormatting.DARK_GRAY` (outsider treatment).
+
+Recolour mechanism:
+
+```java
+String stripped = ChatFormatting.stripFormatting(state.nameTag.getString());
+state.nameTag = Component.literal(stripped).withStyle(fmt);
+```
+
+**Two non-obvious fixes baked in:**
+
+1. **TAIL of `extractRenderState`, not HEAD of `submitNameTag`.** Original design hooked `submitNameTag` HEAD with priority 900. Wynntils' `CustomNametagRendererFeature.onPlayerNameTagRender` (subscribed to `PlayerNametagRenderEvent`, dispatched from Wynntils' priority-1000 HEAD inject on the same method) **cancels** the call whenever it adds gear-hover lines (hovered raycast target) or a Wynntils account-type badge. Cancellation propagates via the mixin processor's generated `if (ci.isCancelled()) return;` and skips every later-priority HEAD inject on the same method. Moving to `extractRenderState` TAIL writes the override into `state.nameTag` *before* Wynntils' handler ever reads it; Wynntils' prefixed-name component picks up our colour unchanged.
+
+2. **`ChatFormatting.stripFormatting` is mandatory.** Wynncraft embeds the team colour as a legacy `§<code>` prefix INSIDE the nametag string content — `state.nameTag.getString()` returns `"§awonderkas"` for a friend-team-coloured player, not `"wonderkas"`. Without the strip, `Component.literal("§awonderkas").withStyle(RED)` renders GREEN because vanilla's text renderer parses the leading `§a` at draw time and silently overrides the Style. Confirmed live via `/wv debug trigger nametagsDump`'s `original=` field. Without this strip every recoloured nametag silently reverts to the team colour.
+
+Falls through to the supporter glint branch only when the anni gate is off; an own-party supporter inside the gate shows their role colour for the duration and the glint resumes after the gate closes.
+
+### Config keys
+
+| Key | Default | Purpose |
+|--|--|--|
+| `vetsAnniOutlinesEnabled` | true | Master toggle for the outline overlay half of S4. Only consulted while the highlight gate holds. |
+| `vetsAnniNametagsEnabled` | true | Master toggle for the nametag overlay half. Separable from outlines so users can pick one half. |
+
+### Debug
+
+- `/wv debug tree anni zone enter|exit` → `AnniOutlineTicker.setForceInZone(...)` — bypasses the geo-check so dev sessions can verify the overlay without flying to the anni location.
+- `/wv debug tree anni snapshot inject preset wenweia_full_party` is the most useful S4 fixture — a 10-member own-party covering every role colour. Bundled preset.
+- `/wv debug trigger bossBarsDump` — dumps vanilla's `BossHealthOverlay#events` map with per-bar `UUID/color/overlay/progress/name`. Was the smoking gun for the PINK-colour suppression — the dump immediately revealed every Wynncraft text-only bar shipped `color=PINK overlay=PROGRESS`. Useful for any future "why doesn't my bar render" question.
+- `/wv debug trigger nametagsDump` — walks `level.players()` and reports each player's username, `AnniOutlineRegistry` hit/miss, tier, role, and the `ChatFormatting` the `NametagMixin` would resolve to right now. Was instrumental in finding the §-code-in-string bug — the `original=` field on the dumped line surfaces the embedded leading `§a` that vanilla's text renderer parses at draw time. Use whenever a nametag colour doesn't match what you expect; the dump's `→ <username> (<colour> via registry)` segment shows what should render in-world.
+
+## For the S5 agent
+
+S5 is **aggressive mode** — zone-line rendering, scroll-spot waypoint, `/toggle ghosts none` prompt on zone entry, and chat alerts on material snapshot changes (role / world / party). Per the parent plan §"S5".
+
+### Carryovers from S4
+
+- **`AnniZone.isInZone(x, z)`** is live-tested through S3+S4 traffic and works for the S5 zone-line renderer and ghosts-prompt entry detection. Same fetcher; same stale-fallback behaviour.
+- **`AnniOutlineTicker.isOutlineSuppressionActive()`** flag exposes the strict S4 gate (mode != silent ∧ window ∧ zone ∧ at-least-one-S4-toggle). S5's zone-line renderer and waypoint probably want a different gate — **mode == AGGRESSIVE ∧ in zone** is closer; the highlight gate's window check is conservative for waypoint rendering which arguably should show as soon as you're at the location regardless of countdown. Confirm with user before coding.
+- **`AnniSnapshotCache.addListener(...)`** is the canonical pattern for snapshot-diff consumers; the alert dispatcher should listen here and remember last-seen `board.role` / `board.party.world` / `board.party.ordinal` for diff-based notifications. **First observation should be silent** — login with existing assignment shouldn't bing on every reconnect. S4's `FlashTracker` already implements this `*Observed` sentinel pattern; mirror it.
+- **Debug commands** `/wv debug tree anni time <seconds>`, `zone enter|exit`, `snapshot inject ...` all still work for S5; lean on them rather than waiting for a live anni.
+- **`/wv debug trigger bossBarsDump` / `nametagsDump`** are usable render-pipeline diagnostics — extend the pattern (`/wv debug trigger X`) for any new render system S5 builds.
+
+### Render-pipeline lessons (collected from S1 → S4)
+
+1. **Prefer render-side / read-side filtering to packet-side / write-side mutation.** Four working precedents now:
+   - `BossHealthOverlayMixin` (`@Redirect` on `events.values()`, S3)
+   - `EntityOutlineColorMixin` (TAIL on `extractRenderState`, zeroes `state.outlineColor`, S4)
+   - `EntityGlowingMixin` (HEAD-cancellable on `isCurrentlyGlowing`, S4)
+   - `NametagMixin` (TAIL on `extractRenderState`, rebuilds `state.nameTag`, S4)
+   - Cancelling vanilla packets has burned us twice (S3 boss-bar crash on `update()` cancel, S4 nametag short-circuit by Wynntils' cancel). Keep vanilla bookkeeping intact; intercept what comes out, not what goes in.
+
+2. **Don't trust `state.<field>` to mean what you think — vanilla often wraps or coerces values right before assignment.** S4 found `state.outlineColor = ARGB.opaque(getTeamColor())` — returning 0 from the getter produced opaque-black, not transparent. Always check the assignment site, not just the source value.
+
+3. **Wynncraft embeds formatting in string content, not just in Component Style.** S4 found `state.nameTag.getString()` returns `"§awonderkas"`. Any time you `.getString()` a Wynncraft component and rebuild it with `.withStyle(...)`, strip § codes first with `ChatFormatting.stripFormatting()`. The text renderer parses leading § codes at draw time and they win over your Style.
+
+4. **Wynncraft's resource pack overrides specific vanilla sprites.** S4 found `boss_bar/pink_background.png` is fully transparent (so PINK/PROGRESS bars render as text-only HUD strips). Other vanilla GUI sprites *may* be similarly overridden; if a vanilla render component goes unexpectedly invisible, blame the resource pack first. Stick to `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` for any new boss-bar colour and don't assume vanilla sprite paths are intact.
+
+5. **Wynntils' `CustomNametagRendererFeature` and `EntityRendererMixin` are positioned at `submitNameTag` HEAD / `extractRenderState` TAIL respectively.** They cancel or override depending on player state. Test your mixin behaviour with players who:
+   - have a Wynntils account-type (Donator / etc.) — triggers `addAccountTypeNametag` + event cancel
+   - you're currently looking at (raycast hit) — triggers `addGearNametags` + event cancel
+   - have no Wynntils data — event proceeds, vanilla body runs
+   - are local-player (skips some paths)
+   - The S4 nametag bug surfaced only on hovered Wynntils-tracked players; non-tracked players appeared to work, masking the bug for ~30 minutes of testing. Use the dump command to verify the mixin is *resolving* even when in-world rendering looks normal.
+
+6. **MixinSquared / Mixin disallows non-private static methods on mixin classes** (`vetsmod$resetLoggedNametags` crashed mod load with `InvalidMixinException`). Static fields are fine; static methods must be `private`. Same restriction applies to any helper you'd add to the mixin class itself; put them in a sibling helper class if you need public statics.
+
+7. **`@Inject HEAD` on a cancellable method is processed in `priority` order** — higher priority runs FIRST. If any earlier-priority inject cancels via `ci.cancel()`, the mixin processor's generated `if (ci.isCancelled()) return;` guard skips your inject. The S4 nametag bug here cost us several attempts. For "I must always run" semantics, TAIL of an earlier method is more reliable than HEAD of a later one.
+
+8. **`isOutlineSuppressionActive()` is the cheap public flag** for "are we doing the anni-active rendering thing right now". The flag is just a `volatile boolean` set per tick by the ticker — safe to query from render-thread mixins without extra locking. S5 should consider exposing a parallel `AnniAggressiveTicker.isAggressiveActive()` flag with its own gate semantics.
+
+### S5-specific recommendations
+
+- **Decouple the aggressive gate from S4's strict highlight gate.** Aggressive features (zone lines, scroll waypoint, chat alerts) probably want `mode == AGGRESSIVE ∧ in zone` without the window check — useful even outside T-2h..T+30m for organisers prepping. Verify with user before coding.
+- **Host-only commands** (`/wv anni scrollspot set/clear`) should authenticate via `V1ApiManager.isAuthenticated()` and trust the temp-server to verify the host UUID against the snapshot — don't trust the client-side `board.party.host`.
+- **`TerritoryLineRenderer` is the canonical line-renderer.** Plan §S5 calls for piggybacking it for the anni-zone outline. Verify that the line renderer's lifecycle (per-tick, per-frame) doesn't conflict with the AnniZone disc-union geometry (multiple discs may overlap).
+- **Build any S5 test fixtures as one-off files** under `vetsmod/dumps/anni/<name>.json` (runtime-loaded by `/wv debug tree anni snapshot inject file <name>`). Don't bundle them into the resource preset directory — the existing presets there (`empty`, `external_no_anni`, `member_*`) are abstract test scenarios shared across stages; new fixtures with real usernames are noise.
+- **Chat alerts will fire from the snapshot-listener thread.** Bounce to the main thread via `Minecraft.getInstance().execute(...)` before calling `ChatUtils.sendLocalMessage`; that's the convention S4's `FlashTracker` already follows.
 
 ## Source-of-truth pointers
 

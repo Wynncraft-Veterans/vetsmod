@@ -86,6 +86,7 @@ public final class AnniSnapshot {
         private Long stamp_epoch;
         private Boolean announced;
         private Prediction prediction;
+        private List<PartySummary> all_parties;
 
         public Long stampEpoch() {
             return stamp_epoch;
@@ -97,6 +98,31 @@ public final class AnniSnapshot {
 
         public Prediction prediction() {
             return prediction;
+        }
+
+        /** Schema v2 — every party for the active event, lightweight
+         *  {@code {ordinal, members:[{uuid,username,role}]}} listing. Empty list
+         *  on v2 when no parties exist; {@code null} on v1 payloads (Gson
+         *  leaves unknown fields null — caller handles both). Used by S4
+         *  {@code AnniOutlineRegistry} to tier nearby players. */
+        public List<PartySummary> allParties() {
+            return all_parties != null ? all_parties : Collections.emptyList();
+        }
+    }
+
+    /** Schema v2 {@code event.all_parties[]} entry — one anni party with its
+     *  members. {@link MemberRef} reused from {@link Party#members()}; the
+     *  shape is identical (uuid + username + role). */
+    public static final class PartySummary {
+        private Integer ordinal;
+        private List<MemberRef> members;
+
+        public int ordinal() {
+            return ordinal != null ? ordinal : 0;
+        }
+
+        public List<MemberRef> members() {
+            return members != null ? members : Collections.emptyList();
         }
     }
 
