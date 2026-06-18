@@ -189,17 +189,33 @@ Package: [src/client/java/org/wynnvets/fetcher/polling/](src/client/java/org/wyn
 
 ## 7.1 MWE/anni frames
 
-Two inbound / two outbound:
-
 | Direction | Type | Sender | Receiver | Purpose |
 |---|---|---|---|---|
 | Inbound | `anni_query` | `V1ApiManager.sendAnniQuery` | temp-server `_handle_anni_query` | On-demand snapshot pull; ack as `anni_query_response`. |
 | Outbound | `anni_query_response` | temp-server | `AnniQueryClient.onResponse` | Synchronous reply to `anni_query`; single-flight FIFO queue. |
 | Inbound (S5) | `anni_scrollspot_set` | `V1ApiManager.sendAnniScrollspotSet` | temp-server `_handle_anni_scrollspot_set` | Host writes (or clears) party scroll-spot. **Authenticated only.** Server reads MC UUID from session — never from frame. |
 | Outbound (S5) | `anni_scrollspot_response` | temp-server | `AnniScrollspotClient.onResponse` | Ack for `anni_scrollspot_set`. `{status: ok|error, detail}`; FIFO queue. |
+| Inbound (S6) | `anni_rsvp` | `V1ApiManager.sendAnniRsvp` | temp-server `_handle_anni_rsvp` | In-game `/wv anni rsvp <hard|soft|revoke>`. **Authenticated only**; MC UUID from session. |
+| Outbound (S6) | `anni_rsvp_response` | temp-server | `AnniRsvpClient.onResponse` | Ack for `anni_rsvp`. `{status: ok|error, detail}`; FIFO queue. |
+| Inbound (S7) | `anni_party_observation` | `V1ApiManager.sendAnniPartyObservation` | temp-server `_handle_anni_party_observation` | Vetsmod reports its local Wynncraft party roster when an organiser username is in the party. **Authenticated only**; observer UUID stamped from session. Names go over the wire (Wynncraft only exposes party members by username); vets-anni resolves via its roster + alias caches. |
+| Outbound (S7) | `anni_party_observation_response` | temp-server | `AnniWsHandler` (debug log only) | Ack for `anni_party_observation`. No client-side single-flight queue — observation is fire-and-forget; debug-logged only. |
 | Outbound | `anni_state` | temp-server `anni_snapshot_poller` | `AnniWsHandler.onOutbound` → `AnniSnapshotCache.update` | Server-initiated snapshot push (per-uuid gated on the eligibility set). |
 
-Both response futures (query, scrollspot) live in `org.wynnvets.mwe.anni.network` and time out at 5–8 s. `AnniWsHandler` is the single demux for all four types — its `onInbound`/`onOutbound` branches route to the right consumer.
+Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.network` and time out at 5–8 s. `AnniWsHandler` is the single demux for all types — its `onInbound`/`onOutbound` branches route to the right consumer.
+
+### S7 — Party back-report gate
+
+`PartyRosterListener` no longer fires the legacy `party_status` frame. Instead, on every Wynntils `PartyEvent` / `WorldStateEvent`, AND on every snapshot update that changes the lowercased `organiser_usernames` set (via `AnniPartyReporter.requestRecapture()`), the listener:
+
+1. Captures `Models.Party.getPartyLeader()` + `getPartyMembers()` on the event thread.
+2. Debounces 300 ms (coalesces the `/party list` burst).
+3. Gates on `stamp ± 2 h` AND any party member's username appears in `AnniSnapshotCache.latest().organiserUsernames()` (case-insensitive).
+4. Fires `V1ApiManager.sendAnniPartyObservation(members, leader, world)` if the gate passes.
+
+vets-anni resolves names → UUIDs server-side and writes
+`state.party_leader_by_uuid[member_uuid] = leader_uuid` for the presence
+classifier's `ONLINE_WORLD → ONLINE_PARTY` upgrade. Entries are TTL-gated
+(60 s) so a vetsmod disconnect mid-window degrades cleanly back to cyan.
 
 ## 8. Auth
 

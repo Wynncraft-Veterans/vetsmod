@@ -31,8 +31,8 @@ import java.util.concurrent.TimeUnit;
  * <p>Cache semantics: a successful parse stores the absolute epoch-seconds
  * value verbatim ({@code 0} reserved for "never populated / unparseable /
  * empty body"). A failed fetch leaves the previous value in place — the
- * /wv anni and party_status callsites both already tolerate a stale stamp
- * the same way they tolerate a zero one (no UI, no send).</p>
+ * /wv anni and anni_party_observation callsites both already tolerate a
+ * stale stamp the same way they tolerate a zero one (no UI, no send).</p>
  *
  * <p>The polling interval is intentionally loose ({@value #REFRESH_INTERVAL_MINUTES}
  * minutes). The stamp rarely changes; consumers that care about edge

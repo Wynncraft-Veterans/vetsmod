@@ -101,6 +101,11 @@ public class VetsmodClient implements ClientModInitializer {
       // mod's onInitializeClient, so by here Wynntils' init has completed
       // and the eventBus is wired up. See attempt-3 crash log.
       ScrollSpotMarkerProvider.registerWithWynntils();
+      // S7 — same deferred-init rule as ScrollSpotMarkerProvider above. The
+      // reporter subscribes to AnniSnapshotCache and fires
+      // PartyRosterListener.requestRecapture() on organiser-set transitions
+      // so a window-open mid-static-party doesn't go silent.
+      org.wynnvets.mwe.anni.party.AnniPartyReporter.init();
       QueueStateManager.addListener(new QueueStateListener() {
         @Override
         public void onQueueEntered(String worldName) {

@@ -72,6 +72,20 @@ public final class AnniWsHandler {
             AnniScrollspotClient.onResponse(json);
         } else if ("anni_rsvp_response".equals(type)) {
             AnniRsvpClient.onResponse(json);
+        } else if ("anni_party_observation_response".equals(type)) {
+            // S7 ack — debug-logged only; no client-side single-flight queue.
+            // The frame fires fire-and-forget from PartyRosterListener; if a
+            // future debug surface needs ack diagnostics, mirror S6's
+            // AnniRsvpClient (lastAck / pendingCount).
+            String status = json.has("status") ? json.get("status").getAsString() : "?";
+            String detail = json.has("detail") && !json.get("detail").isJsonNull()
+                    ? json.get("detail").getAsString() : null;
+            if ("ok".equals(status)) {
+                VetsLogger.debug("anni_party_observation_response: ok");
+            } else {
+                VetsLogger.debug(
+                        "anni_party_observation_response: {} — {}", status, detail);
+            }
         }
     }
 

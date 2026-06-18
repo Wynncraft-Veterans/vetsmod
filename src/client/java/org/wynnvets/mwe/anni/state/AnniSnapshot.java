@@ -40,6 +40,7 @@ public final class AnniSnapshot {
     private Board board;
     private Attendance attendance;
     private List<String> organisers;
+    private List<String> organiser_usernames;
 
     public int schemaVersion() {
         return schema_version != null ? schema_version : 0;
@@ -75,6 +76,17 @@ public final class AnniSnapshot {
 
     public List<String> organisers() {
         return organisers != null ? organisers : Collections.emptyList();
+    }
+
+    /** S7 — usernames of every organiser (lead + party hosts) in the same
+     *  parallel order as {@link #organisers()}. Used by
+     *  {@code PartyRosterListener.shouldSend} to gate the
+     *  {@code anni_party_observation} frame on "is any party member an
+     *  organiser?". Names go over the wire (not UUIDs) because Wynncraft
+     *  exposes party members by username only — see
+     *  {@code Wynntils PartyModel.getPartyMembers()}. */
+    public List<String> organiserUsernames() {
+        return organiser_usernames != null ? organiser_usernames : Collections.emptyList();
     }
 
     /** Hydrate from the JSON shape produced by vets-anni. */

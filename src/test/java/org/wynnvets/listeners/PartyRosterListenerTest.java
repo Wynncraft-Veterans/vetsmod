@@ -3,21 +3,23 @@ package org.wynnvets.listeners;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
 import java.util.List;
-import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.wynnvets.listeners.PartyRosterListener.Snapshot;
+import org.wynnvets.mwe.anni.state.AnniSnapshot;
 
 /**
- * Tests for {@link PartyRosterListener#shouldSend} — the pure privacy-gating
- * predicate that decides whether a {@code party_status} frame goes on the
- * wire.
+ * Tests for {@link PartyRosterListener#shouldSend} — the pure gate that
+ * decides whether an {@code anni_party_observation} frame goes on the wire.
  *
- * <p>The predicate has no statics or I/O; all inputs are passed in. Surrounding
- * {@link PartyRosterListener} class does import Wynntils types, but those are
- * only resolved at use sites, not at class-init time (see
- * {@link RankChangeListenerTest} for the analogous note).</p>
+ * <p>S7 rule: send iff (a) the anni stamp is in-window AND (b) the
+ * snapshot's {@code organiser_usernames} list contains the captured
+ * party's leader or any member name (case-insensitive). The predicate
+ * has no statics or I/O; all inputs are passed in.</p>
  */
 class PartyRosterListenerTest {
 
@@ -27,172 +29,147 @@ class PartyRosterListenerTest {
         return new Snapshot(leader, List.of(members));
     }
 
+    /** Build an {@link AnniSnapshot} with just the {@code organiser_usernames}
+     *  field set — that's all {@code shouldSend} reads. */
+    private static AnniSnapshot anniWithOrganisers(String... usernames) {
+        JsonObject root = new JsonObject();
+        JsonArray arr = new JsonArray();
+        for (String u : usernames) {
+            arr.add(u);
+        }
+        root.add("organiser_usernames", arr);
+        return AnniSnapshot.fromJson(root);
+    }
+
     // ── Window gating ─────────────────────────────────────────────────
 
     @Test
-    void stampZeroSuppressesEvenForGuildTier() {
-        // No announced anni -> never send, regardless of cohort.
+    void stampZeroSuppresses() {
+        AnniSnapshot anni = anniWithOrganisers("Organiser");
         assertFalse(PartyRosterListener.shouldSend(
-                snap("Lead", "M1"), 0L, NOW, "guild", Set.of()));
+                snap("Organiser", "M1"), anni, 0L, NOW));
     }
 
     @Test
     void stampThreeHoursInFutureSuppresses() {
+        AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW + 3 * 60 * 60;
         assertFalse(PartyRosterListener.shouldSend(
-                snap("Lead", "M1"), stamp, NOW, "guild", Set.of()));
+                snap("Organiser", "M1"), anni, stamp, NOW));
     }
 
     @Test
     void stampThreeHoursInPastSuppresses() {
+        AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW - 3 * 60 * 60;
         assertFalse(PartyRosterListener.shouldSend(
-                snap("Lead", "M1"), stamp, NOW, "guild", Set.of()));
+                snap("Organiser", "M1"), anni, stamp, NOW));
     }
 
     @Test
     void stampExactlyAtWindowEdgeAllowed() {
-        // 2h exactly is the boundary — should still pass (closed interval).
+        AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW + 2 * 60 * 60;
         assertTrue(PartyRosterListener.shouldSend(
-                snap("Lead", "M1"), stamp, NOW, "guild", Set.of()));
+                snap("Organiser", "M1"), anni, stamp, NOW));
     }
 
     @Test
     void stampInTrailingWindowAllowed() {
-        // 30 min in the past — fight is still going, board still useful.
+        AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW - 30 * 60;
         assertTrue(PartyRosterListener.shouldSend(
-                snap("Lead", "M1"), stamp, NOW, "guild", Set.of()));
+                snap("Organiser", "M1"), anni, stamp, NOW));
     }
 
-    // ── Self-tier branch ──────────────────────────────────────────────
+    // ── Snapshot presence ─────────────────────────────────────────────
 
     @Test
-    void guildTierInWindowSendsRegardlessOfCache() {
-        long stamp = NOW + 60 * 60;
-        // Cold cache + empty party — guild tier still wins.
-        assertTrue(PartyRosterListener.shouldSend(
-                snap("", new String[0]), stamp, NOW, "guild", null));
-    }
-
-    @Test
-    void waitlistTierAllowedInWindow() {
-        long stamp = NOW + 60 * 60;
-        assertTrue(PartyRosterListener.shouldSend(
-                snap("Lead", "M1"), stamp, NOW, "waitlist", Set.of()));
-    }
-
-    @Test
-    void honouraryTierAllowedInWindow() {
-        long stamp = NOW + 60 * 60;
-        assertTrue(PartyRosterListener.shouldSend(
-                snap("Lead", "M1"), stamp, NOW, "honourary", Set.of()));
-    }
-
-    @Test
-    void otherTierWithoutCacheSuppresses() {
-        // Cold /list cache -> wrapper would refresh; predicate says no.
+    void nullSnapshotSuppresses() {
         long stamp = NOW + 60 * 60;
         assertFalse(PartyRosterListener.shouldSend(
-                snap("Lead", "M1"), stamp, NOW, "other", null));
+                snap("Organiser", "M1"), null, stamp, NOW));
     }
 
     @Test
-    void unauthenticatedEmptyTierTreatedLikeOther() {
-        // Cold-start: tier is "" (per UnlockManager). Expected: walk-in path.
+    void emptyOrganisersSuppresses() {
+        AnniSnapshot anni = anniWithOrganisers();  // empty
         long stamp = NOW + 60 * 60;
-        Set<String> connected = Set.of("vetsuser");
+        assertFalse(PartyRosterListener.shouldSend(
+                snap("Organiser", "M1"), anni, stamp, NOW));
+    }
+
+    // ── Organiser overlap ─────────────────────────────────────────────
+
+    @Test
+    void leaderMatchSends() {
+        AnniSnapshot anni = anniWithOrganisers("Organiser", "OtherLead");
+        long stamp = NOW + 60 * 60;
         assertTrue(PartyRosterListener.shouldSend(
-                snap("VetsUser", "M1"), stamp, NOW, "", connected));
-        assertFalse(PartyRosterListener.shouldSend(
-                snap("Random", "M1"), stamp, NOW, "", connected));
+                snap("Organiser", "M1", "M2"), anni, stamp, NOW));
     }
 
     @Test
-    void nullTierTreatedLikeOther() {
+    void memberMatchSends() {
+        AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW + 60 * 60;
-        assertFalse(PartyRosterListener.shouldSend(
-                snap("Lead", "M1"), stamp, NOW, null, Set.of()));
-    }
-
-    // ── Walk-in branch (vets-tier member in party) ────────────────────
-
-    @Test
-    void walkInWithVetsTierLeaderSends() {
-        long stamp = NOW + 60 * 60;
-        Set<String> connected = Set.of("organiser");
         assertTrue(PartyRosterListener.shouldSend(
-                snap("Organiser", "M1", "M2"), stamp, NOW, "other", connected));
+                snap("RandomLead", "Organiser", "M2"), anni, stamp, NOW));
     }
 
     @Test
-    void walkInWithVetsTierMemberSends() {
-        long stamp = NOW + 60 * 60;
-        Set<String> connected = Set.of("hostmember");
-        assertTrue(PartyRosterListener.shouldSend(
-                snap("RandomLead", "HostMember", "M2"),
-                stamp, NOW, "other", connected));
-    }
-
-    @Test
-    void walkInWithoutAnyVetsTierMemberSuppresses() {
-        long stamp = NOW + 60 * 60;
-        Set<String> connected = Set.of("someoneelse");
-        assertFalse(PartyRosterListener.shouldSend(
-                snap("RandomLead", "M1", "M2"), stamp, NOW, "other", connected));
-    }
-
-    @Test
-    void emptyConnectedSetSuppressesForOtherTier() {
+    void noOrganiserInPartySuppresses() {
+        AnniSnapshot anni = anniWithOrganisers("Organiser", "OtherLead");
         long stamp = NOW + 60 * 60;
         assertFalse(PartyRosterListener.shouldSend(
-                snap("Lead", "M1"), stamp, NOW, "other", Set.of()));
+                snap("RandomLead", "M1", "M2"), anni, stamp, NOW));
     }
 
-    // ── Name normalisation ────────────────────────────────────────────
+    // ── Case insensitivity ────────────────────────────────────────────
 
     @Test
     void leaderMatchIsCaseInsensitive() {
+        AnniSnapshot anni = anniWithOrganisers("ORGANISER");
         long stamp = NOW + 60 * 60;
-        Set<String> connected = Set.of("wenweia");  // cache is lowercase
         assertTrue(PartyRosterListener.shouldSend(
-                snap("Wenweia", "M1"), stamp, NOW, "other", connected));
+                snap("organiser", "M1"), anni, stamp, NOW));
     }
 
     @Test
     void memberMatchIsCaseInsensitive() {
+        AnniSnapshot anni = anniWithOrganisers("organiser");
         long stamp = NOW + 60 * 60;
-        Set<String> connected = Set.of("wenweia");
         assertTrue(PartyRosterListener.shouldSend(
-                snap("RandomLead", "WENWEIA"), stamp, NOW, "other", connected));
+                snap("RandomLead", "ORGANISER"), anni, stamp, NOW));
     }
 
+    // ── Edge cases ────────────────────────────────────────────────────
+
     @Test
-    void emptyMemberNamesDoNotFalseMatch() {
+    void emptyNamesDoNotFalseMatchEmptyOrganiser() {
+        // Defensive: an empty-string entry on either side must not pair.
+        AnniSnapshot anni = anniWithOrganisers("", "Organiser");
         long stamp = NOW + 60 * 60;
-        // Defensive: empty-string entries in members list must not match
-        // an empty entry in the cache (if any).
-        Set<String> connected = Set.of();
         assertFalse(PartyRosterListener.shouldSend(
-                snap("", "", ""), stamp, NOW, "other", connected));
+                snap("", "", ""), anni, stamp, NOW));
     }
 
-    // ── Empty-snapshot (left party) ───────────────────────────────────
-
     @Test
-    void emptySnapshotInWindowVetsTierSends() {
-        // The "I just left the party" empty snapshot still goes through to
-        // clear server state — as long as we're in window + vets-tier.
+    void emptySnapshotPartyWithOrganisersSuppresses() {
+        // Wynncraft has no party right now — nothing to report. The
+        // wire-frame for "I left my party" is an empty observation and
+        // it has no organiser to anchor on, so we silently no-op.
+        AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW + 60 * 60;
-        assertTrue(PartyRosterListener.shouldSend(
-                Snapshot.EMPTY, stamp, NOW, "guild", Set.of()));
+        assertFalse(PartyRosterListener.shouldSend(
+                Snapshot.EMPTY, anni, stamp, NOW));
     }
 
     @Test
     void emptySnapshotOutsideWindowSuppressed() {
+        AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW + 4 * 60 * 60;
         assertFalse(PartyRosterListener.shouldSend(
-                Snapshot.EMPTY, stamp, NOW, "guild", Set.of()));
+                Snapshot.EMPTY, anni, stamp, NOW));
     }
 }

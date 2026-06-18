@@ -716,21 +716,122 @@ All under `/wv debug tree anni …` (subtree) + `/wv debug trigger …`
 - **Single-flight ack pattern** — `AnniQueryClient`, `AnniScrollspotClient`,
   `AnniRsvpClient` are all clones. S7 follows the same template.
 
-## For the S7 agent
+## S7 — Party back-report (built 2026-06-18)
 
-S7 = **party back-report pipeline.** Replace `PartyRosterListener`'s
-current "local player in vets tier" gate with "any party member's UUID
-appears in `AnniSnapshotCache.latest().organisers()`". When the new
-gate holds during the active window (T-2h..T+30m), fire a new
-`anni_party_observation` frame from vetsmod → temp-server → vets-anni's
-`POST /api/internal/anni-party-observation` endpoint. The legacy
-`party_status` frame STAYS (vets-anni's presence-corroboration code in
-`app/services/state.py` depends on it as a broader signal) — both
-frames may flow during the window. This is documented in the parent
-plan §S7 and pinned in §"Risks" — confirm with user at start that
-additive is the intended posture (default: yes, additive).
+Replaced the cohort-tier proxy in `PartyRosterListener` with a direct
+organiser-presence gate, **and excised the legacy `party_status` frame
+end-to-end across vetsmod / temp-server / vets-anni.** Per user
+correction during planning: anni parties only exist inside the active
+window, and an anni party's host is always in `organisers`, so the
+broader year-round signal is over-collection and the new gate is the
+exact signal vets-anni needs.
 
-### Patterns to reuse
+### What ships
+
+1. **Snapshot field** — `organiser_usernames: list[str]` parallels the
+   existing `organisers: list[str]` (UUIDs) on every snapshot. Built in
+   one query pair in
+   [`vets-anni/app/domain/snapshot.py::_organisers`](C:/Low-Perm-Program-Files/Projects/vets-anni/app/domain/snapshot.py)
+   to keep UUID/username order in lockstep. Names are needed because
+   Wynncraft only exposes party members by username — see
+   `Wynntils PartyModel.getPartyMembers()`.
+
+2. **vets-anni endpoint** — `POST /api/internal/anni-party-observation`
+   in
+   [`anni_internal.py`](C:/Low-Perm-Program-Files/Projects/vets-anni/app/web/routers/anni_internal.py).
+   Body `{observer_mc_uuid, party_member_usernames, leader_username,
+   world}`. Resolves names via `state.resolve_uuid()` (roster cache →
+   alias fallback, the latter populated from WAPI's `legacyName` field
+   through temp-server's existing `/v1/outbound/aliases`). Writes
+   `{member_uuid: leader_uuid}` into `state.party_leader_by_uuid`;
+   unresolvable leader = no-op (`{resolved:0}`); the observer's session
+   UUID is the authoritative fallback for the observer's own entry.
+   Returns `{status, resolved, dropped}` for observability.
+
+3. **TTL gate** — `_PARTY_LEADER_TTL_SECONDS = 60` in
+   [`state.py`](C:/Low-Perm-Program-Files/Projects/vets-anni/app/services/state.py);
+   [`presence_poller`](C:/Low-Perm-Program-Files/Projects/vets-anni/app/services/presence_poller.py)
+   degrades stale entries back to `ONLINE_WORLD` so a vetsmod
+   disconnect mid-window doesn't pin a user to yellow forever.
+
+4. **temp-server inbound handler** — `_handle_anni_party_observation`
+   in
+   [`inbound.py`](C:/Low-Perm-Program-Files/Projects/temporary-server/app/chat/inbound.py)
+   mirrors `_handle_anni_rsvp`: auth-required, stamp
+   `observer_mc_uuid` from session, forward via new
+   `AnniSnapshotPoller.send_party_observation(body)` helper,
+   typed response frame.
+
+5. **vetsmod gate refactor** —
+   [`PartyRosterListener.flush`](C:/Low-Perm-Program-Files/Projects/vetsmod/src/client/java/org/wynnvets/listeners/PartyRosterListener.java)
+   now reads `AnniSnapshotCache.latest().organiserUsernames()` and
+   tests case-insensitive overlap with the captured party's
+   `leader + members`. Calls
+   `V1ApiManager.sendAnniPartyObservation(members, leader, world)`.
+   Pure predicate `shouldSend(snap, anniSnapshot, stamp, now)` is the
+   testable core; legacy `vetsConnected` / `tier` parameters are gone.
+
+6. **Mid-window snapshot trigger** —
+   [`AnniPartyReporter`](C:/Low-Perm-Program-Files/Projects/vetsmod/src/client/java/org/wynnvets/mwe/anni/party/AnniPartyReporter.java)
+   subscribes to `AnniSnapshotCache`. On any change to the lowercased
+   `organiser_usernames` set, calls
+   `PartyRosterListener.requestRecapture()`. Handles "anni opens while
+   parked in a static party for 30 min" — no `PartyEvent` would fire
+   on its own. Registered from `VetsmodClient.onClientStarted`
+   (CLIENT_STARTED), never from `onInitializeClient` per
+   `feedback_vetsmod_wynntils_init_order.md`.
+
+### What got deleted
+
+The legacy `party_status` machinery is excised in full:
+
+- **vetsmod**: `V1ApiManager.sendPartyStatus`, cohort-gate parameters,
+  `OnlineMemberService.refreshAsync()` call site, `VETS_TIERS`
+  constant, the TODO comment that envisioned this exact swap.
+- **temp-server**: `_handle_party_status`,
+  `state.party_status_by_reporter`, `/v1/outbound/party_status` route
+  (`app/routes/static.py`), disconnect-time cleanup line, the
+  protocol-doc section.
+- **vets-anni**: `party_status_poller.py`,
+  `tests/test_party_status_poller.py`, its `main.py` task wiring,
+  `party_status_poll_*` settings, `tempserver.party_status()` client
+  method. `state.party_leader_by_uuid` keeps the same name (only the
+  data source changed).
+
+### Implementation deltas
+
+- **Wire format diverged from the plan's original `[{uuid, username}]`
+  shape.** Wynntils' `PartyModel.getPartyMembers()` returns
+  `List<String>` of usernames only; Wynncraft's tab list is fake (80
+  sentinels per `TabListGuildParser`), so client-side name→UUID
+  resolution drops 30-60% of members. Decided in planning: names go
+  over the wire, vets-anni does the resolution. Body shape became
+  `{observer_mc_uuid, party_member_usernames: [str], leader_username,
+  world}`.
+- **Snapshot helper renamed `_organiser_uuids` → `_organisers`**
+  returning a `(uuids, usernames)` tuple from one query pair (S4
+  pattern). Re-querying would have race-induced order desync if a host
+  reassignment landed mid-build.
+- **`observer_mc_uuid` injected by temp-server, never trusted from the
+  frame body** (impersonation vector — the frame body's
+  `observer_mc_uuid`, if present, is discarded).
+- **TTL gate added to the presence corroboration check.** Without it,
+  a vetsmod disconnect mid-window would pin the user to yellow on the
+  staff board indefinitely (no other writer would clear the entry).
+  Default 60 s; tune during live anni if presence flickers.
+- **`AnniPartyReporter` is a thin snapshot listener, NOT a wrapper
+  around the send call.** `PartyRosterListener.flush()` calls
+  `V1ApiManager.sendAnniPartyObservation` directly — same shape as
+  the other `sendAnniX` methods. Splitting the send into a separate
+  class would have been pure indirection.
+- **Response frame is typed (`anni_party_observation_response`)** to
+  match S5/S6 pattern. The handler in
+  [`AnniWsHandler`](C:/Low-Perm-Program-Files/Projects/vetsmod/src/client/java/org/wynnvets/mwe/anni/network/AnniWsHandler.java)
+  debug-logs only — no consumer state today. Mirror
+  `AnniRsvpClient`'s diagnostic accessors only if a debug-trigger
+  dump surfaces the need.
+
+### Patterns reused from S5/S6
 
 After S6, there are now **three clean reference templates** for every
 shape S7 touches. Don't redesign — clone.
@@ -775,101 +876,18 @@ return bool. Mirror.
 **`AnniWsHandler.onInbound` demux** — three extant routes; add a
 fourth if S7 needs an ack frame (it probably doesn't).
 
-### What S7 builds
+### What carries forward to future MWEs
 
-1. **vets-anni** — NEW `POST /api/internal/anni-party-observation` in
-   `app/web/routers/anni_internal.py`. Body
-   `{observer_mc_uuid, party_members: [{uuid, username}], leader_uuid, world}`.
-   Threads into the existing party-corroboration code path in
-   `app/services/state.py`. **No new domain module** — this is data
-   intake, not a domain mutation. Same `_check_secret` gate as the
-   sibling endpoints.
-2. **vets-anni** — extend `AppState` / `state.py` to accept the new
-   observation source (`observer_mc_uuid` as the corroborator,
-   `party_members` as the observed roster). Existing corroboration
-   logic should be reusable; only the input shape is new.
-3. **temp-server** — NEW `_handle_anni_party_observation` in
-   `app/chat/inbound.py` (right after `_handle_anni_rsvp` at L883+).
-   Authenticated only; stamp `observer_mc_uuid` from session; forward
-   to new `AnniSnapshotPoller.report_party_observation(body)` helper.
-   No ack frame unless S7 needs one.
-4. **vetsmod** — MODIFY `org.wynnvets.listeners.PartyRosterListener`
-   (existing). Change the gate from "vets-tier" to "any UUID in
-   `AnniSnapshotCache.latest().organisers()`". Keep the
-   active-window (T-2h..T+30m) gate. Continue firing the legacy
-   `party_status` frame in BOTH branches (additive, per the parent
-   plan's §"Risks" decision).
-5. **vetsmod** — NEW `org.wynnvets.mwe.anni.party.AnniPartyReporter`.
-   Thin static wrapper: takes the current party state from
-   `PartyRosterListener` and dispatches an
-   `anni_party_observation` frame via `V1ApiManager`. No ack future
-   needed (most likely).
-6. **vetsmod** — `V1ApiManager.sendAnniPartyObservation(...)` mirroring
-   the other three `sendAnniX` methods.
-7. **Doc updates**: `vetsmod_networking.md` (dual-send transition),
-   `temp-server/v1_protocol.md` (§1.14 new frame), `vets-anni/.claude/integration.md`
-   (new endpoint), this doc (§"S7 — Party back-report"), parent plan
-   stage-status row.
-
-### Open questions for S7 start
-
-- **Confirm additive `party_status`.** The parent plan §"Risks" says
-  to confirm with user that the legacy `party_status` STAYS — vets-anni's
-  `state.py` corroboration depends on it as a broader signal. Default
-  posture is additive (both frames flow). Rework only if the user
-  contradicts.
-- **Ack frame required?** Likely no. The flow is one-way (vetsmod ->
-  vets-anni); vetsmod doesn't render anything from a response. If the
-  user wants vetsmod to surface "your party observation was recorded"
-  in chat, then add an ack pair; otherwise fire-and-forget.
-- **`AnniSnapshotCache.latest().organisers()` accessor exists?** Yes —
-  shipped in S1; `AnniSnapshot.Event.organisers()` (or similar — verify
-  the exact accessor). Read-only list of UUID strings.
-- **Active-window gate** — the parent plan says "Keep the existing
-  active-window gate (2h)". Confirm whether that's T-2h..T+30m
-  (matching the rest of the subsystem) or strictly 2h pre-anni. Likely
-  the former; match the boss-bar / outline gates.
-- **Debug surface** — pattern from S5/S6: a `/wv debug trigger
-  partyObservationDump` mirroring the existing `bossBarsDump` /
-  `nametagsDump` / `rsvpDump` / `ghostsPromptDump` / `zoneLinesDump`
-  family. Cheap; ship it for diagnostic parity.
-
-### What NOT to break
-
-- **Legacy `party_status` frame** — vets-anni's `state.py` still
-  consumes it. Dual-send is the intent. Don't remove the existing
-  frame in `PartyRosterListener`'s tick.
-- **`PartyRosterListener`'s existing tier-or-window gates for
-  non-anni purposes** — the listener may also drive non-anni
-  behaviours. Verify before changing the gate semantics; the S7
-  change should be additive (add an "organiser-in-party" gate that
-  ALSO fires `anni_party_observation`), not a replacement of the
-  existing gates.
-
-### S7 carryovers (preserved from S5/S6)
-
-- **Underscore-imports from a Discord cog work** (S6 proved it via
-  `from app.bot.cogs.rsvp import _post_public, ...`). S7 likely doesn't
-  need cog-private helpers (party observation is data intake, not a
-  user-facing mutation that needs Discord), but if it does, the
-  pattern is established.
-- **`AnniAggressiveTicker.isAggressiveActive()` mirrors S4's
-  `AnniOutlineTicker.isOutlineSuppressionActive()`.** If S7 grows a
-  "passive +" tier (e.g. organiser-presence nudges in passive mode),
-  one-volatile-per-system stays the right pattern. Most likely S7
-  doesn't need a new ticker — the observation fires from the
-  `PartyRosterListener` tick which already exists.
-- **Init-order memory still holds** (per
-  `feedback_vetsmod_wynntils_init_order.md`): never touch `Models.*`
-  from `VetsmodClient.onInitializeClient` body; defer to
-  `CLIENT_STARTED`. S7's `AnniPartyReporter` registration is a static
-  call, unlikely to touch `Models.*` at init, but verify before
-  wiring.
-- **No new VetsConfig keys expected.** Party observation is not a
-  user-visible behaviour — it's a back-report. The existing
-  `vetsAnniEnabled` master toggle gates whether the report fires at
-  all. Lean against adding `vetsAnniPartyReport` unless the user
-  asks.
+- **Auth + forward template** (`_handle_anni_party_observation` is the
+  fourth instance after `_handle_anni_query`/`_scrollspot_set`/`_rsvp`).
+  If the count crosses 5, extract a shared helper.
+- **`AnniPartyReporter`'s snapshot-listener pattern** generalises to
+  any future MWE that needs "fire a back-report when X organiser-like
+  state appears". Don't duplicate the listener bus; subscribe and
+  diff.
+- **`presence_poller`'s TTL gate** is the right shape for any
+  future presence corroboration source — bare presence of a key is
+  not enough; freshness has to be checked.
 
 ## Source-of-truth pointers
 

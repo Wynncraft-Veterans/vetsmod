@@ -575,43 +575,58 @@ public final class V1ApiManager {
     }
 
     /**
-     * Sends a {@code party_status} control frame describing the local player's
-     * current Wynncraft party roster (sourced from Wynntils' {@code PartyModel}).
-     * The server aggregates these reports across connected clients and exposes
-     * them via {@code /v1/outbound/party_status} so vets-anni can flip the
-     * dashboard from {@code ONLINE_WORLD} to {@code ONLINE_PARTY} once a
-     * party-assigned player has actually joined the host's MC party.
+     * Sends an {@code anni_party_observation} frame (S7) describing the local
+     * player's current Wynncraft party roster. The caller has already
+     * verified an organiser username is in the party (per the snapshot's
+     * {@code organiser_usernames}) and the anni stamp is in-window — this
+     * method is a pure send wrapper.
      *
-     * <p>Names are sent verbatim — server-side resolves to UUIDs via the
-     * roster cache (same path the {@code !list} discord command uses for
-     * tab-only entries). An empty leader + empty members signals "I am not
-     * in a party right now," which is how disband / self-leave propagates
-     * (Wynntils has no dedicated event for those — see
-     * {@code PartyRosterListener}).</p>
+     * <p>Names go over the wire (not UUIDs) because Wynncraft only exposes
+     * party members by username; vets-anni resolves them server-side via
+     * its roster + legacy-alias caches. Temp-server stamps the
+     * authenticated session's {@code mc_uuid} as the observer when
+     * forwarding — vetsmod does NOT include {@code observer_mc_uuid} in
+     * the frame body (would be ignored anyway).</p>
      *
-     * @param leaderName   the party leader's Minecraft username, or {@code ""} if not in a party
-     * @param memberNames  every party member's username (including the leader
-     *                     and the local player — Wynntils' convention), or empty list
+     * <p>The response arrives as an {@code anni_party_observation_response}
+     * frame routed by {@link org.wynnvets.mwe.anni.network.AnniWsHandler}
+     * (debug-logged only; no consumer state today).</p>
+     *
+     * @param memberUsernames every party member's username (including the
+     *                        leader and the local player — Wynntils'
+     *                        convention), or empty list
+     * @param leaderUsername  the party leader's username, or {@code ""}
+     *                        if not in a party (the server will no-op on
+     *                        an empty leader)
+     * @param world           the Wynncraft world name (e.g. {@code WC1});
+     *                        forwarded for observability
+     * @return true iff the frame was actually sent (inbound connection up).
      */
-    public static void sendPartyStatus(String leaderName, List<String> memberNames) {
+    public static boolean sendAnniPartyObservation(
+            List<String> memberUsernames, String leaderUsername, String world) {
         if (inboundClient == null || !inboundClient.isConnected()) {
-            return;
+            VetsLogger.debug("sendAnniPartyObservation: inbound not connected");
+            return false;
         }
         JsonObject payload = new JsonObject();
-        payload.addProperty("type", "party_status");
-        payload.addProperty("leader_name", leaderName != null ? leaderName : "");
+        payload.addProperty("type", "anni_party_observation");
         com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
-        if (memberNames != null) {
-            for (String name : memberNames) {
+        if (memberUsernames != null) {
+            for (String name : memberUsernames) {
                 if (name != null && !name.isEmpty()) {
                     arr.add(name);
                 }
             }
         }
-        payload.add("member_names", arr);
+        payload.add("party_member_usernames", arr);
+        payload.addProperty("leader_username",
+                leaderUsername != null ? leaderUsername : "");
+        payload.addProperty("world", world != null ? world : "");
         inboundClient.send(payload);
-        VetsLogger.debug("Sent party_status: leader={}, members={}",
-                leaderName, arr.size());
+        VetsLogger.debug(
+                "Sent anni_party_observation: leader={}, members={}, world={}",
+                leaderUsername, arr.size(), world);
+        return true;
     }
 
     /**
