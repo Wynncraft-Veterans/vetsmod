@@ -1,4 +1,4 @@
-package org.wynnvets.mwe.anni.aggressive;
+package org.wynnvets.mwe.anni.command;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;

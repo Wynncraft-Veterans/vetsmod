@@ -1,12 +1,12 @@
 ---
 name: vetsmod MWE/anni subsystem
-description: Architecture-as-built for the anni integration after S1+S2+S3+S4+S5+S6 (snapshot pipeline, /wv anni renderer, anni-motd, debug harness, mode state, passive-mode boss bar, passive-mode player highlights, aggressive-mode zone lines + scroll spot + ghosts prompt + chat alerts, in-game `/wv anni rsvp`). Source-of-truth for S7+ implementers.
+description: Architecture-as-built for the vetsmod ↔ fishbot anni MWE subsystem (snapshot pipeline, /wv anni renderer, anni-motd, debug harness, mode state, passive-mode boss bar + outlines/nametags, aggressive-mode zone lines + scroll spot + ghosts prompt + chat alerts, in-game `/wv anni rsvp`, party back-report).
 type: project
 ---
 
-# vetsmod MWE/anni subsystem (S1+S2+S3+S4+S5+S6 reference)
+# vetsmod MWE/anni subsystem
 
-Reference for the **as-built** state after S1 (snapshot pipeline), S2 (`/wv anni` + anni-motd renderers, debug harness, mode state), S3 (passive-mode boss bar), S4 (passive-mode player highlights), S5 (aggressive mode: zone lines, scroll spot, ghosts prompt, chat alerts), and S6 (in-game `/wv anni rsvp`) of the multi-stage plan at `C:/Users/tjpas/.claude/plans/this-is-a-massive-drifting-moth.md`. Read this first if you're picking up S7+; the plan file is the architectural intent, this doc is what the codebase actually does.
+Architecture-as-built reference. Read this first if you're touching the subsystem; the code itself is the source of truth, this doc captures the load-bearing design context that isn't obvious from the code.
 
 ## Package layout
 
@@ -32,20 +32,32 @@ mwe/anni/
 │   ├── VetsBossBarContentBuilder.java  — pure (snapshot, secs, x, z) → Component (seeking/assigned/countdown variants)
 │   └── FlashTracker.java               — per-field diff + bold↔underline pulse + name-ping sound
 ├── zone/
-│   └── AnniZone.java               — 60s cached fetcher for api.wynncraft.com/v3/map/world-events; 48-block disc test
+│   ├── AnniZone.java               — 60s cached fetcher for api.wynncraft.com/v3/map/world-events; 48-block disc test
+│   └── AnniZoneLineRenderer.java   — stacked Gizmos.circle cylinder cage
 ├── outline/
 │   ├── AnniOutlinePalette.java   — ChatFormatting-derived role/tier colour table
 │   ├── AnniOutlineRegistry.java  — username → tier entry, rebuilt off snapshot (lowercase-keyed)
 │   └── AnniOutlineTicker.java    — per-tick driver; applies glow via EntityExtension; exposes isOutlineSuppressionActive() flag for the mixins
+├── aggressive/
+│   ├── AggressiveAlertDispatcher.java  — snapshot diffs + T-10m/T-5m readiness
+│   ├── AnniAggressiveTicker.java       — volatile flag; mode==AGGRESSIVE ∧ window
+│   └── GhostsPromptHandler.java        — rising-edge zone-entry prompt
+├── waypoint/
+│   └── ScrollSpotMarkerProvider.java   — Wynntils MarkerProvider, dark-red beacon
+├── command/
+│   ├── AnniRsvpCommand.java        — brigadier handler: auth gate, dispatch, render ack
+│   └── AnniScrollspotCommand.java  — invoked from debug tree (not main /wv)
+├── party/
+│   └── AnniPartyReporter.java      — snapshot listener; on organiser-set change calls PartyRosterListener.requestRecapture
 └── render/
     ├── AnniHoverBuilder.java      — colour tokens, role chips, rsvp badges, link/click/hover helpers
     ├── AnniCommandRenderer.java   — /wv anni payload builder; returns List<MutableComponent>
     └── AnniMotdRenderer.java      — world-join anni-motd (two-line "Annihilation returns in X.Yh! / You have been assigned …")
 ```
 
-## Snapshot pipeline (S1)
+## Snapshot pipeline
 
-1. **vets-anni** assembles per-uuid snapshots via `app/domain/snapshot.py::assemble_snapshot`. The `event` block is populated whenever any past `AnniEvent` exists (S2 fix); `event: null` is only emitted on a truly empty DB.
+1. **vets-anni** assembles per-uuid snapshots via `app/domain/snapshot.py::assemble_snapshot`. The `event` block is populated whenever any past `AnniEvent` exists; `event: null` is only emitted on a truly empty DB.
 2. **temp-server's poller** (`app/services/anni_snapshot_poller.py`) hits vets-anni's `/api/internal/anni-snapshot-batch` and `/anni-player/{uuid}`; pushes per-uuid changes as `anni_state` frames every ~10 s in the hot window, ~5 min otherwise. Eligibility refreshes every 60 s.
 3. **vetsmod's `AnniWsHandler`** receives `anni_state` (push) and `anni_query_response` (pull) frames, hydrates into `AnniSnapshot`, drops into `AnniSnapshotCache`.
 4. **`AnniSnapshotCache`** is a single-player, volatile, listener-bus cache. Listeners fire on the WS reader thread — bounce to the main thread via `Minecraft.getInstance().execute(...)` if you need to touch render state.
@@ -66,7 +78,7 @@ Entry: `CommandRegistry.anni()` → `StampFetcher.fetchStampAndCreateAnniCommand
 
 Three branches:
 - **Not announced** — header (or red headline for external) + prediction line + (if vets) the not-announced registration block. No board section here (no anni to be placed in).
-- **Far-out (T-2h+)** — header (link + "returns in Xh Ym (HH:MM, day d)") + Assigned Role *or* Eligible Roles + RSVP Type + Attendance Chance + Party Assignment + Host. Countdown resolution scales with magnitude (`AnniCommandRenderer.appendCountdown`): `≥ 1h → Xh Ym`, `< 1h ≥ 1m → Xm Ys`, `< 1m → Ys`. Matches the S4 user request that sub-hour readouts surface seconds. Same scaling in `AnniMotdRenderer.formatHours` for the world-join motd.
+- **Far-out (T-2h+)** — header (link + "returns in Xh Ym (HH:MM, day d)") + Assigned Role *or* Eligible Roles + RSVP Type + Attendance Chance + Party Assignment + Host. Countdown resolution scales with magnitude (`AnniCommandRenderer.appendCountdown`): `≥ 1h → Xh Ym`, `< 1h ≥ 1m → Xm Ys`, `< 1m → Ys` — sub-hour readouts surface seconds. Same scaling in `AnniMotdRenderer.formatHours` for the world-join motd.
 - **Imminent (within 2h)** — same body as far-out + a second block with `Change Anni Mode? (Click:) / [Silent] | [Passive] | [Aggressive]`.
 
 ### Not-announced registration block
@@ -106,7 +118,7 @@ The `externalOverride` field (settable via `/wv debug tree anni external <auto|t
 | TERTIARY | MOBKILL | MOBK | TERTIARY |
 | FILL | FILL | FILL | FILL |
 
-Short codes are reserved for boss-bar space constraints in S3; chat callers always use the configured style.
+Short codes are reserved for boss-bar space constraints; chat callers always use the configured style.
 
 ### RSVP / attendance / board labels
 
@@ -174,11 +186,11 @@ External users get `null` from `AnniMotdRenderer.render` → fall through to leg
 - On every snapshot update, checks `now > lastKnownStamp + 30 min`; if true and mode != silent, resets to silent and clears `lastKnownStamp`. Writes the config directly (predates AnniModeManager — non-controversial cleanup needs no mutex check).
 - One-shot per anni cycle.
 
-## Boss bar (S3)
+## Boss bar
 
-Originally implemented as Option B from [`boss-bar.md`](C:/Low-Perm-Program-Files/Projects/vets-anni/.claude/ephemeral/vetsmod-integration-investigation-prep/boss-bar.md) §3 (priority-500 mixin cancelling `BossHealthOverlay#update`), but **that approach crashed the client** during S3 testing on 2026-06-16. Vanilla's update handlers do `events.get(uuid).setName(...)`, and cancelling Add packets (or wiping the map at activate-time) left the server's view inconsistent with `events` — subsequent UpdateProgress / UpdateName / UpdateStyle for those UUIDs dereferenced `null` and disconnected the client.
+The boss-bar manager uses a render-side filter (priority-500 `@Redirect` on `events.values()` inside `BossHealthOverlay#render`). *Note: this intentionally does NOT cancel `BossHealthOverlay#update` — vanilla's update handlers do `events.get(uuid).setName(...)`, and cancelling at update would NPE the next UpdateProgress / UpdateName / UpdateStyle packet for that UUID, disconnecting the client.*
 
-**Current approach: render-side filter.** Let vanilla and Wynntils track bars normally (no `update()` cancellation, no `events.clear()`). The priority-500 `BossHealthOverlayMixin` instead `@Redirect`s the `events.values()` call inside `BossHealthOverlay#render(GuiGraphics)` — while active, it returns just our UUID's entry (or an empty collection if our entry isn't there yet); when inactive, it returns the unmodified collection. Wynntils' overlays render through their own paths and aren't affected. `Models.StreamerMode.isInStream()` now works without the let-through hack (Wynntils tracks the streamer-mode bar normally).
+Let vanilla and Wynntils track bars normally (no `update()` cancellation, no `events.clear()`). The priority-500 `BossHealthOverlayMixin` `@Redirect`s the `events.values()` call inside `BossHealthOverlay#render(GuiGraphics)` — while active, it returns just our UUID's entry (or an empty collection if our entry isn't there yet); when inactive, it returns the unmodified collection. Wynntils' overlays render through their own paths and aren't affected. `Models.StreamerMode.isInStream()` works without the let-through hack (Wynntils tracks the streamer-mode bar normally).
 
 **`VetsBossBarManager`** (`bossbar/VetsBossBarManager.java`):
 - Owns a deterministic `UUID.nameUUIDFromBytes("vetsmod-anni-bossbar".getBytes())` plus a single synthetic `LerpingBossEvent`. Exposes `static UUID barUuid()` for the render mixin.
@@ -200,7 +212,7 @@ Originally implemented as Option B from [`boss-bar.md`](C:/Low-Perm-Program-File
 - Seeking (no party + no committed slot) → `Seeking a <HRSVP|SRSVP|WALKIN|LATE> <CORE|FILL> SLOT for anni.wynnvets.org in <X>min` (spec §3.1.1.1). Slot type derived from `registration.roles` (specific role = CORE).
 - All chips wrap via `FlashTracker.styleFor(fieldKey, base)` so the bold↔underline pulse applies per-field.
 
-**Bar colour: never PINK.** `colorFor("party")` returns `PURPLE`, not PINK as the original spec suggested. Wynncraft's forced resource pack overrides `boss_bar/pink_background.png` (and its progress sprite) to be fully transparent so they can repurpose pink-bar slots as text-only HUD strips (the Lv.92 Returners XP line, territory/region names like "Corrupted Road", "ROOTS OF CORRUPTION"). Reproducible on bare vanilla MC 1.21.11 with the Wynncraft pack loaded. Empirical evidence captured in `.claude/ephemeral/BossBarExploration/`. Confirmed via `/wv debug trigger bossBarsDump` — every Wynncraft text-only bar shipped `color=PINK overlay=PROGRESS`. **Future colour additions: pick from `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` only.**
+**Bar colour: never PINK.** `colorFor("party")` returns `PURPLE`, not PINK as the original spec suggested. Wynncraft's forced resource pack overrides `boss_bar/pink_background.png` (and its progress sprite) to be fully transparent so they can repurpose pink-bar slots as text-only HUD strips (the Lv.92 Returners XP line, territory/region names like "Corrupted Road", "ROOTS OF CORRUPTION"). Reproducible on bare vanilla MC 1.21.11 with the Wynncraft pack loaded (empirically confirmed against Wynncraft's forced resource pack). Confirmed via `/wv debug trigger bossBarsDump` — every Wynncraft text-only bar shipped `color=PINK overlay=PROGRESS`. **Future colour additions: pick from `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` only.**
 
 **Overlay style: NOTCHED_10 with a 100-min progress window.** Per-user request — segment dividers every 10 minutes for readability. Vanilla only ships `NOTCHED_6/10/12/20` (no `NOTCHED_9`). `PROGRESS_FULL_AT_SECONDS` decoupled from `ANNI_WINDOW_SECONDS` (still 90 min activation gate) and stretched to 100 min so each of 10 segments = exactly 10 minutes of wall-clock time. At T-90m activation the bar reads ~90% = 9 of 10 segments filled, matching the "90 mins = 9 notches" mapping. Drains one segment per 10 min through T-20s.
 
@@ -220,13 +232,13 @@ Originally implemented as Option B from [`boss-bar.md`](C:/Low-Perm-Program-File
 
 Plus the slower net: `AnniWindowWatcher` resets to silent at T+30m.
 
-## Anni zone (S3)
+## Anni zone
 
 `AnniZone` (`zone/AnniZone.java`) — JSON fetcher for `https://api.wynncraft.com/v3/map/world-events`, looks up event `a63b2c02`, parses its `location[].event.{x,z}` into disc centres. 60s refresh, stale-fallback on transient failure, cold-fallback returns `isInZone() = false` (so the boss-bar countdown variant defaults to the assigned/seeking text rather than a false-positive zone claim).
 
 Live API shape (probed 2026-06-16): `location: [{event: {x:315, y:31, z:-1291}, spawn: {x:350, y:29, z:-1291}, reward: {x:348, y:29, z:-1292}, radius: 48}]`. Spec mandates 48-block radius; we hard-code the constant in case the API drifts. Squared-distance comparison, no `Math.sqrt`.
 
-S4/S5 consumers (outline gate, scroll waypoint, ghosts prompt) will reuse this same fetcher.
+Downstream consumers (outline gate, scroll waypoint, ghosts prompt) reuse this same fetcher.
 
 ## Debug harness
 
@@ -243,7 +255,7 @@ All under `/wv debug tree anni …` (the `tree` literal nests subsystem-specific
 - `external <auto|true|false>` — override `isExternal` for testing.
 - `flash <role|party|world|rsvp>` — force a `FlashTracker` pulse on the named field (5s default, sound + bold/underline alternation).
 - `mode set <silent|passive|aggressive>` — `AnniModeManager.transitionTo(..., DEBUG_BYPASS_MUTEX)`. Skips the `/stream` mutex so we can verify rendering during screen capture.
-- `zone <enter|exit>` — S4+ placeholder.
+- `zone <enter|exit>` — force `AnniOutlineTicker.setForceInZone(...)` to bypass the geo-check.
 
 All gated by `VetsLogger.isDebugEnabled()` (`/wv debug true`).
 
@@ -267,7 +279,7 @@ So fixtures stay valid across long stretches of time. Use it for any new preset 
 | `member_announced` | Vets + announced (NOW+8h) + unassigned (attendance bar) |
 | `member_in_party` | Vets + announced (NOW+8h) + party (ASSIGNED + party block) |
 
-## Config keys (S1 + S2 + S3 + S4)
+## Config keys
 
 | Key | Type | Default | Purpose |
 |--|--|--|--|
@@ -277,32 +289,32 @@ So fixtures stay valid across long stretches of time. Use it for any new preset 
 | `vetsAnniShowHoverDetails` | bool | true | Populate hover tooltips on chips |
 | `vetsAnniPromptRsvp` | bool | true | Show line 2 of anni-motd; show RSVP-suggest pills on `/wv anni` |
 | `vetsAnniShowPrediction` | bool | true | Show `\guess`-style prediction in `/wv anni` not-announced |
-| `vetsAnniBossbarEnabled` | bool | true | Master kill-switch for the synthetic boss bar (S3). Only consulted in passive/aggressive. |
+| `vetsAnniBossbarEnabled` | bool | true | Master kill-switch for the synthetic boss bar. Only consulted in passive/aggressive. |
 | `vetsAnniFlashIntensity` | string | `normal` | `subtle`=5s / `normal`=10s / `strong`=20s flash duration per field change. |
 | `vetsAnniFlashSound` | bool | true | Whether per-field changes also play the name-ping sound twice. |
-| `vetsAnniOutlinesEnabled` | bool | true | S4 outline overlay (role-coloured glow on party / light-grey on other vets parties / no glow on outsiders). Only consulted while the highlight gate holds. |
-| `vetsAnniNametagsEnabled` | bool | true | S4 nametag overlay (matching colour scheme). Separable from outlines. |
+| `vetsAnniOutlinesEnabled` | bool | true | Outline overlay (role-coloured glow on party / light-grey on other vets parties / no glow on outsiders). Only consulted while the highlight gate holds. |
+| `vetsAnniNametagsEnabled` | bool | true | Nametag overlay (matching colour scheme). Separable from outlines. |
 
-## Open follow-ups not done in S2/S3
+## Open follow-ups
 
 - **Client-side prediction for the no-snapshot case** — external users falling back to legacy still see "not announced" instead of a prediction. Would need a ~30-line Uniform(71.4h, 82h) model anchored on `AnniStampPoller`. Deferred pending user call.
 - **Active-mode highlight on the mode-switch UI** — current state isn't visually indicated. User clicks to switch; no "you are here" marker.
-- **Boss-bar countdown stamp source** — spec §3.1.1.3 footnote suggests T-5m text should derive from Wynntils' world-event countdown rather than purely from `stamp_epoch`. S3 uses the stamp; revisit if a real anni test reveals drift.
+- **Boss-bar countdown stamp source** — spec §3.1.1.3 footnote suggests T-5m text should derive from Wynntils' world-event countdown rather than purely from `stamp_epoch`. The boss bar uses the stamp; revisit if a real anni test reveals drift.
 
-## Player highlights (S4)
+## Player highlights
 
-The S4 highlight overlay recolours nearby players' outlines + nametags while the user is at the anni in the active window. Three tiers, single ticker.
+The highlight overlay recolours nearby players' outlines + nametags while the user is at the anni in the active window. Three tiers, single ticker.
 
 ### Snapshot schema bump (v1 → v2)
 
-S4 shipped `schema_version = 2` on the vets-anni side. The single addition is `event.all_parties`: a lightweight per-party member listing keyed off the active event. Each entry is `{ordinal, members: [{uuid, username, role}, ...]}` — same `_party_member_refs` projection as `board.party.members`, so the two views never drift. Used by `AnniOutlineRegistry` to tier "in another vets-anni party" players without per-uuid round-trips. Empty list when no parties exist yet for the active event. `AnniSnapshot.Event#allParties()` returns `Collections.emptyList()` on v1 payloads (Gson leaves unknown fields null, accessor coerces), so older snapshots remain consumable.
+The highlights subsystem requires `schema_version = 2` on the vets-anni side. The single addition is `event.all_parties`: a lightweight per-party member listing keyed off the active event. Each entry is `{ordinal, members: [{uuid, username, role}, ...]}` — same `_party_member_refs` projection as `board.party.members`, so the two views never drift. Used by `AnniOutlineRegistry` to tier "in another vets-anni party" players without per-uuid round-trips. Empty list when no parties exist yet for the active event. `AnniSnapshot.Event#allParties()` returns `Collections.emptyList()` on v1 payloads (Gson leaves unknown fields null, accessor coerces), so older snapshots remain consumable.
 
 ### Activation gate — strictly tighter than the boss bar
 
 | Subsystem | Gate |
 |--|--|
-| Boss bar (S3) | `mode != SILENT` AND ( `secondsUntilAnni ≤ 90m` **OR** `in zone` ) |
-| Highlights (S4) | `mode != SILENT` AND `in window (T-2h..T+30m)` **AND** `in zone` AND ( `vetsAnniOutlinesEnabled` OR `vetsAnniNametagsEnabled` ) |
+| Boss bar | `mode != SILENT` AND ( `secondsUntilAnni ≤ 90m` **OR** `in zone` ) |
+| Highlights | `mode != SILENT` AND `in window (T-2h..T+30m)` **AND** `in zone` AND ( `vetsAnniOutlinesEnabled` OR `vetsAnniNametagsEnabled` ) |
 
 Highlights are the high-intrusiveness UI; the boss bar is the low-intrusiveness one. Both ride the same mode + snapshot data but evaluate window/zone independently. `AnniOutlineTicker` re-evaluates the four-condition gate every client tick.
 
@@ -396,100 +408,69 @@ Falls through to the supporter glint branch only when the anni gate is off; an o
 
 | Key | Default | Purpose |
 |--|--|--|
-| `vetsAnniOutlinesEnabled` | true | Master toggle for the outline overlay half of S4. Only consulted while the highlight gate holds. |
+| `vetsAnniOutlinesEnabled` | true | Master toggle for the outline overlay half. Only consulted while the highlight gate holds. |
 | `vetsAnniNametagsEnabled` | true | Master toggle for the nametag overlay half. Separable from outlines so users can pick one half. |
 
 ### Debug
 
 - `/wv debug tree anni zone enter|exit` → `AnniOutlineTicker.setForceInZone(...)` — bypasses the geo-check so dev sessions can verify the overlay without flying to the anni location.
-- `/wv debug tree anni snapshot inject preset wenweia_full_party` is the most useful S4 fixture — a 10-member own-party covering every role colour. Bundled preset.
+- `/wv debug tree anni snapshot inject preset <name>` — bundled presets are listed in `AnniDebugCommands.PRESETS` (`empty`, `external_no_anni`, `member_announced`, `member_in_party`, `member_no_anni`, `member_no_anni_fill`, `member_no_anni_unregistered`).
 - `/wv debug trigger bossBarsDump` — dumps vanilla's `BossHealthOverlay#events` map with per-bar `UUID/color/overlay/progress/name`. Was the smoking gun for the PINK-colour suppression — the dump immediately revealed every Wynncraft text-only bar shipped `color=PINK overlay=PROGRESS`. Useful for any future "why doesn't my bar render" question.
 - `/wv debug trigger nametagsDump` — walks `level.players()` and reports each player's username, `AnniOutlineRegistry` hit/miss, tier, role, and the `ChatFormatting` the `NametagMixin` would resolve to right now. Was instrumental in finding the §-code-in-string bug — the `original=` field on the dumped line surfaces the embedded leading `§a` that vanilla's text renderer parses at draw time. Use whenever a nametag colour doesn't match what you expect; the dump's `→ <username> (<colour> via registry)` segment shows what should render in-world.
 
-## For the S5 agent
+## Render-pipeline lessons
 
-S5 is **aggressive mode** — zone-line rendering, scroll-spot waypoint, `/toggle ghosts none` prompt on zone entry, and chat alerts on material snapshot changes (role / world / party). Per the parent plan §"S5".
+Forward-looking knowledge collected while building the subsystem; consult before adding a new render mixin or per-tick component.
 
-### Carryovers from S4
+1. **Prefer render-side / read-side filtering to packet-side / write-side mutation.** Four working precedents:
+   - `BossHealthOverlayMixin` (`@Redirect` on `events.values()`)
+   - `EntityOutlineColorMixin` (TAIL on `extractRenderState`, zeroes `state.outlineColor`)
+   - `EntityGlowingMixin` (HEAD-cancellable on `isCurrentlyGlowing`)
+   - `NametagMixin` (TAIL on `extractRenderState`, rebuilds `state.nameTag`)
+   - Cancelling vanilla packets has burned us twice (boss-bar crash on `update()` cancel, nametag short-circuit by Wynntils' cancel). Keep vanilla bookkeeping intact; intercept what comes out, not what goes in.
 
-- **`AnniZone.isInZone(x, z)`** is live-tested through S3+S4 traffic and works for the S5 zone-line renderer and ghosts-prompt entry detection. Same fetcher; same stale-fallback behaviour.
-- **`AnniOutlineTicker.isOutlineSuppressionActive()`** flag exposes the strict S4 gate (mode != silent ∧ window ∧ zone ∧ at-least-one-S4-toggle). S5's zone-line renderer and waypoint probably want a different gate — **mode == AGGRESSIVE ∧ in zone** is closer; the highlight gate's window check is conservative for waypoint rendering which arguably should show as soon as you're at the location regardless of countdown. Confirm with user before coding.
-- **`AnniSnapshotCache.addListener(...)`** is the canonical pattern for snapshot-diff consumers; the alert dispatcher should listen here and remember last-seen `board.role` / `board.party.world` / `board.party.ordinal` for diff-based notifications. **First observation should be silent** — login with existing assignment shouldn't bing on every reconnect. S4's `FlashTracker` already implements this `*Observed` sentinel pattern; mirror it.
-- **Debug commands** `/wv debug tree anni time <seconds>`, `zone enter|exit`, `snapshot inject ...` all still work for S5; lean on them rather than waiting for a live anni.
-- **`/wv debug trigger bossBarsDump` / `nametagsDump`** are usable render-pipeline diagnostics — extend the pattern (`/wv debug trigger X`) for any new render system S5 builds.
+2. **Don't trust `state.<field>` to mean what you think — vanilla often wraps or coerces values right before assignment.** `state.outlineColor = ARGB.opaque(getTeamColor())` — returning 0 from the getter produces opaque-black, not transparent. Always check the assignment site, not just the source value.
 
-### Render-pipeline lessons (collected from S1 → S4)
+3. **Wynncraft embeds formatting in string content, not just in Component Style.** `state.nameTag.getString()` returns `"§awonderkas"`. Any time you `.getString()` a Wynncraft component and rebuild it with `.withStyle(...)`, strip § codes first with `ChatFormatting.stripFormatting()`. The text renderer parses leading § codes at draw time and they win over your Style.
 
-1. **Prefer render-side / read-side filtering to packet-side / write-side mutation.** Four working precedents now:
-   - `BossHealthOverlayMixin` (`@Redirect` on `events.values()`, S3)
-   - `EntityOutlineColorMixin` (TAIL on `extractRenderState`, zeroes `state.outlineColor`, S4)
-   - `EntityGlowingMixin` (HEAD-cancellable on `isCurrentlyGlowing`, S4)
-   - `NametagMixin` (TAIL on `extractRenderState`, rebuilds `state.nameTag`, S4)
-   - Cancelling vanilla packets has burned us twice (S3 boss-bar crash on `update()` cancel, S4 nametag short-circuit by Wynntils' cancel). Keep vanilla bookkeeping intact; intercept what comes out, not what goes in.
+4. **Wynncraft's resource pack overrides specific vanilla sprites.** `boss_bar/pink_background.png` is fully transparent (so PINK/PROGRESS bars render as text-only HUD strips). Other vanilla GUI sprites *may* be similarly overridden; if a vanilla render component goes unexpectedly invisible, blame the resource pack first. Stick to `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` for any new boss-bar colour and don't assume vanilla sprite paths are intact.
 
-2. **Don't trust `state.<field>` to mean what you think — vanilla often wraps or coerces values right before assignment.** S4 found `state.outlineColor = ARGB.opaque(getTeamColor())` — returning 0 from the getter produced opaque-black, not transparent. Always check the assignment site, not just the source value.
-
-3. **Wynncraft embeds formatting in string content, not just in Component Style.** S4 found `state.nameTag.getString()` returns `"§awonderkas"`. Any time you `.getString()` a Wynncraft component and rebuild it with `.withStyle(...)`, strip § codes first with `ChatFormatting.stripFormatting()`. The text renderer parses leading § codes at draw time and they win over your Style.
-
-4. **Wynncraft's resource pack overrides specific vanilla sprites.** S4 found `boss_bar/pink_background.png` is fully transparent (so PINK/PROGRESS bars render as text-only HUD strips). Other vanilla GUI sprites *may* be similarly overridden; if a vanilla render component goes unexpectedly invisible, blame the resource pack first. Stick to `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` for any new boss-bar colour and don't assume vanilla sprite paths are intact.
-
-5. **Wynntils' `CustomNametagRendererFeature` and `EntityRendererMixin` are positioned at `submitNameTag` HEAD / `extractRenderState` TAIL respectively.** They cancel or override depending on player state. Test your mixin behaviour with players who:
+5. **Wynntils' `CustomNametagRendererFeature` and `EntityRendererMixin` are positioned at `submitNameTag` HEAD / `extractRenderState` TAIL respectively.** They cancel or override depending on player state. Test mixin behaviour with players who:
    - have a Wynntils account-type (Donator / etc.) — triggers `addAccountTypeNametag` + event cancel
    - you're currently looking at (raycast hit) — triggers `addGearNametags` + event cancel
    - have no Wynntils data — event proceeds, vanilla body runs
    - are local-player (skips some paths)
-   - The S4 nametag bug surfaced only on hovered Wynntils-tracked players; non-tracked players appeared to work, masking the bug for ~30 minutes of testing. Use the dump command to verify the mixin is *resolving* even when in-world rendering looks normal.
+   - The nametag bug surfaced only on hovered Wynntils-tracked players; non-tracked players appeared to work, masking the bug. Use the dump command to verify the mixin is *resolving* even when in-world rendering looks normal.
 
 6. **MixinSquared / Mixin disallows non-private static methods on mixin classes** (`vetsmod$resetLoggedNametags` crashed mod load with `InvalidMixinException`). Static fields are fine; static methods must be `private`. Same restriction applies to any helper you'd add to the mixin class itself; put them in a sibling helper class if you need public statics.
 
-7. **`@Inject HEAD` on a cancellable method is processed in `priority` order** — higher priority runs FIRST. If any earlier-priority inject cancels via `ci.cancel()`, the mixin processor's generated `if (ci.isCancelled()) return;` guard skips your inject. The S4 nametag bug here cost us several attempts. For "I must always run" semantics, TAIL of an earlier method is more reliable than HEAD of a later one.
+7. **`@Inject HEAD` on a cancellable method is processed in `priority` order** — higher priority runs FIRST. If any earlier-priority inject cancels via `ci.cancel()`, the mixin processor's generated `if (ci.isCancelled()) return;` guard skips your inject. For "I must always run" semantics, TAIL of an earlier method is more reliable than HEAD of a later one.
 
-8. **`isOutlineSuppressionActive()` is the cheap public flag** for "are we doing the anni-active rendering thing right now". The flag is just a `volatile boolean` set per tick by the ticker — safe to query from render-thread mixins without extra locking. S5 should consider exposing a parallel `AnniAggressiveTicker.isAggressiveActive()` flag with its own gate semantics.
+8. **`isOutlineSuppressionActive()` / `isAggressiveActive()` are the cheap public flags** for "are we doing the anni-active rendering thing right now". Each is a `volatile boolean` set per tick by its ticker — safe to query from render-thread mixins without extra locking. Expose a parallel flag from any new ticker with its own gate semantics.
 
-### S5-specific recommendations
-
-- **Decouple the aggressive gate from S4's strict highlight gate.** Aggressive features (zone lines, scroll waypoint, chat alerts) probably want `mode == AGGRESSIVE ∧ in zone` without the window check — useful even outside T-2h..T+30m for organisers prepping. Verify with user before coding.
-- **Host-only commands** (`/wv anni scrollspot set/clear`) should authenticate via `V1ApiManager.isAuthenticated()` and trust the temp-server to verify the host UUID against the snapshot — don't trust the client-side `board.party.host`.
-- **`TerritoryLineRenderer` is the canonical line-renderer.** Plan §S5 calls for piggybacking it for the anni-zone outline. Verify that the line renderer's lifecycle (per-tick, per-frame) doesn't conflict with the AnniZone disc-union geometry (multiple discs may overlap).
-- **Build any S5 test fixtures as one-off files** under `vetsmod/dumps/anni/<name>.json` (runtime-loaded by `/wv debug tree anni snapshot inject file <name>`). Don't bundle them into the resource preset directory — the existing presets there (`empty`, `external_no_anni`, `member_*`) are abstract test scenarios shared across stages; new fixtures with real usernames are noise.
-- **Chat alerts will fire from the snapshot-listener thread.** Bounce to the main thread via `Minecraft.getInstance().execute(...)` before calling `ChatUtils.sendLocalMessage`; that's the convention S4's `FlashTracker` already follows.
-
-## S5 — Aggressive mode (built 2026-06-17)
+## Aggressive mode
 
 ### Architecture
 
-S5 introduces the `org.wynnvets.mwe.anni.aggressive` package — five
-client-side components plus three wire pieces (V1ApiManager send,
+Five client-side components plus three wire pieces (V1ApiManager send,
 AnniWsHandler ack route, AnniScrollspotClient single-flight future) and
-one new vets-anni internal endpoint.
-
-```
-mwe/anni/aggressive/
-  AnniAggressiveTicker.java       — volatile flag; mode==AGGRESSIVE ∧ window
-  AggressiveAlertDispatcher.java  — snapshot diffs + T-10m/T-5m readiness
-  AnniZoneLineRenderer.java       — stacked Gizmos.circle cylinder cage
-  ScrollSpotMarkerProvider.java   — Wynntils MarkerProvider, dark-red beacon
-  GhostsPromptHandler.java        — rising-edge zone-entry prompt
-  AnniScrollspotCommand.java      — invoked from debug tree (not main /wv)
-mwe/anni/network/
-  AnniScrollspotClient.java       — single-flight ack future; FIFO queue
-```
+one vets-anni internal endpoint.
 
 | Component | Gate | Notes |
 |---|---|---|
-| `AnniAggressiveTicker` | computed each tick | Single cheap public `isAggressiveActive()`; every other S5 component reads it. |
+| `AnniAggressiveTicker` | computed each tick | Single cheap public `isAggressiveActive()`; every other aggressive-mode component reads it. |
 | `AggressiveAlertDispatcher` | aggressive AND `vetsAnniChatAlerts` | Per-field 5s cooldown, silent first-observation (mirror FlashTracker). Two readiness alerts: T-10m world mismatch, T-5m zone absence — each at most once per stamp_epoch. |
 | `AnniZoneLineRenderer` | aggressive AND `vetsAnniZoneLines` | `WorldRenderEvents.AFTER_ENTITIES`. Stacked `Gizmos.circle` cylinder cage — 21 rings per disc spaced `Y_STEP=10` blocks (±100 vertical), Y snapped to multiples of 10 so rings don't jitter as the player walks. 200-block squared-distance cull per disc. |
 | `ScrollSpotMarkerProvider` | aggressive AND `vetsAnniScrollWaypoint` AND non-null entry | Registered once with `Models.Marker.registerMarkerProvider`, deferred to CLIENT_STARTED so it runs after Wynntils' own init. Default fallback `345 45 -1315` when the user is in a party with no host-pinned spot. Dark-red beacon (icon-only was infeasible — see decision #5 below). |
 | `GhostsPromptHandler` | aggressive AND `vetsAnniGhostsPrompt` | Rising edge of `AnniZone.isInZone`. Walks `level.players()` + `Models.Player.isPlayerGhost`: any ghost-flagged player → prompt (ghosts confirmed on); else per-stamp_epoch sentinel. |
 
-### Decisions locked S5
+### Locked decisions
 
 1. **Aggressive gate = `mode == AGGRESSIVE ∧ window` only.** No zone gate. Per user: aggressive features are window-scoped, not location-scoped. Zone lines render whenever you're aggressive + in-window so a Lutho user can see the boundary as they fly in.
 2. **Two readiness alerts** appended to `AggressiveAlertDispatcher`. T-10m world-mismatch, T-5m zone-absence. Each latches a per-stamp_epoch sentinel — once per anni.
 3. **Ghosts-prompt detection** = `Models.Player.isPlayerGhost(player)` walk. Reads `PlayerModel.ghosts` (the cache Wynntils maintains from `_ghostN` team assignments). If any visible player is ghost → ghosts on → prompt. Else ambiguous → per-stamp_epoch sentinel (`vetsAnniGhostsPromptShownForStamp`).
 4. **Chat-alert scope = exactly role / world / party / RSVP.** No attendance-band, no party-membership.
-5. **Scroll waypoint = `Texture.MAP` + dark-red beacon.** `Texture.MAP` (the 14×14 generic, NOT `Texture.MAP_ICON` which is the 21×38 content-book tab — enum naming is a known footgun per waypoints.md §3). Originally specced as "no beacon beam, icon only," but at first runtime Wynntils' `BeaconBeamFeature.onRenderLevelLast` NPE-crashed the render thread on the null beacon colour. Investigation showed there is no per-marker "skip beacon" path: `null` crashes, `CustomColor.NONE` falls back to user-config beacon, custom 0-alpha colour is overridden to opaque by Wynntils' own `withAlpha(localAlpha)` before render. The only suppression would be a mixin into Wynntils — not worth the maintenance burden. Final: `CustomColor.fromChatFormatting(ChatFormatting.DARK_RED)`.
+5. **Scroll waypoint = `Texture.MAP` + dark-red beacon.** `Texture.MAP` (the 14×14 generic, NOT `Texture.MAP_ICON` which is the 21×38 content-book tab — enum naming is a known footgun). *Note: this intentionally does NOT use "no beacon beam, icon only" — Wynntils' `BeaconBeamFeature.onRenderLevelLast` NPE-crashes the render thread on a null beacon colour, and there is no per-marker "skip beacon" path: `null` crashes, `CustomColor.NONE` falls back to user-config beacon, custom 0-alpha colour is overridden to opaque by Wynntils' own `withAlpha(localAlpha)` before render. Suppressing the beacon would require a mixin into Wynntils.* Final: `CustomColor.fromChatFormatting(ChatFormatting.DARK_RED)`.
 6. **Scrollspot command lives under `/wv debug tree anni scrollspot`, not `/wv anni`.** Hidden from main brigadier (no tab-complete) because it's a staff-only command used on rare occasions. Gated on `requireDebug` (must have `/wv debug true`) AND `requireStaffOrOrganiser` (staff tier OR local UUID in `snapshot.organisers`). Subcommands: `set <x> <y> <z>` / `here` / `clear` are real host writes via WS; `localinject <x> <y> <z>` / `localclear` paint the marker provider directly for visual testing without coordinating a host. All five gated identically.
 
 ### Wire shape
@@ -518,41 +499,29 @@ All gated on `requireDebug` (must have `/wv debug true`); the `scrollspot` subtr
 - `/wv debug tree anni scrollspot localinject <x> <y> <z>` — local-only paint into the marker provider; no server round-trip. For visual testing of the waypoint render without coordinating a host.
 - `/wv debug tree anni scrollspot localclear` — clear the local-only injection.
 - `/wv debug tree anni alert <role|world|party|rsvp|zone|world_ready>` — synthesise a chat alert without contriving a diff or waiting for a T-N boundary.
-- `/wv debug trigger ghostsPromptDump` — dump `aggressive_active / toggle_on / in_zone / stamp / shown_for` + per-player `isPlayerGhost` result + `would_fire_on_rising_edge`. Mirrors S4 `nametagsDump` / `bossBarsDump`.
+- `/wv debug trigger ghostsPromptDump` — dump `aggressive_active / toggle_on / in_zone / stamp / shown_for` + per-player `isPlayerGhost` result + `would_fire_on_rising_edge`. Mirrors `nametagsDump` / `bossBarsDump`.
 - `/wv debug trigger zoneLinesDump` — dump aggressive gate state + every cached `AnniZone.Disc` + squared distance to the player. Diagnostic for "why aren't lines rendering."
 
-### Render-pipeline notes (added to the S1→S4 collection)
+### Render-pipeline lessons (cont'd)
 
-9. **`Gizmos.circle` exists.** S5's zone-line renderer uses it. Centre is `Vec3(disc.x, snappedY, disc.z)` — the disc geometry is 2D in `AnniZone` so Y is unspecified; snapping to multiples of `Y_STEP` lets the cylinder-cage stack stay anchored as the player moves. Other available primitives discovered while spelunking: `cuboid`, `circle`, `line`, `arrow`, `rect`, `point`, `billboardTextOverBlock`. None require Mojang-mappings remapping — they're in `net.minecraft.gizmos.*` and resolve directly under Loom 1.15.5.
-10. **Wynntils `Models.Player.isPlayerGhost(player)` is the canonical "is this player phased to another world" check.** Backed by `PlayerModel.ghosts` — a `Map<UUID, Integer>` populated from `_<TIER><N>` team assignment events. Cleared on `WORLD` state change. S5's ghosts-prompt uses it as a presence-detector for "does the user have `/toggle ghosts on`" (if there's a ghost in the player list, ghosts can't be off, because the server filters them otherwise).
+9. **`Gizmos.circle` exists.** The zone-line renderer uses it. Centre is `Vec3(disc.x, snappedY, disc.z)` — the disc geometry is 2D in `AnniZone` so Y is unspecified; snapping to multiples of `Y_STEP` lets the cylinder-cage stack stay anchored as the player moves. Other available primitives: `cuboid`, `circle`, `line`, `arrow`, `rect`, `point`, `billboardTextOverBlock`. None require Mojang-mappings remapping — they're in `net.minecraft.gizmos.*` and resolve directly under Loom 1.15.5.
+10. **Wynntils `Models.Player.isPlayerGhost(player)` is the canonical "is this player phased to another world" check.** Backed by `PlayerModel.ghosts` — a `Map<UUID, Integer>` populated from `_<TIER><N>` team assignment events. Cleared on `WORLD` state change. The ghosts-prompt uses it as a presence-detector for "does the user have `/toggle ghosts on`" (if there's a ghost in the player list, ghosts can't be off, because the server filters them otherwise).
 11. **MarkerProvider lifecycle.** `Models.Marker.registerMarkerProvider(...)` is one-shot at vetsmod load. The provider's `isEnabled()` is what gates per-tick visibility — do NOT call `registerMarkerProvider` from a snapshot listener or reconnect handler (the registration list would grow on every reconnect). `ScrollSpotMarkerProvider.registerWithWynntils()` is idempotent via a static flag for belt-and-braces.
 12. **Init order between vetsmod and Wynntils.** Fabric does NOT guarantee entrypoint order between sibling mods. Static-touching `Models.Marker` (or any other `Models.X`) from `VetsmodClient.onInitializeClient()` body triggers `Models.<clinit>` which constructs `FriendsModel` / `PartyModel` etc. — their `<init>`s call `WynntilsMod.postEvent(...)` against the not-yet-initialised eventBus, NPE, half-init Models, then Wynntils' own `Managers.<clinit>` cascade-crashes the game during boot. **Defer any `Models.X.something(...)` init-time call into the existing `ClientLifecycleEvents.CLIENT_STARTED` handler** (fires after every mod's onInitializeClient). Runtime calls (per-tick, per-snapshot-listener) are always safe — by tick time Wynntils is up. Saved as `feedback_vetsmod_wynntils_init_order.md` memory.
 13. **Wynntils `BeaconBeamFeature` is unconditional.** Every entry in `Models.Marker.getAllMarkers()` gets a beacon beam — there's no per-marker "skip" path. `marker.beaconColor()` is called and `.withAlpha(float).asInt()` invoked on it: null → render-thread NPE → "Pose stack not empty" next-frame crash; `CustomColor.NONE` → fallback to user-config beacon (still visible); custom 0-alpha → Wynntils overrides alpha back to opaque before render. Conclusion: if you register a MarkerProvider, you ship a beacon. Pick a colour you can live with.
-14. **Cold-start world-join must trigger a snapshot pull.** Discovered during S5 testing: `StampFetcher.fetchStampAndCreateMessage` (world-join motd path) read `AnniSnapshotCache.latest()` and on `null` fell through to the **legacy** stamp text without firing `AnniQueryClient.query()`. The push poller fires every 5 min outside the T-2h hot window, so on cold-start a user inside the anni zone saw legacy motd + no boss bar for up to 5 min — and `/wv anni` "fixed" it because the manual path DID query on cold cache (asymmetric branch). Fixed by adding fire-and-forget `AnniQueryClient.query()` to the world-join cold branch. Any future S6/S7 component that depends on `AnniSnapshotCache.latest()` being warm at world-join time gets this for free now.
+14. **Cold-start world-join must trigger a snapshot pull.** `StampFetcher.fetchStampAndCreateMessage` (world-join motd path) reads `AnniSnapshotCache.latest()` and on `null` fires a fire-and-forget `AnniQueryClient.query()` before falling through to legacy stamp text. *Note: this intentionally does NOT rely on the push poller alone — outside the T-2h hot window the poller fires every 5 min, so on cold-start a user inside the anni zone would otherwise see legacy motd + no boss bar for up to 5 min.* Any new component that depends on `AnniSnapshotCache.latest()` being warm at world-join time gets this for free.
 
-## S6 — `/wv anni rsvp` (built 2026-06-18)
+## `/wv anni rsvp`
 
 ### Architecture
 
-S6 closes the dangling `[Hard]`/`[Soft]` upgrade-prompt buttons that S5
-shipped (their `SuggestCommand("/wv anni rsvp hard|soft")` previously
-hit an unknown-command echo). One brigadier command + a network client
-+ a single new vets-anni endpoint; no schema bump (`rsvp.notice` is
-already on the snapshot at v2/v3).
+Backs the `[Hard]`/`[Soft]` upgrade-prompt buttons in `AnniCommandRenderer` (their `SuggestCommand("/wv anni rsvp hard|soft")` targets this command). One brigadier command + a network client + a single vets-anni endpoint; no schema bump (`rsvp.notice` is already on the snapshot at v2/v3).
 
-```
-mwe/anni/command/
-  AnniRsvpCommand.java      — brigadier handler: auth gate, dispatch, render ack
-mwe/anni/network/
-  AnniRsvpClient.java       — single-flight ack future (clone of
-                              AnniScrollspotClient); also exposes
-                              lastAttemptedNotice/lastAck/pendingCount
-                              for /wv debug trigger rsvpDump
-```
-
-Wire pieces added on the network layer:
+Wire pieces on the network layer:
 - `V1ApiManager.sendAnniRsvp(String notice)` (mirror of `sendAnniScrollspotSet`).
 - `AnniWsHandler.onInbound` routes `anni_rsvp_response` to `AnniRsvpClient.onResponse`.
+
+`AnniRsvpClient` is a single-flight ack future (clone of `AnniScrollspotClient`); also exposes `lastAttemptedNotice` / `lastAck` / `pendingCount` for `/wv debug trigger rsvpDump`.
 
 ### Auth chain
 
@@ -575,39 +544,37 @@ Wire pieces added on the network layer:
     (AQUA per the noticeColor map).
 ```
 
-### Decisions locked S6
+### Locked decisions
 
 1. **`/wv anni rsvp` lives in the main brigadier tree**, NOT under `/wv debug`
    (opposite of scrollspot). This is a public-facing user command — the
-   S5 `rsvpUpgradePrompt` buttons in `AnniCommandRenderer` already point
+   `rsvpUpgradePrompt` buttons in `AnniCommandRenderer` point
    `SuggestCommand` at it. The debug-tree mirror under
    `/wv debug tree anni rsvp` exists for symmetry but is gated on
    `requireDebug` only (no staff/organiser perm — action only affects
    the caller's own RSVP).
-2. **Unauthenticated message uses spec wording** (per user pick):
+2. **Unauthenticated message uses spec wording**:
    `"Use \\rsvp on discord — or run ~vetsmod first."` Surfaces both the
    Discord fallback and the link path. Differs from scrollspot's
    `"Run ~vetsmod to authenticate before using /wv anni scrollspot."`.
-3. **vets-anni reuses the cog's helpers via underscore-imports**. The S6
+3. **vets-anni reuses the cog's helpers via underscore-imports**.
    `app/domain/rsvp_by_uuid.execute_uuid_rsvp` imports
    `_auto_place_after_rsvp`, `_broadcast_board_snapshot`, `_post_public`,
    `_notice_label`, and `RsvpOutcome` directly from `app/bot/cogs/rsvp.py`.
    No refactor into a shared module; the leading underscore is a
-   convention, not an access boundary, and the diff is smaller. The
-   plan's Plan B (`app/domain/rsvp_shared.py`) stays a fallback if an
-   import cycle ever surfaces — it didn't in this build (pytest
-   `test_rsvp.py` + `test_rsvp_by_uuid.py` = 64 passing).
+   convention, not an access boundary, and the diff is smaller.
+   `app/domain/rsvp_shared.py` is a fallback if an import cycle ever
+   surfaces (none today; pytest `test_rsvp.py` + `test_rsvp_by_uuid.py`
+   = 64 passing).
 4. **First-invocation `AnniPlayer` placeholder uses `mc_uuid[:8]` as
    `mc_username`** (matches `auto_promoter.py:108`'s `op.username if op
    else uuid[:8]` fallback for online-but-unknown players). Full UUIDs
-   are 36 chars — too long for the 32-char `mc_username` field — so the
-   `mc_username = actor_mc_uuid` fallback the plan suggested fails
-   Tortoise's validator. Public message names the player as the
-   `uuid[:8]` until auto-promoter / presence-poller hydrates the row on
-   the next cycle.
-5. **No `username_hint` field threaded through the WS frame.** The plan
-   originally proposed `{"mc_uuid":"...","notice":"...","username_hint":"..."}`
-   but temp-server already has the session's `mc_uuid` and the placeholder
+   are 36 chars — too long for the 32-char `mc_username` field — so a
+   `mc_username = actor_mc_uuid` fallback would fail Tortoise's
+   validator. Public message names the player as the `uuid[:8]` until
+   auto-promoter / presence-poller hydrates the row on the next cycle.
+5. **No `username_hint` field threaded through the WS frame.**
+   Temp-server already has the session's `mc_uuid` and the placeholder
    fallback covers brand-new users — no need for a fragile client-side
    username hint that would also need an "is this username actually
    yours" verification.
@@ -634,9 +601,9 @@ Wire pieces added on the network layer:
    temp-server's 15s short-cache and returns pre-RSVP state. Server-side
    pop is one line and avoids extending the WS protocol with a
    "force-fresh" flag.
-10. **`buckets_domain.promote_from_wontassign`** — new helper added to
-    fix the revoke + re-RSVP regression surfaced during live testing.
-    `_auto_place_after_rsvp` now dispatches three ways:
+10. **`buckets_domain.promote_from_wontassign`** — helper that fixes
+    the revoke + re-RSVP regression.
+    `_auto_place_after_rsvp` dispatches three ways:
     - No placement → `ensure_placed` (insert into main UNASSIGNED).
     - Currently in WONTASSIGN → `promote_from_wontassign` (move back to
       main UNASSIGNED). The fresh RSVP overrides the prior demote — an
@@ -645,15 +612,14 @@ Wire pieces added on the network layer:
       intent / original lane preserved). Pinned by
       `test_revoke_then_re_rsvp_does_not_promote_party_placement`.
 11. **`wont_reason = "RSVP retracted"` when the player has a revoked
-    Rsvp.** Original `snapshot.py::_build_board_block` hard-coded
-    `BUCKET_LABEL.get(BucketKind.WONTASSIGN)` ("Sitting out") for every
-    WONTASSIGN. Vetsmod render is `wont_reason`-driven so no client
-    change was needed — the new string flows verbatim through
-    `AnniSnapshot.Board.wontReason()` into
+    Rsvp.** Vetsmod render is `wont_reason`-driven so the string flows
+    verbatim through `AnniSnapshot.Board.wontReason()` into
     `AnniCommandRenderer.boardSection`'s `case "wont_assign"` branch.
     User intent: "won't assign (retracted) != Sitting out". The query
     is one `Rsvp.filter(event, player, revoked_at__isnull=False).exists()`
-    on the same path.
+    on the same path. *Note: this intentionally does NOT use
+    `BUCKET_LABEL.get(BucketKind.WONTASSIGN)` ("Sitting out") for every
+    WONTASSIGN — that was the original hard-coded behaviour.*
 
 ### Public-message format
 
@@ -669,7 +635,7 @@ Discord-timestamp tags only (CLAUDE.md "anni timing must localise per
 viewer"). `<user>` is `player.mc_username` (the `uuid[:8]` placeholder
 for brand-new UUIDs until auto-promoter hydrates).
 
-### Render-pipeline notes (added to the S1→S5 collection)
+### Render-pipeline lessons (cont'd)
 
 15. **`app.state.fishbot` is the reach-out for `_post_public`** from a
     FastAPI route handler. Set in `main.py:79` during lifespan
@@ -700,30 +666,18 @@ All under `/wv debug tree anni …` (subtree) + `/wv debug trigger …`
   brigadier. Identical effect; bypasses no logic. For symmetry with
   the scrollspot debug-tree mirror.
 - `/wv debug trigger rsvpDump` — dump auth state, in-flight queue
-  depth, last attempt/ack, and the snapshot's `rsvp` block. Pattern
-  carried forward verbatim from `bossBarsDump` / `nametagsDump` /
-  `zoneLinesDump` / `ghostsPromptDump`. Read `AnniRsvpClient`'s public
+  depth, last attempt/ack, and the snapshot's `rsvp` block. Same
+  pattern as `bossBarsDump` / `nametagsDump` / `zoneLinesDump` /
+  `ghostsPromptDump`. Read `AnniRsvpClient`'s public
   `lastAttemptedNotice()` / `lastAck()` / `pendingCount()` accessors.
 
-### What carries forward into S7
+## Party back-report
 
-- **Auth + forward pattern** in `_handle_anni_rsvp` is the third
-  identical instance (after `_handle_anni_query` and
-  `_handle_anni_scrollspot_set`). S7's `_handle_anni_party_observation`
-  is the fourth — extract a helper if the count crosses 5.
-- **`AnniSnapshotPoller.set_rsvp(body)` / `.set_scroll_spot(body)`** are
-  HTTP-forwarder twins. S7's observation forwarder is the third.
-- **Single-flight ack pattern** — `AnniQueryClient`, `AnniScrollspotClient`,
-  `AnniRsvpClient` are all clones. S7 follows the same template.
-
-## S7 — Party back-report (built 2026-06-18)
-
-Replaced the cohort-tier proxy in `PartyRosterListener` with a direct
-organiser-presence gate, **and excised the legacy `party_status` frame
-end-to-end across vetsmod / temp-server / vets-anni.** Per user
-correction during planning: anni parties only exist inside the active
-window, and an anni party's host is always in `organisers`, so the
-broader year-round signal is over-collection and the new gate is the
+`PartyRosterListener` uses a direct organiser-presence gate (the legacy
+`party_status` frame is removed end-to-end across vetsmod / temp-server
+/ vets-anni). Anni parties only exist inside the active window, and an
+anni party's host is always in `organisers`, so the broader year-round
+signal would be over-collection and the organiser-presence gate is the
 exact signal vets-anni needs.
 
 ### What ships
@@ -798,83 +752,90 @@ The legacy `party_status` machinery is excised in full:
   method. `state.party_leader_by_uuid` keeps the same name (only the
   data source changed).
 
-### Implementation deltas
+### Implementation notes
 
-- **Wire format diverged from the plan's original `[{uuid, username}]`
-  shape.** Wynntils' `PartyModel.getPartyMembers()` returns
-  `List<String>` of usernames only; Wynncraft's tab list is fake (80
-  sentinels per `TabListGuildParser`), so client-side name→UUID
-  resolution drops 30-60% of members. Decided in planning: names go
-  over the wire, vets-anni does the resolution. Body shape became
-  `{observer_mc_uuid, party_member_usernames: [str], leader_username,
-  world}`.
-- **Snapshot helper renamed `_organiser_uuids` → `_organisers`**
-  returning a `(uuids, usernames)` tuple from one query pair (S4
-  pattern). Re-querying would have race-induced order desync if a host
-  reassignment landed mid-build.
+- **Wire format is `{observer_mc_uuid, party_member_usernames: [str],
+  leader_username, world}` — names over the wire, vets-anni does the
+  resolution.** *Note: this intentionally does NOT use the
+  `[{uuid, username}]` shape — Wynntils' `PartyModel.getPartyMembers()`
+  returns `List<String>` of usernames only, and Wynncraft's tab list is
+  fake (80 sentinels per `TabListGuildParser`), so client-side
+  name→UUID resolution would drop 30-60% of members.*
+- **Snapshot helper `_organisers` returns a `(uuids, usernames)` tuple
+  from one query pair.** Re-querying would race on order desync if a
+  host reassignment landed mid-build.
 - **`observer_mc_uuid` injected by temp-server, never trusted from the
   frame body** (impersonation vector — the frame body's
   `observer_mc_uuid`, if present, is discarded).
-- **TTL gate added to the presence corroboration check.** Without it,
-  a vetsmod disconnect mid-window would pin the user to yellow on the
-  staff board indefinitely (no other writer would clear the entry).
-  Default 60 s; tune during live anni if presence flickers.
+- **TTL gate on the presence corroboration check.** *Note: this
+  intentionally does NOT pin the user to yellow indefinitely on a
+  vetsmod disconnect — without the TTL, no other writer would clear
+  the entry.* Default 60 s; tune during live anni if presence
+  flickers.
 - **`AnniPartyReporter` is a thin snapshot listener, NOT a wrapper
   around the send call.** `PartyRosterListener.flush()` calls
   `V1ApiManager.sendAnniPartyObservation` directly — same shape as
   the other `sendAnniX` methods. Splitting the send into a separate
-  class would have been pure indirection.
-- **Response frame is typed (`anni_party_observation_response`)** to
-  match S5/S6 pattern. The handler in
+  class would be pure indirection.
+- **Response frame is typed (`anni_party_observation_response`).** The
+  handler in
   [`AnniWsHandler`](C:/Low-Perm-Program-Files/Projects/vetsmod/src/client/java/org/wynnvets/mwe/anni/network/AnniWsHandler.java)
   debug-logs only — no consumer state today. Mirror
   `AnniRsvpClient`'s diagnostic accessors only if a debug-trigger
   dump surfaces the need.
+- **The listener gate reads `stampEpoch` from the snapshot, not from
+  `AnniStampPoller`.** `PartyRosterListener.snapshotStamp(snapshot)`
+  reads `snapshot.event().stampEpoch()` — the same field `/wv anni`
+  consumes. *Note: this intentionally does NOT read
+  `AnniStampPoller.getLatestStamp()` — the legacy live-temp-server
+  cache returns 0 in dev when no anni is actually announced, so
+  debug-inject (which populates only `AnniSnapshotCache`) would fail
+  the gate.* General rule: any new code reads the active stamp from
+  the snapshot, not from the legacy poller.
 
-### Patterns reused from S5/S6
+### Reference templates
 
-After S6, there are now **three clean reference templates** for every
-shape S7 touches. Don't redesign — clone.
+Four clean reference templates exist for the shapes this section
+touches. Don't redesign — clone.
 
-**Auth + forward template (temp-server `inbound.py`)** — three nearly
+**Auth + forward template (temp-server `inbound.py`)** — four nearly
 identical handlers:
-1. `_handle_anni_query` (S1 read path; session-or-frame uuid resolution).
-2. `_handle_anni_scrollspot_set` (S5 host-only write; session uuid only).
-3. `_handle_anni_rsvp` (S6 self-only write; session uuid + cache-bust).
+1. `_handle_anni_query` (read path; session-or-frame uuid resolution).
+2. `_handle_anni_scrollspot_set` (host-only write; session uuid only).
+3. `_handle_anni_rsvp` (self-only write; session uuid + cache-bust).
+4. `_handle_anni_party_observation` (clone of #3 with a different
+   poller forward; stamps actor's UUID into the body so the client
+   can't impersonate, returns `anni_party_observation_response` with
+   `{status, detail}`).
 
-S7's `_handle_anni_party_observation` is the fourth — clone the auth gate
-(`session = state.authenticated_sessions.get(ws)`; refuse on null
-`mc_uuid`), stamp the actor's UUID into the body so the client can't
-impersonate, forward via a new poller helper, return
-`anni_party_observation_response` with `{status, detail}`. If the count
-of these grows to 5, extract a `_handle_anni_authenticated_forward(...)`
-helper in the same file.
+If the count of these grows to 5, extract a
+`_handle_anni_authenticated_forward(...)` helper in the same file.
 
-**Poller helper template (temp-server `anni_snapshot_poller.py`)** — two
-extant clones: `set_scroll_spot(body)` (S5) and `set_rsvp(body)` (S6).
-Both reuse `self._client` + `self._secret` + `self._base_url`, return
-`{"status":"ok"}` / `{"status":"error","detail":"…"}` / unreachable.
-S7's `report_party_observation(body)` follows verbatim.
+**Poller helper template (temp-server `anni_snapshot_poller.py`)** —
+three clones: `set_scroll_spot(body)`, `set_rsvp(body)`, and
+`report_party_observation(body)`. All reuse `self._client` +
+`self._secret` + `self._base_url`, return `{"status":"ok"}` /
+`{"status":"error","detail":"…"}` / unreachable.
 
 **Single-flight ack client (vetsmod `org.wynnvets.mwe.anni.network`)** —
-three extant clones: `AnniQueryClient` (returns `CompletableFuture<AnniSnapshot>`),
+three clones: `AnniQueryClient` (returns `CompletableFuture<AnniSnapshot>`),
 `AnniScrollspotClient` (returns `CompletableFuture<Ack>`),
 `AnniRsvpClient` (returns `CompletableFuture<Ack>`). FIFO
 `ConcurrentLinkedDeque`, 5 s `orTimeout`, `exceptionally` removes the
-head on timeout. S7 likely doesn't need an ack at all (the report is
-fire-and-forget — vetsmod doesn't render anything from the response) so
-a thinner pattern may be appropriate: just enqueue the frame send via
-`V1ApiManager.sendAnniPartyObservation(...)`, no future, no ack route.
-**Don't add an `AnniPartyReporterClient` unless an ack arrives that the
-client needs to react to.**
+head on timeout. The party-observation report is fire-and-forget (no
+ack is needed because vetsmod doesn't render anything from the
+response), so it skips the single-flight client and just enqueues the
+frame send via `V1ApiManager.sendAnniPartyObservation(...)`.
+**Don't add an `AnniPartyReporterClient` unless an ack arrives that
+the client needs to react to.**
 
-**V1ApiManager send template** — three extant clones (`sendAnniQuery`,
-`sendAnniScrollspotSet`, `sendAnniRsvp`). Check `inboundClient.isConnected()`,
-build `{"type":"...",...}` JSON, call `inboundClient.send(payload)`,
-return bool. Mirror.
+**V1ApiManager send template** — four clones (`sendAnniQuery`,
+`sendAnniScrollspotSet`, `sendAnniRsvp`, `sendAnniPartyObservation`).
+Check `inboundClient.isConnected()`, build `{"type":"...",...}` JSON,
+call `inboundClient.send(payload)`, return bool. Mirror.
 
-**`AnniWsHandler.onInbound` demux** — three extant routes; add a
-fourth if S7 needs an ack frame (it probably doesn't).
+**`AnniWsHandler.onInbound` demux** — four routes; add a fifth if a
+new frame type needs a vetsmod-side consumer.
 
 ### What carries forward to future MWEs
 
@@ -891,9 +852,6 @@ fourth if S7 needs an ack frame (it probably doesn't).
 
 ## Source-of-truth pointers
 
-- Spec — [`C:/Low-Perm-Program-Files/Projects/vets-anni/.claude/ephemeral/vetsmod-fishbot-integration-spec.md`](C:/Low-Perm-Program-Files/Projects/vets-anni/.claude/ephemeral/vetsmod-fishbot-integration-spec.md)
-- Plan — `C:/Users/tjpas/.claude/plans/this-is-a-massive-drifting-moth.md`
 - Snapshot wire contract — [`vets-anni/.claude/snapshot_integration.md`](C:/Low-Perm-Program-Files/Projects/vets-anni/.claude/snapshot_integration.md)
-- Boss-bar investigation prep (for S3) — [`boss-bar.md`](C:/Low-Perm-Program-Files/Projects/vets-anni/.claude/ephemeral/vetsmod-integration-investigation-prep/boss-bar.md)
-- Outlines investigation prep (for S4) — [`outlines.md`](C:/Low-Perm-Program-Files/Projects/vets-anni/.claude/ephemeral/vetsmod-integration-investigation-prep/outlines.md)
-- Waypoints investigation prep (for S5) — [`waypoints.md`](C:/Low-Perm-Program-Files/Projects/vets-anni/.claude/ephemeral/vetsmod-integration-investigation-prep/waypoints.md)
+
+*Note: the original cross-repo spec and the S3–S5 investigation prep docs lived under `vets-anni/.claude/ephemeral/` and were deleted as part of the post-S7 cleanup. The load-bearing decisions from each are inlined into the relevant sections above (§Boss bar, §Player highlights, §Aggressive mode); the code is the remaining source of truth.*

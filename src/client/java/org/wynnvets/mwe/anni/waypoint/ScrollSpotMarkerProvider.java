@@ -1,4 +1,4 @@
-package org.wynnvets.mwe.anni.aggressive;
+package org.wynnvets.mwe.anni.waypoint;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.models.marker.type.MarkerInfo;
@@ -13,6 +13,7 @@ import com.wynntils.utils.render.Texture;
 import net.minecraft.ChatFormatting;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 

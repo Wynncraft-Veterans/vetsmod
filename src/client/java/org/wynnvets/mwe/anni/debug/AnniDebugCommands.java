@@ -950,13 +950,13 @@ public final class AnniDebugCommands {
 
     /** {@code /wv debug tree anni scrollspot set <x> <y> <z>} — host
      *  write: sends an {@code anni_scrollspot_set} frame to the server.
-     *  Delegates to {@link org.wynnvets.mwe.anni.aggressive.AnniScrollspotCommand#set}.
+     *  Delegates to {@link org.wynnvets.mwe.anni.command.AnniScrollspotCommand#set}.
      *  The server verifies the actor is the host of their assigned party
      *  via vets-anni's {@code anni-party-scrollspot} endpoint. */
     private static int scrollspotSet(CommandContext<FabricClientCommandSource> ctx) {
         if (requireDebug(ctx) == 0) return 0;
         if (requireStaffOrOrganiser(ctx) == 0) return 0;
-        return org.wynnvets.mwe.anni.aggressive.AnniScrollspotCommand.set(ctx);
+        return org.wynnvets.mwe.anni.command.AnniScrollspotCommand.set(ctx);
     }
 
     /** {@code /wv debug tree anni scrollspot here} — host write using the
@@ -964,7 +964,7 @@ public final class AnniDebugCommands {
     private static int scrollspotHere(CommandContext<FabricClientCommandSource> ctx) {
         if (requireDebug(ctx) == 0) return 0;
         if (requireStaffOrOrganiser(ctx) == 0) return 0;
-        return org.wynnvets.mwe.anni.aggressive.AnniScrollspotCommand.here(ctx);
+        return org.wynnvets.mwe.anni.command.AnniScrollspotCommand.here(ctx);
     }
 
     /** {@code /wv debug tree anni scrollspot clear} — host write that
@@ -972,7 +972,7 @@ public final class AnniDebugCommands {
     private static int scrollspotClear(CommandContext<FabricClientCommandSource> ctx) {
         if (requireDebug(ctx) == 0) return 0;
         if (requireStaffOrOrganiser(ctx) == 0) return 0;
-        return org.wynnvets.mwe.anni.aggressive.AnniScrollspotCommand.clear(ctx);
+        return org.wynnvets.mwe.anni.command.AnniScrollspotCommand.clear(ctx);
     }
 
     /** {@code /wv debug tree anni scrollspot localinject <x> <y> <z>} —
@@ -985,7 +985,7 @@ public final class AnniDebugCommands {
         int x = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "x");
         int y = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "y");
         int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "z");
-        org.wynnvets.mwe.anni.aggressive.ScrollSpotMarkerProvider.get().debugSet(x, y, z);
+        org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider.get().debugSet(x, y, z);
         ChatUtils.sendLocalMessage(Component.literal(
                 "scrollspot local-inject: " + x + " " + y + " " + z)
                 .withStyle(ChatFormatting.GREEN));
@@ -997,7 +997,7 @@ public final class AnniDebugCommands {
     private static int scrollspotLocalClear(CommandContext<FabricClientCommandSource> ctx) {
         if (requireDebug(ctx) == 0) return 0;
         if (requireStaffOrOrganiser(ctx) == 0) return 0;
-        org.wynnvets.mwe.anni.aggressive.ScrollSpotMarkerProvider.get().debugClear();
+        org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider.get().debugClear();
         ChatUtils.sendLocalMessage(Component.literal("scrollspot local cleared")
                 .withStyle(ChatFormatting.GREEN));
         return 1;

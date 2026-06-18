@@ -1,4 +1,4 @@
-package org.wynnvets.mwe.anni.aggressive;
+package org.wynnvets.mwe.anni.zone;
 
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
@@ -8,7 +8,7 @@ import net.minecraft.gizmos.Gizmos;
 import net.minecraft.world.phys.Vec3;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.mwe.anni.zone.AnniZone;
+import org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker;
 
 import java.util.List;
 
