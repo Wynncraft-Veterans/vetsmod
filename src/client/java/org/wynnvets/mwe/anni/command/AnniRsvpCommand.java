@@ -9,6 +9,7 @@ import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.network.AnniQueryClient;
 import org.wynnvets.mwe.anni.network.AnniRsvpClient;
 import org.wynnvets.mwe.anni.render.AnniHoverBuilder;
 
@@ -79,6 +80,16 @@ public final class AnniRsvpCommand {
             }
             if (ack.ok()) {
                 ChatUtils.sendLocalMessage(successComponent(notice));
+                // Outside the T-2h hot window the push poller runs at 5-min
+                // cadence, so without a fire-and-forget refresh here the
+                // cached snapshot would still report the pre-RSVP state
+                // (e.g. "EARLY WALK-IN") for up to 5 minutes — confusing
+                // immediately after the user committed. The query() pull
+                // hits temp-server's anni_query handler, which serves a
+                // cached snapshot if <15s old or re-fetches from vets-anni
+                // synchronously. Either way the new RSVP shows up on the
+                // very next `/wv anni` / boss bar tick.
+                AnniQueryClient.query();
             } else {
                 String detail = ack.detail() != null ? ack.detail() : "unknown error";
                 reply("RSVP rejected: " + detail, ChatFormatting.RED);

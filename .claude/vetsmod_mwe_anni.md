@@ -619,6 +619,41 @@ Wire pieces added on the network layer:
    (static volatiles, no per-call correlation) — acceptable for
    debug-only `rsvpDump` view. The `pendingCount()` accessor gives an
    honest in-flight indicator.
+8. **Auto-refresh on success.** `AnniRsvpCommand.renderAck` fires
+   `AnniQueryClient.query()` after a successful ack. Without this,
+   `/wv anni` reads the cached snapshot which is up to 5 minutes stale
+   outside the T-2h hot window (push poller cadence). User reported the
+   exact symptom: post-`/wv anni rsvp soft`, the next `/wv anni` still
+   showed `RSVP Type: EARLY WALK-IN`. The query is fire-and-forget; the
+   listener bus in `AnniSnapshotCache` re-renders everything that
+   subscribes (boss bar, outlines, flash, future `/wv anni`).
+9. **Server-side cache-bust coordinates with the auto-refresh.** Temp-server's
+   `_handle_anni_rsvp` pops the user's UUID from
+   `state.anni_snapshots_by_uuid` on a successful forward to vets-anni.
+   Otherwise the immediate follow-up `anni_query` from vetsmod hits
+   temp-server's 15s short-cache and returns pre-RSVP state. Server-side
+   pop is one line and avoids extending the WS protocol with a
+   "force-fresh" flag.
+10. **`buckets_domain.promote_from_wontassign`** — new helper added to
+    fix the revoke + re-RSVP regression surfaced during live testing.
+    `_auto_place_after_rsvp` now dispatches three ways:
+    - No placement → `ensure_placed` (insert into main UNASSIGNED).
+    - Currently in WONTASSIGN → `promote_from_wontassign` (move back to
+      main UNASSIGNED). The fresh RSVP overrides the prior demote — an
+      explicit `/wv anni rsvp` is a strong user signal.
+    - Any other placement (party, walk-in lane, etc.) → no-op (staff
+      intent / original lane preserved). Pinned by
+      `test_revoke_then_re_rsvp_does_not_promote_party_placement`.
+11. **`wont_reason = "RSVP retracted"` when the player has a revoked
+    Rsvp.** Original `snapshot.py::_build_board_block` hard-coded
+    `BUCKET_LABEL.get(BucketKind.WONTASSIGN)` ("Sitting out") for every
+    WONTASSIGN. Vetsmod render is `wont_reason`-driven so no client
+    change was needed — the new string flows verbatim through
+    `AnniSnapshot.Board.wontReason()` into
+    `AnniCommandRenderer.boardSection`'s `case "wont_assign"` branch.
+    User intent: "won't assign (retracted) != Sitting out". The query
+    is one `Rsvp.filter(event, player, revoked_at__isnull=False).exists()`
+    on the same path.
 
 ### Public-message format
 
@@ -683,19 +718,158 @@ All under `/wv debug tree anni …` (subtree) + `/wv debug trigger …`
 
 ## For the S7 agent
 
-S7 = party back-report pipeline — modify `PartyRosterListener` to
-trigger on "any party member's UUID in `snapshot.organisers`" instead
-of "local player in vets tier"; add a new `anni_party_observation`
-frame from vetsmod → temp-server → vets-anni's
-`anni-party-observation` endpoint. S6 carryovers above are the
-patterns.
+S7 = **party back-report pipeline.** Replace `PartyRosterListener`'s
+current "local player in vets tier" gate with "any party member's UUID
+appears in `AnniSnapshotCache.latest().organisers()`". When the new
+gate holds during the active window (T-2h..T+30m), fire a new
+`anni_party_observation` frame from vetsmod → temp-server → vets-anni's
+`POST /api/internal/anni-party-observation` endpoint. The legacy
+`party_status` frame STAYS (vets-anni's presence-corroboration code in
+`app/services/state.py` depends on it as a broader signal) — both
+frames may flow during the window. This is documented in the parent
+plan §S7 and pinned in §"Risks" — confirm with user at start that
+additive is the intended posture (default: yes, additive).
 
-### S7 carryovers (preserved from S5)
+### Patterns to reuse
 
-- The auth + forward pattern in `_handle_anni_scrollspot_set` (and now `_handle_anni_rsvp`) is the template for S7's `_handle_anni_party_observation` too.
-- `AnniScrollspotClient` / `AnniRsvpClient` are clones of `AnniQueryClient` — S7 clones again for its own ack pair rather than overloading.
-- `AnniAggressiveTicker.isAggressiveActive()` mirrors S4's `AnniOutlineTicker.isOutlineSuppressionActive()`. If S7 grows a "passive +" tier (e.g. organiser-presence nudges in passive mode), one-volatile-per-system stays the right pattern.
-- **Underscore-imports from a Discord cog work** (S6 proved it via `from app.bot.cogs.rsvp import _post_public, ...`). S7 can reuse the same trick if it needs cog-private helpers; promote to a domain shared-module only if pytest surfaces an import cycle.
+After S6, there are now **three clean reference templates** for every
+shape S7 touches. Don't redesign — clone.
+
+**Auth + forward template (temp-server `inbound.py`)** — three nearly
+identical handlers:
+1. `_handle_anni_query` (S1 read path; session-or-frame uuid resolution).
+2. `_handle_anni_scrollspot_set` (S5 host-only write; session uuid only).
+3. `_handle_anni_rsvp` (S6 self-only write; session uuid + cache-bust).
+
+S7's `_handle_anni_party_observation` is the fourth — clone the auth gate
+(`session = state.authenticated_sessions.get(ws)`; refuse on null
+`mc_uuid`), stamp the actor's UUID into the body so the client can't
+impersonate, forward via a new poller helper, return
+`anni_party_observation_response` with `{status, detail}`. If the count
+of these grows to 5, extract a `_handle_anni_authenticated_forward(...)`
+helper in the same file.
+
+**Poller helper template (temp-server `anni_snapshot_poller.py`)** — two
+extant clones: `set_scroll_spot(body)` (S5) and `set_rsvp(body)` (S6).
+Both reuse `self._client` + `self._secret` + `self._base_url`, return
+`{"status":"ok"}` / `{"status":"error","detail":"…"}` / unreachable.
+S7's `report_party_observation(body)` follows verbatim.
+
+**Single-flight ack client (vetsmod `org.wynnvets.mwe.anni.network`)** —
+three extant clones: `AnniQueryClient` (returns `CompletableFuture<AnniSnapshot>`),
+`AnniScrollspotClient` (returns `CompletableFuture<Ack>`),
+`AnniRsvpClient` (returns `CompletableFuture<Ack>`). FIFO
+`ConcurrentLinkedDeque`, 5 s `orTimeout`, `exceptionally` removes the
+head on timeout. S7 likely doesn't need an ack at all (the report is
+fire-and-forget — vetsmod doesn't render anything from the response) so
+a thinner pattern may be appropriate: just enqueue the frame send via
+`V1ApiManager.sendAnniPartyObservation(...)`, no future, no ack route.
+**Don't add an `AnniPartyReporterClient` unless an ack arrives that the
+client needs to react to.**
+
+**V1ApiManager send template** — three extant clones (`sendAnniQuery`,
+`sendAnniScrollspotSet`, `sendAnniRsvp`). Check `inboundClient.isConnected()`,
+build `{"type":"...",...}` JSON, call `inboundClient.send(payload)`,
+return bool. Mirror.
+
+**`AnniWsHandler.onInbound` demux** — three extant routes; add a
+fourth if S7 needs an ack frame (it probably doesn't).
+
+### What S7 builds
+
+1. **vets-anni** — NEW `POST /api/internal/anni-party-observation` in
+   `app/web/routers/anni_internal.py`. Body
+   `{observer_mc_uuid, party_members: [{uuid, username}], leader_uuid, world}`.
+   Threads into the existing party-corroboration code path in
+   `app/services/state.py`. **No new domain module** — this is data
+   intake, not a domain mutation. Same `_check_secret` gate as the
+   sibling endpoints.
+2. **vets-anni** — extend `AppState` / `state.py` to accept the new
+   observation source (`observer_mc_uuid` as the corroborator,
+   `party_members` as the observed roster). Existing corroboration
+   logic should be reusable; only the input shape is new.
+3. **temp-server** — NEW `_handle_anni_party_observation` in
+   `app/chat/inbound.py` (right after `_handle_anni_rsvp` at L883+).
+   Authenticated only; stamp `observer_mc_uuid` from session; forward
+   to new `AnniSnapshotPoller.report_party_observation(body)` helper.
+   No ack frame unless S7 needs one.
+4. **vetsmod** — MODIFY `org.wynnvets.listeners.PartyRosterListener`
+   (existing). Change the gate from "vets-tier" to "any UUID in
+   `AnniSnapshotCache.latest().organisers()`". Keep the
+   active-window (T-2h..T+30m) gate. Continue firing the legacy
+   `party_status` frame in BOTH branches (additive, per the parent
+   plan's §"Risks" decision).
+5. **vetsmod** — NEW `org.wynnvets.mwe.anni.party.AnniPartyReporter`.
+   Thin static wrapper: takes the current party state from
+   `PartyRosterListener` and dispatches an
+   `anni_party_observation` frame via `V1ApiManager`. No ack future
+   needed (most likely).
+6. **vetsmod** — `V1ApiManager.sendAnniPartyObservation(...)` mirroring
+   the other three `sendAnniX` methods.
+7. **Doc updates**: `vetsmod_networking.md` (dual-send transition),
+   `temp-server/v1_protocol.md` (§1.14 new frame), `vets-anni/.claude/integration.md`
+   (new endpoint), this doc (§"S7 — Party back-report"), parent plan
+   stage-status row.
+
+### Open questions for S7 start
+
+- **Confirm additive `party_status`.** The parent plan §"Risks" says
+  to confirm with user that the legacy `party_status` STAYS — vets-anni's
+  `state.py` corroboration depends on it as a broader signal. Default
+  posture is additive (both frames flow). Rework only if the user
+  contradicts.
+- **Ack frame required?** Likely no. The flow is one-way (vetsmod ->
+  vets-anni); vetsmod doesn't render anything from a response. If the
+  user wants vetsmod to surface "your party observation was recorded"
+  in chat, then add an ack pair; otherwise fire-and-forget.
+- **`AnniSnapshotCache.latest().organisers()` accessor exists?** Yes —
+  shipped in S1; `AnniSnapshot.Event.organisers()` (or similar — verify
+  the exact accessor). Read-only list of UUID strings.
+- **Active-window gate** — the parent plan says "Keep the existing
+  active-window gate (2h)". Confirm whether that's T-2h..T+30m
+  (matching the rest of the subsystem) or strictly 2h pre-anni. Likely
+  the former; match the boss-bar / outline gates.
+- **Debug surface** — pattern from S5/S6: a `/wv debug trigger
+  partyObservationDump` mirroring the existing `bossBarsDump` /
+  `nametagsDump` / `rsvpDump` / `ghostsPromptDump` / `zoneLinesDump`
+  family. Cheap; ship it for diagnostic parity.
+
+### What NOT to break
+
+- **Legacy `party_status` frame** — vets-anni's `state.py` still
+  consumes it. Dual-send is the intent. Don't remove the existing
+  frame in `PartyRosterListener`'s tick.
+- **`PartyRosterListener`'s existing tier-or-window gates for
+  non-anni purposes** — the listener may also drive non-anni
+  behaviours. Verify before changing the gate semantics; the S7
+  change should be additive (add an "organiser-in-party" gate that
+  ALSO fires `anni_party_observation`), not a replacement of the
+  existing gates.
+
+### S7 carryovers (preserved from S5/S6)
+
+- **Underscore-imports from a Discord cog work** (S6 proved it via
+  `from app.bot.cogs.rsvp import _post_public, ...`). S7 likely doesn't
+  need cog-private helpers (party observation is data intake, not a
+  user-facing mutation that needs Discord), but if it does, the
+  pattern is established.
+- **`AnniAggressiveTicker.isAggressiveActive()` mirrors S4's
+  `AnniOutlineTicker.isOutlineSuppressionActive()`.** If S7 grows a
+  "passive +" tier (e.g. organiser-presence nudges in passive mode),
+  one-volatile-per-system stays the right pattern. Most likely S7
+  doesn't need a new ticker — the observation fires from the
+  `PartyRosterListener` tick which already exists.
+- **Init-order memory still holds** (per
+  `feedback_vetsmod_wynntils_init_order.md`): never touch `Models.*`
+  from `VetsmodClient.onInitializeClient` body; defer to
+  `CLIENT_STARTED`. S7's `AnniPartyReporter` registration is a static
+  call, unlikely to touch `Models.*` at init, but verify before
+  wiring.
+- **No new VetsConfig keys expected.** Party observation is not a
+  user-visible behaviour — it's a back-report. The existing
+  `vetsAnniEnabled` master toggle gates whether the report fires at
+  all. Lean against adding `vetsAnniPartyReport` unless the user
+  asks.
 
 ## Source-of-truth pointers
 
