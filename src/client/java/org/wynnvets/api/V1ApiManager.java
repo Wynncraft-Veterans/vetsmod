@@ -499,6 +499,48 @@ public final class V1ApiManager {
     }
 
     /**
+     * S5 — Sends an {@code anni_scrollspot_set} inbound control frame: the
+     * local user (who must be a party host) pins or clears their party's
+     * scroll-spot coord. Pass {@code null} for the triplet to clear the spot.
+     *
+     * <p>Authenticated only — temp-server reads the session's MC UUID and
+     * forwards it to vets-anni as {@code actor_mc_uuid}. The client cannot
+     * impersonate a different host; vets-anni double-checks host status
+     * against {@code Party.host} before persisting.</p>
+     *
+     * <p>The response arrives as an {@code anni_scrollspot_response} frame
+     * routed by {@link org.wynnvets.mwe.anni.network.AnniWsHandler} to the
+     * {@link org.wynnvets.mwe.anni.network.AnniScrollspotClient}'s pending
+     * {@link java.util.concurrent.CompletableFuture}.</p>
+     *
+     * @param x  block-X (nullable triplet = clear)
+     * @param y  block-Y
+     * @param z  block-Z
+     * @return true iff the frame was actually sent (inbound connection up).
+     */
+    public static boolean sendAnniScrollspotSet(Integer x, Integer y, Integer z) {
+        if (inboundClient == null || !inboundClient.isConnected()) {
+            VetsLogger.debug("sendAnniScrollspotSet: inbound not connected");
+            return false;
+        }
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "anni_scrollspot_set");
+        if (x == null || y == null || z == null) {
+            payload.add("scroll_spot", com.google.gson.JsonNull.INSTANCE);
+            VetsLogger.debug("Sent anni_scrollspot_set: clear");
+        } else {
+            JsonObject spot = new JsonObject();
+            spot.addProperty("x", x);
+            spot.addProperty("y", y);
+            spot.addProperty("z", z);
+            payload.add("scroll_spot", spot);
+            VetsLogger.debug("Sent anni_scrollspot_set: {} {} {}", x, y, z);
+        }
+        inboundClient.send(payload);
+        return true;
+    }
+
+    /**
      * Sends a {@code party_status} control frame describing the local player's
      * current Wynncraft party roster (sourced from Wynntils' {@code PartyModel}).
      * The server aggregates these reports across connected clients and exposes

@@ -232,6 +232,7 @@ public final class AnniSnapshot {
         private String result;
         private PlayerRef host;
         private List<MemberRef> members;
+        private ScrollSpot scroll_spot;
 
         public int ordinal() {
             return ordinal != null ? ordinal : 0;
@@ -251,6 +252,35 @@ public final class AnniSnapshot {
 
         public List<MemberRef> members() {
             return members != null ? members : Collections.emptyList();
+        }
+
+        /** Schema v3 — the in-game scroll-spot the party host has pinned via
+         *  {@code /wv anni scrollspot}. Null until set; cleared automatically
+         *  by vets-anni at grace-wipe. */
+        public ScrollSpot scrollSpot() {
+            return scroll_spot;
+        }
+    }
+
+    /** Schema v3 {@code board.party.scroll_spot}. All three coords are
+     *  written/cleared atomically by the
+     *  {@code POST /api/internal/anni-party-scrollspot} endpoint, so any
+     *  non-null instance has all three values populated. */
+    public static final class ScrollSpot {
+        private Integer x;
+        private Integer y;
+        private Integer z;
+
+        public int x() {
+            return x != null ? x : 0;
+        }
+
+        public int y() {
+            return y != null ? y : 0;
+        }
+
+        public int z() {
+            return z != null ? z : 0;
         }
     }
 

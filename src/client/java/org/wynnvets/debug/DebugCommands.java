@@ -113,6 +113,18 @@ public final class DebugCommands {
                 .then(ClientCommandManager.literal("nametagsDump")
                     .executes(DebugCommands::triggerNametagsDump)
                 )
+                .then(ClientCommandManager.literal("ghostsPromptDump")
+                    .executes(ctx -> {
+                        org.wynnvets.mwe.anni.aggressive.GhostsPromptHandler.debugDump();
+                        return 1;
+                    })
+                )
+                .then(ClientCommandManager.literal("zoneLinesDump")
+                    .executes(ctx -> {
+                        DebugCommands.triggerZoneLinesDump();
+                        return 1;
+                    })
+                )
             )
             // Subsystem trees nest under `tree` — they're neither toggles
             // nor triggers, so they don't belong at the top level alongside
@@ -448,5 +460,52 @@ public final class DebugCommands {
             idx++;
         }
         return 1;
+    }
+
+    /**
+     * {@code /wv debug trigger zoneLinesDump} — diagnostic for the S5 zone-line
+     * renderer. Dumps the aggressive gate, every cached {@link
+     * org.wynnvets.mwe.anni.zone.AnniZone.Disc disc}, and the squared
+     * distance to the player so a "why aren't lines rendering" investigation
+     * can rule in/out each component (gate, cold cache, distance culling).
+     */
+    private static void triggerZoneLinesDump() {
+        boolean aggro = org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker.isAggressiveActive();
+        boolean toggle = org.wynnvets.config.VetsConfig.get(
+                org.wynnvets.config.VetsConfig.VETS_ANNI_ZONE_LINES);
+        boolean cold = org.wynnvets.mwe.anni.zone.AnniZone.isCold();
+        java.util.List<org.wynnvets.mwe.anni.zone.AnniZone.Disc> discs =
+                org.wynnvets.mwe.anni.zone.AnniZone.getDiscs();
+
+        ChatUtils.sendLocalMessageNewBlock(Component.literal(
+                "AnniZoneLineRenderer dump — aggressive_active=" + aggro
+                        + " toggle_on=" + toggle
+                        + " zone_cold=" + cold
+                        + " discs=" + discs.size())
+                .withStyle(ChatFormatting.GOLD));
+
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        net.minecraft.client.player.LocalPlayer player = mc != null ? mc.player : null;
+        double px = player != null ? player.getX() : 0.0;
+        double pz = player != null ? player.getZ() : 0.0;
+
+        if (discs.isEmpty()) {
+            ChatUtils.sendLocalMessage(Component.literal(
+                    "  (no discs cached — anni event missing from world-events API?)")
+                    .withStyle(ChatFormatting.DARK_GRAY));
+            return;
+        }
+
+        int i = 0;
+        for (org.wynnvets.mwe.anni.zone.AnniZone.Disc disc : discs) {
+            double dx = px - disc.x();
+            double dz = pz - disc.z();
+            double distSq = dx * dx + dz * dz;
+            ChatUtils.sendLocalMessage(Component.literal(
+                    String.format("  [%d] centre=(%.0f,%.0f) r=%.0f distSq=%.0f",
+                            i, disc.x(), disc.z(), disc.radius(), distSq))
+                    .withStyle(ChatFormatting.GRAY));
+            i++;
+        }
     }
 }

@@ -49,6 +49,15 @@ Public. [CommandRegistry.java](src/client/java/org/wynnvets/commands/CommandRegi
 
 `silent`/`passive`/`aggressive` — route through [`AnniModeManager.transitionTo`](src/client/java/org/wynnvets/mwe/anni/mode/AnniModeManager.java). Refused when `Models.StreamerMode.isInStream()` OR the chat-line [`StreamerModeChatDetector`](src/client/java/org/wynnvets/mwe/anni/mode/StreamerModeChatDetector.java) signals stream-on (spec §3.1: silent is the ONLY mode allowed with `/stream`). Successful transitions update `vetsAnniMode`; the [`VetsBossBarManager`](src/client/java/org/wynnvets/mwe/anni/bossbar/VetsBossBarManager.java) tick-loop picks up the change on the next tick.
 
+### /wv anni scrollspot {set <x> <y> <z> | here | clear}
+S5. Authenticated only (must have run `~vetsmod`). [AnniScrollspotCommand.java](src/client/java/org/wynnvets/mwe/anni/aggressive/AnniScrollspotCommand.java). Per-party host pins (or clears) the in-game scroll-spot coordinate; visible to all party members through `board.party.scroll_spot` on the next snapshot push.
+
+- `set <x> <y> <z>` — pin explicit coords.
+- `here` — pin the player's current block position.
+- `clear` — remove the spot.
+
+Trust chain: vetsmod sends an `anni_scrollspot_set` inbound frame ([`V1ApiManager.sendAnniScrollspotSet`](src/client/java/org/wynnvets/api/V1ApiManager.java)); temp-server's [`_handle_anni_scrollspot_set`](../../temporary-server/app/chat/inbound.py) reads the session's MC UUID and forwards as `actor_mc_uuid` to vets-anni's [`POST /api/internal/anni-party-scrollspot`](../../vets-anni/app/web/routers/anni_internal.py). vets-anni rejects unless the actor is the host of their currently-assigned party; the client-side `isAuthenticatedThisSession()` check is UX, not security. Ack flows back as `anni_scrollspot_response` (routed to [`AnniScrollspotClient`](src/client/java/org/wynnvets/mwe/anni/network/AnniScrollspotClient.java)'s pending future; 5s timeout); failures surface the server's `detail` string verbatim (e.g. `Scroll spot rejected: only the party host can set scroll_spot`).
+
 ### /wv config [<key> [<value>]]
 No permission. [ConfigCommands.java:78-347](src/client/java/org/wynnvets/commands/ConfigCommands.java#L78-L347). Three forms:
 - `/wv config` — list all `VetsConfig.USER_CONFIG_KEYS` with current values

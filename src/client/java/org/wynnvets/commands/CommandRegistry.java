@@ -135,6 +135,12 @@ public final class CommandRegistry {
                     .executes(ctx -> anniMode(ctx, AnniMode.PASSIVE)))
                 .then(ClientCommandManager.literal("aggressive")
                     .executes(ctx -> anniMode(ctx, AnniMode.AGGRESSIVE))))
+                // Note: scrollspot host-write lives under
+                // /wv debug tree anni scrollspot (see AnniDebugCommands).
+                // Hidden from the main /wv anni tree because it's used by
+                // a small set of staff hosts only — surfacing it via tab-
+                // complete would clutter the suggestion list for everyone
+                // else.
 
             // /wv config
             .then(ClientCommandManager.literal("config")

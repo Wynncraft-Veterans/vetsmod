@@ -18,6 +18,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.network.AnniQueryClient;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
@@ -195,6 +196,20 @@ public final class AnniDebugCommands {
                 return builder.buildFuture();
             };
 
+    /** S5 — fields {@code AggressiveAlertDispatcher.forceAlert} accepts. */
+    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_ALERT_FIELDS =
+            (ctx, builder) -> {
+                String partial = builder.getRemaining().toLowerCase();
+                for (String field : new String[] {
+                        "role", "world", "party", "rsvp", "zone", "world_ready"
+                }) {
+                    if (field.startsWith(partial)) {
+                        builder.suggest(field);
+                    }
+                }
+                return builder.buildFuture();
+            };
+
     private AnniDebugCommands() {
     }
 
@@ -254,7 +269,44 @@ public final class AnniDebugCommands {
                                 .then(ClientCommandManager.argument("mode",
                                                 StringArgumentType.word())
                                         .suggests(SUGGEST_MODES)
-                                        .executes(AnniDebugCommands::modeSet))));
+                                        .executes(AnniDebugCommands::modeSet))))
+                // S5 — scrollspot host-write. Lives under `/wv debug tree`
+                // (rather than `/wv anni`) so it doesn't clutter
+                // tab-complete for everyone else; staff hosts using this
+                // already need debug logging on (gating below). `set`/
+                // `here`/`clear` round-trip the server; `localinject` /
+                // `localclear` bypass it for visual testing.
+                .then(ClientCommandManager.literal("scrollspot")
+                        .then(ClientCommandManager.literal("set")
+                                .then(ClientCommandManager.argument("x",
+                                                com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                        .then(ClientCommandManager.argument("y",
+                                                        com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                .then(ClientCommandManager.argument("z",
+                                                                com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                        .executes(AnniDebugCommands::scrollspotSet)))))
+                        .then(ClientCommandManager.literal("here")
+                                .executes(AnniDebugCommands::scrollspotHere))
+                        .then(ClientCommandManager.literal("clear")
+                                .executes(AnniDebugCommands::scrollspotClear))
+                        .then(ClientCommandManager.literal("localinject")
+                                .then(ClientCommandManager.argument("x",
+                                                com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                        .then(ClientCommandManager.argument("y",
+                                                        com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                .then(ClientCommandManager.argument("z",
+                                                                com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                        .executes(AnniDebugCommands::scrollspotLocalInject)))))
+                        .then(ClientCommandManager.literal("localclear")
+                                .executes(AnniDebugCommands::scrollspotLocalClear)))
+                // S5 — alert debug: fire a synthesised chat alert
+                // without contriving a snapshot diff. Bypasses the 5s
+                // cooldown so back-to-back invocations work.
+                .then(ClientCommandManager.literal("alert")
+                        .then(ClientCommandManager.argument("field",
+                                        StringArgumentType.word())
+                                .suggests(SUGGEST_ALERT_FIELDS)
+                                .executes(AnniDebugCommands::alert)));
     }
 
     // ──────────────────────────────────────────────────────────── gating
@@ -269,6 +321,39 @@ public final class AnniDebugCommands {
                 Component.literal("anni debug commands require debug logging — run /wv debug true first")
                         .withStyle(ChatFormatting.RED));
         return 0;
+    }
+
+    /** Permission gate for the scrollspot subcommands: must be either
+     *  vetsmod staff OR an organiser of the current anni (i.e. the local
+     *  player's UUID appears in {@code snapshot.organisers}, which is
+     *  {@code [lead, every party host, ...]}). Other players see a clear
+     *  refusal so they don't think the command is broken.
+     *
+     *  <p>Client-side gate is UX only — vets-anni independently verifies
+     *  host status on the server before persisting any scrollspot write,
+     *  so a permissive client gate can't be exploited.</p> */
+    private static int requireStaffOrOrganiser(CommandContext<FabricClientCommandSource> ctx) {
+        if (GuildStateManager.isStaff() || isLocalPlayerOrganiser()) {
+            return -1;
+        }
+        ChatUtils.sendLocalMessage(
+                Component.literal("scrollspot is for party hosts / staff only.")
+                        .withStyle(ChatFormatting.RED));
+        return 0;
+    }
+
+    private static boolean isLocalPlayerOrganiser() {
+        AnniSnapshot snap = AnniSnapshotCache.latest();
+        if (snap == null) return false;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null) return false;
+        String localUuid = mc.player.getUUID().toString();
+        for (String orgUuid : snap.organisers()) {
+            if (orgUuid != null && orgUuid.equalsIgnoreCase(localUuid)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ───────────────────────────────────────── snapshot inject / dump
@@ -848,6 +933,74 @@ public final class AnniDebugCommands {
                                 .withStyle(ChatFormatting.RED));
                 return 0;
         }
+    }
+
+    /** {@code /wv debug tree anni scrollspot set <x> <y> <z>} — host
+     *  write: sends an {@code anni_scrollspot_set} frame to the server.
+     *  Delegates to {@link org.wynnvets.mwe.anni.aggressive.AnniScrollspotCommand#set}.
+     *  The server verifies the actor is the host of their assigned party
+     *  via vets-anni's {@code anni-party-scrollspot} endpoint. */
+    private static int scrollspotSet(CommandContext<FabricClientCommandSource> ctx) {
+        if (requireDebug(ctx) == 0) return 0;
+        if (requireStaffOrOrganiser(ctx) == 0) return 0;
+        return org.wynnvets.mwe.anni.aggressive.AnniScrollspotCommand.set(ctx);
+    }
+
+    /** {@code /wv debug tree anni scrollspot here} — host write using the
+     *  player's current block-position. */
+    private static int scrollspotHere(CommandContext<FabricClientCommandSource> ctx) {
+        if (requireDebug(ctx) == 0) return 0;
+        if (requireStaffOrOrganiser(ctx) == 0) return 0;
+        return org.wynnvets.mwe.anni.aggressive.AnniScrollspotCommand.here(ctx);
+    }
+
+    /** {@code /wv debug tree anni scrollspot clear} — host write that
+     *  clears the party's scroll spot. */
+    private static int scrollspotClear(CommandContext<FabricClientCommandSource> ctx) {
+        if (requireDebug(ctx) == 0) return 0;
+        if (requireStaffOrOrganiser(ctx) == 0) return 0;
+        return org.wynnvets.mwe.anni.aggressive.AnniScrollspotCommand.clear(ctx);
+    }
+
+    /** {@code /wv debug tree anni scrollspot localinject <x> <y> <z>} —
+     *  local-only inject into the marker provider without bothering the
+     *  server. For visual testing of the waypoint render without
+     *  coordinating a host. */
+    private static int scrollspotLocalInject(CommandContext<FabricClientCommandSource> ctx) {
+        if (requireDebug(ctx) == 0) return 0;
+        if (requireStaffOrOrganiser(ctx) == 0) return 0;
+        int x = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "x");
+        int y = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "y");
+        int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "z");
+        org.wynnvets.mwe.anni.aggressive.ScrollSpotMarkerProvider.get().debugSet(x, y, z);
+        ChatUtils.sendLocalMessage(Component.literal(
+                "scrollspot local-inject: " + x + " " + y + " " + z)
+                .withStyle(ChatFormatting.GREEN));
+        return 1;
+    }
+
+    /** {@code /wv debug tree anni scrollspot localclear} — clear the
+     *  local-only injected scroll spot. */
+    private static int scrollspotLocalClear(CommandContext<FabricClientCommandSource> ctx) {
+        if (requireDebug(ctx) == 0) return 0;
+        if (requireStaffOrOrganiser(ctx) == 0) return 0;
+        org.wynnvets.mwe.anni.aggressive.ScrollSpotMarkerProvider.get().debugClear();
+        ChatUtils.sendLocalMessage(Component.literal("scrollspot local cleared")
+                .withStyle(ChatFormatting.GREEN));
+        return 1;
+    }
+
+    /** {@code /wv debug tree anni alert <field>} — synthesise a chat
+     *  alert. Verifies cooldown / formatting / bouncing without
+     *  contriving a snapshot diff. */
+    private static int alert(CommandContext<FabricClientCommandSource> ctx) {
+        int gate = requireDebug(ctx);
+        if (gate == 0) return 0;
+        String field = StringArgumentType.getString(ctx, "field").toLowerCase();
+        org.wynnvets.mwe.anni.aggressive.AggressiveAlertDispatcher.forceAlert(field);
+        ChatUtils.sendLocalMessage(Component.literal("anni alert " + field + " triggered")
+                .withStyle(ChatFormatting.GREEN));
+        return 1;
     }
 
     /** {@code /wv debug tree anni mode set <silent|passive|aggressive>} —

@@ -26,6 +26,11 @@ import org.wynnvets.listeners.RankChangeListener;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.listeners.WynntilsEventListener;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.aggressive.AggressiveAlertDispatcher;
+import org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker;
+import org.wynnvets.mwe.anni.aggressive.AnniZoneLineRenderer;
+import org.wynnvets.mwe.anni.aggressive.GhostsPromptHandler;
+import org.wynnvets.mwe.anni.aggressive.ScrollSpotMarkerProvider;
 import org.wynnvets.mwe.anni.bossbar.VetsBossBarManager;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.mwe.anni.mode.AnniWindowWatcher;
@@ -84,6 +89,18 @@ public class VetsmodClient implements ClientModInitializer {
       RankChangeListener.register();
       PartyRosterListener.register();
       QueueDetector.register();
+      // S5 — must register AFTER Wynntils' own onInitializeClient has
+      // run (`com.wynntils.fabric.WynntilsModFabric`). Wynntils is a
+      // separate fabric mod; entrypoint order between mods is not
+      // guaranteed, and touching `Models.Marker` from vetsmod's
+      // onInitializeClient triggers `Models.<clinit>` — which in turn
+      // tries to post events on `WynntilsMod.eventBus`. If our init runs
+      // first, eventBus is null and the resulting NPE leaves Wynntils'
+      // own init permanently broken (cascade-crashes in
+      // `Managers.<clinit>` later). CLIENT_STARTED fires after every
+      // mod's onInitializeClient, so by here Wynntils' init has completed
+      // and the eventBus is wired up. See attempt-3 crash log.
+      ScrollSpotMarkerProvider.registerWithWynntils();
       QueueStateManager.addListener(new QueueStateListener() {
         @Override
         public void onQueueEntered(String worldName) {
@@ -112,6 +129,16 @@ public class VetsmodClient implements ClientModInitializer {
     VetsBossBarManager.register();
     AnniOutlineRegistry.register();
     AnniOutlineTicker.register();
+    // S5 — aggressive-mode components. AnniAggressiveTicker computes the
+    // per-tick "is aggressive active" flag every other component reads;
+    // register it first so the other four observe a populated flag on
+    // their first tick. ScrollSpotMarkerProvider is deferred to
+    // CLIENT_STARTED above — touching Wynntils' Models class here
+    // crashes the game (see comment above).
+    AnniAggressiveTicker.register();
+    AggressiveAlertDispatcher.register();
+    AnniZoneLineRenderer.register();
+    GhostsPromptHandler.register();
     AnniZone.start();
     SupportersPoller.start();
     StaffRanksPoller.start();

@@ -118,6 +118,38 @@ public final class AnniZone {
         return cold;
     }
 
+    /** S5 — snapshot of the cached disc set so the zone-line renderer can
+     *  iterate centres without re-querying the API. Returns an immutable
+     *  snapshot; centres are (x, z) only because the spec treats the zone
+     *  as a 2D circle (y is irrelevant). Empty when cold. */
+    public static List<Disc> getDiscs() {
+        List<DiscCentre> snap = centres;
+        if (snap.isEmpty()) return Collections.emptyList();
+        List<Disc> out = new ArrayList<>(snap.size());
+        for (DiscCentre c : snap) {
+            out.add(new Disc(c.x, c.z, DISC_RADIUS));
+        }
+        return Collections.unmodifiableList(out);
+    }
+
+    /** Immutable public view of a single zone disc — centre (x, z) + radius
+     *  in blocks. Consumed by S5's zone-line renderer. */
+    public static final class Disc {
+        private final double x;
+        private final double z;
+        private final double radius;
+
+        public Disc(double x, double z, double radius) {
+            this.x = x;
+            this.z = z;
+            this.radius = radius;
+        }
+
+        public double x() { return x; }
+        public double z() { return z; }
+        public double radius() { return radius; }
+    }
+
     // ── Internals ───────────────────────────────────────────────────────
 
     private static void refresh() {

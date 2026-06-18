@@ -65,8 +65,11 @@ public final class AnniWsHandler {
         if (json == null || !json.has("type")) {
             return;
         }
-        if ("anni_query_response".equals(json.get("type").getAsString())) {
+        String type = json.get("type").getAsString();
+        if ("anni_query_response".equals(type)) {
             AnniQueryClient.onResponse(json);
+        } else if ("anni_scrollspot_response".equals(type)) {
+            AnniScrollspotClient.onResponse(json);
         }
     }
 

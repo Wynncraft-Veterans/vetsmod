@@ -61,8 +61,11 @@ public final class AnniHoverBuilder {
         }
     }
 
-    /** Notice → ChatFormatting per spec:
-     *  hard=AQUA (HRSVP), soft=GREEN (SRSVP), walkin=YELLOW, late=RED. */
+    /** Notice → ChatFormatting:
+     *  hard=AQUA (HRSVP), soft=GREEN (SRSVP), any walk-in=YELLOW,
+     *  late walk-in=RED. Showing up without an RSVP is always YELLOW
+     *  regardless of how early — RED is reserved for showing up late
+     *  without an RSVP. */
     public static ChatFormatting noticeColor(String noticeEffective) {
         if (noticeEffective == null) return ChatFormatting.GRAY;
         switch (noticeEffective.toLowerCase(Locale.ROOT)) {
@@ -70,7 +73,7 @@ public final class AnniHoverBuilder {
             case "hard":         return ChatFormatting.AQUA;
             case "rsvp_soft":
             case "soft":         return ChatFormatting.GREEN;
-            case "attend_early": return ChatFormatting.GREEN;
+            case "attend_early":
             case "walkin":
             case "walk_in":      return ChatFormatting.YELLOW;
             case "attend_late":

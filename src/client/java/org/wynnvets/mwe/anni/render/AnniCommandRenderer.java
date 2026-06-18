@@ -409,7 +409,7 @@ public final class AnniCommandRenderer {
         } else {
             out.append(registrationSection(snapshot)).append(Component.literal("\n"));
         }
-        out.append(rsvpSection(snapshot)).append(Component.literal("\n"));
+        out.append(rsvpSection(snapshot, secondsUntil)).append(Component.literal("\n"));
         MutableComponent attendance = attendanceSection(snapshot);
         if (attendance != null) {
             out.append(attendance).append(Component.literal("\n"));
@@ -617,31 +617,89 @@ public final class AnniCommandRenderer {
         return line;
     }
 
-    /** RSVP badge + a click-to-rsvp suggest when un-RSVP'd. */
-    private static MutableComponent rsvpSection(AnniSnapshot snapshot) {
+    /** RSVP badge + (when far-out + un-RSVP'd) a parenthetical with
+     *  click-to-suggest [Hard] [Soft] upgrade buttons.
+     *
+     *  <p>The upgrade prompt is gated on {@code secondsUntil > 2h}: once
+     *  inside the imminent window, the RSVP slot cutoffs have already
+     *  passed and surfacing the buttons would only be misleading. The
+     *  user-facing rule: "the prompt only shows up after RSVP type if
+     *  it is t-2h+".</p> */
+    private static MutableComponent rsvpSection(AnniSnapshot snapshot, long secondsUntil) {
         MutableComponent line = label("RSVP Type", ChatFormatting.GRAY)
                 .append(AnniHoverBuilder.rsvpBadge(snapshot.rsvp(), snapshot.attendance()));
 
         boolean rsvped = snapshot.rsvp() != null && snapshot.rsvp().notice() != null
                 && !snapshot.rsvp().revoked();
-        if (!rsvped) {
-            line.append(Component.literal("  "));
-            line.append(AnniHoverBuilder.suggestCommandBadge("[hard]",
-                    "/wv anni rsvp hard",
-                    "Suggest /wv anni rsvp hard — hard commitment",
-                    ChatFormatting.AQUA));
+        boolean farOut = secondsUntil > TWO_HOURS_SECONDS;
+        if (!rsvped && farOut) {
             line.append(Component.literal(" "));
-            line.append(AnniHoverBuilder.suggestCommandBadge("[soft]",
-                    "/wv anni rsvp soft",
-                    "Suggest /wv anni rsvp soft — soft commitment",
-                    ChatFormatting.GREEN));
-            line.append(Component.literal(" "));
-            line.append(AnniHoverBuilder.linkBadge("[\\rsvp on discord]",
-                    AnniHoverBuilder.DOCS_ATTENDING,
-                    "Open the attending guide; \\rsvp works in #bot-commands",
-                    ChatFormatting.DARK_AQUA));
+            line.append(rsvpUpgradePrompt());
         }
         return line;
+    }
+
+    /** Build the parenthetical upgrade prompt:
+     *  {@code &7(Buttons to upgrade your \rsvp: &3[&bHard&3] &2[&aSoft&2]&7)}.
+     *
+     *  <p>Each button's bracket+label is its own click-to-suggest
+     *  surface; the {@code \rsvp} word inside the parenthetical is
+     *  hoverable (no click) to explain the Discord equivalent.</p> */
+    private static MutableComponent rsvpUpgradePrompt() {
+        Style gray = Style.EMPTY.withColor(ChatFormatting.GRAY);
+
+        Component rsvpWord = Component.literal("\\rsvp")
+                .withStyle(Style.EMPTY
+                        .withColor(ChatFormatting.GRAY)
+                        .withHoverEvent(new HoverEvent.ShowText(Component.literal(
+                                "\\rsvp is a Discord command in vetsfish's"
+                                        + " #bot-commands channel.\n"
+                                        + "It does the same thing as /wv anni rsvp"
+                                        + " — entirely optional from in-game."))));
+
+        MutableComponent out = Component.literal("").withStyle(gray);
+        out.append(Component.literal("(Buttons to upgrade your ").withStyle(gray));
+        out.append(rsvpWord);
+        out.append(Component.literal(": ").withStyle(gray));
+        out.append(rsvpUpgradeButton(
+                "Hard",
+                ChatFormatting.DARK_AQUA, ChatFormatting.AQUA,
+                "/wv anni rsvp hard",
+                "HRSVP — confirms you WILL be there.\n"
+                        + "Requirement: arrive at least 20 mins before anni"
+                        + " starts, or your slot may be reassigned to a walk-in.\n"
+                        + "Click to suggest /wv anni rsvp hard."));
+        out.append(Component.literal(" ").withStyle(gray));
+        out.append(rsvpUpgradeButton(
+                "Soft",
+                ChatFormatting.DARK_GREEN, ChatFormatting.GREEN,
+                "/wv anni rsvp soft",
+                "SRSVP — confirms you'll PROBABLY be there.\n"
+                        + "Requirement: arrive at least 40 mins before anni"
+                        + " starts, or your slot may be reassigned.\n"
+                        + "Click to suggest /wv anni rsvp soft."));
+        out.append(Component.literal(")").withStyle(gray));
+        return out;
+    }
+
+    /** One {@code [Label]} button — bracket colour, label colour, shared
+     *  click + hover. Built as a parent literal with the click/hover on
+     *  the parent so the click fires whether the user lands on the
+     *  bracket or the label. */
+    private static MutableComponent rsvpUpgradeButton(String label,
+                                                      ChatFormatting bracketColor,
+                                                      ChatFormatting labelColor,
+                                                      String command,
+                                                      String hoverText) {
+        Style parentStyle = Style.EMPTY
+                .withClickEvent(new ClickEvent.SuggestCommand(command))
+                .withHoverEvent(new HoverEvent.ShowText(
+                        Component.literal(hoverText).withStyle(ChatFormatting.GRAY)));
+        MutableComponent btn = Component.literal("").withStyle(parentStyle);
+        btn.append(Component.literal("[").withStyle(bracketColor));
+        btn.append(Component.literal(label).withStyle(labelColor));
+        btn.append(Component.literal("]").withStyle(bracketColor));
+        return btn;
     }
 
     /** Attendance chance line — only meaningful when the user is in

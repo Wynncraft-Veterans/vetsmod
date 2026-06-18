@@ -180,6 +180,37 @@ public class VetsConfig {
    *  animated supporter glint afterwards. */
   public static final String VETS_ANNI_NAMETAGS_ENABLED = "vetsAnniNametagsEnabled";
 
+  /** S5 — Master toggle for the zone-line renderer (the union of 48-block
+   *  disc circumferences drawn in-world). Honoured only when
+   *  {@link #VETS_ANNI_MODE} is {@code "aggressive"} and the snapshot's
+   *  countdown is in the T-2h..T+30m window. Default {@code true}. */
+  public static final String VETS_ANNI_ZONE_LINES = "vetsAnniZoneLines";
+
+  /** S5 — Master toggle for the Scroll Spot waypoint (Wynntils
+   *  {@code MarkerProvider} for the party's pinned scroll spot). Default
+   *  {@code true}; honoured only in aggressive mode + window. */
+  public static final String VETS_ANNI_SCROLL_WAYPOINT = "vetsAnniScrollWaypoint";
+
+  /** S5 — Master toggle for the diff-aware chat-alert dispatcher (role /
+   *  world / party assignment / RSVP transitions plus the time-triggered
+   *  T-10m world-mismatch and T-5m zone-absence readiness alerts). Default
+   *  {@code true}; honoured only in aggressive mode + window. */
+  public static final String VETS_ANNI_CHAT_ALERTS = "vetsAnniChatAlerts";
+
+  /** S5 — Master toggle for the {@code [Suggest: /toggle ghosts none]}
+   *  prompt fired at most once per stamp_epoch on first zone entry per
+   *  anni. Suppressed when {@code Models.Player.isPlayerGhost} confirms
+   *  every visible player is non-ghost (= user already toggled ghosts off).
+   *  Default {@code true}. */
+  public static final String VETS_ANNI_GHOSTS_PROMPT = "vetsAnniGhostsPrompt";
+
+  /** S5 — Persisted "stamp_epoch of the anni for which the ghosts prompt
+   *  last fired". Internal sentinel — not a user-facing knob; ensures a
+   *  client restart inside the same window doesn't re-prompt. Empty string
+   *  means "never fired in any session". */
+  public static final String VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP =
+      "vetsAnniGhostsPromptShownForStamp";
+
   /** Valid values for {@link #VETS_ANNI_FLASH_INTENSITY}. */
   public static final String[] VALID_FLASH_INTENSITIES = {
       "subtle", "normal", "strong",
@@ -266,6 +297,10 @@ public class VetsConfig {
       VETS_ANNI_FLASH_SOUND,
       VETS_ANNI_OUTLINES_ENABLED,
       VETS_ANNI_NAMETAGS_ENABLED,
+      VETS_ANNI_ZONE_LINES,
+      VETS_ANNI_SCROLL_WAYPOINT,
+      VETS_ANNI_CHAT_ALERTS,
+      VETS_ANNI_GHOSTS_PROMPT,
       PRINT_BRIDGE_MESSAGES,
       PRINT_SUCCESSFUL_AUTH,
       SHOW_SUPPORTER_GLINTS,
@@ -422,6 +457,10 @@ public class VetsConfig {
     config.put(VETS_ANNI_FLASH_SOUND, true);
     config.put(VETS_ANNI_OUTLINES_ENABLED, true);
     config.put(VETS_ANNI_NAMETAGS_ENABLED, true);
+    config.put(VETS_ANNI_ZONE_LINES, true);
+    config.put(VETS_ANNI_SCROLL_WAYPOINT, true);
+    config.put(VETS_ANNI_CHAT_ALERTS, true);
+    config.put(VETS_ANNI_GHOSTS_PROMPT, true);
     config.put(PRINT_BRIDGE_MESSAGES, true);
     config.put(PRINT_SUCCESSFUL_AUTH, true);
     config.put(SHOW_SUPPORTER_GLINTS, true);
@@ -439,6 +478,7 @@ public class VetsConfig {
     stringConfig.put(VETS_ANNI_ROLE_STYLE, "descriptive");
     stringConfig.put(VETS_ANNI_MODE, "silent");
     stringConfig.put(VETS_ANNI_FLASH_INTENSITY, "normal");
+    stringConfig.put(VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP, "");
 
     // Int defaults (stored as long)
     longConfig.put(LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY, 69L);

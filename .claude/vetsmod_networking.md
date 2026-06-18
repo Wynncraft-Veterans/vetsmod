@@ -187,6 +187,20 @@ Package: [src/client/java/org/wynnvets/fetcher/polling/](src/client/java/org/wyn
 3. UUID dedup (10s TTL), self-suppression (30s TTL), bridge echo suppression (10s TTL)
 4. `ChatUtils.sendGuildChatMessage()` formats + displays
 
+## 7.1 MWE/anni frames
+
+Two inbound / two outbound:
+
+| Direction | Type | Sender | Receiver | Purpose |
+|---|---|---|---|---|
+| Inbound | `anni_query` | `V1ApiManager.sendAnniQuery` | temp-server `_handle_anni_query` | On-demand snapshot pull; ack as `anni_query_response`. |
+| Outbound | `anni_query_response` | temp-server | `AnniQueryClient.onResponse` | Synchronous reply to `anni_query`; single-flight FIFO queue. |
+| Inbound (S5) | `anni_scrollspot_set` | `V1ApiManager.sendAnniScrollspotSet` | temp-server `_handle_anni_scrollspot_set` | Host writes (or clears) party scroll-spot. **Authenticated only.** Server reads MC UUID from session — never from frame. |
+| Outbound (S5) | `anni_scrollspot_response` | temp-server | `AnniScrollspotClient.onResponse` | Ack for `anni_scrollspot_set`. `{status: ok|error, detail}`; FIFO queue. |
+| Outbound | `anni_state` | temp-server `anni_snapshot_poller` | `AnniWsHandler.onOutbound` → `AnniSnapshotCache.update` | Server-initiated snapshot push (per-uuid gated on the eligibility set). |
+
+Both response futures (query, scrollspot) live in `org.wynnvets.mwe.anni.network` and time out at 5–8 s. `AnniWsHandler` is the single demux for all four types — its `onInbound`/`onOutbound` branches route to the right consumer.
+
 ## 8. Auth
 
 Two layers:

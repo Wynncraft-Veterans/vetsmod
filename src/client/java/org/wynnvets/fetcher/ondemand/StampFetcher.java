@@ -76,6 +76,25 @@ public class StampFetcher {
         // exists (spec §"For external users"). Fall through to the
         // legacy stamp path, which also suppresses past stamps —
         // matches the spec exactly.
+      } else {
+        // Cache cold — kick a fire-and-forget snapshot pull so the boss
+        // bar (S3) and the aggressive components (S5) light up without
+        // waiting for the next push-poller tick. Outside the T-2h hot
+        // window the push interval is 5 min, which made the in-game
+        // experience: "I logged in inside the anni zone, the legacy
+        // motd showed, but the bar didn't appear until I ran /wv anni."
+        // That manual command incidentally triggered the same query
+        // and unblocked the bar — symptoms identical to a missing
+        // listener, but the actual cause was that nothing on world-
+        // join asked the server for the snapshot. The pull populates
+        // the cache via AnniQueryClient.onResponse → AnniSnapshotCache
+        // .update, which the per-tick boss-bar gate picks up next
+        // frame. We do NOT await it — the motd auto-print can't wait
+        // for the round-trip, so on the very first cold-start world
+        // join the user sees the legacy text and the rich bar appears
+        // a moment later. Subsequent world joins find the cache warm
+        // and render the rich motd directly.
+        AnniQueryClient.query();
       }
     }
     return fetchSimple();

@@ -454,6 +454,135 @@ S5 is **aggressive mode** — zone-line rendering, scroll-spot waypoint, `/toggl
 - **Build any S5 test fixtures as one-off files** under `vetsmod/dumps/anni/<name>.json` (runtime-loaded by `/wv debug tree anni snapshot inject file <name>`). Don't bundle them into the resource preset directory — the existing presets there (`empty`, `external_no_anni`, `member_*`) are abstract test scenarios shared across stages; new fixtures with real usernames are noise.
 - **Chat alerts will fire from the snapshot-listener thread.** Bounce to the main thread via `Minecraft.getInstance().execute(...)` before calling `ChatUtils.sendLocalMessage`; that's the convention S4's `FlashTracker` already follows.
 
+## S5 — Aggressive mode (built 2026-06-17)
+
+### Architecture
+
+S5 introduces the `org.wynnvets.mwe.anni.aggressive` package — five
+client-side components plus three wire pieces (V1ApiManager send,
+AnniWsHandler ack route, AnniScrollspotClient single-flight future) and
+one new vets-anni internal endpoint.
+
+```
+mwe/anni/aggressive/
+  AnniAggressiveTicker.java       — volatile flag; mode==AGGRESSIVE ∧ window
+  AggressiveAlertDispatcher.java  — snapshot diffs + T-10m/T-5m readiness
+  AnniZoneLineRenderer.java       — stacked Gizmos.circle cylinder cage
+  ScrollSpotMarkerProvider.java   — Wynntils MarkerProvider, dark-red beacon
+  GhostsPromptHandler.java        — rising-edge zone-entry prompt
+  AnniScrollspotCommand.java      — invoked from debug tree (not main /wv)
+mwe/anni/network/
+  AnniScrollspotClient.java       — single-flight ack future; FIFO queue
+```
+
+| Component | Gate | Notes |
+|---|---|---|
+| `AnniAggressiveTicker` | computed each tick | Single cheap public `isAggressiveActive()`; every other S5 component reads it. |
+| `AggressiveAlertDispatcher` | aggressive AND `vetsAnniChatAlerts` | Per-field 5s cooldown, silent first-observation (mirror FlashTracker). Two readiness alerts: T-10m world mismatch, T-5m zone absence — each at most once per stamp_epoch. |
+| `AnniZoneLineRenderer` | aggressive AND `vetsAnniZoneLines` | `WorldRenderEvents.AFTER_ENTITIES`. Stacked `Gizmos.circle` cylinder cage — 21 rings per disc spaced `Y_STEP=10` blocks (±100 vertical), Y snapped to multiples of 10 so rings don't jitter as the player walks. 200-block squared-distance cull per disc. |
+| `ScrollSpotMarkerProvider` | aggressive AND `vetsAnniScrollWaypoint` AND non-null entry | Registered once with `Models.Marker.registerMarkerProvider`, deferred to CLIENT_STARTED so it runs after Wynntils' own init. Default fallback `345 45 -1315` when the user is in a party with no host-pinned spot. Dark-red beacon (icon-only was infeasible — see decision #5 below). |
+| `GhostsPromptHandler` | aggressive AND `vetsAnniGhostsPrompt` | Rising edge of `AnniZone.isInZone`. Walks `level.players()` + `Models.Player.isPlayerGhost`: any ghost-flagged player → prompt (ghosts confirmed on); else per-stamp_epoch sentinel. |
+
+### Decisions locked S5
+
+1. **Aggressive gate = `mode == AGGRESSIVE ∧ window` only.** No zone gate. Per user: aggressive features are window-scoped, not location-scoped. Zone lines render whenever you're aggressive + in-window so a Lutho user can see the boundary as they fly in.
+2. **Two readiness alerts** appended to `AggressiveAlertDispatcher`. T-10m world-mismatch, T-5m zone-absence. Each latches a per-stamp_epoch sentinel — once per anni.
+3. **Ghosts-prompt detection** = `Models.Player.isPlayerGhost(player)` walk. Reads `PlayerModel.ghosts` (the cache Wynntils maintains from `_ghostN` team assignments). If any visible player is ghost → ghosts on → prompt. Else ambiguous → per-stamp_epoch sentinel (`vetsAnniGhostsPromptShownForStamp`).
+4. **Chat-alert scope = exactly role / world / party / RSVP.** No attendance-band, no party-membership.
+5. **Scroll waypoint = `Texture.MAP` + dark-red beacon.** `Texture.MAP` (the 14×14 generic, NOT `Texture.MAP_ICON` which is the 21×38 content-book tab — enum naming is a known footgun per waypoints.md §3). Originally specced as "no beacon beam, icon only," but at first runtime Wynntils' `BeaconBeamFeature.onRenderLevelLast` NPE-crashed the render thread on the null beacon colour. Investigation showed there is no per-marker "skip beacon" path: `null` crashes, `CustomColor.NONE` falls back to user-config beacon, custom 0-alpha colour is overridden to opaque by Wynntils' own `withAlpha(localAlpha)` before render. The only suppression would be a mixin into Wynntils — not worth the maintenance burden. Final: `CustomColor.fromChatFormatting(ChatFormatting.DARK_RED)`.
+6. **Scrollspot command lives under `/wv debug tree anni scrollspot`, not `/wv anni`.** Hidden from main brigadier (no tab-complete) because it's a staff-only command used on rare occasions. Gated on `requireDebug` (must have `/wv debug true`) AND `requireStaffOrOrganiser` (staff tier OR local UUID in `snapshot.organisers`). Subcommands: `set <x> <y> <z>` / `here` / `clear` are real host writes via WS; `localinject <x> <y> <z>` / `localclear` paint the marker provider directly for visual testing without coordinating a host. All five gated identically.
+
+### Wire shape
+
+- Snapshot bumped to `schema_version: 3` adding `board.party.scroll_spot: {x,y,z}|null` (only on the local player's own party — not on `event.all_parties`). `AnniSnapshot.Party.scrollSpot()` returns the new nullable `ScrollSpot` record.
+- vets-anni: 3 nullable `IntField`s on `Party` (`scroll_spot_x|y|z`); migration `4_20260617220201_add_party_scroll_spot.py`; `_build_party_block` splices `_scroll_spot_dict(party)`; `lifecycle_task._wipe()` clears the three columns inside the same transaction as `BoardPlacement.delete()`.
+- New internal endpoint `POST /api/internal/anni-party-scrollspot` (body `{actor_mc_uuid, scroll_spot}`) — derives party from actor's `BoardPlacement` in the active event, rejects 403 unless `party.host.mc_uuid == actor_mc_uuid`.
+- temp-server: `_handle_anni_scrollspot_set` in `app/chat/inbound.py` (right after `anni_query`) — authenticated-session gate, forwards via `state.anni_snapshot_poller.set_scroll_spot(body)` (new helper reusing the poller's `httpx.AsyncClient` + secret), ack as `anni_scrollspot_response`.
+- vetsmod: `V1ApiManager.sendAnniScrollspotSet(x,y,z)` (null triplet = clear); `AnniWsHandler.onInbound` routes `anni_scrollspot_response` → `AnniScrollspotClient.onResponse`; `AnniScrollspotClient.set(...)` / `clear()` return `CompletableFuture<Ack>` with 5s timeout.
+
+### New config keys
+
+- `vetsAnniZoneLines` (bool, default `true`)
+- `vetsAnniScrollWaypoint` (bool, default `true`)
+- `vetsAnniChatAlerts` (bool, default `true`)
+- `vetsAnniGhostsPrompt` (bool, default `true`)
+- `vetsAnniGhostsPromptShownForStamp` (string, internal — not user-facing — persists the stamp_epoch the prompt last fired for; survives restarts)
+
+### New debug commands
+
+All gated on `requireDebug` (must have `/wv debug true`); the `scrollspot` subtree is also gated on `requireStaffOrOrganiser`.
+
+- `/wv debug tree anni scrollspot set <x> <y> <z>` — host write via WS frame (real action; vets-anni 403s unless you're the host of your assigned party).
+- `/wv debug tree anni scrollspot here` — host write using your current block-pos.
+- `/wv debug tree anni scrollspot clear` — host write that clears the party's spot.
+- `/wv debug tree anni scrollspot localinject <x> <y> <z>` — local-only paint into the marker provider; no server round-trip. For visual testing of the waypoint render without coordinating a host.
+- `/wv debug tree anni scrollspot localclear` — clear the local-only injection.
+- `/wv debug tree anni alert <role|world|party|rsvp|zone|world_ready>` — synthesise a chat alert without contriving a diff or waiting for a T-N boundary.
+- `/wv debug trigger ghostsPromptDump` — dump `aggressive_active / toggle_on / in_zone / stamp / shown_for` + per-player `isPlayerGhost` result + `would_fire_on_rising_edge`. Mirrors S4 `nametagsDump` / `bossBarsDump`.
+- `/wv debug trigger zoneLinesDump` — dump aggressive gate state + every cached `AnniZone.Disc` + squared distance to the player. Diagnostic for "why aren't lines rendering."
+
+### Render-pipeline notes (added to the S1→S4 collection)
+
+9. **`Gizmos.circle` exists.** S5's zone-line renderer uses it. Centre is `Vec3(disc.x, snappedY, disc.z)` — the disc geometry is 2D in `AnniZone` so Y is unspecified; snapping to multiples of `Y_STEP` lets the cylinder-cage stack stay anchored as the player moves. Other available primitives discovered while spelunking: `cuboid`, `circle`, `line`, `arrow`, `rect`, `point`, `billboardTextOverBlock`. None require Mojang-mappings remapping — they're in `net.minecraft.gizmos.*` and resolve directly under Loom 1.15.5.
+10. **Wynntils `Models.Player.isPlayerGhost(player)` is the canonical "is this player phased to another world" check.** Backed by `PlayerModel.ghosts` — a `Map<UUID, Integer>` populated from `_<TIER><N>` team assignment events. Cleared on `WORLD` state change. S5's ghosts-prompt uses it as a presence-detector for "does the user have `/toggle ghosts on`" (if there's a ghost in the player list, ghosts can't be off, because the server filters them otherwise).
+11. **MarkerProvider lifecycle.** `Models.Marker.registerMarkerProvider(...)` is one-shot at vetsmod load. The provider's `isEnabled()` is what gates per-tick visibility — do NOT call `registerMarkerProvider` from a snapshot listener or reconnect handler (the registration list would grow on every reconnect). `ScrollSpotMarkerProvider.registerWithWynntils()` is idempotent via a static flag for belt-and-braces.
+12. **Init order between vetsmod and Wynntils.** Fabric does NOT guarantee entrypoint order between sibling mods. Static-touching `Models.Marker` (or any other `Models.X`) from `VetsmodClient.onInitializeClient()` body triggers `Models.<clinit>` which constructs `FriendsModel` / `PartyModel` etc. — their `<init>`s call `WynntilsMod.postEvent(...)` against the not-yet-initialised eventBus, NPE, half-init Models, then Wynntils' own `Managers.<clinit>` cascade-crashes the game during boot. **Defer any `Models.X.something(...)` init-time call into the existing `ClientLifecycleEvents.CLIENT_STARTED` handler** (fires after every mod's onInitializeClient). Runtime calls (per-tick, per-snapshot-listener) are always safe — by tick time Wynntils is up. Saved as `feedback_vetsmod_wynntils_init_order.md` memory.
+13. **Wynntils `BeaconBeamFeature` is unconditional.** Every entry in `Models.Marker.getAllMarkers()` gets a beacon beam — there's no per-marker "skip" path. `marker.beaconColor()` is called and `.withAlpha(float).asInt()` invoked on it: null → render-thread NPE → "Pose stack not empty" next-frame crash; `CustomColor.NONE` → fallback to user-config beacon (still visible); custom 0-alpha → Wynntils overrides alpha back to opaque before render. Conclusion: if you register a MarkerProvider, you ship a beacon. Pick a colour you can live with.
+14. **Cold-start world-join must trigger a snapshot pull.** Discovered during S5 testing: `StampFetcher.fetchStampAndCreateMessage` (world-join motd path) read `AnniSnapshotCache.latest()` and on `null` fell through to the **legacy** stamp text without firing `AnniQueryClient.query()`. The push poller fires every 5 min outside the T-2h hot window, so on cold-start a user inside the anni zone saw legacy motd + no boss bar for up to 5 min — and `/wv anni` "fixed" it because the manual path DID query on cold cache (asymmetric branch). Fixed by adding fire-and-forget `AnniQueryClient.query()` to the world-join cold branch. Any future S6/S7 component that depends on `AnniSnapshotCache.latest()` being warm at world-join time gets this for free now.
+
+## For the S6 agent
+
+S6 = `/wv anni rsvp <hard | soft | revoke>`. The parent plan §S6 has the original sketch; this section is what's *additionally* true post-S5.
+
+### What S6 will need (and what's already there)
+
+**Already shipped (S5 carryovers):**
+
+- **Auth + forward pattern in temp-server `inbound.py`.** `_handle_anni_scrollspot_set` (lines around 738+) is the exact template S6's `_handle_anni_rsvp` should clone: read `state.authenticated_sessions.get(ws)`, refuse with `{"type":"anni_rsvp_response","status":"error","detail":"auth required"}` on null, otherwise stamp `actor_mc_uuid` from the session and forward via a new poller helper. **Do not** trust any UUID field the client sent.
+- **Poller helper pattern.** `AnniSnapshotPoller.set_scroll_spot(body)` reuses the poller's `httpx.AsyncClient` + secret + base URL, returns `{"status":"ok"}` or `{"status":"error","detail":"…"}`. Clone as `set_rsvp(body)` (or whatever S6 names it) — same shape, same reuse. Don't instantiate a fresh httpx client in inbound.py.
+- **Single-flight ack client.** `AnniScrollspotClient` (FIFO queue, `CompletableFuture<Ack>`, 5s timeout) is a clean copy of `AnniQueryClient` and a clean template for `AnniRsvpClient`. Same pattern: `dispatch(...) → V1ApiManager.sendAnniRsvp(...) → enqueue future → server ack pops the head`. Note: no per-frame correlation IDs in the V1 protocol — rapid back-to-back calls would interleave arbitrarily; the per-command UX should block on the previous future. S5's command does this naturally because each `/wv anni scrollspot` invocation only fires after the previous's ack lands.
+- **Frame routing.** `AnniWsHandler.onInbound` already demuxes on `type`. Add an `else if ("anni_rsvp_response".equals(type)) AnniRsvpClient.onResponse(json);` branch — the existing structure makes this a one-line change.
+- **Permission-gate helpers in `AnniDebugCommands`.** `requireDebug` (debug logging required) and `requireStaffOrOrganiser` (staff tier OR local UUID in `snapshot.organisers`) are ready for reuse if S6's debug surface needs the same gates.
+- **`GuildStateManager.isAuthenticatedThisSession()`** is the client-side auth predicate (`V1ApiManager.isAuthenticated()` does NOT exist — common plan-time mis-naming; correct it before writing any docs that reference it).
+- **`AnniHoverBuilder.noticeColor(String)`** is the SINGLE source of truth for RSVP-notice colours (HARD=AQUA, SOFT=GREEN, walk-in=YELLOW, late=RED). Don't reinvent the map; call the existing helper. (Memory: `feedback_anni_rsvp_colours.md`.)
+- **Snapshot v3 shape** is the wire contract. S6's RSVP flow should not require a v4 bump — `rsvp.notice` / `rsvp.updated_at` / `rsvp.revoked` are already on the snapshot and the server-side write goes through existing `rsvp_domain` paths.
+- **Schedule-aware T-90 cutoff** in vets-anni's `rsvp_domain.set_rsvp` already enforces "rsvp closed" — S6's UUID-keyed path should call through the same domain function so the cutoff stays consistent.
+
+**What S6 actually needs to build:**
+
+1. **vets-anni `app/domain/rsvp_by_uuid.py`** — sibling of `app/bot/cogs/rsvp.py:execute_rsvp` keyed on MC UUID instead of Discord ID. Skips the `dazebot_client` round-trip (UUID is already known). Reuses `rsvp_domain.set_rsvp()` / `revoke()`, `_auto_place_after_rsvp()`, `_broadcast_board_snapshot()`, `_post_public()`.
+2. **vets-anni `POST /api/internal/anni-rsvp-by-uuid`** in `anni_internal.py`. Body `{actor_mc_uuid, notice}` where `notice ∈ {hard, soft, revoke}`. Returns `{"status":"ok"}` or 4xx with `detail`. Hard cutoff: T-90.
+3. **temp-server `_handle_anni_rsvp`** in `app/chat/inbound.py` (after `_handle_anni_scrollspot_set`). Auth gate + forward.
+4. **temp-server `AnniSnapshotPoller.set_rsvp(body)`** helper.
+5. **vetsmod `org.wynnvets.mwe.anni.network.AnniRsvpClient`** — clone of AnniScrollspotClient.
+6. **vetsmod `V1ApiManager.sendAnniRsvp(String notice)`** — clone of sendAnniScrollspotSet.
+7. **vetsmod `AnniWsHandler.onInbound`** — route `anni_rsvp_response`.
+8. **vetsmod `AnniRsvpCommand`** — brigadier handler. Spec call-out: when unauthenticated, print the fallback "Use `\rsvp` on discord — or run `~vetsmod` first".
+9. **vetsmod `CommandRegistry`** — `/wv anni rsvp <hard|soft|revoke>` subtree. **Yes, in the main brigadier this time** — `/wv anni rsvp` is a public-facing user command, unlike scrollspot which was staff-only.
+
+### Open questions for S6 start
+
+- **Confirm the user wants `/wv anni rsvp` in the main brigadier tree** (not hidden under `/wv debug` like scrollspot). S5's scrollspot was hidden because of staff-only + rare-use; RSVP is the opposite — every vets-anni user might invoke it. Default to "yes, main tree."
+- **Does the RSVP upgrade-prompt now in the imminent-blocked render path need its hover to point at `/wv anni rsvp` directly?** The S5-shipped prompt has `[Hard]` / `[Soft]` buttons that `suggestCommand("/wv anni rsvp hard")` — but `/wv anni rsvp` doesn't exist yet. The suggest will resolve to "unknown subcommand" until S6 lands. Either:
+  - (a) ship S6, command resolves, buttons just work
+  - (b) intermediate workaround if S6 lags: temporarily change the suggest to `\rsvp hard` (Discord command — works for everyone but feels weird in chat)
+  - Per user's testing of the prompt at T-7h in attempt-4, they saw the buttons render but clicked them via tab/enter — Wynncraft would echo the unknown command. Low priority but worth being aware of when picking S6 timing.
+- **Walk-in detection / `attend_early` / `attend_late` semantics.** Confirm with user whether the `notice ∈ {hard, soft, revoke}` command should ALSO be the wire vocabulary for `attend_early` / `attend_late`, or whether the latter two are server-derived only (e.g., player physically present at anni → server auto-assigns `attend_early`). The S5 colour memory clarifies the rendering rule but not the write protocol.
+- **No new VetsConfig keys expected** unless S6 adds an autoplay tier for RSVP nudges (e.g. "always RSVP soft on first world-join during T-2h"). Lean against unless user asks.
+- **Debug surface.** Mirror S5's pattern: `/wv debug tree anni rsvp <hard|soft|revoke>` for sending without going through brigadier (probably not needed since `/wv anni rsvp` IS in brigadier), but a `/wv debug trigger rsvpDump` showing the current snapshot's `rsvp` block + the last-attempted RSVP would parallel the existing `bossBarsDump` / `nametagsDump` / `ghostsPromptDump` / `zoneLinesDump` family.
+
+### What NOT to break
+
+- **The RSVP upgrade-prompt rendering** (S5's `AnniCommandRenderer.rsvpUpgradePrompt`) — it currently *suggests* the command via `ClickEvent.SuggestCommand`, not runs it. If S6 changes the command shape, update the suggest string in both `rsvpUpgradeButton` calls.
+- **`AnniHoverBuilder.noticeColor`** — this is the only correct map. S6's RSVP confirmation messages should call it for any colour decisions; don't inline literals.
+- **`board.rsvp` shape on the snapshot** — already there at v2/v3, S6 doesn't need to bump schema_version.
+
+### S7 carryovers (preserved from S5)
+
+- The auth + forward pattern in `_handle_anni_scrollspot_set` is the template for S7's `_handle_anni_party_observation` too.
+- `AnniScrollspotClient` is a clone of `AnniQueryClient` — S7 clones again for its own ack pair rather than overloading.
+- `AnniAggressiveTicker.isAggressiveActive()` mirrors S4's `AnniOutlineTicker.isOutlineSuppressionActive()`. If S7 grows a "passive +" tier (e.g. organiser-presence nudges in passive mode), one-volatile-per-system stays the right pattern.
+
 ## Source-of-truth pointers
 
 - Spec — [`C:/Low-Perm-Program-Files/Projects/vets-anni/.claude/ephemeral/vetsmod-fishbot-integration-spec.md`](C:/Low-Perm-Program-Files/Projects/vets-anni/.claude/ephemeral/vetsmod-fishbot-integration-spec.md)
