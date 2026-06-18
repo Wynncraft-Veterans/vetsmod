@@ -70,6 +70,8 @@ public final class AnniWsHandler {
             AnniQueryClient.onResponse(json);
         } else if ("anni_scrollspot_response".equals(type)) {
             AnniScrollspotClient.onResponse(json);
+        } else if ("anni_rsvp_response".equals(type)) {
+            AnniRsvpClient.onResponse(json);
         }
     }
 

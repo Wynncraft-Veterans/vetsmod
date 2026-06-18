@@ -306,7 +306,20 @@ public final class AnniDebugCommands {
                         .then(ClientCommandManager.argument("field",
                                         StringArgumentType.word())
                                 .suggests(SUGGEST_ALERT_FIELDS)
-                                .executes(AnniDebugCommands::alert)));
+                                .executes(AnniDebugCommands::alert)))
+                // S6 — rsvp debug mirror. Same three subcommands as the
+                // main `/wv anni rsvp` tree, gated on requireDebug only
+                // (the action only affects the caller's own RSVP, so no
+                // staff/organiser perm is required). The main brigadier
+                // command is preferred; this exists for symmetry with the
+                // scrollspot debug-tree mirror.
+                .then(ClientCommandManager.literal("rsvp")
+                        .then(ClientCommandManager.literal("hard")
+                                .executes(AnniDebugCommands::rsvpHard))
+                        .then(ClientCommandManager.literal("soft")
+                                .executes(AnniDebugCommands::rsvpSoft))
+                        .then(ClientCommandManager.literal("revoke")
+                                .executes(AnniDebugCommands::rsvpRevoke)));
     }
 
     // ──────────────────────────────────────────────────────────── gating
@@ -988,6 +1001,26 @@ public final class AnniDebugCommands {
         ChatUtils.sendLocalMessage(Component.literal("scrollspot local cleared")
                 .withStyle(ChatFormatting.GREEN));
         return 1;
+    }
+
+    /** {@code /wv debug tree anni rsvp hard} — debug mirror of
+     *  {@code /wv anni rsvp hard}. Identical effect; lives here for
+     *  symmetry with the scrollspot debug-tree mirror. */
+    private static int rsvpHard(CommandContext<FabricClientCommandSource> ctx) {
+        if (requireDebug(ctx) == 0) return 0;
+        return org.wynnvets.mwe.anni.command.AnniRsvpCommand.hard(ctx);
+    }
+
+    /** {@code /wv debug tree anni rsvp soft} — debug mirror. */
+    private static int rsvpSoft(CommandContext<FabricClientCommandSource> ctx) {
+        if (requireDebug(ctx) == 0) return 0;
+        return org.wynnvets.mwe.anni.command.AnniRsvpCommand.soft(ctx);
+    }
+
+    /** {@code /wv debug tree anni rsvp revoke} — debug mirror. */
+    private static int rsvpRevoke(CommandContext<FabricClientCommandSource> ctx) {
+        if (requireDebug(ctx) == 0) return 0;
+        return org.wynnvets.mwe.anni.command.AnniRsvpCommand.revoke(ctx);
     }
 
     /** {@code /wv debug tree anni alert <field>} — synthesise a chat

@@ -44,6 +44,7 @@ import org.wynnvets.mwe.anni.debug.AnniDebugCommands;
  *   <li>{@code /wv debug trigger forceChecks} — force re-check guild membership, rank, and staff status</li>
  *   <li>{@code /wv debug trigger bossBarsDump} — dump current {@code BossHealthOverlay#events} state (iteration order, per-bar UUID/name/color/overlay/progress, ours marker)</li>
  *   <li>{@code /wv debug trigger nametagsDump} — dump per-player render-state (forces a re-extract; logs gate, registry hit, and the resulting {@code state.nameTag} component as built by {@code NametagMixin})</li>
+ *   <li>{@code /wv debug trigger rsvpDump} — dump auth state + in-flight RSVP queue depth + last attempt/ack + the snapshot's current rsvp block</li>
  *   <li>{@code /wv debug tree anni …} — MWE/anni subsystem debug tree</li>
  * </ul>
  */
@@ -122,6 +123,12 @@ public final class DebugCommands {
                 .then(ClientCommandManager.literal("zoneLinesDump")
                     .executes(ctx -> {
                         DebugCommands.triggerZoneLinesDump();
+                        return 1;
+                    })
+                )
+                .then(ClientCommandManager.literal("rsvpDump")
+                    .executes(ctx -> {
+                        org.wynnvets.mwe.anni.network.AnniRsvpClient.debugDump();
                         return 1;
                     })
                 )

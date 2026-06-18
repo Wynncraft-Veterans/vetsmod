@@ -49,6 +49,19 @@ Public. [CommandRegistry.java](src/client/java/org/wynnvets/commands/CommandRegi
 
 `silent`/`passive`/`aggressive` — route through [`AnniModeManager.transitionTo`](src/client/java/org/wynnvets/mwe/anni/mode/AnniModeManager.java). Refused when `Models.StreamerMode.isInStream()` OR the chat-line [`StreamerModeChatDetector`](src/client/java/org/wynnvets/mwe/anni/mode/StreamerModeChatDetector.java) signals stream-on (spec §3.1: silent is the ONLY mode allowed with `/stream`). Successful transitions update `vetsAnniMode`; the [`VetsBossBarManager`](src/client/java/org/wynnvets/mwe/anni/bossbar/VetsBossBarManager.java) tick-loop picks up the change on the next tick.
 
+### /wv anni rsvp {hard | soft | revoke}
+S6. Authenticated only (must have run `~vetsmod`). [AnniRsvpCommand.java](src/client/java/org/wynnvets/mwe/anni/command/AnniRsvpCommand.java). In-game RSVP — byte-equivalent to a Discord `\rsvp hard|soft|revoke`: same Rsvp row, same auto-placement into Unassigned, same `RSVP_CHANNEL_ID` public confirmation.
+
+- `hard` — commit to attending. Boss-bar / `/wv anni` render switches to HARD chip (aqua).
+- `soft` — tentative. SOFT chip (green).
+- `revoke` — withdraw. Soft-deletes (`Rsvp.revoked_at`) and posts `<user> withdrew their RSVP.` to RSVP_CHANNEL_ID. Silent (no public post) if there was no active RSVP to withdraw.
+
+Lights up the `[Hard]` / `[Soft]` `SuggestCommand` buttons in [AnniCommandRenderer.rsvpUpgradePrompt](src/client/java/org/wynnvets/mwe/anni/render/AnniCommandRenderer.java) — those buttons emit `/wv anni rsvp hard` / `/wv anni rsvp soft` verbatim, so user click-through now resolves.
+
+Trust chain: vetsmod sends `anni_rsvp` ([`V1ApiManager.sendAnniRsvp`](src/client/java/org/wynnvets/api/V1ApiManager.java)) → temp-server's [`_handle_anni_rsvp`](../../temporary-server/app/chat/inbound.py) stamps the session's `mc_uuid` as `actor_mc_uuid` → vets-anni's [`POST /api/internal/anni-rsvp-by-uuid`](../../vets-anni/app/web/routers/anni_internal.py) calls [`execute_uuid_rsvp`](../../vets-anni/app/domain/rsvp_by_uuid.py) which reuses the Discord cog's `_auto_place_after_rsvp` / `_broadcast_board_snapshot` / `_post_public` helpers verbatim. Ack flows back as `anni_rsvp_response` (routed to [`AnniRsvpClient`](src/client/java/org/wynnvets/mwe/anni/network/AnniRsvpClient.java)'s pending future; 5s timeout).
+
+Unauthenticated message uses spec wording: `Use \rsvp on discord — or run ~vetsmod first.` T-90 cutoff is enforced server-side (revokes are unaffected; vets-anni surfaces `RSVP is closed (within 90 min of anni)` for hard/soft attempts inside the cutoff).
+
 ### /wv anni scrollspot {set <x> <y> <z> | here | clear}
 S5. Authenticated only (must have run `~vetsmod`). [AnniScrollspotCommand.java](src/client/java/org/wynnvets/mwe/anni/aggressive/AnniScrollspotCommand.java). Per-party host pins (or clears) the in-game scroll-spot coordinate; visible to all party members through `board.party.scroll_spot` on the next snapshot push.
 
@@ -82,6 +95,8 @@ Public. Tree built in [DebugCommands.java:141](src/client/java/org/wynnvets/debu
 - `/wv debug trigger charDump` — render PUA glyphs `\uE001-\uE040` in `chat/prefix` font, 8 per line
 - `/wv debug trigger forceChecks` — force guild/rank/staff re-check via `GuildStateManager.forceGuildRecheck()`
 - `/wv debug trigger tabDump` — `TabDumpHandler.execute()`
+- `/wv debug trigger rsvpDump` (S6) — dump `isAuthenticatedThisSession()` + `AnniRsvpClient.pendingCount()` + `lastAttemptedNotice` + `lastAck` + current snapshot `rsvp` block. Diagnostic for "why did my `/wv anni rsvp` not land".
+- `/wv debug tree anni rsvp {hard|soft|revoke}` (S6) — debug mirror of the main `/wv anni rsvp` tree; identical effect, gated on `requireDebug` only (action only touches the caller's own RSVP, no staff/organiser perm needed).
 
 ## 2. Chat command mixins
 

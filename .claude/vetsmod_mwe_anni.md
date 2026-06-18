@@ -1,12 +1,12 @@
 ---
 name: vetsmod MWE/anni subsystem
-description: Architecture-as-built for the anni integration after S1+S2+S3+S4 (snapshot pipeline, /wv anni renderer, anni-motd, debug harness, mode state, passive-mode boss bar, passive-mode player highlights). Source-of-truth for S5+ implementers.
+description: Architecture-as-built for the anni integration after S1+S2+S3+S4+S5+S6 (snapshot pipeline, /wv anni renderer, anni-motd, debug harness, mode state, passive-mode boss bar, passive-mode player highlights, aggressive-mode zone lines + scroll spot + ghosts prompt + chat alerts, in-game `/wv anni rsvp`). Source-of-truth for S7+ implementers.
 type: project
 ---
 
-# vetsmod MWE/anni subsystem (S1+S2+S3+S4 reference)
+# vetsmod MWE/anni subsystem (S1+S2+S3+S4+S5+S6 reference)
 
-Reference for the **as-built** state after S1 (snapshot pipeline), S2 (`/wv anni` + anni-motd renderers, debug harness, mode state), S3 (passive-mode boss bar), and S4 (passive-mode player highlights) of the multi-stage plan at `C:/Users/tjpas/.claude/plans/this-is-a-massive-drifting-moth.md`. Read this first if you're picking up S5+; the plan file is the architectural intent, this doc is what the codebase actually does.
+Reference for the **as-built** state after S1 (snapshot pipeline), S2 (`/wv anni` + anni-motd renderers, debug harness, mode state), S3 (passive-mode boss bar), S4 (passive-mode player highlights), S5 (aggressive mode: zone lines, scroll spot, ghosts prompt, chat alerts), and S6 (in-game `/wv anni rsvp`) of the multi-stage plan at `C:/Users/tjpas/.claude/plans/this-is-a-massive-drifting-moth.md`. Read this first if you're picking up S7+; the plan file is the architectural intent, this doc is what the codebase actually does.
 
 ## Package layout
 
@@ -530,58 +530,172 @@ All gated on `requireDebug` (must have `/wv debug true`); the `scrollspot` subtr
 13. **Wynntils `BeaconBeamFeature` is unconditional.** Every entry in `Models.Marker.getAllMarkers()` gets a beacon beam — there's no per-marker "skip" path. `marker.beaconColor()` is called and `.withAlpha(float).asInt()` invoked on it: null → render-thread NPE → "Pose stack not empty" next-frame crash; `CustomColor.NONE` → fallback to user-config beacon (still visible); custom 0-alpha → Wynntils overrides alpha back to opaque before render. Conclusion: if you register a MarkerProvider, you ship a beacon. Pick a colour you can live with.
 14. **Cold-start world-join must trigger a snapshot pull.** Discovered during S5 testing: `StampFetcher.fetchStampAndCreateMessage` (world-join motd path) read `AnniSnapshotCache.latest()` and on `null` fell through to the **legacy** stamp text without firing `AnniQueryClient.query()`. The push poller fires every 5 min outside the T-2h hot window, so on cold-start a user inside the anni zone saw legacy motd + no boss bar for up to 5 min — and `/wv anni` "fixed" it because the manual path DID query on cold cache (asymmetric branch). Fixed by adding fire-and-forget `AnniQueryClient.query()` to the world-join cold branch. Any future S6/S7 component that depends on `AnniSnapshotCache.latest()` being warm at world-join time gets this for free now.
 
-## For the S6 agent
+## S6 — `/wv anni rsvp` (built 2026-06-18)
 
-S6 = `/wv anni rsvp <hard | soft | revoke>`. The parent plan §S6 has the original sketch; this section is what's *additionally* true post-S5.
+### Architecture
 
-### What S6 will need (and what's already there)
+S6 closes the dangling `[Hard]`/`[Soft]` upgrade-prompt buttons that S5
+shipped (their `SuggestCommand("/wv anni rsvp hard|soft")` previously
+hit an unknown-command echo). One brigadier command + a network client
++ a single new vets-anni endpoint; no schema bump (`rsvp.notice` is
+already on the snapshot at v2/v3).
 
-**Already shipped (S5 carryovers):**
+```
+mwe/anni/command/
+  AnniRsvpCommand.java      — brigadier handler: auth gate, dispatch, render ack
+mwe/anni/network/
+  AnniRsvpClient.java       — single-flight ack future (clone of
+                              AnniScrollspotClient); also exposes
+                              lastAttemptedNotice/lastAck/pendingCount
+                              for /wv debug trigger rsvpDump
+```
 
-- **Auth + forward pattern in temp-server `inbound.py`.** `_handle_anni_scrollspot_set` (lines around 738+) is the exact template S6's `_handle_anni_rsvp` should clone: read `state.authenticated_sessions.get(ws)`, refuse with `{"type":"anni_rsvp_response","status":"error","detail":"auth required"}` on null, otherwise stamp `actor_mc_uuid` from the session and forward via a new poller helper. **Do not** trust any UUID field the client sent.
-- **Poller helper pattern.** `AnniSnapshotPoller.set_scroll_spot(body)` reuses the poller's `httpx.AsyncClient` + secret + base URL, returns `{"status":"ok"}` or `{"status":"error","detail":"…"}`. Clone as `set_rsvp(body)` (or whatever S6 names it) — same shape, same reuse. Don't instantiate a fresh httpx client in inbound.py.
-- **Single-flight ack client.** `AnniScrollspotClient` (FIFO queue, `CompletableFuture<Ack>`, 5s timeout) is a clean copy of `AnniQueryClient` and a clean template for `AnniRsvpClient`. Same pattern: `dispatch(...) → V1ApiManager.sendAnniRsvp(...) → enqueue future → server ack pops the head`. Note: no per-frame correlation IDs in the V1 protocol — rapid back-to-back calls would interleave arbitrarily; the per-command UX should block on the previous future. S5's command does this naturally because each `/wv anni scrollspot` invocation only fires after the previous's ack lands.
-- **Frame routing.** `AnniWsHandler.onInbound` already demuxes on `type`. Add an `else if ("anni_rsvp_response".equals(type)) AnniRsvpClient.onResponse(json);` branch — the existing structure makes this a one-line change.
-- **Permission-gate helpers in `AnniDebugCommands`.** `requireDebug` (debug logging required) and `requireStaffOrOrganiser` (staff tier OR local UUID in `snapshot.organisers`) are ready for reuse if S6's debug surface needs the same gates.
-- **`GuildStateManager.isAuthenticatedThisSession()`** is the client-side auth predicate (`V1ApiManager.isAuthenticated()` does NOT exist — common plan-time mis-naming; correct it before writing any docs that reference it).
-- **`AnniHoverBuilder.noticeColor(String)`** is the SINGLE source of truth for RSVP-notice colours (HARD=AQUA, SOFT=GREEN, walk-in=YELLOW, late=RED). Don't reinvent the map; call the existing helper. (Memory: `feedback_anni_rsvp_colours.md`.)
-- **Snapshot v3 shape** is the wire contract. S6's RSVP flow should not require a v4 bump — `rsvp.notice` / `rsvp.updated_at` / `rsvp.revoked` are already on the snapshot and the server-side write goes through existing `rsvp_domain` paths.
-- **Schedule-aware T-90 cutoff** in vets-anni's `rsvp_domain.set_rsvp` already enforces "rsvp closed" — S6's UUID-keyed path should call through the same domain function so the cutoff stays consistent.
+Wire pieces added on the network layer:
+- `V1ApiManager.sendAnniRsvp(String notice)` (mirror of `sendAnniScrollspotSet`).
+- `AnniWsHandler.onInbound` routes `anni_rsvp_response` to `AnniRsvpClient.onResponse`.
 
-**What S6 actually needs to build:**
+### Auth chain
 
-1. **vets-anni `app/domain/rsvp_by_uuid.py`** — sibling of `app/bot/cogs/rsvp.py:execute_rsvp` keyed on MC UUID instead of Discord ID. Skips the `dazebot_client` round-trip (UUID is already known). Reuses `rsvp_domain.set_rsvp()` / `revoke()`, `_auto_place_after_rsvp()`, `_broadcast_board_snapshot()`, `_post_public()`.
-2. **vets-anni `POST /api/internal/anni-rsvp-by-uuid`** in `anni_internal.py`. Body `{actor_mc_uuid, notice}` where `notice ∈ {hard, soft, revoke}`. Returns `{"status":"ok"}` or 4xx with `detail`. Hard cutoff: T-90.
-3. **temp-server `_handle_anni_rsvp`** in `app/chat/inbound.py` (after `_handle_anni_scrollspot_set`). Auth gate + forward.
-4. **temp-server `AnniSnapshotPoller.set_rsvp(body)`** helper.
-5. **vetsmod `org.wynnvets.mwe.anni.network.AnniRsvpClient`** — clone of AnniScrollspotClient.
-6. **vetsmod `V1ApiManager.sendAnniRsvp(String notice)`** — clone of sendAnniScrollspotSet.
-7. **vetsmod `AnniWsHandler.onInbound`** — route `anni_rsvp_response`.
-8. **vetsmod `AnniRsvpCommand`** — brigadier handler. Spec call-out: when unauthenticated, print the fallback "Use `\rsvp` on discord — or run `~vetsmod` first".
-9. **vetsmod `CommandRegistry`** — `/wv anni rsvp <hard|soft|revoke>` subtree. **Yes, in the main brigadier this time** — `/wv anni rsvp` is a public-facing user command, unlike scrollspot which was staff-only.
+```
+/wv anni rsvp hard
+  → AnniRsvpCommand.hard (GuildStateManager.isAuthenticatedThisSession() gate)
+  → AnniRsvpClient.send("hard")
+  → V1ApiManager.sendAnniRsvp("hard")  → {"type":"anni_rsvp","notice":"hard"}
+  → temp-server _handle_anni_rsvp (stamps actor_mc_uuid from session)
+  → POST vets-anni /api/internal/anni-rsvp-by-uuid
+  → app/domain/rsvp_by_uuid.execute_uuid_rsvp(...)
+        → rsvp_domain.set_rsvp(player, event, RSVP_HARD)
+        → _auto_place_after_rsvp → _broadcast_board_snapshot
+        → _post_public(app.state.fishbot, "<user> has **HARD** RSVP'd …")
+  → 200 {"status":"ok"} or 4xx {"status":"error","detail":"…"}
+  → temp-server forwards as {"type":"anni_rsvp_response","status":…,"detail":…}
+  → AnniRsvpClient.onResponse pops the head future
+  → AnniRsvpCommand.renderAck (main thread) prints "You have HARD RSVP'd…"
+    with the HARD token coloured via AnniHoverBuilder.noticeColor("hard")
+    (AQUA per the noticeColor map).
+```
 
-### Open questions for S6 start
+### Decisions locked S6
 
-- **Confirm the user wants `/wv anni rsvp` in the main brigadier tree** (not hidden under `/wv debug` like scrollspot). S5's scrollspot was hidden because of staff-only + rare-use; RSVP is the opposite — every vets-anni user might invoke it. Default to "yes, main tree."
-- **Does the RSVP upgrade-prompt now in the imminent-blocked render path need its hover to point at `/wv anni rsvp` directly?** The S5-shipped prompt has `[Hard]` / `[Soft]` buttons that `suggestCommand("/wv anni rsvp hard")` — but `/wv anni rsvp` doesn't exist yet. The suggest will resolve to "unknown subcommand" until S6 lands. Either:
-  - (a) ship S6, command resolves, buttons just work
-  - (b) intermediate workaround if S6 lags: temporarily change the suggest to `\rsvp hard` (Discord command — works for everyone but feels weird in chat)
-  - Per user's testing of the prompt at T-7h in attempt-4, they saw the buttons render but clicked them via tab/enter — Wynncraft would echo the unknown command. Low priority but worth being aware of when picking S6 timing.
-- **Walk-in detection / `attend_early` / `attend_late` semantics.** Confirm with user whether the `notice ∈ {hard, soft, revoke}` command should ALSO be the wire vocabulary for `attend_early` / `attend_late`, or whether the latter two are server-derived only (e.g., player physically present at anni → server auto-assigns `attend_early`). The S5 colour memory clarifies the rendering rule but not the write protocol.
-- **No new VetsConfig keys expected** unless S6 adds an autoplay tier for RSVP nudges (e.g. "always RSVP soft on first world-join during T-2h"). Lean against unless user asks.
-- **Debug surface.** Mirror S5's pattern: `/wv debug tree anni rsvp <hard|soft|revoke>` for sending without going through brigadier (probably not needed since `/wv anni rsvp` IS in brigadier), but a `/wv debug trigger rsvpDump` showing the current snapshot's `rsvp` block + the last-attempted RSVP would parallel the existing `bossBarsDump` / `nametagsDump` / `ghostsPromptDump` / `zoneLinesDump` family.
+1. **`/wv anni rsvp` lives in the main brigadier tree**, NOT under `/wv debug`
+   (opposite of scrollspot). This is a public-facing user command — the
+   S5 `rsvpUpgradePrompt` buttons in `AnniCommandRenderer` already point
+   `SuggestCommand` at it. The debug-tree mirror under
+   `/wv debug tree anni rsvp` exists for symmetry but is gated on
+   `requireDebug` only (no staff/organiser perm — action only affects
+   the caller's own RSVP).
+2. **Unauthenticated message uses spec wording** (per user pick):
+   `"Use \\rsvp on discord — or run ~vetsmod first."` Surfaces both the
+   Discord fallback and the link path. Differs from scrollspot's
+   `"Run ~vetsmod to authenticate before using /wv anni scrollspot."`.
+3. **vets-anni reuses the cog's helpers via underscore-imports**. The S6
+   `app/domain/rsvp_by_uuid.execute_uuid_rsvp` imports
+   `_auto_place_after_rsvp`, `_broadcast_board_snapshot`, `_post_public`,
+   `_notice_label`, and `RsvpOutcome` directly from `app/bot/cogs/rsvp.py`.
+   No refactor into a shared module; the leading underscore is a
+   convention, not an access boundary, and the diff is smaller. The
+   plan's Plan B (`app/domain/rsvp_shared.py`) stays a fallback if an
+   import cycle ever surfaces — it didn't in this build (pytest
+   `test_rsvp.py` + `test_rsvp_by_uuid.py` = 64 passing).
+4. **First-invocation `AnniPlayer` placeholder uses `mc_uuid[:8]` as
+   `mc_username`** (matches `auto_promoter.py:108`'s `op.username if op
+   else uuid[:8]` fallback for online-but-unknown players). Full UUIDs
+   are 36 chars — too long for the 32-char `mc_username` field — so the
+   `mc_username = actor_mc_uuid` fallback the plan suggested fails
+   Tortoise's validator. Public message names the player as the
+   `uuid[:8]` until auto-promoter / presence-poller hydrates the row on
+   the next cycle.
+5. **No `username_hint` field threaded through the WS frame.** The plan
+   originally proposed `{"mc_uuid":"...","notice":"...","username_hint":"..."}`
+   but temp-server already has the session's `mc_uuid` and the placeholder
+   fallback covers brand-new users — no need for a fragile client-side
+   username hint that would also need an "is this username actually
+   yours" verification.
+6. **T-90 cutoff branching**: revokes pass through unconditionally
+   (matches Discord cog behaviour); hard/soft within cutoff get a 409
+   with `detail: "RSVP is closed (within 90 min of anni)"` so the user
+   sees a clear reason.
+7. **`AnniRsvpClient.lastAttemptedNotice` / `lastAck` are race-prone**
+   (static volatiles, no per-call correlation) — acceptable for
+   debug-only `rsvpDump` view. The `pendingCount()` accessor gives an
+   honest in-flight indicator.
 
-### What NOT to break
+### Public-message format
 
-- **The RSVP upgrade-prompt rendering** (S5's `AnniCommandRenderer.rsvpUpgradePrompt`) — it currently *suggests* the command via `ClickEvent.SuggestCommand`, not runs it. If S6 changes the command shape, update the suggest string in both `rsvpUpgradeButton` calls.
-- **`AnniHoverBuilder.noticeColor`** — this is the only correct map. S6's RSVP confirmation messages should call it for any colour decisions; don't inline literals.
-- **`board.rsvp` shape on the snapshot** — already there at v2/v3, S6 doesn't need to bump schema_version.
+Reuses the cog's exact format strings, byte-equivalent to a Discord
+`\rsvp` invocation:
+
+```
+hard/soft: `<user>` has **HARD/SOFT** RSVP'd for the anni <t:N:R> (<t:N:F>).
+revoke:    `<user>` withdrew their RSVP.
+```
+
+Discord-timestamp tags only (CLAUDE.md "anni timing must localise per
+viewer"). `<user>` is `player.mc_username` (the `uuid[:8]` placeholder
+for brand-new UUIDs until auto-promoter hydrates).
+
+### Render-pipeline notes (added to the S1→S5 collection)
+
+15. **`app.state.fishbot` is the reach-out for `_post_public`** from a
+    FastAPI route handler. Set in `main.py:79` during lifespan
+    (`app.state.fishbot = bot`); route handlers read via
+    `request.app.state.fishbot`. May be `None` when `FISHBOT_TOKEN` is
+    unset — `_post_public` already no-ops on missing channel/bot so no
+    try/except needed at the endpoint level. Same reach-out pattern
+    `anni_ping_poller.py` uses.
+
+16. **Brigadier literals don't need `SuggestionProvider`s.** Three
+    literal children (`hard`/`soft`/`revoke`) under a `rsvp` literal
+    give brigadier its own suggestion list — same shape as
+    `silent`/`passive`/`aggressive` already did under `anni`. No
+    `StringArgumentType.word()` + custom `SuggestionProvider` needed.
+
+17. **`AnniHoverBuilder.noticeColor` is the canonical RSVP colour map**
+    even from chat-output code, not just from `/wv anni` renderer code.
+    Saved as `feedback_anni_rsvp_colours.md` memory — call the helper,
+    don't inline `ChatFormatting.AQUA`/`GREEN` literals.
+
+### New debug commands
+
+All under `/wv debug tree anni …` (subtree) + `/wv debug trigger …`
+(flat trigger family), gated on `requireDebug` (must have
+`/wv debug true`).
+
+- `/wv debug tree anni rsvp hard|soft|revoke` — debug mirror of main
+  brigadier. Identical effect; bypasses no logic. For symmetry with
+  the scrollspot debug-tree mirror.
+- `/wv debug trigger rsvpDump` — dump auth state, in-flight queue
+  depth, last attempt/ack, and the snapshot's `rsvp` block. Pattern
+  carried forward verbatim from `bossBarsDump` / `nametagsDump` /
+  `zoneLinesDump` / `ghostsPromptDump`. Read `AnniRsvpClient`'s public
+  `lastAttemptedNotice()` / `lastAck()` / `pendingCount()` accessors.
+
+### What carries forward into S7
+
+- **Auth + forward pattern** in `_handle_anni_rsvp` is the third
+  identical instance (after `_handle_anni_query` and
+  `_handle_anni_scrollspot_set`). S7's `_handle_anni_party_observation`
+  is the fourth — extract a helper if the count crosses 5.
+- **`AnniSnapshotPoller.set_rsvp(body)` / `.set_scroll_spot(body)`** are
+  HTTP-forwarder twins. S7's observation forwarder is the third.
+- **Single-flight ack pattern** — `AnniQueryClient`, `AnniScrollspotClient`,
+  `AnniRsvpClient` are all clones. S7 follows the same template.
+
+## For the S7 agent
+
+S7 = party back-report pipeline — modify `PartyRosterListener` to
+trigger on "any party member's UUID in `snapshot.organisers`" instead
+of "local player in vets tier"; add a new `anni_party_observation`
+frame from vetsmod → temp-server → vets-anni's
+`anni-party-observation` endpoint. S6 carryovers above are the
+patterns.
 
 ### S7 carryovers (preserved from S5)
 
-- The auth + forward pattern in `_handle_anni_scrollspot_set` is the template for S7's `_handle_anni_party_observation` too.
-- `AnniScrollspotClient` is a clone of `AnniQueryClient` — S7 clones again for its own ack pair rather than overloading.
+- The auth + forward pattern in `_handle_anni_scrollspot_set` (and now `_handle_anni_rsvp`) is the template for S7's `_handle_anni_party_observation` too.
+- `AnniScrollspotClient` / `AnniRsvpClient` are clones of `AnniQueryClient` — S7 clones again for its own ack pair rather than overloading.
 - `AnniAggressiveTicker.isAggressiveActive()` mirrors S4's `AnniOutlineTicker.isOutlineSuppressionActive()`. If S7 grows a "passive +" tier (e.g. organiser-presence nudges in passive mode), one-volatile-per-system stays the right pattern.
+- **Underscore-imports from a Discord cog work** (S6 proved it via `from app.bot.cogs.rsvp import _post_public, ...`). S7 can reuse the same trick if it needs cog-private helpers; promote to a domain shared-module only if pytest surfaces an import cycle.
 
 ## Source-of-truth pointers
 

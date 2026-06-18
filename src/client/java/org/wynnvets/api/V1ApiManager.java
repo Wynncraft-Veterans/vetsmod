@@ -541,6 +541,40 @@ public final class V1ApiManager {
     }
 
     /**
+     * S6 — Sends an {@code anni_rsvp} inbound control frame: the local
+     * authenticated user RSVPs (hard/soft) or withdraws (revoke) for the
+     * next anni from in-game.
+     *
+     * <p>Authenticated only — temp-server reads the session's MC UUID and
+     * forwards it to vets-anni as {@code actor_mc_uuid}. The client cannot
+     * impersonate a different user; vets-anni's
+     * {@code anni-rsvp-by-uuid} endpoint reuses the cog's
+     * {@code set_rsvp} / {@code revoke} chain so the same row + auto-place
+     * + public confirmation post are produced as a Discord {@code \rsvp}
+     * invocation.</p>
+     *
+     * <p>The response arrives as an {@code anni_rsvp_response} frame
+     * routed by {@link org.wynnvets.mwe.anni.network.AnniWsHandler} to the
+     * {@link org.wynnvets.mwe.anni.network.AnniRsvpClient}'s pending
+     * {@link java.util.concurrent.CompletableFuture}.</p>
+     *
+     * @param notice {@code "hard"}, {@code "soft"}, or {@code "revoke"}
+     * @return true iff the frame was actually sent (inbound connection up).
+     */
+    public static boolean sendAnniRsvp(String notice) {
+        if (inboundClient == null || !inboundClient.isConnected()) {
+            VetsLogger.debug("sendAnniRsvp: inbound not connected");
+            return false;
+        }
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "anni_rsvp");
+        payload.addProperty("notice", notice);
+        inboundClient.send(payload);
+        VetsLogger.debug("Sent anni_rsvp: {}", notice);
+        return true;
+    }
+
+    /**
      * Sends a {@code party_status} control frame describing the local player's
      * current Wynncraft party roster (sourced from Wynntils' {@code PartyModel}).
      * The server aggregates these reports across connected clients and exposes

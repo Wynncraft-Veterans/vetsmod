@@ -20,6 +20,7 @@ import org.wynnvets.fetcher.ondemand.StampFetcher;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.fetcher.ondemand.WorldListFetcher;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.mwe.anni.command.AnniRsvpCommand;
 import org.wynnvets.mwe.anni.mode.AnniMode;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.rendering.territory.TerritoryLineManager;
@@ -134,7 +135,14 @@ public final class CommandRegistry {
                 .then(ClientCommandManager.literal("passive")
                     .executes(ctx -> anniMode(ctx, AnniMode.PASSIVE)))
                 .then(ClientCommandManager.literal("aggressive")
-                    .executes(ctx -> anniMode(ctx, AnniMode.AGGRESSIVE))))
+                    .executes(ctx -> anniMode(ctx, AnniMode.AGGRESSIVE)))
+                .then(ClientCommandManager.literal("rsvp")
+                    .then(ClientCommandManager.literal("hard")
+                        .executes(AnniRsvpCommand::hard))
+                    .then(ClientCommandManager.literal("soft")
+                        .executes(AnniRsvpCommand::soft))
+                    .then(ClientCommandManager.literal("revoke")
+                        .executes(AnniRsvpCommand::revoke))))
                 // Note: scrollspot host-write lives under
                 // /wv debug tree anni scrollspot (see AnniDebugCommands).
                 // Hidden from the main /wv anni tree because it's used by
