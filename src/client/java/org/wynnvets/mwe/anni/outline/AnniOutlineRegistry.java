@@ -189,4 +189,42 @@ public final class AnniOutlineRegistry {
             null,
             AnniOutlinePalette.OTHER_VETS_PARTY,
             ChatFormatting.GRAY);
+
+    // ── Debug API ───────────────────────────────────────────────────────
+    //
+    // Drives /wv debug tree anni registry … — lets a developer place an
+    // arbitrary nearby player into a chosen tier/role to visually verify
+    // the highlight + nametag branches without coordinating a real anni
+    // party. Debug entries are wiped by every snapshot rebuild (any
+    // AnniSnapshotCache push, including null) because rebuildFrom does an
+    // unconditional clear; the test workflow is fire-and-forget per
+    // snapshot generation.
+
+    /** Test-only: insert an arbitrary registry entry. */
+    public static void debugSet(String username, Entry entry) {
+        if (username == null || username.isEmpty() || entry == null) return;
+        entries.put(username.toLowerCase(Locale.ROOT), entry);
+        VetsLogger.debug("AnniOutlineRegistry debug set: {} -> tier={} role={}",
+                username, entry.tier(), entry.role());
+    }
+
+    /** Test-only: remove a username's entry (no-op if none). */
+    public static void debugRemove(String username) {
+        if (username == null) return;
+        if (entries.remove(username.toLowerCase(Locale.ROOT)) != null) {
+            VetsLogger.debug("AnniOutlineRegistry debug remove: {}", username);
+        }
+    }
+
+    /** Test-only: build an OWN_PARTY entry for the given role using the
+     *  same palette as the snapshot rebuild path. {@code null}/unknown
+     *  role falls back to grey per {@link AnniOutlinePalette#chatFormattingForRole}. */
+    public static Entry debugOwnPartyEntry(String role) {
+        return ownPartyEntry(role);
+    }
+
+    /** Test-only: the canonical OTHER_VETS_PARTY entry (light grey). */
+    public static Entry debugOtherPartyEntry() {
+        return OTHER_PARTY_ENTRY;
+    }
 }

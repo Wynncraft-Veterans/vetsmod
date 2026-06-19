@@ -196,6 +196,29 @@ public final class AnniDebugCommands {
                 return builder.buildFuture();
             };
 
+    /** Role codes accepted by {@code /wv debug tree anni registry set <user> <role>}.
+     *  Mirrors the cases in {@link org.wynnvets.mwe.anni.outline.AnniOutlinePalette#chatFormattingForRole}
+     *  plus the synthetic {@code other} alias for the {@code OTHER_VETS_PARTY}
+     *  tier (light grey, role-agnostic). */
+    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_REGISTRY_ROLES =
+            (ctx, builder) -> {
+                String partial = builder.getRemaining().toLowerCase();
+                for (String role : new String[] {
+                        "PRIMARY",    // red    (§c) — the canonical "red highlight + red nametag"
+                        "SECONDARY",  // yellow (§e)
+                        "TERTIARY",   // purple (§d)
+                        "TANK",       // aqua   (§b)
+                        "HEALER",     // green  (§a)
+                        "FILL",       // white  (§f)
+                        "other",      // grey   (§7) — OTHER_VETS_PARTY tier
+                }) {
+                    if (role.toLowerCase().startsWith(partial)) {
+                        builder.suggest(role);
+                    }
+                }
+                return builder.buildFuture();
+            };
+
     /** S5 — fields {@code AggressiveAlertDispatcher.forceAlert} accepts. */
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_ALERT_FIELDS =
             (ctx, builder) -> {
@@ -319,7 +342,25 @@ public final class AnniDebugCommands {
                         .then(ClientCommandManager.literal("soft")
                                 .executes(AnniDebugCommands::rsvpSoft))
                         .then(ClientCommandManager.literal("revoke")
-                                .executes(AnniDebugCommands::rsvpRevoke)));
+                                .executes(AnniDebugCommands::rsvpRevoke)))
+                // Arbitrary registry injection for visually verifying the
+                // S4 highlight + nametag branches without coordinating a
+                // real anni party. Wiped on the next snapshot rebuild —
+                // re-inject after `snapshot inject` / `snapshot clear`.
+                .then(ClientCommandManager.literal("registry")
+                        .then(ClientCommandManager.literal("set")
+                                .then(ClientCommandManager.argument("username",
+                                                StringArgumentType.word())
+                                        .then(ClientCommandManager.argument("role",
+                                                        StringArgumentType.word())
+                                                .suggests(SUGGEST_REGISTRY_ROLES)
+                                                .executes(AnniDebugCommands::registrySet))))
+                        .then(ClientCommandManager.literal("clear")
+                                .then(ClientCommandManager.argument("username",
+                                                StringArgumentType.word())
+                                        .executes(AnniDebugCommands::registryClear)))
+                        .then(ClientCommandManager.literal("clearall")
+                                .executes(AnniDebugCommands::registryClearAll)));
     }
 
     // ──────────────────────────────────────────────────────────── gating
@@ -1052,6 +1093,89 @@ public final class AnniDebugCommands {
         org.wynnvets.mwe.anni.mode.AnniModeManager.transitionTo(
                 org.wynnvets.mwe.anni.mode.AnniMode.fromString(mode),
                 org.wynnvets.mwe.anni.mode.AnniModeManager.Source.DEBUG_BYPASS_MUTEX);
+        return 1;
+    }
+
+    /** {@code /wv debug tree anni registry set <username> <role>} — inject
+     *  one player into the highlight registry. Picks the OWN_PARTY tier
+     *  with the role's spec colour ({@code PRIMARY} = red, {@code TANK} =
+     *  aqua, etc.), or the OTHER_VETS_PARTY tier (light grey) for the
+     *  {@code other} alias. The injection is wiped by the next snapshot
+     *  rebuild — re-run after any {@code snapshot inject} / {@code clear}.
+     *  Renders only while the activation gate holds, so we report whether
+     *  it does and remind the caller what else to flip if it doesn't. */
+    private static int registrySet(CommandContext<FabricClientCommandSource> ctx) {
+        int gate = requireDebug(ctx);
+        if (gate == 0) return 0;
+
+        String username = StringArgumentType.getString(ctx, "username");
+        String role = StringArgumentType.getString(ctx, "role");
+
+        if (username == null || username.isEmpty()) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal("anni registry set: username cannot be empty")
+                            .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+
+        org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.Entry entry;
+        String normalised = role == null ? "" : role.trim();
+        if ("other".equalsIgnoreCase(normalised)) {
+            entry = org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.debugOtherPartyEntry();
+        } else {
+            // null-tolerant — chatFormattingForRole falls back to GRAY on
+            // unknown codes, which is also a useful test case.
+            entry = org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.debugOwnPartyEntry(normalised);
+        }
+        org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.debugSet(username, entry);
+
+        boolean gateActive = org.wynnvets.mwe.anni.outline.AnniOutlineTicker.isOutlineSuppressionActive();
+        ChatFormatting fmt = entry.nametagFormatting();
+        String roleLabel = entry.role() == null
+                ? entry.tier().name().toLowerCase()
+                : entry.role().toUpperCase();
+        Component msg = Component.literal("anni registry set: ")
+                .withStyle(ChatFormatting.GREEN)
+                .append(Component.literal(username).withStyle(fmt))
+                .append(Component.literal(" -> " + roleLabel)
+                        .withStyle(ChatFormatting.GREEN));
+        if (gateActive) {
+            msg = msg.copy().append(Component.literal("  [gate active]")
+                    .withStyle(ChatFormatting.GRAY));
+        } else {
+            msg = msg.copy().append(Component.literal(
+                    "  [gate INACTIVE — flip outlines/nametags on, set a non-silent mode, "
+                            + "inject a snapshot, and /wv debug tree anni zone enter]")
+                    .withStyle(ChatFormatting.YELLOW));
+        }
+        ChatUtils.sendLocalMessage(msg);
+        return 1;
+    }
+
+    /** {@code /wv debug tree anni registry clear <username>} — drop a
+     *  single debug-injected entry. No-op if the username isn't present. */
+    private static int registryClear(CommandContext<FabricClientCommandSource> ctx) {
+        int gate = requireDebug(ctx);
+        if (gate == 0) return 0;
+        String username = StringArgumentType.getString(ctx, "username");
+        org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.debugRemove(username);
+        ChatUtils.sendLocalMessage(
+                Component.literal("anni registry clear: " + username)
+                        .withStyle(ChatFormatting.GREEN));
+        return 1;
+    }
+
+    /** {@code /wv debug tree anni registry clearall} — drop every entry,
+     *  including any naturally-derived from the current snapshot. The
+     *  next snapshot push (or {@code snapshot refresh}) rebuilds. */
+    private static int registryClearAll(CommandContext<FabricClientCommandSource> ctx) {
+        int gate = requireDebug(ctx);
+        if (gate == 0) return 0;
+        int n = org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.size();
+        org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.clearAll();
+        ChatUtils.sendLocalMessage(
+                Component.literal("anni registry clear all: dropped " + n + " entries")
+                        .withStyle(ChatFormatting.GREEN));
         return 1;
     }
 }

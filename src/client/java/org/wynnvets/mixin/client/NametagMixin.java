@@ -1,11 +1,19 @@
 package org.wynnvets.mixin.client;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.wynntils.mc.extension.EntityRenderStateExtension;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Avatar;
+import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -49,9 +57,49 @@ import org.wynnvets.rendering.nametag.NametagAnimator;
  * the highlight gate, then reverts to the animated glint after the gate
  * closes. Outsiders get dark-grey ({@code §8}); registry members get the
  * tier colour from {@link AnniOutlineRegistry.Entry#nametagFormatting()}.</p>
+ *
+ * <p><b>wynnmod interop ({@link #vetsmod$reapplyAfterWrap}).</b>
+ * wynnmod's {@code PlayerNametagFeature} (config "Wynncraft Rank") wraps
+ * the {@code submitNameTag(EntityRenderState→AvatarRenderState)} call
+ * inside the bridge method with {@code @WrapOperation}. Its PRE listener
+ * uses {@code state.nameTag} as a {@code badgeNameCache} key, and on
+ * cache hit rebuilds {@code state.nameTag} from {@code playerName.toString()}
+ * — discarding our per-character glint Style. We can't avoid being read
+ * as the cache key, but we can re-apply after wynnmod mutates: by
+ * wrapping the same call site at mixin priority 900, vetsmod becomes the
+ * <em>inner</em> wrap (wynnmod default 1000 → outer), so vetsmod's wrap
+ * runs after wynnmod's PRE event handler but before the real
+ * {@code submitNameTag} draws. We just re-run the same anni/supporter
+ * override logic on whatever Component wynnmod left behind —
+ * {@link NametagAnimator#tryAnimate} locates the username substring with
+ * {@code lastIndexOf} and only rewrites segments inside it, so the rank
+ * icon prefix wynnmod added is preserved verbatim. Result with wynnmod's
+ * Wynncraft Rank ON: {@code (rankPUALogo)(glinted)(rankColour)Username},
+ * matching the pre-Stage-4 behaviour. No-op when wynnmod is absent (no
+ * outer wrap → vetsmod's wrap just re-applies idempotently to its own
+ * extractRenderState TAIL output).</p>
  */
-@Mixin(AvatarRenderer.class)
+@Mixin(value = AvatarRenderer.class, priority = 900)
 public class NametagMixin {
+
+    /**
+     * Cached at class init — wynnmod doesn't hot-load. Drives the
+     * supporter-branch skip at {@link #vetsmod$rewriteNameTag} (TAIL):
+     * when wynnmod is present, pre-glinting {@code state.nameTag} at
+     * TAIL would feed wynnmod's {@code badgeNameCache} a per-frame
+     * varying key (every render frame produces a fresh per-character
+     * animated Component, see {@link NametagAnimator#tryAnimate}), so
+     * the cache occasionally misses and wynnmod's PRE handler leaves
+     * the badge off for a tick — visible as a per-tick flash back to
+     * {@code (glint)(partycolour)}. Leaving the Component as vanilla at
+     * TAIL gives wynnmod a stable cache key (the unmodified Wynncraft
+     * nametag) so it hits 100% of the time and always writes the badged
+     * form; {@link #vetsmod$reapplyAfterWrap} then re-glints inside
+     * wynnmod's output, restoring the intended
+     * {@code (rankPUALogo)(glint)(rankColour)} appearance.
+     */
+    private static final boolean WYNNMOD_PRESENT =
+            FabricLoader.getInstance().isModLoaded("wynnmod");
 
     @Inject(
             method = "extractRenderState("
@@ -64,6 +112,51 @@ public class NametagMixin {
             AvatarRenderState state,
             float partialTick,
             CallbackInfo ci) {
+        applyOverride(state, entity, false);
+    }
+
+    @WrapOperation(
+            method = "submitNameTag("
+                    + "Lnet/minecraft/client/renderer/entity/state/EntityRenderState;"
+                    + "Lcom/mojang/blaze3d/vertex/PoseStack;"
+                    + "Lnet/minecraft/client/renderer/SubmitNodeCollector;"
+                    + "Lnet/minecraft/client/renderer/state/CameraRenderState;"
+                    + ")V",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;submitNameTag("
+                            + "Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;"
+                            + "Lcom/mojang/blaze3d/vertex/PoseStack;"
+                            + "Lnet/minecraft/client/renderer/SubmitNodeCollector;"
+                            + "Lnet/minecraft/client/renderer/state/CameraRenderState;"
+                            + ")V"))
+    private void vetsmod$reapplyAfterWrap(
+            AvatarRenderer<?> instance,
+            AvatarRenderState state,
+            PoseStack poseStack,
+            SubmitNodeCollector submitNodeCollector,
+            CameraRenderState cameraRenderState,
+            Operation<Void> original) {
+        Entity entity = ((EntityRenderStateExtension) state).getEntity();
+        applyOverride(state, entity, true);
+        original.call(instance, state, poseStack, submitNodeCollector, cameraRenderState);
+    }
+
+    /**
+     * Anni-first / supporter-second nametag override, shared between the
+     * extractRenderState TAIL inject and the submitNameTag inner-wrap.
+     * Both call sites pass a non-null {@code state} but {@code entity} may
+     * be {@code null} from the wrap path if the render-state extension was
+     * never populated.
+     *
+     * <p>{@code fromWrap} gates the supporter branch only: when wynnmod
+     * is present we must <em>not</em> pre-glint at TAIL, or wynnmod's
+     * {@code badgeNameCache} key thrashes (see {@link #WYNNMOD_PRESENT}).
+     * The anni branch is unconditional — anni overrides wynnmod by design,
+     * and writing the anni literal at TAIL gives wynnmod a stable key
+     * for the duration of the highlight gate.</p>
+     */
+    private static void applyOverride(AvatarRenderState state, Entity entity, boolean fromWrap) {
         if (state.nameTag == null) return;
         if (!(entity instanceof AbstractClientPlayer player)) return;
 
@@ -96,6 +189,15 @@ public class NametagMixin {
             state.nameTag = Component.literal(stripped).withStyle(fmt);
             return;
         }
+
+        // wynnmod's badgeNameCache uses state.nameTag itself as part of
+        // its key (Component#equals compares per-character Style). If we
+        // pre-glint at TAIL, the cache key changes every frame; misses
+        // produce a visible per-tick flash to (glint)(partycolour). Let
+        // the wrap own the supporter glint when wynnmod is loaded —
+        // wynnmod sees the stable vanilla Component, always badges, and
+        // our wrap re-glints inside the badge.
+        if (!fromWrap && WYNNMOD_PRESENT) return;
 
         if (!SupportersPoller.isSupporter(username)) return;
         if (!VetsConfig.get(VetsConfig.SHOW_SUPPORTER_GLINTS)) return;
