@@ -49,6 +49,15 @@ public final class AnniWsHandler {
         registered = true;
         V1ApiManager.addInboundListener(AnniWsHandler::onInbound);
         V1ApiManager.addOutboundListener(AnniWsHandler::onOutbound);
+        // Re-pull a fresh snapshot on every inbound (re)connect — the
+        // server only pushes anni_state on certain events, so a world
+        // transfer that drops the socket would otherwise leave the
+        // cache frozen on whatever was current at the previous connect
+        // until the next server-initiated push (which may never come
+        // for the user's own RSVP/role edits). Cheap on cold start
+        // (single-flight queue collapses with the StampFetcher cold
+        // path), correct on reconnect.
+        V1ApiManager.addInboundPostConnectListener(AnniQueryClient::query);
         VetsLogger.debug("AnniWsHandler registered");
     }
 

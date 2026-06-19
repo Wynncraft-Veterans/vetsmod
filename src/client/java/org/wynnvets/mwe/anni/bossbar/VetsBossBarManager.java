@@ -217,9 +217,15 @@ public final class VetsBossBarManager {
             return;
         }
 
-        if (!active) {
-            activate();
-        }
+        // Re-put on every tick: vanilla clears BossHealthOverlay#events
+        // on world transfer / disconnect, but our static `active` flag
+        // survives. Without the unconditional re-put the synthetic bar
+        // silently vanishes after a world handoff, the render filter
+        // short-circuits to emptyList, and the user sees no bars at all
+        // until something flips `active` to false (e.g. config toggle)
+        // and the next tick takes the activate branch. Re-putting is
+        // self-healing against every external removal vector.
+        activate();
         bossEvent.setName(name);
         bossEvent.setProgress(progressFor(secondsUntilAnni));
         bossEvent.setColor(VetsBossBarContentBuilder.colorFor(snapshot));
@@ -239,9 +245,14 @@ public final class VetsBossBarManager {
         // `events.get(uuid).setName(...)` and dereferences null on bars
         // we had wiped.
         events.put(BAR_UUID, bossEvent);
-        active = true;
-        activatedAtMs = System.currentTimeMillis();
-        VetsLogger.debug("VetsBossBarManager: activated");
+        // First-activation-only bookkeeping. Re-puts on subsequent ticks
+        // must NOT bump activatedAtMs or the 2.5h failsafe would never
+        // fire.
+        if (!active) {
+            active = true;
+            activatedAtMs = System.currentTimeMillis();
+            VetsLogger.debug("VetsBossBarManager: activated");
+        }
     }
 
     private static void deactivate() {

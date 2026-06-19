@@ -14,6 +14,7 @@ import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.walker.GuildLogWalker;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.distribute.walker.MembersListWalker;
+import org.wynnvets.fetcher.polling.AnniSnapshotPoller;
 import org.wynnvets.fetcher.polling.AnniStampPoller;
 import org.wynnvets.fetcher.polling.GuildRosterCache;
 import org.wynnvets.fetcher.polling.WynnAliasCache;
@@ -148,6 +149,7 @@ public class VetsmodClient implements ClientModInitializer {
     SupportersPoller.start();
     StaffRanksPoller.start();
     AnniStampPoller.start();
+    AnniSnapshotPoller.start();
     GuildRosterCache.start();
     WynnAliasCache.start();
     ServerConnectionListener.register();

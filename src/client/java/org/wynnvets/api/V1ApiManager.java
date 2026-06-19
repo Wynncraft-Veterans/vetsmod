@@ -56,6 +56,15 @@ public final class V1ApiManager {
      *  type. Symmetric to {@link #outboundListeners}. */
     private static final CopyOnWriteArrayList<Consumer<JsonObject>> inboundListeners = new CopyOnWriteArrayList<>();
 
+    /** Listeners that fire after the inbound socket (re)connects and the
+     *  auth + registration frames have been sent. Use this when a feature
+     *  needs to refresh its server-side state after a reconnect — e.g.
+     *  anni snapshots, which the server only pushes on internal events
+     *  and so go stale silently after a world transfer drops the WS.
+     *  Listeners run on the WebSocket reader thread; defer any
+     *  game-state-touching work via {@code Minecraft.getInstance().execute}. */
+    private static final CopyOnWriteArrayList<Runnable> inboundPostConnectListeners = new CopyOnWriteArrayList<>();
+
     /** FIFO queue of callbacks awaiting a staff-action ack frame. Each
      *  outgoing caution_check / caution_add / warn_add / eject_add frame
      *  enqueues one callback; each incoming ack with a staff-action
@@ -231,6 +240,20 @@ public final class V1ApiManager {
             if (reg != null && inboundClient != null) {
                 inboundClient.send(reg);
                 VetsLogger.debug("Re-sent pending registration on inbound reconnect");
+            }
+            // Notify post-connect listeners after auth + registration are
+            // queued. The server processes frames in send order on the
+            // single inbound socket, so any frame a listener emits here
+            // will land after auth is honoured. Used by AnniWsHandler to
+            // re-pull a fresh snapshot on every reconnect — without this
+            // the cache silently goes stale across world transfers.
+            for (Runnable listener : inboundPostConnectListeners) {
+                try {
+                    listener.run();
+                } catch (Exception e) {
+                    VetsLogger.warn("Inbound post-connect listener error: {}",
+                            e.getMessage());
+                }
             }
         });
 
@@ -687,6 +710,30 @@ public final class V1ApiManager {
     /** Removes a previously registered inbound listener. */
     public static void removeInboundListener(Consumer<JsonObject> listener) {
         inboundListeners.remove(listener);
+    }
+
+    /**
+     * Registers a callback that fires after the inbound WebSocket
+     * (re)connects and auth + registration have been queued. Use this
+     * when a feature needs to re-pull server-side state on every
+     * reconnect — e.g. the anni snapshot, which the server pushes only
+     * on certain events and so goes stale silently after a world
+     * transfer drops the socket.
+     *
+     * <p>Listeners run on the WebSocket reader thread; defer
+     * game-state-touching work via
+     * {@code Minecraft.getInstance().execute(...)}. Listeners MUST be
+     * idempotent — the cold-start sequence fires this exactly once,
+     * but every subsequent reconnect (network blip, world transfer,
+     * server restart) fires it again.</p>
+     */
+    public static void addInboundPostConnectListener(Runnable listener) {
+        inboundPostConnectListeners.add(listener);
+    }
+
+    /** Removes a previously registered inbound post-connect listener. */
+    public static void removeInboundPostConnectListener(Runnable listener) {
+        inboundPostConnectListeners.remove(listener);
     }
 
     /**

@@ -59,8 +59,11 @@ public final class AnniSnapshotCache {
      * branch in S2's {@code /wv anni} renderer triggers on it).</p>
      */
     public static void update(AnniSnapshot snapshot) {
+        long now = System.currentTimeMillis();
+        long gapMs = fetchedAtEpochMs == 0L ? -1L : now - fetchedAtEpochMs;
         latest = snapshot;
-        fetchedAtEpochMs = System.currentTimeMillis();
+        fetchedAtEpochMs = now;
+        VetsLogger.debug("AnniSnapshotCache.update: gap_ms={}", gapMs);
         for (Consumer<AnniSnapshot> listener : listeners) {
             try {
                 listener.accept(snapshot);
