@@ -81,7 +81,7 @@ definitions:
   - "(?i)^Trick$"
   - "(?i)^Wynnter Fair.*$"
   - "(?i)^(Replica )?Hallowynn Mask.*$"
-  - "(?i)^Seeker.*$"
+  - "(?i)^Seeker's Aid.*$"
   - "(?i)^Drawing of the Spirits.*$"
   - "(?i)^Hide N' Seek Helmet.*$"
   - "(?i)^Hide N' Seek Token.*$"
@@ -100,6 +100,7 @@ definitions:
   - "(?i)^Faded.*.Teleportation Scroll$"
   - "(?i)^Skill Reset Scroll.*$"
   - "(?i)^(Tutorial )?Unprocessed.*$"
+  - "(?i)^Cleaned Saccharum.*$"
   - "^A Washer$"
   #- "(?i)^Foehn Wind.*$" // Obtainable in nesaak merchant
   - "(?i)^Harmstick.*$"
