@@ -43,8 +43,15 @@ public final class ChatUtils {
     /** Style used for the rank pill / separator / message body of honourary chat. */
     public static final Style HONOURARY_RANK_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
 
-    /** Style used for the display-name portion of honourary chat. */
-    public static final Style HONOURARY_NAME_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
+    /** Style used for the display-name portion of honourary chat.
+     *  Off-by-one from ChatFormatting.AQUA (0x55FFFF) so hspmod's outer color
+     *  gate (Set.of(5636095)) doesn't match this component when an HSP-guild
+     *  honourary user runs both vetsmod and hspmod simultaneously — otherwise
+     *  vets bridge lines leak into HSP's chat bridge on the compact
+     *  continuation indicator (which shares its PUA with Wynn's guild-cont
+     *  glyph). Visually indistinguishable to the eye; preserves the rank/name
+     *  inversion this class's honourary-render docstring calls out. */
+    public static final Style HONOURARY_NAME_STYLE = Style.EMPTY.withColor(TextColor.fromRgb(0x56FFFF));
 
     /** Red style used for admin-locked guild message body text. */
     public static final Style ADMIN_RANK_STYLE = Style.EMPTY.withColor(ChatFormatting.RED);
