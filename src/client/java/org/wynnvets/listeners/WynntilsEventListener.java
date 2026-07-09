@@ -484,8 +484,11 @@ public final class WynntilsEventListener {
 
         do {
             result.append(text, lastEnd, m.start());
+            // Emit the initial URL portion up front. Wrapped continuations
+            // are appended token-by-token below so the intermediate spaces
+            // are dropped instead of copied through a single range append.
+            result.append(text, m.start(), m.end());
 
-            // Collect the URL token and greedily absorb wrapped continuations
             int urlEnd = m.end();
             while (urlEnd < text.length() && text.charAt(urlEnd) == ' ') {
                 int spaceEnd = urlEnd;
@@ -501,12 +504,12 @@ public final class WynntilsEventListener {
                 }
                 String token = text.substring(spaceEnd, tokenEnd);
                 if (looksLikeUrlContinuation(token)) {
+                    result.append(token);
                     urlEnd = tokenEnd;
                 } else {
                     break;
                 }
             }
-            result.append(text, m.start(), urlEnd);
             lastEnd = urlEnd;
         } while (m.find(lastEnd));
 
