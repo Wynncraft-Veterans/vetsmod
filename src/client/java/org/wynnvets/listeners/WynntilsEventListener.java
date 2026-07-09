@@ -216,7 +216,13 @@ public final class WynntilsEventListener {
         // produce multiple event variants with different PUA content but the same
         // surrounding text).  Only the first variant within the TTL window is sent.
         boolean hadItemPua = containsSupplementaryPua(messageContent);
-        String normalizedMsg = stripPuaCharacters(messageContent).replaceAll("  +", " ").trim();
+        String stripped = stripPuaCharacters(messageContent).replaceAll("  +", " ").trim();
+        // A pure-PUA message strips to empty, producing a "{user}\0" fingerprint
+        // that (a) collides with every other pure-PUA share from the same user
+        // and (b) is a prefix of every non-PUA message from that user — the
+        // hadItemPua prefix check in wasSentRecently() would then swallow the
+        // next plain-text line.  Fall back to the raw payload to avoid both.
+        String normalizedMsg = stripped.isEmpty() ? messageContent : stripped;
         if (wasSentRecently(trueUsername, normalizedMsg)) {
             VetsLogger.debug("onGuildChat: duplicate suppressed for [{}] [{}]", trueUsername, normalizedMsg);
             return;
