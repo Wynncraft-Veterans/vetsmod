@@ -82,11 +82,14 @@ public final class NickResolver {
 
     /**
      * Recursively flattens a {@link Component} tree into (text, resolved-style)
-     * pairs.  Styles inherit parent-applied-to-child, matching the convention used
-     * by the existing chat rewriters that previously held this helper.
+     * pairs.  Each leaf's resolved style is the child style with the inherited
+     * parent style filling in gaps — matching Minecraft's own
+     * {@link Style#applyTo} semantics (this overrides, parent fills) and the
+     * convention used by the sibling rewriters that hold their own copies of
+     * this helper.
      */
     public static void flattenComponent(Component component, Style inherited, List<FlatPart> out) {
-        Style resolved = inherited.applyTo(component.getStyle());
+        Style resolved = component.getStyle().applyTo(inherited);
         StringBuilder sb = new StringBuilder();
         component.getContents().visit(s -> {
             sb.append(s);
