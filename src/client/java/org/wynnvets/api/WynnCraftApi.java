@@ -51,6 +51,10 @@ public final class WynnCraftApi {
     public static URI guildInfo(String guildName) {
         return URI.create(String.format(
                 "https://api.wynncraft.com/v3/guild/%s",
-                URLEncoder.encode(guildName, StandardCharsets.UTF_8)));
+                // URLEncoder.encode uses form-encoding (space → '+'); URL path
+                // segments require '%20' per RFC 3986. Wynncraft's guild endpoint
+                // 404s on '+', so translate. Literal '+' inputs are pre-encoded
+                // as '%2B' by URLEncoder and are unaffected by this replace.
+                URLEncoder.encode(guildName, StandardCharsets.UTF_8).replace("+", "%20")));
     }
 }

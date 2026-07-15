@@ -16,6 +16,13 @@ import org.wynnvets.datamodels.Guild;
 import org.wynnvets.datamodels.MembershipSnapshot;
 import org.wynnvets.datamodels.User;
 import org.wynnvets.datamodels.UserUUID;
+// >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+// Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+// Remove: when Wynncraft invalidates the player endpoint on
+//   officer-write events, or exposes a webhook, or an offline-player
+//   spot-check shows <10min staleness.
+import org.wynnvets.guild.GuildStateManager;
+// <<< PATCH END: WYNN-STALE-WORKAROUND
 import org.wynnvets.fetcher.lookup.FailureReason;
 import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.PlayerLookup;
@@ -31,6 +38,13 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.Map;
+// >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+// Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+// Remove: when Wynncraft invalidates the player endpoint on
+//   officer-write events, or exposes a webhook, or an offline-player
+//   spot-check shows <10min staleness.
+import java.util.Optional;
+// <<< PATCH END: WYNN-STALE-WORKAROUND
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -214,6 +228,37 @@ public class UserInfoFetcher {
         .exceptionally(e -> ReturnersMembership.notInGuild());
   }
 
+  // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+  // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+  // Remove: when Wynncraft invalidates the player endpoint on
+  //   officer-write events, or exposes a webhook, or an offline-player
+  //   spot-check shows <10min staleness.
+  /**
+   * Fetches {@code guildName}'s roster and returns the confirming rank when
+   * {@code normalizedUuid} appears in it. Empty on 404 / timeout / malformed
+   * response / UUID absent from the roster. Structural mirror of
+   * {@link #returnersMembership} + {@link #analyzeRoster}.
+   */
+  private static CompletableFuture<Optional<String>> confirmArbitraryGuildRank(
+      String guildName, String normalizedUuid) {
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(WynnCraftApi.guildInfo(guildName))
+        .timeout(Duration.ofSeconds(5))
+        .GET()
+        .build();
+    return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        .thenApply(response -> {
+          if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+            return Optional.<String>empty();
+          }
+          JsonElement payload = GSON.fromJson(response.body(), JsonElement.class);
+          ReturnersMembership hit = analyzeRoster(payload, normalizedUuid);
+          return hit.inGuild() ? Optional.ofNullable(hit.rank()) : Optional.<String>empty();
+        })
+        .exceptionally(e -> Optional.<String>empty());
+  }
+  // <<< PATCH END: WYNN-STALE-WORKAROUND
+
   private static ReturnersMembership analyzeRoster(JsonElement payload, String normalizedUuid) {
     if (!containsUuid(payload, normalizedUuid)) {
       return ReturnersMembership.notInGuild();
@@ -319,14 +364,52 @@ public class UserInfoFetcher {
             .thenApply(s -> s != null ? s : snapshotUnavailable("snapshot unavailable"));
 
     wynnFuture.thenCompose(user -> {
+      // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+      // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+      // Remove: when Wynncraft invalidates the player endpoint on
+      //   officer-write events, or exposes a webhook, or an offline-player
+      //   spot-check shows <10min staleness.
+      // Original gated on `user.isInVets()` (payload claims Returners).
+      // Drop the gate so we always crosscheck the Returners roster --
+      // needed to catch the rejoin case where the payload transitions
+      // through a non-Returners guild name mid-invalidation. Cost: one
+      // extra /v3/guild/Returners fetch per /wv check. Guild bucket is
+      // 50 req/s and /wv check cadence is low.
       CompletableFuture<ReturnersMembership> returnersFuture =
-          (user != null && user.isInVets())
+          (user != null)
               ? returnersMembership(synthUuid.id)
               : CompletableFuture.completedFuture(ReturnersMembership.notInGuild());
+      // <<< PATCH END: WYNN-STALE-WORKAROUND
+      // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+      // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+      // Remove: when Wynncraft invalidates the player endpoint on
+      //   officer-write events, or exposes a webhook, or an offline-player
+      //   spot-check shows <10min staleness.
+      // Fire the roster crosscheck alongside returners + snapshot only when
+      // the payload names a non-Returners guild (Returners is already
+      // crosschecked via returnersFuture above).
+      Guild payloadGuild = user != null ? user.getGuild() : null;
+      CompletableFuture<Optional<String>> confirmedNonReturnersRankFuture =
+          (payloadGuild != null && payloadGuild.getName() != null
+                  && !"Returners".equals(payloadGuild.getName()))
+              ? confirmArbitraryGuildRank(payloadGuild.getName(), synthUuid.id)
+              : CompletableFuture.completedFuture(Optional.<String>empty());
+      // <<< PATCH END: WYNN-STALE-WORKAROUND
       return returnersFuture.thenCombine(snapFuture,
           (returners, snapshot) -> {
+            // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+            // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+            // Remove: when Wynncraft invalidates the player endpoint on
+            //   officer-write events, or exposes a webhook, or an offline-player
+            //   spot-check shows <10min staleness.
+            // Join the roster crosscheck before render; helper is bounded by
+            // its own 5s HTTP timeout and returns Optional.empty() on failure.
+            Optional<String> confirmedNonReturnersRank =
+                confirmedNonReturnersRankFuture.join();
+            // <<< PATCH END: WYNN-STALE-WORKAROUND
             Minecraft.getInstance().execute(
-                () -> renderCheck(requestedName, synthUuid, user, returners, snapshot));
+                () -> renderCheck(requestedName, synthUuid, user, returners, snapshot,
+                    confirmedNonReturnersRank));
             return null;
           });
     });
@@ -365,7 +448,15 @@ public class UserInfoFetcher {
       UserUUID uuid,
       User user,
       ReturnersMembership returners,
-      MembershipSnapshot snapshot) {
+      MembershipSnapshot snapshot,
+      // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+      // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+      // Remove: when Wynncraft invalidates the player endpoint on
+      //   officer-write events, or exposes a webhook, or an offline-player
+      //   spot-check shows <10min staleness.
+      Optional<String> confirmedNonReturnersRank
+      // <<< PATCH END: WYNN-STALE-WORKAROUND
+      ) {
     // Mark the start of a new render block so the first line re-extends
     // the badge — this is what gives staff a visual divider between two
     // back-to-back /wv check responses (and between this snapshot block
@@ -383,6 +474,20 @@ public class UserInfoFetcher {
     // a hit is authoritative. Cheap O(N) scan over <100 entries, always
     // run.
     String tabListServer = OnlineMemberService.getCurrentServer(displayName);
+
+    // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+    // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+    // Remove: when Wynncraft invalidates the player endpoint on
+    //   officer-write events, or exposes a webhook, or an offline-player
+    //   spot-check shows <10min staleness.
+    // Same-tick evidence the target is in Returners: they appear in the
+    // local player's guild tab bucket AND the local player is in
+    // Returners. Mirrors the guard OnlineMemberService.gatherOnlinePlayers
+    // uses before forwarding the tab list (avoids treating a non-Returners
+    // local guild's tab hit as Returners confirmation).
+    boolean tabListConfirmsReturners =
+        tabListServer != null && GuildStateManager.isReturners();
+    // <<< PATCH END: WYNN-STALE-WORKAROUND
 
     // Self-check: by definition we're online right now. Skips the whole
     // signal-aggregation dance below and avoids the "Wynn's cached
@@ -415,7 +520,11 @@ public class UserInfoFetcher {
       renderWynnLines(user, snapshot, tabListServer, isSelf);
     }
 
-    renderGuildLine(user, returners, snapshot);
+    renderGuildLine(user, returners, snapshot,
+        // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+        confirmedNonReturnersRank, tabListConfirmsReturners
+        // <<< PATCH END: WYNN-STALE-WORKAROUND
+    );
     renderVeteranLine(user);
     renderBlocklistLine(snapshot);
     renderDiscordLinkLine(snapshot, currentlyOnline);
@@ -595,7 +704,16 @@ public class UserInfoFetcher {
   }
 
   private static void renderGuildLine(
-      User user, ReturnersMembership returners, MembershipSnapshot snapshot) {
+      User user, ReturnersMembership returners, MembershipSnapshot snapshot,
+      // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+      // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+      // Remove: when Wynncraft invalidates the player endpoint on
+      //   officer-write events, or exposes a webhook, or an offline-player
+      //   spot-check shows <10min staleness.
+      Optional<String> confirmedNonReturnersRank,
+      boolean tabListConfirmsReturners
+      // <<< PATCH END: WYNN-STALE-WORKAROUND
+      ) {
     MutableComponent line = label("Guild: ");
 
     if (user == null) {
@@ -606,11 +724,37 @@ public class UserInfoFetcher {
 
     Guild guild = user.getGuild();
     boolean inVets = user.isInVets() && (returners == null || returners.inGuild());
+    // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+    // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+    // Remove: when Wynncraft invalidates the player endpoint on
+    //   officer-write events, or exposes a webhook, or an offline-player
+    //   spot-check shows <10min staleness.
+    // Any single fresh signal is enough to render Returners: the roster
+    // (invalidated on officer-write) OR the local tab list (Minecraft
+    // client state, same-tick). Catches the rejoin case where the payload
+    // briefly names a non-Returners guild but the target is provably back
+    // in Returners.
+    boolean rosterConfirmsReturners = returners != null && returners.inGuild();
+    boolean confirmedReturners = rosterConfirmsReturners || tabListConfirmsReturners;
+    // <<< PATCH END: WYNN-STALE-WORKAROUND
 
-    if (inVets) {
+    if (inVets
+        // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+        || confirmedReturners
+        // <<< PATCH END: WYNN-STALE-WORKAROUND
+    ) {
       line.append(Component.literal("Returners").setStyle(VALUE_STYLE));
       String rank = returners != null ? returners.rank() : null;
-      if (rank == null && guild != null) rank = guild.getRank();
+      // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+      // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+      // Remove: when Wynncraft invalidates the player endpoint on
+      //   officer-write events, or exposes a webhook, or an offline-player
+      //   spot-check shows <10min staleness.
+      // Suppressed original fallback: `if (rank == null && guild != null) rank = guild.getRank();`
+      // — guild.getRank() from the stale payload can silently re-introduce
+      // staleness (payload can claim RECRUITER for a former member who was
+      // already kicked). Roster-only until upstream fixes invalidation.
+      // <<< PATCH END: WYNN-STALE-WORKAROUND
       if (rank != null && !rank.isEmpty()) {
         line.append(Component.literal("  —  ").setStyle(LABEL_STYLE))
             .append(Component.literal(rank).setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
@@ -618,6 +762,31 @@ public class UserInfoFetcher {
       ChatUtils.sendLocalMessage(line);
       return;
     }
+
+    // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+    // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+    // Remove: when Wynncraft invalidates the player endpoint on
+    //   officer-write events, or exposes a webhook, or an offline-player
+    //   spot-check shows <10min staleness.
+    // Cross-signal mismatch: either (a) Wynncraft's payload says Returners
+    // but the roster disagrees (falls out of the inVets branch above with
+    // guild.name == "Returners"), or (b) Wynncraft names some non-Returners
+    // guild but that guild's own roster doesn't list the UUID. Both mean
+    // the payload is behind — render "guildless" + a hint rather than the
+    // misleading stale value.
+    boolean returnersMismatch = user.isInVets()
+        && returners != null && !returners.inGuild();
+    boolean otherGuildMismatch = guild != null && guild.getName() != null
+        && !"Returners".equals(guild.getName())
+        && confirmedNonReturnersRank.isEmpty();
+    if (returnersMismatch || otherGuildMismatch) {
+      line.append(Component.literal("guildless").setStyle(HIDDEN_STYLE))
+          .append(Component.literal("  —  Wynncraft profile still catching up")
+              .setStyle(HIDDEN_STYLE));
+      ChatUtils.sendLocalMessage(line);
+      return;
+    }
+    // <<< PATCH END: WYNN-STALE-WORKAROUND
 
     if (guild != null && guild.getName() != null) {
       // Player is in a non-Returners guild.
@@ -628,11 +797,21 @@ public class UserInfoFetcher {
                 .setStyle(Style.EMPTY.withColor(ChatFormatting.GOLD)))
             .append(Component.literal("]").setStyle(LABEL_STYLE));
       }
-      if (guild.getRank() != null && !guild.getRank().isEmpty()) {
+      // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+      // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
+      // Remove: when Wynncraft invalidates the player endpoint on
+      //   officer-write events, or exposes a webhook, or an offline-player
+      //   spot-check shows <10min staleness.
+      // Original block used guild.getRank() directly; now prefer the
+      // confirming roster's rank when present (the payload rank can lag
+      // even for a still-in-guild member after a promotion/demotion).
+      String rankText = confirmedNonReturnersRank.orElse(guild.getRank());
+      if (rankText != null && !rankText.isEmpty()) {
         line.append(Component.literal("  —  ").setStyle(LABEL_STYLE))
-            .append(Component.literal(guild.getRank())
+            .append(Component.literal(rankText)
                 .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
       }
+      // <<< PATCH END: WYNN-STALE-WORKAROUND
       ChatUtils.sendLocalMessage(line);
       return;
     }
