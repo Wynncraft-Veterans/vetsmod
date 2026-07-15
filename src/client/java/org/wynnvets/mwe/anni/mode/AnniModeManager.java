@@ -5,6 +5,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -19,32 +20,51 @@ import org.wynnvets.logging.VetsLogger;
  * to {@link VetsConfig#VETS_ANNI_MODE} — every write goes through
  * {@link #transitionTo(AnniMode, Source)} so the mutex stays honest.</p>
  *
- * <p>Two consumers will move the mode without user input: the
- * {@link AnniWindowWatcher} resets to silent at T+30 m (already shipped
- * in S2 — it writes the config directly because the watcher predates
- * this manager; that path is allowed because window-close is a
- * non-controversial cleanup that needs no mutex check), and
- * {@link StreamerModeChatDetector} auto-flips to silent on a detected
- * stream-on chat line. The detector goes through this manager via
- * {@link Source#AUTO_STREAM_ACTIVATED} so the user sees a chat
- * notification.</p>
+ * <p>Consumers that move the mode without user input all route through
+ * {@link #transitionTo}:
+ * <ul>
+ *   <li>{@link AnniWindowWatcher} at T+30m via
+ *       {@link Source#AUTO_WINDOW_CLOSE} — no longer writes the config
+ *       directly; delegates to {@link #preferredMode()} so a user's
+ *       explicit pick is preserved across the window boundary.</li>
+ *   <li>{@link StreamerModeChatDetector} auto-flips to silent on a
+ *       detected stream-on via {@link Source#AUTO_STREAM_ACTIVATED},
+ *       and auto-restores {@link #preferredMode()} on stream-off via
+ *       {@link Source#AUTO_STREAM_DEACTIVATED}.</li>
+ *   <li>{@link #applyStartupDefaultIfNeeded()} at world-join /
+ *       guild-info-updated via {@link Source#AUTO_STARTUP_DEFAULT}
+ *       promotes still-default users from SILENT to PASSIVE once
+ *       enrichment eligibility is confirmed.</li>
+ * </ul></p>
  */
 public final class AnniModeManager {
 
     /** Why a transition was requested — controls feedback wording and
      *  the DEBUG bypass. */
     public enum Source {
-        /** A {@code /wv anni <mode>} command from the user. */
+        /** A {@code /wv anni <mode>} command from the user. Only this
+         *  source flips {@link VetsConfig#VETS_ANNI_MODE_USER_SET} and
+         *  snapshots the pick into {@link VetsConfig#VETS_ANNI_USER_MODE}. */
         USER_COMMAND,
-        /** {@link AnniWindowWatcher} closing the hot window. (Reserved
-         *  — currently the watcher writes config directly; included so a
-         *  future refactor can route through here.) */
+        /** {@link AnniWindowWatcher} closing the hot window. Routes
+         *  through {@link #preferredMode()} — preserves the user's
+         *  explicit pick if set, else applies the eligibility default. */
         AUTO_WINDOW_CLOSE,
         /** {@link StreamerModeChatDetector} observed a stream-on line. */
         AUTO_STREAM_ACTIVATED,
+        /** {@link StreamerModeChatDetector} observed a stream-off line —
+         *  auto-restores the user's preferred mode via
+         *  {@link #preferredMode()}. */
+        AUTO_STREAM_DEACTIVATED,
+        /** Fired once at world-join / on guild-info update to apply the
+         *  eligibility-based default (PASSIVE for enrichment-eligible
+         *  users, SILENT otherwise) — but only while
+         *  {@link VetsConfig#VETS_ANNI_MODE_USER_SET} is {@code false}. */
+        AUTO_STARTUP_DEFAULT,
         /** {@code /wv debug tree anni mode set …} — bypasses the
          *  {@code /stream} mutex so we can test passive/aggressive
-         *  rendering even while screen-recording a debug session. */
+         *  rendering even while screen-recording a debug session. Does
+         *  NOT set the user-explicit flag (debug is not user intent). */
         DEBUG_BYPASS_MUTEX,
     }
 
@@ -94,30 +114,55 @@ public final class AnniModeManager {
                 && source != Source.DEBUG_BYPASS_MUTEX
                 && isInStream();
         if (streamActive) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Anni mode change refused: ")
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(Component.literal("/stream is active")
-                                    .withStyle(ChatFormatting.RED))
-                            .append(Component.literal(". Stream is suboptimal for anni — try ")
-                                    .withStyle(ChatFormatting.GRAY))
-                            .append(Component.literal("/toggle ghosts NONE")
-                                    .withStyle(ChatFormatting.AQUA))
-                            .append(Component.literal(" instead.")
-                                    .withStyle(ChatFormatting.GRAY)));
+            // Only USER_COMMAND deserves the "stream is suboptimal, try
+            // /toggle ghosts" guidance chat spam — auto-sources (startup
+            // default, window-close, stream-deactivated race) silently
+            // decline. Debug bypasses the mutex above so never reaches here.
+            if (source == Source.USER_COMMAND) {
+                ChatUtils.sendLocalMessage(
+                        Component.literal("Anni mode change refused: ")
+                                .withStyle(ChatFormatting.GRAY)
+                                .append(Component.literal("/stream is active")
+                                        .withStyle(ChatFormatting.RED))
+                                .append(Component.literal(". Stream is suboptimal for anni — try ")
+                                        .withStyle(ChatFormatting.GRAY))
+                                .append(Component.literal("/toggle ghosts NONE")
+                                        .withStyle(ChatFormatting.AQUA))
+                                .append(Component.literal(" instead.")
+                                        .withStyle(ChatFormatting.GRAY)));
+            } else {
+                VetsLogger.debug("Anni mode transition refused ({} -> {}, source={}): /stream active",
+                        previous.toConfigValue(), target.toConfigValue(), source);
+            }
             return false;
         }
 
         VetsConfig.setString(VetsConfig.VETS_ANNI_MODE, target.toConfigValue());
 
-        // Suppress the user-facing confirmation for AUTO_STREAM_ACTIVATED;
-        // the detector prints its own contextual message ("auto-changed
-        // to silent: /stream activated") which is friendlier than the
-        // generic "Anni mode: silent (was passive)" line.
-        if (source == Source.AUTO_STREAM_ACTIVATED) {
-            VetsLogger.debug("Anni mode auto-changed {} -> {} (stream activated)",
-                    previous.toConfigValue(), target.toConfigValue());
-            return true;
+        // A USER_COMMAND transition is the *only* thing that flips the
+        // explicit-choice flag. This is what makes the pick survive
+        // internal transitions (stream-on forcing SILENT, T+30m
+        // window-close reset) — those overwrite VETS_ANNI_MODE but leave
+        // VETS_ANNI_USER_MODE intact, so preferredMode() can restore it.
+        if (source == Source.USER_COMMAND) {
+            VetsConfig.set(VetsConfig.VETS_ANNI_MODE_USER_SET, true);
+            VetsConfig.setString(VetsConfig.VETS_ANNI_USER_MODE, target.toConfigValue());
+        }
+
+        // Auto-sources either print their own contextual message at the
+        // call site (AUTO_STREAM_*) or should stay quiet entirely
+        // (AUTO_WINDOW_CLOSE, AUTO_STARTUP_DEFAULT). Only USER_COMMAND
+        // and DEBUG_BYPASS_MUTEX print the generic "Anni mode: X (was Y)".
+        switch (source) {
+            case AUTO_STREAM_ACTIVATED:
+            case AUTO_STREAM_DEACTIVATED:
+            case AUTO_WINDOW_CLOSE:
+            case AUTO_STARTUP_DEFAULT:
+                VetsLogger.debug("Anni mode auto-changed {} -> {} (source={})",
+                        previous.toConfigValue(), target.toConfigValue(), source);
+                return true;
+            default:
+                break;
         }
         ChatUtils.sendLocalMessage(
                 Component.literal("Anni mode: ")
@@ -130,6 +175,47 @@ public final class AnniModeManager {
                                 .withStyle(modeColor(previous)))
                         .append(Component.literal(")").withStyle(ChatFormatting.DARK_GRAY)));
         return true;
+    }
+
+    /**
+     * The mode the user should be running in right now, absent any
+     * transient overrides. Consulted by {@link AnniWindowWatcher},
+     * {@link StreamerModeChatDetector#observe} (on stream-off), and
+     * {@link #applyStartupDefaultIfNeeded()}.
+     *
+     * <p>If the user has ever explicitly picked a mode
+     * ({@link VetsConfig#VETS_ANNI_MODE_USER_SET} is {@code true}),
+     * their remembered pick from {@link VetsConfig#VETS_ANNI_USER_MODE}
+     * wins. Otherwise the eligibility-based default applies: PASSIVE
+     * for enrichment-eligible users, SILENT for external users.</p>
+     */
+    public static AnniMode preferredMode() {
+        if (VetsConfig.get(VetsConfig.VETS_ANNI_MODE_USER_SET)) {
+            return AnniMode.fromString(VetsConfig.getString(VetsConfig.VETS_ANNI_USER_MODE));
+        }
+        return GuildStateManager.isEligibleForEnrichment()
+                ? AnniMode.PASSIVE
+                : AnniMode.SILENT;
+    }
+
+    /**
+     * Idempotent — becomes a no-op forever once the user picks a mode.
+     *
+     * <p>Called from {@code GuildStateManager.onEnteredWorld} and
+     * {@code onGuildInfoUpdated} so eligibility flips (e.g. a mid-session
+     * {@code /unlock waitlist}) can promote a still-unset user from
+     * SILENT to PASSIVE. Routes through {@link #transitionTo} so the
+     * {@code /stream} mutex is honoured — if streaming, the transition
+     * is silently refused and {@link StreamerModeChatDetector} will
+     * apply it on stream-off instead.</p>
+     */
+    public static void applyStartupDefaultIfNeeded() {
+        if (VetsConfig.get(VetsConfig.VETS_ANNI_MODE_USER_SET)) return;
+        AnniMode target = GuildStateManager.isEligibleForEnrichment()
+                ? AnniMode.PASSIVE
+                : AnniMode.SILENT;
+        if (AnniMode.fromConfig() == target) return;
+        transitionTo(target, Source.AUTO_STARTUP_DEFAULT);
     }
 
     /** {@code true} if either Wynntils' streamer-mode signal OR our

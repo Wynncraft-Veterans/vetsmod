@@ -1,6 +1,5 @@
 package org.wynnvets.mwe.anni.mode;
 
-import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
@@ -8,13 +7,19 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 import java.time.Instant;
 
 /**
- * Resets {@link VetsConfig#VETS_ANNI_MODE} to {@code silent} once the
- * anni window closes (T+30 min after the announced stamp).
+ * Resets the anni mode to {@link AnniModeManager#preferredMode()} once
+ * the anni window closes (T+30 min after the announced stamp).
  *
  * <p>Subscribes to {@link AnniSnapshotCache}; every push or pull that
  * lands a snapshot checks whether the window has closed. The poller
  * pushes every ~10 s during the hot window (T-2h to T+30 m), so the
  * reset typically fires within ~10 s of the window edge.</p>
+ *
+ * <p>Delegates the target selection to
+ * {@link AnniModeManager#preferredMode()} rather than hard-coding
+ * SILENT — this preserves a user's explicit pick across the window
+ * boundary while still returning still-defaulted users to the correct
+ * eligibility default.</p>
  *
  * <p>Anchor tracking — once the anni starts, vets-anni emits
  * {@code stamp_epoch: null} (per the snapshot contract: "null when past
@@ -64,10 +69,9 @@ public final class AnniWindowWatcher {
         long windowEnd = anchor + WINDOW_CLOSE_AFTER_STAMP_SECS;
         if (now <= windowEnd) return;
 
-        String mode = VetsConfig.getString(VetsConfig.VETS_ANNI_MODE);
-        if (mode != null && !"silent".equals(mode)) {
-            VetsConfig.setString(VetsConfig.VETS_ANNI_MODE, "silent");
-            VetsLogger.debug("Anni mode reset to silent (T+30m window closed)");
+        AnniMode target = AnniModeManager.preferredMode();
+        if (AnniMode.fromConfig() != target) {
+            AnniModeManager.transitionTo(target, AnniModeManager.Source.AUTO_WINDOW_CLOSE);
         }
         // Clear so we don't keep checking against this stamp until a
         // new one is observed (next anni's announcement).

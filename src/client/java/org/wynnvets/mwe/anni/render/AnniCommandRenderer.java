@@ -574,11 +574,7 @@ public final class AnniCommandRenderer {
     static boolean isExternal(AnniSnapshot snapshot) {
         Boolean override = externalOverride;
         if (override != null) return override;
-        if (GuildStateManager.isReturners()) return false;
-        if (GuildStateManager.isGuildless()
-                && GuildStateManager.isWaitlistUnlocked()) return false;
-        if (GuildStateManager.isHonouraryUnlocked()) return false;
-        return true;
+        return !GuildStateManager.isEligibleForEnrichment();
     }
 
     // ────────────────────────────────────────────────── section helpers

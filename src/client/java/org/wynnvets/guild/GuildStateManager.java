@@ -14,6 +14,7 @@ import org.wynnvets.chat.dispatcher.CommandDispatcher;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
 import org.wynnvets.fetcher.ondemand.StampFetcher;
+import org.wynnvets.mwe.anni.mode.AnniModeManager;
 
 /**
  * Central authority for the player's guild membership, staff rank, and
@@ -173,6 +174,25 @@ public class GuildStateManager {
    */
   public static boolean isHonouraryUnlocked() {
     return UnlockManager.isHonouraryUnlocked();
+  }
+
+  /**
+   * Whether the player is eligible for the enriched vets-anni experience.
+   *
+   * <p>Three rank-signal trip-wires (any one triggers eligibility):
+   * Returners guild membership, guildless + waitlist-unlocked, or
+   * honourary-unlocked. Mirrors the "external vs vets" predicate that
+   * {@code AnniCommandRenderer} uses to decide between the enriched
+   * printout and the legacy stamp-only fallback, and drives the
+   * eligibility-based default anni mode (PASSIVE if eligible, SILENT
+   * otherwise) in {@code AnniModeManager}.</p>
+   *
+   * @return true if eligible for enrichment, false otherwise
+   */
+  public static boolean isEligibleForEnrichment() {
+    if (isReturners()) return true;
+    if (isGuildless() && isWaitlistUnlocked()) return true;
+    return isHonouraryUnlocked();
   }
 
   /**
@@ -433,6 +453,13 @@ public class GuildStateManager {
     if (!UnlockManager.isDebugForceGuildlessUnlocked() && wynntilsReady && !Models.Guild.isInGuild()) {
       scheduleGuildRecheck();
     }
+
+    // Apply the eligibility-based default anni mode (PASSIVE for
+    // enrichment-eligible users, SILENT otherwise) if the user hasn't
+    // explicitly picked a mode. No-op once VETS_ANNI_MODE_USER_SET is
+    // true. Also re-runs on onGuildInfoUpdated() so a mid-session
+    // eligibility flip (e.g. /unlock waitlist) still promotes the user.
+    AnniModeManager.applyStartupDefaultIfNeeded();
   }
 
   /**
@@ -465,6 +492,11 @@ public class GuildStateManager {
       // Re-register now that guild membership is confirmed.
       sendRegistrationIfReady();
     }
+
+    // Eligibility may have just flipped (a mid-session /unlock waitlist,
+    // or Wynntils' guild scan finally landing after WorldStateEvent);
+    // re-evaluate the default anni mode for still-unset users.
+    AnniModeManager.applyStartupDefaultIfNeeded();
   }
 
   /**

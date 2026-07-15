@@ -29,8 +29,12 @@ import org.wynnvets.logging.VetsLogger;
  * <p>On stream-on we additionally call
  * {@link AnniModeManager#transitionTo} to flip out of any active
  * passive/aggressive mode — without this, an existing synthetic boss
- * bar would collide with Wynntils' {@code StreamerModeBar}. Stream-off
- * does NOT auto-restore the previous mode; the user re-enables manually.</p>
+ * bar would collide with Wynntils' {@code StreamerModeBar}. On
+ * stream-off we auto-restore the user's preferred mode via
+ * {@link AnniModeManager#preferredMode()} (their remembered pick, or
+ * the eligibility-based default if they never picked). No restore
+ * chat line is printed when the restored target is SILENT — nothing
+ * user-visible would change.</p>
  *
  * <p>Hooked into the chat pipeline via a one-line call from
  * {@link org.wynnvets.mixin.client.chat.ChatLogMixin}.</p>
@@ -133,6 +137,31 @@ public final class StreamerModeChatDetector {
     private static void handleStreamOff() {
         if (!lastSeenInStream) return;
         lastSeenInStream = false;
-        VetsLogger.debug("StreamerModeChatDetector: stream-off detected (no auto-restore)");
+        AnniMode target = AnniModeManager.preferredMode();
+        if (target == AnniMode.SILENT) {
+            VetsLogger.debug("StreamerModeChatDetector: stream-off detected (preferred=silent, nothing to restore)");
+            return;
+        }
+        if (AnniMode.fromConfig() == target) {
+            VetsLogger.debug("StreamerModeChatDetector: stream-off detected (already at preferred={})",
+                    target.toConfigValue());
+            return;
+        }
+        boolean flipped = AnniModeManager.transitionTo(
+                target, AnniModeManager.Source.AUTO_STREAM_DEACTIVATED);
+        if (!flipped) return;
+        ChatFormatting colour = target == AnniMode.AGGRESSIVE
+                ? ChatFormatting.RED : ChatFormatting.GREEN;
+        ChatUtils.sendLocalMessage(
+                Component.literal("Anni mode auto-restored to ")
+                        .withStyle(ChatFormatting.GRAY)
+                        .append(Component.literal(target.toConfigValue())
+                                .withStyle(colour))
+                        .append(Component.literal(": ")
+                                .withStyle(ChatFormatting.GRAY))
+                        .append(Component.literal("/stream deactivated")
+                                .withStyle(ChatFormatting.GREEN))
+                        .append(Component.literal(".")
+                                .withStyle(ChatFormatting.GRAY)));
     }
 }

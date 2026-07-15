@@ -118,6 +118,26 @@ public class VetsConfig {
       "silent", "passive", "aggressive",
   };
 
+  /** Internal flag — {@code true} once the user has explicitly chosen an
+   *  anni mode via {@code /wv anni <mode>} (or the mode-switch buttons
+   *  under {@code /wv anni}). Set only for {@code Source.USER_COMMAND}
+   *  transitions in {@code AnniModeManager}; never touched by internal
+   *  transitions (window-close, stream, startup). When {@code false},
+   *  {@link #VETS_ANNI_MODE} is treated as an unremembered default and
+   *  gets overwritten to the eligibility-based default (PASSIVE for
+   *  enrichment-eligible users, SILENT otherwise) at the next restore
+   *  moment. Also serves as the pre-0.14.5 install boundary — old
+   *  installs lack this key, so their pre-existing {@code vetsAnniMode}
+   *  is discarded and the new default applies. */
+  public static final String VETS_ANNI_MODE_USER_SET = "vetsAnniModeUserSet";
+
+  /** Internal — snapshot of the user's most recent explicit anni-mode
+   *  pick. Written alongside {@link #VETS_ANNI_MODE_USER_SET}. Kept
+   *  separate from {@link #VETS_ANNI_MODE} so that internal transitions
+   *  (a {@code /stream}-forced SILENT, in particular) don't clobber the
+   *  user's preferred value — on stream-off we restore from this key. */
+  public static final String VETS_ANNI_USER_MODE = "vetsAnniUserMode";
+
   /** Role-naming style for {@code /wv anni} role chips. Three values:
    *  <ul>
    *    <li>{@code descriptive} (default) — TANK, HEALER, SUNKILL,
@@ -439,6 +459,7 @@ public class VetsConfig {
     longConfig.put(VETS_LAST_GUILD_CHECK, 0L);
     longConfig.put(VETS_DEBUG_ENABLED_AT, 0L);
     config.put(VETS_ANNI_ENABLED, false);
+    config.put(VETS_ANNI_MODE_USER_SET, false);
 
     // /unlock <key> auth state — keys are persisted strings, the timestamp
     // is a long. Defaults to empty key + epoch=0 = "never authenticated".
@@ -479,6 +500,7 @@ public class VetsConfig {
     stringConfig.put(VETS_ANNI_MODE, "silent");
     stringConfig.put(VETS_ANNI_FLASH_INTENSITY, "normal");
     stringConfig.put(VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP, "");
+    stringConfig.put(VETS_ANNI_USER_MODE, "");
 
     // Int defaults (stored as long)
     longConfig.put(LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY, 69L);
