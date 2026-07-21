@@ -7,24 +7,34 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
+import org.wynnvets.chat.ChatLogger;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.NickResolver;
 import org.wynnvets.chat.Prepend;
+import org.wynnvets.chat.RankDisplayMap;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Detects server-originating guild chat messages from supporters and re-renders
- * them with gradient pill styling.
+ * Rewrites server-originating guild chat messages: swaps the raw Wynn
+ * rank pill to the client-facing display label (Steward/Returner) and,
+ * for supporters, applies the animated gradient styling.
  *
  * <p>Server guild chat messages use the {@code banner/pill} font to composite a
  * two-layer badge: <b>background glyphs</b> (aqua-coloured, forming the pill
- * shape) and <b>foreground glyphs</b> (dark-coloured text letters).  For
- * supporters, this rewriter applies a gradient to the background glyphs while
- * keeping the foreground letters dark so the text remains legible.</p>
+ * shape) and <b>foreground glyphs</b> (dark-coloured text letters).</p>
+ *
+ * <p>2026-07 permission restructure: expanded from the supporter-only path
+ * to fire on ALL guild chat with a decodable rank pill. Strategist / Chief
+ * / Owner now render as "Steward"; Recruiter / Captain render as
+ * "Returner". The pill is rebuilt client-side using the {@code chat/prefix}
+ * font (same path as bridge messages), so the visual style changes from
+ * the aqua server-native pill to the ASCII-encoded label pill. Supporter
+ * gradients still compose on top when the sender has glints enabled.</p>
  */
 public final class ServerGuildChatRewriter {
 
@@ -44,7 +54,10 @@ public final class ServerGuildChatRewriter {
     }
 
     /**
-     * Attempts to rewrite a server guild chat message for a supporter.
+     * Attempts to rewrite a server guild chat message. Fires when either
+     * (a) the sender's raw rank maps to a different display label
+     * (Strategist/Chief/Owner → Steward, Captain/Recruiter → Returner)
+     * or (b) the sender is a supporter with gradient glints enabled.
      *
      * @param component     the original chat Component (preserves colour info)
      * @param messageString the plain-text form of the message
@@ -56,29 +69,58 @@ public final class ServerGuildChatRewriter {
             return false;
         }
 
+        // Decode the raw Wynn rank from the pill's PUA sequence. Only proceed
+        // if we recognise the pill — unknown pill glyphs are left untouched
+        // (they aren't guild chat we're responsible for rewriting).
+        String rawRank = decodeRawRank(parsed.rankIndicator);
+        if (rawRank == null) {
+            return false;
+        }
+
         // Nicked players appear in chat as the nickname alone (no slash form)
         // when they aren't running a name-revealing client mod, so the visible
         // username won't match the supporter list.  The real username is
         // attached as a hover event on the name span.
         String lookupUsername = NickResolver.realUsernameOrFallback(component, parsed.username);
-        if (!SupportersPoller.isSupporter(lookupUsername)) {
+        boolean isSupporter = SupportersPoller.isSupporter(lookupUsername)
+                && org.wynnvets.config.VetsConfig.get(
+                        org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS);
+
+        String displayLabel = RankDisplayMap.displayFor(rawRank);
+        boolean needsRemap = !displayLabel.equalsIgnoreCase(rawRank);
+
+        if (!needsRemap && !isSupporter) {
+            // No display remap AND no supporter styling to apply — leave the
+            // original server-rendered message alone.
             return false;
         }
 
-        // Respect the user's showSupporterGlints preference
-        if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS)) {
-            return false;
+        MutableComponent pill;
+        if (needsRemap) {
+            // Rebuild the pill in the "local" dark-on-light style — the
+            // same visual family as Wynncraft's native guild pill and
+            // the [Vetsmod] pill in /wv help. Local chat (arriving via
+            // Wynncraft's actual guild channel through the mixin) uses
+            // this style; remote messages (bridge / honourary / queue)
+            // still get the light-on-dark ASCII pill via
+            // OutboundDisplayHandler + ChatUtils.encodePillIfAscii.
+            Style frameStyle = isSupporter
+                    ? ChatUtils.RANK_STYLE.withColor(
+                            TextColor.fromRgb(AnimatedGradientSequence.MARKER_COLOR))
+                            .withoutShadow()
+                    : ChatUtils.RANK_STYLE.withoutShadow();
+            pill = ChatUtils.buildFramedPill(displayLabel, frameStyle);
+        } else {
+            // No remap — supporter-only path retains the original pill's
+            // extracted background/foreground fragments so the aqua+dark
+            // two-tone rendering survives the gradient overlay.
+            List<StyledFragment> pillFragments = extractPillFragments(component);
+            if (pillFragments.isEmpty()
+                    || pillFragments.stream().noneMatch(StyledFragment::isBackground)) {
+                return false;
+            }
+            pill = buildGradientPill(pillFragments);
         }
-
-        // Walk the Component tree and collect flattened (text, resolvedStyle) pairs
-        // that make up the pill section.
-        List<StyledFragment> pillFragments = extractPillFragments(component);
-        if (pillFragments.isEmpty() || pillFragments.stream().noneMatch(StyledFragment::isBackground)) {
-            return false;
-        }
-
-        // Build gradient pill from the extracted fragments
-        MutableComponent gradientPill = buildGradientPill(pillFragments);
 
         MutableComponent badge = Prepend.GUILD.get();
 
@@ -91,14 +133,32 @@ public final class ServerGuildChatRewriter {
 
         MutableComponent body = Component.empty()
                 .append(badge)
-                .append(gradientPill)
+                .append(pill)
                 .append(" ")
                 .append(Component.literal(parsed.username).setStyle(nameStyle))
                 .append(Component.literal(": ").setStyle(ChatUtils.RANK_STYLE))
                 .append(messageBody);
 
-        ChatUtils.dispatchAnimatedChat(body, badge.getStyle());
+        if (isSupporter) {
+            ChatUtils.dispatchAnimatedChat(body, badge.getStyle());
+        } else {
+            ChatUtils.dispatchToChat(body, badge.getStyle());
+        }
         return true;
+    }
+
+    /**
+     * Match {@code rankIndicator} against the known PUA-rank sequences in
+     * {@link ChatLogger#rankMap()} and return the raw Wynn rank name, or
+     * {@code null} if none matched.
+     */
+    private static String decodeRawRank(String rankIndicator) {
+        for (Map.Entry<String, String> entry : ChatLogger.rankMap().entrySet()) {
+            if (rankIndicator.contains(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     // ── Pill fragment extraction ──────────────────────────────────────

@@ -412,10 +412,14 @@ public final class GuildChatDispatcher {
     if (minecraft.player == null) return;
 
     String username = resolveUsername(minecraft);
+    // Captain was retired in the 2026-07 permission restructure; fall
+    // back to "strategist" (the baseline staff rank) when the local
+    // self-rank cache is empty, so /v self-echo still renders a
+    // sensible staff-tier pill for known-staff users.
     String rank = StaffRanksPoller.confirmedRankFor(username)
         .orElseGet(() -> {
           String selfRank = GuildStateManager.selfStaffRank();
-          return (selfRank == null || selfRank.isEmpty()) ? "captain" : selfRank;
+          return (selfRank == null || selfRank.isEmpty()) ? "strategist" : selfRank;
         });
 
     CommandDispatcher.dispatchStaffChatWithEligibilityGate(username, message, rank);

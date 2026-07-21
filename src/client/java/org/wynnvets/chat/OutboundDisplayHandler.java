@@ -150,7 +150,20 @@ public final class OutboundDisplayHandler {
         }
 
         String type = getStringOrEmpty(json, "type");
-        String rank = getStringOrEmpty(json, "rank");
+        String rawRank = getStringOrEmpty(json, "rank");
+        // ``pill_display`` is the 2026-07 additive field carrying the
+        // client-facing label ("Steward"/"Returner"). Prefer it when the
+        // server sent it; otherwise remap the raw rank locally so pre-
+        // 2026-07 servers still get the display rewrite for new clients.
+        String pillDisplay = getStringOrEmpty(json, "pill_display");
+        String rank;
+        if (!pillDisplay.isEmpty()) {
+            rank = pillDisplay;
+        } else if (!rawRank.isEmpty()) {
+            rank = RankDisplayMap.displayFor(rawRank);
+        } else {
+            rank = "";
+        }
         String username = getStringOrEmpty(json, "username");
         String message = getStringOrEmpty(json, "message");
 

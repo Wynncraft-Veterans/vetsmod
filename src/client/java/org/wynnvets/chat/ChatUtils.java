@@ -323,7 +323,8 @@ public final class ChatUtils {
 
     /**
      * Sends a staff-channel styled message using the same visuals as /v self echo.
-     * Defaults to Captain when rank is unknown.
+     * Defaults to Strategist when rank is unknown (Captain was retired
+     * in the 2026-07 permission restructure).
      */
     public static void sendStaffChannelMessage(String displayName, String message, String rank) {
         sendGuildChatMessageRed(buildStaffPillComponent(rank), displayName, message);
@@ -331,15 +332,43 @@ public final class ChatUtils {
 
     /**
      * Builds a mixed red/dark staff pill glyph sequence.
+     *
+     * <p>2026-07 permission restructure: the pill label is now the
+     * {@link RankDisplayMap#vTagFor(String) /v tag} for the given rank
+     * ({@code staff} for strategists, {@code owner} for chiefs / owners).
+     * Falls back to {@code "staff"} for any rank that isn't a known
+     * staff tier, since /v chat is staff-only by definition and every
+     * participant qualifies for at least the baseline Staff tag.</p>
      */
     public static Component buildStaffPillComponent(String rank) {
-        String label = normalizeStaffRank(rank);
+        String vTag = RankDisplayMap.vTagFor(rank);
+        String label = vTag != null ? vTag : "staff";
+        return buildFramedPill(label, ADMIN_RANK_STYLE.withoutShadow());
+    }
 
-        MutableComponent component = Component.empty();
-        Style redStyle = ADMIN_RANK_STYLE.withoutShadow();
+    /**
+     * Builds a dark-on-light pill using the frame + letter glyphs in
+     * the default font. This is the visual style used by
+     * {@link Prepend#DEFAULT the [Vetsmod] pill in /wv help} and by
+     * {@link #buildStaffPillComponent(String)} \u2014 a coloured frame with
+     * dark (black) letters inside.
+     *
+     * <p>Introduced in the 2026-07 permission restructure so the guild
+     * chat rewriter can produce a local dark-on-light pill for chat
+     * that arrived via Wynncraft's actual guild channel (as opposed to
+     * the ASCII light-on-dark pill produced by
+     * {@link #encodePillIfAscii(String)}, which is right for
+     * bridge/honourary/queue messages piped in via vetsmod's WS).</p>
+     *
+     * @param label       the ASCII label rendered inside the frame (case-insensitive)
+     * @param frameStyle  the style applied to the frame glyphs; the
+     *                    letters are always styled BLACK for legibility
+     * @return a styled pill component
+     */
+    public static MutableComponent buildFramedPill(String label, Style frameStyle) {
         Style darkStyle = Style.EMPTY.withColor(ChatFormatting.BLACK).withoutShadow();
-
-        component.append(Component.literal(STAFF_PILL_FRAME_OPEN).setStyle(redStyle));
+        MutableComponent component = Component.empty();
+        component.append(Component.literal(STAFF_PILL_FRAME_OPEN).setStyle(frameStyle));
 
         String upper = label.toUpperCase();
         for (int i = 0; i < upper.length(); i++) {
@@ -347,12 +376,12 @@ public final class ChatUtils {
             if (letter < 'A' || letter > 'Z') {
                 continue;
             }
-
-            component.append(Component.literal(STAFF_PILL_FRAME_SEGMENT).setStyle(redStyle));
-            component.append(Component.literal(String.valueOf((char) ('\uE040' + (letter - 'A')))).setStyle(darkStyle));
+            component.append(Component.literal(STAFF_PILL_FRAME_SEGMENT).setStyle(frameStyle));
+            component.append(Component.literal(String.valueOf((char) ('\uE040' + (letter - 'A'))))
+                    .setStyle(darkStyle));
         }
 
-        component.append(Component.literal(STAFF_PILL_FRAME_CLOSE).setStyle(redStyle));
+        component.append(Component.literal(STAFF_PILL_FRAME_CLOSE).setStyle(frameStyle));
         return component;
     }
 
@@ -360,8 +389,12 @@ public final class ChatUtils {
      * Encodes an ASCII rank name to PUA pill characters (E040 letter range
      * with E06B/E06C frame) for the {@code chat/prefix} font.  Strings that
      * already contain PUA codepoints are returned as-is.
+     *
+     * <p>Public so the guild-chat rewriter (in the {@code rewriter}
+     * subpackage) can rebuild a pill client-side when remapping raw Wynn
+     * ranks to their display labels ("Steward"/"Returner").</p>
      */
-    static String encodePillIfAscii(String text) {
+    public static String encodePillIfAscii(String text) {
         for (int i = 0; i < text.length(); ) {
             int cp = text.codePointAt(i);
             if (Character.getType(cp) == Character.PRIVATE_USE) {
@@ -381,7 +414,10 @@ public final class ChatUtils {
     }
 
     private static String normalizeStaffRank(String rank) {
-        String normalized = rank == null ? CAPTAIN : rank.trim().toLowerCase();
+        // Captain was retired in the 2026-07 permission restructure; the
+        // fallback for unknown / null / non-staff input is now Strategist
+        // (Steward-equivalent) since that's the baseline staff rank.
+        String normalized = rank == null ? STRATEGIST : rank.trim().toLowerCase();
         switch (normalized) {
             case STRATEGIST:
                 return STRATEGIST;
@@ -390,8 +426,12 @@ public final class ChatUtils {
             case OWNER:
                 return OWNER;
             case CAPTAIN:
+                // Retained as a legacy alias so a stray captain still
+                // renders *something*; treat them as a Strategist for
+                // pill purposes.
+                return STRATEGIST;
             default:
-                return CAPTAIN;
+                return STRATEGIST;
         }
     }
 

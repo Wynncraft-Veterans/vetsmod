@@ -8,6 +8,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.api.VetsApi;
+import org.wynnvets.chat.RankDisplayMap;
 import org.wynnvets.logging.VetsLogger;
 
 import java.net.HttpURLConnection;
@@ -121,7 +122,11 @@ public final class StaffFetcher {
       message.append(Component.literal(entry.username()).withStyle(ChatFormatting.AQUA));
 
       if (!entry.rank().isBlank()) {
-        message.append(Component.literal(" [" + entry.rank().toUpperCase(Locale.ROOT) + "]")
+        // Show the client-facing display label ("Steward"/"Returner")
+        // rather than the raw Wynn rank. Sort order still uses the
+        // raw rank via rankOrder() so priority is preserved.
+        String label = RankDisplayMap.displayFor(entry.rank()).toUpperCase(Locale.ROOT);
+        message.append(Component.literal(" [" + label + "]")
             .withStyle(ChatFormatting.GOLD));
       }
 
@@ -172,17 +177,11 @@ public final class StaffFetcher {
     if (rank == null) {
       return "";
     }
-
-    String normalized = rank.trim().toLowerCase(Locale.ROOT);
-    switch (normalized) {
-      case "owner":
-      case "chief":
-      case "strategist":
-      case "captain":
-        return normalized;
-      default:
-        return normalized;
-    }
+    // Pass-through toLowerCase; the display-label mapping happens at
+    // render time via RankDisplayMap so we keep the raw Wynn rank for
+    // sort priority. Captain retained here as a legacy alias for stray
+    // captains (they sort below strategists via rankOrder).
+    return rank.trim().toLowerCase(Locale.ROOT);
   }
 
   private static int rankOrder(String rank) {
@@ -193,6 +192,9 @@ public final class StaffFetcher {
         return 1;
       case "strategist":
         return 2;
+      // Captain was retired in the 2026-07 permission restructure; a
+      // stray captain sorts below strategists but above unknowns so the
+      // /wv staff listing still renders them in a sensible slot.
       case "captain":
         return 3;
       default:

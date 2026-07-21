@@ -35,6 +35,18 @@ public class ChatLogger {
     }
   };
 
+  // PUA rank-pill → raw Wynn rank name. Wynncraft prefixes every guild
+  // chat message with an invisible PUA sequence encoding both the rank
+  // marker AND the letters of the rank name; the whole sequence is used
+  // as the key so message.contains(indicator) matches only the exact
+  // rank pill.
+  //
+  // 2026-07 permission restructure: the last-put Recruit binding
+  // overwrites the Captain binding above because both use the same
+  // PUA key — the Captain entry is a live bug (LinkedHashMap semantics
+  // resolve to the second put). Left as-is; Captain is being retired
+  // and this map is debug-only. The rewriter uses rankMap() below
+  // to decode incoming pills and route them through RankDisplayMap.
   private static final Map<String, String> RANK_MAP = new LinkedHashMap<>();
     static {
         RANK_MAP.put("󏿠󐀂", "Chief");
@@ -44,6 +56,20 @@ public class ChatLogger {
         RANK_MAP.put("󏿊󐀂", "Recruiter");
         RANK_MAP.put("󏿖󐀂", "Recruit");
     }
+
+  /**
+   * Read-only view of the PUA-pill → raw-Wynn-rank map.
+   *
+   * <p>Exposed so the guild-chat rewriter can decode the pill of an
+   * incoming message and route it through
+   * {@link RankDisplayMap#displayFor(String)} for the client-facing
+   * rewrite (Strategist/Chief/Owner → "Steward", Recruiter/Captain
+   * → "Returner"). Kept as a method rather than a public field so
+   * callers can't mutate the LinkedHashMap.</p>
+   */
+  public static Map<String, String> rankMap() {
+    return java.util.Collections.unmodifiableMap(RANK_MAP);
+  }
 
   public static void logMessage(String message) {
     if (!GuildStateManager.areFeaturesEnabled()) {

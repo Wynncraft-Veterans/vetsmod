@@ -41,10 +41,17 @@ public final class V1ApiManager {
      *  WAPI-confirmed staff" -- not the local /gu rank cache. Used to gate
      *  /caution, /warn, /eject, and /wv check (caution view). */
     private static volatile boolean confirmedStaff = false;
-    /** In-game guild rank from the staff roster ("chief"/"strategist"/
-     *  "captain"/"owner"), populated alongside {@link #confirmedStaff}.
-     *  Empty when not staff. */
+    /** In-game guild rank from the staff roster ("strategist"/"chief"/
+     *  "owner"), populated alongside {@link #confirmedStaff}. Empty when
+     *  not staff. Captain was retired in the 2026-07 permission
+     *  restructure; stray captains never reach {@code is_staff=true}. */
     private static volatile String confirmedStaffRank = "";
+    /** Client-facing display label for {@link #confirmedStaffRank}
+     *  (currently always "Steward" for staff, empty otherwise). Prefers
+     *  the server-sent {@code staff_rank_display} (2026-07+ servers)
+     *  and falls back to {@link org.wynnvets.chat.RankDisplayMap} for
+     *  older servers. */
+    private static volatile String confirmedStaffRankDisplay = "";
 
     private static final CopyOnWriteArrayList<Consumer<JsonObject>> outboundListeners = new CopyOnWriteArrayList<>();
 
@@ -179,6 +186,19 @@ public final class V1ApiManager {
                 } else {
                     confirmedStaffRank = "";
                 }
+                // Prefer the server-sent display label (2026-07+ servers);
+                // fall back to the client-side lookup when the field is
+                // absent so older servers still get the display rewrite.
+                if (confirmedStaff && json.has("staff_rank_display")
+                    && !json.get("staff_rank_display").isJsonNull()) {
+                    confirmedStaffRankDisplay =
+                        json.get("staff_rank_display").getAsString();
+                } else if (confirmedStaff && !confirmedStaffRank.isEmpty()) {
+                    confirmedStaffRankDisplay =
+                        org.wynnvets.chat.RankDisplayMap.displayFor(confirmedStaffRank);
+                } else {
+                    confirmedStaffRankDisplay = "";
+                }
                 // Same-world demotion clears the eligibility cache so the
                 // fast-path bypass in CommandDispatcher doesn't keep treating
                 // us as staff. World change already resets it via
@@ -214,6 +234,7 @@ public final class V1ApiManager {
                     boolean wasStaff = confirmedStaff;
                     confirmedStaff = false;
                     confirmedStaffRank = "";
+                    confirmedStaffRankDisplay = "";
                     if (wasStaff) {
                         CommandDispatcher.resetStaffChatEligibilityCache();
                     }
@@ -301,6 +322,7 @@ public final class V1ApiManager {
         }
         confirmedStaff = false;
         confirmedStaffRank = "";
+        confirmedStaffRankDisplay = "";
         // Drain any in-flight staff-action callbacks with synthetic
         // errors so callers don't hang waiting on responses that will
         // never arrive.
@@ -786,12 +808,22 @@ public final class V1ApiManager {
         return confirmedStaff;
     }
 
-    /** @return the server-confirmed in-game guild rank (one of "chief",
-     *  "strategist", "captain", "owner") for the authenticated user, or
+    /** @return the server-confirmed in-game guild rank (one of
+     *  "strategist", "chief", "owner") for the authenticated user, or
      *  empty string when not confirmed-staff. Used to map /eject
-     *  outcomes to the right /gu kick vs /gu rank dispatch. */
+     *  outcomes to the right /gu kick vs /gu rank dispatch. Captain was
+     *  retired in the 2026-07 permission restructure. */
     public static String confirmedStaffRank() {
         return confirmedStaffRank;
+    }
+
+    /** @return the display label matching {@link #confirmedStaffRank()}
+     *  (currently always "Steward" for staff, empty when not staff).
+     *  Prefers the server-sent {@code staff_rank_display} field and
+     *  falls back to {@link org.wynnvets.chat.RankDisplayMap} when the
+     *  server (pre-2026-07) doesn't emit that field. */
+    public static String confirmedStaffRankDisplay() {
+        return confirmedStaffRankDisplay;
     }
 
     /** Returns true if the inbound connection is active. */

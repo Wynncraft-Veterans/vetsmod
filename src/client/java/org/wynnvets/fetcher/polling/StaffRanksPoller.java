@@ -35,7 +35,10 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>{@link #confirmedRankFor} checks the live map first, then the poll
  * map. Both are keyed by lowercase username and store one of
- * captain/strategist/chief/owner.</p>
+ * strategist/chief/owner. Captain was retired in the 2026-07 permission
+ * restructure; stray captains are silently dropped from
+ * {@link #ALLOWED_RANKS} and therefore treated as non-staff Returners
+ * client-side.</p>
  */
 public final class StaffRanksPoller {
   private static final int REFRESH_INTERVAL_MINUTES = 2;
@@ -56,7 +59,7 @@ public final class StaffRanksPoller {
   // Push-sourced overlay. Survives poll cycles so live presence
   // monotonically wins over the slower 2-minute resync.
   private static final Map<String, String> liveStaffRanksByUsername = new ConcurrentHashMap<>();
-  private static final Set<String> ALLOWED_RANKS = Set.of("captain", "strategist", "chief", "owner");
+  private static final Set<String> ALLOWED_RANKS = Set.of("strategist", "chief", "owner");
 
   private static ScheduledExecutorService scheduler;
   private static boolean isRunning = false;
