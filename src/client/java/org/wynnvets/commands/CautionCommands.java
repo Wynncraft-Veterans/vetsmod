@@ -136,10 +136,14 @@ public final class CautionCommands {
   }
 
   /**
-   * {@code /eject <username> <message>} -- ban-threshold trip. Adds 6
-   * caution points, DMs the target, blocklists, and on success
-   * dispatches {@code /gu kick} (chiefs) or {@code /gu rank ... recruit}
-   * (captains/strategists) via the local game connection.
+   * {@code /eject <username> <message>} -- ban-threshold trip. Sends the
+   * {@code eject_add} staff-action frame; the server is what adds the 6
+   * caution points, DMs the target and blocklists. When the ack reports
+   * {@code triggered="eject"}, {@link #dispatchEjectAction} sends
+   * whichever of {@code /gu kick} or {@code /gu rank ... recruit} the
+   * ack's {@code suggested_dispatch} field names, over the local game
+   * connection. The client never evaluates the actor's rank -- that
+   * choice is made server-side.
    *
    * <p>Message is required (the user said so: ejects always carry a
    * formal reason).</p>

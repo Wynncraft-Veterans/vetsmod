@@ -321,11 +321,15 @@ public class GuildStateManager {
 
   /**
    * Server-confirmed in-game guild rank for the authenticated user --
-   * one of "chief", "strategist", "captain", "owner", or empty string
-   * when not confirmed-staff. Used by {@code /eject} to decide whether
-   * to dispatch {@code /gu kick} (chiefs) or {@code /gu rank ... recruit}
-   * (captains / strategists -- the workaround for "only chiefs can
-   * kick").
+   * one of "strategist", "chief", "owner", or empty string when not
+   * confirmed-staff. Captain was retired in the 2026-07 permission
+   * restructure and the server simply never sends it: {@code staff_rank}
+   * is only populated once the roster resolves {@code is_staff=true}.
+   *
+   * <p>Pure delegate to {@link V1ApiManager#confirmedStaffRank()}. The
+   * only caller is {@link #isChiefOfAnyGuild()} -- nothing here feeds
+   * {@code /eject}, whose kick-vs-demote branch reads the server's
+   * {@code suggested_dispatch} string instead.</p>
    *
    * @return server-confirmed staff rank, or empty when not staff
    */
