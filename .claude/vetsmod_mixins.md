@@ -119,7 +119,7 @@ These three live directly under `mixin/client/` rather than a subpackage. They'r
 [src/client/java/org/wynnvets/mixin/client/accessors/BossHealthOverlayAccessor.java](src/client/java/org/wynnvets/mixin/client/accessors/BossHealthOverlayAccessor.java)
 - **Target:** `@Mixin(BossHealthOverlay.class)` (interface)
 - **Field:** `@Accessor("events") Map<UUID, LerpingBossEvent> getEvents()`
-- **Purpose:** Lets `VetsBossBarManager` insert and remove its synthetic `LerpingBossEvent` directly in the overlay's tracked map without going through the vanilla packet pipeline (which is cancelled by `BossHealthOverlayMixin`).
+- **Purpose:** Lets `VetsBossBarManager` insert and remove its synthetic `LerpingBossEvent` directly in the overlay's tracked map without going through the vanilla packet pipeline. That pipeline is deliberately left intact — `BossHealthOverlayMixin` above records the 2026-06-16 crash that cancelling it caused, and filters on the render side instead.
 - **Why:** Wynntils already replaces the `events` field with a `ConcurrentHashMap` in its own mixin's `<init>` injector, so our reads/writes from the tick driver are thread-safe relative to vanilla and Wynntils render-thread access.
 
 ## Items (beyond legacy)
@@ -136,7 +136,7 @@ No non-legacy item mixins. All item behaviour lives in:
 | Mixin | Priority |
 |-------|----------|
 | `QueueTitleMixin` | 500 (very high — fires before other title mixins) |
-| `BossHealthOverlayMixin` | 500 (so we cancel before Wynntils sees the packet) |
+| `BossHealthOverlayMixin` | 500 (not load-bearing — there is no cancellation order to win; kept for symmetry with `QueueTitleMixin` and headroom if another render-path mixin lands) |
 | All other mixins | Default 1000 (priority is not load-bearing — S4 nametag work moved off priority-based HEAD ordering to TAIL-of-earlier-method to avoid Wynntils' cancel) |
 
 For event-based integrations, vetsmod uses `@SubscribeEvent(priority=EventPriority.LOWEST)` on `LegacyHighlightEventListener` so it runs AFTER Wynntils' `ItemHighlightFeature` (registered at HIGH). Drawing at LOWEST effectively overwrites Wynntils' rarity highlight.

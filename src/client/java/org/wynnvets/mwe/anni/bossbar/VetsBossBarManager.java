@@ -279,11 +279,13 @@ public final class VetsBossBarManager {
         }
     }
 
-    /** Progress bar tracks the final 90-minute countdown — clamped at
-     *  100% from activation (T-2h) through T-90m, then drains linearly
-     *  to 0% at the T-20s deactivation wall. The two-hour run-up
-     *  doesn't change the bar so the visual settling matches the long
-     *  period during which assignments are stable. */
+    /** One linear ramp across {@link #PROGRESS_FULL_AT_SECONDS} less
+     *  {@link #DROP_DEAD_SECONDS_BEFORE_ANNI} — 100% at T-100m, draining
+     *  linearly to 0% at the T-20s deactivation wall. No plateau, and
+     *  {@link #ANNI_WINDOW_SECONDS} plays no part here. Activation is
+     *  gated separately at T-90m or zone entry, so the bar already reads
+     *  {@code ~90%} the moment it appears; the {@code p > 1f} clamp is
+     *  only reachable by entering the zone earlier than T-100m. */
     private static float progressFor(long secondsUntilAnni) {
         long window = PROGRESS_FULL_AT_SECONDS - DROP_DEAD_SECONDS_BEFORE_ANNI;
         long usable = Math.max(0L, secondsUntilAnni - DROP_DEAD_SECONDS_BEFORE_ANNI);
