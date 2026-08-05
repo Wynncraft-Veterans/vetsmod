@@ -25,7 +25,11 @@ No permission. [HelpCommands.java:22-297](src/client/java/org/wynnvets/commands/
 Captain+. [CommandRegistry.java:159-182](src/client/java/org/wynnvets/commands/CommandRegistry.java#L159-L182). Delegates to `UserInfoFetcher.checkUser()` which chains Mojang UUID → WynnCraft profile → Returners roster membership.
 
 ### /wv return
-Vet/Returners. [CommandRegistry.java:204-207](src/client/java/org/wynnvets/commands/CommandRegistry.java#L204-L207). GETs `VetsApi.RETURN`, shows latest return-channel post.
+Vet/Returners. [CommandRegistry.java:261-264](src/client/java/org/wynnvets/commands/CommandRegistry.java#L261-L264). GETs `VetsApi.RETURN`, shows latest return-channel post.
+
+The post is authored in Discord, so the body arrives with Discord's `<t:EPOCH:STYLE>` timestamp markup intact — temporary-server's markdown converter passes it through untouched. [`DiscordTimestamps.expand()`](src/client/java/org/wynnvets/chat/DiscordTimestamps.java) rewrites it into the reader's own timezone client-side (that's the whole point of the markup — the API can't know the zone), supporting all seven Discord styles with `f` as the default, and hangs a hover carrying the absolute time, its zone, and the relative offset off each expansion. Malformed or out-of-range epochs fall through as the raw markup.
+
+[`ReturnFetcher.announcementFooter()`](src/client/java/org/wynnvets/fetcher/ondemand/ReturnFetcher.java) then appends `For more info, click here for the announcement post!`, where `here` deep-links to the return channel (`discord.com/channels/<guild>/<RETURN_CHANNEL_ID>`). The API serves the message body with no message ID, so the link targets the channel rather than the post. Skipped when the body is blank (nothing cached upstream).
 
 ### /wv list [world]
 Vet. Two variants:

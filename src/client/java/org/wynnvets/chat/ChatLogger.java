@@ -41,15 +41,34 @@ public class ChatLogger {
   // as the key so message.contains(indicator) matches only the exact
   // rank pill.
   //
-  // 2026-07 permission restructure: the last-put Recruit binding
-  // overwrites the Captain binding above because both use the same
-  // PUA key — the Captain entry is a live bug (LinkedHashMap semantics
-  // resolve to the second put). Left as-is; Captain is being retired
-  // and this map is debug-only. The rewriter uses rankMap() below
-  // to decode incoming pills and route them through RankDisplayMap.
+  // The sequence decodes as:
+  //
+  //   U+E062                  pill opener
+  //   U+CFFxx                 negative-advance marker sizing the pill
+  //                           background; 0xD0000 - marker is the label's
+  //                           rendered width in px (owner=32, chief=30,
+  //                           strategist=60, captain=42, recruiter=54,
+  //                           recruit=42)
+  //   U+E000 + (c - 'a') ...  the rank name, one glyph per letter
+  //   U+D0002                 pill terminator
+  //
+  // Captain and Recruit share a marker because both labels happen to
+  // render 42px wide — but the letter glyphs differ, so the two keys are
+  // distinct strings and both bindings are live. (An earlier comment here
+  // claimed the second put overwrote the first; it does not. All six keys
+  // are distinct and none is a substring of another, so the iteration
+  // order below carries no meaning.)
+  //
+  // The first entry is labelled Owner, not Chief — its glyphs spell
+  // "owner". Both land on "Steward" today, so that is presently cosmetic,
+  // but the label matters if Chief and Owner ever get separate display
+  // labels (see RankDisplayMap).
+  //
+  // This map is NOT debug-only: the rewriter reads it via rankMap() to
+  // decode incoming pills and route them through RankDisplayMap.
   private static final Map<String, String> RANK_MAP = new LinkedHashMap<>();
     static {
-        RANK_MAP.put("󏿠󐀂", "Chief");
+        RANK_MAP.put("󏿠󐀂", "Owner");
         RANK_MAP.put("󏿢󐀂", "Chief");
         RANK_MAP.put("󏿄󐀂", "Strategist");
         RANK_MAP.put("󏿖󐀂", "Captain");

@@ -80,6 +80,11 @@ public class VetsConfig {
   /** Whether legacy/enchanted/junk item highlighting is shown in tooltips and inventory slots. */
   public static final String LEGACY_ITEM_HIGHLIGHTING = "legacyItemHighlighting";
 
+  /** Whether the LEGACY ENCHANTMENTS block naming the specific enchantment is
+   *  drawn on the powder page of items the enchant branch already highlights.
+   *  Has no effect unless {@link #LEGACY_ITEM_HIGHLIGHTING} is on. */
+  public static final String LEGACY_ITEM_SHOW_ENCHANTMENTS = "legacyItemShowEnchantments";
+
   /** Whether the MOTD is automatically printed on world join. */
   public static final String PRINT_MOTD = "printMOTD";
 
@@ -299,6 +304,7 @@ public class VetsConfig {
    */
   public static final String[] USER_CONFIG_KEYS = {
       LEGACY_ITEM_HIGHLIGHTING,
+      LEGACY_ITEM_SHOW_ENCHANTMENTS,
       LEGACY_ITEM_BACKGROUND_GRADIENT_TOP,
       LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY,
       LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM,
@@ -469,6 +475,7 @@ public class VetsConfig {
 
     // User-facing defaults (all enabled by default, except moreReliableGuildCheck)
     config.put(LEGACY_ITEM_HIGHLIGHTING, true);
+    config.put(LEGACY_ITEM_SHOW_ENCHANTMENTS, true);
     config.put(PRINT_MOTD, true);
     config.put(PRINT_ANNI, true);
     config.put(VETS_ANNI_SHOW_HOVER_DETAILS, true);

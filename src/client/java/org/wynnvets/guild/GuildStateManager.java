@@ -128,6 +128,42 @@ public class GuildStateManager {
   }
 
   /**
+   * Whether the in-game guild chat channel the local player is reading
+   * belongs to VETS.
+   *
+   * <p>Wynncraft's guild channel only ever carries the guild you are
+   * actually in, and its rank pills carry no guild identity — so this is
+   * the only thing standing between vetsmod's cosmetic guild-chat
+   * treatment (rank relabelling, supporter glints) and it being applied
+   * to some unrelated guild's chat.</p>
+   *
+   * <p>Membership in Returners is the entire test, and deliberately so.
+   * An honourary member — a vets community member whose in-game guild is
+   * somewhere else — fails it for the same reason any other outsider does:
+   * the channel they're reading isn't ours. Genuine vets chat reaches them
+   * over the WebSocket bridge instead, where {@code OutboundDisplayHandler}
+   * keeps the full treatment. Note that {@link #isHonouraryUnlocked()} is
+   * <em>not</em> usable as a faster negative signal here: it ORs in a
+   * legacy on-disk unlock marker that is never cleared, so an honourary
+   * member who later joined Returners would keep failing forever.</p>
+   *
+   * <p>{@link #isReturners()} resolves in this order: the
+   * {@link GuildChecker} cache (persisted, 3-day expiry, so instant when
+   * warm), then Wynntils' {@code Models.Guild} (which can stay empty for
+   * minutes after world join). When neither has landed this returns
+   * {@code false} and the caller leaves the server's own rendering alone —
+   * a real Returner may see vanilla pills early in a session, which is the
+   * harmless direction to be wrong in, and it self-heals when the
+   * {@code /gu stats} check scheduled by {@link #scheduleDelayedGuildCheck()}
+   * lands a few seconds after world join.</p>
+   *
+   * @return true when guild chat should get vetsmod's treatment
+   */
+  public static boolean isVetsGuildChat() {
+    return isReturners();
+  }
+
+  /**
    * Get whether the player is not in a guild.
    *
    * <p>Checks the mod's own guild check result first, falling back to

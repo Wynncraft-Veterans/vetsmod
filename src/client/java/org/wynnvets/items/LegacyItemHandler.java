@@ -381,6 +381,22 @@ public class LegacyItemHandler {
       "crafted", "Crafted");
 
   /**
+   * Returns a plain "Sharpness I"-style label for the item's legacy
+   * enchantment, or {@code null} when it carries none.
+   *
+   * <p>Wynncraft hides the vanilla enchantment lines behind
+   * {@code tooltip_display}, but that is a render-time instruction only — the
+   * {@code minecraft:enchantments} component itself is still on the stack the
+   * client holds.  Modern items ship the component with an empty map, so a
+   * non-empty map is a legacy signal in its own right, unlike
+   * {@link ItemStack#hasFoil()} which is also true for
+   * {@code enchantment_glint_override}.</p>
+   */
+  public static String getEnchantmentLabel(ItemStack stack) {
+    return LegacyEnchantmentRenderer.enchantmentLabel(stack);
+  }
+
+  /**
    * Extracts the item rarity from the {@code tooltip_style} data component.
    * New-format Wynncraft items encode their rarity tier as a {@code tooltip_style}
    * identifier (e.g. {@code minecraft:rare}, {@code minecraft:unique}) rather than

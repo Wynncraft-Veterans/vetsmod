@@ -229,6 +229,10 @@ public final class ItemDumpHandler {
         analysis.addProperty("isUnenchanted", plainName != null && ItemDefinitions.isUnenchanted(plainName));
         analysis.addProperty("isNotJunk", plainName != null && ItemDefinitions.isNotJunk(plainName));
         analysis.addProperty("isEnchantExcludedItem", ItemDefinitions.isEnchantExcludedItem(stack));
+        // The specific enchantment, which Wynncraft hides from the tooltip via
+        // tooltip_display but still ships on the stack. Null on modern items —
+        // they carry the component with an empty map.
+        analysis.addProperty("enchantment", LegacyItemHandler.getEnchantmentLabel(stack));
         analysis.addProperty("hasMiscRarity", LegacyItemHandler.hasMiscRarity(lore.lines()));
         analysis.addProperty("hasJunkRarity", LegacyItemHandler.hasJunkRarity(lore.lines()));
         analysis.addProperty("hasCraftingRarity", LegacyItemHandler.hasCraftingRarity(lore.lines()));
@@ -340,6 +344,15 @@ public final class ItemDumpHandler {
             if (style.isUnderlined()) styleObj.addProperty("underlined", true);
             if (style.isStrikethrough()) styleObj.addProperty("strikethrough", true);
             if (style.isObfuscated()) styleObj.addProperty("obfuscated", true);
+            // Wynncraft disables text shadow on its boxed tooltip headers by
+            // setting an explicit shadowColor. Serialized as both the raw ARGB
+            // and hex because whether it is set at all — and with which alpha —
+            // is otherwise invisible when diffing our output against theirs.
+            Integer shadowColor = style.getShadowColor();
+            if (shadowColor != null) {
+                styleObj.addProperty("shadowColor", shadowColor);
+                styleObj.addProperty("shadowColor_hex", String.format("#%08X", shadowColor));
+            }
             if (style.getFont() != null) {
                 styleObj.addProperty("font", style.getFont().toString());
             }

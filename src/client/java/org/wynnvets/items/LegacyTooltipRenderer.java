@@ -158,6 +158,7 @@ final class LegacyTooltipRenderer {
           }
         }
         if (NewFormatRenderer.insertLegacyBoxLine(modified)) {
+          if (enchanted) appendEnchantmentBlock(modified);
           LegacyItemHandler.lastProcessedWasLegacy = true;
           return modified;
         }
@@ -329,7 +330,24 @@ final class LegacyTooltipRenderer {
     } else {
       NewFormatRenderer.recolorNewFormatNameLine(modified, plainText);
     }
-    return NewFormatRenderer.insertLegacyBoxLine(modified);
+    if (!NewFormatRenderer.insertLegacyBoxLine(modified)) return false;
+    if (enchanted) appendEnchantmentBlock(modified);
+    return true;
+  }
+
+  /**
+   * Adds the LEGACY ENCHANTMENTS block naming the specific enchantment, on the
+   * powder page only.  Gated on the caller having already decided the item is
+   * glinted-and-legacy, so the enchant branch's false-positive escape hatches
+   * ({@code isEnchantExcludedItem}, {@code isUnenchanted}) govern this display
+   * too rather than it keying off the raw enchantments component.
+   */
+  private static void appendEnchantmentBlock(List<Component> modified) {
+    if (!org.wynnvets.config.VetsConfig.get(
+        org.wynnvets.config.VetsConfig.LEGACY_ITEM_SHOW_ENCHANTMENTS)) {
+      return;
+    }
+    LegacyEnchantmentRenderer.insertEnchantmentBlock(modified, LegacyItemHandler.currentItemStack);
   }
 
   /**

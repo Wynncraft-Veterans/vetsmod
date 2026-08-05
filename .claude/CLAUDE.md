@@ -114,6 +114,8 @@ StyledText, ComponentUtils, McUtils
 
 Wynntils fires `ChatMessageEvent.Match` → rewriters (`SpoilerRewriter`, `StaffGuildAlertRewriter`, `StaffChannelMessageRewriter`, `ServerGuildChatRewriter`) → `ChatMessageEvent.Edit` → display.
 
+Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **frame-scoped** — `U+E003` is the private-message separator despite sitting in the same `U+E000` block that spells lowercase letters inside a pill — so decode from the frame inward and never map a bare codepoint to a character. Encode and decode through [`PillCodec`](../src/client/java/org/wynnvets/chat/PillCodec.java); the blocks, the four sequences, and the captured-log evidence are in [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
+
 ## Guild rank-change alerts
 
 [`RankChangeListener`](../src/client/java/org/wynnvets/listeners/RankChangeListener.java) subscribes to `ChatMessageEvent.Match`, detects Wynncraft's `"X has set Y guild rank from A to B"` broadcast (regex widens Wynntils' `GuildModel.MSG_RANK_CHANGED` to also capture actor + old rank), classifies it as `ban` / `kick` / `mote`, and emits a `rank_change` control frame on `/v1/inbound`. Server-side dispatch and the trust model are documented in [server_api_reference.md](server_api_reference.md) and authoritatively in [`temporary-server/v1_protocol.md` §1.9](../../temporary-server/v1_protocol.md).

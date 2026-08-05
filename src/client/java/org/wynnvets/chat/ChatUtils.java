@@ -63,9 +63,6 @@ public final class ChatUtils {
     private static final String STRATEGIST = "strategist";
     private static final String CHIEF = "chief";
     private static final String OWNER = "owner";
-    private static final String STAFF_PILL_FRAME_OPEN = "\uE010\u2064";
-    private static final String STAFF_PILL_FRAME_SEGMENT = "\uE00F\uE012";
-    private static final String STAFF_PILL_FRAME_CLOSE = "\uE011";
     private static final String GUILD_PREPEND_FULL = "\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
     private static final String GUILD_PREPEND_COMPACT = "\uDAFF\uDFFC\uE001\uDB00\uDC06";
     private static final String PRIVATE_SEPARATOR_GLYPH = "\uE003";
@@ -366,23 +363,7 @@ public final class ChatUtils {
      * @return a styled pill component
      */
     public static MutableComponent buildFramedPill(String label, Style frameStyle) {
-        Style darkStyle = Style.EMPTY.withColor(ChatFormatting.BLACK).withoutShadow();
-        MutableComponent component = Component.empty();
-        component.append(Component.literal(STAFF_PILL_FRAME_OPEN).setStyle(frameStyle));
-
-        String upper = label.toUpperCase();
-        for (int i = 0; i < upper.length(); i++) {
-            char letter = upper.charAt(i);
-            if (letter < 'A' || letter > 'Z') {
-                continue;
-            }
-            component.append(Component.literal(STAFF_PILL_FRAME_SEGMENT).setStyle(frameStyle));
-            component.append(Component.literal(String.valueOf((char) ('\uE040' + (letter - 'A'))))
-                    .setStyle(darkStyle));
-        }
-
-        component.append(Component.literal(STAFF_PILL_FRAME_CLOSE).setStyle(frameStyle));
-        return component;
+        return PillCodec.encodeLocal(label, frameStyle);
     }
 
     /**
@@ -395,22 +376,7 @@ public final class ChatUtils {
      * ranks to their display labels ("Steward"/"Returner").</p>
      */
     public static String encodePillIfAscii(String text) {
-        for (int i = 0; i < text.length(); ) {
-            int cp = text.codePointAt(i);
-            if (Character.getType(cp) == Character.PRIVATE_USE) {
-                return text;
-            }
-            i += Character.charCount(cp);
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append('\uE06B');
-        for (char c : text.toUpperCase().toCharArray()) {
-            if (c >= 'A' && c <= 'Z') {
-                sb.append((char) ('\uE040' + (c - 'A')));
-            }
-        }
-        sb.append('\uE06C');
-        return sb.toString();
+        return PillCodec.encodeRemote(text);
     }
 
     private static String normalizeStaffRank(String rank) {

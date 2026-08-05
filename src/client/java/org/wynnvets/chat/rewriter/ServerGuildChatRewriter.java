@@ -10,9 +10,11 @@ import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatLogger;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.NickResolver;
+import org.wynnvets.chat.PillCodec;
 import org.wynnvets.chat.Prepend;
 import org.wynnvets.chat.RankDisplayMap;
 import org.wynnvets.fetcher.polling.SupportersPoller;
+import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 
 import java.util.ArrayList;
@@ -35,6 +37,15 @@ import java.util.Map;
  * font (same path as bridge messages), so the visual style changes from
  * the aqua server-native pill to the ASCII-encoded label pill. Supporter
  * gradients still compose on top when the sender has glints enabled.</p>
+ *
+ * <p>The whole rewriter is gated on {@link GuildStateManager#isVetsGuildChat()}.
+ * Wynn's pill glyphs carry no guild identity, so for an honourary member —
+ * a vets community member whose in-game guild is somewhere else — every
+ * line of their own guild's chat decodes to a rank this class would happily
+ * relabel. Their guild's staff are not our Stewards, and their guildmates
+ * don't earn a glint by sharing a channel with a vets supporter. Real vets
+ * chat arrives at honourary members over the WebSocket bridge, not this
+ * channel, and keeps the full treatment on that path.</p>
  */
 public final class ServerGuildChatRewriter {
 
@@ -54,16 +65,25 @@ public final class ServerGuildChatRewriter {
     }
 
     /**
-     * Attempts to rewrite a server guild chat message. Fires when either
-     * (a) the sender's raw rank maps to a different display label
-     * (Strategist/Chief/Owner → Steward, Captain/Recruiter → Returner)
-     * or (b) the sender is a supporter with gradient glints enabled.
+     * Attempts to rewrite a server guild chat message. Requires the channel
+     * to be VETS' own, then fires when either (a) the sender's raw rank maps
+     * to a different display label (Strategist/Chief/Owner → Steward,
+     * Captain/Recruiter → Returner) or (b) the sender is a supporter with
+     * gradient glints enabled.
      *
      * @param component     the original chat Component (preserves colour info)
      * @param messageString the plain-text form of the message
      * @return {@code true} if rewritten (caller should cancel the original)
      */
     public static boolean tryRewrite(Component component, String messageString) {
+        // Everything below this line restyles VETS' guild chat. The channel
+        // only carries the guild we're actually in, so one check up front
+        // covers the whole rewriter — and skips the component-tree walk
+        // entirely for players whose guild chat isn't ours.
+        if (!GuildStateManager.isVetsGuildChat()) {
+            return false;
+        }
+
         ParsedGuildChat parsed = parseGuildChat(messageString);
         if (parsed == null) {
             return false;
@@ -148,9 +168,18 @@ public final class ServerGuildChatRewriter {
     }
 
     /**
-     * Match {@code rankIndicator} against the known PUA-rank sequences in
-     * {@link ChatLogger#rankMap()} and return the raw Wynn rank name, or
-     * {@code null} if none matched.
+     * Return the raw Wynn rank name encoded in {@code rankIndicator}, or
+     * {@code null} if it carries no pill we can read.
+     *
+     * <p>Tries the known-sequence table in {@link ChatLogger#rankMap()}
+     * first, then falls back to decoding the pill structurally with
+     * {@link PillCodec#decodeServerPill(String)}. The table is an exact
+     * match on whole sequences and so is both faster and impossible to
+     * fool; the codec covers ranks the table has never seen, which is what
+     * keeps a future Wynncraft rank from silently losing its rewrite.
+     * Anything the codec returns still passes through
+     * {@link RankDisplayMap}, so an unrecognised rank maps to itself and
+     * ends up rendering exactly as the server sent it.</p>
      */
     private static String decodeRawRank(String rankIndicator) {
         for (Map.Entry<String, String> entry : ChatLogger.rankMap().entrySet()) {
@@ -158,7 +187,7 @@ public final class ServerGuildChatRewriter {
                 return entry.getValue();
             }
         }
-        return null;
+        return PillCodec.decodeServerPill(rankIndicator);
     }
 
     // ── Pill fragment extraction ──────────────────────────────────────

@@ -65,11 +65,45 @@ final class NewFormatRenderer {
    * <p>Letter mapping: background = {@code U+E030 + (letter - 'A')},
    * foreground = {@code U+E000 + (letter - 'A')}.</p>
    */
-  private static final String LEGACY_BOX_TEXT =
+  private static final String LEGACY_BOX_BACKGROUND =
       "\uE060\uDAFF\uDFFF\uE03B\uDAFF\uDFFF\uE034\uDAFF\uDFFF\uE036"
       + "\uDAFF\uDFFF\uE030\uDAFF\uDFFF\uE032\uDAFF\uDFFF\uE048"
-      + "\uDAFF\uDFFF\uE062\uDAFF\uDFDA\u00A70\uE00B\uE004\uE006"
-      + "\uE000\uE002\uE018\uDB00\uDC02";
+      + "\uDAFF\uDFFF\uE062\uDAFF\uDFDA";
+
+  /** Foreground half of the same constant: the letters drawn back over the box. */
+  private static final String LEGACY_BOX_FOREGROUND =
+      "\uE00B\uE004\uE006\uE000\uE002\uE018\uDB00\uDC02";
+
+  /**
+   * Shadow colour Wynncraft puts on its own rarity chips \u2014 white at zero alpha.
+   *
+   * <p>{@link Style#withoutShadow()} is <em>not</em> equivalent: it compiles to
+   * {@code withShadowColor(0)}, black at zero alpha, which leaves a black drop
+   * shadow under the chip's black lettering and reads as bold beside the
+   * server's own UNIQUE/BOW chips.</p>
+   */
+  private static final int BOX_SHADOW = 0xFFFFFF;
+
+  /**
+   * Builds the gold LEGACY chip as two nodes, mirroring how Wynncraft emits its
+   * own: the box run, then the lettering as a nested child.
+   *
+   * <p>The foreground must be a child rather than a {@code \u00A70} colour code
+   * inlined into the run \u2014 a legacy colour code resets the style mid-string and
+   * takes the shadow setting with it, so the lettering would draw its shadow
+   * regardless of what the run asked for.</p>
+   */
+  private static MutableComponent legacyBox() {
+    return Component.literal(LEGACY_BOX_BACKGROUND)
+        .setStyle(Style.EMPTY
+            .withColor(ChatFormatting.GOLD)
+            .withShadowColor(BOX_SHADOW)
+            .withFont(BANNER_BOX_FONT))
+        .append(Component.literal(LEGACY_BOX_FOREGROUND)
+            .setStyle(Style.EMPTY
+                .withColor(ChatFormatting.BLACK)
+                .withShadowColor(BOX_SHADOW)));
+  }
 
   private NewFormatRenderer() {}
 
@@ -256,11 +290,7 @@ final class NewFormatRenderer {
       if (BANNER_BOX_FONT.equals(siblings.get(i).getStyle().getFont())) {
         siblings.add(i, Component.literal("\uDB00\uDC01")
             .setStyle(Style.EMPTY.withFont(BANNER_BOX_FONT)));
-        siblings.add(i, Component.literal(LEGACY_BOX_TEXT)
-            .setStyle(Style.EMPTY
-                .withColor(ChatFormatting.GOLD)
-                .withoutShadow()
-                .withFont(BANNER_BOX_FONT)));
+        siblings.add(i, legacyBox());
         return true;
       }
     }
@@ -279,11 +309,7 @@ final class NewFormatRenderer {
         if (containsFont(siblings.get(i), BANNER_BOX_FONT)) {
           siblings.add(i, Component.literal("\uDB00\uDC01")
               .setStyle(Style.EMPTY.withFont(BANNER_BOX_FONT)));
-          siblings.add(i, Component.literal(LEGACY_BOX_TEXT)
-              .setStyle(Style.EMPTY
-                  .withColor(ChatFormatting.GOLD)
-                  .withoutShadow()
-                  .withFont(BANNER_BOX_FONT)));
+          siblings.add(i, legacyBox());
           return true;
         }
       }
