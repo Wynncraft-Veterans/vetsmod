@@ -67,8 +67,8 @@ public final class VetsBossBarManager {
      *  to 0% at T-20s — a 100-minute progress window. Decoupled from
      *  {@link #ANNI_WINDOW_SECONDS} (the activation gate) so the
      *  {@link BossEvent.BossBarOverlay#NOTCHED_10} overlay's ten segment
-     *  dividers land exactly every 10 minutes of wall-clock time. At
-     *  activation (T-90m or zone-entry) the bar already reads
+     *  dividers land exactly every 10 minutes of wall-clock time. When
+     *  the T-90m window is what activates it, the bar already reads
      *  {@code 90% ≈ 9-of-10 sections filled} — the spec-requested
      *  "90 mins = 9 notches" mapping. Each subsequent 10-minute step
      *  drops one section, giving a reliable readout of how much time
@@ -283,9 +283,10 @@ public final class VetsBossBarManager {
      *  {@link #DROP_DEAD_SECONDS_BEFORE_ANNI} — 100% at T-100m, draining
      *  linearly to 0% at the T-20s deactivation wall. No plateau, and
      *  {@link #ANNI_WINDOW_SECONDS} plays no part here. Activation is
-     *  gated separately at T-90m or zone entry, so the bar already reads
-     *  {@code ~90%} the moment it appears; the {@code p > 1f} clamp is
-     *  only reachable by entering the zone earlier than T-100m. */
+     *  gated separately on T-90m <em>or</em> zone entry, so on the timer
+     *  path the bar first appears at {@code 89.97%} and never reads 100%;
+     *  the {@code p > 1f} clamp is reachable only by standing in the zone
+     *  before T-100m, where the bar does appear full. */
     private static float progressFor(long secondsUntilAnni) {
         long window = PROGRESS_FULL_AT_SECONDS - DROP_DEAD_SECONDS_BEFORE_ANNI;
         long usable = Math.max(0L, secondsUntilAnni - DROP_DEAD_SECONDS_BEFORE_ANNI);

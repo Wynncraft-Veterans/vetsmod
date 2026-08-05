@@ -22,9 +22,11 @@ import java.util.UUID;
  * {@code BossHealthOverlayMixin} (see
  * {@code Wynntils/common/src/main/java/com/wynntils/mc/mixin/BossHealthOverlayMixin.java}),
  * which makes the multi-thread access pattern below safe — we write
- * only from our tick driver, the render path reads back through that
- * mixin's {@code @Redirect}, and vanilla's packet handler goes on
- * writing its own entries alongside ours.</p>
+ * only from our tick driver, the render path reads back through the
+ * {@code @Redirect} in <em>our own</em> identically-named
+ * {@link org.wynnvets.mixin.client.BossHealthOverlayMixin}, and
+ * vanilla's packet handler goes on writing its own entries alongside
+ * ours.</p>
  */
 @Mixin(BossHealthOverlay.class)
 public interface BossHealthOverlayAccessor {

@@ -145,6 +145,11 @@ public final class CautionCommands {
    * connection. The client never evaluates the actor's rank -- that
    * choice is made server-side.
    *
+   * <p>That dispatch is not exclusive to this command: it lives in the
+   * shared {@code renderCommitResult}, so a {@code /caution} or
+   * {@code /warn} whose commit crosses the ban threshold reports
+   * {@code triggered="eject"} too and dispatches identically.</p>
+   *
    * <p>Message is required (the user said so: ejects always carry a
    * formal reason).</p>
    */

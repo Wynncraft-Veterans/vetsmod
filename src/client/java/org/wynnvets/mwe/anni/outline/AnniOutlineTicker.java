@@ -44,7 +44,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
  * clears it to {@link CustomColor#NONE}. The "anni nametag mode" flag
  * {@link #isOutlineSuppressionActive()} flips true so the
  * {@code NametagMixin} anni branch and {@code EntityOutlineColorMixin}'s
- * outsider clobber both turn on for the same tick.</p>
+ * outsider clobber become eligible on the same tick — each still checks
+ * its own config toggle, and the gate needs only one of the two.</p>
  *
  * <p>Tracks every username we've applied a non-NONE glow to so that when
  * the gate closes (or a player falls off the registry), the cleanup walk
@@ -89,11 +90,11 @@ public final class AnniOutlineTicker {
         VetsLogger.debug("AnniOutlineTicker registered");
     }
 
-    /** {@code true} while the S4 activation gate holds. Read by
-     *  {@code EntityOutlineColorMixin} (which zeroes an outsider's
-     *  already-extracted {@code state.outlineColor}) and
-     *  {@code NametagMixin}'s anni branch (to decide whether to
-     *  recolour). */
+    /** {@code true} while the S4 activation gate holds. The two
+     *  behavioural readers are {@code EntityOutlineColorMixin} (which
+     *  zeroes an outsider's already-extracted {@code state.outlineColor})
+     *  and {@code NametagMixin}'s anni branch (to decide whether to
+     *  recolour); two debug dumps also report it. */
     public static boolean isOutlineSuppressionActive() {
         return suppressionActive;
     }

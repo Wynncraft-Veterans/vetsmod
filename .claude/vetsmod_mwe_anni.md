@@ -253,7 +253,7 @@ All under `/wv debug tree anni …` (the `tree` literal nests subsystem-specific
 - `guess` — pull + print fishbot-style one-liner (announced stamp + countdown OR prediction window).
 - `time <seconds>` — mutate the cached snapshot's `event.stamp_epoch` to `NOW + seconds`, preserving everything else. Round-trips through JSON.
 - `external <auto|true|false>` — override `isExternal` for testing.
-- `flash <role|party|world|rsvp>` — force a `FlashTracker` pulse on the named field (10s at the `normal` default, sound + bold/underline alternation).
+- `flash <role|party|world|rsvp>` — force a `FlashTracker` pulse on the named field (10s at the `normal` default, sound + bold/underline alternation). `world` is the exception — it has no timed window, so forcing it lasts until the next tick recomputes the real mismatch.
 - `mode set <silent|passive|aggressive>` — `AnniModeManager.transitionTo(..., DEBUG_BYPASS_MUTEX)`. Skips the `/stream` mutex so we can verify rendering during screen capture.
 - `zone <enter|exit>` — force `AnniOutlineTicker.setForceInZone(...)` to bypass the geo-check.
 
@@ -335,6 +335,8 @@ Spec-canonical ChatFormatting-derived table. `CustomColor` values come from `Cus
 Unknown or null roles fall through to `GRAY` (§7), the same colour as the other-vets-party tier — not to FILL.
 
 Single source of truth, one hop removed: nothing outside `AnniOutlineRegistry` reads this table. `ownPartyEntry` derives both halves of its `Entry` — outline `CustomColor` and nametag `ChatFormatting` — from one `chatFormattingForRole` call, and the ticker and `NametagMixin`'s anni branch read that `Entry`. Deriving both from one call is what stops them drifting.
+
+That guarantee covers the own-party tier only. `OTHER_PARTY_ENTRY` pairs `OTHER_VETS_PARTY` with a separately written `ChatFormatting.GRAY` literal, so its outline and nametag agree by convention rather than by construction — change one and the other does not follow.
 
 ### `AnniOutlineRegistry` (`outline/AnniOutlineRegistry.java`)
 

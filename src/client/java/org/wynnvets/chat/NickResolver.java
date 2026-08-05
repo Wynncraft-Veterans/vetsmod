@@ -89,9 +89,9 @@ public final class NickResolver {
      * <p>Two of the three private copies of this helper hold that
      * orientation ({@code SpoilerRewriter}, {@code ServerGuildChatRewriter}).
      * {@code EncourageUpdateRewriter} has receiver and argument swapped, so
-     * parent fields win there and compound downward with depth. Pointing it
-     * at this method is a scheduled fix; until then the copies are not
-     * interchangeable.</p>
+     * parent fields win there and compound downward with depth. The copies
+     * are not interchangeable; do not assume that one behaves like this
+     * method.</p>
      */
     public static void flattenComponent(Component component, Style inherited, List<FlatPart> out) {
         Style resolved = component.getStyle().applyTo(inherited);

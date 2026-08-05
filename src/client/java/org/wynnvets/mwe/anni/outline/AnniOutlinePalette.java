@@ -31,7 +31,11 @@ import net.minecraft.ChatFormatting;
  * halves of the {@code Entry} from it — the outline {@link CustomColor}
  * and the nametag {@link ChatFormatting} — and it is that {@code Entry}
  * which {@code AnniOutlineTicker} and {@code NametagMixin} read. Deriving
- * both from one call is what makes the two colours unable to drift.</p>
+ * both from one call is what stops those two colours drifting. Note the
+ * guarantee is per-tier and does <em>not</em> extend to
+ * {@link #OTHER_VETS_PARTY}: {@code OTHER_PARTY_ENTRY} pairs this
+ * constant with a separately written {@code ChatFormatting.GRAY}, so
+ * that tier's two halves agree only by convention.</p>
  */
 public final class AnniOutlinePalette {
 
@@ -43,7 +47,9 @@ public final class AnniOutlinePalette {
 
     /** Nametag colour for outsiders — every nearby player not on any
      *  vets-anni party. Dark grey, {@code §8}. The outline for this tier
-     *  is NONE (no glow override applied). */
+     *  is NONE (no glow override applied). Nothing reads this constant:
+     *  {@code NametagMixin} writes {@code ChatFormatting.DARK_GRAY}
+     *  directly. */
     public static final CustomColor OUTSIDER_NAMETAG =
             CustomColor.fromChatFormatting(ChatFormatting.DARK_GRAY);
 

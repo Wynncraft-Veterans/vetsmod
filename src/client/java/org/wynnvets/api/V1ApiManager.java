@@ -810,8 +810,9 @@ public final class V1ApiManager {
 
     /** @return the server-confirmed in-game guild rank (one of
      *  "strategist", "chief", "owner") for the authenticated user, or
-     *  empty string when not confirmed-staff. One consumer, reached
-     *  through {@code GuildStateManager}'s delegate of the same name:
+     *  empty string when not confirmed-staff. One consumer of this
+     *  accessor, reached through {@code GuildStateManager}'s delegate
+     *  of the same name:
      *  {@link GuildStateManager#isChiefOfAnyGuild()}, which gates
      *  execution of {@code /wv distribute}. Captain was retired in the
      *  2026-07 permission restructure. */
