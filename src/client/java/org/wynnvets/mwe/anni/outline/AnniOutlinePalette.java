@@ -8,29 +8,30 @@ import net.minecraft.ChatFormatting;
  *
  * <p>Spec §"Player Highlights" pins the colours to vanilla {@link ChatFormatting}
  * codes ({@code §f}/{@code §b}/{@code §a}/{@code §c}/{@code §e}/{@code §d}),
- * NOT raw hex constants. Sourcing from {@code ChatFormatting.X.getColor()}
- * keeps the outline ARGB in sync with whatever Minecraft renders for the
- * matching colour code elsewhere (chat text, scoreboard, etc.) — if Mojang
- * ever tweaks those values, we follow along automatically.</p>
+ * NOT raw hex constants. Building through
+ * {@link CustomColor#fromChatFormatting(ChatFormatting)} keeps the outline
+ * ARGB in sync with whatever Minecraft renders for the matching colour
+ * code elsewhere (chat text, scoreboard, etc.) — if Mojang ever tweaks
+ * those values, we follow along automatically.</p>
  *
- * <p>The table covers three classes of player while the S4 activation gate
+ * <p>The tiers this table still serves while the S4 activation gate
  * holds:</p>
  * <ul>
- *   <li>{@link #forRole} — local player's own-party members. Returned from
- *       {@code snapshot.board.party.members[].role}; FILL when no specific
- *       role is recorded.</li>
+ *   <li>{@link #chatFormattingForRole} — local player's own-party members,
+ *       keyed on {@code snapshot.board.party.members[].role}. Unknown or
+ *       absent roles fall through to light grey, not to FILL.</li>
  *   <li>{@link #OTHER_VETS_PARTY} — players in any other vets-anni party
  *       (schema v2 {@code event.all_parties[].members[]}). Spec §"FOR
  *       PLAYERS IN OTHER VETS PARTIES" → light grey ({@code §7}).</li>
- *   <li>{@link #OUTSIDER_NAMETAG} — every nearby player NOT in either of
- *       the above tiers. Spec §"FOR PLAYERS NOT IN VETS" → dark grey
- *       ({@code §8}) nametag + no outline (no glow colour applied).</li>
  * </ul>
  *
- * <p>Single source of truth: both {@code AnniOutlineTicker} (glow colour
- * via {@code EntityExtension.setGlowColor}) and the anni branch of
- * {@code NametagMixin} (recoloured nametag component) read from this
- * table. Drift between outline colour and nametag colour would be a bug.</p>
+ * <p>Single source of truth, one hop removed: nothing outside
+ * {@code AnniOutlineRegistry} reads this table. Its {@code ownPartyEntry}
+ * takes a single {@link #chatFormattingForRole} result and derives both
+ * halves of the {@code Entry} from it — the outline {@link CustomColor}
+ * and the nametag {@link ChatFormatting} — and it is that {@code Entry}
+ * which {@code AnniOutlineTicker} and {@code NametagMixin} read. Deriving
+ * both from one call is what makes the two colours unable to drift.</p>
  */
 public final class AnniOutlinePalette {
 
@@ -42,9 +43,7 @@ public final class AnniOutlinePalette {
 
     /** Nametag colour for outsiders — every nearby player not on any
      *  vets-anni party. Dark grey, {@code §8}. The outline for this tier
-     *  is NONE (no glow override applied); see
-     *  {@code EntityTeamColorMixin} for the suppression of any native
-     *  Wynncraft relationship outline. */
+     *  is NONE (no glow override applied). */
     public static final CustomColor OUTSIDER_NAMETAG =
             CustomColor.fromChatFormatting(ChatFormatting.DARK_GRAY);
 
@@ -68,9 +67,11 @@ public final class AnniOutlinePalette {
         return CustomColor.fromChatFormatting(chatFormattingForRole(role));
     }
 
-    /** {@link ChatFormatting} chosen for a given role code. Exposed so the
-     *  nametag branch in {@code NametagMixin} can build text components
-     *  with the same colour family the outline uses. */
+    /** {@link ChatFormatting} chosen for a given role code. Exposed so
+     *  {@code AnniOutlineRegistry.ownPartyEntry} can derive an Entry's
+     *  outline colour and its nametag formatting from this one call —
+     *  which is what stops the two from drifting. {@code NametagMixin}
+     *  reads the resolved formatting off the Entry, not from here. */
     public static ChatFormatting chatFormattingForRole(String role) {
         if (role == null) return ChatFormatting.GRAY;
         switch (role.toUpperCase()) {

@@ -43,14 +43,6 @@ import java.util.stream.Stream;
  * {@code vetsAnniEnabled} master toggle) so the whole subsystem stays
  * testable while still being accidentally-safe (debug logging is off by
  * default, expires after 3 days, and is opt-in via {@code /wv debug true}).</p>
- *
- * <p>S1 implements the cache-facing subcommands ({@code snapshot inject},
- * {@code snapshot dump}). The boss-bar / outline / mode / zone hooks
- * referenced by the plan ({@code fastforward}, {@code zone},
- * {@code flash}, {@code mode set}) are scaffolded as placeholder branches
- * so the command tree's tab completion is complete from S1 onward — they
- * print "(S3+ — not yet wired)" and become functional as later stages
- * land their consumers.</p>
  */
 public final class AnniDebugCommands {
 

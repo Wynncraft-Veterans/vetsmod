@@ -44,7 +44,7 @@ public final class AnniZoneLineRenderer {
     private static final double CULL_DISTANCE_SQ = 200.0 * 200.0;
 
     /** ARGB — translucent magenta to differentiate from green/red
-     *  territory lines and from the magenta scroll-spot beacon. Bright
+     *  territory lines and from the dark-red scroll-spot beacon. Bright
      *  enough to see at distance, alpha 0xAA so it doesn't overwhelm. */
     private static final int LINE_COLOR_ARGB = 0xAAFF55FF;
 

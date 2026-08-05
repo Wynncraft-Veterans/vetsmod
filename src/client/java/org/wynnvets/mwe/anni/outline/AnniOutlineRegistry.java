@@ -36,10 +36,10 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Thread-safety: rebuilds run on the WS reader thread (via
  * {@link AnniSnapshotCache} listener). Reads run on the main client
- * thread (ticker + nametag mixin) and on the render thread (team-colour
- * mixin). {@link ConcurrentHashMap} gives both sides lock-free O(1)
- * access; a stale read during a rebuild is harmless because both old and
- * new states are valid registry views.</p>
+ * thread (ticker + nametag mixin) and on the render thread
+ * ({@code EntityOutlineColorMixin}). {@link ConcurrentHashMap} gives both
+ * sides lock-free O(1) access; a stale read during a rebuild is harmless
+ * because both old and new states are valid registry views.</p>
  */
 public final class AnniOutlineRegistry {
 

@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Pure-function renderer for {@code /wv anni} (no args) when an
+ * Renderer for {@code /wv anni} (no args) when an
  * {@link AnniSnapshot} is available.
  *
  * <p>Implements the three branches from the integration spec:</p>
@@ -32,17 +32,15 @@ import java.util.Locale;
  *       future" — relative timestamp, registration, RSVP widget, and
  *       attendance bar; expands with party details when assigned.</li>
  *   <li>§"If the next anni has been announced and within the next 2h" —
- *       compressed countdown, RSVP/role status, and a [silent|passive|
- *       aggressive] mode-switch widget (the actual mode-manager lands
- *       in S3; for now the buttons run the placeholder /wv anni
- *       subcommands).</li>
+ *       the same body as the 2h+ branch, plus a [silent|passive|
+ *       aggressive] mode-switch widget as its own second block.</li>
  * </ul>
  *
- * <p>The renderer is pure: it never reads runtime state other than
- * {@link VetsConfig} flags and the supplied snapshot, so it's trivially
- * unit-testable and re-renders deterministically when the snapshot
- * changes. Caller is responsible for dispatching the returned
- * {@link MutableComponent} through {@code ChatUtils}.</p>
+ * <p><b>Not</b> a pure function: it reads the wall clock, the mutable
+ * {@link #externalOverride}, and live {@link GuildStateManager} state, so
+ * one snapshot can render more than one way. Caller dispatches each
+ * returned block through {@code ChatUtils} — see {@link #render} for the
+ * list-and-{@code null} contract.</p>
  */
 public final class AnniCommandRenderer {
 

@@ -43,8 +43,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
  * for each player either applies their registry-tier glow colour or
  * clears it to {@link CustomColor#NONE}. The "anni nametag mode" flag
  * {@link #isOutlineSuppressionActive()} flips true so the
- * {@code NametagMixin} anni branch and {@code EntityTeamColorMixin}
- * read-side filter both turn on for the same tick.</p>
+ * {@code NametagMixin} anni branch and {@code EntityOutlineColorMixin}'s
+ * outsider clobber both turn on for the same tick.</p>
  *
  * <p>Tracks every username we've applied a non-NONE glow to so that when
  * the gate closes (or a player falls off the registry), the cleanup walk
@@ -90,9 +90,10 @@ public final class AnniOutlineTicker {
     }
 
     /** {@code true} while the S4 activation gate holds. Read by
-     *  {@code EntityTeamColorMixin} (to decide whether to suppress native
-     *  team colour for outsiders) and {@code NametagMixin}'s anni branch
-     *  (to decide whether to recolour). */
+     *  {@code EntityOutlineColorMixin} (which zeroes an outsider's
+     *  already-extracted {@code state.outlineColor}) and
+     *  {@code NametagMixin}'s anni branch (to decide whether to
+     *  recolour). */
     public static boolean isOutlineSuppressionActive() {
         return suppressionActive;
     }

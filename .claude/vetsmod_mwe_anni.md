@@ -324,16 +324,17 @@ Spec-canonical ChatFormatting-derived table. `CustomColor` values come from `Cus
 
 | Role / tier | ChatFormatting | Source |
 |--|--|--|
-| FILL | `WHITE` (§f) | `forRole("FILL")` |
-| TANK | `AQUA` (§b) | `forRole("TANK")` |
-| HEAL / HEALER | `GREEN` (§a) | `forRole("HEAL")` |
-| TERTIARY | `LIGHT_PURPLE` (§d) | `forRole("TERTIARY")` |
-| SECONDARY | `YELLOW` (§e) | `forRole("SECONDARY")` |
-| PRIMARY | `RED` (§c) | `forRole("PRIMARY")` |
+| FILL | `WHITE` (§f) | `chatFormattingForRole("FILL")` |
+| TANK | `AQUA` (§b) | `chatFormattingForRole("TANK")` |
+| HEAL / HEALER | `GREEN` (§a) | `chatFormattingForRole("HEAL")` |
+| TERTIARY | `LIGHT_PURPLE` (§d) | `chatFormattingForRole("TERTIARY")` |
+| SECONDARY | `YELLOW` (§e) | `chatFormattingForRole("SECONDARY")` |
+| PRIMARY | `RED` (§c) | `chatFormattingForRole("PRIMARY")` |
 | Other vets party | `GRAY` (§7) | `OTHER_VETS_PARTY` |
-| Outsider nametag | `DARK_GRAY` (§8) | `OUTSIDER_NAMETAG` |
 
-Single source of truth: the ticker (outline glow) and `NametagMixin`'s anni branch (text component) both read from here. Drift would be a bug.
+Unknown or null roles fall through to `GRAY` (§7), the same colour as the other-vets-party tier — not to FILL.
+
+Single source of truth, one hop removed: nothing outside `AnniOutlineRegistry` reads this table. `ownPartyEntry` derives both halves of its `Entry` — outline `CustomColor` and nametag `ChatFormatting` — from one `chatFormattingForRole` call, and the ticker and `NametagMixin`'s anni branch read that `Entry`. Deriving both from one call is what stops them drifting.
 
 ### `AnniOutlineRegistry` (`outline/AnniOutlineRegistry.java`)
 

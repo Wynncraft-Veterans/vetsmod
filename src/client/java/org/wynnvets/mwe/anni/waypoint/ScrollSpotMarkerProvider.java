@@ -48,10 +48,11 @@ import java.util.stream.Stream;
  * A 0-alpha custom colour also doesn't work: Wynntils overrides the
  * alpha to {@code 1f} (or distance-faded) before rendering. The only
  * way to truly skip the beam would be a mixin into Wynntils itself,
- * which we don't take lightly. Compromise: use a subtle
- * {@link CommonColors#GRAY} beacon — visible but unobtrusive against
- * most terrain. Swap the colour at one line below if a different
- * aesthetic emerges.</p>
+ * which we don't take lightly. Compromise: a dark red beacon
+ * ({@link ChatFormatting#DARK_RED}, {@code §4} — {@code CommonColors} has
+ * no such constant). The inline comment above the assignment in
+ * {@code Entry.at} carries the full rationale; read it there before
+ * changing the colour.</p>
  *
  * <p><b>Gate:</b> {@link AnniAggressiveTicker#isAggressiveActive()} AND
  * {@link VetsConfig#VETS_ANNI_SCROLL_WAYPOINT}. Registration happens once
