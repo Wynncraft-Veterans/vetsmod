@@ -178,6 +178,7 @@ final class LegacyTooltipRenderer {
       boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
       modified.set(0, buildGoldName(plainText, enchanted, raritySuffix));
       replaceRarityLines(modified, null);
+      if (enchanted) appendEnchantmentBlock(modified);
       LegacyItemHandler.lastProcessedWasLegacy = true;
       return modified;
     }
@@ -195,6 +196,7 @@ final class LegacyTooltipRenderer {
       boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
       modified.set(0, buildGoldName(plainText, enchanted, raritySuffix));
       replaceRarityLines(modified, null);
+      if (enchanted) appendEnchantmentBlock(modified);
       LegacyItemHandler.lastProcessedWasLegacy = true;
       return modified;
     }
@@ -245,11 +247,13 @@ final class LegacyTooltipRenderer {
     if (LegacyItemHandler.hasBetaLegacyMarker(tooltipLines)) {
       boolean alpha = !LegacyItemHandler.hasRarityLine(tooltipLines);
       List<Component> modified = new ArrayList<>(tooltipLines);
+      boolean enchanted = plainText != null
+          && LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
       if (plainText != null) {
-        boolean enchanted = LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
         modified.set(0, buildGoldName(plainText, enchanted, raritySuffix));
       }
       replaceRarityLines(modified, alpha ? "Alpha" : "Beta");
+      if (enchanted) appendEnchantmentBlock(modified);
       LegacyItemHandler.lastProcessedWasLegacy = true;
       return modified;
     }
@@ -274,6 +278,7 @@ final class LegacyTooltipRenderer {
       }
       modified.set(0, buildGoldName(plainText, true, raritySuffix));
       replaceRarityLines(modified, null);
+      appendEnchantmentBlock(modified);
       LegacyItemHandler.lastProcessedWasLegacy = true;
       return modified;
     }
@@ -336,18 +341,20 @@ final class LegacyTooltipRenderer {
   }
 
   /**
-   * Adds the LEGACY ENCHANTMENTS block naming the specific enchantment, on the
-   * powder page only.  Gated on the caller having already decided the item is
-   * glinted-and-legacy, so the enchant branch's false-positive escape hatches
-   * ({@code isEnchantExcludedItem}, {@code isUnenchanted}) govern this display
-   * too rather than it keying off the raw enchantments component.
+   * Names the specific enchantment: the LEGACY ENCHANTMENTS block on new-format
+   * items' powder page, or the level added to Minecraft's own enchantment line
+   * on older items that have no pages.  Gated on the caller having already
+   * decided the item is glinted-and-legacy, so the enchant branch's
+   * false-positive escape hatches ({@code isEnchantExcludedItem},
+   * {@code isUnenchanted}) govern this display too rather than it keying off the
+   * raw enchantments component.
    */
   private static void appendEnchantmentBlock(List<Component> modified) {
     if (!org.wynnvets.config.VetsConfig.get(
         org.wynnvets.config.VetsConfig.LEGACY_ITEM_SHOW_ENCHANTMENTS)) {
       return;
     }
-    LegacyEnchantmentRenderer.insertEnchantmentBlock(modified, LegacyItemHandler.currentItemStack);
+    LegacyEnchantmentRenderer.showEnchantment(modified, LegacyItemHandler.currentItemStack);
   }
 
   /**
@@ -426,11 +433,12 @@ final class LegacyTooltipRenderer {
   }
 
   /**
-   * Returns the index at which to insert the legacy label, just before any
-   * F3+H advanced tooltip debug lines (resource ID and component count).
-   * If no debug lines are present, returns the end of the list.
+   * Returns the index at which to append to a tooltip's content — the end of
+   * the list, but before any F3+H advanced tooltip debug lines (resource ID and
+   * component count).  If no debug lines are present, returns the end of the
+   * list.
    */
-  private static int debugLinesStart(List<Component> lines) {
+  static int debugLinesStart(List<Component> lines) {
     for (int i = lines.size() - 1; i >= 1; i--) {
       String plain = ChatFormatting.stripFormatting(lines.get(i).getString());
       if (plain == null) continue;

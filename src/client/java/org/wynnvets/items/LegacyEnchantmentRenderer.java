@@ -19,9 +19,10 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
 import org.wynnvets.logging.VetsLogger;
 
 /**
- * Renders a "LEGACY ENCHANTMENTS" block onto page 2 (the powder page) of
- * Wynncraft's new-format tooltips, naming the specific vanilla enchantment a
- * legacy item carries.
+ * Names the specific vanilla enchantment a legacy item carries: a
+ * "LEGACY ENCHANTMENTS" block on page 2 (the powder page) of Wynncraft's
+ * new-format tooltips, or a plain text entry on tooltips that have no such
+ * page.  See {@link #showEnchantment} for which form goes where.
  *
  * <h2>Why this data still exists</h2>
  * <p>Wynncraft applies a real {@code minecraft:enchantments} component to
@@ -73,6 +74,8 @@ final class LegacyEnchantmentRenderer {
       new FontDescription.Resource(Identifier.parse("space"));
   private static final FontDescription SOCKET_FONT =
       new FontDescription.Resource(Identifier.parse("tooltip/socket"));
+  private static final FontDescription PAGE_FONT =
+      new FontDescription.Resource(Identifier.parse("tooltip/page"));
   private static final FontDescription WYNNCRAFT_FONT =
       new FontDescription.Resource(Identifier.parse("language/wynncraft"));
   private static final FontDescription DEFAULT_FONT =
@@ -99,6 +102,12 @@ final class LegacyEnchantmentRenderer {
 
   /** Colour of Wynncraft's own POWDER SOCKETS box fill. */
   private static final int BOX_FILL = 0xFFF2B3;
+
+  /** Indent Wynntils' item-guess block gives its child lines. */
+  private static final String GUESS_INDENT = "    ";
+
+  /** Colour of the leading bullet on Wynntils' item-guess lines. */
+  private static final ChatFormatting BULLET_COLOR = ChatFormatting.GREEN;
 
   /**
    * Shadow colour Wynncraft puts on its boxed headers — white at zero alpha.
@@ -150,12 +159,133 @@ final class LegacyEnchantmentRenderer {
   // ── Public entry point ─────────────────────────────────────────────
 
   /**
+   * Surfaces the specific enchantment, whichever tooltip format the item uses.
+   *
+   * <p>New-format items get the LEGACY ENCHANTMENTS block on the powder page.
+   * Older items (the V2 era) have no pages at all, but they also do not hide
+   * {@code minecraft:enchantments} behind {@code tooltip_display} — their
+   * {@code hiddenComponents} covers only attribute modifiers and unbreakable —
+   * so Minecraft already draws a vanilla enchantment line. That line is missing
+   * its numeral, and is corrected in place rather than duplicated.</p>
+   *
+   * <p>Unidentified items fall between the two: they are new-format, so
+   * {@code tooltip_display} hides the component and there is no vanilla line to
+   * correct, but they have no pages either, so there is no powder block to hang
+   * the boxed header off.  Those get a plain text pair instead, matching the
+   * shape of Wynntils' item-guess block above it.</p>
+   *
+   * @return {@code true} if the tooltip was changed
+   */
+  static boolean showEnchantment(List<Component> lines, ItemStack stack) {
+    if (insertEnchantmentBlock(lines, stack)) return true;
+    if (addLevelToVanillaLine(lines, stack)) return true;
+    return appendTextEntry(lines, stack);
+  }
+
+  /**
+   * Appends the enchantment as a plain two-line text entry at the end of a
+   * pageless tooltip, styled to match Wynntils' item-guess block:
+   *
+   * <pre>
+   *   - Possibilities:                                    &lt;- Wynntils'
+   *       - Lv. 8 [7 ✦]: Bolt, Fatigue, Thief's Dagger
+   *   - Legacy:                                           &lt;- inserted
+   *       - Enchantment: Thorns II
+   * </pre>
+   *
+   * <p>The insertion point is the end of the tooltip's content, before any F3+H
+   * debug lines — which on an unidentified item is exactly below the item-guess
+   * block, since that is the last thing anything adds.  Anchoring on position
+   * rather than on the word "Possibilities" keeps this working when Wynntils is
+   * absent, when its item-guess feature is off, and in every locale.</p>
+   *
+   * <p>Restricted to pageless tooltips.  Pages 1 and 3 of a paged item reach
+   * here as well — no socket line, and no vanilla line either — and must not be
+   * given the entry, or a three-page item would name its enchantment on all
+   * three pages instead of only in the powder block.  Every page of a paged item
+   * carries the page-indicator font; a pageless tooltip carries none.</p>
+   *
+   * @return {@code true} if the entry was appended
+   */
+  private static boolean appendTextEntry(List<Component> lines, ItemStack stack) {
+    Holder<Enchantment> holder = firstEnchantment(stack);
+    if (holder == null) return false;
+
+    for (Component line : lines) {
+      if (containsFont(line, PAGE_FONT)) return false;
+    }
+
+    int level = stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY)
+        .getLevel(holder);
+    String name = enchantmentLabel(holder, level);
+    Element element = elementFor(holder);
+
+    int at = LegacyTooltipRenderer.debugLinesStart(lines);
+    lines.add(at, bulletLine("", "Legacy:", null, null));
+    lines.add(at + 1, bulletLine(GUESS_INDENT, "Enchantment: ", name, element.color));
+    VetsLogger.debug("appendTextEntry: named '{}' at line {}", name, at);
+    return true;
+  }
+
+  /**
+   * Builds one "- Label: value" line in Wynntils' item-guess styling: a green
+   * bullet, a grey label, and an optional value in the enchantment's element
+   * colour.
+   */
+  private static MutableComponent bulletLine(
+      String indent, String label, String value, ChatFormatting valueColor) {
+    MutableComponent text = Component.literal(label).withStyle(ChatFormatting.GRAY);
+    if (value != null) {
+      text.append(Component.literal(value).withStyle(valueColor));
+    }
+    return Component.literal(indent)
+        .setStyle(Style.EMPTY.withFont(DEFAULT_FONT))
+        .append(Component.literal("- ").withStyle(BULLET_COLOR))
+        .append(text);
+  }
+
+  /**
+   * Rewrites Minecraft's own enchantment line to include the level.
+   *
+   * <p>Vanilla builds that line with {@link Enchantment#getFullname}, which
+   * appends the level through the {@code enchantment.level.N} translation keys.
+   * Wynncraft's resource pack blanks those, so a Sharpness II item renders as
+   * {@code "Sharpness "} — trailing space, no numeral. The level is still on the
+   * stack, so the line is replaced with a correctly numbered one.</p>
+   *
+   * @return {@code true} if a matching line was found and replaced
+   */
+  private static boolean addLevelToVanillaLine(List<Component> lines, ItemStack stack) {
+    Holder<Enchantment> holder = firstEnchantment(stack);
+    if (holder == null) return false;
+
+    int level = stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY)
+        .getLevel(holder);
+    String bare = holder.value().description().getString().strip();
+    String full = enchantmentLabel(holder, level);
+    if (bare.equals(full)) return false;
+
+    for (int i = 0; i < lines.size(); i++) {
+      String plain = ChatFormatting.stripFormatting(lines.get(i).getString());
+      if (plain == null || !plain.strip().equals(bare)) continue;
+
+      // Keep vanilla's own styling; only fall back to grey if it carried none.
+      Style style = lines.get(i).getStyle();
+      if (style.getColor() == null) style = style.withColor(ChatFormatting.GRAY);
+      lines.set(i, Component.literal(full).setStyle(style));
+      VetsLogger.debug("addLevelToVanillaLine: '{}' -> '{}' at line {}", bare, full, i);
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Inserts the LEGACY ENCHANTMENTS block after the powder block, if this
    * tooltip is page 2 and the stack carries an enchantment.
    *
    * @return {@code true} if the block was inserted
    */
-  static boolean insertEnchantmentBlock(List<Component> lines, ItemStack stack) {
+  private static boolean insertEnchantmentBlock(List<Component> lines, ItemStack stack) {
     Holder<Enchantment> enchantment = firstEnchantment(stack);
     if (enchantment == null) return false;
 
