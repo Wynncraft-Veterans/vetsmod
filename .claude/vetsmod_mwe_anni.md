@@ -253,7 +253,7 @@ All under `/wv debug tree anni …` (the `tree` literal nests subsystem-specific
 - `guess` — pull + print fishbot-style one-liner (announced stamp + countdown OR prediction window).
 - `time <seconds>` — mutate the cached snapshot's `event.stamp_epoch` to `NOW + seconds`, preserving everything else. Round-trips through JSON.
 - `external <auto|true|false>` — override `isExternal` for testing.
-- `flash <role|party|world|rsvp>` — force a `FlashTracker` pulse on the named field (5s default, sound + bold/underline alternation).
+- `flash <role|party|world|rsvp>` — force a `FlashTracker` pulse on the named field (10s at the `normal` default, sound + bold/underline alternation).
 - `mode set <silent|passive|aggressive>` — `AnniModeManager.transitionTo(..., DEBUG_BYPASS_MUTEX)`. Skips the `/stream` mutex so we can verify rendering during screen capture.
 - `zone <enter|exit>` — force `AnniOutlineTicker.setForceInZone(...)` to bypass the geo-check.
 

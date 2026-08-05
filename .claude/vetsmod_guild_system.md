@@ -142,15 +142,7 @@ The legacy SHA-256 password matching has been removed. The two old hashes (`vets
 
 **Discord URL** (`https://wynnvets.org/discord`) is rendered as a clickable link via `ClickEvent.OpenUrl`.
 
-## 6. AuthProvider interface
-
-[src/client/java/org/wynnvets/api/auth/AuthProvider.java:19-35](src/client/java/org/wynnvets/api/auth/AuthProvider.java#L19-L35)
-
-Minimal interface: `getHeaders(): Map<String, String>`, `isAuthenticated(): boolean`. The current `NoOpAuthProvider` returns empty headers.
-
-The actual key-based auth path no longer goes through this interface — it lives in `V1ApiManager.sendAuth(key)` and the `auth` frame after WS connect (see [vetsmod_networking.md §1](vetsmod_networking.md)). The `AuthProvider` abstraction is retained in case we later need to attach connection-time headers (e.g. for a CDN or rate-limit bypass token).
-
-## 7. Tier-to-protocol mapping
+## 6. Tier-to-protocol mapping
 
 | Vetsmod tier (`vetsAuthTier`) | WS register `tier` / `ws_tier` | What grants it |
 |-------------------------------|-------------------------------|----------------|
@@ -161,7 +153,7 @@ The actual key-based auth path no longer goes through this interface — it live
 
 The tier is **resolved server-side** by dazebot's `lib/verify_keys.resolve_tier()` on every introspection. Tier changes propagate to active sessions on the next WS reconnect (or whenever temporary-server's 60s LRU cache expires the cached introspection).
 
-## 8. Persistence summary
+## 7. Persistence summary
 
 All state persists in `vetsmod/storage/config.json` under the player's Minecraft game directory (resolved at runtime via `FabricLoader.getInstance().getGameDir()`). It's not part of the source tree.
 
@@ -178,7 +170,7 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 | `vetsHonouraryUnlockTime` | long (ts) | same — legacy marker |
 | `vetsUnlockExpiryWarnings` | long (count) | **legacy** — unused, retained for rollback |
 
-## 9. Edge cases
+## 8. Edge cases
 
 - **Returners guild members still need to /unlock** under the new system. Guild detection alone no longer grants chat access — the server's tier gate enforces that authenticated users can only send chat types their tier allows. Pre-migration users discover this via the SessionAuthWarning.
 - **`forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears both GuildChecker and StaffRankChecker caches, then re-runs both checks. It does *not* re-auth; that happens automatically on every WS reconnect.

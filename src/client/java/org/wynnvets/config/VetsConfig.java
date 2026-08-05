@@ -173,9 +173,10 @@ public class VetsConfig {
   public static final String VETS_ANNI_BOSSBAR_ENABLED = "vetsAnniBossbarEnabled";
 
   /** Boss-bar pulse intensity controlling the {@code &l ↔ &n&l} flash
-   *  duration on a per-field change (role / party / world / RSVP).
-   *  {@code subtle} = 3 s, {@code normal} = 5 s (default),
-   *  {@code strong} = 10 s. The pulse half-period (250 ms) is fixed —
+   *  duration on a per-field change (role / party / RSVP — the world
+   *  chip has no timed window; it flashes while the mismatch holds).
+   *  {@code subtle} = 5 s, {@code normal} = 10 s (default),
+   *  {@code strong} = 20 s. The pulse half-period (250 ms) is fixed —
    *  this knob only affects the on-change flash duration, not the
    *  rate at which the bold/underline alternates. */
   public static final String VETS_ANNI_FLASH_INTENSITY = "vetsAnniFlashIntensity";

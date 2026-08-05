@@ -22,9 +22,14 @@ public final class OnlineGuildCache {
     private static final long GRACE_PERIOD_MS = 30_000L;
 
     /**
-     * Username (case-preserved) → epoch millis when last confirmed online.
-     * Uses case-insensitive keys via {@link ConcurrentHashMap} with
-     * lowercased keys, but we store the original-case name separately.
+     * Lowercased username → {@code Entry}, which carries the original-case
+     * display name and the epoch millis it was last confirmed online.
+     * The lowercasing happens at the put in {@code markSeen}, not in
+     * {@link ConcurrentHashMap} — that keys case-sensitively. Since nothing
+     * ever looks a key up, the lowercasing only collapses case-variant
+     * spellings onto one entry; the case-insensitive <em>matching</em> this
+     * class performs is the {@code String.CASE_INSENSITIVE_ORDER} comparator
+     * on the sets in {@code getGracePeriodNames}.
      */
     private static final ConcurrentHashMap<String, Entry> SEEN = new ConcurrentHashMap<>();
 
