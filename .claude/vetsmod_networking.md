@@ -24,7 +24,7 @@ Key methods:
 - `disconnect()` — close both cleanly
 - `sendRegistration(uuid, username, tier)` — sends `{type:"register", uuid, username, tier}`; cached for auto-retry
 - `sendAuth(key)` — sends `{type:"auth", key}`; sets `expectingAuthAck = true` so the inbound message handler routes the next ack to `GuildStateManager.onAuthSuccess`/`onAuthFailure`
-- `sendInbound(type, rank, username, message)` — `type` is one of `guild`/`waitlist`/`honourary`
+- `sendInbound(type, rank, username, message)` — `type` is one of `guild`/`queue`/`waitlist`/`honourary`. `queue` is the one `GuildChatDispatcher` uses while the player is in a world queue and the game server is dropping `/g`
 - `sendTabList(entries)` — sends `{type:"tablist", entries:[{server, username},...]}`
 - `addOutboundListener(listener)` — register consumer (note: `server_info` frames are intercepted before listeners and routed straight to `SessionAuthWarning.onServerInfo()`)
 
@@ -100,7 +100,7 @@ Parses JSON array, extracts `{username, rank, world/server}`, filters online, so
 3. Honourary (italic light purple)
 4. Waitlist (italic dark aqua)
 
-Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporters gradient glint (via `SupportersPoller.isSupporter()`). Hover shows "Click to message X"; click sends `/msg X `.
+Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporters gradient glint (via `SupportersPoller.isSupporter()`). Hover shows "Click to message X"; the click is a `ClickEvent.SuggestCommand` — it pre-fills the chat box with `/msg X ` (trailing space) rather than sending anything.
 
 ### WorldListFetcher flow
 "Looking up..." → gather players → fetch staff names → dispatch `/find` batch via `FindDispatcher.enqueueFindBatch()` → group by server → group by region (GeoIP2 prefix: EU→Europe, AS→Asia, etc.) → sort by count desc.
@@ -128,10 +128,10 @@ Six `scheduleAtFixedRate` pollers, all started back-to-back from `VetsmodClient.
 
 ### StaffRanksPoller (2 min)
 [StaffRanksPoller.start()](../src/client/java/org/wynnvets/fetcher/polling/StaffRanksPoller.java)
-- `ConcurrentHashMap<String, String>` (lowercase name → rank)
+- **Two** `ConcurrentHashMap<String, String>` caches, both keyed by lowercase name: `staffRanksByUsername` (replaced wholesale each poll) and `liveStaffRanksByUsername`, a push overlay fed by `staff_online` / `staff_offline` outbound frames. `confirmedRankFor` checks the live map first, so a pushed staff member is never evicted by a stale poll snapshot
 - Runs every 2 minutes, scheduled initially immediate
 - Fetches `VetsApi.STAFF`, replaces entire cache atomically
-- Accepts only owner/chief/strategist/captain
+- `ALLOWED_RANKS` is strategist/chief/owner only — **captain is rejected**, retired in the 2026-07 permission restructure, and a stray captain is dropped and treated as a non-staff Returner client-side
 - Used by `ListFetcher` for underline styling
 - Why polling? No server event stream; cheap + simple
 
@@ -153,8 +153,8 @@ Six `scheduleAtFixedRate` pollers, all started back-to-back from `VetsmodClient.
 ## 6. Listeners
 
 [ServerConnectionListener](../src/client/java/org/wynnvets/listeners/ServerConnectionListener.java)
-- Fabric `ClientPlayConnectionEvents.JOIN` → connect WebSockets, register outbound handler, reset `newTooltipStylesAvailable`
-- Fabric `ClientPlayConnectionEvents.DISCONNECT` → reset guild state, disconnect WebSockets, unregister handler
+- Fabric `ClientPlayConnectionEvents.JOIN` → connect WebSockets, register the outbound handler. That is all it does.
+- Fabric `ClientPlayConnectionEvents.DISCONNECT` → reset guild state, reset `newTooltipStylesAvailable`, disconnect WebSockets, unregister the outbound handler, and clear `OutboundDisplayHandler`'s three dedup/suppression caches
 
 [WynntilsEventListener](../src/client/java/org/wynnvets/listeners/WynntilsEventListener.java):
 - `@SubscribeEvent WorldStateEvent` → on WORLD state, call `GuildStateManager.onEnteredWorld()`
@@ -228,5 +228,5 @@ The server validates each key by HTTP introspection against dazebot (`POST /api/
 ## 9. Error handling
 
 - WebSocket errors → `WsClient.onError()` logs, aborts, schedules reconnect
-- HTTP errors in fetchers → `CompletableFuture.completeExceptionally()`, caller decides how to display
+- HTTP errors in fetchers are **absorbed, not propagated**: the chain ends in `.exceptionally(e -> …)` returning a fallback value — a red error `Component` for the on-demand fetchers, `null` for `StampFetcher`, an empty collection for the pollers. No fetcher calls `completeExceptionally`; the repo's only use of it is `CommandDispatcher`'s `/find` batch future
 - No retry on HTTP failures; next polling tick re-attempts

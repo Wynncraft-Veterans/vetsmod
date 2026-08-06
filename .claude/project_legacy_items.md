@@ -41,7 +41,7 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 Guard conditions (return `false` early):
 - `VetsConfig.LEGACY_ITEM_HIGHLIGHTING` disabled
 - `stack.isEmpty()`
-- `isBlockedScreen()` — screen title is `"Island Rules"` or `"Move here!"` (these use enchant glint as UI selectors)
+- `isBlockedScreen()` — true whenever Wynntils reports `Models.Housing.isInEditMode()`, and otherwise when the screen title matches one of the 9 `blocked_screen_titles` patterns in `definitions.yml` (housing/island menus that abuse enchant glint as a UI selector)
 
 Name is normalized via `stripSupplementaryPua()` + `ChatFormatting.stripFormatting()` before matching. The `newFormatOverridden` flag suppresses name-based matches (branches 1 & 2) when the item is new-format AND its name is in `new_format_override`.
 
@@ -114,7 +114,7 @@ Rendered in **two places**, using identical drawing code:
 
 Drawing sequence:
 1. `guiGraphics.fillGradient(x, y, x+16, y+16, topColor, bottomColor)` — top/bottom colours from `LegacyItemStyle.getBackgroundGradientTopColor()` / `…BottomColor()` with per-colour opacity packed into ARGB alpha
-2. `guiGraphics.blit(RenderPipelines.GUI_TEXTURED, WYNNTILS_HIGHLIGHT, x-1, y-1, spriteOffset, 0f, 18, 18, 256, 256, foregroundColor)` — texture `wynntils:textures/ui_components/highlight.png`, U offset = sprite ordinal × 18, tinted by `foregroundColor`
+2. `RenderUtils.drawSprite(guiGraphics, VetsConfig.getLegacyForegroundTexture(), CustomColor.fromARGBInt(VetsConfig.getLegacyForegroundColor()), x - 10, y - 10, 36, 36)` — Wynntils' own sprite renderer, 36×36 at offset −10, taking a `com.wynntils.utils.render.Texture` enum value from `LegacyItemStyle`'s `HIGHLIGHT_*` table (fallback `Texture.HIGHLIGHT_WYNN`). There is no `blit` call and no raw texture path anywhere in the repo
 
 `LegacyHighlightMixin` itself **does not draw** — it only captures hover state (`currentItemHasFoil`, `currentItemStack`) for the tooltip pipeline and, via a server-compat patch in its `renderSlot` head, sets `newTooltipStylesAvailable` if it sees a `tooltip_style` component.
 
@@ -166,7 +166,7 @@ Registered in `VetsConfig.USER_CONFIG_KEYS`. Validation delegated to `VetsConfig
 - **Unidentified gear**: name contains BMP PUA lock icon; `stripSupplementaryPua()` normalises it before name matching. No separate identified-vs-unidentified branching.
 - **"Crafted" items (player-made with durability)**: never legacy — early bail in branch 0 of tooltip renderer.
 - **Wynntils `ItemStatInfoFeature` rebuild**: can blank out line 0. Branch 1 of tooltip renderer recovers the name from `currentItemStack.getHoverName()` and attempts new-format LEGACY-box insertion.
-- **Blocked screens** ("Island Rules", "Move here!"): these Wynncraft menus abuse enchant glint as UI selectors — whole system bails on them.
+- **Blocked screens**: housing edit mode (`Models.Housing.isInEditMode()`) is checked first, then the screen title against `definitions.yml`'s `blocked_screen_titles` (9 patterns — Island Settings/Rules/Weather, Background Song, Select a Song, Permission Groups, `Permissions for …`, `Available … Locations`, `Move here!`). These menus abuse enchant glint as UI selectors, so the whole system bails on them.
 - **Old-server compat**: `newTooltipStylesAvailable` starts false; set true as soon as any item with `tooltip_style` or new-format font is seen. Gold tooltip border is suppressed until then to avoid garish fallback colours on pre-update servers. Reset on disconnect.
 - **Wynntils percentage suffix** (`[61.7%]`): detected via `\s*(\[\d+\.?\d*%\])$`, extracted before rewriting, re-appended after.
 

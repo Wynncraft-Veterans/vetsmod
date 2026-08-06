@@ -19,10 +19,10 @@ Entry point: [CommandRegistry.register()](../src/client/java/org/wynnvets/comman
 **Handlers are stored in:** `CommandRegistry`, `ConfigCommands`, `HelpCommands`, `DebugCommands`, and on-demand fetchers under `fetcher/ondemand/`.
 
 ### /wv help [<subcommand>]
-No permission. [HelpCommands](../src/client/java/org/wynnvets/commands/HelpCommands.java). Subcommands: `config`, `check`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger`.
+No permission. [HelpCommands](../src/client/java/org/wynnvets/commands/HelpCommands.java). The `/wv help <subcommand>` literals are `config`, `check`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger`. What bare `/wv help` *prints* is a different, rank-gated set: `/wv help`, `/wv anni`, `/wv list`, `/wv config`, `/wv debug` always, then `/wv motd` for vets, `/wv staff` when unlocked, `/wv return` and `/wv line` for Returners, `/wv check` for staff.
 
 ### /wv check <playerName>
-Captain+. [CommandRegistry.check()](../src/client/java/org/wynnvets/commands/CommandRegistry.java). Delegates to `UserInfoFetcher.checkUser()` which chains Mojang UUID → WynnCraft profile → Returners roster membership.
+Confirmed staff. Both the Brigadier `.requires` visibility gate and the runtime check are `GuildStateManager.isConfirmedStaff()` — server-confirmed staff from the WS auth ack, not a Captain rank check. [CommandRegistry.check()](../src/client/java/org/wynnvets/commands/CommandRegistry.java). Delegates to `UserInfoFetcher.checkUser()` which chains Mojang UUID → WynnCraft profile → Returners roster membership.
 
 ### /wv return
 Vet/Returners. [CommandRegistry.returnInfo()](../src/client/java/org/wynnvets/commands/CommandRegistry.java). GETs `VetsApi.RETURN`, shows latest return-channel post.
@@ -34,7 +34,7 @@ The post is authored in Discord, so the body arrives with Discord's `<t:EPOCH:ST
 ### /wv list [world]
 Vet. Two variants:
 - `/wv list` — [CommandRegistry.list()](../src/client/java/org/wynnvets/commands/CommandRegistry.java), triggers `ListFetcher.fetchList()`: online members grouped by tier, staff underlined, supporters glint.
-- `/wv list world` (Captain+) — [CommandRegistry.listWorld()](../src/client/java/org/wynnvets/commands/CommandRegistry.java), triggers `WorldListFetcher.fetchWorldList()`: dispatches `/find` for each online member, groups by region (GeoIP2 codes: AF/AS/EU/NA/OC/SA/Other/Private).
+- `/wv list world` (staff) — the Brigadier `.requires` is the all-true `userIsCaptain` stub; the real gate is `GuildStateManager.isStaff()` inside the handler, plus a refresh-in-progress bail — [CommandRegistry.listWorld()](../src/client/java/org/wynnvets/commands/CommandRegistry.java), triggers `WorldListFetcher.fetchWorldList()`: dispatches `/find` for each online member, groups by region (GeoIP2 codes: AF/AS/EU/NA/OC/SA/Other/Private).
 
 ### /wv staff
 Unlocked. [CommandRegistry.staff()](../src/client/java/org/wynnvets/commands/CommandRegistry.java). GETs `VetsApi.STAFF`, shows online staff sorted by rank → alpha.
@@ -65,15 +65,6 @@ Lights up the `[Hard]` / `[Soft]` `SuggestCommand` buttons in [AnniCommandRender
 Trust chain: vetsmod sends `anni_rsvp` ([`V1ApiManager.sendAnniRsvp`](../src/client/java/org/wynnvets/api/V1ApiManager.java)) → temp-server's [`_handle_anni_rsvp`](../../temporary-server/app/chat/inbound.py) stamps the session's `mc_uuid` as `actor_mc_uuid` → vets-anni's [`POST /api/internal/anni-rsvp-by-uuid`](../../vets-anni/app/web/routers/anni_internal.py) calls [`execute_uuid_rsvp`](../../vets-anni/app/domain/rsvp_by_uuid.py) which reuses the Discord cog's `_auto_place_after_rsvp` / `_broadcast_board_snapshot` / `_post_public` helpers verbatim. Ack flows back as `anni_rsvp_response` (routed to [`AnniRsvpClient`](../src/client/java/org/wynnvets/mwe/anni/network/AnniRsvpClient.java)'s pending future; 5s timeout).
 
 Unauthenticated message uses spec wording: `Use \rsvp on discord — or run ~vetsmod first.` T-90 cutoff is enforced server-side (revokes are unaffected; vets-anni surfaces `RSVP is closed (within 90 min of anni)` for hard/soft attempts inside the cutoff).
-
-### /wv anni scrollspot {set <x> <y> <z> | here | clear}
-S5. Authenticated only (must have run `~vetsmod`). [AnniScrollspotCommand](../src/client/java/org/wynnvets/mwe/anni/command/AnniScrollspotCommand.java). Per-party host pins (or clears) the in-game scroll-spot coordinate; visible to all party members through `board.party.scroll_spot` on the next snapshot push.
-
-- `set <x> <y> <z>` — pin explicit coords.
-- `here` — pin the player's current block position.
-- `clear` — remove the spot.
-
-Trust chain: vetsmod sends an `anni_scrollspot_set` inbound frame ([`V1ApiManager.sendAnniScrollspotSet`](../src/client/java/org/wynnvets/api/V1ApiManager.java)); temp-server's [`_handle_anni_scrollspot_set`](../../temporary-server/app/chat/inbound.py) reads the session's MC UUID and forwards as `actor_mc_uuid` to vets-anni's [`POST /api/internal/anni-party-scrollspot`](../../vets-anni/app/web/routers/anni_internal.py). vets-anni rejects unless the actor is the host of their currently-assigned party; the client-side `isAuthenticatedThisSession()` check is UX, not security. Ack flows back as `anni_scrollspot_response` (routed to [`AnniScrollspotClient`](../src/client/java/org/wynnvets/mwe/anni/network/AnniScrollspotClient.java)'s pending future; 5s timeout); failures surface the server's `detail` string verbatim (e.g. `Scroll spot rejected: only the party host can set scroll_spot`).
 
 ### /wv config [<key> [<value>]]
 No permission. [ConfigCommands](../src/client/java/org/wynnvets/commands/ConfigCommands.java). Three forms:
@@ -127,7 +118,7 @@ The legacy SHA-256 password matching has been removed. Users with stored `vetsWa
 ### GuildChatCommandMixin
 [GuildChatCommandMixin](../src/client/java/org/wynnvets/mixin/client/chat/GuildChatCommandMixin.java)
 
-Routes `/g`, `/wg`, `/v`, `/msg` through `GuildChatDispatcher.intercept(command)`. Staff `/v` goes through `CommandDispatcher` → `MessageFanoutDispatcher` for fan-out to online staff with 🔐 lock prefix.
+Routes `/g`, `/wg`, `/v` and nine more prefixes through `GuildChatDispatcher.intercept(command)` — **not exhaustive**, see `GuildChatDispatcher.intercept`, which matches 12. Staff `/v` goes through `CommandDispatcher` → `MessageFanoutDispatcher` for fan-out to online staff with 🔐 lock prefix. `/msg` is **not** intercepted: vetsmod only ever emits it, via `Handlers.Command.queueCommand` in the fan-out and as a `SuggestCommand` click on `/wv list` entries.
 
 ## 3. Suggestion providers
 
@@ -136,7 +127,7 @@ Routes `/g`, `/wg`, `/v`, `/msg` through `GuildChatDispatcher.intercept(command)
 ## 4. Things to know when adding commands
 
 - Register new subcommand inside `CommandRegistry.register()` using Brigadier literal/argument pattern.
-- Gate with a permission predicate from `CommandRegistry` (currently all return true — future work).
+- Gate with a real predicate. `CommandRegistry`'s own `userIsCaptain`/`userIsVet` are all-true stubs; the commands that are genuinely gated call `GuildStateManager.isConfirmedStaff()` / `isStaff()` / `areFeaturesEnabled()` / `isUnlocked()` directly.
 - Avoid heavy work on the main thread; use `CompletableFuture` from `HttpClient`.
-- Chat output: use `ChatUtils.dispatchToChat()` (thread-safe, sets INTERNAL_CHAT_DISPATCH ThreadLocal).
-- Tab completion: use `SuggestionProviders` or `SuggestionProvider`s from `ConfigCommands` as templates.
+- Chat output: use `ChatUtils.dispatchToChat(Component, Style)` (thread-safe, marks the dispatch internal so the chat pipeline skips re-logging and the rewriter chain). There is no no-argument form.
+- Tab completion: use Brigadier `SuggestionProvider`s, with `ConfigCommands.SUGGEST_CONFIG_KEYS` / `SUGGEST_CONFIG_VALUES` as templates.

@@ -21,14 +21,14 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 [AnimatedChatMixin](../src/client/java/org/wynnvets/mixin/client/chat/AnimatedChatMixin.java)
 - **Target:** `@Mixin(ChatComponent.class)`
 - **Method:** `addMessageToDisplayQueue(GuiMessage)` — HEAD + RETURN injections
-- **Purpose:** On HEAD, snapshot first visible line. On RETURN, calculate lines added and wrap them with `AnimatedGradientSequence`. Uses `ThreadLocal<AnimConfig>` from `AnimatedGradientSequence.beginAnimation()`
+- **Purpose:** On HEAD, snapshot the *identity* of the current first line; on RETURN, walk forward to that same reference to count what was prepended and wrap those lines with `AnimatedGradientSequence`. It does **not** read the `ThreadLocal<AnimConfig>` that `beginAnimation()` sets — every wrapper is built from `AnimatedGradientSequence.effectiveDefaultStart()`/`effectiveDefaultEnd()`/`DEFAULT_CYCLE_TIME_MS`. Custom colours passed to `beginAnimation` are therefore ignored; the only caller happens to pass exactly those defaults.
 - **Why:** Enables smooth time-based gradient animation on newly-inserted chat lines without running a separate tick loop
 
 ### GuildChatCommandMixin
 [GuildChatCommandMixin](../src/client/java/org/wynnvets/mixin/client/chat/GuildChatCommandMixin.java)
 - **Target:** `@Mixin(ClientPacketListener.class)`
 - **Method:** `sendCommand(String command)` at `@At("HEAD")`, `cancellable=true`
-- **Purpose:** Routes `/g`, `/wg`, `/v`, `/msg` through `GuildChatDispatcher.intercept(command)`
+- **Purpose:** Routes `/g`, `/wg`, `/v` and nine more prefixes through `GuildChatDispatcher.intercept(command)` — **not exhaustive**, see `GuildChatDispatcher.intercept`, which matches 12. `/msg` is not one of them
 - **Why:** Staff `/v` gets fanned out to all online staff via `MessageFanoutDispatcher`; Wynncraft natively has no multi-staff chat
 
 ## Command (1)
@@ -70,8 +70,8 @@ These six live directly under `mixin/client/` rather than a subpackage. They're 
 
 ### NametagMixin
 [NametagMixin](../src/client/java/org/wynnvets/mixin/client/NametagMixin.java)
-- **Target:** `@Mixin(AvatarRenderer.class)` (default priority)
-- **Method:** `extractRenderState(Avatar, AvatarRenderState, F)` at `@At("TAIL")`
+- **Target:** `@Mixin(value = AvatarRenderer.class, priority = 900)` — the only vetsmod mixin at 900, and it is load-bearing: it makes vetsmod the inner wrap under wynnmod's outer wrap.
+- **Methods:** two injectors. `@Inject` on `extractRenderState(Avatar, AvatarRenderState, F)` at `@At("TAIL")` (`vetsmod$rewriteNameTag`), plus a `@WrapOperation` around the `submitNameTag` call (`vetsmod$reapplyAfterWrap`) that re-applies the override after wynnmod's PRE handler has rebuilt `state.nameTag`. A `WYNNMOD_PRESENT` flag additionally skips the supporter branch at TAIL when wynnmod is loaded.
 - **Purpose:** Two-branch nametag overlay. **Anni branch (S4)** runs first: while `AnniOutlineTicker.isOutlineSuppressionActive()` AND `vetsAnniNametagsEnabled`, registry hits get the tier `ChatFormatting` colour and outsiders get `DARK_GRAY`. **Crucially:** the inject calls `ChatFormatting.stripFormatting(state.nameTag.getString())` before building the literal — Wynncraft embeds the team colour as a legacy `§<code>` prefix INSIDE the string content (`§awonderkas`, etc.), and without the strip, vanilla's text renderer parses it at draw time and overrides our `.withStyle(...)` colour silently. **Supporter branch** runs only if the anni branch didn't fire: replaces static nametag with `NametagAnimator.tryAnimate()` result for supporters.
 - **Why TAIL of extractRenderState, not HEAD of submitNameTag (which it used to be):** Wynntils' `CustomNametagRendererFeature` (subscribed to `PlayerNametagRenderEvent`, dispatched from Wynntils' own HEAD inject on `submitNameTag`) **cancels** the call whenever it adds gear-hover lines or a Wynntils account-type badge. The cancel propagates via the mixin processor's `if (ci.isCancelled()) return;` guard and skips every later-priority HEAD inject on the same method. Moving to `extractRenderState` TAIL writes the override into `state.nameTag` *before* Wynntils' event handler reads it; Wynntils' prefixed-name component picks up our colour unchanged. See `vetsmod_mwe_anni.md` §"NametagMixin anni branch" for the full forensic.
 - **Why anni branch first:** A supporter who is also in a vets-anni party shows their role colour for the duration of the highlight gate, and reverts to the animated glint after the gate closes.
@@ -137,7 +137,8 @@ No non-legacy item mixins. All item behaviour lives in:
 |-------|----------|
 | `QueueTitleMixin` | 500 (very high — fires before other title mixins) |
 | `BossHealthOverlayMixin` | 500 (not load-bearing — there is no cancellation order to win; kept for symmetry with `QueueTitleMixin` and headroom if another render-path mixin lands) |
-| All other mixins | Default 1000 (priority is not load-bearing — S4 nametag work moved off priority-based HEAD ordering to TAIL-of-earlier-method to avoid Wynntils' cancel) |
+| `NametagMixin` | 900 — load-bearing: it puts vetsmod's wrap inside wynnmod's |
+| All other mixins | Default 1000 (priority is not load-bearing there — S4 nametag work moved off priority-based HEAD ordering to TAIL-of-earlier-method to avoid Wynntils' cancel) |
 
 For event-based integrations, vetsmod uses `@SubscribeEvent(priority=EventPriority.LOWEST)` on `LegacyHighlightEventListener` so it runs AFTER Wynntils' `ItemHighlightFeature` (registered at HIGH). Drawing at LOWEST effectively overwrites Wynntils' rarity highlight.
 

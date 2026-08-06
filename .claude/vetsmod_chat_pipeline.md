@@ -10,9 +10,9 @@ The vetsmod chat system is a multi-stage pipeline that intercepts every chat mes
 
 ## 1. High-level flow
 
-**Incoming (server → client):** vanilla `ChatComponent.addMessage()` → `ChatLogMixin` HEAD → log → guild state detection → suppression checks (/g, /gu rank, /find) → rewriter chain → fall through to vanilla (or cancelled if a rewriter consumed it).
+**Incoming (server → client):** vanilla `ChatComponent.addMessage()` → `ChatLogMixin` HEAD → streamer-mode observation → log → guild state detection → suppression checks (/gu stats, /gu rank, /v, /find) → rewriter chain → fall through to vanilla (or cancelled if a rewriter consumed it).
 
-**Outbound (user → server):** `ClientPacketListener.sendCommand()` → `GuildChatCommandMixin` HEAD → `GuildChatDispatcher.intercept()` for `/g`, `/wg`, `/v`, `/msg`.
+**Outbound (user → server):** `ClientPacketListener.sendCommand()` → `GuildChatCommandMixin` HEAD → `GuildChatDispatcher.intercept()` for `/g`, `/wg`, `/v` and nine more prefixes — **not exhaustive**, see `GuildChatDispatcher.intercept`, which matches 12. `/msg` is not among them.
 
 **Remote push (WebSocket → client):** `V1ApiManager` outbound listener → `OutboundDisplayHandler.onOutboundMessage()` → UUID dedup + self + bridge echo suppression → `ChatUtils.sendGuildChatMessage()`.
 
@@ -22,12 +22,14 @@ The vetsmod chat system is a multi-stage pipeline that intercepts every chat mes
 
 `@Mixin(ChatComponent.class) @Inject(method="addMessage", at=@At("HEAD"), cancellable=true)` — runs in order:
 
-1. `ChatLogger.logMessage(message)` unless `ChatUtils.INTERNAL_CHAT_DISPATCH` ThreadLocal is set
-2. `GuildStateManager.processGuildCheckMessage(msg)` (pulls `/gu stats` responses out of chat)
-3. Suppress if `GuildStateManager.isProcessingModGuildCheck()` or staff-rank-check is active
-4. Suppress via `CommandDispatcher.shouldSuppressFeedback()` (`/v` echo)
-5. Suppress via `CommandDispatcher.shouldSuppressFindResponse()` (`/find` result)
-6. Rewriter chain (only when NOT internally dispatched):
+1. `StreamerModeChatDetector.observe(message)` — runs first, before any logging
+2. `ChatLogger.logMessage(...)` unless `ChatUtils.isInternalDispatch()` is true (the `INTERNAL_CHAT_DISPATCH` ThreadLocal is private to `ChatUtils`; the mixin reads it through that accessor)
+3. `GuildStateManager.processGuildCheckMessage(msg)` (pulls `/gu stats` responses out of chat)
+4. Suppress if `GuildStateManager.isProcessingModStaffRankCheck()` AND the line looks like a staff-rank-check response
+5. `GuildStateManager.processMessage(message, messageString)` — unconditional, no short-circuit
+6. Suppress via `CommandDispatcher.shouldSuppressFeedback()` (`/v` echo)
+7. Suppress via `CommandDispatcher.shouldSuppressFindResponse()` (`/find` result)
+8. Rewriter chain (only when NOT internally dispatched):
    1. `EncourageUpdateRewriter.tryRewrite()`
    2. `StaffGuildAlertRewriter.tryRewrite()`
    3. `StaffChannelMessageRewriter.tryRewrite()`
@@ -95,7 +97,7 @@ Flow: message → UUID dedup → self suppression → bridge echo check → disp
 
 [ChatUtils](../src/client/java/org/wynnvets/chat/ChatUtils.java)
 
-Key entry points:
+Key methods (`stripServerContinuations` and `wrapBlockMessage` are private helpers, not entry points):
 - `sendGuildChatMessage()` — `<badge> <pill> <username>: <body>`
 - `sendGuildChatMessageRed()` — admin-locked red styling
 - `sendStaffChannelMessage()` — staff-style with special pill
@@ -105,7 +107,7 @@ Key entry points:
 - `dispatchToChat()` — thread-safe dispatch
 - `dispatchAnimatedChat()` — dispatch with gradient animation context
 
-URL regex: `https?://\S+` (`URL_PATTERN`).
+URL regex (`URL_PATTERN`, case-insensitive): `(?<!§)(https?://\S+|[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+/\S*)` — it also matches schemeless `domain.tld/path`, and the lookbehind keeps it off section-sign colour codes.
 
 Styles: `RANK_STYLE` = aqua, `NAME_STYLE` = dark aqua, `ADMIN_RANK_STYLE` = red, `CHAT_PREFIX_STYLE` references custom `chat/prefix` font for glyphs.
 
@@ -125,7 +127,7 @@ Formats rank "pill" (badge) component with supporter gradient.
 
 [Prepend](../src/client/java/org/wynnvets/chat/Prepend.java)
 
-Enum: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge, compact block marker for consecutive messages within 18 lines), `EMPTY`. Mirrors native Wynncraft behaviour.
+Enum, four constants: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge, compact block marker for consecutive messages within 18 lines), `GUILD_HONOURARY`, `EMPTY`. Mirrors native Wynncraft behaviour.
 
 ## 9. Dispatcher system (staff chat + /find)
 
@@ -140,7 +142,7 @@ Single-threaded `DISPATCH_EXECUTOR`. `/msg` batches drain first (priority), then
 [MessageFanoutDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/MessageFanoutDispatcher.java)
 
 Fans `/v` out as `/msg <recipient> 🔐 <message>` to every online staff member. Constants:
-- `LOCK_PREFIX = "🔐"` (unique `/v` discriminator)
+- `CommandDispatcher.LOCK_PREFIX = "🔐"` (unique `/v` discriminator; declared there, not here)
 - `SUPPRESSION_TTL_MS = 15_000`
 - `OFFLINE_GUIDANCE_SUPPRESSION_WINDOW_MS = 4_000`
 - `INTER_SEND_DELAY_MS = 600`
@@ -162,7 +164,7 @@ Batch `/find <username>` dispatcher. `enqueueFindBatch()` returns `CompletableFu
 
 [AnimatedChatMixin](../src/client/java/org/wynnvets/mixin/client/chat/AnimatedChatMixin.java)
 
-`@Mixin(ChatComponent.class)` on `addMessageToDisplayQueue` HEAD + RETURN. Snapshots line count before insertion, wraps newly inserted lines with `AnimatedGradientSequence` when `AnimatedGradientSequence.beginAnimation()` is in effect on the current thread.
+`@Mixin(ChatComponent.class)` on `addMessageToDisplayQueue` HEAD + RETURN. Snapshots the *identity* of the current first line at HEAD, then at RETURN walks forward to that same reference to count what was prepended and wraps those lines with `AnimatedGradientSequence`. The wrapper is built from `AnimatedGradientSequence`'s effective defaults, not from the `beginAnimation()` ThreadLocal — colours passed to `beginAnimation` do not reach it.
 
 ## 11. Custom fonts / PUA glyphs
 
@@ -176,9 +178,9 @@ Batch `/find <username>` dispatcher. `enqueueFindBatch()` returns `CompletableFu
 
 | Pattern | Constant | Purpose |
 |---------|-----------|---------|
-| `https?://\S+` | `ChatUtils.URL_PATTERN` | URL detection |
+| `(?<!§)(https?://\S+\|[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+/\S*)` | `ChatUtils.URL_PATTERN` | URL detection (scheme or schemeless) |
 | `\|\|(.+?)\|\|` | `SpoilerCodec.PIPE_SPOILER` | Pipe spoilers |
-| `real\s+name\s+is\s+([A-Za-z0-9_]{1,16})` | multiple rewriters | Hover→real-name |
+| `real\s+name\s+is\s+([A-Za-z0-9_]{1,16})` | `NickResolver.REAL_NAME_PATTERN` | Hover→real-name (only `EncourageUpdateRewriter` keeps a private duplicate) |
 | `/msg\s+([A-Za-z0-9_]{1,16})` | `StaffChannelMessageRewriter.MSG_COMMAND_PATTERN` | Click→recipient |
 | `([A-Za-z0-9_]{1,16})\s*$` | `StaffChannelMessageRewriter.USERNAME_AT_END` | Username-at-end |
 | `⚠⚠⚠ If you are using vetsmod.*` | `EncourageUpdateRewriter.ENCOURAGE_PATTERN` | Version nag |

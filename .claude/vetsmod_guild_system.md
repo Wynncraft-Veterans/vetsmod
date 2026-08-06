@@ -71,7 +71,7 @@ Wynntils `GuildEvent.Joined` / `.Left` invalidates the `GuildChecker` cache (aut
 **Caching:**
 - `GUILD_CHECK_EXPIRY_DAYS = 3`
 - Persisted: `VETS_GUILD_CHECK_RESULT` (long) and `VETS_LAST_GUILD_CHECK` (long timestamp)
-- `TIMEOUT_MS = 10_000`
+- `GUILD_CHECK_TIMEOUT_MS = 10_000L`
 - Suppression grace: 2 seconds after completion
 
 ## 3. StaffRankChecker
@@ -84,7 +84,7 @@ Wynntils `GuildEvent.Joined` / `.Left` invalidates the `GuildChecker` cache (aut
 - Sends `/gu rank` (no args) via `Handlers.Command.queueCommand()`
 - Unauthorized response: "you must be a captain to use this command" → NOT staff
 - Authorized response: "invalid arguments, try: rank [name] [rank]" → IS staff
-- `TIMEOUT_MS = 10_000`
+- `STAFF_RANK_TIMEOUT_MS = 10_000L`
 
 **Caching:**
 - `STAFF_CHECK_COOLDOWN_MS = 24 * 60 * 60 * 1000` (24 hours)
@@ -173,7 +173,7 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 ## 8. Edge cases
 
 - **Returners guild members still need to /unlock** under the new system. Guild detection alone no longer grants chat access — the server's tier gate enforces that authenticated users can only send chat types their tier allows. Pre-migration users discover this via the SessionAuthWarning.
-- **`forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears both GuildChecker and StaffRankChecker caches, then re-runs both checks. It does *not* re-auth; that happens automatically on every WS reconnect.
+- **`forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears **neither** cache — it prints diagnostics and re-runs both checks (`refreshStaffStatusIfNeeded(true)` and `GuildChecker.refreshGuildStatus()`). Not clearing is deliberate and commented twice in `GuildStateManager`: `GuildChecker` is cleared only by `onGuildInfoUpdated()`, i.e. only on a Wynntils `GuildEvent`. It also does *not* re-auth; that happens automatically on every WS reconnect.
 - **Wynntils `GuildEvent`** is authoritative — when it fires, `GuildChecker` cache is invalidated.
 - **`/gu stats` vs Wynntils** — Wynntils data is tried first; `/gu stats` is the reliable fallback (hence `MORE_RELIABLE_GUILD_CHECK` config).
 - **Rotating a leaked key:** users run `/vetsmod rotate` in Discord; their old key fails introspection on the next WS connect. The mod surfaces the failure via `onAuthFailure()` and the SessionAuthWarning prompts them to `/unlock` again.

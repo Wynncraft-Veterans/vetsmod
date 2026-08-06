@@ -61,10 +61,10 @@ Marker colors (sentinels; replaced at render time):
 - `MARKER_COLOR = 0x00DEAD` — normal animation
 - `GREY_MARKER_COLOR = 0x00DEAF` — grey animation
 
-Defaults:
-- Start: Dark Aqua `0x55FFFF`
-- End: Light aqua `0xAADDFF`
-- Grey: `0x888888 → 0xBBBBBB`
+Defaults (the render path reads them through `effectiveDefaultStart()` / `effectiveDefaultEnd()` / `effectiveGreyStart()` / `effectiveGreyEnd()`, which swap in the `CV_*` pairs when `colorBlindMode` is on):
+- Start: Dark Aqua `0x55FFFF` — `CV_DEFAULT_START_COLOR = 0x6699BB`
+- End: Light aqua `0xAADDFF` — `CV_DEFAULT_END_COLOR = 0xDDF0FF`
+- Grey: `0x888888 → 0xBBBBBB` — `CV_GREY_START_COLOR = 0x666666`, `CV_GREY_END_COLOR = 0xCCCCCC`
 - Cycle: 3000ms
 
 `ThreadLocal<AnimConfig>` for context-safe setup/teardown. Usage:
@@ -84,7 +84,7 @@ t = phase < 0.5 ? phase * 2.0 : 2.0 - phase * 2.0  // oscillates 0→1→0
 color = start + (end - start) * t                   // linear RGB interp
 ```
 
-`AnimatedChatMixin` picks up the ThreadLocal config at insert-time and wraps newly-inserted lines.
+`AnimatedChatMixin` wraps newly-inserted lines at insert time. It does **not** read the ThreadLocal config — it builds every wrapper from the `effective*()` defaults above, so custom colours handed to `beginAnimation` are dropped. The one real caller, `ChatUtils.dispatchAnimatedChat`, passes exactly those defaults, which is why nothing looks wrong.
 
 ### GradientTextBuilder
 [GradientTextBuilder](../src/client/java/org/wynnvets/rendering/colors/GradientTextBuilder.java)
@@ -118,7 +118,7 @@ Resource-pack shader sentinels (GPU-animated by server pack shader):
 Three-stage handoff used across the codebase:
 1. **Set intent:** Caller calls `AnimatedGradientSequence.beginAnimation(...)` to configure colours + cycle.
 2. **Mark chars:** Caller sets `MARKER_COLOR` or `GREY_MARKER_COLOR` on components that should animate. The marker is a unique-looking sentinel that won't appear in real content.
-3. **Replace at render:** `AnimatedChatMixin` wraps new lines in `AnimatedGradientSequence`, which substitutes the actual animated colour per-char per-frame when a marker is hit.
+3. **Replace at render:** `AnimatedChatMixin` wraps new lines in `AnimatedGradientSequence`, which substitutes the actual animated colour per-char per-frame when a marker is hit — using the `effective*()` defaults, not whatever stage 1 configured.
 
 This lets e.g. `PillFormatter` compose components in one pass and have animation applied without coupling composition to the render loop.
 

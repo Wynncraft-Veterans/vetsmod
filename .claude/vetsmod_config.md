@@ -81,7 +81,7 @@ Default 69 for top opacity approximates the old `0xB0` alpha byte.
 
 **`vetsAnniMode` is not in this list.** It is a persisted string key (default `silent`; values `silent` / `passive` / `aggressive`), but it is set by `/wv anni <mode>` through `AnniModeManager.transitionTo`, not by `/wv config` — it is absent from `USER_CONFIG_KEYS`. It auto-resets to `silent` at T+30m via `AnniWindowWatcher`, and a transition is refused → silent while `/stream` is on.
 
-## 3. API (public static methods)
+## 3. API (static methods, all public except `save()`)
 
 All methods keyed by string. Returns false when validation fails.
 
@@ -98,9 +98,9 @@ All methods keyed by string. Returns false when validation fails.
 | `registerDefault(key, defaultValue)` | for subsystems; boolean keys only, must run before `load()` |
 | `resetToDefaults()` | saves current in-memory; does NOT clear |
 | `load()` | creates the file from defaults when absent |
-| `save()` | called by every setter, by `load()`, and by `resetToDefaults()` |
-| `isValidColor(name)` | delegated to `NamedColor.COLORS` |
-| `isValidSprite(name)` | delegated to sprite enum |
+| `save()` | **private**; called by every setter, by `load()`, and by `resetToDefaults()` |
+| `isValidColor(name)` | delegated to `LegacyItemStyle.isValidColor`, which reads `NamedColor`'s private `COLORS` map |
+| `isValidSprite(name)` | delegated to `LegacyItemStyle.isValidSprite`, which matches against the `VetsConfig.VALID_SPRITES` array — there is no sprite enum |
 | `getColorNames()` | for command suggestion |
 
 ## 4. USER_CONFIG_KEYS order (for /wv config listing)
@@ -141,8 +141,8 @@ Declared by [VetsConfig.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/config
 ## 5. Static defaults
 
 INT_DEFAULTS: opacity values.
-STRING_DEFAULTS: colour + sprite.
-Booleans default in static initializer — all true except timestamp/count longs (0L).
+STRING_DEFAULTS: seven entries — the four colour/sprite keys plus `vetsAnniRoleStyle` (`descriptive`), `vetsAnniMode` (`silent`) and `vetsAnniFlashIntensity` (`normal`).
+Booleans default in the static initializer, and not all of them are true: `vetsIsStaff`, `vetsAnniEnabled`, `vetsAnniModeUserSet` and `colorBlindMode` default `false`. Timestamp/count longs default `0L`.
 HANDLE_SPOILERS default: null.
 
 ## 6. Persistence

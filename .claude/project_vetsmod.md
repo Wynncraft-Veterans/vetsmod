@@ -43,7 +43,7 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 - `WynntilsMod.registerEventListener()` + `@SubscribeEvent`
 - `Models.Guild.getGuildName()`, `Models.Guild.isInGuild()`
 - `Handlers.Command` for rate-limited command queueing (`/gu stats`, `/gu rank`, `/find`, `/msg`)
-- `ChatMessageEvent.Match` / `ChatMessageEvent.Edit` for chat interception
+- `ChatMessageEvent.Match` for chat interception. `ChatMessageEvent.Edit` is never subscribed anywhere in the repo — the rewriter chain runs from `ChatLogMixin`, a mixin on vanilla `ChatComponent.addMessage`, not from a Wynntils event
 - `WorldStateEvent` for world join trigger
 - `StyledText`, `ComponentUtils`, `McUtils`
 

@@ -111,7 +111,7 @@ WynntilsMod.registerEventListener(this);   // register @SubscribeEvent methods
 Models.Guild.getGuildName()
 Models.Guild.isInGuild()
 Handlers.Command                           // rate-limited queue for /gu stats, /gu rank, /find
-ChatMessageEvent.Match / .Edit             // chat interception
+ChatMessageEvent.Match                     // chat interception (.Edit is unused)
 WorldStateEvent                            // world join trigger
 StyledText, ComponentUtils, McUtils
 ```
