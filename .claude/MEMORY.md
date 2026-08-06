@@ -14,8 +14,8 @@
 - [Legacy Items System](project_legacy_items.md) — 8-branch detection cascade, 9-branch tooltip rewriter, YAML definitions, mixins, config, edge cases
 - [Mixins Reference](vetsmod_mixins.md) — All 14 registered entries (13 mixins + 1 accessor): target class, inject point, purpose, rationale (UnlockCommandMixin intercepts `/unlock <key>`; QueueTitleMixin/CommandSuggestionsMixin handle queue UX)
 - [Queue subsystem](project_vetsmod.md) — `org.wynnvets.queue` package + how the `queue` chat type routes guild messages while the game server drops `/g`. Covered by that doc's `org.wynnvets.queue` bullet; it carries no headings, so there is no anchor to link.
-- [Rendering System](vetsmod_rendering.md) — Territory lines, NametagAnimator, AnimatedGradientSequence, GradientTextBuilder, ShaderColorPalette
-- [MWE / Annihilation](vetsmod_mwe_anni.md) — The whole `mwe/anni/` subsystem: snapshot cache and wire shapes, mode gates, boss bar, outlines and nametags, zone lines, scroll-spot waypoint, RSVP, the `/wv debug tree anni` harness, and the render-pipeline lessons
+- [Rendering System](vetsmod_rendering.md) — Territory lines, NametagAnimator, AnimatedGradientSequence, GradientTextBuilder, ShaderColorPalette, and the render-pipeline lessons (sprite overrides, gate flags, Gizmos, MarkerProvider/beacon lifecycle)
+- [MWE / Annihilation](vetsmod_mwe_anni.md) — The whole `mwe/anni/` subsystem: snapshot cache, mode gates, boss bar, outlines and nametags, zone lines, scroll-spot waypoint, RSVP, party back-report, one complete config-key table and one complete `/wv debug tree anni` harness listing
 - [PUA Rank Pills](vetsmod_pua_pills.md) — How invisible PUA rank pills are framed and decoded, why a codepoint's meaning is frame-scoped, and `PillCodec` as the single encode/decode authority
 - [Guild Resource Distribution](vetsmod_distribute.md) — /wv distribute, the Manage-Members GUI automation state machine, the five modes, the NoAspects opt-out, front-of-queue command reflection
 

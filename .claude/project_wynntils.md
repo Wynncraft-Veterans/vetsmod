@@ -113,6 +113,18 @@ File: `common/src/main/java/com/wynntils/models/guild/GuildModel.java`
 
 **GuildRank enum:** `Recruit, Recruiter, Captain, Strategist, Chief, Owner`
 
+### Models.Player — ghost detection
+
+`Models.Player.isPlayerGhost(player)` is the canonical "is this player phased to another world" check. It is backed by `PlayerModel.ghosts`, a `Map<UUID, Integer>` Wynntils populates from `_<TIER><N>` team-assignment events and clears on a `WORLD` state change.
+
+It doubles as a one-way presence detector for the local user's `/toggle ghosts` setting: if any visible player is ghost-flagged, ghosts cannot be off, because the server filters them out otherwise. The converse does not hold — no visible ghost means "ambiguous", not "off". `GhostsPromptHandler` uses it exactly that way.
+
+## Init order between vetsmod and Wynntils
+
+Fabric does **not** guarantee entrypoint order between sibling mods. Static-touching `Models.Marker` — or any other `Models.X` — from `VetsmodClient.onInitializeClient()`'s body triggers `Models.<clinit>`, which constructs `FriendsModel` / `PartyModel` etc.; their `<init>`s call `WynntilsMod.postEvent(...)` against the not-yet-initialised event bus, NPE, leave `Models` half-initialised, and then Wynntils' own `Managers.<clinit>` cascade-crashes the game during boot.
+
+**Defer any init-time `Models.X.something(...)` call into the existing `ClientLifecycleEvents.CLIENT_STARTED` handler**, which fires after every mod's `onInitializeClient`. Runtime calls — per-tick, per-snapshot-listener — are always safe; by tick time Wynntils is up. Saved as the `feedback_vetsmod_wynntils_init_order.md` memory.
+
 ## Utility classes
 
 ### StyledText

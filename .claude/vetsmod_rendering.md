@@ -1,6 +1,6 @@
 ---
 name: vetsmod Rendering System
-description: Non-legacy rendering — territory lines, nametag animator, animated gradient sequence, gradient text builder, shader color palette
+description: Non-legacy rendering — territory lines, nametag animator, animated gradient sequence, gradient text builder, shader color palette, and the transferable render-pipeline lessons
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
@@ -134,4 +134,18 @@ This lets e.g. `PillFormatter` compose components in one pass and have animation
 | `EncourageUpdateRewriter` | `ComponentUtils.makeRainbowStyle()` for up-to-date case |
 | `/wv line` | `TerritoryLineRenderer` + `TerritoryLineManager` |
 
-**Gap:** the whole `mwe/anni/` render stack is out of this doc — `AnniZoneLineRenderer` (a Gizmos peer of `TerritoryLineRenderer`), `ScrollSpotMarkerProvider`, the outline trio (`AnniOutlineTicker`/`Registry`/`Palette`), the boss-bar classes, and the component renderers under `mwe/anni/render/`. All of it is covered in [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md) instead.
+The `mwe/anni/` render components — `AnniZoneLineRenderer` (a Gizmos peer of `TerritoryLineRenderer`), `ScrollSpotMarkerProvider`, the outline trio (`AnniOutlineTicker`/`Registry`/`Palette`), the boss-bar classes, and the component renderers under `mwe/anni/render/` — are documented in [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md), beside the subsystem they belong to. What generalises out of building them is §6 below.
+
+## 6. Render-pipeline lessons
+
+Collected while building the `mwe/anni/` render stack; they apply to any new render mixin or per-tick render component, not just to anni. Mixin-authoring constraints and per-mixin injection points live in [vetsmod_mixins.md](vetsmod_mixins.md); Wynntils-side API behaviour lives in [project_wynntils.md](project_wynntils.md).
+
+1. **Wynncraft's resource pack overrides specific vanilla sprites.** `boss_bar/pink_background.png` is fully transparent (so PINK/PROGRESS bars render as text-only HUD strips). Other vanilla GUI sprites *may* be similarly overridden; if a vanilla render component goes unexpectedly invisible, blame the resource pack first. Stick to `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` for any new boss-bar colour and don't assume vanilla sprite paths are intact.
+
+2. **`isOutlineSuppressionActive()` / `isAggressiveActive()` are the cheap public flags** for "are we doing the anni-active rendering thing right now". Each is a `volatile boolean` set per tick by its ticker — safe to query from render-thread mixins without extra locking. Expose a parallel flag from any new ticker with its own gate semantics.
+
+3. **`Gizmos.circle` exists.** The zone-line renderer uses it. Centre is `Vec3(disc.x, snappedY, disc.z)` — the disc geometry is 2D in `AnniZone` so Y is unspecified; snapping to multiples of `Y_STEP` lets the cylinder-cage stack stay anchored as the player moves. Other available primitives: `cuboid`, `circle`, `line`, `arrow`, `rect`, `point`, `billboardTextOverBlock`. None require Mojang-mappings remapping — they're in `net.minecraft.gizmos.*` and resolve directly under Loom 1.15.5.
+
+4. **MarkerProvider lifecycle.** `Models.Marker.registerMarkerProvider(...)` is one-shot at vetsmod load. The provider's `isEnabled()` is what gates per-tick visibility — do NOT call `registerMarkerProvider` from a snapshot listener or reconnect handler (the registration list would grow on every reconnect). `ScrollSpotMarkerProvider.registerWithWynntils()` is idempotent via a static flag. The flag guards three things, not one: the `registerMarkerProvider` call, an `AnniSnapshotCache.addListener` subscription, and a priming `onSnapshot(AnniSnapshotCache.latest())` so a marker appears immediately rather than at the next push. The listener subscription is what makes the flag matter — a second call would double-subscribe.
+
+5. **Wynntils `BeaconBeamFeature` is unconditional.** Every entry in `Models.Marker.getAllMarkers()` gets a beacon beam — there's no per-marker "skip" path. `marker.beaconColor()` is called and `.withAlpha(float).asInt()` invoked on it: null → render-thread NPE → "Pose stack not empty" next-frame crash; `CustomColor.NONE` → fallback to user-config beacon (still visible); custom 0-alpha → Wynntils overrides alpha back to opaque before render. Conclusion: if you register a MarkerProvider, you ship a beacon. Pick a colour you can live with.

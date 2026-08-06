@@ -164,3 +164,4 @@ Routes `/g`, `/wg`, `/v` and nine more prefixes through `GuildChatDispatcher.int
 - Avoid heavy work on the main thread; use `CompletableFuture` from `HttpClient`.
 - Chat output: use `ChatUtils.dispatchToChat(Component, Style)` (thread-safe, marks the dispatch internal so the chat pipeline skips re-logging and the rewriter chain). There is no no-argument form.
 - Tab completion: use Brigadier `SuggestionProvider`s, with `ConfigCommands.SUGGEST_CONFIG_KEYS` / `SUGGEST_CONFIG_VALUES` as templates.
+- **A fixed set of choices does not need a `SuggestionProvider` at all.** Literal children give Brigadier its own suggestion list for free — `hard`/`soft`/`revoke` under `rsvp`, and `silent`/`passive`/`aggressive` under `anni`, are both spelled that way. Reach for `StringArgumentType.word()` plus a custom provider only when the value set is open or computed at runtime.

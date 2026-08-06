@@ -63,6 +63,7 @@ mwe/anni/
 2. **temp-server's poller** (`app/services/anni_snapshot_poller.py`) hits vets-anni's `/api/internal/anni-snapshot-batch` and `/anni-player/{uuid}`; pushes per-uuid changes as `anni_state` frames every ~10 s in the hot window, ~5 min otherwise. Eligibility refreshes every 60 s.
 3. **vetsmod's `AnniWsHandler`** receives `anni_state` (push) and `anni_query_response` (pull) frames, hydrates into `AnniSnapshot`, drops into `AnniSnapshotCache`.
 4. **`AnniSnapshotCache`** is a single-player, volatile, listener-bus cache. Listeners fire on the WS reader thread — bounce to the main thread via `Minecraft.getInstance().execute(...)` if you need to touch render state.
+5. **Cold start pulls rather than waiting for the push.** `StampFetcher.fetchStampAndCreateMessage` (the world-join motd path) reads `AnniSnapshotCache.latest()` and on `null` fires a fire-and-forget `AnniQueryClient.query()` before falling through to legacy stamp text. *Note: this intentionally does NOT rely on the push poller alone — outside the T-2h hot window `AnniSnapshotPoller` fires every 5 min, so on cold start a user already inside the anni zone would otherwise see legacy motd and no boss bar for up to 5 min.* Any new component that depends on the cache being warm at world-join time gets this for free. `AnniWsHandler.register()` installs the reconnect counterpart — a post-connect `AnniQueryClient::query` re-pull.
 
 ## Mode state
 
@@ -163,6 +164,8 @@ Long forms in chat (`HARD RSVP` / `SOFT RSVP` / `EARLY WALK-IN` / `LATE WALK-IN`
 `Eligible Roles` becomes `Assigned Role` when on a party (and the duplicate `Role:` in the party block is dropped).
 
 `Board` label everywhere is `Party Assignment`.
+
+`AnniHoverBuilder.noticeColor` is the canonical RSVP colour map, and it is canonical for chat-output code too — not just for `/wv anni` renderer code. Saved as the `feedback_anni_rsvp_colours.md` memory: call the helper, don't inline `ChatFormatting.AQUA`/`GREEN` literals.
 
 ## anni-motd (world-join)
 
@@ -650,53 +653,34 @@ Listed in `AnniDebugCommands.PRESETS`.
 | `member_announced` | Vets + announced (NOW+8h) + unassigned (attendance bar) |
 | `member_in_party` | Vets + announced (NOW+8h) + party (ASSIGNED + party block) |
 
-## Render-pipeline lessons
+## Where the render-pipeline lessons went
 
-Forward-looking knowledge collected while building the subsystem; consult before adding a new render mixin or per-tick component.
+Building this subsystem produced a set of forward-looking lessons that are not
+about anni at all. They now live with the subject they belong to, so there is
+one copy of each:
 
-1. **Prefer render-side / read-side filtering to packet-side / write-side mutation.** Four working precedents:
-   - `BossHealthOverlayMixin` (`@Redirect` on `events.values()`)
-   - `EntityOutlineColorMixin` (TAIL on `extractRenderState`, zeroes `state.outlineColor`)
-   - `EntityGlowingMixin` (HEAD-cancellable on `isCurrentlyGlowing`)
-   - `NametagMixin` (TAIL on `extractRenderState`, rebuilds `state.nameTag`)
-   - Cancelling vanilla packets has burned us twice (boss-bar crash on `update()` cancel, nametag short-circuit by Wynntils' cancel). Keep vanilla bookkeeping intact; intercept what comes out, not what goes in.
+- **Render pipeline** — resource-pack sprite overrides, the cheap per-tick
+  `volatile boolean` gate flags, `Gizmos.circle` and its sibling primitives,
+  MarkerProvider lifecycle, and Wynntils' unconditional `BeaconBeamFeature`:
+  [vetsmod_rendering.md](vetsmod_rendering.md) §6.
+- **Mixins** — render-side over packet-side filtering, `state.<field>`
+  coercion at the assignment site, the § codes Wynncraft embeds in nametag
+  string content, Wynntils' `AvatarRendererMixin` HEAD cancel and what to test
+  against it, and Mixin's non-private-static and `priority` rules:
+  [vetsmod_mixins.md](vetsmod_mixins.md).
+- **Wynntils API** — `Models.Player.isPlayerGhost` as a one-way ghosts-on
+  detector, and the `Models.X`-at-init cold-start crash:
+  [project_wynntils.md](project_wynntils.md).
+- **Brigadier** — literal children give you a suggestion list without a
+  `SuggestionProvider`: [vetsmod_commands.md](vetsmod_commands.md) §4.
 
-2. **Don't trust `state.<field>` to mean what you think — vanilla often wraps or coerces values right before assignment.** `state.outlineColor = ARGB.opaque(getTeamColor())` — returning 0 from the getter produces opaque-black, not transparent. Always check the assignment site, not just the source value.
+Two stayed here because they are anni facts rather than lessons: the cold-start
+snapshot pull is §Snapshot pipeline step 5, and `AnniHoverBuilder.noticeColor`
+as the canonical RSVP colour map sits with the other chat labels under
+§`/wv anni` render dispatch.
 
-3. **Wynncraft embeds formatting in string content, not just in Component Style.** `state.nameTag.getString()` returns `"§awonderkas"`. Any time you `.getString()` a Wynncraft component and rebuild it with `.withStyle(...)`, strip § codes first with `ChatFormatting.stripFormatting()`. The text renderer parses leading § codes at draw time and they win over your Style.
-
-4. **Wynncraft's resource pack overrides specific vanilla sprites.** `boss_bar/pink_background.png` is fully transparent (so PINK/PROGRESS bars render as text-only HUD strips). Other vanilla GUI sprites *may* be similarly overridden; if a vanilla render component goes unexpectedly invisible, blame the resource pack first. Stick to `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` for any new boss-bar colour and don't assume vanilla sprite paths are intact.
-
-5. **Wynntils' `CustomNametagRendererFeature` and `EntityRendererMixin` are positioned at `submitNameTag` HEAD / `extractRenderState` TAIL respectively.** They cancel or override depending on player state. Test mixin behaviour with players who:
-   - have a Wynntils account-type (Donator / etc.) — triggers `addAccountTypeNametag` + event cancel
-   - you're currently looking at (raycast hit) — triggers `addGearNametags` + event cancel
-   - have no Wynntils data — event proceeds, vanilla body runs
-   - are local-player (skips some paths)
-   - The nametag bug surfaced only on hovered Wynntils-tracked players; non-tracked players appeared to work, masking the bug. Use the dump command to verify the mixin is *resolving* even when in-world rendering looks normal.
-
-6. **MixinSquared / Mixin disallows non-private static methods on mixin classes** (`vetsmod$resetLoggedNametags` crashed mod load with `InvalidMixinException`). Static fields are fine; static methods must be `private`. Same restriction applies to any helper you'd add to the mixin class itself; put them in a sibling helper class if you need public statics.
-
-7. **`@Inject HEAD` on a cancellable method is processed in `priority` order** — higher priority runs FIRST. If any earlier-priority inject cancels via `ci.cancel()`, the mixin processor's generated `if (ci.isCancelled()) return;` guard skips your inject. For "I must always run" semantics, TAIL of an earlier method is more reliable than HEAD of a later one.
-
-8. **`isOutlineSuppressionActive()` / `isAggressiveActive()` are the cheap public flags** for "are we doing the anni-active rendering thing right now". Each is a `volatile boolean` set per tick by its ticker — safe to query from render-thread mixins without extra locking. Expose a parallel flag from any new ticker with its own gate semantics.
-
-9. **`Gizmos.circle` exists.** The zone-line renderer uses it. Centre is `Vec3(disc.x, snappedY, disc.z)` — the disc geometry is 2D in `AnniZone` so Y is unspecified; snapping to multiples of `Y_STEP` lets the cylinder-cage stack stay anchored as the player moves. Other available primitives: `cuboid`, `circle`, `line`, `arrow`, `rect`, `point`, `billboardTextOverBlock`. None require Mojang-mappings remapping — they're in `net.minecraft.gizmos.*` and resolve directly under Loom 1.15.5.
-
-10. **Wynntils `Models.Player.isPlayerGhost(player)` is the canonical "is this player phased to another world" check.** Backed by `PlayerModel.ghosts` — a `Map<UUID, Integer>` populated from `_<TIER><N>` team assignment events. Cleared on `WORLD` state change. The ghosts-prompt uses it as a presence-detector for "does the user have `/toggle ghosts on`" (if there's a ghost in the player list, ghosts can't be off, because the server filters them otherwise).
-
-11. **MarkerProvider lifecycle.** `Models.Marker.registerMarkerProvider(...)` is one-shot at vetsmod load. The provider's `isEnabled()` is what gates per-tick visibility — do NOT call `registerMarkerProvider` from a snapshot listener or reconnect handler (the registration list would grow on every reconnect). `ScrollSpotMarkerProvider.registerWithWynntils()` is idempotent via a static flag for belt-and-braces.
-
-12. **Init order between vetsmod and Wynntils.** Fabric does NOT guarantee entrypoint order between sibling mods. Static-touching `Models.Marker` (or any other `Models.X`) from `VetsmodClient.onInitializeClient()` body triggers `Models.<clinit>` which constructs `FriendsModel` / `PartyModel` etc. — their `<init>`s call `WynntilsMod.postEvent(...)` against the not-yet-initialised eventBus, NPE, half-init Models, then Wynntils' own `Managers.<clinit>` cascade-crashes the game during boot. **Defer any `Models.X.something(...)` init-time call into the existing `ClientLifecycleEvents.CLIENT_STARTED` handler** (fires after every mod's onInitializeClient). Runtime calls (per-tick, per-snapshot-listener) are always safe — by tick time Wynntils is up. Saved as `feedback_vetsmod_wynntils_init_order.md` memory.
-
-13. **Wynntils `BeaconBeamFeature` is unconditional.** Every entry in `Models.Marker.getAllMarkers()` gets a beacon beam — there's no per-marker "skip" path. `marker.beaconColor()` is called and `.withAlpha(float).asInt()` invoked on it: null → render-thread NPE → "Pose stack not empty" next-frame crash; `CustomColor.NONE` → fallback to user-config beacon (still visible); custom 0-alpha → Wynntils overrides alpha back to opaque before render. Conclusion: if you register a MarkerProvider, you ship a beacon. Pick a colour you can live with.
-
-14. **Cold-start world-join must trigger a snapshot pull.** `StampFetcher.fetchStampAndCreateMessage` (world-join motd path) reads `AnniSnapshotCache.latest()` and on `null` fires a fire-and-forget `AnniQueryClient.query()` before falling through to legacy stamp text. *Note: this intentionally does NOT rely on the push poller alone — outside the T-2h hot window the poller fires every 5 min, so on cold-start a user inside the anni zone would otherwise see legacy motd + no boss bar for up to 5 min.* Any new component that depends on `AnniSnapshotCache.latest()` being warm at world-join time gets this for free.
-
-15. **`app.state.fishbot` is the reach-out for `_post_public`** from a FastAPI route handler. Set in `main.py::lifespan` (`app.state.fishbot = bot`); route handlers read via `request.app.state.fishbot`. May be `None` when `FISHBOT_TOKEN` is unset — `_post_public` already no-ops on missing channel/bot so no try/except needed at the endpoint level. Same reach-out pattern `anni_ping_poller.py` uses.
-
-16. **Brigadier literals don't need `SuggestionProvider`s.** Three literal children (`hard`/`soft`/`revoke`) under a `rsvp` literal give brigadier its own suggestion list — same shape as `silent`/`passive`/`aggressive` already did under `anni`. No `StringArgumentType.word()` + custom `SuggestionProvider` needed.
-
-17. **`AnniHoverBuilder.noticeColor` is the canonical RSVP colour map** even from chat-output code, not just from `/wv anni` renderer code. Saved as `feedback_anni_rsvp_colours.md` memory — call the helper, don't inline `ChatFormatting.AQUA`/`GREEN` literals.
+One is server-side and is 1e's: how a vets-anni FastAPI route handler reaches
+the optional fishbot through `app.state.fishbot`.
 
 ## Open follow-ups
 
