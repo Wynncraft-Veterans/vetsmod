@@ -210,17 +210,20 @@ public final class GraidsDistributor {
     }
 
     /**
-     * Largest-base + random-remainder split. Each participant gets a
-     * floored proportional share; the {@code count % totalParticipations}
-     * extras are awarded to a random subset of participants.
+     * Floored-proportional split with a random remainder. Each
+     * participant gets {@code floor(frequency * count /
+     * totalParticipations)}; the {@code count - sum(shares)} left over
+     * by that flooring is awarded {@code +1} at a time to a random
+     * subset of participants, each at most once.
      */
     private static Deque<Distribution> buildDistribution(Map<String, Integer> freq, int count) {
         int totalParticipations = 0;
         for (int f : freq.values()) totalParticipations += f;
         if (totalParticipations <= 0) return new ArrayDeque<>();
 
-        // Stable iteration order: lowest-frequency first, alphabetical tiebreaker.
-        // Doesn't affect totals; just keeps the chat output predictable.
+        // Stable iteration order: highest-frequency first, alphabetical
+        // tiebreaker. Doesn't affect totals; just keeps the visit order
+        // (and so the chat output) predictable.
         List<Map.Entry<String, Integer>> participants = new ArrayList<>(freq.entrySet());
         participants.sort((a, b) -> {
             int c = Integer.compare(b.getValue(), a.getValue());

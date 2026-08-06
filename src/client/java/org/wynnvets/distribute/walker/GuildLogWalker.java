@@ -87,10 +87,12 @@ public final class GuildLogWalker {
 
     /**
      * Arms the walker for the next guild log open. The caller is
-     * expected to follow up with the command that opens the log
-     * ({@code /guild log} via {@code Handlers.Command.queueCommand}
-     * &mdash; the rate-limited queue, not the immediate sender, so the
-     * command doesn't race a previous menu's close packet).
+     * expected to follow up with something that opens the log GUI. The
+     * only caller today, {@code GraidsDistributor}, uses
+     * {@code GuildManageOpener.openGuildLog()}, which sends
+     * {@code /guild manage} and clicks the Guild Log tile &mdash; a
+     * direct {@code /guild log} is unreliable this soon after a menu
+     * close, which is the whole reason that route exists.
      */
     public static void armWalk(Completion onComplete) {
         active = true;

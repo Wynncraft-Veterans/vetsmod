@@ -135,9 +135,11 @@ public final class MembersListWalker {
         if (!active) return;
         if (event.getContainerId() != membersContainerId) return;
         VetsLogger.debug("MembersListWalker: menu closed mid-walk, abandoning");
-        // No callback on abandon — let the caller see no completion as
-        // a signal that something went wrong. ObjectivesDistributor
-        // surfaces its own "closed early" chat in that case.
+        // No callback on abandon, and no chat line either — this path is
+        // silent. There is no watchdog here (contrast
+        // MembersListSearcher.WATCHDOG_TICKS), so an @objectives run whose
+        // Members menu closes mid-walk stalls until the next armWalk
+        // resets the state. Same for scanAndPaginate's screen-gone path.
         stop();
     }
 

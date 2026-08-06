@@ -33,9 +33,11 @@ import java.util.regex.Pattern;
  * <p>Mirrors the page-turn half of Wynntils'
  * {@code ContainerSearchFeature}: subscribes to the same
  * {@code MenuOpenedEvent.Pre} / {@code ContainerSetContentEvent.Post} /
- * {@code ContainerSetSlotEvent.Post} triple Wynntils uses, with a one-tick
- * scheduler delay so straggling slot updates land before the rescan.
- * Slot indices and bounds match {@code GuildMemberListContainer}.</p>
+ * {@code ContainerSetSlotEvent.Post} triple Wynntils uses, with a
+ * {@link #SCAN_DELAY_TICKS}-tick scheduler delay so straggling slot
+ * updates land before the rescan &mdash; see that constant for why the
+ * value is 2 and not 1. Slot indices and bounds match
+ * {@code GuildMemberListContainer}.</p>
  *
  * <h2>Bidirectional pagination</h2>
  * <p>Forward search is the default. When the forward sweep runs out of

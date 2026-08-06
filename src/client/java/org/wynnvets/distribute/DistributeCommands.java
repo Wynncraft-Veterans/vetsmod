@@ -64,9 +64,11 @@ import java.util.concurrent.CompletableFuture;
  *       the guild log (Wynncraft caps at ~100 most-recent entries).
  *       See {@link GraidsDistributor}.</li>
  *   <li>{@code @split} &mdash; divide {@code <count>} by 3 and run
- *       {@code @random}, {@code @graids}, {@code @objectives}
+ *       {@code @graids}, {@code @objectives}, {@code @random}
  *       sequentially, each with a third (modulo distributed randomly
- *       among the three pools). See {@link SplitDistributor}.</li>
+ *       among the three pools). {@code @graids} runs first by
+ *       necessity, not by accident &mdash; see {@link SplitDistributor}
+ *       for why reordering the phases loses graid records.</li>
  * </ul>
  *
  * <h2>Gating</h2>
@@ -101,9 +103,10 @@ public final class DistributeCommands {
    *  frequency". */
   private static final String GRAIDS_SELECTOR = "@graids";
 
-  /** Selector token that means "split N three ways and run @random,
-   *  @graids, @objectives back-to-back with a third each (random
-   *  remainder)". */
+  /** Selector token that means "split N three ways and run @graids,
+   *  @objectives, @random back-to-back with a third each (random
+   *  remainder)". The phase order is fixed and load-bearing; see
+   *  {@link SplitDistributor}. */
   private static final String SPLIT_SELECTOR = "@split";
 
   private DistributeCommands() {}
@@ -161,8 +164,9 @@ public final class DistributeCommands {
       return 1;
     }
 
-    // @split selector: divide count by 3 and run @random + @graids +
-    // @objectives sequentially, each with a third (remainder randomised).
+    // @split selector: divide count by 3 and run @graids + @objectives
+    // + @random sequentially, each with a third (remainder randomised).
+    // Graids first is required, not stylistic — see SplitDistributor.
     if (SPLIT_SELECTOR.equalsIgnoreCase(name)) {
       SplitDistributor.dispatch(count, resource);
       return 1;
