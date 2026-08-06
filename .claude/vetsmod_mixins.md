@@ -61,12 +61,12 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 [LegacyItemTooltipMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyItemTooltipMixin.java)
 - **Target:** `@Mixin(GuiGraphics.class)`
 - **Method:** `setTooltipForNextFrame(Font, List<Component>, Optional<TooltipComponent>, int, int, Identifier)` at `@At("HEAD")`, `cancellable=true`
-- **Purpose:** Runs `LegacyTooltipRenderer.processTooltip()` (8-branch cascade). If modified, cancels vanilla and re-invokes with mutable copy + optional gold border
+- **Purpose:** Calls `LegacyItemHandler.processTooltip()`, a one-line delegate to `LegacyTooltipRenderer.processTooltip()` (9-branch cascade; `LegacyTooltipRenderer` is package-private, so the mixin cannot call it directly). If modified, cancels vanilla and re-invokes with mutable copy + optional gold border
 - **Why:** Tooltip is the last render stage, after Wynntils events; reentry guard prevents loops
 
-## Top-level (3)
+## Top-level (6)
 
-These three live directly under `mixin/client/` rather than a subpackage. They're declared in `vetsmod.client.mixins.json` without a subpackage prefix.
+These six live directly under `mixin/client/` rather than a subpackage. They're declared in `vetsmod.client.mixins.json` without a subpackage prefix.
 
 ### NametagMixin
 [NametagMixin](../src/client/java/org/wynnvets/mixin/client/NametagMixin.java)

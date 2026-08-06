@@ -1,6 +1,6 @@
 ---
 name: vetsmod Networking (WebSocket + Fetchers + Polling)
-description: V1ApiManager dual-WebSocket, WsClient reconnection/ping, on-demand HTTP fetchers, polling services (staff, supporters, guild roster)
+description: V1ApiManager dual-WebSocket, WsClient reconnection/ping, on-demand HTTP fetchers, the six polling services
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
@@ -123,6 +123,8 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 ## 5. Polling services
 
 Package: [org.wynnvets.fetcher.polling](../src/client/java/org/wynnvets/fetcher/polling/)
+
+Six `scheduleAtFixedRate` pollers, all started back-to-back from `VetsmodClient.onInitializeClient`: `SupportersPoller` 5m, `StaffRanksPoller` 2m, `AnniStampPoller` 5m, `AnniSnapshotPoller` 30s, `GuildRosterCache` 5m, `WynnAliasCache` 5m. Two are named `*Cache` but poll on a fixed schedule like the rest. `AnniSnapshotPoller` is the only gated one — its tick returns early unless an anni stamp is announced and within 90 minutes. The three subsections below cover three of the six.
 
 ### StaffRanksPoller (2 min)
 [StaffRanksPoller.start()](../src/client/java/org/wynnvets/fetcher/polling/StaffRanksPoller.java)

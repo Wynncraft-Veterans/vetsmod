@@ -15,7 +15,7 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 - `org.wynnvets.api.auth` — **dead**: `AuthProvider` + `NoOpAuthProvider`, never instantiated, no consumer. Slated for deletion.
 - `org.wynnvets.chat` — `OutboundDisplayHandler`, `ChatLogger`, `ChatUtils`, `PillFormatter`
 - `org.wynnvets.chat.dispatcher` — `CommandDispatcher`, `MessageFanoutDispatcher`, `FindDispatcher`
-- `org.wynnvets.chat.rewriter` — chat message transformers: spoiler, staff guild alert, staff channel, server guild, encourage-update
+- `org.wynnvets.chat.rewriter` — six chat message transformers: encourage-update, staff guild alert, staff channel, server guild, spoiler (those five form `ChatLogMixin`'s chain, in that order) and `WarningRewriter`, which runs from `OutboundDisplayHandler` instead
 - `org.wynnvets.chat.spoiler` — `SpoilerCodec`, `SpoilerFormatter` (PUA encoding)
 - `org.wynnvets.commands` — `CommandRegistry`, `/wv` command tree
 - `org.wynnvets.config` — `VetsConfig` (JSON-backed) at `vetsmod/storage/config.json`
@@ -24,9 +24,9 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 - `org.wynnvets.items` — `ItemDefinitions` (YAML regex patterns), `LegacyItemHandler`, renderers
 - `org.wynnvets.queue` — `QueueStateManager`, `QueueDetector`, `QueueStateListener`. Tracks Wynncraft world-queue state from the queue title + world-state signals; consumers (`OutboundDisplayHandler`, `GuildChatDispatcher`) take the queue-aware path that routes guild chat through the WS as `type:"queue"` since the in-game `/g` is dropped while queued.
 - `org.wynnvets.fetcher.ondemand` — HTTP fetchers: MOTD, staff, list, return, stamp, world list, user info
-- `org.wynnvets.fetcher.polling` — `StaffRanksPoller` (2min), `SupportersPoller` (5min), `GuildRosterCache`
+- `org.wynnvets.fetcher.polling` — six scheduled pollers: `SupportersPoller` (5min), `StaffRanksPoller` (2min), `AnniStampPoller` (5min), `AnniSnapshotPoller` (30s, only inside the anni window), `GuildRosterCache` (5min), `WynnAliasCache` (5min). Two are named `*Cache` but are pollers like the rest.
 - `org.wynnvets.listeners` — Wynntils event subscriptions (WorldStateEvent, GuildEvent, ChatMessageEvent)
-- `org.wynnvets.mixin.client` — 11 mixins: chat (3), legacy items (3), commands (2), plus `NametagMixin`, `CommandSuggestionsMixin`, `QueueTitleMixin`. Authoritative list lives in `src/client/resources/vetsmod.client.mixins.json`.
+- `org.wynnvets.mixin.client` — 14 registered entries: chat (3), legacy items (3), command (1), six top-level (`NametagMixin`, `CommandSuggestionsMixin`, `QueueTitleMixin`, `BossHealthOverlayMixin`, `EntityGlowingMixin`, `EntityOutlineColorMixin`) and one accessor (`BossHealthOverlayAccessor`). Authoritative list lives in `src/client/resources/vetsmod.client.mixins.json`.
 - `org.wynnvets.rendering` — `TerritoryLineRenderer`, `NametagAnimator`, gradient text
 - `org.wynnvets.logging` (under `src/main/`, shared with server stub) — `VetsLogger` thin wrapper used everywhere else
 
@@ -53,8 +53,8 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 
 **Config:** JSON at `~/.minecraft/vetsmod/storage/config.json`. User-facing keys via `/wv config`. Debug logging opt-in, 3-day TTL.
 
-**Item definitions:** YAML at `src/client/resources/definitions.yml`. Regex categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `notjunk`, `new_format_override`, `enchant_excluded_items`.
+**Item definitions:** YAML at `src/client/resources/definitions.yml`. 9 regex categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `not_pedestal`, `notjunk`, `new_format_override`, `enchant_excluded_items`, `blocked_screen_titles`.
 
-**No unit tests** (typical for Fabric mods due to tight Minecraft coupling).
+**Tests:** a JUnit 5 harness with 7 test files under `src/test/java/`, covering the pure-logic classes that don't need Minecraft on the classpath. Anything importing `net.minecraft.*` or `com.wynntils.*` stays out of it.
 
 **Unicode PUA reservation:** vetsmod has reserved BMP PUA range **U+F600–U+F850** for its own purposes. We should not use BMP PUA outside of this range since it may conflict with other Wynn projects. Major current usage is our `SpoilerCodec`. Wynncraft/Wynntils use separate PUA ranges (including supplementary plane > U+10000).

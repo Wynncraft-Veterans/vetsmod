@@ -7,7 +7,7 @@ Fabric client mod for the Wynncraft "Returners" veterans guild community. Requir
 - **Mod ID:** `vetsmod` | **Version:** see `gradle.properties` (`mod_version`) | **MC:** 1.21.11 | **Java:** 21
 - **Wynntils dependency:** `v4.1.4-fabric` via Modrinth Maven (`modCompileOnly`)
 - Most client code lives under `src/client/`. `src/main/` holds a tiny server stub plus `org.wynnvets.logging.VetsLogger` (shared by both sides).
-- JUnit 5 harness under `src/test/java/` for pure-logic classes (`VetsLogger`, `SpoilerCodec`, `RankChangeListener.classify`). Run via `./gradlew test` (also runs with `./gradlew build`). Anything importing `net.minecraft.*` or `com.wynntils.*` stays untested — out of scope for the harness.
+- JUnit 5 harness under `src/test/java/` for pure-logic classes — 7 test files (`VetsLoggerTest`, `SpoilerCodecTest`, `NickResolverTest`, `RankChangeListenerTest`, `PartyRosterListenerTest`, `MojangCooldownTest`, `UuidsTest`). Run via `./gradlew test` (also runs with `./gradlew build`). Anything importing `net.minecraft.*` or `com.wynntils.*` stays untested — out of scope for the harness.
 
 ## Related repos (same workspace)
 
@@ -49,11 +49,23 @@ VetsmodClient (entry point)
   │                           Sends `auth` frame after connect using the stored /unlock key
   ├── OutboundDisplayHandler  Receives WS messages, deduplicates, displays in chat
   ├── QueueStateManager       In-queue state + listeners; fed by QueueDetector (title + world events)
-  ├── Polling services        StaffRanksPoller (2min), SupportersPoller (5min), GuildRosterCache
+  ├── Polling services (6)    SupportersPoller 5m, StaffRanksPoller 2m, AnniStampPoller 5m,
+  │                           AnniSnapshotPoller 30s (only inside the anni window),
+  │                           GuildRosterCache 5m, WynnAliasCache 5m
   ├── CommandRegistry         /wv command tree
+  ├── items/                  ItemDefinitions plus LegacyItemHandler, LegacyTooltipRenderer,
+  │                           NewFormatRenderer, LegacyEnchantmentRenderer, LegacyScreenshotHandler
+  ├── mwe/anni/               MWE/annihilation subsystem — snapshot cache, boss bar, outlines,
+  │                           zone lines, waypoint, RSVP, debug tree (29 files, 12 sub-packages)
+  ├── distribute/             /wv distribute — guild-bank GUI automation (chief-gated)
+  ├── rendering/              Territory lines, nametag animator, gradient/colour helpers
+  ├── datamodels/             Guild, User, UserUUID DTOs
+  ├── debug/                  /wv debug tree, DebugConfigManager, diagnostics, dumps
   ├── WynntilsEventListener   WorldStateEvent, GuildEvent, ChatMessageEvent
-  └── Mixins (11)             Chat (3), Legacy items (3), Commands (2 — incl. UnlockCommandMixin),
-                               plus NametagMixin, CommandSuggestionsMixin, QueueTitleMixin
+  └── Mixins (14)             Chat (3), Legacy items (3), Command (1 — UnlockCommandMixin),
+                               top-level (6 — NametagMixin, CommandSuggestionsMixin,
+                               QueueTitleMixin, BossHealthOverlayMixin, EntityGlowingMixin,
+                               EntityOutlineColorMixin), accessors (1)
 ```
 
 ## WebSocket protocol
@@ -106,13 +118,13 @@ StyledText, ComponentUtils, McUtils
 
 ## Config keys
 
-**User-facing (via `/wv config`):** `legacyItemHighlighting`, `printMOTD`, `printANNI`, `printBridgeMessages`, `showSupporterGlints`, `handleSpoilers`, `moreReliableGuildCheck`, legacy item gradient colours/opacity/sprite.
+**User-facing (via `/wv config`):** 30 keys, listed in order by `VetsConfig.USER_CONFIG_KEYS` — the eight `legacyItem*` keys (highlighting, enchantment naming, gradient colours/opacity, sprite), `printMOTD`, `printANNI`, `printBridgeMessages`, `printSuccessfulAuth`, `showSupporterGlints`, `colorBlindMode`, `handleSpoilers`, `moreReliableGuildCheck`, and the 14 `vetsAnni*` keys. Full table in [vetsmod_config.md](vetsmod_config.md).
 
 **Internal — vetsmod auth state:** `vetsAuthKey` (string), `vetsAuthTier` (string), `vetsAuthVerifiedAt` (long). Old `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` longs survive only as a "legacy unlock marker" for the session-start warning.
 
 ## Chat pipeline
 
-Wynntils fires `ChatMessageEvent.Match` → rewriters (`SpoilerRewriter`, `StaffGuildAlertRewriter`, `StaffChannelMessageRewriter`, `ServerGuildChatRewriter`) → `ChatMessageEvent.Edit` → display.
+`ChatLogMixin` (HEAD of vanilla `ChatComponent.addMessage`) runs the rewriter chain in this order: `EncourageUpdateRewriter` → `StaffGuildAlertRewriter` → `StaffChannelMessageRewriter` → `ServerGuildChatRewriter` → `SpoilerRewriter`. First match wins and cancels the vanilla call. Spoiler runs **last** on purpose — supporter messages are already spoiler-processed by `ServerGuildChatRewriter` above it. A sixth rewriter, `WarningRewriter`, is not in this chain: `OutboundDisplayHandler` calls it for server-pushed `warning` frames.
 
 Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **frame-scoped** — `U+E003` is the private-message separator despite sitting in the same `U+E000` block that spells lowercase letters inside a pill — so decode from the frame inward and never map a bare codepoint to a character. Encode and decode through [`PillCodec`](../src/client/java/org/wynnvets/chat/PillCodec.java); the blocks, the four sequences, and the captured-log evidence are in [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
 
@@ -122,7 +134,7 @@ Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **f
 
 ## Item definitions
 
-`src/client/resources/definitions.yml` — regex categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `notjunk`, `new_format_override`, `enchant_excluded_items`. Edit this file to add/change item patterns without touching Java.
+`src/client/resources/definitions.yml` — 9 regex categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `not_pedestal`, `notjunk`, `new_format_override`, `enchant_excluded_items`, `blocked_screen_titles`. Edit this file to add/change item patterns without touching Java.
 
 ## Building
 

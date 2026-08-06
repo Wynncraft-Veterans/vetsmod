@@ -6,7 +6,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Rendering System
 
-Package: [org.wynnvets.rendering](../src/client/java/org/wynnvets/rendering/). 6 files across two sub-packages.
+Package: [org.wynnvets.rendering](../src/client/java/org/wynnvets/rendering/). 6 files across three sub-packages.
 
 ## 1. Territory subpackage
 
@@ -25,11 +25,11 @@ Credit: inspired by avomod2's `TerritoryOutlineRenderer` by Avicia (Yarn→Mojan
 [TerritoryLineManager](../src/client/java/org/wynnvets/rendering/territory/TerritoryLineManager.java)
 
 - Toggle state: `ConcurrentHashMap<String, Boolean> activeLines`
-- Aliases: `church` → Forest of Eyes, `scrap` → Corkus Sea Cove
+- Aliases (`TerritoryLineManager.LINE_ALIASES`, five entries): `church` → Forest of Eyes, `scrap` → Corkus Sea Cove, `bat` → Royal Barracks, `hegea` → Fort Hegea, `lighthouse` → Contested District
 - Fetches territory data from `https://api.wynncraft.com/v3/guild/list/territory` on activation
 - Normalizes bounds `[startX, startZ, endX, endZ]` with min/max
 
-Used by `/wv line <church|scrap>` command.
+Used by the `/wv line <church|scrap|bat|hegea|lighthouse>` command.
 
 ## 2. Nametag subpackage
 

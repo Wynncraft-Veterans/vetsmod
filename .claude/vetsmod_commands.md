@@ -83,12 +83,15 @@ No permission. [ConfigCommands](../src/client/java/org/wynnvets/commands/ConfigC
 
 Suggestion providers (`ConfigCommands.SUGGEST_CONFIG_KEYS` and `ConfigCommands.SUGGEST_CONFIG_VALUES`): colour names via `VetsConfig.getColorNames()`, sprite names (10 total), opacity int values `reset|0|25|50|69|75|100`, tri-state `default|true|false`. Validation via `VetsConfig.isValidColor()`, `isValidSprite()`.
 
-### /wv line <church|scrap>
+### /wv line <church|scrap|bat|hegea|lighthouse>
 Returners. [CommandRegistry.lineToggle()](../src/client/java/org/wynnvets/commands/CommandRegistry.java). Delegates to `TerritoryLineManager.toggle(alias)`. Requires `areFeaturesEnabled()` (Returners only).
 
-Aliases → territories:
+Aliases → territories (five, from `TerritoryLineManager.LINE_ALIASES`):
 - `church` → Forest of Eyes
 - `scrap` → Corkus Sea Cove
+- `bat` → Royal Barracks
+- `hegea` → Fort Hegea
+- `lighthouse` → Contested District
 
 ### /wv debug [...]
 Public. Tree built in [DebugCommands.buildCommandTree()](../src/client/java/org/wynnvets/debug/DebugCommands.java):

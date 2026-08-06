@@ -12,19 +12,19 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 
 **Detection / tooltip logic:**
 - [ItemDefinitions](../src/client/java/org/wynnvets/items/ItemDefinitions.java) — YAML loader + regex cache
-- [LegacyItemHandler](../src/client/java/org/wynnvets/items/LegacyItemHandler.java) — `isLegacyItem()` 7-branch cascade + state fields
-- [LegacyTooltipRenderer](../src/client/java/org/wynnvets/items/LegacyTooltipRenderer.java) — 8-branch tooltip rewriter
+- [LegacyItemHandler](../src/client/java/org/wynnvets/items/LegacyItemHandler.java) — `isLegacyItem()` 8-branch cascade + state fields
+- [LegacyTooltipRenderer](../src/client/java/org/wynnvets/items/LegacyTooltipRenderer.java) — 9-branch tooltip rewriter
 - [NewFormatRenderer](../src/client/java/org/wynnvets/items/NewFormatRenderer.java) — PUA / new-format component-tree manipulation
 
 **Data:**
-- [definitions.yml](../src/client/resources/definitions.yml) — 7 sections, ~175 lines
+- [definitions.yml](../src/client/resources/definitions.yml) — 9 sections, 203 lines
 
 **Config:**
 - [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java)
 - [LegacyItemStyle](../src/client/java/org/wynnvets/config/LegacyItemStyle.java) — resolves gradient/sprite from config
 - [NamedColor](../src/client/java/org/wynnvets/config/NamedColor.java) — colour-name → RGB + alpha packing
 
-**Mixins (3 legacy-item-specific out of 9 total):**
+**Mixins (3 legacy-item-specific out of 14 registered):**
 - [LegacyHighlightMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyHighlightMixin.java) — `AbstractContainerScreen#renderSlot` + `renderTooltip` (captures hover context)
 - [LegacyHotbarMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyHotbarMixin.java) — `Gui#renderSlot` (draws hotbar gradient + sprite)
 - [LegacyItemTooltipMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyItemTooltipMixin.java) — `GuiGraphics#setTooltipForNextFrame` (rewrites tooltip + gold border)
@@ -45,37 +45,41 @@ Guard conditions (return `false` early):
 
 Name is normalized via `stripSupplementaryPua()` + `ChatFormatting.stripFormatting()` before matching. The `newFormatOverridden` flag suppresses name-based matches (branches 1 & 2) when the item is new-format AND its name is in `new_format_override`.
 
-Seven independent branches — **any one** triggers legacy:
+Eight independent branches — **any one** triggers legacy. The numbering matches
+the `// 1.` … `// 8.` comments in the method body:
 
 | # | Branch | Source | Extra gate |
 |---|--------|--------|-----------|
 | 1 | `isLegacy(name)` | `definitions` (~97 patterns) | not newFormatOverridden |
 | 2 | `isMiscLegacy(name)` + `hasMiscRarity(lore)` | `misc_definitions` (~21) | not newFormatOverridden, lore contains "Misc. Item" |
 | 3 | `isNoLoreLegacy(name)` | `no_lore_legacy` (~17) | `lore.isEmpty()` |
-| 4 | `hasBetaLegacyMarker(lore)` | lore | gold "Lv. min: N" line |
-| 5 | `stack.hasFoil()` | NBT | not in `enchant_excluded_items`, name not in `unenchanted` |
-| 6 | `hasJunkRarity(lore)` | lore | name not in `notjunk` |
-| 7 | `hasCraftingRarity(lore)` | lore | — |
+| 4 | `isPedestalWipedItem(stack)` | item ID + custom name | vanilla armour/weapon shell, no lore, `§a`/`§b`/`§d`/`§e` name prefix, name not in `not_pedestal` |
+| 5 | `hasBetaLegacyMarker(lore)` | lore | gold "Lv. min: N" line |
+| 6 | `stack.hasFoil()` | NBT | not in `enchant_excluded_items`, name not in `unenchanted` |
+| 7 | `hasJunkRarity(lore)` | lore | name not in `notjunk` |
+| 8 | `hasCraftingRarity(lore)` | lore | — |
 
-## 3. definitions.yml — the 7 sections
+## 3. definitions.yml — the 9 sections
 
 File: [definitions.yml](../src/client/resources/definitions.yml). Parsed by `ItemDefinitions.parse()` — simple state machine: `---` section delimiters, headers end with `:`, patterns prefixed `- "…"`. All patterns are pre-compiled to `java.util.regex.Pattern` once at startup. **No runtime reload** — requires restart to pick up edits.
 
 | Section | Purpose | Gate logic |
 |---------|---------|-----------|
-| `unenchanted` | Items that legitimately have foil in modern Wynncraft (???, Ability Shard, Breathing Helmet, Mythic Everlasting Pufferfish, Liquid Emerald, Shiny, Transcriber) | exclusion in branch 5 |
+| `unenchanted` | Items that legitimately have foil in modern Wynncraft (???, Ability Shard, Breathing Helmet, Mythic Everlasting Pufferfish, Liquid Emerald, Shiny, Transcriber) | exclusion in branch 6 |
 | `definitions` | Primary legacy name list — old armor tiers, keys, holiday items, autographs, potions | branch 1 |
 | `no_lore_legacy` | Legacy items that lost their lore (old keys, vanilla materials, Grian's Ocean Map) — only legacy when lore is empty | branch 3 |
 | `misc_definitions` | Items requiring "Misc. Item" rarity (Carved Quartz Block, Firefly Wing, Mushrooms) — collides with modern misc | branch 2 |
-| `notjunk` | Modern junk-tier items (Leather, Tanned Sunfish, Ghostly, Roasted Flesh, Vines, Rubble) — excluded from branch 6 | exclusion in branch 6 |
-| `enchant_excluded_items` | Minecraft namespaced IDs (`minecraft:experience_bottle`, `minecraft:enchanted_book`) — always have vanilla foil | exclusion in branch 5 |
+| `not_pedestal` | Names that must never be treated as a pedestal-wiped shell (merchant items) | exclusion in branch 4 |
+| `notjunk` | Modern junk-tier items (Leather, Tanned Sunfish, Ghostly, Roasted Flesh, Vines, Rubble) | exclusion in branch 7 |
+| `enchant_excluded_items` | Minecraft namespaced IDs (`minecraft:experience_bottle`, `minecraft:enchanted_book`) — always have vanilla foil | exclusion in branch 6 |
 | `new_format_override` | Names that exist in both old & new formats (e.g. Skeleton Key) — when item is new-format, name match is suppressed | gate on branches 1 & 2 |
+| `blocked_screen_titles` | Screen titles where the whole system bails (housing/island menus that abuse enchant glint as a UI selector) | `isBlockedScreen()` guard |
 
-`ItemDefinitions` responsibilities: YAML parsing, regex pre-compilation into 7 static `List<Pattern>` fields, lookup predicates (`isLegacy`, `isMiscLegacy`, `isNoLoreLegacy`, `isUnenchanted`, `isEnchantExcludedItem`, `isNotJunk`, `isNewFormatOverride`). Loaded from `VetsmodClient.onInitializeClient()` after `VetsConfig.load()`.
+`ItemDefinitions` responsibilities: YAML parsing, regex pre-compilation into 8 static `List<Pattern>` fields plus one `Set<String>` (`enchantExcludedItems`), and 9 lookup predicates (`isLegacy`, `isMiscLegacy`, `isNoLoreLegacy`, `isUnenchanted`, `isEnchantExcludedItem`, `isNotPedestal`, `isNotJunk`, `isNewFormatOverride`, `isBlockedScreenTitle`). Loaded from `VetsmodClient.onInitializeClient()` after `VetsConfig.load()`.
 
 ## 4. Tooltip rewriting — `LegacyTooltipRenderer.processTooltip()`
 
-Entry point: called from `LegacyItemTooltipMixin` via `LegacyItemHandler.processTooltip()` at render time. 8 branches, **first match wins**:
+Entry point: called from `LegacyItemTooltipMixin` via `LegacyItemHandler.processTooltip()` at render time. 9 branches after the guard bail, **first match wins**:
 
 | # | Trigger | Action |
 |---|---------|--------|
@@ -84,6 +88,7 @@ Entry point: called from `LegacyItemTooltipMixin` via `LegacyItemHandler.process
 | 2 | `isLegacy(name)` | gold name + rarity swap (new-format: restore custom name, gold recolour, insert LEGACY box; old-format: replace line 0, swap rarity line) |
 | 3 | `isMiscLegacy(name)` + misc rarity | same as branch 2 |
 | 4 | `isNoLoreLegacy(name)` + empty lore | gold name; rarity inferred from `tooltip_style` component or `§`-colour prefix; insert "Legacy Item (Rarity)" before debug lines |
+| 4b | `isPedestalWipedItem(currentItemStack)` | gold name; label = "Legacy Item (Pedestal-Wiped)" |
 | 5 | beta-legacy marker ("Lv. min" gold line) | gold name; label = "Legacy Item (Alpha)" if no standard rarity, else "Legacy Item (Beta)" |
 | 6 | `hasFoil` + not excluded/unenchanted | prepend "⬡ Enchanted" (gold on old-format, yellow on new-format) + rarity swap |
 | 7 | junk rarity + not in `notjunk` | gold name + rarity swap |
@@ -132,16 +137,17 @@ Registered in `VetsConfig.USER_CONFIG_KEYS`. Validation delegated to `VetsConfig
 | `legacyItemBackgroundGradientBottomOpacity` | int 0-100 | `100` |
 | `legacyItemForegroundSprite` | sprite name | `box_gradient_2` |
 | `legacyItemForegroundColor` | colour name | `orange` |
+| `legacyItemShowEnchantments` | bool | `true` |
 
 ## 7. Data flow summary
 
 **Startup:** `VetsmodClient.onInitializeClient()` → `VetsConfig.load()` → `ItemDefinitions.load()` (compiles regex) → event listeners registered.
 
-**Hotbar frame:** vanilla `Gui.renderSlot()` → `LegacyHotbarMixin` HEAD → `isLegacyItem()` → 7-branch cascade → if true draw gradient + sprite → vanilla continues.
+**Hotbar frame:** vanilla `Gui.renderSlot()` → `LegacyHotbarMixin` HEAD → `isLegacyItem()` → 8-branch cascade → if true draw gradient + sprite → vanilla continues.
 
 **Container frame:** `AbstractContainerScreen.renderSlot()` runs → `LegacyHighlightMixin` HEAD captures hover state → Wynntils `SlotRenderEvent.Pre` fires → `LegacyHighlightEventListener` (LOWEST) draws gradient + sprite.
 
-**Tooltip frame:** `GuiGraphics.setTooltipForNextFrame()` → `LegacyItemTooltipMixin` HEAD → reentry guard → `LegacyTooltipRenderer.processTooltip()` → 8-branch cascade → if modified: cancel vanilla + re-invoke with modified list, set gold border (only if `newTooltipStylesAvailable`).
+**Tooltip frame:** `GuiGraphics.setTooltipForNextFrame()` → `LegacyItemTooltipMixin` HEAD → reentry guard → `LegacyTooltipRenderer.processTooltip()` → 9-branch cascade → if modified: cancel vanilla + re-invoke with modified list, set gold border (only if `newTooltipStylesAvailable`).
 
 **Caching:** regex patterns compiled once; colour/sprite resolution runs every frame (cheap — concurrent hash map lookups); PUA/new-format detection runs every tooltip (no memoization).
 
@@ -154,8 +160,8 @@ Registered in `VetsConfig.USER_CONFIG_KEYS`. Validation delegated to `VetsConfig
 
 - **`new_format_override`**: an item like Skeleton Key exists in old (legacy) and new (modern) formats with the same display name. When `isNewFormatItem(stack)` (supplementary PUA in custom name, `cp >= 0x10000`) AND the name is in this list, branches 1 & 2 are skipped.
 - **`enchant_excluded_items`**: `minecraft:experience_bottle` / `minecraft:enchanted_book` always have vanilla foil — excluded by Minecraft registry ID, not name.
-- **`notjunk`**: modern junk-tier farming materials (Leather, Tanned Sunfish, Roasted Flesh, Vines, Rubble, Ghostly*, Dusty Rum Bottle) — excluded from branch 6.
-- **`unenchanted`**: items that legitimately have foil in modern Wynncraft — `???`, Ability Shard, Breathing Helmet*, Liquid Emerald*, Mythic Everlasting Pufferfish, Shiny*, Transcriber* — bypass branch 5.
+- **`notjunk`**: modern junk-tier farming materials (Leather, Tanned Sunfish, Roasted Flesh, Vines, Rubble, Ghostly*, Dusty Rum Bottle, Golden Teeth) — excluded from branch 7.
+- **`unenchanted`**: items that legitimately have foil in modern Wynncraft — `???`, Ability Shard, Breathing Helmet*, Liquid Emerald*, Mythic Everlasting Pufferfish, Shiny*, Transcriber* — bypass branch 6.
 - **Alpha vs Beta legacy**: both triggered by gold "Lv. min: N" lore line. Alpha = no standard rarity line present; Beta = has one. Label differs accordingly.
 - **Unidentified gear**: name contains BMP PUA lock icon; `stripSupplementaryPua()` normalises it before name matching. No separate identified-vs-unidentified branching.
 - **"Crafted" items (player-made with durability)**: never legacy — early bail in branch 0 of tooltip renderer.
@@ -173,7 +179,7 @@ Registered in `VetsConfig.USER_CONFIG_KEYS`. Validation delegated to `VetsConfig
 
 Why detection branches look the way they do — each era left a distinct tooltip fingerprint:
 
-- **Alpha era** — no rarity line at all. Items had hex-UUIDs as `&f` (white) names, `&5` (dark purple) damage (weapons) or defense (armour), and `&6` (gold) `Lv. min:` lines. Detected via branch 4 (`hasBetaLegacyMarker`) when no standard rarity line is present → labelled "Legacy Item (Alpha)".
-- **Beta era** — introduced rarity tiers: `&e` Unique, `&5` Rare, `&b` Legendary, and possibly `&a` Set. Reused the `&5` damage/defense + `&6` level format, sometimes with `&7` (gray) statistics. Detected via branch 4 when a standard rarity line *is* present → labelled "Legacy Item (Beta)".
+- **Alpha era** — no rarity line at all. Items had hex-UUIDs as `&f` (white) names, `&5` (dark purple) damage (weapons) or defense (armour), and `&6` (gold) `Lv. min:` lines. Detected via branch 5 (`hasBetaLegacyMarker`) when no standard rarity line is present → labelled "Legacy Item (Alpha)".
+- **Beta era** — introduced rarity tiers: `&e` Unique, `&5` Rare, `&b` Legendary, and possibly `&a` Set. Reused the `&5` damage/defense + `&6` level format, sometimes with `&7` (gray) statistics. Detected via branch 5 when a standard rarity line *is* present → labelled "Legacy Item (Beta)".
 - **Release era** — added elemental damages, more complex tooltips, and the `&c` Fabled and `&5` Mythic rarities. This is the format the bulk of `definitions.yml` patterns target.
 - **Fruma / 2.1 era (current "new format")** — completely new rendering relying heavily on resource-pack fonts and Unicode PUA glyphs (`tooltip/emblem/frame`, `banner/box`). Removed the Set rarity. Drives `NewFormatRenderer`, the `newTooltipStylesAvailable` sticky flag, the `new_format_override` YAML section, and `stripSupplementaryPua()` name normalization.
