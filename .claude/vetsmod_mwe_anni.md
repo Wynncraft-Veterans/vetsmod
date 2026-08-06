@@ -570,7 +570,7 @@ Wire pieces on the network layer:
    surfaces (none today; pytest `test_rsvp.py` + `test_rsvp_by_uuid.py`
    = 64 passing).
 4. **First-invocation `AnniPlayer` placeholder uses `mc_uuid[:8]` as
-   `mc_username`** (matches `auto_promoter.py:108`'s `op.username if op
+   `mc_username`** (matches `auto_promoter.py::fallback_name`'s `op.username if op
    else uuid[:8]` fallback for online-but-unknown players). Full UUIDs
    are 36 chars — too long for the 32-char `mc_username` field — so a
    `mc_username = actor_mc_uuid` fallback would fail Tortoise's
@@ -641,7 +641,7 @@ for brand-new UUIDs until auto-promoter hydrates).
 ### Render-pipeline lessons (cont'd)
 
 15. **`app.state.fishbot` is the reach-out for `_post_public`** from a
-    FastAPI route handler. Set in `main.py:79` during lifespan
+    FastAPI route handler. Set in `main.py::lifespan`
     (`app.state.fishbot = bot`); route handlers read via
     `request.app.state.fishbot`. May be `None` when `FISHBOT_TOKEN` is
     unset — `_post_public` already no-ops on missing channel/bot so no
@@ -688,14 +688,14 @@ exact signal vets-anni needs.
 1. **Snapshot field** — `organiser_usernames: list[str]` parallels the
    existing `organisers: list[str]` (UUIDs) on every snapshot. Built in
    one query pair in
-   [`vets-anni/app/domain/snapshot.py::_organisers`](C:/Low-Perm-Program-Files/Projects/vets-anni/app/domain/snapshot.py)
+   [`vets-anni/app/domain/snapshot.py::_organisers`](../../vets-anni/app/domain/snapshot.py)
    to keep UUID/username order in lockstep. Names are needed because
    Wynncraft only exposes party members by username — see
    `Wynntils PartyModel.getPartyMembers()`.
 
 2. **vets-anni endpoint** — `POST /api/internal/anni-party-observation`
    in
-   [`anni_internal.py`](C:/Low-Perm-Program-Files/Projects/vets-anni/app/web/routers/anni_internal.py).
+   [`anni_internal.py`](../../vets-anni/app/web/routers/anni_internal.py).
    Body `{observer_mc_uuid, party_member_usernames, leader_username,
    world}`. Resolves names via `state.resolve_uuid()` (roster cache →
    alias fallback, the latter populated from WAPI's `legacyName` field
@@ -706,21 +706,21 @@ exact signal vets-anni needs.
    Returns `{status, resolved, dropped}` for observability.
 
 3. **TTL gate** — `_PARTY_LEADER_TTL_SECONDS = 60` in
-   [`state.py`](C:/Low-Perm-Program-Files/Projects/vets-anni/app/services/state.py);
-   [`presence_poller`](C:/Low-Perm-Program-Files/Projects/vets-anni/app/services/presence_poller.py)
+   [`state.py`](../../vets-anni/app/services/state.py);
+   [`presence_poller`](../../vets-anni/app/services/presence_poller.py)
    degrades stale entries back to `ONLINE_WORLD` so a vetsmod
    disconnect mid-window doesn't pin a user to yellow forever.
 
 4. **temp-server inbound handler** — `_handle_anni_party_observation`
    in
-   [`inbound.py`](C:/Low-Perm-Program-Files/Projects/temporary-server/app/chat/inbound.py)
+   [`inbound.py`](../../temporary-server/app/chat/inbound.py)
    mirrors `_handle_anni_rsvp`: auth-required, stamp
    `observer_mc_uuid` from session, forward via new
    `AnniSnapshotPoller.send_party_observation(body)` helper,
    typed response frame.
 
 5. **vetsmod gate refactor** —
-   [`PartyRosterListener.flush`](C:/Low-Perm-Program-Files/Projects/vetsmod/src/client/java/org/wynnvets/listeners/PartyRosterListener.java)
+   [`PartyRosterListener.flush`](../src/client/java/org/wynnvets/listeners/PartyRosterListener.java)
    now reads `AnniSnapshotCache.latest().organiserUsernames()` and
    tests case-insensitive overlap with the captured party's
    `leader + members`. Calls
@@ -729,7 +729,7 @@ exact signal vets-anni needs.
    testable core; legacy `vetsConnected` / `tier` parameters are gone.
 
 6. **Mid-window snapshot trigger** —
-   [`AnniPartyReporter`](C:/Low-Perm-Program-Files/Projects/vetsmod/src/client/java/org/wynnvets/mwe/anni/party/AnniPartyReporter.java)
+   [`AnniPartyReporter`](../src/client/java/org/wynnvets/mwe/anni/party/AnniPartyReporter.java)
    subscribes to `AnniSnapshotCache`. On any change to the lowercased
    `organiser_usernames` set, calls
    `PartyRosterListener.requestRecapture()`. Handles "anni opens while
@@ -782,7 +782,7 @@ The legacy `party_status` machinery is excised in full:
   class would be pure indirection.
 - **Response frame is typed (`anni_party_observation_response`).** The
   handler in
-  [`AnniWsHandler`](C:/Low-Perm-Program-Files/Projects/vetsmod/src/client/java/org/wynnvets/mwe/anni/network/AnniWsHandler.java)
+  [`AnniWsHandler`](../src/client/java/org/wynnvets/mwe/anni/network/AnniWsHandler.java)
   debug-logs only — no consumer state today. Mirror
   `AnniRsvpClient`'s diagnostic accessors only if a debug-trigger
   dump surfaces the need.
@@ -855,6 +855,6 @@ new frame type needs a vetsmod-side consumer.
 
 ## Source-of-truth pointers
 
-- Snapshot wire contract — [`vets-anni/.claude/snapshot_integration.md`](C:/Low-Perm-Program-Files/Projects/vets-anni/.claude/snapshot_integration.md)
+- Snapshot wire contract — [`vets-anni/.claude/snapshot_integration.md`](../../vets-anni/.claude/snapshot_integration.md)
 
 *Note: the original cross-repo spec and the S3–S5 investigation prep docs lived under `vets-anni/.claude/ephemeral/` and were deleted as part of the post-S7 cleanup. The load-bearing decisions from each are inlined into the relevant sections above (§Boss bar, §Player highlights, §Aggressive mode); the code is the remaining source of truth.*

@@ -11,32 +11,32 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 ## 1. Key files
 
 **Detection / tooltip logic:**
-- [src/client/java/org/wynnvets/items/ItemDefinitions.java](src/client/java/org/wynnvets/items/ItemDefinitions.java) — YAML loader + regex cache
-- [src/client/java/org/wynnvets/items/LegacyItemHandler.java](src/client/java/org/wynnvets/items/LegacyItemHandler.java) — `isLegacyItem()` 7-branch cascade + state fields
-- [src/client/java/org/wynnvets/items/LegacyTooltipRenderer.java](src/client/java/org/wynnvets/items/LegacyTooltipRenderer.java) — 8-branch tooltip rewriter
-- [src/client/java/org/wynnvets/items/NewFormatRenderer.java](src/client/java/org/wynnvets/items/NewFormatRenderer.java) — PUA / new-format component-tree manipulation
+- [ItemDefinitions](../src/client/java/org/wynnvets/items/ItemDefinitions.java) — YAML loader + regex cache
+- [LegacyItemHandler](../src/client/java/org/wynnvets/items/LegacyItemHandler.java) — `isLegacyItem()` 7-branch cascade + state fields
+- [LegacyTooltipRenderer](../src/client/java/org/wynnvets/items/LegacyTooltipRenderer.java) — 8-branch tooltip rewriter
+- [NewFormatRenderer](../src/client/java/org/wynnvets/items/NewFormatRenderer.java) — PUA / new-format component-tree manipulation
 
 **Data:**
-- [src/client/resources/definitions.yml](src/client/resources/definitions.yml) — 7 sections, ~175 lines
+- [definitions.yml](../src/client/resources/definitions.yml) — 7 sections, ~175 lines
 
 **Config:**
-- [src/client/java/org/wynnvets/config/VetsConfig.java](src/client/java/org/wynnvets/config/VetsConfig.java)
-- [src/client/java/org/wynnvets/config/LegacyItemStyle.java](src/client/java/org/wynnvets/config/LegacyItemStyle.java) — resolves gradient/sprite from config
-- [src/client/java/org/wynnvets/config/NamedColor.java](src/client/java/org/wynnvets/config/NamedColor.java) — colour-name → RGB + alpha packing
+- [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java)
+- [LegacyItemStyle](../src/client/java/org/wynnvets/config/LegacyItemStyle.java) — resolves gradient/sprite from config
+- [NamedColor](../src/client/java/org/wynnvets/config/NamedColor.java) — colour-name → RGB + alpha packing
 
 **Mixins (3 legacy-item-specific out of 9 total):**
-- [src/client/java/org/wynnvets/mixin/client/legacy/LegacyHighlightMixin.java](src/client/java/org/wynnvets/mixin/client/legacy/LegacyHighlightMixin.java) — `AbstractContainerScreen#renderSlot` + `renderTooltip` (captures hover context)
-- [src/client/java/org/wynnvets/mixin/client/legacy/LegacyHotbarMixin.java](src/client/java/org/wynnvets/mixin/client/legacy/LegacyHotbarMixin.java) — `Gui#renderSlot` (draws hotbar gradient + sprite)
-- [src/client/java/org/wynnvets/mixin/client/legacy/LegacyItemTooltipMixin.java](src/client/java/org/wynnvets/mixin/client/legacy/LegacyItemTooltipMixin.java) — `GuiGraphics#setTooltipForNextFrame` (rewrites tooltip + gold border)
+- [LegacyHighlightMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyHighlightMixin.java) — `AbstractContainerScreen#renderSlot` + `renderTooltip` (captures hover context)
+- [LegacyHotbarMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyHotbarMixin.java) — `Gui#renderSlot` (draws hotbar gradient + sprite)
+- [LegacyItemTooltipMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyItemTooltipMixin.java) — `GuiGraphics#setTooltipForNextFrame` (rewrites tooltip + gold border)
 
 **Event listeners:**
-- [src/client/java/org/wynnvets/listeners/LegacyHighlightEventListener.java](src/client/java/org/wynnvets/listeners/LegacyHighlightEventListener.java) — `SlotRenderEvent.Pre` at `LOWEST` priority (draws container gradient + sprite, overriding Wynntils `ItemHighlightFeature`)
-- [src/client/java/org/wynnvets/listeners/LegacyTooltipEventListener.java](src/client/java/org/wynnvets/listeners/LegacyTooltipEventListener.java) — sets hover context before tooltip
-- [src/client/java/org/wynnvets/listeners/ServerConnectionListener.java](src/client/java/org/wynnvets/listeners/ServerConnectionListener.java) — resets `newTooltipStylesAvailable` on disconnect
+- [LegacyHighlightEventListener](../src/client/java/org/wynnvets/listeners/LegacyHighlightEventListener.java) — `SlotRenderEvent.Pre` at `LOWEST` priority (draws container gradient + sprite, overriding Wynntils `ItemHighlightFeature`)
+- [LegacyTooltipEventListener](../src/client/java/org/wynnvets/listeners/LegacyTooltipEventListener.java) — sets hover context before tooltip
+- [ServerConnectionListener](../src/client/java/org/wynnvets/listeners/ServerConnectionListener.java) — resets `newTooltipStylesAvailable` on disconnect
 
 ## 2. Detection cascade — `LegacyItemHandler.isLegacyItem(ItemStack)`
 
-[LegacyItemHandler.java:101-135](src/client/java/org/wynnvets/items/LegacyItemHandler.java#L101-L135)
+[LegacyItemHandler.isLegacyItem()](../src/client/java/org/wynnvets/items/LegacyItemHandler.java)
 
 Guard conditions (return `false` early):
 - `VetsConfig.LEGACY_ITEM_HIGHLIGHTING` disabled
@@ -59,7 +59,7 @@ Seven independent branches — **any one** triggers legacy:
 
 ## 3. definitions.yml — the 7 sections
 
-File: [src/client/resources/definitions.yml](src/client/resources/definitions.yml). Parsed by `ItemDefinitions.parse()` — simple state machine: `---` section delimiters, headers end with `:`, patterns prefixed `- "…"`. All patterns are pre-compiled to `java.util.regex.Pattern` once at startup. **No runtime reload** — requires restart to pick up edits.
+File: [definitions.yml](../src/client/resources/definitions.yml). Parsed by `ItemDefinitions.parse()` — simple state machine: `---` section delimiters, headers end with `:`, patterns prefixed `- "…"`. All patterns are pre-compiled to `java.util.regex.Pattern` once at startup. **No runtime reload** — requires restart to pick up edits.
 
 | Section | Purpose | Gate logic |
 |---------|---------|-----------|
@@ -103,9 +103,9 @@ No hardcoded tooltip strings — everything is YAML-driven or runtime-derived fr
 
 Rendered in **two places**, using identical drawing code:
 
-**Hotbar:** [LegacyHotbarMixin.java](src/client/java/org/wynnvets/mixin/client/legacy/LegacyHotbarMixin.java) — `@Inject(method = "renderSlot", at = @At("HEAD"))` on `net.minecraft.client.gui.Gui`.
+**Hotbar:** [LegacyHotbarMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyHotbarMixin.java) — `@Inject(method = "renderSlot", at = @At("HEAD"))` on `net.minecraft.client.gui.Gui`.
 
-**Containers:** [LegacyHighlightEventListener.java](src/client/java/org/wynnvets/listeners/LegacyHighlightEventListener.java) — subscribes to Wynntils `SlotRenderEvent.Pre` at `EventPriority.LOWEST` so it runs **after** Wynntils' `ItemHighlightFeature` (at `HIGH`), effectively overriding the stock Wynntils rarity highlight.
+**Containers:** [LegacyHighlightEventListener](../src/client/java/org/wynnvets/listeners/LegacyHighlightEventListener.java) — subscribes to Wynntils `SlotRenderEvent.Pre` at `EventPriority.LOWEST` so it runs **after** Wynntils' `ItemHighlightFeature` (at `HIGH`), effectively overriding the stock Wynntils rarity highlight.
 
 Drawing sequence:
 1. `guiGraphics.fillGradient(x, y, x+16, y+16, topColor, bottomColor)` — top/bottom colours from `LegacyItemStyle.getBackgroundGradientTopColor()` / `…BottomColor()` with per-colour opacity packed into ARGB alpha

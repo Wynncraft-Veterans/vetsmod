@@ -8,7 +8,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 
 Single-file JSON config at `vetsmod/storage/config.json` (resolved via `FabricLoader.getInstance().getGameDir()`).
 
-Implementation: [src/client/java/org/wynnvets/config/VetsConfig.java](src/client/java/org/wynnvets/config/VetsConfig.java) (~563 lines).
+Implementation: [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java).
 
 Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-null). All coexist in one flat JSON object — no nesting, no version field, no migration logic.
 
@@ -82,27 +82,27 @@ Default 69 for top opacity approximates the old `0xB0` alpha byte.
 
 All methods keyed by string. Returns false when validation fails.
 
-| Method | Lines |
+| Method | Notes |
 |--------|-------|
-| `get(key)` / `set(key,value)` | 276-294 (boolean) |
-| `getLong(key)` / `setLong(key,value)` | 327-345 |
-| `getTriState(key)` / `setTriState(key,value)` | 302-319 |
-| `getString(key)` / `setString(key,value)` | 430-446 |
-| `hasKey(key)` | 367 |
-| `isUserConfigKey(key)` | 371 |
-| `isTriStateKey(key)` / `isStringKey(key)` / `isIntKey(key)` | 384, 398, 412 |
+| `get(key)` / `set(key,value)` | boolean map |
+| `getLong(key)` / `setLong(key,value)` | long map |
+| `getTriState(key)` / `setTriState(key,value)` | tri-state map |
+| `getString(key)` / `setString(key,value)` | string map |
+| `hasKey(key)` | checks the boolean, tri-state and string maps |
+| `isUserConfigKey(key)` | scans `USER_CONFIG_KEYS` |
+| `isTriStateKey(key)` / `isStringKey(key)` / `isIntKey(key)` | scan `TRISTATE_KEYS` / `STRING_CONFIG_KEYS` / `INT_CONFIG_KEYS` |
 | `getIntDefault(key)` / `getStringDefault(key)` | from INT_DEFAULTS/STRING_DEFAULTS maps |
-| `registerDefault(key, defaultValue)` | 357 (for subsystems) |
-| `resetToDefaults()` | 460 (saves current in-memory; does NOT clear) |
-| `load()` | 468 |
-| `save()` | 534 |
+| `registerDefault(key, defaultValue)` | for subsystems; boolean keys only, must run before `load()` |
+| `resetToDefaults()` | saves current in-memory; does NOT clear |
+| `load()` | creates the file from defaults when absent |
+| `save()` | called by every setter, by `load()`, and by `resetToDefaults()` |
 | `isValidColor(name)` | delegated to `NamedColor.COLORS` |
 | `isValidSprite(name)` | delegated to sprite enum |
 | `getColorNames()` | for command suggestion |
 
 ## 4. USER_CONFIG_KEYS order (for /wv config listing)
 
-Defined at [VetsConfig.java:109-123](src/client/java/org/wynnvets/config/VetsConfig.java#L109-L123).
+Defined at [VetsConfig.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/config/VetsConfig.java).
 
 Approximate order (check the source for authoritative):
 1. `legacyItemHighlighting`
@@ -125,9 +125,9 @@ Approximate order (check the source for authoritative):
 
 ## 5. Static defaults
 
-INT_DEFAULTS (line 205): opacity values.
-STRING_DEFAULTS (line 220): colour + sprite.
-Booleans default in static initializer (lines 236-268) — all true except timestamp/count longs (0L).
+INT_DEFAULTS: opacity values.
+STRING_DEFAULTS: colour + sprite.
+Booleans default in static initializer — all true except timestamp/count longs (0L).
 HANDLE_SPOILERS default: null.
 
 ## 6. Persistence
@@ -140,18 +140,18 @@ JSON pretty-printed via GSON. Parent dir created if missing. Missing keys use in
 
 ## 7. Colour resolution
 
-[src/client/java/org/wynnvets/config/NamedColor.java](src/client/java/org/wynnvets/config/NamedColor.java) — `NamedColor.COLORS` map contains:
+[NamedColor](../src/client/java/org/wynnvets/config/NamedColor.java) — `NamedColor.COLORS` map contains:
 - Minecraft formatting codes (dark_red, red, gold, yellow, dark_green, green, aqua, dark_aqua, blue, dark_blue, light_purple, dark_purple, white, gray, dark_gray, black)
 - CSS-ish colours (crimson, orange, etc.)
 - Wynncraft rarity colours
 - Custom `legacy_orange` = `0xF0501E`
 - `transparent`
 
-[src/client/java/org/wynnvets/config/LegacyItemStyle.java](src/client/java/org/wynnvets/config/LegacyItemStyle.java) reads config + NamedColor to produce ARGB int values with opacity packed into alpha byte.
+[LegacyItemStyle](../src/client/java/org/wynnvets/config/LegacyItemStyle.java) reads config + NamedColor to produce ARGB int values with opacity packed into alpha byte.
 
 ## 8. Related config-adjacent state
 
-**Debug config** — separate system at [src/client/java/org/wynnvets/debug/DebugConfigManager.java:15-46](src/client/java/org/wynnvets/debug/DebugConfigManager.java#L15-L46) (not merged into VetsConfig). Current debug keys: `itemDump` (bool) — when true, numpad `+` while hovering item dumps full Component tree JSON to `vetsmod/dumps/`.
+**Debug config** — separate system at [DebugConfigManager](../src/client/java/org/wynnvets/debug/DebugConfigManager.java) (not merged into VetsConfig). Current debug keys: `itemDump` (bool) — when true, numpad `+` while hovering item dumps full Component tree JSON to `vetsmod/dumps/`.
 
 Must call `DebugConfigManager.init()` before `VetsConfig.load()` (they share the same storage location).
 

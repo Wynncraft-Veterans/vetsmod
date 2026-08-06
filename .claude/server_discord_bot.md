@@ -145,7 +145,7 @@ Requester is tracked via `state.recording_requester_id`. Single recording at a t
 
 ## 12. Spoiler codec interop
 
-[app/parsers/spoiler_codec.py](../../temporary-server/app/parsers/spoiler_codec.py) — must match [vetsmod SpoilerCodec](src/client/java/org/wynnvets/chat/spoiler/SpoilerCodec.java). Same encoding scheme (PUA `\uF600` start, `\uF601` end, `\uF602-\uF6FF` direct, `\uF700` + 3 base-254 digits escape).
+[app/parsers/spoiler_codec.py](../../temporary-server/app/parsers/spoiler_codec.py) — must match [vetsmod SpoilerCodec](../src/client/java/org/wynnvets/chat/spoiler/SpoilerCodec.java). Same encoding scheme (PUA `\uF600` start, `\uF601` end, `\uF602-\uF6FF` direct, `\uF700` + 3 base-254 digits escape).
 
 Discord → game: `encode_spoilers(||text||)` → PUA block + `[Spoiler: ]` wrapper.
 Game → Discord: `decode_spoilers(PUA block)` → `||text||`.

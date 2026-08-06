@@ -8,7 +8,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 
 ## 1. V1ApiManager — dual-WebSocket orchestrator
 
-[src/client/java/org/wynnvets/api/V1ApiManager.java:42-199](src/client/java/org/wynnvets/api/V1ApiManager.java#L42-L199)
+[V1ApiManager](../src/client/java/org/wynnvets/api/V1ApiManager.java)
 
 Manages two `WsClient` instances:
 - **Inbound:** `wss://api.wynnvets.org/v1/inbound` — client sends messages
@@ -35,7 +35,7 @@ Key methods:
 
 ## 2. WsClient — low-level WebSocket wrapper
 
-[src/client/java/org/wynnvets/api/WsClient.java:32-219](src/client/java/org/wynnvets/api/WsClient.java#L32-L219)
+[WsClient](../src/client/java/org/wynnvets/api/WsClient.java)
 
 Constants:
 - `RECONNECT_DELAY_MS = 3000`
@@ -55,7 +55,7 @@ Silent drop if `send()` called while not connected (no queuing).
 
 ## 3. HTTP endpoint constants
 
-[src/client/java/org/wynnvets/api/VetsApi.java](src/client/java/org/wynnvets/api/VetsApi.java):
+[VetsApi](../src/client/java/org/wynnvets/api/VetsApi.java):
 | Constant | Path |
 |----------|------|
 | `MOTD` | `/v1/outbound/motd` |
@@ -69,16 +69,16 @@ Silent drop if `send()` called while not connected (no queuing).
 
 Also: `GUILD_UUID = "a36bd64c-c053-4727-872d-b0d0729f474a"` (Returners).
 
-[src/client/java/org/wynnvets/api/WynnCraftApi.java](src/client/java/org/wynnvets/api/WynnCraftApi.java):
+[WynnCraftApi](../src/client/java/org/wynnvets/api/WynnCraftApi.java):
 - `playerInfo(UUID)` → `https://api.wynncraft.com/v3/player/{uuid}`
 - `guildInfo(String name)` → `https://api.wynncraft.com/v3/guild/{url-encoded}`
 
-[src/client/java/org/wynnvets/api/MojangApi.java](src/client/java/org/wynnvets/api/MojangApi.java):
+[MojangApi](../src/client/java/org/wynnvets/api/MojangApi.java):
 - `getUserUUID(name)` → `https://api.mojang.com/users/profiles/minecraft/{name}`
 
 ## 4. On-demand fetchers
 
-Package: [src/client/java/org/wynnvets/fetcher/ondemand/](src/client/java/org/wynnvets/fetcher/ondemand/)
+Package: [org.wynnvets.fetcher.ondemand](../src/client/java/org/wynnvets/fetcher/ondemand/)
 
 | Class | Command | Endpoints | Output |
 |-------|---------|-----------|--------|
@@ -111,7 +111,7 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 - Past: `null` (no display)
 
 ### OnlineMemberService merge strategy
-[OnlineMemberService.java:157-263](src/client/java/org/wynnvets/fetcher/ondemand/OnlineMemberService.java#L157-L263)
+[OnlineMemberService.merge()](../src/client/java/org/wynnvets/fetcher/ondemand/OnlineMemberService.java)
 1. Build UUID→username from Wynntils (authoritative)
 2. Overlay `GuildRosterCache.getRoster()` (Mojang-resolved, takes precedence over stale API)
 3. Supplement with VetsMod usernames for unresolved UUIDs
@@ -122,10 +122,10 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 
 ## 5. Polling services
 
-Package: [src/client/java/org/wynnvets/fetcher/polling/](src/client/java/org/wynnvets/fetcher/polling/)
+Package: [org.wynnvets.fetcher.polling](../src/client/java/org/wynnvets/fetcher/polling/)
 
 ### StaffRanksPoller (2 min)
-[StaffRanksPoller.java:56-75](src/client/java/org/wynnvets/fetcher/polling/StaffRanksPoller.java#L56-L75)
+[StaffRanksPoller.start()](../src/client/java/org/wynnvets/fetcher/polling/StaffRanksPoller.java)
 - `ConcurrentHashMap<String, String>` (lowercase name → rank)
 - Runs every 2 minutes, scheduled initially immediate
 - Fetches `VetsApi.STAFF`, replaces entire cache atomically
@@ -134,7 +134,7 @@ Package: [src/client/java/org/wynnvets/fetcher/polling/](src/client/java/org/wyn
 - Why polling? No server event stream; cheap + simple
 
 ### SupportersPoller (5 min)
-[SupportersPoller.java:48-67](src/client/java/org/wynnvets/fetcher/polling/SupportersPoller.java#L48-L67)
+[SupportersPoller.start()](../src/client/java/org/wynnvets/fetcher/polling/SupportersPoller.java)
 - Volatile `Set<String>` lowercase usernames
 - Normalization: trim, strip NBSP, strip level tags `<N>`, lowercase
 - Nickname mode: split on `/`, check both halves
@@ -142,7 +142,7 @@ Package: [src/client/java/org/wynnvets/fetcher/polling/](src/client/java/org/wyn
 - Used by `ListFetcher` (gradient glint), `PillFormatter`, `NametagAnimator`, `ServerGuildChatRewriter`
 
 ### GuildRosterCache (5 min)
-[GuildRosterCache.java:57-76](src/client/java/org/wynnvets/fetcher/polling/GuildRosterCache.java#L57-L76)
+[GuildRosterCache.start()](../src/client/java/org/wynnvets/fetcher/polling/GuildRosterCache.java)
 - Volatile `Map<String, String>` UUID → current username
 - Fetches `VetsApi.ROSTER` (server-side Mojang-resolved)
 - Overrides stale Wynncraft API usernames
@@ -150,11 +150,11 @@ Package: [src/client/java/org/wynnvets/fetcher/polling/](src/client/java/org/wyn
 
 ## 6. Listeners
 
-[src/client/java/org/wynnvets/listeners/ServerConnectionListener.java:38](src/client/java/org/wynnvets/listeners/ServerConnectionListener.java)
+[ServerConnectionListener](../src/client/java/org/wynnvets/listeners/ServerConnectionListener.java)
 - Fabric `ClientPlayConnectionEvents.JOIN` → connect WebSockets, register outbound handler, reset `newTooltipStylesAvailable`
 - Fabric `ClientPlayConnectionEvents.DISCONNECT` → reset guild state, disconnect WebSockets, unregister handler
 
-[src/client/java/org/wynnvets/listeners/WynntilsEventListener.java](src/client/java/org/wynnvets/listeners/WynntilsEventListener.java) — ~565 lines:
+[WynntilsEventListener](../src/client/java/org/wynnvets/listeners/WynntilsEventListener.java):
 - `@SubscribeEvent WorldStateEvent` → on WORLD state, call `GuildStateManager.onEnteredWorld()`
 - `@SubscribeEvent GuildEvent.Joined/.Left` → call `GuildStateManager.onGuildInfoUpdated()`
 - `@SubscribeEvent ChatMessageEvent.Match` (GUILD type) → guild chat relay:
@@ -167,10 +167,10 @@ Package: [src/client/java/org/wynnvets/fetcher/polling/](src/client/java/org/wyn
   7. URL repair (merge space-separated URL tokens when continuation looks fragmentary)
   8. `V1ApiManager.sendInbound("guild", rank, username, message)`
 
-[src/client/java/org/wynnvets/listeners/LegacyHighlightEventListener.java](src/client/java/org/wynnvets/listeners/LegacyHighlightEventListener.java):
+[LegacyHighlightEventListener](../src/client/java/org/wynnvets/listeners/LegacyHighlightEventListener.java):
 - `SlotRenderEvent.Pre` at `EventPriority.LOWEST` (runs AFTER Wynntils' `ItemHighlightFeature` at HIGH, overriding it)
 
-[src/client/java/org/wynnvets/listeners/LegacyTooltipEventListener.java](src/client/java/org/wynnvets/listeners/LegacyTooltipEventListener.java):
+[LegacyTooltipEventListener](../src/client/java/org/wynnvets/listeners/LegacyTooltipEventListener.java):
 - `ItemTooltipRenderEvent.Pre` at NORMAL — sets `LegacyItemHandler.currentItemStack` / `currentItemHasFoil` context fields
 
 ## 7. Message flow summaries
@@ -221,7 +221,7 @@ classifier's `ONLINE_WORLD → ONLINE_PARTY` upgrade. Entries are TTL-gated
 
 One layer, an **application-level bearer key** — `auth` frame sent after WS connect. Nothing is attached to the WebSocket upgrade itself: `WsClient.connect()` builds the socket with a connect timeout and no headers. The key is a 43-char URL-safe base64 token issued by dazebot's `/vetsmod` Discord command and stored in `vetsAuthKey`. Re-sent automatically by `V1ApiManager`'s `onConnect` callback on every reconnect; also re-sent immediately when the user runs `/unlock <key>` so feedback lands in the same session rather than only after the next reconnect.
 
-The server validates each key by HTTP introspection against dazebot (`POST /api/auth/introspect`, 60s LRU cache, serve-stale-on-error during dazebot outages). The resolved tier (`member`/`waitlist`/`honourary`/`other`) drives a per-connection chat-type gate: see `../temporary-server/v1_protocol.md` §1.8 and §2.5.
+The server validates each key by HTTP introspection against dazebot (`POST /api/auth/introspect`, 60s LRU cache, serve-stale-on-error during dazebot outages). The resolved tier (`member`/`waitlist`/`honourary`/`other`) drives a per-connection chat-type gate: see `../../temporary-server/v1_protocol.md` §1.8 and §2.5.
 
 ## 9. Error handling
 

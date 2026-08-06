@@ -10,7 +10,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 
 ## 1. GuildStateManager facade
 
-[src/client/java/org/wynnvets/guild/GuildStateManager.java](src/client/java/org/wynnvets/guild/GuildStateManager.java)
+[GuildStateManager](../src/client/java/org/wynnvets/guild/GuildStateManager.java)
 
 Key public methods (all package-level or client-facing):
 
@@ -48,7 +48,7 @@ Wynntils `GuildEvent.Joined` / `.Left` invalidates the `GuildChecker` cache (aut
 
 ## 2. GuildChecker
 
-[src/client/java/org/wynnvets/guild/GuildChecker.java](src/client/java/org/wynnvets/guild/GuildChecker.java)
+[GuildChecker](../src/client/java/org/wynnvets/guild/GuildChecker.java)
 
 **Purpose:** Parse multi-line `/gu stats` response to detect guild name when Wynntils data isn't available.
 
@@ -76,7 +76,7 @@ Wynntils `GuildEvent.Joined` / `.Left` invalidates the `GuildChecker` cache (aut
 
 ## 3. StaffRankChecker
 
-[src/client/java/org/wynnvets/guild/StaffRankChecker.java](src/client/java/org/wynnvets/guild/StaffRankChecker.java)
+[StaffRankChecker](../src/client/java/org/wynnvets/guild/StaffRankChecker.java)
 
 **Purpose:** Detect captain+ rank via `/gu rank` command parsing.
 
@@ -95,7 +95,7 @@ On disconnect, `reset()` reloads persisted state from config (not in-memory clea
 
 ## 4. UnlockManager (key-based, post-migration)
 
-[src/client/java/org/wynnvets/guild/UnlockManager.java](src/client/java/org/wynnvets/guild/UnlockManager.java)
+[UnlockManager](../src/client/java/org/wynnvets/guild/UnlockManager.java)
 
 **Purpose:** Manage the player's vetsmod auth state. Owns the persisted bearer key and the transient session-auth flags.
 
@@ -126,7 +126,7 @@ The legacy SHA-256 password matching has been removed. The two old hashes (`vets
 
 ## 5. SessionAuthWarning
 
-[src/client/java/org/wynnvets/guild/SessionAuthWarning.java](src/client/java/org/wynnvets/guild/SessionAuthWarning.java)
+[SessionAuthWarning](../src/client/java/org/wynnvets/guild/SessionAuthWarning.java)
 
 **Purpose:** Once-per-session chat warning when the player's auth state diverges from what they probably expect.
 

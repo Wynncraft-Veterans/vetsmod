@@ -74,7 +74,7 @@ Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `a
 
 **Chat message fields:** `uuid`, `type` (`guild`|`queue`|`waitlist`|`honourary`|`bridge`), `timestamp`, `rank`, `username`, `message`. `queue` carries guild chat originated by a sender stuck in a world queue (the game server drops `/g` while queued); semantically a guild message but routed via the WS so it still reaches the rest of the guild. Inbound dedup is skipped for `queue` since only the queued sender originates it.
 
-**Tier gating:** when authenticated, the mod can only send/receive chat types its tier permits — `guild`-tier covers `guild`+`queue`, `waitlist`/`honourary` cover only their own type. `bridge` is visible to every authenticated tier. Unauthenticated sessions get unrestricted access *only* while the server's `unauth` toggle is enabled (see `../temporary-server/v1_protocol.md` §3).
+**Tier gating:** when authenticated, the mod can only send/receive chat types its tier permits — `guild`-tier covers `guild`+`queue`, `waitlist`/`honourary` cover only their own type. `bridge` is visible to every authenticated tier. Unauthenticated sessions get unrestricted access *only* while the server's `unauth` toggle is enabled (see `../../temporary-server/v1_protocol.md` §3).
 
 ### API boundary — vetsmod talks to temporary-server, NOT to dazebot
 

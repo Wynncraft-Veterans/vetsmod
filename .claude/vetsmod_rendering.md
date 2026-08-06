@@ -6,12 +6,12 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Rendering System
 
-Package: [src/client/java/org/wynnvets/rendering/](src/client/java/org/wynnvets/rendering/). 6 files across two sub-packages.
+Package: [org.wynnvets.rendering](../src/client/java/org/wynnvets/rendering/). 6 files across two sub-packages.
 
 ## 1. Territory subpackage
 
 ### TerritoryLineRenderer
-[src/client/java/org/wynnvets/rendering/territory/TerritoryLineRenderer.java:24-78](src/client/java/org/wynnvets/rendering/territory/TerritoryLineRenderer.java#L24-L78)
+[TerritoryLineRenderer](../src/client/java/org/wynnvets/rendering/territory/TerritoryLineRenderer.java)
 
 Draws territory boundary outlines using Minecraft's Gizmos API.
 - Green = player inside territory
@@ -22,7 +22,7 @@ Draws territory boundary outlines using Minecraft's Gizmos API.
 Credit: inspired by avomod2's `TerritoryOutlineRenderer` by Avicia (Yarn→Mojang mapping adapted).
 
 ### TerritoryLineManager
-[src/client/java/org/wynnvets/rendering/territory/TerritoryLineManager.java:29-141](src/client/java/org/wynnvets/rendering/territory/TerritoryLineManager.java#L29-L141)
+[TerritoryLineManager](../src/client/java/org/wynnvets/rendering/territory/TerritoryLineManager.java)
 
 - Toggle state: `ConcurrentHashMap<String, Boolean> activeLines`
 - Aliases: `church` → Forest of Eyes, `scrap` → Corkus Sea Cove
@@ -34,7 +34,7 @@ Used by `/wv line <church|scrap>` command.
 ## 2. Nametag subpackage
 
 ### NametagAnimator
-[src/client/java/org/wynnvets/rendering/nametag/NametagAnimator.java:29-256](src/client/java/org/wynnvets/rendering/nametag/NametagAnimator.java#L29-L256)
+[NametagAnimator](../src/client/java/org/wynnvets/rendering/nametag/NametagAnimator.java)
 
 Animated gradient for supporter usernames in nametags.
 
@@ -53,7 +53,7 @@ Features:
 ## 3. Colors subpackage
 
 ### AnimatedGradientSequence
-[src/client/java/org/wynnvets/rendering/colors/AnimatedGradientSequence.java:33-157](src/client/java/org/wynnvets/rendering/colors/AnimatedGradientSequence.java#L33-L157)
+[AnimatedGradientSequence](../src/client/java/org/wynnvets/rendering/colors/AnimatedGradientSequence.java)
 
 `FormattedCharSequence` wrapper that applies animated two-colour gradient to chars with marker colour.
 
@@ -87,7 +87,7 @@ color = start + (end - start) * t                   // linear RGB interp
 `AnimatedChatMixin` picks up the ThreadLocal config at insert-time and wraps newly-inserted lines.
 
 ### GradientTextBuilder
-[src/client/java/org/wynnvets/rendering/colors/GradientTextBuilder.java:14-123](src/client/java/org/wynnvets/rendering/colors/GradientTextBuilder.java#L14-L123)
+[GradientTextBuilder](../src/client/java/org/wynnvets/rendering/colors/GradientTextBuilder.java)
 
 Static utility for static (non-animated) gradient text components.
 - Splits into code points, interpolates RGB per character
@@ -97,7 +97,7 @@ Static utility for static (non-animated) gradient text components.
 - Single code point → uses start colour directly
 
 ### ShaderColorPalette
-[src/client/java/org/wynnvets/rendering/colors/ShaderColorPalette.java:10-39](src/client/java/org/wynnvets/rendering/colors/ShaderColorPalette.java#L10-L39)
+[ShaderColorPalette](../src/client/java/org/wynnvets/rendering/colors/ShaderColorPalette.java)
 
 Colour constants including Wynncraft resource-pack shader sentinel colours.
 
