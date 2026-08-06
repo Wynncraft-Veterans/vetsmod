@@ -367,11 +367,9 @@ one vets-anni internal endpoint.
 
 ### Wire shape
 
-- Snapshot bumped to `schema_version: 3` adding `board.party.scroll_spot: {x,y,z}|null` (only on the local player's own party — not on `event.all_parties`). `AnniSnapshot.Party.scrollSpot()` returns the new nullable `ScrollSpot` record.
-- vets-anni: 3 nullable `IntField`s on `Party` (`scroll_spot_x|y|z`); migration `4_20260617220201_add_party_scroll_spot.py`; `_build_party_block` splices `_scroll_spot_dict(party)`; `lifecycle_task._wipe()` clears the three columns inside the same transaction as `BoardPlacement.delete()`.
-- New internal endpoint `POST /api/internal/anni-party-scrollspot` (body `{actor_mc_uuid, scroll_spot}`) — derives party from actor's `BoardPlacement` in the active event, rejects 403 unless `party.host.mc_uuid == actor_mc_uuid`.
-- temp-server: `_handle_anni_scrollspot_set` in `app/chat/inbound.py` (right after `anni_query`) — authenticated-session gate, forwards via `state.anni_snapshot_poller.set_scroll_spot(body)` (new helper reusing the poller's `httpx.AsyncClient` + secret), ack as `anni_scrollspot_response`.
-- vetsmod: `V1ApiManager.sendAnniScrollspotSet(x,y,z)` (null triplet = clear); `AnniWsHandler.onInbound` routes `anni_scrollspot_response` → `AnniScrollspotClient.onResponse`; `AnniScrollspotClient.set(...)` / `clear()` return `CompletableFuture<Ack>` with 5s timeout.
+Snapshot `schema_version: 3` adds `board.party.scroll_spot: {x,y,z}|null`, read client-side as `AnniSnapshot.Party.scrollSpot()`. It is present only on the local player's own party: `PartySummary` declares no `scroll_spot`, so `event.all_parties` genuinely cannot carry one.
+
+The server halves — the `Party` columns and their migration, the `POST /api/internal/anni-party-scrollspot` host check, and temp-server's forwarding handler — live in [`vets-anni/.claude/snapshot_integration.md`](../../vets-anni/.claude/snapshot_integration.md), which states them more precisely. The three vetsmod-side wire pieces (`V1ApiManager.sendAnniScrollspotSet`, the `AnniWsHandler.onInbound` route, `AnniScrollspotClient`) are described once under §Party back-report → Reference templates.
 
 ## `/wv anni rsvp`
 
@@ -393,11 +391,8 @@ Wire pieces on the network layer:
   → AnniRsvpClient.send("hard")
   → V1ApiManager.sendAnniRsvp("hard")  → {"type":"anni_rsvp","notice":"hard"}
   → temp-server _handle_anni_rsvp (stamps actor_mc_uuid from session)
-  → POST vets-anni /api/internal/anni-rsvp-by-uuid
-  → app/domain/rsvp_by_uuid.execute_uuid_rsvp(...)
-        → rsvp_domain.set_rsvp(player, event, RSVP_HARD)
-        → _auto_place_after_rsvp → _broadcast_board_snapshot
-        → _post_public(app.state.fishbot, "<user> has **HARD** RSVP'd …")
+  → POST vets-anni /api/internal/anni-rsvp-by-uuid   ← server side; see
+                                                       snapshot_integration.md
   → 200 {"status":"ok"} or 4xx {"status":"error","detail":"…"}
   → temp-server forwards as {"type":"anni_rsvp_response","status":…,"detail":…}
   → AnniRsvpClient.onResponse pops the head future
@@ -419,36 +414,16 @@ Wire pieces on the network layer:
    `"Use \\rsvp on discord — or run ~vetsmod first."` Surfaces both the
    Discord fallback and the link path. Differs from scrollspot's
    `"Run ~vetsmod to authenticate before using /wv anni scrollspot."`.
-3. **vets-anni reuses the cog's helpers via underscore-imports**.
-   `app/domain/rsvp_by_uuid.execute_uuid_rsvp` imports
-   `_auto_place_after_rsvp`, `_broadcast_board_snapshot`, `_post_public`,
-   `_notice_label`, and `RsvpOutcome` directly from `app/bot/cogs/rsvp.py`.
-   No refactor into a shared module; the leading underscore is a
-   convention, not an access boundary, and the diff is smaller.
-   `app/domain/rsvp_shared.py` is a fallback if an import cycle ever
-   surfaces (none today; pytest `test_rsvp.py` + `test_rsvp_by_uuid.py`
-   = 64 passing).
-4. **First-invocation `AnniPlayer` placeholder uses `mc_uuid[:8]` as
-   `mc_username`** (matches `auto_promoter.py::_tick`'s `op.username if op
-   else uuid[:8]` fallback for online-but-unknown players). Full UUIDs
-   are 36 chars — too long for the 32-char `mc_username` field — so a
-   `mc_username = actor_mc_uuid` fallback would fail Tortoise's
-   validator. Public message names the player as the `uuid[:8]` until
-   auto-promoter / presence-poller hydrates the row on the next cycle.
-5. **No `username_hint` field threaded through the WS frame.**
-   Temp-server already has the session's `mc_uuid` and the placeholder
-   fallback covers brand-new users — no need for a fragile client-side
-   username hint that would also need an "is this username actually
-   yours" verification.
-6. **T-90 cutoff branching**: revokes pass through unconditionally
-   (matches Discord cog behaviour); hard/soft within cutoff get a 409
-   with `detail: "RSVP is closed (within 90 min of anni)"` so the user
-   sees a clear reason.
-7. **`AnniRsvpClient.lastAttemptedNotice` / `lastAck` are race-prone**
+3. **No `username_hint` field threaded through the WS frame.**
+   Temp-server already has the session's `mc_uuid`, and vets-anni's own
+   placeholder fallback covers brand-new users — no need for a fragile
+   client-side username hint that would also need an "is this username
+   actually yours" verification.
+4. **`AnniRsvpClient.lastAttemptedNotice` / `lastAck` are race-prone**
    (static volatiles, no per-call correlation) — acceptable for
    debug-only `rsvpDump` view. The `pendingCount()` accessor gives an
    honest in-flight indicator.
-8. **Auto-refresh on success.** `AnniRsvpCommand.renderAck` fires
+5. **Auto-refresh on success.** `AnniRsvpCommand.renderAck` fires
    `AnniQueryClient.query()` after a successful ack. Without this,
    `/wv anni` reads the cached snapshot which is up to 5 minutes stale
    outside the T-2h hot window (push poller cadence). User reported the
@@ -456,46 +431,13 @@ Wire pieces on the network layer:
    showed `RSVP Type: EARLY WALK-IN`. The query is fire-and-forget; the
    listener bus in `AnniSnapshotCache` re-renders everything that
    subscribes (boss bar, outlines, flash, future `/wv anni`).
-9. **Server-side cache-bust coordinates with the auto-refresh.** Temp-server's
-   `_handle_anni_rsvp` pops the user's UUID from
-   `state.anni_snapshots_by_uuid` on a successful forward to vets-anni.
-   Otherwise the immediate follow-up `anni_query` from vetsmod hits
-   temp-server's 15s short-cache and returns pre-RSVP state. Server-side
-   pop is one line and avoids extending the WS protocol with a
-   "force-fresh" flag.
-10. **`buckets_domain.promote_from_wontassign`** — helper that fixes
-    the revoke + re-RSVP regression.
-    `_auto_place_after_rsvp` dispatches three ways:
-    - No placement → `ensure_placed` (insert into main UNASSIGNED).
-    - Currently in WONTASSIGN → `promote_from_wontassign` (move back to
-      main UNASSIGNED). The fresh RSVP overrides the prior demote — an
-      explicit `/wv anni rsvp` is a strong user signal.
-    - Any other placement (party, walk-in lane, etc.) → no-op (staff
-      intent / original lane preserved). Pinned by
-      `test_revoke_then_re_rsvp_does_not_promote_party_placement`.
-11. **`wont_reason = "RSVP retracted"` when the player has a revoked
-    Rsvp.** Vetsmod render is `wont_reason`-driven so the string flows
-    verbatim through `AnniSnapshot.Board.wontReason()` into
-    `AnniCommandRenderer.boardSection`'s `case "wont_assign"` branch.
-    User intent: "won't assign (retracted) != Sitting out". The query
-    is one `Rsvp.filter(event, player, revoked_at__isnull=False).exists()`
-    on the same path. *Note: this intentionally does NOT use
-    `BUCKET_LABEL.get(BucketKind.WONTASSIGN)` ("Sitting out") for every
-    WONTASSIGN — that was the original hard-coded behaviour.*
 
-### Public-message format
-
-Reuses the cog's exact format strings, byte-equivalent to a Discord
-`\rsvp` invocation:
-
-```
-hard/soft: `<user>` has **HARD/SOFT** RSVP'd for the anni <t:N:R> (<t:N:F>).
-revoke:    `<user>` withdrew their RSVP.
-```
-
-Discord-timestamp tags only (CLAUDE.md "anni timing must localise per
-viewer"). `<user>` is `player.mc_username` (the `uuid[:8]` placeholder
-for brand-new UUIDs until auto-promoter hydrates).
+The server-side decisions this flow depends on — how vets-anni reuses
+the Discord cog's helpers, the `uuid[:8]` placeholder for a first-time
+`AnniPlayer`, the T-90 cutoff's 409, the WONTASSIGN promotion on
+re-RSVP, the `wont_reason = "RSVP retracted"` string this doc's renderer
+consumes, temp-server's short-cache pop, and the public-message format —
+are in [`vets-anni/.claude/snapshot_integration.md`](../../vets-anni/.claude/snapshot_integration.md).
 
 ## Party back-report
 
@@ -506,43 +448,16 @@ anni party's host is always in `organisers`, so the broader year-round
 signal would be over-collection and the organiser-presence gate is the
 exact signal vets-anni needs.
 
+The snapshot field the gate reads (`organiser_usernames`, parallel to
+`organisers`), vets-anni's `POST /api/internal/anni-party-observation`
+receiver and its presence TTL, and temp-server's forwarding handler are
+in [`vets-anni/.claude/snapshot_integration.md`](../../vets-anni/.claude/snapshot_integration.md).
+Names rather than UUIDs go over the wire because Wynncraft only exposes
+party members by username — see `Wynntils PartyModel.getPartyMembers()`.
+
 ### What ships
 
-1. **Snapshot field** — `organiser_usernames: list[str]` parallels the
-   existing `organisers: list[str]` (UUIDs) on every snapshot. Built in
-   one query pair in
-   [`vets-anni/app/domain/snapshot.py::_organisers`](../../vets-anni/app/domain/snapshot.py)
-   to keep UUID/username order in lockstep. Names are needed because
-   Wynncraft only exposes party members by username — see
-   `Wynntils PartyModel.getPartyMembers()`.
-
-2. **vets-anni endpoint** — `POST /api/internal/anni-party-observation`
-   in
-   [`anni_internal.py`](../../vets-anni/app/web/routers/anni_internal.py).
-   Body `{observer_mc_uuid, party_member_usernames, leader_username,
-   world}`. Resolves names via `state.resolve_uuid()` (roster cache →
-   alias fallback, the latter populated from WAPI's `legacyName` field
-   through temp-server's existing `/v1/outbound/aliases`). Writes
-   `{member_uuid: leader_uuid}` into `state.party_leader_by_uuid`;
-   unresolvable leader = no-op (`{resolved:0}`); the observer's session
-   UUID is the authoritative fallback for the observer's own entry.
-   Returns `{status, resolved, dropped}` for observability.
-
-3. **TTL gate** — `_PARTY_LEADER_TTL_SECONDS = 60` in
-   [`state.py`](../../vets-anni/app/services/state.py);
-   [`presence_poller`](../../vets-anni/app/services/presence_poller.py)
-   degrades stale entries back to `ONLINE_WORLD` so a vetsmod
-   disconnect mid-window doesn't pin a user to yellow forever.
-
-4. **temp-server inbound handler** — `_handle_anni_party_observation`
-   in
-   [`inbound.py`](../../temporary-server/app/chat/inbound.py)
-   mirrors `_handle_anni_rsvp`: auth-required, stamp
-   `observer_mc_uuid` from session, forward via new
-   `AnniSnapshotPoller.send_party_observation(body)` helper,
-   typed response frame.
-
-5. **vetsmod gate refactor** —
+1. **vetsmod gate refactor** —
    [`PartyRosterListener.flush`](../src/client/java/org/wynnvets/listeners/PartyRosterListener.java)
    now reads `AnniSnapshotCache.latest().organiserUsernames()` and
    tests case-insensitive overlap with the captured party's
@@ -551,7 +466,7 @@ exact signal vets-anni needs.
    Pure predicate `shouldSend(snap, anniSnapshot, stamp, now)` is the
    testable core; legacy `vetsConnected` / `tier` parameters are gone.
 
-6. **Mid-window snapshot trigger** —
+2. **Mid-window snapshot trigger** —
    [`AnniPartyReporter`](../src/client/java/org/wynnvets/mwe/anni/party/AnniPartyReporter.java)
    subscribes to `AnniSnapshotCache`. On any change to the lowercased
    `organiser_usernames` set, calls
@@ -563,20 +478,12 @@ exact signal vets-anni needs.
 
 ### What got deleted
 
-The legacy `party_status` machinery is excised in full:
-
-- **vetsmod**: `V1ApiManager.sendPartyStatus`, cohort-gate parameters,
-  `OnlineMemberService.refreshAsync()` call site, `VETS_TIERS`
-  constant, the TODO comment that envisioned this exact swap.
-- **temp-server**: `_handle_party_status`,
-  `state.party_status_by_reporter`, `/v1/outbound/party_status` route
-  (`app/routes/static.py`), disconnect-time cleanup line, the
-  protocol-doc section.
-- **vets-anni**: `party_status_poller.py`,
-  `tests/test_party_status_poller.py`, its `main.py` task wiring,
-  `party_status_poll_*` settings, `tempserver.party_status()` client
-  method. `state.party_leader_by_uuid` keeps the same name (only the
-  data source changed).
+The legacy `party_status` machinery is excised in full. On the vetsmod
+side that is `V1ApiManager.sendPartyStatus`, the cohort-gate parameters,
+the `OnlineMemberService.refreshAsync()` call site, the `VETS_TIERS`
+constant, and the TODO comment that envisioned this exact swap. The
+temp-server and vets-anni halves are listed in
+[`vets-anni/.claude/snapshot_integration.md`](../../vets-anni/.claude/snapshot_integration.md).
 
 ### Implementation notes
 
@@ -586,18 +493,8 @@ The legacy `party_status` machinery is excised in full:
   `[{uuid, username}]` shape — Wynntils' `PartyModel.getPartyMembers()`
   returns `List<String>` of usernames only, and Wynncraft's tab list is
   fake (80 sentinels per `TabListGuildParser`), so client-side
-  name→UUID resolution would drop 30-60% of members.*
-- **Snapshot helper `_organisers` returns a `(uuids, usernames)` tuple
-  from one query pair.** Re-querying would race on order desync if a
-  host reassignment landed mid-build.
-- **`observer_mc_uuid` injected by temp-server, never trusted from the
-  frame body** (impersonation vector — the frame body's
-  `observer_mc_uuid`, if present, is discarded).
-- **TTL gate on the presence corroboration check.** *Note: this
-  intentionally does NOT pin the user to yellow indefinitely on a
-  vetsmod disconnect — without the TTL, no other writer would clear
-  the entry.* Default 60 s; tune during live anni if presence
-  flickers.
+  name→UUID resolution would drop 30-60% of members.* The client never
+  supplies `observer_mc_uuid`; temp-server stamps it from the session.
 - **`AnniPartyReporter` is a thin snapshot listener, NOT a wrapper
   around the send call.** `PartyRosterListener.flush()` calls
   `V1ApiManager.sendAnniPartyObservation` directly — same shape as
@@ -621,27 +518,11 @@ The legacy `party_status` machinery is excised in full:
 
 ### Reference templates
 
-Four clean reference templates exist for the shapes this section
-touches. Don't redesign — clone.
-
-**Auth + forward template (temp-server `inbound.py`)** — four nearly
-identical handlers:
-1. `_handle_anni_query` (read path; session-or-frame uuid resolution).
-2. `_handle_anni_scrollspot_set` (host-only write; session uuid only).
-3. `_handle_anni_rsvp` (self-only write; session uuid + cache-bust).
-4. `_handle_anni_party_observation` (clone of #3 with a different
-   poller forward; stamps actor's UUID into the body so the client
-   can't impersonate, returns `anni_party_observation_response` with
-   `{status, detail}`).
-
-If the count of these grows to 5, extract a
-`_handle_anni_authenticated_forward(...)` helper in the same file.
-
-**Poller helper template (temp-server `anni_snapshot_poller.py`)** —
-three clones: `set_scroll_spot(body)`, `set_rsvp(body)`, and
-`report_party_observation(body)`. All reuse `self._client` +
-`self._secret` + `self._base_url`, return `{"status":"ok"}` /
-`{"status":"error","detail":"…"}` / unreachable.
+Three clean vetsmod-side reference templates exist for the wire shapes
+this subsystem uses. Don't redesign — clone. (The two server-side
+templates — temp-server's auth-and-forward inbound handler and its
+poller helper — moved to
+[`vets-anni/.claude/snapshot_integration.md`](../../vets-anni/.claude/snapshot_integration.md).)
 
 **Single-flight ack client (vetsmod `org.wynnvets.mwe.anni.network`)** —
 three clones: `AnniQueryClient` (returns `CompletableFuture<AnniSnapshot>`),
@@ -665,16 +546,10 @@ new frame type needs a vetsmod-side consumer.
 
 ### What carries forward to future MWEs
 
-- **Auth + forward template** (`_handle_anni_party_observation` is the
-  fourth instance after `_handle_anni_query`/`_scrollspot_set`/`_rsvp`).
-  If the count crosses 5, extract a shared helper.
 - **`AnniPartyReporter`'s snapshot-listener pattern** generalises to
   any future MWE that needs "fire a back-report when X organiser-like
   state appears". Don't duplicate the listener bus; subscribe and
   diff.
-- **`presence_poller`'s TTL gate** is the right shape for any
-  future presence corroboration source — bare presence of a key is
-  not enough; freshness has to be checked.
 
 ## Anni zone
 
