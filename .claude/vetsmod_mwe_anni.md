@@ -108,7 +108,7 @@ Entry: `CommandRegistry.anni()` → `StampFetcher.fetchStampAndCreateAnniCommand
 `StampFetcher`:
 - `vetsAnniEnabled=false` → legacy fallback.
 - `vetsAnniEnabled=true && cache populated` → renderer.
-- `vetsAnniEnabled=true && cache cold` → `AnniQueryClient.query()` (auto-pull), then renderer if successful, else legacy.
+- `vetsAnniEnabled=true && cache cold` → `AnniQueryClient.query()` (auto-pull), then renderer if it resolves a snapshot, else legacy. ⚠️ "else legacy" holds for a null resolution, **not** for the 8 s deadline: `query()` completes exceptionally there, and the `thenCompose` in this path propagates rather than falling back — see [`anni-ack-clients-ortimeout-completes-exceptionally`](ephemeral/bugs-found-via-mellow-rain/anni-ack-clients-ortimeout-completes-exceptionally.md).
 
 `AnniCommandRenderer.render(snapshot)` returns `List<MutableComponent>`:
 - `null` → "fall back to legacy" (the only case is external + announced).
@@ -276,7 +276,7 @@ The highlight overlay recolours nearby players' outlines + nametags while the us
 
 ### Snapshot schema bump (v1 → v2)
 
-The highlights subsystem requires `schema_version = 2` on the vets-anni side. The single addition is `event.all_parties`: a lightweight per-party member listing keyed off the active event. Each entry is `{ordinal, members: [{uuid, username, role}, ...]}` — same `_party_member_refs` projection as `board.party.members`, so the two views never drift. Used by `AnniOutlineRegistry` to tier "in another vets-anni party" players without per-uuid round-trips. Empty list when no parties exist yet for the active event. `AnniSnapshot.Event#allParties()` returns `Collections.emptyList()` on v1 payloads (Gson leaves unknown fields null, accessor coerces), so older snapshots remain consumable.
+The `event.all_parties` half of the highlight tiering needs `schema_version = 2` from vets-anni. Nothing client-side *enforces* it — `schemaVersion()` is read only by `AnniDebugCommands` diagnostics, so a v1 payload degrades silently to own-party-only tiering rather than being rejected. The single addition is `event.all_parties`: a lightweight per-party member listing keyed off the active event. Each entry is `{ordinal, members: [{uuid, username, role}, ...]}` — same `_party_member_refs` projection as `board.party.members`, so the two views never drift. Used by `AnniOutlineRegistry` to tier "in another vets-anni party" players without per-uuid round-trips. Empty list when no parties exist yet for the active event. `AnniSnapshot.Event#allParties()` returns `Collections.emptyList()` on v1 payloads (Gson leaves unknown fields null, accessor coerces), so older snapshots remain consumable.
 
 ### Activation gate — tighter than the boss bar before the stamp, wider after it
 
@@ -402,7 +402,7 @@ one vets-anni internal endpoint.
 2. **Two readiness alerts** appended to `AggressiveAlertDispatcher`. The T-10m world-mismatch fires on the first tick at or after T-10m *at which a party world is assigned*, so an unassigned player gets it late or not at all; the T-5m zone-absence latches unconditionally on the first tick inside T-5m. Neither fires past `stamp_epoch`. Each latches an **in-memory** per-stamp_epoch sentinel — once per anni *per client session*. Unlike the ghosts prompt these are not persisted, so a restart mid-window re-fires them.
 3. **Ghosts-prompt detection** = `Models.Player.isPlayerGhost(player)` walk. Reads `PlayerModel.ghosts` (the cache Wynntils maintains from `_ghostN` team assignments). If any visible player is ghost → ghosts on → prompt. Else ambiguous → per-stamp_epoch sentinel (`vetsAnniGhostsPromptShownForStamp`).
 4. **Chat-alert scope = exactly role / world / party / RSVP.** No attendance-band, no party-membership.
-5. **Scroll waypoint = `Texture.MAP` + dark-red beacon.** `Texture.MAP` (the 14×14 generic, NOT `Texture.MAP_ICON` which is the 21×38 content-book tab — enum naming is a known footgun). *Note: this intentionally does NOT use "no beacon beam, icon only" — Wynntils' `BeaconBeamFeature.onRenderLevelLast` NPE-crashes the render thread on a null beacon colour, and there is no per-marker "skip beacon" path: `null` crashes, `CustomColor.NONE` falls back to user-config beacon, custom 0-alpha colour is overridden to opaque by Wynntils' own `withAlpha(localAlpha)` before render. Suppressing the beacon would require a mixin into Wynntils.* Final: `CustomColor.fromChatFormatting(ChatFormatting.DARK_RED)`.
+5. **Scroll waypoint = `Texture.MAP` + dark-red beacon.** `Texture.MAP` (the 14×14 generic, NOT `Texture.MAP_ICON` which is the 21×38 content-book tab — enum naming is a known footgun). *Note: this intentionally does NOT use "no beacon beam, icon only" — Wynntils' `BeaconBeamFeature.onRenderLevelLast` NPE-crashes the render thread on a null beacon colour, and there is no per-marker "skip beacon" path: `null` crashes, `CustomColor.NONE` falls back to user-config beacon, a custom 0-alpha colour is ignored, since Wynntils recomputes the alpha itself. Suppressing the beacon would require a mixin into Wynntils — see [vetsmod_rendering.md](vetsmod_rendering.md) §6 for the mechanism.* Final: `CustomColor.fromChatFormatting(ChatFormatting.DARK_RED)`.
 6. **Scrollspot command lives under `/wv debug tree anni scrollspot`, not `/wv anni`.** Hidden from main brigadier (no tab-complete) because it's a staff-only command used on rare occasions. Gated on `requireDebug` (must have `/wv debug true`) AND `requireStaffOrOrganiser` (staff tier OR local UUID in `snapshot.organisers`). Subcommands: `set <x> <y> <z>` / `here` / `clear` are real host writes via WS; `localinject <x> <y> <z>` / `localclear` paint the marker provider directly for visual testing without coordinating a host. All five gated identically.
 
 ### Wire shape
@@ -421,7 +421,7 @@ Wire pieces on the network layer:
 - `V1ApiManager.sendAnniRsvp(String notice)` (mirror of `sendAnniScrollspotSet`).
 - `AnniWsHandler.onInbound` routes `anni_rsvp_response` to `AnniRsvpClient.onResponse`.
 
-`AnniRsvpClient` is a single-flight ack future (clone of `AnniScrollspotClient`); also exposes `lastAttemptedNotice` / `lastAck` / `pendingCount` for `/wv debug trigger rsvpDump`.
+`AnniRsvpClient` is a single-flight ack future (clone of `AnniScrollspotClient`). It declares public `lastAttemptedNotice()` / `lastAck()` / `pendingCount()` accessors intended for `/wv debug trigger rsvpDump`, but the dump goes through `debugDump()` instead, which reads the private statics directly — so all three currently have zero callers repo-wide.
 
 ### Auth chain
 
@@ -460,9 +460,10 @@ Wire pieces on the network layer:
    client-side username hint that would also need an "is this username
    actually yours" verification.
 4. **`AnniRsvpClient.lastAttemptedNotice` / `lastAck` are race-prone**
-   (static volatiles, no per-call correlation) — acceptable for
-   debug-only `rsvpDump` view. The `pendingCount()` accessor gives an
-   honest in-flight indicator.
+   (static volatiles, no per-call correlation) — acceptable for a
+   debug-only `rsvpDump` view. `pendingCount()` was added as the honest
+   in-flight indicator; as built, `debugDump()` reads the statics
+   directly and none of the three accessors is called.
 5. **Auto-refresh on success.** `AnniRsvpCommand.renderAck` fires
    `AnniQueryClient.query()` after a successful ack. Without this,
    `/wv anni` reads the cached snapshot which is up to 5 minutes stale
