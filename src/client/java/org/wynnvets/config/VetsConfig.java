@@ -285,7 +285,7 @@ public class VetsConfig {
   public static final String LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY = "legacyItemBackgroundGradientTopOpacity";
 
   /** Opacity (0–100%) for the bottom of the legacy-item background gradient.
-   *  Defaults to 69. */
+   *  Defaults to 100 (fully opaque); it is the *top* stop that defaults to 69. */
   public static final String LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY = "legacyItemBackgroundGradientBottomOpacity";
 
   /** Which Wynntils highlight sprite to draw over the gradient.
@@ -295,7 +295,7 @@ public class VetsConfig {
   public static final String LEGACY_ITEM_FOREGROUND_SPRITE = "legacyItemForegroundSprite";
 
   /** CSS/Minecraft colour name used to tint the foreground sprite on legacy item slots.
-   *  Defaults to {@code gold} (Minecraft §6). */
+   *  Defaults to {@code orange}. */
   public static final String LEGACY_ITEM_FOREGROUND_COLOR = "legacyItemForegroundColor";
 
   /**
@@ -474,7 +474,11 @@ public class VetsConfig {
     stringConfig.put(VETS_AUTH_TIER, "");
     longConfig.put(VETS_AUTH_VERIFIED_AT, 0L);
 
-    // User-facing defaults (all enabled by default, except moreReliableGuildCheck)
+    // User-facing defaults for this block — all true except colorBlindMode.
+    // (moreReliableGuildCheck is true, despite what this comment used to say.)
+    // The two remaining user-facing keys default elsewhere: vetsAnniEnabled
+    // false, with the internal keys above, and the tri-state handleSpoilers
+    // null — meaning on — just below.
     config.put(LEGACY_ITEM_HIGHLIGHTING, true);
     config.put(LEGACY_ITEM_SHOW_ENCHANTMENTS, true);
     config.put(PRINT_MOTD, true);

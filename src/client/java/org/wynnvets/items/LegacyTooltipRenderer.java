@@ -38,6 +38,10 @@ import org.wynnvets.logging.VetsLogger;
  *       loreless legacy items (old keys, vanilla materials, holiday items).
  *       Rarity is inferred from the {@code tooltip_style} data component or
  *       the §-colour code prefix of the custom name.</li>
+ *   <li><b>Pedestal-wiped shell</b> — a vanilla armour or weapon-proxy item
+ *       with no lore and an §a/§b/§d/§e custom-name prefix, i.e. what the
+ *       pedestal item-wipe leaves behind. Labelled "Legacy Item
+ *       (Pedestal-Wiped)". Named {@code Branch 4b} in the method body.</li>
  *   <li><b>Beta/alpha legacy marker</b> — lore contains a gold "Lv. min"
  *       line (the old Wynncraft stat format). Alpha vs beta is decided by
  *       whether a standard rarity line exists.</li>

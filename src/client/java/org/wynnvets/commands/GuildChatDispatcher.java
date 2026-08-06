@@ -22,7 +22,10 @@ import org.wynnvets.queue.QueueStateManager;
  * honourary chat ({@code /wg}), staff chat ({@code /v}), announcements
  * ({@code /a}), and the encourage command ({@code /encourage}).
  *
- * <p>Called from {@link org.wynnvets.mixin.client.GuildChatCommandMixin}
+ * <p><b>Not exhaustive</b> — {@link #intercept} matches twelve prefixes; read
+ * it for the full list. {@code /msg} is not one of them.</p>
+ *
+ * <p>Called from {@link org.wynnvets.mixin.client.chat.GuildChatCommandMixin}
  * to keep mixin code minimal. Each handler returns {@code true} when the
  * original command should be cancelled (intercepted), or {@code false} to
  * let it pass through to the server normally.</p>

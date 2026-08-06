@@ -97,7 +97,7 @@ public class LegacyItemHandler {
    * Always returns false when {@link org.wynnvets.config.VetsConfig#LEGACY_ITEM_HIGHLIGHTING}
    * is disabled.
    *
-   * <p>Detection uses a priority cascade of 7 independent checks, each targeting
+   * <p>Detection uses a priority cascade of 8 independent checks, each targeting
    * a different category of legacy item.  The {@code newFormatOverridden} flag
    * prevents false positives on items that exist in both old and new Wynncraft
    * item formats — those are only treated as legacy when explicitly listed in
