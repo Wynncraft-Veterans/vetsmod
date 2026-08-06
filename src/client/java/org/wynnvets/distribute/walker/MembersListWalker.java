@@ -30,9 +30,13 @@ import java.util.regex.Pattern;
  * {@link ObjectivesDistributor}, which reads the {@code Guild Objective:}
  * lore lines to decide who qualifies.
  *
- * <p>Mirrors {@link MembersListSearcher}'s event plumbing
- * (MenuOpen / SetContent / SetSlot triple, one-tick scheduler delay so
- * straggling slot updates land before the rescan) but instead of
+ * <p>Built on the same event triple as {@link MembersListSearcher}
+ * (MenuOpen / SetContent / SetSlot) and, like it, defers the rescan by a
+ * scheduler delay so straggling slot updates land first &mdash; but the
+ * two are not interchangeable. This class waits one tick and filters
+ * {@link #onSetSlot} down to {@link #NEXT_PAGE_SLOT}; the searcher waits
+ * {@code SCAN_DELAY_TICKS} (a different value, for the reason recorded
+ * on that constant) and also triggers on every in-bounds tile. Instead of
  * stopping on a match it forward-paginates exhaustively, collecting
  * every bounded player-head into {@link #collected} along the way. When
  * the Next Page button disappears, it invokes
@@ -136,10 +140,13 @@ public final class MembersListWalker {
         if (event.getContainerId() != membersContainerId) return;
         VetsLogger.debug("MembersListWalker: menu closed mid-walk, abandoning");
         // No callback on abandon, and no chat line either — this path is
-        // silent. There is no watchdog here (contrast
-        // MembersListSearcher.WATCHDOG_TICKS), so an @objectives run whose
-        // Members menu closes mid-walk stalls until the next armWalk
-        // resets the state. Same for scanAndPaginate's screen-gone path.
+        // silent. There is no watchdog here at all. The searcher's
+        // WATCHDOG_TICKS is the nearest equivalent, and note it does not
+        // cover MembersListSearcher's own onMenuClose either — that calls
+        // stop(), which bumps watchdogToken and disarms it. So an
+        // @objectives run whose Members menu closes mid-walk stalls until
+        // the next armWalk resets the state, with nothing to force it
+        // along. Same for scanAndPaginate's screen-gone path.
         stop();
     }
 

@@ -20,7 +20,7 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 - `org.wynnvets.commands` — `CommandRegistry`, `/wv` command tree
 - `org.wynnvets.config` — `VetsConfig` (JSON-backed) at `vetsmod/storage/config.json`
 - `org.wynnvets.datamodels` — Lightweight DTOs: `Guild`, `User`, `UserUUID` (used by fetchers/list services to thread typed records around)
-- `org.wynnvets.distribute` — `/wv distribute` Guild Management GUI automation, 14 files across 5 sub-packages (`command`, `opener`, `walker`, `distributor`, `utils`). Drives the Members / Guild Log menus from a client command; holds the repo's only reflection (`OutboundCommand`) and, currently, its only `Managers.TickScheduler` callers. Its tick constants and menu routes encode observed server behaviour — see [vetsmod_distribute.md](vetsmod_distribute.md) before changing any of them.
+- `org.wynnvets.distribute` — `/wv distribute` Guild Management GUI automation, 14 files across 5 sub-packages (`command`, `opener`, `walker`, `distributor`, `utils`). Drives the Members / Guild Log menus from a client command; currently holds the repo's only reflection (`OutboundCommand`) and its only `Managers.TickScheduler` callers — both true as of writing, neither enforced by anything. Its tick constants and menu routes encode observed server behaviour — see [vetsmod_distribute.md](vetsmod_distribute.md) before changing any of them.
 - `org.wynnvets.guild` — `GuildStateManager` (facade), `GuildChecker` (`/gu stats`), `StaffRankChecker` (`/gu rank`), `UnlockManager` (bearer-key auth + legacy markers), `SessionAuthWarning` (per-session unauth nag)
 - `org.wynnvets.items` — `ItemDefinitions` (YAML regex patterns), `LegacyItemHandler`, renderers
 - `org.wynnvets.queue` — `QueueStateManager`, `QueueDetector`, `QueueStateListener`. Tracks Wynncraft world-queue state from the queue title + world-state signals; consumers (`OutboundDisplayHandler`, `GuildChatDispatcher`) take the queue-aware path that routes guild chat through the WS as `type:"queue"` since the in-game `/g` is dropped while queued.
@@ -31,7 +31,7 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 - `org.wynnvets.rendering` — `TerritoryLineRenderer`, `NametagAnimator`, gradient text
 - `org.wynnvets.logging` (under `src/main/`, shared with server stub) — `VetsLogger` thin wrapper used everywhere else
 
-**Gap:** three packages in `src/client/` have no bullet above — `org.wynnvets.mwe` (the anni subsystem, covered in [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md)), `org.wynnvets.debug` (plus `debug.diagnostics` and `debug.dump`) and `org.wynnvets.fetcher.lookup` (the provider cascade). 1c added the `distribute` bullet only.
+**Gap:** three packages in `src/client/` have no bullet above and are not covered elsewhere in this file — `org.wynnvets.mwe` (the anni subsystem, documented in [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md) but absent from this list), `org.wynnvets.debug` (plus `debug.diagnostics` and `debug.dump`) and `org.wynnvets.fetcher.lookup` (the provider cascade). The root `org.wynnvets` package has no bullet either, but that is deliberate — it is covered under **Entry points** above. 1c added the `distribute` bullet only.
 
 **Networking:**
 - Inbound WS: `wss://api.wynnvets.org/v1/inbound` — client sends guild/waitlist/honourary messages

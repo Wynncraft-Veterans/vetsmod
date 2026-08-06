@@ -37,9 +37,10 @@ import java.util.regex.Pattern;
  * - Streak: N
  * </pre>
  * <p>A completed objective is one where {@code current >= total} on the
- * line immediately following the {@code Guild Objective:} header. If
- * the lore doesn't contain the header (e.g. a freshly-joined recruit),
- * the member is treated as not-completed and skipped.</p>
+ * first non-blank line following the {@code Guild Objective:} header
+ * (blank separator lines are skipped, not treated as a miss). If the
+ * lore doesn't contain the header (e.g. a freshly-joined recruit), the
+ * member is treated as not-completed and skipped.</p>
  *
  * <h2>Distribution algorithm</h2>
  * <p>Given {@code N} rewards and {@code K} completers, each completer
@@ -194,10 +195,11 @@ public final class ObjectivesDistributor {
     }
 
     /**
-     * Returns {@code true} if the member's lore shows {@code current >= total}
-     * on the line immediately following the {@code Guild Objective:}
-     * header. Returns {@code false} if the header is missing or the
-     * progress line is malformed.
+     * Returns {@code true} if the member's lore shows
+     * {@code current >= total} on the first non-blank line following the
+     * {@code Guild Objective:} header. Returns {@code false} if the
+     * header is missing, if nothing non-blank follows it, or if the
+     * first non-blank line fails {@link #OBJECTIVE_PROGRESS}.
      */
     private static boolean hasCompletedObjective(List<String> loreLines) {
         boolean afterHeader = false;
@@ -213,8 +215,10 @@ public final class ObjectivesDistributor {
                         return false;
                     }
                 }
-                // Anything else right after the header (blank, or a
-                // surprise non-objective line) — bail out.
+                // A surprise non-objective line after the header — bail
+                // out. Blank lines fall through this guard and the scan
+                // continues, so a blank separator between the header and
+                // the progress line does not read as not-completed.
                 if (!line.isBlank()) return false;
             }
             if (line.equals(OBJECTIVE_HEADER)) {

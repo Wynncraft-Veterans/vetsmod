@@ -35,10 +35,14 @@ import java.util.regex.Pattern;
  * spreads {@code <count>} rewards proportionally to that frequency.
  *
  * <h2>How the log is walked</h2>
- * <p>{@link GuildLogWalker} opens the in-game log GUI via
- * {@code /guild log} and lets Wynntils' own auto-pagination drive the
- * pages; we just collect each {@link GuildLogItem} as it streams in via
- * {@code ContainerSetSlot} and stop on a quiescence timer.</p>
+ * <p>The log GUI is opened by
+ * {@link GuildManageOpener#openGuildLog()} &mdash; {@code /guild manage}
+ * followed by a click on the Guild Log tile, <em>not</em> a direct
+ * {@code /guild log}, which the server drops this soon after a menu
+ * close. {@link GuildLogWalker} then lets Wynntils' own auto-pagination
+ * drive the pages; we just collect each {@link GuildLogItem} as it
+ * streams in via {@code ContainerSetSlot} and stop on a quiescence
+ * timer.</p>
  *
  * <h2>What counts as a graid</h2>
  * <p>Graid-completion entries follow the shape

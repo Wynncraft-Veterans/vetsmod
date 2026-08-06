@@ -140,7 +140,7 @@ Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **f
 
 `/wv distribute <name|@selector> <aspects|tomes|emeralds> <count>` automates the Wynncraft Guild Management GUI: [`DistributeCommands`](../src/client/java/org/wynnvets/distribute/DistributeCommands.java) sends `/guild manage`, navigates to Manage Members or Guild Log, paginates to a player's tile and synthesises the hotbar presses that hand over the resource. Visible to staff (`isStaffOfAnyGuild`), executable by chief+ (`isChiefOfAnyGuild`). Four `@`-selectors — `@random`, `@objectives`, `@graids`, `@split` — pick the recipient set; a `NoAspects` opt-out list filters all of them.
 
-**Don't retune the tick constants or reroute the menu navigation from the code alone.** Each was chosen against observed server behaviour — `/guild log` being dropped after a menu close, the Members menu getting a fresh container id after every send, a page's `SetSlot` packets crossing a tick boundary, the guild log capping at ~100 entries — and the failure mode when one is wrong is silent. The behaviour-to-code-shape record is [vetsmod_distribute.md §6](vetsmod_distribute.md).
+**Don't retune the tick constants or reroute the menu navigation from the code alone.** Each was chosen against observed server behaviour — `/guild log` being dropped after a menu close, the Members menu refreshing after every send (the presser accepts either a new-container-id reopen or a same-id in-place refresh as proof it landed), a page's `SetSlot` packets crossing a tick boundary, the guild log capping at ~100 entries — and the failure mode when one is wrong is silent. The behaviour-to-code-shape record is [vetsmod_distribute.md §6](vetsmod_distribute.md).
 
 ## Item definitions
 
