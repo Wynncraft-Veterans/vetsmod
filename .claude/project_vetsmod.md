@@ -4,7 +4,7 @@ description: Fabric client mod structure, key packages, Wynntils integration, We
 type: project
 originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 ---
-**Stack:** Fabric Loader 0.18.4, Fabric API 0.141.3+1.21.11, Java 21, Wynntils v4.1.4-fabric (modCompileOnly)
+**Stack:** Fabric Loader 0.18.4, Fabric API 0.141.3+1.21.11, Java 21, Wynntils v4.1.17-fabric (modCompileOnly)
 
 **Entry points:**
 - Server-side: `org.wynnvets.Vetsmod` (minimal, just logs)

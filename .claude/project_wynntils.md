@@ -5,7 +5,7 @@ type: reference
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 **Repo:** sibling clone at `../Wynntils/` — read-only reference, not edited. Upstream: <https://github.com/Wynntils/Wynntils>.
-**Version used by vetsmod:** v4.1.4-fabric (via Modrinth Maven, `modCompileOnly`)
+**Version used by vetsmod:** v4.1.17-fabric (via Modrinth Maven, `modCompileOnly`). `fabric.mod.json`'s `>=4.1.4` is the runtime floor, a separate and deliberately older number.
 **Platform:** Architectury (Fabric + NeoForge), MC 1.21.11, Java 21, LGPL v3.0
 
 ## Component types (4)

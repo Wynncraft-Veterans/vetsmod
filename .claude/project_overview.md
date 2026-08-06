@@ -8,7 +8,7 @@ This workspace is a Wynncraft (Minecraft MMO) guild ecosystem for the "Returners
 
 | Repo | Role | Stack |
 |------|------|-------|
-| **vetsmod** | Fabric client mod players install. Owns chat UI, item highlighting, supporter glints, and the `/unlock <key>` command. | Java 21, MC 1.21.11, Wynntils v4.1.4-fabric |
+| **vetsmod** | Fabric client mod players install. Owns chat UI, item highlighting, supporter glints, and the `/unlock <key>` command. | Java 21, MC 1.21.11, Wynntils v4.1.17-fabric |
 | **temporary-server** | FastAPI backend at `wss://api.wynnvets.org/`. Owns the v1 inbound/outbound WebSockets, Discord bridge, dedup engine, and tier/auth gating. Validates `/unlock` keys via HTTP introspection against dazebot. | Python 3.13, FastAPI, discord.py, httpx |
 | **dazebot** | In-house Discord bot. Owns the `VerifyKey` table, the `/vetsmod` slash command (issues 43-char base64url keys via DM), and the `POST /api/auth/introspect` endpoint temporary-server calls. Also handles guild waitlists, vanity roles, supporter detection, and the picolimbo link-code consumption flow. | Python 3.13, discord.py, tortoise-orm, FastAPI |
 | **auth-stack** | Fork of [PicoLimbo](https://github.com/Quozul/PicoLimbo) running at `verify.wynnvets.org:25565`. Forwards every chat line a player types to dazebot's `/api/auth/{uuid}/{msg}` so dazebot can scan for link codes (Discord ↔ Minecraft account *linking*, separate from vetsmod *unlock*). | Rust, Pterodactyl egg + Docker |
@@ -43,8 +43,8 @@ All five (plus the `Wynntils` reference clone) are sibling directories under wha
 
 ## Mod version + dependency
 
-**Mod version:** see `vetsmod/gradle.properties` (`mod_version`) — bumps regularly. **Wynntils dependency:** v4.1.4-fabric (`>=4.1.4` declared in fabric.mod.json).
+**Mod version:** see `vetsmod/gradle.properties` (`mod_version`) — bumps regularly. **Wynntils dependency:** compiled against v4.1.17-fabric (`modCompileOnly` in build.gradle); the runtime floor declared in fabric.mod.json is the older `>=4.1.4`, which is deliberate — the mod loads against anything from 4.1.4 up.
 
 ## How to apply
 
-When making changes, consider impact on **all five tiers**: client mod (Java), backend server (Python), Discord bot (Python ORM + slash commands), link-code limbo (Rust), deployment compose (YAML). Auth/identity changes routinely touch four of the five. The cheapest sanity check is to read the deployment runbook in [`temporary-ephemeral/auth_deployment_instructions.md`](temporary-ephemeral/auth_deployment_instructions.md) before changing anything in the introspection path.
+When making changes, consider impact on **all five tiers**: client mod (Java), backend server (Python), Discord bot (Python ORM + slash commands), link-code limbo (Rust), deployment compose (YAML). Auth/identity changes routinely touch four of the five. The introspection path is the one that most often breaks: check both ends of it (dazebot's `POST /api/auth/introspect` and temporary-server's caller) before changing anything there.
