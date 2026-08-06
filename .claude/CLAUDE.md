@@ -61,6 +61,7 @@ VetsmodClient (entry point)
   ├── distribute/             /wv distribute — Guild Management GUI automation: sends
   │                           `/guild manage`, walks Manage Members / Guild Log, presses
   │                           the send slot. Visible to staff, executable by chief+
+  │                           (14 files, 5 sub-packages)
   ├── rendering/              Territory lines, nametag animator, gradient/colour helpers
   ├── datamodels/             Guild, User, UserUUID, MembershipSnapshot DTOs
   ├── debug/                  /wv debug tree, DebugConfigManager, diagnostics, dumps
@@ -134,6 +135,12 @@ Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **f
 ## Guild rank-change alerts
 
 [`RankChangeListener`](../src/client/java/org/wynnvets/listeners/RankChangeListener.java) subscribes to `ChatMessageEvent.Match`, detects Wynncraft's `"X has set Y guild rank from A to B"` broadcast (regex widens Wynntils' `GuildModel.MSG_RANK_CHANGED` to also capture actor + old rank), classifies it as `ban` / `kick` / `mote`, and emits a `rank_change` control frame on `/v1/inbound`. Server-side dispatch and the trust model are documented in [server_api_reference.md](server_api_reference.md) and authoritatively in [`temporary-server/v1_protocol.md` §1.9](../../temporary-server/v1_protocol.md).
+
+## Guild resource distribution
+
+`/wv distribute <name|@selector> <aspects|tomes|emeralds> <count>` automates the Wynncraft Guild Management GUI: [`DistributeCommands`](../src/client/java/org/wynnvets/distribute/DistributeCommands.java) sends `/guild manage`, navigates to Manage Members or Guild Log, paginates to a player's tile and synthesises the hotbar presses that hand over the resource. Visible to staff (`isStaffOfAnyGuild`), executable by chief+ (`isChiefOfAnyGuild`). Four `@`-selectors — `@random`, `@objectives`, `@graids`, `@split` — pick the recipient set; a `NoAspects` opt-out list filters all of them.
+
+**Don't retune the tick constants or reroute the menu navigation from the code alone.** Each was chosen against observed server behaviour — `/guild log` being dropped after a menu close, the Members menu getting a fresh container id after every send, a page's `SetSlot` packets crossing a tick boundary, the guild log capping at ~100 entries — and the failure mode when one is wrong is silent. The behaviour-to-code-shape record is [vetsmod_distribute.md §6](vetsmod_distribute.md).
 
 ## Item definitions
 

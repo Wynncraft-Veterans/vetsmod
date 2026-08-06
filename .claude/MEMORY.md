@@ -17,6 +17,7 @@
 - [Rendering System](vetsmod_rendering.md) — Territory lines, NametagAnimator, AnimatedGradientSequence, GradientTextBuilder, ShaderColorPalette
 - [MWE / Annihilation](vetsmod_mwe_anni.md) — The whole `mwe/anni/` subsystem: snapshot cache and wire shapes, mode gates, boss bar, outlines and nametags, zone lines, scroll-spot waypoint, RSVP, the `/wv debug tree anni` harness, and the render-pipeline lessons
 - [PUA Rank Pills](vetsmod_pua_pills.md) — How invisible PUA rank pills are framed and decoded, why a codepoint's meaning is frame-scoped, and `PillCodec` as the single encode/decode authority
+- [Guild Resource Distribution](vetsmod_distribute.md) — /wv distribute, the Manage-Members GUI automation state machine, the five modes, the NoAspects opt-out, front-of-queue command reflection
 
 ## temporary-server (FastAPI Python backend)
 - [temporary-server Architecture](project_server.md) — Stack, four pillars (incl. dazebot HTTP introspection), file structure, REST endpoints, dedup summary, Discord admin commands

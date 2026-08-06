@@ -16,9 +16,7 @@ Entry point: [CommandRegistry.register()](../src/client/java/org/wynnvets/comman
 - `userIsCaptain()` → true
 - `userIsVet()` → true
 
-**Handlers are stored in:** `CommandRegistry`, `ConfigCommands`, `HelpCommands`, `DebugCommands`, and on-demand fetchers under `fetcher/ondemand/`. **Not exhaustive** — see also `DistributeCommands`, `CautionCommands`, `InviteGate`, `AnniRsvpCommand`, `AnniScrollspotCommand` and `AnniDebugCommands`.
-
-**Gap:** `/wv distribute` (whole subtree, `.requires` staff-of-any-guild for visibility, execution chief-gated), undocumented. See `DistributeCommands.buildCommandTree`.
+**Handlers are stored in:** `CommandRegistry`, `ConfigCommands`, `HelpCommands`, `DebugCommands`, `DistributeCommands`, and on-demand fetchers under `fetcher/ondemand/`. **Not exhaustive** — see also `CautionCommands`, `InviteGate`, `AnniRsvpCommand`, `AnniScrollspotCommand` and `AnniDebugCommands`.
 
 **Gap:** `/wv invite-force <playerName>` (confirmed-staff bypass of the invite gate), undocumented. See `CommandRegistry.inviteForce` and `InviteGate` (380 L).
 
@@ -109,6 +107,27 @@ Public. Tree built in [DebugCommands.buildCommandTree()](../src/client/java/org/
 **Not exhaustive** — `/wv debug trigger` has four further leaves (`bossBarsDump`, `nametagsDump`, `ghostsPromptDump`, `zoneLinesDump`); see `DebugCommands.buildCommandTree`.
 
 **Gap:** `/wv debug tree anni` registers 24 executable leaves, of which this list names three (the `rsvp` trio). See `AnniDebugCommands.buildCommandTree` and [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md).
+
+### /wv distribute <name|@selector> <aspects|tomes|emeralds> <count>
+Chief/Owner. Tree built in [DistributeCommands.buildCommandTree()](../src/client/java/org/wynnvets/distribute/DistributeCommands.java). Automates the Guild Management GUI to hand a resource to guild members.
+
+**Two gates, deliberately different tiers.** Brigadier visibility is `GuildStateManager.isStaffOfAnyGuild()` (captain+, so the command autocompletes reliably for staff); execution is re-checked at the executor by `DistributeCommands.ensureChief()` → `isChiefOfAnyGuild()`. A captain sees the command and gets a red error on run. Same defensive-double-check shape as `/wv check` and `/wv invite-force`.
+
+- `<name>` — `NameOrSelectorArgument`, a custom Brigadier `ArgumentType<String>` reading one space-delimited token. The built-in `StringArgumentType.string()` restricts unquoted input to `[0-9A-Za-z_.+-]` and would fail to parse `@random` at the `@`. Suggests the four selectors plus current guild usernames from `Models.Guild.getGuildMembers()`.
+- `<resource>` — `aspects` | `tomes` | `emeralds`, mapping to `MemberSlotPresser.Resource` hotbar buttons 0/1/2. One press sends 1 Aspect, 1 Guild Tome, or 1024 Emeralds.
+- `<count>` — `IntegerArgumentType.integer(1, 255)`. The upper bound is an unsigned-byte cap against typo'd bulk sends.
+
+Four `@`-selectors decide the recipient set, each one executor branch in `DistributeCommands.distribute`. What `<count>` *means* changes with the selector:
+
+| Selector | Recipients | `<count>` means |
+|---|---|---|
+| *(literal name)* | that one player, resolved current→legacy via wapi | presses sent to them |
+| `@random` | `min(count, roster)` random members | number of recipients, one each |
+| `@objectives` | members whose tile shows a completed guild objective | total rewards, split evenly, random +1 for the remainder |
+| `@graids` | members appearing in the guild log's graid entries | total rewards, proportional to participation frequency |
+| `@split` | all three pools in sequence | total rewards, thirds, remainder randomised |
+
+Everything downstream of the executor — the menu routes, the pagination and press state machines, the tick constants, the `NoAspects` opt-out and the failure/stall matrix — is in [vetsmod_distribute.md](vetsmod_distribute.md).
 
 ## 2. Chat command mixins
 
