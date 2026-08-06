@@ -133,3 +133,5 @@ This lets e.g. `PillFormatter` compose components in one pass and have animation
 | `ListFetcher` / `WorldListFetcher` | `GradientTextBuilder` for static supporter gradient on list entries |
 | `EncourageUpdateRewriter` | `ComponentUtils.makeRainbowStyle()` for up-to-date case |
 | `/wv line` | `TerritoryLineRenderer` + `TerritoryLineManager` |
+
+**Gap:** the whole `mwe/anni/` render stack is out of this doc — `AnniZoneLineRenderer` (a Gizmos peer of `TerritoryLineRenderer`), `ScrollSpotMarkerProvider`, the outline trio (`AnniOutlineTicker`/`Registry`/`Palette`), the boss-bar classes, and the component renderers under `mwe/anni/render/`. All of it is covered in [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md) instead.

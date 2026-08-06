@@ -38,6 +38,8 @@ The vetsmod chat system is a multi-stage pipeline that intercepts every chat mes
 
 Each rewriter returns `true` to cancel the vanilla event (consumed).
 
+**Gap:** `WarningRewriter` — the sixth rewriter on disk, invoked from `OutboundDisplayHandler` for server-pushed `warning` frames rather than from this chain. Undocumented.
+
 ## 3. Rewriters
 
 ### EncourageUpdateRewriter
@@ -173,6 +175,8 @@ Batch `/find <username>` dispatcher. `enqueueFindBatch()` returns `CompletableFu
 | `chat/prefix` | Guild badge, alerts, block markers, rank letters | `\uDAFF\uDFFC` (guild badge), `\uE030–\uE059` (rank letters) |
 | `banner/pill` | Server-rendered rank pills | background (aqua) + foreground (dark) composite |
 | Spoiler PUA | Encoded spoilers | `\uF600`/`\uF601` delimiters, `\uF602–\uF700` content |
+
+**Gap:** four top-level `chat/` classes are absent from this reference — `PillCodec` (the PUA pill authority; see [vetsmod_pua_pills.md](vetsmod_pua_pills.md)), `NickResolver` (the shared real-name and component-flattening helpers, and the only chat class with a unit test), `DiscordTimestamps` and `RankDisplayMap`.
 
 ## 12. Regex quick reference
 

@@ -28,6 +28,8 @@ Key methods:
 - `sendTabList(entries)` — sends `{type:"tablist", entries:[{server, username},...]}`
 - `addOutboundListener(listener)` — register consumer (note: `server_info` frames are intercepted before listeners and routed straight to `SessionAuthWarning.onServerInfo()`)
 
+**Not exhaustive** — `sendQueueStatus`, `sendRankChange`, `sendStaffActionFrame`, `addInboundListener` and `addInboundPostConnectListener` also exist; §7.1 depends on the inbound fan-out. `staff_online` / `staff_offline` are likewise intercepted before the outbound listeners.
+
 **Register frame fields:** `type`, `uuid`, `username`, `tier`.
 **Auth frame fields:** `type:"auth"`, `key:"<43-char base64url>"`. Server replies `{status:"ok", tier, ws_tier, mc_uuid, mc_username}` or `{status:"error", detail:"auth rejected: <reason>"}`. Auth-success replies are discriminated from chat-success acks by the presence of the `tier` field (resilient to ack reordering).
 **Message fields:** `uuid`, `type`, `timestamp`, `rank`, `username`, `message`.
@@ -68,6 +70,8 @@ Silent drop if `send()` called while not connected (no queuing).
 | `ROSTER` | `/v1/outbound/roster` |
 
 Also: `GUILD_UUID = "a36bd64c-c053-4727-872d-b0d0729f474a"` (Returners).
+
+**Not exhaustive** — `VetsApi` also declares `ALIASES` (`/v1/outbound/aliases`, read by `WynnAliasCache`), `NO_ASPECTS` (`/v1/outbound/no-aspects`, read by `NoAspectsFilter`) and the external `ANNI` link.
 
 [WynnCraftApi](../src/client/java/org/wynnvets/api/WynnCraftApi.java):
 - `playerInfo(UUID)` → `https://api.wynncraft.com/v3/player/{uuid}`
@@ -134,6 +138,8 @@ Six `scheduleAtFixedRate` pollers, all started back-to-back from `VetsmodClient.
 - `ALLOWED_RANKS` is strategist/chief/owner only — **captain is rejected**, retired in the 2026-07 permission restructure, and a stray captain is dropped and treated as a non-staff Returner client-side
 - Used by `ListFetcher` for underline styling
 - Why polling? No server event stream; cheap + simple
+
+**Gap:** the live-push path is undocumented — `applyLiveStaffEvent(username, rank, online)` writes the overlay from `staff_online`/`staff_offline` frames, and `refreshNow()` fires an off-schedule fetch on every successful auth ack to close the cold-start gap. See `StaffRanksPoller`.
 
 ### SupportersPoller (5 min)
 [SupportersPoller.start()](../src/client/java/org/wynnvets/fetcher/polling/SupportersPoller.java)

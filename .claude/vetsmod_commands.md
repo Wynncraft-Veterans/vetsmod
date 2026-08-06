@@ -16,7 +16,17 @@ Entry point: [CommandRegistry.register()](../src/client/java/org/wynnvets/comman
 - `userIsCaptain()` → true
 - `userIsVet()` → true
 
-**Handlers are stored in:** `CommandRegistry`, `ConfigCommands`, `HelpCommands`, `DebugCommands`, and on-demand fetchers under `fetcher/ondemand/`.
+**Handlers are stored in:** `CommandRegistry`, `ConfigCommands`, `HelpCommands`, `DebugCommands`, and on-demand fetchers under `fetcher/ondemand/`. **Not exhaustive** — see also `DistributeCommands`, `CautionCommands`, `InviteGate`, `AnniRsvpCommand`, `AnniScrollspotCommand` and `AnniDebugCommands`.
+
+**Gap:** `/wv distribute` (whole subtree, `.requires` staff-of-any-guild for visibility, execution chief-gated), undocumented. See `DistributeCommands.buildCommandTree`.
+
+**Gap:** `/wv invite-force <playerName>` (confirmed-staff bypass of the invite gate), undocumented. See `CommandRegistry.inviteForce` and `InviteGate` (380 L).
+
+**Gap:** the `/caution`, `/caution-go`, `/warn` and `/eject` chat-intercept commands, undocumented. They are not Brigadier-registered — they share `GuildChatDispatcher`'s intercept path. See `CautionCommands` (465 L).
+
+**Gap:** the 12-prefix chat-intercept family as a whole, undocumented. See `GuildChatDispatcher.intercept`.
+
+**Gap:** the standalone root-level `/motd` command (registered outside the `/wv` tree, ungated), undocumented. See `CommandRegistry.register`.
 
 ### /wv help [<subcommand>]
 No permission. [HelpCommands](../src/client/java/org/wynnvets/commands/HelpCommands.java). The `/wv help <subcommand>` literals are `config`, `check`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger`. What bare `/wv help` *prints* is a different, rank-gated set: `/wv help`, `/wv anni`, `/wv list`, `/wv config`, `/wv debug` always, then `/wv motd` for vets, `/wv staff` when unlocked, `/wv return` and `/wv line` for Returners, `/wv check` for staff.
@@ -95,6 +105,10 @@ Public. Tree built in [DebugCommands.buildCommandTree()](../src/client/java/org/
 - `/wv debug trigger tabDump` — `TabDumpHandler.execute()`
 - `/wv debug trigger rsvpDump` (S6) — dump `isAuthenticatedThisSession()` + `AnniRsvpClient.pendingCount()` + `lastAttemptedNotice` + `lastAck` + current snapshot `rsvp` block. Diagnostic for "why did my `/wv anni rsvp` not land".
 - `/wv debug tree anni rsvp {hard|soft|revoke}` (S6) — debug mirror of the main `/wv anni rsvp` tree; identical effect, gated on `requireDebug` only (action only touches the caller's own RSVP, no staff/organiser perm needed).
+
+**Not exhaustive** — `/wv debug trigger` has four further leaves (`bossBarsDump`, `nametagsDump`, `ghostsPromptDump`, `zoneLinesDump`); see `DebugCommands.buildCommandTree`.
+
+**Gap:** `/wv debug tree anni` registers 24 executable leaves, of which this list names one. See `AnniDebugCommands.buildCommandTree` and [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md).
 
 ## 2. Chat command mixins
 

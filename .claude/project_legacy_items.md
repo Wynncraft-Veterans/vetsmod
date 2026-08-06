@@ -16,6 +16,8 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 - [LegacyTooltipRenderer](../src/client/java/org/wynnvets/items/LegacyTooltipRenderer.java) — 9-branch tooltip rewriter
 - [NewFormatRenderer](../src/client/java/org/wynnvets/items/NewFormatRenderer.java) — PUA / new-format component-tree manipulation
 
+**Gap:** `LegacyEnchantmentRenderer` (542 L — names the specific enchantment a legacy item carries) and `LegacyScreenshotHandler` (185 L — re-renders the modified tooltip to the clipboard), undocumented. See those classes.
+
 **Data:**
 - [definitions.yml](../src/client/resources/definitions.yml) — 9 sections, 203 lines
 
@@ -97,6 +99,8 @@ Entry point: called from `LegacyItemTooltipMixin` via `LegacyItemHandler.process
 **Rarity swap** (`replaceRarityLines`): scans lore bottom-up for regex matching `^(Mythic\|Fabled\|Set\|Legendary\|Rare\|Unique\|Normal\|Junk\|Misc\.\|Crafting) Item(?: (\[\d+\]))?$`, captures tier + optional count. Falls back to the `tooltip_style` component path (mapped: common, unique, rare, set, legendary, fabled, mythic, crafted) when no lore rarity is present. Label built as `"Legacy Item (Tier)"` in `ChatFormatting.GOLD`, inserted at `debugLinesStart()` — above F3+H item-id/component-count lines.
 
 **Wynntils percentage suffix** (e.g. `[61.7%]`) is extracted and re-appended to preserve Wynntils stat output.
+
+**Gap:** the `appendEnchantmentBlock` wiring (called from five tooltip branches plus `tryNewFormatRewrite`) and `tryNewFormatRewrite` itself (called from branches 2, 3 and 6), undocumented. See `LegacyTooltipRenderer`.
 
 **New-format tooltip rewriting** (`NewFormatRenderer`): detects items via presence of `tooltip/emblem/frame` or `banner/box` fonts. `isNewFormatItem` sets the sticky `newTooltipStylesAvailable` flag as a side effect. Pre-encoded `LEGACY_BOX_TEXT` (PUA glyphs in `banner/box` font, gold) is inserted before the first rarity box in the Component tree via a 3-phase recursive descent (direct child → sibling → recursive).
 

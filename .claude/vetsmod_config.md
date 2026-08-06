@@ -29,6 +29,8 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `vetsLastGuildCheck` | long | Timestamp of last `/gu stats` (3-day TTL) |
 | `vetsDebugEnabledAt` | long | Debug logging enable timestamp (3-day TTL) |
 
+**Gap:** three internal keys are missing from this table — `vetsAnniModeUserSet`, `vetsAnniUserMode` and `vetsAnniGhostsPromptShownForStamp`. See `VetsConfig`.
+
 ## 2. User-facing keys (USER_CONFIG_KEYS array, settable via /wv config)
 
 ### Booleans
