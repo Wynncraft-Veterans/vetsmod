@@ -40,8 +40,10 @@ import org.wynnvets.logging.VetsLogger;
  *       the §-colour code prefix of the custom name.</li>
  *   <li><b>Pedestal-wiped shell</b> — a vanilla armour or weapon-proxy item
  *       with no lore and an §a/§b/§d/§e custom-name prefix, i.e. what the
- *       pedestal item-wipe leaves behind. Labelled "Legacy Item
- *       (Pedestal-Wiped)". Named {@code Branch 4b} in the method body.</li>
+ *       pedestal item-wipe leaves behind, and whose name is not matched by
+ *       {@code definitions.yml}'s {@code not_pedestal} section. Labelled
+ *       "Legacy Item (Pedestal-Wiped)". Named {@code Branch 4b} in the
+ *       method body.</li>
  *   <li><b>Beta/alpha legacy marker</b> — lore contains a gold "Lv. min"
  *       line (the old Wynncraft stat format). Alpha vs beta is decided by
  *       whether a standard rarity line exists.</li>

@@ -128,7 +128,9 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 
 Package: [org.wynnvets.fetcher.polling](../src/client/java/org/wynnvets/fetcher/polling/)
 
-Six `scheduleAtFixedRate` pollers, all started back-to-back from `VetsmodClient.onInitializeClient`: `SupportersPoller` 5m, `StaffRanksPoller` 2m, `AnniStampPoller` 5m, `AnniSnapshotPoller` 30s, `GuildRosterCache` 5m, `WynnAliasCache` 5m. Two are named `*Cache` but poll on a fixed schedule like the rest. `AnniSnapshotPoller` is the only gated one — its tick returns early unless an anni stamp is announced and within 90 minutes. The three subsections below cover three of the six.
+Six `scheduleAtFixedRate` pollers live in this package, started back-to-back from `VetsmodClient.onInitializeClient`: `SupportersPoller` 5m, `StaffRanksPoller` 2m, `AnniStampPoller` 5m, `AnniSnapshotPoller` 30s, `GuildRosterCache` 5m, `WynnAliasCache` 5m. Two are named `*Cache` but poll on a fixed schedule like the rest. `AnniSnapshotPoller` is the only gated one — its tick returns early unless an anni stamp is announced and within 90 minutes. The three subsections below cover three of the six.
+
+A seventh scheduled fetcher, `mwe/anni/zone/AnniZone` (60s, Wynncraft world-events API), is started on the line above them but lives outside this package.
 
 ### StaffRanksPoller (2 min)
 [StaffRanksPoller.start()](../src/client/java/org/wynnvets/fetcher/polling/StaffRanksPoller.java)
@@ -139,7 +141,7 @@ Six `scheduleAtFixedRate` pollers, all started back-to-back from `VetsmodClient.
 - Used by `ListFetcher` for underline styling
 - Why polling? No server event stream; cheap + simple
 
-**Gap:** the live-push path is undocumented — `applyLiveStaffEvent(username, rank, online)` writes the overlay from `staff_online`/`staff_offline` frames, and `refreshNow()` fires an off-schedule fetch on every successful auth ack to close the cold-start gap. See `StaffRanksPoller`.
+**Gap:** the two entry points behind the behaviour described above are unnamed here — `applyLiveStaffEvent(username, rank, online)`, which writes the overlay from `staff_online`/`staff_offline` frames, and `refreshNow()`, which fires an off-schedule fetch on every successful auth ack to close the cold-start gap. See `StaffRanksPoller`.
 
 ### SupportersPoller (5 min)
 [SupportersPoller.start()](../src/client/java/org/wynnvets/fetcher/polling/SupportersPoller.java)
@@ -234,5 +236,5 @@ The server validates each key by HTTP introspection against dazebot (`POST /api/
 ## 9. Error handling
 
 - WebSocket errors → `WsClient.onError()` logs, aborts, schedules reconnect
-- HTTP errors in fetchers are **absorbed, not propagated**: the chain ends in `.exceptionally(e -> …)` returning a fallback value — a red error `Component` for the on-demand fetchers, `null` for `StampFetcher`, an empty collection for the pollers. No fetcher calls `completeExceptionally`; the repo's only use of it is `CommandDispatcher`'s `/find` batch future
+- HTTP errors are **absorbed, not propagated**, by two different mechanisms. The on-demand fetchers end their `CompletableFuture` chain in `.exceptionally(e -> …)` returning a fallback whose shape is per-fetcher: a red `Component` from `StaffFetcher`, an unstyled one from `MotdFetcher`/`ReturnFetcher`, `null` from `StampFetcher`, and domain values (`notInGuild()`, `Optional.empty()`, `List.of()`) elsewhere. The six pollers use no futures at all — each calls `HttpClient.send(...)` synchronously inside a `try`/`catch` that only logs, so a failed tick leaves the last successful cache in place and the next tick re-attempts. No fetcher calls `completeExceptionally`; the repo's only use of it is `CommandDispatcher`'s `/find` batch future
 - No retry on HTTP failures; next polling tick re-attempts

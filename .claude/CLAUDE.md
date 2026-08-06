@@ -7,7 +7,7 @@ Fabric client mod for the Wynncraft "Returners" veterans guild community. Requir
 - **Mod ID:** `vetsmod` | **Version:** see `gradle.properties` (`mod_version`) | **MC:** 1.21.11 | **Java:** 21
 - **Wynntils dependency:** `v4.1.17-fabric` via Modrinth Maven (`modCompileOnly`). `fabric.mod.json` separately declares a runtime floor of `>=4.1.4` — a different number on purpose; don't sync them.
 - Most client code lives under `src/client/`. `src/main/` holds a tiny server stub plus `org.wynnvets.logging.VetsLogger` (shared by both sides).
-- JUnit 5 harness under `src/test/java/` for pure-logic classes — 7 test files (`VetsLoggerTest`, `SpoilerCodecTest`, `NickResolverTest`, `RankChangeListenerTest`, `PartyRosterListenerTest`, `MojangCooldownTest`, `UuidsTest`). Run via `./gradlew test` (also runs with `./gradlew build`). Anything importing `net.minecraft.*` or `com.wynntils.*` stays untested — out of scope for the harness.
+- JUnit 5 harness under `src/test/java/` — 7 test files (`VetsLoggerTest`, `SpoilerCodecTest`, `NickResolverTest`, `RankChangeListenerTest`, `PartyRosterListenerTest`, `MojangCooldownTest`, `UuidsTest`). Run via `./gradlew test` (also runs with `./gradlew build`). The harness is not gated on imports — `build.gradle` deliberately puts the client compile classpath on the test source set, so `NickResolverTest` builds real `Component`/`Style`/`HoverEvent` objects. What it can't do is boot Minecraft, and Wynntils is `modCompileOnly` so it is absent at test runtime; a class is testable exactly as far as its exercised path stays out of both.
 
 ## Related repos (same workspace)
 
@@ -49,17 +49,20 @@ VetsmodClient (entry point)
   │                           Sends `auth` frame after connect using the stored /unlock key
   ├── OutboundDisplayHandler  Receives WS messages, deduplicates, displays in chat
   ├── QueueStateManager       In-queue state + listeners; fed by QueueDetector (title + world events)
-  ├── Polling services (6)    SupportersPoller 5m, StaffRanksPoller 2m, AnniStampPoller 5m,
+  ├── fetcher/polling/ (6)    SupportersPoller 5m, StaffRanksPoller 2m, AnniStampPoller 5m,
   │                           AnniSnapshotPoller 30s (only inside the anni window),
-  │                           GuildRosterCache 5m, WynnAliasCache 5m
+  │                           GuildRosterCache 5m, WynnAliasCache 5m. AnniZone (60s) is a
+  │                           seventh scheduled fetcher, but lives under mwe/anni/zone/
   ├── CommandRegistry         /wv command tree
   ├── items/                  ItemDefinitions plus LegacyItemHandler, LegacyTooltipRenderer,
   │                           NewFormatRenderer, LegacyEnchantmentRenderer, LegacyScreenshotHandler
   ├── mwe/anni/               MWE/annihilation subsystem — snapshot cache, boss bar, outlines,
   │                           zone lines, waypoint, RSVP, debug tree (29 files, 12 sub-packages)
-  ├── distribute/             /wv distribute — guild-bank GUI automation (chief-gated)
+  ├── distribute/             /wv distribute — Guild Management GUI automation: sends
+  │                           `/guild manage`, walks Manage Members / Guild Log, presses
+  │                           the send slot. Visible to staff, executable by chief+
   ├── rendering/              Territory lines, nametag animator, gradient/colour helpers
-  ├── datamodels/             Guild, User, UserUUID DTOs
+  ├── datamodels/             Guild, User, UserUUID, MembershipSnapshot DTOs
   ├── debug/                  /wv debug tree, DebugConfigManager, diagnostics, dumps
   ├── WynntilsEventListener   WorldStateEvent, GuildEvent, ChatMessageEvent
   └── Mixins (14)             Chat (3), Legacy items (3), Command (1 — UnlockCommandMixin),
@@ -118,7 +121,7 @@ StyledText, ComponentUtils, McUtils
 
 ## Config keys
 
-**User-facing (via `/wv config`):** 30 keys, listed in order by `VetsConfig.USER_CONFIG_KEYS` — the eight `legacyItem*` keys (highlighting, enchantment naming, gradient colours/opacity, sprite), `printMOTD`, `printANNI`, `printBridgeMessages`, `printSuccessfulAuth`, `showSupporterGlints`, `colorBlindMode`, `handleSpoilers`, `moreReliableGuildCheck`, and the 14 `vetsAnni*` keys. Full table in [vetsmod_config.md](vetsmod_config.md).
+**User-facing (via `/wv config`):** 30 keys. `VetsConfig.USER_CONFIG_KEYS` order — which is also the order `/wv config` prints and suggests them in — is: the eight `legacyItem*` keys (highlighting, enchantment naming, gradient colours/opacity, sprite), `printMOTD`, `printANNI`, the 14 `vetsAnni*` keys, `printBridgeMessages`, `printSuccessfulAuth`, `showSupporterGlints`, `colorBlindMode`, `handleSpoilers`, `moreReliableGuildCheck`. Full table in [vetsmod_config.md](vetsmod_config.md).
 
 **Internal — vetsmod auth state:** `vetsAuthKey` (string), `vetsAuthTier` (string), `vetsAuthVerifiedAt` (long). Old `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` longs survive only as a "legacy unlock marker" for the session-start warning.
 
@@ -134,7 +137,7 @@ Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **f
 
 ## Item definitions
 
-`src/client/resources/definitions.yml` — 9 regex categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `not_pedestal`, `notjunk`, `new_format_override`, `enchant_excluded_items`, `blocked_screen_titles`. Edit this file to add/change item patterns without touching Java.
+`src/client/resources/definitions.yml` — 9 categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `not_pedestal`, `notjunk`, `new_format_override`, `blocked_screen_titles` (all compiled to regex) plus `enchant_excluded_items`, which is a literal-string set of Minecraft item IDs matched by exact equality. Edit this file to add/change item patterns without touching Java.
 
 ## Building
 

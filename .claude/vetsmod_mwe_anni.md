@@ -570,7 +570,7 @@ Wire pieces on the network layer:
    surfaces (none today; pytest `test_rsvp.py` + `test_rsvp_by_uuid.py`
    = 64 passing).
 4. **First-invocation `AnniPlayer` placeholder uses `mc_uuid[:8]` as
-   `mc_username`** (matches `auto_promoter.py::fallback_name`'s `op.username if op
+   `mc_username`** (matches `auto_promoter.py::_tick`'s `op.username if op
    else uuid[:8]` fallback for online-but-unknown players). Full UUIDs
    are 36 chars — too long for the 32-char `mc_username` field — so a
    `mc_username = actor_mc_uuid` fallback would fail Tortoise's

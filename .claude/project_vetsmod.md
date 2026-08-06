@@ -24,7 +24,7 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 - `org.wynnvets.items` — `ItemDefinitions` (YAML regex patterns), `LegacyItemHandler`, renderers
 - `org.wynnvets.queue` — `QueueStateManager`, `QueueDetector`, `QueueStateListener`. Tracks Wynncraft world-queue state from the queue title + world-state signals; consumers (`OutboundDisplayHandler`, `GuildChatDispatcher`) take the queue-aware path that routes guild chat through the WS as `type:"queue"` since the in-game `/g` is dropped while queued.
 - `org.wynnvets.fetcher.ondemand` — HTTP fetchers: MOTD, staff, list, return, stamp, world list, user info
-- `org.wynnvets.fetcher.polling` — six scheduled pollers: `SupportersPoller` (5min), `StaffRanksPoller` (2min), `AnniStampPoller` (5min), `AnniSnapshotPoller` (30s, only inside the anni window), `GuildRosterCache` (5min), `WynnAliasCache` (5min). Two are named `*Cache` but are pollers like the rest.
+- `org.wynnvets.fetcher.polling` — six scheduled pollers: `SupportersPoller` (5min), `StaffRanksPoller` (2min), `AnniStampPoller` (5min), `AnniSnapshotPoller` (30s, only inside the anni window), `GuildRosterCache` (5min), `WynnAliasCache` (5min). Two are named `*Cache` but are pollers like the rest. `mwe/anni/zone/AnniZone` (60s) is a seventh scheduled fetcher outside this package.
 - `org.wynnvets.listeners` — Wynntils event subscriptions (WorldStateEvent, GuildEvent, ChatMessageEvent)
 - `org.wynnvets.mixin.client` — 14 registered entries: chat (3), legacy items (3), command (1), six top-level (`NametagMixin`, `CommandSuggestionsMixin`, `QueueTitleMixin`, `BossHealthOverlayMixin`, `EntityGlowingMixin`, `EntityOutlineColorMixin`) and one accessor (`BossHealthOverlayAccessor`). Authoritative list lives in `src/client/resources/vetsmod.client.mixins.json`.
 - `org.wynnvets.rendering` — `TerritoryLineRenderer`, `NametagAnimator`, gradient text
@@ -53,8 +53,8 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 
 **Config:** JSON at `~/.minecraft/vetsmod/storage/config.json`. User-facing keys via `/wv config`. Debug logging opt-in, 3-day TTL.
 
-**Item definitions:** YAML at `src/client/resources/definitions.yml`. 9 regex categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `not_pedestal`, `notjunk`, `new_format_override`, `enchant_excluded_items`, `blocked_screen_titles`.
+**Item definitions:** YAML at `src/client/resources/definitions.yml`. 9 categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `not_pedestal`, `notjunk`, `new_format_override`, `blocked_screen_titles` — all compiled to `Pattern` — plus `enchant_excluded_items`, a literal-string set of Minecraft item IDs matched by exact equality.
 
-**Tests:** a JUnit 5 harness with 7 test files under `src/test/java/`, covering the pure-logic classes that don't need Minecraft on the classpath. Anything importing `net.minecraft.*` or `com.wynntils.*` stays out of it.
+**Tests:** a JUnit 5 harness with 7 test files under `src/test/java/`. `build.gradle` puts the client compile classpath on the test source set, so tests may reference Minecraft and Wynntils types — `NickResolverTest` builds real `Component`s. The limit is booting Minecraft, and Wynntils being `modCompileOnly` and so absent at test runtime.
 
 **Unicode PUA reservation:** vetsmod has reserved BMP PUA range **U+F600–U+F850** for its own purposes. We should not use BMP PUA outside of this range since it may conflict with other Wynn projects. Major current usage is our `SpoilerCodec`. Wynncraft/Wynntils use separate PUA ranges (including supplementary plane > U+10000).

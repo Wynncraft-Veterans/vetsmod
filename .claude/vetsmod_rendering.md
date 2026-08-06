@@ -61,7 +61,7 @@ Marker colors (sentinels; replaced at render time):
 - `MARKER_COLOR = 0x00DEAD` — normal animation
 - `GREY_MARKER_COLOR = 0x00DEAF` — grey animation
 
-Defaults (the render path reads them through `effectiveDefaultStart()` / `effectiveDefaultEnd()` / `effectiveGreyStart()` / `effectiveGreyEnd()`, which swap in the `CV_*` pairs when `colorBlindMode` is on):
+Defaults. All four resolve through `effectiveDefaultStart()` / `effectiveDefaultEnd()` / `effectiveGreyStart()` / `effectiveGreyEnd()`, which swap in the `CV_*` pairs when `colorBlindMode` is on — but at different times: the grey pair is read per-frame inside `accept()`, while the default pair is read once by the caller and frozen into the sequence's `startColor`/`endColor` at construction, so toggling `colorBlindMode` only reaches already-wrapped lines through the grey path.
 - Start: Dark Aqua `0x55FFFF` — `CV_DEFAULT_START_COLOR = 0x6699BB`
 - End: Light aqua `0xAADDFF` — `CV_DEFAULT_END_COLOR = 0xDDF0FF`
 - Grey: `0x888888 → 0xBBBBBB` — `CV_GREY_START_COLOR = 0x666666`, `CV_GREY_END_COLOR = 0xCCCCCC`

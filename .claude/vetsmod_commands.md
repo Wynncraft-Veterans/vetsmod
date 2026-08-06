@@ -24,7 +24,7 @@ Entry point: [CommandRegistry.register()](../src/client/java/org/wynnvets/comman
 
 **Gap:** the `/caution`, `/caution-go`, `/warn` and `/eject` chat-intercept commands, undocumented. They are not Brigadier-registered — they share `GuildChatDispatcher`'s intercept path. See `CautionCommands` (465 L).
 
-**Gap:** the 12-prefix chat-intercept family as a whole, undocumented. See `GuildChatDispatcher.intercept`.
+**Gap:** nine of the twelve intercepted prefixes are undocumented — `/a`, `/encourage`, the chat-path `/wv check`, `/gu invite`, `/guild invite`, `/caution-go`, `/caution`, `/warn`, `/eject`. Only `/g`, `/wg` and `/v` are covered, in §2. See `GuildChatDispatcher.intercept`.
 
 **Gap:** the standalone root-level `/motd` command (registered outside the `/wv` tree, ungated), undocumented. See `CommandRegistry.register`.
 
@@ -108,7 +108,7 @@ Public. Tree built in [DebugCommands.buildCommandTree()](../src/client/java/org/
 
 **Not exhaustive** — `/wv debug trigger` has four further leaves (`bossBarsDump`, `nametagsDump`, `ghostsPromptDump`, `zoneLinesDump`); see `DebugCommands.buildCommandTree`.
 
-**Gap:** `/wv debug tree anni` registers 24 executable leaves, of which this list names one. See `AnniDebugCommands.buildCommandTree` and [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md).
+**Gap:** `/wv debug tree anni` registers 24 executable leaves, of which this list names three (the `rsvp` trio). See `AnniDebugCommands.buildCommandTree` and [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md).
 
 ## 2. Chat command mixins
 
@@ -141,7 +141,7 @@ Routes `/g`, `/wg`, `/v` and nine more prefixes through `GuildChatDispatcher.int
 ## 4. Things to know when adding commands
 
 - Register new subcommand inside `CommandRegistry.register()` using Brigadier literal/argument pattern.
-- Gate with a real predicate. `CommandRegistry`'s own `userIsCaptain`/`userIsVet` are all-true stubs; the commands that are genuinely gated call `GuildStateManager.isConfirmedStaff()` / `isStaff()` / `areFeaturesEnabled()` / `isUnlocked()` directly.
+- Gate with a real predicate. `CommandRegistry`'s own `userIsCaptain`/`userIsVet` are all-true stubs; the genuinely-gated commands call a `GuildStateManager` predicate directly — `isConfirmedStaff()`, `isStaff()`, `areFeaturesEnabled()`, `isUnlocked()`, `isStaffOfAnyGuild()`, `isChiefOfAnyGuild()` and `isAuthenticatedThisSession()` are all in use.
 - Avoid heavy work on the main thread; use `CompletableFuture` from `HttpClient`.
 - Chat output: use `ChatUtils.dispatchToChat(Component, Style)` (thread-safe, marks the dispatch internal so the chat pipeline skips re-logging and the rewriter chain). There is no no-argument form.
 - Tab completion: use Brigadier `SuggestionProvider`s, with `ConfigCommands.SUGGEST_CONFIG_KEYS` / `SUGGEST_CONFIG_VALUES` as templates.

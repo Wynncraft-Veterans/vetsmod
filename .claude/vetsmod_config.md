@@ -53,7 +53,7 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `vetsAnniChatAlerts` | true | S5 — master toggle for diff-aware chat alerts. Fires on role / world / party / RSVP transitions (5s per-field cooldown, silent first-observation), plus T-10m world-mismatch and T-5m zone-absence readiness alerts (each at most once per stamp_epoch). Gated on aggressive + window. |
 | `vetsAnniGhostsPrompt` | true | S5 — master toggle for the clickable `[Suggest: /toggle ghosts none]` prompt fired at most once per stamp_epoch on first zone entry per anni. Detection uses `Models.Player.isPlayerGhost` — if any visible player is ghost-flagged, ghosts must be on and the prompt fires unconditionally; otherwise per-stamp_epoch sentinel (`vetsAnniGhostsPromptShownForStamp`) suppresses re-fires. Gated on aggressive + window. |
 | `printBridgeMessages` | true | Display bridge (Discord relay) messages |
-| `printSuccessfulAuth` | true | Show the `✅ vetsmod authentication verified` ack. Latched to `false` after one successful render and reset to `true` by `onAuthFailure`, so the ack appears at most once per error→recovery cycle. |
+| `printSuccessfulAuth` | true | Show the `✅ vetsmod authentication verified` ack. Latched to `false` after one config-driven render and reset to `true` by `onAuthFailure`, so the *reconnect* ack appears at most once per error→recovery cycle. A `/unlock <key>` run sets a separate one-shot flag that forces the next ack to render regardless of this key, and does not re-latch it. |
 | `showSupporterGlints` | true | Animated gradient glints on nametags + pills |
 | `colorBlindMode` | false | Swap the supporter-glint colour pairs (chat + nametag) for a high-luminance-delta variant so the shimmer is visible under protan/deutan CVD. Still subtle; same cyan/blue family. |
 | `moreReliableGuildCheck` | true | Run `/gu stats` on world join for guild detection |
@@ -81,7 +81,7 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 
 Default 69 for top opacity approximates the old `0xB0` alpha byte.
 
-**`vetsAnniMode` is not in this list.** It is a persisted string key (default `silent`; values `silent` / `passive` / `aggressive`), but it is set by `/wv anni <mode>` through `AnniModeManager.transitionTo`, not by `/wv config` — it is absent from `USER_CONFIG_KEYS`. It auto-resets to `silent` at T+30m via `AnniWindowWatcher`, and a transition is refused → silent while `/stream` is on.
+**`vetsAnniMode` is not in this list.** It is a persisted string key (default `silent`; values `silent` / `passive` / `aggressive`), but it is set by `/wv anni <mode>` through `AnniModeManager.transitionTo`, not by `/wv config` — it is absent from `USER_CONFIG_KEYS`. At T+30m `AnniWindowWatcher` resets it to `AnniModeManager.preferredMode()`, **not** to silent: that is the user's remembered pick when `vetsAnniModeUserSet` is set, otherwise `passive` for enrichment-eligible users and `silent` for everyone else. While `/stream` is active, `transitionTo` refuses any target other than `silent` (unless the source is `DEBUG_BYPASS_MUTEX`) — a refused transition writes nothing and leaves the current mode alone.
 
 ## 3. API (static methods, all public except `save()`)
 

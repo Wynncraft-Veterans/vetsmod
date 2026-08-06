@@ -25,11 +25,12 @@ The vetsmod chat system is a multi-stage pipeline that intercepts every chat mes
 1. `StreamerModeChatDetector.observe(message)` — runs first, before any logging
 2. `ChatLogger.logMessage(...)` unless `ChatUtils.isInternalDispatch()` is true (the `INTERNAL_CHAT_DISPATCH` ThreadLocal is private to `ChatUtils`; the mixin reads it through that accessor)
 3. `GuildStateManager.processGuildCheckMessage(msg)` (pulls `/gu stats` responses out of chat)
-4. Suppress if `GuildStateManager.isProcessingModStaffRankCheck()` AND the line looks like a staff-rank-check response
-5. `GuildStateManager.processMessage(message, messageString)` — unconditional, no short-circuit
-6. Suppress via `CommandDispatcher.shouldSuppressFeedback()` (`/v` echo)
-7. Suppress via `CommandDispatcher.shouldSuppressFindResponse()` (`/find` result)
-8. Rewriter chain (only when NOT internally dispatched):
+4. Compute `isStaffRankCheck` = `GuildStateManager.isProcessingModStaffRankCheck()` AND the line looks like a staff-rank-check response
+5. `GuildStateManager.processMessage(message, messageString)` — unconditional, and it runs *before* the suppression below, so a suppressed rank-check line is still processed
+6. Suppress if `isStaffRankCheck`
+7. Suppress via `CommandDispatcher.shouldSuppressFeedback()` (`/v` echo)
+8. Suppress via `CommandDispatcher.shouldSuppressFindResponse()` (`/find` result)
+9. Rewriter chain (only when NOT internally dispatched):
    1. `EncourageUpdateRewriter.tryRewrite()`
    2. `StaffGuildAlertRewriter.tryRewrite()`
    3. `StaffChannelMessageRewriter.tryRewrite()`
@@ -38,7 +39,7 @@ The vetsmod chat system is a multi-stage pipeline that intercepts every chat mes
 
 Each rewriter returns `true` to cancel the vanilla event (consumed).
 
-**Gap:** `WarningRewriter` — the sixth rewriter on disk, invoked from `OutboundDisplayHandler` for server-pushed `warning` frames rather than from this chain. Undocumented.
+**Gap:** `WarningRewriter` — the sixth rewriter on disk, invoked from `OutboundDisplayHandler` for server-pushed `warning` frames rather than from this chain. It has no section here; the one-line summary lives in [CLAUDE.md](CLAUDE.md) and [project_vetsmod.md](project_vetsmod.md).
 
 ## 3. Rewriters
 
@@ -176,7 +177,7 @@ Batch `/find <username>` dispatcher. `enqueueFindBatch()` returns `CompletableFu
 | `banner/pill` | Server-rendered rank pills | background (aqua) + foreground (dark) composite |
 | Spoiler PUA | Encoded spoilers | `\uF600`/`\uF601` delimiters, `\uF602–\uF700` content |
 
-**Gap:** four top-level `chat/` classes are absent from this reference — `PillCodec` (the PUA pill authority; see [vetsmod_pua_pills.md](vetsmod_pua_pills.md)), `NickResolver` (the shared real-name and component-flattening helpers, and the only chat class with a unit test), `DiscordTimestamps` and `RankDisplayMap`.
+**Gap:** three top-level `chat/` classes go unmentioned in this reference — `PillCodec` (the PUA pill authority; see [vetsmod_pua_pills.md](vetsmod_pua_pills.md)), `DiscordTimestamps` and `RankDisplayMap`. A fourth, `NickResolver` — the shared real-name and component-flattening helpers, and the only class directly under `chat/` with a unit test — appears only in §12's regex table and has no section of its own.
 
 ## 12. Regex quick reference
 

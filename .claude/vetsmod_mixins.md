@@ -1,12 +1,12 @@
 ---
 name: vetsmod Mixins Reference
-description: All 14 mixin classes — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy, accessors) and the top-level mixins.
+description: All 14 registered entries (13 mixins + 1 accessor) — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy, accessors) and the top-level mixins.
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Mixins Reference
 
-14 mixins total, all client-side (under `src/client/java/org/wynnvets/mixin/client/`). Authoritative list: [vetsmod.client.mixins.json](../src/client/resources/vetsmod.client.mixins.json). Grouped by subpackage below.
+14 registered entries — 13 mixins plus one accessor interface — all client-side (under `src/client/java/org/wynnvets/mixin/client/`). Authoritative list: [vetsmod.client.mixins.json](../src/client/resources/vetsmod.client.mixins.json). Grouped by subpackage below.
 
 ## Chat (3)
 
