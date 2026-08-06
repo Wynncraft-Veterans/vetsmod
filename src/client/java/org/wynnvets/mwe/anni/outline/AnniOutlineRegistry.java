@@ -129,8 +129,12 @@ public final class AnniOutlineRegistry {
         return entries.size();
     }
 
-    /** Drop every entry. Called when the snapshot collapses to {@code null}
-     *  or when the activation gate closes. */
+    /** Drop every entry. Part of the debug API below in everything but
+     *  placement: its only caller is {@code AnniDebugCommands.registryClearAll}
+     *  ({@code /wv debug tree anni registry clearall}). Neither a null
+     *  snapshot nor the activation gate closing reaches it — {@code rebuildFrom}
+     *  does its own inline clear-and-swap, and the gate is the ticker's
+     *  business, not the registry's. */
     public static void clearAll() {
         entries.clear();
     }

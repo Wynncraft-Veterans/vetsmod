@@ -9,16 +9,26 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.zone.AnniZone;
 
 /**
- * Pure-function content builder for the synthetic vets-anni boss bar.
+ * Content builder for the synthetic vets-anni boss bar.
+ *
+ * <p>Does no I/O, so it is safe for the per-tick loop — but it is not a
+ * pure function of its arguments: {@code build} reads {@link AnniZone}'s
+ * volatile disc cache and, through {@link FlashTracker#styleFor}, both a
+ * time-bounded flash window and a 250 ms pulse bit. The same arguments
+ * yield different Components at different instants.</p>
  *
  * <p>Maps {@code (AnniSnapshot, secondsUntilAnni, playerPos)} to one of
  * the four spec text variants (or {@code null} for "deactivate"):</p>
  *
  * <ul>
- *   <li><b>T-20s gate</b> (Gate 1 of 3 per parent plan §"Risks") —
- *       returns {@code null} when {@code secondsUntilAnni <= 20}.
+ *   <li><b>T-20s gate</b> (one of the two T-20s gates per parent plan
+ *       §"Risks"; the other is {@code VetsBossBarManager}'s wall-clock
+ *       watchdog) — returns {@code null} when
+ *       {@code secondsUntilAnni <= T_MINUS_20_GATE_SECONDS}.
  *       Caller deactivates.</li>
- *   <li><b>T-2m countdown</b> — when {@code secondsUntilAnni <= 120}
+ *   <li><b>Countdown</b> — when
+ *       {@code secondsUntilAnni <= COUNTDOWN_THRESHOLD_SECONDS} (5 min,
+ *       user-iterated up from the spec's 2 on 2026-06-16)
  *       AND the player is inside the anni zone
  *       (per {@link AnniZone#isInZone}). Spec §3.1.1.3:
  *       {@code &3anni.wynnvets.org&8: &cANNI IN &f&lAAs&8 | &d&l&nSCROLLS IN BBs&d!}</li>
@@ -30,7 +40,11 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * </ul>
  *
  * <p>The flash decoration ({@code &l ↔ &n&l}) is applied per-field via
- * {@link FlashTracker#styleFor}. No I/O — safe for the per-tick loop.</p>
+ * {@link FlashTracker#styleFor} to four chips: role, party and world in
+ * the assigned variant, rsvp in the seeking one.</p>
+ *
+ * <p>{@code colorFor(AnniSnapshot)} lives here too, and the manager calls
+ * it every tick alongside the text.</p>
  */
 public final class VetsBossBarContentBuilder {
 

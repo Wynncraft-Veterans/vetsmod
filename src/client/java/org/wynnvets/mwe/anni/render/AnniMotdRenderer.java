@@ -38,9 +38,12 @@ import java.util.Locale;
  * legacy path takes over. Spec §"For external users": "keep the wv
  * anni and anni-motd as is."</p>
  *
- * <p>Time format: hours with one decimal ({@code 7.2h}). For very
- * short remaining time (&lt;6 minutes) the format drops to minutes
- * ({@code 5m}) to avoid {@code 0.1h} reading awkwardly.</p>
+ * <p>Time format: hours with one decimal ({@code 7.2h}) down to 0.1h.
+ * Below that (&lt;6 minutes) it drops to minutes and seconds
+ * ({@code 5m 30s}), then to bare seconds under a minute, to avoid
+ * {@code 0.1h} reading awkwardly. Note this is a different ladder from
+ * {@code AnniCommandRenderer.appendCountdown}, which emits
+ * {@code Xh Ym} above an hour; only the sub-6-minute tail coincides.</p>
  */
 public final class AnniMotdRenderer {
 
@@ -192,8 +195,11 @@ public final class AnniMotdRenderer {
         }
     }
 
-    /** "7.2h" / "0.5h" / "5m" — one-decimal hours, minutes when small
-     *  enough that the decimal-hours read would be awkward. */
+    /** "7.2h" / "0.5h" / "5m 30s" / "42s" — one-decimal hours down to
+     *  0.1h, then minutes-and-seconds, then bare seconds, since the
+     *  decimal-hours read goes awkward below 0.1h. Returns "now" at or
+     *  past the stamp, which {@code render} never reaches: it bails on
+     *  {@code stamp <= now} first. */
     private static String formatHours(long seconds) {
         if (seconds <= 0) return "now";
         double hours = seconds / 3600.0;

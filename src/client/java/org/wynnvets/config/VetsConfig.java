@@ -114,8 +114,12 @@ public class VetsConfig {
   /** Active anni mode — {@code silent}, {@code passive}, or
    *  {@code aggressive}. Set by {@code /wv anni <mode>} and read by
    *  the boss-bar (S3+), outline (S4+), and waypoint (S5+) subsystems.
-   *  Auto-resets to {@code silent} when the anni window closes
-   *  (T+30 min after stamp_epoch) — see {@code AnniWindowWatcher}. */
+   *  Absent from {@link #USER_CONFIG_KEYS}, so {@code /wv config} cannot
+   *  read or write it. When the anni window closes (T+30 min after
+   *  stamp_epoch) {@code AnniWindowWatcher} restores
+   *  {@code AnniModeManager.preferredMode()} — which is {@code silent}
+   *  only for a user who never set a mode and is not
+   *  enrichment-eligible, not unconditionally. */
   public static final String VETS_ANNI_MODE = "vetsAnniMode";
 
   /** Valid values for {@link #VETS_ANNI_MODE}. */

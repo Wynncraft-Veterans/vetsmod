@@ -799,7 +799,12 @@ public final class AnniCommandRenderer {
         return line;
     }
 
-    /** Single-line party blurb for the not-announced renderer. */
+    /** Single-line party blurb. Currently unreachable: the sole caller is
+     *  {@code boardSection}'s {@code partyDetails ? … : partyOneLine(board)}
+     *  ternary, and {@code renderFarOut} — also the sole caller of
+     *  {@code boardSection} — always passes {@code true}. It is not the
+     *  not-announced renderer's: {@code renderNotAnnounced} never calls
+     *  {@code boardSection} at all. */
     private static MutableComponent partyOneLine(AnniSnapshot.Board board) {
         AnniSnapshot.Party party = board == null ? null : board.party();
         if (party == null) {

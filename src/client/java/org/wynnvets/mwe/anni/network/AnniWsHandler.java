@@ -11,9 +11,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * WebSocket frame router for the MWE/anni subsystem.
  *
  * <p>Subscribes to {@link V1ApiManager#addOutboundListener(java.util.function.Consumer)}
- * and demultiplexes two frame types — every other type is left for other
- * listeners to handle (the V1 API outbound channel is a fan-out, not an
- * exclusive consumer model):</p>
+ * and to the inbound channel, and demultiplexes one outbound and three
+ * inbound frame types plus a fourth it only logs — every other type is
+ * left for other listeners to handle (the V1 API outbound channel is a
+ * fan-out, not an exclusive consumer model):</p>
  *
  * <ul>
  *   <li>{@code anni_state} (outbound channel): server-initiated push.
@@ -25,7 +26,18 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *       future in the query client's single-flight queue. Lives on the
  *       inbound channel because it's a request/response pair on the
  *       same WS the request went out on.</li>
+ *   <li>{@code anni_scrollspot_response} and {@code anni_rsvp_response}
+ *       (inbound channel): the same request/response shape, routed to
+ *       {@link AnniScrollspotClient#onResponse} and
+ *       {@link AnniRsvpClient#onResponse}.</li>
+ *   <li>{@code anni_party_observation_response} (inbound channel):
+ *       debug-logged inline. The report is fire-and-forget, so there is
+ *       no single-flight queue and no consumer state.</li>
  * </ul>
+ *
+ * <p>{@link #register()} additionally installs a post-connect
+ * {@link AnniQueryClient#query()} re-pull, so a reconnect warms the
+ * cache without waiting for the next push.</p>
  *
  * <p>Idempotent registration via the static {@link #register()} method —
  * call from {@link org.wynnvets.VetsmodClient#onInitializeClient()} after
