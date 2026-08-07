@@ -25,13 +25,48 @@ Enables intents: `message_content`, `members`, `guilds`. Registers `on_ready()` 
 
 ## 3. Role → rank mapping (constants.py:21-25)
 
-| Discord role ID | Rank |
-|-----------------|------|
-| 1313778812361904188 | Chief |
-| 1313782599378010163 | Strategist |
-| 1337992726079213712 | Captain |
+`ROLE_MAPPING` — **7 entries**, mapping Discord role IDs to raw Wynn rank
+names. Insertion order encodes priority: for an author holding several mapped
+roles, the first match wins.
 
-Default (none of the above) → "Recruiter".
+| Discord role ID | Rank | Note |
+|-----------------|------|------|
+| 1313778812361904188 | Chief | Chief Steward — active Owner-role holders |
+| 1453417318443913226 | Strategist | inactive owner |
+| 1412980079373320192 | Strategist | inactive founders |
+| 1337993168502788216 | Strategist | Staff (Steward) |
+| 1407078065137254563 | Recruiter | |
+| 1450046372853055498 | Honourary | |
+| 1474854046685855795 | Waitlist | |
+
+Three distinct role IDs collapse to `Strategist`. Default (none of the above)
+→ `"Recruiter"`, which is **not** a dict default — the variable is pre-seeded
+in `_handle_message` before the priority loop, so `constants.py` has no
+fallback to find.
+
+**The 2026-07 permission restructure.** The standalone Strategist role and the
+secondary Captain role were retired and their members merged into the Staff
+(Steward) role `1337993168502788216`. The two retired IDs survive only as
+prose in the comment above `ROLE_MAPPING` — neither is a named constant or a
+dict key, so there is no `RETIRED_*` symbol to look for. The two
+inactive-honour roles were demoted from Chief to Strategist in the same
+change, since their bearers are honoured but no longer wield chief-tier
+authority.
+
+`1337993168502788216` is dual-purpose: it is both a `ROLE_MAPPING` key and
+the value of `STAFF_PRIVACY_ALERT_ROLE_ID`. Same role, two jobs.
+
+**`RANK_DISPLAY`** maps raw Wynn ranks to client-facing labels — 6 entries:
+`recruit`→Recruit, `recruiter`→Returner, **`captain`→Returner** ("stray
+captains treated as non-staff Returners"), `strategist`/`chief`/`owner`→Steward.
+There is no `honourary` or `waitlist` key, so those fall through to the raw
+value via `.get(raw, raw)`.
+
+⚠️ Three captain facts coexist and collapsing them is the trap: the Discord
+**Captain role** is retired; the Wynn **rank** `captain` is still in
+`VALID_GUILD_RANKS` and is accepted on the wire; and a captain is **not
+staff**. `inbound.py`'s own gate comment calls its captain check
+"belt-and-suspenders", which is the cleanest framing of the split.
 
 ## 4. Message routing
 
@@ -44,13 +79,28 @@ Default (none of the above) → "Recruiter".
 5. **Bridge channel:**
    - Check admin commands first (`try_handle_command()`) — if handled, return
    - Check `"bridge"` in disabled components → skip
-   - Resolve rank from author's role IDs
+   - Resolve rank from author's role IDs via `ROLE_MAPPING` (first match in
+     insertion order; `"Recruiter"` if none match)
    - Check Administrator permission for `is_admin`
    - Resolve mentions (`<@ID>` → `@name`, `<@&ID>` → `@role`, `<#ID>` → `#channel`)
    - Sanitize: always strip U+E080 (dangerous PUA); non-admins also strip U+E014–E025 and `§`
    - Encode Discord `||spoilers||` to PUA via `encode_spoilers()`
-   - Build `type="bridge"` message with uuid4, timestamp, rank, username, message
+   - Build the `type="bridge"` frame: `uuid` (uuid4), `type`, `timestamp`,
+     `rank`, `pill_display`, `username` (the author's `display_name`),
+     `message`, `is_admin`, `source` (`"discord"`)
    - Record traffic, enqueue to outbound broadcaster
+
+**`pill_display` is an additive 2026-07 field**, computed as
+`RANK_DISPLAY.get(rank.lower(), rank)` beside the raw `rank`. Old vetsmod
+clients (0.14.x and earlier) ignore unknown keys and keep reading `rank`; new
+clients (0.15.0+) prefer the display label so Strategist/Chief/Owner all
+collapse to "Steward" in the in-game pill. The raw field is never removed —
+that is what makes the change additive rather than breaking.
+
+Note the two directions apply `RANK_DISPLAY` differently. Discord → game
+carries **both** `rank` and `pill_display` and lets the client choose; game →
+Discord ([§8](#8-game--discord-relay)) substitutes the display label directly
+into the visible `**[prefix]**`, so a Chief shows in Discord as `[Steward]`.
 
 ## 5. On-ready initial state loading
 

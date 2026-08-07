@@ -140,9 +140,10 @@ Plain text MOTD from config. Default is Minecraft-formatted welcome banner.
 Plain text guild-specific MOTD (separate from general MOTD).
 
 ### `GET /v1/outbound/staff`
-JSON array of online staff. Fields per entry: username, rank, world/server.
-Sort: rank priority (owner→chief→strategist→captain), then username alpha, then UUID.
-Source: `state.online_staff_by_uuid` (populated by StaffPoller).
+JSON array of online staff. Fields per entry: `uuid`, `username`, `rank`, `online`, `server`.
+Sort: `STAFF_RANK_ORDER` priority (owner=0 → chief=1 → strategist=2), then username alpha, then UUID.
+Captain was removed from `STAFF_RANK_ORDER` in the 2026-07 restructure. Removal was **not** a filter: the key is `STAFF_RANK_ORDER.get(rank, 99)`, so a stray captain-ranked entry still appears — it just sorts last.
+The sort does not live in the route handler. `get_staff` delegates to `compose_online_staff` (`app/services/staff_visibility.py`), which composes the union of WAPI-probed online staff and WS-authenticated staff and does the sorting.
 
 ### `GET /v1/outbound/supporters`
 JSON array of donators. Each entry: `{uuid, username}`.

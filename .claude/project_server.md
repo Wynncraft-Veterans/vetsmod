@@ -63,7 +63,7 @@ app/
 
 **Required env vars for auth:** `DAZEBOT_INTROSPECT_URL` (defaults to `http://dazebot:${DAZEBOT_PORT}/api/auth/introspect` when running on the `verify` Docker network) and `DAZEBOT_INTROSPECT_SECRET` (shared 32-byte hex secret matching dazebot's `.env`). If either is missing the server falls back to `NoOpAuthProvider` and logs a warning.
 
-**Discord admin authorization:** Administrator permission flag. Role mapping: Chief (1313778812361904188), Strategist (1313782599378010163), Captain (1337992726079213712).
+**Discord admin authorization:** Administrator permission flag — independent of rank. Rank itself comes from `ROLE_MAPPING` (7 role IDs → Chief / Strategist / Recruiter / Honourary / Waitlist, first match in insertion order, defaulting to Recruiter). The 2026-07 permission restructure retired the standalone Strategist and secondary Captain roles into Staff (Steward) `1337993168502788216`; staff eligibility is now `STAFF_TARGET_ROLES = ("owner", "chief", "strategist")`. See [server_discord_bot.md](server_discord_bot.md) §3 for the full table.
 
 **Admin commands:** `!status`, `!enable/disable <comp>`, `!motd [text]`, `!guild_motd [text]`, `!record`, `!config`, `!help`, `!list`. Components that can be toggled: `inbound`, `outbound`, `bridge`, `staff`, `unauth`.
 

@@ -65,7 +65,7 @@ Fields by subsystem:
 
 **`_refresh_roster()`** (lines 89-132, runs in thread pool):
 - Fetch guild from Wynncraft API
-- Build staff roster (owner/chief/strategist/captain only)
+- Build staff roster from `STAFF_TARGET_ROLES` — owner/chief/strategist only, captain retired in the 2026-07 restructure
 - Create `staff_wynn_name_to_uuid` — stale API username → UUID (for tab-list reconciliation)
 - Sort probe order: rank priority → username → UUID
 - Prune stale `online_staff_by_uuid` entries
@@ -78,7 +78,7 @@ Fields by subsystem:
 - If offline → remove from `online_staff_by_uuid`
 
 **`_build_staff_roster()`** (lines 232-308):
-- Iterates guild API rank sections (owner → captain)
+- Iterates the guild API rank sections named by `STAFF_TARGET_ROLES` (owner, chief, strategist)
 - Extracts UUID (tries dict key, values, nested keys — Wynncraft API is inconsistent)
 - Resolves current username via `get_cached_username()` (12h TTL)
 - Returns `staff_roster`, `wynn_name_to_uuid`
