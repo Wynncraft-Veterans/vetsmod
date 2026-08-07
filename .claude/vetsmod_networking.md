@@ -31,7 +31,7 @@ Key methods:
 **Not exhaustive** — `sendQueueStatus`, `sendRankChange`, `sendStaffActionFrame`, `addInboundListener` and `addInboundPostConnectListener` also exist; §7.1 depends on the inbound fan-out. `staff_online` / `staff_offline` are likewise intercepted before the outbound listeners.
 
 **Register frame fields:** `type`, `uuid`, `username`, `tier`.
-**Auth frame fields:** `type:"auth"`, `key:"<43-char base64url>"`. Server replies `{status:"ok", tier, ws_tier, mc_uuid, mc_username}` or `{status:"error", detail:"auth rejected: <reason>"}`. Auth-success replies are discriminated from chat-success acks by the presence of the `tier` field (resilient to ack reordering).
+**Auth frame fields:** `type:"auth"`, `key:"<43-char base64url>"`. Server replies `{status:"ok", tier, ws_tier, mc_uuid, mc_username, is_staff, staff_rank, staff_rank_display}` or `{status:"error", detail:"auth rejected: <reason>"}`. The last three are read by `V1ApiManager` into `confirmedStaff` / `confirmedStaffRank` / `confirmedStaffRankDisplay`; `staff_rank_display` is the additive 2026-07 label and is `null` exactly when `staff_rank` is. Auth-success replies are discriminated from chat-success acks by the presence of the `tier` field (resilient to ack reordering).
 **Message fields:** `uuid`, `type`, `timestamp`, `rank`, `username`, `message`.
 **Server → client unsolicited:** `{type:"server_info", unauth_enabled: bool}` is pushed once on outbound connect so the mod knows which session-warning copy to show.
 

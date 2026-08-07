@@ -11,12 +11,13 @@ Fabric client mod for the Wynncraft "Returners" veterans guild community. Requir
 
 ## Related repos (same workspace)
 
-The five repos in this workspace make up one auth/chat ecosystem. Read each repo's own `.claude/CLAUDE.md` for details; this section is just the wiring map.
+The six repos in this workspace make up one auth/chat ecosystem (the seventh sibling, `../Wynntils`, is a read-only reference clone rather than a member). Read each repo's own `.claude/CLAUDE.md` for details; this section is just the wiring map.
 
 - `../temporary-server` — FastAPI Python backend at `wss://api.wynnvets.org/`. Owns the v1 inbound/outbound WebSockets that vetsmod connects to. Validates `/unlock` keys via HTTP introspection against dazebot.
 - `../dazebot` — In-house Discord bot. Issues vetsmod auth keys via the `/vetsmod` slash command (DM with `/unlock <key>` body), exposes `POST /api/auth/introspect` for temporary-server to validate keys, owns the `VerifyKey` ORM table.
 - `../auth-stack` — Fork of [PicoLimbo](https://github.com/Quozul/PicoLimbo) at `verify.wynnvets.org:25565`. Forwards every chat line on its mini-server to dazebot's `/api/auth/{uuid}/{msg}` for the link-code consumption flow (separate from vetsmod auth — handles the Discord↔Minecraft account *link*, not the vetsmod *unlock*).
-- `../vets-deploy` — Docker stack definitions + ops docs for the VPS at `timasca.wynnvets.org`. Where the four above actually run.
+- `../vets-anni` — Annihilation-event app at `anni.wynnvets.org` (FastAPI web board + **fishbot**). Owns RSVP, party/role assignment and the MWE snapshots temporary-server polls and pushes to vetsmod over the `anni_*` frames. See [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md).
+- `../vets-deploy` — Docker stack definitions + ops docs for the VPS at `timasca.wynnvets.org`. Where the five above actually run.
 - `../Wynntils` — Read-only reference copy of the Wynntils mod source. Do not edit.
 
 ## Discord bots in this workspace — command prefixes
@@ -79,7 +80,7 @@ Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `a
 - **Inbound** `wss://api.wynnvets.org/v1/inbound` — client sends messages
 - **Outbound** `wss://api.wynnvets.org/v1/outbound` — server pushes to all clients
 
-**Control frames** (sent by client):
+**Control frames** (sent by client) — the four below are the presence/identity set; `/v1/inbound` accepts fourteen in all, adding `rank_change`, the five staff-action frames and the four MWE anni frames. Full inventory in [server_api_reference.md](server_api_reference.md).
 - `register` — presence (uuid, username, tier)
 - `tablist` — guild tab snapshot for `!list`
 - `queue_status` — sender is currently in a Wynncraft world queue (presence side-channel; orthogonal to the `queue` chat type)

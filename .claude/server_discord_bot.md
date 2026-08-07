@@ -90,7 +90,7 @@ branch order:
 3. **Return channel posts**: cache content + metadata to `state.latest_return_message`
 4. **Non-bridge channels**: return (nothing else to do)
 5. **Bridge channel:**
-   - Check admin commands first (`try_handle_command()`) — if handled, return
+   - Try the command dispatcher first (`try_handle_command()`) — if handled, return. Note this consumes the *public* `!list` from anyone, not just admins (§6)
    - Check `"bridge"` in disabled components → skip
    - Resolve rank from author's role IDs via `ROLE_MAPPING` (first match in
      insertion order; `"Recruiter"` if none match)
@@ -157,7 +157,7 @@ Show components and their enabled/disabled state (✅/❌).
 
 ### `!enable <component>` / `!disable <component>`
 Toggleable components: `inbound`, `outbound`, `staff`, `bridge`, `unauth`.
-- `inbound` disabled → reject chat messages from clients (control frames `auth`/`register`/`tablist`/`queue_status` still work)
+- `inbound` disabled → reject chat messages from clients. Every control frame still works — not just `auth`/`register`/`tablist`/`queue_status` but `rank_change` and the five staff-action frames too, which are dispatched above the disabled gate
 - `outbound` disabled → drop messages from broadcast queue
 - `staff` disabled → skip staff roster polling
 - `bridge` disabled → skip Discord relay of game messages

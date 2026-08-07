@@ -42,7 +42,7 @@ every connection in the process, not scoped per-client.
 | `DEDUP_WINDOW_SECONDS` | 35.0 | Sliding window for exact/prefix/truncation match |
 | `DEDUP_CLEANUP_INTERVAL_SECONDS` | 60.0 | Prune expired entries |
 | `DEDUP_ALIAS_TTL_SECONDS` | 30.0 | Nickname→realname mapping lifetime |
-| `DEDUP_MIN_PREFIX_LENGTH` | 20 | Min body len for prefix/truncation matching |
+| `DEDUP_MIN_PREFIX_LENGTH` | 20 | Min body len for the **truncation** match (strategy 3) — despite the name, the item-PUA prefix match has no floor |
 | `DEDUP_MIN_CROSS_USER_LENGTH` | 20 | Min body len for cross-user match |
 | `MAX_MESSAGE_LENGTH` | 256 | Truncated in sanitization — a message constraint, not a dedup one |
 
@@ -54,6 +54,13 @@ agrees on 35.0 — the constant, `MessageDeduplicator.__init__`'s default, the
 module docstring, and `inbound.py`'s stale-timestamp canary, which warns when
 an accepted message is older than `DEDUP_WINDOW_SECONDS`. Correcting that
 comment is temporary-server's business, not this doc's.
+
+⚠️ **`DEDUP_WINDOW_SECONDS` is not a unique name.** `app/services/rank_alerts.py`
+defines its own module-local `DEDUP_WINDOW_SECONDS = 60.0` (and
+`DEDUP_CLEANUP_INTERVAL_SECONDS = 300.0`) for `RankAlertDispatcher`'s
+rank_change deduplication — an unrelated mechanism that does not import from
+`constants.py`. A bare grep returns both 35.0 and 60.0. The values in this
+table are the guild deduplicator's, from `app/constants.py`.
 
 The two length thresholds are both 20 but are **separate constants** serving
 separate strategies — don't collapse them. Note also that fingerprints expire
@@ -175,7 +182,14 @@ The ack carries no `duplicate` flag and no `detail`, so a client cannot
 distinguish a suppressed duplicate from an accepted message. That is
 deliberate — the sending client has nothing useful to do with the difference.
 
-`queue`, `waitlist`, `honourary` and `bridge` all bypass dedup entirely.
+`queue`, `waitlist` and `honourary` bypass the **duplicate check** — but not
+the deduplicator. `transform_inbound` runs for every inbound type with no type
+branch, so any of them carrying a `real/nick` username still writes into the
+shared `_aliases` table. Only `bridge` bypasses the object entirely, and for a
+different reason: it is minted in the Discord bot and pushed straight onto the
+outbound queue, never entering the inbound pipeline at all — it is not even a
+member of `VALID_INBOUND_TYPES`.
+
 `queue` is the easy one to miss: it is a guild message from a sender stuck in
 a world queue, but only the queued sender originates a copy, so there is
 nothing to collapse.

@@ -198,8 +198,10 @@ the disabled toggle, and broadcasts — messages are consumed even when
 
 ## 2. REST endpoints
 
-No route requires authentication except one. Security is WSS/TLS plus network
-placement; the source docstrings treat this as a considered posture rather than
+No **HTTP** route requires authentication except one. (The two WebSocket
+endpoints are a different case: they accept the connection unconditionally,
+but honour an in-band `auth` frame and can refuse chat at runtime via the
+`unauth` toggle.) Security is WSS/TLS plus network placement; the source docstrings treat this as a considered posture rather than
 an oversight (`/donor_pool` says "No auth (TLS only)"; `/anni-snapshot` says
 "intentionally readable by anyone… Don't put secrets in the snapshot"). Worth
 knowing that `/roster` dumps the full guild UUID→username map and `/list` every
@@ -211,7 +213,7 @@ connected user with their tier and world.
 |---|---|
 | `/motd` | Plain-text MOTD from config |
 | `/guild_motd` | Plain-text staff-editable MOTD |
-| `/staff` | Online staff — see [server_services.md](server_services.md) for the sort |
+| `/staff` | Online staff as `{uuid, username, rank, online, server}`. `get_staff` delegates to `compose_online_staff` (`services/staff_visibility.py`), which unions WAPI-probed and WS-authenticated staff and sorts by `STAFF_RANK_ORDER` → username → uuid |
 | `/supporters` | Glinted list as `[{uuid, username}]`, from `state.glinted_slots` |
 | `/donor_pool` | Ranked donor candidates as `[{uuid, username}]`; `[]` before first poll |
 | `/anni-snapshot` | `[{uuid, snapshot}]` for eligible players; debug-only |
@@ -228,7 +230,7 @@ Naming is inconsistent in source and is not normalised here: `no-aspects` and
 **Four `/v0/outbound/` legacy routes:** `/staff`, `/supporters` and `/stamp`
 serve the same live data through the same helpers as v1. `/motd` does **not**
 — it returns a hardcoded "your vetsmod is too old" banner and ignores config
-entirely. There is no v0 counterpart for the other nine.
+entirely. The other eight v1 routes have no v0 counterpart.
 
 **`GET /magbot-health`** — 503 when the tracked Magbot status is `None`,
 `offline` or `invisible`. Deliberately not `/health`. See

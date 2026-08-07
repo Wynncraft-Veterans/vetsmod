@@ -54,7 +54,7 @@ Fields by subsystem:
 
 **Connected users / authenticated sessions:**
 - `connected_users: dict[WebSocket, dict]` — WS → `{uuid, username, tier}`
-- `authenticated_sessions: dict` — WS → `{disc_uuid, mc_uuid, mc_username, tier, ws_tier}`; **absence of a key means the connection is unauthenticated**
+- `authenticated_sessions: dict` — WS → `{disc_uuid, mc_uuid, mc_username, tier, ws_tier, is_staff, staff_rank}`; **absence of a key means the connection is unauthenticated**. ⚠️ Seven keys, not five: `state.py`'s own comment stops at `ws_tier`, but `_handle_auth` writes `is_staff` and `staff_rank` too, and they are load-bearing — `_staff_session_or_error` gates the whole staff-action family on `session.get("is_staff")`, and `compose_online_staff` reads the same key.
 - `recently_seen_users: dict[str, dict]` — uuid → `{username, tier, last_seen}` for grace period
 - `staff_visible_uuids: set[str]` — who the staff-presence push currently advertises
 
@@ -107,7 +107,7 @@ Fields by subsystem:
 
 [app/services/guild_roster_poller.py](../../temporary-server/app/services/guild_roster_poller.py)
 
-**Run loop**: refresh every 5 min.
+**Run loop**: `run()` refreshes every 5 min.
 
 **`_refresh_roster()`** (runs in thread pool):
 - Fetch guild from Wynncraft API
@@ -132,7 +132,8 @@ Module-level `_cache: dict` (UUID → `{username, timestamp}`). Thread-safe for 
 2. Check cache; return if fresh (< TTL)
 3. Fetch from Minecraft Services API outside lock
 4. On success: cache with current timestamp
-5. On failure: keep stale value but update timestamp (throttle retry to once per TTL)
+5. On failure **with** a previous entry: return it and leave the entry untouched — neither value nor timestamp is rewritten, so an outage does not push staleness out by another TTL
+6. On failure with **no** previous entry: store a `None` placeholder stamped `now`, so a permanently-bad UUID is not retried on every call
 
 **`_fetch_username(uuid)`**:
 - GET `https://api.minecraftservices.com/minecraft/profile/lookup/{uuid_no_hyphens}`
