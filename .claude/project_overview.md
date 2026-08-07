@@ -9,7 +9,7 @@ This workspace is a Wynncraft (Minecraft MMO) guild ecosystem for the "Returners
 | Repo | Role | Stack |
 |------|------|-------|
 | **vetsmod** | Fabric client mod players install. Owns chat UI, item highlighting, supporter glints, and the `/unlock <key>` command. | Java 21, MC 1.21.11, Wynntils v4.1.17-fabric |
-| **temporary-server** | FastAPI backend at `wss://api.wynnvets.org/`. Owns the v1 inbound/outbound WebSockets, Discord bridge, dedup engine, and tier/auth gating. Validates `/unlock` keys via HTTP introspection against dazebot. | Python 3.13, FastAPI, discord.py, httpx |
+| **temporary-server** | FastAPI backend at `wss://api.wynnvets.org/`. Owns the v1 inbound/outbound WebSockets, Discord bridge, dedup engine, and tier/auth gating. Validates `/unlock` keys via HTTP introspection against dazebot. | Python 3.12, FastAPI, discord.py, httpx |
 | **dazebot** | In-house Discord bot. Owns the `VerifyKey` table, the `/vetsmod` slash command (issues 43-char base64url keys via DM), and the `POST /api/auth/introspect` endpoint temporary-server calls. Also handles guild waitlists, vanity roles, supporter detection, and the picolimbo link-code consumption flow. | Python 3.13, discord.py, tortoise-orm, FastAPI |
 | **auth-stack** | Fork of [PicoLimbo](https://github.com/Quozul/PicoLimbo) running at `verify.wynnvets.org:25565`. Forwards every chat line a player types to dazebot's `/api/auth/{uuid}/{msg}` so dazebot can scan for link codes (Discord ↔ Minecraft account *linking*, separate from vetsmod *unlock*). | Rust, Pterodactyl egg + Docker |
 | **vets-deploy** | Source-of-truth Docker stacks + ops docs for the `timasca.wynnvets.org` VPS. Where every other repo runs in production. | Bash + docker compose + Traefik |

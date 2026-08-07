@@ -8,7 +8,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 
 Lives in [app/discord/](../../temporary-server/app/discord/). Runs as an async background task started by `app/__init__.py` lifespan.
 
-**Library:** discord.py 2.3.2
+**Library:** `discord.py>=2.7.1,<3` (a range in `requirements.txt`, with no lockfile — the resolved version floats at image build). The `2.7.1` floor is load-bearing: `bot.py` uses the Components V2 types `discord.TextDisplay`, `discord.Container`, `discord.SectionComponent` and `discord.LabelComponent`, and reads `message.flags.components_v2`.
 
 ## 1. Client setup
 

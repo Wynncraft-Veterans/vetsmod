@@ -4,7 +4,7 @@ description: FastAPI Python backend — WebSocket inbound/outbound, Discord brid
 type: project
 ---
 
-**Stack:** Python 3.12+, FastAPI 0.115.0, Uvicorn, discord.py 2.3.2, PyYAML. Docker container, port 8000.
+**Stack:** Python 3.12 (the Dockerfile is `FROM python:3.12-slim`), FastAPI 0.115.0, Uvicorn, `discord.py>=2.7.1,<3`, PyYAML, httpx. Docker container, port 8000. discord.py is a floating range, not a pin, and the floor is load-bearing — `bot.py` reads Components V2 types (`discord.TextDisplay`, `discord.Container`, `discord.SectionComponent`) that older 2.x lacks.
 
 **Entry point:** `server.py` → creates FastAPI app, runs uvicorn. App factory in `app/__init__.py` with async lifespan context manager.
 
