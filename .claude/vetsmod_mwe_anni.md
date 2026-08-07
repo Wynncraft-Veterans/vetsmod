@@ -559,11 +559,46 @@ temp-server and vets-anni halves are listed in
 
 ### Reference templates
 
-Three clean vetsmod-side reference templates exist for the wire shapes
-this subsystem uses. Don't redesign — clone. (The two server-side
-templates — temp-server's auth-and-forward inbound handler and its
-poller helper — moved to
-[`vets-anni/.claude/snapshot_integration.md`](../../vets-anni/.claude/snapshot_integration.md).)
+Five clean reference templates exist for the wire shapes this subsystem
+uses — three vetsmod-side, two in temp-server. Don't redesign — clone.
+
+**Auth + forward template (temp-server `chat/inbound.py`)** — four
+near-identical handlers: `_handle_anni_query` (read path; session-or-frame
+uuid resolution, and the only one open to unauthenticated sessions),
+`_handle_anni_scrollspot_set` (host-only write; session uuid only),
+`_handle_anni_rsvp` (self-only write; session uuid, and pops the user's
+snapshot from the cache so the follow-up `anni_query` bypasses the 15 s
+short-cache), and `_handle_anni_party_observation` (stamps the actor's UUID
+into the body so a client can't impersonate). Each returns its own typed
+`*_response` rather than the generic ack.
+
+⚠️ The old form of this template advised extracting a
+`_handle_anni_authenticated_forward` helper "if the count grows to 5". That
+advice has effectively been answered elsewhere and should not be followed
+literally: the **staff-action** family did grow to five, and the shape it
+settled on is `_staff_session_or_error` — a single gate returning
+`(session, error_payload)`, called as the first statement of every handler.
+Clone that precedent rather than inventing a new forward helper.
+
+The closest literal "auth-and-forward" handler today is not in `inbound.py`
+at all — it is `routes/anni_delta.py`'s `anni_snapshot_delta` with
+`_check_secret`, which is worth reading for two decisions: it **fails closed**
+(unset secret is a 503, not an open door) and it returns a 200 `noop` rather
+than a 5xx when the poller is absent, with the secret check ordered first so
+the noop can't be used to probe.
+
+**Poller helper template (temp-server `services/anni_snapshot_poller.py`)** —
+three request-path clones: `set_scroll_spot(body)`, `set_rsvp(body)` and
+`send_party_observation(body)`. (The last is `send_`, not `report_` — the
+previous version of this template had the name wrong.) All three reuse the
+poller's own `_client` / `_secret` / `_base_url` and return
+`{"status": "ok"}` or `{"status": "error", "detail": …}`.
+
+The reason this is a *template* rather than a base class is that **there is no
+base class**: all six of temp-server's pollers are plain classes repeating the
+same hand-written run loop, and `GlintedPoller` is the instance the later ones
+name in their docstrings as the thing they mirror. See
+[server_services.md](server_services.md) §10.
 
 **Single-flight ack client (vetsmod `org.wynnvets.mwe.anni.network`)** —
 three clones: `AnniQueryClient` (returns `CompletableFuture<AnniSnapshot>`),
@@ -731,8 +766,23 @@ snapshot pull is §Snapshot pipeline step 5, and `AnniHoverBuilder.noticeColor`
 as the canonical RSVP colour map sits with the other chat labels under
 §`/wv anni` render dispatch.
 
-One is server-side and is 1e's: how a vets-anni FastAPI route handler reaches
-the optional fishbot through `app.state.fishbot`.
+One is server-side, and it lands here:
+
+- **`app.state.fishbot` is how a vets-anni FastAPI route handler reaches the
+  optional bot.** `main.py`'s lifespan does `app.state.fishbot = bot`, and
+  route handlers read it back as
+  `getattr(request.app.state, "fishbot", None)`. It is genuinely `None`
+  whenever `FISHBOT_TOKEN` is unset — `start_fishbot` returns `(None, None)`
+  and the web app runs on regardless — so **every** caller must guard it.
+  ⚠️ Two things that were previously claimed here are false. `_post_public`
+  does **not** no-op on a missing bot: it guards a falsy channel id and a
+  `None` channel, never `bot is None`, so the guard that actually protects it
+  lives one level up in `execute_uuid_rsvp` — see
+  [`vets-anni-post-public-missing-bot-guard`](ephemeral/bugs-found-via-mellow-rain/vets-anni-post-public-missing-bot-guard.md).
+  And `anni_ping_poller.py` does **not** use this reach-out at all: the
+  lifespan passes the bot to it positionally, as
+  `anni_ping_poller.run(state, settings, bot)`. Two different patterns in one
+  process — reach-out for request handlers, closure-passed for pollers.
 
 ## Open follow-ups
 
@@ -744,4 +794,4 @@ the optional fishbot through `app.state.fishbot`.
 
 - Snapshot wire contract — [`vets-anni/.claude/snapshot_integration.md`](../../vets-anni/.claude/snapshot_integration.md)
 
-*Note: the original cross-repo spec and the S3–S5 investigation prep docs lived under `vets-anni/.claude/ephemeral/` and were deleted as part of the post-S7 cleanup. The load-bearing decisions from each are inlined into the relevant sections above (§Boss bar, §Player highlights, §Aggressive mode); the code is the remaining source of truth.*
+*Note: the original cross-repo spec and the S3–S5 investigation prep docs lived under `vets-anni/.claude/ephemeral/` and are gone. The load-bearing decisions from each are inlined into the relevant sections above (§Boss bar, §Player highlights, §Aggressive mode); the code is the remaining source of truth. The directory itself still exists and still holds `README.md` and `auto-mode.md` — it was those particular files that were removed, not the directory, so don't go looking for it as though it were deleted.*
