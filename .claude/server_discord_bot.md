@@ -14,7 +14,9 @@ Lives in [app/discord/](../../temporary-server/app/discord/). Runs as an async b
 
 [app/discord/bot.py:35-62](../../temporary-server/app/discord/bot.py)
 
-Enables intents: `message_content`, `members`, `guilds`. Registers `on_ready()` (loads initial state) and `on_message()` (routes). `run_discord_client()` starts non-blocking via asyncio.
+Enables intents: `message_content`, `members`, `guilds` and **`presences`** (the last also requires the Presence Intent toggle in the developer portal). Registers `on_ready()` (loads initial state), `on_message()` (routes) and `on_presence_update()` (the magbot probe, §15). `run_discord_client()` starts non-blocking via asyncio.
+
+`on_ready` also runs `_purge_stale_app_commands`, which wipes leftover slash commands from older bot versions by syncing an intentionally-empty `CommandTree` globally and per-guild. A module-level flag keeps it to once per process across reconnects. This bot registers **no** application commands of its own — everything is `!`-prefix text.
 
 ## 2. Channel IDs (app/constants.py:12-15)
 
@@ -113,9 +115,28 @@ into the visible `**[prefix]**`, so a Chief shows in Discord as `[Steward]`.
 
 [app/discord/commands.py](../../temporary-server/app/discord/commands.py)
 
-Dispatcher: `try_handle_command()` at [commands.py:78-130](../../temporary-server/app/discord/commands.py).
-- Public (no auth): `!list`, `!list staff`
-- Admin (Administrator permission): all others
+Dispatcher: `try_handle_command()`. It consults the public table **first**, with
+no permission check at all, and only on a miss requires
+`guild_permissions.administrator` before looking the name up in the admin table.
+
+- Public (no auth): `!list`, `!list staff` — the *only* public command
+- Admin (Administrator permission): the nine below
+
+A non-admin who types an admin command gets **silent non-handling**, not an
+error: the permission check returns False, so the message falls through and is
+relayed into game chat as ordinary bridge text. That includes `!help`, which
+is itself admin-only.
+
+⚠️ `commands.py`'s own module docstring is titled "Administrator commands" and
+omits `!list` from its list — reading it alone gives the wrong answer, and is
+the likely source of the docs that called `!list` an admin command. `_cmd_help`
+is the accurate inventory: it lists `!list` first and annotates it
+*(available to everyone)*.
+
+There are **9 admin commands**: `!help`, `!status`, `!enable`, `!disable`,
+`!motd`, `!guild_motd`, `!record`, `!config`, `!noaspects`. Sub-forms
+(`!list staff`, `!motd clear`, `!noaspects add|remove|list`) are argument
+branches inside handlers, not separate registrations.
 
 ### `!status` (137-153)
 Show components and their enabled/disabled state (✅/❌).
@@ -141,7 +162,17 @@ Start 120-second traffic recording (captures all inbound/outbound WS frames). Fi
 Show MOTD, guild MOTD, donator count, component enabled/disabled.
 
 ### `!help` (292-318)
-List all commands with descriptions.
+List all commands with descriptions. Admin-only despite being a help command.
+
+### `!noaspects [add|remove|list]`
+Manages the NoAspects opt-out list consumed by vetsmod's `/wv distribute`,
+persisted through `no_aspects_store` and mirrored into `state.no_aspects_uuids`
+/ `state.no_aspects_entries`. Serves `GET /v1/outbound/no-aspects`.
+
+`add`/`remove` resolve their argument via `_resolve_to_uuid`, which tries, in
+order: direct UUID parse, case-insensitive live guild-roster scan, stale-name
+alias lookup, then a Mojang API fallback. The `list` renderer marks entries
+whose UUID has left the guild as `(left guild)`.
 
 ## 7. Public commands
 
@@ -161,14 +192,27 @@ Show only staff grouped by rank.
 
 [app/discord/relay.py:42-85](../../temporary-server/app/discord/relay.py): `relay_to_bridge_channel()`:
 
-1. Check client ready, resolve channel
-2. Display prefix = rank if set, else message type (Guild/Waitlist/Honourary)
-3. Decode PUA spoilers back to `||text||`
-4. Staff alert detection (lines 64-76): If sender in staff roster AND message starts with `‼` (U+203C), send as red embed
-5. Format: `**[Prefix]** username: message`
-6. Send with `AllowedMentions.none()` — no unintended pings
+1. Display prefix — when `rank` is non-empty, `RANK_DISPLAY.get(rank.lower(), rank)`, so a Chief renders as `[Steward]`; only when `rank` is empty does it fall back to the message type (`_TYPE_PREFIXES`: guild→Guild, **queue→Guild**, waitlist→Waitlist, honourary→Honourary — `queue` shares Guild's label because from Discord's side the two are indistinguishable)
+2. Decode PUA spoilers back to `||text||`
+3. Staff alert detection: if `_is_staff_sender` **and** the message starts with `‼` (U+203C), strip the marker, suppress the plain-text relay entirely, and enqueue a red `Alert` embed instead
+4. Format: `**[Prefix]** username: message`
+5. Enqueue to `BridgeSender` (§8a), which sends with `AllowedMentions.none()`
 
-Called from `app/chat/inbound.py` as fire-and-forget when type != "bridge" and bridge not disabled.
+`relay_to_bridge_channel` is **synchronous and non-blocking** — it formats and hands off, returning immediately, and no-ops when `state.bridge_sender` is None. Called from `app/chat/inbound.py` when type != "bridge" and bridge is not disabled.
+
+A second staff-only embed path exists: `_ENCOURAGE_PATTERN` matches vetsmod's whole triple-warning `/encourage` template and replaces it with a blurple *Vetsmod* info embed carrying a version footer. The regex is fully anchored so a mid-sentence quote of the text does not trigger it.
+
+Relay also carries the PUA item-render path: when `state.pua_renderer` is configured and `_extract_pua_substrings` finds Wynncraft item encodings, it spawns a background `pua-render` task and returns, so the inbound WS handler is never blocked on the sidecar round-trip.
+
+### 8a. BridgeSender
+
+All bridge-channel traffic — chat relay and staff alerts alike — goes through one `BridgeSender` (`app/discord/bridge_sender.py`), a bounded queue drained by a single worker task named `bridge-sender`. It exists to prevent 429 storms: one outstanding `channel.send` at a time, so discord.py's internal retry/backoff never fans out across dozens of concurrent tasks and starves the event loop.
+
+- Enqueue API: `enqueue_text`, `enqueue_embed`, `enqueue_files`, all non-blocking. Only text is coalesced; embeds and files are sent alone.
+- Under backpressure it drops the **oldest text** first, deliberately preserving embeds — a dropped chat line costs less than a dropped staff alert.
+- Constructed in `create_app` against `DISCORD_CHANNEL_ID`; `start()` is called in the lifespan immediately after the bot task, i.e. *before* login completes. That is safe: the worker's channel resolve returns None until the client is ready and it retries, so pre-login items are held rather than lost.
+
+**Gap:** the queue cap, pacing interval and per-send timeout are constants in `bridge_sender.py` and are not restated here.
 
 ## 9. Mention resolution
 
@@ -214,3 +258,26 @@ Game → Discord: `decode_spoilers(PUA block)` → `||text||`.
 - `discord.*` logger muted at INFO level (too noisy)
 - `server.log` file captures all output
 - `debug/` directory contains recorded traffic samples for replay testing
+
+⚠️ `server.log`, `debug/`, `venv/` and `__pycache__/` all hold **stale copies**
+of server values. When checking a fact against temporary-server, exclude them —
+confirming a constant from a `.pyc` or an old log is how several of the errors
+this doc used to carry got confirmed rather than caught.
+
+## 15. Magbot health probe
+
+Magbot is a third-party Discord bot the team does not control, tracked solely
+so an external uptime monitor can tell whether it is up.
+
+- `MAGBOT_USER_ID` is a **user** ID, not a channel — the one ID in
+  `constants.py` that is a probe target rather than a bridge endpoint.
+- `on_presence_update` early-returns unless the updated member is that user,
+  then writes the status string into `state.magbot_status`.
+- `_seed_magbot_status` back-fills that value from the cached member on
+  `on_ready`, because `on_presence_update` fires only on *changes* — without
+  the seed, a restart while Magbot was already online would leave the status
+  `None` and the endpoint would report down.
+- `GET /magbot-health` (`app/routes/magbot_health.py`) 503s when the status is
+  `None`, `offline` or `invisible`, so a monitor reads it as down. The path is
+  deliberately **not** `/health`, which is reserved for a future nazbot
+  self-readiness probe.

@@ -18,40 +18,68 @@ type: project
 ```
 app/
   __init__.py          # App factory, lifespan, background task startup, AuthProvider install
-  constants.py         # All magic numbers: Discord IDs, timing, API URLs
+  constants.py         # All magic numbers: Discord IDs, timing, API URLs, ROLE_MAPPING/RANK_DISPLAY
   auth/
     provider.py        # AuthProvider abstraction; NoOpAuthProvider + DazebotIntrospectionProvider (LRU + httpx)
   chat/
-    inbound.py         # /v1/inbound WS — register/tablist/queue_status/auth control frames + chat pipeline + tier gate
+    inbound.py         # /v1/inbound WS — every control frame + chat pipeline + tier gate
     outbound.py        # /v1/outbound WS — server_info hello + auth frame + tier-filtered broadcast
     processing.py      # validate_inbound(), sanitize_inbound(), transform_inbound()
+    transport.py       # receive_text_or_disconnect() — turns a dead-peer RuntimeError into WebSocketDisconnect
   config/loader.py     # config.yml I/O + env overrides, atomic writes
   discord/
-    bot.py             # discord.py client, on_message routing
-    commands.py        # Admin commands (!disable, !motd, !record, etc.) — incl. `unauth` toggle
-    relay.py           # Game↔Discord message forwarding
+    bot.py             # discord.py client, on_message routing, on_presence_update (magbot probe)
+    bridge_sender.py   # BridgeSender — single-consumer queue + worker for the bridge channel
+    commands.py        # 9 admin commands + the one public command, !list
+    relay.py           # Game→Discord forwarding, staff alerts, PUA item render
     utils.py           # Mention resolution
-  parsers/spoiler_codec.py  # ||spoiler|| ↔ PUA encoding (matches vetsmod SpoilerCodec)
-  routes/static.py     # REST endpoints
-  services/
-    state.py           # AppState dataclass (incl. authenticated_sessions: dict[ws -> {disc_uuid, mc_uuid, mc_username, tier, ws_tier}])
-    dedup.py           # Guild message deduplication engine
-    staff_poller.py    # Wynncraft API staff polling (5min full, 10s per-player probe)
+  parsers/
+    formatting.py      # Discord inline markdown → Minecraft chat components
+    markdown.py        # Block-level markdown (headings, quotes, code) → components
+    spoiler_codec.py   # ||spoiler|| ↔ PUA encoding (matches vetsmod SpoilerCodec)
+  routes/
+    static.py          # Both REST routers: /v1/outbound/* and the /v0/outbound/* legacy set
+    anni_delta.py      # POST /api/internal/anni-snapshot-delta — the only secret-gated route
+    magbot_health.py   # GET /magbot-health — 503 when magbot is offline/invisible/unknown
+  services/            # 17 modules; see server_services.md
+    state.py           # AppState dataclass — the single shared mutable container
+    dedup.py           # Dedup engine + the `guild_deduplicator` module-level singleton
+    staff_poller.py    # Wynncraft API staff polling (5min roster, 10s per-player probe)
+    staff_visibility.py     # Composes WAPI-probed + WS-authenticated staff; owns the /staff sort
+    staff_actions.py        # caution/warn/eject/check_membership → dazebot's staff-action API
     guild_roster_poller.py  # Guild UUID→current-username resolution (Minecraft Services API)
-    recorder.py        # Traffic capture for debugging
-    username_cache.py  # Minecraft Services API username lookup + cache
+    username_cache.py       # Minecraft Services username lookup + TTL cache, stale-on-failure
+    glinted_poller.py       # dazebot's 8-slot glinted list → /v1/outbound/supporters
+    donor_pool_poller.py    # dazebot's ranked donor candidates → /v1/outbound/donor_pool
+    anni_snapshot_poller.py # vets-anni MWE snapshots; also serves the anni_* inbound frames
+    world_events_poller.py  # Wynncraft world-events fallback for the anni stamp
+    rank_alerts.py          # rank_change frames → dazebot (ban/kick) or bridge (mote)
+    no_aspects_store.py     # Disk-backed NoAspects opt-out list behind !noaspects
+    webhook_timestamp_store.py  # Persists the anni stamp so it survives a restart
+    pua_decoder.py          # Splits a multi-item Wynncraft PUA run into individual items
+    pua_renderer.py         # HTTP client for the item-renderer sidecar (PUA → PNG card)
+    recorder.py             # Traffic capture for debugging
 ```
 
-**REST endpoints:**
+`pua_decoder.py` and `pua_renderer.py` read like parsers but live in
+`services/`; `parsers/` holds only the three files above.
+
+**REST endpoints:** twelve GETs under `/v1/outbound/`, plus four `/v0/outbound/` legacy routes, `GET /magbot-health` and one secret-gated POST. Full detail in [server_api_reference.md](server_api_reference.md).
+
 - `GET /v1/outbound/motd` — MOTD text
 - `GET /v1/outbound/guild_motd` — alternate staff-editable MOTD
 - `GET /v1/outbound/staff` — online staff sorted by rank priority
-- `GET /v1/outbound/supporters` — donator list with resolved usernames
+- `GET /v1/outbound/supporters` — glinted list with resolved usernames
+- `GET /v1/outbound/donor_pool` — ranked donation-recipient candidates from dazebot
+- `GET /v1/outbound/anni-snapshot` — cached MWE snapshots for eligible players (debug-only)
 - `GET /v1/outbound/return` — latest Discord return-channel message as MC chat component
 - `GET /v1/outbound/stamp` — latest webhook timestamp
 - `GET /v1/outbound/list` — connected VetsMod clients (registered presence)
 - `GET /v1/outbound/roster` — guild UUID→current-username map
 - `GET /v1/outbound/aliases` — stale-Wynncraft-username → current-username map (for reconciling Wynncraft API names that lag Mojang)
+- `GET /v1/outbound/no-aspects` — members opted out of aspect distribution, read by vetsmod's `NoAspectsFilter`
+
+Naming is inconsistent in source and is not normalised here: `no-aspects` and `anni-snapshot` are hyphenated while `donor_pool` and `guild_motd` are underscored.
 
 **Deduplication (`app/services/dedup.py`):**
 - Fingerprint: `username_lower\x00message_stripped` (strips PUA glyphs)
@@ -65,7 +93,9 @@ app/
 
 **Discord admin authorization:** Administrator permission flag — independent of rank. Rank itself comes from `ROLE_MAPPING` (7 role IDs → Chief / Strategist / Recruiter / Honourary / Waitlist, first match in insertion order, defaulting to Recruiter). The 2026-07 permission restructure retired the standalone Strategist and secondary Captain roles into Staff (Steward) `1337993168502788216`; staff eligibility is now `STAFF_TARGET_ROLES = ("owner", "chief", "strategist")`. See [server_discord_bot.md](server_discord_bot.md) §3 for the full table.
 
-**Admin commands:** `!status`, `!enable/disable <comp>`, `!motd [text]`, `!guild_motd [text]`, `!record`, `!config`, `!help`, `!list`. Components that can be toggled: `inbound`, `outbound`, `bridge`, `staff`, `unauth`.
+**Admin commands (9, Administrator permission):** `!help`, `!status`, `!enable <comp>`, `!disable <comp>`, `!motd [text]`, `!guild_motd [text]`, `!record`, `!config`, `!noaspects [add|remove|list]`. Components that can be toggled: `inbound`, `outbound`, `bridge`, `staff`, `unauth`.
+
+**Public command (1):** `!list` (and `!list staff`) — the *only* command with no permission check. `try_handle_command` consults the public table before testing for Administrator, so `!list` is reachable by anyone in the bridge channel. A non-admin who types an admin command gets no error: the permission miss returns False and the message falls through to be relayed into game chat as ordinary bridge text.
 
 **Config (`config.yml`):** `discord_bot_token`, `motd`, `guild_motd`, `donatorList` (UUIDs). Env vars override. Atomic writes via temp file+rename.
 

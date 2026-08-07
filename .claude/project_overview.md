@@ -1,10 +1,10 @@
 ---
 name: Project Overview
-description: High-level summary of the 5-repo Wynncraft Veterans ecosystem (vetsmod, temporary-server, dazebot, auth-stack, vets-deploy)
+description: High-level summary of the 6-repo Wynncraft Veterans ecosystem (vetsmod, temporary-server, dazebot, auth-stack, vets-deploy, vets-anni)
 type: project
 ---
 
-This workspace is a Wynncraft (Minecraft MMO) guild ecosystem for the "Returners" veterans community. Five repos work together; do not treat any of them in isolation when making auth/identity changes.
+This workspace is a Wynncraft (Minecraft MMO) guild ecosystem for the "Returners" veterans community. Six repos work together; do not treat any of them in isolation when making auth/identity changes.
 
 | Repo | Role | Stack |
 |------|------|-------|
@@ -12,10 +12,11 @@ This workspace is a Wynncraft (Minecraft MMO) guild ecosystem for the "Returners
 | **temporary-server** | FastAPI backend at `wss://api.wynnvets.org/`. Owns the v1 inbound/outbound WebSockets, Discord bridge, dedup engine, and tier/auth gating. Validates `/unlock` keys via HTTP introspection against dazebot. | Python 3.12, FastAPI, discord.py, httpx |
 | **dazebot** | In-house Discord bot. Owns the `VerifyKey` table, the `/vetsmod` slash command (issues 43-char base64url keys via DM), and the `POST /api/auth/introspect` endpoint temporary-server calls. Also handles guild waitlists, vanity roles, supporter detection, and the picolimbo link-code consumption flow. | Python 3.13, discord.py, tortoise-orm, FastAPI |
 | **auth-stack** | Fork of [PicoLimbo](https://github.com/Quozul/PicoLimbo) running at `verify.wynnvets.org:25565`. Forwards every chat line a player types to dazebot's `/api/auth/{uuid}/{msg}` so dazebot can scan for link codes (Discord ↔ Minecraft account *linking*, separate from vetsmod *unlock*). | Rust, Pterodactyl egg + Docker |
+| **vets-anni** | Annihilation-event app at `anni.wynnvets.org` — FastAPI web board plus **fishbot** (Discord, `\` prefix). Owns RSVP, party/role assignment and the MWE snapshots temporary-server polls and pushes to vetsmod. | Python, FastAPI, discord.py, tortoise-orm |
 | **vets-deploy** | Source-of-truth Docker stacks + ops docs for the `timasca.wynnvets.org` VPS. Where every other repo runs in production. | Bash + docker compose + Traefik |
 | **Wynntils** | Read-only sibling clone. Public Wynntils source — vetsmod compiles against it. Do not edit. | — |
 
-All five (plus the `Wynntils` reference clone) are sibling directories under whatever workspace root they're checked out into.
+All six (plus the `Wynntils` reference clone) are sibling directories under whatever workspace root they're checked out into.
 
 ## Production layout
 
@@ -47,4 +48,4 @@ All five (plus the `Wynntils` reference clone) are sibling directories under wha
 
 ## How to apply
 
-When making changes, consider impact on **all five tiers**: client mod (Java), backend server (Python), Discord bot (Python ORM + slash commands), link-code limbo (Rust), deployment compose (YAML). Auth/identity changes routinely touch four of the five. The introspection path is the one that most often breaks: check both ends of it (dazebot's `POST /api/auth/introspect` and temporary-server's caller) before changing anything there.
+When making changes, consider impact on **all six tiers**: client mod (Java), backend server (Python), Discord bot (Python ORM + slash commands), link-code limbo (Rust), annihilation app + fishbot (Python), deployment compose (YAML). Auth/identity changes routinely touch four of the six. The introspection path is the one that most often breaks: check both ends of it (dazebot's `POST /api/auth/introspect` and temporary-server's caller) before changing anything there.
