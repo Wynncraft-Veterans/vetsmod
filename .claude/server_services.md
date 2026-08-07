@@ -10,7 +10,7 @@ Package: `app/services/`. All services share `AppState` (passed at creation time
 
 ## 1. AppState dataclass
 
-[app/services/state.py:11-98](../../temporary-server/app/services/state.py)
+`AppState` in [app/services/state.py](../../temporary-server/app/services/state.py).
 
 Single shared-mutable container, organised into 21 commented groups. Route handlers reach it as `request.app.state.app_state`; background tasks are handed the object directly at construction.
 
@@ -76,28 +76,28 @@ Fields by subsystem:
 
 [app/services/staff_poller.py](../../temporary-server/app/services/staff_poller.py)
 
-**Run loop** (lines 35-56): `run()` ticks every 10s, catches exceptions.
+**Run loop**: `run()` ticks every 10s, catches exceptions.
 
-**`_tick()`** (lines 62-83):
+**`_tick()`**:
 - Skip if `"staff"` in `disabled_components`
 - Refresh full roster every 5 min
 - Then probe one member
 
-**`_refresh_roster()`** (lines 89-132, runs in thread pool):
+**`_refresh_roster()`** (runs in thread pool):
 - Fetch guild from Wynncraft API
 - Build staff roster from `STAFF_TARGET_ROLES` — owner/chief/strategist only, captain retired in the 2026-07 restructure
 - Create `staff_wynn_name_to_uuid` — stale API username → UUID (for tab-list reconciliation)
 - Sort probe order: rank priority → username → UUID
 - Prune stale `online_staff_by_uuid` entries
 
-**`_probe_next()`** (lines 134-202, runs in thread pool):
+**`_probe_next()`** (runs in thread pool):
 - Drain `staff_priority_probes` deque first (tab-list hints from clients)
 - Fall back to round-robin through `probe_order`
 - GET `https://api.wynncraft.com/v3/player/{uuid}`
 - If online → update `online_staff_by_uuid`, sync username (API response preferred)
 - If offline → remove from `online_staff_by_uuid`
 
-**`_build_staff_roster()`** (lines 232-308):
+**`_build_staff_roster()`**:
 - Iterates the guild API rank sections named by `STAFF_TARGET_ROLES` (owner, chief, strategist)
 - Extracts UUID (tries dict key, values, nested keys — Wynncraft API is inconsistent)
 - Resolves current username via `get_cached_username()` (12h TTL)
@@ -107,14 +107,14 @@ Fields by subsystem:
 
 [app/services/guild_roster_poller.py](../../temporary-server/app/services/guild_roster_poller.py)
 
-**Run loop** (lines 35-54): refresh every 5 min.
+**Run loop**: refresh every 5 min.
 
-**`_refresh_roster()`** (lines 56-77, runs in thread pool):
+**`_refresh_roster()`** (runs in thread pool):
 - Fetch guild from Wynncraft API
 - Build roster via `_build_guild_roster()` (all roles: owner → recruit)
 - Update `state.guild_roster_by_uuid`
 
-**`_build_guild_roster()`** (lines 109-141):
+**`_build_guild_roster()`**:
 - Same UUID extraction logic as StaffPoller
 - Resolves each UUID via `get_cached_username()` (12h TTL)
 - Returns UUID → username dict
@@ -123,22 +123,22 @@ Why separate from StaffPoller: covers all guild members (not just staff), suppli
 
 ## 4. username_cache
 
-[app/services/username_cache.py:25-105](../../temporary-server/app/services/username_cache.py)
+[app/services/username_cache.py](../../temporary-server/app/services/username_cache.py)
 
 Module-level `_cache: dict` (UUID → `{username, timestamp}`). Thread-safe for concurrent pollers.
 
-**`get_cached_username(uuid, ttl_seconds)`** (lines 61-100):
+**`get_cached_username(uuid, ttl_seconds)`**:
 1. Normalize UUID via `_normalize_uuid()` (validate, lowercase, hyphenated)
 2. Check cache; return if fresh (< TTL)
 3. Fetch from Minecraft Services API outside lock
 4. On success: cache with current timestamp
 5. On failure: keep stale value but update timestamp (throttle retry to once per TTL)
 
-**`_fetch_username(uuid)`** (lines 41-54):
+**`_fetch_username(uuid)`**:
 - GET `https://api.minecraftservices.com/minecraft/profile/lookup/{uuid_no_hyphens}`
 - Returns username string or None
 
-**`get_supporter_username(uuid)`** (lines 103-105): convenience wrapper with 1-hour TTL.
+**`get_supporter_username(uuid)`**: convenience wrapper with 1-hour TTL.
 
 **Standard TTL:** 12 hours for roster pollers. 1 hour for supporter lookups.
 
@@ -146,13 +146,13 @@ Module-level `_cache: dict` (UUID → `{username, timestamp}`). Thread-safe for 
 
 ## 5. Recorder
 
-[app/services/recorder.py:27-160](../../temporary-server/app/services/recorder.py)
+[app/services/recorder.py](../../temporary-server/app/services/recorder.py)
 
-**`_RecordingLogHandler`** (lines 27-50): Python logging handler — when attached, all log records are appended to `state.recording_buffer` during active recording.
+**`_RecordingLogHandler`**: Python logging handler — when attached, all log records are appended to `state.recording_buffer` during active recording.
 
-**`record_message(direction, data, client_version)`** (lines 53-79): Appends timestamped entry `{ts, direction, data, version}` to buffer if `state.recording_active`.
+**`record_message(direction, data, client_version)`**: Appends timestamped entry `{ts, direction, data, version}` to buffer if `state.recording_active`.
 
-**`start_recording(state, requester_id, discord_client)`** (lines 82-160):
+**`start_recording(state, requester_id, discord_client)`**:
 1. Reject if already recording
 2. Set `state.recording_active = True`, attach log handler
 3. `await asyncio.sleep(120)`
@@ -166,27 +166,27 @@ Triggered by Discord admin command `!record`. Single recording at a time.
 
 [app/chat/processing.py](../../temporary-server/app/chat/processing.py)
 
-**`validate_inbound(payload)`** (lines 57-87):
+**`validate_inbound(payload)`**:
 - Check 6 required fields by key presence (not truthiness): uuid, type, timestamp, rank, username, message. All missing keys are collected and reported in one error.
 - type in `VALID_INBOUND_TYPES` — **four** values: `guild`, `queue`, `waitlist`, `honourary`. ⚠️ `inbound.py`'s module docstring still lists only three and is stale; the constant is authoritative.
 - The `rank` **key** is required for all four types, but the **value** is validated only for `guild` and `queue`. A waitlist message with `rank=""` passes.
 - For those two, rank must be in `VALID_GUILD_RANKS` — **six** values, compared case-insensitively: `owner`, `chief`, `strategist`, `captain`, `recruiter`, `recruit`. (`recruit` is the one this doc used to leave as a literal `?`; it is easy to miss because it sits next to `recruiter` and reads as one item. `captain` is still valid here — see [server_discord_bot.md](server_discord_bot.md) §3 for why valid ≠ staff.)
 
-**`sanitize_inbound(payload)`** (lines 90-118):
+**`sanitize_inbound(payload)`**:
 - Strip C0 control chars: `[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]` (allows \t, \n, \r)
 - Collapse whitespace: `" ".join(message.split())`
 - Truncate to 256 chars
 - Username: strip controls + PUA glyphs, strip() whitespace
 
-**`transform_inbound(payload)`** (lines 121-139):
+**`transform_inbound(payload)`**:
 - Split `username/nickname` form on `/`
 - Register nickname alias in deduplicator: `dedup.register_alias(nickname, real_name)`
 
-**`process_inbound(payload)`** (lines 142-157): Chains validate → sanitize → transform.
+**`process_inbound(payload)`**: Chains validate → sanitize → transform.
 
 ## 7. App lifespan
 
-[app/__init__.py:35-69](../../temporary-server/app/__init__.py)
+`_lifespan` in [app/__init__.py](../../temporary-server/app/__init__.py).
 
 **Startup** — nine background tasks, six unconditional and three env-gated.
 

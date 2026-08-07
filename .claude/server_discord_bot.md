@@ -12,22 +12,31 @@ Lives in [app/discord/](../../temporary-server/app/discord/). Runs as an async b
 
 ## 1. Client setup
 
-[app/discord/bot.py:35-62](../../temporary-server/app/discord/bot.py)
+`create_discord_client` in [app/discord/bot.py](../../temporary-server/app/discord/bot.py).
 
 Enables intents: `message_content`, `members`, `guilds` and **`presences`** (the last also requires the Presence Intent toggle in the developer portal). Registers `on_ready()` (loads initial state), `on_message()` (routes) and `on_presence_update()` (the magbot probe, §15). `run_discord_client()` starts non-blocking via asyncio.
 
 `on_ready` also runs `_purge_stale_app_commands`, which wipes leftover slash commands from older bot versions by syncing an intentionally-empty `CommandTree` globally and per-guild. A module-level flag keeps it to once per process across reconnects. This bot registers **no** application commands of its own — everything is `!`-prefix text.
 
-## 2. Channel IDs (app/constants.py:12-15)
+## 2. Channel IDs
 
-- Bridge channel — main chat bridge
-- Return channel — `/v1/outbound/return` source
-- Stamp channel — `/v1/outbound/stamp` source (webhook user)
-- Webhook user — specific Discord user ID posting stamps
+All in [app/constants.py](../../temporary-server/app/constants.py), and all
+hardcoded — changing one needs a redeploy.
 
-## 3. Role → rank mapping (constants.py:21-25)
+- `DISCORD_CHANNEL_ID` — the bridge channel. `_handle_message` returns early
+  for any other channel, and `BridgeSender` is constructed against it.
+- `RETURN_CHANNEL_ID` — the bot caches the latest non-bot post here into
+  `state.latest_return_message`; source for `/v1/outbound/return`.
+- `STAMP_CHANNEL_ID` — source for `/v1/outbound/stamp`.
+- `WEBHOOK_USER_ID` — a **user** ID, paired with the stamp channel: only posts
+  in that channel *by that author* update the timestamp.
+- `MAGBOT_USER_ID` — also a user ID, and **not a bridge endpoint at all**: it
+  is a probe target for the health check in §15.
 
-`ROLE_MAPPING` — **7 entries**, mapping Discord role IDs to raw Wynn rank
+## 3. Role → rank mapping
+
+`ROLE_MAPPING`, in [app/constants.py](../../temporary-server/app/constants.py) —
+**7 entries**, mapping Discord role IDs to raw Wynn rank
 names. Insertion order encodes priority: for an author holding several mapped
 roles, the first match wins.
 
@@ -72,12 +81,14 @@ staff**. `inbound.py`'s own gate comment calls its captain check
 
 ## 4. Message routing
 
-[app/discord/bot.py:125-219](../../temporary-server/app/discord/bot.py) — `on_message()`:
+`on_message` is a thin event closure; all routing lives in `_handle_message`
+([app/discord/bot.py](../../temporary-server/app/discord/bot.py)), in this
+branch order:
 
-1. **Stamp channel webhook posts** (lines 135-139): Update `state.latest_webhook_timestamp`
-2. **Bot authors ignored** (lines 142-143): Skip to prevent echo loops
-3. **Return channel posts** (lines 146-152): Cache content + metadata to `state.latest_return_message`
-4. **Non-bridge channels** (lines 155+): Return (nothing else to do)
+1. **Stamp channel webhook posts**: update `state.latest_webhook_timestamp` and persist it via `webhook_timestamp_store`. This sits **before** the bot-author filter deliberately — the stamp poster is itself a bot and would otherwise be dropped.
+2. **Bot authors ignored**: skip to prevent echo loops
+3. **Return channel posts**: cache content + metadata to `state.latest_return_message`
+4. **Non-bridge channels**: return (nothing else to do)
 5. **Bridge channel:**
    - Check admin commands first (`try_handle_command()`) — if handled, return
    - Check `"bridge"` in disabled components → skip
@@ -101,15 +112,18 @@ that is what makes the change additive rather than breaking.
 
 Note the two directions apply `RANK_DISPLAY` differently. Discord → game
 carries **both** `rank` and `pill_display` and lets the client choose; game →
-Discord ([§8](#8-game--discord-relay)) substitutes the display label directly
+Discord (§8) substitutes the display label directly
 into the visible `**[prefix]**`, so a Chief shows in Discord as `[Steward]`.
 
 ## 5. On-ready initial state loading
 
-[bot.py:69-119](../../temporary-server/app/discord/bot.py):
+`_load_initial_state`, run from `on_ready`
+([app/discord/bot.py](../../temporary-server/app/discord/bot.py)):
 
 - Return channel: fetch latest non-bot message, cache content+timestamp
-- Stamp channel: scan last 100 messages from webhook user (ID 1396669909077070007), extract `<t:...>` Discord timestamp, cache as `latest_webhook_timestamp`
+- Stamp channel: scan newest-first over a 6-day window for posts by `WEBHOOK_USER_ID`, extract the `<t:...>` Discord timestamp, cache as `latest_webhook_timestamp`. A persisted value that is already newer wins over the scan.
+
+`_extract_timestamp_from_message` looks in three places in order: raw message content, every text-bearing embed slot, then every Components V2 text slot.
 
 ## 6. Admin commands
 
@@ -138,10 +152,10 @@ There are **9 admin commands**: `!help`, `!status`, `!enable`, `!disable`,
 (`!list staff`, `!motd clear`, `!noaspects add|remove|list`) are argument
 branches inside handlers, not separate registrations.
 
-### `!status` (137-153)
+### `!status`
 Show components and their enabled/disabled state (✅/❌).
 
-### `!enable <component>` / `!disable <component>` (156-191)
+### `!enable <component>` / `!disable <component>`
 Toggleable components: `inbound`, `outbound`, `staff`, `bridge`, `unauth`.
 - `inbound` disabled → reject chat messages from clients (control frames `auth`/`register`/`tablist`/`queue_status` still work)
 - `outbound` disabled → drop messages from broadcast queue
@@ -149,19 +163,19 @@ Toggleable components: `inbound`, `outbound`, `staff`, `bridge`, `unauth`.
 - `bridge` disabled → skip Discord relay of game messages
 - `unauth` disabled → reject chat from unauthenticated WS sessions and skip them in broadcast (default enabled during alpha; controls the migration cutover)
 
-### `!motd [text]` (194-218)
+### `!motd [text]`
 No args → show current. `!motd clear` → reset to default. With text → update; persisted via `update_config()` atomic write.
 
-### `!guild_motd [text]` (221-247)
+### `!guild_motd [text]`
 Same for guild-specific MOTD.
 
-### `!record` (250-261)
+### `!record`
 Start 120-second traffic recording (captures all inbound/outbound WS frames). Fire-and-forget background task. Result DM'd as JSON to requester.
 
-### `!config` (264-289)
+### `!config`
 Show MOTD, guild MOTD, donator count, component enabled/disabled.
 
-### `!help` (292-318)
+### `!help`
 List all commands with descriptions. Admin-only despite being a help command.
 
 ### `!noaspects [add|remove|list]`
@@ -176,21 +190,21 @@ whose UUID has left the guild as `(left guild)`.
 
 ## 7. Public commands
 
-### `!list` (default, lines 380-512)
+### `!list` (default)
 Show guild members (online), honourary, waitlist.
 - Merges 3 sources: Wynncraft API online + vetsmod-connected + tab-list hints
 - Includes recently-seen grace period (30s after disconnect)
 - Staff marked with underscores `__name__`
 - Sorted by tier then name
 
-Helper `_fetch_guild_online_members()` (343-377): synchronous Wynncraft API fetch, extracts online members from rank sections.
+Helper `_fetch_guild_online_members()`: synchronous Wynncraft API fetch, extracts online members from rank sections.
 
 ### `!list staff`
 Show only staff grouped by rank.
 
 ## 8. Game → Discord relay
 
-[app/discord/relay.py:42-85](../../temporary-server/app/discord/relay.py): `relay_to_bridge_channel()`:
+`relay_to_bridge_channel` in [app/discord/relay.py](../../temporary-server/app/discord/relay.py):
 
 1. Display prefix — when `rank` is non-empty, `RANK_DISPLAY.get(rank.lower(), rank)`, so a Chief renders as `[Steward]`; only when `rank` is empty does it fall back to the message type (`_TYPE_PREFIXES`: guild→Guild, **queue→Guild**, waitlist→Waitlist, honourary→Honourary — `queue` shares Guild's label because from Discord's side the two are indistinguishable)
 2. Decode PUA spoilers back to `||text||`
@@ -216,7 +230,7 @@ All bridge-channel traffic — chat relay and staff alerts alike — goes throug
 
 ## 9. Mention resolution
 
-[app/discord/utils.py:18-70](../../temporary-server/app/discord/utils.py): `resolve_mentions()`:
+`resolve_mentions`, the only public function in [app/discord/utils.py](../../temporary-server/app/discord/utils.py):
 - `<@ID>` → `@member.display_name` (or global username; or `@unknown-user`)
 - `<@&roleID>` → `@role.name` (or `@unknown-role`)
 - `<#chanID>` → `#channel.name` (or `#unknown-channel`)
@@ -229,7 +243,7 @@ Admins (Administrator permission): only strip U+E080. This lets admins intention
 
 ## 11. Traffic recording
 
-[app/services/recorder.py:27-160](../../temporary-server/app/services/recorder.py):
+[app/services/recorder.py](../../temporary-server/app/services/recorder.py):
 
 - `_RecordingLogHandler` — logging handler that appends to buffer
 - `record_message(direction, data, client_version)` — called on every WS frame when `state.recording_active`
