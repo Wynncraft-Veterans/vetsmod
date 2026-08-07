@@ -55,7 +55,7 @@ app/
 
 **Deduplication (`app/services/dedup.py`):**
 - Fingerprint: `username_lower\x00message_stripped` (strips PUA glyphs)
-- 5-second sliding window for exact matches
+- 35-second sliding window for exact matches (`DEDUP_WINDOW_SECONDS`)
 - Also handles: prefix match (item-encoded dual events), truncation match (soft-wrap), cross-user alias (nickname vs real name)
 - Alias TTL: 30s. Cleanup every 60s.
 

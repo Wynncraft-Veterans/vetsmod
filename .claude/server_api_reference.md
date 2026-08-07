@@ -225,7 +225,7 @@ Max payload: 65536 bytes.
 | Guild/staff username | 12 hours | Mojang |
 | Recently-seen users | 30 seconds | Disconnect grace |
 | Tablist staleness | 60 seconds | Client last-update |
-| Dedup window | 5 seconds | Per-message |
+| Dedup window (`DEDUP_WINDOW_SECONDS`) | 35 seconds | Per-message |
 | Dedup alias | 30 seconds | Nickname resolver |
 
 ## 8. Polling intervals

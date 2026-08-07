@@ -18,12 +18,26 @@ Every Wynncraft client running vetsmod sees the same guild chat and relays it. T
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
-| Dedup window | 5.0s | Sliding window for exact/prefix/truncation match |
-| Cleanup interval | 60s | Prune expired entries |
-| Alias TTL | 30s | Nickname→realname mapping lifetime |
-| Min prefix length | 20 chars | Min body len for prefix/truncation matching |
-| Min cross-user length | 20 chars | Min body len for cross-user match |
-| Max message length | 256 chars | Truncated in sanitization |
+| `DEDUP_WINDOW_SECONDS` | 35.0 | Sliding window for exact/prefix/truncation match |
+| `DEDUP_CLEANUP_INTERVAL_SECONDS` | 60.0 | Prune expired entries |
+| `DEDUP_ALIAS_TTL_SECONDS` | 30.0 | Nickname→realname mapping lifetime |
+| `DEDUP_MIN_PREFIX_LENGTH` | 20 | Min body len for prefix/truncation matching |
+| `DEDUP_MIN_CROSS_USER_LENGTH` | 20 | Min body len for cross-user match |
+| `MAX_MESSAGE_LENGTH` | 256 | Truncated in sanitization — a message constraint, not a dedup one |
+
+The window is **35 seconds**. This doc claimed a much shorter one for a long
+time; the likely origin is the inline comment on `dedup.py`'s cross-user
+strategy, which still describes the older, shorter window and is the only
+place in that file that disagrees with the constant. Everything executable
+agrees on 35.0 — the constant, `MessageDeduplicator.__init__`'s default, the
+module docstring, and `inbound.py`'s stale-timestamp canary, which warns when
+an accepted message is older than `DEDUP_WINDOW_SECONDS`. Correcting that
+comment is temporary-server's business, not this doc's.
+
+The two length thresholds are both 20 but are **separate constants** serving
+separate strategies — don't collapse them. Note also that fingerprints expire
+at the 35 s window while aliases expire at 30 s, so an alias is shorter-lived
+than the window it serves.
 
 ## Fingerprint format
 
@@ -37,12 +51,15 @@ Every Wynncraft client running vetsmod sees the same guild chat and relays it. T
 
 ## Matching strategies
 
-Every incoming guild message is tested against recent fingerprints in order:
+Every incoming guild message is tested against recent fingerprints in order.
+There are **four** strategies; the fifth numbered block below is the no-match
+fallthrough that records the fingerprint and accepts the message, not a fifth
+way of matching.
 
 ### 1. Exact match
 [dedup.py:108-110](../../temporary-server/app/services/dedup.py)
 
-If `fingerprint` already in `_seen` dict AND `(now - first_seen) < 5.0s`, return True (duplicate).
+If `fingerprint` already in `_seen` dict AND `(now - first_seen) < 35.0s`, return True (duplicate).
 
 ### 2. Prefix match (item-encoded dual events)
 [dedup.py:117-119](../../temporary-server/app/services/dedup.py)
@@ -89,7 +106,7 @@ No match → record in `_seen` and optionally `_item_prefixes`. Return False (fo
 [dedup.py:231-260](../../temporary-server/app/services/dedup.py)
 
 Runs every 60 seconds, checked on each `is_duplicate()` call (amortized):
-- Prune `_seen` entries where `now - ts >= 5.0s`
+- Prune `_seen` entries where `now - ts >= 35.0s`
 - Prune `_aliases` entries where `now - ts >= 30.0s`
 - Prune `_item_prefixes` with matching expired fingerprints
 
@@ -117,7 +134,9 @@ Only guild-type messages go through dedup. Waitlist / honourary / bridge bypass.
 ## Edge cases NOT handled (by design)
 
 - Messages <20 chars across users (too risky to auto-merge short messages)
-- Very fast retyped messages >5s apart (window too short)
+- Retyped messages more than 35 s apart (outside the window — a deliberate
+  floor, not a limitation: past `DEDUP_WINDOW_SECONDS` a repeat is treated as
+  a genuine new message)
 - Messages with same username but different case → handled via `username_lower` normalization
 
 ## State exposure
@@ -132,7 +151,7 @@ State accessed via:
 No unit tests in repo. When modifying this engine, consider:
 - Exact replay (expected duplicate)
 - Item-encoded dual event (expected duplicate after prefix match)
-- Slow-duplicate >5s (expected new)
+- Slow-duplicate more than 35 s later (expected new)
 - Nickname cross-user (expected duplicate; alias registered)
 - Short messages (<20 chars) — should NOT cross-user dedup
 - Same message from different case (`USER` vs `user`) — should dedup (normalized)

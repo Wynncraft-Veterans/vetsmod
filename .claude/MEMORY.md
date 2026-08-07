@@ -22,7 +22,7 @@
 ## temporary-server (FastAPI Python backend)
 - [temporary-server Architecture](project_server.md) — Stack, four pillars (incl. dazebot HTTP introspection), file structure, REST endpoints, dedup summary, Discord admin commands
 - [API Reference](server_api_reference.md) — /v1/inbound WS (incl. auth frame + tier gate), /v1/outbound WS (incl. server_info hello + tier filter), all REST endpoints, admin toggles, protocol details, TTLs
-- [Deduplication Engine](server_dedup_engine.md) — Fingerprinting, 4 matching strategies (exact/prefix/truncation/cross-user), alias TTL, cleanup, edge cases
+- [Deduplication Engine](server_dedup_engine.md) — Fingerprinting, 4 matching strategies (exact/prefix/truncation/cross-user) plus the no-match fallthrough that records and accepts, the 35s window, alias TTL, cleanup, edge cases
 - [Discord Bot](server_discord_bot.md) — Bridge routing, role→rank mapping, all admin commands incl. `unauth` toggle, !list, staff alert relay, mention resolution, sanitization
 - [Services Layer](server_services.md) — AppState fields (incl. authenticated_sessions), StaffPoller (5min + 10s probe), GuildRosterPoller, username_cache (12h TTL), recorder (120s → DM), config loader
 
