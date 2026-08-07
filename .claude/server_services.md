@@ -1,6 +1,6 @@
 ---
 name: temporary-server Services Layer
-description: AppState dataclass fields, StaffPoller (5min roster + 10s probe), GuildRosterPoller (5min UUID→username), username_cache (Mojang, 12h TTL), recorder (120s capture → DM)
+description: AppState dataclass fields, StaffPoller (5min roster + 10s probe), GuildRosterPoller (5min UUID→username), username_cache (Mojang, caller-supplied TTL), recorder (120s capture → DM)
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
@@ -127,7 +127,7 @@ Why separate from StaffPoller: covers all guild members (not just staff), suppli
 
 Module-level `_cache: dict` (UUID → `{username, timestamp}`). Thread-safe for concurrent pollers.
 
-**`get_cached_username(uuid, ttl_seconds)`**:
+**`get_cached_username(uuid, ttl_seconds, *, authoritative_only=False)`**:
 1. Normalize UUID via `_normalize_uuid()` (validate, lowercase, hyphenated)
 2. Check cache; return if fresh (< TTL)
 3. Fetch from Minecraft Services API outside lock
@@ -139,9 +139,23 @@ Module-level `_cache: dict` (UUID → `{username, timestamp}`). Thread-safe for 
 - GET `https://api.minecraftservices.com/minecraft/profile/lookup/{uuid_no_hyphens}`
 - Returns username string or None
 
-**`get_supporter_username(uuid)`**: convenience wrapper with 1-hour TTL.
+**`get_supporter_username(uuid)`**: convenience wrapper passing `SUPPORTERS_CACHE_TTL_SECONDS`.
 
-**Standard TTL:** 12 hours for roster pollers. 1 hour for supporter lookups.
+**There is no single "the" TTL — every caller supplies one.** The signature
+default is `SUPPORTERS_CACHE_TTL_SECONDS` (**1 hour**), and the only caller
+that takes it is the supporter wrapper. The roster and staff pollers pass
+`ROSTER_`/`STAFF_USERNAME_CACHE_TTL_SECONDS` (**12 hours** each) explicitly.
+Summarising the module as "12 h" is close enough for the pollers and wrong
+for the default.
+
+**The rename tiebreaker is a fourth call shape.** `GuildRosterPoller` treats
+the guild payload's key as Wynncraft's current-username assertion; when the
+cached name disagrees case-insensitively it re-calls with `ttl_seconds=0,
+authoritative_only=True` to force a fresh Mojang read, because otherwise a
+rename inside the 12 h window stays invisible until the entry expires.
+`authoritative_only` is forward-compatibility only today — `_fetch_username`
+is Mojang-only, so the flag changes nothing yet; it marks the callers that
+must keep skipping any more-permissive provider cascade added later.
 
 **Why stale-on-failure:** Username lookups fail intermittently. Rather than returning None and showing blank names, serve the last known name until a fresh fetch succeeds.
 

@@ -24,7 +24,7 @@
 - [API Reference](server_api_reference.md) — /v1/inbound WS (incl. auth frame + tier gate), /v1/outbound WS (incl. server_info hello + tier filter), all REST endpoints, admin toggles, protocol details, TTLs
 - [Deduplication Engine](server_dedup_engine.md) — Fingerprinting, 4 matching strategies (exact/prefix/truncation/cross-user) plus the no-match fallthrough that records and accepts, the 35s window, alias TTL, cleanup, edge cases
 - [Discord Bot](server_discord_bot.md) — Bridge routing, role→rank mapping, all admin commands incl. `unauth` toggle, !list, staff alert relay, mention resolution, sanitization
-- [Services Layer](server_services.md) — AppState fields (incl. `authenticated_sessions`), StaffPoller (5min + 10s probe), GuildRosterPoller, username_cache (12h TTL), recorder (120s → DM), config loader, the nine lifespan tasks, and the poller shape (no shared base class)
+- [Services Layer](server_services.md) — AppState fields (incl. `authenticated_sessions`), StaffPoller (5min + 10s probe), GuildRosterPoller, username_cache (caller-supplied TTL), recorder (120s → DM), config loader, the nine lifespan tasks, and the poller shape (no shared base class)
 
 ## Wynntils (read-only dependency)
 - [Wynntils API Reference](project_wynntils.md) — Events (with field layouts), Handlers.Command, Models.Guild, StyledText, McUtils, event priority system, import paths
