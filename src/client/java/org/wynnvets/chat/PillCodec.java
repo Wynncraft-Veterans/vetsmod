@@ -286,36 +286,6 @@ public final class PillCodec {
         return null; // ran off the end without a terminator
     }
 
-    /**
-     * The rendered width in pixels that the server declared for the first
-     * pill in {@code text}, or {@code -1} if there is no width marker.
-     *
-     * <p>Only meaningful for diagnostics — the marker exists so the badge art
-     * can be sized to the label, and two different labels of equal width
-     * share a marker ({@code captain} and {@code recruit} are both 42).</p>
-     */
-    public static int decodeServerPillWidth(String text) {
-        if (text == null) {
-            return -1;
-        }
-        int i = text.indexOf(SERVER_PILL_OPEN);
-        if (i < 0) {
-            return -1;
-        }
-        i++;
-        while (i < text.length()) {
-            int cp = text.codePointAt(i);
-            i += Character.charCount(cp);
-            if (cp >= SERVER_WIDTH_MIN && cp < SERVER_WIDTH_BASE) {
-                return SERVER_WIDTH_BASE - cp;
-            }
-            if (cp == SERVER_PILL_CLOSE) {
-                return -1;
-            }
-        }
-        return -1;
-    }
-
     // ── Predicates ────────────────────────────────────────────────────
 
     /**

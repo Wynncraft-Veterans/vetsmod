@@ -19,13 +19,6 @@ public final class SpoilerFormatter {
     private SpoilerFormatter() {}
 
     /**
-     * Returns {@code true} if the text contains at least one PUA-encoded spoiler block.
-     */
-    public static boolean containsSpoilers(String text) {
-        return SpoilerCodec.containsEncodedSpoiler(text);
-    }
-
-    /**
      * Appends text to the parent component, replacing PUA-encoded spoiler
      * blocks with hoverable spoiler labels.  Non-spoiler segments are
      * appended as plain literals with the given style.

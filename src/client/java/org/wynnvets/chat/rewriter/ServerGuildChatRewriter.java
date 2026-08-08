@@ -391,20 +391,17 @@ public final class ServerGuildChatRewriter {
         while (bodyStart < message.length() && message.charAt(bodyStart) == ' ') {
             bodyStart++;
         }
-        String messageContent = message.substring(colonIndex + 1).trim();
-        return new ParsedGuildChat(rankIndicator, username, messageContent, bodyStart);
+        return new ParsedGuildChat(rankIndicator, username, bodyStart);
     }
 
     private static final class ParsedGuildChat {
         final String rankIndicator;
         final String username;
-        final String message;
         final int bodyCharStart;
 
-        ParsedGuildChat(String rankIndicator, String username, String message, int bodyCharStart) {
+        ParsedGuildChat(String rankIndicator, String username, int bodyCharStart) {
             this.rankIndicator = rankIndicator;
             this.username = username;
-            this.message = message;
             this.bodyCharStart = bodyCharStart;
         }
     }

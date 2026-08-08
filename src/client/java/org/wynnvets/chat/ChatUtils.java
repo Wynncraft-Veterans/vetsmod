@@ -59,10 +59,6 @@ public final class ChatUtils {
     /** Dark-red style used for admin-locked guild message display names. */
     public static final Style ADMIN_NAME_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_RED);
 
-    private static final String CAPTAIN = "captain";
-    private static final String STRATEGIST = "strategist";
-    private static final String CHIEF = "chief";
-    private static final String OWNER = "owner";
     private static final String GUILD_PREPEND_FULL = "\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
     private static final String GUILD_PREPEND_COMPACT = "\uDAFF\uDFFC\uE001\uDB00\uDC06";
     private static final String PRIVATE_SEPARATOR_GLYPH = "\uE003";
@@ -229,33 +225,6 @@ public final class ChatUtils {
         }
     }
 
-    /**
-     * Sends a guild-chat–style message in admin-locked red styling:
-     * {@code &c<guild badge> <rank>&4 <displayName>&c: <message>}.
-     */
-    public static void sendGuildChatMessageRed(String rank, String displayName, String message) {
-        MutableComponent badge = Prepend.GUILD.get()
-                .withStyle(style -> style.withColor(ChatFormatting.RED));
-        String normalizedRank = rank == null ? "" : rank.trim();
-
-        MutableComponent body = Component.empty();
-
-        if (!normalizedRank.isEmpty()) {
-            body.append(PillFormatter.formatPill(normalizedRank, displayName, ADMIN_RANK_STYLE))
-                    .append(" ");
-        }
-
-        body.append(Component.literal(displayName).setStyle(ADMIN_NAME_STYLE))
-                .append(Component.literal(": ").setStyle(ADMIN_RANK_STYLE))
-            .append(formatMessageBody(message, ADMIN_RANK_STYLE));
-
-        MutableComponent full = Component.empty()
-                .append(badge)
-                .append(body);
-
-        dispatchToChat(full, badge.getStyle());
-    }
-
         /**
          * Sends a guild-chat–style message in admin-locked red styling with a custom
          * pre-styled rank pill component.
@@ -377,28 +346,6 @@ public final class ChatUtils {
      */
     public static String encodePillIfAscii(String text) {
         return PillCodec.encodeRemote(text);
-    }
-
-    private static String normalizeStaffRank(String rank) {
-        // Captain was retired in the 2026-07 permission restructure; the
-        // fallback for unknown / null / non-staff input is now Strategist
-        // (Steward-equivalent) since that's the baseline staff rank.
-        String normalized = rank == null ? STRATEGIST : rank.trim().toLowerCase();
-        switch (normalized) {
-            case STRATEGIST:
-                return STRATEGIST;
-            case CHIEF:
-                return CHIEF;
-            case OWNER:
-                return OWNER;
-            case CAPTAIN:
-                // Retained as a legacy alias so a stray captain still
-                // renders *something*; treat them as a Strategist for
-                // pill purposes.
-                return STRATEGIST;
-            default:
-                return STRATEGIST;
-        }
     }
 
     /**

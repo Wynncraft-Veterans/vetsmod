@@ -19,23 +19,11 @@ import org.wynnvets.rendering.colors.ShaderColorPalette;
  * {@code chat/prefix} font renders composite badge glyphs).</p>
  *
  * <p>To add new pill styles, add additional checks before the default fallback in
- * {@link #formatPill(String, String, Style)}.</p>
+ * {@link #formatPill(String, String, Style, boolean)}.</p>
  */
 public final class PillFormatter {
 
     private PillFormatter() {
-    }
-
-    /**
-     * Formats a pill component with the default style rules.
-     * Uses {@link ChatUtils#RANK_STYLE} as the base style.
-     *
-     * @param pillText the text to display in the pill (e.g. rank name)
-     * @param username the display name of the message sender
-     * @return a styled pill component
-     */
-    public static MutableComponent formatPill(String pillText, String username) {
-        return formatPill(pillText, username, ChatUtils.RANK_STYLE);
     }
 
     /**
@@ -48,22 +36,19 @@ public final class PillFormatter {
     /**
      * Formats a pill component using the given base style.
      *
-     * <p>If the username matches a supporter, the pill receives a gradient between
+     * <p>If the sender is a supporter, the pill receives a gradient between
      * {@link ShaderColorPalette#AQUA} and {@link ShaderColorPalette#DARK_AQUA}
      * for plain-text pills (bridge messages).  For PUA-based pills (server messages)
      * the entire pill is rendered as a single component with one supporter colour,
      * because the {@code chat/prefix} font requires specific colour patterning and
      * per-character gradient colours break composite glyph rendering.</p>
      *
-     * @param pillText  the text to display in the pill
-     * @param username  the display name of the message sender
-     * @param baseStyle the fallback style when no special styling applies
+     * @param pillText    the text to display in the pill
+     * @param username    the display name of the message sender
+     * @param baseStyle   the fallback style when no special styling applies
+     * @param isSupporter whether the sender is a supporter
      * @return a styled pill component
      */
-    public static MutableComponent formatPill(String pillText, String username, Style baseStyle) {
-        return formatPill(pillText, username, baseStyle, SupportersPoller.isSupporter(username));
-    }
-
     public static MutableComponent formatPill(String pillText, String username, Style baseStyle, boolean isSupporter) {
         // ── Supporter ──────────────────────────────────────────────────
         // Only apply gradient styling when the user has supporter glints enabled.
@@ -96,14 +81,6 @@ public final class PillFormatter {
             return Component.literal(pillText).setStyle(baseStyle.withoutShadow());
         }
         return Component.literal(pillText).setStyle(baseStyle);
-    }
-
-    /**
-     * Returns {@code true} if the given username is a supporter and should
-     * therefore receive animated pill styling.
-     */
-    public static boolean isSupporterPill(String username) {
-        return SupportersPoller.isSupporter(username);
     }
 
     /**
