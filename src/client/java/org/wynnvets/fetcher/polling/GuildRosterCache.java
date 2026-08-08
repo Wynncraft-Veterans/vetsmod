@@ -116,13 +116,6 @@ public final class GuildRosterCache {
     return rosterByUuid;
   }
 
-  /**
-   * Returns whether the roster has been loaded at least once.
-   */
-  public static boolean isLoaded() {
-    return !rosterByUuid.isEmpty();
-  }
-
   private static void fetchRoster() {
     try {
       HttpResponse<String> response = HTTP_CLIENT.send(

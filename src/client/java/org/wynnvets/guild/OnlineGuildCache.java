@@ -73,11 +73,4 @@ public final class OnlineGuildCache {
 
         return result;
     }
-
-    /**
-     * Clears all cached entries (e.g. on world disconnect).
-     */
-    public static void clear() {
-        SEEN.clear();
-    }
 }

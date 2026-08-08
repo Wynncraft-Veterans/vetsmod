@@ -80,12 +80,6 @@ final class UnlockManager {
         return key != null && !key.isEmpty();
     }
 
-    /** @return the stored key, or empty string if none */
-    static String getStoredKey() {
-        String key = VetsConfig.getString(VetsConfig.VETS_AUTH_KEY);
-        return key == null ? "" : key;
-    }
-
     /** @return the tier string from the most recent successful auth this session */
     static String currentTier() {
         return currentTier;

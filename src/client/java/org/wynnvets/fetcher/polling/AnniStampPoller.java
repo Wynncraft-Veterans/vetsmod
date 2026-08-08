@@ -54,8 +54,6 @@ public final class AnniStampPoller {
 
   /** Latest cached anni epoch-seconds. {@code 0} = never populated / empty / unparseable. */
   private static volatile long latestStamp = 0L;
-  /** Wall-clock epoch-seconds when {@link #latestStamp} was last written. {@code 0} = never. */
-  private static volatile long latestFetchedAtEpochSec = 0L;
 
   private static ScheduledExecutorService scheduler;
   private static boolean isRunning = false;
@@ -105,20 +103,14 @@ public final class AnniStampPoller {
     return latestStamp;
   }
 
-  /** @return wall-clock epoch-seconds when the cache was last written, or {@code 0} if never. */
-  public static long getLatestFetchedAtEpochSec() {
-    return latestFetchedAtEpochSec;
-  }
-
   /**
    * Writes a value into the cache from an external caller (typically
    * {@link org.wynnvets.fetcher.ondemand.StampFetcher} after a successful
-   * on-demand fetch). Idempotent and concurrency-safe — both fields are
-   * volatile, and the wall-clock stamp uses the time of this call.
+   * on-demand fetch). Idempotent and concurrency-safe — {@link #latestStamp}
+   * is volatile.
    */
   public static void updateFromExternalFetch(long stamp) {
     latestStamp = stamp;
-    latestFetchedAtEpochSec = System.currentTimeMillis() / 1000L;
   }
 
   private static void fetchAndStore() {
@@ -136,14 +128,12 @@ public final class AnniStampPoller {
         // Empty body = no announced anni; reset the cache so consumers
         // gate accordingly.
         latestStamp = 0L;
-        latestFetchedAtEpochSec = System.currentTimeMillis() / 1000L;
         return;
       }
 
       try {
         long parsed = Long.parseLong(body);
         latestStamp = parsed;
-        latestFetchedAtEpochSec = System.currentTimeMillis() / 1000L;
       } catch (NumberFormatException e) {
         VetsLogger.debug("Anni stamp body unparseable: {}", body);
       }

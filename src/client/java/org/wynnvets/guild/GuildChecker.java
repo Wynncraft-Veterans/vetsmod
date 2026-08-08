@@ -101,10 +101,6 @@ final class GuildChecker {
         return lastGuildCheckTime;
     }
 
-    static boolean isCheckingGuildStatus() {
-        return waitingForGuildCheck;
-    }
-
     /**
      * @return {@code true} during a mod-initiated guild check <em>or</em>
      *         the brief suppression grace period after one completes
