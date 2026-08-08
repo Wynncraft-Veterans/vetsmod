@@ -65,7 +65,7 @@ public final class LegacyTooltipEventListener {
       if (km.getName().contains("screenshotItem")) {
         if (km.matches(event.getKeyEvent())) {
           LegacyItemHandler.notifyScreenshotKeyPressed();
-          VetsLogger.info("Screenshot keybind press detected via InventoryKeyPressEvent");
+          VetsLogger.debug("Screenshot keybind press detected via InventoryKeyPressEvent");
         }
         return;
       }
