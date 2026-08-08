@@ -42,7 +42,7 @@ import java.util.Locale;
  * Below that (&lt;6 minutes) it drops to minutes and seconds
  * ({@code 5m 30s}), then to bare seconds under a minute, to avoid
  * {@code 0.1h} reading awkwardly. Note this is a different ladder from
- * {@code AnniCommandRenderer.appendCountdown}, which emits
+ * {@link AnniCommandRenderer#appendCountdown}, which emits
  * {@code Xh Ym} above an hour; only the sub-6-minute tail coincides.</p>
  */
 public final class AnniMotdRenderer {

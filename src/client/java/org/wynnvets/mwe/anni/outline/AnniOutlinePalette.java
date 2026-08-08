@@ -25,17 +25,15 @@ import net.minecraft.ChatFormatting;
  *       PLAYERS IN OTHER VETS PARTIES" → light grey ({@code §7}).</li>
  * </ul>
  *
- * <p>Single source of truth, one hop removed: nothing outside
- * {@code AnniOutlineRegistry} reads this table. Its {@code ownPartyEntry}
- * takes a single {@link #chatFormattingForRole} result and derives both
- * halves of the {@code Entry} from it — the outline {@link CustomColor}
- * and the nametag {@link ChatFormatting} — and it is that {@code Entry}
- * which {@code AnniOutlineTicker} and {@code NametagMixin} read. Deriving
- * both from one call is what stops those two colours drifting. Note the
- * guarantee is per-tier and does <em>not</em> extend to
- * {@link #OTHER_VETS_PARTY}: {@code OTHER_PARTY_ENTRY} pairs this
- * constant with a separately written {@code ChatFormatting.GRAY}, so
- * that tier's two halves agree only by convention.</p>
+ * <p>Single source of truth, one hop removed: nothing outside {@link AnniOutlineRegistry} reads
+ * this table. Its {@code ownPartyEntry} takes a single {@link #chatFormattingForRole} result and
+ * derives both halves of the {@code Entry} from it — the outline {@link CustomColor} and the
+ * nametag {@link ChatFormatting} — and it is that {@code Entry} which {@link AnniOutlineTicker}
+ * and {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} read. Deriving both from one call
+ * is what stops those two colours drifting. Note the guarantee is per-tier and does <em>not</em>
+ * extend to {@link #OTHER_VETS_PARTY}: {@code OTHER_PARTY_ENTRY} pairs this constant with a
+ * separately written {@code ChatFormatting.GRAY}, so that tier's two halves agree only by
+ * convention.</p>
  */
 public final class AnniOutlinePalette {
 
@@ -49,11 +47,10 @@ public final class AnniOutlinePalette {
     }
 
     /** {@link ChatFormatting} chosen for a given role code, for own-party
-     *  members. Exposed so {@code AnniOutlineRegistry.ownPartyEntry} can
-     *  derive an Entry's outline colour and its nametag formatting from
-     *  this one call — which is what stops the two from drifting.
-     *  {@code NametagMixin} reads the resolved formatting off the Entry,
-     *  not from here.
+     *  members. Exposed so {@link AnniOutlineRegistry#ownPartyEntry} can derive an Entry's outline
+     *  colour and its nametag formatting from this one call — which is what stops the two from
+     *  drifting. {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} reads the resolved
+     *  formatting off the Entry, not from here.
      *
      *  <p>Recognised role codes (case-insensitive):</p>
      *  <ul>

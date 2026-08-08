@@ -35,7 +35,8 @@ import java.time.Instant;
  */
 public final class AnniAggressiveTicker {
 
-    /** Same as {@code AnniOutlineTicker} for cross-system consistency. */
+    /** Same as {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker} for
+     *  cross-system consistency. */
     private static final long WINDOW_BEFORE_SECONDS = 2L * 60L * 60L;
     private static final long WINDOW_AFTER_SECONDS  = 30L * 60L;
 

@@ -80,11 +80,10 @@ public final class AnniSnapshot {
 
     /** S7 — usernames of every organiser (lead + party hosts) in the same
      *  parallel order as {@link #organisers()}. Used by
-     *  {@code PartyRosterListener.shouldSend} to gate the
-     *  {@code anni_party_observation} frame on "is any party member an
-     *  organiser?". Names go over the wire (not UUIDs) because Wynncraft
-     *  exposes party members by username only — see
-     *  {@code Wynntils PartyModel.getPartyMembers()}. */
+     *  {@link org.wynnvets.listeners.PartyRosterListener#shouldSend PartyRosterListener#shouldSend}
+     *  to gate the {@code anni_party_observation} frame on "is any party member an organiser?".
+     *  Names go over the wire (not UUIDs) because Wynncraft exposes party members by username only
+     *  — see {@code Wynntils PartyModel.getPartyMembers()}. */
     public List<String> organiserUsernames() {
         return organiser_usernames != null ? organiser_usernames : Collections.emptyList();
     }
@@ -113,10 +112,10 @@ public final class AnniSnapshot {
         }
 
         /** Schema v2 — every party for the active event, lightweight
-         *  {@code {ordinal, members:[{uuid,username,role}]}} listing. Empty list
-         *  on v2 when no parties exist; {@code null} on v1 payloads (Gson
-         *  leaves unknown fields null — caller handles both). Used by S4
-         *  {@code AnniOutlineRegistry} to tier nearby players. */
+         *  {@code {ordinal, members:[{uuid,username,role}]}} listing. Empty list on v2 when no
+         *  parties exist; {@code null} on v1 payloads (Gson leaves unknown fields null — caller
+         *  handles both). Used by S4 {@link org.wynnvets.mwe.anni.outline.AnniOutlineRegistry
+         *  AnniOutlineRegistry} to tier nearby players. */
         public List<PartySummary> allParties() {
             return all_parties != null ? all_parties : Collections.emptyList();
         }

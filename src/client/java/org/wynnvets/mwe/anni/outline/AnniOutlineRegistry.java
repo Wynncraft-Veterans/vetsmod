@@ -29,18 +29,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * a registry entry. Keeps the table small (~50 entries max during an
  * anni) and the consumer side stateless.</p>
  *
- * <p>Username-keyed per outlines.md §2.4 ("All three models key by
- * username, not UUID"). vetsmod's existing {@code GameProfile.name()}
- * resolution path in {@code NametagMixin} matches this; {@code level.players()}
+ * <p>Username-keyed per outlines.md §2.4 ("All three models key by username, not UUID"). vetsmod's
+ * existing {@code GameProfile.name()} resolution path in
+ * {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} matches this; {@code level.players()}
  * iteration in the ticker matches this too.</p>
  *
- * <p>Thread-safety: rebuilds run on the WS reader thread (via
- * {@link AnniSnapshotCache} listener). Reads run off that thread — from
- * the client tick ({@code AnniOutlineTicker}) and from the render path
- * ({@code NametagMixin}, {@code EntityOutlineColorMixin}, both injecting
- * into {@code extractRenderState}). {@link ConcurrentHashMap} gives both
- * sides lock-free O(1) access; a stale read during a rebuild is harmless
- * because both old and new states are valid registry views.</p>
+ * <p>Thread-safety: rebuilds run on the WS reader thread (via {@link AnniSnapshotCache} listener).
+ * Reads run off that thread — from the client tick ({@link AnniOutlineTicker}) and from the
+ * render path ({@link org.wynnvets.mixin.client.NametagMixin NametagMixin},
+ * {@link org.wynnvets.mixin.client.EntityOutlineColorMixin EntityOutlineColorMixin}, both injecting
+ * into {@code extractRenderState}). {@link ConcurrentHashMap} gives both sides lock-free O(1)
+ * access; a stale read during a rebuild is harmless because both old and new states are valid
+ * registry views.</p>
  */
 public final class AnniOutlineRegistry {
 
@@ -83,8 +83,8 @@ public final class AnniOutlineRegistry {
         }
 
         /** {@link ChatFormatting} the nametag branch in
-         *  {@code NametagMixin} should recolour with. Matches the outline
-         *  family for the same tier. */
+         *  {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} should recolour with.
+         *  Matches the outline family for the same tier. */
         public ChatFormatting nametagFormatting() {
             return nametagFormatting;
         }
@@ -100,7 +100,7 @@ public final class AnniOutlineRegistry {
     }
 
     /** Idempotent registration. Subscribes the rebuild listener to the
-     *  shared snapshot cache. Call from {@code VetsmodClient}
+     *  shared snapshot cache. Call from {@link org.wynnvets.VetsmodClient VetsmodClient}
      *  {@code onInitializeClient}. */
     public static void register() {
         if (registered) return;
@@ -124,11 +124,11 @@ public final class AnniOutlineRegistry {
     }
 
     /** Drop every entry. Part of the debug API below in everything but
-     *  placement: its only caller is {@code AnniDebugCommands.registryClearAll}
-     *  ({@code /wv debug tree anni registry clearall}). Neither a null
-     *  snapshot nor the activation gate closing reaches it — {@code rebuildFrom}
-     *  does its own inline clear-and-swap, and the gate is the ticker's
-     *  business, not the registry's. */
+     *  placement: its only caller is
+     *  {@link org.wynnvets.mwe.anni.debug.AnniDebugCommands#registryClearAll
+     *  AnniDebugCommands#registryClearAll} ({@code /wv debug tree anni registry clearall}). Neither
+     *  a null snapshot nor the activation gate closing reaches it — {@code rebuildFrom} does its
+     *  own inline clear-and-swap, and the gate is the ticker's business, not the registry's. */
     public static void clearAll() {
         entries.clear();
     }

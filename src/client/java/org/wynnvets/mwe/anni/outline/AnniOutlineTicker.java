@@ -24,9 +24,9 @@ import java.util.concurrent.CopyOnWriteArraySet;
 /**
  * Per-tick driver for the S4 player highlight overlay.
  *
- * <p>Mirrors {@code VetsBossBarManager}'s tick + register conventions
- * (subscribes {@link ClientTickEvents#END_CLIENT_TICK} once at init;
- * catches all per-tick exceptions to never break the render loop).</p>
+ * <p>Mirrors {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager VetsBossBarManager}'s tick +
+ * register conventions (subscribes {@link ClientTickEvents#END_CLIENT_TICK} once at init; catches
+ * all per-tick exceptions to never break the render loop).</p>
  *
  * <p>Activation gate, all four required:</p>
  * <ol>
@@ -39,13 +39,13 @@ import java.util.concurrent.CopyOnWriteArraySet;
  *       who want neither half see no S4 effect at all)</li>
  * </ol>
  *
- * <p>While the gate holds, this ticker walks {@code level.players()} and
- * for each player either applies their registry-tier glow colour or
- * clears it to {@link CustomColor#NONE}. The "anni nametag mode" flag
- * {@link #isOutlineSuppressionActive()} flips true so the
- * {@code NametagMixin} anni branch and {@code EntityOutlineColorMixin}'s
- * outsider clobber become eligible on the same tick — each still checks
- * its own config toggle, and the gate needs only one of the two.</p>
+ * <p>While the gate holds, this ticker walks {@code level.players()} and for each player either
+ * applies their registry-tier glow colour or clears it to {@link CustomColor#NONE}. The "anni
+ * nametag mode" flag {@link #isOutlineSuppressionActive()} flips true so the
+ * {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} anni branch and
+ * {@link org.wynnvets.mixin.client.EntityOutlineColorMixin EntityOutlineColorMixin}'s outsider
+ * clobber become eligible on the same tick — each still checks its own config toggle, and the
+ * gate needs only one of the two.</p>
  *
  * <p>Tracks every username we've applied a non-NONE glow to so that when
  * the gate closes (or a player falls off the registry), the cleanup walk
@@ -91,10 +91,10 @@ public final class AnniOutlineTicker {
     }
 
     /** {@code true} while the S4 activation gate holds. The two
-     *  behavioural readers are {@code EntityOutlineColorMixin} (which
-     *  zeroes an outsider's already-extracted {@code state.outlineColor})
-     *  and {@code NametagMixin}'s anni branch (to decide whether to
-     *  recolour); two debug dumps also report it. */
+     *  behavioural readers are {@link org.wynnvets.mixin.client.EntityOutlineColorMixin
+     *  EntityOutlineColorMixin} (which zeroes an outsider's already-extracted {@code
+     *  state.outlineColor}) and {@link org.wynnvets.mixin.client.NametagMixin NametagMixin}'s anni
+     *  branch (to decide whether to recolour); two debug dumps also report it. */
     public static boolean isOutlineSuppressionActive() {
         return suppressionActive;
     }

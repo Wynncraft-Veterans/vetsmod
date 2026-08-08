@@ -61,10 +61,9 @@ public final class StreamerModeChatDetector {
      * pipeline runs on the render thread, but we only touch a volatile
      * flag and call back into singletons that tolerate it).
      *
-     * <p>Called from {@code ChatLogMixin}'s {@code addMessage} HEAD
-     * inject — the same hook used for guild detection. Errors are
-     * swallowed (logged at debug) so a malformed chat line never
-     * propagates into the chat pipeline.</p>
+     * <p>Called from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin}'s {@code
+     * addMessage} HEAD inject — the same hook used for guild detection. Errors are swallowed
+     * (logged at debug) so a malformed chat line never propagates into the chat pipeline.</p>
      */
     public static void observe(Component message) {
         if (message == null) return;

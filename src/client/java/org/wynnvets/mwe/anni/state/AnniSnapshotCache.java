@@ -20,15 +20,15 @@ import java.util.function.Consumer;
  * separate cache, not here.</p>
  *
  * <p>Listener bus uses {@link CopyOnWriteArrayList} (same pattern as
- * {@code V1ApiManager.outboundListeners}) so addListener never blocks
- * reader threads; the iteration cost is irrelevant at the
- * single-digit listener count S2..S7 will accumulate.</p>
+ * {@link org.wynnvets.api.V1ApiManager#outboundListeners V1ApiManager#outboundListeners}) so
+ * addListener never blocks reader threads; the iteration cost is irrelevant at the single-digit
+ * listener count S2..S7 will accumulate.</p>
  *
  * <p>Listeners run on whichever thread called {@link #update} — typically
  * the WebSocket reader thread. They MUST NOT block on the main game tick
  * (use {@code MinecraftClient.getInstance().execute(...)} to bounce work
  * onto the render thread if needed, same pattern as
- * {@code OutboundDisplayHandler}).</p>
+ * {@link org.wynnvets.chat.OutboundDisplayHandler OutboundDisplayHandler}).</p>
  */
 public final class AnniSnapshotCache {
 

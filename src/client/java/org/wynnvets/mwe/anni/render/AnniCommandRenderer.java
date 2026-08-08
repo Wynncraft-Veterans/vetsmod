@@ -37,11 +37,10 @@ import java.util.Locale;
  *       mode-switch widget as its own second block.</li>
  * </ul>
  *
- * <p><b>Not</b> a pure function: it reads the wall clock, the mutable
- * {@link #externalOverride}, live {@link GuildStateManager} state, and
- * {@link VetsConfig} flags that {@code /wv config} can change mid-session,
- * so one snapshot can render more than one way. Caller dispatches each
- * returned block through {@code ChatUtils} — see {@link #render} for the
+ * <p><b>Not</b> a pure function: it reads the wall clock, the mutable {@link #externalOverride},
+ * live {@link GuildStateManager} state, and {@link VetsConfig} flags that {@code /wv config} can
+ * change mid-session, so one snapshot can render more than one way. Caller dispatches each returned
+ * block through {@link org.wynnvets.chat.ChatUtils ChatUtils} — see {@link #render} for the
  * list-and-{@code null} contract.</p>
  */
 public final class AnniCommandRenderer {

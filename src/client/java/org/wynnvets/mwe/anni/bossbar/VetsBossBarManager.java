@@ -51,8 +51,8 @@ import java.util.UUID;
  *       snapshot-clock skew. Also covers kick-into-queue at T-20
  *       since the watchdog re-checks every client tick (~50 ms).</li>
  * </ol>
- * Plus the existing {@code AnniWindowWatcher} which resets the mode to
- * silent at T+30 m — a slower safety net.</p>
+ * Plus the existing {@link org.wynnvets.mwe.anni.mode.AnniWindowWatcher AnniWindowWatcher} which
+ * resets the mode to silent at T+30 m — a slower safety net.</p>
  */
 public final class VetsBossBarManager {
 

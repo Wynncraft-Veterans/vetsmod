@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
  * <p>{@link AnniWsHandler} routes every {@code anni_query_response} frame
  * to {@link #onResponse(JsonObject)}, which pops the head of a FIFO
  * callback queue — same strict-order pattern as
- * {@code V1ApiManager.staffActionCallbacks}. The protocol has no
+ * {@link V1ApiManager#staffActionCallbacks}. The protocol has no
  * per-frame correlation ID; rapidly-fired queries without an interleaving
  * wait may receive reordered callbacks, but the alternative (correlation
  * IDs) was judged not worth the wire-protocol churn for the current scale

@@ -22,7 +22,7 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  *
  * <ul>
  *   <li><b>T-20s gate</b> (one of the two T-20s gates per parent plan
- *       §"Risks"; the other is {@code VetsBossBarManager}'s wall-clock
+ *       §"Risks"; the other is {@link VetsBossBarManager}'s wall-clock
  *       watchdog) — returns {@code null} when
  *       {@code secondsUntilAnni <= T_MINUS_20_GATE_SECONDS}.
  *       Caller deactivates.</li>

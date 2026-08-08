@@ -211,7 +211,8 @@ public final class AnniDebugCommands {
                 return builder.buildFuture();
             };
 
-    /** S5 — fields {@code AggressiveAlertDispatcher.forceAlert} accepts. */
+    /** S5 — fields {@link org.wynnvets.mwe.anni.aggressive.AggressiveAlertDispatcher#forceAlert
+     *  AggressiveAlertDispatcher#forceAlert} accepts. */
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_ALERT_FIELDS =
             (ctx, builder) -> {
                 String partial = builder.getRemaining().toLowerCase();
@@ -229,7 +230,8 @@ public final class AnniDebugCommands {
     }
 
     /** Append the {@code anni} literal to the {@code /wv debug} tree.
-     *  Caller is {@code DebugCommands#buildCommandTree()}. */
+     *  Caller is {@link org.wynnvets.debug.DebugCommands#buildCommandTree()
+     *  DebugCommands#buildCommandTree()}. */
     public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommandTree() {
         return ClientCommandManager.literal("anni")
                 .then(ClientCommandManager.literal("snapshot")

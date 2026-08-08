@@ -190,7 +190,7 @@ public final class AnniModeManager {
     /**
      * Idempotent — becomes a no-op forever once the user picks a mode.
      *
-     * <p>Called from {@code GuildStateManager.onEnteredWorld} and
+     * <p>Called from {@link GuildStateManager#onEnteredWorld} and
      * {@code onGuildInfoUpdated} so eligibility flips (e.g. a mid-session
      * {@code /unlock waitlist}) can promote a still-unset user from
      * SILENT to PASSIVE. Routes through {@link #transitionTo} so the

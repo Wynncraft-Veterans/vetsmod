@@ -41,7 +41,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *
  * <p>Idempotent registration via the static {@link #register()} method —
  * call from {@link org.wynnvets.VetsmodClient#onInitializeClient()} after
- * {@code V1ApiManager.connect()}. Calling twice is a no-op. Subscribes
+ * {@link V1ApiManager#connect()}. Calling twice is a no-op. Subscribes
  * to both inbound and outbound channels via
  * {@link org.wynnvets.api.V1ApiManager#addInboundListener(java.util.function.Consumer)}
  * and {@code addOutboundListener(...)}.</p>

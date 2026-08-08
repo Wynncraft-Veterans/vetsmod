@@ -27,14 +27,12 @@ import java.util.Set;
  * The listener's debounce coalesces this with any near-simultaneous
  * Wynntils events so we never double-send.</p>
  *
- * <p>Init order: call {@link #init()} from the
- * {@code ClientLifecycleEvents.CLIENT_STARTED} lambda inside
- * {@code VetsmodClient.onInitializeClient} (there is no
- * {@code onClientStarted} method), NEVER from the initializer body
- * itself — Wynntils' {@code Models.*} access from the
- * initializer body cold-start-crashes the game (see
- * {@code feedback_vetsmod_wynntils_init_order.md}). Runtime hooks are
- * safe; Wynntils is fully constructed by the time snapshots arrive.</p>
+ * <p>Init order: call {@link #init()} from the {@code ClientLifecycleEvents.CLIENT_STARTED} lambda
+ * inside {@link org.wynnvets.VetsmodClient#onInitializeClient VetsmodClient#onInitializeClient}
+ * (there is no {@code onClientStarted} method), NEVER from the initializer body itself —
+ * Wynntils' {@code Models.*} access from the initializer body cold-start-crashes the game (see
+ * {@code feedback_vetsmod_wynntils_init_order.md}). Runtime hooks are safe; Wynntils is fully
+ * constructed by the time snapshots arrive.</p>
  */
 public final class AnniPartyReporter {
 
