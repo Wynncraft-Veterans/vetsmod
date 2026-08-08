@@ -93,14 +93,12 @@ All methods keyed by string. Returns false when validation fails.
 | `getLong(key)` / `setLong(key,value)` | long map |
 | `getTriState(key)` / `setTriState(key,value)` | tri-state map |
 | `getString(key)` / `setString(key,value)` | string map |
-| `hasKey(key)` | checks the boolean, tri-state and string maps |
 | `isUserConfigKey(key)` | scans `USER_CONFIG_KEYS` |
 | `isTriStateKey(key)` / `isStringKey(key)` / `isIntKey(key)` | scan `TRISTATE_KEYS` / `STRING_CONFIG_KEYS` / `INT_CONFIG_KEYS` |
 | `getIntDefault(key)` / `getStringDefault(key)` | from INT_DEFAULTS/STRING_DEFAULTS maps |
 | `registerDefault(key, defaultValue)` | for subsystems; boolean keys only, must run before `load()` |
-| `resetToDefaults()` | saves current in-memory; does NOT clear |
 | `load()` | creates the file from defaults when absent |
-| `save()` | **private**; called by every setter, by `load()`, and by `resetToDefaults()` |
+| `save()` | **private**; called by every setter and by `load()` |
 | `isValidColor(name)` | delegated to `LegacyItemStyle.isValidColor`, which reads `NamedColor`'s private `COLORS` map |
 | `isValidSprite(name)` | delegated to `LegacyItemStyle.isValidSprite`, which matches against the `VetsConfig.VALID_SPRITES` array — there is no sprite enum |
 | `getColorNames()` | for command suggestion |
@@ -175,7 +173,6 @@ Must call `DebugConfigManager.init()` before `VetsConfig.load()` (they share the
 ## 9. Quirks / gotchas
 
 - **No migration:** Adding new keys requires shipping with a sensible default; old configs just gain the new key on next save.
-- **`resetToDefaults()` is misleading:** it saves current in-memory state, not reset in-memory values. Actual reset requires deleting the config file.
 - **Tri-state `handleSpoilers`:** null/default means "on", and the user can explicitly set false to disable.
 - **Integer opacity 0-100:** stored as long in JSON; multiplied by 2.55 and packed into ARGB alpha byte.
 - **String validation:** `isValidColor()` / `isValidSprite()` accept lowercase names; keys should match exactly (case-sensitive in JSON).

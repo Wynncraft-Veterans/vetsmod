@@ -63,14 +63,6 @@ public class User {
     return veteran;
   }
 
-  public boolean isVeteran() {
-    if (veteran == null) {
-      return false;
-    }
-
-    return veteran;
-  }
-
   public boolean isInGuild() {
     return guild != null;
   }

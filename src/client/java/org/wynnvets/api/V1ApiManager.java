@@ -729,11 +729,6 @@ public final class V1ApiManager {
         inboundListeners.add(listener);
     }
 
-    /** Removes a previously registered inbound listener. */
-    public static void removeInboundListener(Consumer<JsonObject> listener) {
-        inboundListeners.remove(listener);
-    }
-
     /**
      * Registers a callback that fires after the inbound WebSocket
      * (re)connects and auth + registration have been queued. Use this
@@ -751,11 +746,6 @@ public final class V1ApiManager {
      */
     public static void addInboundPostConnectListener(Runnable listener) {
         inboundPostConnectListeners.add(listener);
-    }
-
-    /** Removes a previously registered inbound post-connect listener. */
-    public static void removeInboundPostConnectListener(Runnable listener) {
-        inboundPostConnectListeners.remove(listener);
     }
 
     /**
@@ -832,10 +822,5 @@ public final class V1ApiManager {
     /** Returns true if the inbound connection is active. */
     public static boolean isInboundConnected() {
         return inboundClient != null && inboundClient.isConnected();
-    }
-
-    /** Returns true if the outbound connection is active. */
-    public static boolean isOutboundConnected() {
-        return outboundClient != null && outboundClient.isConnected();
     }
 }

@@ -47,10 +47,6 @@ public class MembershipSnapshot {
     return blocklist_reason;
   }
 
-  public boolean isInReturnersGuild() {
-    return Boolean.TRUE.equals(in_returners_guild);
-  }
-
   /**
    * Total rows in dazebot's {@code Waitlist} table. Guild-wide stat
    * (does not depend on the snapshot's target). Used by the
@@ -101,15 +97,6 @@ public class MembershipSnapshot {
     /** Server name at the moment of the last observation; may be {@code null}. */
     public String getServerAtObservation() {
       return server_at_observation;
-    }
-
-    /**
-     * Unix seconds of when the server-change was observed (distinct from
-     * {@link #getTs()} which is the most recent overall activity time).
-     * {@code null} when no server-change has ever been recorded.
-     */
-    public Long getObservedAt() {
-      return observed_at;
     }
   }
 

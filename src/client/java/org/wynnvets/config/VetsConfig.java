@@ -616,16 +616,6 @@ public class VetsConfig {
   }
 
   /**
-   * Check if a configuration key exists.
-   *
-   * @param key The configuration key to check
-   * @return true if the key exists, false otherwise
-   */
-  public static boolean hasKey(String key) {
-    return config.containsKey(key) || triStateConfig.containsKey(key) || stringConfig.containsKey(key);
-  }
-
-  /**
    * Check if a configuration key is user-facing (togglable via {@code /wv config}).
    *
    * @param key The configuration key to check
@@ -700,22 +690,6 @@ public class VetsConfig {
     stringConfig.put(key, value);
     save();
     return true;
-  }
-
-  /**
-   * Get all configuration keys.
-   *
-   * @return Array of all valid configuration keys
-   */
-  public static String[] getAllKeys() {
-    return config.keySet().toArray(new String[0]);
-  }
-
-  /**
-   * Reset all configuration options to their default values
-   */
-  public static void resetToDefaults() {
-    save();
   }
 
   /**
