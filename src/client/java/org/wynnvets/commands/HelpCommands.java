@@ -37,11 +37,6 @@ final class HelpCommands {
     msg.append(Component.literal(" — Show annihilation timer\n")
         .withStyle(ChatFormatting.GRAY));
 
-    msg.append(Component.literal("/wv list")
-        .withStyle(ChatFormatting.YELLOW));
-    msg.append(Component.literal(" — Show online members and VetsMod status\n")
-        .withStyle(ChatFormatting.GRAY));
-
     msg.append(Component.literal("/wv config [<key> [<value>]]")
         .withStyle(ChatFormatting.YELLOW));
     msg.append(Component.literal(" — View or change mod settings\n")
@@ -56,14 +51,14 @@ final class HelpCommands {
           .withStyle(ChatFormatting.YELLOW));
       msg.append(Component.literal(" — Show the message of the day\n")
           .withStyle(ChatFormatting.GRAY));
+    }
 
+    if (GuildStateManager.isUnlocked()) {
       msg.append(Component.literal("/wv list")
           .withStyle(ChatFormatting.YELLOW));
       msg.append(Component.literal(" — Show online members and VetsMod status\n")
           .withStyle(ChatFormatting.GRAY));
-    }
 
-    if (GuildStateManager.isUnlocked()) {
       msg.append(Component.literal("/wv staff")
           .withStyle(ChatFormatting.YELLOW));
       msg.append(Component.literal(" — Show online staff members\n")

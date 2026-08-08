@@ -27,7 +27,7 @@ Entry point: [CommandRegistry.register()](../src/client/java/org/wynnvets/comman
 **Gap:** the standalone root-level `/motd` command (registered outside the `/wv` tree, ungated), undocumented. See `CommandRegistry.register`.
 
 ### /wv help [<subcommand>]
-No permission. [HelpCommands](../src/client/java/org/wynnvets/commands/HelpCommands.java). The `/wv help <subcommand>` literals are `config`, `check`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger`. What bare `/wv help` *prints* is a different, rank-gated set: `/wv help`, `/wv anni`, `/wv list`, `/wv config`, `/wv debug` always, then `/wv motd` for vets, `/wv staff` when unlocked, `/wv return` and `/wv line` for Returners, `/wv check` for staff.
+No permission. [HelpCommands](../src/client/java/org/wynnvets/commands/HelpCommands.java). The `/wv help <subcommand>` literals are `config`, `check`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger`. What bare `/wv help` *prints* is a different, rank-gated set: `/wv help`, `/wv anni`, `/wv config`, `/wv debug` always, then `/wv motd` for vets, `/wv list` and `/wv staff` when unlocked, `/wv return` and `/wv line` for Returners, `/wv check` for staff.
 
 ### /wv check <playerName>
 Confirmed staff. Both the Brigadier `.requires` visibility gate and the runtime check are `GuildStateManager.isConfirmedStaff()` — server-confirmed staff from the WS auth ack, not a Captain rank check. [CommandRegistry.check()](../src/client/java/org/wynnvets/commands/CommandRegistry.java). Delegates to `UserInfoFetcher.checkUser()` which chains Mojang UUID → WynnCraft profile → Returners roster membership.
