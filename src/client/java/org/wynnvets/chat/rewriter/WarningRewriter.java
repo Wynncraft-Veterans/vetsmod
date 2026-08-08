@@ -32,8 +32,8 @@ public final class WarningRewriter {
 
   /**
    * Renders the warning frame in chat. Called from
-   * {@code OutboundDisplayHandler.onOutboundMessage} when the inbound
-   * frame's type is {@code "warning"}.
+   * {@link org.wynnvets.chat.OutboundDisplayHandler#onOutboundMessage
+   * OutboundDisplayHandler#onOutboundMessage} when the inbound frame's type is {@code "warning"}.
    *
    * @param json the raw frame from the v1/outbound WebSocket
    */

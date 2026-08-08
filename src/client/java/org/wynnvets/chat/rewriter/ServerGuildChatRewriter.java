@@ -264,10 +264,10 @@ public final class ServerGuildChatRewriter {
     /**
      * Builds a pill component from the extracted fragments.
      *
-     * <p>Background fragments (aqua-coloured) are marked with the animation
-     * sentinel colour so that {@code AnimatedChatMixin} can animate them.
-     * Foreground fragments (dark-coloured letters) are kept dark so the
-     * text remains legible against the gradient background.</p>
+     * <p>Background fragments (aqua-coloured) are marked with the animation sentinel colour so that
+     * {@link org.wynnvets.mixin.client.chat.AnimatedChatMixin AnimatedChatMixin} can animate them.
+     * Foreground fragments (dark-coloured letters) are kept dark so the text remains legible
+     * against the gradient background.</p>
      */
     private static MutableComponent buildGradientPill(List<StyledFragment> fragments) {
         if (fragments.isEmpty()) {

@@ -253,9 +253,10 @@ public final class MessageFanoutDispatcher {
     // ──────────────────────────── Suppression (called from ChatLogMixin) ────────────────────────────
 
     /**
-     * Called from {@code ChatLogMixin} on the render thread for every incoming chat message.
-     * Matches outbound /msg echo lines and offline-player errors, suppresses them from display,
-     * and signals the dispatch thread so it can proceed strategically.
+     * Called from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} on the render
+     * thread for every incoming chat message. Matches outbound /msg echo lines and offline-player
+     * errors, suppresses them from display, and signals the dispatch thread so it can proceed
+     * strategically.
      *
      * <p>Matching strategy (in order of attempt):</p>
      * <ol>

@@ -86,12 +86,12 @@ public final class NickResolver {
      * parent style filling in gaps — matching Minecraft's own
      * {@link Style#applyTo} semantics (this overrides, parent fills).
      *
-     * <p>Two of the three private copies of this helper hold that
-     * orientation ({@code SpoilerRewriter}, {@code ServerGuildChatRewriter}).
-     * {@code EncourageUpdateRewriter} has receiver and argument swapped, so
-     * parent fields win there and compound downward with depth. The copies
-     * are not interchangeable; do not assume that one behaves like this
-     * method.</p>
+     * <p>Two of the three private copies of this helper hold that orientation ({@link
+     * org.wynnvets.chat.rewriter.SpoilerRewriter SpoilerRewriter},
+     * {@link org.wynnvets.chat.rewriter.ServerGuildChatRewriter ServerGuildChatRewriter}).
+     * {@link org.wynnvets.chat.rewriter.EncourageUpdateRewriter EncourageUpdateRewriter} has
+     * receiver and argument swapped, so parent fields win there and compound downward with depth.
+     * The copies are not interchangeable; do not assume that one behaves like this method.</p>
      */
     public static void flattenComponent(Component component, Style inherited, List<FlatPart> out) {
         Style resolved = component.getStyle().applyTo(inherited);

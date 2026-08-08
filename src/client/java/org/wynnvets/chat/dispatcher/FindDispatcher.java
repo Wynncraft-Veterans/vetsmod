@@ -19,8 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Handles {@code /find} batch lookups, serialized on the shared dispatch executor
  * so they never interleave with {@code /msg} fanout.
  *
- * <p>Called from {@link CommandDispatcher}'s batch coordinator; provides the
- * public suppression hook consumed by {@code ChatLogMixin}.</p>
+ * <p>Called from {@link CommandDispatcher}'s batch coordinator; provides the public suppression
+ * hook consumed by {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin}.</p>
  */
 public final class FindDispatcher {
 
@@ -172,9 +172,9 @@ public final class FindDispatcher {
     // ──────────────────────────── Find-response suppression (ChatLogMixin) ────────────────────────────
 
     /**
-     * Called from {@code ChatLogMixin} on the render thread for every incoming chat message.
-     * Matches {@code /find} response lines, suppresses them from display, and signals the
-     * dispatch thread with the result.
+     * Called from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} on the render
+     * thread for every incoming chat message. Matches {@code /find} response lines, suppresses them
+     * from display, and signals the dispatch thread with the result.
      *
      * @return {@code true} if the message was consumed (should be suppressed)
      */
