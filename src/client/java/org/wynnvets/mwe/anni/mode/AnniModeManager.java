@@ -68,18 +68,7 @@ public final class AnniModeManager {
         DEBUG_BYPASS_MUTEX,
     }
 
-    private static volatile boolean registered = false;
-
     private AnniModeManager() {
-    }
-
-    /** Idempotent registration hook. No-op today; kept for symmetry with
-     *  the rest of the {@code mwe.anni} package and so future wiring
-     *  (e.g. snapshot listener) has an obvious entry point. */
-    public static void register() {
-        if (registered) return;
-        registered = true;
-        VetsLogger.debug("AnniModeManager registered");
     }
 
     /** The current mode, read fresh from {@link VetsConfig}. */

@@ -44,19 +44,9 @@ public final class StreamerModeChatDetector {
     private static final String PATTERN_ON  = "Streamer mode was enabled";
     private static final String PATTERN_OFF = "Streamer mode disabled";
 
-    private static volatile boolean registered = false;
     private static volatile boolean lastSeenInStream = false;
 
     private StreamerModeChatDetector() {
-    }
-
-    /** Idempotent registration. No-op today — the {@link ChatUtils}-style
-     *  invocation lives at the call site (ChatLogMixin), so this exists
-     *  only for API symmetry with other {@code mwe.anni} singletons. */
-    public static void register() {
-        if (registered) return;
-        registered = true;
-        VetsLogger.debug("StreamerModeChatDetector registered");
     }
 
     /** Current best-guess of {@code /stream} state from the chat

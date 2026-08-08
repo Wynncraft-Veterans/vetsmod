@@ -33,9 +33,7 @@ import org.wynnvets.mwe.anni.aggressive.GhostsPromptHandler;
 import org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider;
 import org.wynnvets.mwe.anni.zone.AnniZoneLineRenderer;
 import org.wynnvets.mwe.anni.bossbar.VetsBossBarManager;
-import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.mwe.anni.mode.AnniWindowWatcher;
-import org.wynnvets.mwe.anni.mode.StreamerModeChatDetector;
 import org.wynnvets.mwe.anni.network.AnniWsHandler;
 import org.wynnvets.mwe.anni.outline.AnniOutlineRegistry;
 import org.wynnvets.mwe.anni.outline.AnniOutlineTicker;
@@ -130,8 +128,6 @@ public class VetsmodClient implements ClientModInitializer {
     OutboundDisplayHandler.register();
     AnniWsHandler.register();
     AnniWindowWatcher.register();
-    AnniModeManager.register();
-    StreamerModeChatDetector.register();
     VetsBossBarManager.register();
     AnniOutlineRegistry.register();
     AnniOutlineTicker.register();
