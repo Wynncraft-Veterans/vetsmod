@@ -1,6 +1,7 @@
 plugins {
 	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
 	id 'maven-publish'
+	id 'com.diffplug.spotless' version "${spotless_version}"
 }
 
 version = project.mod_version
@@ -22,6 +23,13 @@ repositories {
 		name = 'Modrinth'
 		url = 'https://api.modrinth.com/maven'
 	}
+
+	// Spotless resolves google-java-format from the *project* repositories at
+	// task time, not from settings.gradle's pluginManagement block (which only
+	// resolves the plugin itself). Loom injects mavenCentral today — junit-bom
+	// resolves and is on no other declared repo — but loom_version is a
+	// SNAPSHOT, so don't depend on that staying true.
+	mavenCentral()
 }
 
 loom {
@@ -99,6 +107,52 @@ sourceSets {
 	test {
 		compileClasspath += sourceSets.client.output + sourceSets.client.compileClasspath
 		runtimeClasspath += sourceSets.client.output + sourceSets.client.runtimeClasspath
+	}
+}
+
+// Format gate. `./gradlew spotlessApply` rewrites; `spotlessCheck` is wired
+// into `check` — and so into `build` — by the plugin itself.
+spotless {
+	encoding 'UTF-8'
+
+	// The default is LineEnding.GIT_ATTRIBUTES_FAST_ALLSAME, which resolves
+	// through core.autocrlf=true to CRLF on Windows and LF on the ubuntu
+	// runner. This and the `*.java text eol=lf` rule in .gitattributes solve
+	// different halves: that one stops git handing Spotless a CRLF worktree,
+	// this one stops Spotless caring what git said.
+	lineEndings = com.diffplug.spotless.LineEnding.UNIX
+
+	java {
+		// Explicit, so the target never drifts with Loom's source-set setup
+		// and never picks up generated sources under build/.
+		target 'src/main/java/**/*.java',
+				'src/client/java/**/*.java',
+				'src/test/java/**/*.java'
+
+		// AOSP: 4-space block indent, 8-space continuation, 100 columns.
+		//
+		// formatJavadoc(false) — the default is TRUE. Left on it reflows 1,153
+		// Javadoc blocks across 162 of 167 files inside a commit whose whole
+		// value is being mechanical, and rewrites PillCodec's hand-built
+		// <table>/<pre> diagrams. Blocks still re-indent with their
+		// declaration; only the prose is spared.
+		//
+		// reflowLongStrings stays false (the default): it splits long literals
+		// into concatenations, which is a token change, not formatting.
+		//
+		// reorderImports is left at its default, and it is counter-intuitive:
+		// it does not decide *whether* gjf's ImportOrderer runs — it always
+		// runs — it decides which style. false => Style.GOOGLE => one
+		// ASCII-sorted block, statics first. We want AOSP code style with
+		// Google import order, which is exactly the default.
+		//
+		// google-java-format also removes unused imports unconditionally, with
+		// no opt-out on this step. Ten imports here are kept alive only by a
+		// Javadoc {@link}; gjf's remover is DocTree-aware, so they survive.
+		googleJavaFormat("${google_java_format_version}")
+				.aosp()
+				.formatJavadoc(false)
+				.reflowLongStrings(false)
 	}
 }
 
