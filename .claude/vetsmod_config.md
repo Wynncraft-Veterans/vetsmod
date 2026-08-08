@@ -24,7 +24,6 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `vetsAuthVerifiedAt` | long | Epoch millis of the last successful auth-frame ack. |
 | `vetsWaitlistUnlockTime` | long | **legacy SHA-256 unlock marker** — kept solely as a "this user used the old system" signal for the SessionAuthWarning. No longer grants access. |
 | `vetsHonouraryUnlockTime` | long | Same — legacy marker, no longer grants access. |
-| `vetsUnlockExpiryWarnings` | long | **legacy** — unused after the migration; retained only so a rollback would not need a schema bump. |
 | `vetsGuildCheckResult` | long | Cached `/gu stats` result enum (0=UNKNOWN,1=RETURNERS,2=OTHER_GUILD,3=GUILDLESS) |
 | `vetsLastGuildCheck` | long | Timestamp of last `/gu stats` (3-day TTL) |
 | `vetsDebugEnabledAt` | long | Debug logging enable timestamp (3-day TTL) |

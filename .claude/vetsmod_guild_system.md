@@ -168,7 +168,6 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 | `vetsAuthVerifiedAt` | long (ts) | UnlockManager |
 | `vetsWaitlistUnlockTime` | long (ts) | **legacy** — kept only as a "previously unlocked under SHA-256 system" marker for warnings |
 | `vetsHonouraryUnlockTime` | long (ts) | same — legacy marker |
-| `vetsUnlockExpiryWarnings` | long (count) | **legacy** — unused, retained for rollback |
 
 ## 8. Edge cases
 
