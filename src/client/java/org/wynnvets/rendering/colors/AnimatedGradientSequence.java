@@ -76,6 +76,13 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
 
     // ── Thread-local animation context ──────────────────────────────────
 
+    /** Write-only by decision: set by {@link #beginAnimation} and cleared by
+     *  {@link #endAnimation}, never read. The accessor that read it had no
+     *  callers and was removed; the pair itself stays because
+     *  {@code ChatUtils.dispatchAnimatedChat} calls endAnimation() from the
+     *  same finally block that restores INTERNAL_CHAT_DISPATCH, so collapsing
+     *  them would strand that ThreadLocal true and make every later chat line
+     *  look mod-generated. */
     private static final ThreadLocal<AnimConfig> CURRENT_CONFIG = new ThreadLocal<>();
 
     /** Sets the animation parameters for the current thread. */
@@ -86,11 +93,6 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
     /** Clears the thread-local animation context. */
     public static void endAnimation() {
         CURRENT_CONFIG.remove();
-    }
-
-    /** Returns the animation config for the current thread, or {@code null}. */
-    public static AnimConfig currentConfig() {
-        return CURRENT_CONFIG.get();
     }
 
     // ── Instance fields ─────────────────────────────────────────────────

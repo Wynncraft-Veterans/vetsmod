@@ -44,14 +44,6 @@ public final class QueueStateManager {
     }
 
     /**
-     * @return the name of the world the client is queued for (e.g.
-     *         {@code "NA30"}), or an empty string if unknown or not queued.
-     */
-    public static String getQueuedWorld() {
-        return queuedWorld;
-    }
-
-    /**
      * @return epoch millis when the current queue state was entered, or
      *         {@code 0} if not queued.
      */
@@ -119,15 +111,6 @@ public final class QueueStateManager {
     public static void addListener(QueueStateListener listener) {
         if (listener != null) {
             listeners.addIfAbsent(listener);
-        }
-    }
-
-    /**
-     * Removes a previously registered listener.
-     */
-    public static void removeListener(QueueStateListener listener) {
-        if (listener != null) {
-            listeners.remove(listener);
         }
     }
 }
