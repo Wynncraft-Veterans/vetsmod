@@ -33,11 +33,6 @@ public final class LegacyTooltipEventListener {
     VetsLogger.debug("Registered LegacyTooltipEventHandler on Wynntils event bus");
   }
 
-  /** Unregisters this handler from the Wynntils event bus. */
-  public static void unregister() {
-    WynntilsMod.unregisterEventListener(INSTANCE);
-  }
-
   @SubscribeEvent(priority = EventPriority.NORMAL)
   public void onItemTooltipRender(ItemTooltipRenderEvent.Pre event) {
     // Ensure currentItemStack is set for the tooltip processing pipeline.

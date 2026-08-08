@@ -91,10 +91,6 @@ public final class RankChangeListener {
         VetsLogger.debug("Registered rank-change listener");
     }
 
-    public static void unregister() {
-        WynntilsMod.unregisterEventListener(INSTANCE);
-    }
-
     @SubscribeEvent
     public void onChat(ChatMessageEvent.Match event) {
         if (event.getRecipientType() != RecipientType.GUILD) {

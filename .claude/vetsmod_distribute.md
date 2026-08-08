@@ -94,8 +94,8 @@ back-to-back inside `VetsmodClient.onInitializeClient`'s
 `ClientLifecycleEvents.CLIENT_STARTED` callback, alongside the mod's
 other Wynntils-bus listeners. Two of those reach the bus indirectly —
 `LegacyTooltipEventListener` and `LegacyHighlightEventListener` register
-from inside `WynntilsEventListener.register()`, one line above — and can
-be unregistered again. None of the five here ever is.
+from inside `WynntilsEventListener.register()`, one line above. Nothing
+in the mod unregisters any of them.
 
 That callback carries a long crash-rationale comment about deferring
 `Models.*` access until after Wynntils' own init — but it is attached to

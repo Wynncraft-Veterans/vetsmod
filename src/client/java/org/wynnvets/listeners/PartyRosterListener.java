@@ -90,10 +90,6 @@ public final class PartyRosterListener {
         VetsLogger.debug("Registered party-roster listener");
     }
 
-    public static void unregister() {
-        WynntilsMod.unregisterEventListener(INSTANCE);
-    }
-
     // --- Wynntils events ---------------------------------------------------
 
     @SubscribeEvent

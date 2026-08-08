@@ -33,11 +33,6 @@ public final class LegacyHighlightEventListener {
         VetsLogger.debug("Registered LegacyHighlightEventHandler on Wynntils event bus");
     }
 
-    /** Unregisters this handler from the Wynntils event bus. */
-    public static void unregister() {
-        WynntilsMod.unregisterEventListener(INSTANCE);
-    }
-
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onSlotRenderPre(SlotRenderEvent.Pre event) {
         Slot slot = event.getSlot();

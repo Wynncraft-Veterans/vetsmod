@@ -76,15 +76,6 @@ public final class WynntilsEventListener {
     }
 
     /**
-     * Unregisters this listener from the Wynntils event bus.
-     */
-    public static void unregister() {
-        WynntilsMod.unregisterEventListener(INSTANCE);
-        LegacyTooltipEventListener.unregister();
-        LegacyHighlightEventListener.unregister();
-    }
-
-    /**
      * Handles world state transitions from Wynntils.
      *
      * <p>When the player enters a {@link WorldState#WORLD}, triggers
