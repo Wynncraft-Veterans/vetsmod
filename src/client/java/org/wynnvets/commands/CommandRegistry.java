@@ -28,7 +28,7 @@ import org.wynnvets.rendering.territory.TerritoryLineManager;
 /**
  * Builds and registers the {@code /wv} client command tree and its handlers.
  *
- * <p>All command handlers are static â€” they read guild/config state through
+ * <p>All command handlers are static — they read guild/config state through
  * the existing singletons ({@link GuildStateManager}, {@link VetsConfig})
  * and delegate API calls to the appropriate fetcher classes.</p>
  *
@@ -39,7 +39,7 @@ public final class CommandRegistry {
 
   private CommandRegistry() {}
 
-  // â”€â”€ Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Registration ────────────────────────────────────────────────────
 
   /**
    * Builds and registers all client commands with the Brigadier dispatcher.
@@ -182,15 +182,15 @@ public final class CommandRegistry {
                 )
             )
 
-            // /wv debug â€” full sub-tree built by DebugCommands
+            // /wv debug — full sub-tree built by DebugCommands
             .then(DebugCommands.buildCommandTree())
 
-            // /wv distribute â€” full sub-tree built by DistributeCommands
+            // /wv distribute — full sub-tree built by DistributeCommands
             .then(DistributeCommands.buildCommandTree())
     );
   }
 
-  // â”€â”€ Permission predicates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Permission predicates ───────────────────────────────────────────
 
   // TODO: Replace with correct permission checks once available.
   private static boolean userIsCaptain(FabricClientCommandSource src) {
@@ -202,7 +202,7 @@ public final class CommandRegistry {
     return true;
   }
 
-  // â”€â”€ Command handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Command handlers ────────────────────────────────────────────────
 
   private static int check(CommandContext<FabricClientCommandSource> ctx) {
     if (!GuildStateManager.isConfirmedStaff()) {
