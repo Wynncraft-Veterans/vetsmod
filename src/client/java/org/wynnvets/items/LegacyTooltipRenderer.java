@@ -463,7 +463,7 @@ final class LegacyTooltipRenderer {
   /**
    * Extracts a trailing Wynntils percentage suffix (e.g. "[61.7%]") from the original
    * component, preserving its color. Wynntils appends the percentage as a sibling
-   * Component with its own Style/TextColor, so we check siblings first.
+   * Component with its own Style/{@link TextColor}, so we check siblings first.
    * Falls back to scanning for §-codes in legacy-formatted text.
    * Returns null if no colored suffix is present.
    */

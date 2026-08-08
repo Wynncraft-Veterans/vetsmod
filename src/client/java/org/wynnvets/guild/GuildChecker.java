@@ -9,7 +9,7 @@ import org.wynnvets.logging.VetsLogger;
  * Determines the player's guild membership by issuing {@code /gu stats}
  * to the Wynncraft server and parsing the multi-line response.
  *
- * <p>Unlike Wynntils' {@code Models.Guild} (which reads scoreboard/compass
+ * <p>Unlike Wynntils' {@link Models#Guild} (which reads scoreboard/compass
  * data and can remain {@code null} for extended periods), this checker
  * queries the server directly and caches the result for
  * {@value #GUILD_CHECK_EXPIRY_DAYS} days.</p>
