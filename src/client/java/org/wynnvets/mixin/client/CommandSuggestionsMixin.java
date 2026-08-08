@@ -23,8 +23,10 @@ public class CommandSuggestionsMixin {
     /**
      * Prevents the red error text from rendering below the chat input.
      */
-    @Inject(method = "renderUsage(Lnet/minecraft/client/gui/GuiGraphics;)V",
-            at = @At("HEAD"), cancellable = true)
+    @Inject(
+            method = "renderUsage(Lnet/minecraft/client/gui/GuiGraphics;)V",
+            at = @At("HEAD"),
+            cancellable = true)
     private void vetsmod$suppressQueueUsageErrors(GuiGraphics guiGraphics, CallbackInfo ci) {
         if (QueueStateManager.isInQueue()) {
             ci.cancel();
@@ -37,10 +39,12 @@ public class CommandSuggestionsMixin {
      * {@link net.minecraft.client.gui.components.EditBox} to use its default
      * (white) formatter instead.
      */
-    @Inject(method = "formatChat(Ljava/lang/String;I)Lnet/minecraft/util/FormattedCharSequence;",
-            at = @At("HEAD"), cancellable = true)
-    private void vetsmod$suppressQueueInputFormatting(String string, int i,
-                                                      CallbackInfoReturnable<FormattedCharSequence> cir) {
+    @Inject(
+            method = "formatChat(Ljava/lang/String;I)Lnet/minecraft/util/FormattedCharSequence;",
+            at = @At("HEAD"),
+            cancellable = true)
+    private void vetsmod$suppressQueueInputFormatting(
+            String string, int i, CallbackInfoReturnable<FormattedCharSequence> cir) {
         if (QueueStateManager.isInQueue()) {
             cir.setReturnValue(null);
         }

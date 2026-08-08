@@ -2,11 +2,6 @@ package org.wynnvets.rendering.territory;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.logging.VetsLogger;
-
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -15,6 +10,10 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Manages territory line toggle states and territory coordinate data
@@ -28,26 +27,28 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class TerritoryLineManager {
 
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .connectTimeout(Duration.ofSeconds(5))
-            .build();
+    private static final HttpClient HTTP_CLIENT =
+            HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
     private static final Gson GSON = new Gson();
 
     /** Maps command alias → Wynncraft territory name. */
-    private static final Map<String, String> LINE_ALIASES = Map.of(
-            "church", "Forest of Eyes",
-            "scrap", "Corkus Sea Cove",
-            "bat", "Royal Barracks",
-            "hegea", "Fort Hegea",
-            "lighthouse", "Contested District"
-    );
+    private static final Map<String, String> LINE_ALIASES =
+            Map.of(
+                    "church", "Forest of Eyes",
+                    "scrap", "Corkus Sea Cove",
+                    "bat", "Royal Barracks",
+                    "hegea", "Fort Hegea",
+                    "lighthouse", "Contested District");
 
     /** Active toggle state per alias. */
     private static final ConcurrentHashMap<String, Boolean> activeLines = new ConcurrentHashMap<>();
 
     /** Territory data from the Wynncraft API (all territories with location bounds). */
     private static volatile JsonObject territoryData = null;
+
     private static volatile boolean fetchInProgress = false;
 
     private TerritoryLineManager() {}
@@ -71,11 +72,18 @@ public final class TerritoryLineManager {
         ChatUtils.sendLocalMessage(
                 Component.literal("Territory line for ")
                         .withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(territoryName)
-                                .withStyle(nowActive ? ChatFormatting.GREEN : ChatFormatting.RED))
-                        .append(Component.literal(nowActive ? " Enabled" : " Disabled")
-                                .withStyle(nowActive ? ChatFormatting.GREEN : ChatFormatting.RED))
-        );
+                        .append(
+                                Component.literal(territoryName)
+                                        .withStyle(
+                                                nowActive
+                                                        ? ChatFormatting.GREEN
+                                                        : ChatFormatting.RED))
+                        .append(
+                                Component.literal(nowActive ? " Enabled" : " Disabled")
+                                        .withStyle(
+                                                nowActive
+                                                        ? ChatFormatting.GREEN
+                                                        : ChatFormatting.RED)));
     }
 
     public static boolean isActive(String alias) {
@@ -102,43 +110,51 @@ public final class TerritoryLineManager {
         if (territoryName == null || territoryData == null) return null;
         if (!territoryData.has(territoryName)) return null;
 
-        JsonObject locationObject = territoryData.get(territoryName)
-                .getAsJsonObject().getAsJsonObject("location");
+        JsonObject locationObject =
+                territoryData.get(territoryName).getAsJsonObject().getAsJsonObject("location");
         int apiStartX = locationObject.get("start").getAsJsonArray().get(0).getAsInt();
         int apiStartZ = locationObject.get("start").getAsJsonArray().get(1).getAsInt();
         int apiEndX = locationObject.get("end").getAsJsonArray().get(0).getAsInt();
         int apiEndZ = locationObject.get("end").getAsJsonArray().get(1).getAsInt();
 
-        return new int[]{
-                Math.min(apiStartX, apiEndX),
-                Math.min(apiStartZ, apiEndZ),
-                Math.max(apiStartX, apiEndX),
-                Math.max(apiStartZ, apiEndZ)
+        return new int[] {
+            Math.min(apiStartX, apiEndX),
+            Math.min(apiStartZ, apiEndZ),
+            Math.max(apiStartX, apiEndX),
+            Math.max(apiStartZ, apiEndZ)
         };
     }
 
     private static void fetchTerritoryData() {
         fetchInProgress = true;
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://api.wynncraft.com/v3/guild/list/territory"))
-                .timeout(Duration.ofSeconds(10))
-                .GET()
-                .build();
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(URI.create("https://api.wynncraft.com/v3/guild/list/territory"))
+                        .timeout(Duration.ofSeconds(10))
+                        .GET()
+                        .build();
 
-        HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenAccept(response -> {
-                    if (response.statusCode() == HttpURLConnection.HTTP_OK) {
-                        territoryData = GSON.fromJson(response.body(), JsonObject.class);
-                        VetsLogger.info("Territory data loaded ({} territories)", territoryData.size());
-                    } else {
-                        VetsLogger.warn("Failed to fetch territory data (Status: {})", response.statusCode());
-                    }
-                    fetchInProgress = false;
-                })
-                .exceptionally(e -> {
-                    VetsLogger.error("Error fetching territory data: {}", e.getMessage());
-                    fetchInProgress = false;
-                    return null;
-                });
+        HTTP_CLIENT
+                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(
+                        response -> {
+                            if (response.statusCode() == HttpURLConnection.HTTP_OK) {
+                                territoryData = GSON.fromJson(response.body(), JsonObject.class);
+                                VetsLogger.info(
+                                        "Territory data loaded ({} territories)",
+                                        territoryData.size());
+                            } else {
+                                VetsLogger.warn(
+                                        "Failed to fetch territory data (Status: {})",
+                                        response.statusCode());
+                            }
+                            fetchInProgress = false;
+                        })
+                .exceptionally(
+                        e -> {
+                            VetsLogger.error("Error fetching territory data: {}", e.getMessage());
+                            fetchInProgress = false;
+                            return null;
+                        });
     }
 }

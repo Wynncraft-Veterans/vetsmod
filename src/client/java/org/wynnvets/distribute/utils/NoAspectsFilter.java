@@ -4,9 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.wynnvets.api.VetsApi;
-import org.wynnvets.logging.VetsLogger;
-
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -16,6 +13,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import org.wynnvets.api.VetsApi;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Fetches the NoAspects opt-out list from
@@ -46,10 +45,11 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class NoAspectsFilter {
 
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .connectTimeout(Duration.ofSeconds(5))
-            .build();
+    private static final HttpClient HTTP_CLIENT =
+            HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
 
     private static final Gson GSON = new Gson();
 
@@ -64,13 +64,12 @@ public final class NoAspectsFilter {
      */
     public static CompletableFuture<Set<String>> fetchExcludedLegacyNames() {
         CompletableFuture<Set<String>> uuidsF = fetchExcludedUuids();
-        CompletableFuture<Map<String, String>> uuidToLegacyF =
-                NameResolver.fetchUuidToLegacyName();
+        CompletableFuture<Map<String, String>> uuidToLegacyF = NameResolver.fetchUuidToLegacyName();
         return uuidsF.thenCombine(uuidToLegacyF, NoAspectsFilter::buildExcludedNames);
     }
 
-    private static Set<String> buildExcludedNames(Set<String> excludedUuids,
-                                                  Map<String, String> uuidToLegacy) {
+    private static Set<String> buildExcludedNames(
+            Set<String> excludedUuids, Map<String, String> uuidToLegacy) {
         if (excludedUuids.isEmpty() || uuidToLegacy.isEmpty()) {
             return Set.of();
         }
@@ -89,24 +88,28 @@ public final class NoAspectsFilter {
     }
 
     private static CompletableFuture<Set<String>> fetchExcludedUuids() {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(VetsApi.NO_ASPECTS)
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build();
-        return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-                        VetsLogger.debug("NoAspectsFilter: API returned {}",
-                                response.statusCode());
-                        return Set.<String>of();
-                    }
-                    return parseUuids(response.body());
-                })
-                .exceptionally(e -> {
-                    VetsLogger.warn("NoAspectsFilter: fetch failed: {}", e.getMessage());
-                    return Set.of();
-                });
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(VetsApi.NO_ASPECTS)
+                        .timeout(Duration.ofSeconds(5))
+                        .GET()
+                        .build();
+        return HTTP_CLIENT
+                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(
+                        response -> {
+                            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+                                VetsLogger.debug(
+                                        "NoAspectsFilter: API returned {}", response.statusCode());
+                                return Set.<String>of();
+                            }
+                            return parseUuids(response.body());
+                        })
+                .exceptionally(
+                        e -> {
+                            VetsLogger.warn("NoAspectsFilter: fetch failed: {}", e.getMessage());
+                            return Set.of();
+                        });
     }
 
     private static Set<String> parseUuids(String body) {

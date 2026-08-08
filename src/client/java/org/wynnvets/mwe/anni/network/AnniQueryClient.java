@@ -1,15 +1,13 @@
 package org.wynnvets.mwe.anni.network;
 
 import com.google.gson.JsonObject;
-
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Single-flight client for the {@code anni_query} on-demand pull.
@@ -35,11 +33,10 @@ public final class AnniQueryClient {
      *  generous slack for queue jitter + network. */
     private static final long QUERY_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(8);
 
-    private static final ConcurrentLinkedDeque<CompletableFuture<AnniSnapshot>>
-            pendingQueries = new ConcurrentLinkedDeque<>();
+    private static final ConcurrentLinkedDeque<CompletableFuture<AnniSnapshot>> pendingQueries =
+            new ConcurrentLinkedDeque<>();
 
-    private AnniQueryClient() {
-    }
+    private AnniQueryClient() {}
 
     /**
      * Issue an {@code anni_query} frame for the authenticated session's
@@ -74,10 +71,11 @@ public final class AnniQueryClient {
         // Deadline guard. The CompletableFuture API requires we schedule
         // the timeout ourselves; orTimeout(...) suits exactly.
         future.orTimeout(QUERY_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                .exceptionally(ex -> {
-                    pendingQueries.remove(future);
-                    return null;
-                });
+                .exceptionally(
+                        ex -> {
+                            pendingQueries.remove(future);
+                            return null;
+                        });
         return future;
     }
 
@@ -96,8 +94,7 @@ public final class AnniQueryClient {
             try {
                 snapshot = AnniSnapshot.fromJson(json.getAsJsonObject("snapshot"));
             } catch (Exception e) {
-                VetsLogger.warn("anni_query_response parse failed: {}",
-                        e.getMessage());
+                VetsLogger.warn("anni_query_response parse failed: {}", e.getMessage());
                 snapshot = null;
             }
         }

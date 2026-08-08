@@ -4,12 +4,6 @@ import com.wynntils.core.WynntilsMod;
 import com.wynntils.core.components.Models;
 import com.wynntils.models.players.event.PartyEvent;
 import com.wynntils.models.worlds.event.WorldStateEvent;
-import net.neoforged.bus.api.SubscribeEvent;
-import org.wynnvets.api.V1ApiManager;
-import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.mwe.anni.state.AnniSnapshot;
-import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -18,6 +12,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import net.neoforged.bus.api.SubscribeEvent;
+import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.state.AnniSnapshot;
+import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 
 /**
  * Reports the local player's current Wynncraft party roster to the v1
@@ -70,11 +69,12 @@ public final class PartyRosterListener {
     static final long ACTIVE_WINDOW_SEC = 2L * 60 * 60;
 
     private static final ScheduledExecutorService SCHEDULER =
-            Executors.newSingleThreadScheduledExecutor(r -> {
-                Thread t = new Thread(r, "vetsmod-party-roster");
-                t.setDaemon(true);
-                return t;
-            });
+            Executors.newSingleThreadScheduledExecutor(
+                    r -> {
+                        Thread t = new Thread(r, "vetsmod-party-roster");
+                        t.setDaemon(true);
+                        return t;
+                    });
 
     private static final Object scheduleLock = new Object();
     private static ScheduledFuture<?> pending;
@@ -82,8 +82,7 @@ public final class PartyRosterListener {
 
     private static final PartyRosterListener INSTANCE = new PartyRosterListener();
 
-    private PartyRosterListener() {
-    }
+    private PartyRosterListener() {}
 
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
@@ -163,8 +162,9 @@ public final class PartyRosterListener {
             if (pending != null && !pending.isDone()) {
                 pending.cancel(false);
             }
-            pending = SCHEDULER.schedule(
-                    PartyRosterListener::flush, DEBOUNCE_MS, TimeUnit.MILLISECONDS);
+            pending =
+                    SCHEDULER.schedule(
+                            PartyRosterListener::flush, DEBOUNCE_MS, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -180,11 +180,9 @@ public final class PartyRosterListener {
         }
         String world = Models.WorldState.getCurrentWorldName();
         try {
-            V1ApiManager.sendAnniPartyObservation(
-                    toSend.members(), toSend.leader(), world);
+            V1ApiManager.sendAnniPartyObservation(toSend.members(), toSend.leader(), world);
         } catch (Exception e) {
-            VetsLogger.debug(
-                    "anni_party_observation send failed: {}", e.getMessage());
+            VetsLogger.debug("anni_party_observation send failed: {}", e.getMessage());
         }
     }
 
@@ -222,8 +220,7 @@ public final class PartyRosterListener {
      * @param stamp    anni epoch-seconds (0 = none announced)
      * @param now      current wall-clock epoch-seconds
      */
-    static boolean shouldSend(
-            Snapshot snap, AnniSnapshot snapshot, long stamp, long now) {
+    static boolean shouldSend(Snapshot snap, AnniSnapshot snapshot, long stamp, long now) {
         // (1) Anni window — quietest possible default.
         if (stamp == 0) return false;
         long delta = stamp - now;
@@ -242,13 +239,13 @@ public final class PartyRosterListener {
             }
         }
         if (orgLower.isEmpty()) return false;
-        if (snap.leader() != null && !snap.leader().isEmpty()
+        if (snap.leader() != null
+                && !snap.leader().isEmpty()
                 && orgLower.contains(snap.leader().toLowerCase(Locale.ROOT))) {
             return true;
         }
         for (String m : snap.members()) {
-            if (m != null && !m.isEmpty()
-                    && orgLower.contains(m.toLowerCase(Locale.ROOT))) {
+            if (m != null && !m.isEmpty() && orgLower.contains(m.toLowerCase(Locale.ROOT))) {
                 return true;
             }
         }

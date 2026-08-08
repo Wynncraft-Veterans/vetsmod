@@ -1,14 +1,12 @@
 package org.wynnvets.mwe.anni.render;
 
+import java.time.Instant;
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
-
-import java.time.Instant;
-import java.util.Locale;
 
 /**
  * World-join anni-motd line for vets-anni users.
@@ -47,8 +45,7 @@ import java.util.Locale;
  */
 public final class AnniMotdRenderer {
 
-    private AnniMotdRenderer() {
-    }
+    private AnniMotdRenderer() {}
 
     /**
      * Build the motd component, or {@code null} when nothing should
@@ -80,9 +77,9 @@ public final class AnniMotdRenderer {
         // through to line 2 — children inherit unspecified style fields
         // from the parent, and line 2's sub-segments only set color.
         MutableComponent root = Component.literal("");
-        root.append(Component.literal(
-                        "Annihilation returns in " + formatHours(secondsUntil) + "!")
-                .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
+        root.append(
+                Component.literal("Annihilation returns in " + formatHours(secondsUntil) + "!")
+                        .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
 
         // vetsAnniPromptRsvp acts as the "show line 2" flag — when off,
         // the user gets only the timing line.
@@ -93,25 +90,30 @@ public final class AnniMotdRenderer {
         if (line2 == null) {
             return root;
         }
-        return root
-                .append(Component.literal("\n"))
-                .append(line2);
+        return root.append(Component.literal("\n")).append(line2);
     }
 
     /** Line 2 — describes the player's current placement / RSVP state. */
     private static MutableComponent buildStatusLine(AnniSnapshot snapshot) {
         AnniSnapshot.Board board = snapshot.board();
-        String state = board == null || board.state() == null
-                ? null : board.state().toLowerCase(Locale.ROOT);
+        String state =
+                board == null || board.state() == null
+                        ? null
+                        : board.state().toLowerCase(Locale.ROOT);
         if (state == null) {
             return null;
         }
         switch (state) {
-            case "party":   return assignedToPartyLine(snapshot);
-            case "unassigned": return unassignedLine(snapshot);
-            case "wont_assign":  return wontAssignLine(snapshot);
-            case "unplaced":     return unplacedLine(snapshot);
-            default:             return null;
+            case "party":
+                return assignedToPartyLine(snapshot);
+            case "unassigned":
+                return unassignedLine(snapshot);
+            case "wont_assign":
+                return wontAssignLine(snapshot);
+            case "unplaced":
+                return unplacedLine(snapshot);
+            default:
+                return null;
         }
     }
 
@@ -124,22 +126,26 @@ public final class AnniMotdRenderer {
                     .withStyle(ChatFormatting.GRAY);
         }
         String roleCode = board.role();
-        MutableComponent line = Component.literal("You have been assigned to ")
-                .withStyle(ChatFormatting.GRAY);
+        MutableComponent line =
+                Component.literal("You have been assigned to ").withStyle(ChatFormatting.GRAY);
         if (roleCode != null) {
-            line.append(Component.literal(AnniHoverBuilder.displayRole(roleCode))
-                    .withStyle(AnniHoverBuilder.roleColor(roleCode), ChatFormatting.BOLD));
+            line.append(
+                    Component.literal(AnniHoverBuilder.displayRole(roleCode))
+                            .withStyle(AnniHoverBuilder.roleColor(roleCode), ChatFormatting.BOLD));
         } else {
-            line.append(Component.literal("a role")
-                    .withStyle(ChatFormatting.GRAY, ChatFormatting.BOLD));
+            line.append(
+                    Component.literal("a role")
+                            .withStyle(ChatFormatting.GRAY, ChatFormatting.BOLD));
         }
         line.append(Component.literal(" with ").withStyle(ChatFormatting.GRAY));
-        line.append(Component.literal("Party " + party.ordinal())
-                .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
+        line.append(
+                Component.literal("Party " + party.ordinal())
+                        .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
         if (party.world() != null && !party.world().isEmpty()) {
             line.append(Component.literal(" on ").withStyle(ChatFormatting.GRAY));
-            line.append(Component.literal(party.world())
-                    .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
+            line.append(
+                    Component.literal(party.world())
+                            .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
         }
         return line;
     }
@@ -165,7 +171,8 @@ public final class AnniMotdRenderer {
 
     /** "You're not yet on the placement queue and " + RSVP clause. */
     private static MutableComponent unplacedLine(AnniSnapshot snapshot) {
-        return Component.literal("You're not yet on the placement queue and " + rsvpClause(snapshot) + "!")
+        return Component.literal(
+                        "You're not yet on the placement queue and " + rsvpClause(snapshot) + "!")
                 .withStyle(ChatFormatting.GRAY);
     }
 
@@ -183,15 +190,20 @@ public final class AnniMotdRenderer {
         if (noticeKey == null) return "have not RSVP'd";
         switch (noticeKey.toLowerCase(Locale.ROOT)) {
             case "hard":
-            case "rsvp_hard":    return "are hard RSVP'd";
+            case "rsvp_hard":
+                return "are hard RSVP'd";
             case "soft":
-            case "rsvp_soft":    return "are soft RSVP'd";
+            case "rsvp_soft":
+                return "are soft RSVP'd";
             case "attend_early":
             case "walkin":
-            case "walk_in":      return "are walking in early";
+            case "walk_in":
+                return "are walking in early";
             case "attend_late":
-            case "late":         return "are walking in late";
-            default:             return "have an unrecognised RSVP";
+            case "late":
+                return "are walking in late";
+            default:
+                return "have an unrecognised RSVP";
         }
     }
 

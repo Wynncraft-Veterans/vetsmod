@@ -10,15 +10,14 @@ import com.wynntils.utils.colors.CustomColor;
 import com.wynntils.utils.mc.type.Location;
 import com.wynntils.utils.mc.type.PoiLocation;
 import com.wynntils.utils.render.Texture;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 import net.minecraft.ChatFormatting;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
 
 /**
  * S5 — Wynntils {@link MarkerProvider} for the party's pinned scroll spot.
@@ -67,6 +66,7 @@ public final class ScrollSpotMarkerProvider implements MarkerProvider<MarkerPoi>
      *  the user is in a party. Source: parent plan §S5 ("default;
      *  lead-overridable per party for this anni"). */
     private static final int DEFAULT_X = 345;
+
     private static final int DEFAULT_Y = 45;
     private static final int DEFAULT_Z = -1315;
 
@@ -79,8 +79,7 @@ public final class ScrollSpotMarkerProvider implements MarkerProvider<MarkerPoi>
      *  partial state being read mid-frame. */
     private final AtomicReference<Entry> current = new AtomicReference<>(null);
 
-    private ScrollSpotMarkerProvider() {
-    }
+    private ScrollSpotMarkerProvider() {}
 
     public static ScrollSpotMarkerProvider get() {
         return INSTANCE;
@@ -167,20 +166,16 @@ public final class ScrollSpotMarkerProvider implements MarkerProvider<MarkerPoi>
             // Texture + text colour = WHITE so the generic MAP icon doesn't
             // get tinted.
             CustomColor beacon = CustomColor.fromChatFormatting(ChatFormatting.DARK_RED);
-            MarkerInfo info = new MarkerInfo(
-                    MARKER_NAME,
-                    new StaticLocationSupplier(loc),
-                    Texture.MAP,
-                    beacon,
-                    CommonColors.WHITE,
-                    CommonColors.WHITE,
-                    null
-            );
-            MarkerPoi poi = new MarkerPoi(
-                    PoiLocation.fromLocation(loc),
-                    MARKER_NAME,
-                    Texture.MAP
-            );
+            MarkerInfo info =
+                    new MarkerInfo(
+                            MARKER_NAME,
+                            new StaticLocationSupplier(loc),
+                            Texture.MAP,
+                            beacon,
+                            CommonColors.WHITE,
+                            CommonColors.WHITE,
+                            null);
+            MarkerPoi poi = new MarkerPoi(PoiLocation.fromLocation(loc), MARKER_NAME, Texture.MAP);
             return new Entry(info, poi);
         }
     }

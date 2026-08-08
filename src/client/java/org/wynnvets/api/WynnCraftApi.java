@@ -37,8 +37,9 @@ public final class WynnCraftApi {
      * @return a URI targeting the WynnCraft player endpoint
      */
     public static URI playerInfo(String nameOrUuid) {
-        return URI.create("https://api.wynncraft.com/v3/player/"
-                + URLEncoder.encode(nameOrUuid, StandardCharsets.UTF_8));
+        return URI.create(
+                "https://api.wynncraft.com/v3/player/"
+                        + URLEncoder.encode(nameOrUuid, StandardCharsets.UTF_8));
     }
 
     /**
@@ -48,12 +49,13 @@ public final class WynnCraftApi {
      * @return a URI targeting the WynnCraft guild endpoint
      */
     public static URI guildInfo(String guildName) {
-        return URI.create(String.format(
-                "https://api.wynncraft.com/v3/guild/%s",
-                // URLEncoder.encode uses form-encoding (space → '+'); URL path
-                // segments require '%20' per RFC 3986. Wynncraft's guild endpoint
-                // 404s on '+', so translate. Literal '+' inputs are pre-encoded
-                // as '%2B' by URLEncoder and are unaffected by this replace.
-                URLEncoder.encode(guildName, StandardCharsets.UTF_8).replace("+", "%20")));
+        return URI.create(
+                String.format(
+                        "https://api.wynncraft.com/v3/guild/%s",
+                        // URLEncoder.encode uses form-encoding (space → '+'); URL path
+                        // segments require '%20' per RFC 3986. Wynncraft's guild endpoint
+                        // 404s on '+', so translate. Literal '+' inputs are pre-encoded
+                        // as '%2B' by URLEncoder and are unaffected by this replace.
+                        URLEncoder.encode(guildName, StandardCharsets.UTF_8).replace("+", "%20")));
     }
 }

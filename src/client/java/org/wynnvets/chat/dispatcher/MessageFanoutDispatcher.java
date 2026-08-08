@@ -1,10 +1,6 @@
 package org.wynnvets.chat.dispatcher;
 
 import com.wynntils.core.components.Handlers;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -15,6 +11,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Handles the actual {@code /msg} fanout dispatch and server-feedback suppression
@@ -34,13 +33,13 @@ public final class MessageFanoutDispatcher {
     private static final int MAX_DISPATCH_RETRIES = 3;
 
     // Suppression state — safe because dispatch is single-threaded.
-    private static final ConcurrentLinkedQueue<PendingSuppression> PENDING_SUPPRESSIONS = new ConcurrentLinkedQueue<>();
+    private static final ConcurrentLinkedQueue<PendingSuppression> PENDING_SUPPRESSIONS =
+            new ConcurrentLinkedQueue<>();
     private static final Object SUPPRESSION_ACK_LOCK = new Object();
     private static volatile AwaitingSuppression awaitingSuppression;
     private static volatile long suppressOfflineGuidanceUntilMs;
 
-    private MessageFanoutDispatcher() {
-    }
+    private MessageFanoutDispatcher() {}
 
     // ──────────────────────────── Batch processing ────────────────────────────
 
@@ -95,10 +94,15 @@ public final class MessageFanoutDispatcher {
                             break;
                         case OFFLINE:
                             offlineUsers.add(recipientLower);
-                            VetsLogger.debug("Staff member {} is offline, skipping for remaining messages", recipient);
+                            VetsLogger.debug(
+                                    "Staff member {} is offline, skipping for remaining messages",
+                                    recipient);
                             break;
                         case FAILED:
-                            VetsLogger.warn("Failed to deliver message to {} after {} retries", recipient, MAX_DISPATCH_RETRIES);
+                            VetsLogger.warn(
+                                    "Failed to deliver message to {} after {} retries",
+                                    recipient,
+                                    MAX_DISPATCH_RETRIES);
                             break;
                     }
 
@@ -135,7 +139,8 @@ public final class MessageFanoutDispatcher {
      * Attempts to send a single /msg to one recipient with retries.
      * Returns the outcome so the caller can track offline users and delivery status.
      */
-    private static FeedbackResult dispatchWithRetries(Minecraft minecraft, String recipient, String payload) {
+    private static FeedbackResult dispatchWithRetries(
+            Minecraft minecraft, String recipient, String payload) {
         for (int attempt = 1; attempt <= MAX_DISPATCH_RETRIES; attempt++) {
             FeedbackResult result = tryDispatchOnce(minecraft, recipient, payload);
 
@@ -145,7 +150,8 @@ public final class MessageFanoutDispatcher {
 
             // FAILED (timeout) — retry after a delay
             if (attempt < MAX_DISPATCH_RETRIES) {
-                VetsLogger.debug("No /msg feedback for {} attempt {}. Retrying...", recipient, attempt);
+                VetsLogger.debug(
+                        "No /msg feedback for {} attempt {}. Retrying...", recipient, attempt);
                 CommandDispatcher.sleepQuietly(INTER_SEND_DELAY_MS);
             }
         }
@@ -157,35 +163,37 @@ public final class MessageFanoutDispatcher {
      * Sends a single /msg command and waits for the server's feedback to determine the result.
      * Because dispatch is single-threaded, only one awaiting suppression exists at a time.
      */
-    private static FeedbackResult tryDispatchOnce(Minecraft minecraft, String recipient, String payload) {
+    private static FeedbackResult tryDispatchOnce(
+            Minecraft minecraft, String recipient, String payload) {
         AtomicBoolean commandSent = new AtomicBoolean(false);
         AtomicBoolean skippedSelf = new AtomicBoolean(false);
         CountDownLatch submitted = new CountDownLatch(1);
         String recipientLower = recipient.toLowerCase(Locale.ROOT);
 
-        minecraft.execute(() -> {
-            try {
-                LocalPlayer player = minecraft.player;
-                if (player == null || player.connection == null) {
-                    return;
-                }
+        minecraft.execute(
+                () -> {
+                    try {
+                        LocalPlayer player = minecraft.player;
+                        if (player == null || player.connection == null) {
+                            return;
+                        }
 
-                if (CommandDispatcher.isSelfRecipient(recipient, player)) {
-                    skippedSelf.set(true);
-                    return;
-                }
+                        if (CommandDispatcher.isSelfRecipient(recipient, player)) {
+                            skippedSelf.set(true);
+                            return;
+                        }
 
-                synchronized (SUPPRESSION_ACK_LOCK) {
-                    queueSuppression(recipient, payload);
-                    awaitingSuppression = new AwaitingSuppression(recipientLower, payload);
-                }
+                        synchronized (SUPPRESSION_ACK_LOCK) {
+                            queueSuppression(recipient, payload);
+                            awaitingSuppression = new AwaitingSuppression(recipientLower, payload);
+                        }
 
-                Handlers.Command.queueCommand("msg " + recipient + " " + payload);
-                commandSent.set(true);
-            } finally {
-                submitted.countDown();
-            }
-        });
+                        Handlers.Command.queueCommand("msg " + recipient + " " + payload);
+                        commandSent.set(true);
+                    } finally {
+                        submitted.countDown();
+                    }
+                });
 
         try {
             if (!submitted.await(2, TimeUnit.SECONDS)) {
@@ -219,7 +227,9 @@ public final class MessageFanoutDispatcher {
         synchronized (SUPPRESSION_ACK_LOCK) {
             while (true) {
                 AwaitingSuppression awaiting = awaitingSuppression;
-                if (awaiting != null && awaiting.matches(usernameLower, lockPayload) && awaiting.resultReady) {
+                if (awaiting != null
+                        && awaiting.matches(usernameLower, lockPayload)
+                        && awaiting.resultReady) {
                     awaitingSuppression = null;
                     return awaiting.offline ? FeedbackResult.OFFLINE : FeedbackResult.DELIVERED;
                 }
@@ -250,7 +260,8 @@ public final class MessageFanoutDispatcher {
         }
     }
 
-    // ──────────────────────────── Suppression (called from ChatLogMixin) ────────────────────────────
+    // ──────────────────────────── Suppression (called from ChatLogMixin)
+    // ────────────────────────────
 
     /**
      * Called from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} on the render
@@ -308,7 +319,8 @@ public final class MessageFanoutDispatcher {
                 isDirectMessageEcho = true;
             }
 
-            boolean isOfflineRecipientError = isOfflineRecipientMessage(lower, pending.usernameLower);
+            boolean isOfflineRecipientError =
+                    isOfflineRecipientMessage(lower, pending.usernameLower);
 
             if (!isDirectMessageEcho && !isOfflineRecipientError) {
                 continue;
@@ -321,7 +333,8 @@ public final class MessageFanoutDispatcher {
                 suppressOfflineGuidanceUntilMs = now + OFFLINE_GUIDANCE_SUPPRESSION_WINDOW_MS;
             }
 
-            signalFeedbackReceived(pending.usernameLower, pending.lockPayload, isOfflineRecipientError);
+            signalFeedbackReceived(
+                    pending.usernameLower, pending.lockPayload, isOfflineRecipientError);
             return true;
         }
 
@@ -332,14 +345,17 @@ public final class MessageFanoutDispatcher {
 
     private static void queueSuppression(String username, String payload) {
         cleanupExpired();
-        PENDING_SUPPRESSIONS.add(new PendingSuppression(username.toLowerCase(Locale.ROOT), payload, System.currentTimeMillis()));
+        PENDING_SUPPRESSIONS.add(
+                new PendingSuppression(
+                        username.toLowerCase(Locale.ROOT), payload, System.currentTimeMillis()));
     }
 
     private static void removeDuplicateSuppressions(PendingSuppression matched) {
         Iterator<PendingSuppression> iterator = PENDING_SUPPRESSIONS.iterator();
         while (iterator.hasNext()) {
             PendingSuppression pending = iterator.next();
-            if (pending.usernameLower.equals(matched.usernameLower) && pending.lockPayload.equals(matched.lockPayload)) {
+            if (pending.usernameLower.equals(matched.usernameLower)
+                    && pending.lockPayload.equals(matched.lockPayload)) {
                 iterator.remove();
             }
         }
@@ -349,7 +365,8 @@ public final class MessageFanoutDispatcher {
      * Signals the dispatch thread that feedback was received for a pending message.
      * Distinguishes between delivery confirmation and offline-user detection.
      */
-    private static void signalFeedbackReceived(String usernameLower, String lockPayload, boolean isOffline) {
+    private static void signalFeedbackReceived(
+            String usernameLower, String lockPayload, boolean isOffline) {
         synchronized (SUPPRESSION_ACK_LOCK) {
             AwaitingSuppression awaiting = awaitingSuppression;
             if (awaiting == null) {
@@ -383,12 +400,12 @@ public final class MessageFanoutDispatcher {
 
     private static boolean isOfflineRecipientMessage(String lowerMessage, String usernameLower) {
         return lowerMessage.contains(usernameLower + " is not online")
-            || lowerMessage.contains(usernameLower + " is not currently online");
+                || lowerMessage.contains(usernameLower + " is not currently online");
     }
 
     private static boolean isOfflineGuidanceMessage(String lowerMessage) {
         return lowerMessage.contains("be sure to use exact names, prediction does not work if")
-            || lowerMessage.contains("the user is on a separate server");
+                || lowerMessage.contains("the user is on a separate server");
     }
 
     private static boolean containsNormalizedPayload(String message, String payload) {
@@ -423,14 +440,16 @@ public final class MessageFanoutDispatcher {
         List<String> tokens = new ArrayList<>();
         StringBuilder current = new StringBuilder();
 
-        input.codePoints().forEach(cp -> {
-            if (Character.isLetterOrDigit(cp)) {
-                current.appendCodePoint(Character.toLowerCase(cp));
-            } else if (!current.isEmpty()) {
-                tokens.add(current.toString());
-                current.setLength(0);
-            }
-        });
+        input.codePoints()
+                .forEach(
+                        cp -> {
+                            if (Character.isLetterOrDigit(cp)) {
+                                current.appendCodePoint(Character.toLowerCase(cp));
+                            } else if (!current.isEmpty()) {
+                                tokens.add(current.toString());
+                                current.setLength(0);
+                            }
+                        });
 
         if (!current.isEmpty()) {
             tokens.add(current.toString());
@@ -439,7 +458,8 @@ public final class MessageFanoutDispatcher {
         return tokens;
     }
 
-    private static boolean containsTokenSubsequence(List<String> messageTokens, List<String> payloadTokens) {
+    private static boolean containsTokenSubsequence(
+            List<String> messageTokens, List<String> payloadTokens) {
         int messageIndex = 0;
         int payloadIndex = 0;
 
@@ -483,19 +503,21 @@ public final class MessageFanoutDispatcher {
 
     private static String normalizeForEchoComparison(String input) {
         StringBuilder normalized = new StringBuilder(input.length());
-        input.codePoints().forEach(cp -> {
-            int type = Character.getType(cp);
-            if (Character.isWhitespace(cp)
-                || type == Character.PRIVATE_USE
-                || type == Character.CONTROL
-                || type == Character.FORMAT
-                || type == Character.SURROGATE
-                || type == Character.UNASSIGNED) {
-                return;
-            }
+        input.codePoints()
+                .forEach(
+                        cp -> {
+                            int type = Character.getType(cp);
+                            if (Character.isWhitespace(cp)
+                                    || type == Character.PRIVATE_USE
+                                    || type == Character.CONTROL
+                                    || type == Character.FORMAT
+                                    || type == Character.SURROGATE
+                                    || type == Character.UNASSIGNED) {
+                                return;
+                            }
 
-            normalized.appendCodePoint(Character.toLowerCase(cp));
-        });
+                            normalized.appendCodePoint(Character.toLowerCase(cp));
+                        });
         return normalized.toString();
     }
 
@@ -512,8 +534,7 @@ public final class MessageFanoutDispatcher {
 
     // ──────────────────────────── Internal records ────────────────────────────
 
-    private record PendingSuppression(String usernameLower, String lockPayload, long createdAtMs) {
-    }
+    private record PendingSuppression(String usernameLower, String lockPayload, long createdAtMs) {}
 
     private static final class AwaitingSuppression {
         private final String usernameLower;
@@ -527,7 +548,8 @@ public final class MessageFanoutDispatcher {
         }
 
         private boolean matches(String otherUsernameLower, String otherLockPayload) {
-            return this.usernameLower.equals(otherUsernameLower) && this.lockPayload.equals(otherLockPayload);
+            return this.usernameLower.equals(otherUsernameLower)
+                    && this.lockPayload.equals(otherLockPayload);
         }
     }
 }

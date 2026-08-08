@@ -16,22 +16,25 @@ import org.wynnvets.fetcher.polling.StaffRanksPoller;
 public final class StaffGuildAlertRewriter {
 
     private static final String ALERT_PREFIX = "‼";
-    private static final String SHOUT_SYMBOL_PREFIX = "\uDAFF\uDFFC\uE015\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
+    private static final String SHOUT_SYMBOL_PREFIX =
+            "\uDAFF\uDFFC\uE015\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
     private static final String ALERT_FRAME_OPEN = "\uE010\u2064";
     private static final String ALERT_FRAME_SEGMENT = "\uE00F\uE012";
     private static final String ALERT_FRAME_CLOSE = "\uE011";
 
-    private static final Style SHOUT_PREFIX_STYLE = Style.EMPTY
-        .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-        .withColor(ChatFormatting.LIGHT_PURPLE)
-        .withoutShadow();
-    private static final Style ALERT_FRAME_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_PURPLE);
+    private static final Style SHOUT_PREFIX_STYLE =
+            Style.EMPTY
+                    .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+                    .withColor(ChatFormatting.LIGHT_PURPLE)
+                    .withoutShadow();
+    private static final Style ALERT_FRAME_STYLE =
+            Style.EMPTY.withColor(ChatFormatting.DARK_PURPLE);
     private static final Style ALERT_TEXT_STYLE = Style.EMPTY.withColor(ChatFormatting.WHITE);
-    private static final Style ALERT_BODY_STYLE = Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE);
+    private static final Style ALERT_BODY_STYLE =
+            Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE);
     private static final Style ALERT_BODY_BOLD_STYLE = ALERT_BODY_STYLE.withBold(true);
 
-    private StaffGuildAlertRewriter() {
-    }
+    private StaffGuildAlertRewriter() {}
 
     /**
      * Attempts to display an outbound WebSocket guild message as a staff alert.
@@ -63,12 +66,13 @@ public final class StaffGuildAlertRewriter {
 
         Style bodyStyle = boldBody ? ALERT_BODY_BOLD_STYLE : ALERT_BODY_STYLE;
 
-        MutableComponent body = Component.empty()
-            .append(Component.literal(SHOUT_SYMBOL_PREFIX).setStyle(SHOUT_PREFIX_STYLE))
-            .append(Component.literal(" ").setStyle(bodyStyle))
-            .append(buildAlertPill())
-            .append(Component.literal(": ").setStyle(bodyStyle))
-            .append(ChatUtils.formatMessageBody(alertMessage, bodyStyle));
+        MutableComponent body =
+                Component.empty()
+                        .append(Component.literal(SHOUT_SYMBOL_PREFIX).setStyle(SHOUT_PREFIX_STYLE))
+                        .append(Component.literal(" ").setStyle(bodyStyle))
+                        .append(buildAlertPill())
+                        .append(Component.literal(": ").setStyle(bodyStyle))
+                        .append(ChatUtils.formatMessageBody(alertMessage, bodyStyle));
 
         ChatUtils.dispatchToChat(body, SHOUT_PREFIX_STYLE);
         return true;
@@ -109,12 +113,13 @@ public final class StaffGuildAlertRewriter {
 
         Style bodyStyle = boldBody ? ALERT_BODY_BOLD_STYLE : ALERT_BODY_STYLE;
 
-        MutableComponent body = Component.empty()
-            .append(Component.literal(SHOUT_SYMBOL_PREFIX).setStyle(SHOUT_PREFIX_STYLE))
-            .append(Component.literal(" ").setStyle(bodyStyle))
-            .append(buildAlertPill())
-            .append(Component.literal(": ").setStyle(bodyStyle))
-            .append(ChatUtils.formatMessageBody(alertMessage, bodyStyle));
+        MutableComponent body =
+                Component.empty()
+                        .append(Component.literal(SHOUT_SYMBOL_PREFIX).setStyle(SHOUT_PREFIX_STYLE))
+                        .append(Component.literal(" ").setStyle(bodyStyle))
+                        .append(buildAlertPill())
+                        .append(Component.literal(": ").setStyle(bodyStyle))
+                        .append(ChatUtils.formatMessageBody(alertMessage, bodyStyle));
 
         ChatUtils.dispatchToChat(body, SHOUT_PREFIX_STYLE);
         return true;
@@ -180,8 +185,8 @@ public final class StaffGuildAlertRewriter {
             int cp = message.codePointAt(idx);
             int charCount = Character.charCount(cp);
             int type = Character.getType(cp);
-            boolean isCustomGlyph = type == Character.PRIVATE_USE
-                || (type == Character.UNASSIGNED && cp > 0xFFFF);
+            boolean isCustomGlyph =
+                    type == Character.PRIVATE_USE || (type == Character.UNASSIGNED && cp > 0xFFFF);
             if (isCustomGlyph) {
                 lastGlyphEnd = idx + charCount;
             }
@@ -201,6 +206,5 @@ public final class StaffGuildAlertRewriter {
         return new ParsedGuildChat(username, messageContent);
     }
 
-    private record ParsedGuildChat(String username, String message) {
-    }
+    private record ParsedGuildChat(String username, String message) {}
 }

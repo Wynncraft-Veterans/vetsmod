@@ -8,14 +8,13 @@ import com.wynntils.mc.event.MenuEvent;
 import com.wynntils.mc.event.TickEvent;
 import com.wynntils.models.items.items.gui.GuildLogItem;
 import com.wynntils.utils.mc.McUtils;
-import net.minecraft.world.item.ItemStack;
-import net.neoforged.bus.api.SubscribeEvent;
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.bus.api.SubscribeEvent;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Walks the in-game {@code "<guild>'s Log: <category>"} GUI and
@@ -73,8 +72,10 @@ public final class GuildLogWalker {
     private static volatile int containerId = -1;
     private static volatile Completion completion = null;
     private static final List<GuildLogItem> collected = new ArrayList<>();
+
     /** Tick on which we last saw a new GuildLogItem land. */
     private static volatile int lastItemTick = -1;
+
     /** Tick on which the walk was armed (for overall timeout). */
     private static volatile int startTick = -1;
 
@@ -119,8 +120,10 @@ public final class GuildLogWalker {
         if (containerId != -1) return;
         String titleText = StyledText.fromComponent(event.getTitle()).getStringWithoutFormatting();
         if (!StyledText.fromComponent(event.getTitle()).matches(LOG_TITLE_PATTERN)) {
-            VetsLogger.debug("GuildLogWalker: ignored menu open id={} title=[{}] (no log-title match)",
-                    event.getContainerId(), titleText);
+            VetsLogger.debug(
+                    "GuildLogWalker: ignored menu open id={} title=[{}] (no log-title match)",
+                    event.getContainerId(),
+                    titleText);
             return;
         }
         containerId = event.getContainerId();
@@ -136,8 +139,7 @@ public final class GuildLogWalker {
         if (event.getContainerId() != containerId) return;
         // Screen closed under us (user pressed escape, or the underlying
         // container went away). Finish with whatever we've collected.
-        VetsLogger.debug("GuildLogWalker: menu closed mid-walk after {} entries",
-                collected.size());
+        VetsLogger.debug("GuildLogWalker: menu closed mid-walk after {} entries", collected.size());
         finishWalk(false);
     }
 
@@ -168,8 +170,10 @@ public final class GuildLogWalker {
         // — otherwise the next walk's menu open events would all
         // appear "stale" and trigger spurious match attempts.
         if (now - startTick > OVERALL_TIMEOUT_TICKS) {
-            VetsLogger.debug("GuildLogWalker: overall timeout reached (boundId={}, {} entries)",
-                    containerId, collected.size());
+            VetsLogger.debug(
+                    "GuildLogWalker: overall timeout reached (boundId={}, {} entries)",
+                    containerId,
+                    collected.size());
             finishWalk(containerId != -1);
             return;
         }

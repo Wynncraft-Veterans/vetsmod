@@ -1,13 +1,5 @@
 package org.wynnvets.fetcher.lookup;
 
-import org.wynnvets.fetcher.lookup.providers.AshconProvider;
-import org.wynnvets.fetcher.lookup.providers.MojangLegacyProvider;
-import org.wynnvets.fetcher.lookup.providers.MojangServicesProvider;
-import org.wynnvets.fetcher.lookup.providers.PlayerDbProvider;
-import org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider;
-import org.wynnvets.fetcher.lookup.providers.WynncraftProvider;
-import org.wynnvets.logging.VetsLogger;
-
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Iterator;
@@ -16,6 +8,13 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import org.wynnvets.fetcher.lookup.providers.AshconProvider;
+import org.wynnvets.fetcher.lookup.providers.MojangLegacyProvider;
+import org.wynnvets.fetcher.lookup.providers.MojangServicesProvider;
+import org.wynnvets.fetcher.lookup.providers.PlayerDbProvider;
+import org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider;
+import org.wynnvets.fetcher.lookup.providers.WynncraftProvider;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Cascading player-name → UUID (and profile/snapshot) resolver.
@@ -42,76 +41,89 @@ import java.util.concurrent.TimeUnit;
  */
 public final class PlayerLookup {
 
-  private static final Duration OVERALL_TIMEOUT = Duration.ofSeconds(15);
+    private static final Duration OVERALL_TIMEOUT = Duration.ofSeconds(15);
 
-  private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-      .version(HttpClient.Version.HTTP_1_1)
-      .connectTimeout(Duration.ofSeconds(5))
-      .build();
+    private static final HttpClient HTTP_CLIENT =
+            HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
 
-  private static final List<LookupProvider> PROVIDERS = List.of(
-      new WynncraftProvider(HTTP_CLIENT),
-      new VetsSnapshotProvider(),
-      new PlayerDbProvider(HTTP_CLIENT),
-      new AshconProvider(HTTP_CLIENT),
-      new MojangServicesProvider(HTTP_CLIENT),
-      new MojangLegacyProvider(HTTP_CLIENT)
-  );
+    private static final List<LookupProvider> PROVIDERS =
+            List.of(
+                    new WynncraftProvider(HTTP_CLIENT),
+                    new VetsSnapshotProvider(),
+                    new PlayerDbProvider(HTTP_CLIENT),
+                    new AshconProvider(HTTP_CLIENT),
+                    new MojangServicesProvider(HTTP_CLIENT),
+                    new MojangLegacyProvider(HTTP_CLIENT));
 
-  private static final ConcurrentHashMap<String, CompletableFuture<LookupResult>> inFlight
-      = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, CompletableFuture<LookupResult>> inFlight =
+            new ConcurrentHashMap<>();
 
-  private PlayerLookup() {}
+    private PlayerLookup() {}
 
-  /**
-   * Resolves a player name through the provider cascade. Never completes
-   * exceptionally — failures are encoded in
-   * {@link LookupResult#failureReason()}.
-   */
-  public static CompletableFuture<LookupResult> resolve(String name) {
-    if (name == null || name.isBlank()) {
-      return CompletableFuture.completedFuture(
-          LookupResult.exhausted(FailureReason.INPUT_INVALID));
+    /**
+     * Resolves a player name through the provider cascade. Never completes
+     * exceptionally — failures are encoded in
+     * {@link LookupResult#failureReason()}.
+     */
+    public static CompletableFuture<LookupResult> resolve(String name) {
+        if (name == null || name.isBlank()) {
+            return CompletableFuture.completedFuture(
+                    LookupResult.exhausted(FailureReason.INPUT_INVALID));
+        }
+        String trimmed = name.trim();
+        String key = trimmed.toLowerCase(Locale.ROOT);
+        return inFlight.computeIfAbsent(
+                key,
+                k -> {
+                    CompletableFuture<LookupResult> cf = runCascade(trimmed);
+                    cf.whenComplete((r, ex) -> inFlight.remove(k, cf));
+                    return cf;
+                });
     }
-    String trimmed = name.trim();
-    String key = trimmed.toLowerCase(Locale.ROOT);
-    return inFlight.computeIfAbsent(key, k -> {
-      CompletableFuture<LookupResult> cf = runCascade(trimmed);
-      cf.whenComplete((r, ex) -> inFlight.remove(k, cf));
-      return cf;
-    });
-  }
 
-  private static CompletableFuture<LookupResult> runCascade(String name) {
-    return runCascadeStep(name, PROVIDERS.iterator(), false)
-        .orTimeout(OVERALL_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
-        .exceptionally(e -> {
-          VetsLogger.debug("Cascade timeout/error for '{}': {}", name, e.getMessage());
-          return LookupResult.exhausted(FailureReason.ALL_PROVIDERS_TRANSIENT);
-        });
-  }
-
-  private static CompletableFuture<LookupResult> runCascadeStep(
-      String name, Iterator<LookupProvider> it, boolean anyTransient) {
-    if (!it.hasNext()) {
-      FailureReason reason = anyTransient
-          ? FailureReason.ALL_PROVIDERS_TRANSIENT
-          : FailureReason.PLAYER_NOT_FOUND;
-      return CompletableFuture.completedFuture(LookupResult.exhausted(reason));
+    private static CompletableFuture<LookupResult> runCascade(String name) {
+        return runCascadeStep(name, PROVIDERS.iterator(), false)
+                .orTimeout(OVERALL_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+                .exceptionally(
+                        e -> {
+                            VetsLogger.debug(
+                                    "Cascade timeout/error for '{}': {}", name, e.getMessage());
+                            return LookupResult.exhausted(FailureReason.ALL_PROVIDERS_TRANSIENT);
+                        });
     }
-    LookupProvider provider = it.next();
-    return provider.lookup(name)
-        .exceptionally(e -> {
-          VetsLogger.debug("Provider {} threw for '{}': {}", provider.id(), name, e.getMessage());
-          return ProviderOutcome.transientMiss();
-        })
-        .thenCompose(outcome -> {
-          if (outcome.isHit()) {
-            VetsLogger.debug("Lookup '{}' resolved via {}", name, provider.id());
-            return CompletableFuture.completedFuture(outcome.hit());
-          }
-          boolean nextTransient = anyTransient || !outcome.isDefiniteMiss();
-          return runCascadeStep(name, it, nextTransient);
-        });
-  }
+
+    private static CompletableFuture<LookupResult> runCascadeStep(
+            String name, Iterator<LookupProvider> it, boolean anyTransient) {
+        if (!it.hasNext()) {
+            FailureReason reason =
+                    anyTransient
+                            ? FailureReason.ALL_PROVIDERS_TRANSIENT
+                            : FailureReason.PLAYER_NOT_FOUND;
+            return CompletableFuture.completedFuture(LookupResult.exhausted(reason));
+        }
+        LookupProvider provider = it.next();
+        return provider.lookup(name)
+                .exceptionally(
+                        e -> {
+                            VetsLogger.debug(
+                                    "Provider {} threw for '{}': {}",
+                                    provider.id(),
+                                    name,
+                                    e.getMessage());
+                            return ProviderOutcome.transientMiss();
+                        })
+                .thenCompose(
+                        outcome -> {
+                            if (outcome.isHit()) {
+                                VetsLogger.debug(
+                                        "Lookup '{}' resolved via {}", name, provider.id());
+                                return CompletableFuture.completedFuture(outcome.hit());
+                            }
+                            boolean nextTransient = anyTransient || !outcome.isDefiniteMiss();
+                            return runCascadeStep(name, it, nextTransient);
+                        });
+    }
 }

@@ -22,7 +22,8 @@ public final class VetsApi {
     public static final URI MOTD = URI.create("https://api.wynnvets.org/v1/outbound/motd");
 
     /** GET the guild-specific message of the day (for members/waitlist/honourary). */
-    public static final URI GUILD_MOTD = URI.create("https://api.wynnvets.org/v1/outbound/guild_motd");
+    public static final URI GUILD_MOTD =
+            URI.create("https://api.wynnvets.org/v1/outbound/guild_motd");
 
     /** GET return event information. */
     public static final URI RETURN = URI.create("https://api.wynnvets.org/v1/outbound/return");
@@ -36,7 +37,8 @@ public final class VetsApi {
     public static final URI STAFF = URI.create("https://api.wynnvets.org/v1/outbound/staff");
 
     /** GET the list of users who receive special supporter styling. */
-    public static final URI SUPPORTERS = URI.create("https://api.wynnvets.org/v1/outbound/supporters");
+    public static final URI SUPPORTERS =
+            URI.create("https://api.wynnvets.org/v1/outbound/supporters");
 
     /** GET the list of currently connected VetsMod users. */
     public static final URI LIST = URI.create("https://api.wynnvets.org/v1/outbound/list");
@@ -55,7 +57,8 @@ public final class VetsApi {
      * response) before dispatching. See
      * {@link org.wynnvets.distribute.utils.NoAspectsFilter}.
      */
-    public static final URI NO_ASPECTS = URI.create("https://api.wynnvets.org/v1/outbound/no-aspects");
+    public static final URI NO_ASPECTS =
+            URI.create("https://api.wynnvets.org/v1/outbound/no-aspects");
 
     // ── External links ────────────────────────────────────────────────
 

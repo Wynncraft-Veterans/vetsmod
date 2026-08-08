@@ -8,6 +8,11 @@ import com.wynntils.mc.event.ContainerSetSlotEvent;
 import com.wynntils.mc.event.MenuEvent;
 import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -18,12 +23,6 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.distributor.RandomDistributor;
 import org.wynnvets.distribute.utils.NameResolver;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Pattern;
 
 /**
  * Paginates the in-game {@code "<guild>: Members"} GUI looking for a
@@ -66,12 +65,16 @@ public final class MembersListSearcher {
 
     /** Mirrors {@code GuildMemberListContainer.TITLE_PATTERN}. */
     private static final Pattern MEMBERS_TITLE_PATTERN = Pattern.compile(".+: Members");
+
     /** Mirrors {@code GuildMemberListContainer.NEXT_PAGE_PATTERN}. */
     private static final Pattern NEXT_PAGE_PATTERN = Pattern.compile("§a§lNext Page");
+
     /** Mirrors {@code GuildMemberListContainer.PREVIOUS_PAGE_PATTERN}. */
     private static final Pattern PREVIOUS_PAGE_PATTERN = Pattern.compile("§a§lPrevious Page");
+
     /** Mirrors {@code GuildMemberListContainer.getNextItemSlot()}. */
     private static final int NEXT_PAGE_SLOT = 28;
+
     /** Mirrors {@code GuildMemberListContainer.getPreviousItemSlot()}. */
     private static final int PREVIOUS_PAGE_SLOT = 10;
 
@@ -123,18 +126,25 @@ public final class MembersListSearcher {
      *  watchdog force-advances the chain so distribution can continue. */
     private static final int WATCHDOG_TICKS = 300;
 
-    private enum Direction { FORWARD, BACKWARD }
+    private enum Direction {
+        FORWARD,
+        BACKWARD
+    }
 
     private static final MembersListSearcher INSTANCE = new MembersListSearcher();
 
     /** Human-readable label for chat messages; non-null iff armed. */
     private static volatile String displayQuery = null;
+
     /** Lowercased set of acceptable names. Concurrent because async
      *  resolvers ({@link NameResolver}) may add alternatives after arming. */
     private static final Set<String> queryLower = ConcurrentHashMap.newKeySet();
+
     /** Container id of the Members menu we're currently driving. */
     private static volatile int membersContainerId = -1;
+
     private static volatile int pagesClicked = 0;
+
     /** Monotonic token bumped on every {@link #scheduleScan()} and every
      *  {@link #stop()}. Scheduled scan tasks capture the token at
      *  schedule time and bail at fire time if it's been superseded —
@@ -143,22 +153,28 @@ public final class MembersListSearcher {
      *  first) plus automatic cancellation of pending scans when a
      *  search ends. */
     private static volatile int scanToken = 0;
+
     private static volatile Direction direction = Direction.FORWARD;
+
     /** Number of times {@link #scanAndPaginate()} has rebound to a
      *  refreshed container id during the current search. Bounded by
      *  {@link #MAX_REBIND_ATTEMPTS} so a thrashing refresh loop can't
      *  pin the searcher forever. Reset per {@link #armSearch} / {@link #stop}. */
     private static volatile int rebindAttempts = 0;
+
     /** Number of full forward+backward sweep retries used so far on the
      *  current search. Bounded by {@link #MAX_RETRY_ATTEMPTS}. */
     private static volatile int retryAttempts = 0;
+
     /** Monotonic token bumped on every {@link #armSearch}; the per-search
      *  watchdog task captures it at arm time and bails at fire time if
      *  a newer search has replaced it. Lets the search complete normally
      *  (via match or stopNotFound) without needing the watchdog to know. */
     private static volatile int watchdogToken = 0;
+
     /** Callback invoked when the armed name is located. */
     private static volatile SlotMatchHandler matchHandler = null;
+
     /** Optional callback invoked when the search exhausts both directions
      *  without finding the name. */
     private static volatile Runnable notFoundHandler = null;
@@ -217,17 +233,23 @@ public final class MembersListSearcher {
         // covered: dropped pagination clicks, server-side menu close
         // without an event, exceptions in the scheduler, etc.
         final int myWatchdog = ++watchdogToken;
-        Managers.TickScheduler.scheduleLater(() -> {
-            if (myWatchdog != watchdogToken) return;
-            if (displayQuery == null) return;
-            VetsLogger.debug("MembersListSearcher: watchdog timeout for [{}] after {} ticks",
-                    displayQuery, WATCHDOG_TICKS);
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Search for " + displayQuery
-                                    + " timed out — advancing.")
-                            .withStyle(ChatFormatting.YELLOW));
-            invokeNotFound();
-        }, WATCHDOG_TICKS);
+        Managers.TickScheduler.scheduleLater(
+                () -> {
+                    if (myWatchdog != watchdogToken) return;
+                    if (displayQuery == null) return;
+                    VetsLogger.debug(
+                            "MembersListSearcher: watchdog timeout for [{}] after {} ticks",
+                            displayQuery,
+                            WATCHDOG_TICKS);
+                    ChatUtils.sendLocalMessage(
+                            Component.literal(
+                                            "Search for "
+                                                    + displayQuery
+                                                    + " timed out — advancing.")
+                                    .withStyle(ChatFormatting.YELLOW));
+                    invokeNotFound();
+                },
+                WATCHDOG_TICKS);
 
         // Re-arm fast-path: when the Members menu is already open (multi-user
         // flow), bind to its container id and kick off a scan now. Otherwise
@@ -252,8 +274,8 @@ public final class MembersListSearcher {
         if (displayQuery == null) return;
         if (name == null || name.isEmpty()) return;
         if (queryLower.add(name.toLowerCase(Locale.ROOT))) {
-            VetsLogger.debug("MembersListSearcher: added alternative [{}] for [{}]",
-                    name, displayQuery);
+            VetsLogger.debug(
+                    "MembersListSearcher: added alternative [{}] for [{}]", name, displayQuery);
         }
     }
 
@@ -283,8 +305,10 @@ public final class MembersListSearcher {
         // Don't cancel — the menu must render so the player can see results
         // and so getMenu().getItems() reflects what the server sends.
         membersContainerId = event.getContainerId();
-        VetsLogger.debug("MembersListSearcher: armed for [{}] in menu id={}",
-                displayQuery, membersContainerId);
+        VetsLogger.debug(
+                "MembersListSearcher: armed for [{}] in menu id={}",
+                displayQuery,
+                membersContainerId);
     }
 
     @SubscribeEvent
@@ -292,8 +316,8 @@ public final class MembersListSearcher {
         if (displayQuery == null) return;
         if (event.getContainerId() != membersContainerId) return;
         // User (or server) closed our menu mid-search — abandon quietly.
-        VetsLogger.debug("MembersListSearcher: menu closed mid-search, abandoning [{}]",
-                displayQuery);
+        VetsLogger.debug(
+                "MembersListSearcher: menu closed mid-search, abandoning [{}]", displayQuery);
         stop();
     }
 
@@ -321,8 +345,7 @@ public final class MembersListSearcher {
         if (displayQuery == null) return;
         if (event.getContainerId() != membersContainerId) return;
         int slot = event.getSlot();
-        if (slot == NEXT_PAGE_SLOT || slot == PREVIOUS_PAGE_SLOT
-                || isPlayerBoundsSlot(slot)) {
+        if (slot == NEXT_PAGE_SLOT || slot == PREVIOUS_PAGE_SLOT || isPlayerBoundsSlot(slot)) {
             scheduleScan();
         }
     }
@@ -334,8 +357,10 @@ public final class MembersListSearcher {
     private static boolean isPlayerBoundsSlot(int slot) {
         int row = slot / 9;
         int col = slot % 9;
-        return row >= BOUNDS_START_ROW && row <= BOUNDS_END_ROW
-                && col >= BOUNDS_START_COL && col <= BOUNDS_END_COL;
+        return row >= BOUNDS_START_ROW
+                && row <= BOUNDS_END_ROW
+                && col >= BOUNDS_START_COL
+                && col <= BOUNDS_END_COL;
     }
 
     /**
@@ -349,11 +374,13 @@ public final class MembersListSearcher {
      */
     private static void scheduleScan() {
         final int myToken = ++scanToken;
-        Managers.TickScheduler.scheduleLater(() -> {
-            if (myToken != scanToken) return;
-            if (displayQuery == null) return;
-            scanAndPaginate();
-        }, SCAN_DELAY_TICKS);
+        Managers.TickScheduler.scheduleLater(
+                () -> {
+                    if (myToken != scanToken) return;
+                    if (displayQuery == null) return;
+                    scanAndPaginate();
+                },
+                SCAN_DELAY_TICKS);
     }
 
     private static void scanAndPaginate() {
@@ -373,9 +400,13 @@ public final class MembersListSearcher {
             if (reopened != null && rebindAttempts < MAX_REBIND_ATTEMPTS) {
                 rebindAttempts++;
                 int newId = reopened.getMenu().containerId;
-                VetsLogger.debug("MembersListSearcher: rebinding from container {} to {} "
-                        + "(attempt {}/{}) for [{}]",
-                        membersContainerId, newId, rebindAttempts, MAX_REBIND_ATTEMPTS,
+                VetsLogger.debug(
+                        "MembersListSearcher: rebinding from container {} to {} "
+                                + "(attempt {}/{}) for [{}]",
+                        membersContainerId,
+                        newId,
+                        rebindAttempts,
+                        MAX_REBIND_ATTEMPTS,
                         displayQuery);
                 membersContainerId = newId;
                 scheduleScan();
@@ -385,7 +416,8 @@ public final class MembersListSearcher {
             // Invoke not-found so chained callers (RandomDistributor,
             // GraidsDistributor, ObjectivesDistributor) advance their
             // queue rather than silently stalling with the menu open.
-            VetsLogger.debug("MembersListSearcher: lost Members menu mid-search for [{}], advancing",
+            VetsLogger.debug(
+                    "MembersListSearcher: lost Members menu mid-search for [{}], advancing",
                     displayQuery);
             invokeNotFound();
             return;
@@ -406,9 +438,13 @@ public final class MembersListSearcher {
         if (!advancePagination(items)) {
             if (retryAttempts < MAX_RETRY_ATTEMPTS) {
                 retryAttempts++;
-                VetsLogger.debug("MembersListSearcher: sweep exhausted for [{}], "
+                VetsLogger.debug(
+                        "MembersListSearcher: sweep exhausted for [{}], "
                                 + "retrying from page 1 in {} ticks (attempt {}/{})",
-                        displayQuery, RETRY_DELAY_TICKS, retryAttempts, MAX_RETRY_ATTEMPTS);
+                        displayQuery,
+                        RETRY_DELAY_TICKS,
+                        retryAttempts,
+                        MAX_RETRY_ATTEMPTS);
                 // After backward exhaustion we're sitting on page 1.
                 // Reset sweep state and rescan; the next advancePagination
                 // will click NEXT, forcing the server to re-stream
@@ -442,8 +478,8 @@ public final class MembersListSearcher {
             ItemStack stack = items.get(slot);
             if (stack.isEmpty()) continue;
 
-            String plain = StyledText.fromComponent(stack.getHoverName())
-                    .getStringWithoutFormatting();
+            String plain =
+                    StyledText.fromComponent(stack.getHoverName()).getStringWithoutFormatting();
             if (queryLower.contains(plain.toLowerCase(Locale.ROOT))) {
                 VetsLogger.debug("MembersListSearcher: matched [{}] at slot {}", plain, slot);
                 SlotMatchHandler handler = matchHandler;

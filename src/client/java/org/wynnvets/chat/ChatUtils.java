@@ -1,5 +1,9 @@
 package org.wynnvets.chat;
 
+import java.net.URI;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.StringSplitter;
@@ -8,20 +12,15 @@ import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.gui.components.ComponentRenderUtils;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
-import org.wynnvets.rendering.colors.AnimatedGradientSequence;
-import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.chat.spoiler.SpoilerFormatter;
-
-import java.net.URI;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import org.wynnvets.fetcher.polling.SupportersPoller;
+import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 
 /**
  * Centralized utility for sending formatted chat messages to the local player.
@@ -32,7 +31,8 @@ import java.util.regex.Pattern;
  */
 public final class ChatUtils {
 
-    private static final ThreadLocal<Boolean> INTERNAL_CHAT_DISPATCH = ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<Boolean> INTERNAL_CHAT_DISPATCH =
+            ThreadLocal.withInitial(() -> false);
 
     /** Style used for rank "pill" text. */
     public static final Style RANK_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
@@ -41,7 +41,8 @@ public final class ChatUtils {
     public static final Style NAME_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
 
     /** Style used for the rank pill / separator / message body of honourary chat. */
-    public static final Style HONOURARY_RANK_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
+    public static final Style HONOURARY_RANK_STYLE =
+            Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
 
     /** Style used for the display-name portion of honourary chat.
      *  Off-by-one from ChatFormatting.AQUA (0x55FFFF) so hspmod's outer color
@@ -51,7 +52,8 @@ public final class ChatUtils {
      *  continuation indicator (which shares its PUA with Wynn's guild-cont
      *  glyph). Visually indistinguishable to the eye; preserves the rank/name
      *  inversion this class's honourary-render docstring calls out. */
-    public static final Style HONOURARY_NAME_STYLE = Style.EMPTY.withColor(TextColor.fromRgb(0x56FFFF));
+    public static final Style HONOURARY_NAME_STYLE =
+            Style.EMPTY.withColor(TextColor.fromRgb(0x56FFFF));
 
     /** Red style used for admin-locked guild message body text. */
     public static final Style ADMIN_RANK_STYLE = Style.EMPTY.withColor(ChatFormatting.RED);
@@ -59,22 +61,24 @@ public final class ChatUtils {
     /** Dark-red style used for admin-locked guild message display names. */
     public static final Style ADMIN_NAME_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_RED);
 
-    private static final String GUILD_PREPEND_FULL = "\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
+    private static final String GUILD_PREPEND_FULL =
+            "\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
     private static final String GUILD_PREPEND_COMPACT = "\uDAFF\uDFFC\uE001\uDB00\uDC06";
     private static final String PRIVATE_SEPARATOR_GLYPH = "\uE003";
-    private static final Style CHAT_PREFIX_STYLE = Style.EMPTY
-            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-            .withoutShadow();
+    private static final Style CHAT_PREFIX_STYLE =
+            Style.EMPTY
+                    .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+                    .withoutShadow();
 
-    private static final Pattern URL_PATTERN = Pattern.compile(
-            "(?<!§)("
-            + "https?://\\S+"
-            + "|[A-Za-z0-9][A-Za-z0-9-]*(?:\\.[A-Za-z0-9][A-Za-z0-9-]*)+/\\S*"
-            + ")",
-            Pattern.CASE_INSENSITIVE);
+    private static final Pattern URL_PATTERN =
+            Pattern.compile(
+                    "(?<!§)("
+                            + "https?://\\S+"
+                            + "|[A-Za-z0-9][A-Za-z0-9-]*(?:\\.[A-Za-z0-9][A-Za-z0-9-]*)+/\\S*"
+                            + ")",
+                    Pattern.CASE_INSENSITIVE);
 
-    private ChatUtils() {
-    }
+    private ChatUtils() {}
 
     /**
      * Returns {@code true} when {@code text} is purely server wrap-continuation
@@ -85,9 +89,9 @@ public final class ChatUtils {
      */
     public static boolean isWrapStructure(String text) {
         return text.equals("\n")
-            || text.equals(GUILD_PREPEND_FULL)
-            || text.equals(GUILD_PREPEND_COMPACT)
-            || text.equals(PRIVATE_SEPARATOR_GLYPH);
+                || text.equals(GUILD_PREPEND_FULL)
+                || text.equals(GUILD_PREPEND_COMPACT)
+                || text.equals(PRIVATE_SEPARATOR_GLYPH);
     }
 
     /**
@@ -131,9 +135,7 @@ public final class ChatUtils {
      */
     public static void sendLocalMessage(Component message, Prepend prepend) {
         MutableComponent badge = prepend.get();
-        MutableComponent full = Component.empty()
-                .append(badge)
-                .append(message);
+        MutableComponent full = Component.empty().append(badge).append(message);
 
         dispatchToChat(full, badge.getStyle());
     }
@@ -159,21 +161,17 @@ public final class ChatUtils {
 
         MutableComponent body = Component.empty();
 
-        boolean isSupporter = !pillText.isEmpty()
-            && SupportersPoller.isSupporter(displayName);
+        boolean isSupporter = !pillText.isEmpty() && SupportersPoller.isSupporter(displayName);
 
         if (!pillText.isEmpty()) {
-            body.append(PillFormatter.formatPill(pillText, displayName, isSupporter))
-                    .append(" ");
+            body.append(PillFormatter.formatPill(pillText, displayName, isSupporter)).append(" ");
         }
 
         body.append(Component.literal(displayName).setStyle(NAME_STYLE))
                 .append(Component.literal(": ").setStyle(RANK_STYLE))
-            .append(formatMessageBody(message, RANK_STYLE));
+                .append(formatMessageBody(message, RANK_STYLE));
 
-        MutableComponent full = Component.empty()
-                .append(badge)
-                .append(body);
+        MutableComponent full = Component.empty().append(badge).append(body);
 
         Style badgeStyle = badge.getStyle();
         if (isSupporter) {
@@ -201,11 +199,12 @@ public final class ChatUtils {
 
         MutableComponent body = Component.empty();
 
-        boolean isSupporter = !pillText.isEmpty()
-            && SupportersPoller.isSupporter(displayName);
+        boolean isSupporter = !pillText.isEmpty() && SupportersPoller.isSupporter(displayName);
 
         if (!pillText.isEmpty()) {
-            body.append(PillFormatter.formatPill(pillText, displayName, HONOURARY_RANK_STYLE, isSupporter))
+            body.append(
+                            PillFormatter.formatPill(
+                                    pillText, displayName, HONOURARY_RANK_STYLE, isSupporter))
                     .append(" ");
         }
 
@@ -213,9 +212,7 @@ public final class ChatUtils {
                 .append(Component.literal(": ").setStyle(HONOURARY_RANK_STYLE))
                 .append(formatMessageBody(message, HONOURARY_RANK_STYLE));
 
-        MutableComponent full = Component.empty()
-                .append(badge)
-                .append(body);
+        MutableComponent full = Component.empty().append(badge).append(body);
 
         Style badgeStyle = badge.getStyle();
         if (isSupporter) {
@@ -225,31 +222,29 @@ public final class ChatUtils {
         }
     }
 
-        /**
-         * Sends a guild-chat–style message in admin-locked red styling with a custom
-         * pre-styled rank pill component.
-         */
-        public static void sendGuildChatMessageRed(Component rankComponent, String displayName, String message) {
-        MutableComponent badge = Prepend.GUILD.get()
-            .withStyle(style -> style.withColor(ChatFormatting.RED));
+    /**
+     * Sends a guild-chat–style message in admin-locked red styling with a custom
+     * pre-styled rank pill component.
+     */
+    public static void sendGuildChatMessageRed(
+            Component rankComponent, String displayName, String message) {
+        MutableComponent badge =
+                Prepend.GUILD.get().withStyle(style -> style.withColor(ChatFormatting.RED));
 
         MutableComponent body = Component.empty();
 
         if (rankComponent != null && !rankComponent.getString().trim().isEmpty()) {
-            body.append(rankComponent)
-                .append(" ");
+            body.append(rankComponent).append(" ");
         }
 
         body.append(Component.literal(displayName).setStyle(ADMIN_NAME_STYLE))
-            .append(Component.literal(": ").setStyle(ADMIN_RANK_STYLE))
-            .append(formatMessageBody(message, ADMIN_RANK_STYLE));
+                .append(Component.literal(": ").setStyle(ADMIN_RANK_STYLE))
+                .append(formatMessageBody(message, ADMIN_RANK_STYLE));
 
-        MutableComponent full = Component.empty()
-            .append(badge)
-            .append(body);
+        MutableComponent full = Component.empty().append(badge).append(body);
 
         dispatchToChat(full, badge.getStyle());
-        }
+    }
 
     /**
      * Sends a guild-chat–style message where the body is a pre-built component.
@@ -260,7 +255,8 @@ public final class ChatUtils {
      * @param displayName the player display name
      * @param bodyComponent the pre-built message body component
      */
-    public static void sendGuildChatMessageWithBody(String rank, String displayName, Component bodyComponent) {
+    public static void sendGuildChatMessageWithBody(
+            String rank, String displayName, Component bodyComponent) {
         MutableComponent badge = Prepend.GUILD.get();
         String normalizedRank = rank == null ? "" : rank.trim();
 
@@ -268,21 +264,17 @@ public final class ChatUtils {
 
         MutableComponent body = Component.empty();
 
-        boolean isSupporter = !pillText.isEmpty()
-            && SupportersPoller.isSupporter(displayName);
+        boolean isSupporter = !pillText.isEmpty() && SupportersPoller.isSupporter(displayName);
 
         if (!pillText.isEmpty()) {
-            body.append(PillFormatter.formatPill(pillText, displayName, isSupporter))
-                    .append(" ");
+            body.append(PillFormatter.formatPill(pillText, displayName, isSupporter)).append(" ");
         }
 
         body.append(Component.literal(displayName).setStyle(NAME_STYLE))
                 .append(Component.literal(": ").setStyle(RANK_STYLE))
                 .append(bodyComponent);
 
-        MutableComponent full = Component.empty()
-                .append(badge)
-                .append(body);
+        MutableComponent full = Component.empty().append(badge).append(body);
 
         dispatchToChat(full, badge.getStyle());
     }
@@ -410,9 +402,12 @@ public final class ChatUtils {
                 // separator glyph in chat/prefix font, preserving the original
                 // visual intent.
                 if (markerStart > cursor) {
-                    appendTextWithUrls(formatted, bodyText.substring(cursor, markerStart), textStyle);
+                    appendTextWithUrls(
+                            formatted, bodyText.substring(cursor, markerStart), textStyle);
                 }
-                formatted.append(Component.literal(PRIVATE_SEPARATOR_GLYPH).setStyle(prefixStyleFor(textStyle)));
+                formatted.append(
+                        Component.literal(PRIVATE_SEPARATOR_GLYPH)
+                                .setStyle(prefixStyleFor(textStyle)));
                 cursor = match.index + match.length;
             }
         }
@@ -493,8 +488,9 @@ public final class ChatUtils {
                     appendTextWithUrls(parent, buffer.toString(), currentStyle);
                     buffer.setLength(0);
                 }
-                currentStyle = applyLegacyCode(baseStyle, currentStyle,
-                        Character.toLowerCase(text.charAt(i + 1)));
+                currentStyle =
+                        applyLegacyCode(
+                                baseStyle, currentStyle, Character.toLowerCase(text.charAt(i + 1)));
                 i += 2;
                 continue;
             }
@@ -515,29 +511,52 @@ public final class ChatUtils {
      */
     private static Style applyLegacyCode(Style baseStyle, Style currentStyle, char code) {
         switch (code) {
-            case '0': return baseStyle.withColor(ChatFormatting.BLACK);
-            case '1': return baseStyle.withColor(ChatFormatting.DARK_BLUE);
-            case '2': return baseStyle.withColor(ChatFormatting.DARK_GREEN);
-            case '3': return baseStyle.withColor(ChatFormatting.DARK_AQUA);
-            case '4': return baseStyle.withColor(ChatFormatting.DARK_RED);
-            case '5': return baseStyle.withColor(ChatFormatting.DARK_PURPLE);
-            case '6': return baseStyle.withColor(ChatFormatting.GOLD);
-            case '7': return baseStyle.withColor(ChatFormatting.GRAY);
-            case '8': return baseStyle.withColor(ChatFormatting.DARK_GRAY);
-            case '9': return baseStyle.withColor(ChatFormatting.BLUE);
-            case 'a': return baseStyle.withColor(ChatFormatting.GREEN);
-            case 'b': return baseStyle.withColor(ChatFormatting.AQUA);
-            case 'c': return baseStyle.withColor(ChatFormatting.RED);
-            case 'd': return baseStyle.withColor(ChatFormatting.LIGHT_PURPLE);
-            case 'e': return baseStyle.withColor(ChatFormatting.YELLOW);
-            case 'f': return baseStyle.withColor(ChatFormatting.WHITE);
-            case 'k': return currentStyle.withObfuscated(true);
-            case 'l': return currentStyle.withBold(true);
-            case 'm': return currentStyle.withStrikethrough(true);
-            case 'n': return currentStyle.withUnderlined(true);
-            case 'o': return currentStyle.withItalic(true);
-            case 'r': return baseStyle;
-            default:  return currentStyle;
+            case '0':
+                return baseStyle.withColor(ChatFormatting.BLACK);
+            case '1':
+                return baseStyle.withColor(ChatFormatting.DARK_BLUE);
+            case '2':
+                return baseStyle.withColor(ChatFormatting.DARK_GREEN);
+            case '3':
+                return baseStyle.withColor(ChatFormatting.DARK_AQUA);
+            case '4':
+                return baseStyle.withColor(ChatFormatting.DARK_RED);
+            case '5':
+                return baseStyle.withColor(ChatFormatting.DARK_PURPLE);
+            case '6':
+                return baseStyle.withColor(ChatFormatting.GOLD);
+            case '7':
+                return baseStyle.withColor(ChatFormatting.GRAY);
+            case '8':
+                return baseStyle.withColor(ChatFormatting.DARK_GRAY);
+            case '9':
+                return baseStyle.withColor(ChatFormatting.BLUE);
+            case 'a':
+                return baseStyle.withColor(ChatFormatting.GREEN);
+            case 'b':
+                return baseStyle.withColor(ChatFormatting.AQUA);
+            case 'c':
+                return baseStyle.withColor(ChatFormatting.RED);
+            case 'd':
+                return baseStyle.withColor(ChatFormatting.LIGHT_PURPLE);
+            case 'e':
+                return baseStyle.withColor(ChatFormatting.YELLOW);
+            case 'f':
+                return baseStyle.withColor(ChatFormatting.WHITE);
+            case 'k':
+                return currentStyle.withObfuscated(true);
+            case 'l':
+                return currentStyle.withBold(true);
+            case 'm':
+                return currentStyle.withStrikethrough(true);
+            case 'n':
+                return currentStyle.withUnderlined(true);
+            case 'o':
+                return currentStyle.withItalic(true);
+            case 'r':
+                return baseStyle;
+            default:
+                return currentStyle;
         }
     }
 
@@ -553,7 +572,8 @@ public final class ChatUtils {
         int lastEnd = 0;
         while (matcher.find()) {
             if (matcher.start() > lastEnd) {
-                SpoilerFormatter.appendWithSpoilers(parent, text.substring(lastEnd, matcher.start()), textStyle);
+                SpoilerFormatter.appendWithSpoilers(
+                        parent, text.substring(lastEnd, matcher.start()), textStyle);
             }
             String url = matcher.group();
             try {
@@ -648,12 +668,10 @@ public final class ChatUtils {
         if (prependColor != null) {
             continuationStyle = continuationStyle.withColor(prependColor);
         }
-        MutableComponent continuation = Component.literal(GUILD_PREPEND_COMPACT)
-                .append(" ")
-                .setStyle(continuationStyle);
+        MutableComponent continuation =
+                Component.literal(GUILD_PREPEND_COMPACT).append(" ").setStyle(continuationStyle);
 
-        List<FormattedText> lines = splitter.splitLines(
-                message, chatWidth, message.getStyle());
+        List<FormattedText> lines = splitter.splitLines(message, chatWidth, message.getStyle());
 
         if (lines.size() <= 1) {
             return message;
@@ -672,12 +690,14 @@ public final class ChatUtils {
      */
     private static MutableComponent toComponent(FormattedText text) {
         MutableComponent result = Component.empty();
-        text.visit((style, content) -> {
-            if (!content.isEmpty()) {
-                result.append(Component.literal(content).setStyle(style));
-            }
-            return java.util.Optional.empty();
-        }, Style.EMPTY);
+        text.visit(
+                (style, content) -> {
+                    if (!content.isEmpty()) {
+                        result.append(Component.literal(content).setStyle(style));
+                    }
+                    return java.util.Optional.empty();
+                },
+                Style.EMPTY);
         return result;
     }
 
@@ -688,8 +708,8 @@ public final class ChatUtils {
     private static void countRenderedLines(Component message) {
         Minecraft minecraft = Minecraft.getInstance();
         int chatWidth = ChatComponent.getWidth(minecraft.options.chatWidth().get());
-        int lineCount = ComponentRenderUtils.wrapComponents(
-                message, chatWidth, minecraft.font).size();
+        int lineCount =
+                ComponentRenderUtils.wrapComponents(message, chatWidth, minecraft.font).size();
         Prepend.addRenderedLines(lineCount);
     }
 
@@ -709,24 +729,25 @@ public final class ChatUtils {
             return;
         }
 
-        minecraft.execute(() -> {
-            if (minecraft.player != null) {
-                Component wrapped = wrapBlockMessage(message, prependStyle);
-                countRenderedLines(wrapped);
-                boolean previous = INTERNAL_CHAT_DISPATCH.get();
-                INTERNAL_CHAT_DISPATCH.set(true);
-                AnimatedGradientSequence.beginAnimation(
-                    AnimatedGradientSequence.effectiveDefaultStart(),
-                    AnimatedGradientSequence.effectiveDefaultEnd(),
-                    AnimatedGradientSequence.DEFAULT_CYCLE_TIME_MS);
-                try {
-                    minecraft.player.displayClientMessage(wrapped, false);
-                } finally {
-                    AnimatedGradientSequence.endAnimation();
-                    INTERNAL_CHAT_DISPATCH.set(previous);
-                }
-            }
-        });
+        minecraft.execute(
+                () -> {
+                    if (minecraft.player != null) {
+                        Component wrapped = wrapBlockMessage(message, prependStyle);
+                        countRenderedLines(wrapped);
+                        boolean previous = INTERNAL_CHAT_DISPATCH.get();
+                        INTERNAL_CHAT_DISPATCH.set(true);
+                        AnimatedGradientSequence.beginAnimation(
+                                AnimatedGradientSequence.effectiveDefaultStart(),
+                                AnimatedGradientSequence.effectiveDefaultEnd(),
+                                AnimatedGradientSequence.DEFAULT_CYCLE_TIME_MS);
+                        try {
+                            minecraft.player.displayClientMessage(wrapped, false);
+                        } finally {
+                            AnimatedGradientSequence.endAnimation();
+                            INTERNAL_CHAT_DISPATCH.set(previous);
+                        }
+                    }
+                });
     }
 
     /**
@@ -745,18 +766,19 @@ public final class ChatUtils {
             return;
         }
 
-        minecraft.execute(() -> {
-            if (minecraft.player != null) {
-                Component wrapped = wrapBlockMessage(message, prependStyle);
-                countRenderedLines(wrapped);
-                boolean previous = INTERNAL_CHAT_DISPATCH.get();
-                INTERNAL_CHAT_DISPATCH.set(true);
-                try {
-                    minecraft.player.displayClientMessage(wrapped, false);
-                } finally {
-                    INTERNAL_CHAT_DISPATCH.set(previous);
-                }
-            }
-        });
+        minecraft.execute(
+                () -> {
+                    if (minecraft.player != null) {
+                        Component wrapped = wrapBlockMessage(message, prependStyle);
+                        countRenderedLines(wrapped);
+                        boolean previous = INTERNAL_CHAT_DISPATCH.get();
+                        INTERNAL_CHAT_DISPATCH.set(true);
+                        try {
+                            minecraft.player.displayClientMessage(wrapped, false);
+                        } finally {
+                            INTERNAL_CHAT_DISPATCH.set(previous);
+                        }
+                    }
+                });
     }
 }

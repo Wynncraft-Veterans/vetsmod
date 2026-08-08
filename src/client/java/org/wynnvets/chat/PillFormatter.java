@@ -22,13 +22,13 @@ import org.wynnvets.rendering.colors.ShaderColorPalette;
  */
 public final class PillFormatter {
 
-    private PillFormatter() {
-    }
+    private PillFormatter() {}
 
     /**
      * Formats a pill component using a caller-provided supporter determination.
      */
-    public static MutableComponent formatPill(String pillText, String username, boolean isSupporter) {
+    public static MutableComponent formatPill(
+            String pillText, String username, boolean isSupporter) {
         return formatPill(pillText, username, ChatUtils.RANK_STYLE, isSupporter);
     }
 
@@ -48,11 +48,13 @@ public final class PillFormatter {
      * @param isSupporter whether the sender is a supporter
      * @return a styled pill component
      */
-    public static MutableComponent formatPill(String pillText, String username, Style baseStyle, boolean isSupporter) {
+    public static MutableComponent formatPill(
+            String pillText, String username, Style baseStyle, boolean isSupporter) {
         // ── Supporter ──────────────────────────────────────────────────
         // Only apply gradient styling when the user has supporter glints enabled.
         if (isSupporter
-                && org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS)) {
+                && org.wynnvets.config.VetsConfig.get(
+                        org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS)) {
             if (containsCustomFontGlyph(pillText)) {
                 // PUA/supplementary pills from the server: the chat/prefix font uses
                 // a two-tone colour structure (aqua frame + dark letters) baked into
@@ -60,9 +62,12 @@ public final class PillFormatter {
                 // this structure.  Instead, render the entire pill as a single
                 // component with the animation marker so the mixin can animate it.
                 return Component.literal(pillText)
-                        .setStyle(baseStyle.withColor(
-                                TextColor.fromRgb(AnimatedGradientSequence.MARKER_COLOR))
-                                .withoutShadow());
+                        .setStyle(
+                                baseStyle
+                                        .withColor(
+                                                TextColor.fromRgb(
+                                                        AnimatedGradientSequence.MARKER_COLOR))
+                                        .withoutShadow());
             }
 
             // ASCII pills (bridge messages) — per-character marker is safe.

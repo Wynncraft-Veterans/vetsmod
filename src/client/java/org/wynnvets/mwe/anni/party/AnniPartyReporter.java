@@ -1,14 +1,13 @@
 package org.wynnvets.mwe.anni.party;
 
-import org.wynnvets.listeners.PartyRosterListener;
-import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.mwe.anni.state.AnniSnapshot;
-import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import org.wynnvets.listeners.PartyRosterListener;
+import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.state.AnniSnapshot;
+import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 
 /**
  * S7 — snapshot-driven trigger for the party-back-report pipeline.
@@ -39,8 +38,7 @@ public final class AnniPartyReporter {
     private static volatile boolean registered = false;
     private static volatile Set<String> lastOrgs = Set.of();
 
-    private AnniPartyReporter() {
-    }
+    private AnniPartyReporter() {}
 
     /** Wire the snapshot listener. Idempotent. */
     public static void init() {
@@ -53,8 +51,7 @@ public final class AnniPartyReporter {
     }
 
     private static void onSnapshotUpdate(AnniSnapshot snapshot) {
-        List<String> orgs = snapshot != null
-                ? snapshot.organiserUsernames() : List.of();
+        List<String> orgs = snapshot != null ? snapshot.organiserUsernames() : List.of();
         Set<String> norm = new HashSet<>(orgs.size());
         for (String name : orgs) {
             if (name != null && !name.isEmpty()) {

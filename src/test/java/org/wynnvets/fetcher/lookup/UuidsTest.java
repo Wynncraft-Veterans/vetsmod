@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 
 class UuidsTest {
@@ -56,7 +55,7 @@ class UuidsTest {
     void parse_wrongLength_returnsNull() {
         // Neither 32 nor 36 chars; UUID.fromString on these throws and we
         // swallow the RuntimeException.
-        assertNull(Uuids.parse("069a79f444e9"));                   // 12
+        assertNull(Uuids.parse("069a79f444e9")); // 12
         assertNull(Uuids.parse("069a79f444e94726a5befca90e38aa")); // 30
         assertNull(Uuids.parse("069a79f444e94726a5befca90e38aaf500")); // 34
     }

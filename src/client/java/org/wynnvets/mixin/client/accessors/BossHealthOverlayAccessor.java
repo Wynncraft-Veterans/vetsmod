@@ -1,12 +1,11 @@
 package org.wynnvets.mixin.client.accessors;
 
+import java.util.Map;
+import java.util.UUID;
 import net.minecraft.client.gui.components.BossHealthOverlay;
 import net.minecraft.client.gui.components.LerpingBossEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
-
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * Reach into the private {@code BossHealthOverlay#events} map so the

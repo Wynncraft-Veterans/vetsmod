@@ -38,8 +38,7 @@ import org.wynnvets.mwe.anni.network.AnniScrollspotClient;
  */
 public final class AnniScrollspotCommand {
 
-    private AnniScrollspotCommand() {
-    }
+    private AnniScrollspotCommand() {}
 
     public static int set(CommandContext<FabricClientCommandSource> ctx) {
         int x = IntegerArgumentType.getInteger(ctx, "x");
@@ -71,9 +70,7 @@ public final class AnniScrollspotCommand {
 
     private static int dispatchSet(int x, int y, int z) {
         if (!ensureAuthenticated()) return 0;
-        reply(
-                "Pinning scroll spot at " + x + " " + y + " " + z + "…",
-                ChatFormatting.GRAY);
+        reply("Pinning scroll spot at " + x + " " + y + " " + z + "…", ChatFormatting.GRAY);
         String coord = x + " " + y + " " + z;
         AnniScrollspotClient.set(x, y, z)
                 .whenComplete((ack, throwable) -> renderAck(ack, throwable, coord));
@@ -82,33 +79,33 @@ public final class AnniScrollspotCommand {
 
     private static boolean ensureAuthenticated() {
         if (GuildStateManager.isAuthenticatedThisSession()) return true;
-        reply(
-                "Run ~vetsmod to authenticate before using /wv anni scrollspot.",
-                ChatFormatting.RED);
+        reply("Run ~vetsmod to authenticate before using /wv anni scrollspot.", ChatFormatting.RED);
         return false;
     }
 
     private static void renderAck(AnniScrollspotClient.Ack ack, Throwable throwable, String coord) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
-        mc.execute(() -> {
-            if (throwable != null || ack == null) {
-                reply("Scroll spot request failed (no response).", ChatFormatting.RED);
-                VetsLogger.debug(
-                        "scrollspot ack threw or null: {}",
-                        throwable != null ? throwable.getMessage() : "null");
-                return;
-            }
-            if (ack.ok()) {
-                String body = coord != null
-                        ? "Scroll spot set to " + coord + "."
-                        : "Scroll spot cleared.";
-                reply(body, ChatFormatting.GREEN);
-            } else {
-                String detail = ack.detail() != null ? ack.detail() : "unknown error";
-                reply("Scroll spot rejected: " + detail, ChatFormatting.RED);
-            }
-        });
+        mc.execute(
+                () -> {
+                    if (throwable != null || ack == null) {
+                        reply("Scroll spot request failed (no response).", ChatFormatting.RED);
+                        VetsLogger.debug(
+                                "scrollspot ack threw or null: {}",
+                                throwable != null ? throwable.getMessage() : "null");
+                        return;
+                    }
+                    if (ack.ok()) {
+                        String body =
+                                coord != null
+                                        ? "Scroll spot set to " + coord + "."
+                                        : "Scroll spot cleared.";
+                        reply(body, ChatFormatting.GREEN);
+                    } else {
+                        String detail = ack.detail() != null ? ack.detail() : "unknown error";
+                        reply("Scroll spot rejected: " + detail, ChatFormatting.RED);
+                    }
+                });
     }
 
     private static void reply(String text, ChatFormatting style) {

@@ -13,6 +13,11 @@ import com.wynntils.models.worlds.type.WorldState;
 import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.mc.StyledTextUtils;
 import com.wynntils.utils.type.Pair;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.minecraft.network.chat.HoverEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.api.V1ApiManager;
@@ -21,13 +26,6 @@ import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.queue.QueueStateManager;
-
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 
 /**
  * Subscribes to Wynntils events for world state, guild changes, and guild
@@ -42,26 +40,27 @@ public final class WynntilsEventListener {
      * The rank glyphs have already been stripped by Wynntils so we match the
      * visible "Username: message" portion.
      */
-    private static final Pattern GUILD_CHAT_PATTERN =
-            Pattern.compile("^\\s*(.+?):\\s+(.+)$");
+    private static final Pattern GUILD_CHAT_PATTERN = Pattern.compile("^\\s*(.+?):\\s+(.+)$");
 
     /** Client-side dedup — prevents multiple sends when Wynntils fires the
      *  same guild message event more than once (e.g. PUA-encoded and decoded
      *  variants for item links). */
     private static final long SENT_DEDUP_TTL_MS = TimeUnit.SECONDS.toMillis(5);
+
     private static final int MAX_SENT_FINGERPRINTS = 100;
+
     /** Max characters of message text used for dedup fingerprints.
      *  Wynntils line-wrapping can alter trailing chars; truncating
      *  prevents wrapped variants from escaping dedup. */
     private static final int DEDUP_FINGERPRINT_MAX_CHARS = 200;
+
     private static final Deque<SentFingerprint> recentSentFingerprints = new ArrayDeque<>();
     private static final Object sentDedupLock = new Object();
 
     /** Singleton instance registered with the Wynntils event bus. */
     private static final WynntilsEventListener INSTANCE = new WynntilsEventListener();
 
-    private WynntilsEventListener() {
-    }
+    private WynntilsEventListener() {}
 
     /**
      * Registers this listener with the Wynntils event bus.
@@ -87,8 +86,10 @@ public final class WynntilsEventListener {
     @SubscribeEvent
     public void onWorldStateChanged(WorldStateEvent event) {
         if (event.getNewState() == WorldState.WORLD) {
-            VetsLogger.debug("WorldStateEvent: entered WORLD (world={}, firstJoin={})",
-                    event.getWorldName(), event.isFirstJoinWorld());
+            VetsLogger.debug(
+                    "WorldStateEvent: entered WORLD (world={}, firstJoin={})",
+                    event.getWorldName(),
+                    event.isFirstJoinWorld());
             GuildStateManager.onEnteredWorld();
         } else if (event.getOldState() == WorldState.WORLD
                 && event.getNewState() != WorldState.WORLD) {
@@ -172,7 +173,8 @@ public final class WynntilsEventListener {
         }
 
         String rawName = chatMatcher.group(1);
-        VetsLogger.debug("onGuildChat rawName [{}] codepoints [{}]", rawName, toCodepoints(rawName));
+        VetsLogger.debug(
+                "onGuildChat rawName [{}] codepoints [{}]", rawName, toCodepoints(rawName));
 
         // Strip PUA characters (badge/pill glyphs) from the raw display name.
         // Wynncraft encodes rank badges and guild prepends as Private Use Area
@@ -188,7 +190,8 @@ public final class WynntilsEventListener {
 
         // Resolve the true username from hover text — never send nicknames
         String trueUsername = extractTrueUsername(unwrapped, displayName);
-        VetsLogger.debug("onGuildChat trueUsername [{}] (displayName was [{}])", trueUsername, displayName);
+        VetsLogger.debug(
+                "onGuildChat trueUsername [{}] (displayName was [{}])", trueUsername, displayName);
 
         // Bridge echo suppression: if this message was recently displayed by
         // the outbound handler as a bridge message, skip it.  isInternalDispatch
@@ -196,7 +199,10 @@ public final class WynntilsEventListener {
         // comparison (whitespace-stripped) handles both the re-fire from the
         // mod's own display and any Wynncraft server echo.
         if (OutboundDisplayHandler.wasBridgeEcho(messageContent)) {
-            VetsLogger.debug("onGuildChat: bridge echo suppressed for [{}] [{}]", trueUsername, messageContent);
+            VetsLogger.debug(
+                    "onGuildChat: bridge echo suppressed for [{}] [{}]",
+                    trueUsername,
+                    messageContent);
             return;
         }
 
@@ -215,7 +221,8 @@ public final class WynntilsEventListener {
         // next plain-text line.  Fall back to the raw payload to avoid both.
         String normalizedMsg = stripped.isEmpty() ? messageContent : stripped;
         if (wasSentRecently(trueUsername, normalizedMsg)) {
-            VetsLogger.debug("onGuildChat: duplicate suppressed for [{}] [{}]", trueUsername, normalizedMsg);
+            VetsLogger.debug(
+                    "onGuildChat: duplicate suppressed for [{}] [{}]", trueUsername, normalizedMsg);
             return;
         }
 
@@ -224,7 +231,11 @@ public final class WynntilsEventListener {
         // so that Discord receives intact clickable links.
         String repairedMessage = repairWrappedUrls(messageContent);
 
-        VetsLogger.debug("onGuildChat SENDING rank=[{}] user=[{}] msg=[{}]", rank, trueUsername, repairedMessage);
+        VetsLogger.debug(
+                "onGuildChat SENDING rank=[{}] user=[{}] msg=[{}]",
+                rank,
+                trueUsername,
+                repairedMessage);
 
         V1ApiManager.sendInbound("guild", rank, trueUsername, repairedMessage);
         recordSentFingerprint(trueUsername, normalizedMsg, hadItemPua);
@@ -306,7 +317,10 @@ public final class WynntilsEventListener {
             HoverEvent.ShowText showText = (HoverEvent.ShowText) hover;
             String hoverPlain = showText.value().getString();
             VetsLogger.debug("extractRankFromHover hoverText [{}]", hoverPlain);
-            for (String rankName : new String[]{"Owner", "Chief", "Strategist", "Captain", "Recruiter", "Recruit"}) {
+            for (String rankName :
+                    new String[] {
+                        "Owner", "Chief", "Strategist", "Captain", "Recruiter", "Recruit"
+                    }) {
                 if (hoverPlain.contains(rankName)) {
                     return rankName;
                 }
@@ -358,7 +372,8 @@ public final class WynntilsEventListener {
             return "";
         }
         String upper = decoded.toUpperCase();
-        for (String rankName : new String[]{"OWNER", "CHIEF", "STRATEGIST", "CAPTAIN", "RECRUITER", "RECRUIT"}) {
+        for (String rankName :
+                new String[] {"OWNER", "CHIEF", "STRATEGIST", "CAPTAIN", "RECRUITER", "RECRUIT"}) {
             if (upper.equals(rankName)) {
                 return rankName.charAt(0) + rankName.substring(1).toLowerCase();
             }
@@ -399,8 +414,10 @@ public final class WynntilsEventListener {
     // ── Client-side dedup helpers ──────────────────────────────────────
 
     private static boolean wasSentRecently(String username, String normalizedMsg) {
-        String truncated = normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
-                ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS) : normalizedMsg;
+        String truncated =
+                normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
+                        ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS)
+                        : normalizedMsg;
         String fp = username.toLowerCase() + "\0" + truncated;
         synchronized (sentDedupLock) {
             long now = System.currentTimeMillis();
@@ -420,9 +437,12 @@ public final class WynntilsEventListener {
         return false;
     }
 
-    private static void recordSentFingerprint(String username, String normalizedMsg, boolean hadItemPua) {
-        String truncated = normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
-                ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS) : normalizedMsg;
+    private static void recordSentFingerprint(
+            String username, String normalizedMsg, boolean hadItemPua) {
+        String truncated =
+                normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
+                        ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS)
+                        : normalizedMsg;
         String fp = username.toLowerCase() + "\0" + truncated;
         synchronized (sentDedupLock) {
             long now = System.currentTimeMillis();
@@ -542,8 +562,8 @@ public final class WynntilsEventListener {
             int cp = text.codePointAt(i);
             int charCount = Character.charCount(cp);
             int type = Character.getType(cp);
-            boolean isCustomGlyph = type == Character.PRIVATE_USE
-                    || (type == Character.UNASSIGNED && cp > 0xFFFF);
+            boolean isCustomGlyph =
+                    type == Character.PRIVATE_USE || (type == Character.UNASSIGNED && cp > 0xFFFF);
             if (!isCustomGlyph) {
                 sb.appendCodePoint(cp);
             }

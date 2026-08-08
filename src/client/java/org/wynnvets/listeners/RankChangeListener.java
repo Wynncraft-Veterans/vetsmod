@@ -5,16 +5,15 @@ import com.wynntils.core.text.StyledText;
 import com.wynntils.handlers.chat.event.ChatMessageEvent;
 import com.wynntils.handlers.chat.type.RecipientType;
 import com.wynntils.utils.mc.StyledTextUtils;
-import net.neoforged.bus.api.SubscribeEvent;
-import org.wynnvets.api.V1ApiManager;
-import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.neoforged.bus.api.SubscribeEvent;
+import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Detects in-game guild rank-change broadcasts ({@code "X has set Y guild rank
@@ -70,11 +69,11 @@ public final class RankChangeListener {
      * misclassified as a KICK notice. Wynntils' upstream regex hides this
      * with a {@code $} anchor that forces backtracking; we do not.</p>
      */
-    private static final Pattern PATTERN = Pattern.compile(
-            "§b(?:|) (\\w{1,16}) has set (\\w{1,16}) guild rank "
-                    + "from §3(?: )?(Recruiter|Recruit|Captain|Strategist|Chief|Owner)"
-                    + "§b to §3(?: )?(Recruiter|Recruit|Captain|Strategist|Chief|Owner)"
-    );
+    private static final Pattern PATTERN =
+            Pattern.compile(
+                    "§b(?:|) (\\w{1,16}) has set (\\w{1,16}) guild rank "
+                            + "from §3(?: )?(Recruiter|Recruit|Captain|Strategist|Chief|Owner)"
+                            + "§b to §3(?: )?(Recruiter|Recruit|Captain|Strategist|Chief|Owner)");
 
     private static final long DEDUP_TTL_MS = TimeUnit.SECONDS.toMillis(30);
     private static final int MAX_DEDUP_ENTRIES = 50;
@@ -83,8 +82,7 @@ public final class RankChangeListener {
 
     private static final RankChangeListener INSTANCE = new RankChangeListener();
 
-    private RankChangeListener() {
-    }
+    private RankChangeListener() {}
 
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
@@ -112,19 +110,32 @@ public final class RankChangeListener {
         String toRank = m.group(4);
         String classification = classify(fromRank, toRank);
         if (classification == null) {
-            VetsLogger.debug("Rank change ignored (no rule match): {} set {} {} -> {}",
-                    actor, target, fromRank, toRank);
+            VetsLogger.debug(
+                    "Rank change ignored (no rule match): {} set {} {} -> {}",
+                    actor,
+                    target,
+                    fromRank,
+                    toRank);
             return;
         }
 
         if (wasRecent(actor, target, fromRank, toRank)) {
-            VetsLogger.debug("Rank change deduped client-side: {} set {} {} -> {}",
-                    actor, target, fromRank, toRank);
+            VetsLogger.debug(
+                    "Rank change deduped client-side: {} set {} {} -> {}",
+                    actor,
+                    target,
+                    fromRank,
+                    toRank);
             return;
         }
 
-        VetsLogger.info("Rank change: {} set {} from {} to {} ({})",
-                actor, target, fromRank, toRank, classification);
+        VetsLogger.info(
+                "Rank change: {} set {} from {} to {} ({})",
+                actor,
+                target,
+                fromRank,
+                toRank,
+                classification);
         V1ApiManager.sendRankChange(actor, target, fromRank, toRank, classification);
         recordRecent(actor, target, fromRank, toRank);
     }

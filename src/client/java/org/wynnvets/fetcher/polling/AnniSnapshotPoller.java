@@ -1,14 +1,13 @@
 package org.wynnvets.fetcher.polling;
 
-import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.mwe.anni.network.AnniQueryClient;
-import org.wynnvets.mwe.anni.state.AnniSnapshot;
-import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
 import java.time.Instant;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.network.AnniQueryClient;
+import org.wynnvets.mwe.anni.state.AnniSnapshot;
+import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 
 /**
  * Belt-and-braces snapshot refresher for the anni window.
@@ -45,8 +44,7 @@ public final class AnniSnapshotPoller {
     private static ScheduledExecutorService scheduler;
     private static boolean running = false;
 
-    private AnniSnapshotPoller() {
-    }
+    private AnniSnapshotPoller() {}
 
     /** Starts the poll. Idempotent. */
     public static void start() {
@@ -54,11 +52,13 @@ public final class AnniSnapshotPoller {
             return;
         }
         running = true;
-        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "VetsMod-AnniSnapshotPoller");
-            t.setDaemon(true);
-            return t;
-        });
+        scheduler =
+                Executors.newSingleThreadScheduledExecutor(
+                        r -> {
+                            Thread t = new Thread(r, "VetsMod-AnniSnapshotPoller");
+                            t.setDaemon(true);
+                            return t;
+                        });
         scheduler.scheduleAtFixedRate(
                 AnniSnapshotPoller::tick,
                 POLL_INTERVAL_SECONDS,

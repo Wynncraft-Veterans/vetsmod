@@ -1,13 +1,12 @@
 package org.wynnvets.chat;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.network.chat.Style;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.Style;
 
 /**
  * Resolves a player's real Minecraft username from chat-line hover events.
@@ -25,11 +24,9 @@ public final class NickResolver {
             Pattern.compile("real\\s+name\\s+is\\s+([A-Za-z0-9_]{1,16})", Pattern.CASE_INSENSITIVE);
 
     /** A flattened leaf of a {@link Component} tree: literal text plus its resolved style. */
-    public record FlatPart(String text, Style style) {
-    }
+    public record FlatPart(String text, Style style) {}
 
-    private NickResolver() {
-    }
+    private NickResolver() {}
 
     /**
      * Walks {@code root} for the first hover event whose text matches
@@ -96,10 +93,13 @@ public final class NickResolver {
     public static void flattenComponent(Component component, Style inherited, List<FlatPart> out) {
         Style resolved = component.getStyle().applyTo(inherited);
         StringBuilder sb = new StringBuilder();
-        component.getContents().visit(s -> {
-            sb.append(s);
-            return java.util.Optional.empty();
-        });
+        component
+                .getContents()
+                .visit(
+                        s -> {
+                            sb.append(s);
+                            return java.util.Optional.empty();
+                        });
         String text = sb.toString();
         if (!text.isEmpty()) {
             out.add(new FlatPart(text, resolved));

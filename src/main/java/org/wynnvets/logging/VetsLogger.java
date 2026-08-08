@@ -22,8 +22,7 @@ public final class VetsLogger {
     private static final Logger LOGGER = LoggerFactory.getLogger("vetsmod");
     private static volatile boolean debugEnabled = false;
 
-    private VetsLogger() {
-    }
+    private VetsLogger() {}
 
     /** Returns whether debug-level logging is currently active. */
     public static boolean isDebugEnabled() {

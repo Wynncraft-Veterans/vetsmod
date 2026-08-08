@@ -25,32 +25,34 @@ import org.wynnvets.items.LegacyItemHandler;
 @Mixin(AbstractContainerScreen.class)
 public class LegacyHighlightMixin {
 
-  @Shadow protected Slot hoveredSlot;
+    @Shadow protected Slot hoveredSlot;
 
-  @Inject(method = "renderSlot", at = @At("HEAD"))
-  private void vetsmod$renderLegacyHighlight(
-      GuiGraphics guiGraphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
-    ItemStack stack = slot.getItem();
-    if (stack.isEmpty()) return;
-    // BEGIN PATCH(old-server-compat): Remove this block.
-    if (!LegacyItemHandler.newTooltipStylesAvailable && stack.has(DataComponents.TOOLTIP_STYLE)) {
-      LegacyItemHandler.newTooltipStylesAvailable = true;
+    @Inject(method = "renderSlot", at = @At("HEAD"))
+    private void vetsmod$renderLegacyHighlight(
+            GuiGraphics guiGraphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
+        ItemStack stack = slot.getItem();
+        if (stack.isEmpty()) return;
+        // BEGIN PATCH(old-server-compat): Remove this block.
+        if (!LegacyItemHandler.newTooltipStylesAvailable
+                && stack.has(DataComponents.TOOLTIP_STYLE)) {
+            LegacyItemHandler.newTooltipStylesAvailable = true;
+        }
+        // END PATCH(old-server-compat)
     }
-    // END PATCH(old-server-compat)
-  }
 
-  @Inject(method = "renderTooltip(Lnet/minecraft/client/gui/GuiGraphics;II)V", at = @At("HEAD"))
-  private void vetsmod$captureHoveredItemFoil(
-      GuiGraphics guiGraphics, int mouseX, int mouseY, CallbackInfo ci) {
-    if (hoveredSlot != null && hoveredSlot.hasItem()) {
-      ItemStack hovered = hoveredSlot.getItem();
-      LegacyItemHandler.currentItemHasFoil = hovered.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(hovered);
-      LegacyItemHandler.currentItemStack = hovered;
-      LegacyItemHandler.currentHoveredSlot = hoveredSlot;
-    } else {
-      LegacyItemHandler.currentItemHasFoil = false;
-      LegacyItemHandler.currentItemStack = ItemStack.EMPTY;
-      LegacyItemHandler.currentHoveredSlot = null;
+    @Inject(method = "renderTooltip(Lnet/minecraft/client/gui/GuiGraphics;II)V", at = @At("HEAD"))
+    private void vetsmod$captureHoveredItemFoil(
+            GuiGraphics guiGraphics, int mouseX, int mouseY, CallbackInfo ci) {
+        if (hoveredSlot != null && hoveredSlot.hasItem()) {
+            ItemStack hovered = hoveredSlot.getItem();
+            LegacyItemHandler.currentItemHasFoil =
+                    hovered.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(hovered);
+            LegacyItemHandler.currentItemStack = hovered;
+            LegacyItemHandler.currentHoveredSlot = hoveredSlot;
+        } else {
+            LegacyItemHandler.currentItemHasFoil = false;
+            LegacyItemHandler.currentItemStack = ItemStack.EMPTY;
+            LegacyItemHandler.currentHoveredSlot = null;
+        }
     }
-  }
 }

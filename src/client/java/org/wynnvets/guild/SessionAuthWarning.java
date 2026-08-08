@@ -1,5 +1,6 @@
 package org.wynnvets.guild;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -7,8 +8,6 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Displays a single per-session warning in chat when the player's vetsmod
@@ -76,19 +75,23 @@ public final class SessionAuthWarning {
         if (!firedThisSession.compareAndSet(false, true)) {
             return;
         }
-        new Thread(() -> {
-            try {
-                Thread.sleep(WARNING_DELAY_MS);
-            } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-            try {
-                fireWarningIfApplicable();
-            } catch (Exception e) {
-                VetsLogger.debug("SessionAuthWarning fire failed: {}", e.getMessage());
-            }
-        }, "vetsmod-session-auth-warning").start();
+        new Thread(
+                        () -> {
+                            try {
+                                Thread.sleep(WARNING_DELAY_MS);
+                            } catch (InterruptedException ignored) {
+                                Thread.currentThread().interrupt();
+                                return;
+                            }
+                            try {
+                                fireWarningIfApplicable();
+                            } catch (Exception e) {
+                                VetsLogger.debug(
+                                        "SessionAuthWarning fire failed: {}", e.getMessage());
+                            }
+                        },
+                        "vetsmod-session-auth-warning")
+                .start();
     }
 
     private static void fireWarningIfApplicable() {
@@ -108,11 +111,12 @@ public final class SessionAuthWarning {
         if (hasKey) {
             String reason = UnlockManager.lastAuthFailureReason();
             String reasonSuffix = reason.isEmpty() ? "" : " (" + reason + ")";
-            ChatUtils.sendLocalMessage(makeWarning(
-                "Your stored vetsmod key was rejected" + reasonSuffix
-                    + ". Run ~vetsmod in #bot-commands to issue a new one.",
-                ChatFormatting.RED
-            ));
+            ChatUtils.sendLocalMessage(
+                    makeWarning(
+                            "Your stored vetsmod key was rejected"
+                                    + reasonSuffix
+                                    + ". Run ~vetsmod in #bot-commands to issue a new one.",
+                            ChatFormatting.RED));
             return;
         }
 
@@ -120,19 +124,19 @@ public final class SessionAuthWarning {
         // server's current unauth toggle.
         if (plausibleVetsUser) {
             if (unauthEnabled) {
-                ChatUtils.sendLocalMessage(makeWarning(
-                    "vetsmod is running unauthenticated. Vets chat still works "
-                        + "for now, but authentication will become mandatory soon. "
-                        + "Run ~vetsmod in #bot-commands to /unlock.",
-                    ChatFormatting.YELLOW
-                ));
+                ChatUtils.sendLocalMessage(
+                        makeWarning(
+                                "vetsmod is running unauthenticated. Vets chat still works "
+                                        + "for now, but authentication will become mandatory soon. "
+                                        + "Run ~vetsmod in #bot-commands to /unlock.",
+                                ChatFormatting.YELLOW));
             } else {
-                ChatUtils.sendLocalMessage(makeWarning(
-                    "You aren't authenticated, so vetsmod cannot send or receive "
-                        + "VETS chat or use guild-specific features until you "
-                        + "/unlock. Run ~vetsmod in #bot-commands to get a key.",
-                    ChatFormatting.RED
-                ));
+                ChatUtils.sendLocalMessage(
+                        makeWarning(
+                                "You aren't authenticated, so vetsmod cannot send or receive "
+                                        + "VETS chat or use guild-specific features until you "
+                                        + "/unlock. Run ~vetsmod in #bot-commands to get a key.",
+                                ChatFormatting.RED));
             }
             return;
         }
@@ -143,11 +147,15 @@ public final class SessionAuthWarning {
     private static MutableComponent makeWarning(String text, ChatFormatting color) {
         // Make the discord URL clickable so users don't have to copy-paste.
         MutableComponent body = Component.literal(text).withStyle(color);
-        MutableComponent link = Component.literal(" [" + DISCORD_INVITE_URL + "]")
-            .setStyle(Style.EMPTY
-                .withColor(ChatFormatting.AQUA)
-                .withUnderlined(true)
-                .withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(DISCORD_INVITE_URL))));
+        MutableComponent link =
+                Component.literal(" [" + DISCORD_INVITE_URL + "]")
+                        .setStyle(
+                                Style.EMPTY
+                                        .withColor(ChatFormatting.AQUA)
+                                        .withUnderlined(true)
+                                        .withClickEvent(
+                                                new ClickEvent.OpenUrl(
+                                                        java.net.URI.create(DISCORD_INVITE_URL))));
         return body.append(link);
     }
 }

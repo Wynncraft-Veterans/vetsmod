@@ -15,9 +15,9 @@ import java.util.concurrent.CompletableFuture;
 @FunctionalInterface
 public interface LookupProvider {
 
-  CompletableFuture<ProviderOutcome> lookup(String name);
+    CompletableFuture<ProviderOutcome> lookup(String name);
 
-  default String id() {
-    return getClass().getSimpleName();
-  }
+    default String id() {
+        return getClass().getSimpleName();
+    }
 }

@@ -68,8 +68,7 @@ final class StaffRankChecker {
      */
     static boolean isProcessingModStaffRankCheck() {
         if (isModInitiatedStaffRankCheck) return true;
-        return staffRankSuppressUntil > 0
-                && System.currentTimeMillis() < staffRankSuppressUntil;
+        return staffRankSuppressUntil > 0 && System.currentTimeMillis() < staffRankSuppressUntil;
     }
 
     // ── Lifecycle ──────────────────────────────────────────────────────
@@ -82,8 +81,8 @@ final class StaffRankChecker {
         isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
         long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
         long now = System.currentTimeMillis();
-        lastStaffCheckTime = (persistedCheckTime >= 0 && persistedCheckTime <= now)
-                ? persistedCheckTime : 0;
+        lastStaffCheckTime =
+                (persistedCheckTime >= 0 && persistedCheckTime <= now) ? persistedCheckTime : 0;
     }
 
     /**
@@ -95,8 +94,8 @@ final class StaffRankChecker {
         isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
         long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
         long now = System.currentTimeMillis();
-        lastStaffCheckTime = (persistedCheckTime >= 0 && persistedCheckTime <= now)
-                ? persistedCheckTime : 0;
+        lastStaffCheckTime =
+                (persistedCheckTime >= 0 && persistedCheckTime <= now) ? persistedCheckTime : 0;
         waitingForStaffRankCheck = false;
         isModInitiatedStaffRankCheck = false;
         staffRankRequestTime = 0;
@@ -117,8 +116,8 @@ final class StaffRankChecker {
         }
 
         long now = System.currentTimeMillis();
-        boolean hasRecentCheck = lastStaffCheckTime > 0
-                && (now - lastStaffCheckTime) < STAFF_CHECK_COOLDOWN_MS;
+        boolean hasRecentCheck =
+                lastStaffCheckTime > 0 && (now - lastStaffCheckTime) < STAFF_CHECK_COOLDOWN_MS;
         if (!forceRefresh && hasRecentCheck) {
             return false;
         }
@@ -205,7 +204,6 @@ final class StaffRankChecker {
     private static boolean isStaffRankAuthorizedResponse(String message) {
         if (message == null) return false;
         String lower = message.toLowerCase();
-        return lower.contains("invalid arguments, try:")
-                && lower.contains("rank [name] [rank]");
+        return lower.contains("invalid arguments, try:") && lower.contains("rank [name] [rank]");
     }
 }

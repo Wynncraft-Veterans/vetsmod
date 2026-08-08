@@ -1,8 +1,7 @@
 package org.wynnvets.queue;
 
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Tracks whether the client is currently sitting in a Wynncraft world queue.

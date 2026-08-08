@@ -4,12 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wynntils.core.components.Models;
-import org.wynnvets.api.WynnCraftApi;
-import org.wynnvets.distribute.distributor.RandomDistributor;
-import org.wynnvets.distribute.walker.MembersListSearcher;
-import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.logging.VetsLogger;
-
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -21,6 +15,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.wynnvets.api.WynnCraftApi;
+import org.wynnvets.distribute.distributor.RandomDistributor;
+import org.wynnvets.distribute.walker.MembersListSearcher;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Resolves a user-supplied name to the {@code legacyName} that the
@@ -40,10 +39,11 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class NameResolver {
 
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .connectTimeout(Duration.ofSeconds(5))
-            .build();
+    private static final HttpClient HTTP_CLIENT =
+            HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
 
     private static final Gson GSON = new Gson();
 
@@ -66,26 +66,34 @@ public final class NameResolver {
             return CompletableFuture.completedFuture(input);
         }
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(WynnCraftApi.guildInfo(guildName))
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build();
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(WynnCraftApi.guildInfo(guildName))
+                        .timeout(Duration.ofSeconds(5))
+                        .GET()
+                        .build();
 
-        return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-                        VetsLogger.debug("NameResolver: wapi returned {} for guild [{}]",
-                                response.statusCode(), guildName);
-                        return input;
-                    }
-                    return findLegacyName(response.body(), input);
-                })
-                .exceptionally(e -> {
-                    VetsLogger.debug("NameResolver: failed to resolve [{}]: {}",
-                            input, e.getMessage());
-                    return input;
-                });
+        return HTTP_CLIENT
+                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(
+                        response -> {
+                            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+                                VetsLogger.debug(
+                                        "NameResolver: wapi returned {} for guild [{}]",
+                                        response.statusCode(),
+                                        guildName);
+                                return input;
+                            }
+                            return findLegacyName(response.body(), input);
+                        })
+                .exceptionally(
+                        e -> {
+                            VetsLogger.debug(
+                                    "NameResolver: failed to resolve [{}]: {}",
+                                    input,
+                                    e.getMessage());
+                            return input;
+                        });
     }
 
     /**
@@ -110,37 +118,45 @@ public final class NameResolver {
             return CompletableFuture.completedFuture(List.of());
         }
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(WynnCraftApi.guildInfo(guildName))
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build();
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(WynnCraftApi.guildInfo(guildName))
+                        .timeout(Duration.ofSeconds(5))
+                        .GET()
+                        .build();
 
-        return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-                        VetsLogger.debug("NameResolver: wapi returned {} for guild [{}]",
-                                response.statusCode(), guildName);
-                        return List.<String>of();
-                    }
-                    return extractAllLegacyNames(response.body());
-                })
-                .exceptionally(e -> {
-                    VetsLogger.debug("NameResolver: fetchAllLegacyNames failed: {}",
-                            e.getMessage());
-                    return List.of();
-                });
+        return HTTP_CLIENT
+                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(
+                        response -> {
+                            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+                                VetsLogger.debug(
+                                        "NameResolver: wapi returned {} for guild [{}]",
+                                        response.statusCode(),
+                                        guildName);
+                                return List.<String>of();
+                            }
+                            return extractAllLegacyNames(response.body());
+                        })
+                .exceptionally(
+                        e -> {
+                            VetsLogger.debug(
+                                    "NameResolver: fetchAllLegacyNames failed: {}", e.getMessage());
+                            return List.of();
+                        });
     }
 
     private static List<String> extractAllLegacyNames(String body) {
         List<String> names = new ArrayList<>();
-        forEachGuildMember(body, (currentName, member) -> {
-            String legacy = legacyNameOf(member);
-            // Renamed member → tile shows legacy; otherwise → current
-            // (also covers malformed entries where member is null).
-            names.add(legacy != null ? legacy : currentName);
-            return false;
-        });
+        forEachGuildMember(
+                body,
+                (currentName, member) -> {
+                    String legacy = legacyNameOf(member);
+                    // Renamed member → tile shows legacy; otherwise → current
+                    // (also covers malformed entries where member is null).
+                    names.add(legacy != null ? legacy : currentName);
+                    return false;
+                });
         return names;
     }
 
@@ -156,10 +172,12 @@ public final class NameResolver {
      * <p>Returns an empty map on failure.</p>
      */
     public static CompletableFuture<Map<String, String>> fetchNameIndex() {
-        return fetchGuildJson().thenApply(body -> {
-            if (body == null) return Map.of();
-            return extractNameIndex(body);
-        });
+        return fetchGuildJson()
+                .thenApply(
+                        body -> {
+                            if (body == null) return Map.of();
+                            return extractNameIndex(body);
+                        });
     }
 
     /**
@@ -175,10 +193,12 @@ public final class NameResolver {
      * <p>Returns an empty map on failure.</p>
      */
     public static CompletableFuture<Map<String, String>> fetchUuidToLegacyName() {
-        return fetchGuildJson().thenApply(body -> {
-            if (body == null) return Map.of();
-            return extractUuidToLegacyName(body);
-        });
+        return fetchGuildJson()
+                .thenApply(
+                        body -> {
+                            if (body == null) return Map.of();
+                            return extractUuidToLegacyName(body);
+                        });
     }
 
     private static CompletableFuture<String> fetchGuildJson() {
@@ -189,51 +209,62 @@ public final class NameResolver {
         if (guildName == null || guildName.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(WynnCraftApi.guildInfo(guildName))
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build();
-        return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-                        VetsLogger.debug("NameResolver: wapi returned {} for guild [{}]",
-                                response.statusCode(), guildName);
-                        return null;
-                    }
-                    return response.body();
-                })
-                .exceptionally(e -> {
-                    VetsLogger.debug("NameResolver: fetchGuildJson failed: {}", e.getMessage());
-                    return null;
-                });
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(WynnCraftApi.guildInfo(guildName))
+                        .timeout(Duration.ofSeconds(5))
+                        .GET()
+                        .build();
+        return HTTP_CLIENT
+                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(
+                        response -> {
+                            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+                                VetsLogger.debug(
+                                        "NameResolver: wapi returned {} for guild [{}]",
+                                        response.statusCode(),
+                                        guildName);
+                                return null;
+                            }
+                            return response.body();
+                        })
+                .exceptionally(
+                        e -> {
+                            VetsLogger.debug(
+                                    "NameResolver: fetchGuildJson failed: {}", e.getMessage());
+                            return null;
+                        });
     }
 
     private static Map<String, String> extractNameIndex(String body) {
         Map<String, String> index = new HashMap<>();
-        forEachGuildMember(body, (currentName, member) -> {
-            String legacy = legacyNameOf(member);
-            String legacyName = legacy != null ? legacy : currentName;
-            // Both forms point at the canonical legacy (= tile) name.
-            // equalsIgnoreCase-style lookup is achieved by lowercasing
-            // the key.
-            index.put(currentName.toLowerCase(Locale.ROOT), legacyName);
-            index.put(legacyName.toLowerCase(Locale.ROOT), legacyName);
-            return false;
-        });
+        forEachGuildMember(
+                body,
+                (currentName, member) -> {
+                    String legacy = legacyNameOf(member);
+                    String legacyName = legacy != null ? legacy : currentName;
+                    // Both forms point at the canonical legacy (= tile) name.
+                    // equalsIgnoreCase-style lookup is achieved by lowercasing
+                    // the key.
+                    index.put(currentName.toLowerCase(Locale.ROOT), legacyName);
+                    index.put(legacyName.toLowerCase(Locale.ROOT), legacyName);
+                    return false;
+                });
         return index;
     }
 
     private static Map<String, String> extractUuidToLegacyName(String body) {
         Map<String, String> map = new HashMap<>();
-        forEachGuildMember(body, (currentName, member) -> {
-            if (member == null) return false;
-            String uuid = uuidOf(member);
-            if (uuid == null) return false;
-            String legacy = legacyNameOf(member);
-            map.put(normalizeUuid(uuid), legacy != null ? legacy : currentName);
-            return false;
-        });
+        forEachGuildMember(
+                body,
+                (currentName, member) -> {
+                    if (member == null) return false;
+                    String uuid = uuidOf(member);
+                    if (uuid == null) return false;
+                    String legacy = legacyNameOf(member);
+                    map.put(normalizeUuid(uuid), legacy != null ? legacy : currentName);
+                    return false;
+                });
         return map;
     }
 
@@ -243,26 +274,28 @@ public final class NameResolver {
         // input so the not-found and parse-error paths both fall back
         // to the literal input the caller supplied.
         String[] result = {input};
-        forEachGuildMember(body, (currentName, member) -> {
-            // Original skipped malformed entries entirely — preserve that
-            // so an input matching a malformed entry's currentName still
-            // returns the not-found fallback rather than the currentName.
-            if (member == null) return false;
-            String legacyName = legacyNameOf(member);
-            if (currentName.toLowerCase(Locale.ROOT).equals(lowerInput)) {
-                // Input matched a current name — return its legacy
-                // (or the current name itself if no rename happened).
-                result[0] = legacyName != null ? legacyName : currentName;
-                return true;
-            }
-            if (legacyName != null
-                    && legacyName.toLowerCase(Locale.ROOT).equals(lowerInput)) {
-                // Input was already a legacy name — return verbatim.
-                result[0] = legacyName;
-                return true;
-            }
-            return false;
-        });
+        forEachGuildMember(
+                body,
+                (currentName, member) -> {
+                    // Original skipped malformed entries entirely — preserve that
+                    // so an input matching a malformed entry's currentName still
+                    // returns the not-found fallback rather than the currentName.
+                    if (member == null) return false;
+                    String legacyName = legacyNameOf(member);
+                    if (currentName.toLowerCase(Locale.ROOT).equals(lowerInput)) {
+                        // Input matched a current name — return its legacy
+                        // (or the current name itself if no rename happened).
+                        result[0] = legacyName != null ? legacyName : currentName;
+                        return true;
+                    }
+                    if (legacyName != null
+                            && legacyName.toLowerCase(Locale.ROOT).equals(lowerInput)) {
+                        // Input was already a legacy name — return verbatim.
+                        result[0] = legacyName;
+                        return true;
+                    }
+                    return false;
+                });
         return result[0];
     }
 
@@ -288,17 +321,19 @@ public final class NameResolver {
             if (root == null || !root.isJsonObject()) return;
             JsonElement membersEl = root.getAsJsonObject().get("members");
             if (membersEl == null || !membersEl.isJsonObject()) return;
-            for (Map.Entry<String, JsonElement> rankBucket
-                    : membersEl.getAsJsonObject().entrySet()) {
+            for (Map.Entry<String, JsonElement> rankBucket :
+                    membersEl.getAsJsonObject().entrySet()) {
                 if ("total".equals(rankBucket.getKey())) continue;
                 JsonElement bucketEl = rankBucket.getValue();
                 if (bucketEl == null || !bucketEl.isJsonObject()) continue;
-                for (Map.Entry<String, JsonElement> memberEntry
-                        : bucketEl.getAsJsonObject().entrySet()) {
+                for (Map.Entry<String, JsonElement> memberEntry :
+                        bucketEl.getAsJsonObject().entrySet()) {
                     String currentName = memberEntry.getKey();
                     JsonElement memberEl = memberEntry.getValue();
-                    JsonObject member = (memberEl != null && memberEl.isJsonObject())
-                            ? memberEl.getAsJsonObject() : null;
+                    JsonObject member =
+                            (memberEl != null && memberEl.isJsonObject())
+                                    ? memberEl.getAsJsonObject()
+                                    : null;
                     if (handler.accept(currentName, member)) return;
                 }
             }

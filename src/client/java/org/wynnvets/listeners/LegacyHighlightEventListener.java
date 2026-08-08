@@ -40,16 +40,20 @@ public final class LegacyHighlightEventListener {
         if (!LegacyItemHandler.isLegacyItem(stack)) return;
 
         GuiGraphics guiGraphics = event.getGuiGraphics();
-        guiGraphics.fillGradient(slot.x, slot.y, slot.x + 16, slot.y + 16,
-            VetsConfig.getLegacyBackgroundGradientTopColor(),
-            VetsConfig.getLegacyBackgroundGradientBottomColor());
+        guiGraphics.fillGradient(
+                slot.x,
+                slot.y,
+                slot.x + 16,
+                slot.y + 16,
+                VetsConfig.getLegacyBackgroundGradientTopColor(),
+                VetsConfig.getLegacyBackgroundGradientBottomColor());
         RenderUtils.drawSprite(
-            guiGraphics,
-            VetsConfig.getLegacyForegroundTexture(),
-            CustomColor.fromARGBInt(VetsConfig.getLegacyForegroundColor()),
-            slot.x - 10,
-            slot.y - 10,
-            36,
-            36);
+                guiGraphics,
+                VetsConfig.getLegacyForegroundTexture(),
+                CustomColor.fromARGBInt(VetsConfig.getLegacyForegroundColor()),
+                slot.x - 10,
+                slot.y - 10,
+                36,
+                36);
     }
 }

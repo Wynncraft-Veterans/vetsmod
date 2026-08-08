@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -48,7 +47,9 @@ class MojangCooldownTest {
         MojangCooldown.record429(Duration.ofSeconds(5));
         long remaining = MojangCooldown.remainingMs();
         // The 5s record must not have shrunk the existing 30s cutoff.
-        assertTrue(remaining > 25_000L, "expected > 25_000ms (30s window minus a tiny epsilon), got " + remaining);
+        assertTrue(
+                remaining > 25_000L,
+                "expected > 25_000ms (30s window minus a tiny epsilon), got " + remaining);
     }
 
     @Test

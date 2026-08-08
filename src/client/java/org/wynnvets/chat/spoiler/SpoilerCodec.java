@@ -34,6 +34,7 @@ public final class SpoilerCodec {
      * invisible PUA characters.
      */
     public static final String WRAPPER_PREFIX = "[Spoiler: ";
+
     public static final String WRAPPER_SUFFIX = "]";
 
     /** Base codepoint for direct character encoding (chars 0–253). */
@@ -94,7 +95,9 @@ public final class SpoilerCodec {
             encodeContent(matcher.group(1), sb);
             sb.append(SPOILER_END);
             sb.append(WRAPPER_SUFFIX);
-            VetsLogger.debug("SpoilerCodec.encodeSpoilers: encoded spoiler content=\"{}\"", matcher.group(1));
+            VetsLogger.debug(
+                    "SpoilerCodec.encodeSpoilers: encoded spoiler content=\"{}\"",
+                    matcher.group(1));
             lastEnd = matcher.end();
         }
         sb.append(message, lastEnd, message.length());
@@ -123,14 +126,20 @@ public final class SpoilerCodec {
                     sb.append((char) (DIRECT_MAX + 1 + d0 + d1 * RADIX + d2 * RADIX * RADIX));
                     i += 4;
                 } else {
-                    VetsLogger.debug("SpoilerCodec.decodeContent: truncated escape at index {}, remaining={}", i, encoded.length() - i);
+                    VetsLogger.debug(
+                            "SpoilerCodec.decodeContent: truncated escape at index {}, remaining={}",
+                            i,
+                            encoded.length() - i);
                     i++;
                 }
             } else if (ch >= ENCODE_BASE && ch < ESCAPE) {
                 sb.append((char) (ch - ENCODE_BASE));
                 i++;
             } else {
-                VetsLogger.debug("SpoilerCodec.decodeContent: unexpected char U+{} at index {}", String.format("%04X", (int) ch), i);
+                VetsLogger.debug(
+                        "SpoilerCodec.decodeContent: unexpected char U+{} at index {}",
+                        String.format("%04X", (int) ch),
+                        i);
                 i++;
             }
         }

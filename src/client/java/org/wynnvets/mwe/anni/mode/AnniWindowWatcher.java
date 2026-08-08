@@ -1,10 +1,9 @@
 package org.wynnvets.mwe.anni.mode;
 
+import java.time.Instant;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
-import java.time.Instant;
 
 /**
  * Resets the anni mode to {@link AnniModeManager#preferredMode()} once
@@ -44,8 +43,7 @@ public final class AnniWindowWatcher {
     private static volatile boolean registered = false;
     private static volatile Long lastKnownStamp = null;
 
-    private AnniWindowWatcher() {
-    }
+    private AnniWindowWatcher() {}
 
     /** Wire the snapshot-cache listener. Safe to call repeatedly. */
     public static void register() {

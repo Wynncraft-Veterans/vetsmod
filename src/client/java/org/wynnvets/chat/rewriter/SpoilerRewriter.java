@@ -1,5 +1,7 @@
 package org.wynnvets.chat.rewriter;
 
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -10,9 +12,6 @@ import org.wynnvets.chat.Prepend;
 import org.wynnvets.chat.spoiler.SpoilerCodec;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Rewrites any incoming chat message that contains PUA-encoded spoiler blocks
@@ -46,7 +45,9 @@ public final class SpoilerRewriter {
             return false;
         }
 
-        VetsLogger.debug("SpoilerRewriter: rewriting message with encoded spoiler (len={})", messageString.length());
+        VetsLogger.debug(
+                "SpoilerRewriter: rewriting message with encoded spoiler (len={})",
+                messageString.length());
         MutableComponent result = rebuildWithDecodedSpoilers(component);
         ChatUtils.dispatchToChat(result, Prepend.GUILD.get().getStyle());
         return true;
@@ -91,12 +92,16 @@ public final class SpoilerRewriter {
         if (!anySingleFragmentHasSpoiler || hasServerWrapping) {
             // Spoiler spans multiple fragments, or server wrapping is present
             // — use the cross-fragment path that strips continuation markers.
-            VetsLogger.debug("SpoilerRewriter: using cross-fragment path (singleFrag={}, serverWrap={})",
-                    anySingleFragmentHasSpoiler, hasServerWrapping);
+            VetsLogger.debug(
+                    "SpoilerRewriter: using cross-fragment path (singleFrag={}, serverWrap={})",
+                    anySingleFragmentHasSpoiler,
+                    hasServerWrapping);
             return rebuildCrossFragmentSpoilers(fragments);
         }
 
-        VetsLogger.debug("SpoilerRewriter: using single-fragment fast path ({} fragments)", fragments.size());
+        VetsLogger.debug(
+                "SpoilerRewriter: using single-fragment fast path ({} fragments)",
+                fragments.size());
         MutableComponent result = Component.empty();
         for (StyledFragment frag : fragments) {
             if (!SpoilerCodec.containsEncodedSpoiler(frag.text)) {
@@ -121,17 +126,22 @@ public final class SpoilerRewriter {
                 // Strip [Spoiler: ] wrapper if present around the PUA block.
                 int emitEnd = start;
                 if (start >= SpoilerCodec.WRAPPER_PREFIX.length()
-                        && text.startsWith(SpoilerCodec.WRAPPER_PREFIX, start - SpoilerCodec.WRAPPER_PREFIX.length())) {
+                        && text.startsWith(
+                                SpoilerCodec.WRAPPER_PREFIX,
+                                start - SpoilerCodec.WRAPPER_PREFIX.length())) {
                     emitEnd = start - SpoilerCodec.WRAPPER_PREFIX.length();
                 }
                 if (emitEnd > cursor) {
-                    result.append(Component.literal(text.substring(cursor, emitEnd)).setStyle(frag.style));
+                    result.append(
+                            Component.literal(text.substring(cursor, emitEnd))
+                                    .setStyle(frag.style));
                 }
 
                 String encoded = text.substring(start + 1, end);
                 String decoded = SpoilerCodec.decodeContent(encoded);
-                Style hoverStyle = SPOILER_LABEL_STYLE.withHoverEvent(
-                        new HoverEvent.ShowText(Component.literal(decoded)));
+                Style hoverStyle =
+                        SPOILER_LABEL_STYLE.withHoverEvent(
+                                new HoverEvent.ShowText(Component.literal(decoded)));
                 result.append(Component.literal("[Spoiler]").setStyle(hoverStyle));
 
                 cursor = end + 1;
@@ -176,7 +186,8 @@ public final class SpoilerRewriter {
 
         // Emit prefix fragments (before the colon fragment) as-is.
         for (int i = 0; i < colonFragIdx; i++) {
-            result.append(Component.literal(fragments.get(i).text).setStyle(fragments.get(i).style));
+            result.append(
+                    Component.literal(fragments.get(i).text).setStyle(fragments.get(i).style));
         }
 
         // Split the colon fragment: prefix up to and including ": ", body after.
@@ -187,7 +198,9 @@ public final class SpoilerRewriter {
             bodyStart++;
             hadSpace = true;
         }
-        result.append(Component.literal(colonFrag.text.substring(0, bodyStart)).setStyle(colonFrag.style));
+        result.append(
+                Component.literal(colonFrag.text.substring(0, bodyStart))
+                        .setStyle(colonFrag.style));
         // Ensure a space follows the colon even when the fragment boundary
         // falls right after ":" (Wynncraft often starts a new style there).
         if (!hadSpace) {
@@ -210,7 +223,8 @@ public final class SpoilerRewriter {
 
     // ── Component tree helpers ────────────────────────────────────────
 
-    private static void flattenComponent(Component component, Style inherited, List<StyledFragment> out) {
+    private static void flattenComponent(
+            Component component, Style inherited, List<StyledFragment> out) {
         Style resolved = component.getStyle().applyTo(inherited);
         String content = getDirectText(component);
         if (!content.isEmpty()) {
@@ -223,10 +237,13 @@ public final class SpoilerRewriter {
 
     private static String getDirectText(Component component) {
         StringBuilder sb = new StringBuilder();
-        component.getContents().visit(s -> {
-            sb.append(s);
-            return java.util.Optional.empty();
-        });
+        component
+                .getContents()
+                .visit(
+                        s -> {
+                            sb.append(s);
+                            return java.util.Optional.empty();
+                        });
         return sb.toString();
     }
 

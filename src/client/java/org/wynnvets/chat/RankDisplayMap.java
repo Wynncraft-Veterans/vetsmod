@@ -21,17 +21,16 @@ import java.util.Map;
  */
 public final class RankDisplayMap {
 
-    private static final Map<String, String> DISPLAY = Map.of(
-            "recruit",    "Recruit",
-            "recruiter",  "Returner",
-            "captain",    "Returner",
-            "strategist", "Steward",
-            "chief",      "Steward",
-            "owner",      "Steward"
-    );
+    private static final Map<String, String> DISPLAY =
+            Map.of(
+                    "recruit", "Recruit",
+                    "recruiter", "Returner",
+                    "captain", "Returner",
+                    "strategist", "Steward",
+                    "chief", "Steward",
+                    "owner", "Steward");
 
-    private RankDisplayMap() {
-    }
+    private RankDisplayMap() {}
 
     /**
      * Return the display label for {@code rawRank}. Case-insensitive.

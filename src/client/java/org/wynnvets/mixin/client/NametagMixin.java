@@ -102,34 +102,35 @@ public class NametagMixin {
             FabricLoader.getInstance().isModLoaded("wynnmod");
 
     @Inject(
-            method = "extractRenderState("
-                    + "Lnet/minecraft/world/entity/Avatar;"
-                    + "Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;"
-                    + "F)V",
+            method =
+                    "extractRenderState("
+                            + "Lnet/minecraft/world/entity/Avatar;"
+                            + "Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;"
+                            + "F)V",
             at = @At("TAIL"))
     private void vetsmod$rewriteNameTag(
-            Avatar entity,
-            AvatarRenderState state,
-            float partialTick,
-            CallbackInfo ci) {
+            Avatar entity, AvatarRenderState state, float partialTick, CallbackInfo ci) {
         applyOverride(state, entity, false);
     }
 
     @WrapOperation(
-            method = "submitNameTag("
-                    + "Lnet/minecraft/client/renderer/entity/state/EntityRenderState;"
-                    + "Lcom/mojang/blaze3d/vertex/PoseStack;"
-                    + "Lnet/minecraft/client/renderer/SubmitNodeCollector;"
-                    + "Lnet/minecraft/client/renderer/state/CameraRenderState;"
-                    + ")V",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;submitNameTag("
-                            + "Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;"
+            method =
+                    "submitNameTag("
+                            + "Lnet/minecraft/client/renderer/entity/state/EntityRenderState;"
                             + "Lcom/mojang/blaze3d/vertex/PoseStack;"
                             + "Lnet/minecraft/client/renderer/SubmitNodeCollector;"
                             + "Lnet/minecraft/client/renderer/state/CameraRenderState;"
-                            + ")V"))
+                            + ")V",
+            at =
+                    @At(
+                            value = "INVOKE",
+                            target =
+                                    "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;submitNameTag("
+                                            + "Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;"
+                                            + "Lcom/mojang/blaze3d/vertex/PoseStack;"
+                                            + "Lnet/minecraft/client/renderer/SubmitNodeCollector;"
+                                            + "Lnet/minecraft/client/renderer/state/CameraRenderState;"
+                                            + ")V"))
     private void vetsmod$reapplyAfterWrap(
             AvatarRenderer<?> instance,
             AvatarRenderState state,
@@ -170,9 +171,8 @@ public class NametagMixin {
         if (AnniOutlineTicker.isOutlineSuppressionActive()
                 && VetsConfig.get(VetsConfig.VETS_ANNI_NAMETAGS_ENABLED)) {
             AnniOutlineRegistry.Entry anni = AnniOutlineRegistry.getEntry(username);
-            ChatFormatting fmt = (anni != null)
-                    ? anni.nametagFormatting()
-                    : ChatFormatting.DARK_GRAY;
+            ChatFormatting fmt =
+                    (anni != null) ? anni.nametagFormatting() : ChatFormatting.DARK_GRAY;
             String original = state.nameTag.getString();
             // Wynncraft embeds the team colour as a legacy `§<code>`
             // prefix INSIDE the string content (e.g. "§awonderkas" for

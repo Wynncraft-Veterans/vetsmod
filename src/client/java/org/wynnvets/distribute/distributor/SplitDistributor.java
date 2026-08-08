@@ -1,14 +1,13 @@
 package org.wynnvets.distribute.distributor;
 
 import com.wynntils.core.components.Managers;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import org.wynnvets.chat.ChatUtils;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import org.wynnvets.chat.ChatUtils;
 
 /**
  * Implements {@code /wv distribute @split <resource> <count>}: divides
@@ -65,10 +64,18 @@ public final class SplitDistributor {
         int[] pools = splitCount(count);
 
         ChatUtils.sendLocalMessage(
-                Component.literal("Splitting " + count + "x " + resource.displayName()
-                        + ": " + pools[0] + " @graids, "
-                        + pools[1] + " @objectives, "
-                        + pools[2] + " @random")
+                Component.literal(
+                                "Splitting "
+                                        + count
+                                        + "x "
+                                        + resource.displayName()
+                                        + ": "
+                                        + pools[0]
+                                        + " @graids, "
+                                        + pools[1]
+                                        + " @objectives, "
+                                        + pools[2]
+                                        + " @random")
                         .withStyle(ChatFormatting.AQUA));
 
         // Chain backwards so each phase's onComplete closure already
@@ -77,21 +84,29 @@ public final class SplitDistributor {
         // menu open. Every phase transition is gated by a settle delay
         // (see PHASE_DELAY_TICKS) so the previous menu's close packet
         // has been processed before the next command flies.
-        final Runnable terminal = () -> ChatUtils.sendLocalMessage(
-                Component.literal("Split distribution complete.")
-                        .withStyle(ChatFormatting.GREEN));
+        final Runnable terminal =
+                () ->
+                        ChatUtils.sendLocalMessage(
+                                Component.literal("Split distribution complete.")
+                                        .withStyle(ChatFormatting.GREEN));
 
-        final Runnable randomPhase = pools[2] > 0
-                ? delayed(() -> RandomDistributor.dispatch(pools[2], resource, terminal))
-                : terminal;
+        final Runnable randomPhase =
+                pools[2] > 0
+                        ? delayed(() -> RandomDistributor.dispatch(pools[2], resource, terminal))
+                        : terminal;
 
-        final Runnable objectivesPhase = pools[1] > 0
-                ? delayed(() -> ObjectivesDistributor.dispatch(pools[1], resource, randomPhase))
-                : randomPhase;
+        final Runnable objectivesPhase =
+                pools[1] > 0
+                        ? delayed(
+                                () ->
+                                        ObjectivesDistributor.dispatch(
+                                                pools[1], resource, randomPhase))
+                        : randomPhase;
 
-        final Runnable graidsPhase = pools[0] > 0
-                ? () -> GraidsDistributor.dispatch(pools[0], resource, objectivesPhase)
-                : objectivesPhase;
+        final Runnable graidsPhase =
+                pools[0] > 0
+                        ? () -> GraidsDistributor.dispatch(pools[0], resource, objectivesPhase)
+                        : objectivesPhase;
 
         graidsPhase.run();
     }

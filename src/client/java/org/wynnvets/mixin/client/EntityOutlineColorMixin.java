@@ -51,16 +51,14 @@ import org.wynnvets.mwe.anni.outline.AnniOutlineTicker;
 public class EntityOutlineColorMixin {
 
     @Inject(
-            method = "extractRenderState("
-                    + "Lnet/minecraft/world/entity/Entity;"
-                    + "Lnet/minecraft/client/renderer/entity/state/EntityRenderState;"
-                    + "F)V",
+            method =
+                    "extractRenderState("
+                            + "Lnet/minecraft/world/entity/Entity;"
+                            + "Lnet/minecraft/client/renderer/entity/state/EntityRenderState;"
+                            + "F)V",
             at = @At("TAIL"))
     private void vetsmod$suppressOutsiderOutline(
-            Entity entity,
-            EntityRenderState state,
-            float partialTick,
-            CallbackInfo ci) {
+            Entity entity, EntityRenderState state, float partialTick, CallbackInfo ci) {
         if (!AnniOutlineTicker.isOutlineSuppressionActive()) return;
         if (!VetsConfig.get(VetsConfig.VETS_ANNI_OUTLINES_ENABLED)) return;
         if (!(entity instanceof AbstractClientPlayer player)) return;

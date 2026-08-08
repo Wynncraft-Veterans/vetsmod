@@ -1,11 +1,5 @@
 package org.wynnvets.chat;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
-
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -13,6 +7,11 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 
 /**
  * Expands Discord's {@code <t:EPOCH:STYLE>} timestamp markup into readable
@@ -108,18 +107,22 @@ public final class DiscordTimestamps {
         }
         Instant instant = Instant.ofEpochSecond(epoch);
 
-        String shown = switch (style == null ? 'f' : style.charAt(0)) {
-            case 't' -> format(instant, SHORT_TIME);
-            case 'T' -> format(instant, LONG_TIME);
-            case 'd' -> format(instant, SHORT_DATE);
-            case 'D' -> format(instant, LONG_DATE);
-            case 'F' -> format(instant, LONG_DATE_TIME);
-            case 'R' -> relative(instant);
-            default -> format(instant, SHORT_DATE_TIME);
-        };
+        String shown =
+                switch (style == null ? 'f' : style.charAt(0)) {
+                    case 't' -> format(instant, SHORT_TIME);
+                    case 'T' -> format(instant, LONG_TIME);
+                    case 'd' -> format(instant, SHORT_DATE);
+                    case 'D' -> format(instant, LONG_DATE);
+                    case 'F' -> format(instant, LONG_DATE_TIME);
+                    case 'R' -> relative(instant);
+                    default -> format(instant, SHORT_DATE_TIME);
+                };
 
-        MutableComponent hover = Component.literal(format(instant, HOVER))
-                .append(Component.literal("\n" + relative(instant)).withStyle(ChatFormatting.GRAY));
+        MutableComponent hover =
+                Component.literal(format(instant, HOVER))
+                        .append(
+                                Component.literal("\n" + relative(instant))
+                                        .withStyle(ChatFormatting.GRAY));
         return Component.literal(shown)
                 .setStyle(Style.EMPTY.withHoverEvent(new HoverEvent.ShowText(hover)));
     }
@@ -165,10 +168,12 @@ public final class DiscordTimestamps {
     /** This node's own text, excluding siblings. */
     private static String ownText(Component node) {
         StringBuilder sb = new StringBuilder();
-        node.getContents().visit(part -> {
-            sb.append(part);
-            return Optional.empty();
-        });
+        node.getContents()
+                .visit(
+                        part -> {
+                            sb.append(part);
+                            return Optional.empty();
+                        });
         return sb.toString();
     }
 }

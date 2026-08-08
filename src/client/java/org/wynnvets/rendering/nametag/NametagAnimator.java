@@ -1,13 +1,12 @@
 package org.wynnvets.rendering.nametag;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Applies a subtle animated gradient to the username portion of a supporter's
@@ -96,7 +95,7 @@ public final class NametagAnimator {
         int origColor = resolveColorAt(segments, usernameStart);
         boolean cv = colorBlindMode();
         int startColor = cv ? darken(origColor, CV_DARKEN_FACTOR) : origColor;
-        int endColor   = cv ? mixToward(origColor, 0xFFFFFF, CV_LIGHTEN_FACTOR) : lighten(origColor);
+        int endColor = cv ? mixToward(origColor, 0xFFFFFF, CV_LIGHTEN_FACTOR) : lighten(origColor);
 
         // Time-based phase — identical maths to AnimatedGradientSequence.
         float time = (System.currentTimeMillis() % CYCLE_TIME_MS) / (float) CYCLE_TIME_MS;
@@ -107,40 +106,52 @@ public final class NametagAnimator {
 
         for (StyledSegment seg : segments) {
             int segStart = cursor;
-            int segEnd   = cursor + seg.text.length();
+            int segEnd = cursor + seg.text.length();
 
             if (segEnd <= usernameStart || segStart >= usernameEnd) {
                 // Entirely outside username — keep unchanged.
                 result.append(Component.literal(seg.text).setStyle(seg.style));
             } else if (segStart >= usernameStart && segEnd <= usernameEnd) {
                 // Entirely within username — animate each character.
-                appendAnimatedChars(result, seg, segStart - usernameStart,
-                        usernameLen, startColor, endColor, time);
+                appendAnimatedChars(
+                        result,
+                        seg,
+                        segStart - usernameStart,
+                        usernameLen,
+                        startColor,
+                        endColor,
+                        time);
             } else {
                 // Segment spans a boundary — split into up to 3 parts.
                 int animStart = Math.max(segStart, usernameStart);
-                int animEnd   = Math.min(segEnd, usernameEnd);
+                int animEnd = Math.min(segEnd, usernameEnd);
 
                 // Part before animated region
                 if (animStart > segStart) {
-                    result.append(Component.literal(
-                            seg.text.substring(0, animStart - segStart))
-                            .setStyle(seg.style));
+                    result.append(
+                            Component.literal(seg.text.substring(0, animStart - segStart))
+                                    .setStyle(seg.style));
                 }
 
                 // Animated part
-                StyledSegment animSeg = new StyledSegment(
-                        seg.text.substring(animStart - segStart, animEnd - segStart),
-                        seg.style);
-                appendAnimatedChars(result, animSeg,
-                        animStart - usernameStart, usernameLen,
-                        startColor, endColor, time);
+                StyledSegment animSeg =
+                        new StyledSegment(
+                                seg.text.substring(animStart - segStart, animEnd - segStart),
+                                seg.style);
+                appendAnimatedChars(
+                        result,
+                        animSeg,
+                        animStart - usernameStart,
+                        usernameLen,
+                        startColor,
+                        endColor,
+                        time);
 
                 // Part after animated region
                 if (animEnd < segEnd) {
-                    result.append(Component.literal(
-                            seg.text.substring(animEnd - segStart))
-                            .setStyle(seg.style));
+                    result.append(
+                            Component.literal(seg.text.substring(animEnd - segStart))
+                                    .setStyle(seg.style));
                 }
             }
 
@@ -165,9 +176,7 @@ public final class NametagAnimator {
 
         for (int i = 0; i < seg.text.length(); i++) {
             int idx = startIdx + i;
-            float charPhase = usernameLen <= 1
-                    ? 0f
-                    : idx / (float) (usernameLen - 1);
+            float charPhase = usernameLen <= 1 ? 0f : idx / (float) (usernameLen - 1);
 
             // Sliding wave — same formula as AnimatedGradientSequence.
             float phase = (charPhase + time) % 1.0f;
@@ -188,12 +197,14 @@ public final class NametagAnimator {
      */
     private static List<StyledSegment> collectSegments(Component component) {
         List<StyledSegment> segments = new ArrayList<>();
-        component.visit((Style style, String text) -> {
-            if (!text.isEmpty()) {
-                segments.add(new StyledSegment(text, style));
-            }
-            return Optional.empty();
-        }, Style.EMPTY);
+        component.visit(
+                (Style style, String text) -> {
+                    if (!text.isEmpty()) {
+                        segments.add(new StyledSegment(text, style));
+                    }
+                    return Optional.empty();
+                },
+                Style.EMPTY);
         return segments;
     }
 
@@ -240,8 +251,8 @@ public final class NametagAnimator {
      */
     private static int lighten(int rgb) {
         int r = (rgb >> 16) & 0xFF;
-        int g = (rgb >>  8) & 0xFF;
-        int b =  rgb        & 0xFF;
+        int g = (rgb >> 8) & 0xFF;
+        int b = rgb & 0xFF;
 
         // Blend towards light lavender (255, 225, 255) instead of pure white
         // to add a slight hue shift towards purple at the bright end.
@@ -254,11 +265,11 @@ public final class NametagAnimator {
     /** Blends {@code rgb} toward {@code targetRgb} by {@code factor} (0..1). */
     private static int mixToward(int rgb, int targetRgb, float factor) {
         int r = (rgb >> 16) & 0xFF;
-        int g = (rgb >>  8) & 0xFF;
-        int b =  rgb        & 0xFF;
+        int g = (rgb >> 8) & 0xFF;
+        int b = rgb & 0xFF;
         int tr = (targetRgb >> 16) & 0xFF;
-        int tg = (targetRgb >>  8) & 0xFF;
-        int tb =  targetRgb        & 0xFF;
+        int tg = (targetRgb >> 8) & 0xFF;
+        int tb = targetRgb & 0xFF;
         int mr = Math.round(r + factor * (tr - r));
         int mg = Math.round(g + factor * (tg - g));
         int mb = Math.round(b + factor * (tb - b));
@@ -280,8 +291,8 @@ public final class NametagAnimator {
     static int interpolateColor(int c1, int c2, float t) {
         int r1 = (c1 >> 16) & 0xFF, g1 = (c1 >> 8) & 0xFF, b1 = c1 & 0xFF;
         int r2 = (c2 >> 16) & 0xFF, g2 = (c2 >> 8) & 0xFF, b2 = c2 & 0xFF;
-        int r  = Math.round(r1 + (r2 - r1) * t);
-        int g  = Math.round(g1 + (g2 - g1) * t);
+        int r = Math.round(r1 + (r2 - r1) * t);
+        int g = Math.round(g1 + (g2 - g1) * t);
         int bl = Math.round(b1 + (b2 - b1) * t);
         return (r << 16) | (g << 8) | bl;
     }

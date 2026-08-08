@@ -1,17 +1,15 @@
 package org.wynnvets.mwe.anni.render;
 
+import java.net.URI;
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
-
-import java.net.URI;
-import java.util.Locale;
 
 /**
  * Widget helpers for the rich-text {@code /wv anni} / anni-motd render.
@@ -35,12 +33,12 @@ public final class AnniHoverBuilder {
      *  lacks an explicit {@code url}. The role-specific anchors (e.g.
      *  {@code #tank}) come from the snapshot. */
     public static final String DOCS_ANNI_BASE = "https://www.wynnvets.org/docs/guild/anni/";
+
     public static final String DOCS_PREPARING = DOCS_ANNI_BASE + "#preparing";
     public static final String DOCS_ATTENDING = DOCS_ANNI_BASE + "#attending";
     public static final String DOCS_EVENT_GAMEPLAY = DOCS_ANNI_BASE + "#event-gameplay";
 
-    private AnniHoverBuilder() {
-    }
+    private AnniHoverBuilder() {}
 
     // ── Colour tokens ───────────────────────────────────────────────────
 
@@ -50,14 +48,21 @@ public final class AnniHoverBuilder {
     public static ChatFormatting roleColor(String role) {
         if (role == null) return ChatFormatting.GRAY;
         switch (role.toUpperCase(Locale.ROOT)) {
-            case "FILL":      return ChatFormatting.WHITE;
-            case "TANK":      return ChatFormatting.AQUA;
+            case "FILL":
+                return ChatFormatting.WHITE;
+            case "TANK":
+                return ChatFormatting.AQUA;
             case "HEAL":
-            case "HEALER":    return ChatFormatting.GREEN;
-            case "TERTIARY":  return ChatFormatting.LIGHT_PURPLE;
-            case "SECONDARY": return ChatFormatting.YELLOW;
-            case "PRIMARY":   return ChatFormatting.RED;
-            default:          return ChatFormatting.GRAY;
+            case "HEALER":
+                return ChatFormatting.GREEN;
+            case "TERTIARY":
+                return ChatFormatting.LIGHT_PURPLE;
+            case "SECONDARY":
+                return ChatFormatting.YELLOW;
+            case "PRIMARY":
+                return ChatFormatting.RED;
+            default:
+                return ChatFormatting.GRAY;
         }
     }
 
@@ -70,15 +75,20 @@ public final class AnniHoverBuilder {
         if (noticeEffective == null) return ChatFormatting.GRAY;
         switch (noticeEffective.toLowerCase(Locale.ROOT)) {
             case "rsvp_hard":
-            case "hard":         return ChatFormatting.AQUA;
+            case "hard":
+                return ChatFormatting.AQUA;
             case "rsvp_soft":
-            case "soft":         return ChatFormatting.GREEN;
+            case "soft":
+                return ChatFormatting.GREEN;
             case "attend_early":
             case "walkin":
-            case "walk_in":      return ChatFormatting.YELLOW;
+            case "walk_in":
+                return ChatFormatting.YELLOW;
             case "attend_late":
-            case "late":         return ChatFormatting.RED;
-            default:             return ChatFormatting.GRAY;
+            case "late":
+                return ChatFormatting.RED;
+            default:
+                return ChatFormatting.GRAY;
         }
     }
 
@@ -87,13 +97,20 @@ public final class AnniHoverBuilder {
      *  Mirrors the dashboard's general-module bottom bar. */
     public static ChatFormatting bandColor(int band) {
         switch (band) {
-            case 6: return ChatFormatting.GREEN;
-            case 5: return ChatFormatting.DARK_GREEN;
-            case 4: return ChatFormatting.YELLOW;
-            case 3: return ChatFormatting.GOLD;
-            case 2: return ChatFormatting.RED;
-            case 1: return ChatFormatting.DARK_RED;
-            default: return ChatFormatting.GRAY;
+            case 6:
+                return ChatFormatting.GREEN;
+            case 5:
+                return ChatFormatting.DARK_GREEN;
+            case 4:
+                return ChatFormatting.YELLOW;
+            case 3:
+                return ChatFormatting.GOLD;
+            case 2:
+                return ChatFormatting.RED;
+            case 1:
+                return ChatFormatting.DARK_RED;
+            default:
+                return ChatFormatting.GRAY;
         }
     }
 
@@ -111,16 +128,21 @@ public final class AnniHoverBuilder {
     public static MutableComponent roleChip(String roleCode, String title, String url) {
         String display = displayRole(roleCode);
         String href = (url != null && !url.isEmpty()) ? url : DOCS_EVENT_GAMEPLAY;
-        Style style = Style.EMPTY
-                .withColor(roleColor(roleCode))
-                .withBold(true)
-                .withClickEvent(safeOpenUrl(href));
+        Style style =
+                Style.EMPTY
+                        .withColor(roleColor(roleCode))
+                        .withBold(true)
+                        .withClickEvent(safeOpenUrl(href));
         if (showHovers() && title != null && !title.isEmpty()) {
-            style = style.withHoverEvent(new HoverEvent.ShowText(
-                    Component.literal(title + "\n")
-                            .withStyle(ChatFormatting.WHITE)
-                            .append(Component.literal("Click to open the role guide.")
-                                    .withStyle(ChatFormatting.GRAY))));
+            style =
+                    style.withHoverEvent(
+                            new HoverEvent.ShowText(
+                                    Component.literal(title + "\n")
+                                            .withStyle(ChatFormatting.WHITE)
+                                            .append(
+                                                    Component.literal(
+                                                                    "Click to open the role guide.")
+                                                            .withStyle(ChatFormatting.GRAY))));
         }
         return Component.literal(display).withStyle(style);
     }
@@ -138,45 +160,66 @@ public final class AnniHoverBuilder {
         switch (style) {
             case "short":
                 switch (upper) {
-                    case "TANK":      return "TANK";
+                    case "TANK":
+                        return "TANK";
                     case "HEAL":
-                    case "HEALER":    return "HEAL";
-                    case "PRIMARY":   return "PRIM";
-                    case "SECONDARY": return "SUNK";
-                    case "TERTIARY":  return "MOBK";
-                    case "FILL":      return "FILL";
-                    default:          return upper;
+                    case "HEALER":
+                        return "HEAL";
+                    case "PRIMARY":
+                        return "PRIM";
+                    case "SECONDARY":
+                        return "SUNK";
+                    case "TERTIARY":
+                        return "MOBK";
+                    case "FILL":
+                        return "FILL";
+                    default:
+                        return upper;
                 }
             case "formal":
                 switch (upper) {
-                    case "TANK":      return "TANK";
+                    case "TANK":
+                        return "TANK";
                     case "HEAL":
-                    case "HEALER":    return "HEALER";
-                    case "PRIMARY":   return "PRIMARY";
-                    case "SECONDARY": return "SECONDARY";
-                    case "TERTIARY":  return "TERTIARY";
-                    case "FILL":      return "FILL";
-                    default:          return upper;
+                    case "HEALER":
+                        return "HEALER";
+                    case "PRIMARY":
+                        return "PRIMARY";
+                    case "SECONDARY":
+                        return "SECONDARY";
+                    case "TERTIARY":
+                        return "TERTIARY";
+                    case "FILL":
+                        return "FILL";
+                    default:
+                        return upper;
                 }
             case "descriptive":
             default:
                 switch (upper) {
-                    case "TANK":      return "TANK";
+                    case "TANK":
+                        return "TANK";
                     case "HEAL":
-                    case "HEALER":    return "HEALER";
-                    case "PRIMARY":   return "BOSSKILL";
-                    case "SECONDARY": return "SUNKILL";
-                    case "TERTIARY":  return "MOBKILL";
-                    case "FILL":      return "FILL";
-                    default:          return upper;
+                    case "HEALER":
+                        return "HEALER";
+                    case "PRIMARY":
+                        return "BOSSKILL";
+                    case "SECONDARY":
+                        return "SUNKILL";
+                    case "TERTIARY":
+                        return "MOBKILL";
+                    case "FILL":
+                        return "FILL";
+                    default:
+                        return upper;
                 }
         }
     }
 
     /** RSVP badge — short coloured pill describing the user's current
      *  RSVP / attendance notice. */
-    public static MutableComponent rsvpBadge(AnniSnapshot.Rsvp rsvp,
-                                             AnniSnapshot.Attendance attendance) {
+    public static MutableComponent rsvpBadge(
+            AnniSnapshot.Rsvp rsvp, AnniSnapshot.Attendance attendance) {
         String noticeKey = null;
         if (rsvp != null && rsvp.notice() != null && !rsvp.revoked()) {
             noticeKey = rsvp.notice();
@@ -193,27 +236,39 @@ public final class AnniHoverBuilder {
         } else {
             switch (noticeKey.toLowerCase(Locale.ROOT)) {
                 case "hard":
-                case "rsvp_hard":    label = "HARD RSVP";       break;
+                case "rsvp_hard":
+                    label = "HARD RSVP";
+                    break;
                 case "soft":
-                case "rsvp_soft":    label = "SOFT RSVP";       break;
+                case "rsvp_soft":
+                    label = "SOFT RSVP";
+                    break;
                 case "attend_early":
                 case "walkin":
-                case "walk_in":      label = "EARLY WALK-IN";   break;
+                case "walk_in":
+                    label = "EARLY WALK-IN";
+                    break;
                 case "attend_late":
-                case "late":         label = "LATE WALK-IN";    break;
-                default:             label = noticeKey.toUpperCase(Locale.ROOT);
+                case "late":
+                    label = "LATE WALK-IN";
+                    break;
+                default:
+                    label = noticeKey.toUpperCase(Locale.ROOT);
             }
         }
         ChatFormatting color = noticeKey == null ? ChatFormatting.GRAY : noticeColor(noticeKey);
         Style style = Style.EMPTY.withColor(color).withBold(true);
         if (showHovers()) {
-            String hoverBody = noticeKey == null
-                    ? "You haven't RSVP'd to this anni.\nClick to /wv anni rsvp."
-                    : "Effective notice: " + noticeKey + "\nClick to open the RSVP guide.";
-            style = style
-                    .withHoverEvent(new HoverEvent.ShowText(
-                            Component.literal(hoverBody).withStyle(ChatFormatting.GRAY)))
-                    .withClickEvent(safeOpenUrl(DOCS_ATTENDING));
+            String hoverBody =
+                    noticeKey == null
+                            ? "You haven't RSVP'd to this anni.\nClick to /wv anni rsvp."
+                            : "Effective notice: " + noticeKey + "\nClick to open the RSVP guide.";
+            style =
+                    style.withHoverEvent(
+                                    new HoverEvent.ShowText(
+                                            Component.literal(hoverBody)
+                                                    .withStyle(ChatFormatting.GRAY)))
+                            .withClickEvent(safeOpenUrl(DOCS_ATTENDING));
         } else {
             style = style.withClickEvent(safeOpenUrl(DOCS_ATTENDING));
         }
@@ -235,16 +290,23 @@ public final class AnniHoverBuilder {
         }
         Style barStyle = Style.EMPTY.withColor(fill);
         if (showHovers()) {
-            String hover = "Band " + band + "/6"
-                    + (attendance.label() != null ? " — " + attendance.label() : "")
-                    + "\nMirrors the anni.wynnvets.org/me attendance bar.";
-            barStyle = barStyle.withHoverEvent(new HoverEvent.ShowText(
-                    Component.literal(hover).withStyle(ChatFormatting.GRAY)));
+            String hover =
+                    "Band "
+                            + band
+                            + "/6"
+                            + (attendance.label() != null ? " — " + attendance.label() : "")
+                            + "\nMirrors the anni.wynnvets.org/me attendance bar.";
+            barStyle =
+                    barStyle.withHoverEvent(
+                            new HoverEvent.ShowText(
+                                    Component.literal(hover).withStyle(ChatFormatting.GRAY)));
         }
-        MutableComponent label = Component.literal(
-                attendance.label() != null ? attendance.label() : ("band " + band))
-                .withStyle(fill);
-        return Component.literal("[").withStyle(ChatFormatting.DARK_GRAY)
+        MutableComponent label =
+                Component.literal(
+                                attendance.label() != null ? attendance.label() : ("band " + band))
+                        .withStyle(fill);
+        return Component.literal("[")
+                .withStyle(ChatFormatting.DARK_GRAY)
                 .append(Component.literal(bar.toString()).withStyle(barStyle))
                 .append(Component.literal("] ").withStyle(ChatFormatting.DARK_GRAY))
                 .append(label);
@@ -257,9 +319,12 @@ public final class AnniHoverBuilder {
         }
         Style style = Style.EMPTY.withColor(ChatFormatting.AQUA).withBold(true);
         if (showHovers()) {
-            style = style.withHoverEvent(new HoverEvent.ShowText(
-                    Component.literal("Party world assignment.\nFlashes until you join it.")
-                            .withStyle(ChatFormatting.GRAY)));
+            style =
+                    style.withHoverEvent(
+                            new HoverEvent.ShowText(
+                                    Component.literal(
+                                                    "Party world assignment.\nFlashes until you join it.")
+                                            .withStyle(ChatFormatting.GRAY)));
         }
         return Component.literal(world).withStyle(style);
     }
@@ -272,14 +337,17 @@ public final class AnniHoverBuilder {
         String label = "Party " + party.ordinal();
         Style style = Style.EMPTY.withColor(ChatFormatting.YELLOW).withBold(true);
         if (showHovers()) {
-            MutableComponent hover = Component.literal(label + "\n").withStyle(ChatFormatting.WHITE);
+            MutableComponent hover =
+                    Component.literal(label + "\n").withStyle(ChatFormatting.WHITE);
             if (party.host() != null && party.host().username() != null) {
-                hover.append(Component.literal("Host: " + party.host().username() + "\n")
-                        .withStyle(ChatFormatting.GRAY));
+                hover.append(
+                        Component.literal("Host: " + party.host().username() + "\n")
+                                .withStyle(ChatFormatting.GRAY));
             }
             if (party.members() != null && !party.members().isEmpty()) {
-                hover.append(Component.literal(party.members().size() + " members assigned")
-                        .withStyle(ChatFormatting.GRAY));
+                hover.append(
+                        Component.literal(party.members().size() + " members assigned")
+                                .withStyle(ChatFormatting.GRAY));
             }
             style = style.withHoverEvent(new HoverEvent.ShowText(hover));
         }
@@ -287,15 +355,15 @@ public final class AnniHoverBuilder {
     }
 
     /** Clickable link decorated with hover text. */
-    public static MutableComponent linkBadge(String text, String url, String hover,
-                                             ChatFormatting color) {
-        Style style = Style.EMPTY
-                .withColor(color)
-                .withUnderlined(true)
-                .withClickEvent(safeOpenUrl(url));
+    public static MutableComponent linkBadge(
+            String text, String url, String hover, ChatFormatting color) {
+        Style style =
+                Style.EMPTY.withColor(color).withUnderlined(true).withClickEvent(safeOpenUrl(url));
         if (showHovers() && hover != null) {
-            style = style.withHoverEvent(new HoverEvent.ShowText(
-                    Component.literal(hover).withStyle(ChatFormatting.GRAY)));
+            style =
+                    style.withHoverEvent(
+                            new HoverEvent.ShowText(
+                                    Component.literal(hover).withStyle(ChatFormatting.GRAY)));
         }
         return Component.literal(text).withStyle(style);
     }

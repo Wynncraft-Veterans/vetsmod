@@ -50,17 +50,19 @@ public final class FlashTracker {
 
     /** Number of "name-ping"-style sound plays to queue on a change. */
     private static final int SOUNDS_PER_CHANGE = 2;
+
     /** Cap on the in-flight ping queue. Multiple simultaneous triggers
      *  (e.g. snapshot reassignment that also causes mismatch) collapse
      *  to a single 2-ping burst rather than 4+ sounds. */
     private static final int SOUNDS_CAP = 2;
+
     /** Delay between the two sound plays so the second isn't masked. */
     private static final long SOUND_INTER_DELAY_MS = 110L;
 
     // Per-field timed flashes for role/party/rsvp.
-    private static volatile long flashRoleUntil  = 0L;
+    private static volatile long flashRoleUntil = 0L;
     private static volatile long flashPartyUntil = 0L;
-    private static volatile long flashRsvpUntil  = 0L;
+    private static volatile long flashRsvpUntil = 0L;
 
     // Live world-mismatch state, recomputed in tick(). True iff a party
     // world is set on the snapshot AND the player is not currently on
@@ -72,13 +74,13 @@ public final class FlashTracker {
     // the *Observed sentinels track. The first observation in a session
     // is silent; every subsequent transition (including null → set and
     // set → null) flashes and pings.
-    private static volatile String lastRole  = null;
+    private static volatile String lastRole = null;
     private static volatile Integer lastParty = null;
-    private static volatile String lastRsvp  = null;
+    private static volatile String lastRsvp = null;
     private static volatile String lastWorld = null;
-    private static volatile boolean roleObserved  = false;
+    private static volatile boolean roleObserved = false;
     private static volatile boolean partyObserved = false;
-    private static volatile boolean rsvpObserved  = false;
+    private static volatile boolean rsvpObserved = false;
     private static volatile boolean worldObserved = false;
 
     // Phase bit toggles every PHASE_TOGGLE_MS in tick().
@@ -91,8 +93,7 @@ public final class FlashTracker {
 
     private static volatile boolean registered = false;
 
-    private FlashTracker() {
-    }
+    private FlashTracker() {}
 
     /** Idempotent registration — subscribes to {@link AnniSnapshotCache}.
      *  Tick wiring lives in {@link VetsBossBarManager#register()} so
@@ -130,11 +131,16 @@ public final class FlashTracker {
     public static boolean isFlashing(String fieldKey) {
         long now = System.currentTimeMillis();
         switch (fieldKey) {
-            case "role":  return flashRoleUntil > now;
-            case "party": return flashPartyUntil > now;
-            case "world": return worldMismatch;
-            case "rsvp":  return flashRsvpUntil > now;
-            default:      return false;
+            case "role":
+                return flashRoleUntil > now;
+            case "party":
+                return flashPartyUntil > now;
+            case "world":
+                return worldMismatch;
+            case "rsvp":
+                return flashRsvpUntil > now;
+            default:
+                return false;
         }
     }
 
@@ -153,14 +159,20 @@ public final class FlashTracker {
     public static void forceFlash(String fieldKey) {
         long until = System.currentTimeMillis() + flashDurationMs();
         switch (fieldKey) {
-            case "role":  flashRoleUntil  = until; break;
-            case "party": flashPartyUntil = until; break;
+            case "role":
+                flashRoleUntil = until;
+                break;
+            case "party":
+                flashPartyUntil = until;
+                break;
             case "world":
                 // Visible-for-one-tick override; the real worldMismatch
                 // recomputes in tick() next frame.
                 worldMismatch = true;
                 break;
-            case "rsvp":  flashRsvpUntil  = until; break;
+            case "rsvp":
+                flashRsvpUntil = until;
+                break;
             default:
                 VetsLogger.debug("FlashTracker.forceFlash: unknown field {}", fieldKey);
                 return;
@@ -171,9 +183,9 @@ public final class FlashTracker {
     /** Clear all flash state — called on mode-switch-to-silent and on
      *  boss-bar deactivation so the next activation starts clean. */
     public static void reset() {
-        flashRoleUntil  = 0L;
+        flashRoleUntil = 0L;
         flashPartyUntil = 0L;
-        flashRsvpUntil  = 0L;
+        flashRsvpUntil = 0L;
         worldMismatch = false;
         lastRole = null;
         lastParty = null;
@@ -254,8 +266,9 @@ public final class FlashTracker {
     private static void updateWorldMismatch() {
         String partyWorld = extractPartyWorld(AnniSnapshotCache.latest());
         String currentWorld = Models.WorldState.getCurrentWorldName();
-        worldMismatch = partyWorld != null && (currentWorld == null
-                || !currentWorld.equalsIgnoreCase(partyWorld));
+        worldMismatch =
+                partyWorld != null
+                        && (currentWorld == null || !currentWorld.equalsIgnoreCase(partyWorld));
     }
 
     private static String extractRoleCode(AnniSnapshot snapshot) {
@@ -293,10 +306,13 @@ public final class FlashTracker {
         String intensity = VetsConfig.getString(VetsConfig.VETS_ANNI_FLASH_INTENSITY);
         if (intensity == null) intensity = "normal";
         switch (intensity) {
-            case "subtle": return 5_000L;
-            case "strong": return 20_000L;
+            case "subtle":
+                return 5_000L;
+            case "strong":
+                return 20_000L;
             case "normal":
-            default:       return 10_000L;
+            default:
+                return 10_000L;
         }
     }
 
@@ -311,8 +327,8 @@ public final class FlashTracker {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.getSoundManager() == null) return;
         try {
-            mc.getSoundManager().play(SimpleSoundInstance.forUI(
-                    SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
+            mc.getSoundManager()
+                    .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
         } catch (Exception e) {
             VetsLogger.debug("FlashTracker.playPingSound failed: {}", e.getMessage());
         }

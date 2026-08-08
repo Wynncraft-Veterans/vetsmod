@@ -1,14 +1,6 @@
 package org.wynnvets.chat;
 
 import com.google.gson.JsonObject;
-import org.wynnvets.api.V1ApiManager;
-import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
-import org.wynnvets.chat.rewriter.WarningRewriter;
-import org.wynnvets.config.VetsConfig;
-import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.queue.QueueStateManager;
-
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
@@ -16,6 +8,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
+import org.wynnvets.chat.rewriter.WarningRewriter;
+import org.wynnvets.config.VetsConfig;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.queue.QueueStateManager;
 
 /**
  * Handles outbound messages received from the v1 WebSocket and displays them
@@ -55,8 +54,7 @@ public final class OutboundDisplayHandler {
             new LinkedHashMap<>(MAX_RECENT_UUIDS + 1, 0.75f, false);
     private static final Object recentUuidLock = new Object();
 
-    private OutboundDisplayHandler() {
-    }
+    private OutboundDisplayHandler() {}
 
     /**
      * Registers the outbound listener with the V1ApiManager.
@@ -117,8 +115,6 @@ public final class OutboundDisplayHandler {
             recentUuids.clear();
         }
     }
-
-
 
     private static void onOutboundMessage(JsonObject json) {
         // Staff-pushed private warning / eject frames (v1_protocol.md §2.5)
@@ -245,7 +241,8 @@ public final class OutboundDisplayHandler {
             Iterator<PendingSelfMessage> it = pendingSelfMessages.iterator();
             while (it.hasNext()) {
                 PendingSelfMessage pending = it.next();
-                if (pending.username.equalsIgnoreCase(username) && pending.message.equals(message)) {
+                if (pending.username.equalsIgnoreCase(username)
+                        && pending.message.equals(message)) {
                     it.remove();
                     return true;
                 }
@@ -353,8 +350,9 @@ public final class OutboundDisplayHandler {
             int charCount = Character.charCount(cp);
             if (!Character.isWhitespace(cp)) {
                 int type = Character.getType(cp);
-                boolean isCustomGlyph = type == Character.PRIVATE_USE
-                        || (type == Character.UNASSIGNED && cp > 0xFFFF);
+                boolean isCustomGlyph =
+                        type == Character.PRIVATE_USE
+                                || (type == Character.UNASSIGNED && cp > 0xFFFF);
                 if (!isCustomGlyph) {
                     sb.appendCodePoint(cp);
                 }

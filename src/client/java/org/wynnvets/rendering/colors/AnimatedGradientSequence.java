@@ -38,6 +38,7 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
      * Characters with any other colour are passed through unchanged.
      */
     public static final int MARKER_COLOR = 0x00DEAD;
+
     public static final int GREY_MARKER_COLOR = 0x00DEAF;
     public static final int DEFAULT_START_COLOR = ShaderColorPalette.DARK_AQUA;
     public static final int DEFAULT_END_COLOR = 0xAADDFF;
@@ -50,28 +51,36 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
     // collapses to a single tone. Same cyan/blue family, ~90 units of
     // luminance delta — still subtle, but the shimmer is now perceptible.
     public static final int CV_DEFAULT_START_COLOR = 0x6699BB;
-    public static final int CV_DEFAULT_END_COLOR   = 0xDDF0FF;
-    public static final int CV_GREY_START_COLOR    = 0x666666;
-    public static final int CV_GREY_END_COLOR      = 0xCCCCCC;
+    public static final int CV_DEFAULT_END_COLOR = 0xDDF0FF;
+    public static final int CV_GREY_START_COLOR = 0x666666;
+    public static final int CV_GREY_END_COLOR = 0xCCCCCC;
 
     /** Start colour for the supporter shimmer, honouring {@code colorBlindMode}. */
     public static int effectiveDefaultStart() {
-        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE) ? CV_DEFAULT_START_COLOR : DEFAULT_START_COLOR;
+        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE)
+                ? CV_DEFAULT_START_COLOR
+                : DEFAULT_START_COLOR;
     }
 
     /** End colour for the supporter shimmer, honouring {@code colorBlindMode}. */
     public static int effectiveDefaultEnd() {
-        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE) ? CV_DEFAULT_END_COLOR : DEFAULT_END_COLOR;
+        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE)
+                ? CV_DEFAULT_END_COLOR
+                : DEFAULT_END_COLOR;
     }
 
     /** Start colour for the offline/queued supporter shimmer, honouring {@code colorBlindMode}. */
     public static int effectiveGreyStart() {
-        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE) ? CV_GREY_START_COLOR : DEFAULT_GREY_START_COLOR;
+        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE)
+                ? CV_GREY_START_COLOR
+                : DEFAULT_GREY_START_COLOR;
     }
 
     /** End colour for the offline/queued supporter shimmer, honouring {@code colorBlindMode}. */
     public static int effectiveGreyEnd() {
-        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE) ? CV_GREY_END_COLOR : DEFAULT_GREY_END_COLOR;
+        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE)
+                ? CV_GREY_END_COLOR
+                : DEFAULT_GREY_END_COLOR;
     }
 
     // ── Thread-local animation context ──────────────────────────────────
@@ -100,14 +109,12 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
     private final int startColor;
     private final int endColor;
     private final int cycleTimeMs;
+
     /** Pre-computed count of marker characters (badge chars are excluded). */
     private final int animatedCharCount;
 
     public AnimatedGradientSequence(
-            FormattedCharSequence delegate,
-            int startColor,
-            int endColor,
-            int cycleTimeMs) {
+            FormattedCharSequence delegate, int startColor, int endColor, int cycleTimeMs) {
         this.delegate = delegate;
         this.startColor = startColor;
         this.endColor = endColor;
@@ -115,10 +122,11 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
 
         // Count animated characters once at construction time.
         int[] count = {0};
-        delegate.accept((index, style, cp) -> {
-            if (isAnyMarker(style)) count[0]++;
-            return true;
-        });
+        delegate.accept(
+                (index, style, cp) -> {
+                    if (isAnyMarker(style)) count[0]++;
+                    return true;
+                });
         this.animatedCharCount = count[0];
     }
 
@@ -133,31 +141,33 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
         float time = (System.currentTimeMillis() % cycleTimeMs) / (float) cycleTimeMs;
         int[] animIdx = {0};
 
-        return delegate.accept((index, style, cp) -> {
-            if (isAnyMarker(style)) {
-                float charPhase = animatedCharCount <= 1
-                        ? 0f
-                        : animIdx[0] / (float) (animatedCharCount - 1);
+        return delegate.accept(
+                (index, style, cp) -> {
+                    if (isAnyMarker(style)) {
+                        float charPhase =
+                                animatedCharCount <= 1
+                                        ? 0f
+                                        : animIdx[0] / (float) (animatedCharCount - 1);
 
-                // Wave: the gradient slides across the text over time.
-                float phase = (charPhase + time) % 1.0f;
-                // Ping-pong so the gradient oscillates between the two colours.
-                float t = phase < 0.5f ? phase * 2.0f : 2.0f - phase * 2.0f;
+                        // Wave: the gradient slides across the text over time.
+                        float phase = (charPhase + time) % 1.0f;
+                        // Ping-pong so the gradient oscillates between the two colours.
+                        float t = phase < 0.5f ? phase * 2.0f : 2.0f - phase * 2.0f;
 
-                int start, end;
-                if (isGreyMarker(style)) {
-                    start = effectiveGreyStart();
-                    end = effectiveGreyEnd();
-                } else {
-                    start = startColor;
-                    end = endColor;
-                }
-                int color = interpolateColor(start, end, t);
-                style = style.withColor(TextColor.fromRgb(color));
-                animIdx[0]++;
-            }
-            return sink.accept(index, style, cp);
-        });
+                        int start, end;
+                        if (isGreyMarker(style)) {
+                            start = effectiveGreyStart();
+                            end = effectiveGreyEnd();
+                        } else {
+                            start = startColor;
+                            end = endColor;
+                        }
+                        int color = interpolateColor(start, end, t);
+                        style = style.withColor(TextColor.fromRgb(color));
+                        animIdx[0]++;
+                    }
+                    return sink.accept(index, style, cp);
+                });
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

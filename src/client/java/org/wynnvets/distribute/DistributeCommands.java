@@ -7,6 +7,9 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.wynntils.core.components.Managers;
 import com.wynntils.core.components.Models;
+import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
@@ -23,10 +26,6 @@ import org.wynnvets.distribute.utils.NameResolver;
 import org.wynnvets.distribute.utils.NoAspectsFilter;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
-
-import java.util.Locale;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Builds the {@code /wv distribute <user> <aspects|tomes|emeralds> <count>}
@@ -82,229 +81,243 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class DistributeCommands {
 
-  /** Bounds on {@code <count>} &mdash; one press at minimum, capped at the
-   *  unsigned-byte range to keep accidental "500-aspect" typos from
-   *  spamming the server. */
-  private static final int COUNT_MIN = 1;
-  private static final int COUNT_MAX = 255;
+    /** Bounds on {@code <count>} &mdash; one press at minimum, capped at the
+     *  unsigned-byte range to keep accidental "500-aspect" typos from
+     *  spamming the server. */
+    private static final int COUNT_MIN = 1;
 
-  /** Common counts surfaced in the {@code <count>} suggester. */
-  private static final int[] COMMON_COUNTS = {1, 5, 10, 25, 50, 100};
+    private static final int COUNT_MAX = 255;
 
-  /** Selector token that means "pick N random guild members". */
-  private static final String RANDOM_SELECTOR = "@random";
+    /** Common counts surfaced in the {@code <count>} suggester. */
+    private static final int[] COMMON_COUNTS = {1, 5, 10, 25, 50, 100};
 
-  /** Selector token that means "members who completed their guild
-   *  objective, with N spread evenly across them". */
-  private static final String OBJECTIVES_SELECTOR = "@objectives";
+    /** Selector token that means "pick N random guild members". */
+    private static final String RANDOM_SELECTOR = "@random";
 
-  /** Selector token that means "members who appear in the guild log's
-   *  graid completions, with N spread proportionally to participation
-   *  frequency". */
-  private static final String GRAIDS_SELECTOR = "@graids";
+    /** Selector token that means "members who completed their guild
+     *  objective, with N spread evenly across them". */
+    private static final String OBJECTIVES_SELECTOR = "@objectives";
 
-  /** Selector token that means "split N three ways and run @graids,
-   *  @objectives, @random back-to-back with a third each (random
-   *  remainder)". The phase order is fixed and load-bearing; see
-   *  {@link SplitDistributor}. */
-  private static final String SPLIT_SELECTOR = "@split";
+    /** Selector token that means "members who appear in the guild log's
+     *  graid completions, with N spread proportionally to participation
+     *  frequency". */
+    private static final String GRAIDS_SELECTOR = "@graids";
 
-  private DistributeCommands() {}
+    /** Selector token that means "split N three ways and run @graids,
+     *  @objectives, @random back-to-back with a third each (random
+     *  remainder)". The phase order is fixed and load-bearing; see
+     *  {@link SplitDistributor}. */
+    private static final String SPLIT_SELECTOR = "@split";
 
-  public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommandTree() {
-    return ClientCommandManager.literal("distribute")
-        // Visibility tier: any staff (Captain+) in any guild, with a
-        // vets-confirmed-staff bypass so the command shows reliably in
-        // autocomplete for Returners staff even when Wynntils' live
-        // guild model is briefly null after a world transition.
-        // Execution is still gated to Chief/Owner via ensureChief().
-        .requires(src -> GuildStateManager.isStaffOfAnyGuild())
-        .then(ClientCommandManager.argument("name", NameOrSelectorArgument.nameOrSelector())
-            .suggests(DistributeCommands::suggestGuildMembers)
-            .then(resourceLeaf("aspects", MemberSlotPresser.Resource.ASPECTS))
-            .then(resourceLeaf("tomes", MemberSlotPresser.Resource.TOMES))
-            .then(resourceLeaf("emeralds", MemberSlotPresser.Resource.EMERALDS)));
-  }
+    private DistributeCommands() {}
 
-  /** Builds one {@code <literal> <count>} branch under the {@code name} argument. */
-  private static LiteralArgumentBuilder<FabricClientCommandSource> resourceLeaf(
-      String literal, MemberSlotPresser.Resource resource) {
-    return ClientCommandManager.literal(literal)
-        .then(ClientCommandManager.argument("count",
-                IntegerArgumentType.integer(COUNT_MIN, COUNT_MAX))
-            .suggests(DistributeCommands::suggestCounts)
-            .executes(ctx -> distribute(ctx, resource)));
-  }
-
-  // ── Executor ─────────────────────────────────────────────────────────
-
-  private static int distribute(CommandContext<FabricClientCommandSource> ctx,
-                                MemberSlotPresser.Resource resource) {
-    if (!ensureChief()) return 0;
-    String name = NameOrSelectorArgument.get(ctx, "name");
-    int count = IntegerArgumentType.getInteger(ctx, "count");
-
-    // @random selector: delegate to RandomDistributor (count = recipients).
-    if (RANDOM_SELECTOR.equalsIgnoreCase(name)) {
-      RandomDistributor.dispatch(count, resource);
-      return 1;
+    public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommandTree() {
+        return ClientCommandManager.literal("distribute")
+                // Visibility tier: any staff (Captain+) in any guild, with a
+                // vets-confirmed-staff bypass so the command shows reliably in
+                // autocomplete for Returners staff even when Wynntils' live
+                // guild model is briefly null after a world transition.
+                // Execution is still gated to Chief/Owner via ensureChief().
+                .requires(src -> GuildStateManager.isStaffOfAnyGuild())
+                .then(
+                        ClientCommandManager.argument(
+                                        "name", NameOrSelectorArgument.nameOrSelector())
+                                .suggests(DistributeCommands::suggestGuildMembers)
+                                .then(resourceLeaf("aspects", MemberSlotPresser.Resource.ASPECTS))
+                                .then(resourceLeaf("tomes", MemberSlotPresser.Resource.TOMES))
+                                .then(
+                                        resourceLeaf(
+                                                "emeralds", MemberSlotPresser.Resource.EMERALDS)));
     }
 
-    // @objectives selector: delegate to ObjectivesDistributor (count =
-    // total rewards, spread evenly across objective-completers).
-    if (OBJECTIVES_SELECTOR.equalsIgnoreCase(name)) {
-      ObjectivesDistributor.dispatch(count, resource);
-      return 1;
+    /** Builds one {@code <literal> <count>} branch under the {@code name} argument. */
+    private static LiteralArgumentBuilder<FabricClientCommandSource> resourceLeaf(
+            String literal, MemberSlotPresser.Resource resource) {
+        return ClientCommandManager.literal(literal)
+                .then(
+                        ClientCommandManager.argument(
+                                        "count", IntegerArgumentType.integer(COUNT_MIN, COUNT_MAX))
+                                .suggests(DistributeCommands::suggestCounts)
+                                .executes(ctx -> distribute(ctx, resource)));
     }
 
-    // @graids selector: delegate to GraidsDistributor (count = total
-    // rewards, spread proportionally to graid participation in the log).
-    if (GRAIDS_SELECTOR.equalsIgnoreCase(name)) {
-      GraidsDistributor.dispatch(count, resource);
-      return 1;
+    // ── Executor ─────────────────────────────────────────────────────────
+
+    private static int distribute(
+            CommandContext<FabricClientCommandSource> ctx, MemberSlotPresser.Resource resource) {
+        if (!ensureChief()) return 0;
+        String name = NameOrSelectorArgument.get(ctx, "name");
+        int count = IntegerArgumentType.getInteger(ctx, "count");
+
+        // @random selector: delegate to RandomDistributor (count = recipients).
+        if (RANDOM_SELECTOR.equalsIgnoreCase(name)) {
+            RandomDistributor.dispatch(count, resource);
+            return 1;
+        }
+
+        // @objectives selector: delegate to ObjectivesDistributor (count =
+        // total rewards, spread evenly across objective-completers).
+        if (OBJECTIVES_SELECTOR.equalsIgnoreCase(name)) {
+            ObjectivesDistributor.dispatch(count, resource);
+            return 1;
+        }
+
+        // @graids selector: delegate to GraidsDistributor (count = total
+        // rewards, spread proportionally to graid participation in the log).
+        if (GRAIDS_SELECTOR.equalsIgnoreCase(name)) {
+            GraidsDistributor.dispatch(count, resource);
+            return 1;
+        }
+
+        // @split selector: divide count by 3 and run @graids + @objectives
+        // + @random sequentially, each with a third (remainder randomised).
+        // Graids first is required, not stylistic — see SplitDistributor.
+        if (SPLIT_SELECTOR.equalsIgnoreCase(name)) {
+            SplitDistributor.dispatch(count, resource);
+            return 1;
+        }
+
+        // Fan out two HTTP calls in parallel: legacy-name resolution (so we
+        // know the canonical tile name for renamed targets) and the
+        // NoAspects opt-out list (so we can reject before opening the menu).
+        // We deliberately wait on both before arming the searcher — even
+        // though it costs ~200-500ms upfront, rejecting after the menu has
+        // already opened would be a confusing UX. Per-command refresh and
+        // fail-open semantics (see NoAspectsFilter) keep this safe.
+        CompletableFuture<String> resolveF = NameResolver.resolveLegacyName(name);
+        CompletableFuture<Set<String>> excludeF = NoAspectsFilter.fetchExcludedLegacyNames();
+        resolveF.thenCombine(
+                excludeF,
+                (resolved, excludeNames) -> {
+                    Managers.TickScheduler.scheduleLater(
+                            () ->
+                                    dispatchSingleTarget(
+                                            name, resolved, excludeNames, resource, count),
+                            0);
+                    return null;
+                });
+        return 1;
     }
 
-    // @split selector: divide count by 3 and run @graids + @objectives
-    // + @random sequentially, each with a third (remainder randomised).
-    // Graids first is required, not stylistic — see SplitDistributor.
-    if (SPLIT_SELECTOR.equalsIgnoreCase(name)) {
-      SplitDistributor.dispatch(count, resource);
-      return 1;
+    /**
+     * Runs on the Minecraft tick thread. Rejects the dispatch with a chat
+     * line if either the literal input or the wapi-resolved name is on
+     * the NoAspects opt-out list; otherwise arms the searcher (with both
+     * forms when a rename is detected) and opens the Members menu.
+     */
+    private static void dispatchSingleTarget(
+            String name,
+            String resolved,
+            Set<String> excludeNames,
+            MemberSlotPresser.Resource resource,
+            int count) {
+        // Check both forms — staff could have opted out the player by
+        // current name OR legacy name, depending on which was in the live
+        // roster at !noaspects-add time.
+        String optedOutForm = null;
+        if (excludeNames.contains(name)) optedOutForm = name;
+        else if (resolved != null && excludeNames.contains(resolved)) optedOutForm = resolved;
+        if (optedOutForm != null) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    optedOutForm
+                                            + " is on the NoAspects list. Ask staff to run !noaspects remove "
+                                            + optedOutForm
+                                            + " if this is in error.")
+                            .withStyle(ChatFormatting.RED));
+            return;
+        }
+        // Arm with the literal input — covers the case where the user
+        // already typed the legacy name. addAlternative covers the rename
+        // case where the wapi resolution returns a different canonical name.
+        MembersListSearcher.armSearch(
+                name, slot -> MemberSlotPresser.fire(slot, resource, count, name));
+        if (resolved != null && !resolved.equalsIgnoreCase(name)) {
+            MembersListSearcher.addAlternative(resolved);
+        }
+        GuildManageOpener.openManageMembers();
     }
 
-    // Fan out two HTTP calls in parallel: legacy-name resolution (so we
-    // know the canonical tile name for renamed targets) and the
-    // NoAspects opt-out list (so we can reject before opening the menu).
-    // We deliberately wait on both before arming the searcher — even
-    // though it costs ~200-500ms upfront, rejecting after the menu has
-    // already opened would be a confusing UX. Per-command refresh and
-    // fail-open semantics (see NoAspectsFilter) keep this safe.
-    CompletableFuture<String> resolveF = NameResolver.resolveLegacyName(name);
-    CompletableFuture<Set<String>> excludeF = NoAspectsFilter.fetchExcludedLegacyNames();
-    resolveF.thenCombine(excludeF, (resolved, excludeNames) -> {
-      Managers.TickScheduler.scheduleLater(
-          () -> dispatchSingleTarget(name, resolved, excludeNames, resource, count), 0);
-      return null;
-    });
-    return 1;
-  }
+    // ── Suggestion providers ─────────────────────────────────────────────
 
-  /**
-   * Runs on the Minecraft tick thread. Rejects the dispatch with a chat
-   * line if either the literal input or the wapi-resolved name is on
-   * the NoAspects opt-out list; otherwise arms the searcher (with both
-   * forms when a rename is detected) and opens the Members menu.
-   */
-  private static void dispatchSingleTarget(String name, String resolved,
-                                           Set<String> excludeNames,
-                                           MemberSlotPresser.Resource resource,
-                                           int count) {
-    // Check both forms — staff could have opted out the player by
-    // current name OR legacy name, depending on which was in the live
-    // roster at !noaspects-add time.
-    String optedOutForm = null;
-    if (excludeNames.contains(name)) optedOutForm = name;
-    else if (resolved != null && excludeNames.contains(resolved)) optedOutForm = resolved;
-    if (optedOutForm != null) {
-      ChatUtils.sendLocalMessage(
-          Component.literal(optedOutForm
-              + " is on the NoAspects list. Ask staff to run !noaspects remove "
-              + optedOutForm + " if this is in error.")
-              .withStyle(ChatFormatting.RED));
-      return;
-    }
-    // Arm with the literal input — covers the case where the user
-    // already typed the legacy name. addAlternative covers the rename
-    // case where the wapi resolution returns a different canonical name.
-    MembersListSearcher.armSearch(name,
-        slot -> MemberSlotPresser.fire(slot, resource, count, name));
-    if (resolved != null && !resolved.equalsIgnoreCase(name)) {
-      MembersListSearcher.addAlternative(resolved);
-    }
-    GuildManageOpener.openManageMembers();
-  }
+    /**
+     * Suggests current Wynncraft usernames of the local player's guild for
+     * the {@code <name>} argument.
+     *
+     * <p>Reads {@link com.wynntils.models.guild.GuildModel}'s synchronous
+     * {@code getGuildMembers()} cache and triggers a refresh request when
+     * empty &mdash; the first keystroke may show no suggestions while the
+     * background fetch resolves, but subsequent keystrokes will hit the
+     * populated set.</p>
+     *
+     * <p>Returns current Mojang usernames rather than legacy names; the
+     * {@link NameResolver} step on execution converts either form to the
+     * legacy name shown on the in-game tile, so users can tab-complete by
+     * whichever name they remember.</p>
+     */
+    private static CompletableFuture<Suggestions> suggestGuildMembers(
+            CommandContext<FabricClientCommandSource> ctx, SuggestionsBuilder builder) {
+        String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
 
-  // ── Suggestion providers ─────────────────────────────────────────────
+        // Always offer the @-selectors — their dispatchers read the live
+        // guild roster, so they work even when the Wynntils member cache is
+        // cold.
+        if (RANDOM_SELECTOR.startsWith(remaining)) {
+            builder.suggest(RANDOM_SELECTOR);
+        }
+        if (OBJECTIVES_SELECTOR.startsWith(remaining)) {
+            builder.suggest(OBJECTIVES_SELECTOR);
+        }
+        if (GRAIDS_SELECTOR.startsWith(remaining)) {
+            builder.suggest(GRAIDS_SELECTOR);
+        }
+        if (SPLIT_SELECTOR.startsWith(remaining)) {
+            builder.suggest(SPLIT_SELECTOR);
+        }
 
-  /**
-   * Suggests current Wynncraft usernames of the local player's guild for
-   * the {@code <name>} argument.
-   *
-   * <p>Reads {@link com.wynntils.models.guild.GuildModel}'s synchronous
-   * {@code getGuildMembers()} cache and triggers a refresh request when
-   * empty &mdash; the first keystroke may show no suggestions while the
-   * background fetch resolves, but subsequent keystrokes will hit the
-   * populated set.</p>
-   *
-   * <p>Returns current Mojang usernames rather than legacy names; the
-   * {@link NameResolver} step on execution converts either form to the
-   * legacy name shown on the in-game tile, so users can tab-complete by
-   * whichever name they remember.</p>
-   */
-  private static CompletableFuture<Suggestions> suggestGuildMembers(
-      CommandContext<FabricClientCommandSource> ctx, SuggestionsBuilder builder) {
-    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
-
-    // Always offer the @-selectors — their dispatchers read the live
-    // guild roster, so they work even when the Wynntils member cache is
-    // cold.
-    if (RANDOM_SELECTOR.startsWith(remaining)) {
-      builder.suggest(RANDOM_SELECTOR);
-    }
-    if (OBJECTIVES_SELECTOR.startsWith(remaining)) {
-      builder.suggest(OBJECTIVES_SELECTOR);
-    }
-    if (GRAIDS_SELECTOR.startsWith(remaining)) {
-      builder.suggest(GRAIDS_SELECTOR);
-    }
-    if (SPLIT_SELECTOR.startsWith(remaining)) {
-      builder.suggest(SPLIT_SELECTOR);
+        if (!GuildStateManager.isWynntilsReady()) {
+            return builder.buildFuture();
+        }
+        Set<String> members = Models.Guild.getGuildMembers();
+        if (members.isEmpty()) {
+            Models.Guild.requestGuildMembers();
+            return builder.buildFuture();
+        }
+        for (String name : members) {
+            if (name.toLowerCase(Locale.ROOT).startsWith(remaining)) {
+                builder.suggest(name);
+            }
+        }
+        return builder.buildFuture();
     }
 
-    if (!GuildStateManager.isWynntilsReady()) {
-      return builder.buildFuture();
+    /**
+     * Suggests {@link #COMMON_COUNTS} for the {@code <count>} argument.
+     * {@code IntegerArgumentType} has no built-in tab-completion, so
+     * without this the user sees only the {@code [count]} placeholder.
+     */
+    private static CompletableFuture<Suggestions> suggestCounts(
+            CommandContext<FabricClientCommandSource> ctx, SuggestionsBuilder builder) {
+        for (int n : COMMON_COUNTS) {
+            builder.suggest(n);
+        }
+        return builder.buildFuture();
     }
-    Set<String> members = Models.Guild.getGuildMembers();
-    if (members.isEmpty()) {
-      Models.Guild.requestGuildMembers();
-      return builder.buildFuture();
-    }
-    for (String name : members) {
-      if (name.toLowerCase(Locale.ROOT).startsWith(remaining)) {
-        builder.suggest(name);
-      }
-    }
-    return builder.buildFuture();
-  }
 
-  /**
-   * Suggests {@link #COMMON_COUNTS} for the {@code <count>} argument.
-   * {@code IntegerArgumentType} has no built-in tab-completion, so
-   * without this the user sees only the {@code [count]} placeholder.
-   */
-  private static CompletableFuture<Suggestions> suggestCounts(
-      CommandContext<FabricClientCommandSource> ctx, SuggestionsBuilder builder) {
-    for (int n : COMMON_COUNTS) {
-      builder.suggest(n);
+    // ── Permission ───────────────────────────────────────────────────────
+
+    /**
+     * Defensive double-check of the chief gate at executor time. Brigadier's
+     * {@code .requires(...)} already filters the command from suggestions
+     * for non-staff, but staff-but-not-chief users (Returners captains /
+     * strategists) still parse-through to here and need the friendly error.
+     * Mirrors the pattern used by {@code /wv check} and {@code /wv invite-force}.
+     */
+    private static boolean ensureChief() {
+        if (GuildStateManager.isChiefOfAnyGuild()) return true;
+        ChatUtils.sendLocalMessage(
+                Component.literal("You must be a guild Chief or Owner to use /wv distribute.")
+                        .withStyle(ChatFormatting.RED));
+        return false;
     }
-    return builder.buildFuture();
-  }
-
-  // ── Permission ───────────────────────────────────────────────────────
-
-  /**
-   * Defensive double-check of the chief gate at executor time. Brigadier's
-   * {@code .requires(...)} already filters the command from suggestions
-   * for non-staff, but staff-but-not-chief users (Returners captains /
-   * strategists) still parse-through to here and need the friendly error.
-   * Mirrors the pattern used by {@code /wv check} and {@code /wv invite-force}.
-   */
-  private static boolean ensureChief() {
-    if (GuildStateManager.isChiefOfAnyGuild()) return true;
-    ChatUtils.sendLocalMessage(
-        Component.literal("You must be a guild Chief or Owner to use /wv distribute.")
-            .withStyle(ChatFormatting.RED)
-    );
-    return false;
-  }
 }

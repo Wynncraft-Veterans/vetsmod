@@ -54,24 +54,24 @@ public final class DebugCommands {
 
     /** Tab-completion provider that suggests debug-configurable key names. */
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_DEBUG_CONFIG_KEYS =
-        (ctx, builder) -> {
-            String partial = builder.getRemaining().toLowerCase();
-            for (String key : DebugConfigManager.DEBUG_CONFIG_KEYS) {
-                if (key.toLowerCase().startsWith(partial)) {
-                    builder.suggest(key);
+            (ctx, builder) -> {
+                String partial = builder.getRemaining().toLowerCase();
+                for (String key : DebugConfigManager.DEBUG_CONFIG_KEYS) {
+                    if (key.toLowerCase().startsWith(partial)) {
+                        builder.suggest(key);
+                    }
                 }
-            }
-            return builder.buildFuture();
-        };
+                return builder.buildFuture();
+            };
 
     /** Tab-completion provider that suggests "true" / "false". */
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_BOOLEAN_VALUES =
-        (ctx, builder) -> {
-            String partial = builder.getRemaining().toLowerCase();
-            if ("true".startsWith(partial)) builder.suggest("true");
-            if ("false".startsWith(partial)) builder.suggest("false");
-            return builder.buildFuture();
-        };
+            (ctx, builder) -> {
+                String partial = builder.getRemaining().toLowerCase();
+                if ("true".startsWith(partial)) builder.suggest("true");
+                if ("false".startsWith(partial)) builder.suggest("false");
+                return builder.buildFuture();
+            };
 
     /**
      * Builds and returns the {@code debug} literal node that should be
@@ -80,65 +80,86 @@ public final class DebugCommands {
      */
     public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommandTree() {
         return ClientCommandManager.literal("debug")
-            .executes(ctx -> { DiagnosticsHandler.execute(null); return 1; })
-            .then(ClientCommandManager.argument("enabled", StringArgumentType.word())
-                .executes(ctx -> {
-                    DiagnosticsHandler.execute(StringArgumentType.getString(ctx, "enabled"));
-                    return 1;
-                })
-            )
-            .then(ClientCommandManager.literal("set")
-                .executes(DebugCommands::debugConfigList)
-                .then(ClientCommandManager.argument("key", StringArgumentType.word())
-                    .suggests(SUGGEST_DEBUG_CONFIG_KEYS)
-                    .executes(DebugCommands::debugConfigGet)
-                    .then(ClientCommandManager.argument("value", StringArgumentType.word())
-                        .suggests(SUGGEST_BOOLEAN_VALUES)
-                        .executes(DebugCommands::debugConfigSet)
-                    )
-                )
-            )
-            .then(ClientCommandManager.literal("trigger")
-                .then(ClientCommandManager.literal("charDump")
-                    .executes(DebugCommands::triggerCharDump)
-                )
-                .then(ClientCommandManager.literal("forceChecks")
-                    .executes(DebugCommands::triggerForceChecks)
-                )
-                .then(ClientCommandManager.literal("tabDump")
-                    .executes(ctx -> { TabDumpHandler.execute(); return 1; })
-                )
-                .then(ClientCommandManager.literal("bossBarsDump")
-                    .executes(DebugCommands::triggerBossBarsDump)
-                )
-                .then(ClientCommandManager.literal("nametagsDump")
-                    .executes(DebugCommands::triggerNametagsDump)
-                )
-                .then(ClientCommandManager.literal("ghostsPromptDump")
-                    .executes(ctx -> {
-                        org.wynnvets.mwe.anni.aggressive.GhostsPromptHandler.debugDump();
-                        return 1;
-                    })
-                )
-                .then(ClientCommandManager.literal("zoneLinesDump")
-                    .executes(ctx -> {
-                        DebugCommands.triggerZoneLinesDump();
-                        return 1;
-                    })
-                )
-                .then(ClientCommandManager.literal("rsvpDump")
-                    .executes(ctx -> {
-                        org.wynnvets.mwe.anni.network.AnniRsvpClient.debugDump();
-                        return 1;
-                    })
-                )
-            )
-            // Subsystem trees nest under `tree` — they're neither toggles
-            // nor triggers, so they don't belong at the top level alongside
-            // `set` / `trigger`.
-            .then(ClientCommandManager.literal("tree")
-                .then(AnniDebugCommands.buildCommandTree())
-            );
+                .executes(
+                        ctx -> {
+                            DiagnosticsHandler.execute(null);
+                            return 1;
+                        })
+                .then(
+                        ClientCommandManager.argument("enabled", StringArgumentType.word())
+                                .executes(
+                                        ctx -> {
+                                            DiagnosticsHandler.execute(
+                                                    StringArgumentType.getString(ctx, "enabled"));
+                                            return 1;
+                                        }))
+                .then(
+                        ClientCommandManager.literal("set")
+                                .executes(DebugCommands::debugConfigList)
+                                .then(
+                                        ClientCommandManager.argument(
+                                                        "key", StringArgumentType.word())
+                                                .suggests(SUGGEST_DEBUG_CONFIG_KEYS)
+                                                .executes(DebugCommands::debugConfigGet)
+                                                .then(
+                                                        ClientCommandManager.argument(
+                                                                        "value",
+                                                                        StringArgumentType.word())
+                                                                .suggests(SUGGEST_BOOLEAN_VALUES)
+                                                                .executes(
+                                                                        DebugCommands
+                                                                                ::debugConfigSet))))
+                .then(
+                        ClientCommandManager.literal("trigger")
+                                .then(
+                                        ClientCommandManager.literal("charDump")
+                                                .executes(DebugCommands::triggerCharDump))
+                                .then(
+                                        ClientCommandManager.literal("forceChecks")
+                                                .executes(DebugCommands::triggerForceChecks))
+                                .then(
+                                        ClientCommandManager.literal("tabDump")
+                                                .executes(
+                                                        ctx -> {
+                                                            TabDumpHandler.execute();
+                                                            return 1;
+                                                        }))
+                                .then(
+                                        ClientCommandManager.literal("bossBarsDump")
+                                                .executes(DebugCommands::triggerBossBarsDump))
+                                .then(
+                                        ClientCommandManager.literal("nametagsDump")
+                                                .executes(DebugCommands::triggerNametagsDump))
+                                .then(
+                                        ClientCommandManager.literal("ghostsPromptDump")
+                                                .executes(
+                                                        ctx -> {
+                                                            org.wynnvets.mwe.anni.aggressive
+                                                                    .GhostsPromptHandler
+                                                                    .debugDump();
+                                                            return 1;
+                                                        }))
+                                .then(
+                                        ClientCommandManager.literal("zoneLinesDump")
+                                                .executes(
+                                                        ctx -> {
+                                                            DebugCommands.triggerZoneLinesDump();
+                                                            return 1;
+                                                        }))
+                                .then(
+                                        ClientCommandManager.literal("rsvpDump")
+                                                .executes(
+                                                        ctx -> {
+                                                            org.wynnvets.mwe.anni.network
+                                                                    .AnniRsvpClient.debugDump();
+                                                            return 1;
+                                                        })))
+                // Subsystem trees nest under `tree` — they're neither toggles
+                // nor triggers, so they don't belong at the top level alongside
+                // `set` / `trigger`.
+                .then(
+                        ClientCommandManager.literal("tree")
+                                .then(AnniDebugCommands.buildCommandTree()));
     }
 
     // ── /wv debug set handlers ──────────────────────────────────────
@@ -147,18 +168,21 @@ public final class DebugCommands {
      * {@code /wv debug set} — lists all debug config keys and their current values.
      */
     private static int debugConfigList(CommandContext<FabricClientCommandSource> ctx) {
-        MutableComponent header = Component.literal("Debug Configuration:")
-            .withStyle(ChatFormatting.GOLD);
+        MutableComponent header =
+                Component.literal("Debug Configuration:").withStyle(ChatFormatting.GOLD);
         ChatUtils.sendLocalMessageNewBlock(header);
 
         for (String key : DebugConfigManager.DEBUG_CONFIG_KEYS) {
             boolean value = VetsConfig.get(key);
             ChatUtils.sendLocalMessage(
-                Component.literal("  " + key + " = ")
-                    .withStyle(ChatFormatting.GRAY)
-                    .append(Component.literal(String.valueOf(value))
-                        .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED))
-            );
+                    Component.literal("  " + key + " = ")
+                            .withStyle(ChatFormatting.GRAY)
+                            .append(
+                                    Component.literal(String.valueOf(value))
+                                            .withStyle(
+                                                    value
+                                                            ? ChatFormatting.GREEN
+                                                            : ChatFormatting.RED)));
         }
         return 1;
     }
@@ -171,19 +195,21 @@ public final class DebugCommands {
 
         if (!DebugConfigManager.isDebugConfigKey(key)) {
             ChatUtils.sendLocalMessage(
-                Component.literal("Unknown debug config key: " + key)
-                    .withStyle(ChatFormatting.RED)
-            );
+                    Component.literal("Unknown debug config key: " + key)
+                            .withStyle(ChatFormatting.RED));
             return 0;
         }
 
         boolean value = VetsConfig.get(key);
         ChatUtils.sendLocalMessage(
-            Component.literal(key + " = ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(String.valueOf(value))
-                    .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED))
-        );
+                Component.literal(key + " = ")
+                        .withStyle(ChatFormatting.GRAY)
+                        .append(
+                                Component.literal(String.valueOf(value))
+                                        .withStyle(
+                                                value
+                                                        ? ChatFormatting.GREEN
+                                                        : ChatFormatting.RED)));
         return 1;
     }
 
@@ -196,17 +222,15 @@ public final class DebugCommands {
 
         if (!DebugConfigManager.isDebugConfigKey(key)) {
             ChatUtils.sendLocalMessage(
-                Component.literal("Unknown debug config key: " + key)
-                    .withStyle(ChatFormatting.RED)
-            );
+                    Component.literal("Unknown debug config key: " + key)
+                            .withStyle(ChatFormatting.RED));
             return 0;
         }
 
         if (!"true".equalsIgnoreCase(rawValue) && !"false".equalsIgnoreCase(rawValue)) {
             ChatUtils.sendLocalMessage(
-                Component.literal("Value must be 'true' or 'false'.")
-                    .withStyle(ChatFormatting.RED)
-            );
+                    Component.literal("Value must be 'true' or 'false'.")
+                            .withStyle(ChatFormatting.RED));
             return 0;
         }
 
@@ -214,11 +238,14 @@ public final class DebugCommands {
         VetsConfig.set(key, value);
 
         ChatUtils.sendLocalMessage(
-            Component.literal(key + " set to ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(String.valueOf(value))
-                    .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED))
-        );
+                Component.literal(key + " set to ")
+                        .withStyle(ChatFormatting.GRAY)
+                        .append(
+                                Component.literal(String.valueOf(value))
+                                        .withStyle(
+                                                value
+                                                        ? ChatFormatting.GREEN
+                                                        : ChatFormatting.RED)));
         return 1;
     }
 
@@ -229,11 +256,13 @@ public final class DebugCommands {
      * PUA icon characters in the {@code chat/prefix} font.
      */
     private static final String PREFIX = "\uDAFF\uDFFC";
+
     private static final String SUFFIX = "\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
 
-    private static final Style CHAT_PREFIX_FONT = Style.EMPTY
-            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-            .withoutShadow();
+    private static final Style CHAT_PREFIX_FONT =
+            Style.EMPTY
+                    .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+                    .withoutShadow();
 
     /**
      * {@code /wv debug trigger charDump} — renders PUA characters U+E001
@@ -242,9 +271,8 @@ public final class DebugCommands {
      */
     private static int triggerCharDump(CommandContext<FabricClientCommandSource> ctx) {
         ChatUtils.sendLocalMessage(
-            Component.literal("PUA Icon Character Dump (U+E001 – U+E040)")
-                .withStyle(ChatFormatting.GOLD)
-        );
+                Component.literal("PUA Icon Character Dump (U+E001 – U+E040)")
+                        .withStyle(ChatFormatting.GOLD));
 
         // Print 8 characters per line
         for (int row = 0xE001; row <= 0xE040; row += 8) {
@@ -258,23 +286,20 @@ public final class DebugCommands {
 
                 // Label: "E001" etc.
                 String label = String.format("E%03X", cp & 0xFFF);
-                line.append(Component.literal(label + " ")
-                    .withStyle(ChatFormatting.GRAY));
+                line.append(Component.literal(label + " ").withStyle(ChatFormatting.GRAY));
 
                 // Render the icon in the resource pack font using the
                 // full badge sequence: PREFIX + icon char + SUFFIX
                 String iconSeq = PREFIX + (char) cp + SUFFIX;
-                line.append(Component.literal(iconSeq)
-                    .setStyle(CHAT_PREFIX_FONT));
+                line.append(Component.literal(iconSeq).setStyle(CHAT_PREFIX_FONT));
             }
 
             ChatUtils.sendLocalMessage(line);
         }
 
         ChatUtils.sendLocalMessage(
-            Component.literal("End of dump. Characters without glyphs will appear blank.")
-                .withStyle(ChatFormatting.GRAY)
-        );
+                Component.literal("End of dump. Characters without glyphs will appear blank.")
+                        .withStyle(ChatFormatting.GRAY));
         return 1;
     }
 
@@ -307,9 +332,9 @@ public final class DebugCommands {
     private static int triggerNametagsDump(CommandContext<FabricClientCommandSource> ctx) {
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         if (mc == null || mc.level == null) {
-            ChatUtils.sendLocalMessage(Component.literal(
-                    "nametagsDump: no client level (not in-game?)")
-                    .withStyle(ChatFormatting.RED));
+            ChatUtils.sendLocalMessage(
+                    Component.literal("nametagsDump: no client level (not in-game?)")
+                            .withStyle(ChatFormatting.RED));
             return 0;
         }
 
@@ -317,17 +342,21 @@ public final class DebugCommands {
         boolean nametagsEnabled = VetsConfig.get(VetsConfig.VETS_ANNI_NAMETAGS_ENABLED);
         boolean outlinesEnabled = VetsConfig.get(VetsConfig.VETS_ANNI_OUTLINES_ENABLED);
 
-        ChatUtils.sendLocalMessageNewBlock(Component.literal(
-                "S4 nametag dump — outlineSuppressionActive=" + gate
-                        + ", vetsAnniNametagsEnabled=" + nametagsEnabled
-                        + ", vetsAnniOutlinesEnabled=" + outlinesEnabled)
-                .withStyle(ChatFormatting.GOLD));
+        ChatUtils.sendLocalMessageNewBlock(
+                Component.literal(
+                                "S4 nametag dump — outlineSuppressionActive="
+                                        + gate
+                                        + ", vetsAnniNametagsEnabled="
+                                        + nametagsEnabled
+                                        + ", vetsAnniOutlinesEnabled="
+                                        + outlinesEnabled)
+                        .withStyle(ChatFormatting.GOLD));
 
         java.util.List<? extends net.minecraft.client.player.AbstractClientPlayer> players =
                 mc.level.players();
-        ChatUtils.sendLocalMessage(Component.literal(
-                "  " + players.size() + " player(s) in level:")
-                .withStyle(ChatFormatting.DARK_GRAY));
+        ChatUtils.sendLocalMessage(
+                Component.literal("  " + players.size() + " player(s) in level:")
+                        .withStyle(ChatFormatting.DARK_GRAY));
 
         for (net.minecraft.client.player.AbstractClientPlayer p : players) {
             String username = p.getGameProfile().name();
@@ -352,17 +381,29 @@ public final class DebugCommands {
                 fmtSource = "(gate off — no override)";
             }
 
-            MutableComponent line = Component.literal("  ")
-                    .append(Component.literal(username).withStyle(ChatFormatting.WHITE))
-                    .append(Component.literal("  registry=" + (entry != null ? "hit" : "miss"))
-                            .withStyle(entry != null ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY))
-                    .append(Component.literal("  tier=" + tier).withStyle(ChatFormatting.GRAY))
-                    .append(Component.literal("  role=" + role).withStyle(ChatFormatting.GRAY));
+            MutableComponent line =
+                    Component.literal("  ")
+                            .append(Component.literal(username).withStyle(ChatFormatting.WHITE))
+                            .append(
+                                    Component.literal(
+                                                    "  registry="
+                                                            + (entry != null ? "hit" : "miss"))
+                                            .withStyle(
+                                                    entry != null
+                                                            ? ChatFormatting.GREEN
+                                                            : ChatFormatting.DARK_GRAY))
+                            .append(
+                                    Component.literal("  tier=" + tier)
+                                            .withStyle(ChatFormatting.GRAY))
+                            .append(
+                                    Component.literal("  role=" + role)
+                                            .withStyle(ChatFormatting.GRAY));
             if (fmt != null) {
                 line.append(Component.literal("  → ").withStyle(ChatFormatting.DARK_GRAY))
                         .append(Component.literal(username).withStyle(fmt))
-                        .append(Component.literal("  (" + fmt.getName() + " via " + fmtSource + ")")
-                                .withStyle(ChatFormatting.DARK_GRAY));
+                        .append(
+                                Component.literal("  (" + fmt.getName() + " via " + fmtSource + ")")
+                                        .withStyle(ChatFormatting.DARK_GRAY));
             } else {
                 line.append(Component.literal("  → ").withStyle(ChatFormatting.DARK_GRAY))
                         .append(Component.literal(fmtSource).withStyle(ChatFormatting.DARK_GRAY));
@@ -398,39 +439,49 @@ public final class DebugCommands {
         net.minecraft.client.gui.components.BossHealthOverlay overlay =
                 (mc != null && mc.gui != null) ? mc.gui.getBossOverlay() : null;
         if (overlay == null) {
-            ChatUtils.sendLocalMessage(Component.literal(
-                    "bossBarsDump: no BossHealthOverlay (mc.gui not initialised)")
-                    .withStyle(ChatFormatting.RED));
+            ChatUtils.sendLocalMessage(
+                    Component.literal("bossBarsDump: no BossHealthOverlay (mc.gui not initialised)")
+                            .withStyle(ChatFormatting.RED));
             return 0;
         }
 
         java.util.Map<java.util.UUID, net.minecraft.client.gui.components.LerpingBossEvent> events;
         try {
-            events = ((org.wynnvets.mixin.client.accessors.BossHealthOverlayAccessor)
-                    (Object) overlay).getEvents();
+            events =
+                    ((org.wynnvets.mixin.client.accessors.BossHealthOverlayAccessor)
+                                    (Object) overlay)
+                            .getEvents();
         } catch (ClassCastException e) {
-            ChatUtils.sendLocalMessage(Component.literal(
-                    "bossBarsDump: BossHealthOverlayAccessor mixin not applied (" + e.getMessage() + ")")
-                    .withStyle(ChatFormatting.RED));
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    "bossBarsDump: BossHealthOverlayAccessor mixin not applied ("
+                                            + e.getMessage()
+                                            + ")")
+                            .withStyle(ChatFormatting.RED));
             return 0;
         }
 
-        ChatUtils.sendLocalMessageNewBlock(Component.literal(
-                "BossHealthOverlay events dump — " + events.size() + " entr"
-                        + (events.size() == 1 ? "y" : "ies")
-                        + ", VetsBossBarManager.isActive=" + ourActive)
-                .withStyle(ChatFormatting.GOLD));
+        ChatUtils.sendLocalMessageNewBlock(
+                Component.literal(
+                                "BossHealthOverlay events dump — "
+                                        + events.size()
+                                        + " entr"
+                                        + (events.size() == 1 ? "y" : "ies")
+                                        + ", VetsBossBarManager.isActive="
+                                        + ourActive)
+                        .withStyle(ChatFormatting.GOLD));
 
         if (events.isEmpty()) {
-            ChatUtils.sendLocalMessage(Component.literal(
-                    "  (no boss bars currently tracked)")
-                    .withStyle(ChatFormatting.DARK_GRAY));
+            ChatUtils.sendLocalMessage(
+                    Component.literal("  (no boss bars currently tracked)")
+                            .withStyle(ChatFormatting.DARK_GRAY));
             return 1;
         }
 
         int idx = 0;
-        for (java.util.Map.Entry<java.util.UUID, net.minecraft.client.gui.components.LerpingBossEvent> entry
-                : events.entrySet()) {
+        for (java.util.Map.Entry<
+                        java.util.UUID, net.minecraft.client.gui.components.LerpingBossEvent>
+                entry : events.entrySet()) {
             net.minecraft.client.gui.components.LerpingBossEvent ev = entry.getValue();
             java.util.UUID uuid = entry.getKey();
             String uuidShort = uuid.toString().substring(0, 8);
@@ -439,29 +490,41 @@ public final class DebugCommands {
             String oursMark = isOurs ? "  ← OURS" : "";
 
             // Header line: index + UUID + flags
-            MutableComponent header = Component.literal("#" + idx + slotMark)
-                    .withStyle(isOurs ? ChatFormatting.AQUA : ChatFormatting.WHITE)
-                    .append(Component.literal(" uuid=" + uuidShort)
-                            .withStyle(ChatFormatting.DARK_GRAY))
-                    .append(Component.literal(oursMark)
-                            .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
+            MutableComponent header =
+                    Component.literal("#" + idx + slotMark)
+                            .withStyle(isOurs ? ChatFormatting.AQUA : ChatFormatting.WHITE)
+                            .append(
+                                    Component.literal(" uuid=" + uuidShort)
+                                            .withStyle(ChatFormatting.DARK_GRAY))
+                            .append(
+                                    Component.literal(oursMark)
+                                            .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
             ChatUtils.sendLocalMessage(header);
 
             // Properties line: color, overlay, progress, flags
             ChatUtils.sendLocalMessage(
-                    Component.literal("    color=" + ev.getColor().name()
-                            + "  overlay=" + ev.getOverlay().name()
-                            + "  progress=" + String.format(java.util.Locale.ROOT, "%.4f", ev.getProgress())
-                            + "  darken=" + ev.shouldDarkenScreen()
-                            + "  music=" + ev.shouldPlayBossMusic()
-                            + "  fog=" + ev.shouldCreateWorldFog())
+                    Component.literal(
+                                    "    color="
+                                            + ev.getColor().name()
+                                            + "  overlay="
+                                            + ev.getOverlay().name()
+                                            + "  progress="
+                                            + String.format(
+                                                    java.util.Locale.ROOT, "%.4f", ev.getProgress())
+                                            + "  darken="
+                                            + ev.shouldDarkenScreen()
+                                            + "  music="
+                                            + ev.shouldPlayBossMusic()
+                                            + "  fog="
+                                            + ev.shouldCreateWorldFog())
                             .withStyle(ChatFormatting.GRAY));
 
             // Name as raw component (so PUA / negative-width glyphs render
             // verbatim — if Wynncraft is using bar-suppressing glyphs in
             // the name, they show up here).
             ChatUtils.sendLocalMessage(
-                    Component.literal("    name= ").withStyle(ChatFormatting.DARK_GRAY)
+                    Component.literal("    name= ")
+                            .withStyle(ChatFormatting.DARK_GRAY)
                             .append(ev.getName().copy()));
 
             idx++;
@@ -478,18 +541,24 @@ public final class DebugCommands {
      */
     private static void triggerZoneLinesDump() {
         boolean aggro = org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker.isAggressiveActive();
-        boolean toggle = org.wynnvets.config.VetsConfig.get(
-                org.wynnvets.config.VetsConfig.VETS_ANNI_ZONE_LINES);
+        boolean toggle =
+                org.wynnvets.config.VetsConfig.get(
+                        org.wynnvets.config.VetsConfig.VETS_ANNI_ZONE_LINES);
         boolean cold = org.wynnvets.mwe.anni.zone.AnniZone.isCold();
         java.util.List<org.wynnvets.mwe.anni.zone.AnniZone.Disc> discs =
                 org.wynnvets.mwe.anni.zone.AnniZone.getDiscs();
 
-        ChatUtils.sendLocalMessageNewBlock(Component.literal(
-                "AnniZoneLineRenderer dump — aggressive_active=" + aggro
-                        + " toggle_on=" + toggle
-                        + " zone_cold=" + cold
-                        + " discs=" + discs.size())
-                .withStyle(ChatFormatting.GOLD));
+        ChatUtils.sendLocalMessageNewBlock(
+                Component.literal(
+                                "AnniZoneLineRenderer dump — aggressive_active="
+                                        + aggro
+                                        + " toggle_on="
+                                        + toggle
+                                        + " zone_cold="
+                                        + cold
+                                        + " discs="
+                                        + discs.size())
+                        .withStyle(ChatFormatting.GOLD));
 
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         net.minecraft.client.player.LocalPlayer player = mc != null ? mc.player : null;
@@ -497,9 +566,10 @@ public final class DebugCommands {
         double pz = player != null ? player.getZ() : 0.0;
 
         if (discs.isEmpty()) {
-            ChatUtils.sendLocalMessage(Component.literal(
-                    "  (no discs cached — anni event missing from world-events API?)")
-                    .withStyle(ChatFormatting.DARK_GRAY));
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    "  (no discs cached — anni event missing from world-events API?)")
+                            .withStyle(ChatFormatting.DARK_GRAY));
             return;
         }
 
@@ -508,10 +578,12 @@ public final class DebugCommands {
             double dx = px - disc.x();
             double dz = pz - disc.z();
             double distSq = dx * dx + dz * dz;
-            ChatUtils.sendLocalMessage(Component.literal(
-                    String.format("  [%d] centre=(%.0f,%.0f) r=%.0f distSq=%.0f",
-                            i, disc.x(), disc.z(), disc.radius(), distSq))
-                    .withStyle(ChatFormatting.GRAY));
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    String.format(
+                                            "  [%d] centre=(%.0f,%.0f) r=%.0f distSq=%.0f",
+                                            i, disc.x(), disc.z(), disc.radius(), distSq))
+                            .withStyle(ChatFormatting.GRAY));
             i++;
         }
     }

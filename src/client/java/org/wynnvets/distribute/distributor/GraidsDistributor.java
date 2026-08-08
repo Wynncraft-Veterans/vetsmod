@@ -3,16 +3,6 @@ package org.wynnvets.distribute.distributor;
 import com.wynntils.core.components.Managers;
 import com.wynntils.core.text.StyledText;
 import com.wynntils.models.items.items.gui.GuildLogItem;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.distribute.opener.GuildManageOpener;
-import org.wynnvets.distribute.utils.NameResolver;
-import org.wynnvets.distribute.utils.NoAspectsFilter;
-import org.wynnvets.distribute.walker.GuildLogWalker;
-import org.wynnvets.distribute.walker.MembersListSearcher;
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,6 +16,15 @@ import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.opener.GuildManageOpener;
+import org.wynnvets.distribute.utils.NameResolver;
+import org.wynnvets.distribute.utils.NoAspectsFilter;
+import org.wynnvets.distribute.walker.GuildLogWalker;
+import org.wynnvets.distribute.walker.MembersListSearcher;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Implements {@code /wv distribute @graids <resource> <count>}: opens
@@ -97,22 +96,23 @@ public final class GraidsDistributor {
      * multi-phase chains like {@link SplitDistributor} advance even
      * when this phase finds no graids or fails to read the roster.
      */
-    public static void dispatch(int count, MemberSlotPresser.Resource resource,
-                                Runnable onComplete) {
+    public static void dispatch(
+            int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
         // Fetch the name index and the NoAspects opt-out list in
         // parallel; strip excluded legacy names from the index so they
         // never match a graid-log username token. Per-command refresh,
         // fail-open via NoAspectsFilter on any HTTP error.
-        NameResolver.fetchNameIndex().thenCombine(
-                NoAspectsFilter.fetchExcludedLegacyNames(),
-                GraidsDistributor::filterIndex)
-                .thenAccept(index ->
-                        Managers.TickScheduler.scheduleLater(
-                                () -> beginWalk(index, count, resource, onComplete), 0));
+        NameResolver.fetchNameIndex()
+                .thenCombine(
+                        NoAspectsFilter.fetchExcludedLegacyNames(), GraidsDistributor::filterIndex)
+                .thenAccept(
+                        index ->
+                                Managers.TickScheduler.scheduleLater(
+                                        () -> beginWalk(index, count, resource, onComplete), 0));
     }
 
-    private static Map<String, String> filterIndex(Map<String, String> index,
-                                                   Set<String> excludeNames) {
+    private static Map<String, String> filterIndex(
+            Map<String, String> index, Set<String> excludeNames) {
         if (excludeNames.isEmpty()) return index;
         Map<String, String> out = new HashMap<>(index.size());
         for (Map.Entry<String, String> e : index.entrySet()) {
@@ -127,9 +127,11 @@ public final class GraidsDistributor {
         return out;
     }
 
-    private static void beginWalk(Map<String, String> nameIndex, int count,
-                                  MemberSlotPresser.Resource resource,
-                                  Runnable onComplete) {
+    private static void beginWalk(
+            Map<String, String> nameIndex,
+            int count,
+            MemberSlotPresser.Resource resource,
+            Runnable onComplete) {
         if (nameIndex.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Could not read guild roster from wapi — try again.")
@@ -140,8 +142,8 @@ public final class GraidsDistributor {
         ChatUtils.sendLocalMessage(
                 Component.literal("Reading guild log…").withStyle(ChatFormatting.GRAY));
 
-        GuildLogWalker.armWalk(entries ->
-                onLogReady(entries, nameIndex, count, resource, onComplete));
+        GuildLogWalker.armWalk(
+                entries -> onLogReady(entries, nameIndex, count, resource, onComplete));
         // Open via /guild manage → click Log tile rather than direct
         // /guild log. Empirically Wynncraft drops /guild log if it
         // lands while there's any session state left over from a
@@ -152,12 +154,17 @@ public final class GraidsDistributor {
         GuildManageOpener.openGuildLog();
     }
 
-    private static void onLogReady(List<GuildLogItem> entries, Map<String, String> nameIndex,
-                                   int count, MemberSlotPresser.Resource resource,
-                                   Runnable onComplete) {
+    private static void onLogReady(
+            List<GuildLogItem> entries,
+            Map<String, String> nameIndex,
+            int count,
+            MemberSlotPresser.Resource resource,
+            Runnable onComplete) {
         Map<String, Integer> freq = countGraidFrequencies(entries, nameIndex);
-        VetsLogger.debug("GraidsDistributor: scanned {} log entries, {} distinct graid participants",
-                entries.size(), freq.size());
+        VetsLogger.debug(
+                "GraidsDistributor: scanned {} log entries, {} distinct graid participants",
+                entries.size(),
+                freq.size());
 
         if (freq.isEmpty()) {
             ChatUtils.sendLocalMessage(
@@ -177,9 +184,16 @@ public final class GraidsDistributor {
 
         int totalParticipations = freq.values().stream().mapToInt(Integer::intValue).sum();
         ChatUtils.sendLocalMessage(
-                Component.literal("Distributing " + count + "x " + resource.displayName()
-                        + " proportionally to " + freq.size()
-                        + " graid participants (" + totalParticipations + " total participations)…")
+                Component.literal(
+                                "Distributing "
+                                        + count
+                                        + "x "
+                                        + resource.displayName()
+                                        + " proportionally to "
+                                        + freq.size()
+                                        + " graid participants ("
+                                        + totalParticipations
+                                        + " total participations)…")
                         .withStyle(ChatFormatting.AQUA));
 
         processNext(queue, resource, onComplete);
@@ -229,10 +243,11 @@ public final class GraidsDistributor {
         // tiebreaker. Doesn't affect totals; just keeps the visit order
         // (and so the chat output) predictable.
         List<Map.Entry<String, Integer>> participants = new ArrayList<>(freq.entrySet());
-        participants.sort((a, b) -> {
-            int c = Integer.compare(b.getValue(), a.getValue());
-            return c != 0 ? c : a.getKey().compareToIgnoreCase(b.getKey());
-        });
+        participants.sort(
+                (a, b) -> {
+                    int c = Integer.compare(b.getValue(), a.getValue());
+                    return c != 0 ? c : a.getKey().compareToIgnoreCase(b.getKey());
+                });
 
         Map<String, Integer> shares = new HashMap<>();
         int flooredTotal = 0;
@@ -271,28 +286,34 @@ public final class GraidsDistributor {
         return sb.toString();
     }
 
-    private static void processNext(Deque<Distribution> queue,
-                                    MemberSlotPresser.Resource resource,
-                                    Runnable onComplete) {
+    private static void processNext(
+            Deque<Distribution> queue, MemberSlotPresser.Resource resource, Runnable onComplete) {
         if (queue.isEmpty()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Distribution complete.")
-                            .withStyle(ChatFormatting.GREEN));
+                    Component.literal("Distribution complete.").withStyle(ChatFormatting.GREEN));
             MemberSlotPresser.closeMembersScreen();
             if (onComplete != null) onComplete.run();
             return;
         }
         Distribution d = queue.poll();
-        VetsLogger.debug("GraidsDistributor: queue popped [{}] (count={}), {} left",
-                d.legacyName(), d.count(), queue.size());
+        VetsLogger.debug(
+                "GraidsDistributor: queue popped [{}] (count={}), {} left",
+                d.legacyName(),
+                d.count(),
+                queue.size());
 
         // Names are already canonical legacy (looked up via the wapi
         // index), so the searcher's literal-input arm matches the
         // Members GUI tile directly — no per-pick NameResolver call.
         MembersListSearcher.armSearch(
                 d.legacyName(),
-                slot -> MemberSlotPresser.fire(slot, resource, d.count(), d.legacyName(),
-                        () -> processNext(queue, resource, onComplete)),
+                slot ->
+                        MemberSlotPresser.fire(
+                                slot,
+                                resource,
+                                d.count(),
+                                d.legacyName(),
+                                () -> processNext(queue, resource, onComplete)),
                 () -> processNext(queue, resource, onComplete));
     }
 }

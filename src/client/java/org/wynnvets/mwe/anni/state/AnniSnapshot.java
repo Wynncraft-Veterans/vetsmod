@@ -2,7 +2,6 @@ package org.wynnvets.mwe.anni.state;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-
 import java.util.Collections;
 import java.util.List;
 

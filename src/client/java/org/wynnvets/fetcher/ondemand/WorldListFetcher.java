@@ -4,18 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
-import org.wynnvets.api.VetsApi;
-import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.dispatcher.FindDispatcher;
-import org.wynnvets.fetcher.lookup.PlayerLookup;
-import org.wynnvets.logging.VetsLogger;
-
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -34,6 +22,17 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import org.wynnvets.api.VetsApi;
+import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.dispatcher.FindDispatcher;
+import org.wynnvets.fetcher.lookup.PlayerLookup;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * On-demand fetcher for {@code /wv list world}.
@@ -48,31 +47,33 @@ public final class WorldListFetcher {
 
     // Styling for each tier.
     private static final Style MEMBER_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
-    private static final Style WAITLIST_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA).withItalic(true);
-    private static final Style HONOURARY_STYLE = Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE).withItalic(true);
+    private static final Style WAITLIST_STYLE =
+            Style.EMPTY.withColor(ChatFormatting.DARK_AQUA).withItalic(true);
+    private static final Style HONOURARY_STYLE =
+            Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE).withItalic(true);
 
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .connectTimeout(Duration.ofSeconds(5))
-            .build();
+    private static final HttpClient HTTP_CLIENT =
+            HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
 
     private static final Gson GSON = new Gson();
 
     // GeoLite2 / GeoIP2 continent code → display name.
-    private static final Map<String, String> CONTINENT_NAMES = Map.of(
-            "AF", "Africa",
-            "AS", "Asia",
-            "EU", "Europe",
-            "NA", "North America",
-            "OC", "Oceania",
-            "SA", "South America"
-    );
+    private static final Map<String, String> CONTINENT_NAMES =
+            Map.of(
+                    "AF", "Africa",
+                    "AS", "Asia",
+                    "EU", "Europe",
+                    "NA", "North America",
+                    "OC", "Oceania",
+                    "SA", "South America");
 
     // Display label for the private-server group.
     private static final String PRIVATE_REGION = "Private";
 
-    private WorldListFetcher() {
-    }
+    private WorldListFetcher() {}
 
     // ── Public entry point ──────────────────────────────────────────
 
@@ -82,54 +83,77 @@ public final class WorldListFetcher {
      */
     public static void fetchWorldList() {
         ChatUtils.sendLocalMessage(
-                Component.literal("Looking up online members...")
-                        .withStyle(ChatFormatting.GREEN));
+                Component.literal("Looking up online members...").withStyle(ChatFormatting.GREEN));
 
         CompletableFuture<List<OnlineMemberService.OnlinePlayer>> playersFuture =
                 OnlineMemberService.gatherOnlinePlayers()
                         .thenApply(OnlineMemberService.GatherResult::players);
         CompletableFuture<Set<String>> staffFuture = fetchStaffUsernames();
 
-        playersFuture.thenCombine(staffFuture, (players, staffNames) -> {
-            if (players.isEmpty()) {
-                ChatUtils.sendLocalMessage(
-                        Component.literal("No members are currently online.")
-                                .withStyle(ChatFormatting.YELLOW));
-                return null;
-            }
+        playersFuture
+                .thenCombine(
+                        staffFuture,
+                        (players, staffNames) -> {
+                            if (players.isEmpty()) {
+                                ChatUtils.sendLocalMessage(
+                                        Component.literal("No members are currently online.")
+                                                .withStyle(ChatFormatting.YELLOW));
+                                return null;
+                            }
 
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Finding " + players.size() + " members across worlds... (this may take a moment)")
-                            .withStyle(ChatFormatting.GRAY));
+                            ChatUtils.sendLocalMessage(
+                                    Component.literal(
+                                                    "Finding "
+                                                            + players.size()
+                                                            + " members across worlds... (this may take a moment)")
+                                            .withStyle(ChatFormatting.GRAY));
 
-            List<String> usernames = players.stream()
-                    .map(OnlineMemberService.OnlinePlayer::username)
-                    .collect(Collectors.toList());
+                            List<String> usernames =
+                                    players.stream()
+                                            .map(OnlineMemberService.OnlinePlayer::username)
+                                            .collect(Collectors.toList());
 
-            CompletableFuture<Map<String, String>> findFuture = new CompletableFuture<>();
-            FindDispatcher.enqueueFindBatch(usernames, findFuture);
+                            CompletableFuture<Map<String, String>> findFuture =
+                                    new CompletableFuture<>();
+                            FindDispatcher.enqueueFindBatch(usernames, findFuture);
 
-            findFuture
-                .thenCompose(worldMap -> retryStragglersUnderCanonicalNames(players, worldMap))
-                .thenAccept(finalMap -> {
-                    MutableComponent result = formatWorldList(players, finalMap, staffNames);
-                    ChatUtils.sendLocalMessageNewBlock(result);
-                }).exceptionally(e -> {
-                    VetsLogger.warn("World list find batch failed: {}", e.getMessage());
-                    ChatUtils.sendLocalMessage(
-                            Component.literal("Failed to locate players: " + e.getMessage())
-                                    .withStyle(ChatFormatting.RED));
-                    return null;
-                });
+                            findFuture
+                                    .thenCompose(
+                                            worldMap ->
+                                                    retryStragglersUnderCanonicalNames(
+                                                            players, worldMap))
+                                    .thenAccept(
+                                            finalMap -> {
+                                                MutableComponent result =
+                                                        formatWorldList(
+                                                                players, finalMap, staffNames);
+                                                ChatUtils.sendLocalMessageNewBlock(result);
+                                            })
+                                    .exceptionally(
+                                            e -> {
+                                                VetsLogger.warn(
+                                                        "World list find batch failed: {}",
+                                                        e.getMessage());
+                                                ChatUtils.sendLocalMessage(
+                                                        Component.literal(
+                                                                        "Failed to locate players: "
+                                                                                + e.getMessage())
+                                                                .withStyle(ChatFormatting.RED));
+                                                return null;
+                                            });
 
-            return null;
-        }).exceptionally(e -> {
-            VetsLogger.warn("World list data fetch failed: {}", e.getMessage());
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Failed to fetch member data: " + e.getMessage())
-                            .withStyle(ChatFormatting.RED));
-            return null;
-        });
+                            return null;
+                        })
+                .exceptionally(
+                        e -> {
+                            VetsLogger.warn("World list data fetch failed: {}", e.getMessage());
+                            ChatUtils.sendLocalMessage(
+                                    Component.literal(
+                                                    "Failed to fetch member data: "
+                                                            + e.getMessage())
+                                            .withStyle(ChatFormatting.RED));
+                            return null;
+                        });
     }
 
     // ── Straggler retry under canonical names ───────────────────────
@@ -155,8 +179,7 @@ public final class WorldListFetcher {
      * mutates the input.</p>
      */
     private static CompletableFuture<Map<String, String>> retryStragglersUnderCanonicalNames(
-            List<OnlineMemberService.OnlinePlayer> players,
-            Map<String, String> worldMap) {
+            List<OnlineMemberService.OnlinePlayer> players, Map<String, String> worldMap) {
 
         List<OnlineMemberService.OnlinePlayer> stragglers = new ArrayList<>();
         for (var p : players) {
@@ -176,62 +199,73 @@ public final class WorldListFetcher {
         List<CompletableFuture<Void>> resolves = new ArrayList<>(stragglers.size());
         for (var p : stragglers) {
             String original = p.username();
-            resolves.add(PlayerLookup.resolve(original).thenAccept(result -> {
-                if (!result.isSuccess()) return;
-                String canonical = result.canonicalName();
-                if (canonical == null || canonical.equalsIgnoreCase(original)) return;
-                renameMap.put(original, canonical);
-            }));
+            resolves.add(
+                    PlayerLookup.resolve(original)
+                            .thenAccept(
+                                    result -> {
+                                        if (!result.isSuccess()) return;
+                                        String canonical = result.canonicalName();
+                                        if (canonical == null
+                                                || canonical.equalsIgnoreCase(original)) return;
+                                        renameMap.put(original, canonical);
+                                    }));
         }
 
         return CompletableFuture.allOf(resolves.toArray(new CompletableFuture[0]))
-                .thenCompose(v -> {
-                    if (renameMap.isEmpty()) {
-                        return CompletableFuture.completedFuture(worldMap);
-                    }
-                    // Dedup the canonical names sent to /find; order preserved
-                    // for predictable dispatch.
-                    List<String> canonicalNames = new ArrayList<>(
-                            new LinkedHashSet<>(renameMap.values()));
-                    CompletableFuture<Map<String, String>> retryFuture =
-                            new CompletableFuture<>();
-                    FindDispatcher.enqueueFindBatch(canonicalNames, retryFuture);
-                    return retryFuture.thenApply(retryMap -> {
-                        // Defensive copy: enqueueFindBatch can return Map.of()
-                        // in some edge paths, and we don't want to surprise
-                        // downstream readers by mutating the input.
-                        Map<String, String> augmented = new LinkedHashMap<>(worldMap);
-                        for (var e : renameMap.entrySet()) {
-                            String server = retryMap.get(e.getValue());
-                            if (server != null && !server.isEmpty()) {
-                                augmented.put(e.getKey(), server);
+                .thenCompose(
+                        v -> {
+                            if (renameMap.isEmpty()) {
+                                return CompletableFuture.completedFuture(worldMap);
                             }
-                        }
-                        return augmented;
-                    });
-                });
+                            // Dedup the canonical names sent to /find; order preserved
+                            // for predictable dispatch.
+                            List<String> canonicalNames =
+                                    new ArrayList<>(new LinkedHashSet<>(renameMap.values()));
+                            CompletableFuture<Map<String, String>> retryFuture =
+                                    new CompletableFuture<>();
+                            FindDispatcher.enqueueFindBatch(canonicalNames, retryFuture);
+                            return retryFuture.thenApply(
+                                    retryMap -> {
+                                        // Defensive copy: enqueueFindBatch can return Map.of()
+                                        // in some edge paths, and we don't want to surprise
+                                        // downstream readers by mutating the input.
+                                        Map<String, String> augmented =
+                                                new LinkedHashMap<>(worldMap);
+                                        for (var e : renameMap.entrySet()) {
+                                            String server = retryMap.get(e.getValue());
+                                            if (server != null && !server.isEmpty()) {
+                                                augmented.put(e.getKey(), server);
+                                            }
+                                        }
+                                        return augmented;
+                                    });
+                        });
     }
 
     // ── Staff fetch ─────────────────────────────────────────────────
 
     private static CompletableFuture<Set<String>> fetchStaffUsernames() {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(VetsApi.STAFF)
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build();
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(VetsApi.STAFF)
+                        .timeout(Duration.ofSeconds(5))
+                        .GET()
+                        .build();
 
-        return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-                        return Set.<String>of();
-                    }
-                    return parseStaffUsernames(response.body());
-                })
-                .exceptionally(e -> {
-                    VetsLogger.debug("Failed to fetch staff list: {}", e.getMessage());
-                    return Set.of();
-                });
+        return HTTP_CLIENT
+                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(
+                        response -> {
+                            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+                                return Set.<String>of();
+                            }
+                            return parseStaffUsernames(response.body());
+                        })
+                .exceptionally(
+                        e -> {
+                            VetsLogger.debug("Failed to fetch staff list: {}", e.getMessage());
+                            return Set.of();
+                        });
     }
 
     private static Set<String> parseStaffUsernames(String body) {
@@ -269,34 +303,52 @@ public final class WorldListFetcher {
         for (var p : players) {
             String server = worldMap.get(p.username());
             if (server != null && !server.isEmpty()) {
-                serverToPlayers.computeIfAbsent(server.toUpperCase(Locale.ROOT), k -> new ArrayList<>()).add(p);
+                serverToPlayers
+                        .computeIfAbsent(server.toUpperCase(Locale.ROOT), k -> new ArrayList<>())
+                        .add(p);
             } else {
                 notFound.add(p);
             }
         }
 
         // Group servers by continent/region.
-        Map<String, Map<String, List<OnlineMemberService.OnlinePlayer>>> regionToServers = new TreeMap<>();
-        for (Map.Entry<String, List<OnlineMemberService.OnlinePlayer>> entry : serverToPlayers.entrySet()) {
+        Map<String, Map<String, List<OnlineMemberService.OnlinePlayer>>> regionToServers =
+                new TreeMap<>();
+        for (Map.Entry<String, List<OnlineMemberService.OnlinePlayer>> entry :
+                serverToPlayers.entrySet()) {
             String server = entry.getKey();
             String region = classifyRegion(server);
-            regionToServers.computeIfAbsent(region, k -> new LinkedHashMap<>())
+            regionToServers
+                    .computeIfAbsent(region, k -> new LinkedHashMap<>())
                     .put(server, entry.getValue());
         }
 
         // Sort regions by total member count descending.
         List<Map.Entry<String, Map<String, List<OnlineMemberService.OnlinePlayer>>>> sortedRegions =
                 new ArrayList<>(regionToServers.entrySet());
-        sortedRegions.sort(Comparator.<Map.Entry<String, Map<String, List<OnlineMemberService.OnlinePlayer>>>, Integer>comparing(
-                e -> e.getValue().values().stream().mapToInt(List::size).sum()).reversed());
+        sortedRegions.sort(
+                Comparator
+                        .<Map.Entry<String, Map<String, List<OnlineMemberService.OnlinePlayer>>>,
+                                Integer>
+                                comparing(
+                                        e ->
+                                                e.getValue().values().stream()
+                                                        .mapToInt(List::size)
+                                                        .sum())
+                        .reversed());
 
         // Sort servers within each region by member count descending.
-        for (Map.Entry<String, Map<String, List<OnlineMemberService.OnlinePlayer>>> regionEntry : sortedRegions) {
+        for (Map.Entry<String, Map<String, List<OnlineMemberService.OnlinePlayer>>> regionEntry :
+                sortedRegions) {
             List<Map.Entry<String, List<OnlineMemberService.OnlinePlayer>>> sorted =
                     new ArrayList<>(regionEntry.getValue().entrySet());
-            sorted.sort(Comparator.<Map.Entry<String, List<OnlineMemberService.OnlinePlayer>>, Integer>comparing(
-                    e -> e.getValue().size()).reversed());
-            LinkedHashMap<String, List<OnlineMemberService.OnlinePlayer>> reordered = new LinkedHashMap<>();
+            sorted.sort(
+                    Comparator
+                            .<Map.Entry<String, List<OnlineMemberService.OnlinePlayer>>, Integer>
+                                    comparing(e -> e.getValue().size())
+                            .reversed());
+            LinkedHashMap<String, List<OnlineMemberService.OnlinePlayer>> reordered =
+                    new LinkedHashMap<>();
             for (Map.Entry<String, List<OnlineMemberService.OnlinePlayer>> s : sorted) {
                 reordered.put(s.getKey(), s.getValue());
             }
@@ -307,28 +359,35 @@ public final class WorldListFetcher {
 
         int foundCount = players.size() - notFound.size();
         // Don't count the PRIVATE sentinel as a real server.
-        int serverCount = (int) serverToPlayers.keySet().stream()
-                .filter(s -> !FindDispatcher.PRIVATE_SERVER.equalsIgnoreCase(s))
-                .count();
+        int serverCount =
+                (int)
+                        serverToPlayers.keySet().stream()
+                                .filter(s -> !FindDispatcher.PRIVATE_SERVER.equalsIgnoreCase(s))
+                                .count();
 
         MutableComponent msg = Component.empty();
-        msg.append(Component.literal("World List\n")
-                .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-        msg.append(Component.literal(String.format(
-                        "%d members found across %d servers\n", foundCount, serverCount))
-                .withStyle(ChatFormatting.GRAY));
+        msg.append(
+                Component.literal("World List\n")
+                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+        msg.append(
+                Component.literal(
+                                String.format(
+                                        "%d members found across %d servers\n",
+                                        foundCount, serverCount))
+                        .withStyle(ChatFormatting.GRAY));
 
-        for (Map.Entry<String, Map<String, List<OnlineMemberService.OnlinePlayer>>> regionEntry : sortedRegions) {
+        for (Map.Entry<String, Map<String, List<OnlineMemberService.OnlinePlayer>>> regionEntry :
+                sortedRegions) {
             String region = regionEntry.getKey();
             Map<String, List<OnlineMemberService.OnlinePlayer>> servers = regionEntry.getValue();
 
             if (PRIVATE_REGION.equals(region)) {
                 // Private server players are lumped together without individual server rows.
-                List<OnlineMemberService.OnlinePlayer> allPrivate = servers.values().stream()
-                        .flatMap(List::stream)
-                        .toList();
-                msg.append(Component.literal("\nPrivate Servers (" + allPrivate.size() + "):\n")
-                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+                List<OnlineMemberService.OnlinePlayer> allPrivate =
+                        servers.values().stream().flatMap(List::stream).toList();
+                msg.append(
+                        Component.literal("\nPrivate Servers (" + allPrivate.size() + "):\n")
+                                .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
                 for (int i = 0; i < allPrivate.size(); i++) {
                     msg.append(styledPlayerName(allPrivate.get(i), staffNames));
                     if (i < allPrivate.size() - 1) {
@@ -339,17 +398,19 @@ public final class WorldListFetcher {
                 continue;
             }
 
-            msg.append(Component.literal("\n" + region + " Servers:\n")
-                    .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+            msg.append(
+                    Component.literal("\n" + region + " Servers:\n")
+                            .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
 
-            for (Map.Entry<String, List<OnlineMemberService.OnlinePlayer>> serverEntry : servers.entrySet()) {
+            for (Map.Entry<String, List<OnlineMemberService.OnlinePlayer>> serverEntry :
+                    servers.entrySet()) {
                 String server = serverEntry.getKey();
                 List<OnlineMemberService.OnlinePlayer> serverPlayers = serverEntry.getValue();
 
-                msg.append(Component.literal(server)
-                        .withStyle(ChatFormatting.YELLOW));
-                msg.append(Component.literal(" (" + serverPlayers.size() + "): ")
-                        .withStyle(ChatFormatting.GRAY));
+                msg.append(Component.literal(server).withStyle(ChatFormatting.YELLOW));
+                msg.append(
+                        Component.literal(" (" + serverPlayers.size() + "): ")
+                                .withStyle(ChatFormatting.GRAY));
 
                 for (int i = 0; i < serverPlayers.size(); i++) {
                     var p = serverPlayers.get(i);
@@ -363,8 +424,9 @@ public final class WorldListFetcher {
         }
 
         if (!notFound.isEmpty()) {
-            msg.append(Component.literal("\nOffline / Not Found (" + notFound.size() + "):\n")
-                    .withStyle(ChatFormatting.GRAY));
+            msg.append(
+                    Component.literal("\nOffline / Not Found (" + notFound.size() + "):\n")
+                            .withStyle(ChatFormatting.GRAY));
             for (int i = 0; i < notFound.size(); i++) {
                 var p = notFound.get(i);
                 msg.append(styledPlayerName(p, staffNames));
@@ -382,7 +444,8 @@ public final class WorldListFetcher {
      * Returns a styled, clickable player name.  Colour is determined by tier,
      * and staff members receive an underline overlay.
      */
-    private static MutableComponent styledPlayerName(OnlineMemberService.OnlinePlayer player, Set<String> staffNames) {
+    private static MutableComponent styledPlayerName(
+            OnlineMemberService.OnlinePlayer player, Set<String> staffNames) {
         Style base;
         switch (player.tier()) {
             case "waitlist":
@@ -404,11 +467,17 @@ public final class WorldListFetcher {
         Style finalStyle = base;
         return Component.literal(player.username())
                 .withStyle(finalStyle)
-                .withStyle(style -> style
-                        .withHoverEvent(new HoverEvent.ShowText(
-                                Component.literal("Click to message " + player.username())
-                                        .withStyle(ChatFormatting.GRAY)))
-                        .withClickEvent(new ClickEvent.SuggestCommand("/msg " + player.username() + " ")));
+                .withStyle(
+                        style ->
+                                style.withHoverEvent(
+                                                new HoverEvent.ShowText(
+                                                        Component.literal(
+                                                                        "Click to message "
+                                                                                + player.username())
+                                                                .withStyle(ChatFormatting.GRAY)))
+                                        .withClickEvent(
+                                                new ClickEvent.SuggestCommand(
+                                                        "/msg " + player.username() + " ")));
     }
 
     // ── Server classification ───────────────────────────────────────
@@ -437,5 +506,4 @@ public final class WorldListFetcher {
 
         return "Other";
     }
-
 }

@@ -7,13 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-
 import org.junit.jupiter.api.Test;
 
 class NickResolverTest {
@@ -21,9 +19,8 @@ class NickResolverTest {
     private static final String REAL_NAME = "RealUser";
     private static final String NICK = "Nickname";
     private static final Style AQUA_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
-    private static final Style DARK_AQUA_ITALIC = Style.EMPTY
-            .withColor(ChatFormatting.DARK_AQUA)
-            .withItalic(true);
+    private static final Style DARK_AQUA_ITALIC =
+            Style.EMPTY.withColor(ChatFormatting.DARK_AQUA).withItalic(true);
     private static final Style FALLBACK = Style.EMPTY.withColor(ChatFormatting.WHITE);
 
     private static HoverEvent realNameHover(String realName) {
@@ -44,7 +41,9 @@ class NickResolverTest {
         Style resolved = NickResolver.realNameSpanStyleOrFallback(root, FALLBACK);
 
         assertNotNull(resolved.getColor(), "color must be preserved");
-        assertEquals(ChatFormatting.DARK_AQUA.getColor().intValue(), resolved.getColor().getValue(),
+        assertEquals(
+                ChatFormatting.DARK_AQUA.getColor().intValue(),
+                resolved.getColor().getValue(),
                 "child DARK_AQUA must win over parent AQUA");
         assertTrue(resolved.isItalic(), "child italic must be preserved");
         assertNotNull(resolved.getHoverEvent(), "hover event must be preserved");
@@ -56,7 +55,9 @@ class NickResolverTest {
 
         Style resolved = NickResolver.realNameSpanStyleOrFallback(root, FALLBACK);
 
-        assertEquals(FALLBACK, resolved,
+        assertEquals(
+                FALLBACK,
+                resolved,
                 "no hover-carrying span → return the caller-provided fallback verbatim");
     }
 
@@ -81,8 +82,8 @@ class NickResolverTest {
 
     @Test
     void realUsernameFromHover_matchesCaseInsensitively() {
-        HoverEvent hover = new HoverEvent.ShowText(
-                Component.literal("Nickname's Real Name Is " + REAL_NAME));
+        HoverEvent hover =
+                new HoverEvent.ShowText(Component.literal("Nickname's Real Name Is " + REAL_NAME));
 
         assertEquals(REAL_NAME, NickResolver.realUsernameFromHover(hover));
     }
@@ -107,16 +108,18 @@ class NickResolverTest {
 
         NickResolver.FlatPart badge = parts.get(0);
         assertEquals("badge ", badge.text());
-        assertEquals(ChatFormatting.AQUA.getColor().intValue(), badge.style().getColor().getValue());
+        assertEquals(
+                ChatFormatting.AQUA.getColor().intValue(), badge.style().getColor().getValue());
 
         NickResolver.FlatPart nick = parts.get(1);
         assertEquals(NICK, nick.text());
-        assertEquals(ChatFormatting.DARK_AQUA.getColor().intValue(),
+        assertEquals(
+                ChatFormatting.DARK_AQUA.getColor().intValue(),
                 nick.style().getColor().getValue(),
                 "child DARK_AQUA must win over parent AQUA");
         assertTrue(nick.style().isItalic(), "child italic must survive");
-        assertNotNull(nick.style().getShadowColor(),
-                "child shadowColor must survive (parent has none)");
+        assertNotNull(
+                nick.style().getShadowColor(), "child shadowColor must survive (parent has none)");
     }
 
     @Test
@@ -129,7 +132,8 @@ class NickResolverTest {
 
         assertEquals(1, parts.size(), "empty root literal contributes no FlatPart");
         NickResolver.FlatPart child = parts.get(0);
-        assertEquals(ChatFormatting.AQUA.getColor().intValue(),
+        assertEquals(
+                ChatFormatting.AQUA.getColor().intValue(),
                 child.style().getColor().getValue(),
                 "parent AQUA fills the gap when child has no color");
         assertTrue(child.style().isItalic(), "child italic must survive");

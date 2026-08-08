@@ -38,7 +38,8 @@ public final class SpoilerFormatter {
             return;
         }
 
-        VetsLogger.debug("SpoilerFormatter: processing text with encoded spoiler (len={})", text.length());
+        VetsLogger.debug(
+                "SpoilerFormatter: processing text with encoded spoiler (len={})", text.length());
 
         int cursor = 0;
         while (cursor < text.length()) {
@@ -56,17 +57,21 @@ public final class SpoilerFormatter {
             // Strip [Spoiler: ] wrapper if present around the PUA block.
             int emitEnd = start;
             if (start >= SpoilerCodec.WRAPPER_PREFIX.length()
-                    && text.startsWith(SpoilerCodec.WRAPPER_PREFIX, start - SpoilerCodec.WRAPPER_PREFIX.length())) {
+                    && text.startsWith(
+                            SpoilerCodec.WRAPPER_PREFIX,
+                            start - SpoilerCodec.WRAPPER_PREFIX.length())) {
                 emitEnd = start - SpoilerCodec.WRAPPER_PREFIX.length();
             }
             if (emitEnd > cursor) {
-                parent.append(Component.literal(text.substring(cursor, emitEnd)).setStyle(textStyle));
+                parent.append(
+                        Component.literal(text.substring(cursor, emitEnd)).setStyle(textStyle));
             }
 
             String encoded = text.substring(start + 1, end);
             String decoded = SpoilerCodec.decodeContent(encoded);
-            Style hoverStyle = SPOILER_LABEL_STYLE.withHoverEvent(
-                    new HoverEvent.ShowText(Component.literal(decoded)));
+            Style hoverStyle =
+                    SPOILER_LABEL_STYLE.withHoverEvent(
+                            new HoverEvent.ShowText(Component.literal(decoded)));
             parent.append(Component.literal("[Spoiler]").setStyle(hoverStyle));
 
             cursor = end + 1;

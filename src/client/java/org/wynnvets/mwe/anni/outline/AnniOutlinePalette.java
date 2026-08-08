@@ -43,8 +43,7 @@ public final class AnniOutlinePalette {
     public static final CustomColor OTHER_VETS_PARTY =
             CustomColor.fromChatFormatting(ChatFormatting.GRAY);
 
-    private AnniOutlinePalette() {
-    }
+    private AnniOutlinePalette() {}
 
     /** {@link ChatFormatting} chosen for a given role code, for own-party
      *  members. Exposed so {@link AnniOutlineRegistry#ownPartyEntry} can derive an Entry's outline
@@ -68,14 +67,21 @@ public final class AnniOutlinePalette {
     public static ChatFormatting chatFormattingForRole(String role) {
         if (role == null) return ChatFormatting.GRAY;
         switch (role.toUpperCase()) {
-            case "FILL":      return ChatFormatting.WHITE;
-            case "TANK":      return ChatFormatting.AQUA;
+            case "FILL":
+                return ChatFormatting.WHITE;
+            case "TANK":
+                return ChatFormatting.AQUA;
             case "HEAL":
-            case "HEALER":    return ChatFormatting.GREEN;
-            case "TERTIARY":  return ChatFormatting.LIGHT_PURPLE;
-            case "SECONDARY": return ChatFormatting.YELLOW;
-            case "PRIMARY":   return ChatFormatting.RED;
-            default:          return ChatFormatting.GRAY;
+            case "HEALER":
+                return ChatFormatting.GREEN;
+            case "TERTIARY":
+                return ChatFormatting.LIGHT_PURPLE;
+            case "SECONDARY":
+                return ChatFormatting.YELLOW;
+            case "PRIMARY":
+                return ChatFormatting.RED;
+            default:
+                return ChatFormatting.GRAY;
         }
     }
 }

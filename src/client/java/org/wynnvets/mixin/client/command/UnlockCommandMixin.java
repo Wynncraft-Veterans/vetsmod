@@ -23,61 +23,60 @@ import org.wynnvets.guild.GuildStateManager;
 @Mixin(ClientPacketListener.class)
 public class UnlockCommandMixin {
 
-  @Inject(method = "sendCommand", at = @At("HEAD"), cancellable = true)
-  private void onSendCommand(String command, CallbackInfo ci) {
-    if (!command.startsWith("unlock")) {
-      return;
+    @Inject(method = "sendCommand", at = @At("HEAD"), cancellable = true)
+    private void onSendCommand(String command, CallbackInfo ci) {
+        if (!command.startsWith("unlock")) {
+            return;
+        }
+        // Match exactly "/unlock" or "/unlock <something>" — anything else is a
+        // command that just happens to start with "unlock" (e.g. a hypothetical
+        // "/unlocksomething") and we leave it for the server to handle.
+        if (command.length() != "unlock".length() && command.charAt("unlock".length()) != ' ') {
+            return;
+        }
+
+        ci.cancel();
+
+        String[] parts = command.split(" ", 2);
+        if (parts.length < 2 || parts[1].isEmpty()) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    "Usage: /unlock <key>  (run ~vetsmod in #bot-commands "
+                                            + "at https://wynnvets.org/discord to get a key)")
+                            .withStyle(ChatFormatting.RED));
+            return;
+        }
+
+        handleUnlock(parts[1].trim());
     }
-    // Match exactly "/unlock" or "/unlock <something>" — anything else is a
-    // command that just happens to start with "unlock" (e.g. a hypothetical
-    // "/unlocksomething") and we leave it for the server to handle.
-    if (command.length() != "unlock".length() && command.charAt("unlock".length()) != ' ') {
-      return;
+
+    /**
+     * Process the unlock attempt. The local outcome (key shape, persistence)
+     * is reported synchronously here; the server's verdict on the key arrives
+     * asynchronously via {@link GuildStateManager#onAuthSuccess(String)} /
+     * {@link GuildStateManager#onAuthFailure(String)} once the auth-frame ack
+     * lands.
+     */
+    private void handleUnlock(String key) {
+        GuildStateManager.UnlockAttemptResult result = GuildStateManager.tryUnlock(key);
+
+        switch (result) {
+            case STORED_VERIFYING ->
+                    ChatUtils.sendLocalMessage(
+                            Component.literal(
+                                            "⏳ Saved your vetsmod key. Verifying with the server…")
+                                    .withStyle(ChatFormatting.YELLOW));
+            case MALFORMED ->
+                    ChatUtils.sendLocalMessage(
+                            Component.literal(
+                                            "❌ That doesn't look like a vetsmod key. "
+                                                    + "Run ~vetsmod in #bot-commands at https://wynnvets.org/discord "
+                                                    + "to get one.")
+                                    .withStyle(ChatFormatting.RED));
+            case MISSING_KEY ->
+                    ChatUtils.sendLocalMessage(
+                            Component.literal("Usage: /unlock <key>")
+                                    .withStyle(ChatFormatting.RED));
+        }
     }
-
-    ci.cancel();
-
-    String[] parts = command.split(" ", 2);
-    if (parts.length < 2 || parts[1].isEmpty()) {
-      ChatUtils.sendLocalMessage(
-          Component.literal("Usage: /unlock <key>  (run ~vetsmod in #bot-commands "
-                  + "at https://wynnvets.org/discord to get a key)")
-              .withStyle(ChatFormatting.RED)
-      );
-      return;
-    }
-
-    handleUnlock(parts[1].trim());
-  }
-
-  /**
-   * Process the unlock attempt. The local outcome (key shape, persistence)
-   * is reported synchronously here; the server's verdict on the key arrives
-   * asynchronously via {@link GuildStateManager#onAuthSuccess(String)} /
-   * {@link GuildStateManager#onAuthFailure(String)} once the auth-frame ack
-   * lands.
-   */
-  private void handleUnlock(String key) {
-    GuildStateManager.UnlockAttemptResult result = GuildStateManager.tryUnlock(key);
-
-    switch (result) {
-      case STORED_VERIFYING ->
-          ChatUtils.sendLocalMessage(
-              Component.literal("⏳ Saved your vetsmod key. Verifying with the server…")
-                  .withStyle(ChatFormatting.YELLOW)
-          );
-      case MALFORMED ->
-          ChatUtils.sendLocalMessage(
-              Component.literal("❌ That doesn't look like a vetsmod key. "
-                      + "Run ~vetsmod in #bot-commands at https://wynnvets.org/discord "
-                      + "to get one.")
-                  .withStyle(ChatFormatting.RED)
-          );
-      case MISSING_KEY ->
-          ChatUtils.sendLocalMessage(
-              Component.literal("Usage: /unlock <key>")
-                  .withStyle(ChatFormatting.RED)
-          );
-    }
-  }
 }

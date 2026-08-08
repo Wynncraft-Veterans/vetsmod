@@ -2,6 +2,11 @@ package org.wynnvets.mwe.anni.outline;
 
 import com.wynntils.mc.extension.EntityExtension;
 import com.wynntils.utils.colors.CustomColor;
+import java.time.Instant;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -14,12 +19,6 @@ import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 import org.wynnvets.mwe.anni.zone.AnniZone;
-
-import java.time.Instant;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * Per-tick driver for the S4 player highlight overlay.
@@ -62,8 +61,9 @@ public final class AnniOutlineTicker {
     /** Activation window — 2 hours before stamp through 30 minutes after.
      *  Matches spec §"Player Highlights": "WITHIN 2h of an anni, OR
      *  within 30 mins after an anni". */
-    private static final long WINDOW_BEFORE_SECONDS = 2L * 60L * 60L;   // 2 h
-    private static final long WINDOW_AFTER_SECONDS  = 30L * 60L;        // 30 m
+    private static final long WINDOW_BEFORE_SECONDS = 2L * 60L * 60L; // 2 h
+
+    private static final long WINDOW_AFTER_SECONDS = 30L * 60L; // 30 m
 
     private static volatile boolean registered = false;
     private static volatile boolean suppressionActive = false;
@@ -79,8 +79,7 @@ public final class AnniOutlineTicker {
      *  without a lock; mutations are infrequent (per-tick at most). */
     private static final Set<String> appliedUsernames = new CopyOnWriteArraySet<>();
 
-    private AnniOutlineTicker() {
-    }
+    private AnniOutlineTicker() {}
 
     /** Idempotent registration. */
     public static void register() {

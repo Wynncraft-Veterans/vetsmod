@@ -4,16 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.chat.Component;
-import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.api.V1ApiManager;
-import org.wynnvets.api.VetsApi;
-import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.guild.GuildStateManager;
-
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -25,6 +15,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
+import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.api.VetsApi;
+import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Shared single-threaded command dispatcher for serialized outbound Wynncraft commands.
@@ -104,27 +103,30 @@ public final class CommandDispatcher {
     static final String LOCK_PREFIX = "🔐";
 
     private static final String STAFF_CHAT_WAIT_ONLINE_STATUS_MESSAGE =
-        "Please wait until the server updates your online status before using staff chat.";
+            "Please wait until the server updates your online status before using staff chat.";
     private static final Gson GSON = new Gson();
 
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-        .version(HttpClient.Version.HTTP_1_1)
-        .connectTimeout(Duration.ofSeconds(5))
-        .build();
+    private static final HttpClient HTTP_CLIENT =
+            HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
 
-    private static final HttpRequest STAFF_REQUEST = HttpRequest.newBuilder()
-        .uri(VetsApi.STAFF)
-        .timeout(Duration.ofSeconds(5))
-        .GET()
-        .build();
+    private static final HttpRequest STAFF_REQUEST =
+            HttpRequest.newBuilder()
+                    .uri(VetsApi.STAFF)
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
 
     // Single-threaded executor ensures exactly one command is in-flight at a time.
     private static final ExecutorService DISPATCH_EXECUTOR =
-        Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "VetsMod-StaffOutboundDispatch");
-            t.setDaemon(true);
-            return t;
-        });
+            Executors.newSingleThreadExecutor(
+                    r -> {
+                        Thread t = new Thread(r, "VetsMod-StaffOutboundDispatch");
+                        t.setDaemon(true);
+                        return t;
+                    });
 
     // FIFO queue of messages waiting to be broadcast to all staff.
     static final ConcurrentLinkedQueue<String> MESSAGE_QUEUE = new ConcurrentLinkedQueue<>();
@@ -136,8 +138,7 @@ public final class CommandDispatcher {
     private static volatile boolean selfSeenInStaffFeedThisWorld;
     private static final AtomicBoolean SELF_PRESENCE_CHECK_IN_FLIGHT = new AtomicBoolean(false);
 
-    private CommandDispatcher() {
-    }
+    private CommandDispatcher() {}
 
     // ──────────────────────────── Public API ────────────────────────────
 
@@ -145,7 +146,8 @@ public final class CommandDispatcher {
      * Sends /v chat only after confirming this player has appeared in the WV online staff list.
      * Once confirmed in the current world context, subsequent /v messages skip the check.
      */
-    public static void dispatchStaffChatWithEligibilityGate(String displayName, String message, String rank) {
+    public static void dispatchStaffChatWithEligibilityGate(
+            String displayName, String message, String rank) {
         if (message == null || message.isBlank()) {
             return;
         }
@@ -173,24 +175,31 @@ public final class CommandDispatcher {
             return;
         }
 
-        new Thread(() -> {
-            try {
-                boolean listed = selfSeenInStaffFeedThisWorld || isSelfListedInOnlineStaffFeed();
-                if (!listed) {
-                    showStaffOnlineStatusWaitMessage();
-                    return;
-                }
+        new Thread(
+                        () -> {
+                            try {
+                                boolean listed =
+                                        selfSeenInStaffFeedThisWorld
+                                                || isSelfListedInOnlineStaffFeed();
+                                if (!listed) {
+                                    showStaffOnlineStatusWaitMessage();
+                                    return;
+                                }
 
-                selfSeenInStaffFeedThisWorld = true;
-                ChatUtils.sendStaffChannelMessage(displayName, message, rank);
-                enqueueAndDispatch(message);
-            } catch (Exception e) {
-                VetsLogger.warn("Failed to verify online staff status for /v: {}", e.getMessage());
-                showStaffOnlineStatusWaitMessage();
-            } finally {
-                SELF_PRESENCE_CHECK_IN_FLIGHT.set(false);
-            }
-        }, "VetsMod-StaffPresenceCheck").start();
+                                selfSeenInStaffFeedThisWorld = true;
+                                ChatUtils.sendStaffChannelMessage(displayName, message, rank);
+                                enqueueAndDispatch(message);
+                            } catch (Exception e) {
+                                VetsLogger.warn(
+                                        "Failed to verify online staff status for /v: {}",
+                                        e.getMessage());
+                                showStaffOnlineStatusWaitMessage();
+                            } finally {
+                                SELF_PRESENCE_CHECK_IN_FLIGHT.set(false);
+                            }
+                        },
+                        "VetsMod-StaffPresenceCheck")
+                .start();
     }
 
     /**
@@ -216,23 +225,29 @@ public final class CommandDispatcher {
             return;
         }
 
-        new Thread(() -> {
-            try {
-                boolean listed = selfSeenInStaffFeedThisWorld || isSelfListedInOnlineStaffFeed();
-                if (!listed) {
-                    showStaffOnlineStatusWaitMessage();
-                    return;
-                }
+        new Thread(
+                        () -> {
+                            try {
+                                boolean listed =
+                                        selfSeenInStaffFeedThisWorld
+                                                || isSelfListedInOnlineStaffFeed();
+                                if (!listed) {
+                                    showStaffOnlineStatusWaitMessage();
+                                    return;
+                                }
 
-                selfSeenInStaffFeedThisWorld = true;
-                Minecraft.getInstance().execute(action);
-            } catch (Exception e) {
-                VetsLogger.warn("Failed to verify online staff status: {}", e.getMessage());
-                showStaffOnlineStatusWaitMessage();
-            } finally {
-                SELF_PRESENCE_CHECK_IN_FLIGHT.set(false);
-            }
-        }, "VetsMod-StaffPresenceCheck").start();
+                                selfSeenInStaffFeedThisWorld = true;
+                                Minecraft.getInstance().execute(action);
+                            } catch (Exception e) {
+                                VetsLogger.warn(
+                                        "Failed to verify online staff status: {}", e.getMessage());
+                                showStaffOnlineStatusWaitMessage();
+                            } finally {
+                                SELF_PRESENCE_CHECK_IN_FLIGHT.set(false);
+                            }
+                        },
+                        "VetsMod-StaffPresenceCheck")
+                .start();
     }
 
     /**
@@ -259,8 +274,9 @@ public final class CommandDispatcher {
     /**
      * Delegates to {@link FindDispatcher#enqueueFindBatch}.
      */
-    public static void enqueueFindBatch(java.util.List<String> usernames,
-                                        java.util.concurrent.CompletableFuture<java.util.Map<String, String>> resultFuture) {
+    public static void enqueueFindBatch(
+            java.util.List<String> usernames,
+            java.util.concurrent.CompletableFuture<java.util.Map<String, String>> resultFuture) {
         FindDispatcher.enqueueFindBatch(usernames, resultFuture);
     }
 
@@ -315,20 +331,19 @@ public final class CommandDispatcher {
         }
     }
 
-    // ──────────────────────────── Helpers (package-private for dispatchers) ────────────────────────────
+    // ──────────────────────────── Helpers (package-private for dispatchers)
+    // ────────────────────────────
 
     static void showNoRecipientsWarning() {
         ChatUtils.sendLocalMessage(
-            Component.literal("Nobody saw your message, the vets api is probably restarting")
-                .withStyle(ChatFormatting.YELLOW)
-        );
+                Component.literal("Nobody saw your message, the vets api is probably restarting")
+                        .withStyle(ChatFormatting.YELLOW));
     }
 
     private static void showStaffOnlineStatusWaitMessage() {
         ChatUtils.sendLocalMessage(
-            Component.literal(STAFF_CHAT_WAIT_ONLINE_STATUS_MESSAGE)
-                .withStyle(ChatFormatting.YELLOW)
-        );
+                Component.literal(STAFF_CHAT_WAIT_ONLINE_STATUS_MESSAGE)
+                        .withStyle(ChatFormatting.YELLOW));
     }
 
     private static boolean isSelfListedInOnlineStaffFeed() throws Exception {
@@ -338,7 +353,8 @@ public final class CommandDispatcher {
             return false;
         }
 
-        HttpResponse<String> response = HTTP_CLIENT.send(STAFF_REQUEST, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response =
+                HTTP_CLIENT.send(STAFF_REQUEST, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != HttpURLConnection.HTTP_OK) {
             return false;
         }
@@ -375,7 +391,8 @@ public final class CommandDispatcher {
      * Fetches staff usernames from the API, filtering to only those marked as online.
      */
     static List<String> fetchOnlineStaffUsernames() throws Exception {
-        HttpResponse<String> response = HTTP_CLIENT.send(STAFF_REQUEST, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response =
+                HTTP_CLIENT.send(STAFF_REQUEST, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != HttpURLConnection.HTTP_OK) {
             return new ArrayList<>();
         }
@@ -424,10 +441,9 @@ public final class CommandDispatcher {
             }
         }
 
-        String world = firstNonBlank(
-            stringOrNull(staffMember, "world"),
-            stringOrNull(staffMember, "server")
-        );
+        String world =
+                firstNonBlank(
+                        stringOrNull(staffMember, "world"), stringOrNull(staffMember, "server"));
         if (world != null) {
             return true;
         }

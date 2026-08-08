@@ -8,6 +8,6 @@ package org.wynnvets.datamodels;
  * mapping.</p>
  */
 public class UserUUID {
-  public String id;
-  public String name;
+    public String id;
+    public String name;
 }

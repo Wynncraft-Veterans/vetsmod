@@ -21,38 +21,52 @@ public enum Prepend {
             buildDefaultBadge(),
             Component.literal("󏿼󐀆")
                     .append(" ")
-                    .setStyle(Style.EMPTY
-                            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-                            .withColor(ChatFormatting.GOLD)
-                            .withoutShadow())),
+                    .setStyle(
+                            Style.EMPTY
+                                    .withFont(
+                                            new FontDescription.Resource(
+                                                    Identifier.parse("chat/prefix")))
+                                    .withColor(ChatFormatting.GOLD)
+                                    .withoutShadow())),
     GUILD(
             Component.literal("\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE")
                     .append(" ")
-                    .setStyle(Style.EMPTY
-                            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-                            .withColor(ChatFormatting.AQUA)
-                            .withoutShadow()),
+                    .setStyle(
+                            Style.EMPTY
+                                    .withFont(
+                                            new FontDescription.Resource(
+                                                    Identifier.parse("chat/prefix")))
+                                    .withColor(ChatFormatting.AQUA)
+                                    .withoutShadow()),
             Component.literal("\uDAFF\uDFFC\uE001\uDB00\uDC06")
                     .append(" ")
-                    .setStyle(Style.EMPTY
-                            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-                            .withColor(ChatFormatting.AQUA)
-                            .withoutShadow())),
+                    .setStyle(
+                            Style.EMPTY
+                                    .withFont(
+                                            new FontDescription.Resource(
+                                                    Identifier.parse("chat/prefix")))
+                                    .withColor(ChatFormatting.AQUA)
+                                    .withoutShadow())),
     GUILD_HONOURARY(
             Component.literal("\uDAFF\uDFFC\uE013\uDAFF\uDFFF\uE002\uDAFF\uDFFE")
                     .append(" ")
-                    .setStyle(Style.EMPTY
-                            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-                            .withColor(ChatFormatting.BLUE)
-                            .withoutShadow()),
+                    .setStyle(
+                            Style.EMPTY
+                                    .withFont(
+                                            new FontDescription.Resource(
+                                                    Identifier.parse("chat/prefix")))
+                                    .withColor(ChatFormatting.BLUE)
+                                    .withoutShadow()),
             Component.literal("\uDAFF\uDFFC\uE001\uDB00\uDC06")
                     .append(" ")
-                    .setStyle(Style.EMPTY
-                            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-                            .withColor(ChatFormatting.BLUE)
-                            .withoutShadow())),
-    EMPTY(
-            Component.empty());
+                    .setStyle(
+                            Style.EMPTY
+                                    .withFont(
+                                            new FontDescription.Resource(
+                                                    Identifier.parse("chat/prefix")))
+                                    .withColor(ChatFormatting.BLUE)
+                                    .withoutShadow())),
+    EMPTY(Component.empty());
 
     private static final int MAX_LINES_BEFORE_REBADGE = 18;
     private static final String DEFAULT_PREFIX = "\uDAFF\uDFFC\uE008\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
@@ -120,19 +134,14 @@ public enum Prepend {
     }
 
     private static MutableComponent buildDefaultBadge() {
-        Style rootStyle = Style.EMPTY
-                .withColor(ChatFormatting.GOLD)
-                .withoutShadow();
-        Style prefixStyle = Style.EMPTY
-                .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-                .withColor(ChatFormatting.GOLD)
-                .withoutShadow();
-        Style pillFrameStyle = Style.EMPTY
-                .withColor(ChatFormatting.GOLD)
-                .withoutShadow();
-        Style pillTextStyle = Style.EMPTY
-                .withColor(ChatFormatting.DARK_GRAY)
-                .withoutShadow();
+        Style rootStyle = Style.EMPTY.withColor(ChatFormatting.GOLD).withoutShadow();
+        Style prefixStyle =
+                Style.EMPTY
+                        .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+                        .withColor(ChatFormatting.GOLD)
+                        .withoutShadow();
+        Style pillFrameStyle = Style.EMPTY.withColor(ChatFormatting.GOLD).withoutShadow();
+        Style pillTextStyle = Style.EMPTY.withColor(ChatFormatting.DARK_GRAY).withoutShadow();
 
         MutableComponent badge = Component.empty().setStyle(rootStyle);
         badge.append(Component.literal(DEFAULT_PREFIX).setStyle(prefixStyle));
@@ -152,7 +161,8 @@ public enum Prepend {
         return badge;
     }
 
-    private static void appendDefaultPillGlyph(MutableComponent target, char glyph, Style frameStyle, Style textStyle) {
+    private static void appendDefaultPillGlyph(
+            MutableComponent target, char glyph, Style frameStyle, Style textStyle) {
         target.append(Component.literal(DEFAULT_PILL_FRAME_SEGMENT).setStyle(frameStyle));
         target.append(Component.literal(String.valueOf(glyph)).setStyle(textStyle));
     }

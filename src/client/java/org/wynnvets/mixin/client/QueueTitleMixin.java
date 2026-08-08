@@ -23,7 +23,8 @@ import org.wynnvets.queue.QueueDetector;
 public class QueueTitleMixin {
 
     @Inject(
-            method = "setTitleText(Lnet/minecraft/network/protocol/game/ClientboundSetTitleTextPacket;)V",
+            method =
+                    "setTitleText(Lnet/minecraft/network/protocol/game/ClientboundSetTitleTextPacket;)V",
             at = @At("HEAD"))
     private void vetsmod$onSetTitleText(ClientboundSetTitleTextPacket packet, CallbackInfo ci) {
         QueueDetector.handleTitleText(packet.text().getString());

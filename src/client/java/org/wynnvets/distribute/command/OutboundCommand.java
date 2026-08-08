@@ -2,11 +2,10 @@ package org.wynnvets.distribute.command;
 
 import com.wynntils.core.components.Handlers;
 import com.wynntils.handlers.command.CommandHandler;
-import org.wynnvets.logging.VetsLogger;
-
 import java.lang.reflect.Field;
 import java.util.Deque;
 import java.util.Queue;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Thin wrapper around {@link com.wynntils.handlers.command.CommandHandler} that gives
@@ -43,6 +42,7 @@ public final class OutboundCommand {
      *  {@link CommandHandler}. {@code null} on first call; either a
      *  populated handle or {@code FIELD_LOOKUP_FAILED} after init. */
     private static volatile Field commandQueueField;
+
     /** Sentinel marker so we don't re-attempt reflection every call
      *  after an init failure. */
     private static final Field FIELD_LOOKUP_FAILED;
@@ -93,7 +93,8 @@ public final class OutboundCommand {
                 Deque<String> deque = (Deque<String>) value;
                 return deque;
             }
-            VetsLogger.debug("OutboundCommand: commandQueue is not a Deque ({}), falling back",
+            VetsLogger.debug(
+                    "OutboundCommand: commandQueue is not a Deque ({}), falling back",
                     value == null ? "null" : value.getClass().getName());
         } catch (IllegalAccessException e) {
             VetsLogger.debug("OutboundCommand: failed to read commandQueue: {}", e.getMessage());
@@ -110,14 +111,16 @@ public final class OutboundCommand {
             // the fallback to kick in immediately, not on every call.
             Object value = field.get(Handlers.Command);
             if (!(value instanceof Queue<?>)) {
-                VetsLogger.warn("OutboundCommand: Wynntils commandQueue is not a Queue ({}), using fallback",
+                VetsLogger.warn(
+                        "OutboundCommand: Wynntils commandQueue is not a Queue ({}), using fallback",
                         value == null ? "null" : value.getClass().getName());
                 return FIELD_LOOKUP_FAILED;
             }
             return field;
         } catch (NoSuchFieldException | IllegalAccessException e) {
-            VetsLogger.warn("OutboundCommand: could not access Wynntils commandQueue ({}); "
-                    + "front-of-queue priority disabled, using queueCommand fallback",
+            VetsLogger.warn(
+                    "OutboundCommand: could not access Wynntils commandQueue ({}); "
+                            + "front-of-queue priority disabled, using queueCommand fallback",
                     e.getMessage());
             return FIELD_LOOKUP_FAILED;
         }

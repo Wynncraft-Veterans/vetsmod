@@ -5,7 +5,13 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import net.fabricmc.loader.api.FabricLoader;
@@ -32,13 +38,6 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.items.ItemDefinitions;
 import org.wynnvets.items.LegacyItemHandler;
 import org.wynnvets.logging.VetsLogger;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
 
 /**
  * Dumps the full component tree of an {@link ItemStack} to a JSON file
@@ -67,9 +66,12 @@ public final class ItemDumpHandler {
      */
     public static final int DUMP_FORMAT_VERSION = 3;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
-    private static final Path DUMP_DIR = FabricLoader.getInstance().getGameDir().resolve("vetsmod/dumps/items");
+    private static final Gson GSON =
+            new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    private static final DateTimeFormatter FILE_TS =
+            DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
+    private static final Path DUMP_DIR =
+            FabricLoader.getInstance().getGameDir().resolve("vetsmod/dumps/items");
 
     private ItemDumpHandler() {}
 
@@ -79,7 +81,8 @@ public final class ItemDumpHandler {
      */
     public static void dump(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
-            ChatUtils.sendLocalMessage(Component.literal("No item to dump.").withStyle(ChatFormatting.RED));
+            ChatUtils.sendLocalMessage(
+                    Component.literal("No item to dump.").withStyle(ChatFormatting.RED));
             return;
         }
 
@@ -107,7 +110,8 @@ public final class ItemDumpHandler {
         // anomalies to specific third-party mods.
         JsonObject mods = new JsonObject();
         for (ModContainer mc : FabricLoader.getInstance().getAllMods()) {
-            mods.addProperty(mc.getMetadata().getId(), mc.getMetadata().getVersion().getFriendlyString());
+            mods.addProperty(
+                    mc.getMetadata().getId(), mc.getMetadata().getVersion().getFriendlyString());
         }
         root.add("loadedMods", mods);
 
@@ -221,13 +225,19 @@ public final class ItemDumpHandler {
 
         // Vetsmod detection analysis
         JsonObject analysis = new JsonObject();
-        String plainName = LegacyItemHandler.normalizeName(ChatFormatting.stripFormatting(hoverName.getString()));
+        String plainName =
+                LegacyItemHandler.normalizeName(
+                        ChatFormatting.stripFormatting(hoverName.getString()));
         analysis.addProperty("normalizedName", plainName);
         analysis.addProperty("isLegacy", plainName != null && ItemDefinitions.isLegacy(plainName));
-        analysis.addProperty("isNoLoreLegacy", plainName != null && ItemDefinitions.isNoLoreLegacy(plainName));
-        analysis.addProperty("isMiscLegacy", plainName != null && ItemDefinitions.isMiscLegacy(plainName));
-        analysis.addProperty("isUnenchanted", plainName != null && ItemDefinitions.isUnenchanted(plainName));
-        analysis.addProperty("isNotJunk", plainName != null && ItemDefinitions.isNotJunk(plainName));
+        analysis.addProperty(
+                "isNoLoreLegacy", plainName != null && ItemDefinitions.isNoLoreLegacy(plainName));
+        analysis.addProperty(
+                "isMiscLegacy", plainName != null && ItemDefinitions.isMiscLegacy(plainName));
+        analysis.addProperty(
+                "isUnenchanted", plainName != null && ItemDefinitions.isUnenchanted(plainName));
+        analysis.addProperty(
+                "isNotJunk", plainName != null && ItemDefinitions.isNotJunk(plainName));
         analysis.addProperty("isEnchantExcludedItem", ItemDefinitions.isEnchantExcludedItem(stack));
         // The specific enchantment, which Wynncraft hides from the tooltip via
         // tooltip_display but still ships on the stack. Null on modern items —
@@ -235,8 +245,10 @@ public final class ItemDumpHandler {
         analysis.addProperty("enchantment", LegacyItemHandler.getEnchantmentLabel(stack));
         analysis.addProperty("hasMiscRarity", LegacyItemHandler.hasMiscRarity(lore.lines()));
         analysis.addProperty("hasJunkRarity", LegacyItemHandler.hasJunkRarity(lore.lines()));
-        analysis.addProperty("hasCraftingRarity", LegacyItemHandler.hasCraftingRarity(lore.lines()));
-        analysis.addProperty("hasBetaLegacyMarker", LegacyItemHandler.hasBetaLegacyMarker(lore.lines()));
+        analysis.addProperty(
+                "hasCraftingRarity", LegacyItemHandler.hasCraftingRarity(lore.lines()));
+        analysis.addProperty(
+                "hasBetaLegacyMarker", LegacyItemHandler.hasBetaLegacyMarker(lore.lines()));
         analysis.addProperty("hasRarityLine", LegacyItemHandler.hasRarityLine(lore.lines()));
         analysis.addProperty("tooltipStyleRarity", LegacyItemHandler.getTooltipStyleRarity(stack));
         analysis.addProperty("isLegacyItem_result", LegacyItemHandler.isLegacyItem(stack));
@@ -292,9 +304,12 @@ public final class ItemDumpHandler {
                 probes.addProperty("freshLineCount", fresh.size());
                 probes.addProperty("isNewFormatItem", containsNewFormatFont(fresh));
                 if (!fresh.isEmpty()) {
-                    probes.addProperty("freshLine0_equalsCustomName",
-                            customName != null && fresh.get(0).getString().equals(customName.getString()));
-                    probes.addProperty("freshLine0_equalsHoverName",
+                    probes.addProperty(
+                            "freshLine0_equalsCustomName",
+                            customName != null
+                                    && fresh.get(0).getString().equals(customName.getString()));
+                    probes.addProperty(
+                            "freshLine0_equalsHoverName",
                             fresh.get(0).getString().equals(hoverName.getString()));
                 }
             } else {
@@ -306,20 +321,25 @@ public final class ItemDumpHandler {
         root.add("newFormatProbes", probes);
 
         // Build filename: Name_YYYYMMDD_HHmmss_SSS_nanos.json
-        String safeName = plainName != null ? plainName.replaceAll("[^a-zA-Z0-9_]", "_") : "Unknown";
+        String safeName =
+                plainName != null ? plainName.replaceAll("[^a-zA-Z0-9_]", "_") : "Unknown";
         if (safeName.length() > 40) safeName = safeName.substring(0, 40);
         String fileName = safeName + "_" + now.format(FILE_TS) + "_" + System.nanoTime() + ".json";
         Path outFile = DUMP_DIR.resolve(fileName);
 
         try {
             Files.writeString(outFile, GSON.toJson(root));
-            MutableComponent msg = Component.literal("Item dumped to ").withStyle(ChatFormatting.GREEN)
-                    .append(Component.literal(fileName).withStyle(ChatFormatting.YELLOW));
+            MutableComponent msg =
+                    Component.literal("Item dumped to ")
+                            .withStyle(ChatFormatting.GREEN)
+                            .append(Component.literal(fileName).withStyle(ChatFormatting.YELLOW));
             ChatUtils.sendLocalMessage(msg);
             VetsLogger.info("Item dumped to {}", outFile);
         } catch (IOException e) {
             VetsLogger.error("Failed to write item dump: {}", e.getMessage());
-            ChatUtils.sendLocalMessage(Component.literal("Failed to dump item: " + e.getMessage()).withStyle(ChatFormatting.RED));
+            ChatUtils.sendLocalMessage(
+                    Component.literal("Failed to dump item: " + e.getMessage())
+                            .withStyle(ChatFormatting.RED));
         }
     }
 
@@ -430,12 +450,12 @@ public final class ItemDumpHandler {
         Minecraft mc = Minecraft.getInstance();
         Screen screen = mc != null ? mc.screen : null;
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
-            obj.addProperty("status", "no container screen open (stashed slot reference may be stale)");
+            obj.addProperty(
+                    "status", "no container screen open (stashed slot reference may be stale)");
             return obj;
         }
         // Reject stale references — Slot belongs to the previous menu.
-        if (slot.container != null
-                && containerScreen.getMenu().slots.indexOf(slot) < 0) {
+        if (slot.container != null && containerScreen.getMenu().slots.indexOf(slot) < 0) {
             obj.addProperty("status", "stashed slot does not belong to current menu (stale)");
             return obj;
         }
@@ -455,8 +475,8 @@ public final class ItemDumpHandler {
         obj.addProperty("y", slot.y);
         obj.addProperty("containerId", containerScreen.getMenu().containerId);
         obj.addProperty("screenTitle", screen.getTitle().getString());
-        obj.addProperty("stackMatchesSlotItem",
-                ItemStack.isSameItemSameComponents(slot.getItem(), stack));
+        obj.addProperty(
+                "stackMatchesSlotItem", ItemStack.isSameItemSameComponents(slot.getItem(), stack));
         return obj;
     }
 
@@ -476,7 +496,9 @@ public final class ItemDumpHandler {
             return obj;
         }
         if (mc.screen == null) {
-            obj.addProperty("status", "no screen open (Screen.getTooltipFromItem requires a screen for context)");
+            obj.addProperty(
+                    "status",
+                    "no screen open (Screen.getTooltipFromItem requires a screen for context)");
             return obj;
         }
         try {
@@ -504,13 +526,15 @@ public final class ItemDumpHandler {
         long ageNanos = System.nanoTime() - TooltipCapture.capturedAtNanos();
         obj.addProperty("status", "ok");
         obj.addProperty("ageMillis", ageNanos / 1_000_000L);
-        obj.addProperty("capturedStackMatchesDumpedStack",
+        obj.addProperty(
+                "capturedStackMatchesDumpedStack",
                 ItemStack.isSameItemSameComponents(TooltipCapture.capturedStack(), stack));
         obj.addProperty("processed", TooltipCapture.processed());
         obj.addProperty("reentryGuardActive", TooltipCapture.reentryGuardActive());
         Identifier border = TooltipCapture.borderIdentifier();
         obj.addProperty("borderIdentifier", border != null ? border.toString() : null);
-        obj.addProperty("lastProcessedWasLegacyAfter", TooltipCapture.lastProcessedWasLegacyAfter());
+        obj.addProperty(
+                "lastProcessedWasLegacyAfter", TooltipCapture.lastProcessedWasLegacyAfter());
 
         List<Component> input = TooltipCapture.inputSnapshot();
         List<Component> output = TooltipCapture.outputSnapshot();
@@ -553,11 +577,13 @@ public final class ItemDumpHandler {
      */
     private static JsonArray collectFontsAsArray(Component root) {
         Set<String> fonts = new LinkedHashSet<>();
-        root.visit((Style style, String text) -> {
-            FontDescription fd = style.getFont();
-            fonts.add(fd != null ? fd.toString() : "<inherited>");
-            return Optional.empty();
-        }, Style.EMPTY);
+        root.visit(
+                (Style style, String text) -> {
+                    FontDescription fd = style.getFont();
+                    fonts.add(fd != null ? fd.toString() : "<inherited>");
+                    return Optional.empty();
+                },
+                Style.EMPTY);
         JsonArray arr = new JsonArray();
         for (String f : fonts) arr.add(f);
         return arr;
@@ -572,16 +598,18 @@ public final class ItemDumpHandler {
     private static boolean containsNewFormatFont(List<Component> lines) {
         for (Component line : lines) {
             boolean[] hit = {false};
-            line.visit((Style style, String text) -> {
-                FontDescription fd = style.getFont();
-                if (fd == null) return Optional.empty();
-                String s = fd.toString();
-                if (s.contains("tooltip/emblem/frame") || s.contains("banner/box")) {
-                    hit[0] = true;
-                    return Optional.of(Boolean.TRUE);
-                }
-                return Optional.empty();
-            }, Style.EMPTY);
+            line.visit(
+                    (Style style, String text) -> {
+                        FontDescription fd = style.getFont();
+                        if (fd == null) return Optional.empty();
+                        String s = fd.toString();
+                        if (s.contains("tooltip/emblem/frame") || s.contains("banner/box")) {
+                            hit[0] = true;
+                            return Optional.of(Boolean.TRUE);
+                        }
+                        return Optional.empty();
+                    },
+                    Style.EMPTY);
             if (hit[0]) return true;
         }
         return false;

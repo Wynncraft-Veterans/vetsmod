@@ -1,6 +1,8 @@
 package org.wynnvets.mwe.anni.aggressive;
 
 import com.wynntils.core.components.Models;
+import java.time.Instant;
+import java.util.Objects;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -13,9 +15,6 @@ import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 import org.wynnvets.mwe.anni.zone.AnniZone;
-
-import java.time.Instant;
-import java.util.Objects;
 
 /**
  * S5 — aggressive-mode chat alerts.
@@ -54,7 +53,8 @@ public final class AggressiveAlertDispatcher {
 
     /** Time-trigger boundaries — wall-clock seconds before stamp_epoch. */
     private static final long T_MINUS_WORLD_READY_S = 10L * 60L;
-    private static final long T_MINUS_ZONE_READY_S  = 5L * 60L;
+
+    private static final long T_MINUS_ZONE_READY_S = 5L * 60L;
 
     private static volatile boolean registered = false;
 
@@ -80,8 +80,7 @@ public final class AggressiveAlertDispatcher {
     private static volatile boolean worldReadinessFired = false;
     private static volatile boolean zoneReadinessFired = false;
 
-    private AggressiveAlertDispatcher() {
-    }
+    private AggressiveAlertDispatcher() {}
 
     public static void register() {
         if (registered) return;
@@ -204,9 +203,7 @@ public final class AggressiveAlertDispatcher {
         long secondsUntil = stamp - now;
 
         // T-10m world-mismatch.
-        if (!worldReadinessFired
-                && secondsUntil > 0
-                && secondsUntil <= T_MINUS_WORLD_READY_S) {
+        if (!worldReadinessFired && secondsUntil > 0 && secondsUntil <= T_MINUS_WORLD_READY_S) {
             String assigned = extractPartyWorld(snapshot);
             if (assigned != null) {
                 String current = Models.WorldState.getCurrentWorldName();
@@ -221,9 +218,7 @@ public final class AggressiveAlertDispatcher {
         }
 
         // T-5m zone-absence.
-        if (!zoneReadinessFired
-                && secondsUntil > 0
-                && secondsUntil <= T_MINUS_ZONE_READY_S) {
+        if (!zoneReadinessFired && secondsUntil > 0 && secondsUntil <= T_MINUS_ZONE_READY_S) {
             if (!AnniZone.isInZone(player.getX(), player.getZ())) {
                 fireZoneReadinessAlert(snapshot);
             }
@@ -270,22 +265,24 @@ public final class AggressiveAlertDispatcher {
     private static void fireRoleAlert(String prev, String next) {
         String prevTxt = prev != null ? prev : "TBD";
         String nextTxt = next != null ? next : "TBD";
-        MutableComponent msg = Component.literal("Role: ")
-                .withStyle(ChatFormatting.AQUA)
-                .append(Component.literal(prevTxt).withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
-                .append(Component.literal(nextTxt).withStyle(ChatFormatting.WHITE));
+        MutableComponent msg =
+                Component.literal("Role: ")
+                        .withStyle(ChatFormatting.AQUA)
+                        .append(Component.literal(prevTxt).withStyle(ChatFormatting.GRAY))
+                        .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
+                        .append(Component.literal(nextTxt).withStyle(ChatFormatting.WHITE));
         ChatUtils.sendLocalMessage(msg);
     }
 
     private static void fireWorldAlert(String prev, String next) {
         String prevTxt = prev != null ? prev : "—";
         String nextTxt = next != null ? next : "unassigned";
-        MutableComponent msg = Component.literal("Party world: ")
-                .withStyle(ChatFormatting.AQUA)
-                .append(Component.literal(prevTxt).withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
-                .append(Component.literal(nextTxt).withStyle(ChatFormatting.WHITE));
+        MutableComponent msg =
+                Component.literal("Party world: ")
+                        .withStyle(ChatFormatting.AQUA)
+                        .append(Component.literal(prevTxt).withStyle(ChatFormatting.GRAY))
+                        .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
+                        .append(Component.literal(nextTxt).withStyle(ChatFormatting.WHITE));
         ChatUtils.sendLocalMessage(msg);
     }
 
@@ -299,33 +296,38 @@ public final class AggressiveAlertDispatcher {
             String state = board != null ? board.state() : null;
             nextTxt = "wont_assign".equals(state) ? "won't assign" : "unassigned";
         }
-        MutableComponent msg = Component.literal("Assignment: ")
-                .withStyle(ChatFormatting.AQUA)
-                .append(Component.literal(prevTxt).withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
-                .append(Component.literal(nextTxt).withStyle(ChatFormatting.WHITE));
+        MutableComponent msg =
+                Component.literal("Assignment: ")
+                        .withStyle(ChatFormatting.AQUA)
+                        .append(Component.literal(prevTxt).withStyle(ChatFormatting.GRAY))
+                        .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
+                        .append(Component.literal(nextTxt).withStyle(ChatFormatting.WHITE));
         ChatUtils.sendLocalMessage(msg);
     }
 
     private static void fireRsvpAlert(String prev, String next) {
         String prevTxt = prev != null ? prev.toUpperCase() : "none";
         String nextTxt = next != null ? next.toUpperCase() : "none";
-        MutableComponent msg = Component.literal("RSVP: ")
-                .withStyle(ChatFormatting.AQUA)
-                .append(Component.literal(prevTxt).withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
-                .append(Component.literal(nextTxt).withStyle(ChatFormatting.WHITE));
+        MutableComponent msg =
+                Component.literal("RSVP: ")
+                        .withStyle(ChatFormatting.AQUA)
+                        .append(Component.literal(prevTxt).withStyle(ChatFormatting.GRAY))
+                        .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
+                        .append(Component.literal(nextTxt).withStyle(ChatFormatting.WHITE));
         ChatUtils.sendLocalMessage(msg);
     }
 
     private static void fireWorldReadinessAlert(String assigned, String current) {
-        MutableComponent msg = Component.literal("T-10m: get to ")
-                .withStyle(ChatFormatting.GOLD)
-                .append(Component.literal(assigned).withStyle(ChatFormatting.YELLOW))
-                .append(Component.literal(current != null
-                        ? " (you're on " + current + ")"
-                        : ""
-                ).withStyle(ChatFormatting.GRAY));
+        MutableComponent msg =
+                Component.literal("T-10m: get to ")
+                        .withStyle(ChatFormatting.GOLD)
+                        .append(Component.literal(assigned).withStyle(ChatFormatting.YELLOW))
+                        .append(
+                                Component.literal(
+                                                current != null
+                                                        ? " (you're on " + current + ")"
+                                                        : "")
+                                        .withStyle(ChatFormatting.GRAY));
         ChatUtils.sendLocalMessage(msg);
     }
 
@@ -335,13 +337,12 @@ public final class AggressiveAlertDispatcher {
         if (board != null && board.party() != null) {
             spot = board.party().scrollSpot();
         }
-        String coord = spot != null
-                ? spot.x() + " " + spot.y() + " " + spot.z()
-                : "345 45 -1315";
-        MutableComponent msg = Component.literal("T-5m: get to the anni zone (")
-                .withStyle(ChatFormatting.GOLD)
-                .append(Component.literal(coord).withStyle(ChatFormatting.YELLOW))
-                .append(Component.literal(")").withStyle(ChatFormatting.GOLD));
+        String coord = spot != null ? spot.x() + " " + spot.y() + " " + spot.z() : "345 45 -1315";
+        MutableComponent msg =
+                Component.literal("T-5m: get to the anni zone (")
+                        .withStyle(ChatFormatting.GOLD)
+                        .append(Component.literal(coord).withStyle(ChatFormatting.YELLOW))
+                        .append(Component.literal(")").withStyle(ChatFormatting.GOLD));
         ChatUtils.sendLocalMessage(msg);
     }
 
@@ -353,26 +354,39 @@ public final class AggressiveAlertDispatcher {
     public static void forceAlert(String field) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
-        mc.execute(() -> {
-            switch (field) {
-                case "role":  fireRoleAlert("TBD", "TANK"); break;
-                case "world": fireWorldAlert(null, "EU5"); break;
-                case "party": firePartyAlert(
-                        AnniSnapshotCache.latest() != null
-                                ? AnniSnapshotCache.latest()
-                                : emptySnapshot(), null, 2); break;
-                case "rsvp":  fireRsvpAlert(null, "hard"); break;
-                case "zone":
-                    fireZoneReadinessAlert(
-                            AnniSnapshotCache.latest() != null
-                                    ? AnniSnapshotCache.latest()
-                                    : emptySnapshot()); break;
-                case "world_ready":
-                    fireWorldReadinessAlert("EU5", "WC1"); break;
-                default:
-                    VetsLogger.debug("forceAlert: unknown field {}", field);
-            }
-        });
+        mc.execute(
+                () -> {
+                    switch (field) {
+                        case "role":
+                            fireRoleAlert("TBD", "TANK");
+                            break;
+                        case "world":
+                            fireWorldAlert(null, "EU5");
+                            break;
+                        case "party":
+                            firePartyAlert(
+                                    AnniSnapshotCache.latest() != null
+                                            ? AnniSnapshotCache.latest()
+                                            : emptySnapshot(),
+                                    null,
+                                    2);
+                            break;
+                        case "rsvp":
+                            fireRsvpAlert(null, "hard");
+                            break;
+                        case "zone":
+                            fireZoneReadinessAlert(
+                                    AnniSnapshotCache.latest() != null
+                                            ? AnniSnapshotCache.latest()
+                                            : emptySnapshot());
+                            break;
+                        case "world_ready":
+                            fireWorldReadinessAlert("EU5", "WC1");
+                            break;
+                        default:
+                            VetsLogger.debug("forceAlert: unknown field {}", field);
+                    }
+                });
     }
 
     /** Empty snapshot placeholder for debug paths when the cache is cold. */

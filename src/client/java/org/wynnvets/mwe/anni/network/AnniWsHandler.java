@@ -1,7 +1,6 @@
 package org.wynnvets.mwe.anni.network;
 
 import com.google.gson.JsonObject;
-
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
@@ -50,8 +49,7 @@ public final class AnniWsHandler {
 
     private static volatile boolean registered = false;
 
-    private AnniWsHandler() {
-    }
+    private AnniWsHandler() {}
 
     /** Wire up the inbound + outbound listeners. Safe to call repeatedly. */
     public static void register() {
@@ -99,13 +97,14 @@ public final class AnniWsHandler {
             // future debug surface needs ack diagnostics, mirror S6's
             // AnniRsvpClient.debugDump().
             String status = json.has("status") ? json.get("status").getAsString() : "?";
-            String detail = json.has("detail") && !json.get("detail").isJsonNull()
-                    ? json.get("detail").getAsString() : null;
+            String detail =
+                    json.has("detail") && !json.get("detail").isJsonNull()
+                            ? json.get("detail").getAsString()
+                            : null;
             if ("ok".equals(status)) {
                 VetsLogger.debug("anni_party_observation_response: ok");
             } else {
-                VetsLogger.debug(
-                        "anni_party_observation_response: {} — {}", status, detail);
+                VetsLogger.debug("anni_party_observation_response: {} — {}", status, detail);
             }
         }
     }

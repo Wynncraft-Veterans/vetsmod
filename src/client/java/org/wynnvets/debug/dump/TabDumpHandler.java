@@ -1,12 +1,11 @@
 package org.wynnvets.debug.dump;
 
+import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.guild.TabListGuildParser;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.List;
 
 /**
  * {@code /wv debug trigger tabDump} — prints every tab list entry to chat,
@@ -44,7 +43,16 @@ public final class TabDumpHandler {
 
             String label = col < columnLabels.length ? columnLabels[col] : "Col " + col;
             ChatUtils.sendLocalMessage(
-                    Component.literal("\n▸ Column " + col + " — " + label + " (indices " + start + "–" + (end - 1) + ")")
+                    Component.literal(
+                                    "\n▸ Column "
+                                            + col
+                                            + " — "
+                                            + label
+                                            + " (indices "
+                                            + start
+                                            + "–"
+                                            + (end - 1)
+                                            + ")")
                             .withStyle(ChatFormatting.YELLOW));
 
             for (int i = start; i < end; i++) {
@@ -57,8 +65,7 @@ public final class TabDumpHandler {
         // If there are entries beyond 80, show them too
         if (entries.size() > 80) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("\n▸ Extra entries (80+)")
-                            .withStyle(ChatFormatting.RED));
+                    Component.literal("\n▸ Extra entries (80+)").withStyle(ChatFormatting.RED));
             for (int i = 80; i < entries.size(); i++) {
                 ChatUtils.sendLocalMessage(
                         Component.literal("  " + entries.get(i)).withStyle(ChatFormatting.GRAY));
@@ -73,8 +80,7 @@ public final class TabDumpHandler {
 
         if (guild.isEmpty()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("  (none parsed)")
-                            .withStyle(ChatFormatting.GRAY));
+                    Component.literal("  (none parsed)").withStyle(ChatFormatting.GRAY));
         } else {
             for (TabListGuildParser.GuildEntry entry : guild) {
                 ChatUtils.sendLocalMessage(
@@ -83,7 +89,9 @@ public final class TabDumpHandler {
             }
         }
 
-        VetsLogger.debug("Tab dump complete: {} total entries, {} guild members parsed",
-                entries.size(), guild.size());
+        VetsLogger.debug(
+                "Tab dump complete: {} total entries, {} guild members parsed",
+                entries.size(),
+                guild.size());
     }
 }

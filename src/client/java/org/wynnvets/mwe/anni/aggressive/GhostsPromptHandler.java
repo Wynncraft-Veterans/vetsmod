@@ -52,8 +52,7 @@ public final class GhostsPromptHandler {
     /** Last-observed zone state for rising-edge detection. */
     private static volatile boolean lastInZone = false;
 
-    private GhostsPromptHandler() {
-    }
+    private GhostsPromptHandler() {}
 
     public static void register() {
         if (registered) return;
@@ -105,14 +104,12 @@ public final class GhostsPromptHandler {
         // to the per-stamp_epoch sentinel.
         long stamp = currentStampEpoch();
         if (stamp <= 0L) return;
-        String shownFor = VetsConfig.getString(
-                VetsConfig.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
+        String shownFor = VetsConfig.getString(VetsConfig.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
         if (shownFor == null) shownFor = "";
         String stampStr = Long.toString(stamp);
         if (stampStr.equals(shownFor)) return;
         firePrompt();
-        VetsConfig.setString(
-                VetsConfig.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP, stampStr);
+        VetsConfig.setString(VetsConfig.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP, stampStr);
     }
 
     private static boolean anyVisibleGhost(ClientLevel level, LocalPlayer self) {
@@ -141,22 +138,28 @@ public final class GhostsPromptHandler {
     private static void firePrompt() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
-        mc.execute(() -> {
-            MutableComponent suggestion = Component.literal("[Suggest: /toggle ghosts none]")
-                    .withStyle(s -> s
-                            .withColor(ChatFormatting.GOLD)
-                            .withUnderlined(true)
-                            .withClickEvent(new ClickEvent.SuggestCommand(
-                                    "/toggle ghosts none"))
-                            .withHoverEvent(new HoverEvent.ShowText(
-                                    Component.literal(
-                                            "Hides phased players from other worlds. "
-                                                    + "Less visual noise during anni."))));
-            MutableComponent msg = Component.literal("Anni starting soon — ")
-                    .withStyle(ChatFormatting.AQUA)
-                    .append(suggestion);
-            ChatUtils.sendLocalMessage(msg);
-        });
+        mc.execute(
+                () -> {
+                    MutableComponent suggestion =
+                            Component.literal("[Suggest: /toggle ghosts none]")
+                                    .withStyle(
+                                            s ->
+                                                    s.withColor(ChatFormatting.GOLD)
+                                                            .withUnderlined(true)
+                                                            .withClickEvent(
+                                                                    new ClickEvent.SuggestCommand(
+                                                                            "/toggle ghosts none"))
+                                                            .withHoverEvent(
+                                                                    new HoverEvent.ShowText(
+                                                                            Component.literal(
+                                                                                    "Hides phased players from other worlds. "
+                                                                                            + "Less visual noise during anni."))));
+                    MutableComponent msg =
+                            Component.literal("Anni starting soon — ")
+                                    .withStyle(ChatFormatting.AQUA)
+                                    .append(suggestion);
+                    ChatUtils.sendLocalMessage(msg);
+                });
     }
 
     /** Debug entry — report whether the prompt would fire right now.
@@ -177,12 +180,16 @@ public final class GhostsPromptHandler {
         boolean aggro = AnniAggressiveTicker.isAggressiveActive();
         boolean toggleOn = VetsConfig.get(VetsConfig.VETS_ANNI_GHOSTS_PROMPT);
         long stamp = currentStampEpoch();
-        String shownFor = VetsConfig.getString(
-                VetsConfig.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
+        String shownFor = VetsConfig.getString(VetsConfig.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
 
         VetsLogger.info("--- ghostsPromptDump ---");
-        VetsLogger.info("aggressive_active={} toggle_on={} in_zone={} stamp={} shown_for={}",
-                aggro, toggleOn, inZone, stamp, shownFor);
+        VetsLogger.info(
+                "aggressive_active={} toggle_on={} in_zone={} stamp={} shown_for={}",
+                aggro,
+                toggleOn,
+                inZone,
+                stamp,
+                shownFor);
 
         int total = 0;
         int ghosts = 0;
@@ -196,14 +203,18 @@ public final class GhostsPromptHandler {
                 isGhost = false;
             }
             if (isGhost) ghosts++;
-            String name = other.getGameProfile() != null
-                    ? other.getGameProfile().name() : "?";
+            String name = other.getGameProfile() != null ? other.getGameProfile().name() : "?";
             VetsLogger.info("  player={} ghost={}", name, isGhost);
         }
-        boolean wouldFire = aggro && toggleOn && inZone && (
-                ghosts > 0
-                || (stamp > 0 && !Long.toString(stamp).equals(shownFor)));
-        VetsLogger.info("visible_players={} ghosts={} would_fire_on_rising_edge={}",
-                total, ghosts, wouldFire);
+        boolean wouldFire =
+                aggro
+                        && toggleOn
+                        && inZone
+                        && (ghosts > 0 || (stamp > 0 && !Long.toString(stamp).equals(shownFor)));
+        VetsLogger.info(
+                "visible_players={} ghosts={} would_fire_on_rising_edge={}",
+                total,
+                ghosts,
+                wouldFire);
     }
 }

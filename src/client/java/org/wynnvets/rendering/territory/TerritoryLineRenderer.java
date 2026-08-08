@@ -54,12 +54,14 @@ public final class TerritoryLineRenderer {
             int endX = bounds[2];
             int endZ = bounds[3];
 
-            boolean inTerritory = playerX > startX && playerX < endX
-                    && playerZ > startZ && playerZ < endZ;
+            boolean inTerritory =
+                    playerX > startX && playerX < endX && playerZ > startZ && playerZ < endZ;
 
             // Distance culling — skip territories too far away
-            double dist = Math.min(Math.abs(playerVec.x - startX), Math.abs(playerVec.x - endX))
-                    + Math.min(Math.abs(playerVec.z - startZ), Math.abs(playerVec.z - endZ));
+            double dist =
+                    Math.min(Math.abs(playerVec.x - startX), Math.abs(playerVec.x - endX))
+                            + Math.min(
+                                    Math.abs(playerVec.z - startZ), Math.abs(playerVec.z - endZ));
             int maxDistance = Math.min(mc.options.renderDistance().get(), 16) * 15;
             if (!inTerritory && dist > maxDistance) continue;
 
@@ -70,8 +72,7 @@ public final class TerritoryLineRenderer {
             for (int level = playerY / 4 - 20; level < playerY / 4 + 20; level++) {
                 Gizmos.cuboid(
                         new AABB(startX, 4.0 * level, startZ, endX, 4.0 * level, endZ),
-                        strokeStyle
-                );
+                        strokeStyle);
             }
         }
     }

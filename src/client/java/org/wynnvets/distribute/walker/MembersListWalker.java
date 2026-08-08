@@ -8,6 +8,9 @@ import com.wynntils.mc.event.ContainerSetSlotEvent;
 import com.wynntils.mc.event.MenuEvent;
 import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -18,10 +21,6 @@ import org.lwjgl.glfw.GLFW;
 import org.wynnvets.distribute.distributor.ObjectivesDistributor;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * Walks every page of the in-game {@code "<guild>: Members"} GUI and
@@ -53,8 +52,10 @@ public final class MembersListWalker {
 
     /** Mirrors {@code GuildMemberListContainer.TITLE_PATTERN}. */
     private static final Pattern MEMBERS_TITLE_PATTERN = Pattern.compile(".+: Members");
+
     /** Mirrors {@code GuildMemberListContainer.NEXT_PAGE_PATTERN}. */
     private static final Pattern NEXT_PAGE_PATTERN = Pattern.compile("§a§lNext Page");
+
     /** Mirrors {@code GuildMemberListContainer.getNextItemSlot()}. */
     private static final int NEXT_PAGE_SLOT = 28;
 
@@ -203,8 +204,8 @@ public final class MembersListWalker {
             ItemStack stack = items.get(slot);
             if (stack.isEmpty()) continue;
 
-            String name = StyledText.fromComponent(stack.getHoverName())
-                    .getStringWithoutFormatting();
+            String name =
+                    StyledText.fromComponent(stack.getHoverName()).getStringWithoutFormatting();
             if (anyMatchesName(name)) continue;
 
             collected.add(new MemberEntry(name, readLore(stack)));
@@ -237,8 +238,8 @@ public final class MembersListWalker {
         }
 
         pagesClicked++;
-        ContainerUtils.clickOnSlot(NEXT_PAGE_SLOT, membersContainerId,
-                GLFW.GLFW_MOUSE_BUTTON_LEFT, items);
+        ContainerUtils.clickOnSlot(
+                NEXT_PAGE_SLOT, membersContainerId, GLFW.GLFW_MOUSE_BUTTON_LEFT, items);
     }
 
     private static boolean anyMatchesName(String name) {
@@ -261,8 +262,10 @@ public final class MembersListWalker {
     }
 
     private static void finishWalk() {
-        VetsLogger.debug("MembersListWalker: walk complete — {} members across {} page clicks",
-                collected.size(), pagesClicked);
+        VetsLogger.debug(
+                "MembersListWalker: walk complete — {} members across {} page clicks",
+                collected.size(),
+                pagesClicked);
         Completion cb = completion;
         List<MemberEntry> snapshot = new ArrayList<>(collected);
         stop();

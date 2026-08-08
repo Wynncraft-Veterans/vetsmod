@@ -1,6 +1,11 @@
 package org.wynnvets.api;
 
 import com.google.gson.JsonObject;
+import java.net.URI;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import net.fabricmc.loader.api.FabricLoader;
 import org.wynnvets.Vetsmod;
 import org.wynnvets.chat.dispatcher.CommandDispatcher;
@@ -8,12 +13,6 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
-
-import java.net.URI;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Consumer;
 
 /**
  * Central manager for the v1 WebSocket API connections (inbound and outbound).
@@ -29,6 +28,7 @@ public final class V1ApiManager {
     private static volatile WsClient inboundClient;
     private static volatile WsClient outboundClient;
     private static volatile JsonObject pendingRegistration;
+
     /** Tracks whether the *next* inbound ack frame should be routed to
      *  {@link GuildStateManager} as an auth response. Set whenever we send
      *  an auth frame; cleared on the corresponding ack. Without this we
@@ -41,13 +41,15 @@ public final class V1ApiManager {
      *  WAPI-confirmed staff" -- not the local /gu rank cache. Used to gate
      *  /caution, /warn, /eject, and /wv check (caution view). */
     private static volatile boolean confirmedStaff = false;
+
     /** In-game guild rank from the staff roster ("strategist"/"chief"/
      *  "owner"), populated alongside {@link #confirmedStaff}. Empty when
      *  not staff. Captain was retired in the 2026-07 permission
      *  restructure; stray captains never reach {@code is_staff=true}. */
     private static volatile String confirmedStaffRank = "";
 
-    private static final CopyOnWriteArrayList<Consumer<JsonObject>> outboundListeners = new CopyOnWriteArrayList<>();
+    private static final CopyOnWriteArrayList<Consumer<JsonObject>> outboundListeners =
+            new CopyOnWriteArrayList<>();
 
     /** Listeners that receive every typed inbound frame. V1ApiManager's own
      *  inbound handler only processes ``{"status":...}``-shaped acks (auth,
@@ -55,7 +57,8 @@ public final class V1ApiManager {
      *  response and gets fanned out here so consumers (currently:
      *  {@link org.wynnvets.mwe.anni.network.AnniWsHandler}) can route by
      *  type. Symmetric to {@link #outboundListeners}. */
-    private static final CopyOnWriteArrayList<Consumer<JsonObject>> inboundListeners = new CopyOnWriteArrayList<>();
+    private static final CopyOnWriteArrayList<Consumer<JsonObject>> inboundListeners =
+            new CopyOnWriteArrayList<>();
 
     /** Listeners that fire after the inbound socket (re)connects and the
      *  auth + registration frames have been sent. Use this when a feature
@@ -64,7 +67,8 @@ public final class V1ApiManager {
      *  and so go stale silently after a world transfer drops the WS.
      *  Listeners run on the WebSocket reader thread; defer any
      *  game-state-touching work via {@code Minecraft.getInstance().execute}. */
-    private static final CopyOnWriteArrayList<Runnable> inboundPostConnectListeners = new CopyOnWriteArrayList<>();
+    private static final CopyOnWriteArrayList<Runnable> inboundPostConnectListeners =
+            new CopyOnWriteArrayList<>();
 
     /** FIFO queue of callbacks awaiting a staff-action ack frame. Each
      *  outgoing caution_check / caution_add / warn_add / eject_add frame
@@ -76,10 +80,9 @@ public final class V1ApiManager {
      *  reordered callbacks, but the alternative (correlation IDs) was
      *  judged not worth the wire-protocol churn for the current scale. */
     private static final java.util.concurrent.ConcurrentLinkedDeque<Consumer<JsonObject>>
-        staffActionCallbacks = new java.util.concurrent.ConcurrentLinkedDeque<>();
+            staffActionCallbacks = new java.util.concurrent.ConcurrentLinkedDeque<>();
 
-    private V1ApiManager() {
-    }
+    private V1ApiManager() {}
 
     private static String getModVersion() {
         return FabricLoader.getInstance()
@@ -93,197 +96,223 @@ public final class V1ApiManager {
         if (inboundClient != null) return;
 
         URI inboundUri = URI.create(INBOUND_BASE + "?version=" + getModVersion());
-        inboundClient = new WsClient(inboundUri, "inbound", json -> {
-            // Typed inbound frames (carrying a `type` field, no `status`)
-            // are server replies whose contract has a dedicated response
-            // shape rather than the generic {"status":...} ack. Fan them
-            // out to registered inbound listeners — V1ApiManager doesn't
-            // know about specific MWE/feature types here. Symmetric to
-            // the outbound listener fan-out below.
-            if (json.has("type")) {
-                for (Consumer<JsonObject> listener : inboundListeners) {
-                    try {
-                        listener.accept(json);
-                    } catch (Exception e) {
-                        VetsLogger.warn("Inbound listener error: {}",
-                                e.getMessage());
-                    }
-                }
-                return;
-            }
+        inboundClient =
+                new WsClient(
+                        inboundUri,
+                        "inbound",
+                        json -> {
+                            // Typed inbound frames (carrying a `type` field, no `status`)
+                            // are server replies whose contract has a dedicated response
+                            // shape rather than the generic {"status":...} ack. Fan them
+                            // out to registered inbound listeners — V1ApiManager doesn't
+                            // know about specific MWE/feature types here. Symmetric to
+                            // the outbound listener fan-out below.
+                            if (json.has("type")) {
+                                for (Consumer<JsonObject> listener : inboundListeners) {
+                                    try {
+                                        listener.accept(json);
+                                    } catch (Exception e) {
+                                        VetsLogger.warn(
+                                                "Inbound listener error: {}", e.getMessage());
+                                    }
+                                }
+                                return;
+                            }
 
-            // Acknowledgements from the server. Auth-frame responses share
-            // the {"status":...} shape with chat acks; we route them based on
-            // whether an auth was the most recent frame we sent (and on the
-            // tier/ws_tier hint that auth-success responses include).
-            if (!json.has("status")) return;
-            String status = json.get("status").getAsString();
-            boolean wasAuthAck = expectingAuthAck;
+                            // Acknowledgements from the server. Auth-frame responses share
+                            // the {"status":...} shape with chat acks; we route them based on
+                            // whether an auth was the most recent frame we sent (and on the
+                            // tier/ws_tier hint that auth-success responses include).
+                            if (!json.has("status")) return;
+                            String status = json.get("status").getAsString();
+                            boolean wasAuthAck = expectingAuthAck;
 
-            // Staff-action ack shape: commits carry `kind`+`triggered`,
-            // checks carry `total_points`, preflight carries
-            // `status:"would_trigger"`. We pop ONE pending callback per
-            // matching ack so multiple in-flight staff actions resolve
-            // in send order. Errors (status=="error") are also routed to
-            // the callback queue when one is pending and we aren't
-            // currently waiting on an auth ack -- the alternative would
-            // strand the caller's UI in "loading" forever on a
-            // server-side validation failure.
-            //
-            // Auth responses are explicitly excluded by the `tier` key
-            // (only auth acks carry it) so a future `total_points`
-            // collision can't misroute auth into the staff queue.
-            boolean isAuthShaped = json.has("tier");
-            boolean staffShaped = !isAuthShaped && (
-                json.has("kind")
-                || json.has("triggered")
-                || json.has("total_points")
-                || json.has("target_uuid")
-                || "would_trigger".equals(status));
-            boolean staffOrphanError = "error".equals(status)
-                && !wasAuthAck
-                && !staffActionCallbacks.isEmpty();
-            if (staffShaped || staffOrphanError) {
-                Consumer<JsonObject> cb = staffActionCallbacks.pollFirst();
-                if (cb != null) {
-                    try {
-                        cb.accept(json);
-                    } catch (Exception e) {
-                        VetsLogger.warn("Staff-action callback error: {}", e.getMessage());
-                    }
-                    return;
-                }
-                VetsLogger.debug("Staff-action ack with empty callback queue: {}", json);
-                // Without a callback the response is unactionable; swallow it
-                // so it doesn't leak into the auth/chat error path below.
-                return;
-            }
+                            // Staff-action ack shape: commits carry `kind`+`triggered`,
+                            // checks carry `total_points`, preflight carries
+                            // `status:"would_trigger"`. We pop ONE pending callback per
+                            // matching ack so multiple in-flight staff actions resolve
+                            // in send order. Errors (status=="error") are also routed to
+                            // the callback queue when one is pending and we aren't
+                            // currently waiting on an auth ack -- the alternative would
+                            // strand the caller's UI in "loading" forever on a
+                            // server-side validation failure.
+                            //
+                            // Auth responses are explicitly excluded by the `tier` key
+                            // (only auth acks carry it) so a future `total_points`
+                            // collision can't misroute auth into the staff queue.
+                            boolean isAuthShaped = json.has("tier");
+                            boolean staffShaped =
+                                    !isAuthShaped
+                                            && (json.has("kind")
+                                                    || json.has("triggered")
+                                                    || json.has("total_points")
+                                                    || json.has("target_uuid")
+                                                    || "would_trigger".equals(status));
+                            boolean staffOrphanError =
+                                    "error".equals(status)
+                                            && !wasAuthAck
+                                            && !staffActionCallbacks.isEmpty();
+                            if (staffShaped || staffOrphanError) {
+                                Consumer<JsonObject> cb = staffActionCallbacks.pollFirst();
+                                if (cb != null) {
+                                    try {
+                                        cb.accept(json);
+                                    } catch (Exception e) {
+                                        VetsLogger.warn(
+                                                "Staff-action callback error: {}", e.getMessage());
+                                    }
+                                    return;
+                                }
+                                VetsLogger.debug(
+                                        "Staff-action ack with empty callback queue: {}", json);
+                                // Without a callback the response is unactionable; swallow it
+                                // so it doesn't leak into the auth/chat error path below.
+                                return;
+                            }
 
-            // Auth success responses carry a `tier` key — chat acks don't.
-            // This double-check protects against ack reordering on lossy nets.
-            if ("ok".equals(status) && json.has("tier")) {
-                expectingAuthAck = false;
-                String tier = json.get("tier").isJsonNull() ? "" : json.get("tier").getAsString();
-                long now = System.currentTimeMillis();
-                VetsConfig.setString(VetsConfig.VETS_AUTH_TIER, tier);
-                VetsConfig.setLong(VetsConfig.VETS_AUTH_VERIFIED_AT, now);
-                // Capture server-confirmed staff status from the auth ack.
-                // The roster lookup happens server-side; the client just
-                // reads whatever the server resolved.
-                boolean wasStaff = confirmedStaff;
-                confirmedStaff = json.has("is_staff")
-                    && !json.get("is_staff").isJsonNull()
-                    && json.get("is_staff").getAsBoolean();
-                if (confirmedStaff && json.has("staff_rank")
-                    && !json.get("staff_rank").isJsonNull()) {
-                    confirmedStaffRank = json.get("staff_rank").getAsString();
-                } else {
-                    confirmedStaffRank = "";
-                }
-                // Same-world demotion clears the eligibility cache so the
-                // fast-path bypass in CommandDispatcher doesn't keep treating
-                // us as staff. World change already resets it via
-                // GuildStateManager.onEnteredWorld -> resetStaffChatEligibilityCache.
-                if (wasStaff && !confirmedStaff) {
-                    CommandDispatcher.resetStaffChatEligibilityCache();
-                }
-                // Close the cold-start gap: the next scheduled poll may be up
-                // to two minutes away, so trigger an immediate refresh of the
-                // receiver-side staff cache as soon as auth completes.
-                StaffRanksPoller.refreshNow();
-                GuildStateManager.onAuthSuccess(tier);
-                // MWE auto-enable: a tier-vets user (member/waitlist/
-                // honourary) gets the anni subsystem on for free. Don't
-                // disable on tier downgrade — the user may have toggled
-                // it on manually and we don't want to override that. The
-                // tier downgrade itself will gate eligibility server-side.
-                if (("member".equals(tier) || "waitlist".equals(tier)
-                        || "honourary".equals(tier))
-                        && !VetsConfig.get(VetsConfig.VETS_ANNI_ENABLED)) {
-                    VetsConfig.set(VetsConfig.VETS_ANNI_ENABLED, true);
-                    VetsLogger.debug(
-                            "vetsAnniEnabled auto-set on tier={} auth ack",
-                            tier);
-                }
-                return;
-            }
-            if (!"ok".equals(status)) {
-                String detail = json.has("detail") ? json.get("detail").getAsString() : "unknown";
-                if (wasAuthAck || detail.startsWith("auth rejected")
-                        || detail.startsWith("Authentication required")) {
-                    expectingAuthAck = false;
-                    boolean wasStaff = confirmedStaff;
-                    confirmedStaff = false;
-                    confirmedStaffRank = "";
-                    if (wasStaff) {
-                        CommandDispatcher.resetStaffChatEligibilityCache();
-                    }
-                    GuildStateManager.onAuthFailure(detail);
-                } else {
-                    VetsLogger.warn("Inbound API error: {}", detail);
-                }
-            }
-        });
+                            // Auth success responses carry a `tier` key — chat acks don't.
+                            // This double-check protects against ack reordering on lossy nets.
+                            if ("ok".equals(status) && json.has("tier")) {
+                                expectingAuthAck = false;
+                                String tier =
+                                        json.get("tier").isJsonNull()
+                                                ? ""
+                                                : json.get("tier").getAsString();
+                                long now = System.currentTimeMillis();
+                                VetsConfig.setString(VetsConfig.VETS_AUTH_TIER, tier);
+                                VetsConfig.setLong(VetsConfig.VETS_AUTH_VERIFIED_AT, now);
+                                // Capture server-confirmed staff status from the auth ack.
+                                // The roster lookup happens server-side; the client just
+                                // reads whatever the server resolved.
+                                boolean wasStaff = confirmedStaff;
+                                confirmedStaff =
+                                        json.has("is_staff")
+                                                && !json.get("is_staff").isJsonNull()
+                                                && json.get("is_staff").getAsBoolean();
+                                if (confirmedStaff
+                                        && json.has("staff_rank")
+                                        && !json.get("staff_rank").isJsonNull()) {
+                                    confirmedStaffRank = json.get("staff_rank").getAsString();
+                                } else {
+                                    confirmedStaffRank = "";
+                                }
+                                // Same-world demotion clears the eligibility cache so the
+                                // fast-path bypass in CommandDispatcher doesn't keep treating
+                                // us as staff. World change already resets it via
+                                // GuildStateManager.onEnteredWorld ->
+                                // resetStaffChatEligibilityCache.
+                                if (wasStaff && !confirmedStaff) {
+                                    CommandDispatcher.resetStaffChatEligibilityCache();
+                                }
+                                // Close the cold-start gap: the next scheduled poll may be up
+                                // to two minutes away, so trigger an immediate refresh of the
+                                // receiver-side staff cache as soon as auth completes.
+                                StaffRanksPoller.refreshNow();
+                                GuildStateManager.onAuthSuccess(tier);
+                                // MWE auto-enable: a tier-vets user (member/waitlist/
+                                // honourary) gets the anni subsystem on for free. Don't
+                                // disable on tier downgrade — the user may have toggled
+                                // it on manually and we don't want to override that. The
+                                // tier downgrade itself will gate eligibility server-side.
+                                if (("member".equals(tier)
+                                                || "waitlist".equals(tier)
+                                                || "honourary".equals(tier))
+                                        && !VetsConfig.get(VetsConfig.VETS_ANNI_ENABLED)) {
+                                    VetsConfig.set(VetsConfig.VETS_ANNI_ENABLED, true);
+                                    VetsLogger.debug(
+                                            "vetsAnniEnabled auto-set on tier={} auth ack", tier);
+                                }
+                                return;
+                            }
+                            if (!"ok".equals(status)) {
+                                String detail =
+                                        json.has("detail")
+                                                ? json.get("detail").getAsString()
+                                                : "unknown";
+                                if (wasAuthAck
+                                        || detail.startsWith("auth rejected")
+                                        || detail.startsWith("Authentication required")) {
+                                    expectingAuthAck = false;
+                                    boolean wasStaff = confirmedStaff;
+                                    confirmedStaff = false;
+                                    confirmedStaffRank = "";
+                                    if (wasStaff) {
+                                        CommandDispatcher.resetStaffChatEligibilityCache();
+                                    }
+                                    GuildStateManager.onAuthFailure(detail);
+                                } else {
+                                    VetsLogger.warn("Inbound API error: {}", detail);
+                                }
+                            }
+                        });
 
         // Re-send registration AND re-authenticate on every reconnect so the
         // server's presence + auth state stays accurate across network hiccups.
-        inboundClient.setOnConnectCallback(() -> {
-            String storedKey = VetsConfig.getString(VetsConfig.VETS_AUTH_KEY);
-            if (storedKey != null && !storedKey.isEmpty() && inboundClient != null) {
-                expectingAuthAck = true;
-                JsonObject auth = new JsonObject();
-                auth.addProperty("type", "auth");
-                auth.addProperty("key", storedKey);
-                inboundClient.send(auth);
-                VetsLogger.debug("Re-sent auth frame on inbound (re)connect");
-            }
-            JsonObject reg = pendingRegistration;
-            if (reg != null && inboundClient != null) {
-                inboundClient.send(reg);
-                VetsLogger.debug("Re-sent pending registration on inbound reconnect");
-            }
-            // Notify post-connect listeners after auth + registration are
-            // queued. The server processes frames in send order on the
-            // single inbound socket, so any frame a listener emits here
-            // will land after auth is honoured. Used by AnniWsHandler to
-            // re-pull a fresh snapshot on every reconnect — without this
-            // the cache silently goes stale across world transfers.
-            for (Runnable listener : inboundPostConnectListeners) {
-                try {
-                    listener.run();
-                } catch (Exception e) {
-                    VetsLogger.warn("Inbound post-connect listener error: {}",
-                            e.getMessage());
-                }
-            }
-        });
+        inboundClient.setOnConnectCallback(
+                () -> {
+                    String storedKey = VetsConfig.getString(VetsConfig.VETS_AUTH_KEY);
+                    if (storedKey != null && !storedKey.isEmpty() && inboundClient != null) {
+                        expectingAuthAck = true;
+                        JsonObject auth = new JsonObject();
+                        auth.addProperty("type", "auth");
+                        auth.addProperty("key", storedKey);
+                        inboundClient.send(auth);
+                        VetsLogger.debug("Re-sent auth frame on inbound (re)connect");
+                    }
+                    JsonObject reg = pendingRegistration;
+                    if (reg != null && inboundClient != null) {
+                        inboundClient.send(reg);
+                        VetsLogger.debug("Re-sent pending registration on inbound reconnect");
+                    }
+                    // Notify post-connect listeners after auth + registration are
+                    // queued. The server processes frames in send order on the
+                    // single inbound socket, so any frame a listener emits here
+                    // will land after auth is honoured. Used by AnniWsHandler to
+                    // re-pull a fresh snapshot on every reconnect — without this
+                    // the cache silently goes stale across world transfers.
+                    for (Runnable listener : inboundPostConnectListeners) {
+                        try {
+                            listener.run();
+                        } catch (Exception e) {
+                            VetsLogger.warn(
+                                    "Inbound post-connect listener error: {}", e.getMessage());
+                        }
+                    }
+                });
 
-        outboundClient = new WsClient(OUTBOUND_URI, "outbound", json -> {
-            // Server pushes a `server_info` hello frame on connect to tell
-            // us the current `unauth` toggle state. Routed straight to
-            // SessionAuthWarning so its session-start warning can pick the
-            // right copy. Other frames are real chat — fan out to listeners.
-            if (json.has("type")) {
-                String frameType = json.get("type").getAsString();
-                if ("server_info".equals(frameType)) {
-                    boolean unauthEnabled = json.has("unauth_enabled")
-                        && json.get("unauth_enabled").getAsBoolean();
-                    org.wynnvets.guild.SessionAuthWarning.onServerInfo(unauthEnabled);
-                    return;
-                }
-                if ("staff_online".equals(frameType) || "staff_offline".equals(frameType)) {
-                    handleStaffPresenceFrame(frameType, json);
-                    return;
-                }
-            }
-            for (Consumer<JsonObject> listener : outboundListeners) {
-                try {
-                    listener.accept(json);
-                } catch (Exception e) {
-                    VetsLogger.warn("Outbound listener error: {}", e.getMessage());
-                }
-            }
-        });
+        outboundClient =
+                new WsClient(
+                        OUTBOUND_URI,
+                        "outbound",
+                        json -> {
+                            // Server pushes a `server_info` hello frame on connect to tell
+                            // us the current `unauth` toggle state. Routed straight to
+                            // SessionAuthWarning so its session-start warning can pick the
+                            // right copy. Other frames are real chat — fan out to listeners.
+                            if (json.has("type")) {
+                                String frameType = json.get("type").getAsString();
+                                if ("server_info".equals(frameType)) {
+                                    boolean unauthEnabled =
+                                            json.has("unauth_enabled")
+                                                    && json.get("unauth_enabled").getAsBoolean();
+                                    org.wynnvets.guild.SessionAuthWarning.onServerInfo(
+                                            unauthEnabled);
+                                    return;
+                                }
+                                if ("staff_online".equals(frameType)
+                                        || "staff_offline".equals(frameType)) {
+                                    handleStaffPresenceFrame(frameType, json);
+                                    return;
+                                }
+                            }
+                            for (Consumer<JsonObject> listener : outboundListeners) {
+                                try {
+                                    listener.accept(json);
+                                } catch (Exception e) {
+                                    VetsLogger.warn("Outbound listener error: {}", e.getMessage());
+                                }
+                            }
+                        });
 
         inboundClient.connect();
         outboundClient.connect();
@@ -340,8 +369,11 @@ public final class V1ApiManager {
 
         if (inboundClient != null && inboundClient.isConnected()) {
             inboundClient.send(payload);
-            VetsLogger.debug("Sent registration: {} ({}…, tier={})", username,
-                uuid.length() >= 8 ? uuid.substring(0, 8) : uuid, tier);
+            VetsLogger.debug(
+                    "Sent registration: {} ({}…, tier={})",
+                    username,
+                    uuid.length() >= 8 ? uuid.substring(0, 8) : uuid,
+                    tier);
         }
     }
 
@@ -382,8 +414,7 @@ public final class V1ApiManager {
         payload.addProperty("type", "auth");
         payload.addProperty("key", key);
         inboundClient.send(payload);
-        VetsLogger.debug("Sent auth frame ({}…)",
-            key.length() >= 6 ? key.substring(0, 6) : key);
+        VetsLogger.debug("Sent auth frame ({}…)", key.length() >= 6 ? key.substring(0, 6) : key);
     }
 
     /**
@@ -442,8 +473,8 @@ public final class V1ApiManager {
      * @param toRank         new rank
      * @param classification one of {@code "ban"}, {@code "kick"}, {@code "mote"}
      */
-    public static void sendRankChange(String actor, String target, String fromRank,
-                                      String toRank, String classification) {
+    public static void sendRankChange(
+            String actor, String target, String fromRank, String toRank, String classification) {
         if (inboundClient == null || !inboundClient.isConnected()) {
             VetsLogger.debug("Inbound WebSocket not connected, dropping rank_change");
             return;
@@ -458,8 +489,13 @@ public final class V1ApiManager {
         payload.addProperty("to_rank", toRank);
         payload.addProperty("classification", classification);
         inboundClient.send(payload);
-        VetsLogger.debug("Sent rank_change: {} set {} {} -> {} ({})",
-                actor, target, fromRank, toRank, classification);
+        VetsLogger.debug(
+                "Sent rank_change: {} set {} {} -> {} ({})",
+                actor,
+                target,
+                fromRank,
+                toRank,
+                classification);
     }
 
     /**
@@ -643,13 +679,14 @@ public final class V1ApiManager {
             }
         }
         payload.add("party_member_usernames", arr);
-        payload.addProperty("leader_username",
-                leaderUsername != null ? leaderUsername : "");
+        payload.addProperty("leader_username", leaderUsername != null ? leaderUsername : "");
         payload.addProperty("world", world != null ? world : "");
         inboundClient.send(payload);
         VetsLogger.debug(
                 "Sent anni_party_observation: leader={}, members={}, world={}",
-                leaderUsername, arr.size(), world);
+                leaderUsername,
+                arr.size(),
+                world);
         return true;
     }
 
@@ -661,16 +698,18 @@ public final class V1ApiManager {
      * within milliseconds rather than waiting up to two minutes.
      */
     private static void handleStaffPresenceFrame(String type, JsonObject json) {
-        String username = json.has("username") && !json.get("username").isJsonNull()
-            ? json.get("username").getAsString()
-            : "";
+        String username =
+                json.has("username") && !json.get("username").isJsonNull()
+                        ? json.get("username").getAsString()
+                        : "";
         if (username.isEmpty()) {
             return;
         }
         if ("staff_online".equals(type)) {
-            String rank = json.has("rank") && !json.get("rank").isJsonNull()
-                ? json.get("rank").getAsString()
-                : "";
+            String rank =
+                    json.has("rank") && !json.get("rank").isJsonNull()
+                            ? json.get("rank").getAsString()
+                            : "";
             StaffRanksPoller.applyLiveStaffEvent(username, rank, true);
         } else {
             StaffRanksPoller.applyLiveStaffEvent(username, null, false);

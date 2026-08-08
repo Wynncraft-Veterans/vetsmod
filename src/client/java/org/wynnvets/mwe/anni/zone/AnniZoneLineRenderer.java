@@ -1,5 +1,6 @@
 package org.wynnvets.mwe.anni.zone;
 
+import java.util.List;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -9,8 +10,6 @@ import net.minecraft.world.phys.Vec3;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker;
-
-import java.util.List;
 
 /**
  * S5 — draws the union of {@link AnniZone}'s 48-block disc circumferences
@@ -62,8 +61,7 @@ public final class AnniZoneLineRenderer {
 
     private static volatile boolean registered = false;
 
-    private AnniZoneLineRenderer() {
-    }
+    private AnniZoneLineRenderer() {}
 
     public static void register() {
         if (registered) return;
@@ -90,8 +88,7 @@ public final class AnniZoneLineRenderer {
         // Snap to the nearest Y_STEP so the ring positions stay stable
         // as the player moves vertically — otherwise the rings jitter
         // every block-tick of altitude change.
-        long baseY = Math.floorDiv((long) Math.floor(ppos.y), (long) Y_STEP)
-                * (long) Y_STEP;
+        long baseY = Math.floorDiv((long) Math.floor(ppos.y), (long) Y_STEP) * (long) Y_STEP;
 
         for (AnniZone.Disc disc : discs) {
             double dx = ppos.x - disc.x();
@@ -99,11 +96,7 @@ public final class AnniZoneLineRenderer {
             if (dx * dx + dz * dz > CULL_DISTANCE_SQ) continue;
             for (int level = -LEVELS_EITHER_SIDE; level <= LEVELS_EITHER_SIDE; level++) {
                 double y = baseY + (long) level * (long) Y_STEP;
-                Gizmos.circle(
-                        new Vec3(disc.x(), y, disc.z()),
-                        (float) disc.radius(),
-                        style
-                );
+                Gizmos.circle(new Vec3(disc.x(), y, disc.z()), (float) disc.radius(), style);
             }
         }
     }

@@ -4,13 +4,12 @@ import com.wynntils.core.WynntilsMod;
 import com.wynntils.mc.event.TitleSetTextEvent;
 import com.wynntils.models.worlds.event.WorldStateEvent;
 import com.wynntils.models.worlds.type.WorldState;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.neoforged.bus.api.SubscribeEvent;
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.neoforged.bus.api.SubscribeEvent;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Detects world-queue state from a handful of client-side signals and feeds

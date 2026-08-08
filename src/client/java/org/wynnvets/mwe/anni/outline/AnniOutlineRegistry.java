@@ -1,14 +1,13 @@
 package org.wynnvets.mwe.anni.outline;
 
 import com.wynntils.utils.colors.CustomColor;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.ChatFormatting;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
-import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Username → tiered colour mapping for the S4 highlight overlay.
@@ -96,8 +95,7 @@ public final class AnniOutlineRegistry {
 
     private static volatile boolean registered = false;
 
-    private AnniOutlineRegistry() {
-    }
+    private AnniOutlineRegistry() {}
 
     /** Idempotent registration. Subscribes the rebuild listener to the
      *  shared snapshot cache. Call from {@link org.wynnvets.VetsmodClient VetsmodClient}
@@ -183,11 +181,12 @@ public final class AnniOutlineRegistry {
         return new Entry(Tier.OWN_PARTY, role, outline, fmt);
     }
 
-    private static final Entry OTHER_PARTY_ENTRY = new Entry(
-            Tier.OTHER_VETS_PARTY,
-            null,
-            AnniOutlinePalette.OTHER_VETS_PARTY,
-            ChatFormatting.GRAY);
+    private static final Entry OTHER_PARTY_ENTRY =
+            new Entry(
+                    Tier.OTHER_VETS_PARTY,
+                    null,
+                    AnniOutlinePalette.OTHER_VETS_PARTY,
+                    ChatFormatting.GRAY);
 
     // ── Debug API ───────────────────────────────────────────────────────
     //
@@ -203,8 +202,11 @@ public final class AnniOutlineRegistry {
     public static void debugSet(String username, Entry entry) {
         if (username == null || username.isEmpty() || entry == null) return;
         entries.put(username.toLowerCase(Locale.ROOT), entry);
-        VetsLogger.debug("AnniOutlineRegistry debug set: {} -> tier={} role={}",
-                username, entry.tier(), entry.role());
+        VetsLogger.debug(
+                "AnniOutlineRegistry debug set: {} -> tier={} role={}",
+                username,
+                entry.tier(),
+                entry.role());
     }
 
     /** Test-only: remove a username's entry (no-op if none). */

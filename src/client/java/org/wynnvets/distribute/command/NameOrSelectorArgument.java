@@ -6,10 +6,9 @@ import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
-import org.wynnvets.distribute.DistributeCommands;
-
 import java.util.Collection;
 import java.util.List;
+import org.wynnvets.distribute.DistributeCommands;
 
 /**
  * Brigadier argument type for the {@code <name>} slot of
@@ -35,42 +34,43 @@ import java.util.List;
  */
 public final class NameOrSelectorArgument implements ArgumentType<String> {
 
-  private static final NameOrSelectorArgument INSTANCE = new NameOrSelectorArgument();
+    private static final NameOrSelectorArgument INSTANCE = new NameOrSelectorArgument();
 
-  private static final Collection<String> EXAMPLES = List.of("PlayerName", "@random");
+    private static final Collection<String> EXAMPLES = List.of("PlayerName", "@random");
 
-  private static final SimpleCommandExceptionType EMPTY = new SimpleCommandExceptionType(
-      new LiteralMessage("Expected a member name or @selector"));
+    private static final SimpleCommandExceptionType EMPTY =
+            new SimpleCommandExceptionType(
+                    new LiteralMessage("Expected a member name or @selector"));
 
-  private NameOrSelectorArgument() {}
+    private NameOrSelectorArgument() {}
 
-  public static NameOrSelectorArgument nameOrSelector() {
-    return INSTANCE;
-  }
-
-  /** Mirrors {@link com.mojang.brigadier.arguments.StringArgumentType#getString}
-   *  so executors don't need to know which argument type produced the value. */
-  public static String get(CommandContext<?> ctx, String name) {
-    return ctx.getArgument(name, String.class);
-  }
-
-  @Override
-  public String parse(StringReader reader) throws CommandSyntaxException {
-    final int start = reader.getCursor();
-    // Brigadier separates arguments by literal space (ARGUMENT_SEPARATOR_CHAR);
-    // matching that exactly keeps trailing-data behaviour consistent with the
-    // built-in string types.
-    while (reader.canRead() && reader.peek() != ' ') {
-      reader.skip();
+    public static NameOrSelectorArgument nameOrSelector() {
+        return INSTANCE;
     }
-    if (reader.getCursor() == start) {
-      throw EMPTY.createWithContext(reader);
-    }
-    return reader.getString().substring(start, reader.getCursor());
-  }
 
-  @Override
-  public Collection<String> getExamples() {
-    return EXAMPLES;
-  }
+    /** Mirrors {@link com.mojang.brigadier.arguments.StringArgumentType#getString}
+     *  so executors don't need to know which argument type produced the value. */
+    public static String get(CommandContext<?> ctx, String name) {
+        return ctx.getArgument(name, String.class);
+    }
+
+    @Override
+    public String parse(StringReader reader) throws CommandSyntaxException {
+        final int start = reader.getCursor();
+        // Brigadier separates arguments by literal space (ARGUMENT_SEPARATOR_CHAR);
+        // matching that exactly keeps trailing-data behaviour consistent with the
+        // built-in string types.
+        while (reader.canRead() && reader.peek() != ' ') {
+            reader.skip();
+        }
+        if (reader.getCursor() == start) {
+            throw EMPTY.createWithContext(reader);
+        }
+        return reader.getString().substring(start, reader.getCursor());
+    }
+
+    @Override
+    public Collection<String> getExamples() {
+        return EXAMPLES;
+    }
 }

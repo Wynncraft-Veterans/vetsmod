@@ -1,10 +1,10 @@
 package org.wynnvets.chat.spoiler;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import org.junit.jupiter.api.Test;
 
@@ -51,9 +51,11 @@ class SpoilerCodecTest {
     @Test
     void encodeSpoilers_wrapsContentWithVisiblePrefix() {
         String encoded = SpoilerCodec.encodeSpoilers("a ||x|| b");
-        assertTrue(encoded.contains(SpoilerCodec.WRAPPER_PREFIX),
+        assertTrue(
+                encoded.contains(SpoilerCodec.WRAPPER_PREFIX),
                 "expected visible wrapper prefix in: " + encoded);
-        assertTrue(encoded.contains(SpoilerCodec.WRAPPER_SUFFIX),
+        assertTrue(
+                encoded.contains(SpoilerCodec.WRAPPER_SUFFIX),
                 "expected visible wrapper suffix in: " + encoded);
         assertTrue(SpoilerCodec.containsEncodedSpoiler(encoded));
     }
@@ -88,7 +90,8 @@ class SpoilerCodecTest {
         String encoded = SpoilerCodec.encodeSpoilers("plain ||spoil||");
         String decoded = SpoilerCodec.decodeToDiscord(encoded);
         // The [Spoiler: ...] wrapper must not survive the decode.
-        assertFalse(decoded.contains(SpoilerCodec.WRAPPER_PREFIX),
+        assertFalse(
+                decoded.contains(SpoilerCodec.WRAPPER_PREFIX),
                 "wrapper prefix should be stripped, got: " + decoded);
         assertEquals("plain ||spoil||", decoded);
     }

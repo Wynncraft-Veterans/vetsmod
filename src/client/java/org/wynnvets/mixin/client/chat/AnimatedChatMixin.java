@@ -25,12 +25,10 @@ import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 @Mixin(ChatComponent.class)
 public class AnimatedChatMixin {
 
-    @Shadow
-    private List<GuiMessage.Line> trimmedMessages;
+    @Shadow private List<GuiMessage.Line> trimmedMessages;
 
     /** First pre-existing line before current insertion, used as insertion boundary. */
-    @Unique
-    private GuiMessage.Line vetsmod$prevFirstLine = null;
+    @Unique private GuiMessage.Line vetsmod$prevFirstLine = null;
 
     @Inject(method = "addMessageToDisplayQueue", at = @At("HEAD"))
     private void vetsmod$beforeAddLines(GuiMessage message, CallbackInfo ci) {
@@ -43,7 +41,8 @@ public class AnimatedChatMixin {
         if (vetsmod$prevFirstLine == null) {
             added = trimmedMessages.size();
         } else {
-            while (added < trimmedMessages.size() && trimmedMessages.get(added) != vetsmod$prevFirstLine) {
+            while (added < trimmedMessages.size()
+                    && trimmedMessages.get(added) != vetsmod$prevFirstLine) {
                 added++;
             }
         }
@@ -51,13 +50,14 @@ public class AnimatedChatMixin {
         // New lines are inserted at the front of the list (addFirst).
         for (int i = 0; i < added; i++) {
             GuiMessage.Line old = trimmedMessages.get(i);
-            FormattedCharSequence animated = new AnimatedGradientSequence(
-                    old.content(),
-                    AnimatedGradientSequence.effectiveDefaultStart(),
-                    AnimatedGradientSequence.effectiveDefaultEnd(),
-                    AnimatedGradientSequence.DEFAULT_CYCLE_TIME_MS);
-            trimmedMessages.set(i, new GuiMessage.Line(
-                    old.addedTime(), animated, old.tag(), old.endOfEntry()));
+            FormattedCharSequence animated =
+                    new AnimatedGradientSequence(
+                            old.content(),
+                            AnimatedGradientSequence.effectiveDefaultStart(),
+                            AnimatedGradientSequence.effectiveDefaultEnd(),
+                            AnimatedGradientSequence.DEFAULT_CYCLE_TIME_MS);
+            trimmedMessages.set(
+                    i, new GuiMessage.Line(old.addedTime(), animated, old.tag(), old.endOfEntry()));
         }
 
         vetsmod$prevFirstLine = null;

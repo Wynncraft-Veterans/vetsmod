@@ -40,146 +40,154 @@ import org.wynnvets.logging.VetsLogger;
  */
 final class LegacyScreenshotHandler {
 
-  private static final ClientTooltipPositioner SCREENSHOT_POSITIONER =
-      (screenWidth, screenHeight, mouseX, mouseY, tooltipWidth, tooltipHeight) ->
-          new Vector2i(4, 4);
+    private static final ClientTooltipPositioner SCREENSHOT_POSITIONER =
+            (screenWidth, screenHeight, mouseX, mouseY, tooltipWidth, tooltipHeight) ->
+                    new Vector2i(4, 4);
 
-  /** Delay before clipboard write so we overwrite Wynntils' async copy. */
-  private static final Executor DELAYED_EXECUTOR =
-      CompletableFuture.delayedExecutor(250, TimeUnit.MILLISECONDS);
+    /** Delay before clipboard write so we overwrite Wynntils' async copy. */
+    private static final Executor DELAYED_EXECUTOR =
+            CompletableFuture.delayedExecutor(250, TimeUnit.MILLISECONDS);
 
-  private LegacyScreenshotHandler() {}
+    private LegacyScreenshotHandler() {}
 
-  /**
-   * Set by the {@link org.wynnvets.listeners.LegacyTooltipEventListener
-   * LegacyTooltipEventListener} when Wynntils'
-   * {@code InventoryKeyPressEvent} fires with a key matching the
-   * screenshot keybind.  Consumed (reset to false) on the next call
-   * to {@link #isScreenshotRequested()}.
-   */
-  static volatile boolean screenshotKeyPressed = false;
+    /**
+     * Set by the {@link org.wynnvets.listeners.LegacyTooltipEventListener
+     * LegacyTooltipEventListener} when Wynntils'
+     * {@code InventoryKeyPressEvent} fires with a key matching the
+     * screenshot keybind.  Consumed (reset to false) on the next call
+     * to {@link #isScreenshotRequested()}.
+     */
+    static volatile boolean screenshotKeyPressed = false;
 
-  /**
-   * Returns {@code true} exactly once after the screenshot key was pressed.
-   * Resets the flag so subsequent tooltip renders on the same frame don't
-   * re-trigger.
-   */
-  static boolean isScreenshotRequested() {
-    if (screenshotKeyPressed) {
-      screenshotKeyPressed = false;
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Renders the given tooltip to an offscreen framebuffer and copies the
-   * resulting image to the system clipboard.
-   */
-  static void takeScreenshot(Font font, List<Component> tooltip) {
-    Screen screen = McUtils.screen();
-    if (screen == null) return;
-
-    int width = 0;
-    for (Component c : tooltip) {
-      int w = font.width(c);
-      if (w > width) width = w;
-    }
-    width += 8;
-
-    int height = 16;
-    if (tooltip.size() > 1) {
-      height += 2 + (tooltip.size() - 1) * 10;
+    /**
+     * Returns {@code true} exactly once after the screenshot key was pressed.
+     * Resets the flag so subsequent tooltip renders on the same frame don't
+     * re-trigger.
+     */
+    static boolean isScreenshotRequested() {
+        if (screenshotKeyPressed) {
+            screenshotKeyPressed = false;
+            return true;
+        }
+        return false;
     }
 
-    List<ClientTooltipComponent> rendered = tooltip.stream()
-        .map(Component::getVisualOrderText)
-        .map(ClientTooltipComponent::create)
-        .toList();
+    /**
+     * Renders the given tooltip to an offscreen framebuffer and copies the
+     * resulting image to the system clipboard.
+     */
+    static void takeScreenshot(Font font, List<Component> tooltip) {
+        Screen screen = McUtils.screen();
+        if (screen == null) return;
 
-    renderToFramebuffer(screen, rendered, width, height)
-        .thenApplyAsync(nativeImage -> {
-          if (nativeImage == null) return null;
-          return SystemUtils.createScreenshot(nativeImage);
-        })
-        .thenAcceptAsync(bi -> {
-          if (bi == null) return;
-          try {
-            SystemUtils.copyImageToClipboard(bi);
-            VetsLogger.info("Legacy tooltip screenshot copied to clipboard");
-          } catch (Exception ex) {
-            VetsLogger.error("Failed to copy legacy screenshot to clipboard", ex);
-          }
-        }, DELAYED_EXECUTOR)
-        .exceptionally(err -> {
-          VetsLogger.error("Legacy tooltip screenshot failed", err);
-          return null;
-        });
-  }
+        int width = 0;
+        for (Component c : tooltip) {
+            int w = font.width(c);
+            if (w > width) width = w;
+        }
+        width += 8;
 
-  private static CompletableFuture<NativeImage> renderToFramebuffer(
-      Screen screen, List<ClientTooltipComponent> tooltip, int width, int height) {
-    TextureTarget framebuffer =
-        new TextureTarget("VetsMod Legacy Screenshot", width * 2, height * 2, true);
-    RenderSystem.getDevice()
-        .createCommandEncoder()
-        .clearColorAndDepthTextures(
-            framebuffer.getColorTexture(), 0, framebuffer.getDepthTexture(), 1.0);
+        int height = 16;
+        if (tooltip.size() > 1) {
+            height += 2 + (tooltip.size() - 1) * 10;
+        }
 
-    ((MinecraftExtension) McUtils.mc()).setOverridenRenderTarget(framebuffer);
-    RenderSystem.outputColorTextureOverride = framebuffer.getColorTextureView();
-    RenderSystem.outputDepthTextureOverride = framebuffer.getDepthTextureView();
+        List<ClientTooltipComponent> rendered =
+                tooltip.stream()
+                        .map(Component::getVisualOrderText)
+                        .map(ClientTooltipComponent::create)
+                        .toList();
 
-    Minecraft mc = McUtils.mc();
-    MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-    GuiRenderState guiRenderState = new GuiRenderState();
-    GuiRenderer guiRenderer = new GuiRenderer(
-        guiRenderState,
-        bufferSource,
-        mc.gameRenderer.getSubmitNodeStorage(),
-        mc.gameRenderer.getFeatureRenderDispatcher(),
-        List.of());
-    GuiGraphics guiGraphics = new GuiGraphics(mc, guiRenderState, 0, 0);
+        renderToFramebuffer(screen, rendered, width, height)
+                .thenApplyAsync(
+                        nativeImage -> {
+                            if (nativeImage == null) return null;
+                            return SystemUtils.createScreenshot(nativeImage);
+                        })
+                .thenAcceptAsync(
+                        bi -> {
+                            if (bi == null) return;
+                            try {
+                                SystemUtils.copyImageToClipboard(bi);
+                                VetsLogger.info("Legacy tooltip screenshot copied to clipboard");
+                            } catch (Exception ex) {
+                                VetsLogger.error(
+                                        "Failed to copy legacy screenshot to clipboard", ex);
+                            }
+                        },
+                        DELAYED_EXECUTOR)
+                .exceptionally(
+                        err -> {
+                            VetsLogger.error("Legacy tooltip screenshot failed", err);
+                            return null;
+                        });
+    }
 
-    float scaleh = (float) screen.height / height;
-    float scalew = (float) screen.width / width;
+    private static CompletableFuture<NativeImage> renderToFramebuffer(
+            Screen screen, List<ClientTooltipComponent> tooltip, int width, int height) {
+        TextureTarget framebuffer =
+                new TextureTarget("VetsMod Legacy Screenshot", width * 2, height * 2, true);
+        RenderSystem.getDevice()
+                .createCommandEncoder()
+                .clearColorAndDepthTextures(
+                        framebuffer.getColorTexture(), 0, framebuffer.getDepthTexture(), 1.0);
 
-    guiGraphics.pose().pushMatrix();
-    guiGraphics.pose().scale(scalew, scaleh);
-    guiGraphics.renderTooltip(mc.font, tooltip, 0, 0, SCREENSHOT_POSITIONER, null);
-    guiGraphics.pose().popMatrix();
+        ((MinecraftExtension) McUtils.mc()).setOverridenRenderTarget(framebuffer);
+        RenderSystem.outputColorTextureOverride = framebuffer.getColorTextureView();
+        RenderSystem.outputDepthTextureOverride = framebuffer.getDepthTextureView();
 
-    bufferSource.endBatch();
-    guiRenderer.render(mc.gameRenderer.fogRenderer.getBuffer(FogRenderer.FogMode.NONE));
-    guiRenderer.close();
+        Minecraft mc = McUtils.mc();
+        MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
+        GuiRenderState guiRenderState = new GuiRenderState();
+        GuiRenderer guiRenderer =
+                new GuiRenderer(
+                        guiRenderState,
+                        bufferSource,
+                        mc.gameRenderer.getSubmitNodeStorage(),
+                        mc.gameRenderer.getFeatureRenderDispatcher(),
+                        List.of());
+        GuiGraphics guiGraphics = new GuiGraphics(mc, guiRenderState, 0, 0);
 
-    RenderSystem.outputColorTextureOverride = null;
-    RenderSystem.outputDepthTextureOverride = null;
-    ((MinecraftExtension) McUtils.mc()).setOverridenRenderTarget(null);
-    GpuTexture texture = cloneColorAttachment(framebuffer);
-    framebuffer.destroyBuffers();
+        float scaleh = (float) screen.height / height;
+        float scalew = (float) screen.width / width;
 
-    return SystemUtils.createImage(texture);
-  }
+        guiGraphics.pose().pushMatrix();
+        guiGraphics.pose().scale(scalew, scaleh);
+        guiGraphics.renderTooltip(mc.font, tooltip, 0, 0, SCREENSHOT_POSITIONER, null);
+        guiGraphics.pose().popMatrix();
 
-  private static GpuTexture cloneColorAttachment(RenderTarget framebuffer) {
-    GpuTexture original = framebuffer.getColorTexture();
-    GpuDevice gpuDevice = RenderSystem.getDevice();
-    GpuTexture copy = gpuDevice.createTexture(
-        () -> "Copy of: " + original.getLabel(),
-        GpuTexture.USAGE_COPY_DST
-            | GpuTexture.USAGE_COPY_SRC
-            | GpuTexture.USAGE_TEXTURE_BINDING
-            | GpuTexture.USAGE_RENDER_ATTACHMENT,
-        TextureFormat.RGBA8,
-        framebuffer.width,
-        framebuffer.height,
-        1,
-        1);
-    gpuDevice
-        .createCommandEncoder()
-        .copyTextureToTexture(
-            original, copy, 0, 0, 0, 0, 0, framebuffer.width, framebuffer.height);
-    return copy;
-  }
+        bufferSource.endBatch();
+        guiRenderer.render(mc.gameRenderer.fogRenderer.getBuffer(FogRenderer.FogMode.NONE));
+        guiRenderer.close();
+
+        RenderSystem.outputColorTextureOverride = null;
+        RenderSystem.outputDepthTextureOverride = null;
+        ((MinecraftExtension) McUtils.mc()).setOverridenRenderTarget(null);
+        GpuTexture texture = cloneColorAttachment(framebuffer);
+        framebuffer.destroyBuffers();
+
+        return SystemUtils.createImage(texture);
+    }
+
+    private static GpuTexture cloneColorAttachment(RenderTarget framebuffer) {
+        GpuTexture original = framebuffer.getColorTexture();
+        GpuDevice gpuDevice = RenderSystem.getDevice();
+        GpuTexture copy =
+                gpuDevice.createTexture(
+                        () -> "Copy of: " + original.getLabel(),
+                        GpuTexture.USAGE_COPY_DST
+                                | GpuTexture.USAGE_COPY_SRC
+                                | GpuTexture.USAGE_TEXTURE_BINDING
+                                | GpuTexture.USAGE_RENDER_ATTACHMENT,
+                        TextureFormat.RGBA8,
+                        framebuffer.width,
+                        framebuffer.height,
+                        1,
+                        1);
+        gpuDevice
+                .createCommandEncoder()
+                .copyTextureToTexture(
+                        original, copy, 0, 0, 0, 0, 0, framebuffer.width, framebuffer.height);
+        return copy;
+    }
 }

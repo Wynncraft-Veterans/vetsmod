@@ -54,6 +54,7 @@ final class GuildChecker {
 
     /** How long a check result stays valid before re-checking. */
     private static final int GUILD_CHECK_EXPIRY_DAYS = 3;
+
     private static final long GUILD_CHECK_EXPIRY_MS =
             GUILD_CHECK_EXPIRY_DAYS * 24L * 60L * 60L * 1_000L;
 
@@ -106,8 +107,7 @@ final class GuildChecker {
      */
     static boolean isProcessingModGuildCheck() {
         if (isModInitiatedGuildCheck) return true;
-        return guildCheckSuppressUntil > 0
-                && System.currentTimeMillis() < guildCheckSuppressUntil;
+        return guildCheckSuppressUntil > 0 && System.currentTimeMillis() < guildCheckSuppressUntil;
     }
 
     // ── Lifecycle ──────────────────────────────────────────────────────
@@ -118,8 +118,7 @@ final class GuildChecker {
 
         long persistedTime = VetsConfig.getLong(VetsConfig.VETS_LAST_GUILD_CHECK);
         long now = System.currentTimeMillis();
-        lastGuildCheckTime = (persistedTime >= 0 && persistedTime <= now)
-                ? persistedTime : 0;
+        lastGuildCheckTime = (persistedTime >= 0 && persistedTime <= now) ? persistedTime : 0;
 
         // Expire stale results on load
         if (cachedResult != GuildCheckResult.UNKNOWN) {
@@ -130,9 +129,10 @@ final class GuildChecker {
             }
         }
 
-        VetsLogger.debug("GuildChecker loaded: result={}, age={}s",
-                cachedResult, lastGuildCheckTime > 0
-                        ? (now - lastGuildCheckTime) / 1000 : "n/a");
+        VetsLogger.debug(
+                "GuildChecker loaded: result={}, age={}s",
+                cachedResult,
+                lastGuildCheckTime > 0 ? (now - lastGuildCheckTime) / 1000 : "n/a");
     }
 
     static void reset() {
@@ -231,8 +231,7 @@ final class GuildChecker {
                     VetsLogger.debug("Guild check result: Returners");
                 } else {
                     setResult(GuildCheckResult.OTHER_GUILD);
-                    VetsLogger.debug("Guild check result: other guild ({})",
-                            lastNonEmptyCandidate);
+                    VetsLogger.debug("Guild check result: other guild ({})", lastNonEmptyCandidate);
                 }
             } else {
                 VetsLogger.warn("Guild check: saw 'Guild Since:' without candidate name");
@@ -255,9 +254,7 @@ final class GuildChecker {
 
         // ── Potential guild name (unrecognised short line) ──────────
         // Guard against staff rank check responses landing here
-        if (!isStaffRankCheckResponse(trimmed)
-                && trimmed.length() < 60
-                && !trimmed.contains(":")) {
+        if (!isStaffRankCheckResponse(trimmed) && trimmed.length() < 60 && !trimmed.contains(":")) {
             lastNonEmptyCandidate = trimmed;
             return isModInitiatedGuildCheck;
         }
@@ -281,28 +278,30 @@ final class GuildChecker {
 
         // Schedule clearing the mod-initiated flag after grace period
         long graceEnd = guildCheckSuppressUntil;
-        new Thread(() -> {
-            try {
-                long remaining = graceEnd - System.currentTimeMillis();
-                if (remaining > 0) {
-                    Thread.sleep(remaining);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } finally {
-                if (guildCheckSuppressUntil == graceEnd) {
-                    isModInitiatedGuildCheck = false;
-                }
-            }
-        }, "vetsmod-guild-check-grace").start();
+        new Thread(
+                        () -> {
+                            try {
+                                long remaining = graceEnd - System.currentTimeMillis();
+                                if (remaining > 0) {
+                                    Thread.sleep(remaining);
+                                }
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            } finally {
+                                if (guildCheckSuppressUntil == graceEnd) {
+                                    isModInitiatedGuildCheck = false;
+                                }
+                            }
+                        },
+                        "vetsmod-guild-check-grace")
+                .start();
 
         // Notify GuildStateManager that the check completed
         GuildStateManager.onGuildCheckCompleted();
     }
 
     private static boolean isInSuppressionGrace() {
-        return guildCheckSuppressUntil > 0
-                && System.currentTimeMillis() < guildCheckSuppressUntil;
+        return guildCheckSuppressUntil > 0 && System.currentTimeMillis() < guildCheckSuppressUntil;
     }
 
     private static boolean isGuildStatsOutputLine(String message) {
@@ -323,9 +322,9 @@ final class GuildChecker {
     private static boolean isStaffRankCheckResponse(String message) {
         String lower = message.trim().toLowerCase();
         return (lower.contains("you must be a")
-                    && lower.contains("captain")
-                    && lower.contains("to use this command"))
+                        && lower.contains("captain")
+                        && lower.contains("to use this command"))
                 || (lower.contains("invalid arguments, try:")
-                    && lower.contains("rank [name] [rank]"));
+                        && lower.contains("rank [name] [rank]"));
     }
 }

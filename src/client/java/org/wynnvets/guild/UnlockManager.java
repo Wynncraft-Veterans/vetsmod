@@ -34,6 +34,7 @@ final class UnlockManager {
 
     /** Canonical tier strings — kept in sync with dazebot's lib/verify_keys.py. */
     static final String TIER_MEMBER = "member";
+
     static final String TIER_WAITLIST = "waitlist";
     static final String TIER_HONOURARY = "honourary";
     static final String TIER_OTHER = "other";
@@ -97,14 +98,14 @@ final class UnlockManager {
     /** @return {@code true} if the player has unlocked as a waitlist member */
     static boolean isWaitlistUnlocked() {
         return debugForceGuildlessUnlocked
-            || (authVerifiedThisSession && TIER_WAITLIST.equals(currentTier))
-            || legacyWaitlistMarker();
+                || (authVerifiedThisSession && TIER_WAITLIST.equals(currentTier))
+                || legacyWaitlistMarker();
     }
 
     /** @return {@code true} if the player has unlocked as an honourary member */
     static boolean isHonouraryUnlocked() {
         return (authVerifiedThisSession && TIER_HONOURARY.equals(currentTier))
-            || legacyHonouraryMarker();
+                || legacyHonouraryMarker();
     }
 
     /** Whether legacy SHA-256-based waitlist unlock state is still on disk.
@@ -127,8 +128,7 @@ final class UnlockManager {
      *  treated as guildless and unlocked. */
     static void setDebugForceGuildlessUnlocked(boolean enabled) {
         debugForceGuildlessUnlocked = enabled;
-        VetsLogger.debug("Debug guildless+unlocked override: {}",
-                enabled ? "enabled" : "disabled");
+        VetsLogger.debug("Debug guildless+unlocked override: {}", enabled ? "enabled" : "disabled");
     }
 
     // ── Lifecycle ──────────────────────────────────────────────────────
@@ -180,10 +180,11 @@ final class UnlockManager {
         for (int i = 0; i < key.length(); i++) {
             char c = key.charAt(i);
             boolean ok =
-                (c >= 'a' && c <= 'z')
-                || (c >= 'A' && c <= 'Z')
-                || (c >= '0' && c <= '9')
-                || c == '_' || c == '-';
+                    (c >= 'a' && c <= 'z')
+                            || (c >= 'A' && c <= 'Z')
+                            || (c >= '0' && c <= '9')
+                            || c == '_'
+                            || c == '-';
             if (!ok) {
                 return GuildStateManager.UnlockAttemptResult.MALFORMED;
             }
@@ -204,8 +205,9 @@ final class UnlockManager {
         // session rather than only on the next reconnect. V1ApiManager will
         // also re-auth on every reconnect using the persisted key.
         V1ApiManager.sendAuth(key);
-        VetsLogger.debug("Auth key stored ({}…), auth frame dispatched",
-            key.length() >= 6 ? key.substring(0, 6) : key);
+        VetsLogger.debug(
+                "Auth key stored ({}…), auth frame dispatched",
+                key.length() >= 6 ? key.substring(0, 6) : key);
 
         return GuildStateManager.UnlockAttemptResult.STORED_VERIFYING;
     }
@@ -226,9 +228,9 @@ final class UnlockManager {
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null && (fromUnlock || configWantsPrint)) {
-            Component msg = Component.literal(
-                    "✅ vetsmod authentication verified — tier: " + currentTier)
-                .withStyle(ChatFormatting.GREEN);
+            Component msg =
+                    Component.literal("✅ vetsmod authentication verified — tier: " + currentTier)
+                            .withStyle(ChatFormatting.GREEN);
             if (mc.screen != null) {
                 // The action-bar overlay is suppressed while a Screen is
                 // open (e.g. Wynncraft's class-selection screen shown on
@@ -272,10 +274,11 @@ final class UnlockManager {
         VetsConfig.set(VetsConfig.PRINT_SUCCESSFUL_AUTH, true);
 
         ChatUtils.sendLocalMessage(
-            Component.literal("❌ vetsmod authentication failed: " + lastAuthFailureReason
-                    + ". Run `~vetsmod` in #bot-commands at https://wynnvets.org/discord "
-                    + "to issue a new key.")
-                .withStyle(ChatFormatting.RED)
-        );
+                Component.literal(
+                                "❌ vetsmod authentication failed: "
+                                        + lastAuthFailureReason
+                                        + ". Run `~vetsmod` in #bot-commands at https://wynnvets.org/discord "
+                                        + "to issue a new key.")
+                        .withStyle(ChatFormatting.RED));
     }
 }

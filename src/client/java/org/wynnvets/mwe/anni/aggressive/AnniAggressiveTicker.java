@@ -1,13 +1,12 @@
 package org.wynnvets.mwe.anni.aggressive;
 
+import java.time.Instant;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.mode.AnniMode;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
-import java.time.Instant;
 
 /**
  * S5 — the "is aggressive mode currently active" flag, computed each tick.
@@ -38,13 +37,13 @@ public final class AnniAggressiveTicker {
     /** Same as {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker} for
      *  cross-system consistency. */
     private static final long WINDOW_BEFORE_SECONDS = 2L * 60L * 60L;
-    private static final long WINDOW_AFTER_SECONDS  = 30L * 60L;
+
+    private static final long WINDOW_AFTER_SECONDS = 30L * 60L;
 
     private static volatile boolean registered = false;
     private static volatile boolean aggressiveActive = false;
 
-    private AnniAggressiveTicker() {
-    }
+    private AnniAggressiveTicker() {}
 
     public static void register() {
         if (registered) return;

@@ -1,6 +1,10 @@
 package org.wynnvets.chat.rewriter;
 
 import com.wynntils.utils.mc.ComponentUtils;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -10,11 +14,6 @@ import org.wynnvets.Vetsmod;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Rewrites incoming guild chat "encourage update" messages from staff.
@@ -31,14 +30,14 @@ import java.util.regex.Pattern;
  */
 public final class EncourageUpdateRewriter {
 
-    private static final Pattern ENCOURAGE_PATTERN = Pattern.compile(
-            "⚠⚠⚠ If you are using vetsmod, it's outdated \\(current version ([0-9]+(?:\\.[0-9]+)*)\\) ⚠⚠⚠");
+    private static final Pattern ENCOURAGE_PATTERN =
+            Pattern.compile(
+                    "⚠⚠⚠ If you are using vetsmod, it's outdated \\(current version ([0-9]+(?:\\.[0-9]+)*)\\) ⚠⚠⚠");
 
     private static final Pattern REAL_NAME_PATTERN =
             Pattern.compile("real\\s+name\\s+is\\s+([A-Za-z0-9_]{1,16})", Pattern.CASE_INSENSITIVE);
 
-    private EncourageUpdateRewriter() {
-    }
+    private EncourageUpdateRewriter() {}
 
     /**
      * Attempts to rewrite an encourage-update guild chat message.
@@ -68,7 +67,8 @@ public final class EncourageUpdateRewriter {
         String announcedVersion = matcher.group(1);
         String localVersion = getLocalModVersion();
 
-        VetsLogger.debug("Encourage update: announced={}, local={}", announcedVersion, localVersion);
+        VetsLogger.debug(
+                "Encourage update: announced={}, local={}", announcedVersion, localVersion);
 
         String senderRank = resolveStaffRank(senderUsername);
 
@@ -137,8 +137,7 @@ public final class EncourageUpdateRewriter {
                 continue;
             }
             int type = Character.getType(cp);
-            if (type == Character.PRIVATE_USE
-                    || (type == Character.UNASSIGNED && cp > 0xFFFF)) {
+            if (type == Character.PRIVATE_USE || (type == Character.UNASSIGNED && cp > 0xFFFF)) {
                 i += charCount;
                 continue;
             }
@@ -157,16 +156,17 @@ public final class EncourageUpdateRewriter {
 
         String normalized = username.trim();
         return StaffRanksPoller.confirmedRankFor(normalized)
-                .or(() -> {
-                    for (String variant : normalized.split("/")) {
-                        String candidate = variant.trim();
-                        if (!candidate.isEmpty()) {
-                            var rank = StaffRanksPoller.confirmedRankFor(candidate);
-                            if (rank.isPresent()) return rank;
-                        }
-                    }
-                    return java.util.Optional.empty();
-                })
+                .or(
+                        () -> {
+                            for (String variant : normalized.split("/")) {
+                                String candidate = variant.trim();
+                                if (!candidate.isEmpty()) {
+                                    var rank = StaffRanksPoller.confirmedRankFor(candidate);
+                                    if (rank.isPresent()) return rank;
+                                }
+                            }
+                            return java.util.Optional.empty();
+                        })
                 .orElse("Captain");
     }
 
@@ -211,10 +211,13 @@ public final class EncourageUpdateRewriter {
     private static void flattenParts(Component component, Style inherited, List<FlatPart> out) {
         Style resolved = inherited.applyTo(component.getStyle());
         StringBuilder sb = new StringBuilder();
-        component.getContents().visit(s -> {
-            sb.append(s);
-            return java.util.Optional.empty();
-        });
+        component
+                .getContents()
+                .visit(
+                        s -> {
+                            sb.append(s);
+                            return java.util.Optional.empty();
+                        });
         String text = sb.toString();
         if (!text.isEmpty()) {
             out.add(new FlatPart(text, resolved));
@@ -224,8 +227,7 @@ public final class EncourageUpdateRewriter {
         }
     }
 
-    private record FlatPart(String text, Style style) {
-    }
+    private record FlatPart(String text, Style style) {}
 
     private static ParsedGuildChat parseGuildChat(String message) {
         if (message == null || message.isEmpty()) {
@@ -243,8 +245,8 @@ public final class EncourageUpdateRewriter {
             int cp = message.codePointAt(idx);
             int charCount = Character.charCount(cp);
             int type = Character.getType(cp);
-            boolean isCustomGlyph = type == Character.PRIVATE_USE
-                    || (type == Character.UNASSIGNED && cp > 0xFFFF);
+            boolean isCustomGlyph =
+                    type == Character.PRIVATE_USE || (type == Character.UNASSIGNED && cp > 0xFFFF);
             if (isCustomGlyph) {
                 lastGlyphEnd = idx + charCount;
             }
@@ -264,6 +266,5 @@ public final class EncourageUpdateRewriter {
         return new ParsedGuildChat(username, messageContent);
     }
 
-    private record ParsedGuildChat(String username, String message) {
-    }
+    private record ParsedGuildChat(String username, String message) {}
 }

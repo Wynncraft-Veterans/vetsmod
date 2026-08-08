@@ -9,21 +9,6 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
-
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
-
-import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.mwe.anni.network.AnniQueryClient;
-import org.wynnvets.mwe.anni.state.AnniSnapshot;
-import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -33,6 +18,18 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.stream.Stream;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.network.AnniQueryClient;
+import org.wynnvets.mwe.anni.state.AnniSnapshot;
+import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 
 /**
  * {@code /wv debug tree anni …} — simulation hooks for the MWE/anni subsystem.
@@ -50,28 +47,24 @@ public final class AnniDebugCommands {
     // (server-side python json.dumps emits explicit nulls). Lets `inject
     // file` round-trip a dump and lets a human-eye diff against the
     // canonical /api/internal/anni-player/{uuid} response succeed.
-    private static final Gson GSON = new GsonBuilder()
-            .setPrettyPrinting()
-            .serializeNulls()
-            .create();
+    private static final Gson GSON =
+            new GsonBuilder().setPrettyPrinting().serializeNulls().create();
 
     /** Directory under the game dir where {@code snapshot dump} writes
      *  fixtures and {@code snapshot inject file} reads them. Created on
      *  first dump. Sibling of {@code vetsmod/dumps/items/} —
      *  {@code vetsmod/dumps/} is the shared root for every dump
      *  artifact regardless of producer, organised per-type. */
-    private static final Path SNAPSHOTS_DIR = FabricLoader.getInstance()
-            .getGameDir().resolve("vetsmod/dumps/anni");
+    private static final Path SNAPSHOTS_DIR =
+            FabricLoader.getInstance().getGameDir().resolve("vetsmod/dumps/anni");
 
-    private static final DateTimeFormatter DUMP_TS = DateTimeFormatter
-            .ofPattern("yyyyMMdd-HHmmss")
-            .withZone(ZoneOffset.UTC);
+    private static final DateTimeFormatter DUMP_TS =
+            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(ZoneOffset.UTC);
 
     /** Classpath root for the bundled snapshot fixtures. Resources land here
      *  via {@code src/client/resources/assets/vetsmod/anni_test_snapshots/}
      *  and are loadable through {@link Class#getResourceAsStream(String)}. */
-    private static final String PRESET_CLASSPATH_PREFIX =
-            "/assets/vetsmod/anni_test_snapshots/";
+    private static final String PRESET_CLASSPATH_PREFIX = "/assets/vetsmod/anni_test_snapshots/";
 
     /** Names (no extension) of every bundled preset. Hard-coded for tab
      *  completion — the jar's classpath isn't trivially enumerable from
@@ -79,13 +72,13 @@ public final class AnniDebugCommands {
      *  with the files actually shipped under
      *  {@link #PRESET_CLASSPATH_PREFIX}. */
     private static final String[] PRESETS = {
-            "empty",
-            "external_no_anni",
-            "member_announced",
-            "member_in_party",
-            "member_no_anni",
-            "member_no_anni_fill",
-            "member_no_anni_unregistered",
+        "empty",
+        "external_no_anni",
+        "member_announced",
+        "member_in_party",
+        "member_no_anni",
+        "member_no_anni_fill",
+        "member_no_anni_unregistered",
     };
 
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_MODES =
@@ -117,15 +110,15 @@ public final class AnniDebugCommands {
                     return builder.buildFuture();
                 }
                 try (Stream<Path> stream = Files.list(SNAPSHOTS_DIR)) {
-                    stream
-                        .filter(p -> p.getFileName().toString().endsWith(".json"))
-                        .map(p -> {
-                            String n = p.getFileName().toString();
-                            return n.substring(0, n.length() - ".json".length());
-                        })
-                        .filter(n -> n.toLowerCase().startsWith(partial))
-                        .sorted()
-                        .forEach(builder::suggest);
+                    stream.filter(p -> p.getFileName().toString().endsWith(".json"))
+                            .map(
+                                    p -> {
+                                        String n = p.getFileName().toString();
+                                        return n.substring(0, n.length() - ".json".length());
+                                    })
+                            .filter(n -> n.toLowerCase().startsWith(partial))
+                            .sorted()
+                            .forEach(builder::suggest);
                 } catch (IOException ignored) {
                     // Fall through with whatever we've collected so far.
                 }
@@ -159,17 +152,18 @@ public final class AnniDebugCommands {
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_TIME_OFFSETS =
             (ctx, builder) -> {
                 String partial = builder.getRemaining().toLowerCase();
-                for (String s : new String[] {
-                        "60",     // 1m  — within T-2m boss-bar window (S3)
-                        "120",    // 2m  — edge of T-2m window
-                        "600",    // 10m
-                        "1800",   // 30m
-                        "3600",   // 1h
-                        "7200",   // 2h  — boundary between far-out and imminent
-                        "28800",  // 8h  — realistic announced-anni offset
-                        "43200",  // 12h — max real announce window
-                        "-60",    // 1m ago
-                }) {
+                for (String s :
+                        new String[] {
+                            "60", // 1m  — within T-2m boss-bar window (S3)
+                            "120", // 2m  — edge of T-2m window
+                            "600", // 10m
+                            "1800", // 30m
+                            "3600", // 1h
+                            "7200", // 2h  — boundary between far-out and imminent
+                            "28800", // 8h  — realistic announced-anni offset
+                            "43200", // 12h — max real announce window
+                            "-60", // 1m ago
+                        }) {
                     if (s.startsWith(partial)) {
                         builder.suggest(s);
                     }
@@ -195,15 +189,16 @@ public final class AnniDebugCommands {
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_REGISTRY_ROLES =
             (ctx, builder) -> {
                 String partial = builder.getRemaining().toLowerCase();
-                for (String role : new String[] {
-                        "PRIMARY",    // red    (§c) — the canonical "red highlight + red nametag"
-                        "SECONDARY",  // yellow (§e)
-                        "TERTIARY",   // purple (§d)
-                        "TANK",       // aqua   (§b)
-                        "HEALER",     // green  (§a)
-                        "FILL",       // white  (§f)
-                        "other",      // grey   (§7) — OTHER_VETS_PARTY tier
-                }) {
+                for (String role :
+                        new String[] {
+                            "PRIMARY", // red    (§c) — the canonical "red highlight + red nametag"
+                            "SECONDARY", // yellow (§e)
+                            "TERTIARY", // purple (§d)
+                            "TANK", // aqua   (§b)
+                            "HEALER", // green  (§a)
+                            "FILL", // white  (§f)
+                            "other", // grey   (§7) — OTHER_VETS_PARTY tier
+                        }) {
                     if (role.toLowerCase().startsWith(partial)) {
                         builder.suggest(role);
                     }
@@ -216,9 +211,8 @@ public final class AnniDebugCommands {
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_ALERT_FIELDS =
             (ctx, builder) -> {
                 String partial = builder.getRemaining().toLowerCase();
-                for (String field : new String[] {
-                        "role", "world", "party", "rsvp", "zone", "world_ready"
-                }) {
+                for (String field :
+                        new String[] {"role", "world", "party", "rsvp", "zone", "world_ready"}) {
                     if (field.startsWith(partial)) {
                         builder.suggest(field);
                     }
@@ -226,135 +220,246 @@ public final class AnniDebugCommands {
                 return builder.buildFuture();
             };
 
-    private AnniDebugCommands() {
-    }
+    private AnniDebugCommands() {}
 
     /** Append the {@code anni} literal to the {@code /wv debug} tree.
      *  Caller is {@link org.wynnvets.debug.DebugCommands#buildCommandTree()
      *  DebugCommands#buildCommandTree()}. */
     public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommandTree() {
         return ClientCommandManager.literal("anni")
-                .then(ClientCommandManager.literal("snapshot")
-                        .then(ClientCommandManager.literal("inject")
-                                // Literal branches are tried before the
-                                // greedyString fallback, so `inject file …`
-                                // and `inject preset …` resolve cleanly even
-                                // though the inline form accepts anything.
-                                .then(ClientCommandManager.literal("file")
-                                        .then(ClientCommandManager.argument("name",
-                                                        StringArgumentType.word())
-                                                .suggests(SUGGEST_DUMP_FILES)
-                                                .executes(AnniDebugCommands::snapshotInjectFile)))
-                                .then(ClientCommandManager.literal("preset")
-                                        .then(ClientCommandManager.argument("name",
-                                                        StringArgumentType.word())
-                                                .suggests(SUGGEST_PRESETS)
-                                                .executes(AnniDebugCommands::snapshotInjectPreset)))
-                                .then(ClientCommandManager.argument("json",
-                                                StringArgumentType.greedyString())
-                                        .executes(AnniDebugCommands::snapshotInject)))
-                        .then(ClientCommandManager.literal("dump")
-                                .executes(AnniDebugCommands::snapshotDump))
-                        .then(ClientCommandManager.literal("clear")
-                                .executes(AnniDebugCommands::snapshotClear))
-                        .then(ClientCommandManager.literal("refresh")
-                                .executes(AnniDebugCommands::snapshotRefresh)))
-                .then(ClientCommandManager.literal("guess")
-                        .executes(AnniDebugCommands::guess))
-                .then(ClientCommandManager.literal("external")
-                        .then(ClientCommandManager.argument("mode",
-                                        StringArgumentType.word())
-                                .suggests(SUGGEST_EXTERNAL_MODES)
-                                .executes(AnniDebugCommands::externalSet)))
-                .then(ClientCommandManager.literal("time")
-                        .then(ClientCommandManager.argument("seconds",
-                                        StringArgumentType.word())
-                                .suggests(SUGGEST_TIME_OFFSETS)
-                                .executes(AnniDebugCommands::timeSet)))
-                .then(ClientCommandManager.literal("zone")
-                        .then(ClientCommandManager.argument("action",
-                                        StringArgumentType.word())
-                                .suggests(SUGGEST_ZONE_ACTIONS)
-                                .executes(AnniDebugCommands::zone)))
-                .then(ClientCommandManager.literal("flash")
-                        .then(ClientCommandManager.argument("field",
-                                        StringArgumentType.word())
-                                .suggests(SUGGEST_FLASH_FIELDS)
-                                .executes(AnniDebugCommands::flash)))
-                .then(ClientCommandManager.literal("mode")
-                        .then(ClientCommandManager.literal("set")
-                                .then(ClientCommandManager.argument("mode",
-                                                StringArgumentType.word())
-                                        .suggests(SUGGEST_MODES)
-                                        .executes(AnniDebugCommands::modeSet))))
+                .then(
+                        ClientCommandManager.literal("snapshot")
+                                .then(
+                                        ClientCommandManager.literal("inject")
+                                                // Literal branches are tried before the
+                                                // greedyString fallback, so `inject file …`
+                                                // and `inject preset …` resolve cleanly even
+                                                // though the inline form accepts anything.
+                                                .then(
+                                                        ClientCommandManager.literal("file")
+                                                                .then(
+                                                                        ClientCommandManager
+                                                                                .argument(
+                                                                                        "name",
+                                                                                        StringArgumentType
+                                                                                                .word())
+                                                                                .suggests(
+                                                                                        SUGGEST_DUMP_FILES)
+                                                                                .executes(
+                                                                                        AnniDebugCommands
+                                                                                                ::snapshotInjectFile)))
+                                                .then(
+                                                        ClientCommandManager.literal("preset")
+                                                                .then(
+                                                                        ClientCommandManager
+                                                                                .argument(
+                                                                                        "name",
+                                                                                        StringArgumentType
+                                                                                                .word())
+                                                                                .suggests(
+                                                                                        SUGGEST_PRESETS)
+                                                                                .executes(
+                                                                                        AnniDebugCommands
+                                                                                                ::snapshotInjectPreset)))
+                                                .then(
+                                                        ClientCommandManager.argument(
+                                                                        "json",
+                                                                        StringArgumentType
+                                                                                .greedyString())
+                                                                .executes(
+                                                                        AnniDebugCommands
+                                                                                ::snapshotInject)))
+                                .then(
+                                        ClientCommandManager.literal("dump")
+                                                .executes(AnniDebugCommands::snapshotDump))
+                                .then(
+                                        ClientCommandManager.literal("clear")
+                                                .executes(AnniDebugCommands::snapshotClear))
+                                .then(
+                                        ClientCommandManager.literal("refresh")
+                                                .executes(AnniDebugCommands::snapshotRefresh)))
+                .then(ClientCommandManager.literal("guess").executes(AnniDebugCommands::guess))
+                .then(
+                        ClientCommandManager.literal("external")
+                                .then(
+                                        ClientCommandManager.argument(
+                                                        "mode", StringArgumentType.word())
+                                                .suggests(SUGGEST_EXTERNAL_MODES)
+                                                .executes(AnniDebugCommands::externalSet)))
+                .then(
+                        ClientCommandManager.literal("time")
+                                .then(
+                                        ClientCommandManager.argument(
+                                                        "seconds", StringArgumentType.word())
+                                                .suggests(SUGGEST_TIME_OFFSETS)
+                                                .executes(AnniDebugCommands::timeSet)))
+                .then(
+                        ClientCommandManager.literal("zone")
+                                .then(
+                                        ClientCommandManager.argument(
+                                                        "action", StringArgumentType.word())
+                                                .suggests(SUGGEST_ZONE_ACTIONS)
+                                                .executes(AnniDebugCommands::zone)))
+                .then(
+                        ClientCommandManager.literal("flash")
+                                .then(
+                                        ClientCommandManager.argument(
+                                                        "field", StringArgumentType.word())
+                                                .suggests(SUGGEST_FLASH_FIELDS)
+                                                .executes(AnniDebugCommands::flash)))
+                .then(
+                        ClientCommandManager.literal("mode")
+                                .then(
+                                        ClientCommandManager.literal("set")
+                                                .then(
+                                                        ClientCommandManager.argument(
+                                                                        "mode",
+                                                                        StringArgumentType.word())
+                                                                .suggests(SUGGEST_MODES)
+                                                                .executes(
+                                                                        AnniDebugCommands
+                                                                                ::modeSet))))
                 // S5 — scrollspot host-write. Lives under `/wv debug tree`
                 // (rather than `/wv anni`) so it doesn't clutter
                 // tab-complete for everyone else; staff hosts using this
                 // already need debug logging on (gating below). `set`/
                 // `here`/`clear` round-trip the server; `localinject` /
                 // `localclear` bypass it for visual testing.
-                .then(ClientCommandManager.literal("scrollspot")
-                        .then(ClientCommandManager.literal("set")
-                                .then(ClientCommandManager.argument("x",
-                                                com.mojang.brigadier.arguments.IntegerArgumentType.integer())
-                                        .then(ClientCommandManager.argument("y",
-                                                        com.mojang.brigadier.arguments.IntegerArgumentType.integer())
-                                                .then(ClientCommandManager.argument("z",
-                                                                com.mojang.brigadier.arguments.IntegerArgumentType.integer())
-                                                        .executes(AnniDebugCommands::scrollspotSet)))))
-                        .then(ClientCommandManager.literal("here")
-                                .executes(AnniDebugCommands::scrollspotHere))
-                        .then(ClientCommandManager.literal("clear")
-                                .executes(AnniDebugCommands::scrollspotClear))
-                        .then(ClientCommandManager.literal("localinject")
-                                .then(ClientCommandManager.argument("x",
-                                                com.mojang.brigadier.arguments.IntegerArgumentType.integer())
-                                        .then(ClientCommandManager.argument("y",
-                                                        com.mojang.brigadier.arguments.IntegerArgumentType.integer())
-                                                .then(ClientCommandManager.argument("z",
-                                                                com.mojang.brigadier.arguments.IntegerArgumentType.integer())
-                                                        .executes(AnniDebugCommands::scrollspotLocalInject)))))
-                        .then(ClientCommandManager.literal("localclear")
-                                .executes(AnniDebugCommands::scrollspotLocalClear)))
+                .then(
+                        ClientCommandManager.literal("scrollspot")
+                                .then(
+                                        ClientCommandManager.literal("set")
+                                                .then(
+                                                        ClientCommandManager.argument(
+                                                                        "x",
+                                                                        com.mojang.brigadier
+                                                                                .arguments
+                                                                                .IntegerArgumentType
+                                                                                .integer())
+                                                                .then(
+                                                                        ClientCommandManager
+                                                                                .argument(
+                                                                                        "y",
+                                                                                        com.mojang
+                                                                                                .brigadier
+                                                                                                .arguments
+                                                                                                .IntegerArgumentType
+                                                                                                .integer())
+                                                                                .then(
+                                                                                        ClientCommandManager
+                                                                                                .argument(
+                                                                                                        "z",
+                                                                                                        com
+                                                                                                                .mojang
+                                                                                                                .brigadier
+                                                                                                                .arguments
+                                                                                                                .IntegerArgumentType
+                                                                                                                .integer())
+                                                                                                .executes(
+                                                                                                        AnniDebugCommands
+                                                                                                                ::scrollspotSet)))))
+                                .then(
+                                        ClientCommandManager.literal("here")
+                                                .executes(AnniDebugCommands::scrollspotHere))
+                                .then(
+                                        ClientCommandManager.literal("clear")
+                                                .executes(AnniDebugCommands::scrollspotClear))
+                                .then(
+                                        ClientCommandManager.literal("localinject")
+                                                .then(
+                                                        ClientCommandManager.argument(
+                                                                        "x",
+                                                                        com.mojang.brigadier
+                                                                                .arguments
+                                                                                .IntegerArgumentType
+                                                                                .integer())
+                                                                .then(
+                                                                        ClientCommandManager
+                                                                                .argument(
+                                                                                        "y",
+                                                                                        com.mojang
+                                                                                                .brigadier
+                                                                                                .arguments
+                                                                                                .IntegerArgumentType
+                                                                                                .integer())
+                                                                                .then(
+                                                                                        ClientCommandManager
+                                                                                                .argument(
+                                                                                                        "z",
+                                                                                                        com
+                                                                                                                .mojang
+                                                                                                                .brigadier
+                                                                                                                .arguments
+                                                                                                                .IntegerArgumentType
+                                                                                                                .integer())
+                                                                                                .executes(
+                                                                                                        AnniDebugCommands
+                                                                                                                ::scrollspotLocalInject)))))
+                                .then(
+                                        ClientCommandManager.literal("localclear")
+                                                .executes(AnniDebugCommands::scrollspotLocalClear)))
                 // S5 — alert debug: fire a synthesised chat alert
                 // without contriving a snapshot diff. Bypasses the 5s
                 // cooldown so back-to-back invocations work.
-                .then(ClientCommandManager.literal("alert")
-                        .then(ClientCommandManager.argument("field",
-                                        StringArgumentType.word())
-                                .suggests(SUGGEST_ALERT_FIELDS)
-                                .executes(AnniDebugCommands::alert)))
+                .then(
+                        ClientCommandManager.literal("alert")
+                                .then(
+                                        ClientCommandManager.argument(
+                                                        "field", StringArgumentType.word())
+                                                .suggests(SUGGEST_ALERT_FIELDS)
+                                                .executes(AnniDebugCommands::alert)))
                 // S6 — rsvp debug mirror. Same three subcommands as the
                 // main `/wv anni rsvp` tree, gated on requireDebug only
                 // (the action only affects the caller's own RSVP, so no
                 // staff/organiser perm is required). The main brigadier
                 // command is preferred; this exists for symmetry with the
                 // scrollspot debug-tree mirror.
-                .then(ClientCommandManager.literal("rsvp")
-                        .then(ClientCommandManager.literal("hard")
-                                .executes(AnniDebugCommands::rsvpHard))
-                        .then(ClientCommandManager.literal("soft")
-                                .executes(AnniDebugCommands::rsvpSoft))
-                        .then(ClientCommandManager.literal("revoke")
-                                .executes(AnniDebugCommands::rsvpRevoke)))
+                .then(
+                        ClientCommandManager.literal("rsvp")
+                                .then(
+                                        ClientCommandManager.literal("hard")
+                                                .executes(AnniDebugCommands::rsvpHard))
+                                .then(
+                                        ClientCommandManager.literal("soft")
+                                                .executes(AnniDebugCommands::rsvpSoft))
+                                .then(
+                                        ClientCommandManager.literal("revoke")
+                                                .executes(AnniDebugCommands::rsvpRevoke)))
                 // Arbitrary registry injection for visually verifying the
                 // S4 highlight + nametag branches without coordinating a
                 // real anni party. Wiped on the next snapshot rebuild —
                 // re-inject after `snapshot inject` / `snapshot clear`.
-                .then(ClientCommandManager.literal("registry")
-                        .then(ClientCommandManager.literal("set")
-                                .then(ClientCommandManager.argument("username",
-                                                StringArgumentType.word())
-                                        .then(ClientCommandManager.argument("role",
-                                                        StringArgumentType.word())
-                                                .suggests(SUGGEST_REGISTRY_ROLES)
-                                                .executes(AnniDebugCommands::registrySet))))
-                        .then(ClientCommandManager.literal("clear")
-                                .then(ClientCommandManager.argument("username",
-                                                StringArgumentType.word())
-                                        .executes(AnniDebugCommands::registryClear)))
-                        .then(ClientCommandManager.literal("clearall")
-                                .executes(AnniDebugCommands::registryClearAll)));
+                .then(
+                        ClientCommandManager.literal("registry")
+                                .then(
+                                        ClientCommandManager.literal("set")
+                                                .then(
+                                                        ClientCommandManager.argument(
+                                                                        "username",
+                                                                        StringArgumentType.word())
+                                                                .then(
+                                                                        ClientCommandManager
+                                                                                .argument(
+                                                                                        "role",
+                                                                                        StringArgumentType
+                                                                                                .word())
+                                                                                .suggests(
+                                                                                        SUGGEST_REGISTRY_ROLES)
+                                                                                .executes(
+                                                                                        AnniDebugCommands
+                                                                                                ::registrySet))))
+                                .then(
+                                        ClientCommandManager.literal("clear")
+                                                .then(
+                                                        ClientCommandManager.argument(
+                                                                        "username",
+                                                                        StringArgumentType.word())
+                                                                .executes(
+                                                                        AnniDebugCommands
+                                                                                ::registryClear)))
+                                .then(
+                                        ClientCommandManager.literal("clearall")
+                                                .executes(AnniDebugCommands::registryClearAll)));
     }
 
     // ──────────────────────────────────────────────────────────── gating
@@ -363,10 +468,11 @@ public final class AnniDebugCommands {
      *  command in this tree to short-circuit when debug logging is off. */
     private static int requireDebug(CommandContext<FabricClientCommandSource> ctx) {
         if (VetsLogger.isDebugEnabled()) {
-            return -1;  // sentinel: caller proceeds
+            return -1; // sentinel: caller proceeds
         }
         ChatUtils.sendLocalMessage(
-                Component.literal("anni debug commands require debug logging — run /wv debug true first")
+                Component.literal(
+                                "anni debug commands require debug logging — run /wv debug true first")
                         .withStyle(ChatFormatting.RED));
         return 0;
     }
@@ -453,7 +559,10 @@ public final class AnniDebugCommands {
         try (InputStream in = AnniDebugCommands.class.getResourceAsStream(resourcePath)) {
             if (in == null) {
                 ChatUtils.sendLocalMessage(
-                        Component.literal("anni snapshot inject preset: unknown preset '" + name + "'")
+                        Component.literal(
+                                        "anni snapshot inject preset: unknown preset '"
+                                                + name
+                                                + "'")
                                 .withStyle(ChatFormatting.RED));
                 return 0;
             }
@@ -487,9 +596,10 @@ public final class AnniDebugCommands {
                 reason = "no tier hint in preset name";
             }
             org.wynnvets.mwe.anni.render.AnniCommandRenderer.setExternalOverride(override);
-            String summary = override == null
-                    ? "auto (rank signals)"
-                    : ("forced " + (override ? "external" : "vets"));
+            String summary =
+                    override == null
+                            ? "auto (rank signals)"
+                            : ("forced " + (override ? "external" : "vets"));
             ChatUtils.sendLocalMessage(
                     Component.literal("(external override → " + summary + " — " + reason + ")")
                             .withStyle(ChatFormatting.DARK_GRAY));
@@ -508,8 +618,11 @@ public final class AnniDebugCommands {
             resolved = substituteNowTokens(raw);
         } catch (NumberFormatException e) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("anni snapshot inject (" + source
-                            + "): bad NOW token: " + e.getMessage())
+                    Component.literal(
+                                    "anni snapshot inject ("
+                                            + source
+                                            + "): bad NOW token: "
+                                            + e.getMessage())
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -518,8 +631,11 @@ public final class AnniDebugCommands {
             json = JsonParser.parseString(resolved).getAsJsonObject();
         } catch (JsonSyntaxException | IllegalStateException e) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("anni snapshot inject (" + source
-                            + "): invalid JSON: " + e.getMessage())
+                    Component.literal(
+                                    "anni snapshot inject ("
+                                            + source
+                                            + "): invalid JSON: "
+                                            + e.getMessage())
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -528,16 +644,24 @@ public final class AnniDebugCommands {
             snapshot = AnniSnapshot.fromJson(json);
         } catch (Exception e) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("anni snapshot inject (" + source
-                            + "): parse failed: " + e.getMessage())
+                    Component.literal(
+                                    "anni snapshot inject ("
+                                            + source
+                                            + "): parse failed: "
+                                            + e.getMessage())
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
         AnniSnapshotCache.update(snapshot);
         ChatUtils.sendLocalMessage(
-                Component.literal("anni snapshot injected from " + source
-                        + " (schema_version=" + snapshot.schemaVersion()
-                        + ", mc_uuid=" + (snapshot.mcUuid() != null ? snapshot.mcUuid() : "<null>") + ")")
+                Component.literal(
+                                "anni snapshot injected from "
+                                        + source
+                                        + " (schema_version="
+                                        + snapshot.schemaVersion()
+                                        + ", mc_uuid="
+                                        + (snapshot.mcUuid() != null ? snapshot.mcUuid() : "<null>")
+                                        + ")")
                         .withStyle(ChatFormatting.GREEN));
         return 1;
     }
@@ -566,18 +690,26 @@ public final class AnniDebugCommands {
                 double v = Double.parseDouble(amount);
                 long perUnit;
                 switch (unit) {
-                    case "h": perUnit = 3600L; break;
-                    case "m": perUnit = 60L; break;
-                    case "s": perUnit = 1L; break;
-                    default: perUnit = 1L; break;
+                    case "h":
+                        perUnit = 3600L;
+                        break;
+                    case "m":
+                        perUnit = 60L;
+                        break;
+                    case "s":
+                        perUnit = 1L;
+                        break;
+                    default:
+                        perUnit = 1L;
+                        break;
                 }
                 delta = (long) (v * perUnit);
                 if ("-".equals(sign)) delta = -delta;
             }
             // Matcher.appendReplacement reinterprets $-references; bypass
             // by replacing through Matcher.quoteReplacement.
-            m.appendReplacement(out,
-                    java.util.regex.Matcher.quoteReplacement(Long.toString(now + delta)));
+            m.appendReplacement(
+                    out, java.util.regex.Matcher.quoteReplacement(Long.toString(now + delta)));
         }
         m.appendTail(out);
         return out.toString();
@@ -587,8 +719,7 @@ public final class AnniDebugCommands {
      *  The whole token (including the JSON quotes) is consumed so the
      *  replacement leaves a bare number. */
     private static final java.util.regex.Pattern NOW_TOKEN =
-            java.util.regex.Pattern.compile(
-                    "\"\\{NOW(?:([+\\-])(\\d+(?:\\.\\d+)?)([hms]))?\\}\"");
+            java.util.regex.Pattern.compile("\"\\{NOW(?:([+\\-])(\\d+(?:\\.\\d+)?)([hms]))?\\}\"");
 
     private static int snapshotDump(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
@@ -640,9 +771,10 @@ public final class AnniDebugCommands {
         if (gate == 0) return 0;
         AnniSnapshotCache.update(null);
         ChatUtils.sendLocalMessage(
-                Component.literal("anni snapshot cleared (cache is null; "
-                        + "run `/wv debug anni snapshot refresh` to re-pull, "
-                        + "or wait for server-side changes)")
+                Component.literal(
+                                "anni snapshot cleared (cache is null; "
+                                        + "run `/wv debug anni snapshot refresh` to re-pull, "
+                                        + "or wait for server-side changes)")
                         .withStyle(ChatFormatting.GREEN));
         return 1;
     }
@@ -670,40 +802,65 @@ public final class AnniDebugCommands {
                 Component.literal("anni snapshot refreshing… (anni_query in flight)")
                         .withStyle(ChatFormatting.GRAY));
 
-        AnniQueryClient.query().whenComplete((snapshot, throwable) -> {
-            Minecraft.getInstance().execute(() -> {
-                if (throwable != null) {
-                    // TimeoutException's getMessage() is null — substitute
-                    // the class name so the user can tell what failed.
-                    String detail = throwable.getMessage();
-                    if (detail == null || detail.isEmpty()) {
-                        detail = throwable.getClass().getSimpleName();
-                    }
-                    ChatUtils.sendLocalMessage(
-                            Component.literal("anni snapshot refresh: query failed: "
-                                    + detail)
-                                    .withStyle(ChatFormatting.RED));
-                    return;
-                }
-                if (snapshot == null) {
-                    // Three possible causes: inbound WS down, server
-                    // returned snapshot=null (player not in vets-anni DB),
-                    // or the 8s deadline elapsed. The QueryClient doesn't
-                    // distinguish them in the future's value — they all
-                    // come through as null — so the message is generic.
-                    ChatUtils.sendLocalMessage(
-                            Component.literal("anni snapshot refresh: no snapshot returned "
-                                    + "(WS down, player unknown to vets-anni, or timeout)")
-                                    .withStyle(ChatFormatting.YELLOW));
-                    return;
-                }
-                ChatUtils.sendLocalMessage(
-                        Component.literal("anni snapshot refreshed (mc_uuid="
-                                + (snapshot.mcUuid() != null ? snapshot.mcUuid() : "<null>")
-                                + ", schema_version=" + snapshot.schemaVersion() + ")")
-                                .withStyle(ChatFormatting.GREEN));
-            });
-        });
+        AnniQueryClient.query()
+                .whenComplete(
+                        (snapshot, throwable) -> {
+                            Minecraft.getInstance()
+                                    .execute(
+                                            () -> {
+                                                if (throwable != null) {
+                                                    // TimeoutException's getMessage() is null —
+                                                    // substitute
+                                                    // the class name so the user can tell what
+                                                    // failed.
+                                                    String detail = throwable.getMessage();
+                                                    if (detail == null || detail.isEmpty()) {
+                                                        detail =
+                                                                throwable
+                                                                        .getClass()
+                                                                        .getSimpleName();
+                                                    }
+                                                    ChatUtils.sendLocalMessage(
+                                                            Component.literal(
+                                                                            "anni snapshot refresh: query failed: "
+                                                                                    + detail)
+                                                                    .withStyle(ChatFormatting.RED));
+                                                    return;
+                                                }
+                                                if (snapshot == null) {
+                                                    // Three possible causes: inbound WS down,
+                                                    // server
+                                                    // returned snapshot=null (player not in
+                                                    // vets-anni DB),
+                                                    // or the 8s deadline elapsed. The QueryClient
+                                                    // doesn't
+                                                    // distinguish them in the future's value — they
+                                                    // all
+                                                    // come through as null — so the message is
+                                                    // generic.
+                                                    ChatUtils.sendLocalMessage(
+                                                            Component.literal(
+                                                                            "anni snapshot refresh: no snapshot returned "
+                                                                                    + "(WS down, player unknown to vets-anni, or timeout)")
+                                                                    .withStyle(
+                                                                            ChatFormatting.YELLOW));
+                                                    return;
+                                                }
+                                                ChatUtils.sendLocalMessage(
+                                                        Component.literal(
+                                                                        "anni snapshot refreshed (mc_uuid="
+                                                                                + (snapshot.mcUuid()
+                                                                                                != null
+                                                                                        ? snapshot
+                                                                                                .mcUuid()
+                                                                                        : "<null>")
+                                                                                + ", schema_version="
+                                                                                + snapshot
+                                                                                        .schemaVersion()
+                                                                                + ")")
+                                                                .withStyle(ChatFormatting.GREEN));
+                                            });
+                        });
         return 1;
     }
 
@@ -727,39 +884,55 @@ public final class AnniDebugCommands {
                 Component.literal("anni guess: querying fishbot prediction…")
                         .withStyle(ChatFormatting.GRAY));
 
-        AnniQueryClient.query().whenComplete((snapshot, throwable) -> {
-            Minecraft.getInstance().execute(() -> {
-                if (throwable != null || snapshot == null) {
-                    AnniSnapshot stale = AnniSnapshotCache.latest();
-                    if (stale != null) {
-                        ChatUtils.sendLocalMessage(
-                                Component.literal("anni guess (stale cache — pull failed): ")
-                                        .withStyle(ChatFormatting.YELLOW)
-                                        .append(formatGuess(stale)));
-                    } else {
-                        String reason = throwable != null && throwable.getMessage() != null
-                                ? throwable.getMessage()
-                                : "no snapshot returned";
-                        ChatUtils.sendLocalMessage(
-                                Component.literal("anni guess: " + reason)
-                                        .withStyle(ChatFormatting.RED));
-                    }
-                    return;
-                }
-                ChatUtils.sendLocalMessage(
-                        Component.literal("anni guess: ")
-                                .withStyle(ChatFormatting.GRAY)
-                                .append(formatGuess(snapshot)));
-            });
-        });
+        AnniQueryClient.query()
+                .whenComplete(
+                        (snapshot, throwable) -> {
+                            Minecraft.getInstance()
+                                    .execute(
+                                            () -> {
+                                                if (throwable != null || snapshot == null) {
+                                                    AnniSnapshot stale = AnniSnapshotCache.latest();
+                                                    if (stale != null) {
+                                                        ChatUtils.sendLocalMessage(
+                                                                Component.literal(
+                                                                                "anni guess (stale cache — pull failed): ")
+                                                                        .withStyle(
+                                                                                ChatFormatting
+                                                                                        .YELLOW)
+                                                                        .append(
+                                                                                formatGuess(
+                                                                                        stale)));
+                                                    } else {
+                                                        String reason =
+                                                                throwable != null
+                                                                                && throwable
+                                                                                                .getMessage()
+                                                                                        != null
+                                                                        ? throwable.getMessage()
+                                                                        : "no snapshot returned";
+                                                        ChatUtils.sendLocalMessage(
+                                                                Component.literal(
+                                                                                "anni guess: "
+                                                                                        + reason)
+                                                                        .withStyle(
+                                                                                ChatFormatting
+                                                                                        .RED));
+                                                    }
+                                                    return;
+                                                }
+                                                ChatUtils.sendLocalMessage(
+                                                        Component.literal("anni guess: ")
+                                                                .withStyle(ChatFormatting.GRAY)
+                                                                .append(formatGuess(snapshot)));
+                                            });
+                        });
         return 1;
     }
 
     /** One-line render of the snapshot's event field — either the
      *  announced stamp + countdown, or the prediction window. Mirrors
      *  what fishbot's {@code \guess} returns in Discord. */
-    private static net.minecraft.network.chat.MutableComponent formatGuess(
-            AnniSnapshot snapshot) {
+    private static net.minecraft.network.chat.MutableComponent formatGuess(AnniSnapshot snapshot) {
         AnniSnapshot.Event event = snapshot.event();
         if (event == null) {
             return Component.literal("no AnniEvent on file (vets-anni has no anchor)")
@@ -769,17 +942,17 @@ public final class AnniDebugCommands {
         Long stamp = event.stampEpoch();
         if (event.announced() && stamp != null && stamp > now) {
             long delta = stamp - now;
-            String when = java.time.format.DateTimeFormatter
-                    .ofPattern("MMM d '@'HH:mm")
-                    .withZone(java.time.ZoneId.systemDefault())
-                    .format(java.time.Instant.ofEpochSecond(stamp));
+            String when =
+                    java.time.format.DateTimeFormatter.ofPattern("MMM d '@'HH:mm")
+                            .withZone(java.time.ZoneId.systemDefault())
+                            .format(java.time.Instant.ofEpochSecond(stamp));
             long hours = Math.round(delta / 3600.0);
             return Component.literal("announced ")
                     .withStyle(ChatFormatting.GREEN)
-                    .append(Component.literal(hours + "h from now")
-                            .withStyle(ChatFormatting.WHITE))
-                    .append(Component.literal(" (" + when + ")")
-                            .withStyle(ChatFormatting.DARK_GRAY));
+                    .append(Component.literal(hours + "h from now").withStyle(ChatFormatting.WHITE))
+                    .append(
+                            Component.literal(" (" + when + ")")
+                                    .withStyle(ChatFormatting.DARK_GRAY));
         }
         AnniSnapshot.Prediction prediction = event.prediction();
         if (prediction == null || prediction.medianEpoch() == null) {
@@ -790,25 +963,26 @@ public final class AnniDebugCommands {
         long delta = median - now;
         long absHours = Math.round(Math.abs(delta) / 3600.0);
         String qualifier = delta <= 0 ? " overdue " : " from now ";
-        String when = java.time.format.DateTimeFormatter
-                .ofPattern("MMM d '@'HH:mm")
-                .withZone(java.time.ZoneId.systemDefault())
-                .format(java.time.Instant.ofEpochSecond(median));
+        String when =
+                java.time.format.DateTimeFormatter.ofPattern("MMM d '@'HH:mm")
+                        .withZone(java.time.ZoneId.systemDefault())
+                        .format(java.time.Instant.ofEpochSecond(median));
         // σ = window/√12 — see AnniCommandRenderer.predictionLine for why
         // this is what ± should represent (not half-window).
         double sigma = prediction.windowHours() / Math.sqrt(12.0);
         long sigmaRounded = Math.round(sigma);
-        String sigmaStr = sigmaRounded < 1
-                ? Math.round(sigma * 60) + "min"
-                : sigmaRounded + "h";
+        String sigmaStr = sigmaRounded < 1 ? Math.round(sigma * 60) + "min" : sigmaRounded + "h";
         return Component.literal("not announced; predicted ")
                 .withStyle(ChatFormatting.GOLD)
                 .append(Component.literal(absHours + "h").withStyle(ChatFormatting.YELLOW))
                 .append(Component.literal(qualifier).withStyle(ChatFormatting.GOLD))
-                .append(Component.literal("| ").withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD))
+                .append(
+                        Component.literal("| ")
+                                .withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD))
                 .append(Component.literal(when).withStyle(ChatFormatting.YELLOW))
-                .append(Component.literal(" ±~" + sigmaStr)
-                        .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
+                .append(
+                        Component.literal(" ±~" + sigmaStr)
+                                .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
     }
 
     // ────────────────────────────── external override (rendering only)
@@ -825,9 +999,15 @@ public final class AnniDebugCommands {
         String mode = StringArgumentType.getString(ctx, "mode").toLowerCase();
         Boolean override;
         switch (mode) {
-            case "auto":  override = null;          break;
-            case "true":  override = Boolean.TRUE;  break;
-            case "false": override = Boolean.FALSE; break;
+            case "auto":
+                override = null;
+                break;
+            case "true":
+                override = Boolean.TRUE;
+                break;
+            case "false":
+                override = Boolean.FALSE;
+                break;
             default:
                 ChatUtils.sendLocalMessage(
                         Component.literal("anni external: mode must be auto|true|false")
@@ -835,9 +1015,10 @@ public final class AnniDebugCommands {
                 return 0;
         }
         org.wynnvets.mwe.anni.render.AnniCommandRenderer.setExternalOverride(override);
-        String summary = override == null
-                ? "auto (use rank signals)"
-                : ("forced " + (override ? "external" : "vets"));
+        String summary =
+                override == null
+                        ? "auto (use rank signals)"
+                        : ("forced " + (override ? "external" : "vets"));
         ChatUtils.sendLocalMessage(
                 Component.literal("anni external override: " + summary)
                         .withStyle(ChatFormatting.GREEN));
@@ -869,8 +1050,8 @@ public final class AnniDebugCommands {
             secondsFromNow = Long.parseLong(secondsArg);
         } catch (NumberFormatException e) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("anni time: expected integer seconds, got '"
-                            + secondsArg + "'")
+                    Component.literal(
+                                    "anni time: expected integer seconds, got '" + secondsArg + "'")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -878,8 +1059,9 @@ public final class AnniDebugCommands {
         AnniSnapshot current = AnniSnapshotCache.latest();
         if (current == null) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("anni time: no snapshot in cache "
-                            + "(inject one first with `/wv debug anni snapshot inject preset …`)")
+                    Component.literal(
+                                    "anni time: no snapshot in cache "
+                                            + "(inject one first with `/wv debug anni snapshot inject preset …`)")
                             .withStyle(ChatFormatting.YELLOW));
             return 0;
         }
@@ -889,16 +1071,18 @@ public final class AnniDebugCommands {
             json = JsonParser.parseString(GSON.toJson(current)).getAsJsonObject();
         } catch (Exception e) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("anni time: failed to serialise current snapshot: "
-                            + e.getMessage())
+                    Component.literal(
+                                    "anni time: failed to serialise current snapshot: "
+                                            + e.getMessage())
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
 
         long newStamp = java.time.Instant.now().getEpochSecond() + secondsFromNow;
-        JsonObject event = (json.has("event") && !json.get("event").isJsonNull())
-                ? json.getAsJsonObject("event")
-                : new JsonObject();
+        JsonObject event =
+                (json.has("event") && !json.get("event").isJsonNull())
+                        ? json.getAsJsonObject("event")
+                        : new JsonObject();
         if (secondsFromNow > 0) {
             event.addProperty("stamp_epoch", newStamp);
             event.addProperty("announced", true);
@@ -918,18 +1102,23 @@ public final class AnniDebugCommands {
             updated = AnniSnapshot.fromJson(json);
         } catch (Exception e) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("anni time: failed to deserialise mutated snapshot: "
-                            + e.getMessage())
+                    Component.literal(
+                                    "anni time: failed to deserialise mutated snapshot: "
+                                            + e.getMessage())
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
         AnniSnapshotCache.update(updated);
-        String summary = secondsFromNow > 0
-                ? ("stamp_epoch=NOW+" + secondsFromNow + "s (epoch=" + newStamp + ", announced)")
-                : ("stamp_epoch=null, announced=false");
+        String summary =
+                secondsFromNow > 0
+                        ? ("stamp_epoch=NOW+"
+                                + secondsFromNow
+                                + "s (epoch="
+                                + newStamp
+                                + ", announced)")
+                        : ("stamp_epoch=null, announced=false");
         ChatUtils.sendLocalMessage(
-                Component.literal("anni time: " + summary)
-                        .withStyle(ChatFormatting.GREEN));
+                Component.literal("anni time: " + summary).withStyle(ChatFormatting.GREEN));
         return 1;
     }
 
@@ -940,7 +1129,7 @@ public final class AnniDebugCommands {
         if (gate == 0) return 0;
         String action = StringArgumentType.getString(ctx, "action");
         boolean enter = "enter".equalsIgnoreCase(action);
-        boolean exit  = "exit".equalsIgnoreCase(action);
+        boolean exit = "exit".equalsIgnoreCase(action);
         if (!enter && !exit) {
             ChatUtils.sendLocalMessage(
                     Component.literal("anni zone: action must be enter or exit")
@@ -949,9 +1138,12 @@ public final class AnniDebugCommands {
         }
         org.wynnvets.mwe.anni.outline.AnniOutlineTicker.setForceInZone(enter);
         ChatUtils.sendLocalMessage(
-                Component.literal("anni zone " + action.toLowerCase()
-                        + ": forceInZone=" + enter
-                        + " (S4 highlights gate)")
+                Component.literal(
+                                "anni zone "
+                                        + action.toLowerCase()
+                                        + ": forceInZone="
+                                        + enter
+                                        + " (S4 highlights gate)")
                         .withStyle(ChatFormatting.GREEN));
         return 1;
     }
@@ -977,7 +1169,9 @@ public final class AnniDebugCommands {
                 return 1;
             default:
                 ChatUtils.sendLocalMessage(
-                        Component.literal("anni flash: field must be one of role|party|world|rsvp, got " + field)
+                        Component.literal(
+                                        "anni flash: field must be one of role|party|world|rsvp, got "
+                                                + field)
                                 .withStyle(ChatFormatting.RED));
                 return 0;
         }
@@ -1021,9 +1215,9 @@ public final class AnniDebugCommands {
         int y = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "y");
         int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "z");
         org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider.get().debugSet(x, y, z);
-        ChatUtils.sendLocalMessage(Component.literal(
-                "scrollspot local-inject: " + x + " " + y + " " + z)
-                .withStyle(ChatFormatting.GREEN));
+        ChatUtils.sendLocalMessage(
+                Component.literal("scrollspot local-inject: " + x + " " + y + " " + z)
+                        .withStyle(ChatFormatting.GREEN));
         return 1;
     }
 
@@ -1033,8 +1227,8 @@ public final class AnniDebugCommands {
         if (requireDebug(ctx) == 0) return 0;
         if (requireStaffOrOrganiser(ctx) == 0) return 0;
         org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider.get().debugClear();
-        ChatUtils.sendLocalMessage(Component.literal("scrollspot local cleared")
-                .withStyle(ChatFormatting.GREEN));
+        ChatUtils.sendLocalMessage(
+                Component.literal("scrollspot local cleared").withStyle(ChatFormatting.GREEN));
         return 1;
     }
 
@@ -1066,8 +1260,9 @@ public final class AnniDebugCommands {
         if (gate == 0) return 0;
         String field = StringArgumentType.getString(ctx, "field").toLowerCase();
         org.wynnvets.mwe.anni.aggressive.AggressiveAlertDispatcher.forceAlert(field);
-        ChatUtils.sendLocalMessage(Component.literal("anni alert " + field + " triggered")
-                .withStyle(ChatFormatting.GREEN));
+        ChatUtils.sendLocalMessage(
+                Component.literal("anni alert " + field + " triggered")
+                        .withStyle(ChatFormatting.GREEN));
         return 1;
     }
 
@@ -1119,28 +1314,40 @@ public final class AnniDebugCommands {
         } else {
             // null-tolerant — chatFormattingForRole falls back to GRAY on
             // unknown codes, which is also a useful test case.
-            entry = org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.debugOwnPartyEntry(normalised);
+            entry =
+                    org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.debugOwnPartyEntry(
+                            normalised);
         }
         org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.debugSet(username, entry);
 
-        boolean gateActive = org.wynnvets.mwe.anni.outline.AnniOutlineTicker.isOutlineSuppressionActive();
+        boolean gateActive =
+                org.wynnvets.mwe.anni.outline.AnniOutlineTicker.isOutlineSuppressionActive();
         ChatFormatting fmt = entry.nametagFormatting();
-        String roleLabel = entry.role() == null
-                ? entry.tier().name().toLowerCase()
-                : entry.role().toUpperCase();
-        Component msg = Component.literal("anni registry set: ")
-                .withStyle(ChatFormatting.GREEN)
-                .append(Component.literal(username).withStyle(fmt))
-                .append(Component.literal(" -> " + roleLabel)
-                        .withStyle(ChatFormatting.GREEN));
+        String roleLabel =
+                entry.role() == null
+                        ? entry.tier().name().toLowerCase()
+                        : entry.role().toUpperCase();
+        Component msg =
+                Component.literal("anni registry set: ")
+                        .withStyle(ChatFormatting.GREEN)
+                        .append(Component.literal(username).withStyle(fmt))
+                        .append(
+                                Component.literal(" -> " + roleLabel)
+                                        .withStyle(ChatFormatting.GREEN));
         if (gateActive) {
-            msg = msg.copy().append(Component.literal("  [gate active]")
-                    .withStyle(ChatFormatting.GRAY));
+            msg =
+                    msg.copy()
+                            .append(
+                                    Component.literal("  [gate active]")
+                                            .withStyle(ChatFormatting.GRAY));
         } else {
-            msg = msg.copy().append(Component.literal(
-                    "  [gate INACTIVE — flip outlines/nametags on, set a non-silent mode, "
-                            + "inject a snapshot, and /wv debug tree anni zone enter]")
-                    .withStyle(ChatFormatting.YELLOW));
+            msg =
+                    msg.copy()
+                            .append(
+                                    Component.literal(
+                                                    "  [gate INACTIVE — flip outlines/nametags on, set a non-silent mode, "
+                                                            + "inject a snapshot, and /wv debug tree anni zone enter]")
+                                            .withStyle(ChatFormatting.YELLOW));
         }
         ChatUtils.sendLocalMessage(msg);
         return 1;

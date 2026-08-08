@@ -1,5 +1,8 @@
 package org.wynnvets.chat.rewriter;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FontDescription;
@@ -16,10 +19,6 @@ import org.wynnvets.chat.RankDisplayMap;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Rewrites server-originating guild chat messages: swaps the raw Wynn
@@ -50,19 +49,18 @@ import java.util.Map;
 public final class ServerGuildChatRewriter {
 
     /** The {@code banner/pill} font used for rank badge rendering. */
-    private static final Style PILL_FONT = Style.EMPTY
-            .withFont(new FontDescription.Resource(Identifier.parse("banner/pill")))
-            .withoutShadow();
+    private static final Style PILL_FONT =
+            Style.EMPTY
+                    .withFont(new FontDescription.Resource(Identifier.parse("banner/pill")))
+                    .withoutShadow();
 
     /** Aqua color value used by the server for pill background glyphs (§b). */
     private static final int SERVER_AQUA = ChatFormatting.AQUA.getColor();
 
     /** Dark foreground style for pill letter glyphs (preserves legibility). */
-    private static final Style DARK_FG_STYLE = PILL_FONT
-            .withColor(TextColor.fromRgb(0x000000));
+    private static final Style DARK_FG_STYLE = PILL_FONT.withColor(TextColor.fromRgb(0x000000));
 
-    private ServerGuildChatRewriter() {
-    }
+    private ServerGuildChatRewriter() {}
 
     /**
      * Attempts to rewrite a server guild chat message. Requires the channel
@@ -102,9 +100,10 @@ public final class ServerGuildChatRewriter {
         // username won't match the supporter list.  The real username is
         // attached as a hover event on the name span.
         String lookupUsername = NickResolver.realUsernameOrFallback(component, parsed.username);
-        boolean isSupporter = SupportersPoller.isSupporter(lookupUsername)
-                && org.wynnvets.config.VetsConfig.get(
-                        org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS);
+        boolean isSupporter =
+                SupportersPoller.isSupporter(lookupUsername)
+                        && org.wynnvets.config.VetsConfig.get(
+                                org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS);
 
         String displayLabel = RankDisplayMap.displayFor(rawRank);
         boolean needsRemap = !displayLabel.equalsIgnoreCase(rawRank);
@@ -124,11 +123,14 @@ public final class ServerGuildChatRewriter {
             // this style; remote messages (bridge / honourary / queue)
             // still get the light-on-dark ASCII pill via
             // OutboundDisplayHandler + ChatUtils.encodePillIfAscii.
-            Style frameStyle = isSupporter
-                    ? ChatUtils.RANK_STYLE.withColor(
-                            TextColor.fromRgb(AnimatedGradientSequence.MARKER_COLOR))
-                            .withoutShadow()
-                    : ChatUtils.RANK_STYLE.withoutShadow();
+            Style frameStyle =
+                    isSupporter
+                            ? ChatUtils.RANK_STYLE
+                                    .withColor(
+                                            TextColor.fromRgb(
+                                                    AnimatedGradientSequence.MARKER_COLOR))
+                                    .withoutShadow()
+                            : ChatUtils.RANK_STYLE.withoutShadow();
             pill = ChatUtils.buildFramedPill(displayLabel, frameStyle);
         } else {
             // No remap — supporter-only path retains the original pill's
@@ -144,20 +146,21 @@ public final class ServerGuildChatRewriter {
 
         MutableComponent badge = Prepend.GUILD.get();
 
-        MutableComponent messageBody = extractBodyComponent(
-                component, parsed.bodyCharStart, ChatUtils.RANK_STYLE);
+        MutableComponent messageBody =
+                extractBodyComponent(component, parsed.bodyCharStart, ChatUtils.RANK_STYLE);
 
         // Preserve the original name span's italic + hover for nicked players;
         // fall back to the flat NAME_STYLE for non-nicked supporters.
         Style nameStyle = NickResolver.realNameSpanStyleOrFallback(component, ChatUtils.NAME_STYLE);
 
-        MutableComponent body = Component.empty()
-                .append(badge)
-                .append(pill)
-                .append(" ")
-                .append(Component.literal(parsed.username).setStyle(nameStyle))
-                .append(Component.literal(": ").setStyle(ChatUtils.RANK_STYLE))
-                .append(messageBody);
+        MutableComponent body =
+                Component.empty()
+                        .append(badge)
+                        .append(pill)
+                        .append(" ")
+                        .append(Component.literal(parsed.username).setStyle(nameStyle))
+                        .append(Component.literal(": ").setStyle(ChatUtils.RANK_STYLE))
+                        .append(messageBody);
 
         if (isSupporter) {
             ChatUtils.dispatchAnimatedChat(body, badge.getStyle());
@@ -234,7 +237,8 @@ public final class ServerGuildChatRewriter {
     /**
      * Recursively flattens a Component tree into (text, resolved style) pairs.
      */
-    private static void flattenComponent(Component component, Style inherited, List<StyledFragment> out) {
+    private static void flattenComponent(
+            Component component, Style inherited, List<StyledFragment> out) {
         Style resolved = component.getStyle().applyTo(inherited);
         String content = getDirectText(component);
         if (!content.isEmpty()) {
@@ -252,10 +256,13 @@ public final class ServerGuildChatRewriter {
         // Component.literal stores its text in contents; getString() includes children.
         // We use the ComponentContents to get just the direct text.
         StringBuilder sb = new StringBuilder();
-        component.getContents().visit(s -> {
-            sb.append(s);
-            return java.util.Optional.empty();
-        });
+        component
+                .getContents()
+                .visit(
+                        s -> {
+                            sb.append(s);
+                            return java.util.Optional.empty();
+                        });
         return sb.toString();
     }
 
@@ -281,13 +288,15 @@ public final class ServerGuildChatRewriter {
                 // Mark background fragments with the animation sentinel.
                 // AnimatedChatMixin will replace this with animated gradient
                 // colours at render time.
-                result.append(Component.literal(frag.text)
-                        .setStyle(PILL_FONT.withColor(
-                                TextColor.fromRgb(AnimatedGradientSequence.MARKER_COLOR))));
+                result.append(
+                        Component.literal(frag.text)
+                                .setStyle(
+                                        PILL_FONT.withColor(
+                                                TextColor.fromRgb(
+                                                        AnimatedGradientSequence.MARKER_COLOR))));
             } else {
                 // Foreground letters — keep dark
-                result.append(Component.literal(frag.text)
-                        .setStyle(DARK_FG_STYLE));
+                result.append(Component.literal(frag.text).setStyle(DARK_FG_STYLE));
             }
         }
 
@@ -307,7 +316,8 @@ public final class ServerGuildChatRewriter {
      * @param defaultStyle   style for non-interactive body text
      * @return a component containing the message body with preserved interactivity
      */
-    private static MutableComponent extractBodyComponent(Component root, int bodyCharStart, Style defaultStyle) {
+    private static MutableComponent extractBodyComponent(
+            Component root, int bodyCharStart, Style defaultStyle) {
         List<StyledFragment> allFragments = new ArrayList<>();
         flattenComponent(root, root.getStyle(), allFragments);
 
@@ -329,11 +339,12 @@ public final class ServerGuildChatRewriter {
                 text = frag.text;
             }
 
-            boolean isInteractive = frag.style.getClickEvent() != null
-                    || frag.style.getHoverEvent() != null;
+            boolean isInteractive =
+                    frag.style.getClickEvent() != null || frag.style.getHoverEvent() != null;
             if (isInteractive && !ChatUtils.isWrapStructure(text)) {
                 if (accumulated.length() > 0) {
-                    result.append(ChatUtils.formatMessageBody(accumulated.toString(), defaultStyle));
+                    result.append(
+                            ChatUtils.formatMessageBody(accumulated.toString(), defaultStyle));
                     accumulated.setLength(0);
                 }
                 result.append(Component.literal(text).setStyle(frag.style));
@@ -369,8 +380,8 @@ public final class ServerGuildChatRewriter {
             int cp = message.codePointAt(idx);
             int charCount = Character.charCount(cp);
             int type = Character.getType(cp);
-            boolean isCustomGlyph = type == Character.PRIVATE_USE
-                    || (type == Character.UNASSIGNED && cp > 0xFFFF);
+            boolean isCustomGlyph =
+                    type == Character.PRIVATE_USE || (type == Character.UNASSIGNED && cp > 0xFFFF);
             if (isCustomGlyph) {
                 lastGlyphEnd = idx + charCount;
             }

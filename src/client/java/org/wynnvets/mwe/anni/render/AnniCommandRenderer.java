@@ -1,5 +1,11 @@
 package org.wynnvets.mwe.anni.render;
 
+import java.net.URI;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -7,17 +13,9 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
-
-import java.net.URI;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Locale;
 
 /**
  * Renderer for {@code /wv anni} (no args) when an
@@ -47,20 +45,17 @@ public final class AnniCommandRenderer {
 
     /** Compact stamp used in the announced header — "14:00, Fri 19". */
     private static final DateTimeFormatter STAMP_FMT =
-            DateTimeFormatter.ofPattern("HH:mm, EEE d")
-                    .withZone(ZoneId.systemDefault());
+            DateTimeFormatter.ofPattern("HH:mm, EEE d").withZone(ZoneId.systemDefault());
 
     /** Day portion of the prediction date — "Jun 19". Abbreviated
      *  month (per latest user format). */
     private static final DateTimeFormatter MEDIAN_DATE_FMT =
-            DateTimeFormatter.ofPattern("MMM d")
-                    .withZone(ZoneId.systemDefault());
+            DateTimeFormatter.ofPattern("MMM d").withZone(ZoneId.systemDefault());
 
     /** Time portion of the prediction date — "05:51". Split from the
      *  date so the renderer can punctuate them with a darker '@' chip. */
     private static final DateTimeFormatter MEDIAN_TIME_FMT =
-            DateTimeFormatter.ofPattern("HH:mm")
-                    .withZone(ZoneId.systemDefault());
+            DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
 
     private static final long TWO_HOURS_SECONDS = 2L * 60L * 60L;
 
@@ -77,8 +72,7 @@ public final class AnniCommandRenderer {
         externalOverride = override;
     }
 
-    private AnniCommandRenderer() {
-    }
+    private AnniCommandRenderer() {}
 
     /** Build the full /wv anni payload as one or more chat blocks.
      *
@@ -123,29 +117,32 @@ public final class AnniCommandRenderer {
      *  anni.wynnvets.org link (the dashboard is reserved for plausible
      *  vets-anni users) and no roles/board sections (they have nothing
      *  to manage there). */
-    private static MutableComponent renderNotAnnounced(AnniSnapshot snapshot,
-                                                       AnniSnapshot.Event event) {
+    private static MutableComponent renderNotAnnounced(
+            AnniSnapshot snapshot, AnniSnapshot.Event event) {
         boolean external = isExternal(snapshot);
         MutableComponent out = Component.literal("");
 
         if (external) {
             // Lean external form: red headline only — no anni.wynnvets.org link.
-            out.append(Component.literal("Next annihilation is not yet announced!")
-                    .withStyle(ChatFormatting.RED));
+            out.append(
+                    Component.literal("Next annihilation is not yet announced!")
+                            .withStyle(ChatFormatting.RED));
         } else {
             // Vets users keep the linked header so they can click through
             // to the dashboard to manage RSVP / registration.
-            out.append(header("anni.wynnvets.org",
-                    ChatFormatting.DARK_AQUA,
-                    "Next annihilation is not yet announced."));
+            out.append(
+                    header(
+                            "anni.wynnvets.org",
+                            ChatFormatting.DARK_AQUA,
+                            "Next annihilation is not yet announced."));
         }
 
         // Prediction line (gated by vetsAnniShowPrediction).
         boolean appendedPrediction = false;
         if (VetsConfig.get(VetsConfig.VETS_ANNI_SHOW_PREDICTION)) {
-            AnniSnapshot.Prediction prediction =
-                    event == null ? null : event.prediction();
-            if (prediction != null && prediction.earliestEpoch() != null
+            AnniSnapshot.Prediction prediction = event == null ? null : event.prediction();
+            if (prediction != null
+                    && prediction.earliestEpoch() != null
                     && prediction.medianEpoch() != null
                     && prediction.latestEpoch() != null) {
                 out.append(Component.literal("\n"));
@@ -153,8 +150,10 @@ public final class AnniCommandRenderer {
                 appendedPrediction = true;
             } else {
                 out.append(Component.literal("\n"));
-                out.append(line(ChatFormatting.GRAY,
-                        "Prediction window unavailable — no recent anchor."));
+                out.append(
+                        line(
+                                ChatFormatting.GRAY,
+                                "Prediction window unavailable — no recent anchor."));
                 appendedPrediction = true;
             }
         }
@@ -211,72 +210,76 @@ public final class AnniCommandRenderer {
      *  when the user is registered + has roles + no announced anni.
      *  Links to the #annihilation Discord channel. */
     private static MutableComponent allSetAffirmation() {
-        Style base = Style.EMPTY
-                .withColor(ChatFormatting.DARK_GREEN)
-                .withItalic(true);
+        Style base = Style.EMPTY.withColor(ChatFormatting.DARK_GREEN).withItalic(true);
         // Link gets the Discord-channel dark-aqua to read as a channel
         // reference rather than blending into the dark-green affirmation.
-        Style link = Style.EMPTY
-                .withColor(ChatFormatting.DARK_AQUA)
-                .withItalic(true)
-                .withUnderlined(true)
-                .withClickEvent(new ClickEvent.OpenUrl(URI.create(
-                        "https://discord.com/channels/1313769181321236490/1339393368672702567")))
-                .withHoverEvent(new HoverEvent.ShowText(
-                        Component.literal("Open #annihilation in Discord")
-                                .withStyle(ChatFormatting.GRAY)));
-        return Component.literal("You're all set for the next ").withStyle(base)
+        Style link =
+                Style.EMPTY
+                        .withColor(ChatFormatting.DARK_AQUA)
+                        .withItalic(true)
+                        .withUnderlined(true)
+                        .withClickEvent(
+                                new ClickEvent.OpenUrl(
+                                        URI.create(
+                                                "https://discord.com/channels/1313769181321236490/1339393368672702567")))
+                        .withHoverEvent(
+                                new HoverEvent.ShowText(
+                                        Component.literal("Open #annihilation in Discord")
+                                                .withStyle(ChatFormatting.GRAY)));
+        return Component.literal("You're all set for the next ")
+                .withStyle(base)
                 .append(Component.literal("#Annihilation").withStyle(link));
     }
 
     /** Four-line prose for the registered-but-fill-only case. */
     private static MutableComponent fillOnlyExplainerBlock() {
-        Style yellowBoldItalic = Style.EMPTY
-                .withColor(ChatFormatting.YELLOW)
-                .withBold(true)
-                .withItalic(true);
+        Style yellowBoldItalic =
+                Style.EMPTY.withColor(ChatFormatting.YELLOW).withBold(true).withItalic(true);
         // Lines 2 and 3 explicitly clear bold so they don't inherit
         // the &l from the &e&l&o root line above. Spec is &6&o and
         // &#7e7e7e&o — italic, NOT bold.
-        Style goldItalic = Style.EMPTY
-                .withColor(ChatFormatting.GOLD)
-                .withBold(false)
-                .withItalic(true);
-        Style goldItalicLink = goldItalic
-                .withUnderlined(true)
-                .withClickEvent(new ClickEvent.OpenUrl(URI.create(
-                        "https://www.wynnvets.org/docs/guild/anni/#fill-builds")));
-        Style mediumGrayItalic = Style.EMPTY
-                .withColor(TextColor.fromRgb(0x7E7E7E))
-                .withBold(false)
-                .withItalic(true);
-        Style whiteBoldItalic = Style.EMPTY
-                .withColor(ChatFormatting.WHITE)
-                .withBold(true)
-                .withItalic(true);
-        Style aquaBoldItalicLink = Style.EMPTY
-                .withColor(ChatFormatting.AQUA)
-                .withBold(true)
-                .withItalic(true)
-                .withUnderlined(true)
-                .withClickEvent(new ClickEvent.OpenUrl(URI.create(
-                        "https://anni.wynnvets.org/me")));
+        Style goldItalic =
+                Style.EMPTY.withColor(ChatFormatting.GOLD).withBold(false).withItalic(true);
+        Style goldItalicLink =
+                goldItalic
+                        .withUnderlined(true)
+                        .withClickEvent(
+                                new ClickEvent.OpenUrl(
+                                        URI.create(
+                                                "https://www.wynnvets.org/docs/guild/anni/#fill-builds")));
+        Style mediumGrayItalic =
+                Style.EMPTY.withColor(TextColor.fromRgb(0x7E7E7E)).withBold(false).withItalic(true);
+        Style whiteBoldItalic =
+                Style.EMPTY.withColor(ChatFormatting.WHITE).withBold(true).withItalic(true);
+        Style aquaBoldItalicLink =
+                Style.EMPTY
+                        .withColor(ChatFormatting.AQUA)
+                        .withBold(true)
+                        .withItalic(true)
+                        .withUnderlined(true)
+                        .withClickEvent(
+                                new ClickEvent.OpenUrl(URI.create("https://anni.wynnvets.org/me")));
 
-        MutableComponent out = Component.literal("You have not yet indicated any role capabilities!")
-                .withStyle(yellowBoldItalic);
+        MutableComponent out =
+                Component.literal("You have not yet indicated any role capabilities!")
+                        .withStyle(yellowBoldItalic);
         out.append(Component.literal("\n"));
-        out.append(Component.literal("We will try our best to slot you in a ")
-                .withStyle(goldItalic));
+        out.append(
+                Component.literal("We will try our best to slot you in a ").withStyle(goldItalic));
         out.append(Component.literal("fill slot").withStyle(goldItalicLink));
-        out.append(Component.literal(", but our capacity to do this is unfortunately limited!")
-                .withStyle(goldItalic));
+        out.append(
+                Component.literal(", but our capacity to do this is unfortunately limited!")
+                        .withStyle(goldItalic));
         out.append(Component.literal("\n"));
-        out.append(Component.literal("In the likely event we are unable to offer enough "
-                        + "fill slots, we will prioritise those who have attended the fewest Annis.")
-                .withStyle(mediumGrayItalic));
+        out.append(
+                Component.literal(
+                                "In the likely event we are unable to offer enough "
+                                        + "fill slots, we will prioritise those who have attended the fewest Annis.")
+                        .withStyle(mediumGrayItalic));
         out.append(Component.literal("\n"));
-        out.append(Component.literal("If you believe you are able to claim a role, please do so ")
-                .withStyle(whiteBoldItalic));
+        out.append(
+                Component.literal("If you believe you are able to claim a role, please do so ")
+                        .withStyle(whiteBoldItalic));
         out.append(Component.literal("here").withStyle(aquaBoldItalicLink));
         out.append(Component.literal("!").withStyle(whiteBoldItalic));
         return out;
@@ -285,35 +288,29 @@ public final class AnniCommandRenderer {
     /** Two-line prose for a vets-tier user who has not opened
      *  anni.wynnvets.org/me at all. */
     private static MutableComponent unregisteredNudgeBlock() {
-        Style redBold = Style.EMPTY
-                .withColor(ChatFormatting.RED)
-                .withBold(true);
-        Style yellowBoldUnderlinedLink = Style.EMPTY
-                .withColor(ChatFormatting.YELLOW)
-                .withBold(true)
-                .withUnderlined(true)
-                .withClickEvent(new ClickEvent.OpenUrl(URI.create(
-                        "https://anni.wynnvets.org/me")));
+        Style redBold = Style.EMPTY.withColor(ChatFormatting.RED).withBold(true);
+        Style yellowBoldUnderlinedLink =
+                Style.EMPTY
+                        .withColor(ChatFormatting.YELLOW)
+                        .withBold(true)
+                        .withUnderlined(true)
+                        .withClickEvent(
+                                new ClickEvent.OpenUrl(URI.create("https://anni.wynnvets.org/me")));
         // Both styles below explicitly clear bold so they don't inherit
         // the redBold flag from the root "You have not yet opened "
         // component — the user spec is &c! and &4&o, not &c&l! / &4&l&o.
-        Style redPlain = Style.EMPTY
-                .withColor(ChatFormatting.RED)
-                .withBold(false);
-        Style darkRedItalic = Style.EMPTY
-                .withColor(ChatFormatting.DARK_RED)
-                .withBold(false)
-                .withItalic(true);
+        Style redPlain = Style.EMPTY.withColor(ChatFormatting.RED).withBold(false);
+        Style darkRedItalic =
+                Style.EMPTY.withColor(ChatFormatting.DARK_RED).withBold(false).withItalic(true);
 
-        MutableComponent out = Component.literal("You have not yet opened ")
-                .withStyle(redBold);
-        out.append(Component.literal("anni.wynnvets.org/me")
-                .withStyle(yellowBoldUnderlinedLink));
+        MutableComponent out = Component.literal("You have not yet opened ").withStyle(redBold);
+        out.append(Component.literal("anni.wynnvets.org/me").withStyle(yellowBoldUnderlinedLink));
         out.append(Component.literal("!").withStyle(redPlain));
         out.append(Component.literal("\n"));
-        out.append(Component.literal(
-                        "Doing so unlocks all sorts of features, and helps us organise vets guild annis!")
-                .withStyle(darkRedItalic));
+        out.append(
+                Component.literal(
+                                "Doing so unlocks all sorts of features, and helps us organise vets guild annis!")
+                        .withStyle(darkRedItalic));
         return out;
     }
 
@@ -354,12 +351,12 @@ public final class AnniCommandRenderer {
         return label("Prediction", ChatFormatting.GOLD)
                 .append(Component.literal(hoursStr).withStyle(ChatFormatting.YELLOW))
                 .append(Component.literal(qualifierStr).withStyle(ChatFormatting.GOLD))
-                .append(Component.literal("|")
-                        .withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD))
+                .append(Component.literal("|").withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD))
                 .append(Component.literal(" " + dateStr + " ").withStyle(ChatFormatting.YELLOW))
                 .append(Component.literal("@" + timeStr).withStyle(ChatFormatting.GOLD))
-                .append(Component.literal("±~" + formatUncertainty(sigmaHours))
-                        .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
+                .append(
+                        Component.literal("±~" + formatUncertainty(sigmaHours))
+                                .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
     }
 
     // ────────────────────────────────────────────────── 2+ hours out
@@ -375,19 +372,20 @@ public final class AnniCommandRenderer {
      *  "h" / "m" qualifiers and "returns in" are dark aqua; the stamp
      *  parenthetical is the only dark-gray we still allow because the
      *  primary info (countdown) is in aqua-family colors above. */
-    private static MutableComponent renderFarOut(AnniSnapshot snapshot,
-                                                 long secondsUntil, long stamp) {
+    private static MutableComponent renderFarOut(
+            AnniSnapshot snapshot, long secondsUntil, long stamp) {
         String stampStr = STAMP_FMT.format(Instant.ofEpochSecond(stamp));
 
         MutableComponent out = Component.literal("");
-        out.append(AnniHoverBuilder.linkBadge("anni.wynnvets.org",
-                "https://anni.wynnvets.org",
-                "Open the anni dashboard",
-                ChatFormatting.AQUA));
+        out.append(
+                AnniHoverBuilder.linkBadge(
+                        "anni.wynnvets.org",
+                        "https://anni.wynnvets.org",
+                        "Open the anni dashboard",
+                        ChatFormatting.AQUA));
         out.append(Component.literal(" returns in ").withStyle(ChatFormatting.DARK_AQUA));
         appendCountdown(out, secondsUntil);
-        out.append(Component.literal(" (" + stampStr + ")")
-                .withStyle(ChatFormatting.DARK_GRAY));
+        out.append(Component.literal(" (" + stampStr + ")").withStyle(ChatFormatting.DARK_GRAY));
 
         out.append(Component.literal("\n"));
         // Once a user is assigned to a party, "Eligible Roles" misleads
@@ -396,8 +394,8 @@ public final class AnniCommandRenderer {
         // Assignment block below skips its redundant Role sub-field in
         // that case.
         AnniSnapshot.Board boardForRoleLine = snapshot.board();
-        boolean inParty = boardForRoleLine != null
-                && "party".equalsIgnoreCase(boardForRoleLine.state());
+        boolean inParty =
+                boardForRoleLine != null && "party".equalsIgnoreCase(boardForRoleLine.state());
         if (inParty) {
             out.append(assignedRoleSection(snapshot)).append(Component.literal("\n"));
         } else {
@@ -441,8 +439,9 @@ public final class AnniCommandRenderer {
         if (minutes > 0L) {
             out.append(Component.literal(Long.toString(minutes)).withStyle(ChatFormatting.AQUA));
             out.append(Component.literal("m ").withStyle(ChatFormatting.DARK_AQUA));
-            out.append(Component.literal(String.format(Locale.ROOT, "%02d", seconds))
-                    .withStyle(ChatFormatting.AQUA));
+            out.append(
+                    Component.literal(String.format(Locale.ROOT, "%02d", seconds))
+                            .withStyle(ChatFormatting.AQUA));
             out.append(Component.literal("s").withStyle(ChatFormatting.DARK_AQUA));
             return;
         }
@@ -481,11 +480,9 @@ public final class AnniCommandRenderer {
      *  passive/aggressive in-game features. Vets-only; external users
      *  are routed by the {@link #render} dispatcher to the legacy
      *  stamp fallback. */
-    private static List<MutableComponent> renderImminent(AnniSnapshot snapshot,
-                                                         long secondsUntil, long stamp) {
-        return List.of(
-                renderFarOut(snapshot, secondsUntil, stamp),
-                renderModeSwitchBlock());
+    private static List<MutableComponent> renderImminent(
+            AnniSnapshot snapshot, long secondsUntil, long stamp) {
+        return List.of(renderFarOut(snapshot, secondsUntil, stamp), renderModeSwitchBlock());
     }
 
     /** Standalone "Change Anni Mode?" block — header + three clickable
@@ -494,28 +491,40 @@ public final class AnniCommandRenderer {
      *  the user wants the chooser to read as "which audience are you?"
      *  rather than "which features do you want?"). */
     private static MutableComponent renderModeSwitchBlock() {
-        MutableComponent line1 = Component.literal("Change Anni Mode?")
-                .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
-                .append(Component.literal(" (Click:)")
-                        .withStyle(Style.EMPTY
-                                .withColor(ChatFormatting.GRAY)
-                                .withBold(false)));
+        MutableComponent line1 =
+                Component.literal("Change Anni Mode?")
+                        .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
+                        .append(
+                                Component.literal(" (Click:)")
+                                        .withStyle(
+                                                Style.EMPTY
+                                                        .withColor(ChatFormatting.GRAY)
+                                                        .withBold(false)));
 
         MutableComponent line2 = Component.literal("");
-        line2.append(modeButton("Silent",
-                ChatFormatting.WHITE, ChatFormatting.GRAY,
-                "/wv anni silent",
-                "Anni features off"));
+        line2.append(
+                modeButton(
+                        "Silent",
+                        ChatFormatting.WHITE,
+                        ChatFormatting.GRAY,
+                        "/wv anni silent",
+                        "Anni features off"));
         line2.append(Component.literal(" | ").withStyle(ChatFormatting.DARK_GRAY));
-        line2.append(modeButton("Passive",
-                ChatFormatting.GREEN, ChatFormatting.DARK_GREEN,
-                "/wv anni passive",
-                "Anni features recommended for most folks attending a vets-anni"));
+        line2.append(
+                modeButton(
+                        "Passive",
+                        ChatFormatting.GREEN,
+                        ChatFormatting.DARK_GREEN,
+                        "/wv anni passive",
+                        "Anni features recommended for most folks attending a vets-anni"));
         line2.append(Component.literal(" | ").withStyle(ChatFormatting.DARK_GRAY));
-        line2.append(modeButton("Aggressive",
-                ChatFormatting.RED, ChatFormatting.DARK_RED,
-                "/wv anni aggressive",
-                "Anni features recommended for folks attending their first vets-anni"));
+        line2.append(
+                modeButton(
+                        "Aggressive",
+                        ChatFormatting.RED,
+                        ChatFormatting.DARK_RED,
+                        "/wv anni aggressive",
+                        "Anni features recommended for folks attending their first vets-anni"));
 
         return line1.append(Component.literal("\n")).append(line2);
     }
@@ -523,21 +532,23 @@ public final class AnniCommandRenderer {
     /** One bracketed mode button — coloured label inside coloured
      *  brackets, click runs the command, hover shows the audience
      *  description. */
-    private static MutableComponent modeButton(String label,
-                                               ChatFormatting labelColor,
-                                               ChatFormatting bracketColor,
-                                               String command,
-                                               String hover) {
-        Style labelStyle = Style.EMPTY
-                .withColor(labelColor)
-                .withBold(false)
-                .withClickEvent(new ClickEvent.RunCommand(command))
-                .withHoverEvent(new HoverEvent.ShowText(
-                        Component.literal(hover).withStyle(ChatFormatting.GRAY)));
-        Style bracketStyle = Style.EMPTY
-                .withColor(bracketColor)
-                .withBold(false);
-        return Component.literal("[").withStyle(bracketStyle)
+    private static MutableComponent modeButton(
+            String label,
+            ChatFormatting labelColor,
+            ChatFormatting bracketColor,
+            String command,
+            String hover) {
+        Style labelStyle =
+                Style.EMPTY
+                        .withColor(labelColor)
+                        .withBold(false)
+                        .withClickEvent(new ClickEvent.RunCommand(command))
+                        .withHoverEvent(
+                                new HoverEvent.ShowText(
+                                        Component.literal(hover).withStyle(ChatFormatting.GRAY)));
+        Style bracketStyle = Style.EMPTY.withColor(bracketColor).withBold(false);
+        return Component.literal("[")
+                .withStyle(bracketStyle)
                 .append(Component.literal(label).withStyle(labelStyle))
                 .append(Component.literal("]").withStyle(bracketStyle));
     }
@@ -579,21 +590,27 @@ public final class AnniCommandRenderer {
         if (reg == null || !reg.registered()) {
             return label("Eligible Roles", ChatFormatting.GRAY)
                     .append(Component.literal("not registered  ").withStyle(ChatFormatting.YELLOW))
-                    .append(AnniHoverBuilder.linkBadge("[register]",
-                            AnniHoverBuilder.DOCS_PREPARING,
-                            "Open anni.wynnvets.org/me preparation guide",
-                            ChatFormatting.AQUA));
+                    .append(
+                            AnniHoverBuilder.linkBadge(
+                                    "[register]",
+                                    AnniHoverBuilder.DOCS_PREPARING,
+                                    "Open anni.wynnvets.org/me preparation guide",
+                                    ChatFormatting.AQUA));
         }
         if (reg.roles().isEmpty()) {
             return label("Eligible Roles", ChatFormatting.GRAY)
-                    .append(Component.literal(AnniHoverBuilder.displayRole("FILL") + " only")
-                            .withStyle(ChatFormatting.WHITE))
-                    .append(Component.literal(" — fill role assumed; specialise on ")
-                            .withStyle(ChatFormatting.GRAY))
-                    .append(AnniHoverBuilder.linkBadge("anni.wynnvets.org/me",
-                            "https://anni.wynnvets.org/me",
-                            "Open your roles dashboard",
-                            ChatFormatting.AQUA));
+                    .append(
+                            Component.literal(AnniHoverBuilder.displayRole("FILL") + " only")
+                                    .withStyle(ChatFormatting.WHITE))
+                    .append(
+                            Component.literal(" — fill role assumed; specialise on ")
+                                    .withStyle(ChatFormatting.GRAY))
+                    .append(
+                            AnniHoverBuilder.linkBadge(
+                                    "anni.wynnvets.org/me",
+                                    "https://anni.wynnvets.org/me",
+                                    "Open your roles dashboard",
+                                    ChatFormatting.AQUA));
         }
         MutableComponent line = label("Eligible Roles", ChatFormatting.GRAY);
         boolean first = true;
@@ -616,11 +633,14 @@ public final class AnniCommandRenderer {
      *  user-facing rule: "the prompt only shows up after RSVP type if
      *  it is t-2h+".</p> */
     private static MutableComponent rsvpSection(AnniSnapshot snapshot, long secondsUntil) {
-        MutableComponent line = label("RSVP Type", ChatFormatting.GRAY)
-                .append(AnniHoverBuilder.rsvpBadge(snapshot.rsvp(), snapshot.attendance()));
+        MutableComponent line =
+                label("RSVP Type", ChatFormatting.GRAY)
+                        .append(AnniHoverBuilder.rsvpBadge(snapshot.rsvp(), snapshot.attendance()));
 
-        boolean rsvped = snapshot.rsvp() != null && snapshot.rsvp().notice() != null
-                && !snapshot.rsvp().revoked();
+        boolean rsvped =
+                snapshot.rsvp() != null
+                        && snapshot.rsvp().notice() != null
+                        && !snapshot.rsvp().revoked();
         boolean farOut = secondsUntil > TWO_HOURS_SECONDS;
         if (!rsvped && farOut) {
             line.append(Component.literal(" "));
@@ -638,36 +658,44 @@ public final class AnniCommandRenderer {
     private static MutableComponent rsvpUpgradePrompt() {
         Style gray = Style.EMPTY.withColor(ChatFormatting.GRAY);
 
-        Component rsvpWord = Component.literal("\\rsvp")
-                .withStyle(Style.EMPTY
-                        .withColor(ChatFormatting.GRAY)
-                        .withHoverEvent(new HoverEvent.ShowText(Component.literal(
-                                "\\rsvp is a Discord command in vetsfish's"
-                                        + " #bot-commands channel.\n"
-                                        + "It does the same thing as /wv anni rsvp"
-                                        + " — entirely optional from in-game."))));
+        Component rsvpWord =
+                Component.literal("\\rsvp")
+                        .withStyle(
+                                Style.EMPTY
+                                        .withColor(ChatFormatting.GRAY)
+                                        .withHoverEvent(
+                                                new HoverEvent.ShowText(
+                                                        Component.literal(
+                                                                "\\rsvp is a Discord command in vetsfish's"
+                                                                        + " #bot-commands channel.\n"
+                                                                        + "It does the same thing as /wv anni rsvp"
+                                                                        + " — entirely optional from in-game."))));
 
         MutableComponent out = Component.literal("").withStyle(gray);
         out.append(Component.literal("(Buttons to upgrade your ").withStyle(gray));
         out.append(rsvpWord);
         out.append(Component.literal(": ").withStyle(gray));
-        out.append(rsvpUpgradeButton(
-                "Hard",
-                ChatFormatting.DARK_AQUA, ChatFormatting.AQUA,
-                "/wv anni rsvp hard",
-                "HRSVP — confirms you WILL be there.\n"
-                        + "Requirement: arrive at least 20 mins before anni"
-                        + " starts, or your slot may be reassigned to a walk-in.\n"
-                        + "Click to suggest /wv anni rsvp hard."));
+        out.append(
+                rsvpUpgradeButton(
+                        "Hard",
+                        ChatFormatting.DARK_AQUA,
+                        ChatFormatting.AQUA,
+                        "/wv anni rsvp hard",
+                        "HRSVP — confirms you WILL be there.\n"
+                                + "Requirement: arrive at least 20 mins before anni"
+                                + " starts, or your slot may be reassigned to a walk-in.\n"
+                                + "Click to suggest /wv anni rsvp hard."));
         out.append(Component.literal(" ").withStyle(gray));
-        out.append(rsvpUpgradeButton(
-                "Soft",
-                ChatFormatting.DARK_GREEN, ChatFormatting.GREEN,
-                "/wv anni rsvp soft",
-                "SRSVP — confirms you'll PROBABLY be there.\n"
-                        + "Requirement: arrive at least 40 mins before anni"
-                        + " starts, or your slot may be reassigned.\n"
-                        + "Click to suggest /wv anni rsvp soft."));
+        out.append(
+                rsvpUpgradeButton(
+                        "Soft",
+                        ChatFormatting.DARK_GREEN,
+                        ChatFormatting.GREEN,
+                        "/wv anni rsvp soft",
+                        "SRSVP — confirms you'll PROBABLY be there.\n"
+                                + "Requirement: arrive at least 40 mins before anni"
+                                + " starts, or your slot may be reassigned.\n"
+                                + "Click to suggest /wv anni rsvp soft."));
         out.append(Component.literal(")").withStyle(gray));
         return out;
     }
@@ -676,15 +704,19 @@ public final class AnniCommandRenderer {
      *  click + hover. Built as a parent literal with the click/hover on
      *  the parent so the click fires whether the user lands on the
      *  bracket or the label. */
-    private static MutableComponent rsvpUpgradeButton(String label,
-                                                      ChatFormatting bracketColor,
-                                                      ChatFormatting labelColor,
-                                                      String command,
-                                                      String hoverText) {
-        Style parentStyle = Style.EMPTY
-                .withClickEvent(new ClickEvent.SuggestCommand(command))
-                .withHoverEvent(new HoverEvent.ShowText(
-                        Component.literal(hoverText).withStyle(ChatFormatting.GRAY)));
+    private static MutableComponent rsvpUpgradeButton(
+            String label,
+            ChatFormatting bracketColor,
+            ChatFormatting labelColor,
+            String command,
+            String hoverText) {
+        Style parentStyle =
+                Style.EMPTY
+                        .withClickEvent(new ClickEvent.SuggestCommand(command))
+                        .withHoverEvent(
+                                new HoverEvent.ShowText(
+                                        Component.literal(hoverText)
+                                                .withStyle(ChatFormatting.GRAY)));
         MutableComponent btn = Component.literal("").withStyle(parentStyle);
         btn.append(Component.literal("[").withStyle(bracketColor));
         btn.append(Component.literal(label).withStyle(labelColor));
@@ -700,19 +732,20 @@ public final class AnniCommandRenderer {
      *  {@code null} so the caller drops the line entirely. */
     private static MutableComponent attendanceSection(AnniSnapshot snapshot) {
         AnniSnapshot.Board board = snapshot.board();
-        String state = board == null || board.state() == null
-                ? null : board.state().toLowerCase();
+        String state = board == null || board.state() == null ? null : board.state().toLowerCase();
         if (state == null) return null;
         switch (state) {
             case "party":
                 return label("Attendance Chance", ChatFormatting.GRAY)
-                        .append(Component.literal("ASSIGNED")
-                                .withStyle(ChatFormatting.LIGHT_PURPLE,
-                                        ChatFormatting.BOLD));
+                        .append(
+                                Component.literal("ASSIGNED")
+                                        .withStyle(
+                                                ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD));
             case "wont_assign":
                 return label("Attendance Chance", ChatFormatting.GRAY)
-                        .append(Component.literal("COULD NOT ASSIGN")
-                                .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
+                        .append(
+                                Component.literal("COULD NOT ASSIGN")
+                                        .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
             case "unassigned":
                 return label("Attendance Chance", ChatFormatting.GRAY)
                         .append(AnniHoverBuilder.attendanceBar(snapshot.attendance()));
@@ -723,8 +756,7 @@ public final class AnniCommandRenderer {
 
     /** Board state — different forms for "unplaced", "unassigned",
      *  "wont_assign", "party". */
-    private static MutableComponent boardSection(AnniSnapshot snapshot,
-                                                 boolean partyDetails) {
+    private static MutableComponent boardSection(AnniSnapshot snapshot, boolean partyDetails) {
         AnniSnapshot.Board board = snapshot.board();
         if (board == null || board.state() == null) {
             return Component.literal("");
@@ -733,18 +765,21 @@ public final class AnniCommandRenderer {
         switch (state) {
             case "unplaced":
                 return label("Party Assignment", ChatFormatting.GRAY)
-                        .append(Component.literal("unplaced")
-                                .withStyle(ChatFormatting.YELLOW))
-                        .append(Component.literal(
-                                " — register & RSVP to join the placement queue")
-                                .withStyle(ChatFormatting.GRAY));
+                        .append(Component.literal("unplaced").withStyle(ChatFormatting.YELLOW))
+                        .append(
+                                Component.literal(" — register & RSVP to join the placement queue")
+                                        .withStyle(ChatFormatting.GRAY));
             case "wont_assign":
-                MutableComponent wont = label("Party Assignment", ChatFormatting.GRAY)
-                        .append(Component.literal("won't assign")
-                                .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
+                MutableComponent wont =
+                        label("Party Assignment", ChatFormatting.GRAY)
+                                .append(
+                                        Component.literal("won't assign")
+                                                .withStyle(
+                                                        ChatFormatting.RED, ChatFormatting.BOLD));
                 if (board.wontReason() != null && !board.wontReason().isEmpty()) {
-                    wont.append(Component.literal(" — " + board.wontReason())
-                            .withStyle(ChatFormatting.GRAY));
+                    wont.append(
+                            Component.literal(" — " + board.wontReason())
+                                    .withStyle(ChatFormatting.GRAY));
                 }
                 return wont;
             case "unassigned":
@@ -752,14 +787,13 @@ public final class AnniCommandRenderer {
                 // already shows HRSVP/SRSVP. Just say what board state
                 // means for placement.
                 return label("Party Assignment", ChatFormatting.GRAY)
-                        .append(Component.literal("unassigned")
-                                .withStyle(ChatFormatting.GOLD))
+                        .append(Component.literal("unassigned").withStyle(ChatFormatting.GOLD))
                         .append(Component.literal(" — ").withStyle(ChatFormatting.DARK_GRAY))
-                        .append(Component.literal("Awaiting placement")
-                                .withStyle(ChatFormatting.GRAY));
+                        .append(
+                                Component.literal("Awaiting placement")
+                                        .withStyle(ChatFormatting.GRAY));
             case "party":
-                return partyDetails ? partyAssignedBlock(snapshot)
-                                    : partyOneLine(board);
+                return partyDetails ? partyAssignedBlock(snapshot) : partyOneLine(board);
             default:
                 return label("Party Assignment", ChatFormatting.GRAY)
                         .append(Component.literal(state).withStyle(ChatFormatting.GRAY));
@@ -772,14 +806,16 @@ public final class AnniCommandRenderer {
         AnniSnapshot.Party party = board == null ? null : board.party();
         if (party == null) {
             return label("Party Assignment", ChatFormatting.GRAY)
-                    .append(Component.literal("party (details pending)")
-                            .withStyle(ChatFormatting.GRAY));
+                    .append(
+                            Component.literal("party (details pending)")
+                                    .withStyle(ChatFormatting.GRAY));
         }
         // Role lives on the "Assigned Role" line above this block —
         // see renderFarOut. Don't repeat it here.
-        MutableComponent line = label("Party", ChatFormatting.GRAY)
-                .append(AnniHoverBuilder.partyOrdinalChip(party))
-                .append(Component.literal("  "));
+        MutableComponent line =
+                label("Party", ChatFormatting.GRAY)
+                        .append(AnniHoverBuilder.partyOrdinalChip(party))
+                        .append(Component.literal("  "));
 
         line.append(label("World", ChatFormatting.GRAY))
                 .append(AnniHoverBuilder.partyWorldChip(party.world()));
@@ -787,8 +823,9 @@ public final class AnniCommandRenderer {
         if (party.host() != null && party.host().username() != null) {
             line.append(Component.literal("\n"));
             line.append(label("Host", ChatFormatting.GRAY))
-                    .append(Component.literal(party.host().username())
-                            .withStyle(ChatFormatting.AQUA));
+                    .append(
+                            Component.literal(party.host().username())
+                                    .withStyle(ChatFormatting.AQUA));
         }
         return line;
     }
@@ -822,12 +859,12 @@ public final class AnniCommandRenderer {
      *  underline/bold/italic flags whenever they don't set them
      *  explicitly, and the renderer chain hangs a lot of unstyled
      *  segments off this header. */
-    private static MutableComponent header(String prefix,
-                                           ChatFormatting prefixColor,
-                                           String subtitle) {
+    private static MutableComponent header(
+            String prefix, ChatFormatting prefixColor, String subtitle) {
         MutableComponent root = Component.literal("");
-        root.append(AnniHoverBuilder.linkBadge(prefix, "https://" + prefix,
-                "Open " + prefix, prefixColor));
+        root.append(
+                AnniHoverBuilder.linkBadge(
+                        prefix, "https://" + prefix, "Open " + prefix, prefixColor));
         root.append(Component.literal(" — ").withStyle(ChatFormatting.DARK_GRAY));
         root.append(Component.literal(subtitle).withStyle(ChatFormatting.WHITE));
         return root;

@@ -4,8 +4,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.wynnvets.logging.VetsLogger;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -17,6 +15,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Cached fetcher for the anni zone — the union of 48-block discs
@@ -67,6 +66,7 @@ public final class AnniZone {
      *  of 2026-06-16; kept as a spec-anchored constant in case the API
      *  drifts). */
     private static final double DISC_RADIUS = 48.0;
+
     private static final double DISC_RADIUS_SQ = DISC_RADIUS * DISC_RADIUS;
 
     private static final long REFRESH_INTERVAL_SECONDS = 60L;
@@ -78,21 +78,22 @@ public final class AnniZone {
 
     private static ScheduledExecutorService scheduler;
 
-    private AnniZone() {
-    }
+    private AnniZone() {}
 
     /** Start the periodic fetcher. Idempotent. Runs an initial pull
      *  immediately so cold-start isn't gated on the 60 s interval. */
     public static void start() {
         if (started) return;
         started = true;
-        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "vetsmod-anni-zone");
-            t.setDaemon(true);
-            return t;
-        });
-        scheduler.scheduleAtFixedRate(AnniZone::refresh,
-                0L, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        scheduler =
+                Executors.newSingleThreadScheduledExecutor(
+                        r -> {
+                            Thread t = new Thread(r, "vetsmod-anni-zone");
+                            t.setDaemon(true);
+                            return t;
+                        });
+        scheduler.scheduleAtFixedRate(
+                AnniZone::refresh, 0L, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
         VetsLogger.debug("AnniZone started");
     }
 
@@ -145,23 +146,33 @@ public final class AnniZone {
             this.radius = radius;
         }
 
-        public double x() { return x; }
-        public double z() { return z; }
-        public double radius() { return radius; }
+        public double x() {
+            return x;
+        }
+
+        public double z() {
+            return z;
+        }
+
+        public double radius() {
+            return radius;
+        }
     }
 
     // ── Internals ───────────────────────────────────────────────────────
 
     private static void refresh() {
         try {
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-                    .build();
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(API_URL))
-                    .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-                    .GET()
-                    .build();
+            HttpClient client =
+                    HttpClient.newBuilder()
+                            .connectTimeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
+                            .build();
+            HttpRequest req =
+                    HttpRequest.newBuilder()
+                            .uri(URI.create(API_URL))
+                            .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
+                            .GET()
+                            .build();
             HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() != 200) {
                 VetsLogger.debug("AnniZone refresh: HTTP {}", resp.statusCode());

@@ -41,13 +41,12 @@ import org.wynnvets.logging.VetsLogger;
  */
 public final class StreamerModeChatDetector {
 
-    private static final String PATTERN_ON  = "Streamer mode was enabled";
+    private static final String PATTERN_ON = "Streamer mode was enabled";
     private static final String PATTERN_OFF = "Streamer mode disabled";
 
     private static volatile boolean lastSeenInStream = false;
 
-    private StreamerModeChatDetector() {
-    }
+    private StreamerModeChatDetector() {}
 
     /** Current best-guess of {@code /stream} state from the chat
      *  pipeline. {@code false} on cold start (no chat lines seen yet);
@@ -94,32 +93,34 @@ public final class StreamerModeChatDetector {
             VetsLogger.debug("StreamerModeChatDetector: stream-on detected (already silent)");
             return;
         }
-        boolean flipped = AnniModeManager.transitionTo(
-                AnniMode.SILENT, AnniModeManager.Source.AUTO_STREAM_ACTIVATED);
+        boolean flipped =
+                AnniModeManager.transitionTo(
+                        AnniMode.SILENT, AnniModeManager.Source.AUTO_STREAM_ACTIVATED);
         if (flipped) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Anni mode auto-changed to ")
                             .withStyle(ChatFormatting.GRAY)
-                            .append(Component.literal("silent")
-                                    .withStyle(ChatFormatting.WHITE))
-                            .append(Component.literal(": ")
-                                    .withStyle(ChatFormatting.GRAY))
-                            .append(Component.literal("/stream activated")
-                                    .withStyle(ChatFormatting.RED))
-                            .append(Component.literal(". ")
-                                    .withStyle(ChatFormatting.GRAY))
-                            .append(Component.literal("/stream")
-                                    .withStyle(ChatFormatting.RED))
-                            .append(Component.literal(" does the same thing as ")
-                                    .withStyle(ChatFormatting.GRAY))
-                            .append(Component.literal("/toggle ghosts off")
-                                    .withStyle(ChatFormatting.AQUA))
-                            .append(Component.literal(" but disables anni mode and makes things a nuisance for organisers. Prefer ")
-                                    .withStyle(ChatFormatting.GRAY))
-                            .append(Component.literal("/toggle ghosts off")
-                                    .withStyle(ChatFormatting.AQUA))
-                            .append(Component.literal(".")
-                                    .withStyle(ChatFormatting.GRAY)));
+                            .append(Component.literal("silent").withStyle(ChatFormatting.WHITE))
+                            .append(Component.literal(": ").withStyle(ChatFormatting.GRAY))
+                            .append(
+                                    Component.literal("/stream activated")
+                                            .withStyle(ChatFormatting.RED))
+                            .append(Component.literal(". ").withStyle(ChatFormatting.GRAY))
+                            .append(Component.literal("/stream").withStyle(ChatFormatting.RED))
+                            .append(
+                                    Component.literal(" does the same thing as ")
+                                            .withStyle(ChatFormatting.GRAY))
+                            .append(
+                                    Component.literal("/toggle ghosts off")
+                                            .withStyle(ChatFormatting.AQUA))
+                            .append(
+                                    Component.literal(
+                                                    " but disables anni mode and makes things a nuisance for organisers. Prefer ")
+                                            .withStyle(ChatFormatting.GRAY))
+                            .append(
+                                    Component.literal("/toggle ghosts off")
+                                            .withStyle(ChatFormatting.AQUA))
+                            .append(Component.literal(".").withStyle(ChatFormatting.GRAY)));
         }
     }
 
@@ -128,29 +129,30 @@ public final class StreamerModeChatDetector {
         lastSeenInStream = false;
         AnniMode target = AnniModeManager.preferredMode();
         if (target == AnniMode.SILENT) {
-            VetsLogger.debug("StreamerModeChatDetector: stream-off detected (preferred=silent, nothing to restore)");
+            VetsLogger.debug(
+                    "StreamerModeChatDetector: stream-off detected (preferred=silent, nothing to restore)");
             return;
         }
         if (AnniMode.fromConfig() == target) {
-            VetsLogger.debug("StreamerModeChatDetector: stream-off detected (already at preferred={})",
+            VetsLogger.debug(
+                    "StreamerModeChatDetector: stream-off detected (already at preferred={})",
                     target.toConfigValue());
             return;
         }
-        boolean flipped = AnniModeManager.transitionTo(
-                target, AnniModeManager.Source.AUTO_STREAM_DEACTIVATED);
+        boolean flipped =
+                AnniModeManager.transitionTo(
+                        target, AnniModeManager.Source.AUTO_STREAM_DEACTIVATED);
         if (!flipped) return;
-        ChatFormatting colour = target == AnniMode.AGGRESSIVE
-                ? ChatFormatting.RED : ChatFormatting.GREEN;
+        ChatFormatting colour =
+                target == AnniMode.AGGRESSIVE ? ChatFormatting.RED : ChatFormatting.GREEN;
         ChatUtils.sendLocalMessage(
                 Component.literal("Anni mode auto-restored to ")
                         .withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(target.toConfigValue())
-                                .withStyle(colour))
-                        .append(Component.literal(": ")
-                                .withStyle(ChatFormatting.GRAY))
-                        .append(Component.literal("/stream deactivated")
-                                .withStyle(ChatFormatting.GREEN))
-                        .append(Component.literal(".")
-                                .withStyle(ChatFormatting.GRAY)));
+                        .append(Component.literal(target.toConfigValue()).withStyle(colour))
+                        .append(Component.literal(": ").withStyle(ChatFormatting.GRAY))
+                        .append(
+                                Component.literal("/stream deactivated")
+                                        .withStyle(ChatFormatting.GREEN))
+                        .append(Component.literal(".").withStyle(ChatFormatting.GRAY)));
     }
 }

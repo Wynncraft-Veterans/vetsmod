@@ -1,16 +1,14 @@
 package org.wynnvets.mwe.anni.network;
 
 import com.google.gson.JsonObject;
-
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.TimeUnit;
 
 /**
  * S6 single-flight client for the {@code anni_rsvp} in-game RSVP frame.
@@ -36,11 +34,11 @@ public final class AnniRsvpClient {
 
     /** Last attempted notice ("hard"/"soft"/"revoke") — for {@code rsvpDump}. */
     private static volatile String lastAttemptedNotice;
+
     /** Last completed ack — for {@code rsvpDump}. May be null on first run. */
     private static volatile Ack lastAck;
 
-    private AnniRsvpClient() {
-    }
+    private AnniRsvpClient() {}
 
     /** Send an {@code anni_rsvp} frame with the given notice. */
     public static CompletableFuture<Ack> send(String notice) {
@@ -56,10 +54,11 @@ public final class AnniRsvpClient {
             return future;
         }
         future.orTimeout(ACK_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                .exceptionally(ex -> {
-                    pending.remove(future);
-                    return null;  // already-resolved branch swallowed
-                });
+                .exceptionally(
+                        ex -> {
+                            pending.remove(future);
+                            return null; // already-resolved branch swallowed
+                        });
         return future;
     }
 
@@ -71,10 +70,14 @@ public final class AnniRsvpClient {
             VetsLogger.debug("anni_rsvp_response with empty queue: {}", json);
             return;
         }
-        String status = json.has("status") && !json.get("status").isJsonNull()
-                ? json.get("status").getAsString() : "error";
-        String detail = json.has("detail") && !json.get("detail").isJsonNull()
-                ? json.get("detail").getAsString() : null;
+        String status =
+                json.has("status") && !json.get("status").isJsonNull()
+                        ? json.get("status").getAsString()
+                        : "error";
+        String detail =
+                json.has("detail") && !json.get("detail").isJsonNull()
+                        ? json.get("detail").getAsString()
+                        : null;
         Ack ack = new Ack("ok".equals(status), detail);
         lastAck = ack;
         head.complete(ack);
@@ -83,8 +86,7 @@ public final class AnniRsvpClient {
     /** Server ack — {@code ok} flag + optional human-readable {@code detail}
      *  surfaced from vets-anni on failure (e.g. "RSVP is closed (within 90
      *  min of anni)"). */
-    public record Ack(boolean ok, String detail) {
-    }
+    public record Ack(boolean ok, String detail) {}
 
     /** Debug entry — dump current auth state, in-flight queue depth, last
      *  attempt + last ack, and the snapshot's current rsvp block. Mirrors
@@ -92,7 +94,8 @@ public final class AnniRsvpClient {
      *  / {@code ghostsPromptDump} family. */
     public static void debugDump() {
         VetsLogger.info("--- rsvpDump ---");
-        VetsLogger.info("authenticated_this_session={} pending={} last_attempt={} last_ack={}",
+        VetsLogger.info(
+                "authenticated_this_session={} pending={} last_attempt={} last_ack={}",
                 GuildStateManager.isAuthenticatedThisSession(),
                 pending.size(),
                 lastAttemptedNotice,
@@ -106,8 +109,11 @@ public final class AnniRsvpClient {
         if (r == null) {
             VetsLogger.info("snapshot.rsvp=null (no active RSVP)");
         } else {
-            VetsLogger.info("snapshot.rsvp.notice={} updated_at={} revoked={}",
-                    r.notice(), r.updatedAt(), r.revoked());
+            VetsLogger.info(
+                    "snapshot.rsvp.notice={} updated_at={} revoked={}",
+                    r.notice(),
+                    r.updatedAt(),
+                    r.revoked());
         }
     }
 }

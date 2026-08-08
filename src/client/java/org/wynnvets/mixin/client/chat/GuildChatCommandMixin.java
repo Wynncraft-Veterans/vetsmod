@@ -18,10 +18,10 @@ import org.wynnvets.commands.GuildChatDispatcher;
 @Mixin(ClientPacketListener.class)
 public class GuildChatCommandMixin {
 
-  @Inject(method = "sendCommand", at = @At("HEAD"), cancellable = true)
-  private void onSendCommand(String command, CallbackInfo ci) {
-    if (GuildChatDispatcher.intercept(command)) {
-      ci.cancel();
+    @Inject(method = "sendCommand", at = @At("HEAD"), cancellable = true)
+    private void onSendCommand(String command, CallbackInfo ci) {
+        if (GuildChatDispatcher.intercept(command)) {
+            ci.cancel();
+        }
     }
-  }
 }

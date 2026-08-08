@@ -1,6 +1,13 @@
 package org.wynnvets.distribute.distributor;
 
 import com.wynntils.core.components.Managers;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
@@ -10,14 +17,6 @@ import org.wynnvets.distribute.utils.NoAspectsFilter;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
 
 /**
  * Implements the {@code /wv distribute @random <resource> <count>} flow:
@@ -77,8 +76,8 @@ public final class RandomDistributor {
      * like {@link SplitDistributor} can advance to the next phase
      * without stalling on a partial failure.
      */
-    public static void dispatch(int count, MemberSlotPresser.Resource resource,
-                                Runnable onComplete) {
+    public static void dispatch(
+            int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
         if (!GuildStateManager.isWynntilsReady()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Wynntils isn't ready yet — cannot read guild roster.")
@@ -91,15 +90,17 @@ public final class RandomDistributor {
         // parallel; combine into a filtered legacy-name pool before
         // dispatching. Per-command refresh keeps the list responsive to
         // staff mutations (see NoAspectsFilter for fail-open semantics).
-        NameResolver.fetchAllLegacyNames().thenCombine(
-                NoAspectsFilter.fetchExcludedLegacyNames(),
-                RandomDistributor::filterNames)
-                .thenAccept(legacyNames ->
-                        // Hop back to the Minecraft tick thread before touching the
-                        // menu / event-bus state. The HTTP completion callback runs
-                        // on the HttpClient's executor.
-                        Managers.TickScheduler.scheduleLater(
-                                () -> beginPicks(legacyNames, count, resource, onComplete), 0));
+        NameResolver.fetchAllLegacyNames()
+                .thenCombine(
+                        NoAspectsFilter.fetchExcludedLegacyNames(), RandomDistributor::filterNames)
+                .thenAccept(
+                        legacyNames ->
+                                // Hop back to the Minecraft tick thread before touching the
+                                // menu / event-bus state. The HTTP completion callback runs
+                                // on the HttpClient's executor.
+                                Managers.TickScheduler.scheduleLater(
+                                        () -> beginPicks(legacyNames, count, resource, onComplete),
+                                        0));
     }
 
     private static List<String> filterNames(List<String> names, Set<String> exclude) {
@@ -111,9 +112,11 @@ public final class RandomDistributor {
         return out;
     }
 
-    private static void beginPicks(List<String> legacyNames, int count,
-                                   MemberSlotPresser.Resource resource,
-                                   Runnable onComplete) {
+    private static void beginPicks(
+            List<String> legacyNames,
+            int count,
+            MemberSlotPresser.Resource resource,
+            Runnable onComplete) {
         if (legacyNames.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Could not read guild roster from wapi — try again.")
@@ -128,8 +131,12 @@ public final class RandomDistributor {
         Deque<String> queue = new ArrayDeque<>(shuffled.subList(0, picks));
 
         ChatUtils.sendLocalMessage(
-                Component.literal("Picking " + picks + " random members for "
-                        + resource.displayName() + "…")
+                Component.literal(
+                                "Picking "
+                                        + picks
+                                        + " random members for "
+                                        + resource.displayName()
+                                        + "…")
                         .withStyle(ChatFormatting.AQUA));
 
         // Arm for the first pick BEFORE opening the menu so the searcher
@@ -140,28 +147,33 @@ public final class RandomDistributor {
         GuildManageOpener.openManageMembers();
     }
 
-    private static void processNext(Deque<String> queue,
-                                    MemberSlotPresser.Resource resource,
-                                    Runnable onComplete) {
+    private static void processNext(
+            Deque<String> queue, MemberSlotPresser.Resource resource, Runnable onComplete) {
         if (queue.isEmpty()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Distribution complete.")
-                            .withStyle(ChatFormatting.GREEN));
+                    Component.literal("Distribution complete.").withStyle(ChatFormatting.GREEN));
             MemberSlotPresser.closeMembersScreen();
             if (onComplete != null) onComplete.run();
             return;
         }
         String name = queue.poll();
-        VetsLogger.debug("RandomDistributor: searching for [{}], {} remaining after this",
-                name, queue.size());
+        VetsLogger.debug(
+                "RandomDistributor: searching for [{}], {} remaining after this",
+                name,
+                queue.size());
 
         // Names are already in the legacy form from fetchAllLegacyNames(),
         // so the literal-input arm matches the menu directly — no per-pick
         // NameResolver call needed.
         MembersListSearcher.armSearch(
                 name,
-                slot -> MemberSlotPresser.fire(slot, resource, 1, name,
-                        () -> processNext(queue, resource, onComplete)),
+                slot ->
+                        MemberSlotPresser.fire(
+                                slot,
+                                resource,
+                                1,
+                                name,
+                                () -> processNext(queue, resource, onComplete)),
                 () -> processNext(queue, resource, onComplete));
     }
 }

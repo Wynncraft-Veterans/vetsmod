@@ -1,16 +1,15 @@
 package org.wynnvets.mixin.client;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.UUID;
 import net.minecraft.client.gui.components.BossHealthOverlay;
 import net.minecraft.client.gui.components.LerpingBossEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.wynnvets.mwe.anni.bossbar.VetsBossBarManager;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * Render-side filter that hides all non-vetsmod boss bars while
@@ -53,8 +52,7 @@ public abstract class BossHealthOverlayMixin {
      */
     @Redirect(
             method = "render(Lnet/minecraft/client/gui/GuiGraphics;)V",
-            at = @At(value = "INVOKE",
-                    target = "Ljava/util/Map;values()Ljava/util/Collection;"))
+            at = @At(value = "INVOKE", target = "Ljava/util/Map;values()Ljava/util/Collection;"))
     private Collection<LerpingBossEvent> vetsmod$filterRenderToOurs(
             Map<UUID, LerpingBossEvent> events) {
         if (!VetsBossBarManager.isActive()) return events.values();

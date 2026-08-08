@@ -7,6 +7,8 @@ import com.wynntils.mc.event.ContainerSetContentEvent;
 import com.wynntils.mc.event.MenuEvent;
 import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
+import java.util.List;
+import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -14,9 +16,6 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * Drives the "Press N to send X" hand-over interaction in the Wynncraft
@@ -89,8 +88,10 @@ public final class MemberSlotPresser {
     private static volatile int pendingSent;
     private static volatile int pendingContainerId;
     private static volatile boolean awaitingRefresh;
+
     /** Monotonic token so a stale scheduled timeout doesn't trip a later run. */
     private static volatile int timeoutToken;
+
     /** Callback invoked when the full press batch finishes — on success
      *  (last press confirmed) or on timeout. Lets {@link RandomDistributor}
      *  chain another {@code fire()} for the next pick instead of closing
@@ -129,16 +130,22 @@ public final class MemberSlotPresser {
      * {@link #closeMembersScreen()} as {@code onComplete} to restore the
      * single-user "close when done" behavior.
      */
-    public static void fire(int slot, Resource resource, int count, String recipientName,
-                            Runnable onComplete) {
+    public static void fire(
+            int slot, Resource resource, int count, String recipientName, Runnable onComplete) {
         if (count <= 0) {
             if (onComplete != null) onComplete.run();
             return;
         }
         pendingOnComplete = onComplete;
         ChatUtils.sendLocalMessage(
-                Component.literal("Sending " + count + "x " + resource.displayName()
-                        + " to " + recipientName + "…")
+                Component.literal(
+                                "Sending "
+                                        + count
+                                        + "x "
+                                        + resource.displayName()
+                                        + " to "
+                                        + recipientName
+                                        + "…")
                         .withStyle(ChatFormatting.AQUA));
         sendPressAndArm(slot, resource, count, 0);
     }
@@ -146,8 +153,8 @@ public final class MemberSlotPresser {
     private static void sendPressAndArm(int slot, Resource resource, int total, int sent) {
         AbstractContainerScreen<?> screen = currentMembersScreen();
         if (screen == null) {
-            VetsLogger.debug("MemberSlotPresser: members screen gone after {}/{} presses",
-                    sent, total);
+            VetsLogger.debug(
+                    "MemberSlotPresser: members screen gone after {}/{} presses", sent, total);
             clearPending();
             return;
         }
@@ -155,8 +162,12 @@ public final class MemberSlotPresser {
         int containerId = screen.getMenu().containerId;
         List<ItemStack> items = screen.getMenu().getItems();
         ContainerUtils.pressKeyOnSlot(slot, containerId, resource.hotbarButton(), items);
-        VetsLogger.debug("MemberSlotPresser: sent press {}/{} on slot {} of container {}",
-                sent + 1, total, slot, containerId);
+        VetsLogger.debug(
+                "MemberSlotPresser: sent press {}/{} on slot {} of container {}",
+                sent + 1,
+                total,
+                slot,
+                containerId);
 
         pendingSlot = slot;
         pendingResource = resource;
@@ -169,22 +180,30 @@ public final class MemberSlotPresser {
 
     private static void armRefreshTimeout(int sentSoFar, int total) {
         final int myToken = ++timeoutToken;
-        Managers.TickScheduler.scheduleLater(() -> {
-            if (!awaitingRefresh) return;
-            if (myToken != timeoutToken) return;
-            VetsLogger.debug("MemberSlotPresser: refresh wait timed out after {}/{} presses",
-                    sentSoFar, total);
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Send timed out after " + sentSoFar + "/" + total
-                            + " (server didn't refresh the menu).")
-                            .withStyle(ChatFormatting.YELLOW));
-            // Capture and invoke onComplete so chained callers (e.g.
-            // RandomDistributor) advance past the timed-out recipient
-            // rather than stalling.
-            Runnable cb = pendingOnComplete;
-            clearPending();
-            if (cb != null) cb.run();
-        }, REFRESH_TIMEOUT_TICKS);
+        Managers.TickScheduler.scheduleLater(
+                () -> {
+                    if (!awaitingRefresh) return;
+                    if (myToken != timeoutToken) return;
+                    VetsLogger.debug(
+                            "MemberSlotPresser: refresh wait timed out after {}/{} presses",
+                            sentSoFar,
+                            total);
+                    ChatUtils.sendLocalMessage(
+                            Component.literal(
+                                            "Send timed out after "
+                                                    + sentSoFar
+                                                    + "/"
+                                                    + total
+                                                    + " (server didn't refresh the menu).")
+                                    .withStyle(ChatFormatting.YELLOW));
+                    // Capture and invoke onComplete so chained callers (e.g.
+                    // RandomDistributor) advance past the timed-out recipient
+                    // rather than stalling.
+                    Runnable cb = pendingOnComplete;
+                    clearPending();
+                    if (cb != null) cb.run();
+                },
+                REFRESH_TIMEOUT_TICKS);
     }
 
     /**
@@ -195,8 +214,10 @@ public final class MemberSlotPresser {
     public void onMenuOpenPre(MenuEvent.MenuOpenedEvent.Pre event) {
         if (!awaitingRefresh) return;
         if (!StyledText.fromComponent(event.getTitle()).matches(MEMBERS_TITLE_PATTERN)) return;
-        VetsLogger.debug("MemberSlotPresser: refresh observed via MenuOpened (new id={}, prev={})",
-                event.getContainerId(), pendingContainerId);
+        VetsLogger.debug(
+                "MemberSlotPresser: refresh observed via MenuOpened (new id={}, prev={})",
+                event.getContainerId(),
+                pendingContainerId);
         onRefreshObserved();
     }
 
@@ -210,7 +231,8 @@ public final class MemberSlotPresser {
         AbstractContainerScreen<?> screen = currentMembersScreen();
         if (screen == null) return;
         if (event.getContainerId() != screen.getMenu().containerId) return;
-        VetsLogger.debug("MemberSlotPresser: refresh observed via SetContent (id={})",
+        VetsLogger.debug(
+                "MemberSlotPresser: refresh observed via SetContent (id={})",
                 event.getContainerId());
         onRefreshObserved();
     }
@@ -221,17 +243,19 @@ public final class MemberSlotPresser {
         final Resource resource = pendingResource;
         final int total = pendingTotal;
         final int sent = pendingSent;
-        Managers.TickScheduler.scheduleLater(() -> {
-            if (sent >= total) {
-                VetsLogger.debug("MemberSlotPresser: completed {} presses on slot {}",
-                        total, slot);
-                Runnable cb = pendingOnComplete;
-                clearPending();
-                if (cb != null) cb.run();
-            } else {
-                sendPressAndArm(slot, resource, total, sent);
-            }
-        }, PRESS_DELAY_TICKS);
+        Managers.TickScheduler.scheduleLater(
+                () -> {
+                    if (sent >= total) {
+                        VetsLogger.debug(
+                                "MemberSlotPresser: completed {} presses on slot {}", total, slot);
+                        Runnable cb = pendingOnComplete;
+                        clearPending();
+                        if (cb != null) cb.run();
+                    } else {
+                        sendPressAndArm(slot, resource, total, sent);
+                    }
+                },
+                PRESS_DELAY_TICKS);
     }
 
     private static void clearPending() {

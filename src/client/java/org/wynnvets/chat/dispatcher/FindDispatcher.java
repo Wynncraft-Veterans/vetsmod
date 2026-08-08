@@ -1,9 +1,6 @@
 package org.wynnvets.chat.dispatcher;
 
 import com.wynntils.core.components.Handlers;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,6 +11,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 
 /**
  * Handles {@code /find} batch lookups, serialized on the shared dispatch executor
@@ -36,8 +35,7 @@ public final class FindDispatcher {
     private static volatile AwaitingFindResponse awaitingFindResponse;
     private static final long FIND_RESPONSE_WAIT_MS = 6_000L;
 
-    private FindDispatcher() {
-    }
+    private FindDispatcher() {}
 
     // ──────────────────────────── Public API ────────────────────────────
 
@@ -47,7 +45,8 @@ public final class FindDispatcher {
      * two never interleave. Results are delivered via the returned future as a map of
      * username → server (or {@code null} value for offline / not-found users).
      */
-    public static void enqueueFindBatch(List<String> usernames, CompletableFuture<Map<String, String>> resultFuture) {
+    public static void enqueueFindBatch(
+            List<String> usernames, CompletableFuture<Map<String, String>> resultFuture) {
         if (usernames == null || usernames.isEmpty()) {
             resultFuture.complete(Map.of());
             return;
@@ -92,22 +91,23 @@ public final class FindDispatcher {
         AtomicBoolean commandSent = new AtomicBoolean(false);
         String usernameLower = username.toLowerCase(Locale.ROOT);
 
-        minecraft.execute(() -> {
-            try {
-                if (player.connection == null) {
-                    return;
-                }
+        minecraft.execute(
+                () -> {
+                    try {
+                        if (player.connection == null) {
+                            return;
+                        }
 
-                synchronized (FIND_RESPONSE_LOCK) {
-                    awaitingFindResponse = new AwaitingFindResponse(usernameLower);
-                }
+                        synchronized (FIND_RESPONSE_LOCK) {
+                            awaitingFindResponse = new AwaitingFindResponse(usernameLower);
+                        }
 
-                Handlers.Command.queueCommand("find " + username);
-                commandSent.set(true);
-            } finally {
-                submitted.countDown();
-            }
-        });
+                        Handlers.Command.queueCommand("find " + username);
+                        commandSent.set(true);
+                    } finally {
+                        submitted.countDown();
+                    }
+                });
 
         try {
             if (!submitted.await(2, TimeUnit.SECONDS)) {
@@ -138,7 +138,9 @@ public final class FindDispatcher {
         synchronized (FIND_RESPONSE_LOCK) {
             while (true) {
                 AwaitingFindResponse awaiting = awaitingFindResponse;
-                if (awaiting != null && awaiting.usernameLower.equals(usernameLower) && awaiting.resultReady) {
+                if (awaiting != null
+                        && awaiting.usernameLower.equals(usernameLower)
+                        && awaiting.resultReady) {
                     awaitingFindResponse = null;
                     return awaiting.server;
                 }
@@ -169,7 +171,8 @@ public final class FindDispatcher {
         }
     }
 
-    // ──────────────────────────── Find-response suppression (ChatLogMixin) ────────────────────────────
+    // ──────────────────────────── Find-response suppression (ChatLogMixin)
+    // ────────────────────────────
 
     /**
      * Called from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} on the render
@@ -243,8 +246,10 @@ public final class FindDispatcher {
             }
 
             int type = Character.getType(cp);
-            if (type == Character.PRIVATE_USE || type == Character.SURROGATE
-                    || type == Character.UNASSIGNED || type == Character.FORMAT) {
+            if (type == Character.PRIVATE_USE
+                    || type == Character.SURROGATE
+                    || type == Character.UNASSIGNED
+                    || type == Character.FORMAT) {
                 i += len;
                 continue;
             }
@@ -257,8 +262,7 @@ public final class FindDispatcher {
 
     // ──────────────────────────── Internal records ────────────────────────────
 
-    record FindBatch(List<String> usernames, CompletableFuture<Map<String, String>> resultFuture) {
-    }
+    record FindBatch(List<String> usernames, CompletableFuture<Map<String, String>> resultFuture) {}
 
     private static final class AwaitingFindResponse {
         private final String usernameLower;

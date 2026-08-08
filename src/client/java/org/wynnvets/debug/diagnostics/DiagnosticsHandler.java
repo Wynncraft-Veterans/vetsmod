@@ -2,6 +2,8 @@ package org.wynnvets.debug.diagnostics;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.models.worlds.type.WorldState;
+import java.util.Collection;
+import java.util.StringJoiner;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.ChatFormatting;
@@ -15,9 +17,6 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.Collection;
-import java.util.StringJoiner;
 
 /**
  * Handles the {@code /wv debug} diagnostics dump and the
@@ -46,29 +45,25 @@ public final class DiagnosticsHandler {
             VetsLogger.setDebugEnabled(true);
             VetsConfig.setLong(VetsConfig.VETS_DEBUG_ENABLED_AT, System.currentTimeMillis());
             ChatUtils.sendLocalMessage(
-                Component.literal("Debug logging ")
-                    .withStyle(ChatFormatting.YELLOW)
-                    .append(Component.literal("enabled")
-                        .withStyle(ChatFormatting.GREEN))
-                    .append(Component.literal(". Verbose output is now being written to your log file. (persists for 3 days)")
-                        .withStyle(ChatFormatting.YELLOW))
-            );
+                    Component.literal("Debug logging ")
+                            .withStyle(ChatFormatting.YELLOW)
+                            .append(Component.literal("enabled").withStyle(ChatFormatting.GREEN))
+                            .append(
+                                    Component.literal(
+                                                    ". Verbose output is now being written to your log file. (persists for 3 days)")
+                                            .withStyle(ChatFormatting.YELLOW)));
         } else if (arg.equalsIgnoreCase("false")) {
             VetsLogger.setDebugEnabled(false);
             VetsConfig.setLong(VetsConfig.VETS_DEBUG_ENABLED_AT, 0L);
             ChatUtils.sendLocalMessage(
-                Component.literal("Debug logging ")
-                    .withStyle(ChatFormatting.YELLOW)
-                    .append(Component.literal("disabled")
-                        .withStyle(ChatFormatting.RED))
-                    .append(Component.literal(".")
-                        .withStyle(ChatFormatting.YELLOW))
-            );
+                    Component.literal("Debug logging ")
+                            .withStyle(ChatFormatting.YELLOW)
+                            .append(Component.literal("disabled").withStyle(ChatFormatting.RED))
+                            .append(Component.literal(".").withStyle(ChatFormatting.YELLOW)));
         } else {
             ChatUtils.sendLocalMessage(
-                Component.literal("Usage: /wv debug [true|false]")
-                    .withStyle(ChatFormatting.RED)
-            );
+                    Component.literal("Usage: /wv debug [true|false]")
+                            .withStyle(ChatFormatting.RED));
         }
     }
 
@@ -135,7 +130,9 @@ public final class DiagnosticsHandler {
 
         // ── Chat output (concise) ──────────────────────────────────
         MutableComponent chatMsg = Component.empty();
-        chatMsg.append(Component.literal("Diagnostics\n").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+        chatMsg.append(
+                Component.literal("Diagnostics\n")
+                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
         chatMsg.append(Component.literal("Version: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(Component.literal(vetsmodVersion + "\n").withStyle(ChatFormatting.WHITE));
         chatMsg.append(Component.literal("MC: ").withStyle(ChatFormatting.GRAY));
@@ -152,13 +149,16 @@ public final class DiagnosticsHandler {
         chatMsg.append(Component.literal(serverBrand).withStyle(ChatFormatting.WHITE));
         chatMsg.append(Component.literal(")\n").withStyle(ChatFormatting.GRAY));
         chatMsg.append(Component.literal("World: ").withStyle(ChatFormatting.GRAY));
-        chatMsg.append(Component.literal(worldState + " / " + worldName + "\n").withStyle(ChatFormatting.WHITE));
+        chatMsg.append(
+                Component.literal(worldState + " / " + worldName + "\n")
+                        .withStyle(ChatFormatting.WHITE));
         chatMsg.append(Component.literal("Guild: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(guildSummary(isReturners, isGuildless));
         chatMsg.append(Component.literal(" | Staff: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(boolComponent(isStaff));
         if (!selfRank.isEmpty()) {
-            chatMsg.append(Component.literal(" (" + selfRank + ")").withStyle(ChatFormatting.WHITE));
+            chatMsg.append(
+                    Component.literal(" (" + selfRank + ")").withStyle(ChatFormatting.WHITE));
         }
         chatMsg.append(Component.literal(" | Unlocked: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(boolComponent(isUnlocked));
@@ -174,13 +174,15 @@ public final class DiagnosticsHandler {
         chatMsg.append(authStatusComponent(hasAuthKey, authVerified, authFailureReason));
         if (authVerified || !authTier.isEmpty()) {
             chatMsg.append(Component.literal(" | Tier: ").withStyle(ChatFormatting.GRAY));
-            chatMsg.append(Component.literal(authTier.isEmpty() ? "?" : authTier)
-                .withStyle(ChatFormatting.WHITE));
+            chatMsg.append(
+                    Component.literal(authTier.isEmpty() ? "?" : authTier)
+                            .withStyle(ChatFormatting.WHITE));
         }
         if (authVerifiedAt > 0L) {
             chatMsg.append(Component.literal(" | Verified: ").withStyle(ChatFormatting.GRAY));
-            chatMsg.append(Component.literal(formatRelative(authVerifiedAt) + " ago")
-                .withStyle(ChatFormatting.WHITE));
+            chatMsg.append(
+                    Component.literal(formatRelative(authVerifiedAt) + " ago")
+                            .withStyle(ChatFormatting.WHITE));
         }
         if (hasLegacyUnlock) {
             chatMsg.append(Component.literal(" | Legacy unlock: ").withStyle(ChatFormatting.GRAY));
@@ -192,29 +194,47 @@ public final class DiagnosticsHandler {
         // ── Detailed log dump ───────────────────────────────────────
         VetsLogger.info("=== VetsMod Diagnostics Dump ===");
         VetsLogger.info("VetsMod version: {}", vetsmodVersion);
-        VetsLogger.info("Minecraft: {} | Fabric Loader: {} | Fabric API: {}", mcVersion, fabricLoaderVersion, fabricApiVersion);
+        VetsLogger.info(
+                "Minecraft: {} | Fabric Loader: {} | Fabric API: {}",
+                mcVersion,
+                fabricLoaderVersion,
+                fabricApiVersion);
         VetsLogger.info("Wynntils: {}", wynntilsVersion);
         VetsLogger.info("Server: {} | Brand: {}", serverAddress, serverBrand);
         VetsLogger.info("World state: {} | World name: {}", worldState, worldName);
         VetsLogger.info("Player: {}", playerName);
-        VetsLogger.info("Guild state: returners={}, guildless={}, unlocked={}, canExecute={}", isReturners, isGuildless, isUnlocked, canExecute);
+        VetsLogger.info(
+                "Guild state: returners={}, guildless={}, unlocked={}, canExecute={}",
+                isReturners,
+                isGuildless,
+                isUnlocked,
+                canExecute);
         VetsLogger.info("Staff: {}, rank={}", isStaff, selfRank.isEmpty() ? "none" : selfRank);
-        VetsLogger.info("Config: automessage={}, debugLogging={}, debugGuildlessOverride={}, supporter={}", automessageEnabled, debugLogging, debugOverride, isSupporter);
-        VetsLogger.info("Auth: hasKey={}, verifiedThisSession={}, tier={}, persistedTier={}, verifiedAt={}, legacyUnlock={}, lastFailure={}",
-            hasAuthKey,
-            authVerified,
-            authTier.isEmpty() ? "none" : authTier,
-            persistedTier == null || persistedTier.isEmpty() ? "none" : persistedTier,
-            authVerifiedAt == 0L ? "never" : Long.toString(authVerifiedAt),
-            hasLegacyUnlock,
-            authFailureReason.isEmpty() ? "none" : authFailureReason);
+        VetsLogger.info(
+                "Config: automessage={}, debugLogging={}, debugGuildlessOverride={}, supporter={}",
+                automessageEnabled,
+                debugLogging,
+                debugOverride,
+                isSupporter);
+        VetsLogger.info(
+                "Auth: hasKey={}, verifiedThisSession={}, tier={}, persistedTier={}, verifiedAt={}, legacyUnlock={}, lastFailure={}",
+                hasAuthKey,
+                authVerified,
+                authTier.isEmpty() ? "none" : authTier,
+                persistedTier == null || persistedTier.isEmpty() ? "none" : persistedTier,
+                authVerifiedAt == 0L ? "never" : Long.toString(authVerifiedAt),
+                hasLegacyUnlock,
+                authFailureReason.isEmpty() ? "none" : authFailureReason);
 
         // Mod list
         Collection<ModContainer> mods = FabricLoader.getInstance().getAllMods();
         VetsLogger.info("Loaded mods ({}):", mods.size());
         StringJoiner modSummary = new StringJoiner(", ");
         for (ModContainer mod : mods) {
-            String entry = mod.getMetadata().getId() + " " + mod.getMetadata().getVersion().getFriendlyString();
+            String entry =
+                    mod.getMetadata().getId()
+                            + " "
+                            + mod.getMetadata().getVersion().getFriendlyString();
             modSummary.add(entry);
         }
         VetsLogger.info("  {}", modSummary.toString());
@@ -233,7 +253,7 @@ public final class DiagnosticsHandler {
 
     private static MutableComponent boolComponent(boolean value) {
         return Component.literal(value ? "true" : "false")
-            .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED);
+                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED);
     }
 
     private static MutableComponent authStatusComponent(
@@ -242,11 +262,12 @@ public final class DiagnosticsHandler {
             return Component.literal("verified").withStyle(ChatFormatting.GREEN);
         }
         if (hasKey) {
-            MutableComponent c = Component.literal("stored, unverified")
-                .withStyle(ChatFormatting.YELLOW);
+            MutableComponent c =
+                    Component.literal("stored, unverified").withStyle(ChatFormatting.YELLOW);
             if (!failureReason.isEmpty()) {
-                c.append(Component.literal(" (" + failureReason + ")")
-                    .withStyle(ChatFormatting.RED));
+                c.append(
+                        Component.literal(" (" + failureReason + ")")
+                                .withStyle(ChatFormatting.RED));
             }
             return c;
         }
@@ -268,8 +289,8 @@ public final class DiagnosticsHandler {
 
     private static String getModVersion(String modId) {
         return FabricLoader.getInstance()
-            .getModContainer(modId)
-            .map(mod -> mod.getMetadata().getVersion().getFriendlyString())
-            .orElse("not found");
+                .getModContainer(modId)
+                .map(mod -> mod.getMetadata().getVersion().getFriendlyString())
+                .orElse("not found");
     }
 }

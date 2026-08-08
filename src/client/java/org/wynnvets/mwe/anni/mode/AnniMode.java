@@ -45,10 +45,13 @@ public enum AnniMode {
     public static AnniMode fromString(String value) {
         if (value == null) return SILENT;
         switch (value.toLowerCase()) {
-            case "passive":    return PASSIVE;
-            case "aggressive": return AGGRESSIVE;
+            case "passive":
+                return PASSIVE;
+            case "aggressive":
+                return AGGRESSIVE;
             case "silent":
-            default:           return SILENT;
+            default:
+                return SILENT;
         }
     }
 

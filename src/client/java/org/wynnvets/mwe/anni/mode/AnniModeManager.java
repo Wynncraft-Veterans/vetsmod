@@ -68,8 +68,7 @@ public final class AnniModeManager {
         DEBUG_BYPASS_MUTEX,
     }
 
-    private AnniModeManager() {
-    }
+    private AnniModeManager() {}
 
     /** The current mode, read fresh from {@link VetsConfig}. */
     public static AnniMode current() {
@@ -99,9 +98,7 @@ public final class AnniModeManager {
         if (target == null) return false;
         AnniMode previous = current();
         boolean wantsActive = target != AnniMode.SILENT;
-        boolean streamActive = wantsActive
-                && source != Source.DEBUG_BYPASS_MUTEX
-                && isInStream();
+        boolean streamActive = wantsActive && source != Source.DEBUG_BYPASS_MUTEX && isInStream();
         if (streamActive) {
             // Only USER_COMMAND deserves the "stream is suboptimal, try
             // /toggle ghosts" guidance chat spam — auto-sources (startup
@@ -111,17 +108,24 @@ public final class AnniModeManager {
                 ChatUtils.sendLocalMessage(
                         Component.literal("Anni mode change refused: ")
                                 .withStyle(ChatFormatting.GRAY)
-                                .append(Component.literal("/stream is active")
-                                        .withStyle(ChatFormatting.RED))
-                                .append(Component.literal(". Stream is suboptimal for anni — try ")
-                                        .withStyle(ChatFormatting.GRAY))
-                                .append(Component.literal("/toggle ghosts NONE")
-                                        .withStyle(ChatFormatting.AQUA))
-                                .append(Component.literal(" instead.")
-                                        .withStyle(ChatFormatting.GRAY)));
+                                .append(
+                                        Component.literal("/stream is active")
+                                                .withStyle(ChatFormatting.RED))
+                                .append(
+                                        Component.literal(". Stream is suboptimal for anni — try ")
+                                                .withStyle(ChatFormatting.GRAY))
+                                .append(
+                                        Component.literal("/toggle ghosts NONE")
+                                                .withStyle(ChatFormatting.AQUA))
+                                .append(
+                                        Component.literal(" instead.")
+                                                .withStyle(ChatFormatting.GRAY)));
             } else {
-                VetsLogger.debug("Anni mode transition refused ({} -> {}, source={}): /stream active",
-                        previous.toConfigValue(), target.toConfigValue(), source);
+                VetsLogger.debug(
+                        "Anni mode transition refused ({} -> {}, source={}): /stream active",
+                        previous.toConfigValue(),
+                        target.toConfigValue(),
+                        source);
             }
             return false;
         }
@@ -147,8 +151,11 @@ public final class AnniModeManager {
             case AUTO_STREAM_DEACTIVATED:
             case AUTO_WINDOW_CLOSE:
             case AUTO_STARTUP_DEFAULT:
-                VetsLogger.debug("Anni mode auto-changed {} -> {} (source={})",
-                        previous.toConfigValue(), target.toConfigValue(), source);
+                VetsLogger.debug(
+                        "Anni mode auto-changed {} -> {} (source={})",
+                        previous.toConfigValue(),
+                        target.toConfigValue(),
+                        source);
                 return true;
             default:
                 break;
@@ -156,12 +163,13 @@ public final class AnniModeManager {
         ChatUtils.sendLocalMessage(
                 Component.literal("Anni mode: ")
                         .withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(target.toConfigValue())
-                                .withStyle(modeColor(target)))
-                        .append(Component.literal(" (was ")
-                                .withStyle(ChatFormatting.DARK_GRAY))
-                        .append(Component.literal(previous.toConfigValue())
-                                .withStyle(modeColor(previous)))
+                        .append(
+                                Component.literal(target.toConfigValue())
+                                        .withStyle(modeColor(target)))
+                        .append(Component.literal(" (was ").withStyle(ChatFormatting.DARK_GRAY))
+                        .append(
+                                Component.literal(previous.toConfigValue())
+                                        .withStyle(modeColor(previous)))
                         .append(Component.literal(")").withStyle(ChatFormatting.DARK_GRAY)));
         return true;
     }
@@ -182,9 +190,7 @@ public final class AnniModeManager {
         if (VetsConfig.get(VetsConfig.VETS_ANNI_MODE_USER_SET)) {
             return AnniMode.fromString(VetsConfig.getString(VetsConfig.VETS_ANNI_USER_MODE));
         }
-        return GuildStateManager.isEligibleForEnrichment()
-                ? AnniMode.PASSIVE
-                : AnniMode.SILENT;
+        return GuildStateManager.isEligibleForEnrichment() ? AnniMode.PASSIVE : AnniMode.SILENT;
     }
 
     /**
@@ -200,9 +206,8 @@ public final class AnniModeManager {
      */
     public static void applyStartupDefaultIfNeeded() {
         if (VetsConfig.get(VetsConfig.VETS_ANNI_MODE_USER_SET)) return;
-        AnniMode target = GuildStateManager.isEligibleForEnrichment()
-                ? AnniMode.PASSIVE
-                : AnniMode.SILENT;
+        AnniMode target =
+                GuildStateManager.isEligibleForEnrichment() ? AnniMode.PASSIVE : AnniMode.SILENT;
         if (AnniMode.fromConfig() == target) return;
         transitionTo(target, Source.AUTO_STARTUP_DEFAULT);
     }
@@ -215,10 +220,13 @@ public final class AnniModeManager {
 
     private static ChatFormatting modeColor(AnniMode mode) {
         switch (mode) {
-            case PASSIVE:    return ChatFormatting.GREEN;
-            case AGGRESSIVE: return ChatFormatting.RED;
+            case PASSIVE:
+                return ChatFormatting.GREEN;
+            case AGGRESSIVE:
+                return ChatFormatting.RED;
             case SILENT:
-            default:         return ChatFormatting.WHITE;
+            default:
+                return ChatFormatting.WHITE;
         }
     }
 }

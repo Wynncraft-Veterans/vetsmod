@@ -2,15 +2,14 @@ package org.wynnvets.guild;
 
 import com.wynntils.core.text.StyledText;
 import com.wynntils.utils.mc.McUtils;
-import net.minecraft.client.gui.components.PlayerTabOverlay;
-import net.minecraft.client.multiplayer.PlayerInfo;
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.minecraft.client.gui.components.PlayerTabOverlay;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Parses the Wynncraft tab list to extract online guild members.
@@ -45,6 +44,7 @@ public final class TabListGuildParser {
 
     /** First index of the Guild column (0-based, after sorting). */
     private static final int GUILD_COL_START = 60;
+
     /** Last index (exclusive) of the Guild column. */
     private static final int GUILD_COL_END = 80;
 
@@ -74,22 +74,25 @@ public final class TabListGuildParser {
             }
 
             PlayerTabOverlay tabOverlay = McUtils.mc().gui.getTabList();
-            List<PlayerInfo> sorted = McUtils.player().connection
-                    .getListedOnlinePlayers().stream()
-                    .sorted(TAB_SORT)
-                    .toList();
+            List<PlayerInfo> sorted =
+                    McUtils.player().connection.getListedOnlinePlayers().stream()
+                            .sorted(TAB_SORT)
+                            .toList();
 
             if (sorted.size() < GUILD_COL_END) {
-                VetsLogger.debug("Tab list has only {} entries, expected >= {}",
-                        sorted.size(), GUILD_COL_END);
+                VetsLogger.debug(
+                        "Tab list has only {} entries, expected >= {}",
+                        sorted.size(),
+                        GUILD_COL_END);
                 return result;
             }
 
             // Index 60 is the column header ("Guild"); entries 61–79 are members.
             for (int i = GUILD_COL_START + 1; i < GUILD_COL_END; i++) {
                 PlayerInfo info = sorted.get(i);
-                String displayText = StyledText.fromComponent(
-                        tabOverlay.getNameForDisplay(info)).getStringWithoutFormatting();
+                String displayText =
+                        StyledText.fromComponent(tabOverlay.getNameForDisplay(info))
+                                .getStringWithoutFormatting();
 
                 if (displayText == null || displayText.isBlank()) {
                     continue;
@@ -122,15 +125,16 @@ public final class TabListGuildParser {
             }
 
             PlayerTabOverlay tabOverlay = McUtils.mc().gui.getTabList();
-            List<PlayerInfo> sorted = McUtils.player().connection
-                    .getListedOnlinePlayers().stream()
-                    .sorted(TAB_SORT)
-                    .toList();
+            List<PlayerInfo> sorted =
+                    McUtils.player().connection.getListedOnlinePlayers().stream()
+                            .sorted(TAB_SORT)
+                            .toList();
 
             for (int i = 0; i < sorted.size(); i++) {
                 PlayerInfo info = sorted.get(i);
-                String displayText = StyledText.fromComponent(
-                        tabOverlay.getNameForDisplay(info)).getStringWithoutFormatting();
+                String displayText =
+                        StyledText.fromComponent(tabOverlay.getNameForDisplay(info))
+                                .getStringWithoutFormatting();
                 result.add("[" + i + "] " + (displayText == null ? "<null>" : displayText));
             }
         } catch (Exception e) {

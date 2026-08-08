@@ -66,7 +66,8 @@ public final class LegacyItemStyle {
     public static int getBackgroundGradientTopColor() {
         String name = VetsConfig.getString(VetsConfig.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP);
         int rgb = NamedColor.getRgbOrDefault(name, 0xFFA500);
-        int opacity = (int) VetsConfig.getLong(VetsConfig.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY);
+        int opacity =
+                (int) VetsConfig.getLong(VetsConfig.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY);
         if ("transparent".equalsIgnoreCase(name)) return 0x00000000;
         return NamedColor.withAlpha(rgb, opacity);
     }
@@ -80,7 +81,8 @@ public final class LegacyItemStyle {
     public static int getBackgroundGradientBottomColor() {
         String name = VetsConfig.getString(VetsConfig.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM);
         int rgb = NamedColor.getRgbOrDefault(name, 0xDC143C);
-        int opacity = (int) VetsConfig.getLong(VetsConfig.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY);
+        int opacity =
+                (int) VetsConfig.getLong(VetsConfig.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY);
         if ("transparent".equalsIgnoreCase(name)) return 0x00000000;
         return NamedColor.withAlpha(rgb, opacity);
     }
@@ -119,7 +121,8 @@ public final class LegacyItemStyle {
         String name = VetsConfig.getString(VetsConfig.LEGACY_ITEM_FOREGROUND_SPRITE);
         if (name != null) {
             for (int i = 0; i < VetsConfig.VALID_SPRITES.length; i++) {
-                if (VetsConfig.VALID_SPRITES[i].equalsIgnoreCase(name)) return FOREGROUND_TEXTURES[i];
+                if (VetsConfig.VALID_SPRITES[i].equalsIgnoreCase(name))
+                    return FOREGROUND_TEXTURES[i];
             }
         }
         return Texture.HIGHLIGHT_WYNN;

@@ -1,9 +1,8 @@
 package org.wynnvets.mwe.anni.state;
 
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Process-wide cache of the latest anni snapshot for the local player.
@@ -38,8 +37,7 @@ public final class AnniSnapshotCache {
     private static final CopyOnWriteArrayList<Consumer<AnniSnapshot>> listeners =
             new CopyOnWriteArrayList<>();
 
-    private AnniSnapshotCache() {
-    }
+    private AnniSnapshotCache() {}
 
     /** The most recently received snapshot, or {@code null} if none yet. */
     public static AnniSnapshot latest() {

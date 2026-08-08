@@ -34,8 +34,7 @@ import org.wynnvets.mwe.anni.render.AnniHoverBuilder;
  */
 public final class AnniRsvpCommand {
 
-    private AnniRsvpCommand() {
-    }
+    private AnniRsvpCommand() {}
 
     public static int hard(CommandContext<FabricClientCommandSource> ctx) {
         return dispatch("hard");
@@ -61,40 +60,39 @@ public final class AnniRsvpCommand {
 
     private static boolean ensureAuthenticated() {
         if (GuildStateManager.isAuthenticatedThisSession()) return true;
-        reply(
-                "Use \\rsvp on discord — or run ~vetsmod first.",
-                ChatFormatting.RED);
+        reply("Use \\rsvp on discord — or run ~vetsmod first.", ChatFormatting.RED);
         return false;
     }
 
     private static void renderAck(String notice, AnniRsvpClient.Ack ack, Throwable throwable) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
-        mc.execute(() -> {
-            if (throwable != null || ack == null) {
-                reply("RSVP request failed (no response).", ChatFormatting.RED);
-                VetsLogger.debug(
-                        "rsvp ack threw or null: {}",
-                        throwable != null ? throwable.getMessage() : "null");
-                return;
-            }
-            if (ack.ok()) {
-                ChatUtils.sendLocalMessage(successComponent(notice));
-                // Outside the T-2h hot window the push poller runs at 5-min
-                // cadence, so without a fire-and-forget refresh here the
-                // cached snapshot would still report the pre-RSVP state
-                // (e.g. "EARLY WALK-IN") for up to 5 minutes — confusing
-                // immediately after the user committed. The query() pull
-                // hits temp-server's anni_query handler, which serves a
-                // cached snapshot if <15s old or re-fetches from vets-anni
-                // synchronously. Either way the new RSVP shows up on the
-                // very next `/wv anni` / boss bar tick.
-                AnniQueryClient.query();
-            } else {
-                String detail = ack.detail() != null ? ack.detail() : "unknown error";
-                reply("RSVP rejected: " + detail, ChatFormatting.RED);
-            }
-        });
+        mc.execute(
+                () -> {
+                    if (throwable != null || ack == null) {
+                        reply("RSVP request failed (no response).", ChatFormatting.RED);
+                        VetsLogger.debug(
+                                "rsvp ack threw or null: {}",
+                                throwable != null ? throwable.getMessage() : "null");
+                        return;
+                    }
+                    if (ack.ok()) {
+                        ChatUtils.sendLocalMessage(successComponent(notice));
+                        // Outside the T-2h hot window the push poller runs at 5-min
+                        // cadence, so without a fire-and-forget refresh here the
+                        // cached snapshot would still report the pre-RSVP state
+                        // (e.g. "EARLY WALK-IN") for up to 5 minutes — confusing
+                        // immediately after the user committed. The query() pull
+                        // hits temp-server's anni_query handler, which serves a
+                        // cached snapshot if <15s old or re-fetches from vets-anni
+                        // synchronously. Either way the new RSVP shows up on the
+                        // very next `/wv anni` / boss bar tick.
+                        AnniQueryClient.query();
+                    } else {
+                        String detail = ack.detail() != null ? ack.detail() : "unknown error";
+                        reply("RSVP rejected: " + detail, ChatFormatting.RED);
+                    }
+                });
     }
 
     /** Build the success line: notice token coloured via {@link
@@ -104,12 +102,14 @@ public final class AnniRsvpCommand {
             return Component.literal("Your RSVP has been withdrawn.")
                     .withStyle(ChatFormatting.GRAY);
         }
-        MutableComponent token = Component.literal(label(notice))
-                .withStyle(AnniHoverBuilder.noticeColor(notice));
-        return Component.literal("You have ").withStyle(ChatFormatting.GRAY)
+        MutableComponent token =
+                Component.literal(label(notice)).withStyle(AnniHoverBuilder.noticeColor(notice));
+        return Component.literal("You have ")
+                .withStyle(ChatFormatting.GRAY)
                 .append(token)
-                .append(Component.literal(" RSVP'd for the next anni.")
-                        .withStyle(ChatFormatting.GRAY));
+                .append(
+                        Component.literal(" RSVP'd for the next anni.")
+                                .withStyle(ChatFormatting.GRAY));
     }
 
     private static String label(String notice) {

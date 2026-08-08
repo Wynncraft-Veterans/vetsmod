@@ -1,5 +1,8 @@
 package org.wynnvets.mwe.anni.bossbar;
 
+import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.BossHealthOverlay;
@@ -16,10 +19,6 @@ import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 import org.wynnvets.mwe.anni.zone.AnniZone;
-
-import java.time.Instant;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * Singleton driver for the synthetic vets-anni boss bar.
@@ -83,30 +82,32 @@ public final class VetsBossBarManager {
 
     /** Deterministic UUID so collisions across mod reloads or
      *  hot-restarts replace cleanly rather than accumulating. */
-    private static final UUID BAR_UUID = UUID.nameUUIDFromBytes(
-            "vetsmod-anni-bossbar".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    private static final UUID BAR_UUID =
+            UUID.nameUUIDFromBytes(
+                    "vetsmod-anni-bossbar".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
     private static volatile boolean registered = false;
     private static volatile boolean active = false;
     private static volatile long activatedAtMs = 0L;
 
+    private static final LerpingBossEvent bossEvent =
+            new LerpingBossEvent(
+                    BAR_UUID,
+                    Component.literal(""),
+                    1.0f,
+                    BossEvent.BossBarColor.PURPLE,
+                    // NOTCHED_10 paired with the 100-minute progress window above:
+                    // 10 segments × 10 minutes each = a notch every 10 minutes of
+                    // real time. At activation (T-90m) the bar reads 90% ≈ 9
+                    // notches filled, matching the user-asked "90 mins = 9 notches"
+                    // readability target. Closest vanilla offers — there is no
+                    // NOTCHED_9.
+                    BossEvent.BossBarOverlay.NOTCHED_10,
+                    false,
+                    false,
+                    false);
 
-    private static final LerpingBossEvent bossEvent = new LerpingBossEvent(
-            BAR_UUID,
-            Component.literal(""),
-            1.0f,
-            BossEvent.BossBarColor.PURPLE,
-            // NOTCHED_10 paired with the 100-minute progress window above:
-            // 10 segments × 10 minutes each = a notch every 10 minutes of
-            // real time. At activation (T-90m) the bar reads 90% ≈ 9
-            // notches filled, matching the user-asked "90 mins = 9 notches"
-            // readability target. Closest vanilla offers — there is no
-            // NOTCHED_9.
-            BossEvent.BossBarOverlay.NOTCHED_10,
-            false, false, false);
-
-    private VetsBossBarManager() {
-    }
+    private VetsBossBarManager() {}
 
     /** Idempotent registration. Wires the per-tick driver +
      *  {@link FlashTracker#register()} (so there's exactly one anni
@@ -208,8 +209,8 @@ public final class VetsBossBarManager {
             if (active) deactivate();
             return;
         }
-        MutableComponent name = VetsBossBarContentBuilder.build(
-                snapshot, secondsUntilAnni, playerX, playerZ);
+        MutableComponent name =
+                VetsBossBarContentBuilder.build(snapshot, secondsUntilAnni, playerX, playerZ);
 
         // Gate 1 of 3: builder said null → deactivate.
         if (name == null) {
@@ -296,5 +297,4 @@ public final class VetsBossBarManager {
         if (p > 1f) return 1f;
         return p;
     }
-
 }

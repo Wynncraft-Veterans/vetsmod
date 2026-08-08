@@ -1,9 +1,8 @@
 package org.wynnvets.fetcher.lookup;
 
+import java.util.UUID;
 import org.wynnvets.datamodels.MembershipSnapshot;
 import org.wynnvets.datamodels.User;
-
-import java.util.UUID;
 
 /**
  * Outcome of a {@link PlayerLookup#resolve(String)} cascade.
@@ -20,30 +19,29 @@ import java.util.UUID;
  * clean-block case.</p>
  */
 public record LookupResult(
-    String source,
-    String canonicalName,
-    UUID uuid,
-    User wynnProfile,
-    MembershipSnapshot vetsSnapshot,
-    FailureReason failureReason
-) {
-  public boolean isSuccess() {
-    return uuid != null;
-  }
+        String source,
+        String canonicalName,
+        UUID uuid,
+        User wynnProfile,
+        MembershipSnapshot vetsSnapshot,
+        FailureReason failureReason) {
+    public boolean isSuccess() {
+        return uuid != null;
+    }
 
-  public static LookupResult exhausted(FailureReason reason) {
-    return new LookupResult(null, null, null, null, null, reason);
-  }
+    public static LookupResult exhausted(FailureReason reason) {
+        return new LookupResult(null, null, null, null, null, reason);
+    }
 
-  public static LookupResult ofWynncraft(String canonicalName, UUID uuid, User profile) {
-    return new LookupResult("wynncraft", canonicalName, uuid, profile, null, null);
-  }
+    public static LookupResult ofWynncraft(String canonicalName, UUID uuid, User profile) {
+        return new LookupResult("wynncraft", canonicalName, uuid, profile, null, null);
+    }
 
-  public static LookupResult ofVets(String canonicalName, UUID uuid, MembershipSnapshot snap) {
-    return new LookupResult("vets", canonicalName, uuid, null, snap, null);
-  }
+    public static LookupResult ofVets(String canonicalName, UUID uuid, MembershipSnapshot snap) {
+        return new LookupResult("vets", canonicalName, uuid, null, snap, null);
+    }
 
-  public static LookupResult ofGeneric(String source, String canonicalName, UUID uuid) {
-    return new LookupResult(source, canonicalName, uuid, null, null, null);
-  }
+    public static LookupResult ofGeneric(String source, String canonicalName, UUID uuid) {
+        return new LookupResult(source, canonicalName, uuid, null, null, null);
+    }
 }

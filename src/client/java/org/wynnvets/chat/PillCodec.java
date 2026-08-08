@@ -147,8 +147,7 @@ public final class PillCodec {
     private static final String LOCAL_FRAME_SEGMENT = "\uE00F\uE012";
     private static final String LOCAL_FRAME_CLOSE = "\uE011";
 
-    private PillCodec() {
-    }
+    private PillCodec() {}
 
     // ── Encoding ──────────────────────────────────────────────────────
 
@@ -207,9 +206,9 @@ public final class PillCodec {
                 continue;
             }
             component.append(Component.literal(LOCAL_FRAME_SEGMENT).setStyle(frameStyle));
-            component.append(Component
-                    .literal(String.valueOf((char) (UPPER_ALPHABET_BASE + (letter - 'A'))))
-                    .setStyle(letterStyle));
+            component.append(
+                    Component.literal(String.valueOf((char) (UPPER_ALPHABET_BASE + (letter - 'A'))))
+                            .setStyle(letterStyle));
         }
 
         component.append(Component.literal(LOCAL_FRAME_CLOSE).setStyle(frameStyle));

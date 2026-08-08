@@ -28,54 +28,57 @@ import org.wynnvets.logging.VetsLogger;
  */
 public final class WarningRewriter {
 
-  private WarningRewriter() {}
+    private WarningRewriter() {}
 
-  /**
-   * Renders the warning frame in chat. Called from
-   * {@link org.wynnvets.chat.OutboundDisplayHandler#onOutboundMessage
-   * OutboundDisplayHandler#onOutboundMessage} when the inbound frame's type is {@code "warning"}.
-   *
-   * @param json the raw frame from the v1/outbound WebSocket
-   */
-  public static void render(JsonObject json) {
-    String triggered = optString(json, "triggered", "warning");
-    String actor = optString(json, "actor", "staff");
-    String message = optString(json, "message", "");
-    int pointsAfter = json.has("points_after")
-        && !json.get("points_after").isJsonNull()
-        ? json.get("points_after").getAsInt()
-        : -1;
+    /**
+     * Renders the warning frame in chat. Called from
+     * {@link org.wynnvets.chat.OutboundDisplayHandler#onOutboundMessage
+     * OutboundDisplayHandler#onOutboundMessage} when the inbound frame's type is {@code "warning"}.
+     *
+     * @param json the raw frame from the v1/outbound WebSocket
+     */
+    public static void render(JsonObject json) {
+        String triggered = optString(json, "triggered", "warning");
+        String actor = optString(json, "actor", "staff");
+        String message = optString(json, "message", "");
+        int pointsAfter =
+                json.has("points_after") && !json.get("points_after").isJsonNull()
+                        ? json.get("points_after").getAsInt()
+                        : -1;
 
-    // Per spec: ejects reuse the formal-warning message format (same
-    // "⚠ WARNING ⚠ <message>" prefix) so the warned player sees one
-    // consistent shape regardless of which command landed on them.
-    // The eject context (added to blocklist) is appended after.
-    boolean isEject = "eject".equalsIgnoreCase(triggered);
-    ChatFormatting bannerColor = isEject ? ChatFormatting.RED : ChatFormatting.GOLD;
-    ChatFormatting bodyColor = ChatFormatting.YELLOW;
+        // Per spec: ejects reuse the formal-warning message format (same
+        // "⚠ WARNING ⚠ <message>" prefix) so the warned player sees one
+        // consistent shape regardless of which command landed on them.
+        // The eject context (added to blocklist) is appended after.
+        boolean isEject = "eject".equalsIgnoreCase(triggered);
+        ChatFormatting bannerColor = isEject ? ChatFormatting.RED : ChatFormatting.GOLD;
+        ChatFormatting bodyColor = ChatFormatting.YELLOW;
 
-    MutableComponent line = Component.literal("⚠ WARNING ⚠").withStyle(bannerColor);
-    if (!message.isEmpty()) {
-      line.append(Component.literal(" " + message).withStyle(bodyColor));
+        MutableComponent line = Component.literal("⚠ WARNING ⚠").withStyle(bannerColor);
+        if (!message.isEmpty()) {
+            line.append(Component.literal(" " + message).withStyle(bodyColor));
+        }
+
+        StringBuilder tail = new StringBuilder("\nIssued by ").append(actor).append(".");
+        if (pointsAfter >= 0) {
+            tail.append(" You now have ")
+                    .append(pointsAfter)
+                    .append(" caution point")
+                    .append(pointsAfter == 1 ? "" : "s")
+                    .append(".");
+        }
+        if (isEject) {
+            tail.append(" You have been added to the dazebot blocklist.");
+        }
+        line.append(Component.literal(tail.toString()).withStyle(ChatFormatting.GRAY));
+
+        ChatUtils.sendLocalMessage(line, Prepend.DEFAULT);
+        VetsLogger.info(
+                "Rendered {} frame from {} (points_after={})", triggered, actor, pointsAfter);
     }
 
-    StringBuilder tail = new StringBuilder("\nIssued by ").append(actor).append(".");
-    if (pointsAfter >= 0) {
-      tail.append(" You now have ").append(pointsAfter)
-          .append(" caution point").append(pointsAfter == 1 ? "" : "s").append(".");
+    private static String optString(JsonObject obj, String key, String fallback) {
+        if (!obj.has(key) || obj.get(key).isJsonNull()) return fallback;
+        return obj.get(key).getAsString();
     }
-    if (isEject) {
-      tail.append(" You have been added to the dazebot blocklist.");
-    }
-    line.append(Component.literal(tail.toString()).withStyle(ChatFormatting.GRAY));
-
-    ChatUtils.sendLocalMessage(line, Prepend.DEFAULT);
-    VetsLogger.info("Rendered {} frame from {} (points_after={})",
-        triggered, actor, pointsAfter);
-  }
-
-  private static String optString(JsonObject obj, String key, String fallback) {
-    if (!obj.has(key) || obj.get(key).isJsonNull()) return fallback;
-    return obj.get(key).getAsString();
-  }
 }

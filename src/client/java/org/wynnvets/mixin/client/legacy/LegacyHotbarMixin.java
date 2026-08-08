@@ -21,35 +21,41 @@ import org.wynnvets.items.LegacyItemHandler;
 @Mixin(Gui.class)
 public class LegacyHotbarMixin {
 
-  @Inject(
-      method =
-          "renderSlot(Lnet/minecraft/client/gui/GuiGraphics;IILnet/minecraft/client/DeltaTracker;"
-              + "Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/ItemStack;I)V",
-      at = @At("HEAD"))
-  private void vetsmod$renderLegacyHotbarHighlight(
-      GuiGraphics guiGraphics,
-      int x,
-      int y,
-      DeltaTracker deltaTracker,
-      Player player,
-      ItemStack stack,
-      int seed,
-      CallbackInfo ci) {
-    if (stack.isEmpty()) return;
-    // Bail out when legacy item highlighting is disabled
-    if (!org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return;
-    if (LegacyItemHandler.isLegacyItem(stack)) {
-      guiGraphics.fillGradient(x, y, x + 16, y + 16,
-          org.wynnvets.config.VetsConfig.getLegacyBackgroundGradientTopColor(),
-          org.wynnvets.config.VetsConfig.getLegacyBackgroundGradientBottomColor());
-      RenderUtils.drawSprite(
-          guiGraphics,
-          org.wynnvets.config.VetsConfig.getLegacyForegroundTexture(),
-          CustomColor.fromARGBInt(org.wynnvets.config.VetsConfig.getLegacyForegroundColor()),
-          x - 10,
-          y - 10,
-          36,
-          36);
+    @Inject(
+            method =
+                    "renderSlot(Lnet/minecraft/client/gui/GuiGraphics;IILnet/minecraft/client/DeltaTracker;"
+                            + "Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/ItemStack;I)V",
+            at = @At("HEAD"))
+    private void vetsmod$renderLegacyHotbarHighlight(
+            GuiGraphics guiGraphics,
+            int x,
+            int y,
+            DeltaTracker deltaTracker,
+            Player player,
+            ItemStack stack,
+            int seed,
+            CallbackInfo ci) {
+        if (stack.isEmpty()) return;
+        // Bail out when legacy item highlighting is disabled
+        if (!org.wynnvets.config.VetsConfig.get(
+                org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return;
+        if (LegacyItemHandler.isLegacyItem(stack)) {
+            guiGraphics.fillGradient(
+                    x,
+                    y,
+                    x + 16,
+                    y + 16,
+                    org.wynnvets.config.VetsConfig.getLegacyBackgroundGradientTopColor(),
+                    org.wynnvets.config.VetsConfig.getLegacyBackgroundGradientBottomColor());
+            RenderUtils.drawSprite(
+                    guiGraphics,
+                    org.wynnvets.config.VetsConfig.getLegacyForegroundTexture(),
+                    CustomColor.fromARGBInt(
+                            org.wynnvets.config.VetsConfig.getLegacyForegroundColor()),
+                    x - 10,
+                    y - 10,
+                    36,
+                    36);
+        }
     }
-  }
 }

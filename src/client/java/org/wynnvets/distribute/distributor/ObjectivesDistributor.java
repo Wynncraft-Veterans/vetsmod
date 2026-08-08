@@ -1,15 +1,6 @@
 package org.wynnvets.distribute.distributor;
 
 import com.wynntils.core.components.Managers;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.distribute.opener.GuildManageOpener;
-import org.wynnvets.distribute.utils.NoAspectsFilter;
-import org.wynnvets.distribute.walker.MembersListSearcher;
-import org.wynnvets.distribute.walker.MembersListWalker;
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,6 +11,14 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.opener.GuildManageOpener;
+import org.wynnvets.distribute.utils.NoAspectsFilter;
+import org.wynnvets.distribute.walker.MembersListSearcher;
+import org.wynnvets.distribute.walker.MembersListWalker;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Implements {@code /wv distribute @objectives <resource> <count>}:
@@ -57,8 +56,7 @@ public final class ObjectivesDistributor {
     /** Pattern for the objective progress line, e.g.
      *  {@code "- Gather Ores: 200/200"}. The streak line ("- Streak: 76")
      *  has no slash and is correctly excluded by this pattern. */
-    private static final Pattern OBJECTIVE_PROGRESS =
-            Pattern.compile("^- .+?: (\\d+)/(\\d+)$");
+    private static final Pattern OBJECTIVE_PROGRESS = Pattern.compile("^- .+?: (\\d+)/(\\d+)$");
 
     private static final Random RNG = new Random();
 
@@ -81,27 +79,36 @@ public final class ObjectivesDistributor {
      * (success, no completers, count drop-out) so multi-phase chains
      * like {@link SplitDistributor} can advance without stalling.
      */
-    public static void dispatch(int count, MemberSlotPresser.Resource resource,
-                                Runnable onComplete) {
+    public static void dispatch(
+            int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
         // Fire the NoAspects fetch in parallel with the GUI walk so the
         // HTTP round-trip overlaps the (much slower) menu pagination.
         // The walk callback waits on the fetch before filtering — by
         // the time the walker completes, the HTTP is almost always
         // already resolved.
-        CompletableFuture<Set<String>> excludeF =
-                NoAspectsFilter.fetchExcludedLegacyNames();
-        MembersListWalker.armWalk(members ->
-                excludeF.thenAccept(excludeNames ->
-                        Managers.TickScheduler.scheduleLater(
-                                () -> onWalkComplete(members, count, resource,
-                                        onComplete, excludeNames), 0)));
+        CompletableFuture<Set<String>> excludeF = NoAspectsFilter.fetchExcludedLegacyNames();
+        MembersListWalker.armWalk(
+                members ->
+                        excludeF.thenAccept(
+                                excludeNames ->
+                                        Managers.TickScheduler.scheduleLater(
+                                                () ->
+                                                        onWalkComplete(
+                                                                members,
+                                                                count,
+                                                                resource,
+                                                                onComplete,
+                                                                excludeNames),
+                                                0)));
         GuildManageOpener.openManageMembers();
     }
 
-    private static void onWalkComplete(List<MembersListWalker.MemberEntry> members,
-                                       int count, MemberSlotPresser.Resource resource,
-                                       Runnable onComplete,
-                                       Set<String> excludeNames) {
+    private static void onWalkComplete(
+            List<MembersListWalker.MemberEntry> members,
+            int count,
+            MemberSlotPresser.Resource resource,
+            Runnable onComplete,
+            Set<String> excludeNames) {
         List<String> completers = new ArrayList<>();
         int skippedOptOut = 0;
         for (MembersListWalker.MemberEntry m : members) {
@@ -114,11 +121,12 @@ public final class ObjectivesDistributor {
             }
         }
         if (skippedOptOut > 0) {
-            VetsLogger.debug("ObjectivesDistributor: skipped {} opted-out members",
-                    skippedOptOut);
+            VetsLogger.debug("ObjectivesDistributor: skipped {} opted-out members", skippedOptOut);
         }
-        VetsLogger.debug("ObjectivesDistributor: {} / {} members completed their objective",
-                completers.size(), members.size());
+        VetsLogger.debug(
+                "ObjectivesDistributor: {} / {} members completed their objective",
+                completers.size(),
+                members.size());
 
         if (completers.isEmpty()) {
             ChatUtils.sendLocalMessage(
@@ -139,8 +147,14 @@ public final class ObjectivesDistributor {
         }
 
         ChatUtils.sendLocalMessage(
-                Component.literal("Distributing " + count + "x " + resource.displayName()
-                        + " across " + completers.size() + " objective-completers…")
+                Component.literal(
+                                "Distributing "
+                                        + count
+                                        + "x "
+                                        + resource.displayName()
+                                        + " across "
+                                        + completers.size()
+                                        + " objective-completers…")
                         .withStyle(ChatFormatting.AQUA));
 
         processNext(queue, resource, onComplete);
@@ -169,28 +183,34 @@ public final class ObjectivesDistributor {
         return queue;
     }
 
-    private static void processNext(Deque<Distribution> queue,
-                                    MemberSlotPresser.Resource resource,
-                                    Runnable onComplete) {
+    private static void processNext(
+            Deque<Distribution> queue, MemberSlotPresser.Resource resource, Runnable onComplete) {
         if (queue.isEmpty()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Distribution complete.")
-                            .withStyle(ChatFormatting.GREEN));
+                    Component.literal("Distribution complete.").withStyle(ChatFormatting.GREEN));
             MemberSlotPresser.closeMembersScreen();
             if (onComplete != null) onComplete.run();
             return;
         }
         Distribution d = queue.poll();
-        VetsLogger.debug("ObjectivesDistributor: queue popped [{}] (count={}), {} left",
-                d.legacyName(), d.count(), queue.size());
+        VetsLogger.debug(
+                "ObjectivesDistributor: queue popped [{}] (count={}), {} left",
+                d.legacyName(),
+                d.count(),
+                queue.size());
 
         // Names are already legacy (walker reads tile hover names), so
         // the literal-input arm matches the menu directly. No per-pick
         // NameResolver needed.
         MembersListSearcher.armSearch(
                 d.legacyName(),
-                slot -> MemberSlotPresser.fire(slot, resource, d.count(), d.legacyName(),
-                        () -> processNext(queue, resource, onComplete)),
+                slot ->
+                        MemberSlotPresser.fire(
+                                slot,
+                                resource,
+                                d.count(),
+                                d.legacyName(),
+                                () -> processNext(queue, resource, onComplete)),
                 () -> processNext(queue, resource, onComplete));
     }
 
