@@ -72,6 +72,14 @@ tasks.withType(JavaCompile).configureEach {
 	// compiles today only because JEP 400 pins javac's default charset to
 	// UTF-8; native.encoding on a Windows box is still Cp1252. Pin it.
 	it.options.encoding = 'UTF-8'
+
+	// Javadoc reference gate — the Java side's only mechanical gate.
+	// `reference` checks {@link}, @see, {@value} and @throws targets plus
+	// @param name matching. Deliberately not `all` and not `html`: PillCodec's
+	// class Javadoc has a hand-built <table border="1"> that -Xdoclint:html
+	// rejects, and `missing` would light up most of the repo. /private sets
+	// the access level explicitly rather than inheriting javac's default.
+	it.options.compilerArgs.add('-Xdoclint:reference/private')
 }
 
 java {
