@@ -10,7 +10,6 @@ import com.mojang.blaze3d.textures.TextureFormat;
 import com.wynntils.mc.extension.MinecraftExtension;
 import com.wynntils.utils.SystemUtils;
 import com.wynntils.utils.mc.McUtils;
-import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;

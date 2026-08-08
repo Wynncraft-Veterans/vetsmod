@@ -2,7 +2,6 @@ package org.wynnvets.debug.dump;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.guild.TabListGuildParser;
 import org.wynnvets.logging.VetsLogger;

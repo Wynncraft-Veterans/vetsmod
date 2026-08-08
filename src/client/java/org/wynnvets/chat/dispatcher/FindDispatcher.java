@@ -3,7 +3,6 @@ package org.wynnvets.chat.dispatcher;
 import com.wynntils.core.components.Handlers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import org.wynnvets.logging.VetsLogger;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

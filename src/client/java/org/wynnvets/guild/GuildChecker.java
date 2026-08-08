@@ -2,7 +2,6 @@ package org.wynnvets.guild;
 
 import com.wynntils.core.components.Handlers;
 import com.wynntils.core.components.Models;
-import com.wynntils.models.worlds.type.WorldState;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
 

@@ -4,7 +4,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 import org.wynnvets.rendering.colors.GradientTextBuilder;
 import org.wynnvets.rendering.colors.ShaderColorPalette;
