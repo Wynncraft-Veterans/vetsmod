@@ -28,11 +28,10 @@ public final class WynnCraftApi {
     }
 
     /**
-     * Builds a URI to fetch player statistics by name or dashed UUID string.
-     * The v3 endpoint accepts both; this overload is used by the
-     * {@code PlayerLookup} cascade's Wynncraft provider, which queries by
-     * name so Wynncraft can act as a primary UUID source and replace the
-     * separate Mojang round-trip.
+     * Builds a URI to fetch player statistics by name or dashed UUID string. The v3 endpoint
+     * accepts both; this overload is used by the {@link org.wynnvets.fetcher.lookup.PlayerLookup
+     * PlayerLookup} cascade's Wynncraft provider, which queries by name so Wynncraft can act as a
+     * primary UUID source and replace the separate Mojang round-trip.
      *
      * @param nameOrUuid the player's Minecraft username or dashed UUID
      * @return a URI targeting the WynnCraft player endpoint

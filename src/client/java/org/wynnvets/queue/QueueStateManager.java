@@ -17,7 +17,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * <p>State is driven by {@link QueueDetector}, which subscribes to the
  * relevant Wynntils and Fabric events.  This class is a plain state store and
  * does not know about detection signals — detection logic lives in
- * {@code QueueDetector} so the two can evolve independently.</p>
+ * {@link QueueDetector} so the two can evolve independently.</p>
  *
  * <p>The class is thread-safe: all public mutators synchronize on the
  * singleton instance, and the listener list is a {@link CopyOnWriteArrayList}

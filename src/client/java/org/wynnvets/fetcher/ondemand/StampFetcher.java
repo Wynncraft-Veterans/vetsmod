@@ -30,12 +30,12 @@ import java.util.concurrent.CompletableFuture;
  * <p>Two callers:</p>
  * <ul>
  *   <li>{@link #fetchStampAndCreateMessage()} — invoked by the world-join
- *       auto-display path ({@code GuildStateManager.fetchAndDisplayStampMessage}).
- *       Prefers {@link AnniMotdRenderer} (snapshot-driven, condensed) when
- *       a cached snapshot is present <em>and</em> {@code vetsAnniEnabled}
- *       is true; otherwise falls back to {@link #fetchSimple()} — the legacy
- *       stamp-only text. This keeps the world-join behaviour for external
- *       users completely unchanged.</li>
+ *       auto-display path ({@link org.wynnvets.guild.GuildStateManager#fetchAndDisplayStampMessage
+ *       GuildStateManager#fetchAndDisplayStampMessage}). Prefers {@link AnniMotdRenderer}
+ *       (snapshot-driven, condensed) when a cached snapshot is present <em>and</em> {@code
+ *       vetsAnniEnabled} is true; otherwise falls back to {@link #fetchSimple()} — the legacy
+ *       stamp-only text. This keeps the world-join behaviour for external users completely
+ *       unchanged.</li>
  *   <li>{@link #fetchStampAndCreateAnniCommandMessage()} — invoked by
  *       {@code /wv anni} (no args). Prefers {@link AnniCommandRenderer}
  *       when a cached snapshot is present; otherwise falls back to the

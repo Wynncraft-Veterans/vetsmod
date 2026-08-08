@@ -34,9 +34,9 @@ import java.util.concurrent.TimeUnit;
  * /wv anni and anni_party_observation callsites both already tolerate a
  * stale stamp the same way they tolerate a zero one (no UI, no send).</p>
  *
- * <p>The polling interval is intentionally loose ({@value #REFRESH_INTERVAL_MINUTES}
- * minutes). The stamp rarely changes; consumers that care about edge
- * accuracy ride the {@code StampFetcher} on-demand cache-warming path.</p>
+ * <p>The polling interval is intentionally loose ({@value #REFRESH_INTERVAL_MINUTES} minutes). The
+ * stamp rarely changes; consumers that care about edge accuracy ride the
+ * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher} on-demand cache-warming path.</p>
  */
 public final class AnniStampPoller {
   private static final int REFRESH_INTERVAL_MINUTES = 5;

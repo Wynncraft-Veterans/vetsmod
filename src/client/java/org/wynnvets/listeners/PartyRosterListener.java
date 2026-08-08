@@ -189,13 +189,12 @@ public final class PartyRosterListener {
     }
 
     /**
-     * Stamp source for the in-window check. Reads the snapshot's
-     * {@code event.stamp_epoch} (the same field {@code /wv anni} renders
-     * against) rather than the legacy {@code AnniStampPoller} cache so
-     * snapshot injects via {@code /wv debug tree anni snapshot inject}
-     * gate-pass without also needing a live anni stamp from temp-server.
-     * Returns {@code 0} when no stamp is available, which suppresses the
-     * send.
+     * Stamp source for the in-window check. Reads the snapshot's {@code event.stamp_epoch} (the
+     * same field {@code /wv anni} renders against) rather than the legacy
+     * {@link org.wynnvets.fetcher.polling.AnniStampPoller AnniStampPoller} cache so snapshot
+     * injects via {@code /wv debug tree anni snapshot inject} gate-pass without also needing a live
+     * anni stamp from temp-server. Returns {@code 0} when no stamp is available, which suppresses
+     * the send.
      */
     private static long snapshotStamp(AnniSnapshot snapshot) {
         if (snapshot == null || snapshot.event() == null) return 0L;

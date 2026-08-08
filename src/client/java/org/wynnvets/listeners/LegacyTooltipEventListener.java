@@ -15,10 +15,10 @@ import org.wynnvets.logging.VetsLogger;
  * Sets item-context fields ({@link LegacyItemHandler#currentItemStack},
  * {@link LegacyItemHandler#currentItemHasFoil}) via the Wynntils event bus.
  *
- * <p>Subscribes at {@link EventPriority#NORMAL} to capture the hovered item
- * before any downstream handler.  Actual tooltip modification is deferred to
- * {@code LegacyItemTooltipMixin}, which runs after the entire event chain
- * and thus cannot be overwritten by later Wynntils handlers (e.g.
+ * <p>Subscribes at {@link EventPriority#NORMAL} to capture the hovered item before any downstream
+ * handler. Actual tooltip modification is deferred to
+ * {@link org.wynnvets.mixin.client.legacy.LegacyItemTooltipMixin LegacyItemTooltipMixin}, which
+ * runs after the entire event chain and thus cannot be overwritten by later Wynntils handlers (e.g.
  * {@code onTooltipPreFinalize} at LOWEST).</p>
  */
 public final class LegacyTooltipEventListener {

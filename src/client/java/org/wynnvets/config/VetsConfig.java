@@ -111,14 +111,13 @@ public class VetsConfig {
   public static final String VETS_ANNI_SHOW_PREDICTION = "vetsAnniShowPrediction";
 
   /** Active anni mode — {@code silent}, {@code passive}, or
-   *  {@code aggressive}. Set by {@code /wv anni <mode>} and read by
-   *  the boss-bar (S3+), outline (S4+), and waypoint (S5+) subsystems.
-   *  Absent from {@link #USER_CONFIG_KEYS}, so {@code /wv config} cannot
-   *  read or write it. When the anni window closes (T+30 min after
-   *  stamp_epoch) {@code AnniWindowWatcher} restores
-   *  {@code AnniModeManager.preferredMode()} — which is {@code silent}
-   *  only for a user who never set a mode and is not
-   *  enrichment-eligible, not unconditionally. */
+   *  {@code aggressive}. Set by {@code /wv anni <mode>} and read by the boss-bar (S3+), outline
+   *  (S4+), and waypoint (S5+) subsystems. Absent from {@link #USER_CONFIG_KEYS}, so {@code /wv
+   *  config} cannot read or write it. When the anni window closes (T+30 min after stamp_epoch)
+   *  {@link org.wynnvets.mwe.anni.mode.AnniWindowWatcher AnniWindowWatcher} restores
+   *  {@link org.wynnvets.mwe.anni.mode.AnniModeManager#preferredMode()
+   *  AnniModeManager#preferredMode()} — which is {@code silent} only for a user who never set a
+   *  mode and is not enrichment-eligible, not unconditionally. */
   public static final String VETS_ANNI_MODE = "vetsAnniMode";
 
   /** Valid values for {@link #VETS_ANNI_MODE}. */
@@ -127,16 +126,14 @@ public class VetsConfig {
   };
 
   /** Internal flag — {@code true} once the user has explicitly chosen an
-   *  anni mode via {@code /wv anni <mode>} (or the mode-switch buttons
-   *  under {@code /wv anni}). Set only for {@code Source.USER_COMMAND}
-   *  transitions in {@code AnniModeManager}; never touched by internal
-   *  transitions (window-close, stream, startup). When {@code false},
-   *  {@link #VETS_ANNI_MODE} is treated as an unremembered default and
-   *  gets overwritten to the eligibility-based default (PASSIVE for
-   *  enrichment-eligible users, SILENT otherwise) at the next restore
-   *  moment. Also serves as the pre-0.14.5 install boundary — old
-   *  installs lack this key, so their pre-existing {@code vetsAnniMode}
-   *  is discarded and the new default applies. */
+   *  anni mode via {@code /wv anni <mode>} (or the mode-switch buttons under {@code /wv anni}). Set
+   *  only for {@code Source.USER_COMMAND} transitions in
+   *  {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}; never touched by internal
+   *  transitions (window-close, stream, startup). When {@code false}, {@link #VETS_ANNI_MODE} is
+   *  treated as an unremembered default and gets overwritten to the eligibility-based default
+   *  (PASSIVE for enrichment-eligible users, SILENT otherwise) at the next restore moment. Also
+   *  serves as the pre-0.14.5 install boundary — old installs lack this key, so their
+   *  pre-existing {@code vetsAnniMode} is discarded and the new default applies. */
   public static final String VETS_ANNI_MODE_USER_SET = "vetsAnniModeUserSet";
 
   /** Internal — snapshot of the user's most recent explicit anni-mode
@@ -200,13 +197,11 @@ public class VetsConfig {
   public static final String VETS_ANNI_OUTLINES_ENABLED = "vetsAnniOutlinesEnabled";
 
   /** S4 — Master toggle for the per-player nametag overlay (role colour
-   *  on own-party members, light-grey on other-vets-party members, dark-
-   *  grey on outsiders). Gated on the same window+zone+mode predicate as
-   *  {@link #VETS_ANNI_OUTLINES_ENABLED}. Default {@code true}. The
-   *  branch added to {@code NametagMixin} runs before the supporter
-   *  glint branch — so an own-party supporter shows the role colour
-   *  for the duration of the highlight gate and reverts to the
-   *  animated supporter glint afterwards. */
+   *  on own-party members, light-grey on other-vets-party members, dark- grey on outsiders). Gated
+   *  on the same window+zone+mode predicate as {@link #VETS_ANNI_OUTLINES_ENABLED}. Default {@code
+   *  true}. The branch added to {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} runs
+   *  before the supporter glint branch — so an own-party supporter shows the role colour for the
+   *  duration of the highlight gate and reverts to the animated supporter glint afterwards. */
   public static final String VETS_ANNI_NAMETAGS_ENABLED = "vetsAnniNametagsEnabled";
 
   /** S5 — Master toggle for the zone-line renderer (the union of 48-block
@@ -370,7 +365,7 @@ public class VetsConfig {
 
   /** Valid sprite names for {@link #LEGACY_ITEM_FOREGROUND_SPRITE}, matching
    *  the Wynntils {@code HighlightTexture} enum order (parallel to
-   *  {@code LegacyItemStyle.FOREGROUND_TEXTURES}). */
+   *  {@link LegacyItemStyle#FOREGROUND_TEXTURES}). */
   public static final String[] VALID_SPRITES = {
       "wynn", "tag", "circle_transparent", "circle_opaque",
       "circle_outline_large", "circle_outline_small",

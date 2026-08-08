@@ -28,8 +28,8 @@ import java.util.concurrent.TimeUnit;
  * after a player renamed their Mojang account) with their true UUIDs.
  * The result is exposed at {@code GET /v1/outbound/aliases}.</p>
  *
- * <p>Consumed by {@code OnlineMemberService} to resolve tab-list entries
- * that don't match any current Wynncraft API username — covering the
+ * <p>Consumed by {@link org.wynnvets.fetcher.ondemand.OnlineMemberService OnlineMemberService} to
+ * resolve tab-list entries that don't match any current Wynncraft API username — covering the
  * ambiguous-per-server case that local 1:1 correlation can't handle.</p>
  */
 public final class WynnAliasCache {

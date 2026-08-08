@@ -500,12 +500,12 @@ public final class V1ApiManager {
      * surfaces as a null snapshot via {@link org.wynnvets.mwe.anni.network.AnniQueryClient#query()}.)</p>
      *
      * <p>The actual single-flight queue + response routing lives in
-     * {@link org.wynnvets.mwe.anni.network.AnniQueryClient}; this method
-     * just dispatches the frame and reports whether it went out. The
-     * dedicated frame type ({@code anni_query_response}) means we don't
-     * need to share the staff-action callback queue or expose extra
-     * state-shaping hooks here — the V1 outbound listener fans the ack
-     * straight to {@code AnniQueryClient} via {@code AnniWsHandler}.</p>
+     * {@link org.wynnvets.mwe.anni.network.AnniQueryClient}; this method just dispatches the frame
+     * and reports whether it went out. The dedicated frame type ({@code anni_query_response}) means
+     * we don't need to share the staff-action callback queue or expose extra state-shaping hooks
+     * here — the V1 outbound listener fans the ack straight to
+     * {@link org.wynnvets.mwe.anni.network.AnniQueryClient AnniQueryClient} via
+     * {@link org.wynnvets.mwe.anni.network.AnniWsHandler AnniWsHandler}.</p>
      *
      * @return true iff the frame was actually sent (inbound connection up);
      *         false when the caller must fall back to a null snapshot.
@@ -771,7 +771,7 @@ public final class V1ApiManager {
     /** @return whether the most recent successful auth ack reported the
      *  user as confirmed staff. False until auth completes; cleared on
      *  auth failure or disconnect. This is the *only* gate that should
-     *  be used for /caution, /warn, /eject -- {@code GuildStateManager.isStaff()}
+     *  be used for /caution, /warn, /eject -- {@link GuildStateManager#isStaff()}
      *  reads the spoofable client-side /gu rank cache. */
     public static boolean isConfirmedStaff() {
         return confirmedStaff;
@@ -780,7 +780,7 @@ public final class V1ApiManager {
     /** @return the server-confirmed in-game guild rank (one of
      *  "strategist", "chief", "owner") for the authenticated user, or
      *  empty string when not confirmed-staff. One consumer of this
-     *  accessor, reached through {@code GuildStateManager}'s delegate
+     *  accessor, reached through {@link GuildStateManager}'s delegate
      *  of the same name:
      *  {@link GuildStateManager#isChiefOfAnyGuild()}, which gates
      *  execution of {@code /wv distribute}. Captain was retired in the

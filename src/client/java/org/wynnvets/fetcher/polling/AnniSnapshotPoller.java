@@ -33,7 +33,8 @@ import java.util.concurrent.TimeUnit;
  */
 public final class AnniSnapshotPoller {
 
-    /** Match {@code VetsBossBarManager.ANNI_WINDOW_SECONDS}. Polling
+    /** Match {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager#ANNI_WINDOW_SECONDS
+     *  VetsBossBarManager#ANNI_WINDOW_SECONDS}. Polling
      *  outside this window is wasted work — no surface consumes the
      *  snapshot during the long idle gap between anni events. */
     private static final long ANNI_WINDOW_SECONDS = 90L * 60L;
