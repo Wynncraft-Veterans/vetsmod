@@ -1,0 +1,5 @@
+# Commits to skip when running git blame. Local opt-in, not a committed
+# setting: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: reformat with google-java-format (AOSP, 4-space)
+322d5a9880cbf68fd4aa67e1d61e9238100ce6d6
