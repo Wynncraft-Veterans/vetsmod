@@ -5,7 +5,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.wynnvets.fetcher.lookup.LookupProvider;
 import org.wynnvets.fetcher.lookup.LookupResult;
-import org.wynnvets.fetcher.lookup.PlayerLookup;
 import org.wynnvets.fetcher.lookup.ProviderOutcome;
 import org.wynnvets.fetcher.lookup.Uuids;
 import org.wynnvets.logging.VetsLogger;
@@ -26,8 +25,7 @@ import java.util.concurrent.CompletableFuture;
  * {@code https://api.minecraftservices.com/minecraft/profile/lookup/name/{name}}.
  *
  * <p>Separate from legacy {@code api.mojang.com}; historically a different
- * rate-limit bucket. Honours the {@link PlayerLookup#isMojangSkipped()}
- * debug flag so manual verification can simulate a Mojang outage.</p>
+ * rate-limit bucket.</p>
  */
 public final class MojangServicesProvider implements LookupProvider {
 
@@ -47,9 +45,6 @@ public final class MojangServicesProvider implements LookupProvider {
 
   @Override
   public CompletableFuture<ProviderOutcome> lookup(String name) {
-    if (PlayerLookup.isMojangSkipped()) {
-      return CompletableFuture.completedFuture(ProviderOutcome.transientMiss());
-    }
     URI uri = URI.create("https://api.minecraftservices.com/minecraft/profile/lookup/name/"
         + URLEncoder.encode(name, StandardCharsets.UTF_8));
     HttpRequest req = HttpRequest.newBuilder()

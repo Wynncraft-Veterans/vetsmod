@@ -6,7 +6,6 @@ import org.wynnvets.datamodels.UserUUID;
 import org.wynnvets.fetcher.lookup.LookupProvider;
 import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.MojangCooldown;
-import org.wynnvets.fetcher.lookup.PlayerLookup;
 import org.wynnvets.fetcher.lookup.ProviderOutcome;
 import org.wynnvets.fetcher.lookup.Uuids;
 import org.wynnvets.logging.VetsLogger;
@@ -53,7 +52,7 @@ public final class MojangLegacyProvider implements LookupProvider {
 
   @Override
   public CompletableFuture<ProviderOutcome> lookup(String name) {
-    if (PlayerLookup.isMojangSkipped() || MojangCooldown.isCoolingDown()) {
+    if (MojangCooldown.isCoolingDown()) {
       return CompletableFuture.completedFuture(ProviderOutcome.transientMiss());
     }
     HttpRequest req = HttpRequest.newBuilder()

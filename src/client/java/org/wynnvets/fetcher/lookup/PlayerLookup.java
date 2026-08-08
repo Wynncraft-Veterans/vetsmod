@@ -49,11 +49,6 @@ public final class PlayerLookup {
       .connectTimeout(Duration.ofSeconds(5))
       .build();
 
-  /** Debug switch: when true, both Mojang providers short-circuit to
-   *  transient-miss without HTTP work. Used by the manual verification
-   *  matrix to simulate a Mojang outage. */
-  private static volatile boolean skipMojang = false;
-
   private static final List<LookupProvider> PROVIDERS = List.of(
       new WynncraftProvider(HTTP_CLIENT),
       new VetsSnapshotProvider(),
@@ -118,13 +113,5 @@ public final class PlayerLookup {
           boolean nextTransient = anyTransient || !outcome.isDefiniteMiss();
           return runCascadeStep(name, it, nextTransient);
         });
-  }
-
-  public static boolean isMojangSkipped() {
-    return skipMojang;
-  }
-
-  public static void setMojangSkipped(boolean skipped) {
-    skipMojang = skipped;
   }
 }
