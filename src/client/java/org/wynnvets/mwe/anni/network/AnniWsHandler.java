@@ -97,7 +97,7 @@ public final class AnniWsHandler {
             // S7 ack — debug-logged only; no client-side single-flight queue.
             // The frame fires fire-and-forget from PartyRosterListener; if a
             // future debug surface needs ack diagnostics, mirror S6's
-            // AnniRsvpClient (lastAck / pendingCount).
+            // AnniRsvpClient.debugDump().
             String status = json.has("status") ? json.get("status").getAsString() : "?";
             String detail = json.has("detail") && !json.get("detail").isJsonNull()
                     ? json.get("detail").getAsString() : null;

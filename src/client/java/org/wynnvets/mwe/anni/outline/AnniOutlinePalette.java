@@ -45,19 +45,17 @@ public final class AnniOutlinePalette {
     public static final CustomColor OTHER_VETS_PARTY =
             CustomColor.fromChatFormatting(ChatFormatting.GRAY);
 
-    /** Nametag colour for outsiders — every nearby player not on any
-     *  vets-anni party. Dark grey, {@code §8}. The outline for this tier
-     *  is NONE (no glow override applied). Nothing reads this constant:
-     *  {@code NametagMixin} writes {@code ChatFormatting.DARK_GRAY}
-     *  directly. */
-    public static final CustomColor OUTSIDER_NAMETAG =
-            CustomColor.fromChatFormatting(ChatFormatting.DARK_GRAY);
-
     private AnniOutlinePalette() {
     }
 
-    /** Per-role outline / nametag colour for own-party members.
-     *  Recognised role codes (case-insensitive):
+    /** {@link ChatFormatting} chosen for a given role code, for own-party
+     *  members. Exposed so {@code AnniOutlineRegistry.ownPartyEntry} can
+     *  derive an Entry's outline colour and its nametag formatting from
+     *  this one call — which is what stops the two from drifting.
+     *  {@code NametagMixin} reads the resolved formatting off the Entry,
+     *  not from here.
+     *
+     *  <p>Recognised role codes (case-insensitive):</p>
      *  <ul>
      *    <li>{@code FILL} → {@code §f} white</li>
      *    <li>{@code TANK} → {@code §b} aqua</li>
@@ -66,18 +64,10 @@ public final class AnniOutlinePalette {
      *    <li>{@code SECONDARY} → {@code §e} yellow</li>
      *    <li>{@code PRIMARY} → {@code §c} red</li>
      *  </ul>
-     *  Unknown or null → {@link #OTHER_VETS_PARTY} (light grey) so that a
-     *  party member we can't role-identify still reads as "vets-anni-party
-     *  but not differentiated" rather than as an outsider. */
-    public static CustomColor forRole(String role) {
-        return CustomColor.fromChatFormatting(chatFormattingForRole(role));
-    }
-
-    /** {@link ChatFormatting} chosen for a given role code. Exposed so
-     *  {@code AnniOutlineRegistry.ownPartyEntry} can derive an Entry's
-     *  outline colour and its nametag formatting from this one call —
-     *  which is what stops the two from drifting. {@code NametagMixin}
-     *  reads the resolved formatting off the Entry, not from here. */
+     *  Unknown or null → light grey, the same colour as
+     *  {@link #OTHER_VETS_PARTY}, so that a party member we can't
+     *  role-identify still reads as "vets-anni-party but not
+     *  differentiated" rather than as an outsider. */
     public static ChatFormatting chatFormattingForRole(String role) {
         if (role == null) return ChatFormatting.GRAY;
         switch (role.toUpperCase()) {

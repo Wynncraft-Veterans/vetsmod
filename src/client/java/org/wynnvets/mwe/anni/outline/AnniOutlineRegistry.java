@@ -118,12 +118,6 @@ public final class AnniOutlineRegistry {
         return entries.get(username.toLowerCase(Locale.ROOT));
     }
 
-    /** Quick "do we have any active overrides" check. Lets consumers
-     *  short-circuit the per-tick walk when there's nothing to do. */
-    public static boolean isAnyActive() {
-        return !entries.isEmpty();
-    }
-
     /** Number of entries currently registered. Diagnostic only. */
     public static int size() {
         return entries.size();

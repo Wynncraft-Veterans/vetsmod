@@ -25,11 +25,6 @@ import java.util.concurrent.TimeUnit;
  * {@code (ok, detail)}; callers render the detail on failure. A 5-second
  * deadline applies — temp-server's own forward to vets-anni uses a 3-5 s
  * timeout, so 5 s here covers the round-trip plus jitter.</p>
- *
- * <p>{@link #lastAttemptedNotice()} / {@link #lastAck()} / {@link
- * #pendingCount()} are exposed for the {@code /wv debug trigger rsvpDump}
- * diagnostic. Race-prone (static volatiles, no per-call correlation) but
- * honest enough for a debug-only view.</p>
  */
 public final class AnniRsvpClient {
 
@@ -83,21 +78,6 @@ public final class AnniRsvpClient {
         Ack ack = new Ack("ok".equals(status), detail);
         lastAck = ack;
         head.complete(ack);
-    }
-
-    /** Diagnostic accessor — last notice string passed to {@link #send}. */
-    public static String lastAttemptedNotice() {
-        return lastAttemptedNotice;
-    }
-
-    /** Diagnostic accessor — last completed ack. */
-    public static Ack lastAck() {
-        return lastAck;
-    }
-
-    /** Diagnostic accessor — currently-in-flight queue depth. */
-    public static int pendingCount() {
-        return pending.size();
     }
 
     /** Server ack — {@code ok} flag + optional human-readable {@code detail}

@@ -101,7 +101,7 @@ Public. Tree built in [DebugCommands.buildCommandTree()](../src/client/java/org/
 - `/wv debug trigger charDump` — render PUA glyphs `\uE001-\uE040` in `chat/prefix` font, 8 per line
 - `/wv debug trigger forceChecks` — force guild/rank/staff re-check via `GuildStateManager.forceGuildRecheck()`
 - `/wv debug trigger tabDump` — `TabDumpHandler.execute()`
-- `/wv debug trigger rsvpDump` (S6) — dump `isAuthenticatedThisSession()` + `AnniRsvpClient.pendingCount()` + `lastAttemptedNotice` + `lastAck` + current snapshot `rsvp` block. Diagnostic for "why did my `/wv anni rsvp` not land".
+- `/wv debug trigger rsvpDump` (S6) — dump `isAuthenticatedThisSession()` + in-flight queue depth + `lastAttemptedNotice` + `lastAck` + current snapshot `rsvp` block, all read directly by `AnniRsvpClient.debugDump()`. Diagnostic for "why did my `/wv anni rsvp` not land".
 - `/wv debug tree anni rsvp {hard|soft|revoke}` (S6) — debug mirror of the main `/wv anni rsvp` tree; identical effect, gated on `requireDebug` only (action only touches the caller's own RSVP, no staff/organiser perm needed).
 
 **Not exhaustive** — `/wv debug trigger` has four further leaves (`bossBarsDump`, `nametagsDump`, `ghostsPromptDump`, `zoneLinesDump`); see `DebugCommands.buildCommandTree`.

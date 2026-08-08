@@ -317,7 +317,7 @@ Username → `Entry(tier, role, outlineColor, nametagFormatting)`. Keys are lowe
 2. Every other vets party (from `snapshot.event.all_parties`) added via `putIfAbsent` — own-party entries already win, so a player who appears in both lists (always — own party IS one of all_parties) keeps their role colour.
 3. The local player (matched by `snapshot.mc_username`) is excluded — no self-outline.
 
-`isAnyActive()` for quick "anything to do" checks; `getEntry(String username)` for the consumer lookups. Concurrent hashmap; reads from main / render threads, writes from the WS reader thread.
+`getEntry(String username)` for the consumer lookups. Concurrent hashmap; reads from main / render threads, writes from the WS reader thread.
 
 Beside those, a `// ── Debug API ──` block that `AnniDebugCommands` drives and no other caller touches: `size()`, `debugSet(String, Entry)`, `debugRemove(String)`, `debugOwnPartyEntry(String role)` and `debugOtherPartyEntry()` back the `/wv debug tree anni registry set|clear|clearall` leaves. `clearAll()` belongs to that group too — it has exactly one caller, `AnniDebugCommands.registryClearAll`, and no test references the class at all. (The rebuild path does not need it: `rebuildFrom` does its own inline `entries.clear(); entries.putAll(next)`.)
 
@@ -421,7 +421,7 @@ Wire pieces on the network layer:
 - `V1ApiManager.sendAnniRsvp(String notice)` (mirror of `sendAnniScrollspotSet`).
 - `AnniWsHandler.onInbound` routes `anni_rsvp_response` to `AnniRsvpClient.onResponse`.
 
-`AnniRsvpClient` is a single-flight ack future (clone of `AnniScrollspotClient`). It declares public `lastAttemptedNotice()` / `lastAck()` / `pendingCount()` accessors intended for `/wv debug trigger rsvpDump`, but the dump goes through `debugDump()` instead, which reads the private statics directly — so all three currently have zero callers repo-wide.
+`AnniRsvpClient` is a single-flight ack future (clone of `AnniScrollspotClient`). Its `/wv debug trigger rsvpDump` diagnostic goes through `debugDump()`, which reads the private statics (`pending`, `lastAttemptedNotice`, `lastAck`) directly. It once also declared public accessors wrapping those three; they had no callers and were removed in Phase 2 of the cleanup.
 
 ### Auth chain
 
@@ -461,9 +461,9 @@ Wire pieces on the network layer:
    actually yours" verification.
 4. **`AnniRsvpClient.lastAttemptedNotice` / `lastAck` are race-prone**
    (static volatiles, no per-call correlation) — acceptable for a
-   debug-only `rsvpDump` view. `pendingCount()` was added as the honest
-   in-flight indicator; as built, `debugDump()` reads the statics
-   directly and none of the three accessors is called.
+   debug-only `rsvpDump` view. `debugDump()` reads the statics directly;
+   the three public accessors that once wrapped them had no callers and
+   were removed in Phase 2 of the cleanup.
 5. **Auto-refresh on success.** `AnniRsvpCommand.renderAck` fires
    `AnniQueryClient.query()` after a successful ack. Without this,
    `/wv anni` reads the cached snapshot which is up to 5 minutes stale
@@ -608,9 +608,8 @@ three clones: `AnniQueryClient` (returns `CompletableFuture<AnniSnapshot>`),
 ack clients and 8 s on `AnniQueryClient`**, not 5 s across the board.
 The `exceptionally` handler removes *that* future by identity
 (`remove(future)`) — **not** the head. Head-polling (`pollFirst()`)
-belongs to the response path and to `AnniQueryClient.drainPending()`;
-cloning "removes the head" into a timeout handler would drop an
-unrelated in-flight future. The party-observation report is fire-and-forget (no
+belongs to the response path; cloning "removes the head" into a timeout
+handler would drop an unrelated in-flight future. The party-observation report is fire-and-forget (no
 ack is needed because vetsmod doesn't render anything from the
 response), so it skips the single-flight client and just enqueues the
 frame send via `V1ApiManager.sendAnniPartyObservation(...)`.
@@ -714,7 +713,7 @@ A flat trigger family beside the `tree` subtree. **These are ungated** — unlik
 - `nametagsDump` — walks `level.players()` and reports each player's username, `AnniOutlineRegistry` hit/miss, tier, role, and the `ChatFormatting` the `NametagMixin` would resolve to right now, plus a header line of `outlineSuppressionActive` / `vetsAnniNametagsEnabled` / `vetsAnniOutlinesEnabled`. Use whenever a nametag colour doesn't match what you expect; the dump's `→ <username> (<colour> via registry)` segment shows what should render in-world. ⚠️ It emits **no** `original=` column and never reads render state, so it cannot show you the embedded leading `§a` — see [`nametags-dump-missing-original-column`](ephemeral/bugs-found-via-mellow-rain/nametags-dump-missing-original-column.md).
 - `ghostsPromptDump` — dump `aggressive_active / toggle_on / in_zone / stamp / shown_for` + per-player `isPlayerGhost` result + `would_fire_on_rising_edge`.
 - `zoneLinesDump` — dump aggressive gate state + every cached `AnniZone.Disc` + squared distance to the player. Diagnostic for "why aren't lines rendering."
-- `rsvpDump` — dump auth state, in-flight queue depth, last attempt/ack, and the snapshot's `rsvp` block. It calls `AnniRsvpClient.debugDump()`, which reads the private statics directly; the public `lastAttemptedNotice()` / `lastAck()` / `pendingCount()` accessors have **no callers repo-wide**.
+- `rsvpDump` — dump auth state, in-flight queue depth, last attempt/ack, and the snapshot's `rsvp` block. It calls `AnniRsvpClient.debugDump()`, which reads the private statics directly.
 
 ### Template substitution in fixtures
 

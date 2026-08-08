@@ -78,11 +78,6 @@ public final class AnniCommandRenderer {
         externalOverride = override;
     }
 
-    /** Read the current debug override. {@code null} == auto. */
-    public static Boolean getExternalOverride() {
-        return externalOverride;
-    }
-
     private AnniCommandRenderer() {
     }
 

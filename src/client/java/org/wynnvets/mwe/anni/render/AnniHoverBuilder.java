@@ -300,37 +300,6 @@ public final class AnniHoverBuilder {
         return Component.literal(text).withStyle(style);
     }
 
-    /** Suggest-command pill — clicking inserts the command into the chat
-     *  input box so the user can review/edit before hitting enter. */
-    public static MutableComponent suggestCommandBadge(String text, String command,
-                                                       String hover,
-                                                       ChatFormatting color) {
-        Style style = Style.EMPTY
-                .withColor(color)
-                .withBold(true)
-                .withClickEvent(new ClickEvent.SuggestCommand(command));
-        if (showHovers() && hover != null) {
-            style = style.withHoverEvent(new HoverEvent.ShowText(
-                    Component.literal(hover).withStyle(ChatFormatting.GRAY)));
-        }
-        return Component.literal(text).withStyle(style);
-    }
-
-    /** Run-command pill — clicking dispatches the command immediately. */
-    public static MutableComponent runCommandBadge(String text, String command,
-                                                   String hover,
-                                                   ChatFormatting color) {
-        Style style = Style.EMPTY
-                .withColor(color)
-                .withBold(true)
-                .withClickEvent(new ClickEvent.RunCommand(command));
-        if (showHovers() && hover != null) {
-            style = style.withHoverEvent(new HoverEvent.ShowText(
-                    Component.literal(hover).withStyle(ChatFormatting.GRAY)));
-        }
-        return Component.literal(text).withStyle(style);
-    }
-
     // ── Internals ───────────────────────────────────────────────────────
 
     private static boolean showHovers() {

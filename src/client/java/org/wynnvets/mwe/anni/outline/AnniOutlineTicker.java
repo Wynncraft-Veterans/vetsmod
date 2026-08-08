@@ -107,10 +107,6 @@ public final class AnniOutlineTicker {
         VetsLogger.debug("AnniOutlineTicker.forceInZone = {}", value);
     }
 
-    public static boolean isForceInZone() {
-        return forceInZone;
-    }
-
     // ── Per-tick driver ────────────────────────────────────────────────
 
     private static void tick() {

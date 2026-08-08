@@ -108,12 +108,4 @@ public final class AnniQueryClient {
         }
         head.complete(snapshot);
     }
-
-    /** Test/debug hook: drain pending futures (e.g. on disconnect). */
-    public static void drainPending() {
-        CompletableFuture<AnniSnapshot> head;
-        while ((head = pendingQueries.pollFirst()) != null) {
-            head.complete(null);
-        }
-    }
 }

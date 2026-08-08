@@ -20,8 +20,8 @@ import java.util.function.Consumer;
  * separate cache, not here.</p>
  *
  * <p>Listener bus uses {@link CopyOnWriteArrayList} (same pattern as
- * {@code V1ApiManager.outboundListeners}) so addListener/removeListener
- * never block reader threads; the iteration cost is irrelevant at the
+ * {@code V1ApiManager.outboundListeners}) so addListener never blocks
+ * reader threads; the iteration cost is irrelevant at the
  * single-digit listener count S2..S7 will accumulate.</p>
  *
  * <p>Listeners run on whichever thread called {@link #update} — typically
@@ -44,11 +44,6 @@ public final class AnniSnapshotCache {
     /** The most recently received snapshot, or {@code null} if none yet. */
     public static AnniSnapshot latest() {
         return latest;
-    }
-
-    /** Wall-clock millis when {@link #latest} was set; {@code 0L} initially. */
-    public static long fetchedAtEpochMs() {
-        return fetchedAtEpochMs;
     }
 
     /**
@@ -77,13 +72,6 @@ public final class AnniSnapshotCache {
     public static void addListener(Consumer<AnniSnapshot> listener) {
         if (listener != null) {
             listeners.add(listener);
-        }
-    }
-
-    /** Remove a previously-registered listener. */
-    public static void removeListener(Consumer<AnniSnapshot> listener) {
-        if (listener != null) {
-            listeners.remove(listener);
         }
     }
 }
