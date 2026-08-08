@@ -86,13 +86,13 @@ public final class GuildLogWalker {
     }
 
     /**
-     * Arms the walker for the next guild log open. The caller is
-     * expected to follow up with something that opens the log GUI. The
-     * only caller today, {@code GraidsDistributor}, uses
-     * {@code GuildManageOpener.openGuildLog()}, which sends
-     * {@code /guild manage} and clicks the Guild Log tile &mdash; a
-     * direct {@code /guild log} is unreliable this soon after a menu
-     * close, which is the whole reason that route exists.
+     * Arms the walker for the next guild log open. The caller is expected to follow up with
+     * something that opens the log GUI. The only caller today,
+     * {@link org.wynnvets.distribute.distributor.GraidsDistributor GraidsDistributor}, uses
+     * {@link org.wynnvets.distribute.opener.GuildManageOpener#openGuildLog()
+     * GuildManageOpener#openGuildLog()}, which sends {@code /guild manage} and clicks the Guild Log
+     * tile &mdash; a direct {@code /guild log} is unreliable this soon after a menu close, which is
+     * the whole reason that route exists.
      */
     public static void armWalk(Completion onComplete) {
         active = true;

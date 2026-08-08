@@ -72,9 +72,9 @@ public final class GuildManageOpener {
   private GuildManageOpener() {}
 
   /**
-   * Registers this opener with the Wynntils event bus. Must be called
-   * after Wynntils has finished its own initialisation; see
-   * {@code WynntilsEventListener.register()} for the timing.
+   * Registers this opener with the Wynntils event bus. Must be called after Wynntils has finished
+   * its own initialisation; see {@link org.wynnvets.listeners.WynntilsEventListener#register()
+   * WynntilsEventListener#register()} for the timing.
    */
   public static void register() {
     WynntilsMod.registerEventListener(INSTANCE);

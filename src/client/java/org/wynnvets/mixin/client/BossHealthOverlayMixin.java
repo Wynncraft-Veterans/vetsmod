@@ -37,7 +37,7 @@ import java.util.UUID;
  *
  * <p>Priority 500 isn't load-bearing here (there's no cancellation
  * order to win against Wynntils) but kept for symmetry with the
- * existing {@code QueueTitleMixin} ranking — and so if a future
+ * existing {@link QueueTitleMixin} ranking — and so if a future
  * collision adds another render-path mixin, we sit early.</p>
  */
 @Mixin(value = BossHealthOverlay.class, priority = 500)

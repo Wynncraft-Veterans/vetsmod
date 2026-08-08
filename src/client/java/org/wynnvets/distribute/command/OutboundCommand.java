@@ -9,10 +9,10 @@ import java.util.Deque;
 import java.util.Queue;
 
 /**
- * Thin wrapper around {@link com.wynntils.handlers.command.CommandHandler}
- * that gives user-initiated distribute commands {@em front-of-queue}
- * priority over background traffic ({@code /v} fanout from
- * {@code MessageFanoutDispatcher}, {@code /find} batches, etc.).
+ * Thin wrapper around {@link com.wynntils.handlers.command.CommandHandler} that gives
+ * user-initiated distribute commands {@em front-of-queue} priority over background traffic ({@code
+ * /v} fanout from {@link org.wynnvets.chat.dispatcher.MessageFanoutDispatcher
+ * MessageFanoutDispatcher}, {@code /find} batches, etc.).
  *
  * <h2>Why we need this</h2>
  * <p>Wynntils' {@code Handlers.Command.queueCommand} appends to an

@@ -27,12 +27,12 @@ import java.util.concurrent.CompletableFuture;
  * Wynncraft Members GUI displays, by querying
  * {@code wapi /v3/guild/<localPlayerGuild>}.
  *
- * <p>The v3 payload's {@code members.<rank>.<currentName>.legacyName}
- * shape (see {@code UserInfoFetcher.analyzeRoster}) lets us map a player's
- * <em>current</em> Mojang username to whatever name the Wynncraft server
- * has frozen onto its in-game tiles. Input matching is case-insensitive
- * against both the {@code currentName} key and the {@code legacyName}
- * value, so either form resolves to the correct GUI tile name.</p>
+ * <p>The v3 payload's {@code members.<rank>.<currentName>.legacyName} shape (see
+ * {@link org.wynnvets.fetcher.ondemand.UserInfoFetcher#analyzeRoster
+ * UserInfoFetcher#analyzeRoster}) lets us map a player's <em>current</em> Mojang username to
+ * whatever name the Wynncraft server has frozen onto its in-game tiles. Input matching is
+ * case-insensitive against both the {@code currentName} key and the {@code legacyName} value, so
+ * either form resolves to the correct GUI tile name.</p>
  *
  * <p>On any failure (no guild, no network, unexpected payload) returns
  * the input unchanged &mdash; the caller's literal-input arm still
@@ -330,9 +330,10 @@ public final class NameResolver {
     }
 
     /** Strips dashes and lowercases — wapi may emit either form, and
-     *  the no-aspects endpoint emits dashed UUIDs; both reduce to the
-     *  same 32-char hex string for equality comparison. Mirrors
-     *  {@code UserInfoFetcher.normalizeUuidText}. */
+     *  the no-aspects endpoint emits dashed UUIDs; both reduce to the same 32-char hex string for
+     *  equality comparison. Mirrors
+     *  {@link org.wynnvets.fetcher.ondemand.UserInfoFetcher#normalizeUuidText
+     *  UserInfoFetcher#normalizeUuidText}. */
     static String normalizeUuid(String uuid) {
         if (uuid == null) return "";
         return uuid.replace("-", "").toLowerCase(Locale.ROOT);

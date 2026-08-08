@@ -19,7 +19,7 @@ import java.util.UUID;
  *
  * <p>Wynntils already {@code @Shadow @Mutable}'s the same field and
  * replaces it with a {@code ConcurrentHashMap} in its own
- * {@code BossHealthOverlayMixin} (see
+ * {@link org.wynnvets.mixin.client.BossHealthOverlayMixin BossHealthOverlayMixin} (see
  * {@code Wynntils/common/src/main/java/com/wynntils/mc/mixin/BossHealthOverlayMixin.java}),
  * which makes the multi-thread access pattern below safe — we write
  * only from our tick driver, the render path reads back through the

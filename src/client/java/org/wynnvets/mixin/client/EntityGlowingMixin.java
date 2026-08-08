@@ -13,14 +13,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * whose Wynntils-side glow colour has been set to anything other than
  * {@link CustomColor#NONE}.
  *
- * <p>Backs the S4 outline-overlay path: the
- * {@code AnniOutlineTicker} writes a per-player glow colour via
- * {@link EntityExtension#setGlowColor(CustomColor)}, and Wynntils'
- * {@code EntityRendererMixin} happily overrides
- * {@code state.outlineColor} from that — but vanilla still gates outline
- * rendering on the {@link Entity#isCurrentlyGlowing()} flag. For a
- * player Wynncraft never put in a relationship team (no native glow),
- * our colour would silently do nothing without this nudge.</p>
+ * <p>Backs the S4 outline-overlay path: the {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker
+ * AnniOutlineTicker} writes a per-player glow colour via
+ * {@link EntityExtension#setGlowColor(CustomColor)}, and Wynntils' {@code EntityRendererMixin}
+ * happily overrides {@code state.outlineColor} from that — but vanilla still gates outline
+ * rendering on the {@link Entity#isCurrentlyGlowing()} flag. For a player Wynncraft never put in a
+ * relationship team (no native glow), our colour would silently do nothing without this nudge.</p>
  *
  * <p>No mode / window / zone gate here on purpose — the glow colour
  * field is {@link CustomColor#NONE} by default, so this only ever fires
