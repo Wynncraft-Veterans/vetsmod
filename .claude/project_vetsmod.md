@@ -12,7 +12,6 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 
 **Key packages and responsibilities:**
 - `org.wynnvets.api` — `V1ApiManager` (dual WebSocket), `WsClient`, `VetsApi`, `WynnCraftApi`, `MojangApi`
-- `org.wynnvets.api.auth` — **dead**: `AuthProvider` + `NoOpAuthProvider`, never instantiated, no consumer. Slated for deletion.
 - `org.wynnvets.chat` — `OutboundDisplayHandler`, `ChatLogger`, `ChatUtils`, `PillFormatter`
 - `org.wynnvets.chat.dispatcher` — `CommandDispatcher`, `MessageFanoutDispatcher`, `FindDispatcher`
 - `org.wynnvets.chat.rewriter` — six chat message transformers: encourage-update, staff guild alert, staff channel, server guild, spoiler (those five form `ChatLogMixin`'s chain, in that order) and `WarningRewriter`, which runs from `OutboundDisplayHandler` instead
