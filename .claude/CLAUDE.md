@@ -152,6 +152,7 @@ Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **f
 ```bash
 ./gradlew build          # produces jar in build/libs/
 ./gradlew runClient      # launches Minecraft with the mod loaded
+./gradlew spotlessApply  # reformat — run before committing any Java change
 ```
 
 If a gitignored `local.gradle` is present (see `local.gradle.example`), `./gradlew build` is wired via `build.finalizedBy 'deployToPrism'` to also drop `vetsmod-dev.jar` into the developer's PrismLauncher mods folder, scrubbing prior `vetsmod-*.jar` to avoid duplicate-mod-ID load failures. Restart Minecraft to pick up changes — Fabric mods can't hot-reload mixins or registries.
@@ -163,6 +164,22 @@ If a gitignored `local.gradle` is present (see `local.gradle.example`), `./gradl
 - `./gradlew test` — tests are unaffected by the deploy hook
 
 Only use the deploying form (`./gradlew build`) when the user has explicitly asked for an end-to-end build-and-deploy, or is mid-iteration on the mod.
+
+### Mechanical gates
+
+Two gates run on the Java side, both enforced in CI before the build step.
+
+**Format — google-java-format AOSP** (4-space block indent, 8-space continuation, 100 columns) via Spotless, configured in `build.gradle`'s `spotless { }` block and pinned in `gradle.properties`. `./gradlew spotlessApply` rewrites; `spotlessCheck` is wired into `check` and so into `build`, so an unformatted file fails the build. Javadoc *prose* is deliberately exempt (`formatJavadoc(false)`) — blocks re-indent with their declaration but wording, `<p>` placement and hand-built `<pre>`/`<table>` diagrams are left alone. Imports are re-sorted into one ASCII-sorted block with statics first, and unused imports are removed unconditionally.
+
+**Javadoc references — `-Xdoclint:reference/private`.** An unresolvable `{@link}`, `@see`, `{@value}` or `@throws` target, or an `@param` naming a parameter that isn't there, is a compile **error**. Deliberately only the `reference` group: `html` would reject `PillCodec`'s hand-built `<table border="1">` and `missing` would light up most of the repo.
+
+Consequences worth knowing before you edit:
+
+- **Do not run an IDE "optimize imports".** Ten imports exist only to resolve a Javadoc `{@link}` and have no code call site. Stripping them now fails the build rather than rotting silently, but it still costs you a round trip.
+- **Cross-package Javadoc references are fully qualified with a label** — `{@link org.wynnvets.p.Foo Foo}` — rather than resolved by adding an import. A doc-only import would assert a dependency edge that no code has. Renders identically.
+- **Moving or renaming a class breaks every Javadoc reference to it, loudly.** Fix the references as part of the move; there is no sweep afterwards.
+- **Changing `org.gradle.jvmargs` needs `./gradlew --stop`** or you are testing the old daemon's flags.
+- **`git blame` over the reformat.** `.git-blame-ignore-revs` holds the reformat commit, but git only honours it once per clone: `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 
 ## External name-resolution providers
 
