@@ -17,7 +17,7 @@ import org.wynnvets.guild.GuildStateManager;
  * <p>The key is a bearer token issued by dazebot's {@code /vetsmod} Discord
  * command. Once stored, vetsmod sends it in an {@code auth} frame on every
  * v1 WebSocket (re)connect; the server's response asynchronously confirms
- * (or rejects) the user's tier. See {@link UnlockManager} and
+ * (or rejects) the user's tier. See {@link org.wynnvets.guild.UnlockManager} and
  * {@link org.wynnvets.api.V1ApiManager} for the surrounding flow.</p>
  */
 @Mixin(ClientPacketListener.class)

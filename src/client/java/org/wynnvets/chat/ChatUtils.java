@@ -628,7 +628,7 @@ public final class ChatUtils {
      * in the {@code chat/prefix} font, matching the visual style of server-wrapped
      * guild chat.
      *
-     * <p>Uses {@link StringSplitter#splitLines(FormattedText, int, Style, FormattedText)}
+     * <p>Uses {@link StringSplitter#splitLines(FormattedText, int, Style)}
      * to word-wrap to the current chat width.</p>
      *
      * @param message      the full message component (badge + body)

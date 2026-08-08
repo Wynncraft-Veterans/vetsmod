@@ -164,7 +164,7 @@ final class UnlockManager {
      * {@link V1ApiManager}.</p>
      *
      * @param key the bearer token typed by the user
-     * @return {@link UnlockAttemptResult} describing what happened locally
+     * @return {@link GuildStateManager.UnlockAttemptResult} describing what happened locally
      *         (the network round-trip is reported separately when it
      *         resolves)
      */

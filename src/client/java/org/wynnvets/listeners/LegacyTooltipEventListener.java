@@ -49,7 +49,8 @@ public final class LegacyTooltipEventListener {
 
   /**
    * Detects when the Wynntils screenshot keybind is pressed in an inventory
-   * screen.  Sets a flag consumed by {@link LegacyScreenshotHandler} so the
+   * screen.  Sets a flag consumed by {@link org.wynnvets.items.LegacyScreenshotHandler
+   * LegacyScreenshotHandler} so the
    * mixin can take its own screenshot after applying legacy modifications.
    *
    * <p>Wynntils processes this same event in {@code KeyBindManager} and

@@ -9,7 +9,7 @@ import org.wynnvets.logging.VetsLogger;
  * to the Wynncraft server and parsing the response.
  *
  * <p>Staff status is persisted across sessions via {@link VetsConfig} and
- * refreshed once per day (controlled by {@link #STAFF_CHECK_COOLDOWN}).
+ * refreshed once per day (controlled by {@link #STAFF_CHECK_COOLDOWN_MS}).
  * The check runs asynchronously on a background thread with render-thread
  * round-trips to send the command and receive the response.</p>
  *

@@ -51,7 +51,8 @@ final class LegacyScreenshotHandler {
   private LegacyScreenshotHandler() {}
 
   /**
-   * Set by the {@link LegacyTooltipEventListener} when Wynntils'
+   * Set by the {@link org.wynnvets.listeners.LegacyTooltipEventListener
+   * LegacyTooltipEventListener} when Wynntils'
    * {@code InventoryKeyPressEvent} fires with a key matching the
    * screenshot keybind.  Consumed (reset to false) on the next call
    * to {@link #isScreenshotRequested()}.

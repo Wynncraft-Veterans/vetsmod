@@ -8,7 +8,8 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <p>Mojang's username → UUID endpoint shares an aggressive rate-limit
  * bucket across the entire client IP. When it 429s, we record a cooldown
- * and {@link MojangLegacyProvider} self-skips for its duration so the
+ * and {@link org.wynnvets.fetcher.lookup.providers.MojangLegacyProvider
+ * MojangLegacyProvider} self-skips for its duration so the
  * cascade can move on instead of repeatedly burning Mojang quota. The
  * cooldown is scoped to the legacy host only — Mojang Services is a
  * separate bucket.</p>
