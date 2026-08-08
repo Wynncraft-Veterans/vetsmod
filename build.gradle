@@ -66,6 +66,12 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
 	it.options.release = 21
+
+	// Several files carry raw UTF-8 bytes inside string and char literals (the
+	// PUA rank glyphs in chat/ and items/, the raw '§' in ChatUtils). That
+	// compiles today only because JEP 400 pins javac's default charset to
+	// UTF-8; native.encoding on a Windows box is still Cp1252. Pin it.
+	it.options.encoding = 'UTF-8'
 }
 
 java {
