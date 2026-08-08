@@ -22,9 +22,9 @@ import java.util.Optional;
  * we receive the authoritative username from the mixin (via GameProfile)
  * and locate its occurrence in the nametag text.</p>
  *
- * <p>Called every render frame from {@code NametagMixin}; because nametag
- * components are rebuilt from the render state each frame the time-based
- * colour calculation produces smooth animation without an external tick loop.</p>
+ * <p>Called every render frame from {@link org.wynnvets.mixin.client.NametagMixin NametagMixin};
+ * because nametag components are rebuilt from the render state each frame the time-based colour
+ * calculation produces smooth animation without an external tick loop.</p>
  */
 public final class NametagAnimator {
 

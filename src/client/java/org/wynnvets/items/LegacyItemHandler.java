@@ -20,10 +20,12 @@ import net.minecraft.world.item.component.ItemLore;
  * Detects and re-styles legacy, enchanted, junk, and crafting items in
  * Wynncraft item tooltips.
  *
- * <p>Works in concert with the mixin hooks ({@code LegacyItemTooltipMixin},
- * {@code LegacyHotbarMixin}, {@code LegacyHighlightMixin})
- * to identify special items by name pattern and rarity line, then rewrites
- * their tooltip display names and rarity labels accordingly.</p>
+ * <p>Works in concert with the mixin hooks ({@link
+ * org.wynnvets.mixin.client.legacy.LegacyItemTooltipMixin LegacyItemTooltipMixin},
+ * {@link org.wynnvets.mixin.client.legacy.LegacyHotbarMixin LegacyHotbarMixin},
+ * {@link org.wynnvets.mixin.client.legacy.LegacyHighlightMixin LegacyHighlightMixin}) to identify
+ * special items by name pattern and rarity line, then rewrites their tooltip display names and
+ * rarity labels accordingly.</p>
  */
 public class LegacyItemHandler {
 

@@ -43,7 +43,7 @@ import org.wynnvets.mwe.anni.debug.AnniDebugCommands;
  *   <li>{@code /wv debug trigger charDump} — render PUA icon characters</li>
  *   <li>{@code /wv debug trigger forceChecks} — force re-check guild membership, rank, and staff status</li>
  *   <li>{@code /wv debug trigger bossBarsDump} — dump current {@code BossHealthOverlay#events} state (iteration order, per-bar UUID/name/color/overlay/progress, ours marker)</li>
- *   <li>{@code /wv debug trigger nametagsDump} — dump per-player render-state (forces a re-extract; logs gate, registry hit, and the resulting {@code state.nameTag} component as built by {@code NametagMixin})</li>
+ *   <li>{@code /wv debug trigger nametagsDump} — dump per-player render-state (forces a re-extract; logs gate, registry hit, and the resulting {@code state.nameTag} component as built by {@link org.wynnvets.mixin.client.NametagMixin NametagMixin})</li>
  *   <li>{@code /wv debug trigger rsvpDump} — dump auth state + in-flight RSVP queue depth + last attempt/ack + the snapshot's current rsvp block</li>
  *   <li>{@code /wv debug tree anni …} — MWE/anni subsystem debug tree</li>
  * </ul>
@@ -294,10 +294,10 @@ public final class DebugCommands {
      * reports:
      * <ul>
      *   <li>their gameProfile username;</li>
-     *   <li>the live {@code AnniOutlineTicker.isOutlineSuppressionActive()} flag;</li>
+     *   <li>the live {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker#isOutlineSuppressionActive() AnniOutlineTicker#isOutlineSuppressionActive()} flag;</li>
      *   <li>whether {@link org.wynnvets.mwe.anni.outline.AnniOutlineRegistry} has
      *       an entry for them and the resolved tier / nametag {@link net.minecraft.ChatFormatting};</li>
-     *   <li>what colour the {@code NametagMixin} TAIL-of-{@code extractRenderState}
+     *   <li>what colour the {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} TAIL-of-{@code extractRenderState}
      *       branch <em>would</em> resolve to for them right now.</li>
      * </ul>
      * Used to verify whether the registry rebuild has actually picked up the

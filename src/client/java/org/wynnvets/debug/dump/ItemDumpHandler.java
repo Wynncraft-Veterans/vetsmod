@@ -564,9 +564,9 @@ public final class ItemDumpHandler {
     }
 
     /**
-     * Mirrors {@code NewFormatRenderer.isNewFormatItem} without coupling
-     * the dump command to that package-private class. Returns true if any
-     * line uses the {@code tooltip/emblem/frame} or {@code banner/box}
+     * Mirrors {@link org.wynnvets.items.NewFormatRenderer#isNewFormatItem
+     * NewFormatRenderer#isNewFormatItem} without coupling the dump command to that package-private
+     * class. Returns true if any line uses the {@code tooltip/emblem/frame} or {@code banner/box}
      * fonts (the markers Wynncraft's new tooltip format relies on).
      */
     private static boolean containsNewFormatFont(List<Component> lines) {

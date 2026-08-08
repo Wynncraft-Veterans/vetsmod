@@ -175,8 +175,8 @@ public final class CautionCommands {
 
   /**
    * {@code /wv check <username>} addendum. The legacy implementation
-   * (in {@code GuildChatDispatcher.handleWvCheck} and
-   * {@code CommandRegistry.check}) runs a {@link
+   * (in {@link GuildChatDispatcher#handleWvCheck} and
+   * {@link CommandRegistry#check}) runs a {@link
    * org.wynnvets.fetcher.ondemand.UserInfoFetcher} lookup. This method
    * piggybacks a caution-history fetch onto the same command so
    * {@code /wv check Foo} now also displays Foo's running point total

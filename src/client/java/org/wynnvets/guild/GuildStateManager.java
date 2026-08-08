@@ -137,15 +137,14 @@ public class GuildStateManager {
    * treatment (rank relabelling, supporter glints) and it being applied
    * to some unrelated guild's chat.</p>
    *
-   * <p>Membership in Returners is the entire test, and deliberately so.
-   * An honourary member — a vets community member whose in-game guild is
-   * somewhere else — fails it for the same reason any other outsider does:
-   * the channel they're reading isn't ours. Genuine vets chat reaches them
-   * over the WebSocket bridge instead, where {@code OutboundDisplayHandler}
-   * keeps the full treatment. Note that {@link #isHonouraryUnlocked()} is
-   * <em>not</em> usable as a faster negative signal here: it ORs in a
-   * legacy on-disk unlock marker that is never cleared, so an honourary
-   * member who later joined Returners would keep failing forever.</p>
+   * <p>Membership in Returners is the entire test, and deliberately so. An honourary member — a
+   * vets community member whose in-game guild is somewhere else — fails it for the same reason
+   * any other outsider does: the channel they're reading isn't ours. Genuine vets chat reaches them
+   * over the WebSocket bridge instead, where {@link org.wynnvets.chat.OutboundDisplayHandler
+   * OutboundDisplayHandler} keeps the full treatment. Note that {@link #isHonouraryUnlocked()} is
+   * <em>not</em> usable as a faster negative signal here: it ORs in a legacy on-disk unlock marker
+   * that is never cleared, so an honourary member who later joined Returners would keep failing
+   * forever.</p>
    *
    * <p>{@link #isReturners()} resolves in this order: the
    * {@link GuildChecker} cache (persisted, 3-day expiry, so instant when
@@ -215,13 +214,12 @@ public class GuildStateManager {
   /**
    * Whether the player is eligible for the enriched vets-anni experience.
    *
-   * <p>Three rank-signal trip-wires (any one triggers eligibility):
-   * Returners guild membership, guildless + waitlist-unlocked, or
-   * honourary-unlocked. Mirrors the "external vs vets" predicate that
-   * {@code AnniCommandRenderer} uses to decide between the enriched
-   * printout and the legacy stamp-only fallback, and drives the
-   * eligibility-based default anni mode (PASSIVE if eligible, SILENT
-   * otherwise) in {@code AnniModeManager}.</p>
+   * <p>Three rank-signal trip-wires (any one triggers eligibility): Returners guild membership,
+   * guildless + waitlist-unlocked, or honourary-unlocked. Mirrors the "external vs vets" predicate
+   * that {@link org.wynnvets.mwe.anni.render.AnniCommandRenderer AnniCommandRenderer} uses to
+   * decide between the enriched printout and the legacy stamp-only fallback, and drives the
+   * eligibility-based default anni mode (PASSIVE if eligible, SILENT otherwise) in
+   * {@link AnniModeManager}.</p>
    *
    * @return true if eligible for enrichment, false otherwise
    */

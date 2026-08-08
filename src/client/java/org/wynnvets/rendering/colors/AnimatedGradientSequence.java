@@ -28,8 +28,8 @@ import org.wynnvets.config.VetsConfig;
  * }
  * }</pre>
  *
- * The companion {@code AnimatedChatMixin} detects the pending config and wraps
- * the stored {@code FormattedCharSequence} with this class.
+ * The companion {@link org.wynnvets.mixin.client.chat.AnimatedChatMixin AnimatedChatMixin} detects
+ * the pending config and wraps the stored {@code FormattedCharSequence} with this class.
  */
 public class AnimatedGradientSequence implements FormattedCharSequence {
 
@@ -77,12 +77,11 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
     // ── Thread-local animation context ──────────────────────────────────
 
     /** Write-only by decision: set by {@link #beginAnimation} and cleared by
-     *  {@link #endAnimation}, never read. The accessor that read it had no
-     *  callers and was removed; the pair itself stays because
-     *  {@code ChatUtils.dispatchAnimatedChat} calls endAnimation() from the
-     *  same finally block that restores INTERNAL_CHAT_DISPATCH, so collapsing
-     *  them would strand that ThreadLocal true and make every later chat line
-     *  look mod-generated. */
+     *  {@link #endAnimation}, never read. The accessor that read it had no callers and was removed;
+     *  the pair itself stays because {@link org.wynnvets.chat.ChatUtils#dispatchAnimatedChat
+     *  ChatUtils#dispatchAnimatedChat} calls endAnimation() from the same finally block that
+     *  restores INTERNAL_CHAT_DISPATCH, so collapsing them would strand that ThreadLocal true and
+     *  make every later chat line look mod-generated. */
     private static final ThreadLocal<AnimConfig> CURRENT_CONFIG = new ThreadLocal<>();
 
     /** Sets the animation parameters for the current thread. */
