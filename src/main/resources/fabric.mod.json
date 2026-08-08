@@ -24,7 +24,6 @@
 		]
 	},
 	"mixins": [
-		"vetsmod.mixins.json",
 		{
 			"config": "vetsmod.client.mixins.json",
 			"environment": "client"
