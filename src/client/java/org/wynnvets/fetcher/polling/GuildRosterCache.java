@@ -51,9 +51,6 @@ public final class GuildRosterCache {
 
   private GuildRosterCache() {}
 
-  /**
-   * Starts periodic fetching of the guild roster.
-   */
   public static void start() {
     if (isRunning) {
       return;
@@ -75,9 +72,6 @@ public final class GuildRosterCache {
     }, 0, REFRESH_INTERVAL_MINUTES, TimeUnit.MINUTES);
   }
 
-  /**
-   * Stops the periodic fetching.
-   */
   public static void stop() {
     if (scheduler != null && !scheduler.isShutdown()) {
       scheduler.shutdown();

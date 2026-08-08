@@ -27,7 +27,6 @@ public final class LegacyHighlightEventListener {
 
     private LegacyHighlightEventListener() {}
 
-    /** Registers this handler with the Wynntils event bus. */
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
         VetsLogger.debug("Registered LegacyHighlightEventHandler on Wynntils event bus");

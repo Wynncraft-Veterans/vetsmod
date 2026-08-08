@@ -43,17 +43,14 @@ public final class VetsLogger {
         LOGGER.info("[VetsMod] {}", msg);
     }
 
-    /** Log a noteworthy lifecycle milestone with one argument. */
     public static void info(String format, Object arg) {
         LOGGER.info("[VetsMod] " + format, arg);
     }
 
-    /** Log a noteworthy lifecycle milestone with two arguments. */
     public static void info(String format, Object arg1, Object arg2) {
         LOGGER.info("[VetsMod] " + format, arg1, arg2);
     }
 
-    /** Log a noteworthy lifecycle milestone with variable arguments. */
     public static void info(String format, Object... args) {
         LOGGER.info("[VetsMod] " + format, args);
     }
@@ -63,17 +60,14 @@ public final class VetsLogger {
         LOGGER.warn("[VetsMod] {}", msg);
     }
 
-    /** Log a potential problem with one argument. */
     public static void warn(String format, Object arg) {
         LOGGER.warn("[VetsMod] " + format, arg);
     }
 
-    /** Log a potential problem with two arguments. */
     public static void warn(String format, Object arg1, Object arg2) {
         LOGGER.warn("[VetsMod] " + format, arg1, arg2);
     }
 
-    /** Log a potential problem with variable arguments. */
     public static void warn(String format, Object... args) {
         LOGGER.warn("[VetsMod] " + format, args);
     }
@@ -83,12 +77,10 @@ public final class VetsLogger {
         LOGGER.error("[VetsMod] {}", msg);
     }
 
-    /** Log a hard failure with one argument. */
     public static void error(String format, Object arg) {
         LOGGER.error("[VetsMod] " + format, arg);
     }
 
-    /** Log a hard failure with variable arguments. */
     public static void error(String format, Object... args) {
         LOGGER.error("[VetsMod] " + format, args);
     }
@@ -106,28 +98,24 @@ public final class VetsLogger {
         }
     }
 
-    /** Debug with one argument. */
     public static void debug(String format, Object arg) {
         if (debugEnabled) {
             LOGGER.info("[VetsMod DEBUG] " + format, arg);
         }
     }
 
-    /** Debug with two arguments. */
     public static void debug(String format, Object arg1, Object arg2) {
         if (debugEnabled) {
             LOGGER.info("[VetsMod DEBUG] " + format, arg1, arg2);
         }
     }
 
-    /** Debug with three arguments. */
     public static void debug(String format, Object arg1, Object arg2, Object arg3) {
         if (debugEnabled) {
             LOGGER.info("[VetsMod DEBUG] " + format, arg1, arg2, arg3);
         }
     }
 
-    /** Debug with variable arguments. */
     public static void debug(String format, Object... args) {
         if (debugEnabled) {
             LOGGER.info("[VetsMod DEBUG] " + format, args);

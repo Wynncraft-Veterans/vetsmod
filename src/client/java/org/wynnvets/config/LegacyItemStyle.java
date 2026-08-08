@@ -47,9 +47,6 @@ public final class LegacyItemStyle {
         return NamedColor.isValid(value);
     }
 
-    /**
-     * Check whether a value is a valid sprite name.
-     */
     public static boolean isValidSprite(String value) {
         if (value == null) return false;
         for (String s : VetsConfig.VALID_SPRITES) {

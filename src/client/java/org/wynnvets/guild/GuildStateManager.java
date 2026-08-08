@@ -278,11 +278,6 @@ public class GuildStateManager {
     return enteredWorld;
   }
 
-  /**
-   * Get the players name.
-   *
-   * @return The players name.
-   */
   public static String playerName() {
     return playerName;
   }
@@ -539,9 +534,6 @@ public class GuildStateManager {
     AnniModeManager.applyStartupDefaultIfNeeded();
   }
 
-  /**
-   * Fetch and display the MOTD message.
-   */
   private static void fetchAndDisplayMotd() {
     // Check if auto-messages are enabled (global gate)
     if (!VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE)) {

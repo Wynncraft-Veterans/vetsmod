@@ -33,10 +33,6 @@ public final class DebugConfigManager {
         VetsConfig.registerDefault(ITEM_DUMP, false);
     }
 
-    /**
-     * Returns {@code true} if {@code key} is a debug config key managed
-     * by this class.
-     */
     public static boolean isDebugConfigKey(String key) {
         for (String debugKey : DEBUG_CONFIG_KEYS) {
             if (debugKey.equals(key)) return true;

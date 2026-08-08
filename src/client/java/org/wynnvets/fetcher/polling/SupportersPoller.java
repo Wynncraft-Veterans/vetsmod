@@ -42,9 +42,6 @@ public class SupportersPoller {
   private static ScheduledExecutorService scheduler;
   private static boolean isRunning = false;
 
-  /**
-   * Starts periodic fetching of the supporters list.
-   */
   public static void start() {
     if (isRunning) {
       return;
@@ -66,9 +63,6 @@ public class SupportersPoller {
     }, 0, REFRESH_INTERVAL_MINUTES, TimeUnit.MINUTES);
   }
 
-  /**
-   * Stops the periodic fetching.
-   */
   public static void stop() {
     if (scheduler != null && !scheduler.isShutdown()) {
       scheduler.shutdown();

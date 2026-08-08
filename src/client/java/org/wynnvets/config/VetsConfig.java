@@ -613,12 +613,6 @@ public class VetsConfig {
     config.putIfAbsent(key, defaultValue);
   }
 
-  /**
-   * Check if a configuration key is user-facing (togglable via {@code /wv config}).
-   *
-   * @param key The configuration key to check
-   * @return true if it is a user-configurable key
-   */
   public static boolean isUserConfigKey(String key) {
     for (String userKey : USER_CONFIG_KEYS) {
       if (userKey.equals(key)) return true;
@@ -626,12 +620,6 @@ public class VetsConfig {
     return false;
   }
 
-  /**
-   * Check if a configuration key is a tri-state key (supports true/false/default).
-   *
-   * @param key The configuration key to check
-   * @return true if it is a tri-state key
-   */
   public static boolean isTriStateKey(String key) {
     for (String tsKey : TRISTATE_KEYS) {
       if (tsKey.equals(key)) return true;
@@ -639,13 +627,6 @@ public class VetsConfig {
     return false;
   }
 
-  /**
-   * Check if a configuration key is a string key (stores one of a fixed set
-   * of string values).
-   *
-   * @param key The configuration key to check
-   * @return true if it is a string config key
-   */
   public static boolean isStringKey(String key) {
     for (String sk : STRING_CONFIG_KEYS) {
       if (sk.equals(key)) return true;
@@ -653,12 +634,6 @@ public class VetsConfig {
     return false;
   }
 
-  /**
-   * Check if a configuration key is an integer key (stored as long).
-   *
-   * @param key The configuration key to check
-   * @return true if it is an int config key
-   */
   public static boolean isIntKey(String key) {
     for (String ik : INT_CONFIG_KEYS) {
       if (ik.equals(key)) return true;
@@ -757,9 +732,6 @@ public class VetsConfig {
     }
   }
 
-  /**
-   * Save configuration to file
-   */
   private static void save() {
     try {
       // Ensure the config directory exists
