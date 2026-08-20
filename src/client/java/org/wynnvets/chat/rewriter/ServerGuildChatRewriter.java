@@ -364,7 +364,8 @@ public final class ServerGuildChatRewriter {
 
     // ── Guild chat parsing ────────────────────────────────────────────
 
-    private static ParsedGuildChat parseGuildChat(String message) {
+    // Package-private for unit tests. See GuildChatParseTest.
+    static ParsedGuildChat parseGuildChat(String message) {
         int colonIndex = message.indexOf(':');
         if (colonIndex <= 0) {
             return null;
@@ -405,7 +406,8 @@ public final class ServerGuildChatRewriter {
         return new ParsedGuildChat(rankIndicator, username, bodyStart);
     }
 
-    private static final class ParsedGuildChat {
+    // Package-private for unit tests. See GuildChatParseTest.
+    static final class ParsedGuildChat {
         final String rankIndicator;
         final String username;
         final int bodyCharStart;

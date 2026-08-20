@@ -230,7 +230,8 @@ public final class EncourageUpdateRewriter {
 
     private record FlatPart(String text, Style style) {}
 
-    private static ParsedGuildChat parseGuildChat(String message) {
+    // Package-private for unit tests. See GuildChatParseTest.
+    static ParsedGuildChat parseGuildChat(String message) {
         if (message == null || message.isEmpty()) {
             return null;
         }
@@ -267,5 +268,6 @@ public final class EncourageUpdateRewriter {
         return new ParsedGuildChat(username, messageContent);
     }
 
-    private record ParsedGuildChat(String username, String message) {}
+    // Package-private for unit tests. See GuildChatParseTest.
+    record ParsedGuildChat(String username, String message) {}
 }
