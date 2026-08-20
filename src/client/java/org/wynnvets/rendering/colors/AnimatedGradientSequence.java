@@ -183,7 +183,8 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
         return color != null && color.getValue() == GREY_MARKER_COLOR;
     }
 
-    private static int interpolateColor(int c1, int c2, float t) {
+    // Package-private for unit tests. See ColorLerpTest.
+    static int interpolateColor(int c1, int c2, float t) {
         int r1 = (c1 >> 16) & 0xFF, g1 = (c1 >> 8) & 0xFF, b1 = c1 & 0xFF;
         int r2 = (c2 >> 16) & 0xFF, g2 = (c2 >> 8) & 0xFF, b2 = c2 & 0xFF;
         int r = Math.round(r1 + (r2 - r1) * t);

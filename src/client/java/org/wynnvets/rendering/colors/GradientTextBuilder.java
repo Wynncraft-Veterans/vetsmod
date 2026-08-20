@@ -107,7 +107,8 @@ public final class GradientTextBuilder {
                 || (type == Character.UNASSIGNED && codePoint > 0xFFFF);
     }
 
-    private static int interpolateRgb(int startRgb, int endRgb, float t) {
+    // Package-private for unit tests. See ColorLerpTest.
+    static int interpolateRgb(int startRgb, int endRgb, float t) {
         int startR = (startRgb >> 16) & 0xFF;
         int startG = (startRgb >> 8) & 0xFF;
         int startB = startRgb & 0xFF;
