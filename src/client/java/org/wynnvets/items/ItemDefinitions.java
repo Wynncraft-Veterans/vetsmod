@@ -81,7 +81,8 @@ public class ItemDefinitions {
         }
     }
 
-    private static void parse(InputStream input) throws IOException {
+    // Package-private for unit tests. See ItemDefinitionsTest.
+    static void parse(InputStream input) throws IOException {
         try (BufferedReader reader =
                 new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8))) {
             String currentSection = null;
