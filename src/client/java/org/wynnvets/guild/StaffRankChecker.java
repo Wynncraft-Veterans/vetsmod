@@ -193,7 +193,8 @@ final class StaffRankChecker {
         VetsLogger.debug("Staff rank check queued via Wynntils command queue");
     }
 
-    private static boolean isStaffRankUnauthorizedResponse(String message) {
+    // Package-private for unit tests. See StaffRankCheckerTest.
+    static boolean isStaffRankUnauthorizedResponse(String message) {
         if (message == null) return false;
         String lower = message.toLowerCase();
         return lower.contains("you must be a")
@@ -201,7 +202,8 @@ final class StaffRankChecker {
                 && lower.contains("to use this command");
     }
 
-    private static boolean isStaffRankAuthorizedResponse(String message) {
+    // Package-private for unit tests. See StaffRankCheckerTest.
+    static boolean isStaffRankAuthorizedResponse(String message) {
         if (message == null) return false;
         String lower = message.toLowerCase();
         return lower.contains("invalid arguments, try:") && lower.contains("rank [name] [rank]");
