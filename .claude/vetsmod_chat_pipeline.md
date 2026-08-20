@@ -58,7 +58,7 @@ Triggers on `‼` prefix. Builds purple shout prefix + "ALERT" pill + body (bold
 [StaffChannelMessageRewriter](../src/client/java/org/wynnvets/chat/rewriter/StaffChannelMessageRewriter.java)
 
 Triggers on `🔐` lock prefix in private messages (the `/v` fanout discriminator).
-Extracts sender from: click event (`/msg <name>`), hover text ("real name is"), or username regex at end. Displays via `ChatUtils.sendStaffChannelMessage()`.
+Extracts sender from: click event (`/msg <name>`), hover text (via `NickResolver.flattenComponent` + `realUsernameFromHover`), or username regex at end. Displays via `ChatUtils.sendStaffChannelMessage()`.
 
 ### ServerGuildChatRewriter
 [ServerGuildChatRewriter](../src/client/java/org/wynnvets/chat/rewriter/ServerGuildChatRewriter.java)
@@ -83,7 +83,7 @@ the colon is the name — and two public entry points over it:
 | `null` input | returns `null` | throws, no guard |
 | the body | trimmed substring | char offset the caller slices |
 | rank indicator | discarded | returned, carries the pill |
-| after the colon | `trim()`, all whitespace both ends | past literal `' '` only |
+| after the colon | `trim()`, so `<= U+0020` at both ends — not `strip()` | past literal `' '` only, leading only |
 
 The four differences are deliberate, not drift, and the class Javadoc carries
 the same table. `ServerGuildChatRewriter` rebuilds its line from the original
@@ -95,23 +95,33 @@ the colon is a tab or a newline.
 ### NickResolver
 [NickResolver](../src/client/java/org/wynnvets/chat/NickResolver.java)
 
-The repo's real-name and component-flattening authority. Three rewriters call
-it and none keeps a copy.
+The repo's real-name and component-flattening authority. **Five** rewriters call
+it and none keeps a copy: all of §3's five. Three reach `flattenComponent`
+directly (`ServerGuildChatRewriter`, `SpoilerRewriter`,
+`StaffChannelMessageRewriter`); the other two arrive through
+`realUsernameOrFallback`.
 
 - `realUsernameOrFallback(root, fallback)` — first hover matching
   `REAL_NAME_PATTERN` wins, else the fallback. `EncourageUpdateRewriter`,
   `StaffGuildAlertRewriter`, `ServerGuildChatRewriter`.
+- `realUsernameFromHover(hover)` — the same match against one hover.
+  `StaffChannelMessageRewriter`, which walks the tree itself because it wants
+  the click event too.
 - `realNameSpanStyleOrFallback(root, fallback)` — the *style* of that span, so a
   rebuilt name span keeps the nick's italic, colour and hover.
 - `flattenComponent(component, inherited, out)` — the tree walk, into
   `FlatPart(text, style)`. Resolution is `child.applyTo(inherited)`: child fields
   win, the ancestor fills gaps.
 
-That orientation is load bearing in two directions and both are pinned. A hover
-on an ancestor must not mask a `"real name is …"` hover on a descendant — it did
-until Phase 5a, which is what made a nicked staff sender fail the staff gate.
-And a span with no font of its own must inherit one, or `ServerGuildChatRewriter`
-selects no pill fragments at all.
+That orientation is load bearing in two directions and both are pinned in
+`NickResolverTest`. A hover on an ancestor must not mask a `"real name is …"`
+hover on a descendant. And a span with no font of its own must inherit one, or
+`ServerGuildChatRewriter` selects no pill fragments at all.
+
+This walk itself was never wrong. What was wrong until Phase 5a was
+`EncourageUpdateRewriter`'s **private copy** of it, which had receiver and
+argument swapped — that is what made a nicked staff sender fail the staff gate,
+and it affected only that one rewriter. The copy is gone.
 
 ## 4. Spoiler PUA codec
 

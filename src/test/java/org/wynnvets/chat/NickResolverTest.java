@@ -19,26 +19,35 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link NickResolver}, the repo's real-name and component-flattening
- * authority — three rewriters call it and none keeps a copy of the walk.
+ * authority — five rewriters call it and none keeps a copy of the walk.
+ *
+ * <p><b>Five cases here discriminate {@link NickResolver#flattenComponent}'s
+ * style orientation</b> (verified by inverting the {@code applyTo} and watching
+ * which fail): {@link #realNameSpanStyleOrFallback_childColorOverridesParent()},
+ * {@link #flattenComponent_childFieldsOverrideParent()},
+ * {@link #flattenComponent_childFontOverridesTheParentFont()} and the two
+ * {@code ancestorHover…} cases. All pin the same rule — <em>child wins, ancestor
+ * fills gaps</em> — through a different {@link Style} field.</p>
  *
  * <p>The two {@code ancestorHover…} cases carry over from the retired
- * {@code EncourageUpdateRewriterTest} and are the only cases here that
- * discriminate {@link NickResolver#flattenComponent}'s style orientation. They
- * pin <em>child wins, ancestor fills gaps</em>: a hover on an ancestor must not
- * mask a "real name is …" hover on a descendant.
+ * {@code EncourageUpdateRewriterTest} and are the ones that pin it for
+ * {@code hoverEvent} specifically, which is the field the "real name is …" scan
+ * reads and the one that was resolved the wrong way round until Phase 5a.
  * {@link #flattenComponent_siblingWithoutColorInheritsParent()} holds under
- * <em>either</em> orientation and is not coverage of it.</p>
+ * <em>either</em> orientation and is not coverage of it — it fails only when the
+ * inheritance is dropped altogether.</p>
  *
  * <p>The four cases below the pattern divider pin properties of
  * {@link NickResolver#REAL_NAME_PATTERN} and of the walk that feeds it, and
  * also carry over from that class.</p>
  *
- * <p>The three {@code flattenComponent_…Font} cases at the end pin the one
- * {@link Style} field no other caller of this walk reads:
+ * <p>The {@code …Font} cases at the end pin the one {@link Style} field no other
+ * caller of this walk reads:
  * {@code org.wynnvets.chat.rewriter.ServerGuildChatRewriter ServerGuildChatRewriter}
  * selects the pill fragments out of a chat line by comparing each resolved
  * style's {@code font} against {@code banner/pill}, so which span ends up
- * carrying that font decides whether the pill renders at all.</p>
+ * carrying that font decides whether the pill renders at all. The third of them
+ * pins Minecraft's contract rather than this walk's; it says so.</p>
  */
 class NickResolverTest {
 
@@ -351,11 +360,14 @@ class NickResolverTest {
     }
 
     @Test
-    void flattenComponent_aSpanWithNoFontAnywhereResolvesToTheDefault() {
-        // The username and message spans. Nothing in their ancestry sets a
-        // font, and getFont() answers with FontDescription.DEFAULT rather than
-        // null — so the pill selection compares a real value and rejects them,
-        // and a future reader cannot mistake "no font" for "not resolved".
+    void flattenComponent_anUnfontedSpanCarriesMinecraftsDefaultFontNotNull() {
+        // The username and message spans. This one pins vanilla Style.getFont()'s
+        // null-free contract, NOT this walk — it survives both the inverted
+        // orientation and no inheritance at all, because nothing in the fixture
+        // sets a font either way. It earns its place because
+        // extractPillFragments calls pillFontId.equals(frag.style().getFont())
+        // and would silently reject every fragment if that ever returned null,
+        // and because it stops a reader mistaking "no font" for "not resolved".
         MutableComponent root = Component.literal("").setStyle(AQUA_STYLE);
         root.append(Component.literal(NICK).setStyle(Style.EMPTY.withItalic(true)));
 

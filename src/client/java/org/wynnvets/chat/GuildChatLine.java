@@ -8,8 +8,8 @@ package org.wynnvets.chat;
  * <body>}. The rank indicator is a run of custom-font glyphs; the display name
  * is whatever sits between the <em>last</em> such glyph and the first colon,
  * trimmed — it may contain spaces, e.g. {@code "EYAL5555/First Mage"}. That
- * header scan is shared, and {@link #rankIndicatorEnd} is the only copy of
- * it.</p>
+ * header scan is shared, and the private {@code rankIndicatorEnd} is the only
+ * copy of it.</p>
  *
  * <h2>Two parsers, four deliberate differences</h2>
  *
@@ -42,7 +42,9 @@ package org.wynnvets.chat;
  *   </tr>
  *   <tr>
  *     <td>whitespace after the colon</td>
- *     <td>{@code trim()}: every kind of whitespace, at both ends</td>
+ *     <td>{@code trim()}, so every character at or below {@code U+0020}, at both
+ *         ends. Note {@code trim()} is not {@code strip()}: a body starting with
+ *         {@code U+2003} EM SPACE keeps it</td>
  *     <td>advances past literal {@code ' '} only, and only at the start — so a
  *         body beginning with a tab or a newline keeps it</td>
  *   </tr>

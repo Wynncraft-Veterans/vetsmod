@@ -16,9 +16,11 @@ import org.junit.jupiter.api.Test;
  * happened to wear the same name. Everything above the first divergence heading
  * exercises the header scan they share: find the last custom glyph before the
  * first colon, take the trimmed run between it and the colon as the display
- * name. A "custom glyph" is {@code PRIVATE_USE}, or {@code UNASSIGNED}
- * <em>above the BMP</em> — the supplementary bound is part of the predicate and
- * is not one of the repo's other PUA tests.</p>
+ * name. A "custom glyph" is {@link org.wynnvets.chat.PillCodec#isCustomGlyph(int)
+ * PillCodec.isCustomGlyph}, and the supplementary bound in it is what these cases
+ * exercise from the caller's side —
+ * {@link PillCodecTest#isCustomGlyph_acceptsSupplementaryUnassignedButNotBmpUnassigned()}
+ * pins the same bound at the predicate itself.</p>
  *
  * <p>Everything below pins the four cells where the two disagree:</p>
  *
@@ -28,9 +30,11 @@ import org.junit.jupiter.api.Test;
  *   <li>it returns a char <em>index</em> into the original string, not a body
  *       substring;</li>
  *   <li>it keeps the rank indicator, which {@code parse} discards;</li>
- *   <li>it advances past <b>spaces only</b> where {@code parse} {@code trim()}s
- *       all whitespace — so the body offset differs whenever the character after
- *       the colon is a tab or a newline.</li>
+ *   <li>it advances past <b>literal spaces only</b> where {@code parse}
+ *       {@code trim()}s — so the body offset differs whenever the character after
+ *       the colon is a tab or a newline. ({@code trim()} cuts at {@code U+0020},
+ *       not at {@code Character.isWhitespace}; neither method removes an EM
+ *       SPACE.)</li>
  * </ol>
  *
  * <p>(4) is the one a collapse of the two would flatten without anyone

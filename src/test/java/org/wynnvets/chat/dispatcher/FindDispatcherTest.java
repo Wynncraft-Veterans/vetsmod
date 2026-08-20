@@ -19,8 +19,11 @@ import org.junit.jupiter.api.Test;
  * the canonical predicate would change what {@code /find} recognises, with no
  * motivation for the change.</p>
  *
- * <p>The BMP-unassigned case below is the only one that discriminates. A
- * supplementary probe passes under either form, which is the trap
+ * <p>{@link #strip_alsoRemovesBmpUnassignedFormatAndSurrogates()} is the only
+ * case that discriminates against the canonical predicate, and all three of its
+ * assertions do so — the BMP-unassigned probe, the FORMAT probe and the
+ * SURROGATE probe, one per added clause. A <em>supplementary</em> unassigned
+ * probe would not: it passes under either form, which is the trap
  * {@code MessageFanoutDispatcherTest} documents for the sibling strip.</p>
  *
  * <p>NOTE: {@link FindDispatcher} imports Minecraft and Wynntils, but its
