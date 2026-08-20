@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
+import org.wynnvets.chat.GuildChatLine;
 
 /**
  * Tests for the three {@code parseGuildChat} copies in this package —
@@ -49,45 +50,26 @@ class GuildChatParseTest {
     /** UNASSIGNED but inside the BMP, so the {@code cp > 0xFFFF} bound excludes it. */
     private static final String BMP_UNASSIGNED = String.valueOf((char) 0x0378);
 
-    /** Assert the two code-identical copies agree, and return their shared result. */
-    private static EncourageUpdateRewriter.ParsedGuildChat bothIdenticalCopies(String message) {
-        EncourageUpdateRewriter.ParsedGuildChat encourage =
-                EncourageUpdateRewriter.parseGuildChat(message);
-        StaffGuildAlertRewriter.ParsedGuildChat staff =
-                StaffGuildAlertRewriter.parseGuildChat(message);
-
-        if (encourage == null || staff == null) {
-            assertNull(encourage, "the two identical copies must agree on rejection");
-            assertNull(staff, "the two identical copies must agree on rejection");
-            return null;
-        }
-        assertEquals(encourage.username(), staff.username(), "the copies must agree on the name");
-        assertEquals(encourage.message(), staff.message(), "the copies must agree on the body");
-        return encourage;
-    }
-
     // ----- The shared header scan -----
 
     @Test
     void allThreeReadTheNameBetweenTheLastGlyphAndTheColon() {
         String line = PUA + " Alice: hello there";
 
-        EncourageUpdateRewriter.ParsedGuildChat shared = bothIdenticalCopies(line);
+        GuildChatLine.Parsed shared = GuildChatLine.parse(line);
         assertNotNull(shared);
         assertEquals("Alice", shared.username());
         assertEquals("hello there", shared.message());
 
-        ServerGuildChatRewriter.ParsedGuildChat server =
-                ServerGuildChatRewriter.parseGuildChat(line);
+        GuildChatLine.ServerParsed server = GuildChatLine.parseServerLine(line);
         assertNotNull(server);
-        assertEquals("Alice", server.username);
+        assertEquals("Alice", server.username());
     }
 
     @Test
     void theNameMayContainSpaces() {
         // Wynncraft display names can carry a suffix, e.g. "EYAL5555/First Mage".
-        EncourageUpdateRewriter.ParsedGuildChat shared =
-                bothIdenticalCopies(PUA + " EYAL5555/First Mage: hi");
+        GuildChatLine.Parsed shared = GuildChatLine.parse(PUA + " EYAL5555/First Mage: hi");
         assertNotNull(shared);
         assertEquals("EYAL5555/First Mage", shared.username());
     }
@@ -96,8 +78,7 @@ class GuildChatParseTest {
     void theScanTakesTheLastGlyphNotTheFirst() {
         // The rank indicator is a run of glyphs; only what follows the final one
         // is the name.
-        EncourageUpdateRewriter.ParsedGuildChat shared =
-                bothIdenticalCopies(PUA + "junk" + PUA + " Alice: hi");
+        GuildChatLine.Parsed shared = GuildChatLine.parse(PUA + "junk" + PUA + " Alice: hi");
         assertNotNull(shared);
         assertEquals("Alice", shared.username());
     }
@@ -107,70 +88,68 @@ class GuildChatParseTest {
         // The predicate is PRIVATE_USE || (UNASSIGNED && cp > 0xFFFF). The
         // supplementary bound is deliberate: unassigned BMP codepoints turn up
         // in ordinary text, supplementary ones are Wynncraft's markers.
-        EncourageUpdateRewriter.ParsedGuildChat viaSupplementary =
-                bothIdenticalCopies(SUPPLEMENTARY_UNASSIGNED + " Alice: hi");
+        GuildChatLine.Parsed viaSupplementary =
+                GuildChatLine.parse(SUPPLEMENTARY_UNASSIGNED + " Alice: hi");
         assertNotNull(viaSupplementary);
         assertEquals("Alice", viaSupplementary.username());
 
         assertNull(
-                bothIdenticalCopies(BMP_UNASSIGNED + " Alice: hi"),
+                GuildChatLine.parse(BMP_UNASSIGNED + " Alice: hi"),
                 "an unassigned BMP codepoint is not a rank glyph");
     }
 
     @Test
     void aLineWithNoGlyphBeforeTheColonIsRejected() {
-        assertNull(bothIdenticalCopies("Alice: hi"));
-        assertNull(ServerGuildChatRewriter.parseGuildChat("Alice: hi"));
+        assertNull(GuildChatLine.parse("Alice: hi"));
+        assertNull(GuildChatLine.parseServerLine("Alice: hi"));
     }
 
     @Test
     void aGlyphAfterTheColonDoesNotCount() {
         // The scan stops at the colon, so a glyph in the body is invisible.
-        assertNull(bothIdenticalCopies("Alice: " + PUA + " hi"));
+        assertNull(GuildChatLine.parse("Alice: " + PUA + " hi"));
     }
 
     @Test
     void missingOrLeadingColonIsRejected() {
-        assertNull(bothIdenticalCopies(PUA + " Alice hi"), "no colon at all");
-        assertNull(bothIdenticalCopies(": " + PUA + " Alice"), "colonIndex <= 0");
-        assertNull(ServerGuildChatRewriter.parseGuildChat(PUA + " Alice hi"));
+        assertNull(GuildChatLine.parse(PUA + " Alice hi"), "no colon at all");
+        assertNull(GuildChatLine.parse(": " + PUA + " Alice"), "colonIndex <= 0");
+        assertNull(GuildChatLine.parseServerLine(PUA + " Alice hi"));
     }
 
     @Test
     void aGlyphEndingExactlyAtTheColonLeavesNoRoomForAName() {
         // lastGlyphEnd >= colonIndex fires before the emptiness check.
-        assertNull(bothIdenticalCopies(PUA + ": hi"));
-        assertNull(ServerGuildChatRewriter.parseGuildChat(PUA + ": hi"));
+        assertNull(GuildChatLine.parse(PUA + ": hi"));
+        assertNull(GuildChatLine.parseServerLine(PUA + ": hi"));
     }
 
     @Test
     void aWhitespaceOnlyNameIsRejected() {
-        assertNull(bothIdenticalCopies(PUA + "   : hi"), "the name trims to empty");
-        assertNull(ServerGuildChatRewriter.parseGuildChat(PUA + "   : hi"));
+        assertNull(GuildChatLine.parse(PUA + "   : hi"), "the name trims to empty");
+        assertNull(GuildChatLine.parseServerLine(PUA + "   : hi"));
     }
 
     @Test
     void theNameIsTrimmedOnBothSides() {
-        EncourageUpdateRewriter.ParsedGuildChat shared =
-                bothIdenticalCopies(PUA + " \t Alice \t : hi");
+        GuildChatLine.Parsed shared = GuildChatLine.parse(PUA + " \t Alice \t : hi");
         assertNotNull(shared);
         assertEquals("Alice", shared.username());
 
-        ServerGuildChatRewriter.ParsedGuildChat server =
-                ServerGuildChatRewriter.parseGuildChat(PUA + " \t Alice \t : hi");
+        GuildChatLine.ServerParsed server =
+                GuildChatLine.parseServerLine(PUA + " \t Alice \t : hi");
         assertNotNull(server);
-        assertEquals("Alice", server.username, "all three trim the name identically");
+        assertEquals("Alice", server.username(), "all three trim the name identically");
     }
 
     // ----- Divergence 1: the null guard -----
 
     @Test
-    void nullIsRejectedByTwoCopiesAndThrowsInTheThird() {
-        assertNull(EncourageUpdateRewriter.parseGuildChat(null));
-        assertNull(StaffGuildAlertRewriter.parseGuildChat(null));
+    void nullIsRejectedByParseAndThrowsInParseServerLine() {
+        assertNull(GuildChatLine.parse(null));
         assertThrows(
                 NullPointerException.class,
-                () -> ServerGuildChatRewriter.parseGuildChat(null),
+                () -> GuildChatLine.parseServerLine(null),
                 "no guard — it goes straight to message.indexOf(':')");
     }
 
@@ -180,8 +159,8 @@ class GuildChatParseTest {
         // colonIndex == -1 and fails the <= 0 check. Same answer, so a collapse
         // onto either body is safe here — which is exactly why the null case
         // above has to be checked separately.
-        assertNull(bothIdenticalCopies(""));
-        assertNull(ServerGuildChatRewriter.parseGuildChat(""));
+        assertNull(GuildChatLine.parse(""));
+        assertNull(GuildChatLine.parseServerLine(""));
     }
 
     // ----- Divergences 2 and 3: what comes back -----
@@ -190,16 +169,15 @@ class GuildChatParseTest {
     void theThirdCopyReturnsAnIndexAndKeepsTheRankIndicator() {
         String line = PUA + " Alice: hello";
 
-        ServerGuildChatRewriter.ParsedGuildChat server =
-                ServerGuildChatRewriter.parseGuildChat(line);
+        GuildChatLine.ServerParsed server = GuildChatLine.parseServerLine(line);
         assertNotNull(server);
-        assertEquals(PUA, server.rankIndicator, "everything up to and including the last glyph");
+        assertEquals(PUA, server.rankIndicator(), "everything up to and including the last glyph");
         assertEquals(
                 "hello",
-                line.substring(server.bodyCharStart),
+                line.substring(server.bodyCharStart()),
                 "the body is an offset the caller slices, not a string it is handed");
 
-        EncourageUpdateRewriter.ParsedGuildChat shared = bothIdenticalCopies(line);
+        GuildChatLine.Parsed shared = GuildChatLine.parse(line);
         assertNotNull(shared);
         assertEquals("hello", shared.message(), "the other two hand back the substring");
     }
@@ -214,16 +192,15 @@ class GuildChatParseTest {
         // the caller renders it.
         String line = PUA + " Alice: \n hello";
 
-        EncourageUpdateRewriter.ParsedGuildChat shared = bothIdenticalCopies(line);
+        GuildChatLine.Parsed shared = GuildChatLine.parse(line);
         assertNotNull(shared);
         assertEquals("hello", shared.message(), "trim() removes the leading newline");
 
-        ServerGuildChatRewriter.ParsedGuildChat server =
-                ServerGuildChatRewriter.parseGuildChat(line);
+        GuildChatLine.ServerParsed server = GuildChatLine.parseServerLine(line);
         assertNotNull(server);
         assertEquals(
                 "\n hello",
-                line.substring(server.bodyCharStart),
+                line.substring(server.bodyCharStart()),
                 "the space-only skip stops at the newline and keeps it in the body");
     }
 
@@ -231,14 +208,13 @@ class GuildChatParseTest {
     void bodyOffsetAlsoDivergesOnATab() {
         String line = PUA + " Alice:\thello";
 
-        EncourageUpdateRewriter.ParsedGuildChat shared = bothIdenticalCopies(line);
+        GuildChatLine.Parsed shared = GuildChatLine.parse(line);
         assertNotNull(shared);
         assertEquals("hello", shared.message());
 
-        ServerGuildChatRewriter.ParsedGuildChat server =
-                ServerGuildChatRewriter.parseGuildChat(line);
+        GuildChatLine.ServerParsed server = GuildChatLine.parseServerLine(line);
         assertNotNull(server);
-        assertEquals("\thello", line.substring(server.bodyCharStart));
+        assertEquals("\thello", line.substring(server.bodyCharStart()));
     }
 
     @Test
@@ -247,29 +223,27 @@ class GuildChatParseTest {
         // trailing whitespace survives in the third copy's caller.
         String line = PUA + " Alice: hello   ";
 
-        EncourageUpdateRewriter.ParsedGuildChat shared = bothIdenticalCopies(line);
+        GuildChatLine.Parsed shared = GuildChatLine.parse(line);
         assertNotNull(shared);
         assertEquals("hello", shared.message());
 
-        ServerGuildChatRewriter.ParsedGuildChat server =
-                ServerGuildChatRewriter.parseGuildChat(line);
+        GuildChatLine.ServerParsed server = GuildChatLine.parseServerLine(line);
         assertNotNull(server);
-        assertEquals("hello   ", line.substring(server.bodyCharStart));
+        assertEquals("hello   ", line.substring(server.bodyCharStart()));
     }
 
     @Test
     void anEmptyBodyIsAnEmptyStringNotNull() {
-        EncourageUpdateRewriter.ParsedGuildChat shared = bothIdenticalCopies(PUA + " Alice:   ");
+        GuildChatLine.Parsed shared = GuildChatLine.parse(PUA + " Alice:   ");
         assertNotNull(shared);
         assertEquals("", shared.message());
 
         String line = PUA + " Alice:   ";
-        ServerGuildChatRewriter.ParsedGuildChat server =
-                ServerGuildChatRewriter.parseGuildChat(line);
+        GuildChatLine.ServerParsed server = GuildChatLine.parseServerLine(line);
         assertNotNull(server);
         assertEquals(
                 line.length(),
-                server.bodyCharStart,
+                server.bodyCharStart(),
                 "the space skip runs off the end rather than overrunning it");
     }
 }

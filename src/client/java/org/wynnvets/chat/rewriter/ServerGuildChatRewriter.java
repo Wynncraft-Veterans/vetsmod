@@ -12,6 +12,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatLogger;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.GuildChatLine;
 import org.wynnvets.chat.NickResolver;
 import org.wynnvets.chat.PillCodec;
 import org.wynnvets.chat.Prepend;
@@ -82,7 +83,7 @@ public final class ServerGuildChatRewriter {
             return false;
         }
 
-        ParsedGuildChat parsed = parseGuildChat(messageString);
+        GuildChatLine.ServerParsed parsed = GuildChatLine.parseServerLine(messageString);
         if (parsed == null) {
             return false;
         }
@@ -90,7 +91,7 @@ public final class ServerGuildChatRewriter {
         // Decode the raw Wynn rank from the pill's PUA sequence. Only proceed
         // if we recognise the pill — unknown pill glyphs are left untouched
         // (they aren't guild chat we're responsible for rewriting).
-        String rawRank = decodeRawRank(parsed.rankIndicator);
+        String rawRank = decodeRawRank(parsed.rankIndicator());
         if (rawRank == null) {
             return false;
         }
@@ -99,7 +100,7 @@ public final class ServerGuildChatRewriter {
         // when they aren't running a name-revealing client mod, so the visible
         // username won't match the supporter list.  The real username is
         // attached as a hover event on the name span.
-        String lookupUsername = NickResolver.realUsernameOrFallback(component, parsed.username);
+        String lookupUsername = NickResolver.realUsernameOrFallback(component, parsed.username());
         boolean isSupporter =
                 SupportersPoller.isSupporter(lookupUsername)
                         && org.wynnvets.config.VetsConfig.get(
@@ -147,7 +148,7 @@ public final class ServerGuildChatRewriter {
         MutableComponent badge = Prepend.GUILD.get();
 
         MutableComponent messageBody =
-                extractBodyComponent(component, parsed.bodyCharStart, ChatUtils.RANK_STYLE);
+                extractBodyComponent(component, parsed.bodyCharStart(), ChatUtils.RANK_STYLE);
 
         // Preserve the original name span's italic + hover for nicked players;
         // fall back to the flat NAME_STYLE for non-nicked supporters.
@@ -158,7 +159,7 @@ public final class ServerGuildChatRewriter {
                         .append(badge)
                         .append(pill)
                         .append(" ")
-                        .append(Component.literal(parsed.username).setStyle(nameStyle))
+                        .append(Component.literal(parsed.username()).setStyle(nameStyle))
                         .append(Component.literal(": ").setStyle(ChatUtils.RANK_STYLE))
                         .append(messageBody);
 
@@ -360,62 +361,5 @@ public final class ServerGuildChatRewriter {
         }
 
         return result;
-    }
-
-    // ── Guild chat parsing ────────────────────────────────────────────
-
-    // Package-private for unit tests. See GuildChatParseTest.
-    static ParsedGuildChat parseGuildChat(String message) {
-        int colonIndex = message.indexOf(':');
-        if (colonIndex <= 0) {
-            return null;
-        }
-
-        // Find the last custom-font glyph before the colon.  The rank
-        // indicator always ends with such a glyph; everything after it
-        // (trimmed) up to the colon is the display name — which may
-        // contain spaces (e.g. "EYAL5555/First Mage").
-        int lastGlyphEnd = -1;
-        int idx = 0;
-        while (idx < colonIndex) {
-            int cp = message.codePointAt(idx);
-            int charCount = Character.charCount(cp);
-            int type = Character.getType(cp);
-            boolean isCustomGlyph =
-                    type == Character.PRIVATE_USE || (type == Character.UNASSIGNED && cp > 0xFFFF);
-            if (isCustomGlyph) {
-                lastGlyphEnd = idx + charCount;
-            }
-            idx += charCount;
-        }
-
-        if (lastGlyphEnd <= 0 || lastGlyphEnd >= colonIndex) {
-            return null;
-        }
-
-        String username = message.substring(lastGlyphEnd, colonIndex).trim();
-        if (username.isEmpty()) {
-            return null;
-        }
-
-        String rankIndicator = message.substring(0, lastGlyphEnd);
-        int bodyStart = colonIndex + 1;
-        while (bodyStart < message.length() && message.charAt(bodyStart) == ' ') {
-            bodyStart++;
-        }
-        return new ParsedGuildChat(rankIndicator, username, bodyStart);
-    }
-
-    // Package-private for unit tests. See GuildChatParseTest.
-    static final class ParsedGuildChat {
-        final String rankIndicator;
-        final String username;
-        final int bodyCharStart;
-
-        ParsedGuildChat(String rankIndicator, String username, int bodyCharStart) {
-            this.rankIndicator = rankIndicator;
-            this.username = username;
-            this.bodyCharStart = bodyCharStart;
-        }
     }
 }

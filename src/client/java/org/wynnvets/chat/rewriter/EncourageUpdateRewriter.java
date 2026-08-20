@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.Vetsmod;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.GuildChatLine;
 import org.wynnvets.chat.NickResolver;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.logging.VetsLogger;
@@ -41,20 +42,20 @@ public final class EncourageUpdateRewriter {
      * @return {@code true} if the message was rewritten (caller should cancel)
      */
     public static boolean tryRewrite(Component message, String messageString) {
-        ParsedGuildChat parsed = parseGuildChat(messageString);
+        GuildChatLine.Parsed parsed = GuildChatLine.parse(messageString);
         if (parsed == null) {
             return false;
         }
 
         // The parsed username may be a Wynncraft nickname; the real username is
         // attached as a hover event on the name span.
-        String senderUsername = NickResolver.realUsernameOrFallback(message, parsed.username);
+        String senderUsername = NickResolver.realUsernameOrFallback(message, parsed.username());
 
         if (!isCurrentStaffSender(senderUsername)) {
             return false;
         }
 
-        String cleanedMessage = stripWrapArtifacts(parsed.message);
+        String cleanedMessage = stripWrapArtifacts(parsed.message());
         Matcher matcher = ENCOURAGE_PATTERN.matcher(cleanedMessage);
         if (!matcher.matches()) {
             return false;
@@ -143,8 +144,6 @@ public final class EncourageUpdateRewriter {
         return sb.toString().replaceAll("\\s+", " ").trim();
     }
 
-    // ── Guild chat parsing (shared pattern with StaffGuildAlertRewriter) ──
-
     private static String resolveStaffRank(String username) {
         if (username == null || username.isBlank()) {
             return "Captain";
@@ -186,45 +185,4 @@ public final class EncourageUpdateRewriter {
 
         return false;
     }
-
-    // Package-private for unit tests. See GuildChatParseTest.
-    static ParsedGuildChat parseGuildChat(String message) {
-        if (message == null || message.isEmpty()) {
-            return null;
-        }
-
-        int colonIndex = message.indexOf(':');
-        if (colonIndex <= 0) {
-            return null;
-        }
-
-        int lastGlyphEnd = -1;
-        int idx = 0;
-        while (idx < colonIndex) {
-            int cp = message.codePointAt(idx);
-            int charCount = Character.charCount(cp);
-            int type = Character.getType(cp);
-            boolean isCustomGlyph =
-                    type == Character.PRIVATE_USE || (type == Character.UNASSIGNED && cp > 0xFFFF);
-            if (isCustomGlyph) {
-                lastGlyphEnd = idx + charCount;
-            }
-            idx += charCount;
-        }
-
-        if (lastGlyphEnd <= 0 || lastGlyphEnd >= colonIndex) {
-            return null;
-        }
-
-        String username = message.substring(lastGlyphEnd, colonIndex).trim();
-        if (username.isEmpty()) {
-            return null;
-        }
-
-        String messageContent = message.substring(colonIndex + 1).trim();
-        return new ParsedGuildChat(username, messageContent);
-    }
-
-    // Package-private for unit tests. See GuildChatParseTest.
-    record ParsedGuildChat(String username, String message) {}
 }

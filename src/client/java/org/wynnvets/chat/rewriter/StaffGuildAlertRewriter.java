@@ -7,6 +7,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.GuildChatLine;
 import org.wynnvets.chat.NickResolver;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 
@@ -86,7 +87,7 @@ public final class StaffGuildAlertRewriter {
      * @return {@code true} if the message was rewritten (caller should cancel)
      */
     public static boolean tryRewrite(Component message, String messageString) {
-        ParsedGuildChat parsed = parseGuildChat(messageString);
+        GuildChatLine.Parsed parsed = GuildChatLine.parse(messageString);
         if (parsed == null) {
             return false;
         }
@@ -94,13 +95,13 @@ public final class StaffGuildAlertRewriter {
         // The parsed username may be a Wynncraft nickname (e.g. "Wencrobat"
         // instead of "Wenweia").  Resolve the true username from hover text
         // so the staff check works for nicknamed players.
-        String senderUsername = NickResolver.realUsernameOrFallback(message, parsed.username);
+        String senderUsername = NickResolver.realUsernameOrFallback(message, parsed.username());
 
         if (!isCurrentStaffSender(senderUsername)) {
             return false;
         }
 
-        String trimmed = parsed.message.stripLeading();
+        String trimmed = parsed.message().stripLeading();
         if (!trimmed.startsWith(ALERT_PREFIX)) {
             return false;
         }
@@ -164,49 +165,4 @@ public final class StaffGuildAlertRewriter {
 
         return false;
     }
-
-    // Package-private for unit tests. See GuildChatParseTest.
-    static ParsedGuildChat parseGuildChat(String message) {
-        if (message == null || message.isEmpty()) {
-            return null;
-        }
-
-        int colonIndex = message.indexOf(':');
-        if (colonIndex <= 0) {
-            return null;
-        }
-
-        // Find the last custom-font glyph before the colon.  The rank
-        // indicator always ends with such a glyph; everything after it
-        // (trimmed) up to the colon is the display name — which may
-        // contain spaces (e.g. "EYAL5555/First Mage").
-        int lastGlyphEnd = -1;
-        int idx = 0;
-        while (idx < colonIndex) {
-            int cp = message.codePointAt(idx);
-            int charCount = Character.charCount(cp);
-            int type = Character.getType(cp);
-            boolean isCustomGlyph =
-                    type == Character.PRIVATE_USE || (type == Character.UNASSIGNED && cp > 0xFFFF);
-            if (isCustomGlyph) {
-                lastGlyphEnd = idx + charCount;
-            }
-            idx += charCount;
-        }
-
-        if (lastGlyphEnd <= 0 || lastGlyphEnd >= colonIndex) {
-            return null;
-        }
-
-        String username = message.substring(lastGlyphEnd, colonIndex).trim();
-        if (username.isEmpty()) {
-            return null;
-        }
-
-        String messageContent = message.substring(colonIndex + 1).trim();
-        return new ParsedGuildChat(username, messageContent);
-    }
-
-    // Package-private for unit tests. See GuildChatParseTest.
-    record ParsedGuildChat(String username, String message) {}
 }
