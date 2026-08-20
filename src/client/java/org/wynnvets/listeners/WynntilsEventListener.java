@@ -23,6 +23,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.OutboundDisplayHandler;
+import org.wynnvets.chat.PillCodec;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.queue.QueueStateManager;
@@ -552,7 +553,8 @@ public final class WynntilsEventListener {
     }
 
     /**
-     * Strips all Private Use Area codepoints (BMP and supplementary) from a string.
+     * Strips every codepoint {@link org.wynnvets.chat.PillCodec#isCustomGlyph(int)
+     * PillCodec.isCustomGlyph} classifies as resource-pack glyph art.
      */
     private static String stripPuaCharacters(String text) {
         if (text == null) return "";
@@ -561,10 +563,7 @@ public final class WynntilsEventListener {
         while (i < text.length()) {
             int cp = text.codePointAt(i);
             int charCount = Character.charCount(cp);
-            int type = Character.getType(cp);
-            boolean isCustomGlyph =
-                    type == Character.PRIVATE_USE || (type == Character.UNASSIGNED && cp > 0xFFFF);
-            if (!isCustomGlyph) {
+            if (!PillCodec.isCustomGlyph(cp)) {
                 sb.appendCodePoint(cp);
             }
             i += charCount;

@@ -349,11 +349,7 @@ public final class OutboundDisplayHandler {
             int cp = text.codePointAt(i);
             int charCount = Character.charCount(cp);
             if (!Character.isWhitespace(cp)) {
-                int type = Character.getType(cp);
-                boolean isCustomGlyph =
-                        type == Character.PRIVATE_USE
-                                || (type == Character.UNASSIGNED && cp > 0xFFFF);
-                if (!isCustomGlyph) {
+                if (!PillCodec.isCustomGlyph(cp)) {
                     sb.appendCodePoint(cp);
                 }
             }

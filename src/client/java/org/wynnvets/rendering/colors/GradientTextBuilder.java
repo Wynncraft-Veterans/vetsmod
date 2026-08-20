@@ -4,6 +4,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
+import org.wynnvets.chat.PillCodec;
 
 /**
  * Utility for creating gradient-coloured text components.
@@ -55,15 +56,15 @@ public final class GradientTextBuilder {
         while (charIndex < text.length()) {
             int cp = text.codePointAt(charIndex);
 
-            if (isCustomFontGlyph(cp)) {
-                // Custom font glyphs (PUA + unassigned supplementary plane chars used by
-                // Wynncraft's chat/prefix font) must stay in a single text run so the
-                // font can render them as composite badge glyphs.
+            if (PillCodec.isCustomGlyph(cp)) {
+                // A run of custom font glyphs must stay in one text run so the
+                // resource-pack font can render it as composite badge art;
+                // colouring per character would break the composite.
                 int groupCharStart = charIndex;
                 int groupCpStart = cpIndex;
                 while (charIndex < text.length()) {
                     cp = text.codePointAt(charIndex);
-                    if (!isCustomFontGlyph(cp)) {
+                    if (!PillCodec.isCustomGlyph(cp)) {
                         break;
                     }
                     charIndex += Character.charCount(cp);
@@ -92,19 +93,6 @@ public final class GradientTextBuilder {
         }
 
         return component;
-    }
-
-    /**
-     * Returns {@code true} for code points that are custom font glyphs
-     * rather than normal printable text.  This includes both standard
-     * Private Use Area characters (BMP + Supplementary PUA-A/B) <b>and</b>
-     * characters in unassigned supplementary planes that Wynncraft's
-     * {@code chat/prefix} resource-pack font maps to badge artwork.
-     */
-    private static boolean isCustomFontGlyph(int codePoint) {
-        int type = Character.getType(codePoint);
-        return type == Character.PRIVATE_USE
-                || (type == Character.UNASSIGNED && codePoint > 0xFFFF);
     }
 
     // Package-private for unit tests. See ColorLerpTest.

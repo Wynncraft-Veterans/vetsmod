@@ -88,17 +88,15 @@ public final class PillFormatter {
     }
 
     /**
-     * Returns {@code true} if the text contains any codepoint that is rendered by
-     * a custom resource-pack font (Private Use Area or unassigned supplementary
-     * plane characters used by Wynncraft's {@code chat/prefix} font).
+     * Returns {@code true} if the text contains any codepoint that
+     * {@link PillCodec#isCustomGlyph(int)} classifies as resource-pack glyph art
+     * rather than as text.
      */
     private static boolean containsCustomFontGlyph(String text) {
         int index = 0;
         while (index < text.length()) {
             int codePoint = text.codePointAt(index);
-            int type = Character.getType(codePoint);
-            if (type == Character.PRIVATE_USE
-                    || (type == Character.UNASSIGNED && codePoint > 0xFFFF)) {
+            if (PillCodec.isCustomGlyph(codePoint)) {
                 return true;
             }
             index += Character.charCount(codePoint);

@@ -136,11 +136,9 @@ public final class GuildChatLine {
      * {@code colonIndex}, or {@code -1} if there is none or it leaves no room
      * for a display name.
      *
-     * <p>A custom glyph is {@code PRIVATE_USE}, or {@code UNASSIGNED}
-     * <em>above the BMP</em>. The supplementary bound is deliberate: unassigned
-     * BMP codepoints turn up in ordinary text, supplementary ones are
-     * Wynncraft's markers. Drop it and an ordinary chat line acquires a rank
-     * indicator it never had.</p>
+     * <p>What counts as a custom glyph is {@link PillCodec#isCustomGlyph(int)};
+     * the supplementary bound in it is what stops an ordinary chat line from
+     * acquiring a rank indicator it never had.</p>
      */
     private static int rankIndicatorEnd(String message, int colonIndex) {
         int lastGlyphEnd = -1;
@@ -148,10 +146,7 @@ public final class GuildChatLine {
         while (idx < colonIndex) {
             int cp = message.codePointAt(idx);
             int charCount = Character.charCount(cp);
-            int type = Character.getType(cp);
-            boolean isCustomGlyph =
-                    type == Character.PRIVATE_USE || (type == Character.UNASSIGNED && cp > 0xFFFF);
-            if (isCustomGlyph) {
+            if (PillCodec.isCustomGlyph(cp)) {
                 lastGlyphEnd = idx + charCount;
             }
             idx += charCount;

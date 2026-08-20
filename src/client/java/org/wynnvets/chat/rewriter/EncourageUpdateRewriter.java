@@ -10,6 +10,7 @@ import org.wynnvets.Vetsmod;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.GuildChatLine;
 import org.wynnvets.chat.NickResolver;
+import org.wynnvets.chat.PillCodec;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.logging.VetsLogger;
 
@@ -133,8 +134,7 @@ public final class EncourageUpdateRewriter {
                 i += charCount;
                 continue;
             }
-            int type = Character.getType(cp);
-            if (type == Character.PRIVATE_USE || (type == Character.UNASSIGNED && cp > 0xFFFF)) {
+            if (PillCodec.isCustomGlyph(cp)) {
                 i += charCount;
                 continue;
             }
