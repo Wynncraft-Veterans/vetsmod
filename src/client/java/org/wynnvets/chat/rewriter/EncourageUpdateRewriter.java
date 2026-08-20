@@ -191,7 +191,8 @@ public final class EncourageUpdateRewriter {
         return false;
     }
 
-    private static String resolveRealUsername(Component root, String fallback) {
+    // Package-private for unit tests. See EncourageUpdateRewriterTest.
+    static String resolveRealUsername(Component root, String fallback) {
         List<FlatPart> parts = new ArrayList<>();
         flattenParts(root, root.getStyle(), parts);
 
