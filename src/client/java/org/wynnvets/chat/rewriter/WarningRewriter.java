@@ -77,7 +77,8 @@ public final class WarningRewriter {
                 "Rendered {} frame from {} (points_after={})", triggered, actor, pointsAfter);
     }
 
-    private static String optString(JsonObject obj, String key, String fallback) {
+    // Package-private for unit tests. See JsonAccessorTest.
+    static String optString(JsonObject obj, String key, String fallback) {
         if (!obj.has(key) || obj.get(key).isJsonNull()) return fallback;
         return obj.get(key).getAsString();
     }

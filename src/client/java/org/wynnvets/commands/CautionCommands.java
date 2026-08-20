@@ -498,12 +498,14 @@ public final class CautionCommands {
         return new ParsedArgs(trimmed.substring(0, sp), trimmed.substring(sp + 1).trim());
     }
 
-    private static String optString(JsonObject obj, String key, String fallback) {
+    // Package-private for unit tests. See JsonAccessorTest.
+    static String optString(JsonObject obj, String key, String fallback) {
         if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) return fallback;
         return obj.get(key).getAsString();
     }
 
-    private static int optInt(JsonObject obj, String key, int fallback) {
+    // Package-private for unit tests. See JsonAccessorTest.
+    static int optInt(JsonObject obj, String key, int fallback) {
         if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) return fallback;
         try {
             return obj.get(key).getAsInt();
