@@ -123,7 +123,8 @@ public final class SplitDistributor {
      * @random] — each getting {@code count / 3} as a floor and
      * the {@code count % 3} remainder awarded to a random subset.
      */
-    private static int[] splitCount(int count) {
+    // Package-private for unit tests. See SplitDistributorTest.
+    static int[] splitCount(int count) {
         int base = count / 3;
         int remainder = count % 3;
         int[] pools = {base, base, base};
