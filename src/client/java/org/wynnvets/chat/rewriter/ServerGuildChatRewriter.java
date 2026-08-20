@@ -137,9 +137,9 @@ public final class ServerGuildChatRewriter {
             // No remap — supporter-only path retains the original pill's
             // extracted background/foreground fragments so the aqua+dark
             // two-tone rendering survives the gradient overlay.
-            List<StyledFragment> pillFragments = extractPillFragments(component);
+            List<NickResolver.FlatPart> pillFragments = extractPillFragments(component);
             if (pillFragments.isEmpty()
-                    || pillFragments.stream().noneMatch(StyledFragment::isBackground)) {
+                    || pillFragments.stream().noneMatch(f -> isBackground(f.style()))) {
                 return false;
             }
             pill = buildGradientPill(pillFragments);
@@ -197,77 +197,37 @@ public final class ServerGuildChatRewriter {
     // ── Pill fragment extraction ──────────────────────────────────────
 
     /**
-     * A flattened piece of the Component tree: literal text + its fully resolved style.
-     */
-    private static final class StyledFragment {
-        final String text;
-        final Style style;
-
-        StyledFragment(String text, Style style) {
-            this.text = text;
-            this.style = style;
-        }
-
-        boolean isBackground() {
-            TextColor color = style.getColor();
-            return color != null && color.getValue() == SERVER_AQUA;
-        }
-    }
-
-    /**
      * Walks the Component tree depth-first and collects every leaf whose
      * resolved style uses the {@code banner/pill} font.  This correctly
      * separates the pill fragments (both background and foreground layers)
      * from the guild badge ({@code chat/prefix}) and the username/message
      * (default font).
      */
-    private static List<StyledFragment> extractPillFragments(Component root) {
-        List<StyledFragment> all = new ArrayList<>();
-        flattenComponent(root, root.getStyle(), all);
+    private static List<NickResolver.FlatPart> extractPillFragments(Component root) {
+        List<NickResolver.FlatPart> all = new ArrayList<>();
+        NickResolver.flattenComponent(root, root.getStyle(), all);
 
         FontDescription pillFontId = PILL_FONT.getFont();
-        List<StyledFragment> pill = new ArrayList<>();
-        for (StyledFragment frag : all) {
-            if (pillFontId.equals(frag.style.getFont())) {
+        List<NickResolver.FlatPart> pill = new ArrayList<>();
+        for (NickResolver.FlatPart frag : all) {
+            if (pillFontId.equals(frag.style().getFont())) {
                 pill.add(frag);
             }
         }
         return pill;
     }
 
-    /**
-     * Recursively flattens a Component tree into (text, resolved style) pairs.
-     */
-    private static void flattenComponent(
-            Component component, Style inherited, List<StyledFragment> out) {
-        Style resolved = component.getStyle().applyTo(inherited);
-        String content = getDirectText(component);
-        if (!content.isEmpty()) {
-            out.add(new StyledFragment(content, resolved));
-        }
-        for (Component child : component.getSiblings()) {
-            flattenComponent(child, resolved, out);
-        }
-    }
-
-    /**
-     * Extracts only the direct literal text of a component (not its children).
-     */
-    private static String getDirectText(Component component) {
-        // Component.literal stores its text in contents; getString() includes children.
-        // We use the ComponentContents to get just the direct text.
-        StringBuilder sb = new StringBuilder();
-        component
-                .getContents()
-                .visit(
-                        s -> {
-                            sb.append(s);
-                            return java.util.Optional.empty();
-                        });
-        return sb.toString();
-    }
-
     // ── Gradient pill builder ─────────────────────────────────────────
+
+    /**
+     * Whether a resolved style is one of the pill's background glyphs — the
+     * server paints those aqua and the letters dark, and only the background
+     * layer takes the animation sentinel.
+     */
+    private static boolean isBackground(Style style) {
+        TextColor color = style.getColor();
+        return color != null && color.getValue() == SERVER_AQUA;
+    }
 
     /**
      * Builds a pill component from the extracted fragments.
@@ -277,27 +237,27 @@ public final class ServerGuildChatRewriter {
      * Foreground fragments (dark-coloured letters) are kept dark so the text remains legible
      * against the gradient background.</p>
      */
-    private static MutableComponent buildGradientPill(List<StyledFragment> fragments) {
+    private static MutableComponent buildGradientPill(List<NickResolver.FlatPart> fragments) {
         if (fragments.isEmpty()) {
             return Component.empty();
         }
 
         MutableComponent result = Component.empty();
 
-        for (StyledFragment frag : fragments) {
-            if (frag.isBackground()) {
+        for (NickResolver.FlatPart frag : fragments) {
+            if (isBackground(frag.style())) {
                 // Mark background fragments with the animation sentinel.
                 // AnimatedChatMixin will replace this with animated gradient
                 // colours at render time.
                 result.append(
-                        Component.literal(frag.text)
+                        Component.literal(frag.text())
                                 .setStyle(
                                         PILL_FONT.withColor(
                                                 TextColor.fromRgb(
                                                         AnimatedGradientSequence.MARKER_COLOR))));
             } else {
                 // Foreground letters — keep dark
-                result.append(Component.literal(frag.text).setStyle(DARK_FG_STYLE));
+                result.append(Component.literal(frag.text()).setStyle(DARK_FG_STYLE));
             }
         }
 
@@ -319,15 +279,15 @@ public final class ServerGuildChatRewriter {
      */
     private static MutableComponent extractBodyComponent(
             Component root, int bodyCharStart, Style defaultStyle) {
-        List<StyledFragment> allFragments = new ArrayList<>();
-        flattenComponent(root, root.getStyle(), allFragments);
+        List<NickResolver.FlatPart> allFragments = new ArrayList<>();
+        NickResolver.flattenComponent(root, root.getStyle(), allFragments);
 
         MutableComponent result = Component.empty();
         StringBuilder accumulated = new StringBuilder();
         int charOffset = 0;
 
-        for (StyledFragment frag : allFragments) {
-            int fragEnd = charOffset + frag.text.length();
+        for (NickResolver.FlatPart frag : allFragments) {
+            int fragEnd = charOffset + frag.text().length();
             if (fragEnd <= bodyCharStart) {
                 charOffset = fragEnd;
                 continue;
@@ -335,20 +295,20 @@ public final class ServerGuildChatRewriter {
 
             String text;
             if (charOffset < bodyCharStart) {
-                text = frag.text.substring(bodyCharStart - charOffset);
+                text = frag.text().substring(bodyCharStart - charOffset);
             } else {
-                text = frag.text;
+                text = frag.text();
             }
 
             boolean isInteractive =
-                    frag.style.getClickEvent() != null || frag.style.getHoverEvent() != null;
+                    frag.style().getClickEvent() != null || frag.style().getHoverEvent() != null;
             if (isInteractive && !ChatUtils.isWrapStructure(text)) {
                 if (accumulated.length() > 0) {
                     result.append(
                             ChatUtils.formatMessageBody(accumulated.toString(), defaultStyle));
                     accumulated.setLength(0);
                 }
-                result.append(Component.literal(text).setStyle(frag.style));
+                result.append(Component.literal(text).setStyle(frag.style()));
             } else {
                 accumulated.append(text);
             }
