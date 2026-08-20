@@ -68,7 +68,8 @@ public final class NoAspectsFilter {
         return uuidsF.thenCombine(uuidToLegacyF, NoAspectsFilter::buildExcludedNames);
     }
 
-    private static Set<String> buildExcludedNames(
+    // Package-private for unit tests. See NoAspectsFilterTest.
+    static Set<String> buildExcludedNames(
             Set<String> excludedUuids, Map<String, String> uuidToLegacy) {
         if (excludedUuids.isEmpty() || uuidToLegacy.isEmpty()) {
             return Set.of();
@@ -112,7 +113,8 @@ public final class NoAspectsFilter {
                         });
     }
 
-    private static Set<String> parseUuids(String body) {
+    // Package-private for unit tests. See NoAspectsFilterTest.
+    static Set<String> parseUuids(String body) {
         try {
             JsonElement root = GSON.fromJson(body, JsonElement.class);
             if (root == null || !root.isJsonArray()) return Set.of();
