@@ -203,11 +203,19 @@ broke, but it would have if Chief and Owner ever got separate display labels.)
 
 ## Testing
 
-`PillCodec` imports `net.minecraft.*` for `encodeLocal`, so per the rule in
-[CLAUDE.md](CLAUDE.md) it stays out of the JUnit harness. `decodeServerPill`
-and `encodeRemote` are pure string logic and were verified against the six real
-sequences out-of-band. If the pure half ever needs harness coverage, split it
-into a Minecraft-free class rather than relaxing that rule.
+`PillCodecTest` covers all four entry points, `encodeLocal` included. There is
+no rule against `net.minecraft` imports in the harness — [CLAUDE.md](CLAUDE.md)
+says the opposite, and `build.gradle` deliberately puts the client compile
+classpath on the test source set so tests can build real `Component`/`Style`
+objects. (An earlier version of this paragraph claimed such a rule and
+attributed it to CLAUDE.md; that attribution was never true.) The limit is
+runtime, not imports: a test cannot boot Minecraft, and Wynntils is
+`modCompileOnly` and absent at test runtime.
+
+The test writes every codepoint numerically rather than pasting the glyphs. The
+sequences are invisible in an editor, and reading them back from `PillCodec`'s
+own private fields would make the test pass through any renumbering of a format
+Wynncraft owns.
 
 ## Related
 
