@@ -61,7 +61,8 @@ public final class ObjectivesDistributor {
     private static final Random RNG = new Random();
 
     /** One queued recipient and the per-user count we owe them. */
-    private record Distribution(String legacyName, int count) {}
+    // Package-private for unit tests. See ObjectivesDistributorTest.
+    record Distribution(String legacyName, int count) {}
 
     private ObjectivesDistributor() {}
 
@@ -165,7 +166,8 @@ public final class ObjectivesDistributor {
      * the modulo leftover. Recipients ending up with zero (when N &lt; K
      * and they didn't draw the bonus) are dropped.
      */
-    private static Deque<Distribution> buildDistribution(List<String> completers, int total) {
+    // Package-private for unit tests. See ObjectivesDistributorTest.
+    static Deque<Distribution> buildDistribution(List<String> completers, int total) {
         int k = completers.size();
         int base = total / k;
         int remainder = total % k;
@@ -221,7 +223,8 @@ public final class ObjectivesDistributor {
      * header is missing, if nothing non-blank follows it, or if the
      * first non-blank line fails {@link #OBJECTIVE_PROGRESS}.
      */
-    private static boolean hasCompletedObjective(List<String> loreLines) {
+    // Package-private for unit tests. See ObjectivesDistributorTest.
+    static boolean hasCompletedObjective(List<String> loreLines) {
         boolean afterHeader = false;
         for (String line : loreLines) {
             if (afterHeader) {
