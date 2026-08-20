@@ -11,16 +11,18 @@ import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link WarningRewriter}'s {@code optString} — one of five
- * hand-rolled JSON string accessors scattered across four packages.
+ * Tests for {@link WarningRewriter}'s {@code optString} — one of six
+ * hand-rolled JSON string accessors scattered across five packages.
  *
  * <p>The cross-site policy table lives on
  * {@code org.wynnvets.chat.dispatcher.JsonAccessorTest}. This site's row is
  * <b>fallback / throws / NPE</b>: it takes a caller-supplied default for the
  * missing case, but lets a wrong-typed value escape as an exception, and does
- * not guard a null receiver. It is the shortest of the five — three lines, no
- * try block — and that brevity is the whole difference from
- * {@code CommandDispatcher.stringOrNull}.</p>
+ * not guard a null receiver. It differs from {@code CommandDispatcher.stringOrNull}
+ * on <em>two</em> axes, not one: no try block (throws where that one swallows)
+ * <em>and</em> a caller-supplied fallback where that one hardcodes null. Only
+ * {@code CautionCommands.optString} is one edit away — it is this body plus a
+ * null guard.</p>
  */
 class JsonAccessorTest {
 

@@ -11,19 +11,19 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link CautionCommands}' {@code optString} and {@code optInt} — two
- * of the six hand-rolled JSON accessors scattered across four packages.
+ * of the seven hand-rolled JSON accessors scattered across five packages.
  *
  * <p>The cross-site policy table lives on
  * {@code org.wynnvets.chat.dispatcher.JsonAccessorTest}. This file holds the
  * two most interesting rows:</p>
  *
  * <ul>
- *   <li>{@code optString} is the <b>only</b> one of the five string accessors
+ *   <li>{@code optString} is the <b>only</b> one of the six string accessors
  *       that tolerates a null receiver. Its body is otherwise identical to
  *       {@code WarningRewriter.optString}, so a "these two are the same
  *       function" collapse onto that one introduces an NPE here.</li>
  *   <li>{@code optInt} is the only accessor whose answer on all three axes is
- *       "fallback". It is probably the shape the other five should converge to,
+ *       "fallback". It is probably the shape the other six should converge to,
  *       and it is the one none of them currently match.</li>
  * </ul>
  */

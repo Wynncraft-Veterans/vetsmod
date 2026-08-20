@@ -11,13 +11,13 @@ import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link CommandDispatcher}'s {@code stringOrNull} — one of five
- * hand-rolled JSON string accessors scattered across four packages.
+ * Tests for {@link CommandDispatcher}'s {@code stringOrNull} — one of six
+ * hand-rolled JSON string accessors scattered across five packages.
  *
  * <p>There is no {@code org.wynnvets.util} package and no shared {@code Json}
- * helper. A later phase proposes creating one, and the five sites do not agree
+ * helper. A later phase proposes creating one, and the six sites do not agree
  * on any of the three questions such a helper would have to answer. This is the
- * table those four sibling test classes exist to make mechanical:</p>
+ * table those five sibling test classes exist to make mechanical:</p>
  *
  * <table border="1">
  *   <caption>Policy per site</caption>
@@ -32,15 +32,25 @@ import org.junit.jupiter.api.Test;
  *       <td>throws</td><td>tolerated</td></tr>
  *   <tr><td>{@code OnlineMemberService.stringOrEmpty}</td><td>empty string</td>
  *       <td>throws</td><td>NPE</td></tr>
+ *   <tr><td>{@code OutboundDisplayHandler.getStringOrEmpty}</td><td>empty string</td>
+ *       <td>throws</td><td>NPE</td></tr>
  * </table>
  *
- * <p>Three independent axes, not one — so no single signature absorbs all five
- * without changing at least three of them.</p>
+ * <p>Three independent axes, not one — so no single signature absorbs all six
+ * without changing at least three of them. A fourth axis is the return contract
+ * itself: three of the six take no {@code fallback} parameter, so folding them
+ * into a fallback-taking helper grows an argument at every call site.</p>
+ *
+ * <p>The last row was missing from the Phase 4 brief's census and was found by
+ * the verify pass. Only one pair in the table is a genuine duplicate —
+ * {@code OnlineMemberService.stringOrEmpty} and
+ * {@code OutboundDisplayHandler.getStringOrEmpty} share a body exactly.</p>
  *
  * <p>NOTE: {@link CommandDispatcher}'s static initializer builds an
- * {@code HttpClient}, a request and a single-threaded executor. The executor's
- * threads are daemons and are not started until a task is submitted, so
- * class-init is safe in the harness.</p>
+ * {@code HttpClient}, a request and a single-threaded executor. Both spawn
+ * threads — the executor's only on first submit, but the client's selector
+ * thread immediately — and class-init is safe in the harness only because both
+ * are daemons and so cannot hold the test JVM open.</p>
  */
 class JsonAccessorTest {
 
@@ -92,8 +102,8 @@ class JsonAccessorTest {
 
     @Test
     void stringOrNull_swallowsAnObjectOrArrayValueIntoNull() {
-        // This site's answer to axis 2, and it is the minority answer: three of
-        // the five let the exception out.
+        // This site's answer to axis 2, and it is the minority answer: four of
+        // the six let the exception out.
         assertNull(CommandDispatcher.stringOrNull(withValue(new JsonObject()), "k"));
         assertNull(CommandDispatcher.stringOrNull(withValue(new JsonArray()), "k"));
     }
@@ -111,7 +121,7 @@ class JsonAccessorTest {
 
     @Test
     void stringOrNull_throwsOnANullObject() {
-        // This site's answer to axis 3. Four of the five agree; only
+        // This site's answer to axis 3. Five of the six agree; only
         // CautionCommands.optString guards.
         assertThrows(NullPointerException.class, () -> CommandDispatcher.stringOrNull(null, "k"));
     }

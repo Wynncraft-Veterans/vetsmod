@@ -17,10 +17,11 @@ import org.junit.jupiter.api.Test;
  *
  * <p>The cross-site policy table lives on
  * {@code org.wynnvets.chat.dispatcher.JsonAccessorTest}. These two share a
- * package and a payload shape and still disagree on both of the axes they can
- * disagree on: one returns null on a miss and swallows a wrong type, the other
- * returns an empty string and lets the exception out. Whichever body a shared
- * helper adopts, one of these two call sites changes behaviour.</p>
+ * package and a payload shape and still disagree on two of the three axes: one
+ * returns null on a miss and swallows a wrong type, the other returns an empty
+ * string and lets the exception out. (They agree on the third — both NPE on a
+ * null receiver.) Whichever body a shared helper adopts, one of these two call
+ * sites changes behaviour.</p>
  *
  * <p>{@code stringOrEmpty} was already package-private and needed no seam.</p>
  */
@@ -99,7 +100,7 @@ class JsonAccessorTest {
     // ----- The two disagree on real input -----
 
     @Test
-    void thePackageMatesDisagreeOnBothAxesTheyCanDisagreeOn() {
+    void thePackageMatesDisagreeOnTwoOfTheThreeAxes() {
         JsonObject missing = new JsonObject();
         // An object-valued field, not an array: Gson unwraps a one-element
         // array and throws IllegalStateException for any other size, so an
