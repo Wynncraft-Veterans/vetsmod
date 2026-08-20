@@ -146,7 +146,8 @@ public final class NameResolver {
                         });
     }
 
-    private static List<String> extractAllLegacyNames(String body) {
+    // Package-private for unit tests. See NameResolverTest.
+    static List<String> extractAllLegacyNames(String body) {
         List<String> names = new ArrayList<>();
         forEachGuildMember(
                 body,
@@ -236,7 +237,8 @@ public final class NameResolver {
                         });
     }
 
-    private static Map<String, String> extractNameIndex(String body) {
+    // Package-private for unit tests. See NameResolverTest.
+    static Map<String, String> extractNameIndex(String body) {
         Map<String, String> index = new HashMap<>();
         forEachGuildMember(
                 body,
@@ -253,7 +255,8 @@ public final class NameResolver {
         return index;
     }
 
-    private static Map<String, String> extractUuidToLegacyName(String body) {
+    // Package-private for unit tests. See NameResolverTest.
+    static Map<String, String> extractUuidToLegacyName(String body) {
         Map<String, String> map = new HashMap<>();
         forEachGuildMember(
                 body,
@@ -268,7 +271,8 @@ public final class NameResolver {
         return map;
     }
 
-    private static String findLegacyName(String body, String input) {
+    // Package-private for unit tests. See NameResolverTest.
+    static String findLegacyName(String body, String input) {
         String lowerInput = input.toLowerCase(Locale.ROOT);
         // One-element box so the lambda can publish its hit; default to
         // input so the not-found and parse-error paths both fall back
