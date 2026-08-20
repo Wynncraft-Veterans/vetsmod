@@ -383,7 +383,8 @@ public final class MessageFanoutDispatcher {
 
     // ──────────────────────────── Message matching ────────────────────────────
 
-    private static boolean isOutboundRecipientTarget(String lowerMessage, String usernameLower) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static boolean isOutboundRecipientTarget(String lowerMessage, String usernameLower) {
         int separatorIndex = lowerMessage.indexOf(PRIVATE_SEPARATOR_GLYPH);
         if (separatorIndex < 0) {
             return false;
@@ -398,17 +399,20 @@ public final class MessageFanoutDispatcher {
         return recipientSegment.contains(usernameLower);
     }
 
-    private static boolean isOfflineRecipientMessage(String lowerMessage, String usernameLower) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static boolean isOfflineRecipientMessage(String lowerMessage, String usernameLower) {
         return lowerMessage.contains(usernameLower + " is not online")
                 || lowerMessage.contains(usernameLower + " is not currently online");
     }
 
-    private static boolean isOfflineGuidanceMessage(String lowerMessage) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static boolean isOfflineGuidanceMessage(String lowerMessage) {
         return lowerMessage.contains("be sure to use exact names, prediction does not work if")
                 || lowerMessage.contains("the user is on a separate server");
     }
 
-    private static boolean containsNormalizedPayload(String message, String payload) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static boolean containsNormalizedPayload(String message, String payload) {
         if (message == null || message.isEmpty() || payload == null || payload.isEmpty()) {
             return false;
         }
@@ -436,7 +440,8 @@ public final class MessageFanoutDispatcher {
         return containsTokenSubsequence(messageTokens, payloadTokens);
     }
 
-    private static List<String> extractEchoTokens(String input) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static List<String> extractEchoTokens(String input) {
         List<String> tokens = new ArrayList<>();
         StringBuilder current = new StringBuilder();
 
@@ -458,7 +463,8 @@ public final class MessageFanoutDispatcher {
         return tokens;
     }
 
-    private static boolean containsTokenSubsequence(
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static boolean containsTokenSubsequence(
             List<String> messageTokens, List<String> payloadTokens) {
         int messageIndex = 0;
         int payloadIndex = 0;
@@ -479,7 +485,8 @@ public final class MessageFanoutDispatcher {
      * "hello" might echo back as "h***o". This matches when every non-{@code *}
      * character in the candidate region equals the corresponding payload character.
      */
-    private static boolean containsCensoredVariant(String message, String payload) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static boolean containsCensoredVariant(String message, String payload) {
         if (payload.isEmpty()) {
             return false;
         }
@@ -501,7 +508,8 @@ public final class MessageFanoutDispatcher {
         return false;
     }
 
-    private static String normalizeForEchoComparison(String input) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static String normalizeForEchoComparison(String input) {
         StringBuilder normalized = new StringBuilder(input.length());
         input.codePoints()
                 .forEach(
