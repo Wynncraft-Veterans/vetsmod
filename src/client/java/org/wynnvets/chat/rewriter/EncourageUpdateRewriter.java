@@ -1,17 +1,14 @@
 package org.wynnvets.chat.rewriter;
 
 import com.wynntils.utils.mc.ComponentUtils;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
 import org.wynnvets.Vetsmod;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.NickResolver;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.logging.VetsLogger;
 
@@ -34,9 +31,6 @@ public final class EncourageUpdateRewriter {
             Pattern.compile(
                     "⚠⚠⚠ If you are using vetsmod, it's outdated \\(current version ([0-9]+(?:\\.[0-9]+)*)\\) ⚠⚠⚠");
 
-    private static final Pattern REAL_NAME_PATTERN =
-            Pattern.compile("real\\s+name\\s+is\\s+([A-Za-z0-9_]{1,16})", Pattern.CASE_INSENSITIVE);
-
     private EncourageUpdateRewriter() {}
 
     /**
@@ -52,7 +46,9 @@ public final class EncourageUpdateRewriter {
             return false;
         }
 
-        String senderUsername = resolveRealUsername(message, parsed.username);
+        // The parsed username may be a Wynncraft nickname; the real username is
+        // attached as a hover event on the name span.
+        String senderUsername = NickResolver.realUsernameOrFallback(message, parsed.username);
 
         if (!isCurrentStaffSender(senderUsername)) {
             return false;
@@ -190,45 +186,6 @@ public final class EncourageUpdateRewriter {
 
         return false;
     }
-
-    // Package-private for unit tests. See EncourageUpdateRewriterTest.
-    static String resolveRealUsername(Component root, String fallback) {
-        List<FlatPart> parts = new ArrayList<>();
-        flattenParts(root, root.getStyle(), parts);
-
-        for (FlatPart part : parts) {
-            HoverEvent hover = part.style.getHoverEvent();
-            if (hover instanceof HoverEvent.ShowText st) {
-                Matcher matcher = REAL_NAME_PATTERN.matcher(st.value().getString());
-                if (matcher.find()) {
-                    return matcher.group(1);
-                }
-            }
-        }
-
-        return fallback;
-    }
-
-    private static void flattenParts(Component component, Style inherited, List<FlatPart> out) {
-        Style resolved = component.getStyle().applyTo(inherited);
-        StringBuilder sb = new StringBuilder();
-        component
-                .getContents()
-                .visit(
-                        s -> {
-                            sb.append(s);
-                            return java.util.Optional.empty();
-                        });
-        String text = sb.toString();
-        if (!text.isEmpty()) {
-            out.add(new FlatPart(text, resolved));
-        }
-        for (Component sibling : component.getSiblings()) {
-            flattenParts(sibling, resolved, out);
-        }
-    }
-
-    private record FlatPart(String text, Style style) {}
 
     // Package-private for unit tests. See GuildChatParseTest.
     static ParsedGuildChat parseGuildChat(String message) {

@@ -14,6 +14,22 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Tests for {@link NickResolver}, the repo's real-name and component-flattening
+ * authority — three rewriters call it and none keeps a copy of the walk.
+ *
+ * <p>The two {@code ancestorHover…} cases carry over from the retired
+ * {@code EncourageUpdateRewriterTest} and are the only cases here that
+ * discriminate {@link NickResolver#flattenComponent}'s style orientation. They
+ * pin <em>child wins, ancestor fills gaps</em>: a hover on an ancestor must not
+ * mask a "real name is …" hover on a descendant.
+ * {@link #flattenComponent_siblingWithoutColorInheritsParent()} holds under
+ * <em>either</em> orientation and is not coverage of it.</p>
+ *
+ * <p>The four cases below the pattern divider pin properties of
+ * {@link NickResolver#REAL_NAME_PATTERN} and of the walk that feeds it, and
+ * also carry over from that class.</p>
+ */
 class NickResolverTest {
 
     private static final String REAL_NAME = "RealUser";
@@ -30,6 +46,34 @@ class NickResolverTest {
     private static MutableComponent aquaRootWithNickChild(Style nickStyle) {
         MutableComponent root = Component.literal("badge ").setStyle(AQUA_STYLE);
         root.append(Component.literal(NICK).setStyle(nickStyle));
+        return root;
+    }
+
+    /** A hover that is not a real-name hover — enough to mask one if masking happened. */
+    private static final HoverEvent DECOY_HOVER =
+            new HoverEvent.ShowText(Component.literal("Click to view profile"));
+
+    /** Root carrying {@code rootStyle}, with a nick child carrying the real-name
+     *  hover. Both spans hold non-empty text, so both produce a part. */
+    private static MutableComponent rootWithNickChild(Style rootStyle) {
+        MutableComponent root = Component.literal("badge ").setStyle(rootStyle);
+        root.append(
+                Component.literal(NICK)
+                        .setStyle(
+                                Style.EMPTY
+                                        .withColor(ChatFormatting.DARK_AQUA)
+                                        .withHoverEvent(realNameHover(REAL_NAME))));
+        return root;
+    }
+
+    /** A hover carrying {@code text} verbatim, on a nick child under an empty root. */
+    private static MutableComponent rootWithHoverText(String text) {
+        MutableComponent root = Component.literal("").setStyle(Style.EMPTY);
+        root.append(
+                Component.literal(NICK)
+                        .setStyle(
+                                Style.EMPTY.withHoverEvent(
+                                        new HoverEvent.ShowText(Component.literal(text)))));
         return root;
     }
 
@@ -137,5 +181,107 @@ class NickResolverTest {
                 child.style().getColor().getValue(),
                 "parent AQUA fills the gap when child has no color");
         assertTrue(child.style().isItalic(), "child italic must survive");
+    }
+
+    // ----- The discriminating shape: an ancestor hover must not mask a descendant's -----
+
+    @Test
+    void realUsernameOrFallback_ancestorHoverDoesNotMaskTheNameSpan() {
+        // The root style is not Style.EMPTY (applyTo short-circuits on
+        // reference equality, which would hide either orientation) and it
+        // carries a hover of its own. Under the inverted orientation the root's
+        // decoy hover was copied down over the child's real-name hover, no part
+        // matched, and the fallback came back. Child-wins keeps the child's.
+        MutableComponent root =
+                rootWithNickChild(
+                        Style.EMPTY.withColor(ChatFormatting.AQUA).withHoverEvent(DECOY_HOVER));
+
+        assertEquals(
+                REAL_NAME,
+                NickResolver.realUsernameOrFallback(root, NICK),
+                "child.applyTo(inherited) keeps the child's hover — inverting it back"
+                        + " returns the nickname instead");
+    }
+
+    @Test
+    void realUsernameOrFallback_aNestedAncestorHoverDoesNotMaskTheLeafEither() {
+        // The same shape one level deeper. Under the inversion the masking
+        // compounded with depth and the EMPTY root did not rescue the hovering
+        // mid-span, because the short-circuit only ever applies at the root.
+        MutableComponent leaf =
+                Component.literal(NICK)
+                        .setStyle(Style.EMPTY.withHoverEvent(realNameHover(REAL_NAME)));
+        MutableComponent mid =
+                Component.literal("mid ")
+                        .setStyle(
+                                Style.EMPTY
+                                        .withColor(ChatFormatting.GOLD)
+                                        .withHoverEvent(DECOY_HOVER));
+        mid.append(leaf);
+        MutableComponent root = Component.literal("").setStyle(Style.EMPTY);
+        root.append(mid);
+
+        assertEquals(
+                REAL_NAME,
+                NickResolver.realUsernameOrFallback(root, NICK),
+                "the mid-span's hover must not mask the leaf's, at any depth");
+    }
+
+    // ----- The pattern the walk feeds, and the walk's own order -----
+
+    @Test
+    void realUsernameOrFallback_matchesAnywhereInTheHoverAndFoldsCase() {
+        // find(), not matches(), and CASE_INSENSITIVE — so the leading
+        // "Nickname's" prose and an odd capitalisation both survive.
+        MutableComponent root =
+                rootWithHoverText("prefix Real   Name  Is  " + REAL_NAME + " suffix");
+
+        assertEquals(
+                REAL_NAME,
+                NickResolver.realUsernameOrFallback(root, NICK),
+                "the whitespace between the words is a multi-space class, not one literal space");
+    }
+
+    @Test
+    void realUsernameOrFallback_capturesAtMostSixteenNameCharacters() {
+        // The capture group is [A-Za-z0-9_]{1,16}: a longer run is truncated
+        // rather than rejected.
+        String seventeen = "Abcdefghijklmnopq";
+        MutableComponent root = rootWithHoverText("real name is " + seventeen);
+
+        assertEquals(seventeen.substring(0, 16), NickResolver.realUsernameOrFallback(root, NICK));
+    }
+
+    @Test
+    void realUsernameOrFallback_returnsTheFirstMatchingSpanInWalkOrder() {
+        // Parent before child, siblings left to right — the walk emits the
+        // root's own text first, so a hover on the root wins the scan.
+        MutableComponent root =
+                Component.literal("badge ")
+                        .setStyle(
+                                Style.EMPTY.withHoverEvent(
+                                        new HoverEvent.ShowText(
+                                                Component.literal("real name is FirstOne"))));
+        root.append(
+                Component.literal(NICK)
+                        .setStyle(Style.EMPTY.withHoverEvent(realNameHover(REAL_NAME))));
+
+        assertEquals("FirstOne", NickResolver.realUsernameOrFallback(root, NICK));
+    }
+
+    @Test
+    void realUsernameOrFallback_emptyRootTextContributesNoPartButStillPassesItsStyleDown() {
+        // flattenComponent skips zero-length text, so the root itself yields no
+        // FlatPart — but the style it carries is still what the child inherits,
+        // so the hover is reached through the child rather than lost.
+        MutableComponent root =
+                Component.literal("")
+                        .setStyle(
+                                Style.EMPTY.withHoverEvent(
+                                        new HoverEvent.ShowText(
+                                                Component.literal("real name is Ghost"))));
+        root.append(Component.literal(NICK).setStyle(Style.EMPTY));
+
+        assertEquals("Ghost", NickResolver.realUsernameOrFallback(root, NICK));
     }
 }
