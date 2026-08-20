@@ -1,6 +1,6 @@
 ---
 name: vetsmod PUA Rank Pills
-description: The Private Use Area encodings behind rank pills — Wynncraft's server pill (decode) and vetsmod's two output styles (encode), plus the PillCodec library
+description: The Private Use Area encodings behind rank pills — Wynncraft's server pill (decode), vetsmod's two output styles (encode), the custom-glyph predicate, and the PillCodec library
 type: project
 originSessionId: 5b71a342-5c81-487a-99a2-c1687c7d995d
 ---
@@ -151,6 +151,42 @@ pre-encoded input through the way `encodeRemote` does.
 `U+E00F` and `U+E012` are frame pieces here while being `p` and `s` inside a
 server rank pill — the frame-scoping rule at the top of this doc, in practice.
 
+## Is this codepoint glyph art? — `PillCodec.isCustomGlyph`
+
+`PillCodec` is also the authority on the narrower question that comes *before*
+decoding: is this codepoint drawn by the resource pack rather than by the font?
+
+```java
+type == PRIVATE_USE || (type == UNASSIGNED && cp > 0xFFFF)
+```
+
+Two classes qualify. The PUA is where the pill and badge glyphs live. The
+**supplementary** unassigned planes are where the width markers, kern markers
+and the pill terminator live — the sequences above show all three.
+
+**The `> 0xFFFF` bound is the load-bearing half.** Unassigned codepoints inside
+the BMP (U+0378, say) turn up in ordinary text; Wynncraft's markers never do.
+Drop the bound and a plain chat line acquires a rank indicator it never had, or
+loses a character to a strip that should have left it alone.
+
+Six callers: `GuildChatLine.rankIndicatorEnd`,
+`EncourageUpdateRewriter.stripWrapArtifacts`,
+`OutboundDisplayHandler.normalizeBridgeDedup`,
+`PillFormatter.containsCustomFontGlyph`,
+`WynntilsEventListener.stripPuaCharacters`, `GradientTextBuilder`.
+
+**Three sites test `PRIVATE_USE` and deliberately do not call it.** Each carries
+the reason at its own declaration; the short version:
+
+| Site | How it differs | Why |
+|---|---|---|
+| `PillCodec.isEncoded` | `PRIVATE_USE` only, no `UNASSIGNED` clause | It gates `encodeRemote`'s passthrough. The width marker and terminator are UNASSIGNED, so widening it makes `encodeRemote` read a label carrying either as already encoded and hand it back raw |
+| `FindDispatcher.stripFormattingAndPua` | adds `SURROGATE`, `FORMAT`; `UNASSIGNED` unbounded | It normalises a `/find` response down to prose before matching. Nothing downstream reads a codepoint, so stripping more is the point |
+| `MessageFanoutDispatcher.normalizeForEchoComparison` | adds `CONTROL`, `FORMAT`, `SURROGATE`, unbounded `UNASSIGNED`, `isWhitespace` | The server's echo comes back re-wrapped, re-spaced and re-badged; anything invisible has to go before the two sides compare at all |
+
+Read as a sweep that missed three sites, this table is the correction — which
+is how the cleanup brief came to claim eleven copies of one predicate.
+
 ## Evidence
 
 Everything above was checked against five captured `vetsmod/debug.log` files
@@ -203,7 +239,7 @@ broke, but it would have if Chief and Owner ever got separate display labels.)
 
 ## Testing
 
-`PillCodecTest` covers all four entry points, `encodeLocal` included. There is
+`PillCodecTest` covers all five entry points, `encodeLocal` and `isCustomGlyph` included. There is
 no rule against `net.minecraft` imports in the harness — [CLAUDE.md](CLAUDE.md)
 says the opposite, and `build.gradle` deliberately puts the client compile
 classpath on the test source set so tests can build real `Component`/`Style`

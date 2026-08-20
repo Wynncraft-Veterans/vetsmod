@@ -41,7 +41,7 @@ Each rewriter returns `true` to cancel the vanilla event (consumed).
 
 **Gap:** `WarningRewriter` — the sixth rewriter on disk, invoked from `OutboundDisplayHandler` for server-pushed `warning` frames rather than from this chain. It has no section here; the one-line summary lives in [CLAUDE.md](CLAUDE.md) and [project_vetsmod.md](project_vetsmod.md).
 
-## 3. Rewriters
+## 3. Rewriters and their shared helpers
 
 ### EncourageUpdateRewriter
 [EncourageUpdateRewriter](../src/client/java/org/wynnvets/chat/rewriter/EncourageUpdateRewriter.java)
@@ -63,12 +63,55 @@ Extracts sender from: click event (`/msg <name>`), hover text ("real name is"), 
 ### ServerGuildChatRewriter
 [ServerGuildChatRewriter](../src/client/java/org/wynnvets/chat/rewriter/ServerGuildChatRewriter.java)
 
-Detects server guild chat from supporters (via `SupportersPoller.isSupporter()`). Re-renders with animated gradient pill: walks component tree for `banner/pill` font fragments, marks background glyphs with animation sentinel color (replaced at render time by `AnimatedChatMixin`), preserves dark letters.
+Detects server guild chat from supporters (via `SupportersPoller.isSupporter()`). Re-renders with animated gradient pill: flattens the component tree through `NickResolver.flattenComponent`, keeps the leaves whose resolved style uses the `banner/pill` font, marks background glyphs with animation sentinel color (replaced at render time by `AnimatedChatMixin`), preserves dark letters. Which span carries the font is what that selection turns on, so the inheritance direction is pinned in `NickResolverTest`, not assumed.
 
 ### SpoilerRewriter
 [SpoilerRewriter](../src/client/java/org/wynnvets/chat/rewriter/SpoilerRewriter.java)
 
-Two paths: fast (single fragment contains complete PUA spoiler block) and cross-fragment (spans fragments / server-wrapped). Cross-fragment path preserves pill+name+colon prefix, accumulates body, processes through `ChatUtils.formatMessageBody()` which strips continuation markers.
+Flattens through `NickResolver.flattenComponent`, then takes one of two paths: fast (single fragment contains complete PUA spoiler block) or cross-fragment (spans fragments / server-wrapped). Cross-fragment path preserves pill+name+colon prefix, accumulates body, processes through `ChatUtils.formatMessageBody()` which strips continuation markers.
+
+### GuildChatLine
+[GuildChatLine](../src/client/java/org/wynnvets/chat/GuildChatLine.java)
+
+Splits `<rank pill glyphs> <display name>: <body>`. One shared header scan —
+find the last custom-font glyph before the first colon, the trimmed run up to
+the colon is the name — and two public entry points over it:
+
+| | `parse` | `parseServerLine` |
+|---|---|---|
+| callers | `EncourageUpdateRewriter`, `StaffGuildAlertRewriter` | `ServerGuildChatRewriter` |
+| `null` input | returns `null` | throws, no guard |
+| the body | trimmed substring | char offset the caller slices |
+| rank indicator | discarded | returned, carries the pill |
+| after the colon | `trim()`, all whitespace both ends | past literal `' '` only |
+
+The four differences are deliberate, not drift, and the class Javadoc carries
+the same table. `ServerGuildChatRewriter` rebuilds its line from the original
+`Component` tree, so it needs an offset that still lines up with the tree's own
+character positions — which a trimmed substring cannot give it. Pinned by
+`GuildChatLineTest`; the body-offset row only shows up when the character after
+the colon is a tab or a newline.
+
+### NickResolver
+[NickResolver](../src/client/java/org/wynnvets/chat/NickResolver.java)
+
+The repo's real-name and component-flattening authority. Three rewriters call
+it and none keeps a copy.
+
+- `realUsernameOrFallback(root, fallback)` — first hover matching
+  `REAL_NAME_PATTERN` wins, else the fallback. `EncourageUpdateRewriter`,
+  `StaffGuildAlertRewriter`, `ServerGuildChatRewriter`.
+- `realNameSpanStyleOrFallback(root, fallback)` — the *style* of that span, so a
+  rebuilt name span keeps the nick's italic, colour and hover.
+- `flattenComponent(component, inherited, out)` — the tree walk, into
+  `FlatPart(text, style)`. Resolution is `child.applyTo(inherited)`: child fields
+  win, the ancestor fills gaps.
+
+That orientation is load bearing in two directions and both are pinned. A hover
+on an ancestor must not mask a `"real name is …"` hover on a descendant — it did
+until Phase 5a, which is what made a nicked staff sender fail the staff gate.
+And a span with no font of its own must inherit one, or `ServerGuildChatRewriter`
+selects no pill fragments at all.
 
 ## 4. Spoiler PUA codec
 
@@ -177,7 +220,9 @@ Batch `/find <username>` dispatcher. `enqueueFindBatch()` returns `CompletableFu
 | `banner/pill` | Server-rendered rank pills | background (aqua) + foreground (dark) composite |
 | Spoiler PUA | Encoded spoilers | `\uF600`/`\uF601` delimiters, `\uF602–\uF700` content |
 
-**Gap:** three top-level `chat/` classes go unmentioned in this reference — `PillCodec` (the PUA pill authority; see [vetsmod_pua_pills.md](vetsmod_pua_pills.md)), `DiscordTimestamps` and `RankDisplayMap`. A fourth, `NickResolver` — the shared real-name and component-flattening helpers — appears only in §12's regex table and has no section of its own. (Both `NickResolver` and `PillCodec` now have unit tests; an earlier version of this note called `NickResolver` the only tested class under `chat/`.)
+`PillCodec` owns both halves of this: the pill sequences, and the predicate for whether a codepoint is glyph art at all — `isCustomGlyph(int)`, six callers, three deliberate non-callers. Both are documented in [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
+
+**Gap:** two top-level `chat/` classes go unmentioned in this reference — `DiscordTimestamps` and `RankDisplayMap`. (`NickResolver` carried the same marker until Phase 5a gave it a §3 section, alongside the `GuildChatLine` that phase created.)
 
 ## 12. Regex quick reference
 
@@ -185,7 +230,7 @@ Batch `/find <username>` dispatcher. `enqueueFindBatch()` returns `CompletableFu
 |---------|-----------|---------|
 | `(?<!§)(https?://\S+\|[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+/\S*)` | `ChatUtils.URL_PATTERN` | URL detection (scheme or schemeless) |
 | `\|\|(.+?)\|\|` | `SpoilerCodec.PIPE_SPOILER` | Pipe spoilers |
-| `real\s+name\s+is\s+([A-Za-z0-9_]{1,16})` | `NickResolver.REAL_NAME_PATTERN` | Hover→real-name (only `EncourageUpdateRewriter` keeps a private duplicate) |
+| `real\s+name\s+is\s+([A-Za-z0-9_]{1,16})` | `NickResolver.REAL_NAME_PATTERN` | Hover→real-name (one copy; `EncourageUpdateRewriter`'s private duplicate was deleted in Phase 5a) |
 | `/msg\s+([A-Za-z0-9_]{1,16})` | `StaffChannelMessageRewriter.MSG_COMMAND_PATTERN` | Click→recipient |
 | `([A-Za-z0-9_]{1,16})\s*$` | `StaffChannelMessageRewriter.USERNAME_AT_END` | Username-at-end |
 | `⚠⚠⚠ If you are using vetsmod.*` | `EncourageUpdateRewriter.ENCOURAGE_PATTERN` | Version nag |
