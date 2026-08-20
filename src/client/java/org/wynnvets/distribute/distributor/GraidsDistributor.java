@@ -79,7 +79,8 @@ public final class GraidsDistributor {
     private static final Random RNG = new Random();
 
     /** One queued recipient and the per-user count we owe them. */
-    private record Distribution(String legacyName, int count) {}
+    // Package-private for unit tests. See GraidsDistributorTest.
+    record Distribution(String legacyName, int count) {}
 
     private GraidsDistributor() {}
 
@@ -234,7 +235,8 @@ public final class GraidsDistributor {
      * by that flooring is awarded {@code +1} at a time to a random
      * subset of participants, each at most once.
      */
-    private static Deque<Distribution> buildDistribution(Map<String, Integer> freq, int count) {
+    // Package-private for unit tests. See GraidsDistributorTest.
+    static Deque<Distribution> buildDistribution(Map<String, Integer> freq, int count) {
         int totalParticipations = 0;
         for (int f : freq.values()) totalParticipations += f;
         if (totalParticipations <= 0) return new ArrayDeque<>();
