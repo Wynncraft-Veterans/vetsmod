@@ -1,6 +1,7 @@
 package org.wynnvets.chat;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,9 +10,11 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -29,12 +32,28 @@ import org.junit.jupiter.api.Test;
  * <p>The four cases below the pattern divider pin properties of
  * {@link NickResolver#REAL_NAME_PATTERN} and of the walk that feeds it, and
  * also carry over from that class.</p>
+ *
+ * <p>The three {@code flattenComponent_…Font} cases at the end pin the one
+ * {@link Style} field no other caller of this walk reads:
+ * {@code org.wynnvets.chat.rewriter.ServerGuildChatRewriter ServerGuildChatRewriter}
+ * selects the pill fragments out of a chat line by comparing each resolved
+ * style's {@code font} against {@code banner/pill}, so which span ends up
+ * carrying that font decides whether the pill renders at all.</p>
  */
 class NickResolverTest {
 
     private static final String REAL_NAME = "RealUser";
     private static final String NICK = "Nickname";
     private static final Style AQUA_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
+
+    /** The font the server composites its rank pill in. */
+    private static final FontDescription PILL_FONT =
+            new FontDescription.Resource(Identifier.parse("banner/pill"));
+
+    /** The font the guild badge and continuation markers use. */
+    private static final FontDescription PREFIX_FONT =
+            new FontDescription.Resource(Identifier.parse("chat/prefix"));
+
     private static final Style DARK_AQUA_ITALIC =
             Style.EMPTY.withColor(ChatFormatting.DARK_AQUA).withItalic(true);
     private static final Style FALLBACK = Style.EMPTY.withColor(ChatFormatting.WHITE);
@@ -283,5 +302,69 @@ class NickResolverTest {
         root.append(Component.literal(NICK).setStyle(Style.EMPTY));
 
         assertEquals("Ghost", NickResolver.realUsernameOrFallback(root, NICK));
+    }
+
+    // ----- Font resolution, which decides what reads as a pill fragment -----
+
+    @Test
+    void flattenComponent_childWithoutAFontInheritsTheParentFont() {
+        // The load-bearing direction. Inside a server pill the letter glyphs
+        // carry their own colour but no font of their own — the banner/pill
+        // font is set once on an ancestor span. If the walk did not push it
+        // down, extractPillFragments would select nothing and the supporter
+        // path would bail on an empty fragment list.
+        //
+        // The child style is non-empty on purpose: Style.EMPTY.applyTo returns
+        // its argument outright, so an empty child would inherit through the
+        // short-circuit rather than through the field merge under test.
+        MutableComponent root = Component.literal("").setStyle(Style.EMPTY.withFont(PILL_FONT));
+        root.append(
+                Component.literal("letters").setStyle(Style.EMPTY.withColor(ChatFormatting.BLACK)));
+
+        List<NickResolver.FlatPart> parts = new ArrayList<>();
+        NickResolver.flattenComponent(root, root.getStyle(), parts);
+
+        assertEquals(1, parts.size(), "empty root literal contributes no FlatPart");
+        assertEquals(
+                PILL_FONT,
+                parts.get(0).style().getFont(),
+                "a fontless child must resolve to the ancestor's font");
+    }
+
+    @Test
+    void flattenComponent_childFontOverridesTheParentFont() {
+        // The other direction, and the reason the selection can discriminate at
+        // all: a span that names its own font keeps it. The guild badge sits in
+        // the same tree in chat/prefix and must not be collected as a pill
+        // fragment.
+        MutableComponent root = Component.literal("").setStyle(Style.EMPTY.withFont(PILL_FONT));
+        root.append(Component.literal("badge").setStyle(Style.EMPTY.withFont(PREFIX_FONT)));
+
+        List<NickResolver.FlatPart> parts = new ArrayList<>();
+        NickResolver.flattenComponent(root, root.getStyle(), parts);
+
+        assertEquals(1, parts.size());
+        assertEquals(
+                PREFIX_FONT,
+                parts.get(0).style().getFont(),
+                "child chat/prefix must win over the ancestor's banner/pill");
+    }
+
+    @Test
+    void flattenComponent_aSpanWithNoFontAnywhereResolvesToTheDefault() {
+        // The username and message spans. Nothing in their ancestry sets a
+        // font, and getFont() answers with FontDescription.DEFAULT rather than
+        // null — so the pill selection compares a real value and rejects them,
+        // and a future reader cannot mistake "no font" for "not resolved".
+        MutableComponent root = Component.literal("").setStyle(AQUA_STYLE);
+        root.append(Component.literal(NICK).setStyle(Style.EMPTY.withItalic(true)));
+
+        List<NickResolver.FlatPart> parts = new ArrayList<>();
+        NickResolver.flattenComponent(root, root.getStyle(), parts);
+
+        assertEquals(1, parts.size());
+        FontDescription resolved = parts.get(0).style().getFont();
+        assertNotNull(resolved, "getFont() falls back to the default, it does not return null");
+        assertNotEquals(PILL_FONT, resolved, "an unfonted span must not read as a pill fragment");
     }
 }
