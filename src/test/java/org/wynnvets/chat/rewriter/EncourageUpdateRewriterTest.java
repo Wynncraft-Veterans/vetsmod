@@ -12,23 +12,22 @@ import org.junit.jupiter.api.Test;
 /**
  * Tests for {@link EncourageUpdateRewriter#resolveRealUsername(Component, String)}.
  *
- * <p>KNOWN BUG (pinned, not fixed): {@code flattenParts} resolves each span as
- * {@code inherited.applyTo(component.getStyle())}, the opposite orientation
- * from its three siblings ({@code org.wynnvets.chat.NickResolver
+ * <p>FIXED HERE (was: KNOWN BUG, pinned). {@code flattenParts} used to resolve
+ * each span as {@code inherited.applyTo(component.getStyle())}, the opposite
+ * orientation from its three siblings ({@code org.wynnvets.chat.NickResolver
  * NickResolver.flattenComponent}, {@code SpoilerRewriter} and
  * {@code ServerGuildChatRewriter}). {@code Style#applyTo} keeps the
- * <em>receiver's</em> non-null fields, so here a parent's hover wins over a
- * child's and masks the "real name is …" span the resolver is looking for. See
- * {@code
- * .claude/ephemeral/bugs-found-via-mellow-rain/encourage-update-rewriter-style-precedence-inverted.md}.</p>
+ * <em>receiver's</em> non-null fields, so a parent's hover won over a child's and
+ * masked the "real name is …" span the resolver looks for; the method then fell
+ * back to the nickname and the staff gate in {@code tryRewrite} ran against the
+ * nick. Receiver and argument are now the right way round, so child fields win
+ * and the ancestor only fills gaps.</p>
  *
- * <p>The two cases under "The discriminating shape" are deliberately
- * <b>red-after</b>: they assert today's inverted answer, and the scheduled fix
- * (pointing the class at {@code NickResolver.flattenComponent}) flips both to
- * {@code REAL_NAME}. That flip is the signal the fix landed, and it is the only
- * mechanical check there is — every other case here holds under <em>either</em>
- * orientation and must not be mistaken for coverage of the bug. That is exactly
- * the trap the sibling test
+ * <p>The two cases under "The discriminating shape" are the whole proof. They
+ * asserted the inverted answer up to the commit that flipped them, and they are
+ * the only mechanical check there is — every other case here holds under
+ * <em>either</em> orientation and must not be mistaken for coverage of it. That
+ * is exactly the trap the sibling test
  * {@code NickResolverTest.flattenComponent_siblingWithoutColorInheritsParent}
  * falls into.</p>
  *
@@ -72,27 +71,28 @@ class EncourageUpdateRewriterTest {
     // ----- The discriminating shape -----
 
     @Test
-    void resolveRealUsername_ancestorHoverMasksTheNameSpan_returnsTheNicknameFallback() {
+    void resolveRealUsername_ancestorHoverDoesNotMaskTheNameSpan() {
         // The root style is not Style.EMPTY (applyTo short-circuits on
-        // reference equality, which would hide the inversion) and it carries a
-        // hover of its own. Under the inverted orientation the root's decoy
-        // hover is copied down over the child's real-name hover, no part
-        // matches, and the fallback is returned.
+        // reference equality, which would hide either orientation) and it
+        // carries a hover of its own. Under the inverted orientation the root's
+        // decoy hover was copied down over the child's real-name hover, no part
+        // matched, and the fallback came back. Child-wins keeps the child's.
         MutableComponent root =
                 rootWithNickChild(
                         Style.EMPTY.withColor(ChatFormatting.AQUA).withHoverEvent(DECOY_HOVER));
 
         assertEquals(
-                NICK,
+                REAL_NAME,
                 EncourageUpdateRewriter.resolveRealUsername(root, NICK),
-                "inherited.applyTo(child) lets the parent hover win — the fix flips this to"
-                        + " the real name");
+                "child.applyTo(inherited) keeps the child's hover — inverting it back"
+                        + " returns the nickname instead");
     }
 
     @Test
-    void resolveRealUsername_maskingCompoundsThroughNestedAncestors() {
-        // Same defect one level deeper: the short-circuit only ever applies at
-        // the root, so an EMPTY root does not rescue a hovering mid-span.
+    void resolveRealUsername_aNestedAncestorHoverDoesNotMaskTheLeafEither() {
+        // The same shape one level deeper. Under the inversion the masking
+        // compounded with depth and the EMPTY root did not rescue the hovering
+        // mid-span, because the short-circuit only ever applies at the root.
         MutableComponent leaf =
                 Component.literal(NICK).setStyle(Style.EMPTY.withHoverEvent(realNameHover()));
         MutableComponent mid =
@@ -106,9 +106,9 @@ class EncourageUpdateRewriterTest {
         root.append(mid);
 
         assertEquals(
-                NICK,
+                REAL_NAME,
                 EncourageUpdateRewriter.resolveRealUsername(root, NICK),
-                "the mid-span's hover masks the leaf's regardless of the root");
+                "the mid-span's hover must not mask the leaf's, at any depth");
     }
 
     // ----- Shapes that hold under either orientation -----
@@ -116,8 +116,9 @@ class EncourageUpdateRewriterTest {
     @Test
     void resolveRealUsername_ancestorWithoutAHoverDoesNotMask() {
         // Only non-null receiver fields win, so a coloured-but-hoverless
-        // ancestor leaves the child's hover intact. This is why the bug is
-        // data-dependent rather than always-on — and why it is not coverage.
+        // ancestor leaves the child's hover intact under either orientation.
+        // That is why the bug was data-dependent rather than always-on — and
+        // why this case is not coverage of it.
         MutableComponent root = rootWithNickChild(Style.EMPTY.withColor(ChatFormatting.AQUA));
 
         assertEquals(REAL_NAME, EncourageUpdateRewriter.resolveRealUsername(root, NICK));
@@ -125,6 +126,8 @@ class EncourageUpdateRewriterTest {
 
     @Test
     void resolveRealUsername_emptyRootStyleDoesNotMask() {
+        // Style.EMPTY.applyTo short-circuits on reference equality, so a
+        // literally-EMPTY root behaved correctly by accident even inverted.
         MutableComponent root = rootWithNickChild(Style.EMPTY);
 
         assertEquals(REAL_NAME, EncourageUpdateRewriter.resolveRealUsername(root, NICK));

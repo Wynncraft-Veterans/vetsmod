@@ -210,7 +210,7 @@ public final class EncourageUpdateRewriter {
     }
 
     private static void flattenParts(Component component, Style inherited, List<FlatPart> out) {
-        Style resolved = inherited.applyTo(component.getStyle());
+        Style resolved = component.getStyle().applyTo(inherited);
         StringBuilder sb = new StringBuilder();
         component
                 .getContents()
