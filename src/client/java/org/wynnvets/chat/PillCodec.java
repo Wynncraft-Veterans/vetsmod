@@ -315,6 +315,17 @@ public final class PillCodec {
     /**
      * Whether {@code text} already contains PUA codepoints, i.e. has been
      * encoded as a pill (by either side) and must not be encoded again.
+     *
+     * <p><b>Not {@link #isCustomGlyph(int)}, on purpose.</b> This tests
+     * {@code PRIVATE_USE} and nothing else; {@code isCustomGlyph} adds
+     * supplementary {@code UNASSIGNED}. The server pill's width marker
+     * (U+CFF00–U+CFFFF) and terminator (U+D0002) live in that second class, so
+     * adding the clause here would make {@link #encodeRemote(String)} read a
+     * label carrying either marker as already encoded and hand it straight
+     * back, unpilled. Pinned by
+     * {@code PillCodecTest.isEncoded_ignoresTheServerPillMarkersBecauseTheyAreUnassignedNotPua}
+     * and by the paired case in
+     * {@code PillCodecTest.isCustomGlyph_andIsEncodedDisagreeOnTheServerMarkers}.</p>
      */
     public static boolean isEncoded(String text) {
         if (text == null) {

@@ -508,6 +508,20 @@ public final class MessageFanoutDispatcher {
         return false;
     }
 
+    /**
+     * Reduces a chat line to the lowercase run of visible characters, so an
+     * outbound {@code /msg} can be compared against the server's echo of it.
+     *
+     * <p><b>Deliberately wider than
+     * {@link org.wynnvets.chat.PillCodec#isCustomGlyph(int)
+     * PillCodec.isCustomGlyph}.</b> On top of {@code PRIVATE_USE} it drops
+     * {@code CONTROL}, {@code FORMAT}, {@code SURROGATE}, unassigned codepoints
+     * with no {@code > 0xFFFF} bound, and all whitespace. The echo comes back
+     * re-wrapped, re-spaced and re-badged, so anything invisible has to go before
+     * the two sides can be compared at all. Pinned by
+     * {@code MessageFanoutDispatcherTest.normalize_stripsUnassignedCodepointsInsideTheBmpToo},
+     * which is the one case that discriminates the bound.</p>
+     */
     // Package-private for unit tests. See MessageFanoutDispatcherTest.
     static String normalizeForEchoComparison(String input) {
         StringBuilder normalized = new StringBuilder(input.length());

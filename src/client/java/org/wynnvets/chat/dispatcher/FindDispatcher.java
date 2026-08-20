@@ -229,8 +229,19 @@ public final class FindDispatcher {
     /**
      * Strips {@code §x} formatting codes and PUA/surrogate characters for reliable
      * text matching against Wynncraft server responses.
+     *
+     * <p><b>Deliberately wider than
+     * {@link org.wynnvets.chat.PillCodec#isCustomGlyph(int)
+     * PillCodec.isCustomGlyph}.</b> It adds {@code SURROGATE} and {@code FORMAT},
+     * and its {@code UNASSIGNED} clause carries no {@code > 0xFFFF} bound — so it
+     * also drops unassigned codepoints inside the BMP, which the canonical
+     * predicate keeps. That is the point: this normalises a {@code /find}
+     * response down to its prose before matching, and nothing downstream reads a
+     * codepoint. Narrowing it to the canonical predicate would change what
+     * {@code /find} recognises. Pinned by {@code FindDispatcherTest}.</p>
      */
-    private static String stripFormattingAndPua(String text) {
+    // Package-private for unit tests. See FindDispatcherTest.
+    static String stripFormattingAndPua(String text) {
         if (text == null) {
             return "";
         }
