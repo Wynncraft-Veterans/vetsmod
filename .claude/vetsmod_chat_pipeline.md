@@ -177,7 +177,7 @@ Batch `/find <username>` dispatcher. `enqueueFindBatch()` returns `CompletableFu
 | `banner/pill` | Server-rendered rank pills | background (aqua) + foreground (dark) composite |
 | Spoiler PUA | Encoded spoilers | `\uF600`/`\uF601` delimiters, `\uF602–\uF700` content |
 
-**Gap:** three top-level `chat/` classes go unmentioned in this reference — `PillCodec` (the PUA pill authority; see [vetsmod_pua_pills.md](vetsmod_pua_pills.md)), `DiscordTimestamps` and `RankDisplayMap`. A fourth, `NickResolver` — the shared real-name and component-flattening helpers, and the only class directly under `chat/` with a unit test — appears only in §12's regex table and has no section of its own.
+**Gap:** three top-level `chat/` classes go unmentioned in this reference — `PillCodec` (the PUA pill authority; see [vetsmod_pua_pills.md](vetsmod_pua_pills.md)), `DiscordTimestamps` and `RankDisplayMap`. A fourth, `NickResolver` — the shared real-name and component-flattening helpers — appears only in §12's regex table and has no section of its own. (Both `NickResolver` and `PillCodec` now have unit tests; an earlier version of this note called `NickResolver` the only tested class under `chat/`.)
 
 ## 12. Regex quick reference
 

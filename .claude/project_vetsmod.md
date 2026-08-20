@@ -57,6 +57,6 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 
 **Item definitions:** YAML at `src/client/resources/definitions.yml`. 9 categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `not_pedestal`, `notjunk`, `new_format_override`, `blocked_screen_titles` — all compiled to `Pattern` — plus `enchant_excluded_items`, a literal-string set of Minecraft item IDs matched by exact equality.
 
-**Tests:** a JUnit 5 harness with 7 test files under `src/test/java/`. `build.gradle` puts the client compile classpath on the test source set, so tests may reference Minecraft and Wynntils types — `NickResolverTest` builds real `Component`s. The limit is booting Minecraft, and Wynntils being `modCompileOnly` and so absent at test runtime.
+**Tests:** a JUnit 5 harness under `src/test/java/`. Tests may *compile* against Minecraft and Wynntils types, but only Minecraft's are usable at runtime — Wynntils is `modCompileOnly` and absent from the test classpath entirely, so any exercised path reaching it fails. See the harness bullet in [CLAUDE.md](CLAUDE.md), which owns the rules including the `<clinit>` caveat and the seam convention.
 
 **Unicode PUA reservation:** vetsmod has reserved BMP PUA range **U+F600–U+F850** for its own purposes. We should not use BMP PUA outside of this range since it may conflict with other Wynn projects. Major current usage is our `SpoilerCodec`. Wynncraft/Wynntils use separate PUA ranges (including supplementary plane > U+10000).
