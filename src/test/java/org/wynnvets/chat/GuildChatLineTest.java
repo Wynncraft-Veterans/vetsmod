@@ -1,4 +1,4 @@
-package org.wynnvets.chat.rewriter;
+package org.wynnvets.chat;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -6,39 +6,45 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
-import org.wynnvets.chat.GuildChatLine;
 
 /**
- * Tests for the three {@code parseGuildChat} copies in this package —
- * {@link EncourageUpdateRewriter}, {@link StaffGuildAlertRewriter} and
- * {@link ServerGuildChatRewriter}.
+ * Tests for {@link GuildChatLine} — one shared header scan, one shared parser,
+ * one deliberate variant, and here is what separates them.
  *
- * <p><b>The "triplicated" description is half right.</b> The first two are
- * code-identical — {@link StaffGuildAlertRewriter}'s carries an extra comment
- * block, nothing more — and a collapse between them is genuinely mechanical. The third
- * is a different function wearing the same name, and this test exists mainly to
- * pin the four cells where it disagrees:</p>
- *
- * <ol>
- *   <li>it has no null guard, so it throws where the others return null;</li>
- *   <li>it returns a char <em>index</em> into the original string, not a body
- *       substring;</li>
- *   <li>it keeps the rank indicator, which the others discard;</li>
- *   <li>it advances past <b>spaces only</b> where the others {@code trim()} all
- *       whitespace — so the body offset differs whenever the character after the
- *       colon is a tab or a newline.</li>
- * </ol>
- *
- * <p>(4) is the one a three-way collapse would flatten without anyone noticing,
- * because it needs a body that starts with whitespace that is not a space.</p>
- *
- * <p>What all three share is the header scan: find the last custom glyph before
- * the first colon, take the trimmed run between it and the colon as the display
+ * <p>{@link GuildChatLine#parse} is what two rewriters used to keep a copy of
+ * each; {@link GuildChatLine#parseServerLine} is a different function that
+ * happened to wear the same name. Everything above the first divergence heading
+ * exercises the header scan they share: find the last custom glyph before the
+ * first colon, take the trimmed run between it and the colon as the display
  * name. A "custom glyph" is {@code PRIVATE_USE}, or {@code UNASSIGNED}
  * <em>above the BMP</em> — the supplementary bound is part of the predicate and
  * is not one of the repo's other PUA tests.</p>
+ *
+ * <p>Everything below pins the four cells where the two disagree:</p>
+ *
+ * <ol>
+ *   <li>{@code parseServerLine} has no null guard, so it throws where
+ *       {@code parse} returns null;</li>
+ *   <li>it returns a char <em>index</em> into the original string, not a body
+ *       substring;</li>
+ *   <li>it keeps the rank indicator, which {@code parse} discards;</li>
+ *   <li>it advances past <b>spaces only</b> where {@code parse} {@code trim()}s
+ *       all whitespace — so the body offset differs whenever the character after
+ *       the colon is a tab or a newline.</li>
+ * </ol>
+ *
+ * <p>(4) is the one a collapse of the two would flatten without anyone
+ * noticing, because it needs a body that starts with whitespace that is not a
+ * space. Now that both bodies sit in one file, these four cases and the class's
+ * own divergence table are what stop that collapse from looking obvious.</p>
+ *
+ * <p>NOTE: this class used to be {@code chat.rewriter.GuildChatParseTest} and
+ * loaded three rewriters to reach three copies of the parser, two of which
+ * import Wynntils. {@link GuildChatLine} has no static state and no Wynntils
+ * import, so the class-init fragility that sat behind the parse coverage is
+ * gone.</p>
  */
-class GuildChatParseTest {
+class GuildChatLineTest {
 
     /** A rank pill glyph — PRIVATE_USE, the ordinary case. */
     private static final String PUA = String.valueOf((char) 0xE062);
@@ -53,7 +59,7 @@ class GuildChatParseTest {
     // ----- The shared header scan -----
 
     @Test
-    void allThreeReadTheNameBetweenTheLastGlyphAndTheColon() {
+    void bothReadTheNameBetweenTheLastGlyphAndTheColon() {
         String line = PUA + " Alice: hello there";
 
         GuildChatLine.Parsed shared = GuildChatLine.parse(line);
@@ -139,7 +145,7 @@ class GuildChatParseTest {
         GuildChatLine.ServerParsed server =
                 GuildChatLine.parseServerLine(PUA + " \t Alice \t : hi");
         assertNotNull(server);
-        assertEquals("Alice", server.username(), "all three trim the name identically");
+        assertEquals("Alice", server.username(), "both trim the name identically");
     }
 
     // ----- Divergence 1: the null guard -----
@@ -154,11 +160,11 @@ class GuildChatParseTest {
     }
 
     @Test
-    void emptyInputIsRejectedByAllThreeButByDifferentRoutes() {
-        // The two identical copies short-circuit on isEmpty(); the third gets
+    void emptyInputIsRejectedByBothButByDifferentRoutes() {
+        // parse short-circuits on isEmpty(); parseServerLine gets
         // colonIndex == -1 and fails the <= 0 check. Same answer, so a collapse
-        // onto either body is safe here — which is exactly why the null case
-        // above has to be checked separately.
+        // onto either body would be safe here — which is exactly why the null
+        // case above has to be checked separately.
         assertNull(GuildChatLine.parse(""));
         assertNull(GuildChatLine.parseServerLine(""));
     }
@@ -166,7 +172,7 @@ class GuildChatParseTest {
     // ----- Divergences 2 and 3: what comes back -----
 
     @Test
-    void theThirdCopyReturnsAnIndexAndKeepsTheRankIndicator() {
+    void parseServerLineReturnsAnIndexAndKeepsTheRankIndicator() {
         String line = PUA + " Alice: hello";
 
         GuildChatLine.ServerParsed server = GuildChatLine.parseServerLine(line);
@@ -179,17 +185,17 @@ class GuildChatParseTest {
 
         GuildChatLine.Parsed shared = GuildChatLine.parse(line);
         assertNotNull(shared);
-        assertEquals("hello", shared.message(), "the other two hand back the substring");
+        assertEquals("hello", shared.message(), "parse hands back the substring");
     }
 
     // ----- Divergence 4: the cell a three-way collapse would flatten -----
 
     @Test
     void bodyOffsetDivergesWhenTheCharacterAfterTheColonIsNotASpace() {
-        // The whole reason this test class exists. The two identical copies
-        // trim() the body, which removes tabs and newlines; the third advances
-        // only past literal ' ', so it stops on the first tab or newline and
-        // the caller renders it.
+        // The whole reason this test class exists. parse trim()s the body,
+        // which removes tabs and newlines; parseServerLine advances only past
+        // literal ' ', so it stops on the first tab or newline and the caller
+        // renders it.
         String line = PUA + " Alice: \n hello";
 
         GuildChatLine.Parsed shared = GuildChatLine.parse(line);
@@ -218,9 +224,9 @@ class GuildChatParseTest {
     }
 
     @Test
-    void theTwoCopiesAlsoTrimTheTrailingEndOfTheBodyAndTheThirdCannot() {
+    void parseAlsoTrimsTheTrailingEndOfTheBodyAndAnIndexCannot() {
         // trim() is two-sided. An index has no way to express that, so the
-        // trailing whitespace survives in the third copy's caller.
+        // trailing whitespace survives in parseServerLine's caller.
         String line = PUA + " Alice: hello   ";
 
         GuildChatLine.Parsed shared = GuildChatLine.parse(line);
