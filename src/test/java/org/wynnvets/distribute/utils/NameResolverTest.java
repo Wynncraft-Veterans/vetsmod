@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -34,11 +36,22 @@ import org.junit.jupiter.api.Test;
  */
 class NameResolverTest {
 
+    private static final Locale TURKISH = Locale.forLanguageTag("tr");
+
+    /** Captured at class-init, before any test can have changed it. */
+    private static final Locale ORIGINAL_DEFAULT = Locale.getDefault();
+
+    @AfterEach
+    void restoreDefaultLocale() {
+        Locale.setDefault(ORIGINAL_DEFAULT);
+    }
+
     /**
      * A wapi v3 guild payload. Casey renamed (tile shows "Dana"); Dana is a
      * different member who never renamed but whose current name collides with
-     * Casey's legacy name; Erin never renamed; "Broken" is a malformed entry
-     * whose value is not an object.
+     * Casey's legacy name; Erin never renamed; "Frank" is a well-formed member
+     * object carrying no uuid at all; "Broken" is a malformed entry whose value
+     * is not an object.
      */
     private static final String ROSTER =
             """
@@ -52,6 +65,7 @@ class NameResolverTest {
                 "chief": {
                   "Dana": {"uuid": "11111111-2222-3333-4444-555555555555", "legacyName": null},
                   "Erin": {"uuid": "99999999999999999999999999999999"},
+                  "Frank": {"legacyName": "OldFrank"},
                   "Broken": 42
                 }
               }
@@ -85,9 +99,9 @@ class NameResolverTest {
         List<String> names = NameResolver.extractAllLegacyNames(ROSTER);
 
         assertEquals(
-                List.of("Dana", "Dana", "Erin", "Broken"),
+                List.of("Dana", "Dana", "Erin", "OldFrank", "Broken"),
                 names,
-                "Casey's tile reads Dana; Dana, Erin and Broken have no legacy name");
+                "Casey and Frank renamed; Dana, Erin and Broken fall back to their key");
     }
 
     @Test
@@ -122,11 +136,15 @@ class NameResolverTest {
     @Test
     void extractUuidToLegacyName_skipsMalformedAndUuidlessEntries() {
         // The asymmetry with extractAllLegacyNames: no uuid means no key, so
-        // the member simply cannot be opted out.
+        // the member simply cannot be opted out. Two distinct guards produce
+        // that outcome and the fixture exercises both — "Broken" trips the
+        // `member == null` check, "Frank" is a perfectly good member object
+        // that trips the later `uuid == null` one.
         Map<String, String> map = NameResolver.extractUuidToLegacyName(ROSTER);
 
-        assertEquals(3, map.size(), "Broken has no member object and so no entry");
-        assertTrue(!map.containsValue("Broken"));
+        assertEquals(3, map.size(), "Casey, Dana and Erin only");
+        assertTrue(!map.containsValue("Broken"), "no member object");
+        assertTrue(!map.containsValue("OldFrank"), "member object, but no uuid to key it on");
     }
 
     // ----- extractNameIndex -----
@@ -141,14 +159,25 @@ class NameResolverTest {
     }
 
     @Test
-    void extractNameIndex_keysAreLowercasedWithLocaleRoot() {
-        // Locale.ROOT, so a Turkish client indexes the same keys. Worth stating
-        // because several of its neighbours in the repo use the no-argument
-        // toLowerCase().
+    void extractNameIndex_keysAreLowercased() {
         Map<String, String> index = NameResolver.extractNameIndex(ROSTER);
 
         assertTrue(index.containsKey("casey"));
         assertTrue(!index.containsKey("Casey"), "the raw-case key is not registered");
+    }
+
+    @Test
+    void extractNameIndex_foldsWithLocaleRootSoATurkishClientIndexesTheSameKeys() {
+        // The argument to toLowerCase is load-bearing and several neighbours in
+        // this repo omit it. "Erin" contains a capital I, which a default-locale
+        // fold would turn into the dotless U+0131 — so the key would be "erın"
+        // and every lookup for "erin" would miss.
+        Locale.setDefault(TURKISH);
+
+        Map<String, String> index = NameResolver.extractNameIndex(ROSTER);
+
+        assertEquals("Erin", index.get("erin"), "ASCII i, not the dotless one");
+        assertTrue(!index.containsKey("erın"), "the default-locale key is never produced");
     }
 
     @Test

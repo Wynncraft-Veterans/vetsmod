@@ -11,8 +11,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link GraidsDistributor}'s proportional share split — the one
- * pure method in the class.
+ * Tests for {@link GraidsDistributor}'s proportional share split.
  *
  * <p>Unlike its two siblings this split is <b>proportional</b>: a participant
  * with twice the guild-raid count gets twice the share, floored, with the
@@ -25,9 +24,13 @@ import org.junit.jupiter.api.Test;
  *
  * <p>{@code countGraidFrequencies} and {@code joinLore} are not covered: both
  * resolve Wynntils {@code GuildLogItem} and {@code StyledText} on their
- * executed path. Freeing them is a refactor, not a seam, and this test exists
- * partly to make that refactor checkable — no pure helper is extracted here,
- * because extracting one is precisely the change being protected.</p>
+ * executed path. Freeing those two is a refactor, not a seam, and this test
+ * exists partly to make that refactor checkable — no pure helper is extracted
+ * here, because extracting one is precisely the change being protected.</p>
+ *
+ * <p>{@code filterIndex} is a third pure, Wynntils-free method and is
+ * <b>uncovered</b>. The Phase 4 target list missed it; the verify pass caught
+ * that. Recorded here rather than added, since the phase is closed.</p>
  *
  * <p>NOTE: {@link GraidsDistributor} imports Wynntils, but its static state is
  * a {@code String}, a {@code Pattern} and a {@code Random}, so nothing loads

@@ -195,7 +195,13 @@ class NoAspectsFilterTest {
     @Test
     void anEmptyResultIsTheSharedImmutableInstanceOnEveryFailurePath() {
         // Set.of() rather than a fresh HashSet, so callers must not mutate the
-        // result of a failed fetch.
+        // result of a failed fetch. Both exit paths are covered: "garbage" and
+        // "{}" return from the not-an-array guard, the object-valued uuid from
+        // the catch block at the bottom.
         assertSame(NoAspectsFilter.parseUuids("garbage"), NoAspectsFilter.parseUuids("{}"));
+        assertSame(
+                NoAspectsFilter.parseUuids("{}"),
+                NoAspectsFilter.parseUuids("[{\"uuid\": {\"nested\": 1}}]"),
+                "the catch path returns the same shared instance as the guard");
     }
 }

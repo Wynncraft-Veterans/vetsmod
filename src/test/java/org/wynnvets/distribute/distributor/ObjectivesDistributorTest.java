@@ -20,9 +20,8 @@ import org.junit.jupiter.api.Test;
  * side is plain strings.</p>
  *
  * <p>{@code buildDistribution} shuffles, so its assertions are invariants and
- * multisets rather than positions — except where {@code total % k == 0}, in
- * which case every recipient gets the same number and the result is
- * order-independent anyway.</p>
+ * multisets rather than positions. Every count assertion below sorts before
+ * comparing, so none of them depends on which recipient drew a bonus.</p>
  *
  * <p>NOTE: {@link ObjectivesDistributor} imports Wynntils {@code Managers}, but
  * its static state is a {@code String}, a {@code Pattern} and a {@code Random},

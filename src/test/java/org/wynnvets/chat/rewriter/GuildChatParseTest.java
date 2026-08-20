@@ -13,7 +13,8 @@ import org.junit.jupiter.api.Test;
  * {@link ServerGuildChatRewriter}.
  *
  * <p><b>The "triplicated" description is half right.</b> The first two are
- * byte-identical and a collapse between them is genuinely mechanical. The third
+ * code-identical — {@link StaffGuildAlertRewriter}'s carries an extra comment
+ * block, nothing more — and a collapse between them is genuinely mechanical. The third
  * is a different function wearing the same name, and this test exists mainly to
  * pin the four cells where it disagrees:</p>
  *
@@ -48,7 +49,7 @@ class GuildChatParseTest {
     /** UNASSIGNED but inside the BMP, so the {@code cp > 0xFFFF} bound excludes it. */
     private static final String BMP_UNASSIGNED = String.valueOf((char) 0x0378);
 
-    /** Assert the two byte-identical copies agree, and return their shared result. */
+    /** Assert the two code-identical copies agree, and return their shared result. */
     private static EncourageUpdateRewriter.ParsedGuildChat bothIdenticalCopies(String message) {
         EncourageUpdateRewriter.ParsedGuildChat encourage =
                 EncourageUpdateRewriter.parseGuildChat(message);

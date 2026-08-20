@@ -11,8 +11,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link ItemDefinitions}' eight name predicates, driven against the
- * real {@code definitions.yml} plus small parsed-in fixtures.
+ * Tests for {@link ItemDefinitions}' eight testable query methods — seven that
+ * take an item name plus {@code isBlockedScreenTitle}, which takes a screen
+ * title — driven against the real {@code definitions.yml} plus small parsed-in
+ * fixtures.
  *
  * <p>The file is the contract, not a stub: {@code src/client/resources} is on
  * the test runtime classpath, so {@code load()} reads exactly what production
@@ -83,14 +85,30 @@ class ItemDefinitionsTest {
     // ----- matches(), not find() -----
 
     @Test
-    void predicatesRequireAFullMatchNotASubstring() {
-        // Every loop uses matcher.matches(). An unanchored pattern would behave
-        // very differently under find(): "^Ability Shard$" would then match any
-        // name containing it.
-        assertTrue(ItemDefinitions.isUnenchanted("Ability Shard"));
+    void predicatesRequireAFullMatchNotASubstring() throws IOException {
+        // Every loop uses matcher.matches(). Against the real file that choice
+        // is almost invisible — all 158 patterns are anchored with ^ and the few
+        // without a trailing $ end in a greedy .* — so an anchored fixture would
+        // behave identically under find() and pin nothing. The discriminating
+        // input is an UNANCHORED pattern, which the file happens not to contain
+        // but nothing stops a future entry from adding.
+        parseFixture(
+                """
+                definitions:
+                  - "Anchorless"
+                """);
+
+        assertTrue(ItemDefinitions.isLegacy("Anchorless"), "the exact name still matches");
         assertFalse(
-                ItemDefinitions.isUnenchanted("My Ability Shard"),
-                "find() would accept this; matches() does not");
+                ItemDefinitions.isLegacy("My Anchorless Probe"),
+                "find() would accept this substring; matches() requires the whole name");
+    }
+
+    @Test
+    void anchoredPatternsFromTheRealFileStillRejectSubstrings() {
+        // The same rule seen through the file as it actually is.
+        assertTrue(ItemDefinitions.isUnenchanted("Ability Shard"));
+        assertFalse(ItemDefinitions.isUnenchanted("My Ability Shard"));
         assertFalse(ItemDefinitions.isUnenchanted("Ability Shards"));
     }
 
@@ -236,6 +254,12 @@ class ItemDefinitionsTest {
         // The screen-title predicate takes a nullable title from the screen
         // handler; the seven name predicates do not guard, and Matcher rejects
         // a null CharSequence.
+        //
+        // Note what this depends on: the NPE comes from inside the loop, so it
+        // only fires while the list is non-empty. not_pedestal has exactly one
+        // pattern in the real file — delete that line and isNotPedestal(null)
+        // silently becomes false, breaking a test whose subject is null
+        // handling rather than data.
         assertFalse(ItemDefinitions.isBlockedScreenTitle(null));
 
         assertThrows(NullPointerException.class, () -> ItemDefinitions.isLegacy(null));

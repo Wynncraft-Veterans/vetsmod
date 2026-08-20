@@ -98,7 +98,9 @@ class JsonAccessorTest {
     @Test
     void optInt_fallsBackOnAllThreeAxes() {
         // Missing, null-valued, wrong-typed and null-receiver all give the
-        // fallback. No other accessor here is uniform across the three.
+        // fallback. No other accessor here is uniform across the three. The
+        // wrong-type row has one exception, pinned separately below: a
+        // singleton array is unwrapped rather than rejected.
         assertEquals(-1, CautionCommands.optInt(new JsonObject(), "k", -1), "missing");
         assertEquals(
                 -1, CautionCommands.optInt(withValue(JsonNull.INSTANCE), "k", -1), "json null");
@@ -107,6 +109,17 @@ class JsonAccessorTest {
         assertEquals(-1, CautionCommands.optInt(withValue(new JsonObject()), "k", -1), "object");
         assertEquals(-1, CautionCommands.optInt(withValue(new JsonArray()), "k", -1), "array");
         assertEquals(-1, CautionCommands.optInt(null, "k", -1), "null receiver");
+    }
+
+    @Test
+    void optInt_aSingletonArrayIsUnwrappedSoTheWrongTypeColumnHasACaveat() {
+        // Gson delegates getAsInt on a one-element array to that element. So
+        // "wrong-typed gives the fallback" holds for objects and multi-element
+        // arrays and fails for singletons — at this site and at all six others,
+        // none of which reject the shape.
+        JsonArray single = new JsonArray();
+        single.add(7);
+        assertEquals(7, CautionCommands.optInt(withValue(single), "k", -1));
     }
 
     @Test

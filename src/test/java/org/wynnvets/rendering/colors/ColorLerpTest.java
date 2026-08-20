@@ -24,9 +24,18 @@ import org.junit.jupiter.api.Test;
  * anyway: "unreachable" is a property of the callers, and the point of
  * extracting a helper is that new callers can appear.</p>
  *
- * <p>NOTE: {@link AnimatedGradientSequence}'s static initializer reads
- * {@link ShaderColorPalette}, which is a bare list of {@code int} constants with
- * no imports at all. Neither class loads Minecraft or Wynntils at class-init.</p>
+ * <p>NOTE, corrected by the verify pass — the obvious reading of this class's
+ * loadability is wrong twice over. {@link AnimatedGradientSequence} does
+ * <em>not</em> resolve {@link ShaderColorPalette} at runtime: {@code DARK_AQUA}
+ * is a compile-time constant, so javac folds it into a {@code ConstantValue}
+ * attribute and the palette class is never loaded. Its real static initializer
+ * is one {@code ThreadLocal}. But the class <em>does</em> pull in Minecraft
+ * regardless, because it {@code implements FormattedCharSequence} and the JVM
+ * loads superinterfaces when it loads the class. That is harmless here only
+ * because {@code build.gradle} puts the client runtime classpath on the test
+ * source set — it is not the "no Minecraft at class-init" situation the sibling
+ * {@code rendering.nametag.ColorLerpTest} genuinely has. Wynntils is absent from
+ * both.</p>
  */
 class ColorLerpTest {
 

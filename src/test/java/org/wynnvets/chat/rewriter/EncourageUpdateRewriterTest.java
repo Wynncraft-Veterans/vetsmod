@@ -172,7 +172,7 @@ class EncourageUpdateRewriterTest {
     @Test
     void resolveRealUsername_capturesAtMostSixteenNameCharacters() {
         // The capture group is [A-Za-z0-9_]{1,16}: a longer run is truncated
-        // rather than rejected, and a '-' ends the name early.
+        // rather than rejected.
         String seventeen = "Abcdefghijklmnopq";
         MutableComponent root = Component.literal("").setStyle(Style.EMPTY);
         root.append(

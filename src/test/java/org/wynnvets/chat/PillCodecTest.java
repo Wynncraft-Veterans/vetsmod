@@ -6,9 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -16,8 +18,8 @@ import org.junit.jupiter.api.Test;
  *
  * <p>NOTE: {@code encodeLocal} builds real {@code Component} and {@code Style}
  * objects, which the harness supports — the test source set carries the client
- * compile classpath. {@link PillCodec}'s own static state is nine {@code char}
- * and {@code String} constants, so nothing loads during class-init. If a future
+ * compile classpath. {@link PillCodec}'s own static state is twelve {@code char},
+ * {@code int} and {@code String} constants, so nothing loads during class-init. If a future
  * contributor adds a static initializer that touches Minecraft's registries or
  * Wynntils, this test starts failing at class-init time, and the fix is to
  * extract the pure half rather than to drop the coverage.</p>
@@ -54,6 +56,16 @@ class PillCodecTest {
     private static final String LOCAL_FRAME_CLOSE = chars(0xE011);
 
     private static final Style FRAME_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
+
+    private static final Locale TURKISH = Locale.forLanguageTag("tr");
+
+    /** Captured at class-init, before any test can have changed it. */
+    private static final Locale ORIGINAL_DEFAULT = Locale.getDefault();
+
+    @AfterEach
+    void restoreDefaultLocale() {
+        Locale.setDefault(ORIGINAL_DEFAULT);
+    }
 
     // ----- Fixture builders -----
 
@@ -156,8 +168,46 @@ class PillCodecTest {
 
     @Test
     void encodeRemote_upperCasesTheLabel() {
+        // Fixtures deliberately contain no 'i' — see the locale case below, which
+        // is why this is not the general property it looks like.
         assertEquals(PillCodec.encodeRemote("VET"), PillCodec.encodeRemote("vet"));
         assertEquals(PillCodec.encodeRemote("VET"), PillCodec.encodeRemote("VeT"));
+    }
+
+    @Test
+    void encodeRemote_dropsAnIUnderATurkishDefaultLocale() {
+        // KNOWN BUG (pinned, not fixed): encodeRemote and encodeLocal fold with
+        // the no-argument toUpperCase(). Under a Turkish default, 'i' becomes
+        // the dotted capital U+0130, which is outside A-Z, so the letter is
+        // silently dropped rather than rejected — a "vip" pill renders as "VP".
+        // See {@code
+        // .claude/ephemeral/bugs-found-via-mellow-rain/default-locale-case-folding-cluster.md}.
+        // Fixing it means passing Locale.ROOT; this assertion flips then.
+        Locale.setDefault(TURKISH);
+
+        assertEquals(
+                REMOTE_FRAME_OPEN + upperGlyphs("VP") + REMOTE_FRAME_CLOSE,
+                PillCodec.encodeRemote("vip"),
+                "the i folds to U+0130, fails the A-Z test and is dropped");
+        assertEquals(
+                REMOTE_FRAME_OPEN + upperGlyphs("VIP") + REMOTE_FRAME_CLOSE,
+                PillCodec.encodeRemote("VIP"),
+                "an already-uppercase label is untouched by the fold and survives");
+    }
+
+    @Test
+    void encodeLocal_dropsAnIUnderATurkishDefaultLocaleToo() {
+        // Same defect, same cluster, second site.
+        Locale.setDefault(TURKISH);
+
+        assertEquals(
+                LOCAL_FRAME_OPEN
+                        + LOCAL_FRAME_SEGMENT
+                        + upperGlyphs("V")
+                        + LOCAL_FRAME_SEGMENT
+                        + upperGlyphs("P")
+                        + LOCAL_FRAME_CLOSE,
+                PillCodec.encodeLocal("vip", FRAME_STYLE).getString());
     }
 
     @Test

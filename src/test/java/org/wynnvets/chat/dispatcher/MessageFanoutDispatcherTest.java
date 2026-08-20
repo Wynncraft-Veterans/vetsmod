@@ -145,7 +145,20 @@ class MessageFanoutDispatcherTest {
                 "ab",
                 MessageFanoutDispatcher.normalizeForEchoComparison(
                         "a" + new StringBuilder().appendCodePoint(0xD0002) + "b"),
-                "UNASSIGNED, unbounded — the plane-13 pill terminator included");
+                "UNASSIGNED above the BMP — the plane-13 pill terminator");
+    }
+
+    @Test
+    void normalize_stripsUnassignedCodepointsInsideTheBmpToo() {
+        // This is what makes the predicate *unbounded*, and it is the single
+        // property that separates it from the canonical isCustomGlyph used by
+        // the guild-chat parsers, which qualify UNASSIGNED with `cp > 0xFFFF`.
+        // The supplementary probe above passes under either form; only this one
+        // discriminates. U+0378 is unassigned and inside the BMP.
+        assertEquals(
+                "ab",
+                MessageFanoutDispatcher.normalizeForEchoComparison("a" + (char) 0x0378 + "b"),
+                "a bounded UNASSIGNED clause would keep this character");
     }
 
     @Test

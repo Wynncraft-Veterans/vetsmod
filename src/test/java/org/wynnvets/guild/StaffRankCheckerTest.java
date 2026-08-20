@@ -60,11 +60,15 @@ class StaffRankCheckerTest {
 
     @Test
     void unauthorized_foldsCase() {
+        // Passed shouting and un-folded: the predicate has to do the
+        // lower-casing itself. Folding it here first made this vacuous.
         assertTrue(
                 StaffRankChecker.isStaffRankUnauthorizedResponse(
-                        "YOU MUST BE A CAPTAIN OR HIGHER TO USE THIS COMMAND!"
-                                .toLowerCase(Locale.ROOT)),
+                        "YOU MUST BE A CAPTAIN OR HIGHER TO USE THIS COMMAND!"),
                 "the predicate lower-cases its input, so the caller need not");
+        assertTrue(
+                StaffRankChecker.isStaffRankUnauthorizedResponse(
+                        "You Must Be A Captain Or Higher To Use This Command!"));
     }
 
     @Test

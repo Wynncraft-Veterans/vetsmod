@@ -13,8 +13,10 @@ import org.junit.jupiter.api.Test;
  * <p>{@code splitCount} returns an {@code int[]} of length 3 and it
  * <b>shuffles</b> — the remainder is handed to a random subset of the three
  * pools, not to the first ones. Assertions are therefore invariants and
- * multisets, with exact array equality only where {@code count % 3 == 0} and
- * the shuffle cannot be observed. A sweep over the whole brigadier-reachable
+ * multisets, with exact array equality only where the shuffle never runs —
+ * i.e. wherever {@code remainder > 0} is false, which covers the multiples of
+ * three <em>and</em> every negative input, since a negative remainder fails
+ * that guard too. A sweep over the whole brigadier-reachable
  * range is the real guard: it is the only thing that would catch a rewrite that
  * conserved the total for the cases someone thought to enumerate and lost it
  * elsewhere.</p>
