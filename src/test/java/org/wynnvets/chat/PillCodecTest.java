@@ -14,7 +14,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link PillCodec}'s four public entry points.
+ * Tests for {@link PillCodec}'s five public entry points.
  *
  * <p>NOTE: {@code encodeLocal} builds real {@code Component} and {@code Style}
  * objects, which the harness supports — the test source set carries the client
@@ -110,6 +110,54 @@ class PillCodecTest {
 
     private static String emptyRemotePill() {
         return "" + REMOTE_FRAME_OPEN + REMOTE_FRAME_CLOSE;
+    }
+
+    // ----- isCustomGlyph -----
+
+    @Test
+    void isCustomGlyph_acceptsPrivateUseInEveryPlane() {
+        assertTrue(PillCodec.isCustomGlyph(LOWER_ALPHABET_BASE), "BMP PUA, the pill letters");
+        assertTrue(PillCodec.isCustomGlyph(0xF8FF), "the top of the BMP PUA block");
+        assertTrue(PillCodec.isCustomGlyph(0xF0000), "Supplementary PUA-A");
+        assertTrue(PillCodec.isCustomGlyph(0x100000), "Supplementary PUA-B");
+    }
+
+    @Test
+    void isCustomGlyph_acceptsSupplementaryUnassignedButNotBmpUnassigned() {
+        // The load-bearing half. Wynncraft's width marker, kern marker and pill
+        // terminator are all unassigned codepoints above the BMP, so they must
+        // count; unassigned codepoints inside the BMP turn up in ordinary text,
+        // so they must not. Drop the bound and a plain chat line carrying
+        // U+0378 acquires a rank indicator it never had — which is exactly what
+        // GuildChatLineTest pins from the other side.
+        assertTrue(PillCodec.isCustomGlyph(SERVER_PILL_CLOSE), "U+D0002, the terminator");
+        assertTrue(PillCodec.isCustomGlyph(SERVER_WIDTH_MIN), "U+CFF00, a width marker");
+        assertTrue(PillCodec.isCustomGlyph(SERVER_KERN_MARKER), "U+CFFFF, the kern marker");
+
+        assertFalse(PillCodec.isCustomGlyph(0x0378), "unassigned, but inside the BMP");
+        assertFalse(PillCodec.isCustomGlyph(0x0379), "the codepoint next to it, likewise");
+    }
+
+    @Test
+    void isCustomGlyph_rejectsOrdinaryText() {
+        assertFalse(PillCodec.isCustomGlyph('a'));
+        assertFalse(PillCodec.isCustomGlyph('Z'));
+        assertFalse(PillCodec.isCustomGlyph('7'));
+        assertFalse(PillCodec.isCustomGlyph(' '), "space is SPACE_SEPARATOR, not unassigned");
+        assertFalse(PillCodec.isCustomGlyph(0x2064), "U+2064 is FORMAT — the local frame uses it");
+        assertFalse(PillCodec.isCustomGlyph(0x1F600), "an assigned supplementary codepoint");
+    }
+
+    @Test
+    void isCustomGlyph_andIsEncodedDisagreeOnTheServerMarkers() {
+        // Stated as a pair because the two predicates sit in the same class and
+        // read as the same question. isEncoded gates encodeRemote's passthrough
+        // and must stay PRIVATE_USE-only; widening it to match this one makes
+        // encodeRemote hand a raw label back.
+        for (int marker : new int[] {SERVER_PILL_CLOSE, SERVER_WIDTH_MIN, SERVER_KERN_MARKER}) {
+            assertTrue(PillCodec.isCustomGlyph(marker));
+            assertFalse(PillCodec.isEncoded(chars(marker)));
+        }
     }
 
     // ----- isEncoded -----

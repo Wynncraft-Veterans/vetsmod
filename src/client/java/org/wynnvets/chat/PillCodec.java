@@ -288,6 +288,31 @@ public final class PillCodec {
     // ── Predicates ────────────────────────────────────────────────────
 
     /**
+     * Whether {@code codePoint} is one of the custom-font glyphs Wynncraft's
+     * resource pack draws as art rather than as text.
+     *
+     * <p>Two codepoint classes qualify: the Private Use Area, which is where
+     * the pill and badge glyphs live, and <b>supplementary</b> unassigned
+     * codepoints, which is where the width markers, kern markers and pill
+     * terminator live.</p>
+     *
+     * <p>The {@code > 0xFFFF} bound on the unassigned half is the load-bearing
+     * part and the one a careless reader drops. Unassigned codepoints inside
+     * the BMP turn up in ordinary text — a chat line carrying one would acquire
+     * a rank indicator it never had, or lose a character to a strip that should
+     * have left it alone. Wynncraft's markers are all above the BMP.</p>
+     *
+     * <p>Not the same question as {@link #isEncoded(String)}, which asks only
+     * about {@code PRIVATE_USE} and deliberately says "no" to the markers this
+     * says "yes" to; see its own docs for why.</p>
+     */
+    public static boolean isCustomGlyph(int codePoint) {
+        int type = Character.getType(codePoint);
+        return type == Character.PRIVATE_USE
+                || (type == Character.UNASSIGNED && codePoint > 0xFFFF);
+    }
+
+    /**
      * Whether {@code text} already contains PUA codepoints, i.e. has been
      * encoded as a pill (by either side) and must not be encoded again.
      */
