@@ -22,7 +22,7 @@ jobs:
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
       - name: format and javadoc gates
-        run: ./gradlew spotlessCheck compileJava compileClientJava
+        run: ./gradlew spotlessCheck compileJava compileClientJava compileTestJava
       - name: build
         run: ./gradlew build
       - name: capture build artifacts
