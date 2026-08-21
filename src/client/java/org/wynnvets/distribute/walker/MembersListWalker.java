@@ -21,6 +21,7 @@ import org.lwjgl.glfw.GLFW;
 import org.wynnvets.distribute.distributor.ObjectivesDistributor;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.ContainerScreens;
 
 /**
  * Walks every page of the in-game {@code "<guild>: Members"} GUI and
@@ -176,7 +177,7 @@ public final class MembersListWalker {
         scanScheduled = false;
         if (!active) return;
 
-        AbstractContainerScreen<?> screen = currentMembersScreen();
+        AbstractContainerScreen<?> screen = ContainerScreens.currentWithId(membersContainerId);
         if (screen == null) {
             stop();
             return;
@@ -270,13 +271,5 @@ public final class MembersListWalker {
         List<MemberEntry> snapshot = new ArrayList<>(collected);
         stop();
         if (cb != null) cb.onComplete(snapshot);
-    }
-
-    private static AbstractContainerScreen<?> currentMembersScreen() {
-        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
-                && screen.getMenu().containerId == membersContainerId) {
-            return screen;
-        }
-        return null;
     }
 }

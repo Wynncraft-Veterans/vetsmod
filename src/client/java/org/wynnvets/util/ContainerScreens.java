@@ -8,10 +8,11 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 /**
  * The two ways this mod asks <em>"which container screen is open right now?"</em>.
  *
- * <p>Seven sites spelled {@code McUtils.mc().screen instanceof AbstractContainerScreen<?>} for
- * themselves, each following it with one of exactly two discriminators. The idiom lives here
- * once so a reader comparing two call sites is comparing the discriminators rather than
- * re-deriving that both start the same way.</p>
+ * <p>Seven sites pattern-matched {@code McUtils.mc().screen} against
+ * {@link AbstractContainerScreen} for themselves, each following it with one of exactly two
+ * discriminators. The idiom lives here once so a reader comparing two call sites is comparing
+ * the discriminators rather than re-deriving that both start the same way. The two bodies
+ * below are the only remaining occurrences in {@code src/}, which is what makes that grep-able.</p>
  *
  * <h2>The two predicates are not interchangeable</h2>
  * <p>They answer different questions and a caller that swaps one for the other changes

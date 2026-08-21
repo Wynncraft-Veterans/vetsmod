@@ -23,6 +23,7 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.distributor.RandomDistributor;
 import org.wynnvets.distribute.utils.NameResolver;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.ContainerScreens;
 
 /**
  * Paginates the in-game {@code "<guild>: Members"} GUI looking for a
@@ -386,7 +387,7 @@ public final class MembersListSearcher {
     private static void scanAndPaginate() {
         if (displayQuery == null) return;
 
-        AbstractContainerScreen<?> screen = currentMembersScreen();
+        AbstractContainerScreen<?> screen = ContainerScreens.currentWithId(membersContainerId);
         if (screen == null) {
             // Container id mismatch — typically a server-side close+reopen
             // of the Members menu between scheduleScan and now. In a
@@ -546,20 +547,13 @@ public final class MembersListSearcher {
         if (handler != null) handler.run();
     }
 
-    private static AbstractContainerScreen<?> currentMembersScreen() {
-        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
-                && screen.getMenu().containerId == membersContainerId) {
-            return screen;
-        }
-        return null;
-    }
-
     /**
      * Returns the currently-open container screen iff its title matches
      * the Members pattern, <em>regardless</em> of its container id.
-     * Companion to {@link #currentMembersScreen()} which only accepts the
-     * already-bound id — used by {@link #scanAndPaginate()} to rebind
-     * after a server-side close+reopen refresh.
+     * Companion to {@link org.wynnvets.util.ContainerScreens#currentWithId(int)
+     * ContainerScreens.currentWithId}, which only accepts the already-bound
+     * id — used by {@link #scanAndPaginate()} to rebind after a server-side
+     * close+reopen refresh.
      */
     private static AbstractContainerScreen<?> openMembersScreen() {
         if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen

@@ -16,6 +16,7 @@ import org.lwjgl.glfw.GLFW;
 import org.wynnvets.distribute.command.OutboundCommand;
 import org.wynnvets.distribute.distributor.GraidsDistributor;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.ContainerScreens;
 
 /**
  * Opens sub-views of the Guild Management GUI by sending
@@ -159,7 +160,7 @@ public final class GuildManageOpener {
         if (target != Target.LOG) return;
         if (event.getContainerId() != manageContainerId) return;
 
-        AbstractContainerScreen<?> screen = currentManageScreen();
+        AbstractContainerScreen<?> screen = ContainerScreens.currentWithId(manageContainerId);
         if (screen == null) return;
 
         List<ItemStack> items = screen.getMenu().getItems();
@@ -179,13 +180,5 @@ public final class GuildManageOpener {
         VetsLogger.debug("GuildManageOpener: Guild Log tile not found in Manage items");
         target = null;
         manageContainerId = -1;
-    }
-
-    private static AbstractContainerScreen<?> currentManageScreen() {
-        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
-                && screen.getMenu().containerId == manageContainerId) {
-            return screen;
-        }
-        return null;
     }
 }
