@@ -24,13 +24,19 @@ import net.minecraft.ChatFormatting;
  * {@code CustomColor} import above resolves a Javadoc link and nothing else —
  * imports are free, static initializers are not.</p>
  *
- * <p>Single source of truth, one hop removed: nothing outside
- * {@link AnniOutlineRegistry} reads this table. Its {@code ownPartyEntry} takes a single
- * {@link #chatFormattingForRole} result and derives both halves of the {@code Entry} from it —
- * the outline {@link CustomColor} and the nametag {@link ChatFormatting} — and it is that
- * {@code Entry} which {@link AnniOutlineTicker} and
+ * <p><b>Single source of truth for the whole mod's role colours.</b> Two callers:
+ * {@link AnniOutlineRegistry#ownPartyEntry}, for the outline and nametag overlay, and
+ * {@link org.wynnvets.mwe.anni.render.AnniHoverBuilder#roleColor AnniHoverBuilder#roleColor},
+ * which the chat surfaces call and which now delegates here rather than carrying its own copy
+ * of the same seven arms. The boss bar's {@code VetsBossBarContentBuilder.roleColor} is a third
+ * role table and is <em>deliberately</em> not this one — {@code TANK} to BLUE, {@code FILL} to
+ * DARK_AQUA, spec-cited as "distinct from S4's outline colours". Do not fold it in.</p>
+ *
+ * <p>{@code ownPartyEntry} takes a single {@link #chatFormattingForRole} result and derives both
+ * halves of the {@code Entry} from it — the outline {@link CustomColor} and the nametag
+ * {@link ChatFormatting} — and it is that {@code Entry} which {@link AnniOutlineTicker} and
  * {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} read. Deriving both from one call
- * is what stops those two colours drifting. The guarantee is per-tier and does <em>not</em>
+ * is what stops those two colours drifting. That guarantee is per-tier and does <em>not</em>
  * extend to the other-vets-party tier, whose two halves are written out separately; they now sit
  * in one expression in {@link AnniOutlineRegistry} so the convention is at least visible.</p>
  */

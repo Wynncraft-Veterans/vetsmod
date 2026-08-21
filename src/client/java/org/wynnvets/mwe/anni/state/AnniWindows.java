@@ -4,12 +4,12 @@ package org.wynnvets.mwe.anni.state;
  * The anni time windows, named once each.
  *
  * <p>Almost everything under {@code mwe/anni/} gates on "how far are we from the
- * announced anni". Before this class the answer was compared against seven
- * constants declared in seven classes, expressing five concepts, four of which
- * spelled {@code 2L * 60L * 60L} independently of each other. Several carried a
- * comment saying they deliberately matched a partner; none of those comments was
- * checkable. This class holds each edge once so the "keep in sync with X"
- * relationship is a compile-time one.</p>
+ * announced anni". Before this class the answer was compared against <b>seven
+ * constant declarations across five classes, expressing the three windows
+ * below</b>. Two of the seven carried a comment naming their partner — one by
+ * class, one by symbol — and neither comment was checkable by anything. This class
+ * holds each edge once, so the "keep in sync with X" relationship is a compile-time
+ * one.</p>
  *
  * <p><b>It unifies nothing.</b> The three constants below are three different
  * windows and stay that way — moving the bar and the poller from 90 m to 2 h
@@ -58,9 +58,8 @@ package org.wynnvets.mwe.anni.state;
  *
  * <h2>Deliberate non-residents</h2>
  *
- * <p>Three further constants in the repo hold one of these values and are not
- * moved here. Agreeing on a number today is not shared configuration, and a later
- * census greping for {@code 7200} will find four hits — three of them are these:</p>
+ * <p>Four further anni time constants live outside this class and stay outside it.
+ * Agreeing on a number today is not shared configuration.</p>
  *
  * <ul>
  *   <li>{@code PartyRosterListener.ACTIVE_WINDOW_SEC} — 7200, but <b>symmetric</b>
@@ -69,9 +68,18 @@ package org.wynnvets.mwe.anni.state;
  *   <li>{@code AnniCommandRenderer.TWO_HOURS_SECONDS} — 7200, used to select the
  *       far-out versus imminent render branch of {@code /wv anni}. A layout
  *       decision, not an activation window.</li>
- *   <li>{@code VetsBossBarManager.DROP_DEAD_SECONDS_BEFORE_ANNI} — 20, the bar
- *       window's real floor, discussed above.</li>
+ *   <li>{@code VetsBossBarManager.DROP_DEAD_SECONDS_BEFORE_ANNI} and
+ *       {@code VetsBossBarContentBuilder.T_MINUS_20_GATE_SECONDS} — both 20, the two
+ *       halves of the bar's documented T−20s design. The first is the bar window's
+ *       real floor, discussed above.</li>
  * </ul>
+ *
+ * <p>So a later census greping the source for {@code 7200} finds <b>three constant
+ * declarations</b> — {@link #HOT_WINDOW_BEFORE_SECONDS} and the first two above —
+ * plus one {@code "7200"} string in {@code AnniDebugCommands}' time-suggestion
+ * array, commented as the far-out/imminent boundary. Before this class there were
+ * four declarations, three of them spelled {@code 2L * 60L * 60L} and the fourth
+ * {@code 2L * 60 * 60}.</p>
  *
  * <h2>Shape</h2>
  *

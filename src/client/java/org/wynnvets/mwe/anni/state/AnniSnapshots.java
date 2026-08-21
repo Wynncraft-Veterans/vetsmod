@@ -25,8 +25,8 @@ package org.wynnvets.mwe.anni.state;
  * <p>Only one of the fourteen call sites this class replaces could ever pass
  * {@code null}: {@code FlashTracker.updateWorldMismatch} calls
  * {@code partyWorld(AnniSnapshotCache.latest())} unconditionally from the boss bar's
- * per-tick path, and its extractor was the only one of the four pairs to carry the
- * guard. Without it, one debug command turns the world-mismatch flash into an NPE
+ * per-tick path, and its extractor was the only one of the eight bodies to carry
+ * the guard. Without it, one debug command turns the world-mismatch flash into an NPE
  * on every client tick for the rest of the session, swallowed into a debug log — a
  * silently dead flash with no error the user can see. The other thirteen sites are
  * behind a null check of their own, so the guard is inert for them and the diff

@@ -56,14 +56,15 @@ public final class AnniHoverBuilder {
      *  that named different colours for the same player under a Turkish default.</p>
      *
      *  <p>The palette is the surviving body rather than this one because it is a
-     *  fieldless {@link ChatFormatting}-only table with a single production caller,
-     *  while this class is a render helper that pulls in {@link VetsConfig} and
-     *  {@link AnniSnapshot}. Routing the outline hot path — and
-     *  {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} behind it —
-     *  through here to reach a switch statement would be the wrong dependency
-     *  edge. Kept as a method rather than removed: it has three callers in this
-     *  package and its own test coverage, and chat code should not have to know
-     *  which package owns the outline palette.</p>
+     *  fieldless {@link ChatFormatting}-only table — it had one production caller
+     *  before this delegation and has two after — while this class is a render
+     *  helper that pulls in {@link VetsConfig} and {@link AnniSnapshot}. Routing the
+     *  outline hot path — and {@link org.wynnvets.mixin.client.NametagMixin
+     *  NametagMixin} behind it — through here to reach a switch statement would be
+     *  the wrong dependency edge. Kept as a method rather than removed: it has two
+     *  callers of its own ({@link #roleChip} and
+     *  {@link AnniMotdRenderer#assignedToPartyLine}) plus its own test coverage, and
+     *  chat code should not have to know which package owns the outline palette.</p>
      *
      *  <p>The boss bar's {@code VetsBossBarContentBuilder.roleColor} is a third
      *  role table and is <em>deliberately</em> not this one — it maps

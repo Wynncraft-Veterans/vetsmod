@@ -70,10 +70,11 @@ mwe/anni/
 ## Anni time windows
 
 **There are five window concepts, not one and not three, and they stay five.**
-Every edge is declared once in `mwe/anni/state/AnniWindows`; before that there
-were seven declarations across seven classes, four of them spelling
-`2L * 60L * 60L` independently. Two carried a "matches its partner" comment that
-nothing checked.
+The three that gate anni surfaces are declared once each in
+`mwe/anni/state/AnniWindows`; before that they were **seven declarations across
+five classes**. Two of those seven carried a comment naming their partner — one
+by class, one by symbol — and nothing checked either. The other two concepts stay
+where they are, for the reasons in the table.
 
 | Concept | Value | Who reads it | Shape |
 |--|--|--|--|
@@ -83,10 +84,16 @@ nothing checked.
 | Drop-dead | 20 s | `VetsBossBarManager.DROP_DEAD_SECONDS_BEFORE_ANNI`, `VetsBossBarContentBuilder.T_MINUS_20_GATE_SECONDS` | two boss-bar timing constants; deliberately not in `AnniWindows` |
 | Party-observation | ±2 h | `PartyRosterListener.ACTIVE_WINDOW_SEC` | **symmetric** — a third guard shape, answering a different question |
 
-`AnniCommandRenderer.TWO_HOURS_SECONDS` is a sixth `7200`, and it is not a
-window at all: it selects the far-out versus imminent render branch of
-`/wv anni`. It stays where it is for the same reason `PartyRosterListener`'s
-does — two files agreeing on a number today is not shared configuration.
+`AnniCommandRenderer.TWO_HOURS_SECONDS` is a sixth entry and is not a window at
+all: it selects the far-out versus imminent render branch of `/wv anni`. It stays
+where it is for the same reason `PartyRosterListener`'s does — two files agreeing
+on a number today is not shared configuration.
+
+Greping the source for `7200` now finds **three constant declarations** —
+`AnniWindows.HOT_WINDOW_BEFORE_SECONDS`, `PartyRosterListener.ACTIVE_WINDOW_SEC`
+and `AnniCommandRenderer.TWO_HOURS_SECONDS` — plus one `"7200"` string in
+`AnniDebugCommands`' time-suggestion array. It used to find four declarations,
+three of them spelled `2L * 60L * 60L` and the fourth `2L * 60 * 60`.
 
 **Why the 90-minute pair gets a constant and not a predicate.** The two
 comparisons share the number and **not** their floor. `AnniSnapshotPoller` floors
@@ -430,7 +437,7 @@ Spec-canonical ChatFormatting-derived table. `CustomColor` values come from `Cus
 
 Unknown or null roles fall through to `GRAY` (§7), the same colour as the other-vets-party tier — not to FILL.
 
-**This is now the mod's only role table for chat and outline alike.** `AnniHoverBuilder.roleColor` carried an independent copy of the same seven arms for the `/wv anni` and anni-motd surfaces; it delegates here and keeps its three call sites. The palette is the surviving body because it is fieldless and `ChatFormatting`-only, whereas `AnniHoverBuilder` is a render class pulling in `VetsConfig` and `AnniSnapshot` — routing the outline hot path and `NametagMixin` through it to reach a switch statement would be the wrong dependency edge. `VetsBossBarContentBuilder.roleColor` is a **third** role table and stays divergent on purpose (`TANK`→BLUE, `FILL`→DARK_AQUA, spec-cited as "distinct from S4's outline colours"); do not fold it in.
+**This is now the mod's only role table for chat and outline alike.** `AnniHoverBuilder.roleColor` carried an independent copy of the same seven arms for the `/wv anni` and anni-motd surfaces; it delegates here and keeps its two call sites (`AnniHoverBuilder.roleChip` and `AnniMotdRenderer.assignedToPartyLine`). The palette is the surviving body because it is fieldless and `ChatFormatting`-only, whereas `AnniHoverBuilder` is a render class pulling in `VetsConfig` and `AnniSnapshot` — routing the outline hot path and `NametagMixin` through it to reach a switch statement would be the wrong dependency edge. `VetsBossBarContentBuilder.roleColor` is a **third** role table and stays divergent on purpose (`TANK`→BLUE, `FILL`→DARK_AQUA, spec-cited as "distinct from S4's outline colours"); do not fold it in.
 
 The two copies were not interchangeable until Phase 5d fixed the fold. `chatFormattingForRole` folded with the no-argument `toUpperCase()`, so under a Turkish or Azeri default `fill` / `primary` / `tertiary` upper-cased their `i` to U+0130, matched no arm, and fell to `GRAY` — an own-party member outlined and nametagged as an outsider while the chat hover, which had always passed `Locale.ROOT`, showed the right colour. It passes `Locale.ROOT` now too. Pinned by `AnniOutlinePaletteTest` and by the cross-table equivalence cases in `AnniHoverBuilderTest`.
 
