@@ -55,10 +55,11 @@ VetsmodClient (entry point)
   │                           Sends `auth` frame after connect using the stored /unlock key
   ├── OutboundDisplayHandler  Receives WS messages, deduplicates, displays in chat
   ├── QueueStateManager       In-queue state + listeners; fed by QueueDetector (title + world events)
-  ├── fetcher/polling/ (6)    SupportersPoller 5m, StaffRanksPoller 2m, AnniStampPoller 5m,
-  │                           AnniSnapshotPoller 30s (only inside the anni window),
-  │                           GuildRosterCache 5m, WynnAliasCache 5m. AnniZone (60s) is a
-  │                           seventh scheduled fetcher, but lives under mwe/anni/zone/
+  ├── fetcher/polling/ (6)    Six schedules over five classes, one PollingService lifecycle:
+  │                           SupportersPoller 5m, StaffRanksPoller 2m, AnniStampPoller 5m,
+  │                           AnniSnapshotPoller 30s (only inside the anni window), and
+  │                           PolledJsonMap's GUILD_ROSTER + WYNN_ALIASES 5m. AnniZone (60s)
+  │                           is a further scheduled fetcher, but lives under mwe/anni/zone/
   ├── CommandRegistry         /wv command tree
   ├── items/                  ItemDefinitions plus LegacyItemHandler, LegacyTooltipRenderer,
   │                           NewFormatRenderer, LegacyEnchantmentRenderer, LegacyScreenshotHandler

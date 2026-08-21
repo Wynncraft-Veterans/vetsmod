@@ -1,6 +1,6 @@
 ---
 name: vetsmod Networking (WebSocket + Fetchers + Polling)
-description: V1ApiManager dual-WebSocket, WsClient reconnection/ping, on-demand HTTP fetchers, the six polling services
+description: V1ApiManager dual-WebSocket, WsClient reconnection/ping, on-demand HTTP fetchers, the polling services and their shared lifecycle
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
@@ -72,7 +72,7 @@ Silent drop if `send()` called while not connected (no queuing).
 
 Also: `GUILD_UUID = "a36bd64c-c053-4727-872d-b0d0729f474a"` (Returners).
 
-**Not exhaustive** — `VetsApi` also declares `ALIASES` (`/v1/outbound/aliases`, read by `WynnAliasCache`), `NO_ASPECTS` (`/v1/outbound/no-aspects`, read by `NoAspectsFilter`) and the external `ANNI` link.
+**Not exhaustive** — `VetsApi` also declares `ALIASES` (`/v1/outbound/aliases`, read by `PolledJsonMap.WYNN_ALIASES`), `NO_ASPECTS` (`/v1/outbound/no-aspects`, read by `NoAspectsFilter`) and the external `ANNI` link.
 
 [WynnCraftApi](../src/client/java/org/wynnvets/api/WynnCraftApi.java):
 - `playerInfo(UUID)` → `https://api.wynncraft.com/v3/player/{uuid}`
@@ -83,17 +83,17 @@ Also: `GUILD_UUID = "a36bd64c-c053-4727-872d-b0d0729f474a"` (Returners).
 
 ### The shared client
 
-[HttpClients](../src/client/java/org/wynnvets/util/HttpClients.java) — one `HttpClient` for the whole mod, built `HTTP_1_1` with a 5 s connect timeout and **no** redirect, proxy, executor, authenticator, cookie-handler or SSL customisation of any kind. Eighteen classes hold it in their own `private static final HttpClient HTTP_CLIENT = HttpClients.standard()` field: `CommandDispatcher`, `InviteGate`, `NameResolver`, `NoAspectsFilter`, `PlayerLookup`, seven of the eight `fetcher/ondemand` fetchers (all but `ListFetcher`, which holds no client and delegates to `OnlineMemberService`), five of the six `fetcher/polling` pollers (all but `AnniSnapshotPoller`, which goes over the WebSocket) and `TerritoryLineManager`. `PlayerLookup` passes its copy down to five of its six lookup providers.
+[HttpClients](../src/client/java/org/wynnvets/util/HttpClients.java) — one `HttpClient` for the whole mod, built `HTTP_1_1` with a 5 s connect timeout and **no** redirect, proxy, executor, authenticator, cookie-handler or SSL customisation of any kind. Seventeen classes hold it in their own `private static final HttpClient HTTP_CLIENT = HttpClients.standard()` field: `CommandDispatcher`, `InviteGate`, `NameResolver`, `NoAspectsFilter`, `PlayerLookup`, seven of the eight `fetcher/ondemand` fetchers (all but `ListFetcher`, which holds no client and delegates to `OnlineMemberService`), four of the six `fetcher/polling` classes (all but `AnniSnapshotPoller`, which goes over the WebSocket, and `PollingService`, which is transport-free by design) and `TerritoryLineManager`. `PlayerLookup` passes its copy down to five of its six lookup providers.
 
-One shared client means one selector thread, one default executor and one connection pool, and the eighteen fields now reuse each other's keep-alive connections instead of each holding private idle ones. Reuse is per host, so what matters is that the pool spans **six**: `api.wynnvets.org` (thirteen of the eighteen), `api.wynncraft.com` (`InviteGate`, `NameResolver`, `UserInfoFetcher`, `TerritoryLineManager`, and `PlayerLookup` via `WynncraftProvider`), and — all five through `PlayerLookup`'s copy — `playerdb.co`, `api.ashcon.app`, `api.minecraftservices.com` and `api.mojang.com`. The saving concentrates on the first two, which is where the repeat traffic is; the four lookup hosts are cascade fallbacks and mostly cold.
+One shared client means one selector thread, one default executor and one connection pool, and the seventeen fields now reuse each other's keep-alive connections instead of each holding private idle ones. Reuse is per host, so what matters is that the pool spans **six**: `api.wynnvets.org` (twelve of the seventeen), `api.wynncraft.com` (`InviteGate`, `NameResolver`, `UserInfoFetcher`, `TerritoryLineManager`, and `PlayerLookup` via `WynncraftProvider`), and — all five through `PlayerLookup`'s copy — `playerdb.co`, `api.ashcon.app`, `api.minecraftservices.com` and `api.mojang.com`. The saving concentrates on the first two, which is where the repeat traffic is; the four lookup hosts are cascade fallbacks and mostly cold.
 
-Sharing the executor is the part with teeth: every asynchronous continuation off any of those eighteen fields now runs on one executor whose sizing the JDK does not specify, which is why a blocking `.join()` inside such a continuation is worth noticing wherever one appears.
+Sharing the executor is the part with teeth: every asynchronous continuation off any of those seventeen fields now runs on one executor whose sizing the JDK does not specify, which is why a blocking `.join()` inside such a continuation is worth noticing wherever one appears.
 
-**Never call `close()`, `shutdown()` or `shutdownNow()` on it, and never put it in a try-with-resources.** Java 21 made `HttpClient` `AutoCloseable`; `close()` blocks until in-flight operations finish and then permanently disables the client, taking the HTTP of all eighteen subsystems that share it with it for the rest of the session.
+**Never call `close()`, `shutdown()` or `shutdownNow()` on it, and never put it in a try-with-resources.** Java 21 made `HttpClient` `AutoCloseable`; `close()` blocks until in-flight operations finish and then permanently disables the client, taking the HTTP of all seventeen subsystems that share it with it for the rest of the session.
 
 **Two classes deliberately keep their own.** `AnniZone` (see [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md)) and `WsClient` (§2) both use a 10 s connect timeout and pin no HTTP version, so neither can adopt the shared chain without a behaviour change. Their agreement on 10 s is coincidence rather than a shared requirement: one governs a WebSocket handshake, the other a 60 s poller's GET.
 
-[Json](../src/client/java/org/wynnvets/util/Json.java) is the matching shared `Gson` — `new Gson()`, no builder, read by twenty-one classes. The three `GsonBuilder`-configured instances (`VetsConfig`, `ItemDumpHandler`, `AnniDebugCommands`) are not residents and must not become ones; each depends on what it configured.
+[Json](../src/client/java/org/wynnvets/util/Json.java) is the matching shared `Gson` — `new Gson()`, no builder, read by twenty classes. The three `GsonBuilder`-configured instances (`VetsConfig`, `ItemDumpHandler`, `AnniDebugCommands`) are not residents and must not become ones; each depends on what it configured.
 
 ## 4. On-demand fetchers
 
@@ -132,7 +132,7 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 ### OnlineMemberService merge strategy
 [OnlineMemberService.merge()](../src/client/java/org/wynnvets/fetcher/ondemand/OnlineMemberService.java)
 1. Build UUID→username from Wynntils (authoritative)
-2. Overlay `GuildRosterCache.getRoster()` (Mojang-resolved, takes precedence over stale API)
+2. Overlay `PolledJsonMap.GUILD_ROSTER.snapshot()` (Mojang-resolved, takes precedence over stale API)
 3. Supplement with VetsMod usernames for unresolved UUIDs
 4. Merged guild online = Wynntils online ∪ VetsMod guild UUIDs ∪ tab list
 5. Honourary + waitlist from VetsMod `/list`
@@ -143,9 +143,26 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 
 Package: [org.wynnvets.fetcher.polling](../src/client/java/org/wynnvets/fetcher/polling/)
 
-Six `scheduleAtFixedRate` pollers live in this package, started back-to-back from `VetsmodClient.onInitializeClient`: `SupportersPoller` 5m, `StaffRanksPoller` 2m, `AnniStampPoller` 5m, `AnniSnapshotPoller` 30s, `GuildRosterCache` 5m, `WynnAliasCache` 5m. Two are named `*Cache` but poll on a fixed schedule like the rest. `AnniSnapshotPoller` is the only gated one — its tick returns early unless an anni stamp is announced and within 90 minutes. The three subsections below cover three of the six.
+Six fixed-rate schedules live in this package across five classes, all started back-to-back from `VetsmodClient.onInitializeClient`: `SupportersPoller` 5m, `StaffRanksPoller` 2m, `AnniStampPoller` 5m, `AnniSnapshotPoller` 30s, and `PolledJsonMap`'s two instances — `GUILD_ROSTER` 5m and `WYNN_ALIASES` 5m. `AnniSnapshotPoller` is the only gated one — its tick returns early unless an anni stamp is announced and within 90 minutes. Four of the six have a subsection below; `AnniStampPoller` and `AnniSnapshotPoller` do not.
 
-A seventh scheduled fetcher, `mwe/anni/zone/AnniZone` (60s, Wynncraft world-events API), is started on the line above them but lives outside this package.
+Another scheduled fetcher, `mwe/anni/zone/AnniZone` (60s, Wynncraft world-events API), is started on the line above them but lives outside this package and hand-rolls its own scheduler.
+
+### PollingService — the shared lifecycle
+
+[PollingService](../src/client/java/org/wynnvets/fetcher/polling/PollingService.java) is the one place a poller's lifecycle is defined: a named daemon thread, an idempotence guard, a `scheduleAtFixedRate` call, and a `stop()` that drains before it cancels. Every schedule above goes through it. It takes the `Runnable` as-is and adds no exception handling or logging of its own — each caller keeps its own `try`/`catch` and its own message — and it uses the thread name it is given verbatim, including the two that disagree with the class passing them (`VetsMod-StaffRanksFetcher`, `VetsMod-SupportersFetcher`) and the two that now name instances rather than classes (`VetsMod-GuildRosterCache`, `VetsMod-WynnAliasCache`). Those names are thread-dump identity; renaming one is a diagnostics change, not tidying.
+
+`start()` returns a `boolean` saying whether this call started the schedule. That is what lets `AnniSnapshotPoller` keep its start-log line inside the idempotence guard without `PollingService` knowing anything about logging.
+
+**Nothing stops any of them.** Every poller is started at mod init and never stopped: there is no `CLIENT_STOPPING` registration, no shutdown hook, and no call to `PollingService.stop()` outside its own test. The poller threads are daemons, so the JVM does not wait on them and the omission has never been visible. `PollingService.stop()` exists so that a teardown has somewhere to hook if the mod ever grows one, and it re-asserts the caller's interrupt rather than swallowing it. `AnniZone`, which schedules outside this package, has never had a `stop()` at all.
+
+### PolledJsonMap (2 instances, 5 min each)
+
+[PolledJsonMap](../src/client/java/org/wynnvets/fetcher/polling/PolledJsonMap.java) polls one flat `string → string` JSON endpoint and publishes it as an immutable snapshot behind a volatile field. Two instances:
+
+- `GUILD_ROSTER` — `VetsApi.ROSTER` (server-side Mojang-resolved), UUID → current username. Overrides stale Wynncraft API usernames. Used by `OnlineMemberService.merge()` via `snapshot()`. Keys are stored exactly as the server spells them.
+- `WYNN_ALIASES` — `VetsApi.ALIASES`, stale tab-list username → UUID. Used by `OnlineMemberService.merge()` via `get()` to resolve tab entries no current username matches. Keys are folded to `Locale.ROOT`.
+
+The key normalizer is one field applied at **both** ingest and lookup. That is the invariant the class exists to hold: applying it on one side only breaks alias resolution with no failed fetch and no log line. `PolledJsonMapTest` pins it for both instances, along with the cold-cache contract — empty map from `snapshot()`, `null` from `get()` — which `merge()` depends on and has no branch for.
 
 ### StaffRanksPoller (2 min)
 [StaffRanksPoller.start()](../src/client/java/org/wynnvets/fetcher/polling/StaffRanksPoller.java)
@@ -165,13 +182,6 @@ A seventh scheduled fetcher, `mwe/anni/zone/AnniZone` (60s, Wynncraft world-even
 - Nickname mode: split on `/`, check both halves
 - Fetches `VetsApi.SUPPORTERS` every 5 min
 - Used by `ListFetcher` (gradient glint), `PillFormatter`, `NametagAnimator`, `ServerGuildChatRewriter`
-
-### GuildRosterCache (5 min)
-[GuildRosterCache.start()](../src/client/java/org/wynnvets/fetcher/polling/GuildRosterCache.java)
-- Volatile `Map<String, String>` UUID → current username
-- Fetches `VetsApi.ROSTER` (server-side Mojang-resolved)
-- Overrides stale Wynncraft API usernames
-- Used by `OnlineMemberService.merge()`
 
 ## 6. Listeners
 
@@ -251,5 +261,5 @@ The server validates each key by HTTP introspection against dazebot (`POST /api/
 ## 9. Error handling
 
 - WebSocket errors → `WsClient.onError()` logs, aborts, schedules reconnect
-- HTTP errors are **absorbed, not propagated**, by two different mechanisms. The on-demand fetchers end their `CompletableFuture` chain in `.exceptionally(e -> …)` returning a fallback whose shape is per-fetcher: a red `Component` from `StaffFetcher`, an unstyled one from `MotdFetcher`/`ReturnFetcher`, `null` from `StampFetcher`, and domain values (`notInGuild()`, `Optional.empty()`, `List.of()`) elsewhere. **Five** of the six pollers use no futures at all — each calls `HttpClient.send(...)` synchronously inside a `try`/`catch` that only logs, so a failed tick leaves the last successful cache in place and the next tick re-attempts. `AnniSnapshotPoller` is the sixth and is not one of them: it goes over the WebSocket via `AnniQueryClient` and builds no `HttpClient` at all. Nor is `polling/` the only home of a synchronous send — `CommandDispatcher.isSelfListedInOnlineStaffFeed`, `CommandDispatcher.fetchOnlineStaffUsernames` and `AnniZone.refresh` are three more. **Eight synchronous call sites, not six.** No fetcher calls `completeExceptionally`; the repo's only use of it is `CommandDispatcher`'s `/find` batch future
+- HTTP errors are **absorbed, not propagated**, by two different mechanisms. The on-demand fetchers end their `CompletableFuture` chain in `.exceptionally(e -> …)` returning a fallback whose shape is per-fetcher: a red `Component` from `StaffFetcher`, an unstyled one from `MotdFetcher`/`ReturnFetcher`, `null` from `StampFetcher`, and domain values (`notInGuild()`, `Optional.empty()`, `List.of()`) elsewhere. **Five** of the six polling schedules use no futures at all — each calls `HttpClient.send(...)` synchronously inside a `try`/`catch` that only logs, so a failed tick leaves the last successful cache in place and the next tick re-attempts. They are four source lines, not five, because `PolledJsonMap`'s two instances share one `fetch()`. `AnniSnapshotPoller` is the sixth schedule and is not one of them: it goes over the WebSocket via `AnniQueryClient` and builds no `HttpClient` at all. Nor is `polling/` the only home of a synchronous send — `CommandDispatcher.isSelfListedInOnlineStaffFeed`, `CommandDispatcher.fetchOnlineStaffUsernames` and `AnniZone.refresh` are three more. **Seven synchronous call sites in all.** Every one of them catches `Exception`, not `Throwable`; for the scheduled ones an escaping `Error` cancels that schedule for the session with nothing logged — see [`poll-task-error-permanently-cancels-the-schedule`](ephemeral/bugs-found-via-mellow-rain/poll-task-error-permanently-cancels-the-schedule.md). No fetcher calls `completeExceptionally`; the repo's only use of it is `CommandDispatcher`'s `/find` batch future
 - No retry on HTTP failures; next polling tick re-attempts
