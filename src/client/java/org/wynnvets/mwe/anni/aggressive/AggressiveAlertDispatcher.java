@@ -14,6 +14,7 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
+import org.wynnvets.mwe.anni.state.AnniSnapshots;
 import org.wynnvets.mwe.anni.zone.AnniZone;
 
 /**
@@ -123,7 +124,7 @@ public final class AggressiveAlertDispatcher {
 
         long now = System.currentTimeMillis();
 
-        String role = extractRole(snapshot);
+        String role = AnniSnapshots.role(snapshot);
         if (roleObserved
                 && !Objects.equals(lastRole, role)
                 && now - lastRoleFiredMs >= FIELD_COOLDOWN_MS) {
@@ -133,7 +134,7 @@ public final class AggressiveAlertDispatcher {
         roleObserved = true;
         lastRole = role;
 
-        String world = extractPartyWorld(snapshot);
+        String world = AnniSnapshots.partyWorld(snapshot);
         if (worldObserved
                 && !Objects.equals(lastWorld, world)
                 && now - lastWorldFiredMs >= FIELD_COOLDOWN_MS) {
@@ -143,7 +144,7 @@ public final class AggressiveAlertDispatcher {
         worldObserved = true;
         lastWorld = world;
 
-        Integer party = extractPartyOrdinal(snapshot);
+        Integer party = AnniSnapshots.partyOrdinal(snapshot);
         if (partyObserved
                 && !Objects.equals(lastParty, party)
                 && now - lastPartyFiredMs >= FIELD_COOLDOWN_MS) {
@@ -153,7 +154,7 @@ public final class AggressiveAlertDispatcher {
         partyObserved = true;
         lastParty = party;
 
-        String rsvp = extractRsvp(snapshot);
+        String rsvp = AnniSnapshots.rsvpNotice(snapshot);
         if (rsvpObserved
                 && !Objects.equals(lastRsvp, rsvp)
                 && now - lastRsvpFiredMs >= FIELD_COOLDOWN_MS) {
@@ -165,10 +166,10 @@ public final class AggressiveAlertDispatcher {
     }
 
     private static void updateLastSeen(AnniSnapshot snapshot) {
-        lastRole = extractRole(snapshot);
-        lastWorld = extractPartyWorld(snapshot);
-        lastParty = extractPartyOrdinal(snapshot);
-        lastRsvp = extractRsvp(snapshot);
+        lastRole = AnniSnapshots.role(snapshot);
+        lastWorld = AnniSnapshots.partyWorld(snapshot);
+        lastParty = AnniSnapshots.partyOrdinal(snapshot);
+        lastRsvp = AnniSnapshots.rsvpNotice(snapshot);
         roleObserved = true;
         worldObserved = true;
         partyObserved = true;
@@ -204,7 +205,7 @@ public final class AggressiveAlertDispatcher {
 
         // T-10m world-mismatch.
         if (!worldReadinessFired && secondsUntil > 0 && secondsUntil <= T_MINUS_WORLD_READY_S) {
-            String assigned = extractPartyWorld(snapshot);
+            String assigned = AnniSnapshots.partyWorld(snapshot);
             if (assigned != null) {
                 String current = Models.WorldState.getCurrentWorldName();
                 if (current == null || !current.equalsIgnoreCase(assigned)) {
@@ -231,33 +232,6 @@ public final class AggressiveAlertDispatcher {
     private static boolean gateHolds() {
         return AnniAggressiveTicker.isAggressiveActive()
                 && VetsConfig.get(VetsConfig.VETS_ANNI_CHAT_ALERTS);
-    }
-
-    // ── Field extractors ───────────────────────────────────────────────
-
-    private static String extractRole(AnniSnapshot snapshot) {
-        AnniSnapshot.Board board = snapshot.board();
-        if (board != null && board.role() != null) return board.role();
-        return null;
-    }
-
-    private static String extractPartyWorld(AnniSnapshot snapshot) {
-        AnniSnapshot.Board board = snapshot.board();
-        if (board == null || board.party() == null) return null;
-        return board.party().world();
-    }
-
-    private static Integer extractPartyOrdinal(AnniSnapshot snapshot) {
-        AnniSnapshot.Board board = snapshot.board();
-        if (board == null || board.party() == null) return null;
-        int o = board.party().ordinal();
-        return o > 0 ? o : null;
-    }
-
-    private static String extractRsvp(AnniSnapshot snapshot) {
-        AnniSnapshot.Rsvp rsvp = snapshot.rsvp();
-        if (rsvp == null || rsvp.revoked()) return null;
-        return rsvp.notice();
     }
 
     // ── Alert emitters ─────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
+import org.wynnvets.mwe.anni.state.AnniSnapshots;
 
 /**
  * Per-field change detection + bold/underline pulse state for the
@@ -215,10 +216,10 @@ public final class FlashTracker {
      *  in {@link #updateWorldMismatch()} so position movement toggles
      *  the flash silently. */
     private static void applyDiff(AnniSnapshot snapshot) {
-        String roleCode = extractRoleCode(snapshot);
-        Integer partyOrd = extractPartyOrdinal(snapshot);
-        String rsvpCode = extractRsvp(snapshot);
-        String worldCode = extractPartyWorld(snapshot);
+        String roleCode = AnniSnapshots.role(snapshot);
+        Integer partyOrd = AnniSnapshots.partyOrdinal(snapshot);
+        String rsvpCode = AnniSnapshots.rsvpNotice(snapshot);
+        String worldCode = AnniSnapshots.partyWorld(snapshot);
 
         long now = System.currentTimeMillis();
         long until = now + flashDurationMs();
@@ -264,37 +265,11 @@ public final class FlashTracker {
      *  bings happen on snapshot value changes, handled in
      *  {@link #applyDiff(AnniSnapshot)}). */
     private static void updateWorldMismatch() {
-        String partyWorld = extractPartyWorld(AnniSnapshotCache.latest());
+        String partyWorld = AnniSnapshots.partyWorld(AnniSnapshotCache.latest());
         String currentWorld = Models.WorldState.getCurrentWorldName();
         worldMismatch =
                 partyWorld != null
                         && (currentWorld == null || !currentWorld.equalsIgnoreCase(partyWorld));
-    }
-
-    private static String extractRoleCode(AnniSnapshot snapshot) {
-        AnniSnapshot.Board board = snapshot.board();
-        if (board != null && board.role() != null) return board.role();
-        return null;
-    }
-
-    private static Integer extractPartyOrdinal(AnniSnapshot snapshot) {
-        AnniSnapshot.Board board = snapshot.board();
-        if (board == null || board.party() == null) return null;
-        int o = board.party().ordinal();
-        return o > 0 ? o : null;
-    }
-
-    private static String extractPartyWorld(AnniSnapshot snapshot) {
-        if (snapshot == null) return null;
-        AnniSnapshot.Board board = snapshot.board();
-        if (board == null || board.party() == null) return null;
-        return board.party().world();
-    }
-
-    private static String extractRsvp(AnniSnapshot snapshot) {
-        AnniSnapshot.Rsvp rsvp = snapshot.rsvp();
-        if (rsvp == null || rsvp.revoked()) return null;
-        return rsvp.notice();
     }
 
     private static <T> boolean equalsNullable(T a, T b) {
