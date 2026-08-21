@@ -57,13 +57,6 @@ public final class MembersListWalker {
     /** Mirrors {@code GuildMemberListContainer.getNextItemSlot()}. */
     private static final int NEXT_PAGE_SLOT = 28;
 
-    // ContainerBounds(0, 2, 4, 8) on GuildMemberListContainer — same area
-    // the searcher scans for matches.
-    private static final int BOUNDS_START_ROW = 0;
-    private static final int BOUNDS_END_ROW = 4;
-    private static final int BOUNDS_START_COL = 2;
-    private static final int BOUNDS_END_COL = 8;
-
     /** Hard cap on page clicks per walk to bound runaway loops. */
     private static final int MAX_PAGES = 30;
 
@@ -187,17 +180,14 @@ public final class MembersListWalker {
     }
 
     /**
-     * Appends every bounded player-head tile on the current page to
-     * {@link #collected}. Names are deduped by legacyName so re-scans
+     * Appends every {@linkplain MembersGui#isTileSlot(int) player-head tile}
+     * on the current page to {@link #collected}. Names are deduped by legacyName so re-scans
      * of the same page (rare but possible if SetContent + SetSlot both
      * fire) don't double-count.
      */
     private static void collectVisiblePage(List<ItemStack> items) {
         for (int slot = 0; slot < items.size(); slot++) {
-            int row = slot / 9;
-            int col = slot % 9;
-            if (row < BOUNDS_START_ROW || row > BOUNDS_END_ROW) continue;
-            if (col < BOUNDS_START_COL || col > BOUNDS_END_COL) continue;
+            if (!MembersGui.isTileSlot(slot)) continue;
 
             ItemStack stack = items.get(slot);
             if (stack.isEmpty()) continue;

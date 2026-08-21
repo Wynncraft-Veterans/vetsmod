@@ -76,13 +76,6 @@ public final class MembersListSearcher {
     /** Mirrors {@code GuildMemberListContainer.getPreviousItemSlot()}. */
     private static final int PREVIOUS_PAGE_SLOT = 10;
 
-    // ContainerBounds(0, 2, 4, 8) on GuildMemberListContainer — searchable
-    // area is rows 0–4 × cols 2–8 of the 9-wide grid.
-    private static final int BOUNDS_START_ROW = 0;
-    private static final int BOUNDS_END_ROW = 4;
-    private static final int BOUNDS_START_COL = 2;
-    private static final int BOUNDS_END_COL = 8;
-
     /** Hard cap on page clicks per search to bound runaway loops.
      *  Generous enough to cover a full forward sweep followed by a full
      *  backward sweep on a max-size guild. */
@@ -343,22 +336,9 @@ public final class MembersListSearcher {
         if (displayQuery == null) return;
         if (event.getContainerId() != membersContainerId) return;
         int slot = event.getSlot();
-        if (slot == NEXT_PAGE_SLOT || slot == PREVIOUS_PAGE_SLOT || isPlayerBoundsSlot(slot)) {
+        if (slot == NEXT_PAGE_SLOT || slot == PREVIOUS_PAGE_SLOT || MembersGui.isTileSlot(slot)) {
             scheduleScan();
         }
-    }
-
-    /** Returns true if {@code slot} falls within the bounded scan area
-     *  ({@code [BOUNDS_START_ROW, BOUNDS_END_ROW] × [BOUNDS_START_COL,
-     *  BOUNDS_END_COL]}). Matches the slots that
-     *  {@link #scanVisiblePageForMatch} actually inspects. */
-    private static boolean isPlayerBoundsSlot(int slot) {
-        int row = slot / 9;
-        int col = slot % 9;
-        return row >= BOUNDS_START_ROW
-                && row <= BOUNDS_END_ROW
-                && col >= BOUNDS_START_COL
-                && col <= BOUNDS_END_COL;
     }
 
     /**
@@ -461,17 +441,14 @@ public final class MembersListSearcher {
     }
 
     /**
-     * Scans the bounded slot area of the current page for any of the
-     * armed names. On a hit, invokes the match handler (and clears
+     * Scans the {@linkplain MembersGui#isTileSlot(int) player-head tiles}
+     * of the current page for any of the armed names. On a hit, invokes the match handler (and clears
      * state via {@link #stop()}) and returns {@code true}. Returns
      * {@code false} if no slot on this page matched.
      */
     private static boolean scanVisiblePageForMatch(List<ItemStack> items) {
         for (int slot = 0; slot < items.size(); slot++) {
-            int row = slot / 9;
-            int col = slot % 9;
-            if (row < BOUNDS_START_ROW || row > BOUNDS_END_ROW) continue;
-            if (col < BOUNDS_START_COL || col > BOUNDS_END_COL) continue;
+            if (!MembersGui.isTileSlot(slot)) continue;
 
             ItemStack stack = items.get(slot);
             if (stack.isEmpty()) continue;
