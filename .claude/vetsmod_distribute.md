@@ -86,9 +86,10 @@ distribute/
 ```
 
 `MembersGui` sits at the package root rather than in `walker/` because
-all three of `walker/`, `distributor/` and — through the searcher —
-`opener/` read from it; a distributor should not import from the walker
-package to learn the GUI's shape. It describes the *layout* (mirroring
+both `walker/` classes and `distributor/`'s `MemberSlotPresser` read
+from it; a distributor should not import from the walker package to
+learn the GUI's shape. (`opener/` does not — `GuildManageOpener` drives
+the *Manage* menu and reads only `ContainerScreens`.) It describes the *layout* (mirroring
 Wynntils' `GuildMemberListContainer`), not the subset ≥2 callers share,
 so `PREVIOUS_PAGE_SLOT` / `PREVIOUS_PAGE_PATTERN` live there despite
 having one caller. The tick constants stay on their own classes — §6.
@@ -330,8 +331,8 @@ observed Wynncraft behaviour first, then the code shape it forces.
    `MembersGui.currentByTitle()` ignores the container id, which is what
    survives the refresh — `MemberSlotPresser` uses it for every press,
    and the searcher and walker use it in their re-arm fast paths and the
-   searcher's mid-search rebind, where there is no bound id to match on
-   yet. `ContainerScreens.currentWithId(int)` takes the caller's bound id
+   searcher's mid-search rebind, where there is no *usable* bound id —
+   none yet in the fast paths, a stale one in the rebind. `ContainerScreens.currentWithId(int)` takes the caller's bound id
    and nothing else, because for the scan that drives pagination a
    mismatch is the *signal* that the bound menu is gone — the searcher
    rebinds on it, the walker abandons. `GuildManageOpener` uses the same

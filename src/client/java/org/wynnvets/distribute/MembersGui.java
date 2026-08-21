@@ -99,11 +99,13 @@ public final class MembersGui {
      * (10) is in column 1 and {@link #NEXT_PAGE_SLOT} (28) is in column 1 as well, so a caller
      * that wants to react to either has to name it separately.</p>
      *
-     * <p>Only the row/column arithmetic is checked, not the menu's size: a slot past the end of
-     * the container that happens to land in-bounds modulo 9 returns {@code true}, and every
-     * caller is already iterating a real item list. Negative slots return {@code false} for the
-     * columns Java's truncating division and remainder produce, which is not a contract — it is
-     * simply what the arithmetic does.</p>
+     * <p>Only the row/column arithmetic is checked, not the menu's size. A slot past the end
+     * of the container that happens to land in-bounds modulo 9 returns {@code true}; the two
+     * scan loops never produce one, because they iterate a real item list, but
+     * {@code MembersListSearcher.onSetSlot} passes an event's slot straight through and this
+     * method does not police it. Negative slots fall out through the column check, because
+     * Java's {@code /} and {@code %} truncate toward zero. Neither is a contract — both are
+     * what the arithmetic does, and what the three copies this replaced did.</p>
      */
     public static boolean isTileSlot(int slot) {
         int row = slot / 9;

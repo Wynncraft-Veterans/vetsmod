@@ -113,7 +113,12 @@ class MembersGuiTest {
     /**
      * Pinned as <em>undocumented</em>, not as contract. Java's {@code /} and {@code %}
      * truncate toward zero, so −1 is row 0 column −1 and falls out of the column check without
-     * throwing. No caller passes a negative slot; both iterate a real item list.
+     * throwing.
+     *
+     * <p>Not obviously unreachable, either: the two scan loops iterate a real item list, but
+     * {@code MembersListSearcher.onSetSlot} hands this method whatever slot the event carries.
+     * What is pinned is that the answer matches the three copies this predicate replaced,
+     * which is the only claim this chunk is entitled to make.</p>
      */
     @Test
     void aNegativeSlotIsNotATileAndDoesNotThrow() {

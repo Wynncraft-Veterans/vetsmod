@@ -33,9 +33,10 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
  * title, so the bound id is the whole predicate; {@code currentWithTitle} does not look at the
  * id, which is exactly what makes it refresh-proof.</p>
  *
- * <p>Both return {@code null} rather than an {@code Optional}: every call site is an
- * abort-or-proceed guard on the next statement, and the callers pre-date any {@code Optional}
- * convention in this package.</p>
+ * <p>Both return {@code null} rather than an {@code Optional}. Every call site is a null
+ * check deciding whether the next step runs, and returning {@code null} is what the seven
+ * bodies these replaced did — the point of this class is that nothing at a call site
+ * changed.</p>
  */
 public final class ContainerScreens {
 
@@ -43,9 +44,10 @@ public final class ContainerScreens {
      * The open container screen iff its menu carries {@code containerId}, otherwise
      * {@code null}. No title check &mdash; the caller's bound id is the whole predicate.
      *
-     * <p>The unbound sentinel {@code -1} that callers hold while nothing is bound needs no
-     * special case: no live menu carries it, so the comparison simply fails and this returns
-     * {@code null}.</p>
+     * <p>The unbound sentinel {@code -1} that callers hold while nothing is bound gets no
+     * special case. It is compared like any other id, which is exactly what the three bodies
+     * this replaced did — whether a screen could ever carry it is a question none of them
+     * asked, and answering it here would be a behaviour change rather than a rehoming.</p>
      */
     public static AbstractContainerScreen<?> currentWithId(int containerId) {
         if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
