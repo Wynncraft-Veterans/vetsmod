@@ -181,12 +181,30 @@ public final class AnniOutlineRegistry {
         return new Entry(Tier.OWN_PARTY, role, outline, fmt);
     }
 
+    /** Outline colour for players in any other vets-anni party (schema v2
+     *  {@code event.all_parties} members who aren't on the local player's own
+     *  party). Light grey, {@code §7}, per spec §"FOR PLAYERS IN OTHER VETS
+     *  PARTIES".
+     *
+     *  <p>Declared here rather than in {@link AnniOutlinePalette} so it sits
+     *  beside the {@link ChatFormatting#GRAY} that {@link #OTHER_PARTY_ENTRY}
+     *  pairs it with. This tier's two halves — outline colour and nametag
+     *  formatting — agree by convention rather than by construction, unlike
+     *  {@link #ownPartyEntry}, which derives both from one
+     *  {@link AnniOutlinePalette#chatFormattingForRole} call. A convention is
+     *  only checkable when both halves are in view; a file apart, they were
+     *  not.</p>
+     *
+     *  <p>The move also leaves {@link AnniOutlinePalette} with no fields at
+     *  all, hence an empty {@code <clinit>}, which is what lets a test load
+     *  that class — Wynntils is absent at test runtime. It does <em>not</em>
+     *  make this class loadable: {@link #ownPartyEntry} constructs a
+     *  {@link CustomColor} too.</p> */
+    private static final CustomColor OTHER_VETS_PARTY =
+            CustomColor.fromChatFormatting(ChatFormatting.GRAY);
+
     private static final Entry OTHER_PARTY_ENTRY =
-            new Entry(
-                    Tier.OTHER_VETS_PARTY,
-                    null,
-                    AnniOutlinePalette.OTHER_VETS_PARTY,
-                    ChatFormatting.GRAY);
+            new Entry(Tier.OTHER_VETS_PARTY, null, OTHER_VETS_PARTY, ChatFormatting.GRAY);
 
     // ── Debug API ───────────────────────────────────────────────────────
     //

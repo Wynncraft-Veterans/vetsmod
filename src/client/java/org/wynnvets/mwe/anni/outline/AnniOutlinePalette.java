@@ -4,44 +4,36 @@ import com.wynntils.utils.colors.CustomColor;
 import net.minecraft.ChatFormatting;
 
 /**
- * Spec-canonical role / tier colour table for the S4 highlight overlay.
+ * Spec-canonical role colour table for the S4 highlight overlay.
  *
  * <p>Spec §"Player Highlights" pins the colours to vanilla {@link ChatFormatting}
  * codes ({@code §f}/{@code §b}/{@code §a}/{@code §c}/{@code §e}/{@code §d}),
- * NOT raw hex constants. Building through
- * {@link CustomColor#fromChatFormatting(ChatFormatting)} keeps the outline
- * ARGB in sync with whatever Minecraft renders for the matching colour
- * code elsewhere (chat text, scoreboard, etc.) — if Mojang ever tweaks
- * those values, we follow along automatically.</p>
+ * NOT raw hex constants. {@link AnniOutlineRegistry#ownPartyEntry} turns the
+ * chosen code into an outline colour through
+ * {@link CustomColor#fromChatFormatting(ChatFormatting)}, which keeps the
+ * outline ARGB in sync with whatever Minecraft renders for the matching colour
+ * code elsewhere (chat text, scoreboard, etc.) — if Mojang ever tweaks those
+ * values, we follow along automatically.</p>
  *
- * <p>The tiers this table still serves while the S4 activation gate
- * holds:</p>
- * <ul>
- *   <li>{@link #chatFormattingForRole} — local player's own-party members,
- *       keyed on {@code snapshot.board.party.members[].role}. Unknown or
- *       absent roles fall through to light grey, not to FILL.</li>
- *   <li>{@link #OTHER_VETS_PARTY} — players in any other vets-anni party
- *       (schema v2 {@code event.all_parties[].members[]}). Spec §"FOR
- *       PLAYERS IN OTHER VETS PARTIES" → light grey ({@code §7}).</li>
- * </ul>
+ * <p>The class declares <b>no fields</b>. Every {@link CustomColor} in the
+ * highlight path is constructed by {@link AnniOutlineRegistry}, including the
+ * light-grey other-vets-party outline that used to live here. That is
+ * deliberate and load-bearing: an empty {@code <clinit>} is what lets a test
+ * touch this class at all, since Wynntils is absent at test runtime. The
+ * {@code CustomColor} import above resolves a Javadoc link and nothing else —
+ * imports are free, static initializers are not.</p>
  *
- * <p>Single source of truth, one hop removed: nothing outside {@link AnniOutlineRegistry} reads
- * this table. Its {@code ownPartyEntry} takes a single {@link #chatFormattingForRole} result and
- * derives both halves of the {@code Entry} from it — the outline {@link CustomColor} and the
- * nametag {@link ChatFormatting} — and it is that {@code Entry} which {@link AnniOutlineTicker}
- * and {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} read. Deriving both from one call
- * is what stops those two colours drifting. Note the guarantee is per-tier and does <em>not</em>
- * extend to {@link #OTHER_VETS_PARTY}: {@code OTHER_PARTY_ENTRY} pairs this constant with a
- * separately written {@code ChatFormatting.GRAY}, so that tier's two halves agree only by
- * convention.</p>
+ * <p>Single source of truth, one hop removed: nothing outside
+ * {@link AnniOutlineRegistry} reads this table. Its {@code ownPartyEntry} takes a single
+ * {@link #chatFormattingForRole} result and derives both halves of the {@code Entry} from it —
+ * the outline {@link CustomColor} and the nametag {@link ChatFormatting} — and it is that
+ * {@code Entry} which {@link AnniOutlineTicker} and
+ * {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} read. Deriving both from one call
+ * is what stops those two colours drifting. The guarantee is per-tier and does <em>not</em>
+ * extend to the other-vets-party tier, whose two halves are written out separately; they now sit
+ * in one expression in {@link AnniOutlineRegistry} so the convention is at least visible.</p>
  */
 public final class AnniOutlinePalette {
-
-    /** Outline + nametag colour for players in another vets-anni party
-     *  (schema v2 {@code event.all_parties} members that aren't on the
-     *  local player's own party). Light grey, {@code §7}. */
-    public static final CustomColor OTHER_VETS_PARTY =
-            CustomColor.fromChatFormatting(ChatFormatting.GRAY);
 
     private AnniOutlinePalette() {}
 
@@ -60,9 +52,9 @@ public final class AnniOutlinePalette {
      *    <li>{@code SECONDARY} → {@code §e} yellow</li>
      *    <li>{@code PRIMARY} → {@code §c} red</li>
      *  </ul>
-     *  Unknown or null → light grey, the same colour as
-     *  {@link #OTHER_VETS_PARTY}, so that a party member we can't
-     *  role-identify still reads as "vets-anni-party but not
+     *  Unknown or null → light grey, the same colour the other-vets-party
+     *  tier gets in {@link AnniOutlineRegistry}, so that a party member we
+     *  can't role-identify still reads as "vets-anni-party but not
      *  differentiated" rather than as an outsider. */
     public static ChatFormatting chatFormattingForRole(String role) {
         if (role == null) return ChatFormatting.GRAY;
