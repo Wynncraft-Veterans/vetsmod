@@ -7,29 +7,43 @@ import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.wynnvets.mwe.anni.outline.AnniOutlinePalette;
 
 /**
- * Tests for {@link AnniHoverBuilder#roleColor(String)} — the seven-arm role
- * colour mapping.
+ * Tests for {@link AnniHoverBuilder#roleColor(String)} — the chat surfaces'
+ * entry point to the seven-arm role colour mapping.
  *
- * <p>This is one half of a pair. {@code AnniOutlinePalette.chatFormattingForRole}
- * carries the same table for the outline renderer, so a player's hover colour
- * and outline colour are supposed to agree. They do not agree under every
- * locale: that one folds with the no-argument {@code toUpperCase()} while this
- * one passes {@link Locale#ROOT}. See
+ * <p>This is one half of a pair, and since Phase 5d it is the half that does not
+ * carry the table: {@code roleColor} delegates to
+ * {@link org.wynnvets.mwe.anni.outline.AnniOutlinePalette#chatFormattingForRole
+ * AnniOutlinePalette#chatFormattingForRole}, which the outline renderer and
+ * {@code NametagMixin} read through {@code AnniOutlineRegistry}. The seven arms
+ * below therefore now pin the palette through one hop; they were written against
+ * an independent copy and are kept unmodified so the delegation had to reproduce
+ * every answer exactly.</p>
+ *
+ * <p>The two copies disagreed under a Turkish or Azeri default until Phase 5d:
+ * the palette folded with the no-argument {@code toUpperCase()} while this side
+ * has always passed {@link Locale#ROOT}, so {@code fill} / {@code primary} /
+ * {@code tertiary} produced one colour in chat and another in the outline. See
  * {@code
- * .claude/ephemeral/bugs-found-via-mellow-rain/default-locale-case-folding-cluster.md}.
- * The equivalence cannot be asserted directly from here — touching
- * {@code AnniOutlinePalette} dies in its static initializer, which constructs a
- * Wynntils {@code CustomColor} — so the Turkish-locale case below pins this
- * side of the pair instead.</p>
+ * .claude/ephemeral/bugs-found-via-mellow-rain/default-locale-case-folding-cluster.md},
+ * where that row is struck and the remaining 64 sites are not.</p>
+ *
+ * <p>{@code rolesAgreeWithTheOutlinePalette} is the equivalence case. It could
+ * not be written before the palette was made loadable — its static initializer
+ * built a Wynntils {@code CustomColor} and any touch died with
+ * {@code NoClassDefFoundError} — and asserting it before the fold was fixed
+ * would have documented a bug rather than a property. After the delegation it
+ * holds by construction; it is here to fail the day somebody re-inlines the
+ * table.</p>
  *
  * <p>NOTE: {@link AnniHoverBuilder}'s own static state is four {@code String}
- * constants. Its {@code VetsConfig} and {@code AnniSnapshot} imports are
- * resolved but never executed on the {@code roleColor} path. If a future
- * contributor adds a static initializer that loads MC or Wynntils, this test
- * starts failing at class-init time and the fix is to extract the mapping into
- * its own pure type.</p>
+ * constants, and {@code AnniOutlinePalette} has no static state at all. Neither
+ * class's {@code VetsConfig} / {@code AnniSnapshot} / {@code CustomColor}
+ * imports are executed on the {@code roleColor} path. If a future contributor
+ * adds a static initializer that loads MC or Wynntils to either, this test
+ * starts failing at class-init time.</p>
  */
 class AnniHoverBuilderTest {
 
@@ -98,7 +112,10 @@ class AnniHoverBuilderTest {
     @Test
     void roleColor_turkishFoldWouldDivergeWithoutLocaleRoot() {
         // Demonstrates that the argument to toUpperCase is load-bearing rather
-        // than decorative, without asserting on the buggy sibling directly.
+        // than decorative. Written when the sibling still folded with the
+        // default locale; it asserts on String.toUpperCase directly rather than
+        // on either subject, so the Phase 5d fix left it green — which is what
+        // its bug file predicted.
         Locale.setDefault(TURKISH);
 
         assertEquals(
@@ -106,5 +123,58 @@ class AnniHoverBuilderTest {
                 "fill".toUpperCase(),
                 "a default-locale fold does not produce the switch label");
         assertEquals("FILL", "fill".toUpperCase(Locale.ROOT), "Locale.ROOT does");
+    }
+
+    // ----- Equivalence with the outline palette (item 9c) -----
+
+    /** Every key the two surfaces can disagree on, including the lower-case
+     *  forms — those are the only ones a fold can break — plus the three
+     *  fall-through inputs. */
+    private static final String[] EQUIVALENCE_KEYS = {
+        "FILL",
+        "TANK",
+        "HEAL",
+        "HEALER",
+        "TERTIARY",
+        "SECONDARY",
+        "PRIMARY",
+        "fill",
+        "tank",
+        "heal",
+        "healer",
+        "tertiary",
+        "secondary",
+        "primary",
+        null,
+        "",
+        "SUPPORT",
+        " TANK ",
+    };
+
+    @Test
+    void roleColor_agreesWithTheOutlinePaletteUnderLocaleRoot() {
+        Locale.setDefault(Locale.ROOT);
+
+        for (String key : EQUIVALENCE_KEYS) {
+            assertSame(
+                    AnniOutlinePalette.chatFormattingForRole(key),
+                    AnniHoverBuilder.roleColor(key),
+                    "chat and outline disagree on role " + key);
+        }
+    }
+
+    @Test
+    void roleColor_agreesWithTheOutlinePaletteUnderATurkishDefaultLocale() {
+        // The half that discriminates. Against the pre-fix palette this failed
+        // on fill / primary / tertiary and passed on everything else; a fixture
+        // that only walked the upper-case forms would have missed it entirely.
+        Locale.setDefault(TURKISH);
+
+        for (String key : EQUIVALENCE_KEYS) {
+            assertSame(
+                    AnniOutlinePalette.chatFormattingForRole(key),
+                    AnniHoverBuilder.roleColor(key),
+                    "chat and outline disagree on role " + key);
+        }
     }
 }

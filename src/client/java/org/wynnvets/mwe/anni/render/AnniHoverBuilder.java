@@ -9,6 +9,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.mwe.anni.outline.AnniOutlinePalette;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 
 /**
@@ -44,26 +45,32 @@ public final class AnniHoverBuilder {
 
     /** Per-role colour map from spec §"Player Highlights":
      *  FILL=&f, TANK=&b, HEAL/HEALER=&a, TERTIARY=&d, SECONDARY=&e,
-     *  PRIMARY=&c. Unknown roles fall back to gray. */
+     *  PRIMARY=&c. Unknown roles fall back to gray.
+     *
+     *  <p>The table itself lives in
+     *  {@link org.wynnvets.mwe.anni.outline.AnniOutlinePalette#chatFormattingForRole
+     *  AnniOutlinePalette#chatFormattingForRole}; this method is the chat surfaces'
+     *  entry point to it and does nothing else. The two carried the same seven arms
+     *  independently until Phase 5d, disagreeing only in that this side passed
+     *  {@link Locale#ROOT} and the palette did not — a chat hover and an outline
+     *  that named different colours for the same player under a Turkish default.</p>
+     *
+     *  <p>The palette is the surviving body rather than this one because it is a
+     *  fieldless {@link ChatFormatting}-only table with a single production caller,
+     *  while this class is a render helper that pulls in {@link VetsConfig} and
+     *  {@link AnniSnapshot}. Routing the outline hot path — and
+     *  {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} behind it —
+     *  through here to reach a switch statement would be the wrong dependency
+     *  edge. Kept as a method rather than removed: it has three callers in this
+     *  package and its own test coverage, and chat code should not have to know
+     *  which package owns the outline palette.</p>
+     *
+     *  <p>The boss bar's {@code VetsBossBarContentBuilder.roleColor} is a third
+     *  role table and is <em>deliberately</em> not this one — it maps
+     *  {@code TANK} to BLUE and {@code FILL} to DARK_AQUA, spec-cited as "distinct
+     *  from S4's outline colours". Do not fold it in.</p> */
     public static ChatFormatting roleColor(String role) {
-        if (role == null) return ChatFormatting.GRAY;
-        switch (role.toUpperCase(Locale.ROOT)) {
-            case "FILL":
-                return ChatFormatting.WHITE;
-            case "TANK":
-                return ChatFormatting.AQUA;
-            case "HEAL":
-            case "HEALER":
-                return ChatFormatting.GREEN;
-            case "TERTIARY":
-                return ChatFormatting.LIGHT_PURPLE;
-            case "SECONDARY":
-                return ChatFormatting.YELLOW;
-            case "PRIMARY":
-                return ChatFormatting.RED;
-            default:
-                return ChatFormatting.GRAY;
-        }
+        return AnniOutlinePalette.chatFormattingForRole(role);
     }
 
     /** Notice → ChatFormatting:
