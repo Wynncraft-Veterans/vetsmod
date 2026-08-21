@@ -19,6 +19,7 @@ import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.RankDisplayMap;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
 /**
@@ -28,11 +29,7 @@ import org.wynnvets.util.Json;
  * {@code /wv staff}. Staff names are colour-coded by rank.</p>
  */
 public final class StaffFetcher {
-    private static final HttpClient HTTP_CLIENT =
-            HttpClient.newBuilder()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     private StaffFetcher() {}
 

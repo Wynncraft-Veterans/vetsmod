@@ -15,6 +15,7 @@ import org.wynnvets.fetcher.lookup.providers.PlayerDbProvider;
 import org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider;
 import org.wynnvets.fetcher.lookup.providers.WynncraftProvider;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.HttpClients;
 
 /**
  * Cascading player-name → UUID (and profile/snapshot) resolver.
@@ -43,11 +44,7 @@ public final class PlayerLookup {
 
     private static final Duration OVERALL_TIMEOUT = Duration.ofSeconds(15);
 
-    private static final HttpClient HTTP_CLIENT =
-            HttpClient.newBuilder()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     private static final List<LookupProvider> PROVIDERS =
             List.of(

@@ -32,6 +32,7 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.dispatcher.FindDispatcher;
 import org.wynnvets.fetcher.lookup.PlayerLookup;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
 /**
@@ -52,11 +53,7 @@ public final class WorldListFetcher {
     private static final Style HONOURARY_STYLE =
             Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE).withItalic(true);
 
-    private static final HttpClient HTTP_CLIENT =
-            HttpClient.newBuilder()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     // GeoLite2 / GeoIP2 continent code → display name.
     private static final Map<String, String> CONTINENT_NAMES =

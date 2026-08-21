@@ -21,6 +21,7 @@ import net.minecraft.network.chat.Style;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.DiscordTimestamps;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.HttpClients;
 
 /**
  * On-demand fetcher for the guild's current return event information.
@@ -29,11 +30,7 @@ import org.wynnvets.logging.VetsLogger;
  * response as a chat component for display via {@code /wv return}.</p>
  */
 public class ReturnFetcher {
-    private static final HttpClient HTTP_CLIENT =
-            HttpClient.newBuilder()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     /**
      * Deep link to the Discord channel the return post is mirrored from — the

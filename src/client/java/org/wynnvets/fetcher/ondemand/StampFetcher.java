@@ -22,6 +22,7 @@ import org.wynnvets.mwe.anni.render.AnniCommandRenderer;
 import org.wynnvets.mwe.anni.render.AnniMotdRenderer;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
+import org.wynnvets.util.HttpClients;
 
 /**
  * On-demand fetcher for the annihilation event countdown timer.
@@ -50,11 +51,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * view (Hard Rule #3: pulls are open to anyone).</p>
  */
 public class StampFetcher {
-    private static final HttpClient HTTP_CLIENT =
-            HttpClient.newBuilder()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     /**
      * Auto-display path (world-join). Returns the snapshot-driven motd

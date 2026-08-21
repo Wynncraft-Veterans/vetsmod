@@ -13,6 +13,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
 /**
@@ -27,11 +28,7 @@ import org.wynnvets.util.Json;
  */
 public final class TerritoryLineManager {
 
-    private static final HttpClient HTTP_CLIENT =
-            HttpClient.newBuilder()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     /** Maps command alias → Wynncraft territory name. */
     private static final Map<String, String> LINE_ALIASES =

@@ -44,6 +44,7 @@ import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.PlayerLookup;
 import org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
 // <<< PATCH END: WYNN-STALE-WORKAROUND
@@ -60,11 +61,7 @@ import org.wynnvets.util.Json;
  * the badge to the compact block-indicator on continuation lines.</p>
  */
 public class UserInfoFetcher {
-    private static final HttpClient HTTP_CLIENT =
-            HttpClient.newBuilder()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     private static final Style LABEL_STYLE = Style.EMPTY.withColor(ChatFormatting.GRAY);
     private static final Style VALUE_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);

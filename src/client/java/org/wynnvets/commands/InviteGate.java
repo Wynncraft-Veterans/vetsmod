@@ -26,6 +26,7 @@ import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.PlayerLookup;
 import org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
 /**
@@ -54,11 +55,7 @@ import org.wynnvets.util.Json;
  */
 public final class InviteGate {
 
-    private static final HttpClient HTTP_CLIENT =
-            HttpClient.newBuilder()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     /** Players who joined Wynncraft on or after this date do not qualify
      *  under the "vet" criterion (legacy account requirement). */

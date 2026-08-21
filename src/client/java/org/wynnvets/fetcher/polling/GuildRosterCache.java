@@ -14,6 +14,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
 /**
@@ -29,11 +30,7 @@ import org.wynnvets.util.Json;
 public final class GuildRosterCache {
     private static final int REFRESH_INTERVAL_MINUTES = 5;
 
-    private static final HttpClient HTTP_CLIENT =
-            HttpClient.newBuilder()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     private static final HttpRequest ROSTER_REQUEST =
             HttpRequest.newBuilder()

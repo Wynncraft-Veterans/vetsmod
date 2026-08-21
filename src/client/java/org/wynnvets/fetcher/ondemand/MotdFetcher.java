@@ -11,6 +11,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.util.HttpClients;
 
 /**
  * On-demand fetcher for the guild Message of the Day.
@@ -19,11 +20,7 @@ import org.wynnvets.chat.ChatUtils;
  * suitable for use from command handlers and lifecycle hooks.</p>
  */
 public class MotdFetcher {
-    private static final HttpClient HTTP_CLIENT =
-            HttpClient.newBuilder()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     /**
      * Fetches the MOTD from the API asynchronously

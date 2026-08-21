@@ -23,6 +23,7 @@ import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
 /**
@@ -105,11 +106,7 @@ public final class CommandDispatcher {
     private static final String STAFF_CHAT_WAIT_ONLINE_STATUS_MESSAGE =
             "Please wait until the server updates your online status before using staff chat.";
 
-    private static final HttpClient HTTP_CLIENT =
-            HttpClient.newBuilder()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     private static final HttpRequest STAFF_REQUEST =
             HttpRequest.newBuilder()
