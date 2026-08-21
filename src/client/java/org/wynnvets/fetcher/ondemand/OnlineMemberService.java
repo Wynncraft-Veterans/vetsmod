@@ -22,8 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
-import org.wynnvets.fetcher.polling.GuildRosterCache;
-import org.wynnvets.fetcher.polling.WynnAliasCache;
+import org.wynnvets.fetcher.polling.PolledJsonMap;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.guild.OnlineGuildCache;
 import org.wynnvets.guild.TabListGuildParser;
@@ -224,7 +223,7 @@ public final class OnlineMemberService {
         }
         // Overlay resolved roster names (from Minecraft Services API via tempserver).
         // These are authoritative and override potentially stale Wynncraft API names.
-        Map<String, String> resolvedRoster = GuildRosterCache.getRoster();
+        Map<String, String> resolvedRoster = PolledJsonMap.GUILD_ROSTER.snapshot();
         for (Map.Entry<String, String> entry : resolvedRoster.entrySet()) {
             uuidToUsername.put(entry.getKey(), entry.getValue());
             usernameToUuid.put(entry.getValue().toLowerCase(Locale.ROOT), entry.getKey());
@@ -236,8 +235,8 @@ public final class OnlineMemberService {
         }
 
         // Renamed players: the server's GuildRosterPoller reads legacyName from the
-        // v3.8 guild payload and populates /v1/outbound/aliases; WynnAliasCache polls
-        // that endpoint, so WynnAliasCache.getUuid() below resolves stale tab names.
+        // v3.8 guild payload and populates /v1/outbound/aliases; PolledJsonMap.WYNN_ALIASES
+        // polls that endpoint, so the lookup below resolves stale tab names.
 
         // Collect online guild member UUIDs from the Wynncraft API.
         Set<String> apiOnlineUuids = new TreeSet<>();
@@ -254,14 +253,14 @@ public final class OnlineMemberService {
         mergedOnlineGuild.addAll(modGuildUuids);
 
         // Tab list entries: resolve to UUID by current username, falling back to
-        // the server-learned legacyName alias (v3.8 populates WynnAliasCache via
+        // the server-learned legacyName alias (v3.8 populates WYNN_ALIASES via
         // /v1/outbound/aliases).  Unresolved names are kept as tab-only entries.
         Set<String> tabOnlyUsernames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         for (TabListGuildParser.GuildEntry entry : tabEntries) {
             String key = entry.username().toLowerCase(Locale.ROOT);
             String uuid = usernameToUuid.get(key);
             if (uuid == null) {
-                uuid = WynnAliasCache.getUuid(entry.username());
+                uuid = PolledJsonMap.WYNN_ALIASES.get(entry.username());
             }
             if (uuid != null) {
                 mergedOnlineGuild.add(uuid);
