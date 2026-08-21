@@ -67,21 +67,6 @@ public final class AnniSnapshotPoller {
         VetsLogger.debug("AnniSnapshotPoller started");
     }
 
-    /** Stops the poll. Draining matches {@link AnniStampPoller#stop()}. */
-    public static void stop() {
-        if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdown();
-            try {
-                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                    scheduler.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                scheduler.shutdownNow();
-            }
-        }
-        running = false;
-    }
-
     private static void tick() {
         try {
             if (!inAnniWindow()) {

@@ -77,21 +77,6 @@ public final class WynnAliasCache {
                 TimeUnit.MINUTES);
     }
 
-    public static void stop() {
-        if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdown();
-            try {
-                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                    scheduler.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                scheduler.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }
-        isRunning = false;
-    }
-
     /**
      * Returns the UUID for a stale Wynncraft tab-list username, or
      * {@code null} if no alias has been learned for that name.

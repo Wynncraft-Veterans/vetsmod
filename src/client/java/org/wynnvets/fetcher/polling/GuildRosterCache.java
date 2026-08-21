@@ -74,21 +74,6 @@ public final class GuildRosterCache {
                 TimeUnit.MINUTES);
     }
 
-    public static void stop() {
-        if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdown();
-            try {
-                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                    scheduler.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                scheduler.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }
-        isRunning = false;
-    }
-
     /**
      * Returns the current username for a guild member UUID, or {@code null}
      * if the UUID is not in the roster (or the roster hasn't loaded yet).

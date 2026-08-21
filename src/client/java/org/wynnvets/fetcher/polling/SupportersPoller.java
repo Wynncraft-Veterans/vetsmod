@@ -66,20 +66,6 @@ public class SupportersPoller {
                 TimeUnit.MINUTES);
     }
 
-    public static void stop() {
-        if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdown();
-            try {
-                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                    scheduler.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                scheduler.shutdownNow();
-            }
-        }
-        isRunning = false;
-    }
-
     /**
      * Checks whether a username is in the supporters list.
      * Comparison is case-insensitive.

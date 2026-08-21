@@ -86,21 +86,6 @@ public final class AnniStampPoller {
                 TimeUnit.MINUTES);
     }
 
-    /** Stops the periodic sweep, draining the scheduler. */
-    public static void stop() {
-        if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdown();
-            try {
-                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                    scheduler.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                scheduler.shutdownNow();
-            }
-        }
-        isRunning = false;
-    }
-
     /** @return last known anni epoch-seconds, or {@code 0} if never populated. */
     public static long getLatestStamp() {
         return latestStamp;

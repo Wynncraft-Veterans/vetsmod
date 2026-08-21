@@ -94,24 +94,6 @@ public final class StaffRanksPoller {
     }
 
     /**
-     * Stops periodic staff-rank refresh.
-     */
-    public static synchronized void stop() {
-        if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdown();
-            try {
-                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                    scheduler.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                scheduler.shutdownNow();
-            }
-        }
-
-        isRunning = false;
-    }
-
-    /**
      * Returns a confirmed rank for the given username when available.
      *
      * <p>Live push-sourced state takes priority over the periodic poll
