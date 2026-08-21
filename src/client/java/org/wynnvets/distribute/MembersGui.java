@@ -34,11 +34,13 @@ import org.wynnvets.util.ContainerScreens;
  *   <tr><th>Caller</th><th>Job</th><th>Predicate</th><th>Why</th></tr>
  *   <tr>
  *     <td>{@link MemberSlotPresser}</td>
- *     <td>every press in a batch, and the close-when-done guard</td>
+ *     <td>every press in a batch, the refresh-confirmation gate, and the close-when-done
+ *         guard</td>
  *     <td><b>title</b></td>
- *     <td>Wynncraft refreshes the Members menu after every send and reassigns the container id
- *         doing it. Matching on id would fail on precisely the path this class exists to
- *         survive — see its class Javadoc.</td>
+ *     <td>Wynncraft refreshes the Members menu after every send, and that refresh sometimes
+ *         arrives as a close+reopen under a <em>new</em> container id. Matching on id would
+ *         fail on exactly the path this class exists to survive — see its class Javadoc, and
+ *         {@code vetsmod_distribute.md} §6 point 2 for the other refresh shape.</td>
  *   </tr>
  *   <tr>
  *     <td>{@link MembersListSearcher}, {@link MembersListWalker}</td>
@@ -52,8 +54,10 @@ import org.wynnvets.util.ContainerScreens;
  *     <td>{@link MembersListSearcher}, {@link MembersListWalker}</td>
  *     <td>the re-arm fast path, and the searcher's mid-search rebind</td>
  *     <td><b>title</b></td>
- *     <td>Both are looking for a menu they have not bound, or have just lost. There is no id
- *         to match against yet; finding one is the point.</td>
+ *     <td>Neither has a <em>usable</em> bound id — none yet in the fast paths, and a stale
+ *         one in the rebind, which is precisely what made
+ *         {@link ContainerScreens#currentWithId(int)} return null and trigger it. Finding the
+ *         menu again is the point.</td>
  *   </tr>
  * </table>
  *

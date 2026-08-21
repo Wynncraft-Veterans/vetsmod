@@ -34,9 +34,10 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
  * id, which is exactly what makes it refresh-proof.</p>
  *
  * <p>Both return {@code null} rather than an {@code Optional}. Every call site is a null
- * check deciding whether the next step runs, and returning {@code null} is what the seven
- * bodies these replaced did — the point of this class is that nothing at a call site
- * changed.</p>
+ * check deciding whether the next step runs, and {@code null} is what the five methods among
+ * the seven returned; the other two were inline {@code if}/{@code else} blocks branching on
+ * the same test, whose callers now branch on the null instead. The point of this class is that
+ * nothing at a call site decides differently.</p>
  */
 public final class ContainerScreens {
 
