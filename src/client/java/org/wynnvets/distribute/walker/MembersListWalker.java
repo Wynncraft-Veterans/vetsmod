@@ -9,7 +9,6 @@ import com.wynntils.mc.event.MenuEvent;
 import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -34,12 +33,12 @@ import org.wynnvets.util.ContainerScreens;
  * (MenuOpen / SetContent / SetSlot) and, like it, defers the rescan by a
  * scheduler delay so straggling slot updates land first &mdash; but the
  * two are not interchangeable. This class waits one tick and filters
- * {@link #onSetSlot} down to {@link #NEXT_PAGE_SLOT}; the searcher waits
- * {@code SCAN_DELAY_TICKS} (a different value, for the reason recorded
- * on that constant) and also triggers on every in-bounds tile. Instead of
- * stopping on a match it forward-paginates exhaustively, collecting
- * every bounded player-head into {@link #collected} along the way. When
- * the Next Page button disappears, it invokes
+ * {@link #onSetSlot} down to {@link MembersGui#NEXT_PAGE_SLOT}; the
+ * searcher waits {@code SCAN_DELAY_TICKS} (a different value, for the
+ * reason recorded on that constant) and also triggers on every in-bounds
+ * tile. Instead of stopping on a match it forward-paginates exhaustively,
+ * collecting every bounded player-head into {@link #collected} along the
+ * way. When the Next Page button disappears, it invokes
  * {@link Completion#onComplete(List)} with the accumulated list.</p>
  *
  * <p>Forward-only: the walk is always started on a freshly-opened
@@ -50,12 +49,6 @@ import org.wynnvets.util.ContainerScreens;
  * {@link GuildManageOpener#openManageMembers()}.</p>
  */
 public final class MembersListWalker {
-
-    /** Mirrors {@code GuildMemberListContainer.NEXT_PAGE_PATTERN}. */
-    private static final Pattern NEXT_PAGE_PATTERN = Pattern.compile("§a§lNext Page");
-
-    /** Mirrors {@code GuildMemberListContainer.getNextItemSlot()}. */
-    private static final int NEXT_PAGE_SLOT = 28;
 
     /** Hard cap on page clicks per walk to bound runaway loops. */
     private static final int MAX_PAGES = 30;
@@ -153,7 +146,7 @@ public final class MembersListWalker {
     public void onSetSlot(ContainerSetSlotEvent.Post event) {
         if (!active) return;
         if (event.getContainerId() != membersContainerId) return;
-        if (event.getSlot() != NEXT_PAGE_SLOT) return;
+        if (event.getSlot() != MembersGui.NEXT_PAGE_SLOT) return;
         scheduleScan();
     }
 
@@ -215,19 +208,20 @@ public final class MembersListWalker {
 
         // Try to advance to the next page; if the Next Page button is
         // gone we've reached the end.
-        if (NEXT_PAGE_SLOT >= items.size()) {
+        if (MembersGui.NEXT_PAGE_SLOT >= items.size()) {
             finishWalk();
             return;
         }
-        ItemStack nextItem = items.get(NEXT_PAGE_SLOT);
-        if (!StyledText.fromComponent(nextItem.getHoverName()).matches(NEXT_PAGE_PATTERN)) {
+        ItemStack nextItem = items.get(MembersGui.NEXT_PAGE_SLOT);
+        if (!StyledText.fromComponent(nextItem.getHoverName())
+                .matches(MembersGui.NEXT_PAGE_PATTERN)) {
             finishWalk();
             return;
         }
 
         pagesClicked++;
         ContainerUtils.clickOnSlot(
-                NEXT_PAGE_SLOT, membersContainerId, GLFW.GLFW_MOUSE_BUTTON_LEFT, items);
+                MembersGui.NEXT_PAGE_SLOT, membersContainerId, GLFW.GLFW_MOUSE_BUTTON_LEFT, items);
     }
 
     private static boolean anyMatchesName(String name) {

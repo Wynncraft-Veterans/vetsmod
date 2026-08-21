@@ -64,18 +64,6 @@ import org.wynnvets.util.ContainerScreens;
  */
 public final class MembersListSearcher {
 
-    /** Mirrors {@code GuildMemberListContainer.NEXT_PAGE_PATTERN}. */
-    private static final Pattern NEXT_PAGE_PATTERN = Pattern.compile("§a§lNext Page");
-
-    /** Mirrors {@code GuildMemberListContainer.PREVIOUS_PAGE_PATTERN}. */
-    private static final Pattern PREVIOUS_PAGE_PATTERN = Pattern.compile("§a§lPrevious Page");
-
-    /** Mirrors {@code GuildMemberListContainer.getNextItemSlot()}. */
-    private static final int NEXT_PAGE_SLOT = 28;
-
-    /** Mirrors {@code GuildMemberListContainer.getPreviousItemSlot()}. */
-    private static final int PREVIOUS_PAGE_SLOT = 10;
-
     /** Hard cap on page clicks per search to bound runaway loops.
      *  Generous enough to cover a full forward sweep followed by a full
      *  backward sweep on a max-size guild. */
@@ -336,7 +324,9 @@ public final class MembersListSearcher {
         if (displayQuery == null) return;
         if (event.getContainerId() != membersContainerId) return;
         int slot = event.getSlot();
-        if (slot == NEXT_PAGE_SLOT || slot == PREVIOUS_PAGE_SLOT || MembersGui.isTileSlot(slot)) {
+        if (slot == MembersGui.NEXT_PAGE_SLOT
+                || slot == MembersGui.PREVIOUS_PAGE_SLOT
+                || MembersGui.isTileSlot(slot)) {
             scheduleScan();
         }
     }
@@ -476,7 +466,8 @@ public final class MembersListSearcher {
      */
     private static boolean advancePagination(List<ItemStack> items) {
         if (direction == Direction.FORWARD) {
-            if (clickPaginationIfPresent(items, NEXT_PAGE_SLOT, NEXT_PAGE_PATTERN)) {
+            if (clickPaginationIfPresent(
+                    items, MembersGui.NEXT_PAGE_SLOT, MembersGui.NEXT_PAGE_PATTERN)) {
                 pagesClicked++;
                 return true;
             }
@@ -484,14 +475,16 @@ public final class MembersListSearcher {
             // that came before the page where the search started (the
             // multi-user case where we re-arm after a previous match).
             direction = Direction.BACKWARD;
-            if (clickPaginationIfPresent(items, PREVIOUS_PAGE_SLOT, PREVIOUS_PAGE_PATTERN)) {
+            if (clickPaginationIfPresent(
+                    items, MembersGui.PREVIOUS_PAGE_SLOT, MembersGui.PREVIOUS_PAGE_PATTERN)) {
                 pagesClicked++;
                 return true;
             }
             // No previous either — single-page guild, name isn't in it.
             return false;
         }
-        if (clickPaginationIfPresent(items, PREVIOUS_PAGE_SLOT, PREVIOUS_PAGE_PATTERN)) {
+        if (clickPaginationIfPresent(
+                items, MembersGui.PREVIOUS_PAGE_SLOT, MembersGui.PREVIOUS_PAGE_PATTERN)) {
             pagesClicked++;
             return true;
         }
