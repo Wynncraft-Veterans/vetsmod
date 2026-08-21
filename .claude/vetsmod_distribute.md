@@ -58,12 +58,13 @@ enforcement.
 ## 2. Package layout
 
 All of it lives under `org.wynnvets.distribute.*` —
-[distribute/](../src/client/java/org/wynnvets/distribute/), 14 files
+[distribute/](../src/client/java/org/wynnvets/distribute/), 15 files
 across 5 sub-packages:
 
 ```
 distribute/
 ├── DistributeCommands.java           — brigadier tree, both gates, selector dispatch
+├── MembersGui.java                   — the Members menu's shape: title, page buttons, tiles
 ├── command/
 │   ├── NameOrSelectorArgument.java   — one-token argument type so `@x` parses
 │   └── OutboundCommand.java          — front-of-queue send, via reflection (§8)
@@ -84,6 +85,19 @@ distribute/
     └── NoAspectsFilter.java          — opt-out UUIDs → legacy names, fail-open
 ```
 
+`MembersGui` sits at the package root rather than in `walker/` because
+all three of `walker/`, `distributor/` and — through the searcher —
+`opener/` read from it; a distributor should not import from the walker
+package to learn the GUI's shape. It describes the *layout* (mirroring
+Wynntils' `GuildMemberListContainer`), not the subset ≥2 callers share,
+so `PREVIOUS_PAGE_SLOT` / `PREVIOUS_PAGE_PATTERN` live there despite
+having one caller. The tick constants stay on their own classes — §6.
+
+One helper lives outside the package: `org.wynnvets.util.ContainerScreens`
+holds the two "which container screen is open" predicates, because the
+id-matching one also drives the *Manage* menu and so is not
+Members-specific. See §6 point 2.
+
 ## 3. Bootstrap
 
 Five of the classes are event-bus singletons with a static `register()`
@@ -103,7 +117,7 @@ That callback carries a long crash-rationale comment about deferring
 class's constraint. The five here inherit the placement, not a separately
 recorded reason for it.
 
-The remaining nine files need no bus registration. Eight are static-only
+The remaining ten files need no bus registration. Nine are static-only
 with private constructors; `NameOrSelectorArgument` is the exception — a
 private-constructor singleton with instance methods, because Brigadier's
 `ArgumentType` is an interface.
@@ -137,8 +151,11 @@ is what the searcher matches). Each step names the class that owns it:
    `scanVisiblePageForMatch` over the bounded tile area — rows 0–4 ×
    cols 2–8 of the 9-wide grid, mirroring Wynntils'
    `GuildMemberListContainer.getBounds()` — comparing each hover name
-   case-insensitively against the armed name set. On a miss it calls
-   `advancePagination`.
+   case-insensitively against the armed name set. The bounds are
+   `MembersGui.isTileSlot`, which is also what
+   `MembersListWalker.collectVisiblePage` collects from and what the
+   searcher's `onSetSlot` filters on, so the three cannot drift apart.
+   On a miss it calls `advancePagination`.
 7. On a hit it captures the handler, calls `stop()` to clear all search
    state, *then* invokes `SlotMatchHandler.onMatch(slot)`. The handler
    receives only the slot index; container id and items are stale by
@@ -307,6 +324,20 @@ observed Wynncraft behaviour first, then the code shape it forces.
    `ContainerSetContentEvent.Post` (in-place, **same** id) as proof the
    refresh landed. Either way the gate is an observed refresh, not a
    fixed cadence.
+
+   This is also why "is the Members menu open?" has **two** answers in
+   the package and they are not interchangeable.
+   `MembersGui.currentByTitle()` ignores the container id, which is what
+   survives the refresh — `MemberSlotPresser` uses it for every press,
+   and the searcher and walker use it in their re-arm fast paths and the
+   searcher's mid-search rebind, where there is no bound id to match on
+   yet. `ContainerScreens.currentWithId(int)` takes the caller's bound id
+   and nothing else, because for the scan that drives pagination a
+   mismatch is the *signal* that the bound menu is gone — the searcher
+   rebinds on it, the walker abandons. `GuildManageOpener` uses the same
+   id predicate on the Manage menu. Swapping either for the other changes
+   behaviour on exactly the path it exists for. The full table is on
+   `MembersGui`'s class Javadoc.
 3. **A page's `SetSlot` packets can cross a tick boundary.** Wynncraft
    updates paginated views in place, and can fire the pagination-button
    update before the page's player-slot packets. Scanning then reads a
@@ -316,8 +347,8 @@ observed Wynncraft behaviour first, then the code shape it forces.
    pagination buttons, and `SCAN_DELAY_TICKS = 2` tail-debounces the
    burst into one scan of the settled page. `MembersListWalker` did not
    receive the same treatment — its `onSetSlot` still triggers only on
-   `NEXT_PAGE_SLOT`, and its `scheduleScan` is a leading-edge boolean
-   latch with a fixed 1-tick delay rather than a token debounce.
+   `MembersGui.NEXT_PAGE_SLOT`, and its `scheduleScan` is a leading-edge
+   boolean latch with a fixed 1-tick delay rather than a token debounce.
 4. **Wynntils' `GuildLogHolder` gives no completion signal we can
    subscribe to.** It auto-paginates the log and accumulates the items,
    but the state driving its stop decision is private and no `Models`
@@ -358,7 +389,7 @@ an extrapolation from behaviour observed elsewhere. Values are current.
 | `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Lets the previous phase's `ServerboundContainerClosePacket` settle. `queueCommand`'s 7-tick spacing paces commands but knows nothing about close packets |
 
 `distribute/` is currently the repo's only consumer of
-`Managers.TickScheduler` — 11 `scheduleLater` calls across 8 of its 14
+`Managers.TickScheduler` — 11 `scheduleLater` calls across 8 of its 15
 files, none elsewhere in `src/`. Four of the 11 are delay-0 hops off the
 shared `HttpClient` executor back onto the tick thread, not delays. Treat
 the exclusivity as a snapshot rather than a design invariant; nothing stops
