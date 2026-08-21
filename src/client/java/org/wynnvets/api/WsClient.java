@@ -1,6 +1,5 @@
 package org.wynnvets.api;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import java.net.URI;
@@ -17,6 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Manages a single WebSocket connection with automatic reconnection.
@@ -27,7 +27,6 @@ import org.wynnvets.logging.VetsLogger;
  */
 public class WsClient implements WebSocket.Listener {
 
-    private static final Gson GSON = new Gson();
     private static final long RECONNECT_DELAY_MS = 3000;
     private static final long PING_INTERVAL_MS = 30000;
 
@@ -125,7 +124,7 @@ public class WsClient implements WebSocket.Listener {
         WebSocket ws = wsRef.get();
         if (ws == null) return;
         try {
-            ws.sendText(GSON.toJson(json), true);
+            ws.sendText(Json.GSON.toJson(json), true);
         } catch (Exception e) {
             VetsLogger.debug("[{}] WebSocket send failed: {}", label, e.getMessage());
         }
@@ -200,7 +199,7 @@ public class WsClient implements WebSocket.Listener {
 
     private void handleText(String text) {
         try {
-            JsonObject json = GSON.fromJson(text, JsonObject.class);
+            JsonObject json = Json.GSON.fromJson(text, JsonObject.class);
             if (json != null && messageHandler != null) {
                 messageHandler.accept(json);
             }

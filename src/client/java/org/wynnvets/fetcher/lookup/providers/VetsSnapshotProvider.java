@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.lookup.providers;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -10,6 +9,7 @@ import org.wynnvets.fetcher.lookup.LookupProvider;
 import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.ProviderOutcome;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Resolver via the {@code check_membership} WebSocket frame sent to
@@ -34,8 +34,6 @@ import org.wynnvets.logging.VetsLogger;
  */
 public final class VetsSnapshotProvider implements LookupProvider {
 
-    private static final Gson GSON = new Gson();
-
     /**
      * Sends a {@code check_membership} frame and adapts the single-use ack
      * callback into a future. Used by this provider AND by InviteGate /
@@ -56,7 +54,7 @@ public final class VetsSnapshotProvider implements LookupProvider {
                                         ? ack.get("status").getAsString()
                                         : "error";
                         if ("ok".equals(status)) {
-                            cf.complete(GSON.fromJson(ack, MembershipSnapshot.class));
+                            cf.complete(Json.GSON.fromJson(ack, MembershipSnapshot.class));
                         } else {
                             cf.complete(null);
                         }

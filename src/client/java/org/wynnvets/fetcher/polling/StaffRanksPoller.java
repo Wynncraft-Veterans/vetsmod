@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.polling;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -18,6 +17,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Periodically fetches confirmed staff ranks and caches them locally.
@@ -55,7 +55,6 @@ public final class StaffRanksPoller {
                     .GET()
                     .build();
 
-    private static final Gson GSON = new Gson();
     private static final Map<String, String> staffRanksByUsername = new ConcurrentHashMap<>();
     // Push-sourced overlay. Survives poll cycles so live presence
     // monotonically wins over the slower 2-minute resync.
@@ -196,7 +195,7 @@ public final class StaffRanksPoller {
 
     private static void parseStaffRanks(String jsonResponse) {
         try {
-            JsonArray staffMembers = GSON.fromJson(jsonResponse, JsonArray.class);
+            JsonArray staffMembers = Json.GSON.fromJson(jsonResponse, JsonArray.class);
             Map<String, String> newRanks = new ConcurrentHashMap<>();
 
             for (JsonElement element : staffMembers) {

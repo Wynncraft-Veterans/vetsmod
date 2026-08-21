@@ -1,6 +1,5 @@
 package org.wynnvets.chat.dispatcher;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -24,6 +23,7 @@ import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Shared single-threaded command dispatcher for serialized outbound Wynncraft commands.
@@ -104,7 +104,6 @@ public final class CommandDispatcher {
 
     private static final String STAFF_CHAT_WAIT_ONLINE_STATUS_MESSAGE =
             "Please wait until the server updates your online status before using staff chat.";
-    private static final Gson GSON = new Gson();
 
     private static final HttpClient HTTP_CLIENT =
             HttpClient.newBuilder()
@@ -359,7 +358,7 @@ public final class CommandDispatcher {
             return false;
         }
 
-        JsonArray staffMembers = GSON.fromJson(response.body(), JsonArray.class);
+        JsonArray staffMembers = Json.GSON.fromJson(response.body(), JsonArray.class);
         if (staffMembers == null) {
             return false;
         }
@@ -397,7 +396,7 @@ public final class CommandDispatcher {
             return new ArrayList<>();
         }
 
-        JsonArray staffMembers = GSON.fromJson(response.body(), JsonArray.class);
+        JsonArray staffMembers = Json.GSON.fromJson(response.body(), JsonArray.class);
         if (staffMembers == null) {
             return new ArrayList<>();
         }

@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.ondemand;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -45,6 +44,7 @@ import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.PlayerLookup;
 import org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.util.Json;
 
 // <<< PATCH END: WYNN-STALE-WORKAROUND
 
@@ -65,8 +65,6 @@ public class UserInfoFetcher {
                     .version(HttpClient.Version.HTTP_1_1)
                     .connectTimeout(Duration.ofSeconds(5))
                     .build();
-
-    private static final Gson GSON = new Gson();
 
     private static final Style LABEL_STYLE = Style.EMPTY.withColor(ChatFormatting.GRAY);
     private static final Style VALUE_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
@@ -226,7 +224,8 @@ public class UserInfoFetcher {
                                 return ReturnersMembership.notInGuild();
                             }
 
-                            JsonElement payload = GSON.fromJson(response.body(), JsonElement.class);
+                            JsonElement payload =
+                                    Json.GSON.fromJson(response.body(), JsonElement.class);
                             return analyzeRoster(payload, normalizedUuid);
                         })
                 .exceptionally(e -> ReturnersMembership.notInGuild());
@@ -258,7 +257,8 @@ public class UserInfoFetcher {
                             if (response.statusCode() != HttpURLConnection.HTTP_OK) {
                                 return Optional.<String>empty();
                             }
-                            JsonElement payload = GSON.fromJson(response.body(), JsonElement.class);
+                            JsonElement payload =
+                                    Json.GSON.fromJson(response.body(), JsonElement.class);
                             ReturnersMembership hit = analyzeRoster(payload, normalizedUuid);
                             return hit.inGuild()
                                     ? Optional.ofNullable(hit.rank())
@@ -327,7 +327,7 @@ public class UserInfoFetcher {
         stub.addProperty("blocklist_reason", detail == null ? "snapshot unavailable" : detail);
         stub.addProperty("in_returners_guild", false);
         // discord intentionally omitted -> null
-        return GSON.fromJson(stub, MembershipSnapshot.class);
+        return Json.GSON.fromJson(stub, MembershipSnapshot.class);
     }
 
     /**
@@ -467,7 +467,7 @@ public class UserInfoFetcher {
                 .thenApply(
                         resp ->
                                 resp.statusCode() == HttpURLConnection.HTTP_OK
-                                        ? GSON.fromJson(resp.body(), User.class)
+                                        ? Json.GSON.fromJson(resp.body(), User.class)
                                         : null)
                 .exceptionally(e -> null);
     }

@@ -1,9 +1,9 @@
 package org.wynnvets.mwe.anni.state;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.util.Collections;
 import java.util.List;
+import org.wynnvets.util.Json;
 
 /**
  * Immutable Gson-deserialised mirror of the canonical anni snapshot dict.
@@ -27,8 +27,6 @@ import java.util.List;
  * require a custom {@code TypeAdapter} for snake_case wire fields.</p>
  */
 public final class AnniSnapshot {
-
-    private static final Gson GSON = new Gson();
 
     private Integer schema_version;
     private String mc_uuid;
@@ -89,7 +87,7 @@ public final class AnniSnapshot {
 
     /** Hydrate from the JSON shape produced by vets-anni. */
     public static AnniSnapshot fromJson(JsonObject json) {
-        return GSON.fromJson(json, AnniSnapshot.class);
+        return Json.GSON.fromJson(json, AnniSnapshot.class);
     }
 
     public static final class Event {

@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.ondemand;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -33,6 +32,7 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.dispatcher.FindDispatcher;
 import org.wynnvets.fetcher.lookup.PlayerLookup;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * On-demand fetcher for {@code /wv list world}.
@@ -57,8 +57,6 @@ public final class WorldListFetcher {
                     .version(HttpClient.Version.HTTP_1_1)
                     .connectTimeout(Duration.ofSeconds(5))
                     .build();
-
-    private static final Gson GSON = new Gson();
 
     // GeoLite2 / GeoIP2 continent code → display name.
     private static final Map<String, String> CONTINENT_NAMES =
@@ -270,7 +268,7 @@ public final class WorldListFetcher {
 
     private static Set<String> parseStaffUsernames(String body) {
         try {
-            JsonArray arr = GSON.fromJson(body, JsonArray.class);
+            JsonArray arr = Json.GSON.fromJson(body, JsonArray.class);
             if (arr == null) {
                 return Set.of();
             }

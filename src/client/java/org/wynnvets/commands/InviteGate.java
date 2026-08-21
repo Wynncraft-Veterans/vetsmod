@@ -1,6 +1,5 @@
 package org.wynnvets.commands;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.net.HttpURLConnection;
@@ -27,6 +26,7 @@ import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.PlayerLookup;
 import org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.util.Json;
 
 /**
  * Pre-dispatch gate for {@code /gu invite} and {@code /guild invite}.
@@ -59,8 +59,6 @@ public final class InviteGate {
                     .version(HttpClient.Version.HTTP_1_1)
                     .connectTimeout(Duration.ofSeconds(5))
                     .build();
-
-    private static final Gson GSON = new Gson();
 
     /** Players who joined Wynncraft on or after this date do not qualify
      *  under the "vet" criterion (legacy account requirement). */
@@ -370,7 +368,7 @@ public final class InviteGate {
                 .thenApply(
                         resp ->
                                 resp.statusCode() == HttpURLConnection.HTTP_OK
-                                        ? GSON.fromJson(resp.body(), User.class)
+                                        ? Json.GSON.fromJson(resp.body(), User.class)
                                         : null)
                 .exceptionally(e -> null);
     }
@@ -388,7 +386,8 @@ public final class InviteGate {
                         resp -> {
                             if (resp.statusCode() != HttpURLConnection.HTTP_OK) return null;
                             try {
-                                JsonElement payload = GSON.fromJson(resp.body(), JsonElement.class);
+                                JsonElement payload =
+                                        Json.GSON.fromJson(resp.body(), JsonElement.class);
                                 if (payload == null || !payload.isJsonObject()) return null;
                                 JsonObject obj = payload.getAsJsonObject();
                                 JsonElement members = obj.get("members");

@@ -1,6 +1,5 @@
 package org.wynnvets.distribute.utils;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -15,6 +14,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Fetches the NoAspects opt-out list from
@@ -50,8 +50,6 @@ public final class NoAspectsFilter {
                     .version(HttpClient.Version.HTTP_1_1)
                     .connectTimeout(Duration.ofSeconds(5))
                     .build();
-
-    private static final Gson GSON = new Gson();
 
     private NoAspectsFilter() {}
 
@@ -116,7 +114,7 @@ public final class NoAspectsFilter {
     // Package-private for unit tests. See NoAspectsFilterTest.
     static Set<String> parseUuids(String body) {
         try {
-            JsonElement root = GSON.fromJson(body, JsonElement.class);
+            JsonElement root = Json.GSON.fromJson(body, JsonElement.class);
             if (root == null || !root.isJsonArray()) return Set.of();
             JsonArray array = root.getAsJsonArray();
             Set<String> uuids = new HashSet<>();

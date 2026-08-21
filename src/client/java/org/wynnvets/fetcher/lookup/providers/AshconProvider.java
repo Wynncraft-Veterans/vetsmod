@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.lookup.providers;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.net.HttpURLConnection;
@@ -17,6 +16,7 @@ import org.wynnvets.fetcher.lookup.LookupProvider;
 import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.ProviderOutcome;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Third-party resolver: {@code https://api.ashcon.app/mojang/v2/user/{name}}.
@@ -26,7 +26,6 @@ import org.wynnvets.logging.VetsLogger;
  */
 public final class AshconProvider implements LookupProvider {
 
-    private static final Gson GSON = new Gson();
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     private final HttpClient httpClient;
@@ -66,7 +65,7 @@ public final class AshconProvider implements LookupProvider {
             return ProviderOutcome.transientMiss();
         }
         try {
-            JsonElement parsed = GSON.fromJson(resp.body(), JsonElement.class);
+            JsonElement parsed = Json.GSON.fromJson(resp.body(), JsonElement.class);
             if (parsed == null || !parsed.isJsonObject()) return ProviderOutcome.transientMiss();
             JsonObject obj = parsed.getAsJsonObject();
             String id =

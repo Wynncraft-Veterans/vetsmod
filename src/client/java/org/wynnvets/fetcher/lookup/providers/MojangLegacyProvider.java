@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.lookup.providers;
 
-import com.google.gson.Gson;
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -19,6 +18,7 @@ import org.wynnvets.fetcher.lookup.MojangCooldown;
 import org.wynnvets.fetcher.lookup.ProviderOutcome;
 import org.wynnvets.fetcher.lookup.Uuids;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Last-resort resolver: legacy {@code api.mojang.com/users/profiles/minecraft/{name}}.
@@ -35,7 +35,6 @@ import org.wynnvets.logging.VetsLogger;
  */
 public final class MojangLegacyProvider implements LookupProvider {
 
-    private static final Gson GSON = new Gson();
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     private final HttpClient httpClient;
@@ -75,7 +74,7 @@ public final class MojangLegacyProvider implements LookupProvider {
         int code = resp.statusCode();
         if (code == HttpURLConnection.HTTP_OK) {
             try {
-                UserUUID body = GSON.fromJson(resp.body(), UserUUID.class);
+                UserUUID body = Json.GSON.fromJson(resp.body(), UserUUID.class);
                 if (body == null || body.id == null || body.id.isBlank()) {
                     return ProviderOutcome.transientMiss();
                 }

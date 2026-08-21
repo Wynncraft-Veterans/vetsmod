@@ -1,6 +1,5 @@
 package org.wynnvets.distribute.utils;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wynntils.core.components.Models;
@@ -20,6 +19,7 @@ import org.wynnvets.distribute.distributor.RandomDistributor;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Resolves a user-supplied name to the {@code legacyName} that the
@@ -44,8 +44,6 @@ public final class NameResolver {
                     .version(HttpClient.Version.HTTP_1_1)
                     .connectTimeout(Duration.ofSeconds(5))
                     .build();
-
-    private static final Gson GSON = new Gson();
 
     private NameResolver() {}
 
@@ -321,7 +319,7 @@ public final class NameResolver {
      */
     private static void forEachGuildMember(String body, MemberHandler handler) {
         try {
-            JsonElement root = GSON.fromJson(body, JsonElement.class);
+            JsonElement root = Json.GSON.fromJson(body, JsonElement.class);
             if (root == null || !root.isJsonObject()) return;
             JsonElement membersEl = root.getAsJsonObject().get("members");
             if (membersEl == null || !membersEl.isJsonObject()) return;

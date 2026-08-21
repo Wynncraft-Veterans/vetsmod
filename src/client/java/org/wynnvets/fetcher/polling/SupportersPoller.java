@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.polling;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.net.HttpURLConnection;
@@ -15,6 +14,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Fetches and caches the list of supporters from the API.
@@ -38,7 +38,6 @@ public class SupportersPoller {
                     .GET()
                     .build();
 
-    private static final Gson GSON = new Gson();
     private static volatile Set<String> supporterUsernames = Set.of();
     private static ScheduledExecutorService scheduler;
     private static boolean isRunning = false;
@@ -142,7 +141,7 @@ public class SupportersPoller {
 
     private static void parseSupporters(String jsonResponse) {
         try {
-            JsonArray supporters = GSON.fromJson(jsonResponse, JsonArray.class);
+            JsonArray supporters = Json.GSON.fromJson(jsonResponse, JsonArray.class);
             Set<String> newSet = new HashSet<>();
 
             for (int i = 0; i < supporters.size(); i++) {

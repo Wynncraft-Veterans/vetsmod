@@ -1,6 +1,5 @@
 package org.wynnvets.rendering.territory;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -14,6 +13,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Manages territory line toggle states and territory coordinate data
@@ -32,7 +32,6 @@ public final class TerritoryLineManager {
                     .version(HttpClient.Version.HTTP_1_1)
                     .connectTimeout(Duration.ofSeconds(5))
                     .build();
-    private static final Gson GSON = new Gson();
 
     /** Maps command alias → Wynncraft territory name. */
     private static final Map<String, String> LINE_ALIASES =
@@ -139,7 +138,8 @@ public final class TerritoryLineManager {
                 .thenAccept(
                         response -> {
                             if (response.statusCode() == HttpURLConnection.HTTP_OK) {
-                                territoryData = GSON.fromJson(response.body(), JsonObject.class);
+                                territoryData =
+                                        Json.GSON.fromJson(response.body(), JsonObject.class);
                                 VetsLogger.info(
                                         "Territory data loaded ({} territories)",
                                         territoryData.size());

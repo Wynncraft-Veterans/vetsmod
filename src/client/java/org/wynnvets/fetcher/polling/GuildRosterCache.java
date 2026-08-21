@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.polling;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.net.HttpURLConnection;
@@ -15,6 +14,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Periodically fetches the guild UUID→current-username roster from the
@@ -41,8 +41,6 @@ public final class GuildRosterCache {
                     .timeout(Duration.ofSeconds(5))
                     .GET()
                     .build();
-
-    private static final Gson GSON = new Gson();
 
     /** UUID → current username (thread-safe snapshot). */
     private static volatile Map<String, String> rosterByUuid = Map.of();
@@ -134,7 +132,7 @@ public final class GuildRosterCache {
 
     private static void parseRoster(String jsonResponse) {
         try {
-            JsonObject obj = GSON.fromJson(jsonResponse, JsonObject.class);
+            JsonObject obj = Json.GSON.fromJson(jsonResponse, JsonObject.class);
             if (obj == null) {
                 return;
             }

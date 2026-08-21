@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.lookup.providers;
 
-import com.google.gson.Gson;
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -14,6 +13,7 @@ import org.wynnvets.fetcher.lookup.LookupProvider;
 import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.ProviderOutcome;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Primary resolver: Wynncraft's {@code /v3/player/{nameOrUuid}}.
@@ -24,7 +24,6 @@ import org.wynnvets.logging.VetsLogger;
  */
 public final class WynncraftProvider implements LookupProvider {
 
-    private static final Gson GSON = new Gson();
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     private final HttpClient httpClient;
@@ -61,7 +60,7 @@ public final class WynncraftProvider implements LookupProvider {
         int code = resp.statusCode();
         if (code == HttpURLConnection.HTTP_OK) {
             try {
-                User profile = GSON.fromJson(resp.body(), User.class);
+                User profile = Json.GSON.fromJson(resp.body(), User.class);
                 if (profile == null || profile.getUuid() == null || profile.getUuid().isBlank()) {
                     // Malformed 200 — treat as transient rather than "doesn't exist".
                     return ProviderOutcome.transientMiss();

@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.ondemand;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -29,6 +28,7 @@ import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.guild.OnlineGuildCache;
 import org.wynnvets.guild.TabListGuildParser;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Shared service for fetching and merging online guild member data.
@@ -49,8 +49,6 @@ public final class OnlineMemberService {
                     .version(HttpClient.Version.HTTP_1_1)
                     .connectTimeout(Duration.ofSeconds(5))
                     .build();
-
-    private static final Gson GSON = new Gson();
 
     private OnlineMemberService() {}
 
@@ -168,7 +166,7 @@ public final class OnlineMemberService {
 
     private static List<ConnectedUser> parseConnectedUsers(String body) {
         try {
-            JsonObject root = GSON.fromJson(body, JsonObject.class);
+            JsonObject root = Json.GSON.fromJson(body, JsonObject.class);
             if (root == null || !root.has("connected")) {
                 return List.of();
             }

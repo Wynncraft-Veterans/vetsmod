@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.lookup.providers;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.net.HttpURLConnection;
@@ -18,6 +17,7 @@ import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.ProviderOutcome;
 import org.wynnvets.fetcher.lookup.Uuids;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Mojang Services resolver:
@@ -28,7 +28,6 @@ import org.wynnvets.logging.VetsLogger;
  */
 public final class MojangServicesProvider implements LookupProvider {
 
-    private static final Gson GSON = new Gson();
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     private final HttpClient httpClient;
@@ -69,7 +68,7 @@ public final class MojangServicesProvider implements LookupProvider {
             return ProviderOutcome.transientMiss();
         }
         try {
-            JsonElement parsed = GSON.fromJson(resp.body(), JsonElement.class);
+            JsonElement parsed = Json.GSON.fromJson(resp.body(), JsonElement.class);
             if (parsed == null || !parsed.isJsonObject()) return ProviderOutcome.transientMiss();
             JsonObject obj = parsed.getAsJsonObject();
             String id =

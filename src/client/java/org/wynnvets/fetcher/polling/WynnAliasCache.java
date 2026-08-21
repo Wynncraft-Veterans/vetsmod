@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.polling;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.net.HttpURLConnection;
@@ -16,6 +15,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Periodically fetches the stale-Wynncraft-name → UUID alias map from the
@@ -46,8 +46,6 @@ public final class WynnAliasCache {
                     .timeout(Duration.ofSeconds(5))
                     .GET()
                     .build();
-
-    private static final Gson GSON = new Gson();
 
     /** Lowercase stale username → UUID (thread-safe snapshot). */
     private static volatile Map<String, String> aliasByName = Map.of();
@@ -126,7 +124,7 @@ public final class WynnAliasCache {
 
     private static void parseAliases(String jsonResponse) {
         try {
-            JsonObject obj = GSON.fromJson(jsonResponse, JsonObject.class);
+            JsonObject obj = Json.GSON.fromJson(jsonResponse, JsonObject.class);
             if (obj == null) {
                 return;
             }

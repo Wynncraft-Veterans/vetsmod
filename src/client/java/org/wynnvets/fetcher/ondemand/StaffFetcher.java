@@ -1,6 +1,5 @@
 package org.wynnvets.fetcher.ondemand;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -20,6 +19,7 @@ import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.RankDisplayMap;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * On-demand fetcher that retrieves the list of currently online staff members.
@@ -33,8 +33,6 @@ public final class StaffFetcher {
                     .version(HttpClient.Version.HTTP_1_1)
                     .connectTimeout(Duration.ofSeconds(5))
                     .build();
-
-    private static final Gson GSON = new Gson();
 
     private StaffFetcher() {}
 
@@ -83,7 +81,7 @@ public final class StaffFetcher {
     }
 
     private static List<StaffEntry> parseOnlineStaff(String responseBody) {
-        JsonArray staffMembers = GSON.fromJson(responseBody, JsonArray.class);
+        JsonArray staffMembers = Json.GSON.fromJson(responseBody, JsonArray.class);
         if (staffMembers == null) {
             return List.of();
         }
