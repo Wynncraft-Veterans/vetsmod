@@ -1,8 +1,6 @@
 package org.wynnvets.fetcher.polling;
 
 import java.time.Instant;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.network.AnniQueryClient;
@@ -41,30 +39,21 @@ public final class AnniSnapshotPoller {
     /** User-stated SLA was "30 secs MAX during the anni window". */
     private static final int POLL_INTERVAL_SECONDS = 30;
 
-    private static ScheduledExecutorService scheduler;
-    private static boolean running = false;
+    private static final PollingService SERVICE =
+            new PollingService(
+                    "VetsMod-AnniSnapshotPoller",
+                    AnniSnapshotPoller::tick,
+                    POLL_INTERVAL_SECONDS,
+                    POLL_INTERVAL_SECONDS,
+                    TimeUnit.SECONDS);
 
     private AnniSnapshotPoller() {}
 
     /** Starts the poll. Idempotent. */
     public static void start() {
-        if (running) {
-            return;
+        if (SERVICE.start()) {
+            VetsLogger.debug("AnniSnapshotPoller started");
         }
-        running = true;
-        scheduler =
-                Executors.newSingleThreadScheduledExecutor(
-                        r -> {
-                            Thread t = new Thread(r, "VetsMod-AnniSnapshotPoller");
-                            t.setDaemon(true);
-                            return t;
-                        });
-        scheduler.scheduleAtFixedRate(
-                AnniSnapshotPoller::tick,
-                POLL_INTERVAL_SECONDS,
-                POLL_INTERVAL_SECONDS,
-                TimeUnit.SECONDS);
-        VetsLogger.debug("AnniSnapshotPoller started");
     }
 
     private static void tick() {
