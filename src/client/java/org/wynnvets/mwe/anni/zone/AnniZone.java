@@ -87,7 +87,7 @@ public final class AnniZone {
      * than a debug line with the previous centres retained. That is not a new kind
      * of hazard: every other {@code HttpClient} in the mod is built unguarded too.
      * {@link org.wynnvets.util.HttpClients HttpClients} builds the shared one in
-     * its own {@code <clinit>}, which is what the eighteen {@code HTTP_CLIENT}
+     * its own {@code <clinit>}, which is what the seventeen {@code HTTP_CLIENT}
      * fields reach; {@code WsClient} builds its own in a constructor.</p>
      */
     private static final HttpClient HTTP_CLIENT =

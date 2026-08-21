@@ -102,6 +102,12 @@ public final class PolledJsonMap {
     private volatile Map<String, String> values = Map.of();
 
     /**
+     * Builds one polled map. Only the two constants above are meant to exist.
+     *
+     * <p>Package-private rather than private so a test can build a cold instance and observe
+     * the pre-first-parse contract, which a JVM-static cannot be returned to once any case has
+     * run — see {@code PolledJsonMapTest} and lesson L5c.4.</p>
+     *
      * @param uri the endpoint to poll
      * @param keyNormalizer applied to every key, at ingest and at lookup alike
      * @param threadName the poller thread's name, used verbatim — these two inherited the
@@ -110,10 +116,6 @@ public final class PolledJsonMap {
      * @param itemNoun what one entry is called in the "loaded: N x" line
      * @param periodMinutes how often to re-fetch
      * @param timeoutSeconds per-request timeout
-     *     <p>Only the two constants above are meant to exist. The constructor is
-     *     package-private rather than private so a test can build a cold instance and observe
-     *     the pre-first-parse contract, which a JVM-static cannot be returned to once any
-     *     case has run.
      */
     // Package-private for unit tests. See PolledJsonMapTest.
     PolledJsonMap(

@@ -89,11 +89,16 @@ all: it selects the far-out versus imminent render branch of `/wv anni`. It stay
 where it is for the same reason `PartyRosterListener`'s does — two files agreeing
 on a number today is not shared configuration.
 
-Greping the source for `7200` now finds **three constant declarations** —
+**Three constant declarations now hold 7200** —
 `AnniWindows.HOT_WINDOW_BEFORE_SECONDS`, `PartyRosterListener.ACTIVE_WINDOW_SEC`
-and `AnniCommandRenderer.TWO_HOURS_SECONDS` — plus one `"7200"` string in
-`AnniDebugCommands`' time-suggestion array. It used to find four declarations,
-three of them spelled `2L * 60L * 60L` and the fourth `2L * 60 * 60`.
+and `AnniCommandRenderer.TWO_HOURS_SECONDS` — where there used to be four.
+
+⚠️ **Greping for `7200` finds none of them.** Two are spelled `2L * 60L * 60L` and
+one `2L * 60 * 60`; that grep returns only the `"7200"` string in
+`AnniDebugCommands`' time-suggestion array. Census them by name, or grep
+`60L \* 60L\|60 \* 60`. The earlier wording here promised the grep would find
+three declarations and it never could — L5b.2, a verification recipe is a
+hypothesis too.
 
 **Why the 90-minute pair gets a constant and not a predicate.** The two
 comparisons share the number and **not** their floor. `AnniSnapshotPoller` floors
@@ -457,7 +462,7 @@ Username → `Entry(tier, role, outlineColor, nametagFormatting)`. Keys are lowe
 
 `getEntry(String username)` for the consumer lookups. Concurrent hashmap; reads from main / render threads, writes from the WS reader thread.
 
-Beside those, a `// ── Debug API ──` block that `AnniDebugCommands` drives and no other caller touches: `size()`, `debugSet(String, Entry)`, `debugRemove(String)`, `debugOwnPartyEntry(String role)` and `debugOtherPartyEntry()` back the `/wv debug tree anni registry set|clear|clearall` leaves. `clearAll()` belongs to that group too — it has exactly one caller, `AnniDebugCommands.registryClearAll`, and no test references the class at all. (The rebuild path does not need it: `rebuildFrom` does its own inline `entries.clear(); entries.putAll(next)`.)
+Beside those, a `// ── Debug API ──` block that `AnniDebugCommands` drives and no other caller touches: `size()`, `debugSet(String, Entry)`, `debugRemove(String)`, `debugOwnPartyEntry(String role)` and `debugOtherPartyEntry()` back the `/wv debug tree anni registry set|clear|clearall` leaves. `clearAll()` belongs to that group too — it has exactly one caller, `AnniDebugCommands.registryClearAll`, and no test *exercises* the class. (Two test files now name it in Javadoc — `AnniOutlinePaletteTest` twice in doclint-resolved `{@link}`s and `AnniHoverBuilderTest` once in `{@code}` — so a grep under `src/test` does return hits.) (The rebuild path does not need it: `rebuildFrom` does its own inline `entries.clear(); entries.putAll(next)`.)
 
 ### `AnniOutlineTicker` (`outline/AnniOutlineTicker.java`)
 

@@ -33,7 +33,11 @@ class AnniWindowsTest {
 
     @Test
     void constantsHoldTheValuesTheCallSitesUsedToDeclare() {
-        assertEquals(7200L, AnniWindows.HOT_WINDOW_BEFORE_SECONDS, "2 h, four independent copies");
+        assertEquals(
+                7200L,
+                AnniWindows.HOT_WINDOW_BEFORE_SECONDS,
+                "2 h, two independent copies — the repo holds four constants of this value, "
+                        + "but the other two are deliberate non-residents and still exist");
         assertEquals(1800L, AnniWindows.HOT_WINDOW_AFTER_SECONDS, "30 m, three independent copies");
         assertEquals(5400L, AnniWindows.BAR_WINDOW_SECONDS, "90 m, two independent copies");
     }

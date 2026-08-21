@@ -74,12 +74,13 @@ package org.wynnvets.mwe.anni.state;
  *       real floor, discussed above.</li>
  * </ul>
  *
- * <p>So a later census greping the source for {@code 7200} finds <b>three constant
- * declarations</b> — {@link #HOT_WINDOW_BEFORE_SECONDS} and the first two above —
- * plus one {@code "7200"} string in {@code AnniDebugCommands}' time-suggestion
- * array, commented as the far-out/imminent boundary. Before this class there were
- * four declarations, three of them spelled {@code 2L * 60L * 60L} and the fourth
- * {@code 2L * 60 * 60}.</p>
+ * <p>So a later census finds <b>three constant declarations holding 7200</b> —
+ * {@link #HOT_WINDOW_BEFORE_SECONDS} and the first two above — where before this
+ * class there were four. ⚠️ <b>Do not census them by greping for {@code 7200}</b>:
+ * not one of the three is spelled that way. Two are {@code 2L * 60L * 60L} and one
+ * is {@code 2L * 60 * 60}, so that grep returns only the {@code "7200"} string in
+ * {@code AnniDebugCommands}' time-suggestion array and this very paragraph. Grep
+ * {@code 60L \* 60L\|60 \* 60} instead, or read the three names above.</p>
  *
  * <h2>Shape</h2>
  *

@@ -24,7 +24,8 @@ import net.minecraft.ChatFormatting;
  * {@code CustomColor} import above resolves a Javadoc link and nothing else —
  * imports are free, static initializers are not.</p>
  *
- * <p><b>Single source of truth for the whole mod's role colours.</b> Two callers:
+ * <p><b>The mod's only role table for chat and outline alike.</b> Not for the whole mod:
+ * the boss bar keeps a third, described below. Two callers:
  * {@link AnniOutlineRegistry#ownPartyEntry}, for the outline and nametag overlay, and
  * {@link org.wynnvets.mwe.anni.render.AnniHoverBuilder#roleColor AnniHoverBuilder#roleColor},
  * which the chat surfaces call and which now delegates here rather than carrying its own copy

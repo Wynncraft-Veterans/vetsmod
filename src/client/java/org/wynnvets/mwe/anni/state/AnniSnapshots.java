@@ -27,7 +27,9 @@ package org.wynnvets.mwe.anni.state;
  * {@code partyWorld(AnniSnapshotCache.latest())} unconditionally from the boss bar's
  * per-tick path, and its extractor was the only one of the eight bodies to carry
  * the guard. Without it, one debug command turns the world-mismatch flash into an NPE
- * on every client tick for the rest of the session, swallowed into a debug log — a
+ * on every client tick until the next snapshot push replaces the cleared value — roughly
+ * 10 s inside the hot window and ~5 min outside it, not the rest of the session — swallowed
+ * into a debug log, a
  * silently dead flash with no error the user can see. The other thirteen sites are
  * behind a null check of their own, so the guard is inert for them and the diff
  * proves it. All four accessors take it anyway: this is a public seam that new

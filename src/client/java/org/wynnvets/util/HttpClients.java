@@ -9,20 +9,22 @@ import java.time.Duration;
  * <p>Eighteen classes each built a character-identical chain &mdash; {@code HTTP_1_1}, a 5 s
  * connect timeout, no other customisation of any kind &mdash; and each held the result in its
  * own {@code private static final HttpClient HTTP_CLIENT}. They all call {@link #standard()}
- * instead. The field stays where it is at all eighteen; only its initialiser changes, so no
- * call site and no import moves.</p>
+ * instead; the field stayed where it was and only its initialiser changed, so no call site and
+ * no import moved. <b>Seventeen hold it today</b> &mdash; {@code GuildRosterCache} and
+ * {@code WynnAliasCache} were later merged into a single {@code PolledJsonMap}. Every count
+ * below is that seventeen, not the eighteen this class was extracted from.</p>
  *
  * <p><b>Never call {@code close()}, {@code shutdown()} or {@code shutdownNow()} on the client
  * this hands back, and never use it in a try-with-resources.</b> Java 21 made
  * {@link java.net.http.HttpClient HttpClient} an {@link AutoCloseable}: {@code close()} blocks
  * until every in-flight operation finishes and then permanently disables the client. One
- * try-with-resources anywhere would therefore take down the HTTP of all eighteen subsystems
+ * try-with-resources anywhere would therefore take down the HTTP of all seventeen subsystems
  * that share it, for the rest of the session, and nothing in the type system objects. No
  * reviewer will be looking for this.</p>
  *
- * <p><b>One failure domain.</b> All eighteen callers depend on this class initialising. If the
+ * <p><b>One failure domain.</b> All seventeen callers depend on this class initialising. If the
  * default {@code SSLContext} fails to resolve, the first class to touch this one gets an
- * {@link ExceptionInInitializerError} and the other seventeen get
+ * {@link ExceptionInInitializerError} and the other sixteen get
  * {@code NoClassDefFoundError: Could not initialize class org.wynnvets.util.HttpClients},
  * which carries no trace of the original cause. Vanishingly unlikely &mdash; a default
  * {@code SSLContext} is part of every JRE this mod can run on &mdash; and accepted.</p>
@@ -62,11 +64,11 @@ public final class HttpClients {
                     .build();
 
     /**
-     * The one client, configured exactly as the eighteen hand-built chains were:
+     * The one client, configured exactly as the hand-built chains were:
      * {@code HTTP_1_1}, a 5 s connect timeout, and no redirect, proxy, executor,
      * authenticator, cookie-handler or SSL customisation whatsoever.
      *
-     * <p>Every call returns the same instance, so the eighteen fields hold one selector
+     * <p>Every call returns the same instance, so the seventeen fields hold one selector
      * thread, one default executor and one connection pool between them.</p>
      */
     public static HttpClient standard() {
