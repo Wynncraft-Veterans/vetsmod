@@ -1,6 +1,7 @@
 package org.wynnvets.mwe.anni.outline;
 
 import com.wynntils.utils.colors.CustomColor;
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 
 /**
@@ -43,6 +44,14 @@ public final class AnniOutlinePalette {
      *  drifting. {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} reads the resolved
      *  formatting off the Entry, not from here.
      *
+     *  <p>Folded with {@link Locale#ROOT}, not with the default locale.
+     *  Under a Turkish or Azeri default, {@code "fill"}, {@code "primary"} and
+     *  {@code "tertiary"} upper-case their {@code i} to the dotted capital
+     *  U+0130, match no arm below, and render an own-party member as an
+     *  outsider while the chat hover — which has always passed
+     *  {@link Locale#ROOT} — shows the right colour. The argument is
+     *  load-bearing; see {@code AnniOutlinePaletteTest}.</p>
+     *
      *  <p>Recognised role codes (case-insensitive):</p>
      *  <ul>
      *    <li>{@code FILL} → {@code §f} white</li>
@@ -58,7 +67,7 @@ public final class AnniOutlinePalette {
      *  differentiated" rather than as an outsider. */
     public static ChatFormatting chatFormattingForRole(String role) {
         if (role == null) return ChatFormatting.GRAY;
-        switch (role.toUpperCase()) {
+        switch (role.toUpperCase(Locale.ROOT)) {
             case "FILL":
                 return ChatFormatting.WHITE;
             case "TANK":
