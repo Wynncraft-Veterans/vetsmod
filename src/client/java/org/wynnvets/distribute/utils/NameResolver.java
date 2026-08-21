@@ -314,6 +314,11 @@ public final class NameResolver {
      *  equality comparison. Mirrors
      *  {@link org.wynnvets.fetcher.ondemand.UserInfoFetcher#normalizeUuidText
      *  UserInfoFetcher#normalizeUuidText}. */
+    // Package-private for NoAspectsFilter.parseUuids, a production caller across the package
+    // boundary — not a test seam. NameResolverTest covers it as well, but this deliberately
+    // does not carry the usual "Package-private for unit tests" marker: that marker asserts
+    // narrowing back to private is safe once the test goes, and here it would break
+    // NoAspectsFilter.
     static String normalizeUuid(String uuid) {
         if (uuid == null) return "";
         return uuid.replace("-", "").toLowerCase(Locale.ROOT);

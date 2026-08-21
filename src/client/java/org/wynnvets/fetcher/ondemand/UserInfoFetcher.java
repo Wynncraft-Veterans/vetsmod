@@ -148,6 +148,14 @@ public class UserInfoFetcher {
         return y + (y == 1 ? " year" : " years");
     }
 
+    /**
+     * Strips dashes and lowercases, so a dashed and a dashless UUID compare equal. Twin of
+     * {@link org.wynnvets.distribute.utils.NameResolver#normalizeUuid
+     * NameResolver#normalizeUuid} &mdash; identical behaviour down to the
+     * null-becomes-empty-string contract, and that one has always linked here.
+     * The pairing now reads both ways, so whichever copy a future consolidation opens
+     * first names the other.
+     */
     private static String normalizeUuidText(String raw) {
         if (raw == null) {
             return "";
