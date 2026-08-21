@@ -72,6 +72,28 @@ public final class AnniZone {
     private static final long REFRESH_INTERVAL_SECONDS = 60L;
     private static final long HTTP_TIMEOUT_SECONDS = 10L;
 
+    /**
+     * Built once for the process. {@link #refresh()} used to build one per 60 s
+     * tick &mdash; a fresh connection pool and selector thread every time, with no
+     * keep-alive reuse between ticks.
+     *
+     * <p>The 10 s connect timeout is this fetcher's own, as is the absence of an
+     * HTTP-version pin: the world-events endpoint negotiates HTTP/2 today and
+     * nothing here asks it not to. Both differ deliberately from the 5 s /
+     * {@code HTTP_1_1} chain the mod's other fetchers build.</p>
+     *
+     * <p>Construction now runs in {@code <clinit>}, outside {@link #refresh()}'s
+     * try/catch: a build failure is an {@link ExceptionInInitializerError} rather
+     * than a debug line with the previous centres retained. That is not a new kind
+     * of hazard &mdash; the mod's other eighteen {@code HttpClient}s are all
+     * {@code static final} and so all build in {@code <clinit>} exactly like this
+     * one; the nineteenth, {@code WsClient}'s, builds unguarded in a constructor.</p>
+     */
+    private static final HttpClient HTTP_CLIENT =
+            HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
+                    .build();
+
     private static volatile List<DiscCentre> centres = Collections.emptyList();
     private static volatile boolean cold = true;
     private static volatile boolean started = false;
@@ -163,17 +185,13 @@ public final class AnniZone {
 
     private static void refresh() {
         try {
-            HttpClient client =
-                    HttpClient.newBuilder()
-                            .connectTimeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-                            .build();
             HttpRequest req =
                     HttpRequest.newBuilder()
                             .uri(URI.create(API_URL))
                             .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
                             .GET()
                             .build();
-            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> resp = HTTP_CLIENT.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() != 200) {
                 VetsLogger.debug("AnniZone refresh: HTTP {}", resp.statusCode());
                 return;
