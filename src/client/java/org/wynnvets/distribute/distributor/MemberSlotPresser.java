@@ -8,13 +8,13 @@ import com.wynntils.mc.event.MenuEvent;
 import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.List;
-import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -64,9 +64,6 @@ public final class MemberSlotPresser {
             return displayName;
         }
     }
-
-    /** Mirrors {@code GuildMemberListContainer.TITLE_PATTERN}. */
-    private static final Pattern MEMBERS_TITLE_PATTERN = Pattern.compile(".+: Members");
 
     /** Settle buffer applied after a confirmed refresh and before the next
      *  press &mdash; gives the server a tick of breathing room and keeps
@@ -151,7 +148,7 @@ public final class MemberSlotPresser {
     }
 
     private static void sendPressAndArm(int slot, Resource resource, int total, int sent) {
-        AbstractContainerScreen<?> screen = currentMembersScreen();
+        AbstractContainerScreen<?> screen = MembersGui.currentByTitle();
         if (screen == null) {
             VetsLogger.debug(
                     "MemberSlotPresser: members screen gone after {}/{} presses", sent, total);
@@ -213,7 +210,7 @@ public final class MemberSlotPresser {
     @SubscribeEvent
     public void onMenuOpenPre(MenuEvent.MenuOpenedEvent.Pre event) {
         if (!awaitingRefresh) return;
-        if (!StyledText.fromComponent(event.getTitle()).matches(MEMBERS_TITLE_PATTERN)) return;
+        if (!StyledText.fromComponent(event.getTitle()).matches(MembersGui.TITLE_PATTERN)) return;
         VetsLogger.debug(
                 "MemberSlotPresser: refresh observed via MenuOpened (new id={}, prev={})",
                 event.getContainerId(),
@@ -228,7 +225,7 @@ public final class MemberSlotPresser {
     @SubscribeEvent
     public void onSetContent(ContainerSetContentEvent.Post event) {
         if (!awaitingRefresh) return;
-        AbstractContainerScreen<?> screen = currentMembersScreen();
+        AbstractContainerScreen<?> screen = MembersGui.currentByTitle();
         if (screen == null) return;
         if (event.getContainerId() != screen.getMenu().containerId) return;
         VetsLogger.debug(
@@ -279,21 +276,7 @@ public final class MemberSlotPresser {
      * final step after the multi-user queue drains.</p>
      */
     static void closeMembersScreen() {
-        if (currentMembersScreen() == null) return;
+        if (MembersGui.currentByTitle() == null) return;
         McUtils.mc().setScreen(null);
-    }
-
-    /**
-     * Returns the currently-open container screen iff its title still
-     * matches the Members pattern. Handles Wynncraft refreshing the menu
-     * under us (fresh container id, same logical screen) and aborts
-     * cleanly if the user navigated away.
-     */
-    private static AbstractContainerScreen<?> currentMembersScreen() {
-        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
-                && StyledText.fromComponent(screen.getTitle()).matches(MEMBERS_TITLE_PATTERN)) {
-            return screen;
-        }
-        return null;
     }
 }

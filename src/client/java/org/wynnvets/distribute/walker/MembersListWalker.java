@@ -6,7 +6,6 @@ import com.wynntils.core.text.StyledText;
 import com.wynntils.mc.event.ContainerSetContentEvent;
 import com.wynntils.mc.event.ContainerSetSlotEvent;
 import com.wynntils.mc.event.MenuEvent;
-import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.lwjgl.glfw.GLFW;
+import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.distribute.distributor.ObjectivesDistributor;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.logging.VetsLogger;
@@ -50,9 +50,6 @@ import org.wynnvets.util.ContainerScreens;
  * {@link GuildManageOpener#openManageMembers()}.</p>
  */
 public final class MembersListWalker {
-
-    /** Mirrors {@code GuildMemberListContainer.TITLE_PATTERN}. */
-    private static final Pattern MEMBERS_TITLE_PATTERN = Pattern.compile(".+: Members");
 
     /** Mirrors {@code GuildMemberListContainer.NEXT_PAGE_PATTERN}. */
     private static final Pattern NEXT_PAGE_PATTERN = Pattern.compile("§a§lNext Page");
@@ -109,9 +106,9 @@ public final class MembersListWalker {
 
         // Re-arm fast-path (parity with MembersListSearcher): if the menu
         // is already open, bind to its container id and start scanning.
-        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
-                && StyledText.fromComponent(screen.getTitle()).matches(MEMBERS_TITLE_PATTERN)) {
-            membersContainerId = screen.getMenu().containerId;
+        AbstractContainerScreen<?> open = MembersGui.currentByTitle();
+        if (open != null) {
+            membersContainerId = open.getMenu().containerId;
             scheduleScan();
         } else {
             membersContainerId = -1;
@@ -131,7 +128,7 @@ public final class MembersListWalker {
     public void onMenuOpenPre(MenuEvent.MenuOpenedEvent.Pre event) {
         if (!active) return;
         if (membersContainerId != -1) return;
-        if (!StyledText.fromComponent(event.getTitle()).matches(MEMBERS_TITLE_PATTERN)) return;
+        if (!StyledText.fromComponent(event.getTitle()).matches(MembersGui.TITLE_PATTERN)) return;
         membersContainerId = event.getContainerId();
         VetsLogger.debug("MembersListWalker: bound to menu id={}", membersContainerId);
     }

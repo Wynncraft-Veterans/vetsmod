@@ -6,7 +6,6 @@ import com.wynntils.core.text.StyledText;
 import com.wynntils.mc.event.ContainerSetContentEvent;
 import com.wynntils.mc.event.ContainerSetSlotEvent;
 import com.wynntils.mc.event.MenuEvent;
-import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.List;
 import java.util.Locale;
@@ -20,6 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.lwjgl.glfw.GLFW;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.distribute.distributor.RandomDistributor;
 import org.wynnvets.distribute.utils.NameResolver;
 import org.wynnvets.logging.VetsLogger;
@@ -63,9 +63,6 @@ import org.wynnvets.util.ContainerScreens;
  * username has been resolved.</p>
  */
 public final class MembersListSearcher {
-
-    /** Mirrors {@code GuildMemberListContainer.TITLE_PATTERN}. */
-    private static final Pattern MEMBERS_TITLE_PATTERN = Pattern.compile(".+: Members");
 
     /** Mirrors {@code GuildMemberListContainer.NEXT_PAGE_PATTERN}. */
     private static final Pattern NEXT_PAGE_PATTERN = Pattern.compile("§a§lNext Page");
@@ -256,9 +253,9 @@ public final class MembersListSearcher {
         // flow), bind to its container id and kick off a scan now. Otherwise
         // leave membersContainerId at -1 and wait for the next
         // MenuOpenedEvent.Pre to bind.
-        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
-                && StyledText.fromComponent(screen.getTitle()).matches(MEMBERS_TITLE_PATTERN)) {
-            membersContainerId = screen.getMenu().containerId;
+        AbstractContainerScreen<?> open = MembersGui.currentByTitle();
+        if (open != null) {
+            membersContainerId = open.getMenu().containerId;
             scheduleScan();
         } else {
             membersContainerId = -1;
@@ -302,7 +299,7 @@ public final class MembersListSearcher {
         // Already bound by the re-arm fast-path; ignore subsequent opens.
         if (membersContainerId != -1) return;
         StyledText title = StyledText.fromComponent(event.getTitle());
-        if (!title.matches(MEMBERS_TITLE_PATTERN)) return;
+        if (!title.matches(MembersGui.TITLE_PATTERN)) return;
         // Don't cancel — the menu must render so the player can see results
         // and so getMenu().getItems() reflects what the server sends.
         membersContainerId = event.getContainerId();
@@ -397,7 +394,7 @@ public final class MembersListSearcher {
             // is stale before the scan runs. Try to rebind to whichever
             // Members menu is currently open before giving up — but cap
             // rebinds so a thrashing refresh loop can't pin the searcher.
-            AbstractContainerScreen<?> reopened = openMembersScreen();
+            AbstractContainerScreen<?> reopened = MembersGui.currentByTitle();
             if (reopened != null && rebindAttempts < MAX_REBIND_ATTEMPTS) {
                 rebindAttempts++;
                 int newId = reopened.getMenu().containerId;
@@ -545,21 +542,5 @@ public final class MembersListSearcher {
         Runnable handler = notFoundHandler;
         stop();
         if (handler != null) handler.run();
-    }
-
-    /**
-     * Returns the currently-open container screen iff its title matches
-     * the Members pattern, <em>regardless</em> of its container id.
-     * Companion to {@link org.wynnvets.util.ContainerScreens#currentWithId(int)
-     * ContainerScreens.currentWithId}, which only accepts the already-bound
-     * id — used by {@link #scanAndPaginate()} to rebind after a server-side
-     * close+reopen refresh.
-     */
-    private static AbstractContainerScreen<?> openMembersScreen() {
-        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
-                && StyledText.fromComponent(screen.getTitle()).matches(MEMBERS_TITLE_PATTERN)) {
-            return screen;
-        }
-        return null;
     }
 }
