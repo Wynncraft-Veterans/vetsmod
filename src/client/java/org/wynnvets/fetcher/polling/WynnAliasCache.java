@@ -10,8 +10,6 @@ import java.time.Duration;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.logging.VetsLogger;
@@ -47,34 +45,24 @@ public final class WynnAliasCache {
     /** Lowercase stale username → UUID (thread-safe snapshot). */
     private static volatile Map<String, String> aliasByName = Map.of();
 
-    private static ScheduledExecutorService scheduler;
-    private static boolean isRunning = false;
+    private static final PollingService SERVICE =
+            new PollingService(
+                    "VetsMod-WynnAliasCache",
+                    () -> {
+                        try {
+                            fetchAliases();
+                        } catch (Exception e) {
+                            VetsLogger.warn("Error fetching wynn aliases: {}", e.getMessage());
+                        }
+                    },
+                    0,
+                    REFRESH_INTERVAL_MINUTES,
+                    TimeUnit.MINUTES);
 
     private WynnAliasCache() {}
 
     public static void start() {
-        if (isRunning) {
-            return;
-        }
-        isRunning = true;
-        scheduler =
-                Executors.newSingleThreadScheduledExecutor(
-                        r -> {
-                            Thread thread = new Thread(r, "VetsMod-WynnAliasCache");
-                            thread.setDaemon(true);
-                            return thread;
-                        });
-        scheduler.scheduleAtFixedRate(
-                () -> {
-                    try {
-                        fetchAliases();
-                    } catch (Exception e) {
-                        VetsLogger.warn("Error fetching wynn aliases: {}", e.getMessage());
-                    }
-                },
-                0,
-                REFRESH_INTERVAL_MINUTES,
-                TimeUnit.MINUTES);
+        SERVICE.start();
     }
 
     /**

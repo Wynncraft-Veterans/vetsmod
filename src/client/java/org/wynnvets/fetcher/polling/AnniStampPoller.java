@@ -5,8 +5,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.logging.VetsLogger;
@@ -53,37 +51,25 @@ public final class AnniStampPoller {
     /** Latest cached anni epoch-seconds. {@code 0} = never populated / empty / unparseable. */
     private static volatile long latestStamp = 0L;
 
-    private static ScheduledExecutorService scheduler;
-    private static boolean isRunning = false;
+    private static final PollingService SERVICE =
+            new PollingService(
+                    "VetsMod-AnniStampPoller",
+                    () -> {
+                        try {
+                            fetchAndStore();
+                        } catch (Exception e) {
+                            VetsLogger.warn("Error fetching anni stamp: {}", e.getMessage());
+                        }
+                    },
+                    0,
+                    REFRESH_INTERVAL_MINUTES,
+                    TimeUnit.MINUTES);
 
     private AnniStampPoller() {}
 
     /** Starts the periodic sweep. Idempotent; safe to call repeatedly. */
     public static void start() {
-        if (isRunning) {
-            return;
-        }
-
-        isRunning = true;
-        scheduler =
-                Executors.newSingleThreadScheduledExecutor(
-                        r -> {
-                            Thread thread = new Thread(r, "VetsMod-AnniStampPoller");
-                            thread.setDaemon(true);
-                            return thread;
-                        });
-
-        scheduler.scheduleAtFixedRate(
-                () -> {
-                    try {
-                        fetchAndStore();
-                    } catch (Exception e) {
-                        VetsLogger.warn("Error fetching anni stamp: {}", e.getMessage());
-                    }
-                },
-                0,
-                REFRESH_INTERVAL_MINUTES,
-                TimeUnit.MINUTES);
+        SERVICE.start();
     }
 
     /** @return last known anni epoch-seconds, or {@code 0} if never populated. */

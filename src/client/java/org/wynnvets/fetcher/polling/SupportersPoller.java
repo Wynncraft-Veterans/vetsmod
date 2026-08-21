@@ -9,8 +9,6 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.logging.VetsLogger;
@@ -36,34 +34,22 @@ public class SupportersPoller {
                     .build();
 
     private static volatile Set<String> supporterUsernames = Set.of();
-    private static ScheduledExecutorService scheduler;
-    private static boolean isRunning = false;
+    private static final PollingService SERVICE =
+            new PollingService(
+                    "VetsMod-SupportersFetcher",
+                    () -> {
+                        try {
+                            fetchSupporters();
+                        } catch (Exception e) {
+                            VetsLogger.warn("Error fetching supporters: {}", e.getMessage());
+                        }
+                    },
+                    0,
+                    REFRESH_INTERVAL_MINUTES,
+                    TimeUnit.MINUTES);
 
     public static void start() {
-        if (isRunning) {
-            return;
-        }
-
-        isRunning = true;
-        scheduler =
-                Executors.newSingleThreadScheduledExecutor(
-                        r -> {
-                            Thread thread = new Thread(r, "VetsMod-SupportersFetcher");
-                            thread.setDaemon(true);
-                            return thread;
-                        });
-
-        scheduler.scheduleAtFixedRate(
-                () -> {
-                    try {
-                        fetchSupporters();
-                    } catch (Exception e) {
-                        VetsLogger.warn("Error fetching supporters: {}", e.getMessage());
-                    }
-                },
-                0,
-                REFRESH_INTERVAL_MINUTES,
-                TimeUnit.MINUTES);
+        SERVICE.start();
     }
 
     /**

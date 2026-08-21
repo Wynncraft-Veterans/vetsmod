@@ -12,8 +12,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.logging.VetsLogger;
@@ -58,39 +56,27 @@ public final class StaffRanksPoller {
     private static final Map<String, String> liveStaffRanksByUsername = new ConcurrentHashMap<>();
     private static final Set<String> ALLOWED_RANKS = Set.of("strategist", "chief", "owner");
 
-    private static ScheduledExecutorService scheduler;
-    private static boolean isRunning = false;
+    private static final PollingService SERVICE =
+            new PollingService(
+                    "VetsMod-StaffRanksFetcher",
+                    () -> {
+                        try {
+                            fetchStaffRanks();
+                        } catch (Exception e) {
+                            VetsLogger.debug("Failed to refresh staff ranks: {}", e.getMessage());
+                        }
+                    },
+                    0,
+                    REFRESH_INTERVAL_MINUTES,
+                    TimeUnit.MINUTES);
 
     private StaffRanksPoller() {}
 
     /**
      * Starts periodic staff-rank refresh.
      */
-    public static synchronized void start() {
-        if (isRunning) {
-            return;
-        }
-
-        isRunning = true;
-        scheduler =
-                Executors.newSingleThreadScheduledExecutor(
-                        r -> {
-                            Thread thread = new Thread(r, "VetsMod-StaffRanksFetcher");
-                            thread.setDaemon(true);
-                            return thread;
-                        });
-
-        scheduler.scheduleAtFixedRate(
-                () -> {
-                    try {
-                        fetchStaffRanks();
-                    } catch (Exception e) {
-                        VetsLogger.debug("Failed to refresh staff ranks: {}", e.getMessage());
-                    }
-                },
-                0,
-                REFRESH_INTERVAL_MINUTES,
-                TimeUnit.MINUTES);
+    public static void start() {
+        SERVICE.start();
     }
 
     /**
