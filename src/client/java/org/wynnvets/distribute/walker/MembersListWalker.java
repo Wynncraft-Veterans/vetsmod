@@ -6,7 +6,6 @@ import com.wynntils.core.text.StyledText;
 import com.wynntils.mc.event.ContainerSetContentEvent;
 import com.wynntils.mc.event.ContainerSetSlotEvent;
 import com.wynntils.mc.event.MenuEvent;
-import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -15,7 +14,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import net.neoforged.bus.api.SubscribeEvent;
-import org.lwjgl.glfw.GLFW;
 import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.distribute.distributor.ObjectivesDistributor;
 import org.wynnvets.distribute.opener.GuildManageOpener;
@@ -199,6 +197,11 @@ public final class MembersListWalker {
      * {@link #finishWalk()}. Finalises when: the page-click cap is hit,
      * the next-page slot is out of bounds, or that slot doesn't carry
      * the Next Page pattern (we've reached the last page).
+     *
+     * <p>The last two are one branch here because
+     * {@link MembersGui#clickPaginationIfPresent} does not distinguish
+     * them and neither did this method — both said {@code finishWalk()}
+     * and neither logged.</p>
      */
     private static void advanceOrFinish(List<ItemStack> items) {
         if (pagesClicked >= MAX_PAGES) {
@@ -208,20 +211,15 @@ public final class MembersListWalker {
 
         // Try to advance to the next page; if the Next Page button is
         // gone we've reached the end.
-        if (MembersGui.NEXT_PAGE_SLOT >= items.size()) {
+        if (!MembersGui.clickPaginationIfPresent(
+                items,
+                MembersGui.NEXT_PAGE_SLOT,
+                MembersGui.NEXT_PAGE_PATTERN,
+                membersContainerId)) {
             finishWalk();
             return;
         }
-        ItemStack nextItem = items.get(MembersGui.NEXT_PAGE_SLOT);
-        if (!StyledText.fromComponent(nextItem.getHoverName())
-                .matches(MembersGui.NEXT_PAGE_PATTERN)) {
-            finishWalk();
-            return;
-        }
-
         pagesClicked++;
-        ContainerUtils.clickOnSlot(
-                MembersGui.NEXT_PAGE_SLOT, membersContainerId, GLFW.GLFW_MOUSE_BUTTON_LEFT, items);
     }
 
     private static boolean anyMatchesName(String name) {

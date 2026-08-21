@@ -6,18 +6,15 @@ import com.wynntils.core.text.StyledText;
 import com.wynntils.mc.event.ContainerSetContentEvent;
 import com.wynntils.mc.event.ContainerSetSlotEvent;
 import com.wynntils.mc.event.MenuEvent;
-import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
-import org.lwjgl.glfw.GLFW;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.distribute.distributor.RandomDistributor;
@@ -466,8 +463,11 @@ public final class MembersListSearcher {
      */
     private static boolean advancePagination(List<ItemStack> items) {
         if (direction == Direction.FORWARD) {
-            if (clickPaginationIfPresent(
-                    items, MembersGui.NEXT_PAGE_SLOT, MembersGui.NEXT_PAGE_PATTERN)) {
+            if (MembersGui.clickPaginationIfPresent(
+                    items,
+                    MembersGui.NEXT_PAGE_SLOT,
+                    MembersGui.NEXT_PAGE_PATTERN,
+                    membersContainerId)) {
                 pagesClicked++;
                 return true;
             }
@@ -475,30 +475,27 @@ public final class MembersListSearcher {
             // that came before the page where the search started (the
             // multi-user case where we re-arm after a previous match).
             direction = Direction.BACKWARD;
-            if (clickPaginationIfPresent(
-                    items, MembersGui.PREVIOUS_PAGE_SLOT, MembersGui.PREVIOUS_PAGE_PATTERN)) {
+            if (MembersGui.clickPaginationIfPresent(
+                    items,
+                    MembersGui.PREVIOUS_PAGE_SLOT,
+                    MembersGui.PREVIOUS_PAGE_PATTERN,
+                    membersContainerId)) {
                 pagesClicked++;
                 return true;
             }
             // No previous either — single-page guild, name isn't in it.
             return false;
         }
-        if (clickPaginationIfPresent(
-                items, MembersGui.PREVIOUS_PAGE_SLOT, MembersGui.PREVIOUS_PAGE_PATTERN)) {
+        if (MembersGui.clickPaginationIfPresent(
+                items,
+                MembersGui.PREVIOUS_PAGE_SLOT,
+                MembersGui.PREVIOUS_PAGE_PATTERN,
+                membersContainerId)) {
             pagesClicked++;
             return true;
         }
         // At page 1 going backward: every page has been visited.
         return false;
-    }
-
-    private static boolean clickPaginationIfPresent(
-            List<ItemStack> items, int slot, Pattern pattern) {
-        if (slot >= items.size()) return false;
-        StyledText name = StyledText.fromComponent(items.get(slot).getHoverName());
-        if (!name.matches(pattern)) return false;
-        ContainerUtils.clickOnSlot(slot, membersContainerId, GLFW.GLFW_MOUSE_BUTTON_LEFT, items);
-        return true;
     }
 
     private static void stopNotFound() {
