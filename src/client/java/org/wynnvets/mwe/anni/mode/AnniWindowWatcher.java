@@ -4,15 +4,20 @@ import java.time.Instant;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
+import org.wynnvets.mwe.anni.state.AnniWindows;
 
 /**
  * Resets the anni mode to {@link AnniModeManager#preferredMode()} once
  * the anni window closes (T+30 min after the announced stamp).
  *
  * <p>Subscribes to {@link AnniSnapshotCache}; every push or pull that
- * lands a snapshot checks whether the window has closed. The poller
- * pushes every ~10 s during the hot window (T-2h to T+30 m), so the
- * reset typically fires within ~10 s of the window edge.</p>
+ * lands a snapshot checks whether the window has closed. temporary-server
+ * pushes {@code anni_state} frames every ~10 s in its own hot window and
+ * ~5 min outside it, and vetsmod's
+ * {@link org.wynnvets.fetcher.polling.AnniSnapshotPoller AnniSnapshotPoller} adds a
+ * 30 s query while inside the 90-minute bar window — so at the T+30 m edge the
+ * reset lands on whichever push arrives first, typically within ~10 s. The bar
+ * window has closed by then; this is the slower safety net.</p>
  *
  * <p>Delegates the target selection to
  * {@link AnniModeManager#preferredMode()} rather than hard-coding
@@ -34,11 +39,6 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * client init.</p>
  */
 public final class AnniWindowWatcher {
-
-    /** Seconds after the announced stamp at which the hot window
-     *  closes — per spec §"WITHIN 2h of an anni, OR within 30 mins
-     *  after an anni". */
-    private static final long WINDOW_CLOSE_AFTER_STAMP_SECS = 30L * 60L;
 
     private static volatile boolean registered = false;
     private static volatile Long lastKnownStamp = null;
@@ -64,8 +64,7 @@ public final class AnniWindowWatcher {
         Long anchor = lastKnownStamp;
         if (anchor == null) return;
         long now = Instant.now().getEpochSecond();
-        long windowEnd = anchor + WINDOW_CLOSE_AFTER_STAMP_SECS;
-        if (now <= windowEnd) return;
+        if (!AnniWindows.hotWindowClosed(anchor, now)) return;
 
         AnniMode target = AnniModeManager.preferredMode();
         if (AnniMode.fromConfig() != target) {

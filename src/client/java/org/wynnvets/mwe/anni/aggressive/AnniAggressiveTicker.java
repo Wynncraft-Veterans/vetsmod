@@ -7,6 +7,7 @@ import org.wynnvets.mwe.anni.mode.AnniMode;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
+import org.wynnvets.mwe.anni.state.AnniWindows;
 
 /**
  * S5 — the "is aggressive mode currently active" flag, computed each tick.
@@ -33,12 +34,6 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * the slack the alerts and renderers need.</p>
  */
 public final class AnniAggressiveTicker {
-
-    /** Same as {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker} for
-     *  cross-system consistency. */
-    private static final long WINDOW_BEFORE_SECONDS = 2L * 60L * 60L;
-
-    private static final long WINDOW_AFTER_SECONDS = 30L * 60L;
 
     private static volatile boolean registered = false;
     private static volatile boolean aggressiveActive = false;
@@ -79,6 +74,6 @@ public final class AnniAggressiveTicker {
 
         long now = Instant.now().getEpochSecond();
         long delta = stamp - now;
-        return delta >= -WINDOW_AFTER_SECONDS && delta <= WINDOW_BEFORE_SECONDS;
+        return AnniWindows.inHotWindow(delta);
     }
 }

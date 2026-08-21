@@ -18,6 +18,7 @@ import org.wynnvets.mwe.anni.mode.AnniMode;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
+import org.wynnvets.mwe.anni.state.AnniWindows;
 import org.wynnvets.mwe.anni.zone.AnniZone;
 
 /**
@@ -55,16 +56,9 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  */
 public final class VetsBossBarManager {
 
-    /** Activation gate — the bar shows when {@code secondsUntilAnni
-     *  ≤ 90 m} OR the player is inside the anni zone. Outside both,
-     *  the bar stays hidden even in passive/aggressive mode so users
-     *  going about their day hours before anni aren't ambushed by a
-     *  perpetual boss bar. */
-    private static final long ANNI_WINDOW_SECONDS = 90L * 60L; // 90 min
-
     /** Progress nominally fills to 100% at T-100m and drains linearly
      *  to 0% at T-20s — a 100-minute progress window. Decoupled from
-     *  {@link #ANNI_WINDOW_SECONDS} (the activation gate) so the
+     *  {@link AnniWindows#BAR_WINDOW_SECONDS} (the activation gate) so the
      *  {@link BossEvent.BossBarOverlay#NOTCHED_10} overlay's ten segment
      *  dividers land exactly every 10 minutes of wall-clock time. When
      *  the T-90m window is what activates it, the bar already reads
@@ -203,7 +197,12 @@ public final class VetsBossBarManager {
         // window (≤90m) OR the player has walked into the anni zone.
         // Outside both, even passive/aggressive stays quiet — no
         // perpetual bar hours before anni.
-        boolean inWindow = secondsUntilAnni <= ANNI_WINDOW_SECONDS;
+        // Activation gate — the bar shows when secondsUntilAnni <= 90 m OR the
+        // player is inside the anni zone. Outside both, the bar stays hidden even
+        // in passive/aggressive mode so users going about their day hours before
+        // anni aren't ambushed by a perpetual boss bar. The window's real floor is
+        // the DROP_DEAD_SECONDS_BEFORE_ANNI hard return above, not this line.
+        boolean inWindow = secondsUntilAnni <= AnniWindows.BAR_WINDOW_SECONDS;
         boolean inZone = player != null && AnniZone.isInZone(playerX, playerZ);
         if (!inWindow && !inZone) {
             if (active) deactivate();
@@ -283,7 +282,7 @@ public final class VetsBossBarManager {
     /** One linear ramp across {@link #PROGRESS_FULL_AT_SECONDS} less
      *  {@link #DROP_DEAD_SECONDS_BEFORE_ANNI} — 100% at T-100m, draining
      *  linearly to 0% at the T-20s deactivation wall. No plateau, and
-     *  {@link #ANNI_WINDOW_SECONDS} plays no part here. Activation is
+     *  {@link AnniWindows#BAR_WINDOW_SECONDS} plays no part here. Activation is
      *  gated separately on T-90m <em>or</em> zone entry, so on the timer
      *  path the bar first appears at {@code 89.97%} and never reads 100%;
      *  the {@code p > 1f} clamp is reachable only by standing in the zone

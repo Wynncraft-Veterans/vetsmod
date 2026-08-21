@@ -6,6 +6,7 @@ import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.network.AnniQueryClient;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
+import org.wynnvets.mwe.anni.state.AnniWindows;
 
 /**
  * Belt-and-braces snapshot refresher for the anni window.
@@ -19,22 +20,24 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * anni window (T-90m → anni). Outside the window the poll is a no-op —
  * users running idle hours before anni don't need a 30 s heartbeat.</p>
  *
- * <p>Reuses the same 90-minute window gate as
- * {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager#isActive()};
- * by intent every surface that "wakes up" inside the window is kept
- * fresh by the same poll cadence.</p>
+ * <p>Reuses the same 90-minute window as
+ * {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager#isActive()} — one
+ * constant, {@link org.wynnvets.mwe.anni.state.AnniWindows#BAR_WINDOW_SECONDS
+ * AnniWindows#BAR_WINDOW_SECONDS} — so that by intent every surface which "wakes up" inside
+ * the window is kept fresh by the same poll cadence.</p>
+ *
+ * <p>The two share that number and <b>not</b> their floor, which the old
+ * "match VetsBossBarManager" comment never said. This poller stops at
+ * {@code secondsUntilAnni > 0}; the bar stops twenty seconds earlier, at its
+ * {@code DROP_DEAD_SECONDS_BEFORE_ANNI} hard return. So the last twenty seconds
+ * before an anni are polled but not drawn, and that is deliberate on both
+ * sides.</p>
  *
  * <p>Cost analysis: 30 s × ~90 minutes = 180 query frames per anni
  * window, single-flight queued. Each frame is &lt;100 bytes on the
  * inbound socket. Negligible vs. the existing party-observation cadence.</p>
  */
 public final class AnniSnapshotPoller {
-
-    /** Match {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager#ANNI_WINDOW_SECONDS
-     *  VetsBossBarManager#ANNI_WINDOW_SECONDS}. Polling
-     *  outside this window is wasted work — no surface consumes the
-     *  snapshot during the long idle gap between anni events. */
-    private static final long ANNI_WINDOW_SECONDS = 90L * 60L;
 
     /** User-stated SLA was "30 secs MAX during the anni window". */
     private static final int POLL_INTERVAL_SECONDS = 30;
@@ -84,6 +87,6 @@ public final class AnniSnapshotPoller {
             return false;
         }
         long secondsUntilAnni = stamp - Instant.now().getEpochSecond();
-        return secondsUntilAnni > 0 && secondsUntilAnni <= ANNI_WINDOW_SECONDS;
+        return secondsUntilAnni > 0 && secondsUntilAnni <= AnniWindows.BAR_WINDOW_SECONDS;
     }
 }

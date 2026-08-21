@@ -18,6 +18,7 @@ import org.wynnvets.mwe.anni.mode.AnniMode;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
+import org.wynnvets.mwe.anni.state.AnniWindows;
 import org.wynnvets.mwe.anni.zone.AnniZone;
 
 /**
@@ -57,13 +58,6 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * nearby player is reserved for the strictest spec interpretation.</p>
  */
 public final class AnniOutlineTicker {
-
-    /** Activation window — 2 hours before stamp through 30 minutes after.
-     *  Matches spec §"Player Highlights": "WITHIN 2h of an anni, OR
-     *  within 30 mins after an anni". */
-    private static final long WINDOW_BEFORE_SECONDS = 2L * 60L * 60L; // 2 h
-
-    private static final long WINDOW_AFTER_SECONDS = 30L * 60L; // 30 m
 
     private static volatile boolean registered = false;
     private static volatile boolean suppressionActive = false;
@@ -189,7 +183,7 @@ public final class AnniOutlineTicker {
         long now = Instant.now().getEpochSecond();
         long delta = stamp - now;
         // delta positive = anni in future; negative = anni in past.
-        boolean inWindow = delta >= -WINDOW_AFTER_SECONDS && delta <= WINDOW_BEFORE_SECONDS;
+        boolean inWindow = AnniWindows.inHotWindow(delta);
         if (!inWindow) return false;
 
         boolean inZone = forceInZone || AnniZone.isInZone(player.getX(), player.getZ());
