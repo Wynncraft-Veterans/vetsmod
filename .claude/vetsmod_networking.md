@@ -48,6 +48,7 @@ State:
 - `closed`, `connecting` atomic flags
 - `textBuffer` accumulates multi-frame text messages (WS fragmentation)
 - `scheduler` single-threaded executor for reconnect/ping
+- `httpClient` an **instance** field, and deliberately **not** the shared `HttpClients.standard()` client: it is a WebSocket factory, its 10 s connect timeout is re-declared on the WebSocket builder where it governs the whole handshake, and it pins no HTTP version. One per `WsClient`, so two per `V1ApiManager.connect()`
 
 Listener methods: `onOpen`, `onText` (buffers fragments until last), `onPong`, `onClose`, `onError`.
 
@@ -79,6 +80,18 @@ Also: `GUILD_UUID = "a36bd64c-c053-4727-872d-b0d0729f474a"` (Returners).
 
 [MojangApi](../src/client/java/org/wynnvets/api/MojangApi.java):
 - `getUserUUID(name)` → `https://api.mojang.com/users/profiles/minecraft/{name}`
+
+### The shared client
+
+[HttpClients](../src/client/java/org/wynnvets/util/HttpClients.java) — one `HttpClient` for the whole mod, built `HTTP_1_1` with a 5 s connect timeout and **no** redirect, proxy, executor, authenticator, cookie-handler or SSL customisation of any kind. Eighteen classes hold it in their own `private static final HttpClient HTTP_CLIENT = HttpClients.standard()` field: `CommandDispatcher`, `InviteGate`, `NameResolver`, `NoAspectsFilter`, `PlayerLookup`, seven of the eight `fetcher/ondemand` fetchers (all but `ListFetcher`, which holds no client and delegates to `OnlineMemberService`), five of the six `fetcher/polling` pollers (all but `AnniSnapshotPoller`, which goes over the WebSocket) and `TerritoryLineManager`. `PlayerLookup` passes its copy down to five of its six lookup providers.
+
+One shared client means one selector thread, one default executor and one connection pool. That is the point — five of the eighteen reach `api.wynncraft.com` and the other thirteen `api.wynnvets.org`, and they now reuse each other's keep-alive connections instead of each holding private idle ones. It also means every asynchronous continuation off any of those eighteen clients now runs on one executor whose sizing the JDK does not specify, which is why a blocking `.join()` inside such a continuation is worth noticing wherever one appears.
+
+**Never call `close()`, `shutdown()` or `shutdownNow()` on it, and never put it in a try-with-resources.** Java 21 made `HttpClient` `AutoCloseable`; `close()` blocks until in-flight operations finish and then permanently disables the client, taking the HTTP of all eighteen subsystems that share it with it for the rest of the session.
+
+**Two classes deliberately keep their own.** `AnniZone` (see [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md)) and `WsClient` (§2) both use a 10 s connect timeout and pin no HTTP version, so neither can adopt the shared chain without a behaviour change. Their agreement on 10 s is coincidence rather than a shared requirement: one governs a WebSocket handshake, the other a 60 s poller's GET.
+
+[Json](../src/client/java/org/wynnvets/util/Json.java) is the matching shared `Gson` — `new Gson()`, no builder, read by twenty-one classes. The three `GsonBuilder`-configured instances (`VetsConfig`, `ItemDumpHandler`, `AnniDebugCommands`) are not residents and must not become ones; each depends on what it configured.
 
 ## 4. On-demand fetchers
 
@@ -236,5 +249,5 @@ The server validates each key by HTTP introspection against dazebot (`POST /api/
 ## 9. Error handling
 
 - WebSocket errors → `WsClient.onError()` logs, aborts, schedules reconnect
-- HTTP errors are **absorbed, not propagated**, by two different mechanisms. The on-demand fetchers end their `CompletableFuture` chain in `.exceptionally(e -> …)` returning a fallback whose shape is per-fetcher: a red `Component` from `StaffFetcher`, an unstyled one from `MotdFetcher`/`ReturnFetcher`, `null` from `StampFetcher`, and domain values (`notInGuild()`, `Optional.empty()`, `List.of()`) elsewhere. The six pollers use no futures at all — each calls `HttpClient.send(...)` synchronously inside a `try`/`catch` that only logs, so a failed tick leaves the last successful cache in place and the next tick re-attempts. No fetcher calls `completeExceptionally`; the repo's only use of it is `CommandDispatcher`'s `/find` batch future
+- HTTP errors are **absorbed, not propagated**, by two different mechanisms. The on-demand fetchers end their `CompletableFuture` chain in `.exceptionally(e -> …)` returning a fallback whose shape is per-fetcher: a red `Component` from `StaffFetcher`, an unstyled one from `MotdFetcher`/`ReturnFetcher`, `null` from `StampFetcher`, and domain values (`notInGuild()`, `Optional.empty()`, `List.of()`) elsewhere. **Five** of the six pollers use no futures at all — each calls `HttpClient.send(...)` synchronously inside a `try`/`catch` that only logs, so a failed tick leaves the last successful cache in place and the next tick re-attempts. `AnniSnapshotPoller` is the sixth and is not one of them: it goes over the WebSocket via `AnniQueryClient` and builds no `HttpClient` at all. Nor is `polling/` the only home of a synchronous send — `CommandDispatcher.isSelfListedInOnlineStaffFeed`, `CommandDispatcher.fetchOnlineStaffUsernames` and `AnniZone.refresh` are three more. **Eight synchronous call sites, not six.** No fetcher calls `completeExceptionally`; the repo's only use of it is `CommandDispatcher`'s `/find` batch future
 - No retry on HTTP failures; next polling tick re-attempts
