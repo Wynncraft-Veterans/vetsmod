@@ -31,8 +31,9 @@ import java.time.Duration;
  * {@link org.wynnvets.fetcher.lookup.PlayerLookup PlayerLookup} already shares one client
  * across five of its six providers (the sixth, {@code VetsSnapshotProvider}, goes over the
  * WebSocket), and its {@code runCascadeStep} uses {@code thenCompose} to launch provider N+1's
- * request from a completion thread of provider N's response, on that same client. That runs in production, so the default executor is demonstrably not
- * single-threaded and does tolerate a nested request. It does <b>not</b> prove the pool is
+ * request from a completion thread of provider N's response, on that same client. That runs
+ * in production, so the default executor is demonstrably not single-threaded and does
+ * tolerate a nested request. It does <b>not</b> prove the pool is
  * unbounded: {@code HttpClient.Builder.executor}'s javadoc guarantees only that a default
  * executor exists per client and says nothing about its sizing, so no argument of the form
  * "it is a cached pool, so blocking on it is fine" is admissible here.</p>

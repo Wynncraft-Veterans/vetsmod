@@ -177,8 +177,7 @@ here. See `MembersListSearcher.scanAndPaginate` and
 `NameResolver.resolveLegacyName` and
 `NoAspectsFilter.fetchExcludedLegacyNames` — and `thenCombine`s them.
 The combined callback runs on the shared `HttpClient` executor, so it
-marshals
-back onto the tick thread with a `scheduleLater(..., 0)` hop before
+marshals back onto the tick thread with a `scheduleLater(..., 0)` hop before
 touching any menu or bus state. `dispatchSingleTarget` then rejects the
 send with a red chat line if *either* the literal input or the resolved
 name is on the opt-out list, arms the searcher with the literal input,
@@ -361,8 +360,8 @@ an extrapolation from behaviour observed elsewhere. Values are current.
 `distribute/` is currently the repo's only consumer of
 `Managers.TickScheduler` — 11 `scheduleLater` calls across 8 of its 14
 files, none elsewhere in `src/`. Four of the 11 are delay-0 hops off the
-shared `HttpClient` executor back onto the tick thread, not delays. Treat the
-exclusivity as a snapshot rather than a design invariant; nothing stops
+shared `HttpClient` executor back onto the tick thread, not delays. Treat
+the exclusivity as a snapshot rather than a design invariant; nothing stops
 another package from scheduling.
 
 ## 7. Failure and stall matrix
@@ -475,8 +474,11 @@ there is (Wynntils not ready, no guild name, non-200, transport
 exception) and lets each caller map that one `null` onto its own
 fallback. `context` is the calling entry point's name, tagged into both
 of `fetchGuildJson`'s log lines, so four reads sharing one fetcher stay
-distinguishable in the log. Log levels are
-almost uniform too: exactly one path logs at **warn** —
+distinguishable in the log; `resolveLegacyName` passes
+`"resolveLegacyName [" + input + "]"` rather than a bare name, so its
+failure line still reports which name failed, as its own pre-collapse
+message did. Log levels are almost uniform too: exactly one path logs at
+**warn** —
 `NoAspectsFilter`'s `.exceptionally` handler. Its non-200 and
 parse-error paths log at debug, as does every `NameResolver` failure.
 
@@ -484,8 +486,8 @@ Request counts are **up to**, not exact: `NameResolver` short-circuits to
 an already-completed future when Wynntils isn't ready or the guild name
 is empty (that short-circuit now lives in `fetchGuildJson`, so one place
 covers all four entry points; the counts themselves are unchanged), and
-`@split` elides zero-count pools entirely. A single-target
-send costs up to three requests (two wapi, one vets); `@random` and
+`@split` elides zero-count pools entirely. A single-target send costs up
+to three requests (two wapi, one vets); `@random` and
 `@graids` up to three each; `@objectives` up to two; `@split` up to the
 sum of the phases it actually runs.
 

@@ -17,8 +17,10 @@ import org.junit.jupiter.api.Test;
  * answer misroutes resources rather than merely logging oddly. The HTTP halves
  * are not covered — they reach {@code GuildStateManager} and Wynntils
  * {@code Models.Guild} — but every extractor takes a response body as a plain
- * string, and the whole class's static state is one {@code HttpClient} and one
- * {@code Gson}.</p>
+ * string, and the whole class's static state is one {@code HttpClient}, taken
+ * from {@link org.wynnvets.util.HttpClients HttpClients}. (It held a
+ * {@code Gson} of its own too, until that was replaced by the shared
+ * {@link org.wynnvets.util.Json Json#GSON}.)</p>
  *
  * <p>The three deliberate asymmetries pinned here are the ones a "these all
  * walk the same payload, share one helper" pass would flatten:</p>

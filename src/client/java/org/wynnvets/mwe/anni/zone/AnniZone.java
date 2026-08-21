@@ -85,9 +85,10 @@ public final class AnniZone {
      * <p>Construction now runs in {@code <clinit>}, outside {@link #refresh()}'s
      * try/catch: a build failure is an {@link ExceptionInInitializerError} rather
      * than a debug line with the previous centres retained. That is not a new kind
-     * of hazard &mdash; the mod's other eighteen {@code HttpClient}s are all
-     * {@code static final} and so all build in {@code <clinit>} exactly like this
-     * one; the nineteenth, {@code WsClient}'s, builds unguarded in a constructor.</p>
+     * of hazard: every other {@code HttpClient} in the mod is built unguarded too.
+     * {@link org.wynnvets.util.HttpClients HttpClients} builds the shared one in
+     * its own {@code <clinit>}, which is what the eighteen {@code HTTP_CLIENT}
+     * fields reach; {@code WsClient} builds its own in a constructor.</p>
      */
     private static final HttpClient HTTP_CLIENT =
             HttpClient.newBuilder()

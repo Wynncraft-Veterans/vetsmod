@@ -17,8 +17,10 @@ import org.junit.jupiter.api.Test;
  * <p>A wrong answer here defeats the opt-out list: either an aspect is
  * dispatched to someone who already owns every one available to them, or a
  * member is silently excluded from every selector. The class has <b>zero</b>
- * Wynntils imports and only an {@code HttpClient} and a {@code Gson} as static
- * state.</p>
+ * Wynntils imports and one {@code HttpClient} as its only static state, taken
+ * from {@link org.wynnvets.util.HttpClients HttpClients}; it parses through the
+ * shared {@link org.wynnvets.util.Json Json#GSON} rather than a {@code Gson} of
+ * its own.</p>
  *
  * <p>Both halves are fail-open by design — an empty exclude set means nobody is
  * filtered, which is the pre-opt-out behaviour, so a flaky fetch degrades to

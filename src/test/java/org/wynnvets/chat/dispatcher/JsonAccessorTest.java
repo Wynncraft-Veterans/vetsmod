@@ -46,11 +46,14 @@ import org.junit.jupiter.api.Test;
  * {@code OnlineMemberService.stringOrEmpty} and
  * {@code OutboundDisplayHandler.getStringOrEmpty} share a body exactly.</p>
  *
- * <p>NOTE: {@link CommandDispatcher}'s static initializer builds an
- * {@code HttpClient}, a request and a single-threaded executor. Both spawn
- * threads — the executor's only on first submit, but the client's selector
- * thread immediately — and class-init is safe in the harness only because both
- * are daemons and so cannot hold the test JVM open.</p>
+ * <p>NOTE: {@link CommandDispatcher}'s static initializer reaches an
+ * {@code HttpClient}, a request and a single-threaded executor. The client is
+ * no longer built here — the field now reads
+ * {@link org.wynnvets.util.HttpClients HttpClients#standard()}, so touching
+ * this class triggers that class's initializer instead — but the thread is
+ * spawned either way. Both spawn threads: the executor's only on first submit,
+ * the client's selector thread immediately. Class-init is safe in the harness
+ * only because both are daemons and so cannot hold the test JVM open.</p>
  */
 class JsonAccessorTest {
 
