@@ -18,7 +18,9 @@ Most anni-side code lives under `org.wynnvets.mwe.anni.*`. The ones that do not,
 mwe/anni/
 ├── state/
 │   ├── AnniSnapshot.java          — Gson-hydrated bean mirroring the wire shape; snake_case fields, deliberately not a record
-│   └── AnniSnapshotCache.java     — process-wide volatile + listener bus
+│   ├── AnniSnapshotCache.java     — process-wide volatile + listener bus
+│   ├── AnniSnapshots.java         — the four field accessors the diffing surfaces read (role / partyOrdinal / partyWorld / rsvpNotice), all null-guarded
+│   └── AnniWindows.java           — the anni window edges, named once each, plus inHotWindow / hotWindowClosed
 ├── network/
 │   ├── AnniWsHandler.java         — V1 outbound/inbound listener; one outbound + four inbound frame types (§Snapshot pipeline)
 │   └── AnniQueryClient.java       — FIFO-queued pull (anni_query), no correlation IDs; 8s deadline
@@ -37,7 +39,7 @@ mwe/anni/
 │   ├── AnniZone.java               — 60s cached fetcher for api.wynncraft.com/v3/map/world-events; 48-block disc test
 │   └── AnniZoneLineRenderer.java   — stacked Gizmos.circle cylinder cage
 ├── outline/
-│   ├── AnniOutlinePalette.java   — ChatFormatting-derived role/tier colour table
+│   ├── AnniOutlinePalette.java   — ChatFormatting-derived role colour table; the mod's single role table for chat and outline alike
 │   ├── AnniOutlineRegistry.java  — username → tier entry, rebuilt off snapshot (lowercase-keyed)
 │   └── AnniOutlineTicker.java    — per-tick driver; applies glow via EntityExtension; exposes isOutlineSuppressionActive() flag for the mixins
 ├── aggressive/
@@ -63,7 +65,84 @@ mwe/anni/
 2. **temp-server's poller** (`app/services/anni_snapshot_poller.py`) hits vets-anni's `/api/internal/anni-snapshot-batch` and `/api/internal/anni-player/{uuid}`; pushes per-uuid changes as `anni_state` frames every ~10 s in the hot window, ~5 min otherwise. Eligibility refreshes every 60 s.
 3. **vetsmod's `AnniWsHandler`** is the frame router. On the *outbound* channel it handles `anni_state` (push) alone — hydrating it into `AnniSnapshot` and dropping it into `AnniSnapshotCache`. On *inbound* it branches four ways: `anni_query_response`, `anni_scrollspot_response` and `anni_rsvp_response` go to their single-flight clients (`AnniQueryClient` / `AnniScrollspotClient` / `AnniRsvpClient`), and `anni_party_observation_response` is debug-logged inline with no queue and no consumer state.
 4. **`AnniSnapshotCache`** is a single-player, volatile, listener-bus cache. Listeners run on whichever thread called `update` — the WS reader thread in production, the client command thread when `AnniDebugCommands` injects — so bounce to the main thread via `Minecraft.getInstance().execute(...)` if you need to touch render state. `schemaVersion()` is surfaced but never validated: a v1 payload just degrades, it is not rejected.
-5. **Cold start pulls rather than waiting for the push.** `StampFetcher.fetchStampAndCreateMessage` (the world-join motd path) reads `AnniSnapshotCache.latest()` and on `null` fires a fire-and-forget `AnniQueryClient.query()` before falling through to legacy stamp text. *Note: this intentionally does NOT rely on the push poller alone — outside the T-2h hot window `AnniSnapshotPoller` fires every 5 min, so on cold start a user already inside the anni zone would otherwise see legacy motd and no boss bar for up to 5 min.* Any new component that depends on the cache being warm at world-join time gets this for free — but only while `vetsAnniEnabled` is true, since `StampFetcher` gates the pull behind `anniIntegrationActive()`. `AnniWsHandler.register()` installs the reconnect counterpart — a post-connect `AnniQueryClient::query` re-pull.
+5. **Cold start pulls rather than waiting for the push.** `StampFetcher.fetchStampAndCreateMessage` (the world-join motd path) reads `AnniSnapshotCache.latest()` and on `null` fires a fire-and-forget `AnniQueryClient.query()` before falling through to legacy stamp text. *Note: this intentionally does NOT rely on the push alone. The ~5 min figure is temporary-server's out-of-window `anni_state` cadence (step 2), and vetsmod's own `AnniSnapshotPoller` does not close that gap: it runs on a fixed 30 s schedule but its tick returns immediately unless the cached stamp is inside the 90-minute bar window, floored at `> 0`. So on cold start a user already inside the anni zone — hours before the window opens — would otherwise see legacy motd and no boss bar until the next push.* Any new component that depends on the cache being warm at world-join time gets this for free — but only while `vetsAnniEnabled` is true, since `StampFetcher` gates the pull behind `anniIntegrationActive()`. `AnniWsHandler.register()` installs the reconnect counterpart — a post-connect `AnniQueryClient::query` re-pull.
+
+## Anni time windows
+
+**There are five window concepts, not one and not three, and they stay five.**
+Every edge is declared once in `mwe/anni/state/AnniWindows`; before that there
+were seven declarations across seven classes, four of them spelling
+`2L * 60L * 60L` independently. Two carried a "matches its partner" comment that
+nothing checked.
+
+| Concept | Value | Who reads it | Shape |
+|--|--|--|--|
+| Hot window, open edge | 2 h | `AnniOutlineTicker`, `AnniAggressiveTicker` | `AnniWindows.inHotWindow(secondsUntil)` — both edges **inclusive** |
+| Hot window, close edge | 30 m | the same two, plus `AnniWindowWatcher` | the watcher needs the closing edge alone, inverted: `AnniWindows.hotWindowClosed(anchor, now)` |
+| Bar / poll window | 90 m | `VetsBossBarManager`, `AnniSnapshotPoller` | `AnniWindows.BAR_WINDOW_SECONDS` — a constant, **no shared predicate**; see below |
+| Drop-dead | 20 s | `VetsBossBarManager.DROP_DEAD_SECONDS_BEFORE_ANNI`, `VetsBossBarContentBuilder.T_MINUS_20_GATE_SECONDS` | two boss-bar timing constants; deliberately not in `AnniWindows` |
+| Party-observation | ±2 h | `PartyRosterListener.ACTIVE_WINDOW_SEC` | **symmetric** — a third guard shape, answering a different question |
+
+`AnniCommandRenderer.TWO_HOURS_SECONDS` is a sixth `7200`, and it is not a
+window at all: it selects the far-out versus imminent render branch of
+`/wv anni`. It stays where it is for the same reason `PartyRosterListener`'s
+does — two files agreeing on a number today is not shared configuration.
+
+**Why the 90-minute pair gets a constant and not a predicate.** The two
+comparisons share the number and **not** their floor. `AnniSnapshotPoller` floors
+at `secondsUntilAnni > 0`; `VetsBossBarManager` floors twenty seconds earlier, at
+a `DROP_DEAD_SECONDS_BEFORE_ANNI` hard return *earlier in the same method* — which
+is why its window expression reads one-sided when the window is not. The bar's
+effective window is `(T-20s, T-90m]`, the poller's is `(T, T-90m]`, and the last
+twenty seconds before an anni are polled but not drawn. A shared `inBarWindow`
+would have to change one of them. Anyone reading the bar's `inWindow` line alone
+and concluding it has no lower bound is reading the expression, not the method;
+§"Activation gate" below has always had this right.
+
+**And the bar's gate is not a window test.** It is `inWindow || AnniZone.isInZone(...)`,
+so a player who walks into the zone hours early gets the bar. `AnniWindows`
+supplies the number, not the gate — a future simplification that drops the
+`!inZone` arm changes when the bar appears.
+
+**Nothing was unified.** Both candidate collapses are user-visible and neither has
+a motivation: moving the bar and poller 90 m → 2 h makes the bar appear thirty
+minutes earlier and adds a third again as much polling; moving the tickers
+2 h → 90 m stops highlights appearing between T-2h and T-90m.
+
+`AnniWindows` is pure — no clock, no cache. Callers keep their own
+`Instant.now().getEpochSecond()` line and pass the result in, the shape
+`PartyRosterListener.shouldSend(…, long now)` already used. Pinned by
+`AnniWindowsTest` over the boundary table `-1801, -1800, -1799, 0, 5399, 5400,
+5401, 7199, 7200, 7201`.
+
+## Snapshot field accessors
+
+The four fields the boss bar's `FlashTracker` and the aggressive-mode
+`AggressiveAlertDispatcher` diff — `role`, `partyOrdinal`, `partyWorld`,
+`rsvpNotice` — are pulled out by `mwe/anni/state/AnniSnapshots`. Each class used
+to carry its own four private extractors, fourteen call sites between them; three
+of the four pairs were byte-identical (one under two names, `extractRoleCode` and
+`extractRole`) and `extractPartyWorld`'s two bodies were not.
+
+**All four guard a null snapshot, and that is load-bearing exactly once.** A null
+snapshot is a legal cache state — `AnniSnapshotCache.update(null)` is a documented
+"no snapshot available" signal and `/wv debug tree anni snapshot clear` makes that
+call, so `latest()` can return null at any point in a warm session, not only on a
+cold cache. `FlashTracker.updateWorldMismatch` hands `latest()` straight to
+`partyWorld` from the boss bar's per-tick path and is the only site that can reach
+the guard; the other thirteen sit behind a caller's own null check.
+
+Two arms in there look redundant and are not: `partyOrdinal`'s `> 0` re-check
+recovers the "unassigned" signal, because `AnniSnapshot.Party.ordinal()` returns a
+primitive `int` and collapses an absent JSON key to `0`; and `rsvpNotice` reads a
+revoked RSVP as absent rather than as its old value, which is the field's meaning.
+
+**Not migrated, deliberately.** `GhostsPromptHandler.currentStampEpoch` and
+`PartyRosterListener.snapshotStamp` are the same chain with a `0L` sentinel
+instead of a `Long` — adopting them is a question about what `0` means, not a
+rehoming. `AnniWindowWatcher`'s variant is the one whose divergence is
+load-bearing: it keys off a locally cached anchor rather than the live snapshot,
+because vets-anni emits `stamp_epoch: null` once the anni begins.
 
 ## Mode state
 
@@ -97,7 +176,7 @@ transitions safe:
 - Registered in `VetsmodClient.onInitializeClient()` after `AnniWsHandler.register()`.
 - Subscribes to `AnniSnapshotCache`.
 - Caches the most recent non-null `stamp_epoch` (since vets-anni emits null once the anni starts).
-- On every snapshot update, checks `now > lastKnownStamp + 30 min`; if true it computes `AnniModeManager.preferredMode()` and, only when `AnniMode.fromConfig()` differs, calls `transitionTo(target, Source.AUTO_WINDOW_CLOSE)`. `lastKnownStamp` is cleared regardless of whether a transition fired. Delegating to `preferredMode()` is what preserves an explicit user pick across the window boundary — the target is **not** hard-coded SILENT.
+- On every snapshot update, checks `AnniWindows.hotWindowClosed(lastKnownStamp, now)` — i.e. `now > lastKnownStamp + 30 min`; if true it computes `AnniModeManager.preferredMode()` and, only when `AnniMode.fromConfig()` differs, calls `transitionTo(target, Source.AUTO_WINDOW_CLOSE)`. `lastKnownStamp` is cleared regardless of whether a transition fired. Delegating to `preferredMode()` is what preserves an explicit user pick across the window boundary — the target is **not** hard-coded SILENT.
 - It writes no config directly; everything goes through `transitionTo`, so when the preferred target is PASSIVE/AGGRESSIVE the `/stream` mutex applies and the reset can be silently declined (debug log only). A SILENT target is never subject to the mutex and always lands.
 - One-shot per anni cycle.
 
@@ -183,7 +262,53 @@ In the announced branches only, `Eligible Roles` becomes `Assigned Role` when `b
 
 The board line is labelled `Party Assignment` for `unplaced` / `unassigned` / `wont_assign` / unknown states and for a party with no details attached. Once a party really is attached, `partyAssignedBlock` switches to `Party: N  World: W`, plus a `Host:` line when `party.host().username()` is non-null.
 
-`AnniHoverBuilder.noticeColor` is the intended RSVP colour map for chat surfaces — `AnniRsvpCommand.successComponent` calls it — and it is the one to call from chat-output code, not just from `/wv anni` renderer code. Saved as the `feedback_anni_rsvp_colours.md` memory: call the helper, don't inline `ChatFormatting.AQUA`/`GREEN` literals. It is **not yet universal**: `VetsBossBarContentBuilder.rsvpChip` still inlines its own map and disagrees (hard → BLUE, not AQUA). Whether that divergence is one of the parent plan's three deliberately-divergent boss-bar colour tables is unresolved — see the parent plan's Phase 5 item 6.
+`AnniHoverBuilder.noticeColor` is the intended RSVP colour map for chat surfaces — `AnniRsvpCommand.successComponent` calls it — and it is the one to call from chat-output code, not just from `/wv anni` renderer code. Saved as the `feedback_anni_rsvp_colours.md` memory: call the helper, don't inline `ChatFormatting.AQUA`/`GREEN` literals.
+
+**It is not universal, it is not going to be, and the reason is settled.**
+`VetsBossBarContentBuilder.rsvpChip` inlines its own map and **keeps it.** The
+boss bar is the one surface whose labels are its own; unifying the two changes
+what the bar says, which the cleanup plan's §Explicitly excluded treats as
+disqualifying on its own. Nothing in the bar's chip is to be folded into
+`noticeColor` or vice versa.
+
+Three corrections to how that exclusion was recorded, because the old wording
+sent the decision round in a circle:
+
+1. **`rsvpChip` is not one of "the three".** The exclusion names three
+   *role*-colour tables — `AnniOutlinePalette.chatFormattingForRole`,
+   `AnniHoverBuilder.roleColor` and `VetsBossBarContentBuilder.roleColor`. This is
+   a *notice*-colour table, a fourth the exclusion never enumerated. (And of the
+   three role tables only the last diverges, which is why the first two collapsed
+   — see §`AnniOutlinePalette`.)
+2. **The PINK rationale does not apply here.** `net.minecraft.ChatFormatting` has
+   no `PINK` constant. The PINK-invisibility evidence is entirely about
+   `BossEvent.BossBarColor.PINK`, the bar's *background texture*, and belongs to
+   `VetsBossBarContentBuilder.colorFor` — a different method answering a different
+   question about a different enum. See **Bar colour: never PINK** under §Boss bar.
+3. **It is seven disagreeing cells and a case fold, not one hue.** `hard → BLUE`
+   versus `AQUA` was the cell everyone quoted; it is one of seven.
+
+| Notice key | `noticeColor` (chat) | `rsvpChip` (bar) | |
+|--|--|--|--|
+| `null` | `GRAY` | `YELLOW`, labelled `WALKIN` | ✗ |
+| `hard` | `AQUA` | `BLUE` | ✗ |
+| `rsvp_hard` | `AQUA` | `GRAY`, labelled `RSVP_HARD` | ✗ |
+| `soft` | `GREEN` | `GREEN` | ✓ |
+| `rsvp_soft` | `GREEN` | `GRAY`, labelled `RSVP_SOFT` | ✗ |
+| `walkin` | `YELLOW` | `YELLOW` | ✓ |
+| `walk_in` | `YELLOW` | `GRAY`, labelled `WALK_IN` | ✗ |
+| `attend_early` | `YELLOW` | `GRAY`, labelled `ATTEND_EARLY` | ✗ |
+| `late` | `RED` | `RED` | ✓ |
+| `attend_late` | `RED` | `GRAY`, labelled `ATTEND_LATE` | ✗ |
+| anything else | `GRAY` | `GRAY`, upper-cased passthrough | ✓ |
+
+Eleven keys, seven disagreements. `rsvpChip` recognises four of the nine named
+wire keys; the other five fall to its `default` arm and render as a grey chip
+labelled with the raw string upper-cased — `ATTEND_LATE` in grey where the chat
+surface says `LATE WALK-IN` in red. It also folds with a bare `toLowerCase()` /
+`toUpperCase()` where `noticeColor` passes `Locale.ROOT`. Both are filed rather
+than fixed, in `.claude/ephemeral/bugs-found-via-mellow-rain/` — fixing either
+changes what the boss bar says.
 
 ## anni-motd (world-join)
 
@@ -250,7 +375,7 @@ Let vanilla and Wynntils track bars normally (no `update()` cancellation, no `ev
 
 **Bar colour: never PINK.** The signature is `colorFor(AnniSnapshot)`, not `colorFor(String)`: it returns `PURPLE` when `board.state()` is `party` — not PINK as the original spec suggested — `RED` for `wont_assign`, and otherwise quantises `attendance.band()` through `bandToBarColor` (≤2 RED, ≤4 YELLOW, else GREEN), falling back to `PURPLE` with no snapshot or no band. Wynncraft's forced resource pack overrides `boss_bar/pink_background.png` (and its progress sprite) to be fully transparent so they can repurpose pink-bar slots as text-only HUD strips (the Lv.92 Returners XP line, territory/region names like "Corrupted Road", "ROOTS OF CORRUPTION"). Reproducible on bare vanilla MC 1.21.11 with the Wynncraft pack loaded (empirically confirmed against Wynncraft's forced resource pack). Confirmed via `/wv debug trigger bossBarsDump` — every Wynncraft text-only bar shipped `color=PINK overlay=PROGRESS`. **Future colour additions: pick from `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` only.**
 
-**Overlay style: NOTCHED_10 with a 100-min progress window.** Per-user request — segment dividers every 10 minutes for readability. Vanilla only ships `NOTCHED_6/10/12/20` (no `NOTCHED_9`). `PROGRESS_FULL_AT_SECONDS` decoupled from `ANNI_WINDOW_SECONDS` (still 90 min activation gate) and stretched to 100 min so each of 10 segments = exactly 10 minutes of wall-clock time. At T-90m activation the bar reads ~90% = 9 of 10 segments filled, matching the "90 mins = 9 notches" mapping. Drains one segment per 10 min through T-20s.
+**Overlay style: NOTCHED_10 with a 100-min progress window.** Per-user request — segment dividers every 10 minutes for readability. Vanilla only ships `NOTCHED_6/10/12/20` (no `NOTCHED_9`). `PROGRESS_FULL_AT_SECONDS` decoupled from `AnniWindows.BAR_WINDOW_SECONDS` (still the 90 min activation gate) and stretched to 100 min so each of 10 segments = exactly 10 minutes of wall-clock time. At T-90m activation the bar reads ~90% = 9 of 10 segments filled, matching the "90 mins = 9 notches" mapping. Drains one segment per 10 min through T-20s.
 
 **`FlashTracker`** (`bossbar/FlashTracker.java`):
 - Subscribes to `AnniSnapshotCache`. Two flash models:
@@ -301,13 +426,19 @@ Spec-canonical ChatFormatting-derived table. `CustomColor` values come from `Cus
 | TERTIARY | `LIGHT_PURPLE` (§d) | `chatFormattingForRole("TERTIARY")` |
 | SECONDARY | `YELLOW` (§e) | `chatFormattingForRole("SECONDARY")` |
 | PRIMARY | `RED` (§c) | `chatFormattingForRole("PRIMARY")` |
-| Other vets party | `GRAY` (§7) | `OTHER_VETS_PARTY` |
+| Other vets party | `GRAY` (§7) | `AnniOutlineRegistry.OTHER_VETS_PARTY` |
 
 Unknown or null roles fall through to `GRAY` (§7), the same colour as the other-vets-party tier — not to FILL.
 
-Single source of truth, one hop removed: nothing outside `AnniOutlineRegistry` reads this table. `ownPartyEntry` derives both halves of its `Entry` — outline `CustomColor` and nametag `ChatFormatting` — from one `chatFormattingForRole` call, and the ticker and `NametagMixin`'s anni branch read that `Entry`. Deriving both from one call is what stops them drifting.
+**This is now the mod's only role table for chat and outline alike.** `AnniHoverBuilder.roleColor` carried an independent copy of the same seven arms for the `/wv anni` and anni-motd surfaces; it delegates here and keeps its three call sites. The palette is the surviving body because it is fieldless and `ChatFormatting`-only, whereas `AnniHoverBuilder` is a render class pulling in `VetsConfig` and `AnniSnapshot` — routing the outline hot path and `NametagMixin` through it to reach a switch statement would be the wrong dependency edge. `VetsBossBarContentBuilder.roleColor` is a **third** role table and stays divergent on purpose (`TANK`→BLUE, `FILL`→DARK_AQUA, spec-cited as "distinct from S4's outline colours"); do not fold it in.
 
-That guarantee covers the own-party tier only. `OTHER_PARTY_ENTRY` pairs `OTHER_VETS_PARTY` with a separately written `ChatFormatting.GRAY` literal, so its outline and nametag agree by convention rather than by construction — change one and the other does not follow.
+The two copies were not interchangeable until Phase 5d fixed the fold. `chatFormattingForRole` folded with the no-argument `toUpperCase()`, so under a Turkish or Azeri default `fill` / `primary` / `tertiary` upper-cased their `i` to U+0130, matched no arm, and fell to `GRAY` — an own-party member outlined and nametagged as an outsider while the chat hover, which had always passed `Locale.ROOT`, showed the right colour. It passes `Locale.ROOT` now too. Pinned by `AnniOutlinePaletteTest` and by the cross-table equivalence cases in `AnniHoverBuilderTest`.
+
+**`OTHER_VETS_PARTY` no longer lives here.** It moved to `AnniOutlineRegistry`, directly above the `OTHER_PARTY_ENTRY` that is its only reader. Two reasons: it was a Wynntils `CustomColor` in the palette's static initializer, which made the class unloadable from a test at all (CLAUDE.md used to name it as one of its two `<clinit>` examples), and it is paired there with a separately written `ChatFormatting.GRAY` literal. That tier's outline and nametag therefore agree **by convention rather than by construction** — change one and the other does not follow — and a convention is only checkable when both halves are in one expression. The palette now declares no fields at all.
+
+The own-party tier has the stronger guarantee: `ownPartyEntry` derives both halves of its `Entry` — outline `CustomColor` and nametag `ChatFormatting` — from one `chatFormattingForRole` call, and the ticker and `NametagMixin`'s anni branch read that `Entry`. Deriving both from one call is what stops them drifting.
+
+Note the relocation did **not** make `AnniOutlineRegistry` testable: it builds a `CustomColor` in `ownPartyEntry` too. The blocker moved into a class that was already blocked.
 
 ### `AnniOutlineRegistry` (`outline/AnniOutlineRegistry.java`)
 
