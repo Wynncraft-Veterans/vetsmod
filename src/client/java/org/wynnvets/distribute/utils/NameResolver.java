@@ -53,42 +53,8 @@ public final class NameResolver {
         if (input == null || input.isEmpty()) {
             return CompletableFuture.completedFuture(input);
         }
-        if (!GuildStateManager.isWynntilsReady()) {
-            return CompletableFuture.completedFuture(input);
-        }
-        String guildName = Models.Guild.getGuildName();
-        if (guildName == null || guildName.isEmpty()) {
-            return CompletableFuture.completedFuture(input);
-        }
-
-        HttpRequest request =
-                HttpRequest.newBuilder()
-                        .uri(WynnCraftApi.guildInfo(guildName))
-                        .timeout(Duration.ofSeconds(5))
-                        .GET()
-                        .build();
-
-        return HTTP_CLIENT
-                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(
-                        response -> {
-                            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-                                VetsLogger.debug(
-                                        "NameResolver: wapi returned {} for guild [{}]",
-                                        response.statusCode(),
-                                        guildName);
-                                return input;
-                            }
-                            return findLegacyName(response.body(), input);
-                        })
-                .exceptionally(
-                        e -> {
-                            VetsLogger.debug(
-                                    "NameResolver: failed to resolve [{}]: {}",
-                                    input,
-                                    e.getMessage());
-                            return input;
-                        });
+        return fetchGuildJson("resolveLegacyName [" + input + "]")
+                .thenApply(body -> body == null ? input : findLegacyName(body, input));
     }
 
     /**
@@ -105,40 +71,8 @@ public final class NameResolver {
      * unexpected payload).</p>
      */
     public static CompletableFuture<List<String>> fetchAllLegacyNames() {
-        if (!GuildStateManager.isWynntilsReady()) {
-            return CompletableFuture.completedFuture(List.of());
-        }
-        String guildName = Models.Guild.getGuildName();
-        if (guildName == null || guildName.isEmpty()) {
-            return CompletableFuture.completedFuture(List.of());
-        }
-
-        HttpRequest request =
-                HttpRequest.newBuilder()
-                        .uri(WynnCraftApi.guildInfo(guildName))
-                        .timeout(Duration.ofSeconds(5))
-                        .GET()
-                        .build();
-
-        return HTTP_CLIENT
-                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(
-                        response -> {
-                            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-                                VetsLogger.debug(
-                                        "NameResolver: wapi returned {} for guild [{}]",
-                                        response.statusCode(),
-                                        guildName);
-                                return List.<String>of();
-                            }
-                            return extractAllLegacyNames(response.body());
-                        })
-                .exceptionally(
-                        e -> {
-                            VetsLogger.debug(
-                                    "NameResolver: fetchAllLegacyNames failed: {}", e.getMessage());
-                            return List.of();
-                        });
+        return fetchGuildJson("fetchAllLegacyNames")
+                .thenApply(body -> body == null ? List.<String>of() : extractAllLegacyNames(body));
     }
 
     // Package-private for unit tests. See NameResolverTest.
@@ -168,7 +102,7 @@ public final class NameResolver {
      * <p>Returns an empty map on failure.</p>
      */
     public static CompletableFuture<Map<String, String>> fetchNameIndex() {
-        return fetchGuildJson()
+        return fetchGuildJson("fetchNameIndex")
                 .thenApply(
                         body -> {
                             if (body == null) return Map.of();
@@ -189,7 +123,7 @@ public final class NameResolver {
      * <p>Returns an empty map on failure.</p>
      */
     public static CompletableFuture<Map<String, String>> fetchUuidToLegacyName() {
-        return fetchGuildJson()
+        return fetchGuildJson("fetchUuidToLegacyName")
                 .thenApply(
                         body -> {
                             if (body == null) return Map.of();
@@ -197,7 +131,18 @@ public final class NameResolver {
                         });
     }
 
-    private static CompletableFuture<String> fetchGuildJson() {
+    /**
+     * The single wapi guild read behind all four entry points. Completes with the raw
+     * response body, or with {@code null} for every failure there is &mdash; Wynntils not
+     * ready, no guild name, a non-200 status, a transport exception &mdash; leaving each
+     * caller to map that one {@code null} onto its own fallback. The fallbacks still differ
+     * by entry point; the path to them no longer does.
+     *
+     * @param context the calling entry point, tagged into both log lines. Four reads sharing
+     *     one fetcher would otherwise be indistinguishable in the log, in a subsystem with no
+     *     HTTP test to fall back on.
+     */
+    private static CompletableFuture<String> fetchGuildJson(String context) {
         if (!GuildStateManager.isWynntilsReady()) {
             return CompletableFuture.completedFuture(null);
         }
@@ -217,9 +162,10 @@ public final class NameResolver {
                         response -> {
                             if (response.statusCode() != HttpURLConnection.HTTP_OK) {
                                 VetsLogger.debug(
-                                        "NameResolver: wapi returned {} for guild [{}]",
+                                        "NameResolver: wapi returned {} for guild [{}] ({})",
                                         response.statusCode(),
-                                        guildName);
+                                        guildName,
+                                        context);
                                 return null;
                             }
                             return response.body();
@@ -227,7 +173,7 @@ public final class NameResolver {
                 .exceptionally(
                         e -> {
                             VetsLogger.debug(
-                                    "NameResolver: fetchGuildJson failed: {}", e.getMessage());
+                                    "NameResolver: {} failed: {}", context, e.getMessage());
                             return null;
                         });
     }
