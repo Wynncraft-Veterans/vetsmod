@@ -54,23 +54,22 @@ import java.time.Duration;
  */
 public final class HttpClients {
 
+    private static final HttpClient STANDARD =
+            HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+
     /**
-     * A client configured exactly as the eighteen hand-built chains were: {@code HTTP_1_1}, a
-     * 5 s connect timeout, and no redirect, proxy, executor, authenticator, cookie-handler or
-     * SSL customisation whatsoever.
+     * The one client, configured exactly as the eighteen hand-built chains were:
+     * {@code HTTP_1_1}, a 5 s connect timeout, and no redirect, proxy, executor,
+     * authenticator, cookie-handler or SSL customisation whatsoever.
      *
-     * <p><b>For now this builds a new client per call.</b> The eighteen fields therefore still
-     * hold eighteen distinct clients and the mod's thread topology is bit-for-bit what it was
-     * before this class existed &mdash; collapsing eighteen identical builder chains to one
-     * construction site is a separate change, provable by reading, from collapsing eighteen
-     * client instances to one. The class notes above state the contract a shared instance
-     * needs; it arrives when this method's body does.</p>
+     * <p>Every call returns the same instance, so the eighteen fields hold one selector
+     * thread, one default executor and one connection pool between them.</p>
      */
     public static HttpClient standard() {
-        return HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_1_1)
-                .connectTimeout(Duration.ofSeconds(5))
-                .build();
+        return STANDARD;
     }
 
     private HttpClients() {}
