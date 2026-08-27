@@ -107,8 +107,11 @@ public final class GraidsDistributor {
                                         () -> beginWalk(index, count, resource, onComplete), 0));
     }
 
-    private static Map<String, String> filterIndex(
-            Map<String, String> index, Set<String> excludeNames) {
+    /** Drops index entries whose canonical legacy name is opted out. Returns
+     *  {@code index} itself when the exclude set is empty — the result is only
+     *  ever read, so the common case does not pay for a copy. */
+    // Package-private for unit tests. See GraidsDistributorTest.
+    static Map<String, String> filterIndex(Map<String, String> index, Set<String> excludeNames) {
         if (excludeNames.isEmpty()) return index;
         Map<String, String> out = new HashMap<>(index.size());
         for (Map.Entry<String, String> e : index.entrySet()) {

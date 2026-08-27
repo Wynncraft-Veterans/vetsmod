@@ -1,6 +1,8 @@
 package org.wynnvets.distribute.distributor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -8,6 +10,7 @@ import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -28,9 +31,13 @@ import org.junit.jupiter.api.Test;
  * exists partly to make that refactor checkable — no pure helper is extracted
  * here, because extracting one is precisely the change being protected.</p>
  *
- * <p>{@code filterIndex} is a third pure, Wynntils-free method and is
- * <b>uncovered</b>. The Phase 4 target list missed it; the verify pass caught
- * that. Recorded here rather than added, since the phase is closed.</p>
+ * <p>{@code filterIndex} is a third pure, Wynntils-free method, covered at the
+ * foot of this class. The Phase 4 target list missed it and that phase was closed
+ * by the time the verify pass caught it; Mellow-Rain 5f added the cases. Its
+ * identity return is pinned deliberately — the method hands the caller's own map
+ * back when nothing is excluded, and a later "always take a defensive copy"
+ * tidy-up would change that with no signature move and nothing else failing.
+ * {@link RandomDistributorTest} pins the same property on {@code filterNames}.</p>
  *
  * <p>NOTE: {@link GraidsDistributor} imports Wynntils, but its static state is
  * a {@code String}, a {@code Pattern} and a {@code Random}, so nothing loads
@@ -210,5 +217,70 @@ class GraidsDistributorTest {
         // Brigadier bounds the count at 1, so this is defensive — every share
         // floors to 0 and there is no remainder to rescue any of them.
         assertTrue(GraidsDistributor.buildDistribution(freq("a", 3, "b", 1), 0).isEmpty());
+    }
+
+    // ----- filterIndex: the NoAspects opt-out, applied to the name index -----
+
+    /** Two lookup keys per member — current and legacy, both lowercased — each
+     *  mapping to that member's canonical legacy name. */
+    private static Map<String, String> index(String... pairs) {
+        Map<String, String> map = new LinkedHashMap<>();
+        for (int i = 0; i < pairs.length; i += 2) {
+            map.put(pairs[i], pairs[i + 1]);
+        }
+        return map;
+    }
+
+    @Test
+    void filterIndex_anEmptyExcludeSetHandsBackTheCallerSOwnMap() {
+        Map<String, String> idx = index("oldname", "OldName", "newname", "OldName");
+
+        assertSame(idx, GraidsDistributor.filterIndex(idx, Set.of()));
+    }
+
+    @Test
+    void filterIndex_anExcludeSetThatMatchesNothingStillCopies() {
+        Map<String, String> idx = index("solo", "Solo");
+
+        Map<String, String> out = GraidsDistributor.filterIndex(idx, Set.of("Nobody"));
+
+        assertEquals(idx, out);
+        assertNotSame(idx, out, "the fast path reads the set, not the outcome");
+    }
+
+    @Test
+    void filterIndex_excludingAMemberDropsBothOfTheirLookupKeys() {
+        // Both keys carry the same canonical value, so excluding by value is
+        // what makes an opted-out member unreachable from either spelling —
+        // and so unmatchable by a graid-log username token.
+        Map<String, String> out =
+                GraidsDistributor.filterIndex(
+                        index("oldname", "OldName", "newname", "OldName", "other", "Other"),
+                        Set.of("OldName"));
+
+        assertEquals(Map.of("other", "Other"), out);
+    }
+
+    @Test
+    void filterIndex_theExcludeSetIsMatchedAgainstTheValueNotTheKey() {
+        // Excluding a lookup key filters nothing. NoAspectsFilter resolves its
+        // opt-out UUIDs to legacy names precisely so it lands on the value side.
+        Map<String, String> idx = index("oldname", "OldName", "newname", "OldName");
+
+        assertEquals(idx, GraidsDistributor.filterIndex(idx, Set.of("oldname")));
+    }
+
+    @Test
+    void filterIndex_excludingEveryMemberYieldsAnEmptyMap() {
+        assertTrue(
+                GraidsDistributor.filterIndex(index("a", "A", "b", "B"), Set.of("A", "B"))
+                        .isEmpty());
+    }
+
+    @Test
+    void filterIndex_anEmptyIndexYieldsAnEmptyMap() {
+        // beginWalk's own isEmpty() check is what turns this into the
+        // "Could not read guild roster from wapi" chat line.
+        assertTrue(GraidsDistributor.filterIndex(index(), Set.of("A")).isEmpty());
     }
 }

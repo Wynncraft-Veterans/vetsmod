@@ -102,7 +102,11 @@ public final class RandomDistributor {
                                         0));
     }
 
-    private static List<String> filterNames(List<String> names, Set<String> exclude) {
+    /** Drops opted-out names from the roster. Returns {@code names} itself when
+     *  the exclude set is empty; beginPicks copies before shuffling, so the
+     *  shared reference is never mutated. */
+    // Package-private for unit tests. See RandomDistributorTest.
+    static List<String> filterNames(List<String> names, Set<String> exclude) {
         if (exclude.isEmpty()) return names;
         List<String> out = new ArrayList<>(names.size());
         for (String name : names) {
