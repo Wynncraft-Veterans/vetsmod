@@ -18,7 +18,9 @@ import org.junit.jupiter.api.Test;
  * {@code org.wynnvets.chat.dispatcher.JsonAccessorTest}. This one matters more
  * than "one more duplicate" suggests: it is byte-for-byte the same body as
  * {@code OnlineMemberService.stringOrEmpty} in a different package, it has
- * eight call sites, and it sits <b>directly upstream of a tested sibling</b> —
+ * seven call sites (:126, :142, :148, :149, :154, :163, :164 — the "eight" this
+ * Javadoc used to claim counted the declaration at :372), and it sits
+ * <b>directly upstream of a tested sibling</b> —
  * {@code onOutboundMessage} reads a bridge frame with it and hands the result
  * to {@code WarningRewriter.render}, whose own {@code optString} answers the
  * same three questions differently. A shared helper has to reconcile the two

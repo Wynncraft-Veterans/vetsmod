@@ -12,12 +12,19 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link CommandDispatcher}'s {@code stringOrNull} — one of six
- * hand-rolled JSON string accessors scattered across five packages.
+ * hand-rolled JSON string accessors scattered across five packages, and one of
+ * seven accessors in all ({@code CautionCommands} declares two).
  *
- * <p>There is no {@code org.wynnvets.util} package and no shared {@code Json}
- * helper. A later phase proposes creating one, and the six sites do not agree
- * on any of the three questions such a helper would have to answer. This is the
- * table those five sibling test classes exist to make mechanical:</p>
+ * <p>CORRECTED, and both errors are pre-existing rather than this phase's.
+ * (1) This Javadoc used to open "There is no {@code org.wynnvets.util} package
+ * and no shared {@code Json} helper" — stale since 5b, which created both for
+ * the shared {@code Gson}. {@link org.wynnvets.util.Json Json} now also holds
+ * the four accessors these six sites are being folded onto. (2) It used to say
+ * only one pair below is a genuine duplicate; there are two — see the closing
+ * paragraph. What has not changed is the reason the table matters: the six
+ * sites do not agree on any of the three questions a shared helper has to
+ * answer. This is the table those five sibling test classes exist to make
+ * mechanical:</p>
  *
  * <table border="1">
  *   <caption>Policy per site</caption>
@@ -42,9 +49,11 @@ import org.junit.jupiter.api.Test;
  * into a fallback-taking helper grows an argument at every call site.</p>
  *
  * <p>The last row was missing from the Phase 4 brief's census and was found by
- * the verify pass. Only one pair in the table is a genuine duplicate —
+ * the verify pass. <b>Two</b> pairs in the table are genuine duplicates:
  * {@code OnlineMemberService.stringOrEmpty} and
- * {@code OutboundDisplayHandler.getStringOrEmpty} share a body exactly.</p>
+ * {@code OutboundDisplayHandler.getStringOrEmpty} share a body exactly, and so
+ * do {@code CommandDispatcher.stringOrNull} and {@code StaffFetcher.stringOrNull}
+ * — down to the blank line and the seam comment above the declaration.</p>
  *
  * <p>NOTE: {@link CommandDispatcher}'s static initializer reaches an
  * {@code HttpClient}, a request and a single-threaded executor. The client is
