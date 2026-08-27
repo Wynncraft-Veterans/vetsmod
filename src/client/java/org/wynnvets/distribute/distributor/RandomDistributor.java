@@ -128,7 +128,12 @@ public final class RandomDistributor {
         List<String> shuffled = new ArrayList<>(legacyNames);
         Collections.shuffle(shuffled, RNG);
         int picks = Math.min(count, shuffled.size());
-        Deque<String> queue = new ArrayDeque<>(shuffled.subList(0, picks));
+        // <count> is recipients here, not presses, so every entry carries a
+        // per-user count of exactly 1 — see the class Javadoc.
+        Deque<DistributionQueue.Distribution> queue = new ArrayDeque<>();
+        for (String name : shuffled.subList(0, picks)) {
+            queue.add(new DistributionQueue.Distribution(name, 1));
+        }
 
         ChatUtils.sendLocalMessage(
                 Component.literal(
@@ -148,7 +153,9 @@ public final class RandomDistributor {
     }
 
     private static void processNext(
-            Deque<String> queue, MemberSlotPresser.Resource resource, Runnable onComplete) {
+            Deque<DistributionQueue.Distribution> queue,
+            MemberSlotPresser.Resource resource,
+            Runnable onComplete) {
         if (queue.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Distribution complete.").withStyle(ChatFormatting.GREEN));
@@ -156,23 +163,23 @@ public final class RandomDistributor {
             if (onComplete != null) onComplete.run();
             return;
         }
-        String name = queue.poll();
+        DistributionQueue.Distribution d = queue.poll();
         VetsLogger.debug(
                 "RandomDistributor: searching for [{}], {} remaining after this",
-                name,
+                d.legacyName(),
                 queue.size());
 
         // Names are already in the legacy form from fetchAllLegacyNames(),
         // so the literal-input arm matches the menu directly — no per-pick
         // NameResolver call needed.
         MembersListSearcher.armSearch(
-                name,
+                d.legacyName(),
                 slot ->
                         MemberSlotPresser.fire(
                                 slot,
                                 resource,
-                                1,
-                                name,
+                                d.count(),
+                                d.legacyName(),
                                 () -> processNext(queue, resource, onComplete)),
                 () -> processNext(queue, resource, onComplete));
     }
