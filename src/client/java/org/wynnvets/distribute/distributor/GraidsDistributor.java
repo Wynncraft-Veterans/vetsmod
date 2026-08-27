@@ -23,7 +23,6 @@ import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.utils.NameResolver;
 import org.wynnvets.distribute.utils.NoAspectsFilter;
 import org.wynnvets.distribute.walker.GuildLogWalker;
-import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -193,7 +192,7 @@ public final class GraidsDistributor {
                                         + " total participations)…")
                         .withStyle(ChatFormatting.AQUA));
 
-        processNext(queue, resource, onComplete);
+        DistributionQueue.processNext(queue, resource, onComplete, "GraidsDistributor");
         GuildManageOpener.openManageMembers();
     }
 
@@ -283,38 +282,5 @@ public final class GraidsDistributor {
             sb.append(line.getStringWithoutFormatting());
         }
         return sb.toString();
-    }
-
-    private static void processNext(
-            Deque<DistributionQueue.Distribution> queue,
-            MemberSlotPresser.Resource resource,
-            Runnable onComplete) {
-        if (queue.isEmpty()) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Distribution complete.").withStyle(ChatFormatting.GREEN));
-            MemberSlotPresser.closeMembersScreen();
-            if (onComplete != null) onComplete.run();
-            return;
-        }
-        DistributionQueue.Distribution d = queue.poll();
-        VetsLogger.debug(
-                "GraidsDistributor: queue popped [{}] (count={}), {} left",
-                d.legacyName(),
-                d.count(),
-                queue.size());
-
-        // Names are already canonical legacy (looked up via the wapi
-        // index), so the searcher's literal-input arm matches the
-        // Members GUI tile directly — no per-pick NameResolver call.
-        MembersListSearcher.armSearch(
-                d.legacyName(),
-                slot ->
-                        MemberSlotPresser.fire(
-                                slot,
-                                resource,
-                                d.count(),
-                                d.legacyName(),
-                                () -> processNext(queue, resource, onComplete)),
-                () -> processNext(queue, resource, onComplete));
     }
 }

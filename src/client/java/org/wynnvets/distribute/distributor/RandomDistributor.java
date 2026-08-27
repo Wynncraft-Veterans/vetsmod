@@ -16,7 +16,6 @@ import org.wynnvets.distribute.utils.NameResolver;
 import org.wynnvets.distribute.utils.NoAspectsFilter;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.logging.VetsLogger;
 
 /**
  * Implements the {@code /wv distribute @random <resource> <count>} flow:
@@ -148,40 +147,7 @@ public final class RandomDistributor {
         // is bound by the time MenuOpenedEvent.Pre fires for the Members
         // GUI. Subsequent picks rearm via the fast-path while the menu
         // is still open.
-        processNext(queue, resource, onComplete);
+        DistributionQueue.processNext(queue, resource, onComplete, "RandomDistributor");
         GuildManageOpener.openManageMembers();
-    }
-
-    private static void processNext(
-            Deque<DistributionQueue.Distribution> queue,
-            MemberSlotPresser.Resource resource,
-            Runnable onComplete) {
-        if (queue.isEmpty()) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Distribution complete.").withStyle(ChatFormatting.GREEN));
-            MemberSlotPresser.closeMembersScreen();
-            if (onComplete != null) onComplete.run();
-            return;
-        }
-        DistributionQueue.Distribution d = queue.poll();
-        VetsLogger.debug(
-                "RandomDistributor: queue popped [{}] (count={}), {} left",
-                d.legacyName(),
-                d.count(),
-                queue.size());
-
-        // Names are already in the legacy form from fetchAllLegacyNames(),
-        // so the literal-input arm matches the menu directly — no per-pick
-        // NameResolver call needed.
-        MembersListSearcher.armSearch(
-                d.legacyName(),
-                slot ->
-                        MemberSlotPresser.fire(
-                                slot,
-                                resource,
-                                d.count(),
-                                d.legacyName(),
-                                () -> processNext(queue, resource, onComplete)),
-                () -> processNext(queue, resource, onComplete));
     }
 }

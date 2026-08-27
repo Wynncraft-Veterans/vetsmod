@@ -16,7 +16,6 @@ import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.utils.NoAspectsFilter;
-import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.distribute.walker.MembersListWalker;
 import org.wynnvets.logging.VetsLogger;
 
@@ -154,7 +153,7 @@ public final class ObjectivesDistributor {
                                         + " objective-completers…")
                         .withStyle(ChatFormatting.AQUA));
 
-        processNext(queue, resource, onComplete);
+        DistributionQueue.processNext(queue, resource, onComplete, "ObjectivesDistributor");
     }
 
     /**
@@ -180,39 +179,6 @@ public final class ObjectivesDistributor {
             queue.add(new DistributionQueue.Distribution(shuffled.get(i), perUser));
         }
         return queue;
-    }
-
-    private static void processNext(
-            Deque<DistributionQueue.Distribution> queue,
-            MemberSlotPresser.Resource resource,
-            Runnable onComplete) {
-        if (queue.isEmpty()) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Distribution complete.").withStyle(ChatFormatting.GREEN));
-            MemberSlotPresser.closeMembersScreen();
-            if (onComplete != null) onComplete.run();
-            return;
-        }
-        DistributionQueue.Distribution d = queue.poll();
-        VetsLogger.debug(
-                "ObjectivesDistributor: queue popped [{}] (count={}), {} left",
-                d.legacyName(),
-                d.count(),
-                queue.size());
-
-        // Names are already legacy (walker reads tile hover names), so
-        // the literal-input arm matches the menu directly. No per-pick
-        // NameResolver needed.
-        MembersListSearcher.armSearch(
-                d.legacyName(),
-                slot ->
-                        MemberSlotPresser.fire(
-                                slot,
-                                resource,
-                                d.count(),
-                                d.legacyName(),
-                                () -> processNext(queue, resource, onComplete)),
-                () -> processNext(queue, resource, onComplete));
     }
 
     /**
