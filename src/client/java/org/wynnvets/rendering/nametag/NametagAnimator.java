@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
+import org.wynnvets.rendering.colors.ColorMath;
 
 /**
  * Applies a subtle animated gradient to the username portion of a supporter's
@@ -289,12 +290,7 @@ public final class NametagAnimator {
      * Linearly interpolates between two RGB colours.
      */
     static int interpolateColor(int c1, int c2, float t) {
-        int r1 = (c1 >> 16) & 0xFF, g1 = (c1 >> 8) & 0xFF, b1 = c1 & 0xFF;
-        int r2 = (c2 >> 16) & 0xFF, g2 = (c2 >> 8) & 0xFF, b2 = c2 & 0xFF;
-        int r = Math.round(r1 + (r2 - r1) * t);
-        int g = Math.round(g1 + (g2 - g1) * t);
-        int bl = Math.round(b1 + (b2 - b1) * t);
-        return (r << 16) | (g << 8) | bl;
+        return ColorMath.interpolateRgb(c1, c2, t);
     }
 
     // ── Inner types ─────────────────────────────────────────────────────

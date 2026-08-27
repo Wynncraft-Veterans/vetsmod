@@ -97,18 +97,6 @@ public final class GradientTextBuilder {
 
     // Package-private for unit tests. See ColorLerpTest.
     static int interpolateRgb(int startRgb, int endRgb, float t) {
-        int startR = (startRgb >> 16) & 0xFF;
-        int startG = (startRgb >> 8) & 0xFF;
-        int startB = startRgb & 0xFF;
-
-        int endR = (endRgb >> 16) & 0xFF;
-        int endG = (endRgb >> 8) & 0xFF;
-        int endB = endRgb & 0xFF;
-
-        int r = Math.round(startR + (endR - startR) * t);
-        int g = Math.round(startG + (endG - startG) * t);
-        int b = Math.round(startB + (endB - startB) * t);
-
-        return (r << 16) | (g << 8) | b;
+        return ColorMath.interpolateRgb(startRgb, endRgb, t);
     }
 }
