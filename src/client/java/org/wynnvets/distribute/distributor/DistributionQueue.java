@@ -65,11 +65,12 @@ import org.wynnvets.logging.VetsLogger;
  *       {@link GuildManageOpener#openManageMembers()}, so the searcher is bound by the time
  *       {@code MenuOpenedEvent.Pre} fires. {@link ObjectivesDistributor} calls it with the
  *       Members menu already open &mdash; its walk ended there &mdash; and so takes the
- *       searcher's re-arm fast path instead. Only the <em>first</em> pop differs; every
- *       later one re-arms into an open menu whichever head queued it.</li>
- *   <li><b>Closing the menu on an early out.</b> Only the {@code queue.isEmpty()} terminal
- *       below closes the Members menu. Each head's own no-recipient exits answer that
- *       question differently, and all three answers are right:
+ *       searcher's re-arm fast path instead. Only the <em>first</em> pop differs: a later
+ *       one re-arms into a menu the previous send left open, whichever head queued it.</li>
+ *   <li><b>Closing the menu on an early out.</b> Of this loop's own paths, only the
+ *       {@code queue.isEmpty()} terminal below closes the Members menu. Each head's own
+ *       no-recipient exits answer that question separately, and all three answers are
+ *       right:
  *       {@link ObjectivesDistributor} closes, because its walk left the Members menu open;
  *       {@link GraidsDistributor} does not, because none of its early-outs has opened the
  *       Members menu &mdash; the only menu it can have open by then is the Guild Log, and
@@ -95,7 +96,8 @@ final class DistributionQueue {
      * @param onComplete fired once, after the terminal close; may be {@code null} for the
      *     heads' two-argument {@code dispatch} entry points, which chain nothing
      * @param logTag prefix for this run's debug lines &mdash; the calling head's simple
-     *     class name, so one log can be read back as three interleaved runs
+     *     class name, so an {@code @split} run's three phases stay distinguishable in the
+     *     log
      */
     static void processNext(
             Deque<Distribution> queue,

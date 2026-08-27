@@ -108,14 +108,15 @@ public final class DistributeCommands {
     private record Selector(String token, SelectorDispatch head) {}
 
     /**
-     * The four {@code @}-selectors, in the order they are offered for tab-completion. What
-     * {@code <count>} means differs per head &mdash; see the {@code @-selectors} section of
-     * this class's Javadoc.
+     * The four {@code @}-selectors. What {@code <count>} means differs per head &mdash; see
+     * the {@code @-selectors} section of this class's Javadoc.
      *
-     * <p>This order is the suggestion order and nothing more. Dispatch matches one whole
-     * token, so no row can shadow another, and it is <em>not</em>
+     * <p>Row order carries no meaning, and it is emphatically <em>not</em>
      * {@link SplitDistributor}'s phase order, which is fixed for a reason that lives in that
-     * class.</p>
+     * class. Dispatch matches one whole token case-insensitively, so no row can shadow
+     * another; and the order the suggester emits in is not observable either, because
+     * Brigadier's {@code Suggestions.create} collects every suggestion into a
+     * {@code HashSet} and sorts case-insensitively before the client sees it.</p>
      */
     private static final List<Selector> SELECTORS =
             List.of(
@@ -269,7 +270,8 @@ public final class DistributeCommands {
         // guild roster, so they work even when the Wynntils member cache is
         // cold. `remaining` is already case-folded and the tokens are
         // lowercase literals, so this is the prefix test the four branches
-        // this loop replaced each did by hand.
+        // this loop replaced each did by hand. Emission order does not
+        // survive Brigadier's Suggestions.create, which sorts — see SELECTORS.
         for (Selector selector : SELECTORS) {
             if (selector.token().startsWith(remaining)) {
                 builder.suggest(selector.token());

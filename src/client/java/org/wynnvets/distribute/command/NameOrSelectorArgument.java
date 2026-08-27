@@ -13,9 +13,10 @@ import org.wynnvets.distribute.DistributeCommands;
 /**
  * Brigadier argument type for the {@code <name>} slot of
  * {@code /wv distribute <name> <resource> <count>}. Reads one
- * non-empty, space-delimited token so the four {@code @}-prefixed
- * selectors ({@code @random}, {@code @objectives}, {@code @graids},
- * {@code @split}) parse alongside regular Wynncraft usernames.
+ * non-empty, space-delimited token so the {@code @}-prefixed selectors
+ * &mdash; {@code @random} and whichever others
+ * {@link DistributeCommands} currently tables &mdash; parse alongside
+ * regular Wynncraft usernames.
  *
  * <p>{@link com.mojang.brigadier.arguments.StringArgumentType#string()
  * StringArgumentType.string()} restricts unquoted input to

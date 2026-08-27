@@ -32,7 +32,7 @@ skipped.
   `StringArgumentType.string()` restricts unquoted input to
   `[0-9A-Za-z_.+-]`, so `@random` fails to parse at the `@`. The type
   deliberately does **not** enforce the selector set — that lives in one
-  executor branch (§10).
+  table (§10).
 - **`<resource>`** — three literals mapping to `MemberSlotPresser.Resource`
   hotbar button indices: `aspects`→0, `tomes`→1, `emeralds`→2. The
   server interprets one press as 1 Aspect, 1 Guild Tome, or 1024
@@ -126,7 +126,7 @@ That callback carries a long crash-rationale comment about deferring
 class's constraint. The five here inherit the placement, not a separately
 recorded reason for it.
 
-The remaining ten files need no bus registration. Nine are static-only
+The remaining eleven files need no bus registration. Ten are static-only
 with private constructors; `NameOrSelectorArgument` is the exception — a
 private-constructor singleton with instance methods, because Brigadier's
 `ArgumentType` is an interface.
@@ -260,12 +260,12 @@ and awards `+1` to the first `total % k`. Recipients landing on zero are
 dropped so the chain never opens a menu to send nothing. `<count>` means
 **total rewards**.
 
-This is the one head whose **first** `DistributionQueue.processNext` arms
-with the Members menu already open — the walk ended there — so it takes
-the re-arm fast path instead of waiting for a menu-open event. Later
-recipients in any head re-arm through the fast path too, whenever the
-menu is still open at that moment — what is unique here is the *entry*
-into the chain.
+`onWalkComplete` calls `DistributionQueue.processNext` with the Members
+menu already open — the walk ended there — so this head's **first** pop
+takes the searcher's re-arm fast path instead of waiting for a menu-open
+event. Later recipients in any head re-arm through the fast path too,
+whenever the menu is still open at that moment — what is unique here is
+the *entry* into the chain.
 
 ### `@graids` — `GraidsDistributor`
 
@@ -399,7 +399,7 @@ an extrapolation from behaviour observed elsewhere. Values are current.
 | `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Lets the previous phase's `ServerboundContainerClosePacket` settle. `queueCommand`'s 7-tick spacing paces commands but knows nothing about close packets |
 
 `distribute/` is currently the repo's only consumer of
-`Managers.TickScheduler` — 11 `scheduleLater` calls across 8 of its 15
+`Managers.TickScheduler` — 11 `scheduleLater` calls across 8 of its 16
 files, none elsewhere in `src/`. Four of the 11 are delay-0 hops off the
 shared `HttpClient` executor back onto the tick thread, not delays. Treat
 the exclusivity as a snapshot rather than a design invariant; nothing stops
@@ -537,7 +537,7 @@ entry points' differing failure returns are not written out here. See
 `NameResolver.forEachGuildMember`.
 
 **Gap:** the package's user-facing chat strings are not inventoried.
-There are 21 `ChatUtils.sendLocalMessage` call sites under `distribute/`;
+There are 19 `ChatUtils.sendLocalMessage` call sites under `distribute/`;
 §7 quotes only the failure-path ones.
 
 ## 10. Adding a new selector
@@ -546,9 +546,11 @@ Two edits, both local:
 
 1. A row in `DistributeCommands.SELECTORS`: the token, and a method
    reference to the head's `dispatch(int, Resource)`. Dispatch and
-   tab-completion both read that one table, so the row covers both. Its
-   position is the suggestion order; dispatch matches a whole token
-   case-insensitively, so no row can shadow another. The table is
+   tab-completion both read that one table, so the row covers both. Row
+   position carries no meaning — dispatch matches a whole token
+   case-insensitively, so no row can shadow another, and Brigadier's
+   `Suggestions.create` HashSets and case-insensitively sorts the
+   suggestion list before the client ever sees it. The table is
    offered unconditionally, before the Wynntils-ready check — the
    dispatchers read the live roster, so they work with a cold Wynntils
    member cache.

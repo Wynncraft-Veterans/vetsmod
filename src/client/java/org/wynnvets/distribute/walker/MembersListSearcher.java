@@ -17,7 +17,6 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.MembersGui;
-import org.wynnvets.distribute.distributor.RandomDistributor;
 import org.wynnvets.distribute.utils.NameResolver;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.ContainerScreens;
@@ -41,8 +40,8 @@ import org.wynnvets.util.ContainerScreens;
  * {@code Next Page} buttons without a hit, the searcher transparently
  * switches to backward (clicking {@code Previous Page}) so a target on
  * an earlier page than where the search started is still reachable.
- * This is what makes {@link RandomDistributor} able to visit multiple
- * picks in one menu session without resetting to page 1 between them.</p>
+ * This is what lets {@code DistributionQueue} visit multiple recipients
+ * in one menu session without resetting to page 1 between them.</p>
  *
  * <h2>Re-arming while the menu is open</h2>
  * <p>The first {@link #armSearch} of a session waits for
@@ -185,9 +184,9 @@ public final class MembersListSearcher {
     }
 
     /**
-     * Variant with a not-found callback. Used by multi-user flows
-     * ({@link RandomDistributor}) so the queue can advance to the next
-     * pick when a member can't be located on any page.
+     * Variant with a not-found callback. Used by the multi-recipient send
+     * loop ({@code DistributionQueue}) so the queue can advance to the next
+     * recipient when one cannot be located on any page.
      */
     public static void armSearch(String name, SlotMatchHandler handler, Runnable onNotFound) {
         displayQuery = name;
@@ -378,9 +377,9 @@ public final class MembersListSearcher {
                 return;
             }
             // No Members menu open at all, or we've exhausted rebinds.
-            // Invoke not-found so chained callers (RandomDistributor,
-            // GraidsDistributor, ObjectivesDistributor) advance their
-            // queue rather than silently stalling with the menu open.
+            // Invoke not-found so the chained caller (DistributionQueue)
+            // advances its queue rather than silently stalling with the
+            // menu open.
             VetsLogger.debug(
                     "MembersListSearcher: lost Members menu mid-search for [{}], advancing",
                     displayQuery);
