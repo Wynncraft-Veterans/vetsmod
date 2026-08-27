@@ -36,9 +36,6 @@ public class LegacyHotbarMixin {
             int seed,
             CallbackInfo ci) {
         if (stack.isEmpty()) return;
-        // Bail out when legacy item highlighting is disabled
-        if (!org.wynnvets.config.VetsConfig.get(
-                org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return;
         if (LegacyItemHandler.isLegacyItem(stack)) {
             guiGraphics.fillGradient(
                     x,
