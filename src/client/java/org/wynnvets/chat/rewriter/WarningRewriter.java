@@ -42,10 +42,7 @@ public final class WarningRewriter {
         String triggered = Json.optString(json, "triggered", "warning");
         String actor = Json.optString(json, "actor", "staff");
         String message = Json.optString(json, "message", "");
-        int pointsAfter =
-                json.has("points_after") && !json.get("points_after").isJsonNull()
-                        ? json.get("points_after").getAsInt()
-                        : -1;
+        int pointsAfter = Json.optInt(json, "points_after", -1);
 
         // Per spec: ejects reuse the formal-warning message format (same
         // "⚠ WARNING ⚠ <message>" prefix) so the warned player sees one
