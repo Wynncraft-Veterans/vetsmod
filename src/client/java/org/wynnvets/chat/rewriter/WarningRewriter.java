@@ -78,9 +78,22 @@ public final class WarningRewriter {
     }
 
     // Package-private for unit tests. See JsonAccessorTest.
+    // Character-identical to org.wynnvets.util.Json.optString, log message
+    // included, so that pointing this at it is provably a no-op. C7 does.
     static String optString(JsonObject obj, String key, String fallback) {
-        if (obj == null) return fallback;
+        if (obj == null) {
+            VetsLogger.warn("Json.optString: null object reading '{}'; using the fallback", key);
+            return fallback;
+        }
         if (!obj.has(key) || obj.get(key).isJsonNull()) return fallback;
-        return obj.get(key).getAsString();
+        try {
+            return obj.get(key).getAsString();
+        } catch (RuntimeException e) {
+            VetsLogger.warn(
+                    "Json.optString: '{}' is not a string ({}); using the fallback",
+                    key,
+                    e.getClass().getSimpleName());
+            return fallback;
+        }
     }
 }
