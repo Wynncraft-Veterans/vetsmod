@@ -15,6 +15,7 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 - [LegacyItemHandler](../src/client/java/org/wynnvets/items/LegacyItemHandler.java) — `isLegacyItem()` 8-branch cascade + state fields
 - [LegacyTooltipRenderer](../src/client/java/org/wynnvets/items/LegacyTooltipRenderer.java) — 9-branch tooltip rewriter
 - [NewFormatRenderer](../src/client/java/org/wynnvets/items/NewFormatRenderer.java) — PUA / new-format component-tree manipulation
+- [LegacyHighlightPainter](../src/client/java/org/wynnvets/items/LegacyHighlightPainter.java) — `paintIfLegacy()`, the guard-and-paint both highlight sites call (§5)
 
 **Gap:** `LegacyEnchantmentRenderer` (542 L — names the specific enchantment a legacy item carries) and `LegacyScreenshotHandler` (185 L — re-renders the modified tooltip to the clipboard), undocumented. See those classes.
 
@@ -28,11 +29,11 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 
 **Mixins (3 legacy-item-specific out of 14 registered):**
 - [LegacyHighlightMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyHighlightMixin.java) — `AbstractContainerScreen#renderSlot` + `renderTooltip` (captures hover context)
-- [LegacyHotbarMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyHotbarMixin.java) — `Gui#renderSlot` (draws hotbar gradient + sprite)
+- [LegacyHotbarMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyHotbarMixin.java) — `Gui#renderSlot` (hands the hotbar slot to `LegacyHighlightPainter`; its whole body is that one call)
 - [LegacyItemTooltipMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyItemTooltipMixin.java) — `GuiGraphics#setTooltipForNextFrame` (rewrites tooltip + gold border)
 
 **Event listeners:**
-- [LegacyHighlightEventListener](../src/client/java/org/wynnvets/listeners/LegacyHighlightEventListener.java) — `SlotRenderEvent.Pre` at `LOWEST` priority (draws container gradient + sprite, overriding Wynntils `ItemHighlightFeature`)
+- [LegacyHighlightEventListener](../src/client/java/org/wynnvets/listeners/LegacyHighlightEventListener.java) — `SlotRenderEvent.Pre` at `LOWEST` priority (hands the container slot to `LegacyHighlightPainter`, overriding Wynntils `ItemHighlightFeature`)
 - [LegacyTooltipEventListener](../src/client/java/org/wynnvets/listeners/LegacyTooltipEventListener.java) — sets hover context before tooltip
 - [ServerConnectionListener](../src/client/java/org/wynnvets/listeners/ServerConnectionListener.java) — resets `newTooltipStylesAvailable` on disconnect
 
@@ -110,11 +111,13 @@ No hardcoded tooltip strings — everything is YAML-driven or runtime-derived fr
 
 ## 5. Visual rendering — gradient + sprite
 
-Rendered in **two places**, using identical drawing code:
+Drawn from **one place** — [LegacyHighlightPainter.paintIfLegacy(guiGraphics, stack, x, y)](../src/client/java/org/wynnvets/items/LegacyHighlightPainter.java) — reached from **two call sites**, which is the whole of each one's body. It was the same guard chain and the same two draw calls written twice; `grep -rn 'fillGradient\|drawSprite' src/client/java` now returns the painter and nothing else. The painter takes `(int x, int y)` rather than a `Slot`, because the mixin only has ints and a `Slot` parameter would pull `net.minecraft.world.inventory.Slot` into a `Gui` mixin. It has no unit test and cannot have one: every statement needs a live `GuiGraphics` and two need Wynntils classes that are absent at test runtime.
 
-**Hotbar:** [LegacyHotbarMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyHotbarMixin.java) — `@Inject(method = "renderSlot", at = @At("HEAD"))` on `net.minecraft.client.gui.Gui`.
+**Hotbar:** [LegacyHotbarMixin](../src/client/java/org/wynnvets/mixin/client/legacy/LegacyHotbarMixin.java) — `@Inject(method = "renderSlot", at = @At("HEAD"))` on `net.minecraft.client.gui.Gui`, passing the injected `x` / `y` straight through. The mixin imports no Wynntils class and no `VetsConfig` any more; a mixin's imports are what it transplants into its target, so that is worth keeping true.
 
-**Containers:** [LegacyHighlightEventListener](../src/client/java/org/wynnvets/listeners/LegacyHighlightEventListener.java) — subscribes to Wynntils `SlotRenderEvent.Pre` at `EventPriority.LOWEST` so it runs **after** Wynntils' `ItemHighlightFeature` (at `HIGH`), effectively overriding the stock Wynntils rarity highlight.
+**Containers:** [LegacyHighlightEventListener](../src/client/java/org/wynnvets/listeners/LegacyHighlightEventListener.java) — subscribes to Wynntils `SlotRenderEvent.Pre` at `EventPriority.LOWEST` so it runs **after** Wynntils' `ItemHighlightFeature` (at `HIGH`), effectively overriding the stock Wynntils rarity highlight. It passes `slot.x` / `slot.y` and `event.getGuiGraphics()`, which is a plain getter over a final field, so reading it before the guards rather than after costs one field read.
+
+Guard chain, both sites, inside the painter: `stack.isEmpty()` → `LegacyItemHandler.isLegacyItem(stack)`. The second subsumes the `LEGACY_ITEM_HIGHLIGHTING` check, since `isLegacyItem` opens with it — the hotbar mixin used to repeat that check itself, and dropping the repeat is what made the two chains the same function.
 
 Drawing sequence:
 1. `guiGraphics.fillGradient(x, y, x+16, y+16, topColor, bottomColor)` — top/bottom colours from `LegacyItemStyle.getBackgroundGradientTopColor()` / `…BottomColor()` with per-colour opacity packed into ARGB alpha
@@ -147,9 +150,9 @@ Registered in `VetsConfig.USER_CONFIG_KEYS`. Validation delegated to `VetsConfig
 
 **Startup:** `VetsmodClient.onInitializeClient()` → `VetsConfig.load()` → `ItemDefinitions.load()` (compiles regex) → event listeners registered.
 
-**Hotbar frame:** vanilla `Gui.renderSlot()` → `LegacyHotbarMixin` HEAD → `isLegacyItem()` → 8-branch cascade → if true draw gradient + sprite → vanilla continues.
+**Hotbar frame:** vanilla `Gui.renderSlot()` → `LegacyHotbarMixin` HEAD → `LegacyHighlightPainter.paintIfLegacy()` → `isLegacyItem()` → 8-branch cascade → if true draw gradient + sprite → vanilla continues.
 
-**Container frame:** `AbstractContainerScreen.renderSlot()` runs → `LegacyHighlightMixin` HEAD captures hover state → Wynntils `SlotRenderEvent.Pre` fires → `LegacyHighlightEventListener` (LOWEST) draws gradient + sprite.
+**Container frame:** `AbstractContainerScreen.renderSlot()` runs → `LegacyHighlightMixin` HEAD captures hover state → Wynntils `SlotRenderEvent.Pre` fires → `LegacyHighlightEventListener` (LOWEST) → `LegacyHighlightPainter.paintIfLegacy()` → gradient + sprite.
 
 **Tooltip frame:** `GuiGraphics.setTooltipForNextFrame()` → `LegacyItemTooltipMixin` HEAD → reentry guard → `LegacyTooltipRenderer.processTooltip()` → 9-branch cascade → if modified: cancel vanilla + re-invoke with modified list, set gold border (only if `newTooltipStylesAvailable`).
 

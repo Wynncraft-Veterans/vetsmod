@@ -62,7 +62,8 @@ VetsmodClient (entry point)
   │                           is a further scheduled fetcher, but lives under mwe/anni/zone/
   ├── CommandRegistry         /wv command tree
   ├── items/                  ItemDefinitions plus LegacyItemHandler, LegacyTooltipRenderer,
-  │                           NewFormatRenderer, LegacyEnchantmentRenderer, LegacyScreenshotHandler
+  │                           NewFormatRenderer, LegacyEnchantmentRenderer, LegacyScreenshotHandler,
+  │                           LegacyHighlightPainter (the slot highlight both draw sites call)
   ├── mwe/anni/               MWE/annihilation subsystem — snapshot cache, boss bar, outlines,
   │                           zone lines, waypoint, RSVP, debug tree (29 files, 12 sub-packages)
   ├── distribute/             /wv distribute — Guild Management GUI automation: sends
