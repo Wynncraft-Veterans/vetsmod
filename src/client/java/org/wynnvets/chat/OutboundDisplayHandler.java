@@ -369,15 +369,24 @@ public final class OutboundDisplayHandler {
     }
 
     // Package-private for unit tests. See JsonAccessorTest.
+    // Character-identical to org.wynnvets.util.Json.stringOrEmpty's effect —
+    // Json.optString with "" as the fallback, log message included — so that
+    // pointing this at it is provably a no-op. C7 does.
     static String getStringOrEmpty(JsonObject json, String key) {
         if (json == null) {
+            VetsLogger.warn("Json.optString: null object reading '{}'; using the fallback", key);
             return "";
         }
-
-        if (json.has(key) && !json.get(key).isJsonNull()) {
+        if (!json.has(key) || json.get(key).isJsonNull()) return "";
+        try {
             return json.get(key).getAsString();
+        } catch (RuntimeException e) {
+            VetsLogger.warn(
+                    "Json.optString: '{}' is not a string ({}); using the fallback",
+                    key,
+                    e.getClass().getSimpleName());
+            return "";
         }
-        return "";
     }
 
     private static final class PendingSelfMessage {

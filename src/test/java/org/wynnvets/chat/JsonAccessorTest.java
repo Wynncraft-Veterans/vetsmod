@@ -1,7 +1,6 @@
 package org.wynnvets.chat;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -15,7 +14,7 @@ import org.junit.jupiter.api.Test;
  * census missed.
  *
  * <p>The cross-site policy table lives on
- * {@code org.wynnvets.chat.dispatcher.JsonAccessorTest}. This one matters more
+ * {@code org.wynnvets.chat.dispatcher.JsonAccessorTest}. This one mattered more
  * than "one more duplicate" suggests: it is byte-for-byte the same body as
  * {@code OnlineMemberService.stringOrEmpty} in a different package, it has
  * seven call sites (:126, :142, :148, :149, :154, :163, :164 — the "eight" this
@@ -24,7 +23,9 @@ import org.junit.jupiter.api.Test;
  * {@code onOutboundMessage} reads a bridge frame with it and hands the result
  * to {@code WarningRewriter.render}, whose own {@code optString} answers the
  * same three questions differently. A shared helper has to reconcile the two
- * ends of that one code path, not merely five scattered copies.</p>
+ * ends of that one code path, not merely five scattered copies. 5g did: C3 gave
+ * {@code WarningRewriter.optString} the tolerant answer and C6 gives it to this
+ * one, so the two ends now agree.</p>
  */
 class JsonAccessorTest {
 
@@ -53,10 +54,17 @@ class JsonAccessorTest {
     }
 
     @Test
-    void getStringOrEmpty_letsAWrongTypedValueThrow() {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> OutboundDisplayHandler.getStringOrEmpty(withValue(new JsonObject()), "k"));
+    void getStringOrEmpty_fallsBackToTheEmptyStringOnAWrongTypedValue() {
+        // Changed by 5g's C6. The throw used to escape into V1ApiManager's
+        // outbound fan-out, whose catch logged a generic WARN — so the chat
+        // line never rendered at all. Now one field defaults and it does.
+        //
+        // The one consequence worth naming: `uuid` is read this way at :142
+        // and gates the dedup window on `!uuid.isEmpty()`. A junk uuid now
+        // yields "", which skips dedup, so a duplicated frame could display
+        // twice. That is strictly better than the whole line vanishing, and it
+        // is a trade rather than a free win.
+        assertEquals("", OutboundDisplayHandler.getStringOrEmpty(withValue(new JsonObject()), "k"));
     }
 
     @Test
