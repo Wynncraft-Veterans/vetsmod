@@ -165,8 +165,9 @@ public final class RandomDistributor {
         }
         DistributionQueue.Distribution d = queue.poll();
         VetsLogger.debug(
-                "RandomDistributor: searching for [{}], {} remaining after this",
+                "RandomDistributor: queue popped [{}] (count={}), {} left",
                 d.legacyName(),
+                d.count(),
                 queue.size());
 
         // Names are already in the legacy form from fetchAllLegacyNames(),
