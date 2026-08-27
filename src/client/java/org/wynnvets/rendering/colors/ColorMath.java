@@ -3,8 +3,10 @@ package org.wynnvets.rendering.colors;
 /**
  * The mod's shared RGB interpolation.
  *
- * <p>Three classes each declared their own private lerp &mdash; byte-identical modulo local
- * variable names: {@link GradientTextBuilder}'s {@code interpolateRgb},
+ * <p>Three classes each declared their own package-private lerp &mdash; identical apart from
+ * local variable names <i>and how many declarations share a line</i>: the other two packed
+ * {@code int r1 = …, g1 = …, b1 = …;} where this one writes three statements. They were
+ * {@link GradientTextBuilder}'s {@code interpolateRgb},
  * {@link AnimatedGradientSequence}'s {@code interpolateColor}, and
  * {@code org.wynnvets.rendering.nametag.NametagAnimator}'s {@code interpolateColor}. All four
  * call sites read this one instead.</p>

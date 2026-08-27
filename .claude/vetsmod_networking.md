@@ -118,6 +118,7 @@ Six classes hand-rolled this read before, seven methods over 44 call sites, and 
 | `OutboundDisplayHandler.getStringOrEmpty` ×7, and `WarningRewriter`'s 3 `optString` + 1 `optInt` beneath it | threw | `V1ApiManager`'s outbound fan-out `catch` logged a generic WARN — the chat line or warning banner **never rendered** |
 | `CautionCommands.optString` ×14 | threw | reached `BlockableEventLoop.doRunTask` via `Minecraft.execute` → FATAL-marker ERROR, then swallowed — the `/caution` readout **aborted mid-render**, header already on screen |
 | `CommandDispatcher.stringOrNull` ×5, `StaffFetcher.stringOrNull` ×7 | swallowed to null | nothing; these two were already tolerant, and only gained the warn |
+| `CautionCommands.optInt` ×4 | fallback | nothing — it was the model the other six converged onto, and gained only the warn and a narrowed `catch` |
 
 So the change was not "loud failure → silent fallback". It was *most of a payload destroyed, half of it invisibly* → *one field defaulted, always named*. Note the mirror: had the shared body **thrown** instead (the 4-of-6 majority), `stringOrNull`'s 12 sites would have flipped from silent-skip to throw, and `StaffFetcher.parseOnlineStaff` sits inside a `catch` that prints "Error parsing staff data: …" in red — one junk `world` field would turn a working `/wv staff` into an error screen.
 

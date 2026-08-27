@@ -105,7 +105,7 @@ each of the three channels interpolated independently, `Math.round` (so the midp
 black→white is `0x808080`, not `0x7F7F7F`), an alpha byte on either input discarded.
 
 Four call sites: `AnimatedGradientSequence` ×1, `GradientTextBuilder` ×2, `NametagAnimator` ×1.
-It was those three classes' own private copies, byte-identical modulo local variable names.
+It was those three classes' own package-private copies, identical apart from local variable names and how many declarations share a line — `AnimatedGradientSequence` and `NametagAnimator` both packed `int r1 = …, g1 = …, b1 = …;` onto one line where `GradientTextBuilder`, and now `ColorMath`, write three statements.
 
 **`t` is not clamped, and that is the contract.** Outside `[0, 1]` a channel rounds past
 `0..255` and the shift-and-or recombination bleeds it into the neighbouring channel or the sign
@@ -114,7 +114,7 @@ bit — `t = 1.5` on black→white gives `0x017F7F7F`, `t = 2` gives `0x01FFFFFE
 argued rather than tidied in. Every current caller feeds a normalised `t`, so none of it is
 reachable today — which is a property of the callers, not of the method.
 
-**Not a resident:** `NametagAnimator`'s `mixToward`, and the `lighten` / `darken` built on it.
+**Not a resident:** `NametagAnimator`'s `mixToward`, the `darken` built on it, and the standalone `lighten` — only `darken` delegates; `lighten` unpacks the channels itself and blends toward the literal (255, 225, 255).
 Same weighted average, then a clamp per channel. Folding them in would silently clamp
 `ColorMath`'s four call sites or silently unclamp their four.
 

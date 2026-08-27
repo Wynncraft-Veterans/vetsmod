@@ -30,9 +30,12 @@ import org.wynnvets.config.VetsConfig;
  * {@code LEGACY_ITEM_HIGHLIGHTING} — and the empty-stack check, which is kept here anyway as
  * the cheaper of the two.</p>
  *
- * <p><b>No unit test is possible, and that is not a coverage gap to fix.</b> Every statement
- * needs a live {@link GuiGraphics}, and two of them need Wynntils' {@link RenderUtils} and
- * {@link CustomColor}, which are absent from the test runtime classpath. The check for this
+ * <p><b>No unit test is possible, and that is not a coverage gap to fix.</b> Both draw
+ * statements need a live {@link GuiGraphics}; one of them also needs Wynntils'
+ * {@link RenderUtils} and {@link CustomColor}, which are {@code modCompileOnly} and so absent
+ * from the test runtime classpath. Even the two guards above them are out of reach &mdash;
+ * they take an {@link ItemStack}, and nothing under {@code src/test} constructs one, because
+ * {@code ItemStack.EMPTY} needs the Minecraft bootstrap. The check for this
  * class is the build plus the in-game pass, on a legacy item in the hotbar and the same item
  * in an inventory slot — two different code paths into one method.</p>
  */

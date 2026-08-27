@@ -170,8 +170,9 @@ public final class Json {
     /**
      * {@link #optString} with {@code null} as the fallback.
      *
-     * <p>Exists so the twelve call sites that never supplied a fallback do not grow an
-     * argument. {@code null} <i>is</i> a fallback; this is not a fourth policy.</p>
+     * <p>Exists so the call sites that never supplied a fallback did not grow an argument
+     * &mdash; twelve when this was written, <b>seventeen</b> once {@code NameResolver}'s five
+     * member-field reads joined them. {@code null} <i>is</i> a fallback; this is not a fourth policy.</p>
      *
      * @param obj the object to read; a {@code null} is tolerated and warns
      * @param key the field name
