@@ -314,23 +314,7 @@ public final class OnlineMemberService {
         return new GatherResult(result, modGuildUuids, queuedUuids, guildInfo != null);
     }
 
-    // Character-identical to org.wynnvets.util.Json.stringOrEmpty's effect —
-    // Json.optString with "" as the fallback, log message included — so that
-    // pointing this at it is provably a no-op. C7 does.
     static String stringOrEmpty(JsonObject obj, String key) {
-        if (obj == null) {
-            VetsLogger.warn("Json.optString: null object reading '{}'; using the fallback", key);
-            return "";
-        }
-        if (!obj.has(key) || obj.get(key).isJsonNull()) return "";
-        try {
-            return obj.get(key).getAsString();
-        } catch (RuntimeException e) {
-            VetsLogger.warn(
-                    "Json.optString: '{}' is not a string ({}); using the fallback",
-                    key,
-                    e.getClass().getSimpleName());
-            return "";
-        }
+        return Json.stringOrEmpty(obj, key);
     }
 }

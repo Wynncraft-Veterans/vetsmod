@@ -459,19 +459,7 @@ public final class CommandDispatcher {
 
     // Package-private for unit tests. See JsonAccessorTest.
     static String stringOrNull(JsonObject obj, String key) {
-        if (obj == null) {
-            return null;
-        }
-
-        if (!obj.has(key) || obj.get(key).isJsonNull()) {
-            return null;
-        }
-
-        try {
-            return obj.get(key).getAsString();
-        } catch (Exception e) {
-            return null;
-        }
+        return Json.stringOrNull(obj, key);
     }
 
     static boolean sleepQuietly(long delayMs) {
