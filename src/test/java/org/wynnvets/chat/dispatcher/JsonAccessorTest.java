@@ -2,7 +2,6 @@ package org.wynnvets.chat.dispatcher;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -30,22 +29,27 @@ import org.junit.jupiter.api.Test;
  *   <caption>Policy per site</caption>
  *   <tr><th>Site</th><th>Missing or null</th><th>Wrong type</th><th>Null receiver</th></tr>
  *   <tr><td>{@code CommandDispatcher.stringOrNull}</td><td>null</td>
- *       <td>swallowed to null</td><td>NPE</td></tr>
+ *       <td>swallowed to null</td><td>tolerated</td></tr>
  *   <tr><td>{@code StaffFetcher.stringOrNull}</td><td>null</td>
- *       <td>swallowed to null</td><td>NPE</td></tr>
+ *       <td>swallowed to null</td><td>tolerated</td></tr>
  *   <tr><td>{@code WarningRewriter.optString}</td><td>fallback</td>
- *       <td>throws</td><td>NPE</td></tr>
+ *       <td>throws</td><td>tolerated</td></tr>
  *   <tr><td>{@code CautionCommands.optString}</td><td>fallback</td>
  *       <td>throws</td><td>tolerated</td></tr>
  *   <tr><td>{@code OnlineMemberService.stringOrEmpty}</td><td>empty string</td>
- *       <td>throws</td><td>NPE</td></tr>
+ *       <td>throws</td><td>tolerated</td></tr>
  *   <tr><td>{@code OutboundDisplayHandler.getStringOrEmpty}</td><td>empty string</td>
- *       <td>throws</td><td>NPE</td></tr>
+ *       <td>throws</td><td>tolerated</td></tr>
  * </table>
  *
- * <p>Three independent axes, not one — so no single signature absorbs all six
- * without changing at least three of them. A fourth axis is the return contract
- * itself: three of the six take no {@code fallback} parameter, so folding them
+ * <p>The third column read NPE at five of these six rows until 5g's C2. It does
+ * not any more: all six tolerate a null receiver, which settles axis 3 and
+ * leaves two genuinely open.</p>
+ *
+ * <p>Two independent axes, then, where there were three — so no single
+ * signature absorbs all six without changing at least three of them. A fourth
+ * axis is the return contract itself: three of the six take no
+ * {@code fallback} parameter, so folding them
  * into a fallback-taking helper grows an argument at every call site.</p>
  *
  * <p>The last row was missing from the Phase 4 brief's census and was found by
@@ -132,9 +136,14 @@ class JsonAccessorTest {
     // ----- Axis 3: null receiver -----
 
     @Test
-    void stringOrNull_throwsOnANullObject() {
-        // This site's answer to axis 3. Five of the six agree; only
-        // CautionCommands.optString guards.
-        assertThrows(NullPointerException.class, () -> CommandDispatcher.stringOrNull(null, "k"));
+    void stringOrNull_toleratesANullObject() {
+        // This site's answer to axis 3, changed: it used to NPE, and so did
+        // four of the other five. NameResolver.forEachGuildMember genuinely
+        // hands a null member to its handler for a malformed entry, so a
+        // shared helper that NPE'd would permanently exclude the one site that
+        // needs the tolerance. At this call site the receiver is non-null by
+        // construction — element.getAsJsonObject() behind an isJsonObject()
+        // check — so nothing here changes.
+        assertNull(CommandDispatcher.stringOrNull(null, "k"));
     }
 }

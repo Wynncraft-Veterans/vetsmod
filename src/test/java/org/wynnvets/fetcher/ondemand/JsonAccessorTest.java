@@ -19,9 +19,9 @@ import org.junit.jupiter.api.Test;
  * {@code org.wynnvets.chat.dispatcher.JsonAccessorTest}. These two share a
  * package and a payload shape and still disagree on two of the three axes: one
  * returns null on a miss and swallows a wrong type, the other returns an empty
- * string and lets the exception out. (They agree on the third — both NPE on a
- * null receiver.) Whichever body a shared helper adopts, one of these two call
- * sites changes behaviour.</p>
+ * string and lets the exception out. (They agree on the third — both tolerate
+ * a null receiver since 5g's C2; both used to NPE.) Whichever body a shared
+ * helper adopts, one of these two call sites changes behaviour.</p>
  *
  * <p>{@code stringOrEmpty} was already package-private and needed no seam.</p>
  */
@@ -59,8 +59,8 @@ class JsonAccessorTest {
     }
 
     @Test
-    void stringOrNull_throwsOnANullObject() {
-        assertThrows(NullPointerException.class, () -> StaffFetcher.stringOrNull(null, "k"));
+    void stringOrNull_toleratesANullObject() {
+        assertNull(StaffFetcher.stringOrNull(null, "k"));
     }
 
     // ----- OnlineMemberService.stringOrEmpty -----
@@ -92,9 +92,8 @@ class JsonAccessorTest {
     }
 
     @Test
-    void stringOrEmpty_throwsOnANullObject() {
-        assertThrows(
-                NullPointerException.class, () -> OnlineMemberService.stringOrEmpty(null, "k"));
+    void stringOrEmpty_toleratesANullObject() {
+        assertEquals("", OnlineMemberService.stringOrEmpty(null, "k"));
     }
 
     // ----- The two disagree on real input -----

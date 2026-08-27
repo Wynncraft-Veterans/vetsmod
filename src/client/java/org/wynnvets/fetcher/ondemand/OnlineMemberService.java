@@ -315,6 +315,10 @@ public final class OnlineMemberService {
     }
 
     static String stringOrEmpty(JsonObject obj, String key) {
+        if (obj == null) {
+            return "";
+        }
+
         if (obj.has(key) && !obj.get(key).isJsonNull()) {
             return obj.get(key).getAsString();
         }

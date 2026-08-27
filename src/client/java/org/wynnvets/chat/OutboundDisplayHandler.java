@@ -370,6 +370,10 @@ public final class OutboundDisplayHandler {
 
     // Package-private for unit tests. See JsonAccessorTest.
     static String getStringOrEmpty(JsonObject json, String key) {
+        if (json == null) {
+            return "";
+        }
+
         if (json.has(key) && !json.get(key).isJsonNull()) {
             return json.get(key).getAsString();
         }

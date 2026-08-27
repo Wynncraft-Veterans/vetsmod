@@ -60,10 +60,8 @@ class JsonAccessorTest {
     }
 
     @Test
-    void getStringOrEmpty_throwsOnANullObject() {
-        assertThrows(
-                NullPointerException.class,
-                () -> OutboundDisplayHandler.getStringOrEmpty(null, "k"));
+    void getStringOrEmpty_toleratesANullObject() {
+        assertEquals("", OutboundDisplayHandler.getStringOrEmpty(null, "k"));
     }
 
     @Test

@@ -459,6 +459,10 @@ public final class CommandDispatcher {
 
     // Package-private for unit tests. See JsonAccessorTest.
     static String stringOrNull(JsonObject obj, String key) {
+        if (obj == null) {
+            return null;
+        }
+
         if (!obj.has(key) || obj.get(key).isJsonNull()) {
             return null;
         }
