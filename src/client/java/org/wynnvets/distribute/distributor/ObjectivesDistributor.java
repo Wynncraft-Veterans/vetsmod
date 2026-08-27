@@ -60,10 +60,6 @@ public final class ObjectivesDistributor {
 
     private static final Random RNG = new Random();
 
-    /** One queued recipient and the per-user count we owe them. */
-    // Package-private for unit tests. See ObjectivesDistributorTest.
-    record Distribution(String legacyName, int count) {}
-
     private ObjectivesDistributor() {}
 
     /**
@@ -138,7 +134,7 @@ public final class ObjectivesDistributor {
             return;
         }
 
-        Deque<Distribution> queue = buildDistribution(completers, count);
+        Deque<DistributionQueue.Distribution> queue = buildDistribution(completers, count);
         if (queue.isEmpty()) {
             // Can happen if count == 0 (excluded by brigadier bounds, but
             // defensive); nothing to send.
@@ -167,7 +163,8 @@ public final class ObjectivesDistributor {
      * and they didn't draw the bonus) are dropped.
      */
     // Package-private for unit tests. See ObjectivesDistributorTest.
-    static Deque<Distribution> buildDistribution(List<String> completers, int total) {
+    static Deque<DistributionQueue.Distribution> buildDistribution(
+            List<String> completers, int total) {
         int k = completers.size();
         int base = total / k;
         int remainder = total % k;
@@ -176,17 +173,19 @@ public final class ObjectivesDistributor {
         List<String> shuffled = new ArrayList<>(completers);
         Collections.shuffle(shuffled, RNG);
 
-        Deque<Distribution> queue = new ArrayDeque<>();
+        Deque<DistributionQueue.Distribution> queue = new ArrayDeque<>();
         for (int i = 0; i < shuffled.size(); i++) {
             int perUser = base + (i < remainder ? 1 : 0);
             if (perUser <= 0) continue;
-            queue.add(new Distribution(shuffled.get(i), perUser));
+            queue.add(new DistributionQueue.Distribution(shuffled.get(i), perUser));
         }
         return queue;
     }
 
     private static void processNext(
-            Deque<Distribution> queue, MemberSlotPresser.Resource resource, Runnable onComplete) {
+            Deque<DistributionQueue.Distribution> queue,
+            MemberSlotPresser.Resource resource,
+            Runnable onComplete) {
         if (queue.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Distribution complete.").withStyle(ChatFormatting.GREEN));
@@ -194,7 +193,7 @@ public final class ObjectivesDistributor {
             if (onComplete != null) onComplete.run();
             return;
         }
-        Distribution d = queue.poll();
+        DistributionQueue.Distribution d = queue.poll();
         VetsLogger.debug(
                 "ObjectivesDistributor: queue popped [{}] (count={}), {} left",
                 d.legacyName(),

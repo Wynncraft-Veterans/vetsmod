@@ -34,7 +34,9 @@ import org.junit.jupiter.api.Test;
  *
  * <p>NOTE: {@link GraidsDistributor} imports Wynntils, but its static state is
  * a {@code String}, a {@code Pattern} and a {@code Random}, so nothing loads
- * during class-init.</p>
+ * during class-init. The same holds for {@link DistributionQueue}, whose nested
+ * {@code Distribution} record these tests now name: it declares no static state
+ * at all, and no supertypes.</p>
  */
 class GraidsDistributorTest {
 
@@ -48,25 +50,25 @@ class GraidsDistributorTest {
         return map;
     }
 
-    private static List<String> names(Deque<GraidsDistributor.Distribution> queue) {
+    private static List<String> names(Deque<DistributionQueue.Distribution> queue) {
         List<String> out = new ArrayList<>();
-        for (GraidsDistributor.Distribution d : queue) {
+        for (DistributionQueue.Distribution d : queue) {
             out.add(d.legacyName());
         }
         return out;
     }
 
-    private static List<Integer> counts(Deque<GraidsDistributor.Distribution> queue) {
+    private static List<Integer> counts(Deque<DistributionQueue.Distribution> queue) {
         List<Integer> out = new ArrayList<>();
-        for (GraidsDistributor.Distribution d : queue) {
+        for (DistributionQueue.Distribution d : queue) {
             out.add(d.count());
         }
         return out;
     }
 
-    private static int sum(Deque<GraidsDistributor.Distribution> queue) {
+    private static int sum(Deque<DistributionQueue.Distribution> queue) {
         int total = 0;
-        for (GraidsDistributor.Distribution d : queue) {
+        for (DistributionQueue.Distribution d : queue) {
             total += d.count();
         }
         return total;
@@ -76,7 +78,7 @@ class GraidsDistributorTest {
 
     @Test
     void queueIsOrderedByFrequencyDescending() {
-        Deque<GraidsDistributor.Distribution> queue =
+        Deque<DistributionQueue.Distribution> queue =
                 GraidsDistributor.buildDistribution(freq("low", 1, "high", 3, "mid", 2), 12);
 
         assertEquals(
@@ -89,7 +91,7 @@ class GraidsDistributorTest {
     void equalFrequenciesTieBreakOnNameCaseInsensitively() {
         // compareToIgnoreCase, so "Bob" sorts after "alice" rather than before
         // it as a plain compareTo would put every capitalised name first.
-        Deque<GraidsDistributor.Distribution> queue =
+        Deque<DistributionQueue.Distribution> queue =
                 GraidsDistributor.buildDistribution(freq("Bob", 2, "alice", 2), 4);
 
         assertEquals(List.of("alice", "Bob"), names(queue));
@@ -101,7 +103,7 @@ class GraidsDistributorTest {
     void sharesAreProportionalToParticipation() {
         // 3:1 participation over 8 rewards is 6:2, not 4:4. This is the whole
         // difference from the objectives and split distributors.
-        Deque<GraidsDistributor.Distribution> queue =
+        Deque<DistributionQueue.Distribution> queue =
                 GraidsDistributor.buildDistribution(freq("a", 3, "b", 1), 8);
 
         assertEquals(List.of("a", "b"), names(queue));
@@ -110,7 +112,7 @@ class GraidsDistributorTest {
 
     @Test
     void anExactDivisionLeavesNoRemainderAndIsFullyDeterministic() {
-        Deque<GraidsDistributor.Distribution> queue =
+        Deque<DistributionQueue.Distribution> queue =
                 GraidsDistributor.buildDistribution(freq("a", 2, "b", 1), 6);
 
         assertEquals(List.of("a", "b"), names(queue));
@@ -124,7 +126,7 @@ class GraidsDistributorTest {
         // Equal frequencies over 4 rewards: everyone floors to 1 and one
         // participant draws the extra. Which one is random; where they appear
         // in the queue is not.
-        Deque<GraidsDistributor.Distribution> queue =
+        Deque<DistributionQueue.Distribution> queue =
                 GraidsDistributor.buildDistribution(freq("c", 1, "a", 1, "b", 1), 4);
 
         assertEquals(
@@ -141,7 +143,7 @@ class GraidsDistributorTest {
         // The loop indexes a shuffled pool of distinct names, so no name can be
         // picked twice however large the remainder is.
         for (int trial = 0; trial < 50; trial++) {
-            Deque<GraidsDistributor.Distribution> queue =
+            Deque<DistributionQueue.Distribution> queue =
                     GraidsDistributor.buildDistribution(freq("a", 1, "b", 1, "c", 1), 5);
             for (int count : counts(queue)) {
                 assertTrue(count <= 2, "floor 1 plus at most one bonus, got " + count);
@@ -168,7 +170,7 @@ class GraidsDistributorTest {
         // 1 reward across 11 participations: every floor is 0, so only the
         // single bonus winner is queued. Visiting the rest would cost a menu
         // search each to send them nothing.
-        Deque<GraidsDistributor.Distribution> queue =
+        Deque<DistributionQueue.Distribution> queue =
                 GraidsDistributor.buildDistribution(freq("a", 10, "b", 1), 1);
 
         assertEquals(1, queue.size());
@@ -182,7 +184,7 @@ class GraidsDistributorTest {
     void aParticipantWithAZeroShareDisappearsWhileTheRestKeepTheirOrder() {
         // 3 rewards over 12 participations: a floors to 2, b to 0, and the one
         // leftover goes to a random one of the two.
-        Deque<GraidsDistributor.Distribution> queue =
+        Deque<DistributionQueue.Distribution> queue =
                 GraidsDistributor.buildDistribution(freq("a", 11, "b", 1), 3);
 
         assertEquals(3, sum(queue));

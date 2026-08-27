@@ -25,24 +25,26 @@ import org.junit.jupiter.api.Test;
  *
  * <p>NOTE: {@link ObjectivesDistributor} imports Wynntils {@code Managers}, but
  * its static state is a {@code String}, a {@code Pattern} and a {@code Random},
- * so nothing loads during class-init.</p>
+ * so nothing loads during class-init. The same holds for
+ * {@link DistributionQueue}, whose nested {@code Distribution} record these tests
+ * now name: it declares no static state at all, and no supertypes.</p>
  */
 class ObjectivesDistributorTest {
 
     private static final String HEADER = "Guild Objective:";
 
-    private static List<Integer> sortedCounts(Deque<ObjectivesDistributor.Distribution> queue) {
+    private static List<Integer> sortedCounts(Deque<DistributionQueue.Distribution> queue) {
         List<Integer> counts = new ArrayList<>();
-        for (ObjectivesDistributor.Distribution d : queue) {
+        for (DistributionQueue.Distribution d : queue) {
             counts.add(d.count());
         }
         counts.sort(null);
         return counts;
     }
 
-    private static List<String> names(Deque<ObjectivesDistributor.Distribution> queue) {
+    private static List<String> names(Deque<DistributionQueue.Distribution> queue) {
         List<String> out = new ArrayList<>();
-        for (ObjectivesDistributor.Distribution d : queue) {
+        for (DistributionQueue.Distribution d : queue) {
             out.add(d.legacyName());
         }
         out.sort(null);
@@ -161,7 +163,7 @@ class ObjectivesDistributorTest {
 
     @Test
     void buildDistribution_evenSplitGivesEveryoneTheSameCount() {
-        Deque<ObjectivesDistributor.Distribution> queue =
+        Deque<DistributionQueue.Distribution> queue =
                 ObjectivesDistributor.buildDistribution(List.of("a", "b", "c"), 6);
 
         assertEquals(3, queue.size());
@@ -172,7 +174,7 @@ class ObjectivesDistributorTest {
 
     @Test
     void buildDistribution_remainderBecomesAPlusOneBonus() {
-        Deque<ObjectivesDistributor.Distribution> queue =
+        Deque<DistributionQueue.Distribution> queue =
                 ObjectivesDistributor.buildDistribution(List.of("a", "b", "c"), 7);
 
         assertEquals(3, queue.size());
@@ -188,7 +190,7 @@ class ObjectivesDistributorTest {
         // N < K: base is 0, so only the `remainder` bonus winners are queued.
         // Visiting the rest just to send them nothing would cost a menu search
         // each.
-        Deque<ObjectivesDistributor.Distribution> queue =
+        Deque<DistributionQueue.Distribution> queue =
                 ObjectivesDistributor.buildDistribution(List.of("a", "b", "c", "d", "e"), 2);
 
         assertEquals(2, queue.size());
@@ -199,10 +201,10 @@ class ObjectivesDistributorTest {
     void buildDistribution_totalIsAlwaysConserved() {
         List<String> completers = List.of("a", "b", "c", "d", "e", "f", "g");
         for (int total = 0; total <= 64; total++) {
-            Deque<ObjectivesDistributor.Distribution> queue =
+            Deque<DistributionQueue.Distribution> queue =
                     ObjectivesDistributor.buildDistribution(completers, total);
             int sum = 0;
-            for (ObjectivesDistributor.Distribution d : queue) {
+            for (DistributionQueue.Distribution d : queue) {
                 sum += d.count();
             }
             assertEquals(total, sum, "the queue must hand out exactly what it was given: " + total);

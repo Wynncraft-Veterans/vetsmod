@@ -78,10 +78,6 @@ public final class GraidsDistributor {
 
     private static final Random RNG = new Random();
 
-    /** One queued recipient and the per-user count we owe them. */
-    // Package-private for unit tests. See GraidsDistributorTest.
-    record Distribution(String legacyName, int count) {}
-
     private GraidsDistributor() {}
 
     /**
@@ -175,7 +171,7 @@ public final class GraidsDistributor {
             return;
         }
 
-        Deque<Distribution> queue = buildDistribution(freq, count);
+        Deque<DistributionQueue.Distribution> queue = buildDistribution(freq, count);
         if (queue.isEmpty()) {
             // count == 0 (excluded by brigadier bounds) or everyone rounded to 0
             // and no remainder — nothing to send.
@@ -236,7 +232,8 @@ public final class GraidsDistributor {
      * subset of participants, each at most once.
      */
     // Package-private for unit tests. See GraidsDistributorTest.
-    static Deque<Distribution> buildDistribution(Map<String, Integer> freq, int count) {
+    static Deque<DistributionQueue.Distribution> buildDistribution(
+            Map<String, Integer> freq, int count) {
         int totalParticipations = 0;
         for (int f : freq.values()) totalParticipations += f;
         if (totalParticipations <= 0) return new ArrayDeque<>();
@@ -271,10 +268,10 @@ public final class GraidsDistributor {
 
         // Queue in the same stable order as `participants` so the visit
         // sequence is predictable.
-        Deque<Distribution> queue = new ArrayDeque<>();
+        Deque<DistributionQueue.Distribution> queue = new ArrayDeque<>();
         for (Map.Entry<String, Integer> e : participants) {
             int s = shares.getOrDefault(e.getKey(), 0);
-            if (s > 0) queue.add(new Distribution(e.getKey(), s));
+            if (s > 0) queue.add(new DistributionQueue.Distribution(e.getKey(), s));
         }
         return queue;
     }
@@ -289,7 +286,9 @@ public final class GraidsDistributor {
     }
 
     private static void processNext(
-            Deque<Distribution> queue, MemberSlotPresser.Resource resource, Runnable onComplete) {
+            Deque<DistributionQueue.Distribution> queue,
+            MemberSlotPresser.Resource resource,
+            Runnable onComplete) {
         if (queue.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Distribution complete.").withStyle(ChatFormatting.GREEN));
@@ -297,7 +296,7 @@ public final class GraidsDistributor {
             if (onComplete != null) onComplete.run();
             return;
         }
-        Distribution d = queue.poll();
+        DistributionQueue.Distribution d = queue.poll();
         VetsLogger.debug(
                 "GraidsDistributor: queue popped [{}] (count={}), {} left",
                 d.legacyName(),
