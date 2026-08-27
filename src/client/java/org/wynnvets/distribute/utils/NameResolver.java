@@ -81,7 +81,7 @@ public final class NameResolver {
         forEachGuildMember(
                 body,
                 (currentName, member) -> {
-                    String legacy = legacyNameOf(member);
+                    String legacy = Json.stringOrNull(member, "legacyName");
                     // Renamed member → tile shows legacy; otherwise → current
                     // (also covers malformed entries where member is null).
                     names.add(legacy != null ? legacy : currentName);
@@ -184,7 +184,7 @@ public final class NameResolver {
         forEachGuildMember(
                 body,
                 (currentName, member) -> {
-                    String legacy = legacyNameOf(member);
+                    String legacy = Json.stringOrNull(member, "legacyName");
                     String legacyName = legacy != null ? legacy : currentName;
                     // Both forms point at the canonical legacy (= tile) name.
                     // equalsIgnoreCase-style lookup is achieved by lowercasing
@@ -203,9 +203,11 @@ public final class NameResolver {
                 body,
                 (currentName, member) -> {
                     if (member == null) return false;
-                    String uuid = uuidOf(member);
+                    // Raw form; normalizeUuid below reduces the dashed and
+                    // undashed spellings wapi may emit to one 32-char key.
+                    String uuid = Json.stringOrNull(member, "uuid");
                     if (uuid == null) return false;
-                    String legacy = legacyNameOf(member);
+                    String legacy = Json.stringOrNull(member, "legacyName");
                     map.put(normalizeUuid(uuid), legacy != null ? legacy : currentName);
                     return false;
                 });
@@ -226,7 +228,7 @@ public final class NameResolver {
                     // so an input matching a malformed entry's currentName still
                     // returns the not-found fallback rather than the currentName.
                     if (member == null) return false;
-                    String legacyName = legacyNameOf(member);
+                    String legacyName = Json.stringOrNull(member, "legacyName");
                     if (currentName.toLowerCase(Locale.ROOT).equals(lowerInput)) {
                         // Input matched a current name — return its legacy
                         // (or the current name itself if no rename happened).
@@ -285,28 +287,6 @@ public final class NameResolver {
         } catch (Exception e) {
             VetsLogger.debug("NameResolver: parse error: {}", e.getMessage());
         }
-    }
-
-    /** Returns the member's {@code legacyName} field if present and
-     *  non-null, else {@code null}. Tolerates a {@code null} member
-     *  argument (returns {@code null}). */
-    private static String legacyNameOf(JsonObject member) {
-        if (member == null) return null;
-        if (member.has("legacyName") && !member.get("legacyName").isJsonNull()) {
-            return member.get("legacyName").getAsString();
-        }
-        return null;
-    }
-
-    /** Returns the member's {@code uuid} field as a raw string if
-     *  present and non-null, else {@code null}. Callers should pass
-     *  the result through {@link #normalizeUuid} before comparing. */
-    private static String uuidOf(JsonObject member) {
-        if (member == null) return null;
-        if (member.has("uuid") && !member.get("uuid").isJsonNull()) {
-            return member.get("uuid").getAsString();
-        }
-        return null;
     }
 
     /** Strips dashes and lowercases — wapi may emit either form, and
