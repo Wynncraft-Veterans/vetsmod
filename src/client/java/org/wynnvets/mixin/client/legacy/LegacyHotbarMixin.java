@@ -1,7 +1,5 @@
 package org.wynnvets.mixin.client.legacy;
 
-import com.wynntils.utils.colors.CustomColor;
-import com.wynntils.utils.render.RenderUtils;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
@@ -11,7 +9,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.items.LegacyItemHandler;
+import org.wynnvets.items.LegacyHighlightPainter;
 
 /**
  * Draws the legacy-item highlight on hotbar slots rendered by the in-game HUD.
@@ -35,24 +33,6 @@ public class LegacyHotbarMixin {
             ItemStack stack,
             int seed,
             CallbackInfo ci) {
-        if (stack.isEmpty()) return;
-        if (LegacyItemHandler.isLegacyItem(stack)) {
-            guiGraphics.fillGradient(
-                    x,
-                    y,
-                    x + 16,
-                    y + 16,
-                    org.wynnvets.config.VetsConfig.getLegacyBackgroundGradientTopColor(),
-                    org.wynnvets.config.VetsConfig.getLegacyBackgroundGradientBottomColor());
-            RenderUtils.drawSprite(
-                    guiGraphics,
-                    org.wynnvets.config.VetsConfig.getLegacyForegroundTexture(),
-                    CustomColor.fromARGBInt(
-                            org.wynnvets.config.VetsConfig.getLegacyForegroundColor()),
-                    x - 10,
-                    y - 10,
-                    36,
-                    36);
-        }
+        LegacyHighlightPainter.paintIfLegacy(guiGraphics, stack, x, y);
     }
 }

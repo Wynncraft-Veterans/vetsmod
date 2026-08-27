@@ -2,15 +2,10 @@ package org.wynnvets.listeners;
 
 import com.wynntils.core.WynntilsMod;
 import com.wynntils.mc.event.SlotRenderEvent;
-import com.wynntils.utils.colors.CustomColor;
-import com.wynntils.utils.render.RenderUtils;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
-import org.wynnvets.config.VetsConfig;
-import org.wynnvets.items.LegacyItemHandler;
+import org.wynnvets.items.LegacyHighlightPainter;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -35,25 +30,7 @@ public final class LegacyHighlightEventListener {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onSlotRenderPre(SlotRenderEvent.Pre event) {
         Slot slot = event.getSlot();
-        ItemStack stack = slot.getItem();
-        if (stack.isEmpty()) return;
-        if (!LegacyItemHandler.isLegacyItem(stack)) return;
-
-        GuiGraphics guiGraphics = event.getGuiGraphics();
-        guiGraphics.fillGradient(
-                slot.x,
-                slot.y,
-                slot.x + 16,
-                slot.y + 16,
-                VetsConfig.getLegacyBackgroundGradientTopColor(),
-                VetsConfig.getLegacyBackgroundGradientBottomColor());
-        RenderUtils.drawSprite(
-                guiGraphics,
-                VetsConfig.getLegacyForegroundTexture(),
-                CustomColor.fromARGBInt(VetsConfig.getLegacyForegroundColor()),
-                slot.x - 10,
-                slot.y - 10,
-                36,
-                36);
+        LegacyHighlightPainter.paintIfLegacy(
+                event.getGuiGraphics(), slot.getItem(), slot.x, slot.y);
     }
 }
