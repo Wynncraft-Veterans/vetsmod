@@ -6,7 +6,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Rendering System
 
-Package: [org.wynnvets.rendering](../src/client/java/org/wynnvets/rendering/). 6 files across three sub-packages.
+Package: [org.wynnvets.rendering](../src/client/java/org/wynnvets/rendering/). 7 files across three sub-packages.
 
 ## 1. Territory subpackage
 
@@ -42,7 +42,8 @@ Animation mechanics:
 - Cycle: 3000ms ping-pong
 - Lighten factor: 0.65 — blends toward light lavender (255, 225, 255)
 - Per-character phase: `charPhase = idx / (usernameLen - 1)`, then `phase = (charPhase + time) % 1.0`
-- Wave formula matches `AnimatedGradientSequence`
+- Wave formula matches `AnimatedGradientSequence`; the RGB interpolation underneath it is shared code, `ColorMath.interpolateRgb`
+- `mixToward` / `lighten` / `darken` do **not** share `ColorMath` — they clamp each channel into `0..255`, and `ColorMath` deliberately does not
 
 Features:
 - Case-insensitive username location (searches from END for last occurrence)
@@ -81,7 +82,7 @@ Ping-pong formula:
 ```
 phase = (charPhase + time) % 1.0
 t = phase < 0.5 ? phase * 2.0 : 2.0 - phase * 2.0  // oscillates 0→1→0
-color = start + (end - start) * t                   // linear RGB interp
+color = ColorMath.interpolateRgb(start, end, t)     // linear RGB interp, shared
 ```
 
 `AnimatedChatMixin` wraps newly-inserted lines at insert time. It does **not** read the ThreadLocal config — it builds every wrapper from the `effective*()` defaults above, so custom colours handed to `beginAnimation` are dropped. The one real caller, `ChatUtils.dispatchAnimatedChat`, passes exactly those defaults, which is why nothing looks wrong.
@@ -90,11 +91,34 @@ color = start + (end - start) * t                   // linear RGB interp
 [GradientTextBuilder](../src/client/java/org/wynnvets/rendering/colors/GradientTextBuilder.java)
 
 Static utility for static (non-animated) gradient text components.
-- Splits into code points, interpolates RGB per character
+- Splits into code points, interpolates RGB per character through `ColorMath.interpolateRgb`
 - PUA / supplementary-plane glyphs are grouped (preserves composite badge glyphs); colour applied at group midpoint
 - Handles surrogate pairs properly
 - Accepts `baseStyle` to inherit non-colour properties (font, etc.)
 - Single code point → uses start colour directly
+
+### ColorMath
+[ColorMath](../src/client/java/org/wynnvets/rendering/colors/ColorMath.java)
+
+The mod's one RGB lerp. `public static int interpolateRgb(int startRgb, int endRgb, float t)` —
+each of the three channels interpolated independently, `Math.round` (so the midpoint of
+black→white is `0x808080`, not `0x7F7F7F`), an alpha byte on either input discarded.
+
+Four call sites: `AnimatedGradientSequence` ×1, `GradientTextBuilder` ×2, `NametagAnimator` ×1.
+It was those three classes' own private copies, byte-identical modulo local variable names.
+
+**`t` is not clamped, and that is the contract.** Outside `[0, 1]` a channel rounds past
+`0..255` and the shift-and-or recombination bleeds it into the neighbouring channel or the sign
+bit — `t = 1.5` on black→white gives `0x017F7F7F`, `t = 2` gives `0x01FFFFFE`, `t = -0.5` gives
+`0xFFFFFF81`. All three copies did this; `ColorMathTest` pins the literals so a clamp has to be
+argued rather than tidied in. Every current caller feeds a normalised `t`, so none of it is
+reachable today — which is a property of the callers, not of the method.
+
+**Not a resident:** `NametagAnimator`'s `mixToward`, and the `lighten` / `darken` built on it.
+Same weighted average, then a clamp per channel. Folding them in would silently clamp
+`ColorMath`'s four call sites or silently unclamp their four.
+
+No static fields, no supertypes — so no `<clinit>`, and `ColorMathTest` loads zero Minecraft.
 
 ### ShaderColorPalette
 [ShaderColorPalette](../src/client/java/org/wynnvets/rendering/colors/ShaderColorPalette.java)
