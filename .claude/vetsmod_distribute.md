@@ -58,7 +58,7 @@ enforcement.
 ## 2. Package layout
 
 All of it lives under `org.wynnvets.distribute.*` —
-[distribute/](../src/client/java/org/wynnvets/distribute/), 15 files
+[distribute/](../src/client/java/org/wynnvets/distribute/), 16 files
 across 5 sub-packages:
 
 ```
@@ -76,6 +76,7 @@ distribute/
 │   └── GuildLogWalker.java           — piggybacks Wynntils' log auto-pagination
 ├── distributor/
 │   ├── MemberSlotPresser.java        — refresh-gated hotbar presses on one slot
+│   ├── DistributionQueue.java        — the send loop the three pool heads share
 │   ├── RandomDistributor.java        — @random: N recipients, one each
 │   ├── ObjectivesDistributor.java    — @objectives: even split over completers
 │   ├── GraidsDistributor.java        — @graids: proportional to log frequency
@@ -98,6 +99,13 @@ One helper lives outside the package: `org.wynnvets.util.ContainerScreens`
 holds the two "which container screen is open" predicates, because the
 id-matching one also drives the *Manage* menu and so is not
 Members-specific. See §6 point 2.
+
+`DistributionQueue` is in `distributor/` rather than beside `MembersGui`
+because it calls `MemberSlotPresser.closeMembersScreen()`, which is
+package-private. It owns the drive loop and nothing else: who is owed what
+stays with each head, and so do the two things that look shared and are
+not — the arming order, and whether a no-recipient early-out closes the
+menu (§5, and the class Javadoc).
 
 ## 3. Bootstrap
 
@@ -173,14 +181,13 @@ is what the searcher matches). Each step names the class that owns it:
 10. **`MemberSlotPresser.onRefreshObserved`** waits `PRESS_DELAY_TICKS`,
     then either fires the next press or completes.
 11. On completion `pendingOnComplete` runs — for the literal head that
-    is `MemberSlotPresser.closeMembersScreen`; for the selector heads it
-    is a `processNext`, declared on `RandomDistributor`,
-    `ObjectivesDistributor` and `GraidsDistributor` only.
-    `SplitDistributor` has none: it chains whole phases, so under
-    `@split` the callback is still one of those three. `processNext`
-    arms the searcher for the next recipient with the menu left open —
-    and on its terminal invocation, when the queue is empty, calls
-    `MemberSlotPresser.closeMembersScreen` itself.
+    is `MemberSlotPresser.closeMembersScreen`; for the three pool heads
+    it is `DistributionQueue.processNext`, which all three share and
+    none of them declares. `SplitDistributor` has none either: it chains
+    whole phases, so under `@split` the callback is still that same
+    loop. `processNext` arms the searcher for the next recipient with
+    the menu left open — and on its terminal invocation, when the queue
+    is empty, calls `MemberSlotPresser.closeMembersScreen` itself.
 
 **Gap:** the searcher's rebind and sweep-retry sub-machine is summarised
 by its constants (§6) but its state transitions are not written out
@@ -225,8 +232,8 @@ the name space the GUI tiles use, so no per-pick resolve is needed and
 renamed members can't be silently skipped by a search that finishes
 before their resolve does.
 
-`processNext` arms the searcher for the first pick **before**
-`openManageMembers()` — the searcher must be bound by the time
+`beginPicks` calls `DistributionQueue.processNext` for the first pick
+**before** `openManageMembers()` — the searcher must be bound by the time
 `MenuOpenedEvent.Pre` fires. Later picks re-arm through the fast path
 while the menu is still open, and the searcher's bidirectional
 pagination lets a pick on an earlier page be reached without reopening.
@@ -253,11 +260,12 @@ and awards `+1` to the first `total % k`. Recipients landing on zero are
 dropped so the chain never opens a menu to send nothing. `<count>` means
 **total rewards**.
 
-This is the one head whose **first** `processNext` arms with the Members
-menu already open — the walk ended there — so it takes the re-arm fast
-path instead of waiting for a menu-open event. Later recipients in any
-head re-arm through the fast path too, whenever the menu is still open
-at that moment — what is unique here is the *entry* into the chain.
+This is the one head whose **first** `DistributionQueue.processNext` arms
+with the Members menu already open — the walk ended there — so it takes
+the re-arm fast path instead of waiting for a menu-open event. Later
+recipients in any head re-arm through the fast path too, whenever the
+menu is still open at that moment — what is unique here is the *entry*
+into the chain.
 
 ### `@graids` — `GraidsDistributor`
 
@@ -281,7 +289,8 @@ Visit order is by descending frequency with a case-insensitive
 alphabetical tiebreak — presentation only, it does not affect totals.
 `<count>` means **total rewards**.
 
-`processNext` arms before `openManageMembers()`, same as `@random`.
+`onLogReady` calls `DistributionQueue.processNext` before
+`openManageMembers()`, same as `@random`.
 
 ### `@split` — `SplitDistributor`
 
@@ -533,21 +542,29 @@ There are 21 `ChatUtils.sendLocalMessage` call sites under `distribute/`;
 
 ## 10. Adding a new selector
 
-Four edits, all local:
+Two edits, both local:
 
-1. A `*_SELECTOR` constant in `DistributeCommands`.
-2. A branch in `DistributeCommands.distribute`, before the literal-name
-   fan-out.
-3. A line in `DistributeCommands.suggestGuildMembers`, which offers the
-   selectors unconditionally — their dispatchers read the live roster, so
-   they work with a cold Wynntils member cache.
-4. A distributor exposing `dispatch(int, Resource)` — plus the
+1. A row in `DistributeCommands.SELECTORS`: the token, and a method
+   reference to the head's `dispatch(int, Resource)`. Dispatch and
+   tab-completion both read that one table, so the row covers both. Its
+   position is the suggestion order; dispatch matches a whole token
+   case-insensitively, so no row can shadow another. The table is
+   offered unconditionally, before the Wynntils-ready check — the
+   dispatchers read the live roster, so they work with a cold Wynntils
+   member cache.
+2. A distributor exposing `dispatch(int, Resource)` — plus the
    `dispatch(int, Resource, Runnable)` overload **if the new selector is
    to be chainable from `@split`**, firing that callback on *every* exit
    path. The three pool distributors all carry both overloads;
    `SplitDistributor` itself carries only the two-argument form, because
    nothing chains it. A path that returns without invoking the callback
    stalls the whole chain.
+
+If the new head visits more than one recipient it does not write a drive
+loop: it builds a `Deque<DistributionQueue.Distribution>` and hands it to
+`DistributionQueue.processNext` with its own log tag. What it does still
+decide for itself is whether to arm before or after opening the menu, and
+whether its own no-recipient exits close the Members screen — §5.
 
 `NameOrSelectorArgument` needs no change — it fixes the lexical shape of
 one token and deliberately doesn't know the selector set.

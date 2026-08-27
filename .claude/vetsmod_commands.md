@@ -117,7 +117,7 @@ Chief/Owner. Tree built in [DistributeCommands.buildCommandTree()](../src/client
 - `<resource>` — `aspects` | `tomes` | `emeralds`, mapping to `MemberSlotPresser.Resource` hotbar buttons 0/1/2. One press sends 1 Aspect, 1 Guild Tome, or 1024 Emeralds.
 - `<count>` — `IntegerArgumentType.integer(1, 255)`. The upper bound is an unsigned-byte cap against typo'd bulk sends.
 
-Four `@`-selectors decide the recipient set, each one executor branch in `DistributeCommands.distribute`. What `<count>` *means* changes with the selector:
+Four `@`-selectors decide the recipient set, each one row of the `SELECTORS` table in `DistributeCommands`, matched before the literal-name fan-out. What `<count>` *means* changes with the selector:
 
 | Selector | Recipients | `<count>` means |
 |---|---|---|

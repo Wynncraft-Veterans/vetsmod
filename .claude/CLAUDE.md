@@ -68,7 +68,7 @@ VetsmodClient (entry point)
   ├── distribute/             /wv distribute — Guild Management GUI automation: sends
   │                           `/guild manage`, walks Manage Members / Guild Log, presses
   │                           the send slot. Visible to staff, executable by chief+
-  │                           (15 files, 5 sub-packages)
+  │                           (16 files, 5 sub-packages)
   ├── rendering/              Territory lines, nametag animator, gradient/colour helpers
   ├── datamodels/             Guild, User, UserUUID, MembershipSnapshot DTOs
   ├── debug/                  /wv debug tree, DebugConfigManager, diagnostics, dumps
