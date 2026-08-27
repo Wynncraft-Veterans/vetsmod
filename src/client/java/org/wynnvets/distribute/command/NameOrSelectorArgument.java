@@ -13,8 +13,8 @@ import org.wynnvets.distribute.DistributeCommands;
 /**
  * Brigadier argument type for the {@code <name>} slot of
  * {@code /wv distribute <name> <resource> <count>}. Reads one
- * non-empty, space-delimited token so {@code @}-prefixed selectors
- * ({@code @random}, and future {@code @graids} / {@code @objectives} /
+ * non-empty, space-delimited token so the four {@code @}-prefixed
+ * selectors ({@code @random}, {@code @objectives}, {@code @graids},
  * {@code @split}) parse alongside regular Wynncraft usernames.
  *
  * <p>{@link com.mojang.brigadier.arguments.StringArgumentType#string()
@@ -29,8 +29,8 @@ import org.wynnvets.distribute.DistributeCommands;
  * enforced here &mdash; this type only fixes the lexical shape of one
  * token. Dispatch (selector vs. literal username) lives in
  * {@link DistributeCommands}, which keeps adding a new {@code @foo}
- * down to a single executor branch rather than a coordinated change
- * across two files.</p>
+ * down to a single row of that class's selector table rather than a
+ * coordinated change across two files.</p>
  */
 public final class NameOrSelectorArgument implements ArgumentType<String> {
 

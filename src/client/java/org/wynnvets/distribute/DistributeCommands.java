@@ -7,6 +7,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.wynntils.core.components.Managers;
 import com.wynntils.core.components.Models;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -91,23 +92,45 @@ public final class DistributeCommands {
     /** Common counts surfaced in the {@code <count>} suggester. */
     private static final int[] COMMON_COUNTS = {1, 5, 10, 25, 50, 100};
 
-    /** Selector token that means "pick N random guild members". */
-    private static final String RANDOM_SELECTOR = "@random";
+    /**
+     * Dispatch signature shared by the selector heads: every one of them exposes a
+     * {@code dispatch(int, Resource)} taking the parsed {@code <count>} and the chosen
+     * resource. Three of them also carry a three-argument overload with a completion
+     * callback; that one belongs to {@link SplitDistributor}'s phase chaining and is never
+     * reached from here.
+     */
+    @FunctionalInterface
+    private interface SelectorDispatch {
+        void dispatch(int count, MemberSlotPresser.Resource resource);
+    }
 
-    /** Selector token that means "members who completed their guild
-     *  objective, with N spread evenly across them". */
-    private static final String OBJECTIVES_SELECTOR = "@objectives";
+    /** One {@code @}-selector: the token as typed, and the head it hands the command to. */
+    private record Selector(String token, SelectorDispatch head) {}
 
-    /** Selector token that means "members who appear in the guild log's
-     *  graid completions, with N spread proportionally to participation
-     *  frequency". */
-    private static final String GRAIDS_SELECTOR = "@graids";
-
-    /** Selector token that means "split N three ways and run @graids,
-     *  @objectives, @random back-to-back with a third each (random
-     *  remainder)". The phase order is fixed and load-bearing; see
-     *  {@link SplitDistributor}. */
-    private static final String SPLIT_SELECTOR = "@split";
+    /**
+     * The four {@code @}-selectors, in the order they are offered for tab-completion. What
+     * {@code <count>} means differs per head &mdash; see the {@code @-selectors} section of
+     * this class's Javadoc.
+     *
+     * <p>This order is the suggestion order and nothing more. Dispatch matches one whole
+     * token, so no row can shadow another, and it is <em>not</em>
+     * {@link SplitDistributor}'s phase order, which is fixed for a reason that lives in that
+     * class.</p>
+     */
+    private static final List<Selector> SELECTORS =
+            List.of(
+                    // N random guild members, one of the resource each.
+                    new Selector("@random", RandomDistributor::dispatch),
+                    // Members who completed their guild objective, with N spread evenly
+                    // across them.
+                    new Selector("@objectives", ObjectivesDistributor::dispatch),
+                    // Members appearing in the guild log's graid completions, with N spread
+                    // proportionally to participation frequency.
+                    new Selector("@graids", GraidsDistributor::dispatch),
+                    // N split three ways, running @graids, @objectives and @random
+                    // back-to-back with a third each (random remainder). The phase order is
+                    // fixed and load-bearing; see SplitDistributor.
+                    new Selector("@split", SplitDistributor::dispatch));
 
     private DistributeCommands() {}
 
@@ -149,32 +172,15 @@ public final class DistributeCommands {
         String name = NameOrSelectorArgument.get(ctx, "name");
         int count = IntegerArgumentType.getInteger(ctx, "count");
 
-        // @random selector: delegate to RandomDistributor (count = recipients).
-        if (RANDOM_SELECTOR.equalsIgnoreCase(name)) {
-            RandomDistributor.dispatch(count, resource);
-            return 1;
-        }
-
-        // @objectives selector: delegate to ObjectivesDistributor (count =
-        // total rewards, spread evenly across objective-completers).
-        if (OBJECTIVES_SELECTOR.equalsIgnoreCase(name)) {
-            ObjectivesDistributor.dispatch(count, resource);
-            return 1;
-        }
-
-        // @graids selector: delegate to GraidsDistributor (count = total
-        // rewards, spread proportionally to graid participation in the log).
-        if (GRAIDS_SELECTOR.equalsIgnoreCase(name)) {
-            GraidsDistributor.dispatch(count, resource);
-            return 1;
-        }
-
-        // @split selector: divide count by 3 and run @graids + @objectives
-        // + @random sequentially, each with a third (remainder randomised).
-        // Graids first is required, not stylistic — see SplitDistributor.
-        if (SPLIT_SELECTOR.equalsIgnoreCase(name)) {
-            SplitDistributor.dispatch(count, resource);
-            return 1;
+        // Selector heads, checked before the literal-name fan-out: an exact,
+        // case-insensitive whole-token match hands the command to one
+        // distributor, and what <count> means from there is that head's
+        // business. See SELECTORS.
+        for (Selector selector : SELECTORS) {
+            if (selector.token().equalsIgnoreCase(name)) {
+                selector.head().dispatch(count, resource);
+                return 1;
+            }
         }
 
         // Fan out two HTTP calls in parallel: legacy-name resolution (so we
@@ -261,18 +267,13 @@ public final class DistributeCommands {
 
         // Always offer the @-selectors — their dispatchers read the live
         // guild roster, so they work even when the Wynntils member cache is
-        // cold.
-        if (RANDOM_SELECTOR.startsWith(remaining)) {
-            builder.suggest(RANDOM_SELECTOR);
-        }
-        if (OBJECTIVES_SELECTOR.startsWith(remaining)) {
-            builder.suggest(OBJECTIVES_SELECTOR);
-        }
-        if (GRAIDS_SELECTOR.startsWith(remaining)) {
-            builder.suggest(GRAIDS_SELECTOR);
-        }
-        if (SPLIT_SELECTOR.startsWith(remaining)) {
-            builder.suggest(SPLIT_SELECTOR);
+        // cold. `remaining` is already case-folded and the tokens are
+        // lowercase literals, so this is the prefix test the four branches
+        // this loop replaced each did by hand.
+        for (Selector selector : SELECTORS) {
+            if (selector.token().startsWith(remaining)) {
+                builder.suggest(selector.token());
+            }
         }
 
         if (!GuildStateManager.isWynntilsReady()) {
