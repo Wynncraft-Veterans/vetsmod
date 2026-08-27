@@ -1,7 +1,6 @@
 package org.wynnvets.commands;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -18,13 +17,14 @@ import org.junit.jupiter.api.Test;
  * two most interesting rows:</p>
  *
  * <ul>
- *   <li>{@code optString} is the <b>only</b> one of the six string accessors
- *       that tolerates a null receiver. Its body is otherwise identical to
- *       {@code WarningRewriter.optString}, so a "these two are the same
- *       function" collapse onto that one introduces an NPE here.</li>
- *   <li>{@code optInt} is the only accessor whose answer on all three axes is
- *       "fallback". It is probably the shape the other six should converge to,
- *       and it is the one none of them currently match.</li>
+ *   <li>{@code optInt} was the only accessor whose answer on all three axes was
+ *       "fallback" — the shape the other six had to converge to, and the one
+ *       none of them matched. It is the model {@link org.wynnvets.util.Json Json}'s
+ *       four bodies were written from.</li>
+ *   <li>{@code optString} was the only string accessor that tolerated a null
+ *       receiver; since 5g's C2 all six do. C4 then gave it {@code optInt}'s
+ *       wrong-type answer as well, so the two methods in this file now differ
+ *       only in the type they read.</li>
  * </ul>
  */
 class JsonAccessorTest {
@@ -62,18 +62,19 @@ class JsonAccessorTest {
 
     @Test
     void optString_toleratesANullObject() {
-        // The one row in the table that guards. Every other string accessor
-        // NPEs on this input.
+        // This was the one row in the table that guarded. Since 5g's C2 every
+        // string accessor does.
         assertEquals("fb", CautionCommands.optString(null, "k", "fb"));
     }
 
     @Test
-    void optString_stillLetsAWrongTypedValueThrow() {
-        // The null guard is the only difference from WarningRewriter.optString;
-        // the wrong-type policy is identical.
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> CautionCommands.optString(withValue(new JsonObject()), "k", "fb"));
+    void optString_fallsBackOnAWrongTypedValue() {
+        // Changed by 5g's C4. This used to let UnsupportedOperationException
+        // out of a body reached from Minecraft.execute, so it landed in
+        // BlockableEventLoop.doRunTask — a FATAL-marker ERROR, then swallowed,
+        // with renderCautionHistory's header and some rows already on screen.
+        // Now the readout completes with one field substituted.
+        assertEquals("fb", CautionCommands.optString(withValue(new JsonObject()), "k", "fb"));
     }
 
     // ----- optInt -----
