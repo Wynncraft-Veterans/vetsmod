@@ -90,9 +90,9 @@ public final class MemberSlotPresser {
     private static volatile int timeoutToken;
 
     /** Callback invoked when the full press batch finishes — on success
-     *  (last press confirmed) or on timeout. Lets {@link RandomDistributor}
-     *  chain another {@code fire()} for the next pick instead of closing
-     *  the Members menu between distributions. */
+     *  (last press confirmed) or on timeout. Lets {@link DistributionQueue}
+     *  chain another {@code fire()} for the next recipient instead of
+     *  closing the Members menu between sends. */
     private static volatile Runnable pendingOnComplete;
 
     private MemberSlotPresser() {}
@@ -122,7 +122,7 @@ public final class MemberSlotPresser {
      * Variant with a completion callback invoked when the last press is
      * confirmed by a refresh event, OR when the refresh wait times out.
      * The screen is intentionally left open so the callback can chain
-     * another {@code fire()} call &mdash; used by {@link RandomDistributor}
+     * another {@code fire()} call &mdash; used by {@link DistributionQueue}
      * to visit multiple recipients in one menu session. Pass
      * {@link #closeMembersScreen()} as {@code onComplete} to restore the
      * single-user "close when done" behavior.
@@ -194,7 +194,7 @@ public final class MemberSlotPresser {
                                                     + " (server didn't refresh the menu).")
                                     .withStyle(ChatFormatting.YELLOW));
                     // Capture and invoke onComplete so chained callers (e.g.
-                    // RandomDistributor) advance past the timed-out recipient
+                    // DistributionQueue) advance past the timed-out recipient
                     // rather than stalling.
                     Runnable cb = pendingOnComplete;
                     clearPending();
@@ -272,8 +272,12 @@ public final class MemberSlotPresser {
      * happen in one call. Guarded so it never closes an unrelated screen
      * the user happens to have open by the time we get here.
      *
-     * <p>Package-private so {@link RandomDistributor} can use it as the
-     * final step after the multi-user queue drains.</p>
+     * <p>Package-private so the rest of the package can use it:
+     * {@link DistributionQueue} as the final step when a multi-recipient
+     * queue drains, {@link ObjectivesDistributor} on the two early-outs
+     * where its walk has left the menu open, and this class's own
+     * 4-argument {@link #fire(int, Resource, int, String)}, which passes
+     * it as the single-user command's {@code onComplete}.</p>
      */
     static void closeMembersScreen() {
         if (MembersGui.currentByTitle() == null) return;

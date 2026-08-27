@@ -71,10 +71,10 @@ import org.wynnvets.logging.VetsLogger;
  *       below closes the Members menu. Each head's own no-recipient exits answer that
  *       question differently, and all three answers are right:
  *       {@link ObjectivesDistributor} closes, because its walk left the Members menu open;
- *       {@link GraidsDistributor} does not, because it walked the Guild Log &mdash; which
- *       {@link GuildLogWalker} closes on its way out &mdash; and has not opened the Members
- *       menu yet; {@link RandomDistributor} does not, because at that point it has opened
- *       nothing at all.</li>
+ *       {@link GraidsDistributor} does not, because none of its early-outs has opened the
+ *       Members menu &mdash; the only menu it can have open by then is the Guild Log, and
+ *       {@link GuildLogWalker} closes that itself; {@link RandomDistributor} does not,
+ *       because at that point it has opened nothing at all.</li>
  * </ul>
  */
 final class DistributionQueue {
