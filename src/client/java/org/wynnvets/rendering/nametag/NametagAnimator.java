@@ -183,7 +183,7 @@ public final class NametagAnimator {
             float phase = (charPhase + time) % 1.0f;
             float t = phase < 0.5f ? phase * 2.0f : 2.0f - phase * 2.0f;
 
-            int color = interpolateColor(startColor, endColor, t);
+            int color = ColorMath.interpolateRgb(startColor, endColor, t);
             target.append(
                     Component.literal(String.valueOf(seg.text.charAt(i)))
                             .setStyle(seg.style.withColor(TextColor.fromRgb(color))));
@@ -284,13 +284,6 @@ public final class NametagAnimator {
 
     private static int clamp(int v) {
         return Math.max(0, Math.min(255, v));
-    }
-
-    /**
-     * Linearly interpolates between two RGB colours.
-     */
-    static int interpolateColor(int c1, int c2, float t) {
-        return ColorMath.interpolateRgb(c1, c2, t);
     }
 
     // ── Inner types ─────────────────────────────────────────────────────

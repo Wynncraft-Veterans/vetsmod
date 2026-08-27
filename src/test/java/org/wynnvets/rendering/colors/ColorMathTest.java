@@ -7,12 +7,12 @@ import org.junit.jupiter.api.Test;
 /**
  * Tests for {@link ColorMath#interpolateRgb} — the one surviving RGB lerp.
  *
- * <p>It replaces two classes that pinned three copies: {@code rendering.colors.ColorLerpTest}
- * (eight tests over {@code GradientTextBuilder} and {@code AnimatedGradientSequence}, two of
- * them cross-copy equivalence loops) and {@code rendering.nametag.ColorLerpTest} (six over
- * {@code NametagAnimator}, a strict subset). The six kept here are the {@code colors}
- * superset; the equivalence loops are not carried over, because with one copy left there is
- * nothing to compare it to.</p>
+ * <p>It replaces the two now-deleted {@code ColorLerpTest} classes, which between them pinned
+ * three copies: {@code rendering.colors}' (eight tests over {@code GradientTextBuilder} and
+ * {@code AnimatedGradientSequence}, two of them cross-copy equivalence loops) and
+ * {@code rendering.nametag}'s (six over {@code NametagAnimator}, a strict subset). The six kept
+ * here are the {@code colors} superset; the equivalence loops are not carried over, because
+ * with one copy left there is nothing to compare it to.</p>
  *
  * <p>The literals below are the point of the class. <b>{@code interpolateRgb} does not clamp
  * {@code t}</b>: outside {@code [0, 1]} each channel rounds past {@code 0..255} and the
@@ -23,10 +23,10 @@ import org.junit.jupiter.api.Test;
  *
  * <p>NOTE, and it is a harness improvement worth recording: {@link ColorMath} has no
  * supertypes, no static fields and no Minecraft imports, so <b>this class loads zero
- * Minecraft</b>. Neither predecessor could say that. {@code colors.ColorLerpTest} dragged in
+ * Minecraft</b>. Neither predecessor could say that. The {@code colors} one dragged in
  * {@code FormattedCharSequence} — {@code AnimatedGradientSequence} implements it, and the JVM
  * loads superinterfaces with the class — and worked only because {@code build.gradle} puts the
- * client runtime classpath on the test source set. ({@code nametag.ColorLerpTest} did already
+ * client runtime classpath on the test source set. (The {@code nametag} one did already
  * load none: {@code NametagAnimator} has no supertypes and its static state is {@code int} and
  * {@code float} constants.)</p>
  */

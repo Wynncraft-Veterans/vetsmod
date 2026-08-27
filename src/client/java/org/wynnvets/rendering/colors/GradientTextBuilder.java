@@ -72,7 +72,7 @@ public final class GradientTextBuilder {
                 }
                 // Colour the whole group at its positional midpoint.
                 float t = ((groupCpStart + cpIndex - 1) / 2.0f) / (cpCount - 1);
-                int rgb = interpolateRgb(startRgb, endRgb, t);
+                int rgb = ColorMath.interpolateRgb(startRgb, endRgb, t);
                 String groupStr = text.substring(groupCharStart, charIndex);
                 component.append(
                         Component.literal(groupStr)
@@ -82,7 +82,7 @@ public final class GradientTextBuilder {
                                                 .withoutShadow()));
             } else {
                 float t = cpIndex / (float) (cpCount - 1);
-                int rgb = interpolateRgb(startRgb, endRgb, t);
+                int rgb = ColorMath.interpolateRgb(startRgb, endRgb, t);
                 String cpStr = new String(Character.toChars(cp));
                 component.append(
                         Component.literal(cpStr)
@@ -93,10 +93,5 @@ public final class GradientTextBuilder {
         }
 
         return component;
-    }
-
-    // Package-private for unit tests. See ColorLerpTest.
-    static int interpolateRgb(int startRgb, int endRgb, float t) {
-        return ColorMath.interpolateRgb(startRgb, endRgb, t);
     }
 }

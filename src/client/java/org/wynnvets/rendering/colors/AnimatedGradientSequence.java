@@ -162,7 +162,7 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
                             start = startColor;
                             end = endColor;
                         }
-                        int color = interpolateColor(start, end, t);
+                        int color = ColorMath.interpolateRgb(start, end, t);
                         style = style.withColor(TextColor.fromRgb(color));
                         animIdx[0]++;
                     }
@@ -181,11 +181,6 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
     private static boolean isGreyMarker(Style style) {
         TextColor color = style.getColor();
         return color != null && color.getValue() == GREY_MARKER_COLOR;
-    }
-
-    // Package-private for unit tests. See ColorLerpTest.
-    static int interpolateColor(int c1, int c2, float t) {
-        return ColorMath.interpolateRgb(c1, c2, t);
     }
 
     // ── Config record ───────────────────────────────────────────────────
