@@ -227,11 +227,11 @@ public final class CautionCommands {
 
     private static void renderCautionPreflightOrCommit(
             String target, String requestedMessage, JsonObject ack) {
-        String status = optString(ack, "status", "error");
+        String status = Json.optString(ack, "status", "error");
         if ("would_trigger".equals(status)) {
-            String trigger = optString(ack, "trigger", "warning");
-            int currentPoints = optInt(ack, "current_points", 0);
-            String resolved = optString(ack, "target_username", target);
+            String trigger = Json.optString(ack, "trigger", "warning");
+            int currentPoints = Json.optInt(ack, "current_points", 0);
+            String resolved = Json.optString(ack, "target_username", target);
 
             MutableComponent line =
                     Component.literal("⚠ ")
@@ -298,18 +298,18 @@ public final class CautionCommands {
 
     private static void renderCommitResult(
             String requestedKind, String target, String requestedMessage, JsonObject ack) {
-        String status = optString(ack, "status", "error");
+        String status = Json.optString(ack, "status", "error");
         if (!"ok".equals(status)) {
-            String detail = optString(ack, "detail", "unknown error");
+            String detail = Json.optString(ack, "detail", "unknown error");
             ChatUtils.sendLocalMessage(
                     Component.literal("[" + requestedKind + "] failed: " + detail)
                             .withStyle(ChatFormatting.RED));
             return;
         }
 
-        String resolved = optString(ack, "target_username", target);
-        String triggered = optString(ack, "triggered", "none");
-        int newTotal = optInt(ack, "new_total", -1);
+        String resolved = Json.optString(ack, "target_username", target);
+        String triggered = Json.optString(ack, "triggered", "none");
+        int newTotal = Json.optInt(ack, "new_total", -1);
         boolean blocklisted =
                 ack.has("blocklisted")
                         && !ack.get("blocklisted").isJsonNull()
@@ -366,17 +366,17 @@ public final class CautionCommands {
         // the badge (compact-indicator dedup resumes from line 2).
         Prepend.resetDedup();
 
-        String status = optString(ack, "status", "error");
+        String status = Json.optString(ack, "status", "error");
         if (!"ok".equals(status)) {
-            String detail = optString(ack, "detail", "unknown error");
+            String detail = Json.optString(ack, "detail", "unknown error");
             ChatUtils.sendLocalMessage(
                     Component.literal("Caution history lookup failed: " + detail)
                             .withStyle(ChatFormatting.RED));
             return;
         }
 
-        String resolved = optString(ack, "target_username", requestedUsername);
-        int total = optInt(ack, "total_points", 0);
+        String resolved = Json.optString(ack, "target_username", requestedUsername);
+        int total = Json.optInt(ack, "total_points", 0);
 
         ChatFormatting totalColor;
         if (total >= 6) totalColor = ChatFormatting.RED;
@@ -409,11 +409,11 @@ public final class CautionCommands {
         for (JsonElement el : entries) {
             if (!el.isJsonObject() || shown >= 10) break;
             JsonObject e = el.getAsJsonObject();
-            String kind = optString(e, "kind", "?");
-            int points = optInt(e, "points", 0);
-            String actor = optString(e, "actor_username_at_time", "?");
-            String created = optString(e, "created_at", "");
-            String snippet = optString(e, "message", "");
+            String kind = Json.optString(e, "kind", "?");
+            int points = Json.optInt(e, "points", 0);
+            String actor = Json.optString(e, "actor_username_at_time", "?");
+            String created = Json.optString(e, "created_at", "");
+            String snippet = Json.optString(e, "message", "");
 
             ChatFormatting kindColor =
                     switch (kind) {
@@ -497,16 +497,6 @@ public final class CautionCommands {
         int sp = trimmed.indexOf(' ');
         if (sp < 0) return new ParsedArgs(trimmed, "");
         return new ParsedArgs(trimmed.substring(0, sp), trimmed.substring(sp + 1).trim());
-    }
-
-    // Package-private for unit tests. See JsonAccessorTest.
-    static String optString(JsonObject obj, String key, String fallback) {
-        return Json.optString(obj, key, fallback);
-    }
-
-    // Package-private for unit tests. See JsonAccessorTest.
-    static int optInt(JsonObject obj, String key, int fallback) {
-        return Json.optInt(obj, key, fallback);
     }
 
     private static MutableComponent clickRun(

@@ -124,7 +124,7 @@ public final class OutboundDisplayHandler {
         // aren't a tier that normally renders outbound chat. Targeting is
         // enforced server-side by mc_uuid match before the frame is
         // pushed, so receiving the frame here implies it's for us.
-        if ("warning".equals(getStringOrEmpty(json, "type"))) {
+        if ("warning".equals(Json.stringOrEmpty(json, "type"))) {
             WarningRewriter.render(json);
             return;
         }
@@ -140,19 +140,19 @@ public final class OutboundDisplayHandler {
         // UUID dedup: skip messages already processed within the TTL window.
         // Guards against duplicate delivery from dual WebSocket connections or
         // network-level frame duplication.
-        String uuid = getStringOrEmpty(json, "uuid");
+        String uuid = Json.stringOrEmpty(json, "uuid");
         if (!uuid.isEmpty() && isDuplicateUuid(uuid)) {
             VetsLogger.debug("onOutboundMessage: duplicate UUID suppressed [{}]", uuid);
             return;
         }
 
-        String type = getStringOrEmpty(json, "type");
-        String rawRank = getStringOrEmpty(json, "rank");
+        String type = Json.stringOrEmpty(json, "type");
+        String rawRank = Json.stringOrEmpty(json, "rank");
         // ``pill_display`` is the 2026-07 additive field carrying the
         // client-facing label ("Steward"/"Returner"). Prefer it when the
         // server sent it; otherwise remap the raw rank locally so pre-
         // 2026-07 servers still get the display rewrite for new clients.
-        String pillDisplay = getStringOrEmpty(json, "pill_display");
+        String pillDisplay = Json.stringOrEmpty(json, "pill_display");
         String rank;
         if (!pillDisplay.isEmpty()) {
             rank = pillDisplay;
@@ -161,8 +161,8 @@ public final class OutboundDisplayHandler {
         } else {
             rank = "";
         }
-        String username = getStringOrEmpty(json, "username");
-        String message = getStringOrEmpty(json, "message");
+        String username = Json.stringOrEmpty(json, "username");
+        String message = Json.stringOrEmpty(json, "message");
 
         if (username.isEmpty() || message.isEmpty()) {
             return;
@@ -367,11 +367,6 @@ public final class OutboundDisplayHandler {
             }
             recentBridgeMessages.pollFirst();
         }
-    }
-
-    // Package-private for unit tests. See JsonAccessorTest.
-    static String getStringOrEmpty(JsonObject json, String key) {
-        return Json.stringOrEmpty(json, key);
     }
 
     private static final class PendingSelfMessage {

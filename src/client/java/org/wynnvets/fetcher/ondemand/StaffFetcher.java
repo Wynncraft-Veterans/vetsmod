@@ -90,7 +90,7 @@ public final class StaffFetcher {
             }
 
             JsonObject staffMember = element.getAsJsonObject();
-            String username = stringOrNull(staffMember, "username");
+            String username = Json.stringOrNull(staffMember, "username");
             if (username == null || username.isBlank()) {
                 continue;
             }
@@ -99,11 +99,11 @@ public final class StaffFetcher {
                 continue;
             }
 
-            String rank = normalizeRank(stringOrNull(staffMember, "rank"));
+            String rank = normalizeRank(Json.stringOrNull(staffMember, "rank"));
             String world =
                     firstNonBlank(
-                            stringOrNull(staffMember, "world"),
-                            stringOrNull(staffMember, "server"));
+                            Json.stringOrNull(staffMember, "world"),
+                            Json.stringOrNull(staffMember, "server"));
 
             parsed.add(new StaffEntry(username, rank, world));
         }
@@ -157,7 +157,7 @@ public final class StaffFetcher {
             return staffMember.get("isOnline").getAsBoolean();
         }
 
-        String status = stringOrNull(staffMember, "status");
+        String status = Json.stringOrNull(staffMember, "status");
         if (status != null) {
             if (status.equalsIgnoreCase("online")) {
                 return true;
@@ -169,7 +169,8 @@ public final class StaffFetcher {
 
         String world =
                 firstNonBlank(
-                        stringOrNull(staffMember, "world"), stringOrNull(staffMember, "server"));
+                        Json.stringOrNull(staffMember, "world"),
+                        Json.stringOrNull(staffMember, "server"));
         if (world != null) {
             return true;
         }
@@ -214,11 +215,6 @@ public final class StaffFetcher {
             return second;
         }
         return null;
-    }
-
-    // Package-private for unit tests. See JsonAccessorTest.
-    static String stringOrNull(JsonObject obj, String key) {
-        return Json.stringOrNull(obj, key);
     }
 
     private record StaffEntry(String username, String rank, String world) {}

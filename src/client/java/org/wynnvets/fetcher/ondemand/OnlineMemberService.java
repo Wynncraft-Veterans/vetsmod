@@ -171,9 +171,9 @@ public final class OnlineMemberService {
             for (JsonElement el : arr) {
                 if (!el.isJsonObject()) continue;
                 JsonObject obj = el.getAsJsonObject();
-                String uuid = stringOrEmpty(obj, "uuid");
-                String username = stringOrEmpty(obj, "username");
-                String tier = stringOrEmpty(obj, "tier");
+                String uuid = Json.stringOrEmpty(obj, "uuid");
+                String username = Json.stringOrEmpty(obj, "username");
+                String tier = Json.stringOrEmpty(obj, "tier");
                 if (!uuid.isEmpty() && !username.isEmpty()) {
                     boolean queued = obj.has("queued") && obj.get("queued").getAsBoolean();
                     result.add(new ConnectedUser(uuid, username, tier, queued));
@@ -312,9 +312,5 @@ public final class OnlineMemberService {
         }
 
         return new GatherResult(result, modGuildUuids, queuedUuids, guildInfo != null);
-    }
-
-    static String stringOrEmpty(JsonObject obj, String key) {
-        return Json.stringOrEmpty(obj, key);
     }
 }

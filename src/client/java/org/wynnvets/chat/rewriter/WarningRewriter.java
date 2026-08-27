@@ -39,9 +39,9 @@ public final class WarningRewriter {
      * @param json the raw frame from the v1/outbound WebSocket
      */
     public static void render(JsonObject json) {
-        String triggered = optString(json, "triggered", "warning");
-        String actor = optString(json, "actor", "staff");
-        String message = optString(json, "message", "");
+        String triggered = Json.optString(json, "triggered", "warning");
+        String actor = Json.optString(json, "actor", "staff");
+        String message = Json.optString(json, "message", "");
         int pointsAfter =
                 json.has("points_after") && !json.get("points_after").isJsonNull()
                         ? json.get("points_after").getAsInt()
@@ -76,10 +76,5 @@ public final class WarningRewriter {
         ChatUtils.sendLocalMessage(line, Prepend.DEFAULT);
         VetsLogger.info(
                 "Rendered {} frame from {} (points_after={})", triggered, actor, pointsAfter);
-    }
-
-    // Package-private for unit tests. See JsonAccessorTest.
-    static String optString(JsonObject obj, String key, String fallback) {
-        return Json.optString(obj, key, fallback);
     }
 }

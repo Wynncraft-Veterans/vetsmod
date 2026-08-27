@@ -370,7 +370,7 @@ public final class CommandDispatcher {
                 continue;
             }
 
-            String username = stringOrNull(staffMember, "username");
+            String username = Json.stringOrNull(staffMember, "username");
             if (username == null || username.isBlank()) {
                 continue;
             }
@@ -409,7 +409,7 @@ public final class CommandDispatcher {
                 continue;
             }
 
-            String username = stringOrNull(staffMember, "username");
+            String username = Json.stringOrNull(staffMember, "username");
             if (username != null && !username.isBlank()) {
                 usernames.add(username);
             }
@@ -427,7 +427,7 @@ public final class CommandDispatcher {
             return staffMember.get("isOnline").getAsBoolean();
         }
 
-        String status = stringOrNull(staffMember, "status");
+        String status = Json.stringOrNull(staffMember, "status");
         if (status != null) {
             if (status.equalsIgnoreCase("online")) {
                 return true;
@@ -439,7 +439,8 @@ public final class CommandDispatcher {
 
         String world =
                 firstNonBlank(
-                        stringOrNull(staffMember, "world"), stringOrNull(staffMember, "server"));
+                        Json.stringOrNull(staffMember, "world"),
+                        Json.stringOrNull(staffMember, "server"));
         if (world != null) {
             return true;
         }
@@ -455,11 +456,6 @@ public final class CommandDispatcher {
             return second;
         }
         return null;
-    }
-
-    // Package-private for unit tests. See JsonAccessorTest.
-    static String stringOrNull(JsonObject obj, String key) {
-        return Json.stringOrNull(obj, key);
     }
 
     static boolean sleepQuietly(long delayMs) {

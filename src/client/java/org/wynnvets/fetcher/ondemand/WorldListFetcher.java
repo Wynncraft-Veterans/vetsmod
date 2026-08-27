@@ -273,7 +273,7 @@ public final class WorldListFetcher {
             for (JsonElement el : arr) {
                 if (!el.isJsonObject()) continue;
                 JsonObject obj = el.getAsJsonObject();
-                String username = OnlineMemberService.stringOrEmpty(obj, "username");
+                String username = Json.stringOrEmpty(obj, "username");
                 if (!username.isEmpty()) {
                     names.add(username);
                 }
