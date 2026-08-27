@@ -2,7 +2,6 @@ package org.wynnvets.fetcher.ondemand;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -16,12 +15,17 @@ import org.junit.jupiter.api.Test;
  * {@code stringOrEmpty}.
  *
  * <p>The cross-site policy table lives on
- * {@code org.wynnvets.chat.dispatcher.JsonAccessorTest}. These two share a
- * package and a payload shape and still disagree on two of the three axes: one
- * returns null on a miss and swallows a wrong type, the other returns an empty
- * string and lets the exception out. (They agree on the third — both tolerate
- * a null receiver since 5g's C2; both used to NPE.) Whichever body a shared
- * helper adopts, one of these two call sites changes behaviour.</p>
+ * {@code org.wynnvets.chat.dispatcher.JsonAccessorTest}. These two shared a
+ * package and a payload shape and still disagreed on two of the three axes:
+ * one returned null on a miss and swallowed a wrong type, the other returned
+ * an empty string and let the exception out. 5g closed both gaps — C2 the null
+ * receiver (both used to NPE), C5 the wrong type — so all that separates them
+ * now is <em>which</em> fallback each hardcodes, which is the distinction
+ * {@link org.wynnvets.util.Json Json}'s two conveniences exist to preserve.</p>
+ *
+ * <p>{@code stringOrEmpty} has a caller in another class:
+ * {@code WorldListFetcher.parseStaffUsernames}, which no test covers. C5's
+ * behaviour change reaches it without touching its file.</p>
  *
  * <p>{@code stringOrEmpty} was already package-private and needed no seam.</p>
  */
@@ -84,11 +88,13 @@ class JsonAccessorTest {
     }
 
     @Test
-    void stringOrEmpty_letsAWrongTypedValueThrow() {
-        // The disagreement with its package-mate directly above.
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> OnlineMemberService.stringOrEmpty(withValue(new JsonObject()), "k"));
+    void stringOrEmpty_fallsBackToTheEmptyStringOnAWrongTypedValue() {
+        // Changed by 5g's C5, and this is the disagreement with its
+        // package-mate directly above that it closes. The throw used to escape
+        // into parseConnectedUsers' own catch, which logged at DEBUG and
+        // returned List.of() — the ENTIRE connected-user list dropped, and
+        // invisibly unless /wv debug was on, for one bad field on one member.
+        assertEquals("", OnlineMemberService.stringOrEmpty(withValue(new JsonObject()), "k"));
     }
 
     @Test
@@ -96,22 +102,28 @@ class JsonAccessorTest {
         assertEquals("", OnlineMemberService.stringOrEmpty(null, "k"));
     }
 
-    // ----- The two disagree on real input -----
+    // ----- The two on real input -----
 
     @Test
-    void thePackageMatesDisagreeOnTwoOfTheThreeAxes() {
+    void thePackageMatesNowAgreeOnAllThreeAxes() {
         JsonObject missing = new JsonObject();
         // An object-valued field, not an array: Gson unwraps a one-element
         // array and throws IllegalStateException for any other size, so an
         // object is the unambiguous wrong-type probe.
         JsonObject wrongType = withValue(new JsonObject());
 
+        // "Agree" is about the policy — fall back — not the value. One
+        // hardcodes null and the other "", which is the one difference left
+        // and the reason Json keeps two conveniences over one core method.
+        // Same fixtures as when this test asserted the opposite, so reverting
+        // C5 fails it.
         assertNull(StaffFetcher.stringOrNull(missing, "k"));
         assertEquals("", OnlineMemberService.stringOrEmpty(missing, "k"));
 
         assertNull(StaffFetcher.stringOrNull(wrongType, "k"));
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> OnlineMemberService.stringOrEmpty(wrongType, "k"));
+        assertEquals("", OnlineMemberService.stringOrEmpty(wrongType, "k"));
+
+        assertNull(StaffFetcher.stringOrNull(null, "k"));
+        assertEquals("", OnlineMemberService.stringOrEmpty(null, "k"));
     }
 }
