@@ -289,7 +289,7 @@ Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.networ
 
 ### S7 — Party back-report gate
 
-`PartyRosterListener` no longer fires the legacy `party_status` frame. Instead, on every Wynntils `PartyEvent` / `WorldStateEvent`, AND on every snapshot update that changes the lowercased `organiser_usernames` set (via `AnniPartyReporter.requestRecapture()`), the listener:
+`PartyRosterListener` no longer fires the legacy `party_status` frame. Instead, on every Wynntils `PartyEvent` / `WorldStateEvent`, AND on every snapshot update that changes the lowercased `organiser_usernames` set (`AnniPartyReporter` observes the change and calls `PartyRosterListener.requestRecapture()`, which is the listener's own method — the reporter is the trigger, not the owner), the listener:
 
 1. Captures `Models.Party.getPartyLeader()` + `getPartyMembers()` on the event thread.
 2. Debounces 300 ms (coalesces the `/party list` burst).

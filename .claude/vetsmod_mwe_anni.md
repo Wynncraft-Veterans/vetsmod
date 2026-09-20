@@ -397,7 +397,7 @@ Line 2 is gray prose, and the two blocks above are examples, not the whole set �
 | `wont_assign` | "You won't be assigned — <wontReason>." / "You won't be assigned to this anni." — no callouts, no RSVP clause |
 | `unplaced` | "You're not yet on the placement queue and <rsvpClause>!" |
 
-`rsvpClause` yields six strings — hard / soft / walking-in-early / walking-in-late / "have not RSVP'd" (no notice key) / "have an unrecognised RSVP" (unknown key) — keyed off `snapshot.rsvp().notice()` unless `revoked()`, in which case off `attendance.noticeEffective()`.
+`rsvpClause` yields six strings — hard / soft / walking-in-early / walking-in-late / "have not RSVP'd" (no notice key) / "have an unrecognised RSVP" (unknown key) — keyed off `snapshot.rsvp().notice()` when there **is** a live notice — `rsvp != null && rsvp.notice() != null && !rsvp.revoked()`, all three — and off `attendance.noticeEffective()` otherwise. "Unless `revoked()`" named one of the three ways the fallback is reached; a missing `rsvp` block and a null `notice` take it too, and for a walk-in it is the missing block that does.
 
 External users get `null` from `AnniMotdRenderer.render` → fall through to legacy stamp text (spec §"For external users").
 
