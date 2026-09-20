@@ -16,8 +16,10 @@ import org.wynnvets.util.HttpClients;
  *
  * <p>Two write paths feed the same volatile cache:
  * <ul>
- *   <li>Scheduled sweep every {@value #REFRESH_INTERVAL_MINUTES} minutes
- *       (this class's own scheduler).</li>
+ *   <li>Scheduled sweep every {@value #REFRESH_INTERVAL_MINUTES} minutes,
+ *       on the shared {@link PollingService} this class holds — not a
+ *       scheduler of its own, which it has not had since the lifecycle
+ *       moved into that class. Initial delay {@code 0}.</li>
  *   <li>{@link #updateFromExternalFetch(long)} — called by
  *       {@link org.wynnvets.fetcher.ondemand.StampFetcher} on each
  *       successful on-demand fetch (driven by {@code /wv anni} and the

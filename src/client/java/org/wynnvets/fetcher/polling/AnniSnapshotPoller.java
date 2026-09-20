@@ -20,6 +20,15 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * anni window (T-90m → anni). Outside the window the poll is a no-op —
  * users running idle hours before anni don't need a 30 s heartbeat.</p>
  *
+ * <p><b>Alone among the six schedules, this one waits a full period before
+ * its first tick.</b> It passes {@value #POLL_INTERVAL_SECONDS} as
+ * {@code PollingService}'s {@code initialDelay} as well as its
+ * {@code period}, where the other five pass {@code 0}; so nothing is polled
+ * for the first {@value #POLL_INTERVAL_SECONDS} seconds of a session. The
+ * cold-start pull that covers that gap is
+ * {@link org.wynnvets.fetcher.ondemand.StampFetcher}'s, not this
+ * class's.</p>
+ *
  * <p>Reuses the same 90-minute window as
  * {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager#isActive()} — one
  * constant, {@link org.wynnvets.mwe.anni.state.AnniWindows#BAR_WINDOW_SECONDS

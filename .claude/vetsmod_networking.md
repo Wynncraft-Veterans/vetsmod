@@ -180,6 +180,20 @@ Package: [org.wynnvets.fetcher.polling](../src/client/java/org/wynnvets/fetcher/
 
 Six fixed-rate schedules live in this package across five classes, all started back-to-back from `VetsmodClient.onInitializeClient`: `SupportersPoller` 5m, `StaffRanksPoller` 2m, `AnniStampPoller` 5m, `AnniSnapshotPoller` 30s, and `PolledJsonMap`'s two instances — `GUILD_ROSTER` 5m and `WYNN_ALIASES` 5m. `AnniSnapshotPoller` is the only gated one — its tick returns early unless an anni stamp is announced and within 90 minutes. Four of the six have a subsection below; `AnniStampPoller` and `AnniSnapshotPoller` do not.
 
+**Initial delay, which only `PollingService`'s own `@param` documented before.** `PollingService`'s constructor is `(threadName, task, initialDelay, period, unit)`, and the third argument is not the second:
+
+| Schedule | Period | Initial delay |
+|---|---|---|
+| `SupportersPoller` | 5 min | `0` |
+| `StaffRanksPoller` | 2 min | `0` |
+| `AnniStampPoller` | 5 min | `0` |
+| `PolledJsonMap.GUILD_ROSTER` | 5 min | `0` |
+| `PolledJsonMap.WYNN_ALIASES` | 5 min | `0` |
+| **`AnniSnapshotPoller`** | 30 s | **30 s — a full period** |
+| `AnniZone` (outside the package) | 60 s | `0` |
+
+`AnniSnapshotPoller` passes `POLL_INTERVAL_SECONDS` in *both* the `initialDelay` and `period` slots, so **it does nothing for the first 30 seconds of a session**. That is the only asymmetry in the family, and it is deliberate only insofar as nothing has ever written it down — re-derive from the constructor call, not from this table.
+
 Another scheduled fetcher, `mwe/anni/zone/AnniZone` (60s, Wynncraft world-events API), is started on the line above them but lives outside this package and hand-rolls its own scheduler.
 
 ### PollingService — the shared lifecycle
