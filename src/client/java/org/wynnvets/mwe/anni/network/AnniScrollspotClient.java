@@ -19,8 +19,16 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>The future resolves to an immutable {@link Ack} record with
  * {@code (ok, detail)}; callers render the detail on failure. A 5-second
- * deadline applies — temp-server's own forward to vets-anni uses a 3-5 s
- * timeout, so 5 s here covers the round-trip plus jitter.</p>
+ * deadline applies. ⚠️ temp-server's own forward to vets-anni is a flat
+ * <b>5 s</b> — {@code set_rsvp} and {@code set_scroll_spot} reuse the anni
+ * snapshot poller's client, whose timeout is
+ * {@code ANNI_SNAPSHOT_REQUEST_TIMEOUT_SECONDS = 5.0} — not the "3-5 s" this
+ * sentence used to claim, and not the 3 s that
+ * {@link AnniQueryClient}'s deadline is correctly sized against. So the 5 s
+ * here has <b>zero slack</b> over the forward rather than covering
+ * round-trip plus jitter; a forward that uses its full budget cannot produce
+ * an ack this client is still waiting for. Filed as
+ * {@code ack-clients-timeout-has-zero-slack-over-the-server-forward}.</p>
  */
 public final class AnniScrollspotClient {
 
