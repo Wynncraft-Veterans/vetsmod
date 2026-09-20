@@ -90,7 +90,7 @@ These six live directly under `mixin/client/` rather than a subpackage. They're 
 - **Target:** `@Mixin(value = ClientPacketListener.class, priority = 500)` — **not** "high priority": 500 is *below* the default 1000, so this mixin is applied first and its `HEAD` callback therefore runs **last**. See §"Injection priorities".
 - **Method:** `setTitleText(ClientboundSetTitleTextPacket)` at `@At("HEAD")`
 - **Purpose:** Feeds the raw title text into [`QueueDetector.handleTitleText`](../src/client/java/org/wynnvets/queue/QueueDetector.java) so we can detect the `Queueing for XX##.` queue title.
-- **Why:** Reads the packet directly at the network handler, which sidesteps Wynntils' `TitleSetTextEvent` entirely — that is what makes it robust against a mod (e.g. WynnLimbo) cancelling the *event*. ⚠️ It is **not** robust against a mod cancelling the *method* at `HEAD`: at 500 vetsmod runs after every default-priority inject, so a cancel at >= 1000 skips it. Filed as `queue-title-mixin-priority-inverts-its-own-goal`.
+- **Why:** Reads the packet directly at the network handler, which sidesteps Wynntils' `TitleSetTextEvent` entirely — that is what makes it robust against a mod (e.g. WynnLimbo) cancelling the *event*. ⚠️ It is **not** robust against a mod cancelling the *method* at `HEAD`: at 500 vetsmod runs after every inject applied later, so a cancel at **any** priority above 500 skips it (1000 is just the default, not the threshold). Filed as `queue-title-mixin-priority-inverts-its-own-goal`.
 
 ### BossHealthOverlayMixin
 [BossHealthOverlayMixin](../src/client/java/org/wynnvets/mixin/client/BossHealthOverlayMixin.java)
@@ -138,8 +138,8 @@ No non-legacy item mixins. All item behaviour lives in:
 
 | Mixin | Priority |
 |-------|----------|
-| `QueueTitleMixin` | 500 — applied first, so at `HEAD` it runs *after* default-priority injects. Being non-cancellable protects *other mods from us*, not *us from them*: a third-party cancel at >= 1000 still skips this inject. Nothing known-broken; filed as `queue-title-mixin-priority-inverts-its-own-goal` |
-| `BossHealthOverlayMixin` | 500 (not load-bearing — it is a `@Redirect`, so there is no HEAD cancellation order to win; inherited from `QueueTitleMixin` for symmetry). Not headroom: applied-first means a later, numerically-higher redirect on the same instruction would fail to find its target rather than lose gracefully |
+| `QueueTitleMixin` | 500 — applied first, so at `HEAD` it runs *after* default-priority injects. Being non-cancellable protects *other mods from us*, not *us from them*: a third-party cancel at any priority above 500 still skips this inject. Nothing known-broken; filed as `queue-title-mixin-priority-inverts-its-own-goal` |
+| `BossHealthOverlayMixin` | 500 (not load-bearing — it is a `@Redirect`, so there is no HEAD cancellation order to win; inherited from `QueueTitleMixin` for symmetry). Not headroom: two redirects on one instruction collide at apply time rather than one losing gracefully, so being early buys nothing (exact failure mode unverified — no second redirect exists to observe) |
 | `NametagMixin` | 900 — load-bearing: it puts vetsmod's wrap inside wynnmod's |
 | All other mixins | Default 1000 (priority is not load-bearing there — S4 nametag work moved off priority-based HEAD ordering to TAIL-of-earlier-method to avoid Wynntils' cancel) |
 

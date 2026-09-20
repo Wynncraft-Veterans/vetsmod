@@ -38,10 +38,11 @@ import org.wynnvets.mwe.anni.bossbar.VetsBossBarManager;
  * so there is no HEAD cancellation order to win against Wynntils. It is kept
  * only for symmetry with {@link QueueTitleMixin}'s ranking, and that ranking
  * does not do what its own Javadoc used to claim. 500 means applied
- * <em>first</em>, which for a redirect is not headroom: a later,
- * numerically-higher redirect on the same instruction would fail to find its
- * target rather than lose gracefully. Treat this number as inherited, not as
- * a defence.</p>
+ * <em>first</em>, which for a redirect is not headroom: two redirects on one
+ * instruction collide at apply time rather than one losing gracefully, so
+ * being early buys nothing. (The exact failure mode is unverified — there is
+ * no second redirect on this instruction to observe.) Treat this number as
+ * inherited, not as a defence.</p>
  */
 @Mixin(value = BossHealthOverlay.class, priority = 500)
 public abstract class BossHealthOverlayMixin {

@@ -22,7 +22,7 @@ import org.wynnvets.logging.VetsLogger;
  * centred at the {@code location} of event {@code a63b2c02} on
  * {@code https://api.wynncraft.com/v3/map/world-events}.
  *
- * <p>Spec §3.1.1.3 / §3.1.1.4 gate the T-2m boss-bar countdown variant
+ * <p>Spec §3.1.1.3 / §3.1.1.4 gate the T-5m boss-bar countdown variant
  * on "When in the anni zone", and S4/S5 will gate outline overrides
  * + zone-line rendering on the same predicate. Centralising the disc
  * test here keeps S3..S5 from each rolling their own world-events

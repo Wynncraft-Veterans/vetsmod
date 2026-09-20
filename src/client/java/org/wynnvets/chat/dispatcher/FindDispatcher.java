@@ -171,7 +171,7 @@ public final class FindDispatcher {
         }
     }
 
-    // ──────────────────────────── Find-response suppression (ChatLogMixin)
+    // ──────────────────────────── Find-response suppression (direct caller: CommandDispatcher)
     // ────────────────────────────
 
     /**

@@ -38,8 +38,9 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * and the floor under it is the {@code secondsUntilAnni > 20} hard return
  * thirty lines earlier, not the window expression. So the timer path is
  * {@code (T-20s, T-90m]} and zone entry widens only its top.
- * {@code vetsmod_mwe_anni.md} §"Activation gate" is the owning statement.</p> The synthetic
- * {@link LerpingBossEvent} lives in
+ * {@code vetsmod_mwe_anni.md} §"Activation gate" is the owning statement.</p>
+ *
+ * <p>The synthetic {@link LerpingBossEvent} lives in
  * {@link BossHealthOverlay#events} via {@link BossHealthOverlayAccessor}.</p>
  *
  * <p>Coexistence with vanilla / Wynncraft / Wynntils boss bars is

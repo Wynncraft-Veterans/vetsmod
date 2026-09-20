@@ -79,8 +79,11 @@ package org.wynnvets.mwe.anni.state;
  * {@link #HOT_WINDOW_BEFORE_SECONDS} and the first two above — where before this
  * class there were four. ⚠️ <b>Do not census them by greping for {@code 7200}</b>:
  * not one of the three is spelled that way. Two are {@code 2L * 60L * 60L} and one
- * is {@code 2L * 60 * 60}, so that grep returns only the {@code "7200"} string in
- * {@code AnniDebugCommands}' time-suggestion array and this very paragraph. Grep
+ * is {@code 2L * 60 * 60}, so that grep finds <b>none of the three declarations</b>
+ * &mdash; what it does return is the {@code "7200"} suggestion string in
+ * {@code AnniDebugCommands}, this paragraph and the prose above it,
+ * {@link #HOT_WINDOW_BEFORE_SECONDS}'s own field Javadoc, and the boundary list in
+ * {@code AnniWindowsTest}. Grep
  * {@code 60L \* 60L\|60 \* 60} instead, or read the three names above.</p>
  *
  * <h2>Shape</h2>

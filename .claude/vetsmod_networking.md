@@ -180,7 +180,7 @@ Package: [org.wynnvets.fetcher.polling](../src/client/java/org/wynnvets/fetcher/
 
 Six fixed-rate schedules live in this package across five classes, all started back-to-back from `VetsmodClient.onInitializeClient`: `SupportersPoller` 5m, `StaffRanksPoller` 2m, `AnniStampPoller` 5m, `AnniSnapshotPoller` 30s, and `PolledJsonMap`'s two instances — `GUILD_ROSTER` 5m and `WYNN_ALIASES` 5m. `AnniSnapshotPoller` is the only gated one — its tick returns early unless an anni stamp is announced and within 90 minutes. Four of the six have a subsection below; `AnniStampPoller` and `AnniSnapshotPoller` do not.
 
-**Initial delay, which only `PollingService`'s own `@param` documented before.** `PollingService`'s constructor is `(threadName, task, initialDelay, period, unit)`, and the third argument is not the second:
+**Initial delay, which no doc stated in full before** — `PollingService`'s own `@param` defines it, the `StaffRanksPoller` bullet below records "scheduled initially immediate" for one of the six, and `PollingServiceTest` pins both directions. What was missing is the column. `PollingService`'s constructor is `(threadName, task, initialDelay, period, unit)`, and the third argument is not the second:
 
 | Schedule | Period | Initial delay |
 |---|---|---|
@@ -219,7 +219,7 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 - Runs every 2 minutes, scheduled initially immediate
 - Fetches `VetsApi.STAFF`, replaces entire cache atomically
 - `ALLOWED_RANKS` is strategist/chief/owner only — **captain is rejected**, retired in the 2026-07 permission restructure, and a stray captain is dropped and treated as a non-staff Returner client-side
-- Read by `V1ApiManager`, `EncourageUpdateRewriter`, `StaffChannelMessageRewriter`, `StaffGuildAlertRewriter`, `GuildChatDispatcher` and `ListFetcher` (underline styling); started by `VetsmodClient`. The `**Gap:**` note below already named two of these
+- Read by `V1ApiManager`, `EncourageUpdateRewriter`, `StaffChannelMessageRewriter`, `StaffGuildAlertRewriter`, `GuildChatDispatcher` and `ListFetcher` (underline styling); started by `VetsmodClient`. The `**Gap:**` note below already points at two entry points (`applyLiveStaffEvent`, `refreshNow()`) whose caller is `V1ApiManager` — so the omission was visible from inside this section
 - Why polling? No server event stream; cheap + simple
 
 **Gap:** the two entry points behind the behaviour described above are unnamed here — `applyLiveStaffEvent(username, rank, online)`, which writes the overlay from `staff_online`/`staff_offline` frames, and `refreshNow()`, which fires an off-schedule fetch on every successful auth ack to close the cold-start gap. See `StaffRanksPoller`.

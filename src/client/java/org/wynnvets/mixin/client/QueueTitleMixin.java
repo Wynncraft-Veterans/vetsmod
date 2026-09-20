@@ -22,8 +22,9 @@ import org.wynnvets.queue.QueueDetector;
  * opposite way from how it reads.</b> Mixin applies in ascending priority
  * order, so 500 is applied <em>before</em> the default 1000 — and at
  * {@code HEAD} the later-applied callback is prepended, so this one runs
- * <em>last</em>. A third-party cancelling {@code HEAD} inject at priority
- * &gt;= 1000 on this method would skip it, which is the very scenario the
+ * <em>last</em>. A third-party cancelling {@code HEAD} inject at <b>any</b>
+ * priority above 500 would skip it — the default 1000 is merely the common
+ * case — which is the very scenario the
  * paragraph above cites. Nothing is known-broken today; whether the defence
  * is wanted is filed as
  * {@code queue-title-mixin-priority-inverts-its-own-goal}. See

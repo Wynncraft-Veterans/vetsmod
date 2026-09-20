@@ -422,7 +422,7 @@ Let vanilla and Wynntils track bars normally (no `update()` cancellation, no `ev
 1. `VetsBossBarContentBuilder.build` returns null at `≤20s`.
 2. Wall-clock watchdog (`DROP_DEAD_SECONDS_BEFORE_ANNI`) in `VetsBossBarManager.tickInner` — independent of builder state. Re-checks every client tick (~50 ms), so it also covers the kick-into-queue case at T-20 without needing a separate world-change hook.
 
-Two, not three. The source's own "Gate n of 3" comments count `AnniWindowWatcher`'s T+30m **mode** reset as the third, and that is not a bar gate. There is also a separate 2.5 h `FAILSAFE_DEACTIVATE_MS` watchdog, which is not a T-20s gate either.
+Two, not three. The source's comments used to read `"Gate n of 3"`, counting `AnniWindowWatcher`'s T+30m **mode** reset as the third — which is not a bar gate; Phase 5.5a renumbered them to `"of 2"`, and two of those comments had both been numbered `"Gate 1 of 3"` for different gates. There is also a separate 2.5 h `FAILSAFE_DEACTIVATE_MS` watchdog, which is not a T-20s gate either.
 
 Plus the slower net: at T+30m `AnniWindowWatcher` restores `AnniModeManager.preferredMode()` — silent only in the never-set-a-mode, not-enrichment-eligible sub-case.
 

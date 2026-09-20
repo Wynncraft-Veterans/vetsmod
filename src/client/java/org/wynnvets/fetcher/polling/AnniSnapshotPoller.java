@@ -23,8 +23,9 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * <p><b>Alone among the six schedules, this one waits a full period before
  * its first tick.</b> It passes {@value #POLL_INTERVAL_SECONDS} as
  * {@code PollingService}'s {@code initialDelay} as well as its
- * {@code period}, where the other five pass {@code 0}; so nothing is polled
- * for the first {@value #POLL_INTERVAL_SECONDS} seconds of a session. The
+ * {@code period}, where the other five pass {@code 0}; so <em>this</em> poller
+ * does not tick for the first {@value #POLL_INTERVAL_SECONDS} seconds of a
+ * session, while the other five fire immediately. The
  * cold-start pull that covers that gap is
  * {@link org.wynnvets.fetcher.ondemand.StampFetcher}'s, not this
  * class's.</p>

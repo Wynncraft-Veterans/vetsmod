@@ -154,8 +154,8 @@ public final class AnniDebugCommands {
                 String partial = builder.getRemaining().toLowerCase();
                 for (String s :
                         new String[] {
-                            "60", // 1m  — within T-2m boss-bar window (S3)
-                            "120", // 2m  — edge of T-2m window
+                            "60", // 1m  — within T-5m boss-bar window (S3)
+                            "120", // 2m  — inside the T-5m window (its edge is 300)
                             "600", // 10m
                             "1800", // 30m
                             "3600", // 1h
