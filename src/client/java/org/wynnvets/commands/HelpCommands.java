@@ -176,20 +176,37 @@ final class HelpCommands {
         return msg;
     }
 
+    /**
+     * The shape shared by the seven {@code /wv help <command>} detail pages: a
+     * usage line, a line of prose, and the {@code Requires:} footer.
+     *
+     * <p>The trailing newlines stay in {@code usage} and {@code prose} rather
+     * than being supplied here. They are what separates one line from the next,
+     * they are not uniform across the twelve pages, and a template that owned
+     * them would quietly be a different template for any page that needed
+     * otherwise.</p>
+     */
+    private static MutableComponent detailPage(
+            String usage, String prose, ChatFormatting requirement, String requirementLabel) {
+        MutableComponent msg = Component.empty();
+        msg.append(Component.literal(usage).withStyle(ChatFormatting.YELLOW));
+        msg.append(Component.literal(prose).withStyle(ChatFormatting.GRAY));
+        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
+        msg.append(Component.literal(requirementLabel).withStyle(requirement));
+        return msg;
+    }
+
     static int helpCheck(CommandContext<FabricClientCommandSource> ctx) {
         ChatUtils.sendLocalMessageNewBlock(buildHelpCheck());
         return 1;
     }
 
     static MutableComponent buildHelpCheck() {
-        MutableComponent msg = Component.empty();
-        msg.append(Component.literal("/wv check <player>\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("Look up a player's guild membership and unlock status.\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Staff").withStyle(ChatFormatting.RED));
-        return msg;
+        return detailPage(
+                "/wv check <player>\n",
+                "Look up a player's guild membership and unlock status.\n",
+                ChatFormatting.RED,
+                "Staff");
     }
 
     static int helpReturn(CommandContext<FabricClientCommandSource> ctx) {
@@ -198,16 +215,12 @@ final class HelpCommands {
     }
 
     static MutableComponent buildHelpReturn() {
-        MutableComponent msg = Component.empty();
-        msg.append(Component.literal("/wv return\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(
-                                "Display information about this week's scheduled event, "
-                                        + "as fetched from the guild-announcements channel.\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Returners guild member").withStyle(ChatFormatting.GREEN));
-        return msg;
+        return detailPage(
+                "/wv return\n",
+                "Display information about this week's scheduled event, "
+                        + "as fetched from the guild-announcements channel.\n",
+                ChatFormatting.GREEN,
+                "Returners guild member");
     }
 
     static int helpStaff(CommandContext<FabricClientCommandSource> ctx) {
@@ -216,14 +229,11 @@ final class HelpCommands {
     }
 
     static MutableComponent buildHelpStaff() {
-        MutableComponent msg = Component.empty();
-        msg.append(Component.literal("/wv staff\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("Show a list of currently online staff members.\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Unlocked").withStyle(ChatFormatting.GREEN));
-        return msg;
+        return detailPage(
+                "/wv staff\n",
+                "Show a list of currently online staff members.\n",
+                ChatFormatting.GREEN,
+                "Unlocked");
     }
 
     static int helpList(CommandContext<FabricClientCommandSource> ctx) {
@@ -232,18 +242,12 @@ final class HelpCommands {
     }
 
     static MutableComponent buildHelpList() {
-        MutableComponent msg = Component.empty();
-        msg.append(Component.literal("/wv list\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(
-                                "Show online Returners members, grouped by VetsMod usage, "
-                                        + "honourary, and waitlist status.\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
-        msg.append(
-                Component.literal("Veteran (Returners, waitlist, or honourary)")
-                        .withStyle(ChatFormatting.GREEN));
-        return msg;
+        return detailPage(
+                "/wv list\n",
+                "Show online Returners members, grouped by VetsMod usage, "
+                        + "honourary, and waitlist status.\n",
+                ChatFormatting.GREEN,
+                "Veteran (Returners, waitlist, or honourary)");
     }
 
     static int helpMotd(CommandContext<FabricClientCommandSource> ctx) {
@@ -252,18 +256,12 @@ final class HelpCommands {
     }
 
     static MutableComponent buildHelpMotd() {
-        MutableComponent msg = Component.empty();
-        msg.append(Component.literal("/wv motd\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(
-                                "Show the guild message of the day. Also available as "
-                                        + "a standalone /motd command.\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
-        msg.append(
-                Component.literal("Veteran (Returners, waitlist, or honourary)")
-                        .withStyle(ChatFormatting.GREEN));
-        return msg;
+        return detailPage(
+                "/wv motd\n",
+                "Show the guild message of the day. Also available as "
+                        + "a standalone /motd command.\n",
+                ChatFormatting.GREEN,
+                "Veteran (Returners, waitlist, or honourary)");
     }
 
     static int helpAnni(CommandContext<FabricClientCommandSource> ctx) {
@@ -272,16 +270,12 @@ final class HelpCommands {
     }
 
     static MutableComponent buildHelpAnni() {
-        MutableComponent msg = Component.empty();
-        msg.append(Component.literal("/wv anni\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(
-                                "Show how long until the next annihilation event, "
-                                        + "if one has been announced.\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
-        return msg;
+        return detailPage(
+                "/wv anni\n",
+                "Show how long until the next annihilation event, "
+                        + "if one has been announced.\n",
+                ChatFormatting.WHITE,
+                "None (public)");
     }
 
     static int helpLine(CommandContext<FabricClientCommandSource> ctx) {
@@ -290,20 +284,14 @@ final class HelpCommands {
     }
 
     static MutableComponent buildHelpLine() {
-        MutableComponent msg = Component.empty();
-        msg.append(
-                Component.literal("/wv line <church|scrap|bat|hegea|lighthouse>\n")
-                        .withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(
-                                "Toggle the rendering of territory boundary lines for the "
-                                        + "specified territory. Use \"church\" (Witness Church - Forest of Eyes), \"scrap\" (Scrapyard - Corkus Sea Cove), "
-                                        + "\"bat\" (Batcave - Royal Barracks), \"hegea\" (Training Grounds - Fort Hegea), or \"lighthouse\" (Lighthouse - Contested District) "
-                                        + "to pick which boundaries to show.\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Returners guild member").withStyle(ChatFormatting.GREEN));
-        return msg;
+        return detailPage(
+                "/wv line <church|scrap|bat|hegea|lighthouse>\n",
+                "Toggle the rendering of territory boundary lines for the "
+                        + "specified territory. Use \"church\" (Witness Church - Forest of Eyes), \"scrap\" (Scrapyard - Corkus Sea Cove), "
+                        + "\"bat\" (Batcave - Royal Barracks), \"hegea\" (Training Grounds - Fort Hegea), or \"lighthouse\" (Lighthouse - Contested District) "
+                        + "to pick which boundaries to show.\n",
+                ChatFormatting.GREEN,
+                "Returners guild member");
     }
 
     static int helpDebug(CommandContext<FabricClientCommandSource> ctx) {
