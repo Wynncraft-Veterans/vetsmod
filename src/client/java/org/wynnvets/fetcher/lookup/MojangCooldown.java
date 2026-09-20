@@ -21,8 +21,14 @@ public final class MojangCooldown {
     private static final AtomicLong cooldownUntilEpochMs = new AtomicLong(0L);
 
     /** Debug switch: when true, {@link #isCoolingDown()} returns true
-     *  unconditionally. Used by the manual verification matrix to simulate
-     *  a cooled-down state without an actual 429. */
+     *  unconditionally, so a cooled-down state can be simulated without an
+     *  actual 429.
+     *
+     *  <p>⚠️ <b>Test-only.</b> {@link #setForceCooldown(boolean)} and
+     *  {@link #isForceCooldown()} have no production caller &mdash; the only
+     *  caller anywhere is {@code MojangCooldownTest}. An earlier version of this
+     *  comment credited "the manual verification matrix", which does not exist
+     *  and never has; that phrase appears nowhere else in the repo.</p> */
     private static volatile boolean forceCooldown = false;
 
     private MojangCooldown() {}
@@ -48,7 +54,8 @@ public final class MojangCooldown {
         cooldownUntilEpochMs.accumulateAndGet(candidate, Math::max);
     }
 
-    /** For diagnostics / debug commands. */
+    /** ⚠️ No production caller either &mdash; {@code MojangCooldownTest} only.
+     *  Written for diagnostics / debug commands; none was ever wired up. */
     public static void clear() {
         cooldownUntilEpochMs.set(0L);
     }
