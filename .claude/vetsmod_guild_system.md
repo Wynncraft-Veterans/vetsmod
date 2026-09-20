@@ -117,7 +117,7 @@ The legacy SHA-256 password matching has been removed. The two old hashes (`vets
 
 **Public API (package-level):**
 - `tryUnlock(key)` returns `GuildStateManager.UnlockAttemptResult` (`MISSING_KEY` / `MALFORMED` / `STORED_VERIFYING`). Stores the key, clears stale tier state, dispatches an auth frame on the existing inbound WS via `V1ApiManager.sendAuth(key)`.
-- `onAuthSuccess(tier)` / `onAuthFailure(detail)` — called by `V1ApiManager`'s inbound message handler when the auth ack arrives.
+- `onAuthSuccess(tier)` / `onAuthFailure(detail)` — reached from `V1ApiManager`'s inbound message handler; the direct caller is `GuildStateManager.onAuthSuccess` / `.onAuthFailure`, which delegate here when the auth ack arrives.
 - `isWaitlistUnlocked()` / `isHonouraryUnlocked()` — true when (auth verified + matching tier this session) OR (legacy marker present, for back-compat warning logic).
 - `legacyWaitlistMarker()` / `legacyHonouraryMarker()` — raw read of the pre-migration timestamps.
 - `loadPersistedState()`, `reset()`.

@@ -175,7 +175,7 @@ public final class FindDispatcher {
     // ────────────────────────────
 
     /**
-     * Called from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} on the render
+     * Reached from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} on the render
      * thread for every incoming chat message. Matches {@code /find} response lines, suppresses them
      * from display, and signals the dispatch thread with the result.
      *

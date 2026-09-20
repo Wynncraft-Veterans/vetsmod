@@ -260,11 +260,11 @@ public final class MessageFanoutDispatcher {
         }
     }
 
-    // ──────────────────────────── Suppression (called from ChatLogMixin)
+    // ──────────────────────────── Suppression (direct caller: CommandDispatcher)
     // ────────────────────────────
 
     /**
-     * Called from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} on the render
+     * Reached from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} on the render
      * thread for every incoming chat message. Matches outbound /msg echo lines and offline-player
      * errors, suppresses them from display, and signals the dispatch thread so it can proceed
      * strategically.

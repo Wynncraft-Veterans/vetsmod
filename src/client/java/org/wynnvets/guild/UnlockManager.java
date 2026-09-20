@@ -156,8 +156,10 @@ final class UnlockManager {
     /**
      * Store a new authentication key and immediately try to verify it.
      *
-     * <p>Called by {@link org.wynnvets.mixin.client.command.UnlockCommandMixin}
-     * when the user runs {@code /unlock &lt;key&gt;}. The key is persisted to
+     * <p>The direct caller is {@link GuildStateManager#tryUnlock(String)}, which
+     * is what {@link org.wynnvets.mixin.client.command.UnlockCommandMixin} invokes
+     * when the user runs {@code /unlock &lt;key&gt;}; the mixin never names this
+     * class. The key is persisted to
      * {@link VetsConfig} and an {@code auth} frame is sent on the existing
      * inbound WebSocket connection. The result is reported to the user
      * asynchronously via the auth-frame response handler in
@@ -212,7 +214,7 @@ final class UnlockManager {
         return GuildStateManager.UnlockAttemptResult.STORED_VERIFYING;
     }
 
-    // ── Auth-frame response handlers (called by V1ApiManager) ──────────
+    // ── Auth-frame response handlers (direct caller: GuildStateManager) ──────────
 
     /** Called when the server returns {@code {"status":"ok", "tier":...}}
      *  in response to our auth frame. */
