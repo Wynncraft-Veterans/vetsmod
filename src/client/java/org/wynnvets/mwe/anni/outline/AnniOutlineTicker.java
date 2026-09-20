@@ -28,15 +28,18 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * register conventions (subscribes {@link ClientTickEvents#END_CLIENT_TICK} once at init; catches
  * all per-tick exceptions to never break the render loop).</p>
  *
- * <p>Activation gate, all four required:</p>
+ * <p>Activation gate, all four required, <b>listed in the order
+ * {@code gateHolds} actually evaluates them</b> — cheapest and most
+ * commonly false first, so a silent-mode or toggles-off client never
+ * touches the snapshot cache or the clock:</p>
  * <ol>
  *   <li>{@link AnniModeManager#current()} != {@link AnniMode#SILENT}</li>
- *   <li>Snapshot stamp epoch present AND {@code T-2h ≤ now ≤ T+30m}</li>
- *   <li>{@link AnniZone#isInZone(double, double)} returns true (or the
- *       debug {@link #forceInZone} override is on)</li>
  *   <li>At least one of {@link VetsConfig#VETS_ANNI_OUTLINES_ENABLED} or
  *       {@link VetsConfig#VETS_ANNI_NAMETAGS_ENABLED} is true (so users
  *       who want neither half see no S4 effect at all)</li>
+ *   <li>Snapshot stamp epoch present AND {@code T-2h ≤ now ≤ T+30m}</li>
+ *   <li>{@link AnniZone#isInZone(double, double)} returns true (or the
+ *       debug {@link #forceInZone} override is on)</li>
  * </ol>
  *
  * <p>While the gate holds, this ticker walks {@code level.players()} and for each player either
@@ -52,10 +55,18 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * resets only what we touched — vanilla / Wynntils entities the user
  * has their own reason to colour aren't disturbed.</p>
  *
- * <p>Spec window (per parent plan): T-2h to T+30m. Tighter than the
- * boss-bar window (which uses 90 m OR in-zone) because highlights are
- * the high-intrusiveness UI — outline + nametag recolour on every
- * nearby player is reserved for the strictest spec interpretation.</p>
+ * <p>Spec window (per parent plan): T-2h to T+30m. ⚠️ <b>On the timer
+ * axis this is the <em>wider</em> of the two</b> — T-2h opens half an
+ * hour before the boss bar's T-90m. What makes the highlight gate the
+ * stricter one is the conjunction, not the window: here in-zone is an
+ * {@code AND}, whereas the bar activates on
+ * {@code inWindow || AnniZone.isInZone(…)}. So the bar can appear out
+ * of the window and highlights cannot, which is the intended asymmetry
+ * — outline + nametag recolour on every nearby player is the
+ * high-intrusiveness UI and is reserved for the strictest spec
+ * interpretation. The old wording said "tighter" of the window itself,
+ * which is the opposite of true and reads as a contradiction unless you
+ * already know about the {@code AND}.</p>
  */
 public final class AnniOutlineTicker {
 

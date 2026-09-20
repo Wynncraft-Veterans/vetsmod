@@ -199,7 +199,14 @@ public final class AnniOutlineRegistry {
      *  all, hence an empty {@code <clinit>}, which is what lets a test load
      *  that class — Wynntils is absent at test runtime. It does <em>not</em>
      *  make this class loadable: {@link #ownPartyEntry} constructs a
-     *  {@link CustomColor} too.</p> */
+     *  {@link CustomColor} too.</p>
+     *
+     *  <p>⚠️ {@code OTHER_VETS_PARTY} names <b>two different symbols in
+     *  this one file</b> — this {@link CustomColor} and the
+     *  {@link Tier#OTHER_VETS_PARTY} enum constant — and
+     *  {@link #OTHER_PARTY_ENTRY} uses both in a single expression. A
+     *  grep for the identifier returns both; read which one a hit means
+     *  before acting on it.</p> */
     private static final CustomColor OTHER_VETS_PARTY =
             CustomColor.fromChatFormatting(ChatFormatting.GRAY);
 
