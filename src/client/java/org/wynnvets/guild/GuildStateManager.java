@@ -945,7 +945,12 @@ public class GuildStateManager {
      * a {@code register} frame via the inbound WebSocket.  The payload is
      * cached inside {@link V1ApiManager} so it is automatically re-sent on
      * reconnect.  Called from {@link #onEnteredWorld()},
-     * {@link #onGuildInfoUpdated()}, and {@link #tryUnlock}.</p>
+     * {@link #onGuildInfoUpdated()}, {@link #forceGuildRecheck()},
+     * {@link #onGuildCheckCompleted()} and
+     * {@link org.wynnvets.guild.UnlockManager#onAuthSuccess UnlockManager#onAuthSuccess}
+     * &mdash; five callers. {@link #tryUnlock} is <b>not</b> one of them; it is a
+     * pure delegate to {@link UnlockManager#tryUnlock(String)} and calls nothing
+     * else here.</p>
      */
     public static void sendRegistrationIfReady() {
         Minecraft mc = Minecraft.getInstance();

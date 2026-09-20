@@ -114,8 +114,12 @@ public class VetsConfig {
     public static final String VETS_ANNI_SHOW_PREDICTION = "vetsAnniShowPrediction";
 
     /** Active anni mode — {@code silent}, {@code passive}, or
-     *  {@code aggressive}. Set by {@code /wv anni <mode>} and read by the boss-bar (S3+), outline
-     *  (S4+), and waypoint (S5+) subsystems. Absent from {@link #USER_CONFIG_KEYS}, so {@code /wv
+     *  {@code aggressive}. Set by {@code /wv anni <mode>} and read through
+     *  {@code AnniModeManager.current()} by exactly three classes: {@code VetsBossBarManager}
+     *  (S3+), {@code AnniOutlineTicker} (S4+) and {@code AnniAggressiveTicker} (S5).
+     *  <b>No waypoint class reads the mode</b> &mdash; {@code ScrollSpotMarkerProvider} gates on
+     *  {@code AnniAggressiveTicker.isAggressiveActive()} instead, which is where the S5 reading
+     *  comes from. Absent from {@link #USER_CONFIG_KEYS}, so {@code /wv
      *  config} cannot read or write it. When the anni window closes (T+30 min after stamp_epoch)
      *  {@link org.wynnvets.mwe.anni.mode.AnniWindowWatcher AnniWindowWatcher} restores
      *  {@link org.wynnvets.mwe.anni.mode.AnniModeManager#preferredMode()

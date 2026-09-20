@@ -74,8 +74,8 @@ public final class ScrollSpotMarkerProvider implements MarkerProvider<MarkerPoi>
     private static volatile boolean wynntilsRegistered = false;
 
     /** Current marker, or {@code null} when we have nothing to show. Set
-     *  by the snapshot listener / debug command; read by {@link #getMarkerInfos()}
-     *  and {@link #getPois()}. Atomic reference so we can swap without
+     *  by the snapshot listener / debug command; read by {@link #getMarkerInfos()},
+     *  {@link #getPois()} and {@link #isEnabled()}. Atomic reference so we can swap without
      *  partial state being read mid-frame. */
     private final AtomicReference<Entry> current = new AtomicReference<>(null);
 

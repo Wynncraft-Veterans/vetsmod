@@ -184,7 +184,8 @@ public final class GuildChatDispatcher {
     }
 
     /** Returns the first whitespace-delimited token of {@code args}, or
-     *  empty string if {@code args} has none. Used by the /gu invite
+     *  empty string if {@code args} has none. Two call sites — the /gu invite
+     *  and /guild invite
      *  intercept to pull the target name out of the raw command tail. */
     private static String extractFirstToken(String args) {
         String trimmed = args.trim();

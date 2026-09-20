@@ -219,7 +219,7 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 - Runs every 2 minutes, scheduled initially immediate
 - Fetches `VetsApi.STAFF`, replaces entire cache atomically
 - `ALLOWED_RANKS` is strategist/chief/owner only — **captain is rejected**, retired in the 2026-07 permission restructure, and a stray captain is dropped and treated as a non-staff Returner client-side
-- Used by `ListFetcher` for underline styling
+- Read by `V1ApiManager`, `EncourageUpdateRewriter`, `StaffChannelMessageRewriter`, `StaffGuildAlertRewriter`, `GuildChatDispatcher` and `ListFetcher` (underline styling); started by `VetsmodClient`. The `**Gap:**` note below already named two of these
 - Why polling? No server event stream; cheap + simple
 
 **Gap:** the two entry points behind the behaviour described above are unnamed here — `applyLiveStaffEvent(username, rank, online)`, which writes the overlay from `staff_online`/`staff_offline` frames, and `refreshNow()`, which fires an off-schedule fetch on every successful auth ack to close the cold-start gap. See `StaffRanksPoller`.
@@ -230,7 +230,7 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 - Normalization: trim, strip NBSP, strip level tags `<N>`, lowercase
 - Nickname mode: split on `/`, check both halves
 - Fetches `VetsApi.SUPPORTERS` every 5 min
-- Used by `ListFetcher` (gradient glint), `PillFormatter`, `NametagAnimator`, `ServerGuildChatRewriter`
+- Read by `ChatUtils`, `ServerGuildChatRewriter`, `ListFetcher` (gradient glint), `NametagMixin` and `DiagnosticsHandler` (started by `VetsmodClient`). ⚠️ **Not** `PillFormatter` or `NametagAnimator` — both take a `boolean isSupporter` from their caller and never touch the poller; `NametagAnimator`'s own Javadoc says so
 
 ## 6. Listeners
 
