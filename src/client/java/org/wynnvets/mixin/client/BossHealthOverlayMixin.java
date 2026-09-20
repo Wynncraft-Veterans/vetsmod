@@ -34,10 +34,14 @@ import org.wynnvets.mwe.anni.bossbar.VetsBossBarManager;
  * {@link VetsBossBarManager#barUuid()}. Wynntils' own overlays
  * render through their own paths and aren't affected.</p>
  *
- * <p>Priority 500 isn't load-bearing here (there's no cancellation
- * order to win against Wynntils) but kept for symmetry with the
- * existing {@link QueueTitleMixin} ranking — and so if a future
- * collision adds another render-path mixin, we sit early.</p>
+ * <p>Priority 500 isn't load-bearing here — this is a {@code @Redirect},
+ * so there is no HEAD cancellation order to win against Wynntils. It is kept
+ * only for symmetry with {@link QueueTitleMixin}'s ranking, and that ranking
+ * does not do what its own Javadoc used to claim. 500 means applied
+ * <em>first</em>, which for a redirect is not headroom: a later,
+ * numerically-higher redirect on the same instruction would fail to find its
+ * target rather than lose gracefully. Treat this number as inherited, not as
+ * a defence.</p>
  */
 @Mixin(value = BossHealthOverlay.class, priority = 500)
 public abstract class BossHealthOverlayMixin {

@@ -87,10 +87,10 @@ These six live directly under `mixin/client/` rather than a subpackage. They're 
 
 ### QueueTitleMixin
 [QueueTitleMixin](../src/client/java/org/wynnvets/mixin/client/QueueTitleMixin.java)
-- **Target:** `@Mixin(value = ClientPacketListener.class, priority = 500)` — high priority (lower number) so we fire before other mods
+- **Target:** `@Mixin(value = ClientPacketListener.class, priority = 500)` — **not** "high priority": 500 is *below* the default 1000, so this mixin is applied first and its `HEAD` callback therefore runs **last**. See §"Injection priorities".
 - **Method:** `setTitleText(ClientboundSetTitleTextPacket)` at `@At("HEAD")`
 - **Purpose:** Feeds the raw title text into [`QueueDetector.handleTitleText`](../src/client/java/org/wynnvets/queue/QueueDetector.java) so we can detect the `Queueing for XX##.` queue title.
-- **Why:** Reads the packet directly at the network handler — robust against other mods (e.g. WynnLimbo) that inject earlier and cancel Wynntils' `TitleSetTextEvent` before vetsmod would see it.
+- **Why:** Reads the packet directly at the network handler, which sidesteps Wynntils' `TitleSetTextEvent` entirely — that is what makes it robust against a mod (e.g. WynnLimbo) cancelling the *event*. ⚠️ It is **not** robust against a mod cancelling the *method* at `HEAD`: at 500 vetsmod runs after every default-priority inject, so a cancel at >= 1000 skips it. Filed as `queue-title-mixin-priority-inverts-its-own-goal`.
 
 ### BossHealthOverlayMixin
 [BossHealthOverlayMixin](../src/client/java/org/wynnvets/mixin/client/BossHealthOverlayMixin.java)
@@ -138,12 +138,14 @@ No non-legacy item mixins. All item behaviour lives in:
 
 | Mixin | Priority |
 |-------|----------|
-| `QueueTitleMixin` | 500 — applied first, so at `HEAD` it runs *after* default-priority injects. Not a cancel race: the inject is non-cancellable and only reads the packet |
-| `BossHealthOverlayMixin` | 500 (not load-bearing — it is a `@Redirect`, so there is no HEAD cancellation order to win; kept for symmetry with `QueueTitleMixin` and headroom if another render-path mixin lands) |
+| `QueueTitleMixin` | 500 — applied first, so at `HEAD` it runs *after* default-priority injects. Being non-cancellable protects *other mods from us*, not *us from them*: a third-party cancel at >= 1000 still skips this inject. Nothing known-broken; filed as `queue-title-mixin-priority-inverts-its-own-goal` |
+| `BossHealthOverlayMixin` | 500 (not load-bearing — it is a `@Redirect`, so there is no HEAD cancellation order to win; inherited from `QueueTitleMixin` for symmetry). Not headroom: applied-first means a later, numerically-higher redirect on the same instruction would fail to find its target rather than lose gracefully |
 | `NametagMixin` | 900 — load-bearing: it puts vetsmod's wrap inside wynnmod's |
 | All other mixins | Default 1000 (priority is not load-bearing there — S4 nametag work moved off priority-based HEAD ordering to TAIL-of-earlier-method to avoid Wynntils' cancel) |
 
-⚠️ `QueueTitleMixin`'s own class Javadoc argues the opposite ordering ("by reading the packet ourselves at `HEAD` with high priority, we guarantee vetsmod sees the title text regardless of other mods' injection order"). The mixin does still see every title packet no other mod cancels, so nothing is known-broken; but the *reason* given is inverted. Left as-is here — correcting source comments beyond the seven this phase touched is Phase 5.5's job.
+✅ **Retired by Phase 5.5a.** `QueueTitleMixin`'s class Javadoc, this file's two `QueueTitleMixin` bullets and both table rows all argued or implied the inverted ordering; all five now describe what 500 actually does. The mixin still sees every title packet no other mod cancels, so nothing is known-broken — whether the defence is wanted is a behaviour question, filed as `queue-title-mixin-priority-inverts-its-own-goal`.
+
+⚠️ **The two priority systems in this repo run in opposite senses, and nothing else says so.** Mixin: ascending application order, so a numerically *higher* number is applied later and wins at `HEAD`. NeoForge `EventPriority`: `HIGHEST` runs *first*, `LOWEST` last. A sentence that is true of one is false of the other, and the two appear in adjacent paragraphs here — which is the likeliest origin of the inverted `QueueTitleMixin` wording 5.5a retired above. Check which system a claim is about before trusting its direction.
 
 For event-based integrations, vetsmod uses `@SubscribeEvent(priority=EventPriority.LOWEST)` on `LegacyHighlightEventListener` so it runs AFTER Wynntils' `ItemHighlightFeature` (registered at HIGH). Drawing at LOWEST effectively overwrites Wynntils' rarity highlight.
 

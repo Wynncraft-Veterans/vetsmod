@@ -38,8 +38,10 @@ import org.wynnvets.rendering.nametag.NametagAnimator;
  * directly and then <em>cancels</em> the vanilla submit when it adds
  * gear-hover lines (whenever the player is the hovered raycast target)
  * or when it adds a Wynntils account-type badge. A cancel from any
- * priority-1000 HEAD inject short-circuits every later-priority HEAD
- * inject on the same method via the mixin processor's generated
+ * priority-1000 HEAD inject short-circuits every HEAD inject that runs
+ * after it — i.e. every <em>numerically lower</em> priority, since Mixin
+ * applies in ascending order and prepends at HEAD —
+ * on the same method via the mixin processor's generated
  * {@code if (ci.isCancelled()) return;} guard — which is exactly the
  * earlier {@code submitNameTag} HEAD design's failure mode (observed in
  * S4 testing 2026-06-17: party tier outlines applied, nametag colours

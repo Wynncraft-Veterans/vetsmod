@@ -15,9 +15,20 @@ import org.wynnvets.queue.QueueDetector;
  * <p>This mixin exists because the primary detection path via Wynntils'
  * {@code TitleSetTextEvent} can be silently bypassed when another mod
  * (e.g. WynnLimbo) injects into the same method and cancels the callback
- * before Wynntils' mixin fires.  By reading the packet ourselves at
- * {@code HEAD} with high priority, we guarantee vetsmod sees the title
- * text regardless of other mods' injection order.</p>
+ * before Wynntils' mixin fires. Reading the packet ourselves at
+ * {@code HEAD} sidesteps Wynntils' event entirely, and that part works.</p>
+ *
+ * <p><b>The {@code priority = 500} does not add to that, and it orders the
+ * opposite way from how it reads.</b> Mixin applies in ascending priority
+ * order, so 500 is applied <em>before</em> the default 1000 — and at
+ * {@code HEAD} the later-applied callback is prepended, so this one runs
+ * <em>last</em>. A third-party cancelling {@code HEAD} inject at priority
+ * &gt;= 1000 on this method would skip it, which is the very scenario the
+ * paragraph above cites. Nothing is known-broken today; whether the defence
+ * is wanted is filed as
+ * {@code queue-title-mixin-priority-inverts-its-own-goal}. See
+ * {@code vetsmod_mixins.md} §"Injection priorities" for which way
+ * {@code priority} runs.</p>
  */
 @Mixin(value = ClientPacketListener.class, priority = 500)
 public class QueueTitleMixin {
