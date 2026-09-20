@@ -29,10 +29,17 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * simultaneously; the user keeps full control of their compass.</p>
  *
  * <p>The spot is sourced from the latest {@link AnniSnapshot}'s
- * {@code board.party.scroll_spot}. When the spot is unset (or the user
- * isn't in a party), we fall back to the hardcoded default
- * {@code 345 45 -1315} per the parent plan §S5 — useful for users in a
- * party with no host-pinned spot yet.</p>
+ * {@code board.party.scroll_spot}. When the user <b>is</b> in a party
+ * and the spot is unset, we fall back to the hardcoded default
+ * {@code 345 45 -1315} per the parent plan §S5 — for users in a party
+ * with no host-pinned spot yet.</p>
+ *
+ * <p><b>Outside a party there is no marker at all.</b>
+ * {@code computeEntry} returns {@code null} on a null {@code board} or a
+ * null {@code board.party()}, before it ever looks at the spot, so the
+ * fallback is unreachable on that path. The previous wording offered the
+ * default "when the spot is unset (or the user isn't in a party)", which
+ * contradicted both the code and the second half of its own sentence.</p>
  *
  * <p><b>Visual:</b> {@link Texture#MAP} (the 14×14 generic map icon —
  * <i>not</i> {@code MAP_ICON}, which is the 21×38 content-book tab — the

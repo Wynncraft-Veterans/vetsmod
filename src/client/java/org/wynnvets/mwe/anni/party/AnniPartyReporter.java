@@ -20,9 +20,13 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * the listener would never recapture.</p>
  *
  * <p>Solution: subscribe to {@link AnniSnapshotCache} and trigger a
- * synthetic {@link PartyRosterListener#requestRecapture()} whenever the
- * {@code organiser_usernames} set transitions from empty to non-empty, or
- * the set's contents change (e.g. a new organiser is assigned mid-window).
+ * synthetic {@link PartyRosterListener#requestRecapture()} on <b>any</b>
+ * change to the case-folded {@code organiser_usernames} set — empty to
+ * non-empty, a content change (a new organiser assigned mid-window),
+ * <em>and</em> non-empty back to empty. The guard is a plain set
+ * inequality, so all three are one condition; listing only the first two
+ * understates it. A first snapshot carrying no organisers is not a
+ * change, since the field starts empty, so startup does not fire.
  * The listener's debounce coalesces this with any near-simultaneous
  * Wynntils events so we never double-send.</p>
  *
