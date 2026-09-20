@@ -49,7 +49,7 @@ Features:
 - Case-insensitive username location (searches from END for last occurrence)
 - Handles Wynncraft nametag format: `[colour1][symbol] [colour2][prefix] username` with PUA chars
 - Segment boundary handling for split username parts
-- Called every render frame from `NametagMixin` — no external tick
+- Called every render frame from `NametagMixin` — no external tick. From **both** of that mixin's injectors: the `extractRenderState` TAIL inject and the `submitNameTag` `@WrapOperation`, which is what re-runs the animator after wynnmod's wrap
 
 ## 3. Colors subpackage
 

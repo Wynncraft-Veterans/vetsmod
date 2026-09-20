@@ -204,7 +204,10 @@ public class VetsConfig {
      *  on the same window+zone+mode predicate as {@link #VETS_ANNI_OUTLINES_ENABLED}. Default {@code
      *  true}. The branch added to {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} runs
      *  before the supporter glint branch — so an own-party supporter shows the role colour for the
-     *  duration of the highlight gate and reverts to the animated supporter glint afterwards. */
+     *  duration of the highlight gate and reverts to the animated supporter glint afterwards.
+     *  That ordering is the TAIL injector's; {@code NametagMixin} has two, and when wynnmod is
+     *  present the TAIL path returns before the supporter branch and its {@code @WrapOperation}
+     *  owns the glint instead. */
     public static final String VETS_ANNI_NAMETAGS_ENABLED = "vetsAnniNametagsEnabled";
 
     /** S5 — Master toggle for the zone-line renderer (the union of 48-block

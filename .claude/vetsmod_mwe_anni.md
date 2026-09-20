@@ -522,7 +522,7 @@ Side effect: tab-list colour for outsiders is **not** affected — only `state.o
 
 ### `NametagMixin` anni branch (`mixin/client/NametagMixin.java`)
 
-TAIL inject on `AvatarRenderer.extractRenderState(Avatar, AvatarRenderState, F)`. The anni branch runs BEFORE the existing supporter glint branch in the same inject body. While `AnniOutlineTicker.isOutlineSuppressionActive()` AND `vetsAnniNametagsEnabled`:
+TAIL inject on `AvatarRenderer.extractRenderState(Avatar, AvatarRenderState, F)` — **one of two injectors**; the other is a MixinExtras `@WrapOperation` around the `submitNameTag` call, and both share `applyOverride`. The anni branch runs BEFORE the supporter glint branch in the TAIL body. ⚠️ **When wynnmod is loaded (`WYNNMOD_PRESENT`) the TAIL path returns before the supporter branch entirely** and the wrap owns the glint instead — see [vetsmod_mixins.md](vetsmod_mixins.md). While `AnniOutlineTicker.isOutlineSuppressionActive()` AND `vetsAnniNametagsEnabled`:
 
 - Registry hit → recolour to `entry.nametagFormatting()` (matches the outline colour family).
 - Registry miss → recolour to `ChatFormatting.DARK_GRAY` (outsider treatment).
@@ -540,7 +540,7 @@ state.nameTag = Component.literal(stripped).withStyle(fmt);
 
 2. **`ChatFormatting.stripFormatting` is mandatory.** Wynncraft embeds the team colour as a legacy `§<code>` prefix INSIDE the nametag string content — `state.nameTag.getString()` returns `"§awonderkas"` for a friend-team-coloured player, not `"wonderkas"`. Without the strip, `Component.literal("§awonderkas").withStyle(RED)` renders GREEN because vanilla's text renderer parses the leading `§a` at draw time and silently overrides the Style. Without this strip every recoloured nametag silently reverts to the team colour. ⚠️ The `original=` column this was supposedly confirmed against **does not exist** — see [`nametags-dump-missing-original-column`](ephemeral/bugs-found-via-mellow-rain/nametags-dump-missing-original-column.md).
 
-Falls through to the supporter glint branch only when the anni gate is off; an own-party supporter inside the gate shows their role colour for the duration and the glint resumes after the gate closes.
+Falls through to the supporter glint branch when the anni gate is off — and only when `WYNNMOD_PRESENT` is false, since that flag returns out of the TAIL path before the supporter branch is reached; an own-party supporter inside the gate shows their role colour for the duration and the glint resumes after the gate closes.
 
 ## Aggressive mode
 
