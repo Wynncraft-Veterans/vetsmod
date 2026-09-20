@@ -18,7 +18,12 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * yield different Components at different instants.</p>
  *
  * <p>Maps {@code (AnniSnapshot, secondsUntilAnni, playerPos)} to one of
- * the four spec text variants (or {@code null} for "deactivate"):</p>
+ * the four text variants <em>this builder emits</em> (or {@code null}
+ * for "deactivate"). Four is the count of the branches below; it is not
+ * the spec's count of anything, and {@link #isAssigned}'s reference to
+ * "the five" is a spec-side enumeration of a different population that
+ * this repo holds no copy of. The two numbers are not in conflict, they
+ * count different things.</p>
  *
  * <ul>
  *   <li><b>T-20s gate</b> (one of the two T-20s gates per parent plan
@@ -32,8 +37,14 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  *       AND the player is inside the anni zone
  *       (per {@link AnniZone#isInZone}). Spec §3.1.1.3:
  *       {@code &3anni.wynnvets.org&8: &cANNI IN &f&lAAs&8 | &d&l&nSCROLLS IN BBs&d!}</li>
- *   <li><b>Assigned</b> — when the snapshot's board carries a party
- *       OR a committed slot (specific role / FILL). Spec §3.1.1.2:
+ *   <li><b>Assigned</b> — when {@link #isAssigned} holds: the board
+ *       carries a party or a role, <em>or</em> {@code registration.roles}
+ *       carries any non-FILL entry. ⚠️ That last arm reads
+ *       {@code registration}, not {@code board}, while all three chips
+ *       below read {@code board} only — so a registered-but-unplaced
+ *       player selects this variant and renders
+ *       {@code Role: TBD | Party TBD | World: TBD}. Filed, not fixed:
+ *       {@code boss-bar-assigned-variant-renders-all-tbd}. Spec §3.1.1.2:
  *       {@code &3anni.wynnvets.org/me&8: &7Role: <ROLE>&8 | &7Party <N>&8 | &7World: <W>}</li>
  *   <li><b>Seeking</b> — otherwise. Spec §3.1.1.1:
  *       {@code &7Seeking a <RSVP> <SLOT> &7for &3&nanni.wynnvets.org&7 in &f&l<XX>&fmin}</li>
@@ -43,8 +54,11 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * {@link FlashTracker#styleFor} to four chips: role, party and world in
  * the assigned variant, rsvp in the seeking one.</p>
  *
- * <p>{@code colorFor(AnniSnapshot)} lives here too, and the manager calls
- * it every tick alongside the text.</p>
+ * <p>{@code colorFor(AnniSnapshot)} lives here too. The manager calls it
+ * alongside the text, on the ticks that get that far — not every tick:
+ * {@link VetsBossBarManager}'s {@code tickInner} reaches it only after
+ * the whole activation gate holds <em>and</em> {@code build} has
+ * returned non-null.</p>
  */
 public final class VetsBossBarContentBuilder {
 
@@ -77,11 +91,13 @@ public final class VetsBossBarContentBuilder {
      *       (NOT pink — Wynncraft's resource pack overrides
      *       {@code boss_bar/pink_background.png} to be fully transparent,
      *       so any pink bar renders as text-only; reproducible on bare
-     *       vanilla MC with Wynncraft connected. Confirmed empirically
-     *       in {@code .claude/ephemeral/BossBarExploration/} — every
-     *       Wynncraft text-only bar (Returners XP, Corrupted Road, etc.)
-     *       carries {@code color=PINK overlay=PROGRESS}; mob health bars
-     *       use non-pink colours and render normally. Purple is the
+     *       vanilla MC with Wynncraft connected. Confirmed via
+     *       {@code /wv debug trigger bossBarsDump} — every Wynncraft
+     *       text-only bar (Returners XP, Corrupted Road, etc.) carries
+     *       {@code color=PINK overlay=PROGRESS}; mob health bars use
+     *       non-pink colours and render normally. The full write-up is
+     *       {@code vetsmod_mwe_anni.md} §"Bar colour: never PINK", which
+     *       also fixes the permitted-colour set. Purple is the
      *       nearest visual neighbour that isn't suppressed.)</li>
      *   <li>board state {@code wont_assign} (COULD NOT ASSIGN) → RED</li>
      *   <li>otherwise → quantised from {@link AnniSnapshot.Attendance#band()}
