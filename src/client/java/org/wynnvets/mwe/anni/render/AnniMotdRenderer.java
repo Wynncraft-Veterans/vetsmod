@@ -176,8 +176,12 @@ public final class AnniMotdRenderer {
                 .withStyle(ChatFormatting.GRAY);
     }
 
-    /** "are hard RSVP'd" / "are soft RSVP'd" / "are walking in early"
-     *  / "are walking in late" / "have not RSVP'd". */
+    /** Six returns, not five: "are hard RSVP'd" / "are soft RSVP'd" /
+     *  "are walking in early" / "are walking in late" / "have not
+     *  RSVP'd" when no notice is held, and "have an unrecognised RSVP"
+     *  for a key this switch does not know. The last is the one the
+     *  old list omitted, and it is the arm a new vets-anni notice value
+     *  would land on. */
     private static String rsvpClause(AnniSnapshot snapshot) {
         AnniSnapshot.Rsvp rsvp = snapshot.rsvp();
         AnniSnapshot.Attendance attendance = snapshot.attendance();
