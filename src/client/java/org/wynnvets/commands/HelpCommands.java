@@ -11,15 +11,39 @@ import org.wynnvets.guild.GuildStateManager;
 /**
  * Handlers for the {@code /wv help} subcommand tree.
  *
- * <p>Each method builds a formatted help message and sends it to the local
- * player.  All methods are package-private so they can be referenced from
- * {@link CommandRegistry} without being part of the public API.</p>
+ * <p>Each page is a pair: a {@code buildX} method that returns the page as a
+ * {@link MutableComponent}, and the {@code helpX} handler that sends it.  The
+ * pair exists so the page bodies can be consolidated without changing what is
+ * emitted — a returned component can be compared against its predecessor, one
+ * handed straight to a send cannot.  All methods are package-private so they
+ * can be referenced from {@link CommandRegistry} without being part of the
+ * public API.</p>
  */
 final class HelpCommands {
 
     private HelpCommands() {}
 
     static int help(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(
+                buildHelp(
+                        GuildStateManager.isEligibleForEnrichment(),
+                        GuildStateManager.isUnlocked(),
+                        GuildStateManager.areFeaturesEnabled(),
+                        GuildStateManager.isStaff()));
+        return 1;
+    }
+
+    /**
+     * Builds the bare {@code /wv help} index page.
+     *
+     * <p>The four gates arrive as parameters rather than being read from
+     * {@link GuildStateManager} here: the rows they guard are interleaved with
+     * the unconditional ones, so the page is only enumerable when the gates are
+     * inputs.  Reading them once, together, at the call site also stops the
+     * page straddling a {@code GuildChecker} cache expiry mid-build.</p>
+     */
+    static MutableComponent buildHelp(
+            boolean vet, boolean unlocked, boolean featuresEnabled, boolean staff) {
         MutableComponent msg = Component.empty();
 
         msg.append(
@@ -42,14 +66,14 @@ final class HelpCommands {
                 Component.literal(" — View or change mod settings\n")
                         .withStyle(ChatFormatting.GRAY));
 
-        if (GuildStateManager.isEligibleForEnrichment()) {
+        if (vet) {
             msg.append(Component.literal("/wv motd").withStyle(ChatFormatting.YELLOW));
             msg.append(
                     Component.literal(" — Show the message of the day\n")
                             .withStyle(ChatFormatting.GRAY));
         }
 
-        if (GuildStateManager.isUnlocked()) {
+        if (unlocked) {
             msg.append(Component.literal("/wv list").withStyle(ChatFormatting.YELLOW));
             msg.append(
                     Component.literal(" — Show online members and VetsMod status\n")
@@ -61,7 +85,7 @@ final class HelpCommands {
                             .withStyle(ChatFormatting.GRAY));
         }
 
-        if (GuildStateManager.areFeaturesEnabled()) {
+        if (featuresEnabled) {
             msg.append(Component.literal("/wv return").withStyle(ChatFormatting.YELLOW));
             msg.append(
                     Component.literal(" — Show info about this week's event\n")
@@ -75,7 +99,7 @@ final class HelpCommands {
                             .withStyle(ChatFormatting.GRAY));
         }
 
-        if (GuildStateManager.isStaff()) {
+        if (staff) {
             msg.append(Component.literal("/wv check <player>").withStyle(ChatFormatting.YELLOW));
             msg.append(
                     Component.literal(" — Look up a player's eligibility\n")
@@ -86,11 +110,15 @@ final class HelpCommands {
         msg.append(
                 Component.literal(" — Diagnostics & debug tools").withStyle(ChatFormatting.GRAY));
 
-        ChatUtils.sendLocalMessageNewBlock(msg);
-        return 1;
+        return msg;
     }
 
     static int helpConfig(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(buildHelpConfig());
+        return 1;
+    }
+
+    static MutableComponent buildHelpConfig() {
         MutableComponent msg = Component.empty();
 
         msg.append(
@@ -145,11 +173,15 @@ final class HelpCommands {
                 Component.literal(" instead of relying solely on Wynntils (which can stay null)")
                         .withStyle(ChatFormatting.GRAY));
 
-        ChatUtils.sendLocalMessageNewBlock(msg);
-        return 1;
+        return msg;
     }
 
     static int helpCheck(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(buildHelpCheck());
+        return 1;
+    }
+
+    static MutableComponent buildHelpCheck() {
         MutableComponent msg = Component.empty();
         msg.append(Component.literal("/wv check <player>\n").withStyle(ChatFormatting.YELLOW));
         msg.append(
@@ -157,11 +189,15 @@ final class HelpCommands {
                         .withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("Staff").withStyle(ChatFormatting.RED));
-        ChatUtils.sendLocalMessageNewBlock(msg);
-        return 1;
+        return msg;
     }
 
     static int helpReturn(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(buildHelpReturn());
+        return 1;
+    }
+
+    static MutableComponent buildHelpReturn() {
         MutableComponent msg = Component.empty();
         msg.append(Component.literal("/wv return\n").withStyle(ChatFormatting.YELLOW));
         msg.append(
@@ -171,11 +207,15 @@ final class HelpCommands {
                         .withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("Returners guild member").withStyle(ChatFormatting.GREEN));
-        ChatUtils.sendLocalMessageNewBlock(msg);
-        return 1;
+        return msg;
     }
 
     static int helpStaff(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(buildHelpStaff());
+        return 1;
+    }
+
+    static MutableComponent buildHelpStaff() {
         MutableComponent msg = Component.empty();
         msg.append(Component.literal("/wv staff\n").withStyle(ChatFormatting.YELLOW));
         msg.append(
@@ -183,11 +223,15 @@ final class HelpCommands {
                         .withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("Unlocked").withStyle(ChatFormatting.GREEN));
-        ChatUtils.sendLocalMessageNewBlock(msg);
-        return 1;
+        return msg;
     }
 
     static int helpList(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(buildHelpList());
+        return 1;
+    }
+
+    static MutableComponent buildHelpList() {
         MutableComponent msg = Component.empty();
         msg.append(Component.literal("/wv list\n").withStyle(ChatFormatting.YELLOW));
         msg.append(
@@ -199,11 +243,15 @@ final class HelpCommands {
         msg.append(
                 Component.literal("Veteran (Returners, waitlist, or honourary)")
                         .withStyle(ChatFormatting.GREEN));
-        ChatUtils.sendLocalMessageNewBlock(msg);
-        return 1;
+        return msg;
     }
 
     static int helpMotd(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(buildHelpMotd());
+        return 1;
+    }
+
+    static MutableComponent buildHelpMotd() {
         MutableComponent msg = Component.empty();
         msg.append(Component.literal("/wv motd\n").withStyle(ChatFormatting.YELLOW));
         msg.append(
@@ -215,11 +263,15 @@ final class HelpCommands {
         msg.append(
                 Component.literal("Veteran (Returners, waitlist, or honourary)")
                         .withStyle(ChatFormatting.GREEN));
-        ChatUtils.sendLocalMessageNewBlock(msg);
-        return 1;
+        return msg;
     }
 
     static int helpAnni(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(buildHelpAnni());
+        return 1;
+    }
+
+    static MutableComponent buildHelpAnni() {
         MutableComponent msg = Component.empty();
         msg.append(Component.literal("/wv anni\n").withStyle(ChatFormatting.YELLOW));
         msg.append(
@@ -229,11 +281,15 @@ final class HelpCommands {
                         .withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
-        ChatUtils.sendLocalMessageNewBlock(msg);
-        return 1;
+        return msg;
     }
 
     static int helpLine(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(buildHelpLine());
+        return 1;
+    }
+
+    static MutableComponent buildHelpLine() {
         MutableComponent msg = Component.empty();
         msg.append(
                 Component.literal("/wv line <church|scrap|bat|hegea|lighthouse>\n")
@@ -247,11 +303,15 @@ final class HelpCommands {
                         .withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("Returners guild member").withStyle(ChatFormatting.GREEN));
-        ChatUtils.sendLocalMessageNewBlock(msg);
-        return 1;
+        return msg;
     }
 
     static int helpDebug(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(buildHelpDebug());
+        return 1;
+    }
+
+    static MutableComponent buildHelpDebug() {
         MutableComponent msg = Component.empty();
         msg.append(Component.literal("/wv debug\n").withStyle(ChatFormatting.YELLOW));
         msg.append(
@@ -279,11 +339,15 @@ final class HelpCommands {
                         .withStyle(ChatFormatting.DARK_GRAY));
         msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
-        ChatUtils.sendLocalMessageNewBlock(msg);
-        return 1;
+        return msg;
     }
 
     static int helpDebugSet(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(buildHelpDebugSet());
+        return 1;
+    }
+
+    static MutableComponent buildHelpDebugSet() {
         MutableComponent msg = Component.empty();
         msg.append(
                 Component.literal("/wv debug set [<key> [<value>]]\n")
@@ -316,11 +380,15 @@ final class HelpCommands {
                         .withStyle(ChatFormatting.DARK_GRAY));
         msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
-        ChatUtils.sendLocalMessageNewBlock(msg);
-        return 1;
+        return msg;
     }
 
     static int helpDebugTrigger(CommandContext<FabricClientCommandSource> ctx) {
+        ChatUtils.sendLocalMessageNewBlock(buildHelpDebugTrigger());
+        return 1;
+    }
+
+    static MutableComponent buildHelpDebugTrigger() {
         MutableComponent msg = Component.empty();
         msg.append(
                 Component.literal("/wv debug trigger <action>\n").withStyle(ChatFormatting.YELLOW));
@@ -358,7 +426,6 @@ final class HelpCommands {
                         .withStyle(ChatFormatting.DARK_GRAY));
         msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
-        ChatUtils.sendLocalMessageNewBlock(msg);
-        return 1;
+        return msg;
     }
 }
