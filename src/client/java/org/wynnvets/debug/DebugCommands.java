@@ -174,15 +174,7 @@ public final class DebugCommands {
 
         for (String key : DebugConfigManager.DEBUG_CONFIG_KEYS) {
             boolean value = VetsConfig.get(key);
-            ChatUtils.sendLocalMessage(
-                    Component.literal("  " + key + " = ")
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(
-                                    Component.literal(String.valueOf(value))
-                                            .withStyle(
-                                                    value
-                                                            ? ChatFormatting.GREEN
-                                                            : ChatFormatting.RED)));
+            ChatUtils.sendLocalMessage(debugListBoolLine(key, value));
         }
         return 1;
     }
@@ -201,15 +193,7 @@ public final class DebugCommands {
         }
 
         boolean value = VetsConfig.get(key);
-        ChatUtils.sendLocalMessage(
-                Component.literal(key + " = ")
-                        .withStyle(ChatFormatting.GRAY)
-                        .append(
-                                Component.literal(String.valueOf(value))
-                                        .withStyle(
-                                                value
-                                                        ? ChatFormatting.GREEN
-                                                        : ChatFormatting.RED)));
+        ChatUtils.sendLocalMessage(debugGetBoolLine(key, value));
         return 1;
     }
 
@@ -237,16 +221,39 @@ public final class DebugCommands {
         boolean value = Boolean.parseBoolean(rawValue);
         VetsConfig.set(key, value);
 
-        ChatUtils.sendLocalMessage(
-                Component.literal(key + " set to ")
-                        .withStyle(ChatFormatting.GRAY)
-                        .append(
-                                Component.literal(String.valueOf(value))
-                                        .withStyle(
-                                                value
-                                                        ? ChatFormatting.GREEN
-                                                        : ChatFormatting.RED)));
+        ChatUtils.sendLocalMessage(debugSetBoolLine(key, value));
         return 1;
+    }
+
+    // ── Value-line build halves ─────────────────────────────────────
+    //
+    // One per emit site, each a pure function of its label and its value.
+    // Package-private so DebugCommandsTest can pin them; the handlers above
+    // stay private, because they read VetsConfig and are not testable either
+    // way. Still three copies on purpose — see ConfigCommands.
+
+    static Component debugListBoolLine(String key, boolean value) {
+        return Component.literal("  " + key + " = ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(
+                        Component.literal(String.valueOf(value))
+                                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED));
+    }
+
+    static Component debugGetBoolLine(String key, boolean value) {
+        return Component.literal(key + " = ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(
+                        Component.literal(String.valueOf(value))
+                                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED));
+    }
+
+    static Component debugSetBoolLine(String key, boolean value) {
+        return Component.literal(key + " set to ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(
+                        Component.literal(String.valueOf(value))
+                                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED));
     }
 
     // ── /wv debug trigger handlers ──────────────────────────────────

@@ -91,40 +91,17 @@ final class ConfigCommands {
         for (String key : VetsConfig.USER_CONFIG_KEYS) {
             if (VetsConfig.isIntKey(key)) {
                 long intValue = VetsConfig.getLong(key);
-                ChatUtils.sendLocalMessage(
-                        Component.literal("  " + key + " = ")
-                                .withStyle(ChatFormatting.GRAY)
-                                .append(
-                                        Component.literal(String.valueOf(intValue))
-                                                .withStyle(ChatFormatting.AQUA)));
+                ChatUtils.sendLocalMessage(listIntLine(key, intValue));
             } else if (VetsConfig.isStringKey(key)) {
                 String strValue = VetsConfig.getString(key);
                 ChatUtils.sendLocalMessage(
-                        Component.literal("  " + key + " = ")
-                                .withStyle(ChatFormatting.GRAY)
-                                .append(formatStringConfigValue(key, strValue)));
+                        listStringLine(key, formatStringConfigValue(key, strValue)));
             } else if (VetsConfig.isTriStateKey(key)) {
                 Boolean triValue = VetsConfig.getTriState(key);
-                String display = triValue == null ? "default" : String.valueOf(triValue);
-                ChatFormatting color =
-                        triValue == null
-                                ? ChatFormatting.YELLOW
-                                : (triValue ? ChatFormatting.GREEN : ChatFormatting.RED);
-                ChatUtils.sendLocalMessage(
-                        Component.literal("  " + key + " = ")
-                                .withStyle(ChatFormatting.GRAY)
-                                .append(Component.literal(display).withStyle(color)));
+                ChatUtils.sendLocalMessage(listTriStateLine(key, triValue));
             } else {
                 boolean value = VetsConfig.get(key);
-                ChatUtils.sendLocalMessage(
-                        Component.literal("  " + key + " = ")
-                                .withStyle(ChatFormatting.GRAY)
-                                .append(
-                                        Component.literal(String.valueOf(value))
-                                                .withStyle(
-                                                        value
-                                                                ? ChatFormatting.GREEN
-                                                                : ChatFormatting.RED)));
+                ChatUtils.sendLocalMessage(listBoolLine(key, value));
             }
         }
         return 1;
@@ -141,40 +118,16 @@ final class ConfigCommands {
 
         if (VetsConfig.isIntKey(key)) {
             long intValue = VetsConfig.getLong(key);
-            ChatUtils.sendLocalMessage(
-                    Component.literal(key + " = ")
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(
-                                    Component.literal(String.valueOf(intValue))
-                                            .withStyle(ChatFormatting.AQUA)));
+            ChatUtils.sendLocalMessage(getIntLine(key, intValue));
         } else if (VetsConfig.isStringKey(key)) {
             String strValue = VetsConfig.getString(key);
-            ChatUtils.sendLocalMessage(
-                    Component.literal(key + " = ")
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(formatStringConfigValue(key, strValue)));
+            ChatUtils.sendLocalMessage(getStringLine(key, formatStringConfigValue(key, strValue)));
         } else if (VetsConfig.isTriStateKey(key)) {
             Boolean triValue = VetsConfig.getTriState(key);
-            String display = triValue == null ? "default" : String.valueOf(triValue);
-            ChatFormatting color =
-                    triValue == null
-                            ? ChatFormatting.YELLOW
-                            : (triValue ? ChatFormatting.GREEN : ChatFormatting.RED);
-            ChatUtils.sendLocalMessage(
-                    Component.literal(key + " = ")
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(Component.literal(display).withStyle(color)));
+            ChatUtils.sendLocalMessage(getTriStateLine(key, triValue));
         } else {
             boolean value = VetsConfig.get(key);
-            ChatUtils.sendLocalMessage(
-                    Component.literal(key + " = ")
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(
-                                    Component.literal(String.valueOf(value))
-                                            .withStyle(
-                                                    value
-                                                            ? ChatFormatting.GREEN
-                                                            : ChatFormatting.RED)));
+            ChatUtils.sendLocalMessage(getBoolLine(key, value));
         }
         return 1;
     }
@@ -211,15 +164,7 @@ final class ConfigCommands {
         boolean value = Boolean.parseBoolean(rawValue);
         VetsConfig.set(key, value);
 
-        ChatUtils.sendLocalMessage(
-                Component.literal(key + " set to ")
-                        .withStyle(ChatFormatting.GRAY)
-                        .append(
-                                Component.literal(String.valueOf(value))
-                                        .withStyle(
-                                                value
-                                                        ? ChatFormatting.GREEN
-                                                        : ChatFormatting.RED)));
+        ChatUtils.sendLocalMessage(setBoolLine(key, value));
         return 1;
     }
 
@@ -240,15 +185,7 @@ final class ConfigCommands {
             return 0;
         }
         VetsConfig.setTriState(key, triValue);
-        String display = triValue == null ? "default" : String.valueOf(triValue);
-        ChatFormatting color =
-                triValue == null
-                        ? ChatFormatting.YELLOW
-                        : (triValue ? ChatFormatting.GREEN : ChatFormatting.RED);
-        ChatUtils.sendLocalMessage(
-                Component.literal(key + " set to ")
-                        .withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(display).withStyle(color)));
+        ChatUtils.sendLocalMessage(setTriStateLine(key, triValue));
         return 1;
     }
 
@@ -270,9 +207,7 @@ final class ConfigCommands {
             if (defaultVal == null) return 0;
             VetsConfig.setString(key, defaultVal);
             ChatUtils.sendLocalMessage(
-                    Component.literal(key + " reset to ")
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(formatStringConfigValue(key, defaultVal)));
+                    resetStringLine(key, formatStringConfigValue(key, defaultVal)));
             return 1;
         }
 
@@ -287,10 +222,7 @@ final class ConfigCommands {
                 return 0;
             }
             VetsConfig.setString(key, lower);
-            ChatUtils.sendLocalMessage(
-                    Component.literal(key + " set to ")
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(formatStringConfigValue(key, lower)));
+            ChatUtils.sendLocalMessage(setSpriteLine(key, formatStringConfigValue(key, lower)));
             return 1;
         }
 
@@ -303,10 +235,7 @@ final class ConfigCommands {
             return 0;
         }
         VetsConfig.setString(key, lower);
-        ChatUtils.sendLocalMessage(
-                Component.literal(key + " set to ")
-                        .withStyle(ChatFormatting.GRAY)
-                        .append(formatStringConfigValue(key, lower)));
+        ChatUtils.sendLocalMessage(setColourLine(key, formatStringConfigValue(key, lower)));
         return 1;
     }
 
@@ -317,12 +246,7 @@ final class ConfigCommands {
             Long defaultVal = VetsConfig.getIntDefault(key);
             if (defaultVal == null) return 0;
             VetsConfig.setLong(key, defaultVal);
-            ChatUtils.sendLocalMessage(
-                    Component.literal(key + " reset to ")
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(
-                                    Component.literal(String.valueOf(defaultVal))
-                                            .withStyle(ChatFormatting.AQUA)));
+            ChatUtils.sendLocalMessage(resetIntLine(key, defaultVal));
             return 1;
         }
 
@@ -342,12 +266,115 @@ final class ConfigCommands {
             return 0;
         }
         VetsConfig.setLong(key, parsed);
-        ChatUtils.sendLocalMessage(
-                Component.literal(key + " set to ")
-                        .withStyle(ChatFormatting.GRAY)
-                        .append(
-                                Component.literal(String.valueOf(parsed))
-                                        .withStyle(ChatFormatting.AQUA)));
+        ChatUtils.sendLocalMessage(setIntLine(key, parsed));
         return 1;
+    }
+
+    // ── Value-line build halves ─────────────────────────────────────────
+    //
+    // One per emit site, each a pure function of its label and its value, so
+    // none of them reads VetsConfig and all of them are callable from a test.
+    // They are deliberately still fifteen copies: merging them is the next
+    // change, and doing it here would leave one commit making two claims.
+
+    static Component listIntLine(String key, long value) {
+        return Component.literal("  " + key + " = ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(String.valueOf(value)).withStyle(ChatFormatting.AQUA));
+    }
+
+    static Component listStringLine(String key, Component value) {
+        return Component.literal("  " + key + " = ").withStyle(ChatFormatting.GRAY).append(value);
+    }
+
+    static Component listTriStateLine(String key, Boolean value) {
+        String display = value == null ? "default" : String.valueOf(value);
+        ChatFormatting color =
+                value == null
+                        ? ChatFormatting.YELLOW
+                        : (value ? ChatFormatting.GREEN : ChatFormatting.RED);
+        return Component.literal("  " + key + " = ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(display).withStyle(color));
+    }
+
+    static Component listBoolLine(String key, boolean value) {
+        return Component.literal("  " + key + " = ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(
+                        Component.literal(String.valueOf(value))
+                                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED));
+    }
+
+    static Component getIntLine(String key, long value) {
+        return Component.literal(key + " = ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(String.valueOf(value)).withStyle(ChatFormatting.AQUA));
+    }
+
+    static Component getStringLine(String key, Component value) {
+        return Component.literal(key + " = ").withStyle(ChatFormatting.GRAY).append(value);
+    }
+
+    static Component getTriStateLine(String key, Boolean value) {
+        String display = value == null ? "default" : String.valueOf(value);
+        ChatFormatting color =
+                value == null
+                        ? ChatFormatting.YELLOW
+                        : (value ? ChatFormatting.GREEN : ChatFormatting.RED);
+        return Component.literal(key + " = ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(display).withStyle(color));
+    }
+
+    static Component getBoolLine(String key, boolean value) {
+        return Component.literal(key + " = ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(
+                        Component.literal(String.valueOf(value))
+                                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED));
+    }
+
+    static Component setBoolLine(String key, boolean value) {
+        return Component.literal(key + " set to ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(
+                        Component.literal(String.valueOf(value))
+                                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED));
+    }
+
+    static Component setTriStateLine(String key, Boolean value) {
+        String display = value == null ? "default" : String.valueOf(value);
+        ChatFormatting color =
+                value == null
+                        ? ChatFormatting.YELLOW
+                        : (value ? ChatFormatting.GREEN : ChatFormatting.RED);
+        return Component.literal(key + " set to ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(display).withStyle(color));
+    }
+
+    static Component resetStringLine(String key, Component value) {
+        return Component.literal(key + " reset to ").withStyle(ChatFormatting.GRAY).append(value);
+    }
+
+    static Component setSpriteLine(String key, Component value) {
+        return Component.literal(key + " set to ").withStyle(ChatFormatting.GRAY).append(value);
+    }
+
+    static Component setColourLine(String key, Component value) {
+        return Component.literal(key + " set to ").withStyle(ChatFormatting.GRAY).append(value);
+    }
+
+    static Component resetIntLine(String key, long value) {
+        return Component.literal(key + " reset to ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(String.valueOf(value)).withStyle(ChatFormatting.AQUA));
+    }
+
+    static Component setIntLine(String key, long value) {
+        return Component.literal(key + " set to ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(String.valueOf(value)).withStyle(ChatFormatting.AQUA));
     }
 }
