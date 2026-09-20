@@ -129,18 +129,22 @@ public final class VetsBossBarManager {
         VetsLogger.debug("VetsBossBarManager registered");
     }
 
-    /** Whether the synthetic bar is currently rendered. Read by
-     *  {@link org.wynnvets.mixin.client.BossHealthOverlayMixin} to gate
-     *  packet swallowing — when false, vanilla boss bars pass through
-     *  unmolested. */
+    /** Whether the synthetic bar is currently rendered. <b>Two</b>
+     *  readers: {@link org.wynnvets.mixin.client.BossHealthOverlayMixin}
+     *  gates packet swallowing on it — when false, vanilla boss bars
+     *  pass through unmolested — and {@code DebugCommands}' boss-bar
+     *  dump reports it. Only the first is behavioural; change the
+     *  semantics and the dump's line needs re-reading too. */
     public static boolean isActive() {
         return active;
     }
 
-    /** The synthetic bar's UUID — consumed by
-     *  {@link org.wynnvets.mixin.client.BossHealthOverlayMixin} to
-     *  identify which entry in {@code BossHealthOverlay#events} to
-     *  let through the render filter. */
+    /** The synthetic bar's UUID. <b>Two</b> readers:
+     *  {@link org.wynnvets.mixin.client.BossHealthOverlayMixin} uses it
+     *  to identify which entry in {@code BossHealthOverlay#events} to
+     *  let through the render filter, and {@code DebugCommands}' boss-bar
+     *  dump prints it beside the live event keys so a mismatch is
+     *  visible. */
     public static UUID barUuid() {
         return BAR_UUID;
     }
@@ -297,7 +301,15 @@ public final class VetsBossBarManager {
      *  gated separately on T-90m <em>or</em> zone entry, so on the timer
      *  path the bar first appears at {@code 89.97%} and never reads 100%;
      *  the {@code p > 1f} clamp is reachable only by standing in the zone
-     *  before T-100m, where the bar does appear full. */
+     *  before T-100m, where the bar does appear full.
+     *
+     *  <p>The 89.97% is derived, not observed, so it is re-checkable:
+     *  {@code (5400 - 20) / (6000 - 20) = 0.89967}. It moves if either
+     *  constant does. Note also that {@code usable} is floored with
+     *  {@code Math.max(0L, …)}, so the {@code p < 0f} arm below cannot
+     *  fire — filed as
+     *  {@code vets-boss-bar-unreachable-negative-guard}, dead line, no
+     *  behaviour.</p> */
     private static float progressFor(long secondsUntilAnni) {
         long window = PROGRESS_FULL_AT_SECONDS - DROP_DEAD_SECONDS_BEFORE_ANNI;
         long usable = Math.max(0L, secondsUntilAnni - DROP_DEAD_SECONDS_BEFORE_ANNI);

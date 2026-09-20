@@ -27,9 +27,14 @@ import org.wynnvets.mwe.anni.state.AnniSnapshots;
  * <p>Two ping/flash models:</p>
  * <ul>
  *   <li><b>Role / party / RSVP</b> — diff on snapshot push, latch a
- *       timed flash window for {@code vetsAnniFlashIntensity} ms, ping
+ *       timed flash window sized by {@code vetsAnniFlashIntensity}, ping
  *       2× per change. First observation is skipped (login-with-
- *       existing-state shouldn't bing on every reconnect).</li>
+ *       existing-state shouldn't bing on every reconnect). ⚠️ That
+ *       config value is a <em>name</em>, not a millisecond count:
+ *       {@code subtle} / {@code normal} / {@code strong}, mapped to
+ *       5 000 / 10 000 / 20 000 ms by {@code flashDurationMs()}, which
+ *       also supplies the {@code normal} default for a null or
+ *       unrecognised setting.</li>
  *   <li><b>World</b> — flash is live state ({@code party.world != null
  *       AND user is not on it}); the user walking on/off the right
  *       world toggles it silently. The ping fires on a different
@@ -181,8 +186,12 @@ public final class FlashTracker {
         queuePingSounds();
     }
 
-    /** Clear all flash state — called on mode-switch-to-silent and on
-     *  boss-bar deactivation so the next activation starts clean. */
+    /** Clear all flash state, so the next activation starts clean.
+     *  <b>One caller</b>: {@link VetsBossBarManager}'s {@code deactivate}.
+     *  A mode switch to silent reaches this only <em>through</em> that
+     *  — it closes the bar, and closing the bar resets the tracker. The
+     *  two were previously listed as if they were separate entry
+     *  points. */
     public static void reset() {
         flashRoleUntil = 0L;
         flashPartyUntil = 0L;
