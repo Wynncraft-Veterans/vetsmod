@@ -290,7 +290,7 @@ final class ConfigCommands {
             ChatUtils.sendLocalMessage(
                     Component.literal(key + " set to ")
                             .withStyle(ChatFormatting.GRAY)
-                            .append(Component.literal(lower).withStyle(ChatFormatting.AQUA)));
+                            .append(formatStringConfigValue(key, lower)));
             return 1;
         }
 
