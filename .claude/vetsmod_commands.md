@@ -29,6 +29,8 @@ Entry point: [CommandRegistry.register()](../src/client/java/org/wynnvets/comman
 ### /wv help [<subcommand>]
 No permission. [HelpCommands](../src/client/java/org/wynnvets/commands/HelpCommands.java). The `/wv help <subcommand>` literals are `config`, `check`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger`. What bare `/wv help` *prints* is a different, rank-gated set: `/wv help`, `/wv anni`, `/wv config`, `/wv debug` always, then `/wv motd` for vets, `/wv list` and `/wv staff` when unlocked, `/wv return` and `/wv line` for Returners, `/wv check` for staff.
 
+All twelve pages are a `buildX` returning the page plus a `helpX` that sends it, so the page is a value a test can compare — see `HelpCommandsTest`, which pins each one as a tree. The pages are assembled from `HelpCommands`' own primitives (`title`, `heading`, `line`, `row`, `requires`, `detailPage`); a row is a YELLOW head plus an ordered list of description fragments, because fragments vary in both count and colour. Every trailing newline belongs to its literal, not to a primitive. `buildHelp` takes its four gates as parameters rather than reading `GuildStateManager`, which is what makes the gate matrix enumerable.
+
 ### /wv check <playerName>
 Confirmed staff. Both the Brigadier `.requires` visibility gate and the runtime check are `GuildStateManager.isConfirmedStaff()` — server-confirmed staff from the WS auth ack, not a Captain rank check. [CommandRegistry.check()](../src/client/java/org/wynnvets/commands/CommandRegistry.java). Delegates to `UserInfoFetcher.checkUser()` which chains Mojang UUID → WynnCraft profile → Returners roster membership.
 
