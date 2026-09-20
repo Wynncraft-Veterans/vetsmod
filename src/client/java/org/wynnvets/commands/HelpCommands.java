@@ -23,6 +23,58 @@ final class HelpCommands {
 
     private HelpCommands() {}
 
+    // ----- page primitives -----
+    //
+    // A page is a title or opening row, then rows, then — on ten of the twelve
+    // — the Requires: footer. A row is a YELLOW head plus an ordered list of
+    // description fragments: not a (command, description) pair, because the
+    // fragments differ in both count and colour. Every trailing newline lives
+    // in the literal it belongs to, including the doubled ones that close a
+    // section and the head newline that decides whether a row renders inline
+    // or with its description on the next line.
+
+    /** One styled run of a row's description. */
+    private record Frag(ChatFormatting style, String text) {}
+
+    private static Frag gray(String text) {
+        return new Frag(ChatFormatting.GRAY, text);
+    }
+
+    /** A continuation line, dimmer than the fragment it continues. */
+    private static Frag dim(String text) {
+        return new Frag(ChatFormatting.DARK_GRAY, text);
+    }
+
+    /** The GOLD, BOLD banner an index page opens with. */
+    private static void title(MutableComponent msg, String text) {
+        msg.append(Component.literal(text).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+    }
+
+    /** A GOLD section heading inside a page. */
+    private static void heading(MutableComponent msg, String text) {
+        msg.append(Component.literal(text).withStyle(ChatFormatting.GOLD));
+    }
+
+    /** A styled run that belongs to no row. */
+    private static void line(MutableComponent msg, ChatFormatting style, String text) {
+        msg.append(Component.literal(text).withStyle(style));
+    }
+
+    /** A YELLOW head followed by its description fragments, in order. */
+    private static void row(MutableComponent msg, String head, Frag... description) {
+        msg.append(Component.literal(head).withStyle(ChatFormatting.YELLOW));
+        for (Frag fragment : description) {
+            msg.append(Component.literal(fragment.text()).withStyle(fragment.style()));
+        }
+    }
+
+    /** The {@code Requires:} footer that closes ten of the twelve pages. */
+    private static void requires(
+            MutableComponent msg, ChatFormatting requirement, String requirementLabel) {
+        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
+        msg.append(Component.literal(requirementLabel).withStyle(requirement));
+    }
+
     static int help(CommandContext<FabricClientCommandSource> ctx) {
         ChatUtils.sendLocalMessageNewBlock(
                 buildHelp(
@@ -45,71 +97,32 @@ final class HelpCommands {
     static MutableComponent buildHelp(
             boolean vet, boolean unlocked, boolean featuresEnabled, boolean staff) {
         MutableComponent msg = Component.empty();
-
-        msg.append(
-                Component.literal("Commands\n")
-                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-        msg.append(
-                Component.literal("Use /wv help <command> for details on a specific command.\n\n")
-                        .withStyle(ChatFormatting.GRAY));
-
-        msg.append(Component.literal("/wv help").withStyle(ChatFormatting.YELLOW));
-        msg.append(Component.literal(" — Show this help message\n").withStyle(ChatFormatting.GRAY));
-
-        msg.append(Component.literal("/wv anni").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(" — Show annihilation timer\n").withStyle(ChatFormatting.GRAY));
-
-        msg.append(
-                Component.literal("/wv config [<key> [<value>]]").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(" — View or change mod settings\n")
-                        .withStyle(ChatFormatting.GRAY));
-
+        title(msg, "Commands\n");
+        line(
+                msg,
+                ChatFormatting.GRAY,
+                "Use /wv help <command> for details on a specific command.\n\n");
+        row(msg, "/wv help", gray(" — Show this help message\n"));
+        row(msg, "/wv anni", gray(" — Show annihilation timer\n"));
+        row(msg, "/wv config [<key> [<value>]]", gray(" — View or change mod settings\n"));
         if (vet) {
-            msg.append(Component.literal("/wv motd").withStyle(ChatFormatting.YELLOW));
-            msg.append(
-                    Component.literal(" — Show the message of the day\n")
-                            .withStyle(ChatFormatting.GRAY));
+            row(msg, "/wv motd", gray(" — Show the message of the day\n"));
         }
-
         if (unlocked) {
-            msg.append(Component.literal("/wv list").withStyle(ChatFormatting.YELLOW));
-            msg.append(
-                    Component.literal(" — Show online members and VetsMod status\n")
-                            .withStyle(ChatFormatting.GRAY));
-
-            msg.append(Component.literal("/wv staff").withStyle(ChatFormatting.YELLOW));
-            msg.append(
-                    Component.literal(" — Show online staff members\n")
-                            .withStyle(ChatFormatting.GRAY));
+            row(msg, "/wv list", gray(" — Show online members and VetsMod status\n"));
+            row(msg, "/wv staff", gray(" — Show online staff members\n"));
         }
-
         if (featuresEnabled) {
-            msg.append(Component.literal("/wv return").withStyle(ChatFormatting.YELLOW));
-            msg.append(
-                    Component.literal(" — Show info about this week's event\n")
-                            .withStyle(ChatFormatting.GRAY));
-
-            msg.append(
-                    Component.literal("/wv line <church|scrap|bat|hegea|lighthouse>")
-                            .withStyle(ChatFormatting.YELLOW));
-            msg.append(
-                    Component.literal(" — Toggle gxp boundary lines\n")
-                            .withStyle(ChatFormatting.GRAY));
+            row(msg, "/wv return", gray(" — Show info about this week's event\n"));
+            row(
+                    msg,
+                    "/wv line <church|scrap|bat|hegea|lighthouse>",
+                    gray(" — Toggle gxp boundary lines\n"));
         }
-
         if (staff) {
-            msg.append(Component.literal("/wv check <player>").withStyle(ChatFormatting.YELLOW));
-            msg.append(
-                    Component.literal(" — Look up a player's eligibility\n")
-                            .withStyle(ChatFormatting.GRAY));
+            row(msg, "/wv check <player>", gray(" — Look up a player's eligibility\n"));
         }
-
-        msg.append(Component.literal("/wv debug").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(" — Diagnostics & debug tools").withStyle(ChatFormatting.GRAY));
-
+        row(msg, "/wv debug", gray(" — Diagnostics & debug tools"));
         return msg;
     }
 
@@ -120,59 +133,37 @@ final class HelpCommands {
 
     static MutableComponent buildHelpConfig() {
         MutableComponent msg = Component.empty();
-
-        msg.append(
-                Component.literal("Config Options\n")
-                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-        msg.append(
-                Component.literal("Toggle with: /wv config <key> <true|false>\n\n")
-                        .withStyle(ChatFormatting.GRAY));
-
-        msg.append(Component.literal("legacyItemHighlighting\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("  Show legacy item highlighting in tooltips and inventory\n")
-                        .withStyle(ChatFormatting.GRAY));
-
-        msg.append(Component.literal("printMOTD\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("  Auto-print the message of the day on world join\n")
-                        .withStyle(ChatFormatting.GRAY));
-
-        msg.append(Component.literal("printANNI\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("  Auto-print the annihilation timer on world join\n")
-                        .withStyle(ChatFormatting.GRAY));
-
-        msg.append(Component.literal("printBridgeMessages\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("  Show bridge (guild chat relay) messages in chat\n")
-                        .withStyle(ChatFormatting.GRAY));
-
-        msg.append(Component.literal("showSupporterGlints\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("  Show supporter animated gradient glints on nametags\n")
-                        .withStyle(ChatFormatting.GRAY));
-
-        msg.append(Component.literal("colorBlindMode\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(
-                                "  Use a higher-contrast colour pair for supporter glints "
-                                        + "so the shimmer is visible to red/green colour-blind users\n")
-                        .withStyle(ChatFormatting.GRAY));
-
-        msg.append(Component.literal("handleSpoilers\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("  Render ||spoiler|| markers as hoverable spoiler labels\n")
-                        .withStyle(ChatFormatting.GRAY));
-
-        msg.append(Component.literal("moreReliableGuildCheck\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("  Run /gu stats on world join to detect guild membership,")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(
-                Component.literal(" instead of relying solely on Wynntils (which can stay null)")
-                        .withStyle(ChatFormatting.GRAY));
-
+        title(msg, "Config Options\n");
+        line(msg, ChatFormatting.GRAY, "Toggle with: /wv config <key> <true|false>\n\n");
+        row(
+                msg,
+                "legacyItemHighlighting\n",
+                gray("  Show legacy item highlighting in tooltips and inventory\n"));
+        row(msg, "printMOTD\n", gray("  Auto-print the message of the day on world join\n"));
+        row(msg, "printANNI\n", gray("  Auto-print the annihilation timer on world join\n"));
+        row(
+                msg,
+                "printBridgeMessages\n",
+                gray("  Show bridge (guild chat relay) messages in chat\n"));
+        row(
+                msg,
+                "showSupporterGlints\n",
+                gray("  Show supporter animated gradient glints on nametags\n"));
+        row(
+                msg,
+                "colorBlindMode\n",
+                gray(
+                        "  Use a higher-contrast colour pair for supporter glints "
+                                + "so the shimmer is visible to red/green colour-blind users\n"));
+        row(
+                msg,
+                "handleSpoilers\n",
+                gray("  Render ||spoiler|| markers as hoverable spoiler labels\n"));
+        row(
+                msg,
+                "moreReliableGuildCheck\n",
+                gray("  Run /gu stats on world join to detect guild membership,"),
+                gray(" instead of relying solely on Wynntils (which can stay null)"));
         return msg;
     }
 
@@ -189,10 +180,8 @@ final class HelpCommands {
     private static MutableComponent detailPage(
             String usage, String prose, ChatFormatting requirement, String requirementLabel) {
         MutableComponent msg = Component.empty();
-        msg.append(Component.literal(usage).withStyle(ChatFormatting.YELLOW));
-        msg.append(Component.literal(prose).withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal(requirementLabel).withStyle(requirement));
+        row(msg, usage, gray(prose));
+        requires(msg, requirement, requirementLabel);
         return msg;
     }
 
@@ -301,32 +290,17 @@ final class HelpCommands {
 
     static MutableComponent buildHelpDebug() {
         MutableComponent msg = Component.empty();
-        msg.append(Component.literal("/wv debug\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("Run diagnostics and dump mod state to chat and log.\n\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Subcommands:\n").withStyle(ChatFormatting.GOLD));
-        msg.append(Component.literal("/wv debug <boolean>").withStyle(ChatFormatting.YELLOW));
-        msg.append(Component.literal(" — Toggle debug logging\n").withStyle(ChatFormatting.GRAY));
-        msg.append(
-                Component.literal("/wv debug set <key> <value>").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(" — Manage debug config keys\n").withStyle(ChatFormatting.GRAY));
-        msg.append(
-                Component.literal("/wv debug trigger <action>").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(" — Run a one-shot debug action\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(
-                Component.literal("/wv debug tree <subsystem>").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(" — Open a subsystem-specific debug tree (e.g. anni)\n\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(
-                Component.literal("Use /wv help debug <set|trigger> for details.\n")
-                        .withStyle(ChatFormatting.DARK_GRAY));
-        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
+        row(msg, "/wv debug\n", gray("Run diagnostics and dump mod state to chat and log.\n\n"));
+        heading(msg, "Subcommands:\n");
+        row(msg, "/wv debug <boolean>", gray(" — Toggle debug logging\n"));
+        row(msg, "/wv debug set <key> <value>", gray(" — Manage debug config keys\n"));
+        row(msg, "/wv debug trigger <action>", gray(" — Run a one-shot debug action\n"));
+        row(
+                msg,
+                "/wv debug tree <subsystem>",
+                gray(" — Open a subsystem-specific debug tree (e.g. anni)\n\n"));
+        line(msg, ChatFormatting.DARK_GRAY, "Use /wv help debug <set|trigger> for details.\n");
+        requires(msg, ChatFormatting.WHITE, "None (public)");
         return msg;
     }
 
@@ -337,37 +311,24 @@ final class HelpCommands {
 
     static MutableComponent buildHelpDebugSet() {
         MutableComponent msg = Component.empty();
-        msg.append(
-                Component.literal("/wv debug set [<key> [<value>]]\n")
-                        .withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("Manage debug-only configuration keys.\n\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Usage:\n").withStyle(ChatFormatting.GOLD));
-        msg.append(Component.literal("/wv debug set").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(" — List all debug config keys and their values\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("/wv debug set <key>").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(" — Show the current value of a key\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(
-                Component.literal("/wv debug set <key> <true|false>")
-                        .withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(" — Set a debug key to true or false\n\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Available keys:\n").withStyle(ChatFormatting.GOLD));
-        msg.append(Component.literal("itemDump").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal(" — When true, pressing numpad + while hovering\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(
-                Component.literal("  an item dumps its full component tree\n")
-                        .withStyle(ChatFormatting.DARK_GRAY));
-        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
+        row(
+                msg,
+                "/wv debug set [<key> [<value>]]\n",
+                gray("Manage debug-only configuration keys.\n\n"));
+        heading(msg, "Usage:\n");
+        row(msg, "/wv debug set", gray(" — List all debug config keys and their values\n"));
+        row(msg, "/wv debug set <key>", gray(" — Show the current value of a key\n"));
+        row(
+                msg,
+                "/wv debug set <key> <true|false>",
+                gray(" — Set a debug key to true or false\n\n"));
+        heading(msg, "Available keys:\n");
+        row(
+                msg,
+                "itemDump",
+                gray(" — When true, pressing numpad + while hovering\n"),
+                dim("  an item dumps its full component tree\n"));
+        requires(msg, ChatFormatting.WHITE, "None (public)");
         return msg;
     }
 
@@ -378,42 +339,25 @@ final class HelpCommands {
 
     static MutableComponent buildHelpDebugTrigger() {
         MutableComponent msg = Component.empty();
-        msg.append(
-                Component.literal("/wv debug trigger <action>\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("Run a one-shot debug action.\n\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("Actions:\n").withStyle(ChatFormatting.GOLD));
-        msg.append(
-                Component.literal("/wv debug trigger charDump\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("  Render PUA characters U+E001–U+E040 in the resource\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(
-                Component.literal("  pack's chat/prefix font as badge-style sequences.\n")
-                        .withStyle(ChatFormatting.DARK_GRAY));
-        msg.append(
-                Component.literal("/wv debug trigger forceChecks\n")
-                        .withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("  Force re-check of guild membership, rank, and staff\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(
-                Component.literal("  status. Runs /gu stats and /gu rank via Wynntils'\n")
-                        .withStyle(ChatFormatting.DARK_GRAY));
-        msg.append(
-                Component.literal("  command queue and reports state to chat.\n")
-                        .withStyle(ChatFormatting.DARK_GRAY));
-        msg.append(
-                Component.literal("/wv debug trigger tabDump\n").withStyle(ChatFormatting.YELLOW));
-        msg.append(
-                Component.literal("  Dump the raw tab list to chat, split into labelled\n")
-                        .withStyle(ChatFormatting.GRAY));
-        msg.append(
-                Component.literal("  columns, then show parsed guild members.\n")
-                        .withStyle(ChatFormatting.DARK_GRAY));
-        msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
-        msg.append(Component.literal("None (public)").withStyle(ChatFormatting.WHITE));
+        row(msg, "/wv debug trigger <action>\n", gray("Run a one-shot debug action.\n\n"));
+        heading(msg, "Actions:\n");
+        row(
+                msg,
+                "/wv debug trigger charDump\n",
+                gray("  Render PUA characters U+E001–U+E040 in the resource\n"),
+                dim("  pack's chat/prefix font as badge-style sequences.\n"));
+        row(
+                msg,
+                "/wv debug trigger forceChecks\n",
+                gray("  Force re-check of guild membership, rank, and staff\n"),
+                dim("  status. Runs /gu stats and /gu rank via Wynntils'\n"),
+                dim("  command queue and reports state to chat.\n"));
+        row(
+                msg,
+                "/wv debug trigger tabDump\n",
+                gray("  Dump the raw tab list to chat, split into labelled\n"),
+                dim("  columns, then show parsed guild members.\n"));
+        requires(msg, ChatFormatting.WHITE, "None (public)");
         return msg;
     }
 }
