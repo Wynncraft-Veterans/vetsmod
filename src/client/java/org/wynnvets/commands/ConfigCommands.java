@@ -11,6 +11,9 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.util.ConfigValueText;
+import org.wynnvets.util.ConfigValueText.Form;
+import org.wynnvets.util.ConfigValueText.Verb;
 
 /**
  * Handlers and suggestion providers for the {@code /wv config} subcommand tree.
@@ -278,103 +281,62 @@ final class ConfigCommands {
     // change, and doing it here would leave one commit making two claims.
 
     static Component listIntLine(String key, long value) {
-        return Component.literal("  " + key + " = ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(String.valueOf(value)).withStyle(ChatFormatting.AQUA));
+        return ConfigValueText.intLine(Form.LIST, key, Verb.EQUALS, value);
     }
 
     static Component listStringLine(String key, Component value) {
-        return Component.literal("  " + key + " = ").withStyle(ChatFormatting.GRAY).append(value);
+        return ConfigValueText.stringLine(Form.LIST, key, Verb.EQUALS, value);
     }
 
     static Component listTriStateLine(String key, Boolean value) {
-        String display = value == null ? "default" : String.valueOf(value);
-        ChatFormatting color =
-                value == null
-                        ? ChatFormatting.YELLOW
-                        : (value ? ChatFormatting.GREEN : ChatFormatting.RED);
-        return Component.literal("  " + key + " = ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(display).withStyle(color));
+        return ConfigValueText.triStateLine(Form.LIST, key, Verb.EQUALS, value);
     }
 
     static Component listBoolLine(String key, boolean value) {
-        return Component.literal("  " + key + " = ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(
-                        Component.literal(String.valueOf(value))
-                                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED));
+        return ConfigValueText.booleanLine(Form.LIST, key, Verb.EQUALS, value);
     }
 
     static Component getIntLine(String key, long value) {
-        return Component.literal(key + " = ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(String.valueOf(value)).withStyle(ChatFormatting.AQUA));
+        return ConfigValueText.intLine(Form.SINGLE, key, Verb.EQUALS, value);
     }
 
     static Component getStringLine(String key, Component value) {
-        return Component.literal(key + " = ").withStyle(ChatFormatting.GRAY).append(value);
+        return ConfigValueText.stringLine(Form.SINGLE, key, Verb.EQUALS, value);
     }
 
     static Component getTriStateLine(String key, Boolean value) {
-        String display = value == null ? "default" : String.valueOf(value);
-        ChatFormatting color =
-                value == null
-                        ? ChatFormatting.YELLOW
-                        : (value ? ChatFormatting.GREEN : ChatFormatting.RED);
-        return Component.literal(key + " = ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(display).withStyle(color));
+        return ConfigValueText.triStateLine(Form.SINGLE, key, Verb.EQUALS, value);
     }
 
     static Component getBoolLine(String key, boolean value) {
-        return Component.literal(key + " = ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(
-                        Component.literal(String.valueOf(value))
-                                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED));
+        return ConfigValueText.booleanLine(Form.SINGLE, key, Verb.EQUALS, value);
     }
 
     static Component setBoolLine(String key, boolean value) {
-        return Component.literal(key + " set to ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(
-                        Component.literal(String.valueOf(value))
-                                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED));
+        return ConfigValueText.booleanLine(Form.SINGLE, key, Verb.SET_TO, value);
     }
 
     static Component setTriStateLine(String key, Boolean value) {
-        String display = value == null ? "default" : String.valueOf(value);
-        ChatFormatting color =
-                value == null
-                        ? ChatFormatting.YELLOW
-                        : (value ? ChatFormatting.GREEN : ChatFormatting.RED);
-        return Component.literal(key + " set to ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(display).withStyle(color));
+        return ConfigValueText.triStateLine(Form.SINGLE, key, Verb.SET_TO, value);
     }
 
     static Component resetStringLine(String key, Component value) {
-        return Component.literal(key + " reset to ").withStyle(ChatFormatting.GRAY).append(value);
+        return ConfigValueText.stringLine(Form.SINGLE, key, Verb.RESET_TO, value);
     }
 
     static Component setSpriteLine(String key, Component value) {
-        return Component.literal(key + " set to ").withStyle(ChatFormatting.GRAY).append(value);
+        return ConfigValueText.stringLine(Form.SINGLE, key, Verb.SET_TO, value);
     }
 
     static Component setColourLine(String key, Component value) {
-        return Component.literal(key + " set to ").withStyle(ChatFormatting.GRAY).append(value);
+        return ConfigValueText.stringLine(Form.SINGLE, key, Verb.SET_TO, value);
     }
 
     static Component resetIntLine(String key, long value) {
-        return Component.literal(key + " reset to ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(String.valueOf(value)).withStyle(ChatFormatting.AQUA));
+        return ConfigValueText.intLine(Form.SINGLE, key, Verb.RESET_TO, value);
     }
 
     static Component setIntLine(String key, long value) {
-        return Component.literal(key + " set to ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(String.valueOf(value)).withStyle(ChatFormatting.AQUA));
+        return ConfigValueText.intLine(Form.SINGLE, key, Verb.SET_TO, value);
     }
 }

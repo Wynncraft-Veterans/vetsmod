@@ -18,6 +18,9 @@ import org.wynnvets.debug.diagnostics.DiagnosticsHandler;
 import org.wynnvets.debug.dump.TabDumpHandler;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.mwe.anni.debug.AnniDebugCommands;
+import org.wynnvets.util.ConfigValueText;
+import org.wynnvets.util.ConfigValueText.Form;
+import org.wynnvets.util.ConfigValueText.Verb;
 
 /**
  * Builds the entire {@code /wv debug} command subtree.
@@ -233,27 +236,15 @@ public final class DebugCommands {
     // way. Still three copies on purpose — see ConfigCommands.
 
     static Component debugListBoolLine(String key, boolean value) {
-        return Component.literal("  " + key + " = ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(
-                        Component.literal(String.valueOf(value))
-                                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED));
+        return ConfigValueText.booleanLine(Form.LIST, key, Verb.EQUALS, value);
     }
 
     static Component debugGetBoolLine(String key, boolean value) {
-        return Component.literal(key + " = ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(
-                        Component.literal(String.valueOf(value))
-                                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED));
+        return ConfigValueText.booleanLine(Form.SINGLE, key, Verb.EQUALS, value);
     }
 
     static Component debugSetBoolLine(String key, boolean value) {
-        return Component.literal(key + " set to ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(
-                        Component.literal(String.valueOf(value))
-                                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED));
+        return ConfigValueText.booleanLine(Form.SINGLE, key, Verb.SET_TO, value);
     }
 
     // ── /wv debug trigger handlers ──────────────────────────────────
