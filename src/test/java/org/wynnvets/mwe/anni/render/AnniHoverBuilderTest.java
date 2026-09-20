@@ -30,13 +30,16 @@ import org.wynnvets.mwe.anni.outline.AnniOutlinePalette;
  * .claude/ephemeral/bugs-found-via-mellow-rain/default-locale-case-folding-cluster.md},
  * where that row is struck and the remaining 64 sites are not.</p>
  *
- * <p>{@code rolesAgreeWithTheOutlinePalette} is the equivalence case. It could
- * not be written before the palette was made loadable — its static initializer
- * built a Wynntils {@code CustomColor} and any touch died with
- * {@code NoClassDefFoundError} — and asserting it before the fold was fixed
- * would have documented a bug rather than a property. After the delegation it
- * holds by construction; it is here to fail the day somebody re-inlines the
- * table.</p>
+ * <p>{@link #roleColor_agreesWithTheOutlinePaletteUnderLocaleRoot} and
+ * {@link #roleColor_agreesWithTheOutlinePaletteUnderATurkishDefaultLocale} are
+ * the equivalence cases — <b>two</b>, one per fold, not the single
+ * {@code rolesAgreeWithTheOutlinePalette} this paragraph used to name, which
+ * has never existed under that spelling. Neither could be written before the
+ * palette was made loadable — its static initializer built a Wynntils
+ * {@code CustomColor} and any touch died with {@code NoClassDefFoundError} —
+ * and asserting either before the fold was fixed would have documented a bug
+ * rather than a property. After the delegation they hold by construction; they
+ * are here to fail the day somebody re-inlines the table.</p>
  *
  * <p>NOTE: {@link AnniHoverBuilder}'s own static state is four {@code String}
  * constants, and {@code AnniOutlinePalette} has no static state at all. Neither
@@ -128,8 +131,11 @@ class AnniHoverBuilderTest {
     // ----- Equivalence with the outline palette (item 9c) -----
 
     /** Every key the two surfaces can disagree on, including the lower-case
-     *  forms — those are the only ones a fold can break — plus the three
-     *  fall-through inputs. */
+     *  forms — those are the only ones a fold can break — plus the four
+     *  fall-through inputs: {@code null}, the empty string, an unknown role
+     *  ({@code SUPPORT}) and an untrimmed one ({@code " TANK "}), which falls
+     *  through because the switch matches the folded string exactly. Eighteen
+     *  entries: seven arms × two cases, plus those four. */
     private static final String[] EQUIVALENCE_KEYS = {
         "FILL",
         "TANK",
