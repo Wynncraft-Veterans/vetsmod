@@ -37,9 +37,15 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
  *
  * <p><b>Not</b> a pure function: it reads the wall clock, the mutable {@link #externalOverride},
  * live {@link GuildStateManager} state, and {@link VetsConfig} flags that {@code /wv config} can
- * change mid-session, so one snapshot can render more than one way. Caller dispatches each returned
- * block through {@link org.wynnvets.chat.ChatUtils ChatUtils} — see {@link #render} for the
- * list-and-{@code null} contract.</p>
+ * change mid-session, so one snapshot can render more than one way.</p>
+ *
+ * <p>The direct caller is {@code StampFetcher.fetchStampAndCreateAnniCommandMessage}, which
+ * calls {@link #render} and hands the result back up to {@code CommandRegistry}; it is
+ * <em>that</em> frame which dispatches each block through
+ * {@link org.wynnvets.chat.ChatUtils ChatUtils}. {@code StampFetcher} does not reference
+ * {@code ChatUtils} at all — naming it as this class's caller conflates the route with the
+ * caller, which is the shape a 5.5a sweep corrected in five other facades. See {@link #render}
+ * for the list-and-{@code null} contract.</p>
  */
 public final class AnniCommandRenderer {
 
@@ -63,7 +69,9 @@ public final class AnniCommandRenderer {
      *  {@code null} (default) → use the real rank-signal logic;
      *  {@code true} → force external rendering;
      *  {@code false} → force vets rendering. Settable from
-     *  {@code /wv debug anni external …}. Not persisted; resets on
+     *  {@code /wv debug tree anni external …} — the {@code tree} literal
+     *  is load-bearing, since {@code DebugCommands.buildCommandTree}
+     *  mounts the whole anni subtree under it. Not persisted; resets on
      *  vetsmod reload. */
     private static volatile Boolean externalOverride = null;
 
@@ -321,12 +329,21 @@ public final class AnniCommandRenderer {
      *  dropped from the line — the {@code ~} prefix on the ± already
      *  disclaims that it's a rough figure.</p>
      *
-     *  <p>The ± value is the <em>standard deviation</em> of the
-     *  Uniform(71.4h, 82.0h) prediction distribution, not the half-
-     *  window. σ = window/√12 ≈ 3.06h on a 10.6h window — i.e. the
+     *  <p>The ± value is the <em>standard deviation</em> of the uniform
+     *  prediction distribution, not the half-window:
+     *  {@code σ = prediction.windowHours() / √12}. That is the
      *  "probably within ~Xh of q2" interpretation a reader expects from
-     *  ±. Half-window (5.3h) would conflate "the rare tails" with the
+     *  ±; the half-window would conflate "the rare tails" with the
      *  typical-deviation reading.</p>
+     *
+     *  <p>⚠️ The window is <b>read from the snapshot at render time</b>,
+     *  so none of these figures is a constant. Worked example, from one
+     *  observed Uniform(71.4h, 82.0h): window 10.6h → σ ≈ 3.06h, against
+     *  a half-window of 5.3h. Treat it as an illustration of the
+     *  arithmetic, not as the distribution — nothing pins these four
+     *  numbers, and a different anchor moves all of them together.
+     *  {@code AnniDebugCommands} carries a matching σ comment that
+     *  points back here.</p>
      *
      *  <p>Visual structure (per latest user format):</p>
      *  <ul>
@@ -370,8 +387,11 @@ public final class AnniCommandRenderer {
      *  (14:00, Fri 19)} with aqua/dark-aqua/dark-gray triplet styling
      *  per latest user format. Hour and minute numerics are aqua; the
      *  "h" / "m" qualifiers and "returns in" are dark aqua; the stamp
-     *  parenthetical is the only dark-gray we still allow because the
-     *  primary info (countdown) is in aqua-family colors above. */
+     *  parenthetical is the only dark-gray <em>carrying content</em> we
+     *  still allow, because the primary info (countdown) is in
+     *  aqua-family colors above. The file's six other {@code DARK_GRAY}
+     *  uses are all separators — {@code " · "}, {@code " | "},
+     *  {@code " — "} — which the rule was never about. */
     private static MutableComponent renderFarOut(
             AnniSnapshot snapshot, long secondsUntil, long stamp) {
         String stampStr = STAMP_FMT.format(Instant.ofEpochSecond(stamp));
