@@ -86,33 +86,63 @@ final class ConfigCommands {
 
     // ── Command handlers ────────────────────────────────────────────────
 
+    /**
+     * Which of {@link VetsConfig}'s four typed accessors a key is read and
+     * written through.
+     *
+     * <p>The ladder below was written three times — once to list every key, once
+     * to read one back, once to dispatch a write. Its <em>order</em> is the
+     * behaviour: the predicates are asked in sequence and the first match wins,
+     * so a key answering to more than one would resolve differently under a
+     * different order. Writing it once is what stops the three drifting apart.</p>
+     */
+    private enum Kind {
+        INT,
+        STRING,
+        TRI_STATE,
+        BOOLEAN;
+
+        static Kind of(String key) {
+            if (VetsConfig.isIntKey(key)) return INT;
+            if (VetsConfig.isStringKey(key)) return STRING;
+            if (VetsConfig.isTriStateKey(key)) return TRI_STATE;
+            return BOOLEAN;
+        }
+    }
+
+    /**
+     * The {@code key = value} line for a key's current value, read through
+     * whichever accessor its {@link Kind} calls for.
+     *
+     * <p>{@code form} is the only difference between the listing and the
+     * read-back: {@link Form#LIST} indents, {@link Form#SINGLE} does not.</p>
+     */
+    private static Component currentValueLine(Form form, String key) {
+        return switch (Kind.of(key)) {
+            case INT -> ConfigValueText.intLine(form, key, Verb.EQUALS, VetsConfig.getLong(key));
+            case STRING ->
+                    ConfigValueText.stringLine(
+                            form,
+                            key,
+                            Verb.EQUALS,
+                            formatStringConfigValue(key, VetsConfig.getString(key)));
+            case TRI_STATE ->
+                    ConfigValueText.triStateLine(
+                            form, key, Verb.EQUALS, VetsConfig.getTriState(key));
+            case BOOLEAN ->
+                    ConfigValueText.booleanLine(form, key, Verb.EQUALS, VetsConfig.get(key));
+        };
+    }
+
     static int configList(CommandContext<FabricClientCommandSource> ctx) {
         MutableComponent header =
                 Component.literal("Configuration:").withStyle(ChatFormatting.GOLD);
         ChatUtils.sendLocalMessageNewBlock(header);
 
+        // USER_CONFIG_KEYS' order is the order these print in, which
+        // .claude/vetsmod_config.md states as fact. Do not sort here.
         for (String key : VetsConfig.USER_CONFIG_KEYS) {
-            if (VetsConfig.isIntKey(key)) {
-                long intValue = VetsConfig.getLong(key);
-                ChatUtils.sendLocalMessage(
-                        ConfigValueText.intLine(Form.LIST, key, Verb.EQUALS, intValue));
-            } else if (VetsConfig.isStringKey(key)) {
-                String strValue = VetsConfig.getString(key);
-                ChatUtils.sendLocalMessage(
-                        ConfigValueText.stringLine(
-                                Form.LIST,
-                                key,
-                                Verb.EQUALS,
-                                formatStringConfigValue(key, strValue)));
-            } else if (VetsConfig.isTriStateKey(key)) {
-                Boolean triValue = VetsConfig.getTriState(key);
-                ChatUtils.sendLocalMessage(
-                        ConfigValueText.triStateLine(Form.LIST, key, Verb.EQUALS, triValue));
-            } else {
-                boolean value = VetsConfig.get(key);
-                ChatUtils.sendLocalMessage(
-                        ConfigValueText.booleanLine(Form.LIST, key, Verb.EQUALS, value));
-            }
+            ChatUtils.sendLocalMessage(currentValueLine(Form.LIST, key));
         }
         return 1;
     }
@@ -126,24 +156,7 @@ final class ConfigCommands {
             return 0;
         }
 
-        if (VetsConfig.isIntKey(key)) {
-            long intValue = VetsConfig.getLong(key);
-            ChatUtils.sendLocalMessage(
-                    ConfigValueText.intLine(Form.SINGLE, key, Verb.EQUALS, intValue));
-        } else if (VetsConfig.isStringKey(key)) {
-            String strValue = VetsConfig.getString(key);
-            ChatUtils.sendLocalMessage(
-                    ConfigValueText.stringLine(
-                            Form.SINGLE, key, Verb.EQUALS, formatStringConfigValue(key, strValue)));
-        } else if (VetsConfig.isTriStateKey(key)) {
-            Boolean triValue = VetsConfig.getTriState(key);
-            ChatUtils.sendLocalMessage(
-                    ConfigValueText.triStateLine(Form.SINGLE, key, Verb.EQUALS, triValue));
-        } else {
-            boolean value = VetsConfig.get(key);
-            ChatUtils.sendLocalMessage(
-                    ConfigValueText.booleanLine(Form.SINGLE, key, Verb.EQUALS, value));
-        }
+        ChatUtils.sendLocalMessage(currentValueLine(Form.SINGLE, key));
         return 1;
     }
 
@@ -157,18 +170,17 @@ final class ConfigCommands {
             return 0;
         }
 
-        if (VetsConfig.isIntKey(key)) {
-            return handleIntConfigSet(key, rawValue);
-        }
+        return switch (Kind.of(key)) {
+            case INT -> handleIntConfigSet(key, rawValue);
+            case STRING -> handleStringConfigSet(key, rawValue);
+            case TRI_STATE -> handleTriStateConfigSet(key, rawValue);
+            case BOOLEAN -> handleBooleanConfigSet(key, rawValue);
+        };
+    }
 
-        if (VetsConfig.isStringKey(key)) {
-            return handleStringConfigSet(key, rawValue);
-        }
+    // ── Boolean-config helpers ──────────────────────────────────────────
 
-        if (VetsConfig.isTriStateKey(key)) {
-            return handleTriStateConfigSet(key, rawValue);
-        }
-
+    private static int handleBooleanConfigSet(String key, String rawValue) {
         if (!"true".equalsIgnoreCase(rawValue) && !"false".equalsIgnoreCase(rawValue)) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Value must be 'true' or 'false'.")
