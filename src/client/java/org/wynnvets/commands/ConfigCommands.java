@@ -94,17 +94,24 @@ final class ConfigCommands {
         for (String key : VetsConfig.USER_CONFIG_KEYS) {
             if (VetsConfig.isIntKey(key)) {
                 long intValue = VetsConfig.getLong(key);
-                ChatUtils.sendLocalMessage(listIntLine(key, intValue));
+                ChatUtils.sendLocalMessage(
+                        ConfigValueText.intLine(Form.LIST, key, Verb.EQUALS, intValue));
             } else if (VetsConfig.isStringKey(key)) {
                 String strValue = VetsConfig.getString(key);
                 ChatUtils.sendLocalMessage(
-                        listStringLine(key, formatStringConfigValue(key, strValue)));
+                        ConfigValueText.stringLine(
+                                Form.LIST,
+                                key,
+                                Verb.EQUALS,
+                                formatStringConfigValue(key, strValue)));
             } else if (VetsConfig.isTriStateKey(key)) {
                 Boolean triValue = VetsConfig.getTriState(key);
-                ChatUtils.sendLocalMessage(listTriStateLine(key, triValue));
+                ChatUtils.sendLocalMessage(
+                        ConfigValueText.triStateLine(Form.LIST, key, Verb.EQUALS, triValue));
             } else {
                 boolean value = VetsConfig.get(key);
-                ChatUtils.sendLocalMessage(listBoolLine(key, value));
+                ChatUtils.sendLocalMessage(
+                        ConfigValueText.booleanLine(Form.LIST, key, Verb.EQUALS, value));
             }
         }
         return 1;
@@ -121,16 +128,21 @@ final class ConfigCommands {
 
         if (VetsConfig.isIntKey(key)) {
             long intValue = VetsConfig.getLong(key);
-            ChatUtils.sendLocalMessage(getIntLine(key, intValue));
+            ChatUtils.sendLocalMessage(
+                    ConfigValueText.intLine(Form.SINGLE, key, Verb.EQUALS, intValue));
         } else if (VetsConfig.isStringKey(key)) {
             String strValue = VetsConfig.getString(key);
-            ChatUtils.sendLocalMessage(getStringLine(key, formatStringConfigValue(key, strValue)));
+            ChatUtils.sendLocalMessage(
+                    ConfigValueText.stringLine(
+                            Form.SINGLE, key, Verb.EQUALS, formatStringConfigValue(key, strValue)));
         } else if (VetsConfig.isTriStateKey(key)) {
             Boolean triValue = VetsConfig.getTriState(key);
-            ChatUtils.sendLocalMessage(getTriStateLine(key, triValue));
+            ChatUtils.sendLocalMessage(
+                    ConfigValueText.triStateLine(Form.SINGLE, key, Verb.EQUALS, triValue));
         } else {
             boolean value = VetsConfig.get(key);
-            ChatUtils.sendLocalMessage(getBoolLine(key, value));
+            ChatUtils.sendLocalMessage(
+                    ConfigValueText.booleanLine(Form.SINGLE, key, Verb.EQUALS, value));
         }
         return 1;
     }
@@ -167,7 +179,8 @@ final class ConfigCommands {
         boolean value = Boolean.parseBoolean(rawValue);
         VetsConfig.set(key, value);
 
-        ChatUtils.sendLocalMessage(setBoolLine(key, value));
+        ChatUtils.sendLocalMessage(
+                ConfigValueText.booleanLine(Form.SINGLE, key, Verb.SET_TO, value));
         return 1;
     }
 
@@ -188,7 +201,8 @@ final class ConfigCommands {
             return 0;
         }
         VetsConfig.setTriState(key, triValue);
-        ChatUtils.sendLocalMessage(setTriStateLine(key, triValue));
+        ChatUtils.sendLocalMessage(
+                ConfigValueText.triStateLine(Form.SINGLE, key, Verb.SET_TO, triValue));
         return 1;
     }
 
@@ -210,7 +224,11 @@ final class ConfigCommands {
             if (defaultVal == null) return 0;
             VetsConfig.setString(key, defaultVal);
             ChatUtils.sendLocalMessage(
-                    resetStringLine(key, formatStringConfigValue(key, defaultVal)));
+                    ConfigValueText.stringLine(
+                            Form.SINGLE,
+                            key,
+                            Verb.RESET_TO,
+                            formatStringConfigValue(key, defaultVal)));
             return 1;
         }
 
@@ -225,7 +243,9 @@ final class ConfigCommands {
                 return 0;
             }
             VetsConfig.setString(key, lower);
-            ChatUtils.sendLocalMessage(setSpriteLine(key, formatStringConfigValue(key, lower)));
+            ChatUtils.sendLocalMessage(
+                    ConfigValueText.stringLine(
+                            Form.SINGLE, key, Verb.SET_TO, formatStringConfigValue(key, lower)));
             return 1;
         }
 
@@ -238,7 +258,9 @@ final class ConfigCommands {
             return 0;
         }
         VetsConfig.setString(key, lower);
-        ChatUtils.sendLocalMessage(setColourLine(key, formatStringConfigValue(key, lower)));
+        ChatUtils.sendLocalMessage(
+                ConfigValueText.stringLine(
+                        Form.SINGLE, key, Verb.SET_TO, formatStringConfigValue(key, lower)));
         return 1;
     }
 
@@ -249,7 +271,8 @@ final class ConfigCommands {
             Long defaultVal = VetsConfig.getIntDefault(key);
             if (defaultVal == null) return 0;
             VetsConfig.setLong(key, defaultVal);
-            ChatUtils.sendLocalMessage(resetIntLine(key, defaultVal));
+            ChatUtils.sendLocalMessage(
+                    ConfigValueText.intLine(Form.SINGLE, key, Verb.RESET_TO, defaultVal));
             return 1;
         }
 
@@ -269,74 +292,7 @@ final class ConfigCommands {
             return 0;
         }
         VetsConfig.setLong(key, parsed);
-        ChatUtils.sendLocalMessage(setIntLine(key, parsed));
+        ChatUtils.sendLocalMessage(ConfigValueText.intLine(Form.SINGLE, key, Verb.SET_TO, parsed));
         return 1;
-    }
-
-    // ── Value-line build halves ─────────────────────────────────────────
-    //
-    // One per emit site, each a pure function of its label and its value, so
-    // none of them reads VetsConfig and all of them are callable from a test.
-    // They are deliberately still fifteen copies: merging them is the next
-    // change, and doing it here would leave one commit making two claims.
-
-    static Component listIntLine(String key, long value) {
-        return ConfigValueText.intLine(Form.LIST, key, Verb.EQUALS, value);
-    }
-
-    static Component listStringLine(String key, Component value) {
-        return ConfigValueText.stringLine(Form.LIST, key, Verb.EQUALS, value);
-    }
-
-    static Component listTriStateLine(String key, Boolean value) {
-        return ConfigValueText.triStateLine(Form.LIST, key, Verb.EQUALS, value);
-    }
-
-    static Component listBoolLine(String key, boolean value) {
-        return ConfigValueText.booleanLine(Form.LIST, key, Verb.EQUALS, value);
-    }
-
-    static Component getIntLine(String key, long value) {
-        return ConfigValueText.intLine(Form.SINGLE, key, Verb.EQUALS, value);
-    }
-
-    static Component getStringLine(String key, Component value) {
-        return ConfigValueText.stringLine(Form.SINGLE, key, Verb.EQUALS, value);
-    }
-
-    static Component getTriStateLine(String key, Boolean value) {
-        return ConfigValueText.triStateLine(Form.SINGLE, key, Verb.EQUALS, value);
-    }
-
-    static Component getBoolLine(String key, boolean value) {
-        return ConfigValueText.booleanLine(Form.SINGLE, key, Verb.EQUALS, value);
-    }
-
-    static Component setBoolLine(String key, boolean value) {
-        return ConfigValueText.booleanLine(Form.SINGLE, key, Verb.SET_TO, value);
-    }
-
-    static Component setTriStateLine(String key, Boolean value) {
-        return ConfigValueText.triStateLine(Form.SINGLE, key, Verb.SET_TO, value);
-    }
-
-    static Component resetStringLine(String key, Component value) {
-        return ConfigValueText.stringLine(Form.SINGLE, key, Verb.RESET_TO, value);
-    }
-
-    static Component setSpriteLine(String key, Component value) {
-        return ConfigValueText.stringLine(Form.SINGLE, key, Verb.SET_TO, value);
-    }
-
-    static Component setColourLine(String key, Component value) {
-        return ConfigValueText.stringLine(Form.SINGLE, key, Verb.SET_TO, value);
-    }
-
-    static Component resetIntLine(String key, long value) {
-        return ConfigValueText.intLine(Form.SINGLE, key, Verb.RESET_TO, value);
-    }
-
-    static Component setIntLine(String key, long value) {
-        return ConfigValueText.intLine(Form.SINGLE, key, Verb.SET_TO, value);
     }
 }
