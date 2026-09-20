@@ -36,10 +36,21 @@ class AnniWindowsTest {
         assertEquals(
                 7200L,
                 AnniWindows.HOT_WINDOW_BEFORE_SECONDS,
-                "2 h, two independent copies — the repo holds four constants of this value, "
-                        + "but the other two are deliberate non-residents and still exist");
-        assertEquals(1800L, AnniWindows.HOT_WINDOW_AFTER_SECONDS, "30 m, three independent copies");
-        assertEquals(5400L, AnniWindows.BAR_WINDOW_SECONDS, "90 m, two independent copies");
+                "2 h open edge. Three constants hold 7200 today: this one, plus "
+                        + "PartyRosterListener.ACTIVE_WINDOW_SEC (a symmetric +/-2h, a "
+                        + "different shape) and AnniCommandRenderer.TWO_HOURS_SECONDS (a "
+                        + "render-branch selector, not a window) — both deliberate "
+                        + "non-residents");
+        assertEquals(
+                1800L,
+                AnniWindows.HOT_WINDOW_AFTER_SECONDS,
+                "30 m AFTER the stamp (T+30m, not T-30m) — the close edge. Three call "
+                        + "sites declared it before the collapse; this is the only constant now");
+        assertEquals(
+                5400L,
+                AnniWindows.BAR_WINDOW_SECONDS,
+                "90 m. Two call sites declared it before the collapse; this is the only "
+                        + "constant now");
     }
 
     /**

@@ -171,7 +171,7 @@ public final class VetsBossBarContentBuilder {
         return false;
     }
 
-    // ── Variant: countdown (T-2m → T-20s) ───────────────────────────────
+    // ── Variant: countdown (T-5m → T-20s) ───────────────────────────────
 
     /** Countdown variant (spec §3.1.1.3, with user-iterated 5 min /
      *  70 s scroll threshold):

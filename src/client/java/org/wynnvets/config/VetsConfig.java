@@ -215,13 +215,15 @@ public class VetsConfig {
 
     /** S5 — Master toggle for the Scroll Spot waypoint (Wynntils
      *  {@code MarkerProvider} for the party's pinned scroll spot). Default
-     *  {@code true}; honoured only in aggressive mode + window. */
+     *  {@code true}; honoured only in aggressive mode and inside the
+     *  hot window (T-2h .. T+30m). */
     public static final String VETS_ANNI_SCROLL_WAYPOINT = "vetsAnniScrollWaypoint";
 
     /** S5 — Master toggle for the diff-aware chat-alert dispatcher (role /
      *  world / party assignment / RSVP transitions plus the time-triggered
      *  T-10m world-mismatch and T-5m zone-absence readiness alerts). Default
-     *  {@code true}; honoured only in aggressive mode + window. */
+     *  {@code true}; honoured only in aggressive mode and inside the
+     *  hot window (T-2h .. T+30m). */
     public static final String VETS_ANNI_CHAT_ALERTS = "vetsAnniChatAlerts";
 
     /** S5 — Master toggle for the {@code [Suggest: /toggle ghosts none]}

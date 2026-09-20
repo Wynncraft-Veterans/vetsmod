@@ -76,6 +76,25 @@ five classes**. Two of those seven carried a comment naming their partner — on
 by class, one by symbol — and nothing checked either. The other two concepts stay
 where they are, for the reasons in the table.
 
+> ⚠️ **There is no T−30m. The 1800 is T+30m** — thirty minutes *after* the
+> announced stamp, the **closing** edge of a two-sided window, not a boundary
+> before it. `AnniWindows.inHotWindow` is
+> `secondsUntil >= -HOT_WINDOW_AFTER_SECONDS && secondsUntil <= HOT_WINDOW_BEFORE_SECONDS`,
+> i.e. `now ∈ [stamp − 7200, stamp + 1800]`, pinned by `AnniWindowsTest` at
+> `-1800` in and `-1801` out. It is the most misread value in the set — the
+> Mellow Rain plan's own 5.5a brief called it "T−30m".
+>
+> ⚠️ **"90 minutes" denotes two unrelated things in this repo.**
+> `AnniWindows.BAR_WINDOW_SECONDS` is the client-side boss-bar and snapshot-poll
+> window. vets-anni *also* closes RSVP 90 minutes before an anni, server-side —
+> see [vetsmod_commands.md](vetsmod_commands.md). They share the number and
+> nothing else, and the RSVP cutoff has **no client constant at all**. Check
+> which one a claim is about before reconciling it.
+>
+> ⚠️ **Grepping `7200` finds none of the three constants that hold it** — two
+> are written `2L * 60L * 60L` and one `2L * 60 * 60`. Same for 1800 and 5400.
+> Grep the symbol, not the number.
+
 | Concept | Value | Who reads it | Shape |
 |--|--|--|--|
 | Hot window, open edge | 2 h | `AnniOutlineTicker`, `AnniAggressiveTicker` | `AnniWindows.inHotWindow(secondsUntil)` — both edges **inclusive** |
