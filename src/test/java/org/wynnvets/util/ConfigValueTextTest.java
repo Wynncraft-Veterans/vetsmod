@@ -13,10 +13,17 @@ import org.wynnvets.util.ConfigValueText.Verb;
 /**
  * Tests for {@link ConfigValueText}'s four value kinds and its two label axes.
  *
- * <p>This is the coverage that outlives the chunk. The per-site pins in
- * {@code ConfigCommandsTest} and {@code DebugCommandsTest} exist only to prove the
- * eighteen call sites converged onto this class; once they have, these are the
- * tests that say what the line is.</p>
+ * <p>This is the coverage that outlives the chunk. Per-site pins in
+ * {@code ConfigCommandsTest} and {@code DebugCommandsTest} existed only to prove
+ * that the eighteen call sites had converged onto this class. They were deleted
+ * once they had, so neither is in the tree; these are the tests that say what the
+ * line is.</p>
+ *
+ * <p>One thing went with them and has not been replaced: nothing now pins which
+ * {@link Form} and {@link Verb} any individual call site passes. This class
+ * guarantees the renderer honours the pair it is handed, not that
+ * {@code configList} asks for {@code LIST}/{@code EQUALS}. Those call sites read
+ * {@code VetsConfig} and are not reachable from a test.</p>
  *
  * <p>{@link ConfigValueText} declares no static state beyond two enums, so nothing
  * loads at class-init. That is deliberate: the string kind takes an
