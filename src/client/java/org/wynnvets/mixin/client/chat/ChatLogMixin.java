@@ -22,10 +22,17 @@ import org.wynnvets.mwe.anni.mode.StreamerModeChatDetector;
  * Intercepts all incoming chat messages via {@link ChatComponent#addMessage}.
  *
  * <p>This is the primary chat pipeline hook. It performs, in order:
- * logging to file, guild state detection, mod-initiated message suppression,
- * staff outbound feedback suppression,
- * and chat rewriting (staff alerts, staff channel, supporter gradients).
- * Messages generated internally by the mod are passed through unmodified.</p>
+ * <b>streamer-mode observation</b> ({@code StreamerModeChatDetector.observe},
+ * which runs first, before any logging and before the internal-dispatch
+ * check), logging to file, mod-initiated guild-check suppression, guild state
+ * detection, staff-rank-check suppression, {@code /v} outbound feedback
+ * suppression, {@code /find} response suppression, the internal-dispatch early
+ * return, and then the five-rewriter chain: encourage-update, staff alerts,
+ * staff channel, supporter gradients, spoilers. Messages generated internally
+ * by the mod are passed through unmodified.</p>
+ *
+ * <p>{@code vetsmod_chat_pipeline.md} §"ChatLogMixin — the chokepoint" is the
+ * owning statement and enumerates the steps individually.</p>
  */
 @Mixin(ChatComponent.class)
 public class ChatLogMixin {
