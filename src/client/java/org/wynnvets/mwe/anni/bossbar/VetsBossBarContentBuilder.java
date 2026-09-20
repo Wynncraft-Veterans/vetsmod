@@ -310,8 +310,15 @@ public final class VetsBossBarContentBuilder {
     }
 
     private static MutableComponent rsvpChip(AnniSnapshot snapshot) {
-        // Prefer explicit rsvp notice; fall back to attendance band as
-        // implied notice ("walkin"/"late" come from there).
+        // Prefer explicit rsvp notice; fall back to the attendance
+        // block's effective notice. The two carry different spellings of
+        // the same four states: rsvp.notice is normalised server-side to
+        // a bare "hard"/"soft", while attendance.notice_effective is the
+        // raw AttendanceNotice value -- attend_early, rsvp_hard,
+        // rsvp_soft, attend_late. Only the first of those two spellings
+        // matches an arm below, which is why a walk-in renders as a grey
+        // ATTEND_EARLY/ATTEND_LATE passthrough. Filed, not fixed:
+        // boss-bar-rsvp-chip-recognises-four-of-nine-notices.
         AnniSnapshot.Rsvp rsvp = snapshot.rsvp();
         String notice = (rsvp != null && !rsvp.revoked()) ? rsvp.notice() : null;
         if (notice == null) {

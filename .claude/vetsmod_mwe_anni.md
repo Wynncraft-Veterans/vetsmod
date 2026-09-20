@@ -319,27 +319,54 @@ sent the decision round in a circle:
 3. **It is seven disagreeing cells and a case fold, not one hue.** `hard → BLUE`
    versus `AQUA` was the cell everyone quoted; it is one of seven.
 
-| Notice key | `noticeColor` (chat) | `rsvpChip` (bar) | |
-|--|--|--|--|
-| `null` | `GRAY` | `YELLOW`, labelled `WALKIN` | ✗ |
-| `hard` | `AQUA` | `BLUE` | ✗ |
-| `rsvp_hard` | `AQUA` | `GRAY`, labelled `RSVP_HARD` | ✗ |
-| `soft` | `GREEN` | `GREEN` | ✓ |
-| `rsvp_soft` | `GREEN` | `GRAY`, labelled `RSVP_SOFT` | ✗ |
-| `walkin` | `YELLOW` | `YELLOW` | ✓ |
-| `walk_in` | `YELLOW` | `GRAY`, labelled `WALK_IN` | ✗ |
-| `attend_early` | `YELLOW` | `GRAY`, labelled `ATTEND_EARLY` | ✗ |
-| `late` | `RED` | `RED` | ✓ |
-| `attend_late` | `RED` | `GRAY`, labelled `ATTEND_LATE` | ✗ |
-| anything else | `GRAY` | `GRAY`, upper-cased passthrough | ✓ |
+⚠️ **There are four notice states, not nine keys.** vets-anni's
+`AttendanceNotice` enum (`app/constants.py`) has exactly four values —
+`attend_early`, `rsvp_hard`, `rsvp_soft`, `attend_late` — and **one snapshot
+ships them in two spellings**, because the two blocks serialise differently:
 
-Eleven keys, seven disagreements. `rsvpChip` recognises four of the nine named
-wire keys; the other five fall to its `default` arm and render as a grey chip
-labelled with the raw string upper-cased — `ATTEND_LATE` in grey where the chat
-surface says `LATE WALK-IN` in red. It also folds with a bare `toLowerCase()` /
-`toUpperCase()` where `noticeColor` passes `Locale.ROOT`. Both are filed rather
-than fixed, in `.claude/ephemeral/bugs-found-via-mellow-rain/` — fixing either
-changes what the boss bar says.
+- `attendance.notice_effective` carries the **raw enum value**
+  (`app/domain/snapshot.py`, `"notice_effective": effective.value`).
+- `rsvp.notice` is **normalised server-side** to a bare `hard` / `soft`
+  (`"hard" if row.notice.value == "rsvp_hard" else "soft"`).
+
+So `hard` and `rsvp_hard` are one state seen from two blocks, as are `soft` and
+`rsvp_soft`. **`walkin`, `walk_in` and `late` are emitted by nothing** — they are
+defensive client-side aliases, and any count that treats them as wire keys is
+counting a namespace that does not exist. The settled colour policy is hard =
+AQUA, soft = GREEN, on-time walk-in (`attend_early`) = YELLOW, late walk-in
+(`attend_late`) = RED, **no notice held = GRAY**; `AnniHoverBuilder.noticeColor`
+implements it exactly.
+
+| Notice key | Emitted by | `noticeColor` (chat) | `rsvpChip` (bar) | |
+|--|--|--|--|--|
+| `null` | either block, no fact held | `GRAY` | `YELLOW`, labelled `WALKIN` | ✗ |
+| `hard` | `rsvp.notice` | `AQUA` | `BLUE` | ✗ |
+| `soft` | `rsvp.notice` | `GREEN` | `GREEN` | ✓ |
+| `rsvp_hard` | `attendance.notice_effective` | `AQUA` | `GRAY`, labelled `RSVP_HARD` | ✗ |
+| `rsvp_soft` | `attendance.notice_effective` | `GREEN` | `GRAY`, labelled `RSVP_SOFT` | ✗ |
+| `attend_early` | `attendance.notice_effective` | `YELLOW` | `GRAY`, labelled `ATTEND_EARLY` | ✗ |
+| `attend_late` | `attendance.notice_effective` | `RED` | `GRAY`, labelled `ATTEND_LATE` | ✗ |
+| `walkin` | — **nothing** | `YELLOW` | `YELLOW` | ✓ |
+| `walk_in` | — **nothing** | `YELLOW` | `GRAY`, labelled `WALK_IN` | ✗ |
+| `late` | — **nothing** | `RED` | `RED` | ✓ |
+| anything else | — | `GRAY` | `GRAY`, upper-cased passthrough | ✓ |
+
+Eleven rows, seven disagreements — but **three of the four agreements are on keys
+nothing sends**. Restricted to what can actually arrive, it is **six
+disagreements out of eight reachable rows**, and only `soft` and the
+passthrough agree.
+
+The shape of the bar's defect follows from the two spellings. `rsvpChip` prefers
+`rsvp.notice`, whose `hard` / `soft` it *does* recognise, and falls back to
+`attendance.notice_effective`, **none of whose four values it recognises at
+all**. So a player with a live RSVP gets a correct `HRSVP` / `SRSVP` chip, while
+a walk-in — who by definition has no RSVP row and therefore reaches the fallback
+— always lands on the `default` arm: `ATTEND_LATE` in grey where the chat surface
+says `LATE WALK-IN` in red. Its `walkin` and `late` arms are unreachable. It also
+folds with a bare `toLowerCase()` / `toUpperCase()` where `noticeColor` passes
+`Locale.ROOT`. Both are filed rather than fixed, in
+`.claude/ephemeral/bugs-found-via-mellow-rain/` — fixing either changes what the
+boss bar says.
 
 ## anni-motd (world-join)
 

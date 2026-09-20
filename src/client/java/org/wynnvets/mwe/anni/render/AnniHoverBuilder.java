@@ -74,11 +74,28 @@ public final class AnniHoverBuilder {
         return AnniOutlinePalette.chatFormattingForRole(role);
     }
 
-    /** Notice → ChatFormatting:
-     *  hard=AQUA (HRSVP), soft=GREEN (SRSVP), any walk-in=YELLOW,
-     *  late walk-in=RED. Showing up without an RSVP is always YELLOW
-     *  regardless of how early — RED is reserved for showing up late
-     *  without an RSVP. */
+    /** Notice → ChatFormatting, the colour rule for every chat surface:
+     *  hard RSVP = AQUA, soft RSVP = GREEN, on-time walk-in = YELLOW,
+     *  late walk-in = RED, and anything we hold no notice for = GRAY.
+     *
+     *  <p>vets-anni's {@code AttendanceNotice} enum has <b>four</b>
+     *  values — {@code attend_early}, {@code rsvp_hard},
+     *  {@code rsvp_soft}, {@code attend_late} — and one snapshot ships
+     *  them in two spellings. {@code attendance.notice_effective} carries
+     *  the raw enum value; {@code rsvp.notice} is normalised server-side
+     *  to a bare {@code hard} / {@code soft}. Both spellings reach this
+     *  method, which is why both are switched on. The {@code walkin},
+     *  {@code walk_in} and {@code late} arms match nothing the server
+     *  emits — they are defensive, not a fifth and sixth state.</p>
+     *
+     *  <p>A {@code null} notice means <em>no fact held</em>, not "turned
+     *  up unannounced" — unannounced-but-on-time is
+     *  {@code attend_early}, and that is the yellow arm. So {@code null}
+     *  and any unrecognised key both fall to GRAY, which is what
+     *  {@link #rsvpBadge} renders as its gray {@code NO RSVP}. The boss
+     *  bar's {@code VetsBossBarContentBuilder.rsvpChip} paints a
+     *  {@code null} notice yellow instead; that is a filed defect on the
+     *  bar, not a second opinion about the rule.</p> */
     public static ChatFormatting noticeColor(String noticeEffective) {
         if (noticeEffective == null) return ChatFormatting.GRAY;
         switch (noticeEffective.toLowerCase(Locale.ROOT)) {
