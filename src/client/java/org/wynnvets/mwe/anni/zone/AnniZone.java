@@ -158,7 +158,7 @@ public final class AnniZone {
 
     /** Immutable public view of a single zone disc — centre (x, z) + radius
      *  in blocks. Consumed by S5's zone-line renderer and by
-     *  {@code DebugCommands}' {@code zoneLinesDump}. */
+     *  {@link org.wynnvets.debug.DebugCommands DebugCommands}' {@code zoneLinesDump}. */
     public static final class Disc {
         private final double x;
         private final double z;

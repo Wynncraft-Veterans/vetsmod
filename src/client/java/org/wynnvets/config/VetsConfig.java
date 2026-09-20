@@ -115,10 +115,10 @@ public class VetsConfig {
 
     /** Active anni mode — {@code silent}, {@code passive}, or
      *  {@code aggressive}. Set by {@code /wv anni <mode>} and read through
-     *  {@code AnniModeManager.current()} by exactly three classes: {@code VetsBossBarManager}
-     *  (S3+), {@code AnniOutlineTicker} (S4+) and {@code AnniAggressiveTicker} (S5).
-     *  <b>No waypoint class reads the mode</b> &mdash; {@code ScrollSpotMarkerProvider} gates on
-     *  {@code AnniAggressiveTicker.isAggressiveActive()} instead, which is where the S5 reading
+     *  {@code AnniModeManager.current()} by exactly three classes: {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager VetsBossBarManager}
+     *  (S3+), {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker} (S4+) and {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker AnniAggressiveTicker} (S5).
+     *  <b>No waypoint class reads the mode</b> &mdash; {@link org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider ScrollSpotMarkerProvider} gates on
+     *  {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker#isAggressiveActive() AnniAggressiveTicker#isAggressiveActive()} instead, which is where the S5 reading
      *  comes from. Absent from {@link #USER_CONFIG_KEYS}, so {@code /wv
      *  config} cannot read or write it. When the anni window closes (T+30 min after stamp_epoch)
      *  {@link org.wynnvets.mwe.anni.mode.AnniWindowWatcher AnniWindowWatcher} restores
@@ -209,7 +209,7 @@ public class VetsConfig {
      *  true}. The branch added to {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} runs
      *  before the supporter glint branch — so an own-party supporter shows the role colour for the
      *  duration of the highlight gate and reverts to the animated supporter glint afterwards.
-     *  That ordering is the TAIL injector's; {@code NametagMixin} has two, and when wynnmod is
+     *  That ordering is the TAIL injector's; that mixin has two, and when wynnmod is
      *  present the TAIL path returns before the supporter branch and its {@code @WrapOperation}
      *  owns the glint instead. */
     public static final String VETS_ANNI_NAMETAGS_ENABLED = "vetsAnniNametagsEnabled";
