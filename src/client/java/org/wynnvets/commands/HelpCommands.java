@@ -42,13 +42,7 @@ final class HelpCommands {
                 Component.literal(" — View or change mod settings\n")
                         .withStyle(ChatFormatting.GRAY));
 
-        boolean isVet =
-                GuildStateManager.isReturners()
-                        || (GuildStateManager.isGuildless()
-                                && GuildStateManager.isWaitlistUnlocked())
-                        || GuildStateManager.isHonouraryUnlocked();
-
-        if (isVet) {
+        if (GuildStateManager.isEligibleForEnrichment()) {
             msg.append(Component.literal("/wv motd").withStyle(ChatFormatting.YELLOW));
             msg.append(
                     Component.literal(" — Show the message of the day\n")
