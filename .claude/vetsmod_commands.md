@@ -82,6 +82,8 @@ No permission. [ConfigCommands](../src/client/java/org/wynnvets/commands/ConfigC
 - `/wv config <key>` — show current value
 - `/wv config <key> <value>` — persist
 
+Every `key = value` line the three forms print — and the three `/wv debug set` prints — is built by `util/ConfigValueText`. `ConfigCommands.Kind.of(key)` picks which of `VetsConfig`'s four typed accessors a key uses, and the same enum drives both the read paths and the write dispatch, so the type ladder is written once.
+
 Suggestion providers (`ConfigCommands.SUGGEST_CONFIG_KEYS` and `ConfigCommands.SUGGEST_CONFIG_VALUES`): colour names via `VetsConfig.getColorNames()`, sprite names (10 total), opacity int values `reset|0|25|50|69|75|100`, tri-state `default|true|false`. Validation via `VetsConfig.isValidColor()`, `isValidSprite()`.
 
 ### /wv line <church|scrap|bat|hegea|lighthouse>
