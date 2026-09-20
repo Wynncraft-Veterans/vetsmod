@@ -30,10 +30,15 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * class's.</p>
  *
  * <p>Reuses the same 90-minute window as
- * {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager#isActive()} — one
- * constant, {@link org.wynnvets.mwe.anni.state.AnniWindows#BAR_WINDOW_SECONDS
- * AnniWindows#BAR_WINDOW_SECONDS} — so that by intent every surface which "wakes up" inside
- * the window is kept fresh by the same poll cadence.</p>
+ * {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager VetsBossBarManager}'s
+ * activation gate — one constant,
+ * {@link org.wynnvets.mwe.anni.state.AnniWindows#BAR_WINDOW_SECONDS
+ * AnniWindows#BAR_WINDOW_SECONDS} — so that by intent every surface which
+ * "wakes up" inside the window is kept fresh by the same poll cadence. The
+ * gate itself is in that class's private {@code tickInner}, <b>not</b> in its
+ * {@code isActive()}, which only reports the resulting flag; an earlier
+ * version of this sentence linked the latter, and a live link to the wrong
+ * member is something {@code -Xdoclint:reference} cannot catch.</p>
  *
  * <p>The two share that number and <b>not</b> their floor, which the old
  * "match VetsBossBarManager" comment never said. This poller stops at

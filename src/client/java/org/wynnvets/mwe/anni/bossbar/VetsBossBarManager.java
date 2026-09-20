@@ -24,10 +24,21 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
 /**
  * Singleton driver for the synthetic vets-anni boss bar.
  *
- * <p>Per-tick this manager decides whether the bar should be on (mode
- * ∈ {PASSIVE, AGGRESSIVE}, snapshot has a future {@code stamp_epoch},
- * we're inside the activation window) and, if so, rebuilds its name
- * component via {@link VetsBossBarContentBuilder}. The synthetic
+ * <p>Per-tick this manager decides whether the bar should be on and, if so,
+ * rebuilds its name component via {@link VetsBossBarContentBuilder}.</p>
+ *
+ * <p><b>The gate is seven conjuncts, and summarising it as "inside the
+ * activation window" drops the one that matters.</b> In {@code tickInner}
+ * order: mode != SILENT; {@code vetsAnniBossbarEnabled}; a snapshot with a
+ * non-null {@code event.stampEpoch()}; {@code secondsUntilAnni > 20}; not
+ * past the 2.5 h {@code FAILSAFE_DEACTIVATE_MS}; <b>{@code secondsUntilAnni
+ * <= }{@link AnniWindows#BAR_WINDOW_SECONDS} <em>OR</em> the player is inside
+ * {@link AnniZone}</b>; and a non-null build. That sixth conjunct is a
+ * disjunction — a player who walks into the zone hours early gets the bar —
+ * and the floor under it is the {@code secondsUntilAnni > 20} hard return
+ * thirty lines earlier, not the window expression. So the timer path is
+ * {@code (T-20s, T-90m]} and zone entry widens only its top.
+ * {@code vetsmod_mwe_anni.md} §"Activation gate" is the owning statement.</p> The synthetic
  * {@link LerpingBossEvent} lives in
  * {@link BossHealthOverlay#events} via {@link BossHealthOverlayAccessor}.</p>
  *
@@ -173,7 +184,7 @@ public final class VetsBossBarManager {
         }
         long secondsUntilAnni = stampEpoch - Instant.now().getEpochSecond();
 
-        // Gate 2 of 3: hard wall-clock T-20 watchdog, independent of
+        // Gate 2 of 2: hard wall-clock T-20 watchdog, independent of
         // the content builder.
         if (secondsUntilAnni <= DROP_DEAD_SECONDS_BEFORE_ANNI) {
             if (active) deactivate();
@@ -196,10 +207,6 @@ public final class VetsBossBarManager {
             playerZ = player.getZ();
         }
 
-        // Activation gate: show the bar only when we're in the anni
-        // window (≤90m) OR the player has walked into the anni zone.
-        // Outside both, even passive/aggressive stays quiet — no
-        // perpetual bar hours before anni.
         // Activation gate — the bar shows when secondsUntilAnni <= 90 m OR the
         // player is inside the anni zone. Outside both, the bar stays hidden even
         // in passive/aggressive mode so users going about their day hours before
@@ -214,7 +221,7 @@ public final class VetsBossBarManager {
         MutableComponent name =
                 VetsBossBarContentBuilder.build(snapshot, secondsUntilAnni, playerX, playerZ);
 
-        // Gate 1 of 3: builder said null → deactivate.
+        // Gate 1 of 2, observed here: builder said null → deactivate.
         if (name == null) {
             if (active) deactivate();
             return;

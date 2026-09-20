@@ -130,7 +130,7 @@ public final class VetsBossBarContentBuilder {
             AnniSnapshot snapshot, long secondsUntilAnni, double playerX, double playerZ) {
         if (snapshot == null) return null;
 
-        // Gate 1 of 3: hard T-20s cut-off — non-negotiable.
+        // Gate 1 of 2: hard T-20s cut-off — non-negotiable.
         if (secondsUntilAnni <= T_MINUS_20_GATE_SECONDS) {
             return null;
         }

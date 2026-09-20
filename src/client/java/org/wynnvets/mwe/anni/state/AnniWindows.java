@@ -45,8 +45,9 @@ package org.wynnvets.mwe.anni.state;
  * apart at the bottom. A shared {@code inBarWindow} predicate would have to change
  * one of them.</p>
  *
- * <p>That 20-second floor is one half of a documented three-gate boss-bar design
- * whose other half lives in {@code VetsBossBarContentBuilder.T_MINUS_20_GATE_SECONDS};
+ * <p>That 20-second floor is one half of a documented <b>two</b>-gate boss-bar
+ * design whose other half lives in
+ * {@code VetsBossBarContentBuilder.T_MINUS_20_GATE_SECONDS};
  * it is a boss-bar timing constant, so it stays where {@code progressFor} can see
  * it and does not move here. It is named in this paragraph because the bar window
  * genuinely does have a lower bound, and reading the window expression alone
