@@ -80,7 +80,7 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 
 Default 69 for top opacity approximates the old `0xB0` alpha byte.
 
-**`vetsAnniMode` is not in this list.** It is a persisted string key (default `silent`; values `silent` / `passive` / `aggressive`), but it is set by `/wv anni <mode>` through `AnniModeManager.transitionTo`, not by `/wv config` — it is absent from `USER_CONFIG_KEYS`. At T+30m `AnniWindowWatcher` resets it to `AnniModeManager.preferredMode()`, **not** to silent: that is the user's remembered pick when `vetsAnniModeUserSet` is set, otherwise `passive` for enrichment-eligible users and `silent` for everyone else. While `/stream` is active, `transitionTo` refuses any target other than `silent` (unless the source is `DEBUG_BYPASS_MUTEX`) — a refused transition writes nothing and leaves the current mode alone.
+**`vetsAnniMode` is not in this list.** It is a persisted string key (default `silent`; values `silent` / `passive` / `aggressive`), but it is set by `/wv anni <mode>` through `AnniModeManager.transitionTo`, not by `/wv config` — it is absent from `USER_CONFIG_KEYS`. At T+30m `AnniWindowWatcher` resets it to `AnniModeManager.preferredMode()`, **not** to silent — silent is one of three possible targets, not the target. [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md) §"Mode state" owns what `preferredMode()` resolves to; don't restate it here. While `/stream` is active, `transitionTo` refuses any target other than `silent` (unless the source is `DEBUG_BYPASS_MUTEX`) — a refused transition writes nothing and leaves the current mode alone.
 
 ## 3. API (static methods, all public except `save()`)
 

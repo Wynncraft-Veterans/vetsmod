@@ -176,9 +176,15 @@ public final class AnniModeManager {
 
     /**
      * The mode the user should be running in right now, absent any
-     * transient overrides. Consulted by {@link AnniWindowWatcher},
-     * {@link StreamerModeChatDetector#observe} (on stream-off), and
-     * {@link #applyStartupDefaultIfNeeded()}.
+     * transient overrides. Consulted by exactly two callers:
+     * {@link AnniWindowWatcher}, and {@link StreamerModeChatDetector#observe}
+     * on stream-off (the read itself is in that class's private
+     * {@code handleStreamOff()}).
+     *
+     * <p>{@link #applyStartupDefaultIfNeeded()} does <em>not</em> consult this
+     * method. It re-derives the eligibility default inline, which it can because
+     * it has already returned early on {@link VetsConfig#VETS_ANNI_MODE_USER_SET}
+     * — the one branch this method adds over that default.</p>
      *
      * <p>If the user has ever explicitly picked a mode
      * ({@link VetsConfig#VETS_ANNI_MODE_USER_SET} is {@code true}),

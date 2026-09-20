@@ -52,7 +52,10 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  *       since the watchdog re-checks every client tick (~50 ms).</li>
  * </ol>
  * Plus the existing {@link org.wynnvets.mwe.anni.mode.AnniWindowWatcher AnniWindowWatcher} which
- * resets the mode to silent at T+30 m — a slower safety net.</p>
+ * at T+30 m restores {@link org.wynnvets.mwe.anni.mode.AnniModeManager#preferredMode()
+ * AnniModeManager.preferredMode()} — a slower safety net. That target is silent
+ * <em>only</em> in the never-set-a-mode, not-enrichment-eligible sub-case; it is not
+ * an unconditional reset to silent.</p>
  */
 public final class VetsBossBarManager {
 
