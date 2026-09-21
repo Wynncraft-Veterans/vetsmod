@@ -25,6 +25,17 @@ import org.wynnvets.util.Json;
  * uses plain Java beans for Gson-shaped data (see
  * {@link org.wynnvets.datamodels.MembershipSnapshot}); records would
  * require a custom {@code TypeAdapter} for snake_case wire fields.</p>
+ *
+ * <p><b>That field naming is also what makes the debug round-trip work</b>, which
+ * is the concrete cost of converting. {@code AnniDebugCommands.timeSet}
+ * serialises the live snapshot back out with {@code Gson#toJson}, edits the
+ * resulting tree, and re-hydrates it through {@link #fromJson}; the same
+ * snake_case spellings therefore have to survive in <em>both</em> directions.
+ * Record components would serialise as {@code stampEpoch} and fail to match
+ * {@code stamp_epoch} on the way back in, so a {@code TypeAdapter} is not an
+ * optional nicety here — it is load-bearing for a debug command in another
+ * package. This is why the conversion sits on the cleanup plan's excluded
+ * list.</p>
  */
 public final class AnniSnapshot {
 
