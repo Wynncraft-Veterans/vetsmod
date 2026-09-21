@@ -18,12 +18,16 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * yield different Components at different instants.</p>
  *
  * <p>Maps {@code (AnniSnapshot, secondsUntilAnni, playerPos)} to one of
- * the four text variants <em>this builder emits</em> (or {@code null}
- * for "deactivate"). Four is the count of the branches below; it is not
- * the spec's count of anything, and {@link #isAssigned}'s reference to
- * "the five" is a spec-side enumeration of a different population that
- * this repo holds no copy of. The two numbers are not in conflict, they
- * count different things.</p>
+ * <b>three</b> text variants — countdown, assigned, seeking — or to
+ * {@code null} for "deactivate". {@code build} has five branches, not
+ * three: the two {@code null} returns are a null {@code snapshot} and
+ * the T-20s gate, and only the first of those is absent from the list
+ * below, whose leading bullet <em>is</em> the T-20s branch. So the list
+ * has four bullets over three variants, which is why "four variants" is
+ * the wrong way to read it. {@link #isAssigned}'s reference to "the
+ * five" is a spec-side enumeration of a different population again, and
+ * this repo holds no copy of that spec; none of these three numbers is
+ * in conflict with the others, they count different things.</p>
  *
  * <ul>
  *   <li><b>T-20s gate</b> (one of the two T-20s gates per parent plan
@@ -334,7 +338,10 @@ public final class VetsBossBarContentBuilder {
         // rsvp_soft, attend_late. Only the first of those two spellings
         // matches an arm below, which is why a walk-in renders as a grey
         // ATTEND_EARLY/ATTEND_LATE passthrough. Filed, not fixed:
-        // boss-bar-rsvp-chip-recognises-four-of-nine-notices.
+        // boss-bar-rsvp-chip-recognises-four-of-nine-notices -- whose slug
+        // preserves the "nine wire keys" count that this comment refutes.
+        // The id is a stable identifier, not a claim; the file itself
+        // carries the corrected four-states-two-spellings reading.
         AnniSnapshot.Rsvp rsvp = snapshot.rsvp();
         String notice = (rsvp != null && !rsvp.revoked()) ? rsvp.notice() : null;
         if (notice == null) {

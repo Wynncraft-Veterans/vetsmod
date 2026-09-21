@@ -351,8 +351,9 @@ implements it exactly.
 | `late` | — **nothing** | `RED` | `RED` | ✓ |
 | anything else | — | `GRAY` | `GRAY`, upper-cased passthrough | ✓ |
 
-Eleven rows, seven disagreements — but **three of the four agreements are on keys
-nothing sends**. Restricted to what can actually arrive, it is **six
+Eleven rows, seven disagreements — but **two of the four agreements are on keys
+nothing sends** (`walkin` and `late`; `walk_in`, the third dead alias, is a
+*disagreement* row). Restricted to what can actually arrive, it is **six
 disagreements out of eight reachable rows**, and only `soft` and the
 passthrough agree.
 
@@ -437,7 +438,7 @@ Let vanilla and Wynntils track bars normally (no `update()` cancellation, no `ev
 
 **`FlashTracker`** (`bossbar/FlashTracker.java`):
 - Subscribes to `AnniSnapshotCache`. Two flash models:
-  - **Role / party / RSVP**: timed-window flash. On a snapshot diff against last-seen, marks the field "flashing" for `vetsAnniFlashIntensity` ms (`subtle=5000`, `normal=10000` default, `strong=20000`). First observation skipped via `roleObserved` / `partyObserved` / `rsvpObserved` sentinels — login with existing state doesn't bing on every reconnect, but **null → set** transitions during the session DO flash + ping.
+  - **Role / party / RSVP**: timed-window flash. On a snapshot diff against last-seen, marks the field "flashing" for a duration **named** by `vetsAnniFlashIntensity` — the config value is a name, not a millisecond count, and `FlashTracker.flashDurationMs()` maps `subtle`→5000, `normal`→10000 (also the fallback for null or unrecognised), `strong`→20000. First observation skipped via `roleObserved` / `partyObserved` / `rsvpObserved` sentinels — login with existing state doesn't bing on every reconnect, but **null → set** transitions during the session DO flash + ping.
   - **World**: state-driven, never latched. `tick()` recomputes `worldMismatch = partyWorld != null && (currentWorld == null || !currentWorld.equalsIgnoreCase(partyWorld))` (current world read via `Models.WorldState.getCurrentWorldName()`) — the comparison is case-insensitive, and an unknown current world counts as a mismatch; `styleFor("world", base)` consults that live flag. **Position movement** silently toggles the flash — walk onto the assigned world → flash stops, walk off → flash resumes — but **never** triggers a ping. **Pings** fire only when the snapshot's `party.world` *value* changes (assignment / reassignment / unassignment), wired through the same `applyDiff` path with a `worldObserved` sentinel that skips the first-observation case.
 - Pulse half-period: 250ms fixed (toggled in `tick()`, driven by `VetsBossBarManager.tick()`).
 - `styleFor(fieldKey, baseStyle)` applies `.withUnderlined(true)` to `baseStyle` iff the field is flashing AND the phase bit is high — produces the spec's "`&l ↔ &n&l`" alternation.
@@ -466,7 +467,7 @@ The `event.all_parties` half of the highlight tiering needs `schema_version = 2`
 | Subsystem | Gate |
 |--|--|
 | Boss bar | `mode != SILENT` AND `vetsAnniBossbarEnabled` AND a snapshot with `stamp_epoch` AND `secondsUntilAnni > 20s` AND ( `secondsUntilAnni ≤ 90m` **OR** `in zone` ) AND the content builder returned non-null — with the 2.5 h stuck-snapshot failsafe on top |
-| Highlights | `mode != SILENT` AND `in window (T-2h..T+30m)` **AND** `in zone` AND ( `vetsAnniOutlinesEnabled` OR `vetsAnniNametagsEnabled` ) |
+| Highlights | `mode != SILENT` AND ( `vetsAnniOutlinesEnabled` OR `vetsAnniNametagsEnabled` ) AND `in window (T-2h..T+30m)` **AND** `in zone` — written in `gateHolds`' evaluation order |
 
 Neither gate contains the other. Before the stamp the highlight gate is the tighter one — it adds the zone requirement the bar treats as an alternative. After it, containment breaks in both directions: across the whole T-20s → T+30m stretch the bar is hard off (`DROP_DEAD_SECONDS_BEFORE_ANNI`) while in-zone highlights stay on, and `vetsAnniBossbarEnabled=false` kills the bar without touching highlights.
 
@@ -514,7 +515,9 @@ Beside those, a `// ── Debug API ──` block that `AnniDebugCommands` driv
 
 Subscribes `ClientTickEvents.END_CLIENT_TICK` once at init. Each tick:
 
-1. Evaluate the four-condition gate (mode, window, zone, at-least-one-toggle).
+1. Evaluate the four-condition gate, in `gateHolds`' own short-circuit order:
+   **mode, at-least-one-toggle, window, zone**. The toggles are second, not
+   last — a client with both off never reaches `AnniSnapshotCache` or the clock.
 2. If the gate fails and `suppressionActive` was true → clear every glow we previously applied (walk `level.players()`, set `setGlowColor(NONE)` for tracked usernames), reset the flag, return.
 3. If the gate holds → walk `level.players()`:
    - Skip the local player.
@@ -702,9 +705,14 @@ party members by username — see `Wynntils PartyModel.getPartyMembers()`.
    `organiser_usernames` set, calls
    `PartyRosterListener.requestRecapture()`. Handles "anni opens while
    parked in a static party for 30 min" — no `PartyEvent` would fire
-   on its own. Registered from `VetsmodClient.onClientStarted`
-   (CLIENT_STARTED), never from `onInitializeClient` per
-   `feedback_vetsmod_wynntils_init_order.md`.
+   on its own. ⚠️ **There is no `VetsmodClient.onClientStarted`** — the only
+   methods are `onInitializeClient()` and the `CLIENT_STARTED.register(…)`
+   lambda inside it. `AnniPartyReporter.init()` is called **from that lambda,
+   which is itself inside `onInitializeClient`**; what is forbidden is the
+   initializer *body*, where touching Wynntils `Models.*` cold-start-crashes
+   the game, per `feedback_vetsmod_wynntils_init_order.md`. The earlier wording
+   both named a non-existent method and banned the very method the call lives
+   in.
 
 ### What got deleted
 
@@ -830,7 +838,7 @@ Live API shape (probed 2026-06-16): `location: [{event: {x:315, y:31, z:-1291}, 
 
 Downstream consumers reuse this same fetcher: the outline gate (`AnniOutlineTicker`, via `forceInZone || isInZone`), the ghosts prompt (`GhostsPromptHandler`), aggressive-mode alerts (`AggressiveAlertDispatcher`), and the boss bar itself (`VetsBossBarManager`'s activation gate plus `VetsBossBarContentBuilder`'s countdown gate) — all via `isInZone`; plus `AnniZoneLineRenderer` and the debug dump, via `getDiscs()` / `isCold()`.
 
-The scroll waypoint does **not**. `ScrollSpotMarkerProvider` never references `AnniZone` at all: its position comes from `board.party.scroll_spot`, falling back to the hard-coded `345 45 -1315`, and its gate is `AnniAggressiveTicker.isAggressiveActive()`.
+The scroll waypoint does **not**. `ScrollSpotMarkerProvider` never references `AnniZone` at all: its position comes from `board.party.scroll_spot`, falling back to the hard-coded `345 45 -1315` **only while the player is in a party** — `computeEntry` returns null on a null `board.party()` before it reads the spot — and its gate is `AnniAggressiveTicker.isAggressiveActive()`. ⚠️ **That precondition is the marker's, not the literal's.** `AggressiveAlertDispatcher.fireZoneReadinessAlert` computes the same fallback with a plain `spot != null ? … : "345 45 -1315"`, so the T-5m chat alert *does* print those coordinates to a player with no party. Do not generalise "only in a party" beyond the waypoint.
 
 ## Config keys
 

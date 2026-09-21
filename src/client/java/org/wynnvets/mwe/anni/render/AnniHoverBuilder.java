@@ -91,8 +91,10 @@ public final class AnniHoverBuilder {
      *  <p>A {@code null} notice means <em>no fact held</em>, not "turned
      *  up unannounced" — unannounced-but-on-time is
      *  {@code attend_early}, and that is the yellow arm. So {@code null}
-     *  and any unrecognised key both fall to GRAY, which is what
-     *  {@link #rsvpBadge} renders as its gray {@code NO RSVP}. The boss
+     *  and any unrecognised key both fall to GRAY — though
+     *  {@link #rsvpBadge} labels only the {@code null} case
+     *  {@code NO RSVP}, and renders an unrecognised key as the raw
+     *  string upper-cased, in the same gray. The boss
      *  bar's {@code VetsBossBarContentBuilder.rsvpChip} paints a
      *  {@code null} notice yellow instead; that is a filed defect on the
      *  bar, not a second opinion about the rule.</p> */

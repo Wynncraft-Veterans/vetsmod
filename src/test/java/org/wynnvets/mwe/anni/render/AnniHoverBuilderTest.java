@@ -53,8 +53,14 @@ class AnniHoverBuilderTest {
     private static final Locale TURKISH = Locale.forLanguageTag("tr");
 
     /** Captured once at class-init, before any test can have changed it. The
-     *  suite's invariant is that whoever mutates a static restores it — two
-     *  existing tests assert pristine defaults and have no setup hook. */
+     *  suite's invariant is that whoever mutates a static restores it. Of the
+     *  seven tests here, <b>three</b> never call {@code Locale.setDefault} and
+     *  so run against whatever the previous test left — {@code mapsEveryKnownRole},
+     *  {@code nullAndUnknownFallBackToGray}, {@code foldsCase}. The class has
+     *  <em>no</em> setup hook at all, only the {@code @AfterEach} restore, which
+     *  is what makes the restore load-bearing. (Note none of the three would
+     *  actually fail on a dirty default: both folds pass {@link Locale#ROOT}.
+     *  The restore is hygiene against a future test that does not.) */
     private static final Locale ORIGINAL_DEFAULT = Locale.getDefault();
 
     @AfterEach
@@ -135,7 +141,9 @@ class AnniHoverBuilderTest {
      *  fall-through inputs: {@code null}, the empty string, an unknown role
      *  ({@code SUPPORT}) and an untrimmed one ({@code " TANK "}), which falls
      *  through because the switch matches the folded string exactly. Eighteen
-     *  entries: seven arms × two cases, plus those four. */
+     *  entries: seven role <em>codes</em> × two cases, plus those four. Seven
+     *  codes, six distinct colours — {@code HEAL} and {@code HEALER} share an
+     *  arm, as this suite asserts elsewhere. */
     private static final String[] EQUIVALENCE_KEYS = {
         "FILL",
         "TANK",

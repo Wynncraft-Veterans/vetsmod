@@ -143,8 +143,10 @@ public final class VetsBossBarManager {
      *  {@link org.wynnvets.mixin.client.BossHealthOverlayMixin} uses it
      *  to identify which entry in {@code BossHealthOverlay#events} to
      *  let through the render filter, and {@code DebugCommands}' boss-bar
-     *  dump prints it beside the live event keys so a mismatch is
-     *  visible. */
+     *  dump compares each tracked event's key against it to mark one
+     *  {@code ← OURS}. The dump never prints this value itself, so when
+     *  our bar is missing from {@code events} the output simply carries
+     *  no marker. */
     public static UUID barUuid() {
         return BAR_UUID;
     }
