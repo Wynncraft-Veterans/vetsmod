@@ -248,8 +248,10 @@ public class LegacyItemHandler {
     }
 
     /**
-     * If the last processed tooltip was legacy AND the Wynntils screenshot keybind
-     * is currently held, takes a legacy-aware screenshot of the given tooltip and
+     * If the last processed tooltip was legacy AND a press of the Wynntils screenshot
+     * keybind has been latched (by LegacyTooltipEventListener, since the key may
+     * already be released by now; the latch is consumed by this call either way),
+     * takes a legacy-aware screenshot of the given tooltip and
      * copies it to the clipboard, overwriting Wynntils' pre-modification screenshot.
      */
     public static void screenshotIfRequested(

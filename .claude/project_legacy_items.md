@@ -123,7 +123,7 @@ Drawing sequence:
 1. `guiGraphics.fillGradient(x, y, x+16, y+16, topColor, bottomColor)` — top/bottom colours from `LegacyItemStyle.getBackgroundGradientTopColor()` / `…BottomColor()` with per-colour opacity packed into ARGB alpha
 2. `RenderUtils.drawSprite(guiGraphics, VetsConfig.getLegacyForegroundTexture(), CustomColor.fromARGBInt(VetsConfig.getLegacyForegroundColor()), x - 10, y - 10, 36, 36)` — Wynntils' own sprite renderer, 36×36 at offset −10, taking a `com.wynntils.utils.render.Texture` enum value from `LegacyItemStyle`'s `HIGHLIGHT_*` table (fallback `Texture.HIGHLIGHT_WYNN`). There is no `blit` call and no raw texture path anywhere in the repo
 
-`LegacyHighlightMixin` itself **does not draw** — it only captures hover state (`currentItemHasFoil`, `currentItemStack`) for the tooltip pipeline and, via a server-compat patch in its `renderSlot` head, sets `newTooltipStylesAvailable` if it sees a `tooltip_style` component.
+`LegacyHighlightMixin` itself **does not draw** — it only captures hover state (`currentItemHasFoil`, `currentItemStack` for the tooltip pipeline, `currentHoveredSlot` for the item-dump tool) in its `renderTooltip` head and, via a server-compat patch in its `renderSlot` head, sets `newTooltipStylesAvailable` if it sees a `tooltip_style` component.
 
 Sprites (`LEGACY_ITEM_FOREGROUND_SPRITE`): `wynn`, `tag`, `circle_transparent`, `circle_opaque`, `circle_outline_large`, `circle_outline_small`, `box_transparent`, `box_opaque`, `box_gradient_1`, `box_gradient_2`.
 
@@ -152,7 +152,7 @@ Registered in `VetsConfig.USER_CONFIG_KEYS`. Validation delegated to `VetsConfig
 
 **Hotbar frame:** vanilla `Gui.renderSlot()` → `LegacyHotbarMixin` HEAD → `LegacyHighlightPainter.paintIfLegacy()` → `isLegacyItem()` → 8-branch cascade → if true draw gradient + sprite → vanilla continues.
 
-**Container frame:** `AbstractContainerScreen.renderSlot()` runs → `LegacyHighlightMixin` HEAD captures hover state → Wynntils `SlotRenderEvent.Pre` fires → `LegacyHighlightEventListener` (LOWEST) → `LegacyHighlightPainter.paintIfLegacy()` → gradient + sprite.
+**Container frame:** `AbstractContainerScreen.renderSlot()` runs → `LegacyHighlightMixin` HEAD sets `newTooltipStylesAvailable` if the slot's item has a `tooltip_style` component (the mixin captures hover state in its separate `renderTooltip` HEAD hook) → Wynntils `SlotRenderEvent.Pre` fires → `LegacyHighlightEventListener` (LOWEST) → `LegacyHighlightPainter.paintIfLegacy()` → gradient + sprite.
 
 **Tooltip frame:** `GuiGraphics.setTooltipForNextFrame()` → `LegacyItemTooltipMixin` HEAD → reentry guard → `LegacyTooltipRenderer.processTooltip()` → 9-branch cascade → if modified: cancel vanilla + re-invoke with modified list, set gold border (only if `newTooltipStylesAvailable`).
 

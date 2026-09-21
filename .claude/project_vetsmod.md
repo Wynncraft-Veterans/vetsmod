@@ -37,7 +37,7 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 - Inbound WS: `wss://api.wynnvets.org/v1/inbound` — client sends guild/waitlist/honourary messages
 - Outbound WS: `wss://api.wynnvets.org/v1/outbound` — server pushes messages to all clients
 - Both auto-reconnect (3s delay), 30s ping keepalive
-- Registration frame (`type="register"`) AND `auth` frame (`type="auth", key="<43-char base64url>"`) re-sent on every reconnect
+- Registration frame (`type="register"`) AND `auth` frame (`type="auth", key="<43-char base64url>"`) re-sent on every inbound reconnect
 - Outbound server pushes a `{type:"server_info", unauth_enabled: bool}` frame on connect so the mod knows which session-warning copy to use
 
 **WebSocket message fields:** `uuid`, `type`, `timestamp`, `rank`, `username`, `message`. Inbound `type` ∈ `{guild, queue, waitlist, honourary}`. Outbound `type` adds `bridge` (Discord relay).
@@ -54,7 +54,7 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 
 **User tiers:** `member` (`guild` on the wire) | `waitlist` | `honourary` | `other`. Tier is resolved server-side by dazebot from the user's Discord roles + linked MC account; the mod gets it back in the `auth` frame ack. Authentication is via a 43-char URL-safe base64 bearer key issued by dazebot's `/vetsmod` Discord command and supplied by the user via `/unlock <key>`. The legacy SHA-256 password unlock has been retired (markers retained on disk only for warning copy). Staff detected via `/gu rank` (captain+), cached 24h, orthogonal to tier.
 
-**Config:** JSON at `~/.minecraft/vetsmod/storage/config.json`. User-facing keys via `/wv config`. Debug logging opt-in, 3-day TTL.
+**Config:** JSON at `~/.minecraft/vetsmod/storage/config.json`. User-facing keys via `/wv config`. Debug flag opt-in via `/wv debug true`; restored at client init only if it was switched on less than three days earlier (checked only at init, so a running session keeps it on). It is not logging-only: it also gates the `/wv debug tree anni` harness (`requireDebug`).
 
 **Item definitions:** YAML at `src/client/resources/definitions.yml`. 9 categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `not_pedestal`, `notjunk`, `new_format_override`, `blocked_screen_titles` — all compiled to `Pattern` — plus `enchant_excluded_items`, a literal-string set of Minecraft item IDs matched by exact equality.
 

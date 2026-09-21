@@ -24,7 +24,8 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *
  * <p>Everyone NOT in the registry is treated as an "outsider" by the
  * consumers (no outline, dark-grey nametag while the activation gate
- * holds) — that's a default applied by the ticker / nametag mixin, NOT
+ * holds and the matching toggle is on) — that's a default applied by the
+ * outline / nametag mixins, NOT
  * a registry entry. Keeps the table small (~50 entries max during an
  * anni) and the consumer side stateless.</p>
  *

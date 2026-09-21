@@ -756,11 +756,13 @@ public class GuildStateManager {
     }
 
     /**
-     * Force an immediate re-read of guild info from the Wynntils
-     * {@code Models.Guild} API.  Reports current state to chat, triggers
-     * {@link #onGuildInfoUpdated()} if guild info is present, forces a
-     * staff rank refresh, and always runs our own {@code /gu stats}
-     * guild check.
+     * Reads guild membership and rank from Wynntils' {@code Models.Guild}
+     * and reports them to chat alongside vetsmod's own guild and staff
+     * state.  If Wynntils reports a guild, re-evaluates dependent state
+     * directly; it deliberately does not call {@link #onGuildInfoUpdated()},
+     * which would clear {@code GuildChecker}.  Then forces a staff rank
+     * refresh and starts our own {@code /gu stats} guild check, each
+     * skipped if one is already in flight.
      *
      * <p>Intended for use from {@code /wv debug trigger forceChecks}.</p>
      */

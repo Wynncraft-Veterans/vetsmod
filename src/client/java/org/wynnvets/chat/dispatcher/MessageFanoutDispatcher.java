@@ -265,9 +265,10 @@ public final class MessageFanoutDispatcher {
 
     /**
      * Reached from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} on the render
-     * thread for every incoming chat message. Matches outbound /msg echo lines and offline-player
-     * errors, suppresses them from display, and signals the dispatch thread so it can proceed
-     * strategically.
+     * thread for incoming chat messages that reach its single-argument
+     * {@code ChatComponent#addMessage(Component)} hook. Matches outbound /msg echo lines and
+     * offline-player errors, suppresses them from display, and signals the dispatch thread so it
+     * can proceed strategically.
      *
      * <p>Matching strategy (in order of attempt):</p>
      * <ol>

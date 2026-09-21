@@ -19,14 +19,14 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `vetsAutomessage` | bool | Global gate for auto-messages (MOTD, ANNI) |
 | `vetsIsStaff` | bool | Cached staff status |
 | `vetsLastStaffCheck` | long | Timestamp of last `/gu rank` check |
-| `vetsAuthKey` | string | Bearer key from `/unlock <key>` (43-char base64url issued by dazebot's `/vetsmod`). Sent in `auth` frame on every WS reconnect. |
+| `vetsAuthKey` | string | Bearer key from `/unlock <key>` (43-char base64url issued by dazebot's `/vetsmod`). Sent in `auth` frame on every (re)connect of the inbound WS. |
 | `vetsAuthTier` | string | Last server-confirmed tier (`member`/`waitlist`/`honourary`/`other`). UX hint only — authoritative value comes from the server each session. |
 | `vetsAuthVerifiedAt` | long | Epoch millis of the last successful auth-frame ack. |
 | `vetsWaitlistUnlockTime` | long | **legacy SHA-256 unlock marker** — kept solely as a "this user used the old system" signal for the SessionAuthWarning. No longer grants access. |
 | `vetsHonouraryUnlockTime` | long | Same — legacy marker, no longer grants access. |
 | `vetsGuildCheckResult` | long | Cached `/gu stats` result enum (0=UNKNOWN,1=RETURNERS,2=OTHER_GUILD,3=GUILDLESS) |
 | `vetsLastGuildCheck` | long | Timestamp of last `/gu stats` (3-day TTL) |
-| `vetsDebugEnabledAt` | long | Debug logging enable timestamp (3-day TTL) |
+| `vetsDebugEnabledAt` | long | When `/wv debug true` set the debug flag (0 when off). Read only at client init, which restores the flag if under three days old and otherwise zeroes this key. The age is not rechecked later, so a running session keeps debug on |
 
 **Gap:** three internal keys are missing from this table — `vetsAnniModeUserSet`, `vetsAnniUserMode` and `vetsAnniGhostsPromptShownForStamp`. See `VetsConfig`.
 

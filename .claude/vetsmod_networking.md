@@ -303,7 +303,7 @@ classifier's `ONLINE_WORLD → ONLINE_PARTY` upgrade. Entries are TTL-gated
 
 ## 8. Auth
 
-One layer, an **application-level bearer key** — `auth` frame sent after WS connect. Nothing is attached to the WebSocket upgrade itself: `WsClient.connect()` builds the socket with a connect timeout and no headers. The key is a 43-char URL-safe base64 token issued by dazebot's `/vetsmod` Discord command and stored in `vetsAuthKey`. Re-sent automatically by `V1ApiManager`'s `onConnect` callback on every reconnect; also re-sent immediately when the user runs `/unlock <key>` so feedback lands in the same session rather than only after the next reconnect.
+One layer, an **application-level bearer key** — `auth` frame sent after inbound WS connect. Nothing is attached to the WebSocket upgrade itself: `WsClient.connect()` builds the socket with a connect timeout and no headers. The key is a 43-char URL-safe base64 token issued by dazebot's `/vetsmod` Discord command and stored in `vetsAuthKey`. Re-sent automatically by the inbound client's `onConnect` callback (set in `V1ApiManager.connect`) on every inbound reconnect; also re-sent immediately when the user runs `/unlock <key>` so feedback lands in the same session rather than only after the next reconnect.
 
 The server validates each key by HTTP introspection against dazebot (`POST /api/auth/introspect`, 60s LRU cache, serve-stale-on-error during dazebot outages). The resolved tier (`member`/`waitlist`/`honourary`/`other`) drives a per-connection chat-type gate: see `../../temporary-server/v1_protocol.md` §1.8 and §2.5.
 

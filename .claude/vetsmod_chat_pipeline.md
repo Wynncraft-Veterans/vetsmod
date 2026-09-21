@@ -6,11 +6,11 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Chat Pipeline — In-Depth Reference
 
-The vetsmod chat system is a multi-stage pipeline that intercepts every chat message, classifies it, suppresses mod-initiated echoes, rewrites through a chain, and dispatches formatted output. It is coupled to an outbound WebSocket handler for server-pushed messages, a dispatcher system for staff fanout, and a PUA-based spoiler codec.
+The vetsmod chat system is a multi-stage pipeline that intercepts each chat message that reaches the single-argument `ChatComponent.addMessage(Component)` overload (the path vanilla uses for system and disguised chat — signed player chat calls the three-argument overload directly and bypasses the hook), classifies it, suppresses mod-initiated echoes, rewrites through a chain, and dispatches formatted output. It is coupled to an outbound WebSocket handler for server-pushed messages, a dispatcher system for staff fanout, and a PUA-based spoiler codec.
 
 ## 1. High-level flow
 
-**Incoming (server → client):** vanilla `ChatComponent.addMessage()` → `ChatLogMixin` HEAD → streamer-mode observation → log → guild state detection → suppression checks (/gu stats, /gu rank, /v, /find) → rewriter chain → fall through to vanilla (or cancelled if a rewriter consumed it).
+**Incoming (server → client):** vanilla `ChatComponent.addMessage(Component)` (the single-argument overload; player-chat packets, signed or not, go straight to the three-argument one and never pass this hook) → `ChatLogMixin` HEAD → streamer-mode observation → log → guild state detection → suppression checks (/gu stats, /gu rank, /v, /find) → rewriter chain → fall through to vanilla (or cancelled if a rewriter consumed it).
 
 **Outbound (user → server):** `ClientPacketListener.sendCommand()` → `GuildChatCommandMixin` HEAD → `GuildChatDispatcher.intercept()` for `/g`, `/wg`, `/v` and nine more prefixes — **not exhaustive**, see `GuildChatDispatcher.intercept`, which matches 12. `/msg` is not among them.
 
@@ -63,7 +63,7 @@ Extracts sender from: click event (`/msg <name>`), hover text (via `NickResolver
 ### ServerGuildChatRewriter
 [ServerGuildChatRewriter](../src/client/java/org/wynnvets/chat/rewriter/ServerGuildChatRewriter.java)
 
-Detects server guild chat from supporters (via `SupportersPoller.isSupporter()`). Re-renders with animated gradient pill: flattens the component tree through `NickResolver.flattenComponent`, keeps the leaves whose resolved style uses the `banner/pill` font, marks background glyphs with animation sentinel color (replaced at render time by `AnimatedChatMixin`), preserves dark letters. Which span carries the font is what that selection turns on, so the inheritance direction is pinned in `NickResolverTest`, not assumed.
+Rewrites VETS guild chat lines (gated on `GuildStateManager.isVetsGuildChat()`) whose sender's raw rank pill maps to a different display label (`RankDisplayMap.displayFor`), or whose sender is a supporter (via `SupportersPoller.isSupporter()`) while `showSupporterGlints` is on. The supporter path without a remap re-renders with animated gradient pill: flattens the component tree through `NickResolver.flattenComponent`, keeps the leaves whose resolved style uses the `banner/pill` font, marks background glyphs with animation sentinel color (replaced at render time by `AnimatedChatMixin`), preserves dark letters. Which span carries the font is what that selection turns on, so the inheritance direction is pinned in `NickResolverTest`, not assumed.
 
 ### SpoilerRewriter
 [SpoilerRewriter](../src/client/java/org/wynnvets/chat/rewriter/SpoilerRewriter.java)

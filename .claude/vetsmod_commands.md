@@ -105,16 +105,18 @@ Aliases → territories (five, from `TerritoryLineManager.LINE_ALIASES`):
 ### /wv debug [...]
 Public. Tree built in [DebugCommands.buildCommandTree()](../src/client/java/org/wynnvets/debug/DebugCommands.java):
 - `/wv debug` — dumps diagnostics (`DiagnosticsHandler.execute()`)
-- `/wv debug true|false` — toggle debug logging (persists 3 days via `VETS_DEBUG_ENABLED_AT`)
+- `/wv debug true|false` — set `VetsLogger`'s debug flag and record (or clear) `VETS_DEBUG_ENABLED_AT` (`DiagnosticsHandler.execute`, case-insensitive; any other word that is not one of the `set`/`trigger`/`tree` subcommands prints a usage line and changes nothing). `VetsmodClient` reads that timestamp only at startup, restoring the flag if it was set less than three days earlier, so a session left running keeps it on. The flag is not logging-only: it is also what `AnniDebugCommands`' `requireDebug` tests.
 - `/wv debug set` — list debug config keys
 - `/wv debug set <key> [value]` — get/set debug key (e.g. `itemDump`)
 - `/wv debug trigger charDump` — render PUA glyphs `\uE001-\uE040` in `chat/prefix` font, 8 per line
 - `/wv debug trigger forceChecks` — force guild/rank/staff re-check via `GuildStateManager.forceGuildRecheck()`
 - `/wv debug trigger tabDump` — `TabDumpHandler.execute()`
-- `/wv debug trigger rsvpDump` (S6) — dump `isAuthenticatedThisSession()` + in-flight queue depth + `lastAttemptedNotice` + `lastAck` + current snapshot `rsvp` block, all read directly by `AnniRsvpClient.debugDump()`. Diagnostic for "why did my `/wv anni rsvp` not land".
+- `/wv debug trigger bossBarsDump` — snapshot of vanilla's `BossHealthOverlay#events` map, read through `BossHealthOverlayAccessor`: a header (entry count, `VetsBossBarManager.isActive`), then three chat lines per bar — index / short UUID / `← OURS` marker, colour / overlay / progress / darken-music-fog flags, and the raw name component.
+- `/wv debug trigger nametagsDump` — a header of `outlineSuppressionActive` / `vetsAnniNametagsEnabled` / `vetsAnniOutlinesEnabled` and a player count, then one line per player in `level.players()`: `AnniOutlineRegistry` hit/miss, tier, role, and the colour `NametagMixin`'s anni branch would resolve right now. Reads the registry directly; it does not observe the mixin or `state.nameTag`.
+- `/wv debug trigger ghostsPromptDump` — `GhostsPromptHandler.debugDump()`: the aggressive gate, toggle, zone, stamp and per-player ghost state, plus whether the prompt would fire. Writes to the log, not chat.
+- `/wv debug trigger zoneLinesDump` — the aggressive gate, the `vetsAnniZoneLines` toggle, the cold-cache flag, and every cached `AnniZone.Disc` with its horizontal (x/z) squared distance to the player.
+- `/wv debug trigger rsvpDump` (S6) — dump `isAuthenticatedThisSession()` + in-flight queue depth + `lastAttemptedNotice` + `lastAck` + current snapshot `rsvp` block, all read directly by `AnniRsvpClient.debugDump()`. Writes to the log, not chat. Diagnostic for "why did my `/wv anni rsvp` not land".
 - `/wv debug tree anni rsvp {hard|soft|revoke}` (S6) — debug mirror of the main `/wv anni rsvp` tree; identical effect, gated on `requireDebug` only (action only touches the caller's own RSVP, no staff/organiser perm needed).
-
-**Not exhaustive** — `/wv debug trigger` has four further leaves (`bossBarsDump`, `nametagsDump`, `ghostsPromptDump`, `zoneLinesDump`); see `DebugCommands.buildCommandTree`.
 
 **Gap:** `/wv debug tree anni` registers 24 executable leaves, of which this list names three (the `rsvp` trio). See `AnniDebugCommands.buildCommandTree` and [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md).
 

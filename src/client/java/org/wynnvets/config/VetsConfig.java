@@ -272,9 +272,10 @@ public class VetsConfig {
     public static final String MORE_RELIABLE_GUILD_CHECK = "moreReliableGuildCheck";
 
     /** Whether to show the {@code ✅ vetsmod authentication verified — tier: …}
-     *  notification on the next successful auth-frame ack. The auth flag is
-     *  re-sent on every WebSocket (re)connect, so without gating the message
-     *  would fire repeatedly. {@link org.wynnvets.guild.UnlockManager} flips
+     *  notification on the next successful auth-frame ack. The auth frame is
+     *  re-sent on every (re)connect of the inbound v1 WebSocket, so without
+     *  gating the message would fire repeatedly.
+     *  {@link org.wynnvets.guild.UnlockManager} flips
      *  this to {@code false} after rendering once and resets it to {@code true}
      *  whenever an auth failure occurs, so a single confirmation is shown after
      *  each error→success transition. The user can also manually re-enable it

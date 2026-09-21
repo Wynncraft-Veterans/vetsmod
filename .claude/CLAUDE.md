@@ -52,7 +52,7 @@ VetsmodClient (entry point)
   ├── ItemDefinitions         YAML regex patterns (src/client/resources/definitions.yml)
   ├── GuildStateManager       Facade: GuildChecker, StaffRankChecker, UnlockManager, SessionAuthWarning
   ├── V1ApiManager            Dual WebSocket (inbound + outbound) to api.wynnvets.org
-  │                           Sends `auth` frame after connect using the stored /unlock key
+  │                           Sends `auth` frame after inbound connect using the stored /unlock key
   ├── OutboundDisplayHandler  Receives WS messages, deduplicates, displays in chat
   ├── QueueStateManager       In-queue state + listeners; fed by QueueDetector (title + world events)
   ├── fetcher/polling/ (6)    Six schedules over five classes, one PollingService lifecycle:
@@ -82,7 +82,7 @@ VetsmodClient (entry point)
 
 ## WebSocket protocol
 
-Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `auth` frame re-sent on reconnect.
+Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `auth` frame re-sent on each inbound reconnect (the outbound socket re-sends neither).
 
 - **Inbound** `wss://api.wynnvets.org/v1/inbound` — client sends messages
 - **Outbound** `wss://api.wynnvets.org/v1/outbound` — server pushes to all clients
@@ -136,7 +136,7 @@ StyledText, ComponentUtils, McUtils
 
 ## Chat pipeline
 
-`ChatLogMixin` (HEAD of vanilla `ChatComponent.addMessage`) runs the rewriter chain in this order: `EncourageUpdateRewriter` → `StaffGuildAlertRewriter` → `StaffChannelMessageRewriter` → `ServerGuildChatRewriter` → `SpoilerRewriter`. First match wins and cancels the vanilla call. Spoiler runs **last** on purpose — supporter messages are already spoiler-processed by `ServerGuildChatRewriter` above it. A sixth rewriter, `WarningRewriter`, is not in this chain: `OutboundDisplayHandler` calls it for server-pushed `warning` frames.
+`ChatLogMixin` (HEAD of vanilla `ChatComponent.addMessage`) runs the rewriter chain in this order: `EncourageUpdateRewriter` → `StaffGuildAlertRewriter` → `StaffChannelMessageRewriter` → `ServerGuildChatRewriter` → `SpoilerRewriter`. First match wins and cancels the vanilla call. Spoiler runs **last** on purpose — lines `ServerGuildChatRewriter` consumes above it (rank remaps, and supporters while glints are shown) are already spoiler-processed there, through `ChatUtils.formatMessageBody`. A sixth rewriter, `WarningRewriter`, is not in this chain: `OutboundDisplayHandler` calls it for server-pushed `warning` frames.
 
 Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **frame-scoped** — `U+E003` is the private-message separator despite sitting in the same `U+E000` block that spells lowercase letters inside a pill — so decode from the frame inward and never map a bare codepoint to a character. Encode and decode through [`PillCodec`](../src/client/java/org/wynnvets/chat/PillCodec.java); the blocks, the four sequences, and the captured-log evidence are in [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
 

@@ -406,7 +406,7 @@ Line 2 is dropped two ways: `vetsAnniPromptRsvp=false` suppresses it outright, a
 
 ## Boss bar
 
-The boss-bar manager uses a render-side filter (priority-500 `@Redirect` on `events.values()` inside `BossHealthOverlay#render`). *Note: this intentionally does NOT cancel `BossHealthOverlay#update` — vanilla's update handlers do `events.get(uuid).setName(...)`, and cancelling at update would NPE the next UpdateProgress / UpdateName / UpdateStyle packet for that UUID, disconnecting the client.*
+The boss-bar manager uses a render-side filter (priority-500 `@Redirect` on `events.values()` inside `BossHealthOverlay#render`). *Note: this intentionally does NOT cancel `BossHealthOverlay#update` — vanilla's update handlers call a setter on `events.get(uuid)` (e.g. `setName(...)`), and cancelling at update would NPE the next UpdateProgress / UpdateName / UpdateStyle packet for that UUID, disconnecting the client.*
 
 Let vanilla and Wynntils track bars normally (no `update()` cancellation, no `events.clear()`). The priority-500 `BossHealthOverlayMixin` `@Redirect`s the `events.values()` call inside `BossHealthOverlay#render(GuiGraphics)` — while active, it returns just our UUID's entry (or an empty collection if our entry isn't there yet); when inactive, it returns the unmodified collection. Wynntils' overlays render through their own paths and aren't affected. `Models.StreamerMode.isInStream()` works without the let-through hack (Wynntils tracks the streamer-mode bar normally).
 
@@ -530,7 +530,7 @@ Exposes `isOutlineSuppressionActive()` for the two mixins to read. Debug `setFor
 
 ### `EntityGlowingMixin` (`mixin/client/EntityGlowingMixin.java`)
 
-Six-line HEAD-cancellable inject on `Entity.isCurrentlyGlowing()`. Returns `true` whenever `getGlowColor() != CustomColor.NONE`. Lets us outline players Wynncraft never put in a relationship team. No mode gate — the glow-colour field is `NONE` by default, so this only fires for entities the ticker has explicitly enrolled. Per outlines.md §3 Option C "Cons".
+Six-line HEAD-cancellable inject on `Entity.isCurrentlyGlowing()`. Returns `true` whenever `getGlowColor() != CustomColor.NONE`. Written so we could outline players Wynncraft never put in a relationship team; ⚠️ in 1.21.11 vanilla keys its outline pass on `EntityRenderState#appearsGlowing()` (`outlineColor != 0`), not on the glowing flag, so whether this is still load-bearing is unconfirmed. No mode gate — the glow-colour field is `NONE` by default, so this only fires for entities the ticker has explicitly enrolled. Per outlines.md §3 Option C "Cons".
 
 ### `EntityOutlineColorMixin` (`mixin/client/EntityOutlineColorMixin.java`)
 
@@ -544,9 +544,9 @@ state.outlineColor = shouldEntityAppearGlowing(entity)
     : 0;
 ```
 
-`ARGB.opaque(0)` = `0xFF000000`, an opaque black RGBA — the outline buffer happily renders that as a solid black glow halo. Skipping the wrap entirely by clobbering `state.outlineColor` at TAIL of extract sidesteps the issue.
+`ARGB.opaque(0)` = `0xFF000000`, opaque black in ARGB order (alpha in the top byte) — the outline buffer happily renders that as a solid black glow halo. Skipping the wrap entirely by clobbering `state.outlineColor` at TAIL of extract sidesteps the issue.
 
-Mixin order vs. Wynntils' own TAIL inject doesn't matter because the branches are disjoint: registry members get their colour via the glow-colour pipeline (which we don't touch), and outsiders get `state.outlineColor = 0` regardless of which TAIL inject runs first — Wynntils' inject only fires when `getGlowColor() != NONE`, which is the registry-member case.
+Mixin order vs. Wynntils' own TAIL inject doesn't matter because the branches are disjoint: registry members get their colour via the glow-colour pipeline (which we don't touch), and outsiders get `state.outlineColor = 0` regardless of which TAIL inject runs first — Wynntils' inject only fires when `getGlowColor() != NONE`, and `AnniOutlineTicker` (the only caller of `EntityExtension.setGlowColor` in vetsmod or Wynntils) sets a non-`NONE` colour only for registry members. Edges: the ticker re-syncs once per client tick, so for up to a tick after a player leaves the registry both injects fire on them (ours only with `vetsAnniOutlinesEnabled` on) and whichever TAIL runs last wins that frame; after one joins, neither fires until the next tick. The ticker also never enrols the local player, so a local player who is a registry member gets neither — reachable only via a missing or mismatched `snapshot.mc_username` or the debug `registry set` leaf, since the registry rebuild already skips them.
 
 Side effect: tab-list colour for outsiders is **not** affected — only `state.outlineColor` is touched, which is render-state-only.
 
@@ -566,7 +566,7 @@ state.nameTag = Component.literal(stripped).withStyle(fmt);
 
 **Two non-obvious fixes baked in:**
 
-1. **TAIL of `extractRenderState`, not HEAD of `submitNameTag`.** Original design hooked `submitNameTag` HEAD with priority 900. Wynntils' `CustomNametagRendererFeature.onPlayerNameTagRender` (subscribed to `PlayerNametagRenderEvent`, dispatched from Wynntils' priority-1000 HEAD inject on the same method) **cancels** the call whenever it adds gear-hover lines (hovered raycast target) or a Wynntils account-type badge. Cancellation propagates via the mixin processor's generated `if (ci.isCancelled()) return;` and skips every HEAD inject that runs after it on the same method — i.e. every numerically *lower* priority, since Mixin applies in ascending order and prepends at HEAD. Moving to `extractRenderState` TAIL writes the override into `state.nameTag` *before* Wynntils' handler ever reads it; Wynntils' prefixed-name component picks up our colour unchanged.
+1. **TAIL of `extractRenderState`, not HEAD of `submitNameTag`.** Original design hooked `submitNameTag` HEAD with priority 900. Wynntils' `CustomNametagRendererFeature.onPlayerNameTagRender` (subscribed to `PlayerNametagRenderEvent`, dispatched from Wynntils' priority-1000 HEAD inject on the same method) **cancels** the call whenever it draws the nametag itself — when it adds gear-hover lines for the hovered player, or when the player is a Wynntils user — and also when its `hidePlayerNametags` option is on. Cancellation propagates via the mixin processor's generated `if (ci.isCancelled()) return;` and skips every HEAD inject that runs after it on the same method — i.e. every numerically *lower* priority, since Mixin applies in ascending order and prepends at HEAD. Moving to `extractRenderState` TAIL writes the override into `state.nameTag` *before* Wynntils' handler ever reads it; Wynntils' prefixed-name component picks up our colour unchanged.
 
 2. **`ChatFormatting.stripFormatting` is mandatory.** Wynncraft embeds the team colour as a legacy `§<code>` prefix INSIDE the nametag string content — `state.nameTag.getString()` returns `"§awonderkas"` for a friend-team-coloured player, not `"wonderkas"`. Without the strip, `Component.literal("§awonderkas").withStyle(RED)` renders GREEN because vanilla's text renderer parses the leading `§a` at draw time and silently overrides the Style. Without this strip every recoloured nametag silently reverts to the team colour. ⚠️ The `original=` column this was supposedly confirmed against **does not exist** — see [`nametags-dump-missing-original-column`](ephemeral/bugs-found-via-mellow-rain/nametags-dump-missing-original-column.md).
 
@@ -639,7 +639,7 @@ Wire pieces on the network layer:
    (opposite of scrollspot). This is a public-facing user command — the
    `rsvpUpgradePrompt` buttons in `AnniCommandRenderer` point
    `SuggestCommand` at it. The debug-tree mirror under
-   `/wv debug tree anni rsvp` exists for symmetry but is gated on
+   `/wv debug tree anni rsvp` is gated on
    `requireDebug` only (no staff/organiser perm — action only affects
    the caller's own RSVP).
 2. **Unauthenticated message uses spec wording**:
@@ -877,16 +877,16 @@ All under `/wv debug tree anni …` (the `tree` literal nests subsystem-specific
 **`snapshot`** — cache manipulation.
 - `snapshot inject preset <name>` — loads from `src/client/resources/assets/vetsmod/anni_test_snapshots/<name>.json`. Preset name auto-sets the external override (`external_*` → forced external, `member_*` → forced vets, others → auto).
 - `snapshot inject file <name>` — loads from `vetsmod/dumps/anni/<name>.json`.
-- `snapshot inject <json>` — raw inline. Registered *after* the two literals so the literals win resolution.
+- `snapshot inject <json>` — raw inline. Brigadier resolves a literal child ahead of an argument sibling whatever the registration order (`CommandNode.getRelevantNodes` returns the matching literal alone), so `inject file …` and `inject preset …` never reach the greedy inline form.
 - `snapshot dump` — write current cache to `vetsmod/dumps/anni/snapshot-<ts>.json`.
 - `snapshot clear` — set cache to null.
 - `snapshot refresh` — pull fresh from server (alias for the auto-pull path).
 
 **Single-purpose literals.**
-- `guess` — pull + print fishbot-style one-liner (announced stamp + countdown OR prediction window).
+- `guess` — pull + print fishbot-style one-liner (announced stamp + countdown OR prediction window). The pull goes through `AnniQueryClient.query()`, whose response handler pushes any snapshot it gets into `AnniSnapshotCache`. So, like `snapshot refresh`, a successful `guess` replaces an injected fixture. On a failed pull it prints the cached snapshot, flagged stale, if one is cached; otherwise it prints the failure reason.
 - `time <seconds>` — round-trip the cached snapshot through JSON and rewrite the `event` block. It does **not** preserve everything else. For a positive argument it sets `stamp_epoch = NOW + seconds`, forces `announced = true`, and nulls `prediction`. For `seconds <= 0` it nulls `stamp_epoch` and sets `announced = false`, leaving `prediction` alone — so the suggested `-60` ("1m ago") cannot produce a stamp one minute in the past.
 - `external <auto|true|false>` — override `isExternal` for testing.
-- `zone <enter|exit>` — sets/clears `AnniOutlineTicker.setForceInZone(...)`, so dev sessions can verify the highlight overlay without flying to the anni location. It affects the **highlight gate only**: the boss bar, zone lines, scroll waypoint and ghosts prompt all call `AnniZone.isInZone` directly and never see the override.
+- `zone <enter|exit>` — sets/clears `AnniOutlineTicker.setForceInZone(...)`, so dev sessions can verify the highlight overlay without flying to the anni location. It affects the **highlight gate only**. The boss bar, the ghosts prompt and the T-5m zone-readiness alert call `AnniZone.isInZone` directly and never see the override. The zone lines and scroll waypoint make no zone-presence check at all: the zone lines gate on `AnniAggressiveTicker.isAggressiveActive()` plus `vetsAnniZoneLines` (they read only the disc centres, via `AnniZone.getDiscs()`), and the waypoint on a non-null entry plus `isAggressiveActive()` plus `vetsAnniScrollWaypoint`.
 - `flash <role|party|world|rsvp>` — force a `FlashTracker` pulse on the named field (10s at the `normal` default; the sound plays only when `vetsAnniFlashSound` is on). The pulse is rendered by the synthetic boss bar alone, so it is invisible unless the bar is currently active. `world` is the exception — it has no timed window, so forcing it lasts until the next tick recomputes the real mismatch.
 - `mode set <silent|passive|aggressive>` — `AnniModeManager.transitionTo(..., DEBUG_BYPASS_MUTEX)`. Skips the `/stream` mutex so we can verify rendering during screen capture.
 - `alert <role|world|party|rsvp|zone|world_ready>` — synthesise a chat alert without contriving a diff or waiting for a T-N boundary.
@@ -896,9 +896,9 @@ All under `/wv debug tree anni …` (the `tree` literal nests subsystem-specific
 - `scrollspot here` — host write using your current block-pos.
 - `scrollspot clear` — host write that clears the party's spot.
 - `scrollspot localinject <x> <y> <z>` — local-only paint into the marker provider; no server round-trip. For visual testing of the waypoint render without coordinating a host.
-- `scrollspot localclear` — clear the local-only injection.
+- `scrollspot localclear` — clear the local marker, whether it came from `localinject` or from the latest snapshot; no server round-trip, and the next snapshot update recomputes it.
 
-**`rsvp`** — debug mirror of the main brigadier `/wv anni rsvp`. Identical effect; bypasses no logic. Exists for symmetry with the scrollspot debug-tree node — which is **not** a mirror: `scrollspot` has no main-brigadier registration to mirror, so the debug tree is its only entry point (locked decision 6 above).
+**`rsvp`** — debug mirror of the main brigadier `/wv anni rsvp`. Identical effect: both paths call `AnniRsvpCommand.hard|soft|revoke`, and the debug path adds only the `requireDebug` check. It is the debug tree's only mirror. The scrollspot debug-tree node is **not** a mirror: `scrollspot` has no main-brigadier registration, so the debug tree is its only entry point (locked decision 6 above).
 - `rsvp hard` / `rsvp soft` / `rsvp revoke`.
 
 **`registry`** — arbitrary `AnniOutlineRegistry` injection, for verifying the highlight and nametag branches without coordinating a real anni party. Wiped by the next snapshot rebuild, so re-inject after any `snapshot inject` / `snapshot clear`.
@@ -939,7 +939,7 @@ Listed in `AnniDebugCommands.PRESETS`.
 | `member_announced` | Vets + announced (NOW+8h) + unassigned (attendance bar) |
 | `member_in_party` | Vets + announced (NOW+8h) + party (ASSIGNED + party block) |
 
-All seven are `schema_version: 1` with no `event.all_parties`. `member_in_party` still covers the own-party role colours (six members, one per role, via the v1 `board.party.members` field) and, by registry miss, the outsider branch; only the *other-vets-party* grey tier is unreachable from a preset. Reach that one with `/wv debug tree anni registry set <username> other`, plus `zone enter` and a non-silent mode.
+All seven are `schema_version: 1` with no `event.all_parties`. `member_in_party` still covers the own-party role colours (six members, one per role, via the v1 `board.party.members` field) and, by registry miss, the outsider branch; only the *other-vets-party* grey tier is unreachable from a preset. Reach that one with `/wv debug tree anni registry set <username> other`, plus `zone enter`, a non-silent mode, and a cached stamp inside the hot window (`AnniWindows.inHotWindow`, T-2h to T+30m). No preset supplies one: the two announced presets sit at `NOW+8h` and the rest carry no stamp. The stamp requirement also applies to seeing `member_in_party`'s role colours in-world. So inject a preset, run `time`, and only then `registry set`: `time` goes through a cache update, and the registry's rebuild drops any injected entry. Keep the offset above 5400. From T-90m `AnniSnapshotPoller` re-queries every 30 s, and a returned snapshot replaces the fixture and, through the same rebuild, the injected entry. `time 7000` sits in the gap for about 27 minutes. An `anni_state` push over the WebSocket replaces the cache at any offset, so the gap is not a guarantee.
 
 ## Where the render-pipeline lessons went
 
