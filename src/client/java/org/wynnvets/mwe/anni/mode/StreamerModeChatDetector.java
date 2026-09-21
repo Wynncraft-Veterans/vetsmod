@@ -18,7 +18,7 @@ import org.wynnvets.logging.VetsLogger;
  * so a positive on either refuses passive/aggressive activation.</p>
  *
  * <p>Chat-line patterns (substring matched against
- * {@code Component.getString()} after format stripping):
+ * {@code Component.getString()} after format stripping):</p>
  * <ul>
  *   <li>Stream-on: {@code "Streamer mode was enabled"} —
  *       full template starts with {@code &a&{fr:cp}…&{fr:d}}.</li>
@@ -29,12 +29,22 @@ import org.wynnvets.logging.VetsLogger;
  * <p>On stream-on we additionally call
  * {@link AnniModeManager#transitionTo} to flip out of any active
  * passive/aggressive mode — without this, an existing synthetic boss
- * bar would collide with Wynntils' {@code StreamerModeBar}. On
- * stream-off we auto-restore the user's preferred mode via
- * {@link AnniModeManager#preferredMode()} (their remembered pick, or
- * the eligibility-based default if they never picked). No restore
- * chat line is printed when the restored target is SILENT — nothing
- * user-visible would change.</p>
+ * bar would collide with Wynntils' {@code StreamerModeBar}.</p>
+ *
+ * <p>On stream-off we auto-restore the user's preferred mode via
+ * {@link AnniModeManager#preferredMode()} (their remembered pick, or the
+ * eligibility-based default if they never picked). <b>Three paths restore
+ * nothing at all</b>, and in the first two {@link AnniModeManager#transitionTo}
+ * is never reached — so this is a decision not to transition, not a decision to
+ * transition quietly:</p>
+ * <ul>
+ *   <li>the preferred target is already SILENT, so there is nothing to restore
+ *       (stream-on forced SILENT, and that is where the mode still is);</li>
+ *   <li>the config already equals the preferred target;</li>
+ *   <li>{@code transitionTo} refuses, because Wynntils' own
+ *       {@code isInStream()} has not cleared yet even though our chat line
+ *       has. The restore is simply lost in that case — nothing retries it.</li>
+ * </ul>
  *
  * <p>Hooked into the chat pipeline via a one-line call from
  * {@link org.wynnvets.mixin.client.chat.ChatLogMixin}.</p>

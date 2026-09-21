@@ -10,18 +10,31 @@ import org.wynnvets.logging.VetsLogger;
 
 /**
  * Source-of-truth for mode transitions: the single chokepoint that
- * enforces the {@code /stream} mutex (spec §3.1) and prints user-facing
- * feedback before the underlying {@link VetsConfig#VETS_ANNI_MODE}
- * string lands.
+ * enforces the {@code /stream} mutex (spec §3.1) and owns the user-facing
+ * feedback around a {@link VetsConfig#VETS_ANNI_MODE} write.
  *
- * <p>The boss-bar and outline subsystems read the current mode via
- * {@link AnniMode#fromConfig()} (or via this manager's
- * {@link #current()} shim, which delegates). They do NOT write directly
- * to {@link VetsConfig#VETS_ANNI_MODE} — every write goes through
- * {@link #transitionTo(AnniMode, Source)} so the mutex stays honest.</p>
+ * <p>⚠️ That feedback does <b>not</b> precede the write.
+ * {@link #transitionTo(AnniMode, Source)} calls {@link VetsConfig#setString}
+ * first and prints its confirmation afterwards. The only message that precedes
+ * a write is the refusal — and on that path there is no write at all.</p>
+ *
+ * <p>Exactly three classes read the current mode, and all three go through
+ * {@link #current()}:
+ * {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager VetsBossBarManager},
+ * {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker} and
+ * {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker AnniAggressiveTicker}
+ * — the same three {@link VetsConfig#VETS_ANNI_MODE}'s own Javadoc names.
+ * {@link AnniMode#fromConfig()} is <em>not</em> a second route for them: its only
+ * direct readers are {@link AnniWindowWatcher} and
+ * {@link StreamerModeChatDetector}, both inside this package. So the two are
+ * disjoint populations rather than alternatives.</p>
+ *
+ * <p>Nothing writes {@link VetsConfig#VETS_ANNI_MODE} directly. The key has a
+ * single write site, inside {@link #transitionTo(AnniMode, Source)}, which is
+ * what keeps the mutex honest.</p>
  *
  * <p>Consumers that move the mode without user input all route through
- * {@link #transitionTo}:
+ * {@link #transitionTo}:</p>
  * <ul>
  *   <li>{@link AnniWindowWatcher} at T+30m via
  *       {@link Source#AUTO_WINDOW_CLOSE} — no longer writes the config
@@ -35,7 +48,7 @@ import org.wynnvets.logging.VetsLogger;
  *       guild-info-updated via {@link Source#AUTO_STARTUP_DEFAULT}
  *       promotes still-default users from SILENT to PASSIVE once
  *       enrichment eligibility is confirmed.</li>
- * </ul></p>
+ * </ul>
  */
 public final class AnniModeManager {
 
@@ -80,19 +93,28 @@ public final class AnniModeManager {
      *
      * <p>Refused when the target is PASSIVE/AGGRESSIVE and either of the
      * stream detectors says we're streaming, unless the source is
-     * {@link Source#DEBUG_BYPASS_MUTEX}. Refused transitions print the
-     * spec's "stream is suboptimal — try /toggle ghosts NONE" guidance
-     * and leave the config untouched.</p>
+     * {@link Source#DEBUG_BYPASS_MUTEX}. A refused transition leaves the config
+     * untouched.</p>
+     *
+     * <p><b>Whether anything is printed depends entirely on the source, in both
+     * directions.</b> Only {@link Source#USER_COMMAND} sees the spec's "stream is
+     * suboptimal — try /toggle ghosts NONE" guidance on a refusal; the four
+     * {@code AUTO_*} sources decline with a debug log and nothing user-visible.
+     * Symmetrically, only {@code USER_COMMAND} and {@link Source#DEBUG_BYPASS_MUTEX}
+     * print the generic "Anni mode: X (was Y)" confirmation on success — the four
+     * {@code AUTO_*} sources return early, after the write, with a debug log
+     * instead, because two of them print their own contextual message at the call
+     * site and the other two should stay silent.</p>
      *
      * <p>Successful transitions persist via {@link VetsConfig#setString}
-     * and print a user-friendly confirmation. No-op transitions
-     * (target equals current mode) still print confirmation so the
-     * user sees their action acknowledged.</p>
+     * <em>before</em> any confirmation is printed. No-op transitions (target
+     * equals current mode) still take that path, so a user sees their action
+     * acknowledged.</p>
      *
-     * @return {@code true} if the config was written, {@code false} if
-     *         the transition was refused (so the caller can branch on
-     *         outcome — e.g. {@code /wv debug} prefers a quieter log
-     *         line on success).
+     * @return {@code true} if the config was written; {@code false} if the
+     *         transition was refused by the mutex <em>or</em> if {@code target}
+     *         was {@code null} (so the caller can branch on outcome — e.g.
+     *         {@code /wv debug} prefers a quieter log line on success).
      */
     public static boolean transitionTo(AnniMode target, Source source) {
         if (target == null) return false;

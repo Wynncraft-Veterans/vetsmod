@@ -31,9 +31,13 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * key the window-close check off that, otherwise the renderer would
  * lose its anchor the moment the anni began.</p>
  *
- * <p>One-shot: once the reset fires, {@link #lastKnownStamp} is cleared
- * so we don't repeatedly fire it on every subsequent snapshot until
- * the NEXT anni is announced and we observe its stamp.</p>
+ * <p>One-shot per anni cycle: {@link #lastKnownStamp} is cleared as soon as
+ * {@link AnniWindows#hotWindowClosed} returns true, <b>whether or not a
+ * transition was attempted and whether or not it succeeded</b> — the clear sits
+ * after the {@code if}, not inside it. So a reset that {@code transitionTo}
+ * refuses (the {@code /stream} mutex) is not retried on the next snapshot; the
+ * anchor is already gone. Nothing fires again until the NEXT anni is announced
+ * and a non-null stamp is observed.</p>
  *
  * <p>Idempotent registration via {@link #register()} — call once at
  * client init.</p>
