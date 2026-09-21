@@ -28,11 +28,22 @@ import org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker;
  *
  * <p><b>Gate:</b> {@link AnniAggressiveTicker#isAggressiveActive()} AND
  * {@link VetsConfig#VETS_ANNI_ZONE_LINES}. No zone-presence check — per
- * the S5 design, aggressive features are window-scoped and visible
- * regardless of player position so users flying in can see the boundary.</p>
+ * the S5 design, aggressive features are window-scoped, not
+ * location-scoped, so standing outside the zone does not switch them off.</p>
  *
- * <p>Distance culling: discs whose centre is more than ~200 blocks from
- * the player are skipped (cheap squared-distance test). Matches the
+ * <p>⚠️ <b>That is a statement about the gate, not about visibility.</b> The
+ * lines are not "visible regardless of player position": the culling below
+ * skips any disc whose centre is more than {@code 200} blocks away
+ * horizontally, and with {@link AnniZone}'s 48-block radius a ring's near
+ * edge therefore appears at roughly <b>152 blocks</b> — on final approach,
+ * not on the flight in. The gate and the draw distance are two independent
+ * limits and only the first was decided in S5 planning.
+ * {@code vetsmod_mwe_anni.md} §"Aggressive mode" states it this way; an
+ * earlier version of this paragraph and of
+ * {@link AnniAggressiveTicker}'s class doc both promised the opposite.</p>
+ *
+ * <p>Distance culling: the cheap squared-distance test named above, measured
+ * to the disc <em>centre</em> and on the X/Z plane only. Matches the
  * spirit of TerritoryLineRenderer's culling discipline; the zone is
  * small (1-2 discs total in practice) so culling rarely fires, but it
  * keeps the renderer cheap if vets-anni ever splits the event.</p>

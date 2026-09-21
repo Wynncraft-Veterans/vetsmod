@@ -134,10 +134,23 @@ public final class AnniZone {
         return false;
     }
 
-    /** {@code true} until the first successful fetch lands. Exposed so
-     *  S4/S5 consumers can choose to gate their stronger overrides
-     *  (outlines, ghosts prompt) on a warm cache rather than treating
-     *  cold as "never in zone". */
+    /**
+     * {@code true} until the first successful fetch lands.
+     *
+     * <p>⚠️ <b>Nothing gates on this today.</b> The Javadoc used to say it was
+     * "exposed so S4/S5 consumers can choose to gate their stronger overrides
+     * (outlines, ghosts prompt) on a warm cache" — no outline or ghosts-prompt
+     * class calls it, and none ever has. Its one caller is
+     * {@link org.wynnvets.debug.DebugCommands DebugCommands}' zone dump, which
+     * prints it. The affordance is real, reachable and arguably still worth
+     * having; the documented consumer was aspirational. Kept and re-described
+     * rather than deleted, because deleting a method is a code change.</p>
+     *
+     * <p>The reason a consumer <em>might</em> want it is unchanged and still
+     * sound: {@link #isInZone} answers {@code false} while cold, which is
+     * indistinguishable from a genuine "not in the zone", so a surface that
+     * would rather do nothing than guess can ask this first.</p>
+     */
     public static boolean isCold() {
         return cold;
     }
