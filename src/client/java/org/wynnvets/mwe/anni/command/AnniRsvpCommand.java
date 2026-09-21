@@ -23,7 +23,7 @@ import org.wynnvets.mwe.anni.render.AnniHoverBuilder;
  * {@code suggestCommand} strings target this command verbatim).</p>
  *
  * <p><b>Registered twice.</b> The user-facing node is
- * {@code CommandRegistry}'s {@code /wv anni rsvp}; a second, debug-only
+ * {@link org.wynnvets.commands.CommandRegistry CommandRegistry}'s {@code /wv anni rsvp}; a second, debug-only
  * mirror hangs off {@code /wv debug tree anni rsvp} in
  * {@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands}.
  * Both call straight in here. Contrast

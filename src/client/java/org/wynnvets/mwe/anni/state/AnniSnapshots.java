@@ -5,7 +5,7 @@ package org.wynnvets.mwe.anni.state;
  *
  * <p>{@link AnniSnapshot}'s contract is that callers must null-check at every
  * nested access, and two classes discharged it by carrying four private
- * extractors apiece — {@code FlashTracker} and {@code AggressiveAlertDispatcher},
+ * extractors apiece — {@link org.wynnvets.mwe.anni.bossbar.FlashTracker FlashTracker} and {@link org.wynnvets.mwe.anni.aggressive.AggressiveAlertDispatcher AggressiveAlertDispatcher},
  * fourteen call sites between them. Three of the four pairs were byte-identical
  * (one of those under two different names); the fourth,
  * {@link #partyWorld(AnniSnapshot)}, quietly was not. This class is the one place
@@ -47,13 +47,13 @@ package org.wynnvets.mwe.anni.state;
  *       the wrong place, twice — but they return {@code 0L} rather than a
  *       {@code Long}. Adopting them is a question about what {@code 0} means at their
  *       call sites, not a rehoming.</li>
- *   <li>{@code AnniWindowWatcher}'s variant is <b>load-bearing</b>. It keys off a
+ *   <li>{@link org.wynnvets.mwe.anni.mode.AnniWindowWatcher AnniWindowWatcher}'s variant is <b>load-bearing</b>. It keys off a
  *       locally cached {@code lastKnownStamp} anchor rather than the live snapshot,
  *       because vets-anni emits {@code stamp_epoch: null} once the anni begins — so
  *       reading the current snapshot would lose the anchor at exactly the moment it
  *       is needed. Do not "simplify" it onto this class.</li>
- *   <li>{@code AnniMotdRenderer}, {@code AnniCommandRenderer} and
- *       {@code AnniDebugCommands} are render and diagnostic surfaces scheduled for
+ *   <li>{@link org.wynnvets.mwe.anni.render.AnniMotdRenderer AnniMotdRenderer}, {@link org.wynnvets.mwe.anni.render.AnniCommandRenderer AnniCommandRenderer} and
+ *       {@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands} are render and diagnostic surfaces scheduled for
  *       splits of their own.</li>
  * </ul>
  *

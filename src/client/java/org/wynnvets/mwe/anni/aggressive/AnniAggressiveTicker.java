@@ -22,7 +22,7 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * <p>⚠️ <b>The parallel stops at the failure mode, and the two tickers are
  * opposites there.</b> This one fails <em>closed</em>: its catch assigns
  * {@code aggressiveActive = false}, so a tick that throws turns aggressive
- * surfaces off. {@code AnniOutlineTicker}'s catch assigns nothing, so it fails
+ * surfaces off. {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker}'s catch assigns nothing, so it fails
  * <em>stale</em> — a throw with the gate open leaves both outline mixins
  * believing anni rendering is still on. Do not reason from one to the other.
  * {@code vetsmod_rendering.md} §6 owns the contrast.</p>
@@ -32,7 +32,7 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * {@link org.wynnvets.mwe.anni.state.AnniWindows#inHotWindow(long)}.
  * <i>No zone gate</i> — per user, aggressive features are window-scoped, not
  * location-scoped. ⚠️ That does <b>not</b> mean the zone lines are visible
- * from Lutho: {@code AnniZoneLineRenderer} culls any disc centre more than 200
+ * from Lutho: {@link org.wynnvets.mwe.anni.zone.AnniZoneLineRenderer AnniZoneLineRenderer} culls any disc centre more than 200
  * blocks away horizontally, so with the 48-block disc radius a ring's near
  * edge appears at roughly 152 blocks — on final approach, not on the flight
  * in. The window gate is what was decided; the draw distance is a separate
@@ -70,8 +70,8 @@ public final class AnniAggressiveTicker {
      * {@link org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider ScrollSpotMarkerProvider},
      * {@link AggressiveAlertDispatcher} and {@link GhostsPromptHandler} — each
      * testing it at the top of its hot path. <b>Two diagnostic reads</b> also
-     * report it: {@code DebugCommands}' anni dump and
-     * {@code GhostsPromptHandler}'s own prompt dump. Six call sites in all,
+     * report it: {@link org.wynnvets.debug.DebugCommands DebugCommands}' anni dump and
+     * {@link GhostsPromptHandler}'s own prompt dump. Six call sites in all,
      * which is the count the doc-count manifest pins.</p>
      */
     public static boolean isAggressiveActive() {

@@ -81,7 +81,7 @@ package org.wynnvets.mwe.anni.state;
  * not one of the three is spelled that way. Two are {@code 2L * 60L * 60L} and one
  * is {@code 2L * 60 * 60}, so that grep finds <b>none of the three declarations</b>
  * &mdash; what it does return is the {@code "7200"} suggestion string in
- * {@code AnniDebugCommands}, this paragraph and the prose above it,
+ * {@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands}, this paragraph and the prose above it,
  * {@link #HOT_WINDOW_BEFORE_SECONDS}'s own field Javadoc, and the boundary list in
  * {@code AnniWindowsTest}. Grep
  * {@code 60L \* 60L\|60 \* 60} instead, or read the three names above.</p>

@@ -28,12 +28,12 @@ import org.wynnvets.logging.VetsLogger;
  *       stored.</li>
  *   <li>{@link org.wynnvets.mwe.anni.network.AnniQueryClient#onResponse
  *       AnniQueryClient#onResponse}, on the {@code anni_query_response} pull.
- *       {@code AnniWsHandler} is the <em>route</em> to it, not the caller. It
+ *       {@link org.wynnvets.mwe.anni.network.AnniWsHandler AnniWsHandler} is the <em>route</em> to it, not the caller. It
  *       writes only when the parsed snapshot is non-null, so a successful response
  *       whose {@code snapshot} is {@code null} — which the wire contract allows —
  *       completes the caller's future with {@code null} and leaves this cache
  *       untouched.</li>
- *   <li>{@code AnniDebugCommands}, three sites: {@code snapshotInject},
+ *   <li>{@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands}, three sites: {@code snapshotInject},
  *       {@code timeSet} and {@code snapshotClear} — the last being the only
  *       {@code update(null)} in the tree, and therefore the only way the stored
  *       value becomes {@code null} after a session has gone warm.</li>
@@ -84,7 +84,7 @@ public final class AnniSnapshotCache {
      *
      * <p>{@code null} is accepted and stored as a "no snapshot available"
      * signal — listeners must tolerate the null (the legacy fall-back
-     * branch triggers on it, in {@code StampFetcher}'s
+     * branch triggers on it, in {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s
      * {@code fetchStampAndCreateAnniCommandMessage} rather than in the
      * {@code /wv anni} renderer it feeds).</p>
      */
