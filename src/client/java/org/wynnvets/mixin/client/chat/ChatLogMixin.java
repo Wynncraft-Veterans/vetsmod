@@ -19,7 +19,13 @@ import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.mode.StreamerModeChatDetector;
 
 /**
- * Intercepts all incoming chat messages via {@link ChatComponent#addMessage}.
+ * Intercepts incoming chat messages via {@link ChatComponent#addMessage(Component)}.
+ *
+ * <p>This is the single-argument overload, which vanilla's system-chat path
+ * ({@code ChatListener.handleSystemMessage}) calls. Signed player chat goes
+ * straight to the three-argument overload and never passes this hook, and a
+ * system message Wynntils cancels in its {@code handleSystemMessage} wrapper
+ * never reaches it either.</p>
  *
  * <p>This is the primary chat pipeline hook. It performs, in order:
  * <b>streamer-mode observation</b> ({@code StreamerModeChatDetector.observe},
@@ -49,12 +55,13 @@ public class ChatLogMixin {
         // detected stream-on.
         StreamerModeChatDetector.observe(message);
 
-        // Skip logging for mod-injected messages (bridge display, rewritten chat, etc.)
-        // to prevent a feedback loop where displayed bridge messages are re-sent to the API.
+        // Skip logging for mod-injected messages (bridge display, rewritten chat, etc.).
+        // ChatLogger writes only the local debug file; the guards that keep displayed
+        // bridge messages from being re-sent to the API are in WynntilsEventListener.
         boolean isInternalDispatch = ChatUtils.isInternalDispatch();
 
         if (!isInternalDispatch) {
-            // Only log externally-sourced chat messages to file and API
+            // Only log externally-sourced chat messages to the debug file
             ChatLogger.logMessage(messageString);
         }
 
@@ -117,15 +124,17 @@ public class ChatLogMixin {
             return;
         }
 
-        // Rewrite server guild chat messages from supporters with gradient pill styling.
+        // Rewrite VETS guild chat lines whose sender's rank pill needs a display remap,
+        // or whose sender is a supporter and this client shows glints (gradient pill).
         // Re-entry is blocked by ChatUtils internal dispatch guard above.
         if (ServerGuildChatRewriter.tryRewrite(message, messageString)) {
             ci.cancel();
             return;
         }
 
-        // Rewrite guild chat messages containing ||spoiler|| markers (non-supporters).
-        // Supporter messages are already processed above via ServerGuildChatRewriter.
+        // Rewrite remaining messages carrying PUA-encoded spoiler blocks (the encoded
+        // form of ||spoiler|| markers). Lines ServerGuildChatRewriter consumed above
+        // (rank remaps, and supporters while glints are shown) never reach this point.
         if (SpoilerRewriter.tryRewrite(message, messageString)) {
             ci.cancel();
         }

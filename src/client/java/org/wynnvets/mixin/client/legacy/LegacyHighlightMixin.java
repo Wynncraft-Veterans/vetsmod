@@ -14,8 +14,16 @@ import org.wynnvets.items.ItemDefinitions;
 import org.wynnvets.items.LegacyItemHandler;
 
 /**
- * Detects legacy-format tooltip styles on inventory items and captures the
- * hovered item's foil state for tooltip processing.
+ * Detects whether the server sends new-format tooltip styles, and captures the
+ * hovered item's foil state, stack and slot.
+ *
+ * <p>The {@code renderSlot} hook sets the sticky
+ * {@link org.wynnvets.items.LegacyItemHandler#newTooltipStylesAvailable
+ * LegacyItemHandler.newTooltipStylesAvailable} flag when a container-screen
+ * slot holds an item carrying a {@code tooltip_style} data component. The
+ * {@code renderTooltip} hook records the hovered item's foil state and stack
+ * for the tooltip pipeline and the hovered slot for the item-dump tool, and
+ * clears all three when nothing is hovered.</p>
  *
  * <p>Highlight drawing for legacy items is handled by
  * {@link org.wynnvets.listeners.LegacyHighlightEventListener} via the Wynntils

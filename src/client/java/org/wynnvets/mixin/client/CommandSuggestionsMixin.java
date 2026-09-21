@@ -13,15 +13,17 @@ import org.wynnvets.queue.QueueStateManager;
 /**
  * Suppresses Brigadier's command-error visuals while the player is in the
  * Wynncraft world queue.  The queue server registers almost no commands, so
- * every typed command (e.g. {@code /g}) triggers a red "Unknown or incomplete
- * command" tooltip and red input highlighting.  Neither is useful — vetsmod
+ * most typed commands (e.g. {@code /g}) trigger an "Unknown or incomplete
+ * command" error line and red input highlighting.  Neither is useful — vetsmod
  * intercepts the relevant commands client-side anyway.
  */
 @Mixin(CommandSuggestions.class)
 public class CommandSuggestionsMixin {
 
     /**
-     * Prevents the red error text from rendering below the chat input.
+     * Prevents the error text from rendering above the chat input, along
+     * with the grey argument-usage hints {@code renderUsage} draws from the
+     * same {@code commandUsage} list.
      */
     @Inject(
             method = "renderUsage(Lnet/minecraft/client/gui/GuiGraphics;)V",

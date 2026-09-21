@@ -16,9 +16,12 @@ import org.wynnvets.debug.dump.TooltipCapture;
 import org.wynnvets.items.LegacyItemHandler;
 
 /**
- * Hooks the inner {@code setTooltipForNextFrame} overload that every item
- * tooltip funnels through — including lists Wynntils may have already
- * rebuilt and wrapped in {@code Collections.unmodifiableList}.
+ * Hooks the inner {@code setTooltipForNextFrame} overload that container-slot
+ * and item-stack tooltips funnel through — including lists Wynntils may have
+ * already rebuilt and wrapped in {@code Collections.unmodifiableList}. Not every
+ * item tooltip reaches it: one drawn through {@code GuiGraphics#renderTooltip}
+ * directly bypasses it, as Wynntils' hold-to-compare view does, and vanilla's
+ * recipe book uses {@code setComponentTooltipForNextFrame} instead.
  *
  * <p>Runs <em>after</em> the entire Wynntils event chain (including handlers
  * at LOWEST priority that may replace the tooltip list), so VetsMod's
@@ -89,8 +92,10 @@ public class LegacyItemTooltipMixin {
                         LegacyItemHandler.lastProcessedWasLegacy);
                 ((GuiGraphics) (Object) this)
                         .setTooltipForNextFrame(font, modified, image, mouseX, mouseY, border);
-                // If Wynntils' screenshot keybind is held, take our own screenshot
-                // with the fully-modified legacy tooltip and overwrite the clipboard.
+                // If a press of Wynntils' screenshot keybind has been latched (by
+                // LegacyTooltipEventListener, since the key may already be released by
+                // now), take our own screenshot with the fully-modified legacy tooltip
+                // and overwrite the clipboard.
                 LegacyItemHandler.screenshotIfRequested(font, modified);
             } finally {
                 vetsmod$processing = false;

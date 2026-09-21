@@ -22,8 +22,9 @@ import org.wynnvets.mwe.anni.bossbar.VetsBossBarManager;
  * §3). That cancelled the packet entirely, leaving the vanilla
  * {@code events} map missing entries the server still believes
  * exist — and subsequent UpdateProgress/UpdateName/UpdateStyle
- * packets called {@code events.get(uuid).setName(...)}, dereferenced
- * the {@code null} return, and crashed the client. Reproduced live
+ * packets called a setter on {@code events.get(uuid)} (e.g.
+ * {@code setName(...)}), dereferenced the {@code null} return, and
+ * crashed the client. Reproduced live
  * on 2026-06-16 during S3 testing.</p>
  *
  * <p>This rework lets vanilla and Wynntils track bars normally —

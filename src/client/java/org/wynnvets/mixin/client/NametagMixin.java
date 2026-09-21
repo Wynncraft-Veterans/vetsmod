@@ -35,9 +35,10 @@ import org.wynnvets.rendering.nametag.NametagAnimator;
  * {@code CustomNametagRendererFeature.onPlayerNameTagRender} (subscribed
  * to {@code PlayerNametagRenderEvent}, dispatched from Wynntils'
  * own HEAD inject on {@code submitNameTag}) reads {@code state.nameTag}
- * directly and then <em>cancels</em> the vanilla submit when it adds
- * gear-hover lines (whenever the player is the hovered raycast target)
- * or when it adds a Wynntils account-type badge. A cancel from any
+ * directly and then <em>cancels</em> the vanilla submit whenever it
+ * draws the nametag itself — when it adds gear-hover lines for the
+ * hovered player, or when the player is a Wynntils user — and also when
+ * its {@code hidePlayerNametags} option is on. A cancel from any
  * priority-1000 HEAD inject short-circuits every HEAD inject that runs
  * after it — i.e. every <em>numerically lower</em> priority, since Mixin
  * applies in ascending order and prepends at HEAD —
@@ -77,9 +78,13 @@ import org.wynnvets.rendering.nametag.NametagAnimator;
  * {@code lastIndexOf} and only rewrites segments inside it, so the rank
  * icon prefix wynnmod added is preserved verbatim. Result with wynnmod's
  * Wynncraft Rank ON: {@code (rankPUALogo)(glinted)(rankColour)Username},
- * matching the pre-Stage-4 behaviour. No-op when wynnmod is absent (no
- * outer wrap → vetsmod's wrap just re-applies idempotently to its own
- * extractRenderState TAIL output).</p>
+ * matching the pre-Stage-4 behaviour. When wynnmod is absent there is no
+ * outer wrap and vetsmod's wrap runs on its own extractRenderState TAIL
+ * output. The anni branch rebuilds an equal literal there, but the
+ * supporter branch is not a no-op: {@link NametagAnimator#tryAnimate}
+ * takes the gradient's base colour from the username's first character,
+ * which the TAIL pass has already recoloured, so the second pass
+ * re-bases the glint rather than reproducing it.</p>
  */
 @Mixin(value = AvatarRenderer.class, priority = 900)
 public class NametagMixin {

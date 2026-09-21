@@ -16,19 +16,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * <p>Backs the S4 outline-overlay path: the {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker
  * AnniOutlineTicker} writes a per-player glow colour via
  * {@link EntityExtension#setGlowColor(CustomColor)}, and Wynntils' {@code EntityRendererMixin}
- * happily overrides {@code state.outlineColor} from that — but vanilla still gates outline
- * rendering on the {@link Entity#isCurrentlyGlowing()} flag. For a player Wynncraft never put in a
- * relationship team (no native glow), our colour would silently do nothing without this nudge.</p>
+ * happily overrides {@code state.outlineColor} from that. The stated rationale was that vanilla
+ * still gates outline rendering on {@link Entity#isCurrentlyGlowing()}, so a player Wynncraft never
+ * put in a relationship team (no native glow) would get no outline without this nudge. ⚠️ In
+ * 1.21.11 that gate is {@code EntityRenderState.appearsGlowing()} ({@code outlineColor != 0}), and
+ * {@link Entity#isCurrentlyGlowing()} reaches it only through vanilla's own {@code outlineColor}
+ * computation in {@code EntityRenderer.extractRenderState}, which that Wynntils TAIL write replaces
+ * whenever the glow colour is set. Whether this mixin is still load-bearing is unconfirmed.</p>
  *
  * <p>No mode / window / zone gate here on purpose — the glow colour
  * field is {@link CustomColor#NONE} by default, so this only ever fires
  * for entities the ticker (or a future feature) has explicitly enrolled.
  * Cheap to evaluate; safe outside the active S4 window.</p>
  *
- * <p>Per outlines.md §3 Option C "Cons" — the {@code EntityExtension}
- * override pipeline alone is insufficient because vanilla won't trigger
- * outline rendering for non-glowing entities. This mixin closes that
- * gap, six lines.</p>
+ * <p>Per outlines.md §3 Option C "Cons", the {@code EntityExtension}
+ * override pipeline alone was judged insufficient because vanilla would
+ * not trigger outline rendering for non-glowing entities, and this
+ * mixin's six-line injector was written to close that gap: the premise
+ * the ⚠️ above finds unsupported by the 1.21.11 source.</p>
  */
 @Mixin(Entity.class)
 public class EntityGlowingMixin {

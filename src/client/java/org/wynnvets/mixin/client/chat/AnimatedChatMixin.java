@@ -26,8 +26,9 @@ import org.wynnvets.rendering.colors.AnimatedGradientSequence;
  * unchanged.
  *
  * <p>New {@code GuiMessage.Line} entries are created at the beginning of
- * {@code trimmedMessages} (via {@code addFirst}). We record the list size
- * before processing and replace the newly inserted entries afterwards.</p>
+ * {@code trimmedMessages} (via {@code addFirst}). We record the first
+ * pre-existing line before processing, then count forward to it afterwards
+ * to find and replace the newly inserted entries.</p>
  */
 @Mixin(ChatComponent.class)
 public class AnimatedChatMixin {
