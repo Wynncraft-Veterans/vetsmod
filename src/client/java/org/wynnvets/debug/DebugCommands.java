@@ -25,9 +25,15 @@ import org.wynnvets.util.ConfigValueText.Verb;
 /**
  * Builds the entire {@code /wv debug} command subtree.
  *
- * <p>This class owns all debug-related subcommands so that production code
- * in {@link org.wynnvets.VetsmodClient} only needs a single integration
- * point: {@link #buildCommandTree()}.</p>
+ * <p>This class assembles the whole {@code /wv debug} node so that the
+ * {@code /wv} registration in
+ * {@link org.wynnvets.commands.CommandRegistry CommandRegistry} needs a
+ * single integration point: {@link #buildCommandTree()}. It does not
+ * build every node itself: the {@code anni} subtree under {@code tree}
+ * comes from
+ * {@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands},
+ * and several handlers delegate to other classes (for example, the
+ * diagnostics dump and the debug toggle go to {@link DiagnosticsHandler}).</p>
  *
  * <h3>Top-level shape</h3>
  * The top level is intentionally generic — only the universally-applicable
@@ -45,8 +51,22 @@ import org.wynnvets.util.ConfigValueText.Verb;
  *   <li>{@code /wv debug set <key> <value>} — set a debug config key</li>
  *   <li>{@code /wv debug trigger charDump} — render PUA icon characters</li>
  *   <li>{@code /wv debug trigger forceChecks} — force re-check guild membership, rank, and staff status</li>
+ *   <li>{@code /wv debug trigger tabDump} — print the sorted tab list to chat in labelled
+ *       columns of 20 (entries past index 79 in a separate overflow block), then the online
+ *       guild members re-parsed from the tab list (delegated to {@link TabDumpHandler})</li>
  *   <li>{@code /wv debug trigger bossBarsDump} — dump current {@code BossHealthOverlay#events} state (iteration order, per-bar UUID/name/color/overlay/progress, ours marker)</li>
- *   <li>{@code /wv debug trigger nametagsDump} — dump per-player render-state (forces a re-extract; logs gate, registry hit, and the resulting {@code state.nameTag} component as built by {@link org.wynnvets.mixin.client.NametagMixin NametagMixin})</li>
+ *   <li>{@code /wv debug trigger nametagsDump} — dump per-player nametag diagnostics (reads
+ *       {@link org.wynnvets.mwe.anni.outline.AnniOutlineRegistry AnniOutlineRegistry} directly;
+ *       reports the gate, registry hit, tier and role, and the colour
+ *       {@link org.wynnvets.mixin.client.NametagMixin NametagMixin}'s anni override would
+ *       resolve to, or that it would not override)</li>
+ *   <li>{@code /wv debug trigger ghostsPromptDump} — log (not chat) the ghosts-prompt gate
+ *       inputs, each other loaded player's ghost flag, and whether the prompt would fire
+ *       (delegated to {@link org.wynnvets.mwe.anni.aggressive.GhostsPromptHandler#debugDump()
+ *       GhostsPromptHandler#debugDump})</li>
+ *   <li>{@code /wv debug trigger zoneLinesDump} — dump the zone-line renderer's inputs to chat
+ *       (aggressive gate, toggle, cold-cache flag, then every cached zone disc with its
+ *       horizontal squared distance from the player)</li>
  *   <li>{@code /wv debug trigger rsvpDump} — dump auth state + in-flight RSVP queue depth + last attempt/ack + the snapshot's current rsvp block</li>
  *   <li>{@code /wv debug tree anni …} — MWE/anni subsystem debug tree</li>
  * </ul>
@@ -286,9 +306,13 @@ public final class DebugCommands {
     }
 
     /**
-     * {@code /wv debug trigger forceChecks} — forces a re-read of guild
-     * membership, rank, and staff status from the Wynntils API, reporting
-     * all current values to chat.
+     * {@code /wv debug trigger forceChecks} — reads guild membership and
+     * rank from Wynntils' {@code Models.Guild} and reports them to chat
+     * alongside vetsmod's own guild and staff state, then forces a
+     * staff-rank refresh and starts vetsmod's own {@code /gu stats} guild
+     * check (each skipped if one is already in flight). Delegates to
+     * {@link org.wynnvets.guild.GuildStateManager#forceGuildRecheck()
+     * GuildStateManager#forceGuildRecheck()}.
      */
     private static int triggerForceChecks(CommandContext<FabricClientCommandSource> ctx) {
         GuildStateManager.forceGuildRecheck();
@@ -399,14 +423,15 @@ public final class DebugCommands {
      * {@code /wv debug trigger bossBarsDump} — snapshot of vanilla's
      * {@code BossHealthOverlay#events} map.
      *
-     * <p>Reaches into the private map via
+     * <p>Reaches into the package-private map via
      * {@link org.wynnvets.mixin.client.accessors.BossHealthOverlayAccessor}
-     * (the same accessor the synthetic anni bar uses) and renders one chat
-     * line per entry plus a header summarising our own state. Each line
-     * shows the iteration index, a truncated UUID, the bar's {@code color}
-     * and {@code overlay}, its current lerped {@code progress}, the
-     * darken/music/fog flags, the raw name component (so PUA glyphs are
-     * visible), and an {@code ← OURS} marker on the synthetic anni bar.
+     * (the same accessor the synthetic anni bar uses) and renders a header
+     * giving the entry count and our own bar's active flag, then three
+     * chat lines per entry: the iteration index (tagged {@code [SLOT-1]} at
+     * index 0), a truncated UUID and an {@code ← OURS} marker on the
+     * synthetic anni bar; the bar's {@code color} and {@code overlay}, its
+     * current lerped {@code progress} and the darken/music/fog flags; and
+     * the raw name component (so PUA glyphs are visible).
      *
      * <p>Goal: diagnose the "first-slot bar visual disappears" Wynncraft
      * quirk. The dump shows whether ours is at iteration index 0
