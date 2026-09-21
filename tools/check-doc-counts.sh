@@ -13,6 +13,16 @@
 # mechanical gate mid-plan is a change to Mellow Rain's standing rules.
 # Run it by hand, and in the 5.5b-5.5f sweeps.
 #
+# KNOWN BLIND SPOT, found by 5.5b: count_calls greps for "Class.method(", so it
+# sees QUALIFIED call sites only. A caller inside the declaring class calls the
+# method unqualified and is invisible here. Worked example --
+# AnniHoverBuilder.roleColor genuinely has two callers, AnniHoverBuilder.roleChip
+# and AnniMotdRenderer.assignedToPartyLine, and this script reports 1, because
+# roleChip is in-class. So: only add a symbol to the manifest when every caller
+# is out-of-class, and read a low number as "possibly in-class callers" before
+# reading it as "the prose is stale". Symbols with in-class callers have to be
+# checked by hand.
+#
 #   tools/check-doc-counts.sh            # check the manifest
 #   tools/check-doc-counts.sh --list     # find count claims a human should read
 #   tools/check-doc-counts.sh --count 'Json.optString'
@@ -33,6 +43,13 @@ ConfigValueText.booleanLine|5|ConfigValueTextTest
 ConfigValueText.intLine|3|ConfigValueTextTest
 ConfigValueText.stringLine|4|ConfigValueTextTest
 ConfigValueText.triStateLine|2|ConfigValueTextTest
+AnniOutlinePalette.chatFormattingForRole|2|AnniOutlinePalette + AnniHoverBuilder#roleColor: "Two callers"
+AnniOutlineRegistry.clearAll|1|AnniOutlineRegistry: "its only caller is AnniDebugCommands#registryClearAll"
+AnniOutlineTicker.isOutlineSuppressionActive|4|AnniOutlineTicker: "two behavioural readers" + "two debug dumps"
+VetsBossBarManager.isActive|2|VetsBossBarManager: mixin gate + DebugCommands dump
+VetsBossBarManager.barUuid|2|VetsBossBarManager: mixin filter + DebugCommands dump
+FlashTracker.styleFor|4|VetsBossBarContentBuilder class doc: "four chips"
+FlashTracker.reset|1|FlashTracker: "One caller: VetsBossBarManager deactivate"
 '
 
 # Count non-comment call sites of Class.method( across the client source set.
