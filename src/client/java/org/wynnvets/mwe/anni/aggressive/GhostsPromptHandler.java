@@ -118,8 +118,13 @@ public final class GhostsPromptHandler {
             try {
                 if (Models.Player.isPlayerGhost(other)) return true;
             } catch (Exception e) {
-                // Wynntils not initialised or transient model failure —
-                // treat as "no info"; fall through.
+                // Wynntils not initialised or transient model failure.
+                // ⚠️ This does NOT fall through to the next player: the
+                // return abandons the whole scan and reports "no ghost
+                // seen", so one transient failure on any player downgrades
+                // a confirmed-ghosts result to the ambiguous branch. Filed
+                // as ghosts-prompt-scan-aborts-on-first-exception; the
+                // catch belongs outside the loop, or should continue.
                 return false;
             }
         }

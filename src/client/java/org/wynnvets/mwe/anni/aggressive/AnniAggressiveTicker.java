@@ -14,16 +14,29 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  *
  * <p>Parallel to S4's {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker}'s
  * {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker#isOutlineSuppressionActive()}
- * — a cheap volatile read every consumer (zone-line renderer, scroll-spot
- * marker provider, alert dispatcher, ghosts prompt) tests at the top of
- * its hot path so the heavy work (line render, marker poll, snapshot
- * diff) short-circuits when aggressive mode is off.</p>
+ * — a cheap volatile read consumers test at the top of their hot path so the
+ * heavy work (line render, marker poll, snapshot diff) short-circuits when
+ * aggressive mode is off. See {@link #isAggressiveActive()} for the reader
+ * census.</p>
+ *
+ * <p>⚠️ <b>The parallel stops at the failure mode, and the two tickers are
+ * opposites there.</b> This one fails <em>closed</em>: its catch assigns
+ * {@code aggressiveActive = false}, so a tick that throws turns aggressive
+ * surfaces off. {@code AnniOutlineTicker}'s catch assigns nothing, so it fails
+ * <em>stale</em> — a throw with the gate open leaves both outline mixins
+ * believing anni rendering is still on. Do not reason from one to the other.
+ * {@code vetsmod_rendering.md} §6 owns the contrast.</p>
  *
  * <p><b>Gate (locked-in this session):</b> {@code mode == AGGRESSIVE ∧
- * window}. Window is the same T-2h..T+30m as S4. <i>No zone gate</i> — per
- * user, aggressive features are window-scoped, not location-scoped (zone
- * lines should render whenever you're aggressive + in-window so a Lutho
- * user can see them as they fly in). Per-feature toggles
+ * window}. Window is the same T-2h..T+30m as S4, via
+ * {@link org.wynnvets.mwe.anni.state.AnniWindows#inHotWindow(long)}.
+ * <i>No zone gate</i> — per user, aggressive features are window-scoped, not
+ * location-scoped. ⚠️ That does <b>not</b> mean the zone lines are visible
+ * from Lutho: {@code AnniZoneLineRenderer} culls any disc centre more than 200
+ * blocks away horizontally, so with the 48-block disc radius a ring's near
+ * edge appears at roughly 152 blocks — on final approach, not on the flight
+ * in. The window gate is what was decided; the draw distance is a separate
+ * limit that survives it. Per-feature toggles
  * ({@link org.wynnvets.config.VetsConfig#VETS_ANNI_ZONE_LINES} etc.) gate
  * individual consumers — this ticker doesn't aggregate them; consumers
  * check their own toggle in addition to {@link #isAggressiveActive()}.</p>
@@ -47,9 +60,20 @@ public final class AnniAggressiveTicker {
         VetsLogger.debug("AnniAggressiveTicker registered");
     }
 
-    /** Cheap public flag: {@code true} iff aggressive mode is on AND the
-     *  snapshot's stamp is in the T-2h..T+30m window. Safe to call from any
-     *  thread (volatile read). */
+    /**
+     * Cheap public flag: {@code true} iff aggressive mode is on AND the
+     * snapshot's stamp is in the T-2h..T+30m window. Safe to call from any
+     * thread (volatile read).
+     *
+     * <p><b>Four behavioural readers</b> —
+     * {@link org.wynnvets.mwe.anni.zone.AnniZoneLineRenderer AnniZoneLineRenderer},
+     * {@link org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider ScrollSpotMarkerProvider},
+     * {@link AggressiveAlertDispatcher} and {@link GhostsPromptHandler} — each
+     * testing it at the top of its hot path. <b>Two diagnostic reads</b> also
+     * report it: {@code DebugCommands}' anni dump and
+     * {@code GhostsPromptHandler}'s own prompt dump. Six call sites in all,
+     * which is the count the doc-count manifest pins.</p>
+     */
     public static boolean isAggressiveActive() {
         return aggressiveActive;
     }

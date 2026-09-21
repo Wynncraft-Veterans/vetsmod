@@ -20,7 +20,8 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
 /**
  * S5 — aggressive-mode chat alerts.
  *
- * <p>Two trigger families:</p>
+ * <p>Two trigger families, and they do not share a thread, a latch policy or
+ * a lifetime:</p>
  * <ul>
  *   <li><b>Snapshot-diff alerts.</b> {@code board.role / board.party.world
  *       / board.party.ordinal / rsvp.notice} transitions fire a one-line
@@ -31,20 +32,54 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  *       cooldown so a rapid snapshot churn doesn't spam.</li>
  *   <li><b>Time-triggered readiness alerts.</b> At T-10m, if the player's
  *       current world doesn't match the assigned party world, fire a
- *       world-mismatch alert (once per stamp_epoch). At T-5m, if the
- *       player isn't in the anni zone, fire a zone-absence alert (once per
- *       stamp_epoch). These are advisory pings the user asked for in S5
- *       planning — they're NOT gates, just nudges.</li>
+ *       world-mismatch alert. At T-5m, if the player isn't in the anni zone,
+ *       fire a zone-absence alert. Both are once per {@code stamp_epoch};
+ *       neither fires past the stamp. These are advisory pings the user asked
+ *       for in S5 planning — they're NOT gates, just nudges.</li>
  * </ul>
  *
- * <p>All chat output bounces to the main thread via
- * {@link Minecraft#execute(Runnable)} before calling
- * {@link ChatUtils#sendLocalMessage(Component)} — snapshot listeners run on
- * the WS reader thread per the architecture-as-built doc's S5
- * recommendation.</p>
+ * <h2>The two readiness sentinels latch on different conditions</h2>
  *
- * <p>Gated on {@link AnniAggressiveTicker#isAggressiveActive()} AND
- * {@link VetsConfig#VETS_ANNI_CHAT_ALERTS}.</p>
+ * <p>The T-10m world alert latches only once a party world is actually
+ * assigned — the {@code worldReadinessFired = true} sits inside the
+ * {@code assigned != null} branch — so an <b>unassigned player gets this alert
+ * late, or not at all</b>, because the tick keeps retrying until a world
+ * appears. The T-5m zone alert latches <b>unconditionally</b> on the first
+ * tick inside T-5m, fired or not, so a player who is in the zone at T-5m and
+ * leaves immediately afterwards gets nothing. Only the first of the two
+ * carries a comment explaining its policy; they are not the same policy.</p>
+ *
+ * <p>Both sentinels are <b>in-memory</b> and reset when the observed
+ * {@code stamp_epoch} moves, so they are once-per-anni <em>per client
+ * session</em>: a restart mid-window re-fires them. This is the opposite of
+ * the ghosts prompt, whose sentinel persists in
+ * {@link VetsConfig#VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP}.</p>
+ *
+ * <h2>Threading</h2>
+ *
+ * <p>⚠️ <b>No emitter calls {@link Minecraft#execute(Runnable)}.</b> All six
+ * {@code fire*} methods call {@link ChatUtils#sendLocalMessage(Component)}
+ * directly, and they are safe for two different reasons:</p>
+ * <ul>
+ *   <li>the diff alerts bounce <em>once, upstream</em> — {@code onSnapshot}
+ *       wraps the whole of {@code applyDiff} in {@code mc.execute(...)},
+ *       because snapshot listeners run on the WS reader thread;</li>
+ *   <li>the readiness alerts never bounce at all, because {@code tick} is
+ *       registered on {@code ClientTickEvents.END_CLIENT_TICK} and is already
+ *       on the main thread.</li>
+ * </ul>
+ *
+ * <p>So a new emitter is not automatically safe: it inherits whichever of
+ * those two entry points calls it. {@code forceAlert} does its own
+ * {@code mc.execute(...)} for the same reason — it is reached from the
+ * command thread.</p>
+ *
+ * <p><b>Gated on</b> {@link AnniAggressiveTicker#isAggressiveActive()} AND
+ * {@link VetsConfig#VETS_ANNI_CHAT_ALERTS} — but the gate governs
+ * <em>emission</em> only. The snapshot listener keeps running while gated off,
+ * so {@code lastSeen*} stays current and the per-stamp sentinels still reset;
+ * otherwise the first snapshot after aggressive mode is switched on would
+ * diff against stale state and bing for changes the user already saw.</p>
  */
 public final class AggressiveAlertDispatcher {
 
@@ -305,6 +340,20 @@ public final class AggressiveAlertDispatcher {
         ChatUtils.sendLocalMessage(msg);
     }
 
+    /**
+     * T-5m zone-absence alert: "get to the anni zone", with coordinates.
+     *
+     * <p>The coordinates are the party's pinned scroll spot when there is one.
+     * <b>The {@code "345 45 -1315"} fallback is unguarded</b>, so this alert
+     * prints that literal to a player with no party at all. That is deliberate
+     * — a partyless player still needs somewhere to go — but it makes the
+     * fallback behave differently here than in the only other place the same
+     * literal appears: {@code ScrollSpotMarkerProvider.computeEntry} returns
+     * null on a null {@code board.party()} <em>before</em> it reads the spot,
+     * so the waypoint shows nothing outside a party. "Only in a party" is true
+     * of the marker and false of this alert; the two are not a shared
+     * constant and do not move together.</p>
+     */
     private static void fireZoneReadinessAlert(AnniSnapshot snapshot) {
         AnniSnapshot.ScrollSpot spot = null;
         AnniSnapshot.Board board = snapshot.board();
