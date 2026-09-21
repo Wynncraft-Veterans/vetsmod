@@ -17,9 +17,9 @@ import org.wynnvets.mwe.anni.bossbar.VetsBossBarManager;
  *
  * <p>Earlier iterations of this mixin cancelled
  * {@code BossHealthOverlay#update(ClientboundBossEventPacket)} at
- * HEAD (Option B per
- * {@code vets-anni/.claude/ephemeral/vetsmod-integration-investigation-prep/boss-bar.md}
- * §3). That cancelled the packet entirely, leaving the vanilla
+ * HEAD (Option B, §3 of the {@code boss-bar} investigation note in
+ * vets-anni's {@code vetsmod-integration-investigation-prep} — gitignored,
+ * so in no clone). That cancelled the packet entirely, leaving the vanilla
  * {@code events} map missing entries the server still believes
  * exist — and subsequent UpdateProgress/UpdateName/UpdateStyle
  * packets called a setter on {@code events.get(uuid)} (e.g.

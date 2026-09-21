@@ -21,8 +21,8 @@ import org.junit.jupiter.api.Test;
  *
  * <p>KNOWN BUG (pinned, not fixed): {@code isValid} and {@code getRgb} fold
  * case with the no-argument {@code toLowerCase()}, so they follow the JVM's
- * default locale. See {@code
- * .claude/ephemeral/bugs-found-via-mellow-rain/default-locale-case-folding-cluster.md}.
+ * default locale. See the filed bug
+ * {@code default-locale-case-folding-cluster}.
  * The assertions below pin today's behaviour under a Latin default locale; a
  * test asserting the locale-independent answer would be red on arrival.</p>
  */

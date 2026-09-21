@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Test;
  * behaviour rather than a hypothetical.</p>
  *
  * <p>KNOWN BUG (pinned, not fixed): both fold case with the no-argument
- * {@code toLowerCase()}. See {@code
- * .claude/ephemeral/bugs-found-via-mellow-rain/default-locale-case-folding-cluster.md}.
+ * {@code toLowerCase()}. See the filed bug
+ * {@code default-locale-case-folding-cluster}.
  * This site is the one place in that cluster where the defect is reachable with
  * the server's real wording rather than only in theory — see the locale section
  * at the bottom.</p>

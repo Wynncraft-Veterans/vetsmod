@@ -228,8 +228,7 @@ class PillCodecTest {
         // the no-argument toUpperCase(). Under a Turkish default, 'i' becomes
         // the dotted capital U+0130, which is outside A-Z, so the letter is
         // silently dropped rather than rejected — a "vip" pill renders as "VP".
-        // See {@code
-        // .claude/ephemeral/bugs-found-via-mellow-rain/default-locale-case-folding-cluster.md}.
+        // See the filed bug default-locale-case-folding-cluster.
         // Fixing it means passing Locale.ROOT; this assertion flips then.
         Locale.setDefault(TURKISH);
 
