@@ -40,6 +40,17 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * {@code vetsAnniEnabled} master toggle) so the whole subsystem stays
  * testable while still being accidentally-safe (debug logging is off by
  * default, expires after 3 days, and is opt-in via {@code /wv debug true}).</p>
+ *
+ * <p>Two gates, and only one of them restricts who may call. All 24 handlers
+ * open with {@code requireDebug}, which tests
+ * {@link VetsLogger#isDebugEnabled()} — a flag any player sets with
+ * {@code /wv debug true}, a node that carries no permission check of its own
+ * — so it is a mode flag that keeps the tree out of the way, not an
+ * authorisation gate. The five {@code scrollspot} handlers add
+ * {@code requireStaffOrOrganiser} (vetsmod staff, or the local player's UUID
+ * in the cached snapshot's {@code organisers}); that is the one permission
+ * check here, and it too is UX only — for the three that write to the
+ * server, vets-anni makes the real decision.</p>
  */
 public final class AnniDebugCommands {
 
@@ -415,8 +426,9 @@ public final class AnniDebugCommands {
                 // main `/wv anni rsvp` tree, gated on requireDebug only
                 // (the action only affects the caller's own RSVP, so no
                 // staff/organiser perm is required). The main brigadier
-                // command is preferred; this exists for symmetry with the
-                // scrollspot debug-tree mirror.
+                // command is preferred. This is the mirror: scrollspot,
+                // above, has no main-tree registration and lives only
+                // here, while rsvp is registered in both trees.
                 .then(
                         ClientCommandManager.literal("rsvp")
                                 .then(
@@ -759,7 +771,7 @@ public final class AnniDebugCommands {
         return 1;
     }
 
-    /** {@code /wv debug anni snapshot clear} — synchronous wipe.
+    /** {@code /wv debug tree anni snapshot clear} — synchronous wipe.
      *
      *  <p>Pushes {@code null} into the cache so subscribed surfaces
      *  re-render in their no-snapshot state. Push frames from temp-server
@@ -782,7 +794,7 @@ public final class AnniDebugCommands {
         return 1;
     }
 
-    /** {@code /wv debug anni snapshot refresh} — async re-fetch.
+    /** {@code /wv debug tree anni snapshot refresh} — async re-fetch.
      *
      *  <p>Fires an {@code anni_query} via {@link AnniQueryClient#query()}.
      *  The query client's response handler already pushes successful
@@ -869,7 +881,7 @@ public final class AnniDebugCommands {
 
     // ───────────────────────────────────── guess (read-only snapshot peek)
 
-    /** {@code /wv debug anni guess} — pull a fresh snapshot from
+    /** {@code /wv debug tree anni guess} — pull a fresh snapshot from
      *  temp-server and print whatever the prediction / announcement
      *  currently is, in a one-liner. Useful for sanity-checking that
      *  fishbot's {@code \guess} model agrees with what vetsmod sees,
@@ -990,7 +1002,7 @@ public final class AnniDebugCommands {
 
     // ────────────────────────────── external override (rendering only)
 
-    /** {@code /wv debug anni external <auto|true|false>} — override the
+    /** {@code /wv debug tree anni external <auto|true|false>} — override the
      *  renderer's {@code isExternal} classification, which normally
      *  reads vetsmod's rank signals (Returners guild, waitlist,
      *  honourary). Lets a vets-tier developer test the external render
@@ -1030,7 +1042,7 @@ public final class AnniDebugCommands {
 
     // ──────────────────────── time (mutate the cached snapshot's stamp)
 
-    /** {@code /wv debug anni time <seconds>} — mutate the cached
+    /** {@code /wv debug tree anni time <seconds>} — mutate the cached
      *  snapshot's {@code event.stamp_epoch} to {@code NOW + seconds},
      *  preserving every other field. Round-trips through JSON because
      *  {@link AnniSnapshot} is immutable.
@@ -1236,8 +1248,12 @@ public final class AnniDebugCommands {
     }
 
     /** {@code /wv debug tree anni rsvp hard} — debug mirror of
-     *  {@code /wv anni rsvp hard}. Identical effect; lives here for
-     *  symmetry with the scrollspot debug-tree mirror. */
+     *  {@code /wv anni rsvp hard}. Identical effect: both paths call
+     *  {@link org.wynnvets.mwe.anni.command.AnniRsvpCommand#hard AnniRsvpCommand#hard},
+     *  and this one adds only the {@code requireDebug} check. {@code rsvp}
+     *  is a true mirror of a main-tree command; {@code scrollspot} is not
+     *  a mirror at all — it has no main-tree registration, and this tree is
+     *  its only entry point. */
     private static int rsvpHard(CommandContext<FabricClientCommandSource> ctx) {
         if (requireDebug(ctx) == 0) return 0;
         return org.wynnvets.mwe.anni.command.AnniRsvpCommand.hard(ctx);
