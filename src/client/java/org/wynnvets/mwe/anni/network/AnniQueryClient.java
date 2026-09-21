@@ -57,8 +57,8 @@ public final class AnniQueryClient {
      *
      * <p>Callers MUST handle the null. The "stale" flag from the wire is
      * not surfaced in S1 — vetsmod consumers treat any non-null snapshot
-     * as authoritative; S2 will add a stale indicator to the UI when the
-     * renderer lands.</p>
+     * as authoritative; the renderer has since landed without adding a stale
+     * indicator, and nothing in vetsmod reads the flag.</p>
      */
     public static CompletableFuture<AnniSnapshot> query() {
         CompletableFuture<AnniSnapshot> future = new CompletableFuture<>();

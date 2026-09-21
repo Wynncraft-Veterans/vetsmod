@@ -21,8 +21,9 @@ import org.spongepowered.asm.mixin.gen.Accessor;
  * {@code BossHealthOverlayMixin} (see
  * {@code Wynntils/common/src/main/java/com/wynntils/mc/mixin/BossHealthOverlayMixin.java}),
  * though none of the access below is concurrent: all of it runs on the
- * client game thread. We write only from our tick driver, the render path
- * reads back through the {@code @Redirect} in <em>our own</em>
+ * client game thread. We write only from our tick driver, vanilla's
+ * render-path reads include the {@code events.values()} iteration
+ * filtered by the {@code @Redirect} in <em>our own</em>
  * identically-named
  * {@link org.wynnvets.mixin.client.BossHealthOverlayMixin}, and
  * vanilla's packet handler goes on writing its own entries alongside

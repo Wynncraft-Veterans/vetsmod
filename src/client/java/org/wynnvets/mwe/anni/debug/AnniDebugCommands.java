@@ -47,8 +47,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * open with {@code requireDebug}, which tests
  * {@link VetsLogger#isDebugEnabled()} — a flag any player sets with
  * {@code /wv debug true}, a node that carries no permission check of its own
- * — so it is a mode flag that keeps the tree out of the way, not an
- * authorisation gate. The five {@code scrollspot} handlers add
+ * — so it is a mode flag that refuses execution, not an
+ * authorisation gate. It hides nothing: no node in this tree carries a
+ * brigadier {@code requires(…)}, so the paths tab-complete whether or
+ * not debug is on. The five {@code scrollspot} handlers add
  * {@code requireStaffOrOrganiser} (vetsmod staff, or the local player's UUID
  * in the cached snapshot's {@code organisers}); that is the one permission
  * check here, and it too is UX only — for the three that write to the

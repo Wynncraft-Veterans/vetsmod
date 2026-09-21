@@ -36,7 +36,8 @@ import org.wynnvets.rendering.colors.AnimatedGradientSequence;
  * "Returner". The pill is rebuilt client-side using the {@code chat/prefix}
  * font (same path as bridge messages), so the visual style changes from
  * the aqua server-native pill to the ASCII-encoded label pill. Supporter
- * gradients still compose on top when the sender has glints enabled.</p>
+ * gradients still compose on top when the viewing client has
+ * {@code showSupporterGlints} on.</p>
  *
  * <p>The whole rewriter is gated on {@link GuildStateManager#isVetsGuildChat()}.
  * Wynn's pill glyphs carry no guild identity, so for an honourary member —
@@ -67,8 +68,8 @@ public final class ServerGuildChatRewriter {
      * Attempts to rewrite a server guild chat message. Requires the channel
      * to be VETS' own, then fires when either (a) the sender's raw rank maps
      * to a different display label (Strategist/Chief/Owner → Steward,
-     * Captain/Recruiter → Returner) or (b) the sender is a supporter with
-     * gradient glints enabled.
+     * Captain/Recruiter → Returner) or (b) the sender is a supporter and this
+     * client has {@code showSupporterGlints} on.
      *
      * @param component     the original chat Component (preserves colour info)
      * @param messageString the plain-text form of the message

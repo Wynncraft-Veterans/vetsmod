@@ -93,9 +93,11 @@ public final class DiagnosticsHandler {
      * left as {@code "unknown"} if that throws.</p>
      *
      * <p>The log report also carries the player name, the can-execute and
-     * debug-guildless-override flags, the persisted tier, the raw
-     * verification timestamp and every loaded mod's id and version, none of
-     * which reach chat.</p>
+     * debug-guildless-override flags, the persisted tier and the raw
+     * verification timestamp, none of which reach chat, plus the loaded-mod
+     * count and a line listing every loaded mod's id and version — chat
+     * carries only five of those versions (vetsmod, Minecraft, Fabric
+     * Loader, Fabric API and Wynntils).</p>
      */
     private static void dumpDiagnostics() {
         String vetsmodVersion = getModVersion("vetsmod");

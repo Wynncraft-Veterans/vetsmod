@@ -37,8 +37,9 @@ import org.wynnvets.rendering.nametag.NametagAnimator;
  * own HEAD inject on {@code submitNameTag}) reads {@code state.nameTag}
  * directly and then <em>cancels</em> the vanilla submit whenever it
  * draws the nametag itself — when it adds gear-hover lines for the
- * hovered player, or when the player is a Wynntils user — and also when
- * its {@code hidePlayerNametags} option is on. A cancel from any
+ * hovered player, or when the player is a Wynntils user, in both cases
+ * unless Wynntils' own player-viewer screen is open on that player — and
+ * also when its {@code hidePlayerNametags} option is on. A cancel from any
  * priority-1000 HEAD inject short-circuits every HEAD inject that runs
  * after it — i.e. every <em>numerically lower</em> priority, since Mixin
  * applies in ascending order and prepends at HEAD —

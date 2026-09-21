@@ -21,11 +21,22 @@ import org.wynnvets.mwe.anni.mode.StreamerModeChatDetector;
 /**
  * Intercepts incoming chat messages via {@link ChatComponent#addMessage(Component)}.
  *
- * <p>This is the single-argument overload, which vanilla's system-chat path
- * ({@code ChatListener.handleSystemMessage}) calls. Signed player chat goes
- * straight to the three-argument overload and never passes this hook, and a
- * system message Wynntils cancels in its {@code handleSystemMessage} wrapper
- * never reaches it either.</p>
+ * <p>This is the single-argument overload. Vanilla reaches it from
+ * {@code ChatListener.handleSystemMessage} and from
+ * {@code ChatListener.handleDisguisedChatMessage}; every player-chat
+ * packet, signed or not, goes to the three-argument overload instead.
+ * That is not a guarantee that player chat never arrives here —
+ * {@code @Mixin} targets the
+ * class, so every {@code ChatComponent} instance carries this hook, and
+ * Wynntils' Chat Tabs feature (enabled in its default config profile)
+ * replaces {@code minecraft.gui.chat} with a {@code WrappingChatComponent}
+ * that hands each message, three-argument player chat included, to its
+ * chat-tab service, which re-adds it to the receiving tabs' own
+ * {@code ChatComponent}s through this one-argument overload. So the hook can
+ * see player chat, and can run more than once for the same message
+ * (filed: {@code chat-log-mixin-runs-once-per-chat-tab}). A system
+ * message Wynntils cancels in its {@code handleSystemMessage} wrapper never
+ * reaches it at all.</p>
  *
  * <p>This is the primary chat pipeline hook. It performs, in order:
  * <b>streamer-mode observation</b> ({@code StreamerModeChatDetector.observe},
@@ -34,8 +45,8 @@ import org.wynnvets.mwe.anni.mode.StreamerModeChatDetector;
  * detection, staff-rank-check suppression, {@code /v} outbound feedback
  * suppression, {@code /find} response suppression, the internal-dispatch early
  * return, and then the five-rewriter chain: encourage-update, staff alerts,
- * staff channel, supporter gradients, spoilers. Messages generated internally
- * by the mod are passed through unmodified.</p>
+ * staff channel, rank remaps and supporter gradients, spoilers. Messages
+ * generated internally by the mod are passed through unmodified.</p>
  *
  * <p>{@code vetsmod_chat_pipeline.md} §"ChatLogMixin — the chokepoint" is the
  * owning statement and enumerates the steps individually.</p>

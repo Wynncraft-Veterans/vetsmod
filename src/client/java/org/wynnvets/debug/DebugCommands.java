@@ -45,7 +45,9 @@ import org.wynnvets.util.ConfigValueText.Verb;
  * <h3>Subcommands</h3>
  * <ul>
  *   <li>{@code /wv debug} — diagnostics dump (delegated to {@link DiagnosticsHandler})</li>
- *   <li>{@code /wv debug true|false} — toggle debug logging</li>
+ *   <li>{@code /wv debug true|false} — set the debug flag (not logging-only: it also
+ *       gates the {@code /wv debug tree anni} harness), delegated to
+ *       {@link DiagnosticsHandler}</li>
  *   <li>{@code /wv debug set} — list debug config keys</li>
  *   <li>{@code /wv debug set <key>} — get value of a debug config key</li>
  *   <li>{@code /wv debug set <key> <value>} — set a debug config key</li>
@@ -67,7 +69,10 @@ import org.wynnvets.util.ConfigValueText.Verb;
  *   <li>{@code /wv debug trigger zoneLinesDump} — dump the zone-line renderer's inputs to chat
  *       (aggressive gate, toggle, cold-cache flag, then every cached zone disc with its
  *       horizontal squared distance from the player)</li>
- *   <li>{@code /wv debug trigger rsvpDump} — dump auth state + in-flight RSVP queue depth + last attempt/ack + the snapshot's current rsvp block</li>
+ *   <li>{@code /wv debug trigger rsvpDump} — log (not chat) auth state + in-flight RSVP queue
+ *       depth + last attempt/ack + the snapshot's current rsvp block (delegated to
+ *       {@link org.wynnvets.mwe.anni.network.AnniRsvpClient#debugDump()
+ *       AnniRsvpClient#debugDump})</li>
  *   <li>{@code /wv debug tree anni …} — MWE/anni subsystem debug tree</li>
  * </ul>
  */

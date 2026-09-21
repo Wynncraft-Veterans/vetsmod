@@ -177,7 +177,8 @@ public final class FindDispatcher {
     /**
      * Reached from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} on the render
      * thread for incoming chat messages that reach its single-argument
-     * {@code ChatComponent#addMessage(Component)} hook. Matches {@code /find} response lines,
+     * {@code ChatComponent#addMessage(Component)} hook and are not consumed by one of the
+     * suppression checks it runs before this one. Matches {@code /find} response lines,
      * suppresses them from display, and signals the dispatch thread with the result.
      *
      * @return {@code true} if the message was consumed (should be suppressed)

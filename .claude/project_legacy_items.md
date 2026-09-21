@@ -159,7 +159,7 @@ Registered in `VetsConfig.USER_CONFIG_KEYS`. Validation delegated to `VetsConfig
 **Caching:** regex patterns compiled once; colour/sprite resolution runs every frame (cheap — concurrent hash map lookups); PUA/new-format detection runs every tooltip (no memoization).
 
 **State fields** on `LegacyItemHandler`:
-- `currentItemHasFoil`, `currentItemStack` — hover context, set by highlight mixin + listener before tooltip
+- `currentItemHasFoil`, `currentItemStack`, `currentHoveredSlot` — hover context; `LegacyHighlightMixin`'s `renderTooltip` hook sets and clears all three, and `LegacyTooltipEventListener` (Wynntils `ItemTooltipRenderEvent.Pre`) sets the first two
 - `lastProcessedWasLegacy` — renderer → tooltip mixin signal for gold-border override
 - `newTooltipStylesAvailable` — sticky per-session flag, reset by `ServerConnectionListener` on disconnect; suppresses gold tooltip border on old servers that lack the new resource pack
 

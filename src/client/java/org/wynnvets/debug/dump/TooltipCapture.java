@@ -150,7 +150,9 @@ public final class TooltipCapture {
 
     /**
      * Whether the last stored record was made while the mixin's reentry guard
-     * was set. {@link #record} drops such calls once any capture exists.
+     * was set — in practice always {@code false}: the only call that passes
+     * {@code true} is the mixin's reentry branch, which cannot run before the
+     * rewrite branch has already stored a record, so {@link #record} drops it.
      */
     public static boolean reentryGuardActive() {
         return reentryGuardActive;

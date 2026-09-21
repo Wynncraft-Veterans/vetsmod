@@ -33,7 +33,7 @@
 # "AnniDebugCommands.buildCommandTree(" and reported 2 where the truth is 1.
 # The pattern now starts at a word boundary (\b), so a class name that is a
 # suffix of another class name no longer inflates the count. A package-
-# qualified call (org.wynnvets.debug.DebugCommands.buildCommandTree() still
+# qualified call (org.wynnvets.debug.DebugCommands.buildCommandTree()) still
 # counts -- the dot before the class name is a boundary. All 22 entries that
 # predate the fix returned the same numbers after it.
 #

@@ -107,7 +107,8 @@ public final class ScrollSpotMarkerProvider implements MarkerProvider<MarkerPoi>
     }
 
     /** Debug entry — inject a local-only scroll spot regardless of
-     *  snapshot. Used by {@code /wv debug tree anni scrollspot set <x> <y> <z>}. */
+     *  snapshot. Used by {@code /wv debug tree anni scrollspot localinject <x> <y> <z>};
+     *  {@code scrollspot set} is a server write and never reaches this method. */
     public void debugSet(int x, int y, int z) {
         current.set(Entry.at(x, y, z));
         VetsLogger.debug("ScrollSpotMarkerProvider.debugSet {} {} {}", x, y, z);

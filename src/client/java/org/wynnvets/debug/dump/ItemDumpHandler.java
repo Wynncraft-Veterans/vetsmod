@@ -287,13 +287,15 @@ public final class ItemDumpHandler {
         //                      LowAbstractContainerScreenMixin, because we
         //                      are not inside renderTooltip's call
         //                      chain to setTooltipForNextFrame.
-        //                      → "pre-wynnmod" view.
+        //                      → "pre-rewrite" view: no render-time
+        //                      wrap, Wynntils' or wynnmod's, has run.
         //
         //  - capturedTooltip : recorded by LegacyItemTooltipMixin the last time
         //                      it ran. The mixin fires from inside the inner
         //                      setTooltipForNextFrame, after wynnmod's wrap has
         //                      replaced the list via event.setText(...).
-        //                      → "post-wynnmod" view.
+        //                      → "post-rewrite" view: downstream of
+        //                      both Wynntils' wraps and wynnmod's.
         //
         // Diffing the two fingerprints any render-time tooltip rewrite
         // (Wynntils' own, wynnmod's, future processors, etc.).
@@ -559,7 +561,11 @@ public final class ItemDumpHandler {
         obj.addProperty("outputLineCount", output.size());
         obj.addProperty("outputIsSameInstance", TooltipCapture.inputOutputSameInstance());
         obj.add("inputLines", dumpComponentLines(input));
-        // Avoid duplicating the giant tree when no rewrite happened.
+        // The guard never fires for a real capture: TooltipCapture.record
+        // copies input and output into separate ArrayLists, so these stay
+        // distinct instances even when nothing was rewritten, and the output
+        // tree is always dumped. outputIsSameInstance above is what actually
+        // says whether the mixin rewrote the list.
         if (input != output) {
             obj.add("outputLines", dumpComponentLines(output));
         }
@@ -607,10 +613,12 @@ public final class ItemDumpHandler {
     }
 
     /**
-     * Mirrors {@link org.wynnvets.items.NewFormatRenderer#isNewFormatItem
+     * Approximates {@link org.wynnvets.items.NewFormatRenderer#isNewFormatItem
      * NewFormatRenderer#isNewFormatItem} without coupling the dump command to that package-private
-     * class. Returns true if any line uses the {@code tooltip/emblem/frame} or {@code banner/box}
-     * fonts (the markers Wynncraft's new tooltip format relies on).
+     * class. Returns true if any line carries a font whose {@code toString()} contains
+     * {@code tooltip/emblem/frame} or {@code banner/box} (the markers Wynncraft's new tooltip
+     * format relies on). The original matches those two {@code FontDescription}s exactly, and on a
+     * hit also sets {@code LegacyItemHandler.newTooltipStylesAvailable}; this probe does neither.
      */
     private static boolean containsNewFormatFont(List<Component> lines) {
         for (Component line : lines) {

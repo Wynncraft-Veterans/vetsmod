@@ -9,8 +9,10 @@ import org.wynnvets.config.VetsConfig;
 /**
  * A {@link FormattedCharSequence} wrapper that applies an animated, moving,
  * two-colour gradient to every character whose style carries the
- * {@link #MARKER_COLOR} sentinel.  Non-marked characters (e.g. a chat badge
- * prefix) pass through unmodified.
+ * {@link #MARKER_COLOR} or {@link #GREY_MARKER_COLOR} sentinel — the first from
+ * the pair this instance was built with, the second always from
+ * {@link #effectiveGreyStart()} / {@link #effectiveGreyEnd()}.  Characters
+ * carrying neither (e.g. a chat badge prefix) pass through unmodified.
  *
  * <p>Because {@code accept()} is invoked by the font renderer on every frame,
  * the gradient shifts smoothly over time without any external tick loop.</p>

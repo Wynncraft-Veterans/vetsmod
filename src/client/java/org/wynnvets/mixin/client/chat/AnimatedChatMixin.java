@@ -23,7 +23,13 @@ import org.wynnvets.rendering.colors.AnimatedGradientSequence;
  * read the config {@link AnimatedGradientSequence#beginAnimation} sets, so
  * colours passed there never reach these wrappers. A wrapper recolours only
  * characters carrying a marker colour; everything else passes through
- * unchanged.
+ * unchanged. The two colours a wrapper is built from are used for
+ * {@link AnimatedGradientSequence#MARKER_COLOR} characters only: a character
+ * marked {@link AnimatedGradientSequence#GREY_MARKER_COLOR} — which
+ * {@code ListFetcher} applies to supporters inside a grey-coloured list — is
+ * recoloured from {@link AnimatedGradientSequence#effectiveGreyStart()} /
+ * {@link AnimatedGradientSequence#effectiveGreyEnd()} instead, whatever the
+ * wrapper was built with.
  *
  * <p>New {@code GuiMessage.Line} entries are created at the beginning of
  * {@code trimmedMessages} (via {@code addFirst}). We record the first
