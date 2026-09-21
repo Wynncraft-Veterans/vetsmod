@@ -34,9 +34,11 @@ import org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker;
  * <p>⚠️ <b>That is a statement about the gate, not about visibility.</b> The
  * lines are not "visible regardless of player position": the culling below
  * skips any disc whose centre is more than {@code 200} blocks away
- * horizontally, and with {@link AnniZone}'s 48-block radius a ring's near
- * edge therefore appears at roughly <b>152 blocks</b> — on final approach,
- * not on the flight in. The gate and the draw distance are two independent
+ * horizontally, and with {@link AnniZone}'s 48-block radius a ring's near edge
+ * is therefore still culled beyond roughly <b>152 blocks</b> — so the lines can
+ * only show up on final approach, not on the flight in. 152 is a ceiling, not a
+ * promise: whether a ring is actually drawn at that range also depends on the
+ * client's render distance, which at 8 chunks is shorter than the cull. The gate and the draw distance are two independent
  * limits and only the first was decided in S5 planning.
  * {@code vetsmod_mwe_anni.md} §"Aggressive mode" states it this way; an
  * earlier version of this paragraph and of

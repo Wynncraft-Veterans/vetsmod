@@ -27,7 +27,10 @@ import org.wynnvets.mwe.anni.network.AnniScrollspotClient;
  * the main tree because it is staff-only and rarely used. An earlier version
  * of this paragraph called the class an "S5 brigadier handler for
  * {@code /wv anni scrollspot set|here|clear}", which is a path that does not
- * resolve.</p>
+ * resolve. ⚠️ <b>This file still advertises that path to the user at
+ * runtime</b>: {@code ensureAuthenticated}'s refusal line names it. That is a
+ * chat string rather than a comment, so it is filed
+ * ({@code anni-debug-chat-strings-omit-tree-literal}) rather than fixed here.</p>
  *
  * <ul>
  *   <li><b>set &lt;x&gt; &lt;y&gt; &lt;z&gt;</b> — pin the coord.</li>
@@ -39,16 +42,24 @@ import org.wynnvets.mwe.anni.network.AnniScrollspotClient;
  * leaves, {@code localinject} and {@code localclear}, which paint the marker
  * provider directly and never reach this class.</p>
  *
- * <h2>Three gates, and this class holds the weakest</h2>
+ * <h2>Three client-side checks, and only one of them is a permission gate</h2>
  *
  * <p>Each delegating wrapper in {@code AnniDebugCommands} applies
  * {@code requireDebug} and then {@code requireStaffOrOrganiser} before calling
- * in here, so by the time {@link GuildStateManager#isAuthenticatedThisSession()}
- * is consulted two stronger gates have already passed. That guard is UX only
- * — without an auth frame the server has no session to read the
- * {@code mc_uuid} from — and the real authority is the fourth check, server
- * side: vets-anni's {@code anni-party-scrollspot} endpoint independently
- * verifies the actor is the party host.</p>
+ * in here, where {@link GuildStateManager#isAuthenticatedThisSession()} is
+ * consulted last. ⚠️ <b>Order is not strength.</b> {@code requireDebug} only
+ * tests {@code VetsLogger.isDebugEnabled()}, which any player sets with
+ * {@code /wv debug true} — that node carries no permission check of its own —
+ * so it is a mode flag that keeps the command out of the way, not an
+ * authorization gate, and it is <em>weaker</em> than the auth check here.
+ * {@code requireStaffOrOrganiser} is the one that genuinely restricts who may
+ * call.</p>
+ *
+ * <p>The auth check in this class is UX only — without an auth frame the
+ * server has no session to read the {@code mc_uuid} from — and the real
+ * authority is none of the three: vets-anni's
+ * {@code anni-party-scrollspot} endpoint independently verifies the actor is
+ * the party host.</p>
  *
  * <p><b>The three entry points do not share a guard order.</b> {@code set} and
  * {@code clear} reach the auth check first; {@code here} reads the player

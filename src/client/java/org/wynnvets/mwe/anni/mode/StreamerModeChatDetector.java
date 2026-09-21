@@ -33,17 +33,21 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>On stream-off we auto-restore the user's preferred mode via
  * {@link AnniModeManager#preferredMode()} (their remembered pick, or the
- * eligibility-based default if they never picked). <b>Three paths restore
- * nothing at all</b>, and in the first two {@link AnniModeManager#transitionTo}
- * is never reached — so this is a decision not to transition, not a decision to
- * transition quietly:</p>
+ * eligibility-based default if they never picked). <b>Four paths through
+ * {@code handleStreamOff} restore nothing at all</b>, and the first three never
+ * reach {@link AnniModeManager#transitionTo} — so those are decisions not to
+ * transition, not decisions to transition quietly:</p>
  * <ul>
+ *   <li>no stream-on was ever tracked ({@code lastSeenInStream} is false), which
+ *       is the dedupe guard rather than a failed restore — a stream-off line
+ *       arriving cold does nothing;</li>
  *   <li>the preferred target is already SILENT, so there is nothing to restore
  *       (stream-on forced SILENT, and that is where the mode still is);</li>
  *   <li>the config already equals the preferred target;</li>
  *   <li>{@code transitionTo} refuses, because Wynntils' own
  *       {@code isInStream()} has not cleared yet even though our chat line
- *       has. The restore is simply lost in that case — nothing retries it.</li>
+ *       has. The restore is simply lost in that case — nothing retries it, and
+ *       {@code lastSeenInStream} has already been cleared.</li>
  * </ul>
  *
  * <p>Hooked into the chat pipeline via a one-line call from

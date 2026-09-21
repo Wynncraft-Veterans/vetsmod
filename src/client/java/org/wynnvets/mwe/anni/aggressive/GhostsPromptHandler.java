@@ -121,8 +121,10 @@ public final class GhostsPromptHandler {
                 // Wynntils not initialised or transient model failure.
                 // ⚠️ This does NOT fall through to the next player: the
                 // return abandons the whole scan and reports "no ghost
-                // seen", so one transient failure on any player downgrades
-                // a confirmed-ghosts result to the ambiguous branch. Filed
+                // seen". A throw at or before the first ghost in iteration
+                // order therefore downgrades a confirmed-ghosts result to the
+                // ambiguous branch; after it, the return true has already won.
+                // Filed
                 // as ghosts-prompt-scan-aborts-on-first-exception; the
                 // catch belongs outside the loop, or should continue.
                 return false;

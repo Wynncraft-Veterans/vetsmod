@@ -34,8 +34,9 @@ import org.wynnvets.util.Json;
  * Record components would serialise as {@code stampEpoch} and fail to match
  * {@code stamp_epoch} on the way back in, so a {@code TypeAdapter} is not an
  * optional nicety here — it is load-bearing for a debug command in another
- * package. This is why the conversion sits on the cleanup plan's excluded
- * list.</p>
+ * package. Anyone proposing the conversion should price that in; the round-trip
+ * is the part that is easy to miss, because it lives two packages away and
+ * nothing at either end points at the other.</p>
  */
 public final class AnniSnapshot {
 
@@ -275,7 +276,7 @@ public final class AnniSnapshot {
         }
 
         /** Schema v3 — the in-game scroll-spot the party host has pinned via
-         *  {@code /wv anni scrollspot}. Null until set; cleared automatically
+         *  {@code /wv debug tree anni scrollspot}. Null until set; cleared automatically
          *  by vets-anni at grace-wipe. */
         public ScrollSpot scrollSpot() {
             return scroll_spot;

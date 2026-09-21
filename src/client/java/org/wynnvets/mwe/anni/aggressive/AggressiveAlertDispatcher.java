@@ -57,29 +57,41 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  *
  * <h2>Threading</h2>
  *
- * <p>⚠️ <b>No emitter calls {@link Minecraft#execute(Runnable)}.</b> All six
- * {@code fire*} methods call {@link ChatUtils#sendLocalMessage(Component)}
- * directly, and they are safe for two different reasons:</p>
- * <ul>
- *   <li>the diff alerts bounce <em>once, upstream</em> — {@code onSnapshot}
- *       wraps the whole of {@code applyDiff} in {@code mc.execute(...)},
- *       because snapshot listeners run on the WS reader thread;</li>
- *   <li>the readiness alerts never bounce at all, because {@code tick} is
- *       registered on {@code ClientTickEvents.END_CLIENT_TICK} and is already
- *       on the main thread.</li>
- * </ul>
+ * <p>None of the six {@code fire*} methods calls
+ * {@link Minecraft#execute(Runnable)}; each calls
+ * {@link ChatUtils#sendLocalMessage(Component)} directly. <b>That is safe from
+ * any thread, and not because of anything in this class:</b>
+ * {@code sendLocalMessage} delegates to {@code ChatUtils.dispatchToChat}, which
+ * wraps the {@code displayClientMessage} call in {@code minecraft.execute(...)}
+ * unconditionally. There is no path around it. So the chat write is already on
+ * the main thread one frame below every emitter, and a new emitter added here
+ * inherits that for free.</p>
  *
- * <p>So a new emitter is not automatically safe: it inherits whichever of
- * those two entry points calls it. {@code forceAlert} does its own
- * {@code mc.execute(...)} for the same reason — it is reached from the
- * command thread.</p>
+ * <p>Which means the {@code mc.execute(...)} in {@code onSnapshot} is <b>not</b>
+ * there for the chat write, and it is not there for field visibility either —
+ * every field this class diffs is {@code volatile}. What it buys is
+ * <em>serialisation</em>: {@code applyDiff} does read-compare-write across
+ * several of those fields per snapshot, and volatile makes each read and write
+ * visible without making the sequence atomic. Hopping to the client thread means
+ * two pushes arriving close together cannot interleave their comparisons. That
+ * reading is inferred from the code; no comment states it.</p>
+ *
+ * <p>{@code tick} needs no hop at all: it is registered on
+ * {@code ClientTickEvents.END_CLIENT_TICK} and already runs on the client
+ * thread. {@code forceAlert}'s own {@code mc.execute(...)} is likewise
+ * redundant rather than required — Fabric dispatches client commands on the
+ * client thread too. Harmless, and left alone.</p>
  *
  * <p><b>Gated on</b> {@link AnniAggressiveTicker#isAggressiveActive()} AND
- * {@link VetsConfig#VETS_ANNI_CHAT_ALERTS} — but the gate governs
- * <em>emission</em> only. The snapshot listener keeps running while gated off,
- * so {@code lastSeen*} stays current and the per-stamp sentinels still reset;
- * otherwise the first snapshot after aggressive mode is switched on would
- * diff against stale state and bing for changes the user already saw.</p>
+ * {@link VetsConfig#VETS_ANNI_CHAT_ALERTS}. ⚠️ <b>The two trigger families
+ * obey that gate differently.</b> For the readiness ticker it is absolute:
+ * {@code tickInner} opens with {@code if (!gateHolds()) return;}, so the whole
+ * tick is skipped. For the snapshot listener it governs <em>emission</em> only
+ * — {@code applyDiff} resets the per-stamp sentinels and refreshes
+ * {@code lastSeen*} <em>before</em> consulting the gate, so state stays current
+ * while alerts are off. Without that, the first snapshot after aggressive mode
+ * is switched on would diff against stale state and bing for changes the user
+ * already saw.</p>
  */
 public final class AggressiveAlertDispatcher {
 
@@ -345,10 +357,16 @@ public final class AggressiveAlertDispatcher {
      *
      * <p>The coordinates are the party's pinned scroll spot when there is one.
      * <b>The {@code "345 45 -1315"} fallback is unguarded</b>, so this alert
-     * prints that literal to a player with no party at all. That is deliberate
-     * — a partyless player still needs somewhere to go — but it makes the
+     * prints that literal to a player with no party at all. Nothing states
+     * whether that is intended; it is at least arguable (a partyless player
+     * still needs somewhere to go) and the owning doc says only "do not
+     * generalise 'only in a party' beyond the waypoint". Either way it makes the
      * fallback behave differently here than in the only other place the same
-     * literal appears: {@code ScrollSpotMarkerProvider.computeEntry} returns
+     * coordinate is hard-coded. ⚠️ It is not the same literal: this file holds
+     * the whole string {@code "345 45 -1315"}, while
+     * {@code ScrollSpotMarkerProvider} holds three separate {@code int}
+     * constants. Nothing links them, which is the point.
+     * {@code ScrollSpotMarkerProvider.computeEntry} returns
      * null on a null {@code board.party()} <em>before</em> it reads the spot,
      * so the waypoint shows nothing outside a party. "Only in a party" is true
      * of the marker and false of this alert; the two are not a shared

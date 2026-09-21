@@ -43,15 +43,27 @@ public final class AnniRsvpClient {
     /**
      * Last attempted notice — for {@code rsvpDump}.
      *
-     * <p>⚠️ This is the <b>outbound command</b> vocabulary, {@code "hard"} /
-     * {@code "soft"} / {@code "revoke"}, which is not the inbound notice
-     * vocabulary a snapshot carries. vets-anni's {@code AttendanceNotice} enum
-     * has four values — {@code attend_early}, {@code rsvp_hard},
-     * {@code rsvp_soft}, {@code attend_late} — and a snapshot's
-     * {@code rsvp.notice} is normalised server-side to a bare {@code hard} /
-     * {@code soft}. The two overlap on those two words and agree on nothing
-     * else; {@code revoke} is a verb this client sends, never a state a
-     * snapshot reports.</p>
+     * <p>⚠️ This is the <b>outbound command</b> vocabulary — {@code "hard"} /
+     * {@code "soft"} / {@code "revoke"} — and it is not the inbound notice
+     * vocabulary a snapshot carries. Three sets are in play, which is why this
+     * keeps being got wrong:</p>
+     * <ul>
+     *   <li>what this client <em>sends</em>: {@code hard}, {@code soft},
+     *       {@code revoke};</li>
+     *   <li>vets-anni's {@code AttendanceNotice} enum, four values —
+     *       {@code attend_early}, {@code rsvp_hard}, {@code rsvp_soft},
+     *       {@code attend_late} — which a snapshot's
+     *       {@code attendance.notice_effective} carries raw;</li>
+     *   <li>a snapshot's {@code rsvp.notice}, which the server normalises to a
+     *       bare {@code hard} / {@code soft}.</li>
+     * </ul>
+     *
+     * <p>So the outbound set overlaps the <em>normalised</em> spelling on two
+     * words and the raw enum on none, and {@code revoke} is a verb this client
+     * sends, never a state any snapshot reports. ⚠️ The enum is owned by
+     * {@code ../vets-anni/app/constants.py} and cannot be checked from this
+     * repo; do not re-derive it from a client switch's arm count, which is how
+     * four earlier audits got a key space that does not exist.</p>
      */
     private static volatile String lastAttemptedNotice;
 

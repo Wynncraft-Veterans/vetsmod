@@ -15,10 +15,11 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <h2>Who writes here</h2>
  *
- * <p>Three classes call {@link #update(AnniSnapshot)} across five call sites, and
- * <b>not one of them writes on every frame it handles</b> — each guard below is
- * load-bearing, because {@code null} is a legal stored value and "ignored" is not
- * the same as "stored as null":</p>
+ * <p>Three classes call {@link #update(AnniSnapshot)} across five call sites.
+ * <b>Neither of the two that handle frames writes on every frame it handles</b>,
+ * and both guards are load-bearing, because {@code null} is a legal stored value
+ * and "ignored" is not the same as "stored as null". The third writer handles no
+ * frames at all:</p>
  *
  * <ul>
  *   <li>{@link org.wynnvets.mwe.anni.network.AnniWsHandler AnniWsHandler}'s
@@ -33,8 +34,11 @@ import org.wynnvets.logging.VetsLogger;
  *       whose {@code snapshot} is {@code null} — which the wire contract allows —
  *       completes the caller's future with {@code null} and leaves this cache
  *       untouched.</li>
- *   <li>{@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands}, three sites: {@code snapshotInject},
- *       {@code timeSet} and {@code snapshotClear} — the last being the only
+ *   <li>{@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands},
+ *       three sites and no frames: its shared {@code parseAndInject} helper
+ *       (one call site reached from three commands — {@code snapshotInject},
+ *       {@code snapshotInjectFile} and {@code snapshotInjectPreset}),
+ *       {@code timeSet}, and {@code snapshotClear} — the last being the only
  *       {@code update(null)} in the tree, and therefore the only way the stored
  *       value becomes {@code null} after a session has gone warm.</li>
  * </ul>

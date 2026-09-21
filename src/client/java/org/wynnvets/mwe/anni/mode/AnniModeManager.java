@@ -18,16 +18,29 @@ import org.wynnvets.logging.VetsLogger;
  * first and prints its confirmation afterwards. The only message that precedes
  * a write is the refusal — and on that path there is no write at all.</p>
  *
- * <p>Exactly three classes read the current mode, and all three go through
- * {@link #current()}:
- * {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager VetsBossBarManager},
- * {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker} and
- * {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker AnniAggressiveTicker}
- * — the same three {@link VetsConfig#VETS_ANNI_MODE}'s own Javadoc names.
- * {@link AnniMode#fromConfig()} is <em>not</em> a second route for them: its only
- * direct readers are {@link AnniWindowWatcher} and
- * {@link StreamerModeChatDetector}, both inside this package. So the two are
- * disjoint populations rather than alternatives.</p>
+ * <p>The mode is read on two routes, and they are disjoint populations rather
+ * than alternatives — no class uses both.</p>
+ *
+ * <ul>
+ *   <li>Through {@link #current()}: <b>exactly three</b> classes, and they are
+ *       the subsystems —
+ *       {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager VetsBossBarManager},
+ *       {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker}
+ *       and
+ *       {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker AnniAggressiveTicker}.
+ *       This is the population {@link VetsConfig#VETS_ANNI_MODE}'s own Javadoc
+ *       counts, and it says so with the qualifier: "read <em>through</em>
+ *       {@code AnniModeManager.current()} by exactly three classes".</li>
+ *   <li>Through {@link AnniMode#fromConfig()} directly: {@link AnniWindowWatcher},
+ *       {@link StreamerModeChatDetector}, and <b>this class</b> — at
+ *       {@link #current()} itself, which is the shim, and again in
+ *       {@link #applyStartupDefaultIfNeeded()}, which is not.</li>
+ * </ul>
+ *
+ * <p>So "three classes read the mode" is only true of the {@code current()}
+ * route. Counting every reader gives six. ⚠️ Dropping the qualifier is an easy
+ * mistake to make from inside this file, because the obvious grep for
+ * {@code fromConfig()} excludes the file you are editing.</p>
  *
  * <p>Nothing writes {@link VetsConfig#VETS_ANNI_MODE} directly. The key has a
  * single write site, inside {@link #transitionTo(AnniMode, Source)}, which is

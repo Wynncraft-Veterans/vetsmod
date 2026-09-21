@@ -23,7 +23,8 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * opposites there.</b> This one fails <em>closed</em>: its catch assigns
  * {@code aggressiveActive = false}, so a tick that throws turns aggressive
  * surfaces off. {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker}'s catch assigns nothing, so it fails
- * <em>stale</em> — a throw with the gate open leaves both outline mixins
+ * <em>stale</em> — a throw with the gate open leaves its two behavioural
+ * readers, {@code EntityOutlineColorMixin} and {@code NametagMixin},
  * believing anni rendering is still on. Do not reason from one to the other.
  * {@code vetsmod_rendering.md} §6 owns the contrast.</p>
  *
@@ -70,7 +71,8 @@ public final class AnniAggressiveTicker {
      * {@link org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider ScrollSpotMarkerProvider},
      * {@link AggressiveAlertDispatcher} and {@link GhostsPromptHandler} — each
      * testing it at the top of its hot path. <b>Two diagnostic reads</b> also
-     * report it: {@link org.wynnvets.debug.DebugCommands DebugCommands}' anni dump and
+     * report it: {@link org.wynnvets.debug.DebugCommands DebugCommands}'
+     * zone-lines dump ({@code /wv debug trigger zoneLinesDump}) and
      * {@link GhostsPromptHandler}'s own prompt dump. Six call sites in all,
      * which is the count the doc-count manifest pins.</p>
      */
