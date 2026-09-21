@@ -39,7 +39,9 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * anni cycle. Gated by {@link VetsLogger#isDebugEnabled()} (not the
  * {@code vetsAnniEnabled} master toggle) so the whole subsystem stays
  * testable while still being accidentally-safe (debug logging is off by
- * default, expires after 3 days, and is opt-in via {@code /wv debug true}).</p>
+ * default, is opt-in via {@code /wv debug true}, and is not restored at
+ * startup once three days have passed since it was switched on — that check
+ * runs only at client init, so a session left running keeps it on).</p>
  *
  * <p>Two gates, and only one of them restricts who may call. All 24 handlers
  * open with {@code requireDebug}, which tests
@@ -54,10 +56,11 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  */
 public final class AnniDebugCommands {
 
-    // serializeNulls so dumps are byte-equivalent to the wire format
-    // (server-side python json.dumps emits explicit nulls). Lets `inject
-    // file` round-trip a dump and lets a human-eye diff against the
-    // canonical /api/internal/anni-player/{uuid} response succeed.
+    // serializeNulls so dumps keep the explicit nulls the wire format
+    // carries (server-side python json.dumps emits them; Gson drops null
+    // fields by default). Not byte-equivalent: the dump is pretty-printed.
+    // Lets `inject file` round-trip a dump and lets a human-eye diff against
+    // the canonical /api/internal/anni-player/{uuid} response succeed.
     private static final Gson GSON =
             new GsonBuilder().setPrettyPrinting().serializeNulls().create();
 
@@ -159,7 +162,7 @@ public final class AnniDebugCommands {
             };
 
     /** Common offsets the user is likely to want when iterating on the
-     *  imminent / far-out / past render branches. */
+     *  imminent / far-out / not-announced render branches. */
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_TIME_OFFSETS =
             (ctx, builder) -> {
                 String partial = builder.getRemaining().toLowerCase();
@@ -173,7 +176,7 @@ public final class AnniDebugCommands {
                             "7200", // 2h  — boundary between far-out and imminent
                             "28800", // 8h  — realistic announced-anni offset
                             "43200", // 12h — max real announce window
-                            "-60", // 1m ago
+                            "-60", // ≤ 0 → timeSet nulls the stamp (not-announced branch)
                         }) {
                     if (s.startsWith(partial)) {
                         builder.suggest(s);
@@ -193,8 +196,10 @@ public final class AnniDebugCommands {
                 return builder.buildFuture();
             };
 
-    /** Role codes accepted by {@code /wv debug tree anni registry set <user> <role>}.
+    /** Role codes suggested for {@code /wv debug tree anni registry set <user> <role>}
+     *  (the argument accepts any word; an unrecognised code renders grey).
      *  Mirrors the cases in {@link org.wynnvets.mwe.anni.outline.AnniOutlinePalette#chatFormattingForRole}
+     *  except its {@code HEAL} alias for {@code HEALER},
      *  plus the synthetic {@code other} alias for the {@code OTHER_VETS_PARTY}
      *  tier (light grey, role-agnostic). */
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_REGISTRY_ROLES =
@@ -525,7 +530,7 @@ public final class AnniDebugCommands {
         return false;
     }
 
-    // ───────────────────────────────────────── snapshot inject / dump
+    // ─────────────────────────── snapshot inject / dump / clear / refresh
 
     private static int snapshotInject(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
@@ -776,11 +781,13 @@ public final class AnniDebugCommands {
      *  <p>Pushes {@code null} into the cache so subscribed surfaces
      *  re-render in their no-snapshot state. Push frames from temp-server
      *  only fire on a diff against temp-server's own cache, so clearing
-     *  the local cache does NOT trigger a re-push — your cache stays
-     *  empty until either the actual data changes server-side or you
-     *  follow up with {@code refresh}. Use this command to test the
-     *  no-snapshot rendering branch; use {@code refresh} to undo
-     *  synthetic injects and re-pull real data.</p> */
+     *  the local cache does NOT trigger a re-push. The cache stays empty
+     *  until something refills it, such as a server-side change, a
+     *  {@code refresh}, or any other client-side {@code anni_query} that
+     *  returns a snapshot (a cold-cache {@code /wv anni} can issue one).
+     *  Use this command to test the no-snapshot rendering branch; use
+     *  {@code refresh} to undo synthetic injects and re-pull real data —
+     *  it replaces the cache only when the query returns a snapshot.</p> */
     private static int snapshotClear(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
@@ -801,14 +808,19 @@ public final class AnniDebugCommands {
      *  results through {@link AnniSnapshotCache#update(AnniSnapshot)}, so
      *  this command only needs to issue the request and report when the
      *  future completes. The completion callback bounces onto the main
-     *  thread via {@link Minecraft#execute(Runnable)} — futures from
-     *  {@link AnniQueryClient} fire on the WS reader thread, which is not
-     *  safe for chat dispatch.</p>
+     *  thread via {@link Minecraft#execute(Runnable)} — a response
+     *  completes the {@link AnniQueryClient} future on the WS reader
+     *  thread, and the 8-second deadline completes it from the JDK's
+     *  {@code CompletableFuture} delay scheduler; neither is safe for chat
+     *  dispatch.</p>
      *
      *  <p>Pairs with the synthetic-injection paths as the "undo" knob:
      *  inject any preset/file/inline snapshot to test rendering, then
      *  {@code refresh} to wipe the synthetic data and re-pull the real
-     *  state from the server.</p> */
+     *  state from the server. Only a non-null snapshot replaces the cache:
+     *  if the query times out, the WS is down, or the response carries no
+     *  parseable snapshot, the synthetic one stays until a later push
+     *  replaces it, and the failure line does not say so.</p> */
     private static int snapshotRefresh(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
@@ -843,16 +855,15 @@ public final class AnniDebugCommands {
                                                     return;
                                                 }
                                                 if (snapshot == null) {
-                                                    // Three possible causes: inbound WS down,
-                                                    // server
-                                                    // returned snapshot=null (player not in
-                                                    // vets-anni DB),
-                                                    // or the 8s deadline elapsed. The QueryClient
-                                                    // doesn't
-                                                    // distinguish them in the future's value — they
-                                                    // all
-                                                    // come through as null — so the message is
-                                                    // generic.
+                                                    // Null means the inbound WS was down (the
+                                                    // frame never went out) or the response's
+                                                    // snapshot was missing, null (e.g. player
+                                                    // not in vets-anni DB) or failed to parse.
+                                                    // The 8s deadline does not land here: it
+                                                    // completes the future exceptionally and
+                                                    // takes the throwable arm above (the filed
+                                                    // orTimeout bug). The value doesn't say
+                                                    // which cause, so the message is generic.
                                                     ChatUtils.sendLocalMessage(
                                                             Component.literal(
                                                                             "anni snapshot refresh: no snapshot returned "
@@ -879,7 +890,7 @@ public final class AnniDebugCommands {
         return 1;
     }
 
-    // ───────────────────────────────────── guess (read-only snapshot peek)
+    // ───────────── guess (snapshot peek; a successful pull replaces the cache)
 
     /** {@code /wv debug tree anni guess} — pull a fresh snapshot from
      *  temp-server and print whatever the prediction / announcement
@@ -887,10 +898,14 @@ public final class AnniDebugCommands {
      *  fishbot's {@code \guess} model agrees with what vetsmod sees,
      *  without going through the full {@code /wv anni} renderer.
      *
-     *  <p>Always pulls fresh (not from cache) so the user gets the
-     *  actual current model output rather than whatever was last pushed.
-     *  If the pull fails it falls back to printing what's in cache,
-     *  flagged as stale.</p> */
+     *  <p>Always issues a fresh {@code anni_query} rather than reading
+     *  the local cache, so the user does not just see whatever was last
+     *  pushed. temp-server may still answer from its own short-lived
+     *  cache, or with its cached copy marked stale when it cannot get a
+     *  fresh one from vets-anni; vetsmod does not read that stale flag,
+     *  so such a reply prints unflagged. If the pull fails (or returns no
+     *  snapshot) it falls back to printing what's in the local cache, if
+     *  any, flagged as stale.</p> */
     private static int guess(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
@@ -1137,7 +1152,7 @@ public final class AnniDebugCommands {
         return 1;
     }
 
-    // ───────────────────────────────────────── S3 consumers
+    // ───────────────────────────────────────── S3+ consumers
 
     private static int zone(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
@@ -1237,7 +1252,9 @@ public final class AnniDebugCommands {
     }
 
     /** {@code /wv debug tree anni scrollspot localclear} — clear the
-     *  local-only injected scroll spot. */
+     *  local marker, whether it came from {@code localinject} or from the
+     *  latest snapshot (the party's scroll spot or the in-party default);
+     *  the next snapshot update recomputes it. Never touches the server. */
     private static int scrollspotLocalClear(CommandContext<FabricClientCommandSource> ctx) {
         if (requireDebug(ctx) == 0) return 0;
         if (requireStaffOrOrganiser(ctx) == 0) return 0;
@@ -1272,8 +1289,12 @@ public final class AnniDebugCommands {
     }
 
     /** {@code /wv debug tree anni alert <field>} — synthesise a chat
-     *  alert. Verifies cooldown / formatting / bouncing without
-     *  contriving a snapshot diff. */
+     *  alert. Verifies formatting / bouncing without contriving a
+     *  snapshot diff. It cannot verify the cooldown:
+     *  {@link org.wynnvets.mwe.anni.aggressive.AggressiveAlertDispatcher#forceAlert
+     *  AggressiveAlertDispatcher#forceAlert} calls the alert emitters directly,
+     *  bypassing both the 5s per-field cooldown and the aggressive-mode /
+     *  chat-alerts gate. */
     private static int alert(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
@@ -1373,7 +1394,9 @@ public final class AnniDebugCommands {
     }
 
     /** {@code /wv debug tree anni registry clear <username>} — drop a
-     *  single debug-injected entry. No-op if the username isn't present. */
+     *  single entry, debug-injected or snapshot-derived; a derived one
+     *  returns on the next snapshot rebuild if that snapshot still lists
+     *  the player. No-op if the username isn't present. */
     private static int registryClear(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
