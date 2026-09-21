@@ -23,6 +23,14 @@
 # reading it as "the prose is stale". Symbols with in-class callers have to be
 # checked by hand.
 #
+# 5.5c checked its six packages against that rule and EXCLUDED two symbols
+# for it: AnniModeManager.current has an in-class caller in transitionTo, and
+# AnniModeManager.transitionTo has one in applyStartupDefaultIfNeeded. The
+# script reports 3 and 5; the real totals are 4 and 6. Neither belongs here.
+#
+# NOTE: MANIFEST is single-quoted, so a note field must not contain an
+# apostrophe. It terminates the string and the script dies at the next paren.
+#
 #   tools/check-doc-counts.sh            # check the manifest
 #   tools/check-doc-counts.sh --list     # find count claims a human should read
 #   tools/check-doc-counts.sh --count 'Json.optString'
@@ -50,6 +58,13 @@ VetsBossBarManager.isActive|2|VetsBossBarManager: mixin gate + DebugCommands dum
 VetsBossBarManager.barUuid|2|VetsBossBarManager: mixin filter + DebugCommands dump
 FlashTracker.styleFor|4|VetsBossBarContentBuilder class doc: "four chips"
 FlashTracker.reset|1|FlashTracker: "One caller: VetsBossBarManager deactivate"
+AnniSnapshotCache.addListener|6|AnniSnapshotCache: "Six are registered today"
+AnniSnapshotCache.update|5|AnniSnapshotCache: three classes across five call sites
+AnniAggressiveTicker.isAggressiveActive|6|AnniAggressiveTicker: "Six call sites in all"
+AnniWindows.inHotWindow|2|AnniWindows: AnniOutlineTicker + AnniAggressiveTicker
+AnniWindows.hotWindowClosed|1|AnniWindows: the watcher needs the closing edge alone
+AnniModeManager.preferredMode|2|AnniModeManager: "Consulted by exactly two callers"
+AnniZone.isCold|1|AnniZone: one caller, the DebugCommands zone dump
 '
 
 # Count non-comment call sites of Class.method( across the client source set.
