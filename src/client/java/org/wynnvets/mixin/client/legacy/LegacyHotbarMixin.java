@@ -13,8 +13,14 @@ import org.wynnvets.items.LegacyHighlightPainter;
 
 /**
  * Draws the legacy-item highlight on hotbar slots rendered by the in-game HUD.
- * Mirrors the behaviour of {@link LegacyHighlightMixin} which only covers
- * inventory / container screens ({@link net.minecraft.client.gui.screens.inventory.AbstractContainerScreen}).
+ * It is the hotbar counterpart of
+ * {@link org.wynnvets.listeners.LegacyHighlightEventListener LegacyHighlightEventListener}, which
+ * draws the same highlight in inventory / container screens
+ * ({@link net.minecraft.client.gui.screens.inventory.AbstractContainerScreen}) through Wynntils'
+ * {@code SlotRenderEvent.Pre}; both hand the slot's stack and position to
+ * {@link org.wynnvets.items.LegacyHighlightPainter#paintIfLegacy
+ * LegacyHighlightPainter.paintIfLegacy}. {@link LegacyHighlightMixin}, on those same screens,
+ * does not draw.
  */
 @Mixin(Gui.class)
 public class LegacyHotbarMixin {

@@ -15,8 +15,15 @@ import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 /**
  * Intercepts chat message display-queue insertion to replace static
  * {@link FormattedCharSequence}s with {@link AnimatedGradientSequence}
- * wrappers when an animation config has been set via
- * {@link AnimatedGradientSequence#beginAnimation}.
+ * wrappers. Every newly inserted line is wrapped, and each wrapper is built
+ * from {@link AnimatedGradientSequence#effectiveDefaultStart()},
+ * {@link AnimatedGradientSequence#effectiveDefaultEnd()} (both honour
+ * {@code colorBlindMode}) and
+ * {@link AnimatedGradientSequence#DEFAULT_CYCLE_TIME_MS}. The mixin does not
+ * read the config {@link AnimatedGradientSequence#beginAnimation} sets, so
+ * colours passed there never reach these wrappers. A wrapper recolours only
+ * characters carrying a marker colour; everything else passes through
+ * unchanged.
  *
  * <p>New {@code GuiMessage.Line} entries are created at the beginning of
  * {@code trimmedMessages} (via {@code addFirst}). We record the list size

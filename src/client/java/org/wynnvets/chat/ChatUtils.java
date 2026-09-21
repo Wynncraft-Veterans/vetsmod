@@ -716,9 +716,14 @@ public final class ChatUtils {
     // ── Internal ───────────────────────────────────────────────────────
 
     /**
-     * Dispatches a component with the animated gradient context active so that
-     * {@link org.wynnvets.mixin.client.chat.AnimatedChatMixin AnimatedChatMixin} wraps the stored
-     * lines. Uses the supporter gradient (DARK_AQUA → white, 3 s cycle).
+     * Dispatches a component with the animated gradient context set. That context is not what
+     * animates it: {@link org.wynnvets.mixin.client.chat.AnimatedChatMixin AnimatedChatMixin}
+     * wraps every newly inserted chat line without reading the context, and the wrapper recolours
+     * only characters carrying a marker colour. The gradient comes from
+     * {@link AnimatedGradientSequence#effectiveDefaultStart()} and
+     * {@link AnimatedGradientSequence#effectiveDefaultEnd()} ({@code DARK_AQUA} to
+     * {@code 0xAADDFF}, or the colour-blind pair) on a 3 s cycle, the same values this method
+     * passes.
      *
      * @param message      the full message component
      * @param prependStyle the badge style used for continuation-line block markers

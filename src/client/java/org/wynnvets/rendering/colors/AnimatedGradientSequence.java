@@ -28,8 +28,11 @@ import org.wynnvets.config.VetsConfig;
  * }
  * }</pre>
  *
- * The companion {@link org.wynnvets.mixin.client.chat.AnimatedChatMixin AnimatedChatMixin} detects
- * the pending config and wraps the stored {@code FormattedCharSequence} with this class.
+ * The companion {@link org.wynnvets.mixin.client.chat.AnimatedChatMixin AnimatedChatMixin} wraps
+ * every newly inserted chat line with this class, built from {@link #effectiveDefaultStart()},
+ * {@link #effectiveDefaultEnd()} and {@link #DEFAULT_CYCLE_TIME_MS}. It does not read the config
+ * {@link #beginAnimation} sets (see {@code CURRENT_CONFIG}), so the colours passed in the example
+ * above never reach the wrapper.
  */
 public class AnimatedGradientSequence implements FormattedCharSequence {
 
