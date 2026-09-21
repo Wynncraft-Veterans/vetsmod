@@ -108,6 +108,14 @@ public class NametagMixin {
     private static final boolean WYNNMOD_PRESENT =
             FabricLoader.getInstance().isModLoaded("wynnmod");
 
+    /**
+     * {@code extractRenderState} TAIL: runs {@code applyOverride} with
+     * {@code fromWrap = false} on the state vanilla has just populated.
+     * The anni branch is unaffected by that flag; the supporter branch is
+     * skipped when wynnmod is loaded (see {@code WYNNMOD_PRESENT}). Why
+     * TAIL rather than a {@code submitNameTag} HEAD inject: see the class
+     * doc.
+     */
     @Inject(
             method =
                     "extractRenderState("
@@ -120,6 +128,17 @@ public class NametagMixin {
         applyOverride(state, entity, false);
     }
 
+    /**
+     * Wraps the bridge method's call into the {@code AvatarRenderState}
+     * overload of {@code submitNameTag}: runs {@code applyOverride} with
+     * {@code fromWrap = true} on whatever {@code state.nameTag} holds at
+     * that point, then makes the original call with its arguments
+     * unchanged. The entity is read from Wynntils'
+     * {@code EntityRenderStateExtension}, which Wynntils populates at
+     * {@code EntityRenderer.extractRenderState} RETURN. Why the wrap exists
+     * and why the mixin's priority is 900: see the class doc's
+     * wynnmod-interop paragraph.
+     */
     @WrapOperation(
             method =
                     "submitNameTag("

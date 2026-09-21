@@ -33,6 +33,13 @@ public final class DebugConfigManager {
         VetsConfig.registerDefault(ITEM_DUMP, false);
     }
 
+    /**
+     * Returns whether {@code key} is one of {@link #DEBUG_CONFIG_KEYS}.
+     * {@code /wv debug set <key>} and {@code /wv debug set <key> <value>}
+     * use it to reject unknown keys. The match is exact and
+     * case-sensitive, unlike the case-insensitive tab completion
+     * {@link DebugCommands} offers for the same keys.
+     */
     public static boolean isDebugConfigKey(String key) {
         for (String debugKey : DEBUG_CONFIG_KEYS) {
             if (debugKey.equals(key)) return true;

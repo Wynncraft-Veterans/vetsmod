@@ -78,6 +78,25 @@ public final class DiagnosticsHandler {
 
     // ── Diagnostics dump ─────────────────────────────────────────────
 
+    /**
+     * Gathers a diagnostics snapshot and reports it twice: a concise block to
+     * chat via {@link ChatUtils#sendLocalMessageNewBlock}, and a fuller report
+     * to the log at info level via {@link VetsLogger}.
+     *
+     * <p>Sources: mod versions from Fabric Loader ({@code getModVersion});
+     * guild, staff, unlock and bearer-key auth state from
+     * {@link GuildStateManager}; the automessage setting and the persisted
+     * auth tier and verification time from {@link VetsConfig}; the
+     * debug-logging flag from {@link VetsLogger}; supporter status from
+     * {@link SupportersPoller}; server address and brand from the vanilla
+     * client; world state and name from Wynntils' {@code Models.WorldState},
+     * left as {@code "unknown"} if that throws.</p>
+     *
+     * <p>The log report also carries the player name, the can-execute and
+     * debug-guildless-override flags, the persisted tier, the raw
+     * verification timestamp and every loaded mod's id and version, none of
+     * which reach chat.</p>
+     */
     private static void dumpDiagnostics() {
         String vetsmodVersion = getModVersion("vetsmod");
         String mcVersion = getModVersion("minecraft");
@@ -250,6 +269,10 @@ public final class DiagnosticsHandler {
         VetsLogger.info("=== End Diagnostics Dump ===");
     }
 
+    /**
+     * {@code Returners} (green), else {@code Guildless} (yellow), else
+     * {@code Other} (red); Returners wins if both flags are set.
+     */
     private static MutableComponent guildSummary(boolean isReturners, boolean isGuildless) {
         if (isReturners) {
             return Component.literal("Returners").withStyle(ChatFormatting.GREEN);
@@ -260,11 +283,18 @@ public final class DiagnosticsHandler {
         }
     }
 
+    /** {@code true} in green or {@code false} in red. */
     private static MutableComponent boolComponent(boolean value) {
         return Component.literal(value ? "true" : "false")
                 .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED);
     }
 
+    /**
+     * {@code verified} (green) once the key has been verified this session;
+     * otherwise {@code stored, unverified} (yellow) when a key is stored,
+     * followed by the last failure reason in red when there is one; otherwise
+     * {@code none} (red).
+     */
     private static MutableComponent authStatusComponent(
             boolean hasKey, boolean verified, String failureReason) {
         if (verified) {
@@ -283,6 +313,11 @@ public final class DiagnosticsHandler {
         return Component.literal("none").withStyle(ChatFormatting.RED);
     }
 
+    /**
+     * Time elapsed since {@code epochMillis} in its largest whole unit
+     * (seconds, minutes, hours or days, truncated: 90 seconds is {@code 1m}).
+     * A timestamp in the future reports {@code 0s}.
+     */
     private static String formatRelative(long epochMillis) {
         long delta = System.currentTimeMillis() - epochMillis;
         if (delta < 0L) return "0s";
@@ -296,6 +331,10 @@ public final class DiagnosticsHandler {
         return days + "d";
     }
 
+    /**
+     * The friendly version string of the loaded mod with this id, or
+     * {@code "not found"} if Fabric Loader has no such mod.
+     */
     private static String getModVersion(String modId) {
         return FabricLoader.getInstance()
                 .getModContainer(modId)

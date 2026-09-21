@@ -259,6 +259,12 @@ public final class DebugCommands {
      */
     private static final String PREFIX = "\uDAFF\uDFFC";
 
+    /**
+     * Tail appended after the icon character, so {@code PREFIX + icon + SUFFIX}
+     * spells a full badge sequence: {@link org.wynnvets.chat.Prepend Prepend}'s
+     * full {@code GUILD} badge is {@code PREFIX}, then {@code U+E006}, then this
+     * tail.
+     */
     private static final String SUFFIX = "\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
 
     private static final Style CHAT_PREFIX_FONT =

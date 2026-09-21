@@ -516,6 +516,12 @@ public final class AnniDebugCommands {
         return 0;
     }
 
+    /** Whether the local player's UUID appears, case-insensitively, in the
+     *  cached snapshot's {@code organisers} — the organiser half of
+     *  {@code requireStaffOrOrganiser}. {@code false} if the cache is
+     *  empty or there is no local player. Reads
+     *  {@link AnniSnapshotCache#latest()}, so an injected snapshot counts
+     *  the same as a real one — one more reason that gate is UX only. */
     private static boolean isLocalPlayerOrganiser() {
         AnniSnapshot snap = AnniSnapshotCache.latest();
         if (snap == null) return false;
@@ -532,6 +538,9 @@ public final class AnniDebugCommands {
 
     // ─────────────────────────── snapshot inject / dump / clear / refresh
 
+    /** {@code /wv debug tree anni snapshot inject <json>} — inject the rest
+     *  of the line as snapshot JSON through {@code parseAndInject}, tagged
+     *  {@code inline}. NOW tokens are substituted here too. */
     private static int snapshotInject(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
@@ -539,6 +548,14 @@ public final class AnniDebugCommands {
         return parseAndInject(raw, "inline");
     }
 
+    /** {@code /wv debug tree anni snapshot inject file <name>} — inject
+     *  the snapshot in {@code <name>.json} under {@code SNAPSHOTS_DIR},
+     *  typically one written by {@code snapshot dump}; a trailing
+     *  {@code .json} on the argument is tolerated, and tab completion
+     *  offers that directory's {@code .json} files, extension stripped.
+     *  Reports and returns 0 if the file is missing or unreadable;
+     *  otherwise hands the text to {@code parseAndInject} tagged
+     *  {@code "file:<name>"}. */
     private static int snapshotInjectFile(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
@@ -566,6 +583,24 @@ public final class AnniDebugCommands {
         return parseAndInject(raw, "file:" + name);
     }
 
+    /** {@code /wv debug tree anni snapshot inject preset <name>} — inject
+     *  a bundled fixture, read from the classpath at
+     *  {@code PRESET_CLASSPATH_PREFIX + name + ".json"} (a trailing
+     *  {@code .json} on the argument is tolerated), through
+     *  {@code parseAndInject}, so its NOW tokens are substituted. Any
+     *  {@code .json} file directly under that prefix loads; {@code PRESETS}
+     *  only drives tab completion. Reports and returns 0 for an unknown or
+     *  unreadable preset.
+     *
+     *  <p>A successful inject also sets the renderer's external override
+     *  from the preset name, tested case-insensitively: a name starting
+     *  {@code external} forces external rendering, one starting
+     *  {@code member} forces vets rendering, and anything else (e.g.
+     *  {@code empty}) resets the override to auto (rank signals). This
+     *  replaces any override set earlier with
+     *  {@code /wv debug tree anni external …}; running that command after
+     *  the inject still wins. A failed inject leaves the override
+     *  alone.</p> */
     private static int snapshotInjectPreset(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
@@ -741,6 +776,15 @@ public final class AnniDebugCommands {
     private static final java.util.regex.Pattern NOW_TOKEN =
             java.util.regex.Pattern.compile("\"\\{NOW(?:([+\\-])(\\d+(?:\\.\\d+)?)([hms]))?\\}\"");
 
+    /** {@code /wv debug tree anni snapshot dump} — write the cached
+     *  snapshot (real or injected) to
+     *  {@code vetsmod/dumps/anni/snapshot-<yyyyMMdd-HHmmss>.json} under the
+     *  game directory, the timestamp in UTC, pretty-printed with explicit
+     *  nulls. Creates the directory if needed. Two dumps within the same
+     *  second get the same name, and the second overwrites the first.
+     *  Reports and returns 0 if the cache is empty or the write fails. The
+     *  file name without {@code .json} is what
+     *  {@code snapshot inject file <name>} takes to load it back. */
     private static int snapshotDump(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
@@ -1154,6 +1198,20 @@ public final class AnniDebugCommands {
 
     // ───────────────────────────────────────── S3+ consumers
 
+    /** {@code /wv debug tree anni zone <enter|exit>} — set the in-zone
+     *  override on {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker
+     *  AnniOutlineTicker}. {@code enter} makes the zone check pass
+     *  regardless of position; {@code exit} removes the override so the
+     *  real position check applies again — it does not force the player
+     *  out of the zone. The action is case-insensitive; not persisted.
+     *
+     *  <p>The zone check is one condition of the S4 highlight gate; the
+     *  others (a non-silent mode, an outline or nametag toggle, a snapshot
+     *  with a stamp, the time window) still apply. Only that ticker reads
+     *  the override: every other in-zone check (the boss bar, the T-5m
+     *  zone-absence alert, the ghosts prompt) calls
+     *  {@link org.wynnvets.mwe.anni.zone.AnniZone#isInZone(double, double)
+     *  AnniZone.isInZone} directly and ignores it.</p> */
     private static int zone(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
