@@ -21,10 +21,14 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * IDs) was judged not worth the wire-protocol churn for the current scale
  * — same call-out the staff-action queue makes.</p>
  *
- * <p>Successful query responses are also bounced through
+ * <p>Query responses are also bounced through
  * {@link AnniSnapshotCache#update(AnniSnapshot)} so the on-demand pull
  * still drives the listener bus (lets S2's renderer hook fire whether
- * the snapshot arrives via push or pull).</p>
+ * the snapshot arrives via push or pull). <b>Only when the parsed snapshot is
+ * non-null</b>: a response the server considers successful but whose
+ * {@code snapshot} is {@code null} resolves the caller's future with
+ * {@code null} and leaves the cache exactly as it was. The cache is never
+ * cleared from this path.</p>
  */
 public final class AnniQueryClient {
 

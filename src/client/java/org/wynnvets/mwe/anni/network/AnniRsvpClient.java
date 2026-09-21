@@ -40,7 +40,19 @@ public final class AnniRsvpClient {
     private static final ConcurrentLinkedDeque<CompletableFuture<Ack>> pending =
             new ConcurrentLinkedDeque<>();
 
-    /** Last attempted notice ("hard"/"soft"/"revoke") — for {@code rsvpDump}. */
+    /**
+     * Last attempted notice — for {@code rsvpDump}.
+     *
+     * <p>⚠️ This is the <b>outbound command</b> vocabulary, {@code "hard"} /
+     * {@code "soft"} / {@code "revoke"}, which is not the inbound notice
+     * vocabulary a snapshot carries. vets-anni's {@code AttendanceNotice} enum
+     * has four values — {@code attend_early}, {@code rsvp_hard},
+     * {@code rsvp_soft}, {@code attend_late} — and a snapshot's
+     * {@code rsvp.notice} is normalised server-side to a bare {@code hard} /
+     * {@code soft}. The two overlap on those two words and agree on nothing
+     * else; {@code revoke} is a verb this client sends, never a state a
+     * snapshot reports.</p>
+     */
     private static volatile String lastAttemptedNotice;
 
     /** Last completed ack — for {@code rsvpDump}. May be null on first run. */
