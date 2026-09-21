@@ -899,15 +899,13 @@ public final class AnniDebugCommands {
                                                     return;
                                                 }
                                                 if (snapshot == null) {
-                                                    // Null means the inbound WS was down (the
-                                                    // frame never went out) or the response's
-                                                    // snapshot was missing, null (e.g. player
-                                                    // not in vets-anni DB) or failed to parse.
-                                                    // The 8s deadline does not land here: it
-                                                    // completes the future exceptionally and
-                                                    // takes the throwable arm above (the filed
-                                                    // orTimeout bug). The value doesn't say
-                                                    // which cause, so the message is generic.
+                                                    // Three possible causes: inbound WS down, a
+                                                    // response whose snapshot is missing, null
+                                                    // (player not in vets-anni DB) or fails to
+                                                    // parse, or the 8s deadline elapsed. The
+                                                    // QueryClient doesn't distinguish them in the
+                                                    // future's value — they all come through as
+                                                    // null — so the message is generic.
                                                     ChatUtils.sendLocalMessage(
                                                             Component.literal(
                                                                             "anni snapshot refresh: no snapshot returned "
