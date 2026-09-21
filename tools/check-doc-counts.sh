@@ -28,8 +28,27 @@
 # AnniModeManager.transitionTo has one in applyStartupDefaultIfNeeded. The
 # script reports 3 and 5; the real totals are 4 and 6. Neither belongs here.
 #
-# NOTE: MANIFEST is single-quoted, so a note field must not contain an
-# apostrophe. It terminates the string and the script dies at the next paren.
+# SECOND BLIND SPOT, found by 5.5d: count_calls used to match a bare
+# substring, so "DebugCommands.buildCommandTree(" also matched every
+# "AnniDebugCommands.buildCommandTree(" and reported 2 where the truth is 1.
+# The pattern now starts at a word boundary (\b), so a class name that is a
+# suffix of another class name no longer inflates the count. A package-
+# qualified call (org.wynnvets.debug.DebugCommands.buildCommandTree() still
+# counts -- the dot before the class name is a boundary. All 22 entries that
+# predate the fix returned the same numbers after it.
+#
+# PATTERNS is a second, smaller manifest for counts no call-site grep can
+# see: occurrences of a fixed string on NON-comment lines of ONE file. It
+# exists for in-class call counts the header above rules out of MANIFEST,
+# e.g. the 24 requireDebug(ctx) and 5 requireStaffOrOrganiser(ctx) sites in
+# AnniDebugCommands, which its class doc states and 6d will inherit. Only
+# use it for strings that never wrap across lines after spotlessApply: a
+# method reference split onto a continuation line is invisible to it (the
+# text AnniDebugCommands:: matches 16 of that class 24 handler references).
+#
+# NOTE: MANIFEST and PATTERNS are single-quoted, so a note field must not
+# contain an apostrophe. It terminates the string and the script dies at the
+# next paren.
 #
 #   tools/check-doc-counts.sh            # check the manifest
 #   tools/check-doc-counts.sh --list     # find count claims a human should read
@@ -65,11 +84,21 @@ AnniWindows.inHotWindow|2|AnniWindows: AnniOutlineTicker + AnniAggressiveTicker
 AnniWindows.hotWindowClosed|1|AnniWindows: the watcher needs the closing edge alone
 AnniModeManager.preferredMode|2|AnniModeManager: "Consulted by exactly two callers"
 AnniZone.isCold|1|AnniZone: one caller, the DebugCommands zone dump
+DebugCommands.buildCommandTree|1|DebugCommands class doc: CommandRegistry is the single integration point
+AnniDebugCommands.buildCommandTree|1|AnniDebugCommands#buildCommandTree: caller is DebugCommands
+DebugConfigManager.isDebugConfigKey|2|DebugConfigManager#isDebugConfigKey: the two /wv debug set handlers
+AnimatedGradientSequence.beginAnimation|1|vetsmod_rendering.md: the one real caller, ChatUtils.dispatchAnimatedChat
+'
+
+# file (under $SRC)|fixed string|expected occurrences on non-comment lines|note
+PATTERNS='
+org/wynnvets/mwe/anni/debug/AnniDebugCommands.java|requireDebug(ctx)|24|AnniDebugCommands class doc: all 24 handlers open with requireDebug
+org/wynnvets/mwe/anni/debug/AnniDebugCommands.java|requireStaffOrOrganiser(ctx)|5|AnniDebugCommands class doc: the five scrollspot handlers
 '
 
 # Count non-comment call sites of Class.method( across the client source set.
 count_calls() {
-  grep -rn --include=*.java -- "${1//./\.}(" "$SRC" 2>/dev/null \
+  grep -rn --include=*.java -- "\b${1//./\.}(" "$SRC" 2>/dev/null \
     | grep -vE '^[^:]+:[0-9]+: *(\*|//|/\*)' \
     | grep -cv "static .*${1##*.}(" 
 }
@@ -99,6 +128,13 @@ while IFS='|' read -r sym want note; do
   if [ "$got" = "$want" ]; then mark='   '; else mark='!! '; fail=1; fi
   printf '%s%-31s %8s %8s   %s\n' "$mark" "$sym" "$want" "$got" "$note"
 done <<< "$MANIFEST"
+
+while IFS='|' read -r file pat want note; do
+  [ -z "${file:-}" ] && continue
+  got=$(grep -vE '^ *(\*|//|/\*)' "$SRC/$file" | grep -oF -- "$pat" | wc -l | tr -d ' ')
+  if [ "$got" = "$want" ]; then mark='   '; else mark='!! '; fail=1; fi
+  printf '%s%-31s %8s %8s   %s\n' "$mark" "$pat" "$want" "$got" "$note"
+done <<< "$PATTERNS"
 
 echo
 if [ "$fail" -eq 0 ]; then
