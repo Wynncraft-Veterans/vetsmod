@@ -222,7 +222,10 @@ public final class AnniDebugCommands {
 
     private AnniDebugCommands() {}
 
-    /** Append the {@code anni} literal to the {@code /wv debug} tree.
+    /** Build the {@code anni} literal, which the caller mounts under
+     *  {@code /wv debug tree} — so every path here is
+     *  {@code /wv debug tree anni …}. 11 top-level literals, 24 executable
+     *  leaves, one handler per leaf.
      *  Caller is {@link org.wynnvets.debug.DebugCommands#buildCommandTree()
      *  DebugCommands#buildCommandTree()}. */
     public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommandTree() {
