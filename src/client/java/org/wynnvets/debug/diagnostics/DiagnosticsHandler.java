@@ -23,8 +23,14 @@ import org.wynnvets.logging.VetsLogger;
  * {@code /wv debug true|false} logging toggle.
  *
  * <p>With no arguments, dumps diagnostic information to chat and a more
- * detailed report to the log file.  With {@code true}/{@code false}, toggles
- * the debug logging level on or off.</p>
+ * detailed report to the log file.  With {@code true}/{@code false}, sets
+ * {@link VetsLogger}'s debug flag and records (or clears)
+ * {@link VetsConfig#VETS_DEBUG_ENABLED_AT}, which
+ * {@link org.wynnvets.VetsmodClient VetsmodClient} reads at startup to
+ * restore the flag if it was set less than three days earlier.  The flag is
+ * not logging-only: it is also what
+ * {@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands}'
+ * {@code requireDebug} tests.</p>
  *
  * <p>This is a <b>debug-only</b> utility — invoked from the
  * {@link org.wynnvets.debug.DebugCommands} command tree.</p>
@@ -36,7 +42,10 @@ public final class DiagnosticsHandler {
     /**
      * Executes the debug command with the given argument.
      *
-     * @param arg {@code null} for no-arg info dump, or "true"/"false" to toggle
+     * @param arg {@code null} for the no-arg diagnostics dump, or
+     *            {@code "true"}/{@code "false"} (case-insensitive) to toggle;
+     *            any other word, such as a mistyped subcommand, prints a
+     *            usage line and changes nothing
      */
     public static void execute(String arg) {
         if (arg == null) {

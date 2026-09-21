@@ -276,10 +276,16 @@ public final class ItemDumpHandler {
         // Two views of the rendered tooltip line list:
         //
         //  - freshTooltip    : built right now via Screen.getTooltipFromItem.
-        //                      Fires Wynntils tooltip events (post-Wynntils),
-        //                      but does NOT trigger render-time wraps such as
-        //                      wynnmod's LowAbstractContainerScreenMixin
-        //                      because we are not inside renderTooltip's call
+        //                      Fires Wynntils' ItemTooltipFlagsEvent (hooked
+        //                      on getTooltipLines), but does NOT trigger
+        //                      render-time wraps. We never call
+        //                      setTooltipForNextFrame, so Wynntils'
+        //                      ItemTooltipRenderEvent.Pre (posted from its
+        //                      wraps of that call, where features such as
+        //                      ItemStatInfoFeature rewrite the list) does
+        //                      not fire; nor does wynnmod's
+        //                      LowAbstractContainerScreenMixin, because we
+        //                      are not inside renderTooltip's call
         //                      chain to setTooltipForNextFrame.
         //                      → "pre-wynnmod" view.
         //
@@ -289,13 +295,16 @@ public final class ItemDumpHandler {
         //                      replaced the list via event.setText(...).
         //                      → "post-wynnmod" view.
         //
-        // Diffing the two cleanly fingerprints any third-party tooltip
-        // rewrite (wynnmod, future processors, etc.).
+        // Diffing the two fingerprints any render-time tooltip rewrite
+        // (Wynntils' own, wynnmod's, future processors, etc.).
         root.add("freshTooltip", buildFreshTooltipDump(stack));
         root.add("capturedTooltip", buildCapturedTooltipDump(stack));
 
-        // NewFormatRenderer probes against the fresh tooltip — surface the
-        // exact predicates the legacy renderer uses for branch selection.
+        // Probes against the fresh tooltip. isNewFormatItem approximates
+        // NewFormatRenderer.isNewFormatItem (substring font match, see
+        // containsNewFormatFont), which the legacy renderer runs on its incoming,
+        // possibly rewritten lines; the line-0 name comparisons are extra
+        // diagnostics, not predicates the legacy renderer tests.
         JsonObject probes = new JsonObject();
         try {
             Minecraft mc = Minecraft.getInstance();
@@ -343,7 +352,13 @@ public final class ItemDumpHandler {
         }
     }
 
-    // ── Component tree serialization ─────────────────────────────────
+    // ── Component serialization and helpers ──────────────────────────
+    //
+    // componentToJson renders a Component as a JSON tree, and
+    // formatComponentWithCodes/appendFormatted as a string with a §[colour]
+    // marker per coloured node. toCodepointString and getModVersion are
+    // general helpers that also sit here; getModVersion is a Fabric
+    // mod-version lookup used only by dump(), not serialization.
 
     private static JsonObject componentToJson(Component comp) {
         JsonObject obj = new JsonObject();
@@ -485,8 +500,10 @@ public final class ItemDumpHandler {
     /**
      * Builds a fresh tooltip via {@link Screen#getTooltipFromItem} and
      * serializes each line. Returns a JsonObject with status info and an
-     * array of line dumps. The fresh tooltip is post-Wynntils-events but
-     * pre-render-time wraps (so it bypasses wynnmod's decoration).
+     * array of line dumps. The fresh tooltip bypasses every render-time
+     * wrap, Wynntils' {@code ItemTooltipRenderEvent.Pre} rewrites as well as
+     * wynnmod's decoration, though Wynntils' {@code ItemTooltipFlagsEvent}
+     * still fires (it hooks {@code ItemStack#getTooltipLines}).
      */
     private static JsonObject buildFreshTooltipDump(ItemStack stack) {
         JsonObject obj = new JsonObject();
@@ -551,8 +568,8 @@ public final class ItemDumpHandler {
 
     /**
      * Dumps a list of components as an array of per-line objects, each with
-     * raw text, formatted text, codepoint string, font usage summary, and
-     * the full component tree.
+     * its list index, raw text, formatted text, codepoint string, font usage
+     * summary, and the full component tree.
      */
     private static JsonArray dumpComponentLines(List<Component> lines) {
         JsonArray arr = new JsonArray();

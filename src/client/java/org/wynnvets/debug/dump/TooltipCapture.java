@@ -18,10 +18,12 @@ import net.minecraft.world.item.ItemStack;
  * state — exactly what vetsmod's legacy detection actually sees.</p>
  *
  * <p>Used by {@link ItemDumpHandler} to compare the captured list against
- * a freshly-built tooltip ({@code Screen.getTooltipFromItem}, which fires
- * Wynntils events but skips wynnmod's render-time wrap), making the
- * difference between the two a clean fingerprint of any third-party
- * tooltip rewrite.</p>
+ * a freshly-built tooltip ({@code Screen.getTooltipFromItem}).  That path
+ * fires Wynntils' {@code ItemTooltipFlagsEvent} but none of the render-time
+ * call-site wraps: neither Wynntils' own {@code ItemTooltipRenderEvent.Pre},
+ * where its tooltip features rewrite the list, nor wynnmod's wrap.  The
+ * difference between the two is therefore a fingerprint of render-time
+ * tooltip rewrites, Wynntils' included.</p>
  */
 public final class TooltipCapture {
 

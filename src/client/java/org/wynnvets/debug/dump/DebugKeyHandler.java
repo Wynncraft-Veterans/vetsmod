@@ -23,7 +23,7 @@ public final class DebugKeyHandler {
     /** Prevent accidental duplicate event registration. */
     private static boolean registered = false;
 
-    /** Tracks previous frame's key state so we fire once per press. */
+    /** Tracks the previous client tick's key state so we fire once per press. */
     private static boolean itemDumpKeyWasDown = false;
 
     /**
@@ -35,8 +35,10 @@ public final class DebugKeyHandler {
     private DebugKeyHandler() {}
 
     /**
-     * Registers the tick handler.  Safe to call multiple times (idempotent
-     * in practice because Fabric appends listeners).
+     * Registers the tick handler.  Safe to call multiple times: the
+     * {@code registered} guard makes repeat calls no-ops.  Without it each
+     * call would add another listener, since Fabric's event registration
+     * appends without de-duplicating.
      */
     public static void register() {
         if (registered) {
