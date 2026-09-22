@@ -301,11 +301,12 @@ so each phase's `onComplete` already knows its successor, and a
 zero-count pool collapses into its successor's runnable rather than
 opening a menu to send nothing.
 
-Order is fixed: **graids → objectives → random** (§6). The objectives
-and random phases are wrapped in `PHASE_DELAY_TICKS`; the graids phase
-runs immediately, since nothing precedes it. Every underlying dispatcher
-fires its `onComplete` on the no-recipients and roster-failure paths
-too, so an empty pool advances the chain rather than ending it.
+Order is fixed: **graids → objectives → random** (§6). Each non-empty
+objectives or random phase is wrapped in `PHASE_DELAY_TICKS`, even when
+an empty graids pool makes it the first to run; the graids phase is not.
+Every underlying dispatcher fires its `onComplete` on the no-recipients
+and roster-failure paths too, so an empty pool advances the chain rather
+than ending it.
 
 ## 6. Why the numbers and routes are what they are
 
@@ -396,7 +397,7 @@ an extrapolation from behaviour observed elsewhere. Values are current.
 | `MAX_PAGES` | `MembersListWalker` | 30 | Runaway-loop bound — that is the whole of its comment. **No sizing rationale is recorded** for 30, unlike the searcher's 60. Don't infer one from the walk being forward-only |
 | `SETTLE_TICKS` | `GuildLogWalker` | 40 | No new log item for this long ⇒ done. The comment attributes the sizing to Wynntils' own `REQUEST_TIMEOUT = 5` plus `FORCED_LOAD_DELAY = 20` |
 | `OVERALL_TIMEOUT_TICKS` | `GuildLogWalker` | 200 | ~10 s hard cap on the whole log walk |
-| `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Lets the previous phase's `ServerboundContainerClosePacket` settle. `queueCommand`'s 7-tick spacing paces commands but knows nothing about close packets |
+| `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Belt-and-braces settle gap before each objectives or random phase starts, on top of `queueCommand`'s 7-tick spacing. A phase that ends on the Members menu gives it no close packet to wait for: it dismisses the menu through `MemberSlotPresser.closeMembersScreen`, which sends none (`close-members-screen-sends-no-close-packet`) |
 
 `distribute/` is currently the repo's only consumer of
 `Managers.TickScheduler` — 11 `scheduleLater` calls across 8 of its 16

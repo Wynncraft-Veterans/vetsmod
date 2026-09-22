@@ -265,12 +265,18 @@ public final class MemberSlotPresser {
     }
 
     /**
-     * Closes the Members GUI client-side. {@code setScreen(null)} triggers
-     * {@code AbstractContainerScreen.removed()}, which calls
-     * {@code player.closeContainer()} &mdash; so both the visual screen
-     * dismiss and the server-side {@code ServerboundContainerClosePacket}
-     * happen in one call. Guarded so it never closes an unrelated screen
-     * the user happens to have open by the time we get here.
+     * Dismisses the Members GUI client-side only. {@code setScreen(null)}
+     * runs {@code AbstractContainerScreen.removed()}, which calls just
+     * {@code menu.removed(player)} &mdash; a no-op for a client player
+     * &mdash; so no {@code ServerboundContainerClosePacket} is sent and
+     * {@code player.containerMenu} is not reset, as
+     * {@code LocalPlayer.closeContainer()} would do. (Wynntils' own
+     * screen-close hook sends a close only for its wrapped screens, which
+     * the Members menu is not.) What the server makes of a container it
+     * was never told is closed has not been observed; see
+     * {@code close-members-screen-sends-no-close-packet}. Guarded so it never
+     * closes an unrelated screen the user happens to have open by the
+     * time we get here.
      *
      * <p>Package-private so the rest of the package can use it:
      * {@link DistributionQueue} as the final step when a multi-recipient

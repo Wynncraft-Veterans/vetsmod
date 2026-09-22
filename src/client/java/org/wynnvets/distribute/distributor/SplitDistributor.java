@@ -49,13 +49,14 @@ public final class SplitDistributor {
 
     private static final Random RNG = new Random();
 
-    /** Settle gap between phases. Belt-and-braces on top of
+    /** Settle gap. Belt-and-braces on top of
      *  {@code Handlers.Command.queueCommand}'s built-in 7-tick command
-     *  rate limit: queueCommand paces consecutive commands but doesn't
-     *  account for the {@code ServerboundContainerClosePacket} that
-     *  each phase fires when its menu finishes. A short scheduler
-     *  delay between phases gives the server time to settle the close
-     *  before the next phase's menu-open command flies. */
+     *  spacing: a short scheduler delay before each objectives or random
+     *  phase starts. A phase that ends on the Members menu gives it no
+     *  close packet to wait for: it dismisses the menu client-side through
+     *  {@link MemberSlotPresser#closeMembersScreen()}, which sends no
+     *  {@code ServerboundContainerClosePacket} (see
+     *  {@code close-members-screen-sends-no-close-packet}). */
     private static final int PHASE_DELAY_TICKS = 10;
 
     private SplitDistributor() {}
@@ -81,9 +82,9 @@ public final class SplitDistributor {
         // Chain backwards so each phase's onComplete closure already
         // knows the next phase to run. Pools with count == 0 collapse
         // into their successor's runnable directly, avoiding a wasted
-        // menu open. Every phase transition is gated by a settle delay
-        // (see PHASE_DELAY_TICKS) so the previous menu's close packet
-        // has been processed before the next command flies.
+        // menu open. Each non-empty objectives or random phase is wrapped
+        // in a settle delay (see PHASE_DELAY_TICKS), even when an empty
+        // graids pool makes it the first to run; the graids phase is not.
         final Runnable terminal =
                 () ->
                         ChatUtils.sendLocalMessage(
@@ -112,8 +113,8 @@ public final class SplitDistributor {
     }
 
     /** Wraps {@code body} in a {@link #PHASE_DELAY_TICKS}-tick scheduler
-     *  call so the previous phase's screen close has time to drain
-     *  before the next phase fires its opening command. */
+     *  call, so the phase starts that long after it is invoked &mdash;
+     *  normally from the previous phase's {@code onComplete}. */
     private static Runnable delayed(Runnable body) {
         return () -> Managers.TickScheduler.scheduleLater(body, PHASE_DELAY_TICKS);
     }
