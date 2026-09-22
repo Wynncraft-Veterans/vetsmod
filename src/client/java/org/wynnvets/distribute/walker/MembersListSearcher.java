@@ -204,9 +204,15 @@ public final class MembersListSearcher {
         // Arm the per-search watchdog. The token capture pattern means a
         // newer armSearch (or stop()) automatically invalidates this
         // task — no explicit cancellation needed. The watchdog is the
-        // backstop for any silent-stall mechanism we haven't otherwise
-        // covered: dropped pagination clicks, server-side menu close
-        // without an event, exceptions in the scheduler, etc.
+        // backstop for a stall where no further event arrives, before
+        // binding (the Members menu never opens) or after (a dropped
+        // pagination click, or the menu going away without a
+        // MenuClosedEvent for our id — the player's own Esc posts none,
+        // see onMenuClose). It is not a reliable backstop for a task that
+        // throws: Wynntils' TickSchedulerManager does not catch, so a
+        // throwing task is not removed and re-runs every tick until a run
+        // returns normally, and whether this watchdog still counts down
+        // meanwhile depends on map order.
         final int myWatchdog = ++watchdogToken;
         Managers.TickScheduler.scheduleLater(
                 () -> {
@@ -290,7 +296,13 @@ public final class MembersListSearcher {
     public void onMenuClose(MenuEvent.MenuClosedEvent event) {
         if (displayQuery == null) return;
         if (event.getContainerId() != membersContainerId) return;
-        // User (or server) closed our menu mid-search — abandon quietly.
+        // A clientbound close for our bound id — Wynntils posts
+        // MenuClosedEvent only from its handleContainerClose hook, so this
+        // is the server closing the menu. Abandon quietly. A client-side
+        // close (the player's Esc) sends only a serverbound close and posts
+        // nothing here; what happens to that search then depends on what
+        // the server sends for the menu afterwards, and one that stalls is
+        // ended by the watchdog.
         VetsLogger.debug(
                 "MembersListSearcher: menu closed mid-search, abandoning [{}]", displayQuery);
         stop();

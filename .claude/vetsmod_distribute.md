@@ -421,20 +421,36 @@ false.
 | No graid entries in the window | `GraidsDistributor.onLogReady` | yellow "No graid completions found…" | yes |
 | Name absent after both sweeps and the retry | `MembersListSearcher.stopNotFound` | yellow "Could not find X in members list." | yes † |
 | `MAX_PAGES` reached | `MembersListSearcher.scanAndPaginate` | yellow "Could not find X (reached page limit)." | yes † |
-| Bound container id gone, rebinds exhausted | `MembersListSearcher.scanAndPaginate` | none | yes † |
+| Bound Members menu gone, and no rebind possible (none open, or rebinds exhausted) | `MembersListSearcher.scanAndPaginate` | none | yes † |
 | Search stalls with no event arriving | `MembersListSearcher`'s watchdog, 300 ticks | yellow "Search for X timed out — advancing." | yes † |
 | Refresh never observed after a press | `MemberSlotPresser.armRefreshTimeout`, 40 ticks | yellow "Send timed out after N/M…" | yes |
-| Guild log menu closed mid-walk | `GuildLogWalker.onMenuClose` | none | yes, with whatever was collected |
+| Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | none | yes, with whatever was collected |
 | Log walk exceeds 200 ticks | `GuildLogWalker.onTick` | none | yes, possibly with an empty list |
-| **Members menu closed mid-search** | `MembersListSearcher.onMenuClose` | none | **no** |
-| **Members menu closed mid-walk** | `MembersListWalker.onMenuClose` | none | **no** |
+| **Members menu closed by the server mid-search** | `MembersListSearcher.onMenuClose` | none | **no** |
+| **Members menu closed by the server mid-walk** | `MembersListWalker.onMenuClose` | none | **no** |
 | **Members screen gone when the next press in a batch fires** | `MemberSlotPresser.sendPressAndArm` | none | **no** |
 
 † All four searcher rows end in `MembersListSearcher.invokeNotFound`,
 which runs whatever `notFoundHandler` was armed. The four selector heads
 always arm one. The **literal-name head does not** — it uses the
-two-argument `armSearch` — so on those rows it prints its chat line,
-clears state, and stops there with the Members menu still open.
+two-argument `armSearch` — so on those rows it prints the row's chat line,
+if any, clears state, and stops there without closing anything; a Members
+menu that is still open stays open.
+
+**"Closed by the server" is literal.** Wynntils posts `MenuClosedEvent`
+only from its `handleContainerClose` hook — a *clientbound* close — so
+every `onMenuClose` in the package sees the server closing a menu, never
+the player. A player's Esc sends only a serverbound close and posts no
+`MenuClosedEvent` (Wynntils posts `ContainerCloseEvent` and
+`ScreenClosedEvent` for it; nothing in the package subscribes to either).
+Where an Esc then ends a run depends on what the server sends for that
+menu afterwards — a close of its own, a reopen, slot updates answering a
+click already in flight — and none of that is verifiable from any repo.
+What the code does settle is the case where the run moves on to its next recipient
+with no Members menu open: unless one is reopened, that head's remaining
+queue drains at one watchdog timeout per recipient
+(`distribute-escape-mid-run-drains-through-watchdog`). Under `@split`,
+the next phase reopens the menu for itself.
 
 The three `no` rows are three different shapes, and none is rescued:
 
@@ -445,11 +461,17 @@ The three `no` rows are three different shapes, and none is rescued:
   does **not** cover this path.
 - **What the watchdog does cover** is the other stall shape: one where
   `stop()` is never called at all, because no matching event reaches the
-  searcher. A dropped pagination click, an exception inside a scheduled
-  task — or a close event whose container id doesn't match the bound
+  searcher. A Members menu that never opens, a dropped pagination click,
+  a player's Esc with nothing further arriving for the bound id (above)
+  — or a close event whose container id doesn't match the bound
   one, since `onMenuClose` returns early on that comparison and never
   reaches `stop()`. That last case is precisely why a close arriving
   before the searcher has bound still leaves the watchdog live to fire.
+  It is *not* a reliable backstop for a scheduled task that throws:
+  Wynntils' `TickSchedulerManager` does not catch, so a throwing task is
+  not removed: it re-runs every tick until a run returns normally, and
+  each throw aborts that tick's pass over the task map — whether the
+  watchdog still counts down meanwhile depends on map order.
 - **`MemberSlotPresser.sendPressAndArm` is a third shape.** Finding the
   screen gone, it calls `clearPending()`, which nulls
   `pendingOnComplete` *and* bumps `timeoutToken` — cancelling, in the

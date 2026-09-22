@@ -122,14 +122,20 @@ public final class MembersListWalker {
         if (!active) return;
         if (event.getContainerId() != membersContainerId) return;
         VetsLogger.debug("MembersListWalker: menu closed mid-walk, abandoning");
-        // No callback on abandon, and no chat line either — this path is
+        // A clientbound close for the bound menu (Wynntils posts
+        // MenuClosedEvent only from its handleContainerClose hook). No
+        // callback on abandon, and no chat line either — this path is
         // silent. There is no watchdog here at all. The searcher's
         // WATCHDOG_TICKS is the nearest equivalent, and note it does not
         // cover MembersListSearcher's own onMenuClose either — that calls
-        // stop(), which bumps watchdogToken and disarms it. So an
-        // @objectives run whose Members menu closes mid-walk stalls until
-        // the next armWalk resets the state, with nothing to force it
-        // along. Same for scanAndPaginate's screen-gone path.
+        // stop(), which bumps watchdogToken and disarms it. stop() below
+        // clears the walker, so the @objectives run never resumes and any
+        // @split phase after it never starts. Same for scanAndPaginate's
+        // screen-gone path. A client-side close (the player's Esc) posts
+        // nothing here: the walk then takes that screen-gone path if a
+        // scan is pending or a late SetSlot/SetContent for the bound id
+        // schedules one, and otherwise waits armed with nothing scheduled.
+        // See members-list-walker-drops-completion.
         stop();
     }
 

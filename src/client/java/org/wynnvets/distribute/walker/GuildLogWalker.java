@@ -137,8 +137,13 @@ public final class GuildLogWalker {
     public void onMenuClose(MenuEvent.MenuClosedEvent event) {
         if (!active) return;
         if (event.getContainerId() != containerId) return;
-        // Screen closed under us (user pressed escape, or the underlying
-        // container went away). Finish with whatever we've collected.
+        // A clientbound close for the bound log — Wynntils posts
+        // MenuClosedEvent only from its handleContainerClose hook, so this
+        // is the server closing it. Finish with whatever we've collected,
+        // without touching the screen. A client-side close (the player's
+        // Esc) posts nothing here: unless the server answers with a close
+        // of its own, that walk ends on onTick's settle timer (or its
+        // overall timeout) instead.
         VetsLogger.debug("GuildLogWalker: menu closed mid-walk after {} entries", collected.size());
         finishWalk(false);
     }
