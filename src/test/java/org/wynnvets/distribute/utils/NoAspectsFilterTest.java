@@ -88,8 +88,10 @@ class NoAspectsFilterTest {
 
     @Test
     void parseUuids_oneUnusableUuidValueDiscardsTheEntireList() {
-        // The sharp edge. getAsString throws on an object- or array-valued
-        // uuid, and the catch is around the whole loop rather than the element,
+        // The sharp edge. getAsString throws on an object-valued uuid, or on
+        // an array unless Gson can unwrap it to a single string-readable
+        // element, and the catch is around the whole loop rather than the
+        // element,
         // so every already-parsed entry is thrown away with it. A later
         // refactor that moves the try inside the loop would change which
         // members get filtered.

@@ -109,8 +109,9 @@ class NameResolverTest {
     @Test
     void extractAllLegacyNames_keepsMalformedEntriesUnderTheirCurrentName() {
         // The asymmetry: a member whose JSON value is not an object still
-        // contributes a name here, because legacyNameOf tolerates null and the
-        // handler has no null guard of its own.
+        // contributes a name here, because Json.stringOrNull tolerates a null
+        // receiver (answering null, with a warn) and the handler has no null
+        // guard of its own.
         assertTrue(
                 NameResolver.extractAllLegacyNames(ROSTER).contains("Broken"),
                 "a malformed entry is not skipped by this extractor");
