@@ -5,9 +5,9 @@ import java.net.URI;
 /**
  * VetsMod API endpoint constants and guild identifiers.
  *
- * <p>Centralises all WynnVets-specific API URIs used for guild chat relay,
- * bridge messaging, staff/supporter lookups, MOTD, return events, and
- * annihilation timer data.</p>
+ * <p>Centralises the WynnVets HTTP endpoint URIs, plus the anni schedule
+ * page link and the VETS guild UUID. The WebSocket URIs that carry guild
+ * chat relay and bridge messaging live in {@code V1ApiManager}.</p>
  */
 public final class VetsApi {
 
@@ -50,8 +50,11 @@ public final class VetsApi {
     public static final URI ALIASES = URI.create("https://api.wynnvets.org/v1/outbound/aliases");
 
     /**
-     * GET the list of guild members who have opted out of
-     * {@code /wv distribute} selectors. Each entry is a JSON object of
+     * GET the NoAspects opt-out list. Today {@code /wv distribute}
+     * withholds every resource from these members &mdash; the selectors skip
+     * them and a literal-name send is refused &mdash; though the list is
+     * meant to gate aspects only
+     * ({@code no-aspects-opt-out-withholds-every-resource}). Each entry is a JSON object of
      * shape {@code {"uuid", "username"}}; consumers filter against the
      * UUID set (translated to legacy/tile names via the wapi guild
      * response) before dispatching. See

@@ -77,9 +77,14 @@ public class GuildStateManager {
      * <p>Two sources, in order: first the server-confirmed rank from the
      * vetsmod WS auth ack ({@link #confirmedStaffRank()}, stable for the
      * whole session), then Wynntils' live {@code Models.Guild.getGuildRank()}
-     * for non-Returners chiefs.  Falling back to Wynntils only when the
-     * confirmed path doesn't apply avoids the autocomplete-time race where
-     * the live model returns {@code null} briefly after world joins.</p>
+     * as the fallback for any chief the auth ack has not confirmed &mdash; a
+     * chief of another guild, say, or a Returners chief without a confirming
+     * auth ack.
+     * Trying the confirmed rank first avoids the execution-time race where
+     * the live model returns {@code null} briefly after world joins and a
+     * confirmed Returners chief would otherwise be refused. Called from
+     * {@code /wv distribute}'s executor-time check ({@code ensureChief}), not
+     * from its {@code .requires} (that is {@link #isStaffOfAnyGuild()}).</p>
      */
     public static boolean isChiefOfAnyGuild() {
         String confirmed = confirmedStaffRank();
@@ -90,16 +95,18 @@ public class GuildStateManager {
     }
 
     /**
-     * Returns {@code true} when the local player is at least {@code CAPTAIN}
-     * in any guild &mdash; the visibility tier for guild-management
-     * commands.  Mirrors {@link #isChiefOfAnyGuild()}'s dual-source logic
-     * but accepts the wider Captain&plus; band, since vetsmod staff
-     * includes captains and strategists who aren't allowed to execute
-     * chief-only actions but benefit from knowing the commands exist.
+     * Returns {@code true} when the local player is server-confirmed vets
+     * staff, or at least {@code CAPTAIN} in their current guild by Wynntils'
+     * live rank &mdash; the visibility tier for {@code /wv distribute}.
+     * Mirrors {@link #isChiefOfAnyGuild()}'s dual-source logic with a wider
+     * band: confirmed staff (strategist and up, since the 2026-07
+     * permission restructure retired captain server-side) plus anyone
+     * Captain&plus; in-game. The members of that band below chief can't run
+     * chief-only actions but benefit from knowing the command exists.
      *
      * <p>Used by {@code /wv distribute}'s {@code .requires(...)} predicate
-     * so brigadier surfaces it in autocomplete reliably for the user's
-     * own chief without leaking it to non-staff.</p>
+     * so brigadier surfaces it in autocomplete reliably for staff without
+     * leaking it to non-staff.</p>
      */
     public static boolean isStaffOfAnyGuild() {
         if (isConfirmedStaff()) return true;

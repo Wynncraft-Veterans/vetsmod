@@ -49,6 +49,11 @@ import org.wynnvets.guild.GuildStateManager;
  * translates current&rarr;legacy via the Wynncraft API so renamed players
  * are locatable by either form.</p>
  *
+ * <p>Members on the NoAspects opt-out list (see {@link NoAspectsFilter})
+ * are refused with a red chat line on the literal-name path and skipped
+ * by every selector &mdash; today for every resource, though the list is
+ * meant to gate aspects only ({@code no-aspects-opt-out-withholds-every-resource}).</p>
+ *
  * <h2>{@code @-selectors}</h2>
  * <ul>
  *   <li>{@code @random} &mdash; pick {@code <count>} random guild
@@ -77,8 +82,10 @@ import org.wynnvets.guild.GuildStateManager;
  * autocomplete reliably for vets-confirmed staff (server-confirmed, stable
  * across world transitions). Execution is gated more tightly by
  * {@link GuildStateManager#isChiefOfAnyGuild()} via {@link #ensureChief()}
- * &mdash; a Returners captain sees the command but gets a red error if
- * they try to run it.</p>
+ * &mdash; a strategist, say, sees the command but gets a red error if
+ * they try to run it. (A Returners captain has not been confirmed staff
+ * since the 2026-07 permission restructure, so a captain passes the
+ * visibility check only through Wynntils' live rank.)</p>
  */
 public final class DistributeCommands {
 
@@ -184,7 +191,7 @@ public final class DistributeCommands {
             }
         }
 
-        // Fan out two HTTP calls in parallel: legacy-name resolution (so we
+        // Fan out two lookups in parallel: legacy-name resolution (so we
         // know the canonical tile name for renamed targets) and the
         // NoAspects opt-out list (so we can reject before opening the menu).
         // We deliberately wait on both before arming the searcher — even
@@ -218,9 +225,13 @@ public final class DistributeCommands {
             Set<String> excludeNames,
             MemberSlotPresser.Resource resource,
             int count) {
-        // Check both forms — staff could have opted out the player by
-        // current name OR legacy name, depending on which was in the live
-        // roster at !noaspects-add time.
+        // The opt-out set holds tile (legacy) names translated from the
+        // opted-out UUIDs (see NoAspectsFilter), so the client never sees
+        // what staff typed at `!noaspects add` (a name in any form, or a
+        // UUID) — only the UUID it resolved to. `resolved` is the
+        // check that catches a current-name or tile-name input; the
+        // literal input is checked too, which only adds anything when it
+        // is one member's tile name but resolved to a different member.
         String optedOutForm = null;
         if (excludeNames.contains(name)) optedOutForm = name;
         else if (resolved != null && excludeNames.contains(resolved)) optedOutForm = resolved;
@@ -310,11 +321,17 @@ public final class DistributeCommands {
     // ── Permission ───────────────────────────────────────────────────────
 
     /**
-     * Defensive double-check of the chief gate at executor time. Brigadier's
-     * {@code .requires(...)} already filters the command from suggestions
-     * for non-staff, but staff-but-not-chief users (Returners captains /
-     * strategists) still parse-through to here and need the friendly error.
-     * Mirrors the pattern used by {@code /wv check} and {@code /wv invite-force}.
+     * The chief gate itself, checked at executor time &mdash; the only
+     * Chief/Owner check in vetsmod for this command. Brigadier's
+     * {@code .requires(...)} admits any staff
+     * ({@link GuildStateManager#isStaffOfAnyGuild()}), so staff-but-not-chief
+     * users (strategists, and captains by Wynntils' live rank) reach here
+     * and need the friendly error. It shares only the
+     * red-error-at-execute shape with {@code /wv check} and
+     * {@code /wv invite-force}: those re-check the same predicate their own
+     * {@code .requires} uses, so their red line fires only if state changes
+     * between parse and execute, while this one is the normal path for
+     * staff below chief.
      */
     private static boolean ensureChief() {
         if (GuildStateManager.isChiefOfAnyGuild()) return true;

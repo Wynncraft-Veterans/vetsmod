@@ -49,8 +49,9 @@ Two gates, reading two different confirmed-side signals:
 
 As of this writing each predicate has exactly one call site, both in
 `DistributeCommands` — nothing enforces that, so re-grep before relying
-on it. A captain sees the command in autocomplete and gets a red error
-on execute. Captain never reaches the confirmed-staff *rank* string at all —
+on it. A strategist sees the command in autocomplete and gets a red error
+on execute; a Returners captain is visible only through the Wynntils
+fallback, because captain is no longer confirmed staff at all —
 the server retired it in the 2026-07 permission restructure and simply
 never sends it, so the exclusion is a server contract, not client
 enforcement.
@@ -198,10 +199,11 @@ here. See `MembersListSearcher.scanAndPaginate` and
 
 ### Literal name
 
-`DistributeCommands.distribute` fans out two HTTP calls in parallel —
+`DistributeCommands.distribute` fans out two lookups in parallel —
 `NameResolver.resolveLegacyName` and
-`NoAspectsFilter.fetchExcludedLegacyNames` — and `thenCombine`s them.
-The combined callback runs on the shared `HttpClient` executor, so it
+`NoAspectsFilter.fetchExcludedLegacyNames`, up to three requests (§9) —
+and `thenCombine`s them.
+The combined callback runs on a background HTTP-completion thread, so it
 marshals back onto the tick thread with a `scheduleLater(..., 0)` hop before
 touching any menu or bus state. `dispatchSingleTarget` then rejects the
 send with a red chat line if *either* the literal input or the resolved
@@ -581,10 +583,14 @@ of `fetchGuildJson`'s log lines, so four reads sharing one fetcher stay
 distinguishable in the log; `resolveLegacyName` passes
 `"resolveLegacyName [" + input + "]"` rather than a bare name, so its
 failure line still reports which name failed, as its own pre-collapse
-message did. Log levels are almost uniform too: exactly one path logs at
-**warn** —
-`NoAspectsFilter`'s `.exceptionally` handler. Its non-200 and
-parse-error paths log at debug, as does every `NameResolver` failure.
+message did. Among the fetch and parse failures exactly one path logs
+at **warn** — `NoAspectsFilter`'s `.exceptionally` handler; the others log
+at debug or not at all. Separately, `NameResolver`'s per-member field
+reads go through `Json.stringOrNull`, which warns, degrading only that
+member, on a non-object roster entry in `fetchAllLegacyNames` /
+`fetchNameIndex`, and on a `legacyName` or `uuid` it reads but cannot
+take as a string (`Json`'s class Javadoc lists what Gson coerces
+instead).
 
 Request counts are **up to**, not exact: `NameResolver` short-circuits to
 an already-completed future when Wynntils isn't ready or the guild name

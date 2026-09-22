@@ -21,7 +21,12 @@ import org.wynnvets.util.Json;
  * Fetches the NoAspects opt-out list from
  * {@link VetsApi#NO_ASPECTS} and translates the UUID payload into a
  * set of legacy (= Members GUI tile) names that {@code /wv distribute}
- * selectors filter against.
+ * checks on every path: the selectors drop them from their pools
+ * ({@code @split} through its three phases), and the literal-name path
+ * refuses a send to one. The set is
+ * applied whatever the resource, tomes and emeralds included, though the
+ * list is meant to gate aspects only
+ * ({@code no-aspects-opt-out-withholds-every-resource}).
  *
  * <p>The endpoint is server-curated by staff via {@code !noaspects} in
  * nazbot. The primary use case is members who already own every aspect
@@ -40,9 +45,11 @@ import org.wynnvets.util.Json;
  * <h2>Fail-open semantics</h2>
  * <p>Any failure &mdash; HTTP error, parse error, missing wapi response
  * &mdash; returns an empty set. An empty exclude set means no one is
- * filtered (= pre-change behaviour), so a flaky list fetch never blocks
- * {@code /wv distribute} from proceeding. Network issues are logged at
- * warn level for observability.</p>
+ * filtered (the behaviour before the opt-out list existed), so a flaky
+ * list fetch never blocks {@code /wv distribute} from proceeding. A
+ * transport failure of the opt-out fetch logs at warn; most other failure
+ * paths log at debug (silent unless debug logging is on) or not at all
+ * &mdash; {@code vetsmod_distribute.md} §9 has the detail.</p>
  */
 public final class NoAspectsFilter {
 
@@ -75,7 +82,10 @@ public final class NoAspectsFilter {
             // No-op for opted-out members not in the current guild — they
             // can't appear in any selector anyway. Logging would be noise
             // because the list legitimately retains entries for members
-            // who left the guild.
+            // who left the guild. The same miss covers an in-guild member
+            // whose wapi entry has no usable uuid (extractUuidToLegacyName
+            // skips it), and such a member is not filtered even while on
+            // the list.
             if (legacy != null) {
                 excludedNames.add(legacy);
             }

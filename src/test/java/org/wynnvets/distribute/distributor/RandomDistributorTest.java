@@ -15,9 +15,10 @@ import org.junit.jupiter.api.Test;
  * happens.
  *
  * <p>Everything else in the class is Wynntils- or menu-bound: {@code dispatch}
- * guards on {@code GuildStateManager.isWynntilsReady()} and fans out two HTTP
- * calls, {@code beginPicks} shuffles and sends chat, and the send loop lives in
- * {@link DistributionQueue}. What is left is a list, a set, and a predicate.</p>
+ * guards on {@code GuildStateManager.isWynntilsReady()} and fans out two
+ * lookups (up to three requests), {@code beginPicks} shuffles and sends chat,
+ * and the send loop lives in {@link DistributionQueue}. What is left is a
+ * list, a set, and a predicate.</p>
  *
  * <p>The identity return is pinned deliberately. {@code filterNames} hands the
  * caller's own list back when nothing is excluded, and a later "always defensive
