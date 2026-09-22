@@ -146,8 +146,9 @@ public final class MembersListWalker {
         // @split phase after it never starts. Same for scanAndPaginate's
         // screen-gone path. A client-side close (the player's Esc) posts
         // nothing here: the walk then takes that screen-gone path if a
-        // scan is pending or a late SetSlot/SetContent for the bound id
-        // schedules one, and otherwise waits armed with nothing scheduled.
+        // scan is pending or a late SetContent, or SetSlot on the Next
+        // Page slot, for the bound id schedules one, and otherwise waits
+        // armed with nothing scheduled.
         // See members-list-walker-drops-completion.
         stop();
     }

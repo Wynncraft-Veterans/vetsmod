@@ -88,8 +88,9 @@ distribute/
 ```
 
 `MembersGui` sits at the package root rather than in `walker/` because
-both `walker/` classes and `distributor/`'s `MemberSlotPresser` read
-from it; a distributor should not import from the walker package to
+both Members-menu classes in `walker/` (`MembersListSearcher`,
+`MembersListWalker`) and
+`distributor/`'s `MemberSlotPresser` read from it; a distributor should not import from the walker package to
 learn the GUI's shape. (`opener/` does not — `GuildManageOpener` drives
 the *Manage* menu and reads only `ContainerScreens`.) It describes the *layout* (mirroring
 Wynntils' `GuildMemberListContainer`), not the subset ≥2 callers share,
@@ -171,10 +172,9 @@ is what the searcher matches). Each step names the class that owns it:
    On a miss it calls `advancePagination`.
 7. On a hit it captures the handler, calls `stop()` to clear all search
    state, *then* invokes `SlotMatchHandler.onMatch(slot)`. The handler
-   receives only the slot index. The searcher has already cleared its
-   bound id, so the callee reads the container from the live screen, and
-   must re-read it on any later tick — a send's refresh can replace the
-   container id.
+   receives only the slot index, so the callee reads the container from
+   the live screen, and must re-read it for anything it does later — a
+   send's refresh can replace the container id.
 8. **`MemberSlotPresser.fire`** announces the send in chat and calls
    `sendPressAndArm`, which reads the live container id and issues
    `ContainerUtils.pressKeyOnSlot` — a `ClickType.SWAP` packet carrying
@@ -230,8 +230,11 @@ worse UX than the delay.
 Guards on `GuildStateManager.isWynntilsReady()`, then combines
 `NameResolver.fetchAllLegacyNames` with the opt-out set, filters, hops
 to the tick thread, and `beginPicks` shuffles and takes
-`min(count, roster.size())`. `<count>` means **distinct recipients**,
-each receiving exactly one of the resource.
+`min(count, roster.size())`. `<count>` means **recipients**: one of the
+resource per pick, picks being distinct roster entries — though two
+members sharing a tile name can make one tile the target twice, giving
+one member two and the other none
+(`random-distributor-can-target-one-tile-twice`).
 
 Picks come from the wapi legacy-name roster rather than
 `Models.Guild.getGuildMembers()` on purpose: the former is already in
@@ -240,8 +243,10 @@ renamed members can't be silently skipped by a search that finishes
 before their resolve does.
 
 `beginPicks` calls `DistributionQueue.processNext` for the first pick
-**before** `openManageMembers()` — the searcher must be bound by the time
-`MenuOpenedEvent.Pre` fires. Later picks re-arm through the fast path
+**before** `openManageMembers()` — the searcher must be armed by the time
+`MenuOpenedEvent.Pre` fires, so that it can bind on that event (a Members
+menu already open at arm time is bound by the fast path instead —
+`members-list-fast-path-binds-a-menu-about-to-be-replaced`). Later picks re-arm through the fast path
 while the menu is still open, and the searcher's bidirectional
 pagination lets a pick on an earlier page be reached without reopening.
 
@@ -264,7 +269,7 @@ pattern.
 
 `buildDistribution` gives each of `k` completers `total / k`, shuffles,
 and awards `+1` to the first `total % k`. Recipients landing on zero are
-dropped so the chain never opens a menu to send nothing. `<count>` means
+dropped, so no search is spent on a recipient owed nothing. `<count>` means
 **total rewards**.
 
 `onWalkComplete` calls `DistributionQueue.processNext` with the Members
@@ -346,7 +351,9 @@ observed Wynncraft behaviour first, then the code shape it forces.
    This is also why "is the Members menu open?" has **two** answers in
    the package and they are not interchangeable.
    `MembersGui.currentByTitle()` ignores the container id, which is what
-   survives the refresh — `MemberSlotPresser` uses it for every press,
+   survives the refresh — `MemberSlotPresser` goes by title throughout
+   (every press and the close guard via `currentByTitle()`, and its two
+   refresh checks by title too),
    and the searcher and walker use it in their re-arm fast paths and the
    searcher's mid-search rebind, where there is no *usable* bound id —
    none yet in the fast paths, a stale one in the rebind. `ContainerScreens.currentWithId(int)` takes the caller's bound id
@@ -404,18 +411,21 @@ observed Wynncraft behaviour first, then the code shape it forces.
 
 ### Constants
 
-Every "why" below is the claim made by that constant's own comment, not
-an extrapolation from behaviour observed elsewhere. Values are current.
+Every "why" below is the claim made by that constant's own comment —
+or, for two, by the comment it leans on: `COUNT_MAX` shares `COUNT_MIN`'s
+"Bounds on `<count>`" Javadoc, and `MAX_REBIND_ATTEMPTS`' reason is on the
+`rebindAttempts` field and in `scanAndPaginate`. None is an extrapolation
+from behaviour observed elsewhere. Values are current.
 
 | Constant | Class | Value | Why |
 |---|---|---|---|
 | `COUNT_MAX` | `DistributeCommands` | 255 | Unsigned-byte cap so a "500 aspects" typo can't spam the server. `COUNT_MIN` is 1 |
-| `PRESS_DELAY_TICKS` | `MemberSlotPresser` | 4 | Settle buffer *after* a confirmed refresh, before the next press; keeps the cadence humane |
+| `PRESS_DELAY_TICKS` | `MemberSlotPresser` | 4 | Settle buffer *after* every confirmed refresh — before the next press or, after the last, before `onComplete`; keeps the cadence humane |
 | `REFRESH_TIMEOUT_TICKS` | `MemberSlotPresser` | 40 | Safety bound on the refresh wait; ~2 s, stated as covering a generous network RTT |
 | `SCAN_DELAY_TICKS` | `MembersListSearcher` | 2 | Enough for Wynncraft to finish streaming a page's `SetSlot` packets when they cross a tick boundary — point 3 above |
-| `MAX_PAGES` | `MembersListSearcher` | 60 | Runaway-loop bound, sized for a full forward plus a full backward sweep on a max-size guild |
+| `MAX_PAGES` | `MembersListSearcher` | 60 | Runaway-loop bound per pass (the retry starts a new pass and resets the counter), sized for a full forward plus a full backward sweep on a max-size guild |
 | `MAX_REBIND_ATTEMPTS` | `MembersListSearcher` | 3 | Caps rebinding to a refreshed container id so a thrashing refresh loop can't pin the searcher |
-| `RETRY_DELAY_TICKS` | `MembersListSearcher` | 10 | Pause before re-sweeping from page 1; the re-click forces the server to re-stream fresh `SetSlot` data |
+| `RETRY_DELAY_TICKS` | `MembersListSearcher` | 10 | Pause before re-sweeping from page 1; on a multi-page guild the re-click forces the server to re-stream fresh `SetSlot` data |
 | `MAX_RETRY_ATTEMPTS` | `MembersListSearcher` | 1 | One retry catches the stale-data false negative; more would only delay the not-found verdict |
 | `WATCHDOG_TICKS` | `MembersListSearcher` | 300 | ~15 s hard bound per search; a 4-page guild swept both ways with a retry is expected under 10 s |
 | `MAX_PAGES` | `MembersListWalker` | 30 | Runaway-loop bound — that is the whole of its comment. **No sizing rationale is recorded** for 30, unlike the searcher's 60. Don't infer one from the walk being forward-only |
@@ -453,16 +463,23 @@ they are real, and a matrix claiming otherwise would be false.
 | Refresh never observed after a press | `MemberSlotPresser.armRefreshTimeout`, 40 ticks | yellow "Send timed out after N/M…" | yes |
 | Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | none | yes, with whatever was collected |
 | Log walk exceeds 200 ticks | `GuildLogWalker.onTick` | none | yes, possibly with an empty list |
+| Log screen never reached — for example no Guild Log tile, `/guild manage` unanswered, or the tile click going nowhere (a case of the row above) | `GuildLogWalker.onTick`'s overall timeout | none from the walker; the empty list then reaches `GraidsDistributor.onLogReady`'s yellow "No graid completions found…", which reads as an empty log (`graids-log-never-reached-reported-as-empty-log`) | yes, with an empty list; a Manage menu may stay open |
 | **Members menu closed by the server mid-search** | `MembersListSearcher.onMenuClose` | none | **no** |
 | **Members menu closed by the server mid-walk** | `MembersListWalker.onMenuClose` | none | **no** |
+| **Bound Members menu gone when the walker's scan runs** | `MembersListWalker.scanAndPaginate` | none | **no** |
+| **Walker waits on an event that never arrives** — for example a Members menu that never opens, a Next Page click whose reply the walker never sees, or a player's Esc with nothing further for the bound id | nothing: `MembersListWalker` has no watchdog | none | **not while it waits** — the walker stays armed, and a later Members menu can bind a stale unbound arm and run its callback then (`distribute-concurrent-runs-clobber-shared-state`) |
 | **Members screen gone when the next press in a batch fires** | `MemberSlotPresser.sendPressAndArm` | none | **no** |
 
 † All four searcher rows end in `MembersListSearcher.invokeNotFound`,
-which runs whatever `notFoundHandler` was armed. The four selector heads
-always arm one. The **literal-name head does not** — it uses the
+which runs whatever `notFoundHandler` was armed. Every selector-run
+search is armed by `DistributionQueue.processNext`, which always passes
+one. The **literal-name head does not** — it uses the
 two-argument `armSearch` — so on those rows it prints the row's chat line,
 if any, clears state, and stops there without closing anything; a Members
 menu that is still open stays open.
+
+The three walker rows are `members-list-walker-drops-completion`; the
+presser row is `member-slot-presser-drops-completion`.
 
 **"Closed by the server" is literal.** Wynntils posts `MenuClosedEvent`
 only from its `handleContainerClose` hook — a *clientbound* close — so
@@ -471,8 +488,6 @@ the player. A player's Esc sends only a serverbound close and posts no
 `MenuClosedEvent` (Wynntils posts `ContainerCloseEvent` and
 `ScreenClosedEvent` for it; nothing in the package subscribes to either).
 Where an Esc then ends a run depends on what the server sends for that
-| **Bound Members menu gone when the walker's scan runs** | `MembersListWalker.scanAndPaginate` | none | **no** |
-| **Walker waits on an event that never arrives** — for example a Members menu that never opens, a Next Page click whose reply the walker never sees, or a player's Esc with nothing further for the bound id | nothing: `MembersListWalker` has no watchdog | none | **not while it waits** — the walker stays armed, and a later Members menu can bind a stale unbound arm and run its callback then (`distribute-concurrent-runs-clobber-shared-state`) |
 menu afterwards — a close of its own, a reopen, slot updates answering a
 click already in flight — and none of that is verifiable from any repo.
 What the code does settle is the case where the run moves on to its next recipient
@@ -482,9 +497,6 @@ queue drains at one watchdog timeout per recipient
 the next phase reopens the menu for itself.
 
 The `no` rows are not one shape, and none is rescued:
-
-The three walker rows are `members-list-walker-drops-completion`; the
-presser row is `member-slot-presser-drops-completion`.
 
 - **The two `onMenuClose` rows and the walker's scan-time row are one
   shape.** Each calls `stop()` without invoking the handler. In the
@@ -518,10 +530,12 @@ presser row is `member-slot-presser-drops-completion`.
   which captures the callback into a local **before** `clearPending()`
   and then runs it. Same class, two paths, one contract.
 
-**One run at a time.** Every piece of this machine is a static
-singleton, and nothing refuses a second `/wv distribute` while a run is
-in flight: it re-arms whichever of the searcher, walkers and presser it
-uses, and the first run's pending callbacks — an `@split` chain included — are dropped
+**One run at a time.** All of this machine's state is static, and
+nothing refuses a second `/wv distribute` while a run is in flight. The
+second run overwrites whatever shared state its path uses (searcher,
+walkers, presser, opener); callbacks of the first run stored there are
+dropped unrun, an `@split` chain included. One it leaves in place can
+still fire later, into the second run
 (`distribute-concurrent-runs-clobber-shared-state`).
 
 ## 8. `OutboundCommand` — the repo's only reflection
@@ -627,10 +641,10 @@ Two edits, both local:
    position carries no meaning — dispatch matches a whole token
    case-insensitively, so no row can shadow another, and Brigadier's
    `Suggestions.create` HashSets and case-insensitively sorts the
-   suggestion list before the client ever sees it. The table is
-   offered unconditionally, before the Wynntils-ready check — the
-   dispatchers read the live roster, so they work with a cold Wynntils
-   member cache.
+   suggestion list before the client ever sees it. The selectors are
+   offered regardless of Wynntils readiness (prefix-filtered only) — none
+   of the dispatchers reads `Models.Guild.getGuildMembers()`, so they
+   don't depend on the member cache the name suggestions need.
 2. A distributor exposing `dispatch(int, Resource)` — plus the
    `dispatch(int, Resource, Runnable)` overload **if the new selector is
    to be chainable from `@split`**, firing that callback on every exit
@@ -658,6 +672,6 @@ one token and deliberately doesn't know the selector set.
 - [vetsmod_commands.md](vetsmod_commands.md) — the `/wv distribute`
   entry in the command tree, and the rest of `/wv`
 - [vetsmod_networking.md](vetsmod_networking.md) — `VetsApi` constants
-  and the mod's other HTTP surfaces
+  and the mod's other HTTP surfaces, and (auth frame fields) where the
+  confirmed-staff signals (`is_staff`, `staff_rank`) come from
 - [vetsmod_guild_system.md](vetsmod_guild_system.md) — `GuildStateManager`
-  and where the confirmed-staff signals come from
