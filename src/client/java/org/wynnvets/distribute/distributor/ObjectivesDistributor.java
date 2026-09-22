@@ -86,7 +86,12 @@ public final class ObjectivesDistributor {
         // HTTP round-trip overlaps the (much slower) menu pagination.
         // The walk callback waits on the fetch before filtering — by
         // the time the walker completes, the HTTP is almost always
-        // already resolved.
+        // already resolved. The scheduleLater(..., 0) keeps onWalkComplete
+        // on the tick thread either way: thenAccept runs on whichever
+        // background thread completes the fetch if it finishes after the
+        // walk, and inline on the walker's tick-thread callback if it
+        // finished first. Either way the 0 is there for the thread, not as
+        // a settle delay.
         CompletableFuture<Set<String>> excludeF = NoAspectsFilter.fetchExcludedLegacyNames();
         MembersListWalker.armWalk(
                 members ->

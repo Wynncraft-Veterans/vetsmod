@@ -69,7 +69,7 @@ import org.wynnvets.logging.VetsLogger;
  * the participants and bumping the first {@code remainder} by +1,
  * matching {@link ObjectivesDistributor}'s "random modulo" convention.
  * Participants ending up at zero are dropped from the visit queue so
- * we don't open and re-paginate just to send nothing.</p>
+ * we don't search and re-paginate just to send nothing.</p>
  */
 public final class GraidsDistributor {
 
@@ -105,7 +105,10 @@ public final class GraidsDistributor {
         // Fetch the name index and the NoAspects opt-out list in
         // parallel; strip excluded legacy names from the index so they
         // never match a graid-log username token. Per-command refresh,
-        // fail-open via NoAspectsFilter on any HTTP error.
+        // fail-open via NoAspectsFilter on any HTTP error. The trailing
+        // scheduleLater(..., 0) is a hop back to the tick thread — the
+        // combined future completes on a background thread, not the tick
+        // thread — not a delay.
         NameResolver.fetchNameIndex()
                 .thenCombine(
                         NoAspectsFilter.fetchExcludedLegacyNames(), GraidsDistributor::filterIndex)
@@ -157,7 +160,8 @@ public final class GraidsDistributor {
         // recent menu close — even when typed in chat by the user
         // themselves. /guild manage doesn't have the same constraint,
         // and the Manage GUI's "Guild Log" tile routes to the same
-        // Log container. See GuildManageOpener.openGuildLog javadoc.
+        // Log container. See GuildManageOpener's class Javadoc ("Why not
+        // just /guild log?").
         GuildManageOpener.openGuildLog();
     }
 
@@ -183,8 +187,10 @@ public final class GraidsDistributor {
 
         Deque<DistributionQueue.Distribution> queue = buildDistribution(freq, count);
         if (queue.isEmpty()) {
-            // count == 0 (excluded by brigadier bounds) or everyone rounded to 0
-            // and no remainder — nothing to send.
+            // Defensive: only reachable when count <= 0, which brigadier's
+            // bounds and SplitDistributor's zero-pool collapse both exclude —
+            // with any participant and count >= 1, the floors plus the
+            // remainder bonus always leave someone a positive share.
             if (onComplete != null) onComplete.run();
             return;
         }
@@ -208,9 +214,11 @@ public final class GraidsDistributor {
     }
 
     /**
-     * Counts how many graid entries each member's legacy name appears
-     * in. A member appearing twice in the same entry (shouldn't happen,
-     * but defensive) counts as one participation for that entry.
+     * Counts, per member (keyed by legacy name), the graid entries in
+     * which either of their names appears &mdash; the index maps both the
+     * current and the legacy name to the legacy one. A member appearing
+     * twice in the same entry (shouldn't happen, but defensive) counts as
+     * one participation for that entry.
      */
     private static Map<String, Integer> countGraidFrequencies(
             List<GuildLogItem> entries, Map<String, String> nameIndex) {

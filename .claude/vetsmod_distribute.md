@@ -331,8 +331,8 @@ observed Wynncraft behaviour first, then the code shape it forces.
 2. **Wynncraft refreshes the Members menu after every send.** A press
    issued before that refresh lands is dropped silently — the symptom is
    asking for `count=N` and seeing exactly one reward line.
-   `MemberSlotPresser`'s class Javadoc records the observed case as a
-   close-and-reopen under a **new container id**, which makes the stale
+   `MemberSlotPresser`'s class Javadoc records the observed case as the
+   menu reopening under a **new container id**, which makes the stale
    id the mechanism. The code covers a second shape too, and does not
    claim which is more common: it accepts either
    `MenuOpenedEvent.Pre` (close+reopen, new id) *or*
@@ -422,8 +422,11 @@ an extrapolation from behaviour observed elsewhere. Values are current.
 
 `distribute/` is currently the repo's only consumer of
 `Managers.TickScheduler` — 11 `scheduleLater` calls across 8 of its 16
-files, none elsewhere in `src/`. Four of the 11 are delay-0 hops off the
-shared `HttpClient` executor back onto the tick thread, not delays. Treat
+files, none elsewhere in `src/`. Four of the 11 are delay-0 marshalling
+hops back onto the tick thread, not delays — three always off a
+background HTTP-completion thread, and `ObjectivesDistributor.dispatch`'s whenever its
+opt-out fetch outlasts the walk (when it does not, that call is a
+same-thread deferral through the scheduler instead). Treat
 the exclusivity as a snapshot rather than a design invariant; nothing stops
 another package from scheduling.
 

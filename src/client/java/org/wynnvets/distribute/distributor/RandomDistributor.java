@@ -25,8 +25,11 @@ import org.wynnvets.guild.GuildStateManager;
  * call per recipient &mdash; before closing the menu at the end.
  *
  * <h2>Count semantics</h2>
- * <p>For {@code @random}, {@code <count>} is the <em>number of distinct
- * recipients</em>; each gets exactly one of the resource. This differs
+ * <p>For {@code @random}, {@code <count>} is the <em>number of
+ * recipients to pick</em>, capped at the pool size &mdash; distinct roster
+ * entries, though two members sharing a tile name can make one tile the
+ * target twice ({@code random-distributor-can-target-one-tile-twice}); each
+ * pick is sent one of the resource. This differs
  * from the single-user form where {@code <count>} is "presses sent to
  * that one user", but matches what a raffle-style giveaway needs.</p>
  *
@@ -43,8 +46,9 @@ import org.wynnvets.guild.GuildStateManager;
  * <p>Random picks can live on any page, in any order. After the first
  * pick is found on some page P, subsequent picks may live on an earlier
  * page &mdash; {@link MembersListSearcher}'s bidirectional pagination
- * transparently switches direction so the queue can drain without ever
- * reopening the menu or paginating all the way back to page 1.</p>
+ * transparently switches direction so the queue can drain without the
+ * client re-sending {@code /guild manage} or paging back to page 1 before
+ * each search.</p>
  *
  * <h2>Failure tolerance</h2>
  * <p>If a picked member can't be located (e.g. they were just kicked
@@ -103,7 +107,7 @@ public final class RandomDistributor {
                         legacyNames ->
                                 // Hop back to the Minecraft tick thread before touching the
                                 // menu / event-bus state. The HTTP completion callback runs
-                                // on the HttpClient's executor.
+                                // on a background thread, not the tick thread.
                                 Managers.TickScheduler.scheduleLater(
                                         () -> beginPicks(legacyNames, count, resource, onComplete),
                                         0));

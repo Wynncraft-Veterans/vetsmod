@@ -37,9 +37,9 @@ import org.wynnvets.logging.VetsLogger;
  *   <tr>
  *     <td>{@link RandomDistributor}</td>
  *     <td>{@link NameResolver#fetchAllLegacyNames()}</td>
- *     <td>wapi serves each member's {@code legacyName} field, which <em>is</em> the tile
- *         name. Picking from {@code Models.Guild.getGuildMembers()} instead would hand this
- *         loop current names and need a resolve per pick.</td>
+ *     <td>it returns each member's tile name &mdash; wapi's {@code legacyName}, or the current
+ *         name when there is none. Picking from {@code Models.Guild.getGuildMembers()} instead
+ *         would hand this loop current names and need a resolve per pick.</td>
  *   </tr>
  *   <tr>
  *     <td>{@link ObjectivesDistributor}</td>
@@ -62,26 +62,34 @@ import org.wynnvets.logging.VetsLogger;
  * <ul>
  *   <li><b>The arming order.</b> {@link RandomDistributor} and {@link GraidsDistributor}
  *       call {@link #processNext} <em>before</em>
- *       {@link GuildManageOpener#openManageMembers()}, so the searcher is bound by the time
- *       {@code MenuOpenedEvent.Pre} fires. {@link ObjectivesDistributor} calls it with the
- *       Members menu already open &mdash; its walk ended there &mdash; and so takes the
- *       searcher's re-arm fast path instead. Only the <em>first</em> pop differs: a later
- *       one re-arms into a menu the previous send left open, whichever head queued it.</li>
+ *       {@link GuildManageOpener#openManageMembers()}, so the searcher is armed by the time
+ *       {@code MenuOpenedEvent.Pre} fires and binds on it. {@link ObjectivesDistributor}
+ *       calls it with the Members menu already open &mdash; its walk ended there &mdash; and
+ *       so takes the searcher's re-arm fast path instead. Only the <em>first</em> pop
+ *       differs: a later one normally re-arms into a menu the previous send left open,
+ *       whichever head queued it. (If that menu has gone by then, nothing here reopens it;
+ *       see {@code distribute-escape-mid-run-drains-through-watchdog}.)</li>
  *   <li><b>Closing the menu on an early out.</b> Of this loop's own paths, only the
  *       {@code queue.isEmpty()} terminal below closes the Members menu. Each head's own
  *       no-recipient exits answer that question separately, and all three answers are
  *       right:
  *       {@link ObjectivesDistributor} closes, because its walk left the Members menu open;
  *       {@link GraidsDistributor} does not, because none of its early-outs has opened the
- *       Members menu &mdash; the only menu it can have open by then is the Guild Log, and
- *       {@link GuildLogWalker} closes that itself; {@link RandomDistributor} does not,
+ *       Members menu, so there is no Members menu for it to close &mdash; the Guild Log, if
+ *       {@link GuildLogWalker} bound it, the walker closes itself, and a Manage menu the Log
+ *       route left open is a different menu
+ *       ({@code graids-log-never-reached-reported-as-empty-log});
+ *       {@link RandomDistributor} does not,
  *       because at that point it has opened nothing at all.</li>
  * </ul>
  */
 final class DistributionQueue {
 
     /** One queued recipient and the per-user count we owe them. */
-    // Package-private for unit tests. See GraidsDistributorTest, ObjectivesDistributorTest.
+    // Package-private because the three heads build their queues from it
+    // (GraidsDistributorTest and ObjectivesDistributorTest name it too). Deliberately not
+    // the "Package-private for unit tests" marker, which asserts that narrowing back to
+    // private is safe once the test goes; here it would break all three heads.
     record Distribution(String legacyName, int count) {}
 
     private DistributionQueue() {}

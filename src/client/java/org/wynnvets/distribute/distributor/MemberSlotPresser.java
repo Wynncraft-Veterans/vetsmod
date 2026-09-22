@@ -28,10 +28,11 @@ import org.wynnvets.logging.VetsLogger;
  * press as one resource-send action (1 Aspect, 1 Guild Tome, 1024
  * Emeralds respectively).</p>
  *
- * <p>Wynncraft refreshes the Members menu after every send action,
- * assigning a new container id in the process. Sending the next press
- * before that refresh lands means the click goes against a stale
- * container id and the server drops it silently &mdash; symptom: the
+ * <p>Wynncraft refreshes the Members menu after every send action. The
+ * observed shape is the menu reopening under a new container id, and
+ * the code also accepts an in-place refresh under the same id. Sending
+ * the next press before that refresh lands means the click goes against
+ * a stale menu state and the server drops it silently &mdash; symptom: the
  * user asks for {@code count=N} but only one reward chat line appears.
  * To avoid that, each press arms an event listener for the menu
  * refresh ({@link MenuEvent.MenuOpenedEvent.Pre} on close+reopen, or
@@ -65,9 +66,9 @@ public final class MemberSlotPresser {
         }
     }
 
-    /** Settle buffer applied after a confirmed refresh and before the next
-     *  press &mdash; gives the server a tick of breathing room and keeps
-     *  the cadence humane. */
+    /** Settle buffer applied after every confirmed refresh &mdash; before
+     *  the next press or, after the last, before {@code onComplete}. Gives
+     *  the server some breathing room and keeps the cadence humane. */
     private static final int PRESS_DELAY_TICKS = 4;
 
     /** Safety bound on the refresh wait. If no refresh event lands within
@@ -77,8 +78,11 @@ public final class MemberSlotPresser {
 
     private static final MemberSlotPresser INSTANCE = new MemberSlotPresser();
 
-    // Pending-press state. Non-null/true iff a press has been fired and
-    // we're waiting on the server's menu refresh before firing the next.
+    // The in-flight batch's state. awaitingRefresh is set when a press is
+    // sent and cleared when its refresh is observed or the batch is torn
+    // down (completion, timeout, or screen gone); pendingResource is
+    // nulled only by that teardown. The int fields are never reset, and
+    // pendingContainerId is read only by onMenuOpenPre's debug line.
     private static volatile int pendingSlot;
     private static volatile Resource pendingResource;
     private static volatile int pendingTotal;
@@ -228,8 +232,9 @@ public final class MemberSlotPresser {
     }
 
     /**
-     * In-place refresh path: Wynncraft reuses the same container id and
-     * streams a fresh {@code SetContent} for the updated slots.
+     * In-place refresh path: a full-contents re-send ({@code SetContent})
+     * for the open Members menu's current id is also accepted as the
+     * refresh.
      */
     @SubscribeEvent
     public void onSetContent(ContainerSetContentEvent.Post event) {

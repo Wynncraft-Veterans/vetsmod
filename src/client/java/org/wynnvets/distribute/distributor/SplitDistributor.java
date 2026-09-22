@@ -29,9 +29,9 @@ import org.wynnvets.chat.ChatUtils;
  * run first because it scans the guild log for raid completions, and
  * Wynncraft caps that log at ~100 most-recent entries &mdash;
  * distributing aspects (or anything else that emits log entries) first
- * would push graid records off the back of the window. The choice of
- * which pool gets which third <em>is</em> randomised via the remainder
- * shuffle above, so the operator can't game the split.</p>
+ * would push graid records off the back of the window. Which pools
+ * receive the {@code count % 3} remainder <em>is</em> randomised via the
+ * shuffle above, so the operator can't choose them.</p>
  *
  * <h2>Pool failures</h2>
  * <p>Each underlying dispatcher invokes its {@code onComplete}
