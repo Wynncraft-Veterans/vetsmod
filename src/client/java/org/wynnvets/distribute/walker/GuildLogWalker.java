@@ -30,7 +30,7 @@ import org.wynnvets.logging.VetsLogger;
  * holder's collected items aren't exposed via the model API, so we
  * can't read them directly &mdash; but the {@code ContainerSetSlot.Post}
  * events that feed it are public, and Wynntils' {@code GuildLogAnnotator}
- * (registered with {@code Models.Item}) turns each paper item into a
+ * (registered by {@code Models.Item}) turns each paper log-entry item into a
  * {@link GuildLogItem} containing its parsed timestamp and lore. Two
  * subscribers on the same events don't conflict on reading; only the
  * pagination is side-effectful, and we leave that to Wynntils.</p>
@@ -78,10 +78,14 @@ public final class GuildLogWalker {
     private static final int SETTLE_TICKS = 40;
 
     /** Safety cap: if the walk hasn't finished in this many ticks
-     *  total, abort. ~10s. */
+     *  total, end it and deliver whatever was collected (possibly
+     *  nothing). ~10s. */
     private static final int OVERALL_TIMEOUT_TICKS = 200;
 
-    /** Completion callback fired once the settle timer expires. */
+    /** Completion callback, fired once when the walk ends &mdash; on
+     *  settle, on a server-sent close of the log, or on the overall
+     *  timeout &mdash; with whatever was collected. A later
+     *  {@link #armWalk} replaces it without firing it. */
     @FunctionalInterface
     public interface Completion {
         void onComplete(List<GuildLogItem> entries);
@@ -94,7 +98,9 @@ public final class GuildLogWalker {
     private static volatile Completion completion = null;
     private static final List<GuildLogItem> collected = new ArrayList<>();
 
-    /** Tick on which we last saw a new GuildLogItem land. */
+    /** Tick of the last new GuildLogItem, or of the bind if none has
+     *  landed yet (-1 until the walk binds); the settle timer measures
+     *  from this. */
     private static volatile int lastItemTick = -1;
 
     /** Tick on which the walk was armed (for overall timeout). */
@@ -178,8 +184,8 @@ public final class GuildLogWalker {
         if (opt.isEmpty()) return;
 
         GuildLogItem item = opt.get();
-        // Dedupe by (instant, first-line-text). Wynntils' annotator can
-        // produce equivalent items if a page re-renders during scroll.
+        // Dedupe by (instant, first-line-text), in case the same entry
+        // arrives in more than one SetSlot packet.
         if (alreadyCollected(item)) return;
         collected.add(item);
         lastItemTick = currentTick();
@@ -192,9 +198,9 @@ public final class GuildLogWalker {
         // Overall-timeout check is first and outside the containerId
         // guard so a walk that's armed but never sees a menu open
         // (e.g. the open command was silently dropped server-side)
-        // still cleans up its `active=true` state after the deadline
-        // — otherwise the next walk's menu open events would all
-        // appear "stale" and trigger spurious match attempts.
+        // still ends after the deadline: it delivers the callback (with
+        // an empty list) so a chained caller advances, and it disarms,
+        // so a later unrelated guild-log open can't bind the stale arm.
         if (now - startTick > OVERALL_TIMEOUT_TICKS) {
             VetsLogger.debug(
                     "GuildLogWalker: overall timeout reached (boundId={}, {} entries)",

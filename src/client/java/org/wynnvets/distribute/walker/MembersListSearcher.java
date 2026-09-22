@@ -26,13 +26,16 @@ import org.wynnvets.util.ContainerScreens;
  * specific player and invokes a callback when their player-head slot is
  * located.
  *
- * <p>Mirrors the page-turn half of Wynntils'
- * {@code ContainerSearchFeature}: subscribes to the same
- * {@code MenuOpenedEvent.Pre} / {@code ContainerSetContentEvent.Post} /
- * {@code ContainerSetSlotEvent.Post} triple Wynntils uses, with a
+ * <p>Modelled on the auto-search in Wynntils'
+ * {@code ContainerSearchFeature}: it rescans on the same
+ * {@code ContainerSetContentEvent.Post} / {@code ContainerSetSlotEvent.Post}
+ * events, and, like Wynntils' {@code ContainerModel}, binds the container
+ * id by title on {@code MenuOpenedEvent.Pre} &mdash; though unlike
+ * {@code ContainerModel} it keeps its first binding (see
+ * {@link #onMenuOpenPre}). The rescan waits a
  * {@link #SCAN_DELAY_TICKS}-tick scheduler delay so straggling slot
- * updates land before the rescan &mdash; see that constant for why the
- * value is 2 and not 1. Slot indices and bounds match
+ * updates can land first &mdash; see that constant for why the value is
+ * 2 and not 1. Slot indices and bounds match
  * {@code GuildMemberListContainer}.</p>
  *
  * <h2>Bidirectional pagination</h2>
@@ -44,25 +47,31 @@ import org.wynnvets.util.ContainerScreens;
  * in one menu session without resetting to page 1 between them.</p>
  *
  * <h2>Re-arming while the menu is open</h2>
- * <p>The first {@link #armSearch} of a session waits for
- * {@code MenuOpenedEvent.Pre} to bind the container id. Subsequent
- * re-arms (multi-user flows) detect that the Members menu is already
- * open and bind + schedule a scan immediately so the next pick starts
- * searching from wherever the previous one left off.</p>
+ * <p>An {@link #armSearch} made while no Members menu is open waits for
+ * {@code MenuOpenedEvent.Pre} to bind the container id. One made while a
+ * Members menu is open binds it and schedules a scan straight away, so
+ * the pick starts searching from whatever page that menu is on &mdash;
+ * normally every later pick of a multi-recipient run, since the previous
+ * pick leaves the menu open, and {@code @objectives}' first pick, since
+ * its walk ends in the menu.</p>
  *
  * <h2>Name matching</h2>
- * <p>Each player-head's hover name is the player's {@code legacyName} as
- * served by {@code wapi /v3/guild/<name>.members.<rank>.<currentName>.legacyName}.
+ * <p>Each player-head's hover name is the member's tile name: wapi's
+ * {@code legacyName} ({@code /v3/guild/<name>} &rarr;
+ * {@code members.<rank>.<currentName>.legacyName}) where the member has
+ * one, otherwise the {@code currentName} key (see {@link NameResolver}).
  * Matching is case-insensitive against the §-stripped hover name. Multiple
- * acceptable names can be armed via {@link #addAlternative(String)}, used
- * by {@link NameResolver} to add the legacy form once a current Mojang
- * username has been resolved.</p>
+ * acceptable names can be armed via {@link #addAlternative(String)}, which
+ * {@code DistributeCommands}' literal-name path uses to add the resolved
+ * tile name right after arming, when it differs from the literal
+ * input.</p>
  */
 public final class MembersListSearcher {
 
-    /** Hard cap on page clicks per search to bound runaway loops.
-     *  Generous enough to cover a full forward sweep followed by a full
-     *  backward sweep on a max-size guild. */
+    /** Hard cap on page clicks per pass (the retry starts a new pass and
+     *  resets the counter) to bound runaway loops. Generous enough to
+     *  cover a full forward run followed by a full backward run on a
+     *  max-size guild. */
     private static final int MAX_PAGES = 60;
 
     /** Cap on rebind attempts when the bound container id has gone stale
@@ -82,10 +91,11 @@ public final class MembersListSearcher {
 
     /** After a forward+backward sweep exhausts without a match, wait this
      *  many ticks then start a fresh sweep from the current page (which
-     *  is page 1 after a successful backward exhaustion). The retry
-     *  re-clicks NEXT to navigate forward, which forces the server to
-     *  re-stream {@code SetSlot} updates for each page — fresh data that
-     *  sidesteps any stale-update race the first sweep may have hit. */
+     *  is page 1 after a successful backward exhaustion). On a multi-page
+     *  guild the retry re-clicks NEXT to navigate forward, which forces the
+     *  server to re-stream {@code SetSlot} updates for each page — fresh
+     *  data that sidesteps any stale-update race the first sweep may have
+     *  hit. On a single page it only rescans after the delay. */
     private static final int RETRY_DELAY_TICKS = 10;
 
     /** Number of full sweep retries before giving up. One retry catches
@@ -98,7 +108,11 @@ public final class MembersListSearcher {
      *  in under 10s; 15s gives margin without the user noticing if a
      *  search completes normally. If we hit this, something is genuinely
      *  stuck (dropped click, server stopped responding, etc.) and the
-     *  watchdog force-advances the chain so distribution can continue. */
+     *  watchdog force-advances the chain so distribution can continue.
+     *  Counted from {@link #armSearch}, so when a search is armed before
+     *  the menu opens (the literal head, and the first pick of
+     *  {@code @random} and {@code @graids}) it also covers opening the
+     *  menu. */
     private static final int WATCHDOG_TICKS = 300;
 
     private enum Direction {
@@ -111,8 +125,8 @@ public final class MembersListSearcher {
     /** Human-readable label for chat messages; non-null iff armed. */
     private static volatile String displayQuery = null;
 
-    /** Lowercased set of acceptable names. Concurrent because async
-     *  resolvers ({@link NameResolver}) may add alternatives after arming. */
+    /** Lowercased set of acceptable names; {@link #addAlternative} can add
+     *  to it after arming. */
     private static final Set<String> queryLower = ConcurrentHashMap.newKeySet();
 
     /** Container id of the Members menu we're currently driving. */
@@ -141,24 +155,32 @@ public final class MembersListSearcher {
      *  current search. Bounded by {@link #MAX_RETRY_ATTEMPTS}. */
     private static volatile int retryAttempts = 0;
 
-    /** Monotonic token bumped on every {@link #armSearch}; the per-search
-     *  watchdog task captures it at arm time and bails at fire time if
-     *  a newer search has replaced it. Lets the search complete normally
-     *  (via match or stopNotFound) without needing the watchdog to know. */
+    /** Monotonic token bumped on every {@link #armSearch} and every
+     *  {@link #stop()}; the per-search watchdog task captures it at arm
+     *  time and bails at fire time if it has moved on. So once a search
+     *  ends by any path &mdash; a match, a not-found exit, or
+     *  {@link #onMenuClose} &mdash; its watchdog is disarmed without
+     *  needing to know, which is why a server-sent mid-search close is
+     *  not covered by the watchdog. */
     private static volatile int watchdogToken = 0;
 
     /** Callback invoked when the armed name is located. */
     private static volatile SlotMatchHandler matchHandler = null;
 
-    /** Optional callback invoked when the search exhausts both directions
-     *  without finding the name. */
+    /** Optional callback run through {@link #invokeNotFound()} when the
+     *  search gives up: both directions and the retry exhausted, the page
+     *  cap reached, no screen with the bound id when a scan runs and no
+     *  rebind possible, or the watchdog firing. {@link #onMenuClose} ends
+     *  a search without it. */
     private static volatile Runnable notFoundHandler = null;
 
     /** Callback fired by {@link #scanAndPaginate()} when one of the armed
      *  names' player-head slot is located on the current page. The handler
-     *  receives only the slot index; everything else (container id, items)
-     *  is stale by the time the handler fires and should be re-read from
-     *  the current screen by the callee. */
+     *  receives only the slot index. The searcher has already
+     *  {@code stop()}ped and cleared its bound id, so the callee reads the
+     *  container from the live screen &mdash; and must re-read it for
+     *  anything it does on a later tick, because a send's refresh can
+     *  replace the container id. */
     @FunctionalInterface
     public interface SlotMatchHandler {
         void onMatch(int slot);
@@ -174,7 +196,9 @@ public final class MembersListSearcher {
     /**
      * Arms the searcher to scan the next {@code "<guild>: Members"} menu
      * for {@code name} and invoke {@code handler} once it's located.
-     * Overwrites any previous armed query.
+     * Overwrites any previous armed query, discarding its handlers without
+     * running them and superseding its watchdog
+     * ({@code distribute-concurrent-runs-clobber-shared-state}).
      *
      * @param handler invoked on match; must be non-null. Passing null
      *                will NPE when a match is found.
@@ -247,9 +271,10 @@ public final class MembersListSearcher {
 
     /**
      * Adds an additional acceptable name to the current armed search.
-     * Used by async resolvers to register a current&rarr;legacy alias
-     * without invalidating the literal-input match. No-op if the
-     * searcher is not armed.
+     * Used by {@code DistributeCommands}' literal-name path, on the tick
+     * thread right after arming, to add the resolved tile name alongside
+     * the literal input without invalidating the literal-input match.
+     * No-op if the searcher is not armed.
      */
     public static void addAlternative(String name) {
         if (displayQuery == null) return;
@@ -279,7 +304,11 @@ public final class MembersListSearcher {
     @SubscribeEvent
     public void onMenuOpenPre(MenuEvent.MenuOpenedEvent.Pre event) {
         if (displayQuery == null) return;
-        // Already bound by the re-arm fast-path; ignore subsequent opens.
+        // Already bound (by the fast path, an earlier open, or a rebind):
+        // ignore later opens. A replacement under a new id is picked up
+        // only if a scan runs afterwards, through scanAndPaginate's
+        // rebind; otherwise it waits until something else ends it,
+        // normally the watchdog.
         if (membersContainerId != -1) return;
         StyledText title = StyledText.fromComponent(event.getTitle());
         if (!title.matches(MembersGui.TITLE_PATTERN)) return;
@@ -325,7 +354,10 @@ public final class MembersListSearcher {
      * which races when Wynncraft fires the button update before all the
      * page's player-slot packets — the scan ran on a half-updated page
      * and silently missed the target. {@link #scheduleScan()}'s debounce
-     * guarantees the scan only fires after the slot stream goes quiet.
+     * makes the scan fire only once no triggering packet has arrived for
+     * {@link #SCAN_DELAY_TICKS}; a stream that pauses longer can still be
+     * scanned half-updated, which a later pass over that page (the
+     * backward sweep or the retry) may catch.
      */
     @SubscribeEvent
     public void onSetSlot(ContainerSetSlotEvent.Post event) {
@@ -346,7 +378,8 @@ public final class MembersListSearcher {
      * The net effect is that {@link #scanAndPaginate()} runs
      * {@link #SCAN_DELAY_TICKS} ticks after the most recent triggering
      * event — so a burst of {@code SetSlot} packets that spans a tick or
-     * two collapses into one scan against the fully-settled page state.
+     * two collapses into one scan, run once the burst has paused for that
+     * long.
      */
     private static void scheduleScan() {
         final int myToken = ++scanToken;
@@ -364,12 +397,16 @@ public final class MembersListSearcher {
 
         AbstractContainerScreen<?> screen = ContainerScreens.currentWithId(membersContainerId);
         if (screen == null) {
-            // Container id mismatch — typically a server-side close+reopen
-            // of the Members menu between scheduleScan and now. In a
-            // multi-pick chain the next pick's armSearch fires immediately
-            // after the previous press's refresh; if Wynncraft happens to
-            // refresh the menu again inside that 1-tick gap, our bound id
-            // is stale before the scan runs. Try to rebind to whichever
+            // No screen carries our bound id. Ours was dismissed
+            // client-side (the player's Esc posts no MenuClosedEvent), or
+            // replaced, e.g. by a Members reopen under a new id with no
+            // close for ours (a clientbound close for our id that arrived
+            // first would have stopped the search in onMenuClose). In a
+            // multi-pick chain the next pick's armSearch normally runs a
+            // few ticks after the previous send's refresh; if Wynncraft
+            // replaces the menu again, without a close for ours, before the
+            // debounced scan runs, our bound id is stale by then. Try to
+            // rebind to whichever
             // Members menu is currently open before giving up — but cap
             // rebinds so a thrashing refresh loop can't pin the searcher.
             AbstractContainerScreen<?> reopened = MembersGui.currentByTitle();
@@ -469,8 +506,9 @@ public final class MembersListSearcher {
      * transparently flips forward&rarr;backward when the forward sweep
      * runs out. Returns {@code true} if a click was issued (with
      * {@code pagesClicked} incremented); {@code false} if no further
-     * pages are reachable in either direction &mdash; caller should
-     * surface a "not found" outcome.
+     * pages are reachable in either direction &mdash; the caller then
+     * retries the sweep, and surfaces "not found" once the retry is
+     * spent.
      */
     private static boolean advancePagination(List<ItemStack> items) {
         if (direction == Direction.FORWARD) {

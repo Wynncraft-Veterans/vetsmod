@@ -29,22 +29,29 @@ import org.wynnvets.util.ContainerScreens;
  *
  * <p>Built on the same event triple as {@link MembersListSearcher}
  * (MenuOpen / SetContent / SetSlot) and, like it, defers the rescan by a
- * scheduler delay so straggling slot updates land first &mdash; but the
- * two are not interchangeable. This class waits one tick and filters
- * {@link #onSetSlot} down to {@link MembersGui#NEXT_PAGE_SLOT}; the
- * searcher waits {@code SCAN_DELAY_TICKS} (a different value, for the
- * reason recorded on that constant) and also triggers on every in-bounds
- * tile. Instead of stopping on a match it forward-paginates exhaustively,
+ * scheduler delay &mdash; but the two are not interchangeable. This class
+ * uses a one-tick scheduler delay and filters {@link #onSetSlot} down to
+ * {@link MembersGui#NEXT_PAGE_SLOT}; the searcher uses
+ * {@code SCAN_DELAY_TICKS} (a different value, for the reason recorded on
+ * that constant) and also triggers on every in-bounds tile. And they
+ * debounce differently: this class latches on the <em>first</em> trigger
+ * and scans after its delay, ignoring later triggers until then, where
+ * the searcher's scan waits a delay after the <em>last</em>. So here the
+ * wait for straggling slot updates is fixed by the first trigger and is
+ * not extended by later ones. Instead of stopping on a match it
+ * forward-paginates exhaustively,
  * collecting every bounded player-head into {@link #collected} along the
  * way. When the Next Page button disappears, it invokes
  * {@link Completion#onComplete(List)} with the accumulated list.</p>
  *
- * <p>Forward-only: the walk is always started on a freshly-opened
- * Members menu (page 1), so there's never anything backward to cover.
- * If the menu is somehow already mid-page when armed, anything before
- * that page is silently skipped &mdash; the caller should always pair
- * {@link #armWalk(Completion)} with a fresh
- * {@link GuildManageOpener#openManageMembers()}.</p>
+ * <p>Forward-only: the walk is meant to start on a freshly-opened Members
+ * menu (page 1), so there's never anything backward to cover. Its one
+ * caller pairs {@link #armWalk(Completion)} with a fresh
+ * {@link GuildManageOpener#openManageMembers()}. That assumes no Members
+ * menu is already open at arm time: if one is, {@code armWalk}'s fast
+ * path binds that menu instead, from whatever page it is on, and the walk
+ * does not follow the fresh menu the caller then opens
+ * ({@code members-list-fast-path-binds-a-menu-about-to-be-replaced}).</p>
  */
 public final class MembersListWalker {
 
@@ -79,7 +86,10 @@ public final class MembersListWalker {
     /**
      * Arms the walker for the next Members menu open. The callback fires
      * once the walk reaches a page with no Next Page button (or the
-     * {@link #MAX_PAGES} cap), with the full member list.
+     * {@link #MAX_PAGES} cap), with the members it collected: meant to be
+     * the whole roster when the walk ends on the last page (see the class
+     * Javadoc and {@link #collectVisiblePage} for ways a page can be
+     * missed), and only the pages reached when it ends at the cap.
      */
     public static void armWalk(Completion onComplete) {
         active = true;
@@ -88,8 +98,11 @@ public final class MembersListWalker {
         scanScheduled = false;
         collected.clear();
 
-        // Re-arm fast-path (parity with MembersListSearcher): if the menu
-        // is already open, bind to its container id and start scanning.
+        // Fast path mirroring MembersListSearcher's: if a Members menu is
+        // already open, bind to its container id and start scanning. The
+        // walker has no re-arm flow, and its caller opens a fresh menu
+        // right after arming, so if this ever fires it binds a menu that
+        // is about to be replaced (see the class Javadoc).
         AbstractContainerScreen<?> open = MembersGui.currentByTitle();
         if (open != null) {
             membersContainerId = open.getMenu().containerId;
@@ -179,8 +192,10 @@ public final class MembersListWalker {
     /**
      * Appends every {@linkplain MembersGui#isTileSlot(int) player-head tile}
      * on the current page to {@link #collected}. Names are deduped by legacyName so re-scans
-     * of the same page (rare but possible if SetContent + SetSlot both
-     * fire) don't double-count.
+     * of the same page (rare, but possible if a trigger for the page
+     * arrives after its scan has run) don't double-count. The re-scan also re-runs
+     * {@link #advanceOrFinish}, though, so it can click Next a second time
+     * ({@code members-list-walker-rescan-double-clicks-next}).
      */
     private static void collectVisiblePage(List<ItemStack> items) {
         for (int slot = 0; slot < items.size(); slot++) {

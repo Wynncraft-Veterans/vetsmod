@@ -168,8 +168,10 @@ is what the searcher matches). Each step names the class that owns it:
    On a miss it calls `advancePagination`.
 7. On a hit it captures the handler, calls `stop()` to clear all search
    state, *then* invokes `SlotMatchHandler.onMatch(slot)`. The handler
-   receives only the slot index; container id and items are stale by
-   then and must be re-read.
+   receives only the slot index. The searcher has already cleared its
+   bound id, so the callee reads the container from the live screen, and
+   must re-read it on any later tick — a send's refresh can replace the
+   container id.
 8. **`MemberSlotPresser.fire`** announces the send in chat and calls
    `sendPressAndArm`, which reads the live container id and issues
    `ContainerUtils.pressKeyOnSlot` — a `ClickType.SWAP` packet carrying
