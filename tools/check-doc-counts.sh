@@ -88,6 +88,15 @@ DebugCommands.buildCommandTree|1|DebugCommands class doc: CommandRegistry is the
 AnniDebugCommands.buildCommandTree|1|AnniDebugCommands#buildCommandTree: caller is DebugCommands
 DebugConfigManager.isDebugConfigKey|2|DebugConfigManager#isDebugConfigKey: the two /wv debug set handlers
 AnimatedGradientSequence.beginAnimation|1|vetsmod_rendering.md: the one real caller, ChatUtils.dispatchAnimatedChat
+GuildStateManager.isStaffOfAnyGuild|1|vetsmod_distribute.md sec 1: each gate predicate has exactly one call site
+GuildStateManager.isChiefOfAnyGuild|1|vetsmod_distribute.md sec 1; isChiefOfAnyGuild names ensureChief as its call site
+V1ApiManager.confirmedStaffRank|1|V1ApiManager#confirmedStaffRank: One consumer, via the GuildStateManager delegate
+OutboundCommand.queueFront|2|vetsmod_distribute.md sec 8: Two call sites, both in GuildManageOpener
+GuildManageOpener.openGuildLog|1|GuildManageOpener#openGuildLog: Used by GraidsDistributor (names the class, pinned as one site)
+GuildLogWalker.armWalk|1|GuildLogWalker#armWalk: The only caller today, GraidsDistributor
+MembersListWalker.armWalk|1|MembersListWalker class doc: its one caller pairs armWalk with openManageMembers
+NameResolver.fetchAllLegacyNames|1|NameResolver#fetchAllLegacyNames: Used by RandomDistributor (names the class, pinned as one site)
+NameResolver.fetchUuidToLegacyName|1|NameResolver#fetchUuidToLegacyName: Used by NoAspectsFilter (names the class, pinned as one site)
 '
 
 # file (under $SRC)|fixed string|expected occurrences on non-comment lines|note
