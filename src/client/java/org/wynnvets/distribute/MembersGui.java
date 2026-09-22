@@ -38,7 +38,7 @@ import org.wynnvets.util.ContainerScreens;
  *         guard</td>
  *     <td><b>title</b></td>
  *     <td>Wynncraft refreshes the Members menu after every send, and that refresh sometimes
- *         arrives as a close+reopen under a <em>new</em> container id. Matching on id would
+ *         arrives as a reopen under a <em>new</em> container id. Matching on id would
  *         fail on exactly the path this class exists to survive — see its class Javadoc, and
  *         {@code vetsmod_distribute.md} §6 point 2 for the other refresh shape.</td>
  *   </tr>
@@ -61,9 +61,11 @@ import org.wynnvets.util.ContainerScreens;
  *   </tr>
  * </table>
  *
- * <p>The tick constants each of those classes owns stay where they are. They encode observed
- * server behaviour rather than menu layout, and their values differ between the callers on
- * purpose.</p>
+ * <p>The tick constants the presser and the searcher own stay on those classes: they are
+ * timing, not layout. The walker owns none &mdash; its one-tick scan delay is an inline
+ * literal, and it differs from the searcher's {@code SCAN_DELAY_TICKS} because the
+ * tick-boundary fix ({@code vetsmod_distribute.md} §6 point 3) went to the searcher only; no
+ * reason for leaving the walker out is recorded.</p>
  */
 public final class MembersGui {
 
@@ -104,9 +106,8 @@ public final class MembersGui {
      * that wants to react to either has to name it separately.</p>
      *
      * <p>Only the row/column arithmetic is checked, not the menu's size. A slot past the end
-     * of the container that happens to land in-bounds modulo 9 returns {@code true}; the two
-     * scan loops never produce one, because they iterate a real item list, but
-     * {@code MembersListSearcher.onSetSlot} passes an event's slot straight through and this
+     * of the container that happens to land in-bounds modulo 9 returns {@code true}, and
+     * {@code MembersListSearcher.onSetSlot} passes an event's slot straight through; this
      * method does not police it. Negative slots fall out through the column check, because
      * Java's {@code /} and {@code %} truncate toward zero. Neither is a contract — both are
      * what the arithmetic does, and what the three copies this replaced did.</p>
@@ -136,11 +137,14 @@ public final class MembersGui {
      * hover name matches {@code pattern}; returns whether the click was issued.
      *
      * <p>Returns {@code false} without clicking when the slot is past the end of {@code items}
-     * (a shorter menu than expected) or when it holds something other than the page button —
-     * which is how both callers detect that they have reached the last page. The two cases are
-     * not distinguished, because neither caller does anything different with them.</p>
+     * or when it holds something other than the page button — which is how the callers detect
+     * the end of the pages in the direction they are clicking: the last page for Next, page 1
+     * for Previous. The two cases are not distinguished, because neither caller does anything
+     * different with them. ({@code items} comes from {@code getItems()}, which also covers the
+     * player inventory, so the size check is a defensive guard: a shorter menu than expected
+     * reaches the pattern check against an inventory item instead.)</p>
      *
-     * @param items the live item list from {@code screen.getMenu().getItems()}, passed on to
+     * @param items the item list from {@code screen.getMenu().getItems()}, passed on to
      *     {@link ContainerUtils#clickOnSlot} as the click's item context
      * @param slot {@link #NEXT_PAGE_SLOT} or {@link #PREVIOUS_PAGE_SLOT}
      * @param pattern the matching {@link #NEXT_PAGE_PATTERN} or {@link #PREVIOUS_PAGE_PATTERN}

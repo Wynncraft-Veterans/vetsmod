@@ -29,9 +29,9 @@ import org.wynnvets.distribute.DistributeCommands;
  * <p>The set of recognised selectors is intentionally <em>not</em>
  * enforced here &mdash; this type only fixes the lexical shape of one
  * token. Dispatch (selector vs. literal username) lives in
- * {@link DistributeCommands}, which keeps adding a new {@code @foo}
- * down to a single row of that class's selector table rather than a
- * coordinated change across two files.</p>
+ * {@link DistributeCommands}, so adding a new {@code @foo} never touches
+ * this class: it is a row in that class's selector table plus the head
+ * the row points at.</p>
  */
 public final class NameOrSelectorArgument implements ArgumentType<String> {
 

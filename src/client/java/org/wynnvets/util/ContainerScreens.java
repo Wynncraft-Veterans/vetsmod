@@ -24,7 +24,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
  *       An id mismatch is a <em>signal</em>: the menu was replaced, and a caller driving a
  *       multi-step interaction against a stale id would have its packets dropped silently.</li>
  *   <li>{@link #currentWithTitle(Pattern)} asks <b>"is a screen of this kind on screen?"</b>
- *       Wynncraft reassigns the container id when it refreshes a menu, so a caller that must
+ *       Wynncraft can reassign the container id when it refreshes a menu, so a caller that must
  *       survive a refresh &mdash; or that is rebinding <em>because</em> of one &mdash; cannot
  *       discriminate on id at all.</li>
  * </ul>

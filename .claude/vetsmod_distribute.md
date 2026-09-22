@@ -124,8 +124,11 @@ in the mod unregisters any of them.
 That callback carries a long crash-rationale comment about deferring
 `Models.*` access until after Wynntils' own init — but it is attached to
 `ScrollSpotMarkerProvider`'s line further down, and documents that
-class's constraint. The five here inherit the placement, not a separately
-recorded reason for it.
+class's constraint. Four of the five record no reason of their own;
+`GuildManageOpener.register`'s Javadoc states the after-Wynntils-init
+requirement (`WynntilsMod.registerEventListener` needs the event bus that
+`WynntilsMod.init` creates) — a requirement all five share, since each
+makes that same call.
 
 The remaining eleven files need no bus registration. Ten are static-only
 with private constructors; `NameOrSelectorArgument` is the exception — a

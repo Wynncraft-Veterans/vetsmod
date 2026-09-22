@@ -29,22 +29,22 @@ import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
 
 /**
- * Builds the {@code /wv distribute <user> <aspects|tomes|emeralds> <count>}
+ * Builds the {@code /wv distribute <name> <aspects|tomes|emeralds> <count>}
  * client command.
  *
  * <p>Drives the in-game "send to member" hand-over by composing the
- * sibling helpers in this package:</p>
+ * helpers under {@code distribute/}:</p>
  * <ol>
  *   <li>{@link GuildManageOpener} sends {@code /guild manage} and clicks
  *       the top-left "Manage Members" tile.</li>
  *   <li>{@link MembersListSearcher} paginates through the resulting
- *       members list until it locates {@code <user>}'s player-head slot.</li>
+ *       members list until it locates {@code <name>}'s player-head slot.</li>
  *   <li>{@link MemberSlotPresser} synthesises {@code <count>} hotbar-key
  *       presses against that slot &mdash; one press per resource send
  *       (1 Aspect, 1 Guild Tome, or 1024 Emeralds depending on resource).</li>
  * </ol>
  *
- * <p>The {@code <user>} argument may be either the current Mojang username
+ * <p>The {@code <name>} argument may be either the current Mojang username
  * or the {@code legacyName} shown on the in-game tile. {@link NameResolver}
  * translates current&rarr;legacy via the Wynncraft API so renamed players
  * are locatable by either form.</p>
@@ -194,6 +194,8 @@ public final class DistributeCommands {
         // Fan out two lookups in parallel: legacy-name resolution (so we
         // know the canonical tile name for renamed targets) and the
         // NoAspects opt-out list (so we can reject before opening the menu).
+        // That is up to three requests, not two: the opt-out lookup makes
+        // its own wapi roster read to translate its UUIDs.
         // We deliberately wait on both before arming the searcher — even
         // though it costs ~200-500ms upfront, rejecting after the menu has
         // already opened would be a confusing UX. Per-command refresh and
@@ -259,14 +261,16 @@ public final class DistributeCommands {
     // ── Suggestion providers ─────────────────────────────────────────────
 
     /**
-     * Suggests current Wynncraft usernames of the local player's guild for
-     * the {@code <name>} argument.
+     * Suggests the {@code @}-selectors matching the typed prefix, plus the
+     * current Wynncraft usernames of the local player's guild, for the
+     * {@code <name>} argument.
      *
      * <p>Reads {@link com.wynntils.models.guild.GuildModel}'s synchronous
      * {@code getGuildMembers()} cache and triggers a refresh request when
-     * empty &mdash; the first keystroke may show no suggestions while the
-     * background fetch resolves, but subsequent keystrokes will hit the
-     * populated set.</p>
+     * empty &mdash; on a cold cache the first keystroke may show no member
+     * names (the selectors are offered regardless) while the background
+     * fetch resolves; later keystrokes see them once that fetch has
+     * landed.</p>
      *
      * <p>Returns current Mojang usernames rather than legacy names; the
      * {@link NameResolver} step on execution converts either form to the
@@ -277,10 +281,11 @@ public final class DistributeCommands {
             CommandContext<FabricClientCommandSource> ctx, SuggestionsBuilder builder) {
         String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
 
-        // Always offer the @-selectors — their dispatchers read the live
-        // guild roster, so they work even when the Wynntils member cache is
-        // cold. `remaining` is already case-folded and the tokens are
-        // lowercase literals, so this is the prefix test the four branches
+        // Always offer the @-selectors — none of their dispatchers reads
+        // Models.Guild.getGuildMembers(), so they don't need the member
+        // cache that the name suggestions below depend on. `remaining` is
+        // already case-folded and the tokens are lowercase literals, so
+        // this is the prefix test the four branches
         // this loop replaced each did by hand. Emission order does not
         // survive Brigadier's Suggestions.create, which sorts — see SELECTORS.
         for (Selector selector : SELECTORS) {
@@ -308,7 +313,8 @@ public final class DistributeCommands {
     /**
      * Suggests {@link #COMMON_COUNTS} for the {@code <count>} argument.
      * {@code IntegerArgumentType} has no built-in tab-completion, so
-     * without this the user sees only the {@code [count]} placeholder.
+     * without this the user sees only the argument's usage hint,
+     * {@code <count>}.
      */
     private static CompletableFuture<Suggestions> suggestCounts(
             CommandContext<FabricClientCommandSource> ctx, SuggestionsBuilder builder) {

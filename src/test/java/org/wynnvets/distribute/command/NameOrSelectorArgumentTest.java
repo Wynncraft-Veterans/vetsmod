@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
  * <p>The rule under test is deliberately permissive: <em>any non-empty run of
  * non-space characters</em>. There is no selector whitelist and no quote
  * handling — dispatch between {@code @selector} and a literal username happens
- * in the executor, so that adding a new {@code @foo} stays a one-file change.
+ * in the executor, so that adding a new {@code @foo} never touches this type.
  * A later pass that "tightens" this to a known-selector set, or that adopts
  * brigadier's quoted-string reader, changes which inputs reach the executor.</p>
  */

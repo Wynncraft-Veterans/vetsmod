@@ -34,9 +34,12 @@ import org.wynnvets.util.Json;
  * case-insensitive against both the {@code currentName} key and the {@code legacyName} value, so
  * either form resolves to the correct GUI tile name.</p>
  *
- * <p>On any failure (no guild, no network, unexpected payload) returns
- * the input unchanged &mdash; the caller's literal-input arm still
- * matches if the user already typed the legacyName.</p>
+ * <p>On any failure (no guild, no network, unexpected payload)
+ * {@link #resolveLegacyName} returns the input unchanged &mdash; the
+ * caller's literal-input arm still matches if the user already typed the
+ * legacyName. The class's three other entry points read the same payload
+ * other ways, and each falls back to an empty list or map when the fetch
+ * fails or the body does not parse.</p>
  */
 public final class NameResolver {
 
@@ -45,9 +48,10 @@ public final class NameResolver {
     private NameResolver() {}
 
     /**
-     * Async resolve. Always completes with a non-null name &mdash; either
-     * the resolved {@code legacyName} or the original input if no
-     * resolution was possible.
+     * Async resolve. Never completes exceptionally: for a non-empty input
+     * it completes with the resolved {@code legacyName}, or with the input
+     * itself if no resolution was possible; a null or empty input completes
+     * with itself.
      */
     public static CompletableFuture<String> resolveLegacyName(String input) {
         if (input == null || input.isEmpty()) {
@@ -237,7 +241,8 @@ public final class NameResolver {
                     }
                     if (legacyName != null
                             && legacyName.toLowerCase(Locale.ROOT).equals(lowerInput)) {
-                        // Input was already a legacy name — return verbatim.
+                        // Input was already a legacy name — return the
+                        // payload's spelling of it.
                         result[0] = legacyName;
                         return true;
                     }
@@ -294,8 +299,8 @@ public final class NameResolver {
      *  equality comparison. Mirrors
      *  {@link org.wynnvets.fetcher.ondemand.UserInfoFetcher#normalizeUuidText
      *  UserInfoFetcher#normalizeUuidText}. */
-    // Package-private for NoAspectsFilter.parseUuids, a production caller across the package
-    // boundary — not a test seam. NameResolverTest covers it as well, but this deliberately
+    // Package-private for NoAspectsFilter.parseUuids, a production caller in another class of
+    // this package — not a test seam. NameResolverTest covers it as well, but this deliberately
     // does not carry the usual "Package-private for unit tests" marker: that marker asserts
     // narrowing back to private is safe once the test goes, and here it would break
     // NoAspectsFilter.

@@ -65,9 +65,14 @@ public final class GuildManageOpener {
 
     private static final GuildManageOpener INSTANCE = new GuildManageOpener();
 
-    /** What we're trying to navigate to. Null when idle. Single-shot:
-     *  cleared the moment the target click is dispatched, so a stray
-     *  Manage menu opened by the user manually is never auto-clicked. */
+    /** What we're trying to navigate to, or null. {@code MEMBERS} is
+     *  consumed by the next {@code MenuOpenedEvent.Pre} of any title &mdash;
+     *  before the title check, so an unrelated menu can spend it
+     *  ({@code guild-manage-opener-arm-consumed-early}). {@code LOG} is
+     *  cleared once a Manage menu's content has been scanned. Neither
+     *  expires, so an arm whose {@code /guild manage} is never answered
+     *  stays live until a menu consumes it or the next open call replaces
+     *  it. */
     private static volatile Target target = null;
 
     /** Container id of the Manage menu we're driving (Log path only). */
@@ -77,8 +82,10 @@ public final class GuildManageOpener {
 
     /**
      * Registers this opener with the Wynntils event bus. Must be called after Wynntils has finished
-     * its own initialisation; see {@link org.wynnvets.listeners.WynntilsEventListener#register()
-     * WynntilsEventListener#register()} for the timing.
+     * its own initialisation &mdash; {@code WynntilsMod.registerEventListener} needs the event bus
+     * that {@code WynntilsMod.init} creates &mdash; so it must stay in {@code VetsmodClient}'s
+     * {@code ClientLifecycleEvents.CLIENT_STARTED} callback (or later), where it is registered
+     * today.
      */
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
@@ -86,9 +93,11 @@ public final class GuildManageOpener {
     }
 
     /**
-     * Sends {@code /guild manage} and arms the Pre-intercept so the next
-     * Manage menu auto-clicks {@link #MEMBERS_SLOT}, transitioning
-     * straight to the Members GUI.
+     * Sends {@code /guild manage} and arms the Pre-intercept: the next
+     * menu to open consumes the arm, and if its title is a Manage title it
+     * is cancelled and {@link #MEMBERS_SLOT} auto-clicked, transitioning
+     * straight to the Members GUI
+     * ({@code guild-manage-opener-arm-consumed-early}).
      *
      * <p>Routes through {@link OutboundCommand#queueFront(String)} so the
      * command sits at the head of Wynntils' rate-limited outbound queue.
