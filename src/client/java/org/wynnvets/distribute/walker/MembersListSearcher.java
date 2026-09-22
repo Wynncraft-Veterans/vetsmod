@@ -176,11 +176,10 @@ public final class MembersListSearcher {
 
     /** Callback fired by {@link #scanAndPaginate()} when one of the armed
      *  names' player-head slot is located on the current page. The handler
-     *  receives only the slot index. The searcher has already
-     *  {@code stop()}ped and cleared its bound id, so the callee reads the
-     *  container from the live screen &mdash; and must re-read it for
-     *  anything it does on a later tick, because a send's refresh can
-     *  replace the container id. */
+     *  receives only the slot index, so the callee reads the container
+     *  from the live screen &mdash; and must re-read it for anything it does
+     *  later, because a send's refresh can replace the container id. (The
+     *  searcher has already {@code stop()}ped by then.) */
     @FunctionalInterface
     public interface SlotMatchHandler {
         void onMatch(int slot);
@@ -329,9 +328,11 @@ public final class MembersListSearcher {
         // MenuClosedEvent only from its handleContainerClose hook, so this
         // is the server closing the menu. Abandon quietly. A client-side
         // close (the player's Esc) sends only a serverbound close and posts
-        // nothing here; what happens to that search then depends on what
-        // the server sends for the menu afterwards, and one that stalls is
-        // ended by the watchdog.
+        // nothing here. What ends that search then depends first on what is
+        // already pending: a scheduled scan (or the retry hop) finds no
+        // screen and ends it through scanAndPaginate's lost-menu branch.
+        // Otherwise it depends on what the server sends for the menu
+        // afterwards, and a search that stalls is ended by the watchdog.
         VetsLogger.debug(
                 "MembersListSearcher: menu closed mid-search, abandoning [{}]", displayQuery);
         stop();
@@ -355,7 +356,7 @@ public final class MembersListSearcher {
      * page's player-slot packets — the scan ran on a half-updated page
      * and silently missed the target. {@link #scheduleScan()}'s debounce
      * makes the scan fire only once no triggering packet has arrived for
-     * {@link #SCAN_DELAY_TICKS}; a stream that pauses longer can still be
+     * about {@link #SCAN_DELAY_TICKS}; a stream that pauses longer can still be
      * scanned half-updated, which a later pass over that page (the
      * backward sweep or the retry) may catch.
      */

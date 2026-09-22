@@ -26,7 +26,8 @@ import org.wynnvets.logging.VetsLogger;
  * <h2>Why piggyback rather than paginate ourselves</h2>
  * <p>Wynntils ships a {@code GuildLogHolder} that wraps the vanilla log
  * GUI with a custom widget-based viewer and auto-clicks {@code Next
- * Page} (slot 45) every time a full batch of 32 entries lands. The
+ * Page} (slot 45) as each full batch of 32 entries lands (when it does
+ * both is covered below). The
  * holder's collected items aren't exposed via the model API, so we
  * can't read them directly &mdash; but the {@code ContainerSetSlot.Post}
  * events that feed it are public, and Wynntils' {@code GuildLogAnnotator}
@@ -59,7 +60,8 @@ import org.wynnvets.logging.VetsLogger;
  * if no new {@link GuildLogItem} has been observed for
  * {@link #SETTLE_TICKS} ticks, the walk is considered complete.</p>
  *
- * <p>When the settle timer ends the walk, the walker calls
+ * <p>When the settle timer, or once bound the overall timeout, ends the
+ * walk, the walker calls
  * {@code setScreen(null)} on whatever screen is open
  * ({@code guild-log-walker-closes-whatever-screen-is-open}) &mdash; if
  * that is still Wynntils' wrap of the log, Wynntils' wrapped-screen

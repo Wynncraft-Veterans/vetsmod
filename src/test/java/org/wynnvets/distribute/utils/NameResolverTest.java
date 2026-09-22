@@ -139,7 +139,8 @@ class NameResolverTest {
     @Test
     void extractUuidToLegacyName_skipsMalformedAndUuidlessEntries() {
         // The asymmetry with extractAllLegacyNames: no uuid means no key, so
-        // the member simply cannot be opted out. Two distinct guards produce
+        // the member is not filtered even while on the opt-out list. Two
+        // distinct guards produce
         // that outcome and the fixture exercises both — "Broken" trips the
         // `member == null` check, "Frank" is a perfectly good member object
         // that trips the later `uuid == null` one.

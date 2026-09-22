@@ -35,7 +35,7 @@ import org.wynnvets.logging.VetsLogger;
  * a stale menu state and the server drops it silently &mdash; symptom: the
  * user asks for {@code count=N} but only one reward chat line appears.
  * To avoid that, each press arms an event listener for the menu
- * refresh ({@link MenuEvent.MenuOpenedEvent.Pre} on close+reopen, or
+ * refresh ({@link MenuEvent.MenuOpenedEvent.Pre} on a reopen under a new id, or
  * {@link ContainerSetContentEvent.Post} on in-place refresh) and the
  * next press is scheduled {@link #PRESS_DELAY_TICKS} ticks after the
  * refresh is observed, not after a fixed wall-clock delay.</p>
@@ -128,8 +128,9 @@ public final class MemberSlotPresser {
     }
 
     /**
-     * Variant with a completion callback invoked when the last press is
-     * confirmed by a refresh event, OR when the refresh wait times out,
+     * Variant with a completion callback invoked {@link #PRESS_DELAY_TICKS}
+     * after the last press is confirmed by a refresh event, OR when the
+     * refresh wait times out,
      * OR at once when {@code count} is not positive. It is not invoked
      * when the batch ends because no Members screen is open for a press
      * &mdash; see the four-argument overload. The screen is intentionally
@@ -217,8 +218,10 @@ public final class MemberSlotPresser {
     }
 
     /**
-     * Close+reopen refresh path: Wynncraft tears down the old container
-     * and opens a fresh Members menu under a new container id.
+     * Reopen refresh path: a Members menu opening under a new container
+     * id is accepted as the refresh (whether a close for the old id
+     * precedes it is not recorded; vanilla's {@code ServerPlayer.openMenu}
+     * sends one).
      */
     @SubscribeEvent
     public void onMenuOpenPre(MenuEvent.MenuOpenedEvent.Pre event) {

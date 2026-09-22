@@ -134,7 +134,7 @@ Four `@`-selectors decide the recipient set, each one row of the `SELECTORS` tab
 | Selector | Recipients | `<count>` means |
 |---|---|---|
 | *(literal name)* | that one player, resolved current→legacy via wapi | presses sent to them |
-| `@random` | `min(count, roster)` random members | number of recipients, one each |
+| `@random` | `min(count, roster)` random members | number of picks, one each (see `vetsmod_distribute.md` §5 on tile-name collisions) |
 | `@objectives` | members whose tile shows a completed guild objective | total rewards, split evenly, random +1 for the remainder |
 | `@graids` | members appearing in the guild log's graid entries | total rewards, proportional to participation frequency |
 | `@split` | all three pools in sequence | total rewards, thirds, remainder randomised |

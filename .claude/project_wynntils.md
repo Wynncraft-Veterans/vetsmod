@@ -91,7 +91,7 @@ Base: `GuiGraphics guiGraphics`, `ItemStack itemStack`, `int mouseX`, `int mouse
 ### Handlers.Command
 File: `common/src/main/java/com/wynntils/handlers/command/CommandHandler.java`
 
-- `queueCommand(String command)` — sends with server rate limit (~350ms / 7 ticks between commands). Do NOT include leading `/`.
+- `queueCommand(String command)` — spaced by `TICKS_PER_EXECUTE` = 7 ticks (~350 ms; Wynntils' Javadoc says it respects the server rate limit): sends at once when the spacing has elapsed, otherwise appends to the queue. Do NOT include leading `/`.
 - `sendCommandImmediately(String command)` — bypasses queue; for urgent / user-initiated commands.
 
 Used by vetsmod: `/gu stats`, `/gu rank`, `/find`, `/msg` — all via `queueCommand` — and `guild manage` from `/wv distribute`, which `OutboundCommand.queueFront` puts at the **front** of the same queue by reflection (`addFirst`), with `queueCommand` only as its fallback.

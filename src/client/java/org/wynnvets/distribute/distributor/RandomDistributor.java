@@ -159,9 +159,9 @@ public final class RandomDistributor {
                         .withStyle(ChatFormatting.AQUA));
 
         // Arm for the first pick BEFORE opening the menu so the searcher
-        // is bound by the time MenuOpenedEvent.Pre fires for the Members
-        // GUI. Subsequent picks rearm via the fast-path while the menu
-        // is still open.
+        // is armed by the time MenuOpenedEvent.Pre fires for the Members
+        // GUI, and binds on it. Later picks normally re-arm via the fast
+        // path while the menu is still open.
         DistributionQueue.processNext(queue, resource, onComplete, "RandomDistributor");
         GuildManageOpener.openManageMembers();
     }

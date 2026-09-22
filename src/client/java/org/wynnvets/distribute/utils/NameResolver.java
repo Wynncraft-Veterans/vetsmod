@@ -49,7 +49,8 @@ public final class NameResolver {
 
     /**
      * Async resolve. Never completes exceptionally: for a non-empty input
-     * it completes with the resolved {@code legacyName}, or with the input
+     * it completes with the resolved tile name ({@code legacyName}, or the
+     * current name for a member who never renamed), or with the input
      * itself if no resolution was possible; a null or empty input completes
      * with itself.
      */

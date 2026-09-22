@@ -78,7 +78,7 @@ distribute/
 ├── distributor/
 │   ├── MemberSlotPresser.java        — refresh-gated hotbar presses on one slot
 │   ├── DistributionQueue.java        — the send loop the three pool heads share
-│   ├── RandomDistributor.java        — @random: N recipients, one each
+│   ├── RandomDistributor.java        — @random: N picks, one each (§5)
 │   ├── ObjectivesDistributor.java    — @objectives: even split over completers
 │   ├── GraidsDistributor.java        — @graids: proportional to log frequency
 │   └── SplitDistributor.java         — @split: thirds, graids → objectives → random
@@ -160,7 +160,7 @@ is what the searcher matches). Each step names the class that owns it:
    `scheduleScan()`, which is tail-debounced through `scanToken`: every
    call posts its own task and bumps the token, and only the
    last-posted task survives the check at fire time. The scan therefore
-   runs `SCAN_DELAY_TICKS` after the *last* packet of a burst.
+   runs about `SCAN_DELAY_TICKS` after the *last* packet of a burst.
 6. **`MembersListSearcher.scanAndPaginate`** runs
    `scanVisiblePageForMatch` over the bounded tile area — rows 0–4 ×
    cols 2–8 of the 9-wide grid, mirroring Wynntils'
@@ -181,7 +181,7 @@ is what the searcher matches). Each step names the class that owns it:
    the resource's hotbar button index.
 9. The press is **refresh-gated, not delay-gated**: `awaitingRefresh`
    goes true and the next press waits for either
-   `MemberSlotPresser.onMenuOpenPre` (close+reopen refresh, new
+   `MemberSlotPresser.onMenuOpenPre` (reopen refresh, new
    container id) or `.onSetContent` (in-place refresh, same id). A
    token-guarded `REFRESH_TIMEOUT_TICKS` timeout backs it.
 10. **`MemberSlotPresser.onRefreshObserved`** waits `PRESS_DELAY_TICKS`,
@@ -343,7 +343,7 @@ observed Wynncraft behaviour first, then the code shape it forces.
    menu reopening under a **new container id**, which makes the stale
    id the mechanism. The code covers a second shape too, and does not
    claim which is more common: it accepts either
-   `MenuOpenedEvent.Pre` (close+reopen, new id) *or*
+   `MenuOpenedEvent.Pre` (reopen, new id) *or*
    `ContainerSetContentEvent.Post` (in-place, **same** id) as proof the
    refresh landed. Either way the gate is an observed refresh, not a
    fixed cadence.
@@ -351,9 +351,10 @@ observed Wynncraft behaviour first, then the code shape it forces.
    This is also why "is the Members menu open?" has **two** answers in
    the package and they are not interchangeable.
    `MembersGui.currentByTitle()` ignores the container id, which is what
-   survives the refresh — `MemberSlotPresser` goes by title throughout
-   (every press and the close guard via `currentByTitle()`, and its two
-   refresh checks by title too),
+   survives the refresh — `MemberSlotPresser` goes by title throughout:
+   every press, the close guard and the `SetContent` refresh check find
+   the screen via `currentByTitle()`, and the reopen check matches the
+   event title,
    and the searcher and walker use it in their re-arm fast paths and the
    searcher's mid-search rebind, where there is no *usable* bound id —
    none yet in the fast paths, a stale one in the rebind. `ContainerScreens.currentWithId(int)` takes the caller's bound id
@@ -370,7 +371,9 @@ observed Wynncraft behaviour first, then the code shape it forces.
    negative. Two changes answer it: `MembersListSearcher.onSetSlot`
    triggers on any slot inside the tile bounds, not just the two
    pagination buttons, and `SCAN_DELAY_TICKS = 2` tail-debounces the
-   burst into one scan of the settled page. `MembersListWalker` did not
+   burst into one scan, run once no triggering packet has arrived for
+   about that long; a stream that pauses longer can still be scanned
+   half-updated. `MembersListWalker` did not
    receive the same treatment — its `onSetSlot` still triggers only on
    `MembersGui.NEXT_PAGE_SLOT`, and its `scheduleScan` is a leading-edge
    boolean latch with a fixed 1-tick delay rather than a token debounce.
@@ -487,16 +490,21 @@ every `onMenuClose` in the package sees the server closing a menu, never
 the player. A player's Esc sends only a serverbound close and posts no
 `MenuClosedEvent` (Wynntils posts `ContainerCloseEvent` and
 `ScreenClosedEvent` for it; nothing in the package subscribes to either).
-Where an Esc then ends a run depends on what the server sends for that
-menu afterwards — a close of its own, a reopen, slot updates answering a
-click already in flight — and none of that is verifiable from any repo.
+Where an Esc then ends a run depends first on what the client already
+has pending: a scheduled scan (or the searcher's retry hop) finds no
+screen and ends the search through the "Bound Members menu gone" row, and
+a press already scheduled finds no screen and drops the callback (the
+presser's `no` row). Otherwise it depends on what the server sends for
+that menu afterwards — a close of its own, a reopen, slot updates
+answering a click already in flight — and none of that is verifiable
+from any repo.
 What the code does settle is the case where the run moves on to its next recipient
 with no Members menu open: unless one is reopened, that head's remaining
 queue drains at one watchdog timeout per recipient
 (`distribute-escape-mid-run-drains-through-watchdog`). Under `@split`,
 the next phase reopens the menu for itself.
 
-The `no` rows are not one shape, and none is rescued:
+The `no` rows are not one shape, and none is rescued by design:
 
 - **The two `onMenuClose` rows and the walker's scan-time row are one
   shape.** Each calls `stop()` without invoking the handler. In the
@@ -507,7 +515,8 @@ The `no` rows are not one shape, and none is rescued:
 - **What the watchdog does cover** is the other stall shape: one where
   `stop()` is never called at all, because no matching event reaches the
   searcher. A Members menu that never opens, a dropped pagination click,
-  a player's Esc with nothing further arriving for the bound id (above)
+  a player's Esc with no scan pending and nothing further arriving for
+  the bound id (above)
   — or a close event whose container id doesn't match the bound
   one, since `onMenuClose` returns early on that comparison and never
   reaches `stop()`. That last case is precisely why a close arriving
@@ -647,7 +656,8 @@ Two edits, both local:
    don't depend on the member cache the name suggestions need.
 2. A distributor exposing `dispatch(int, Resource)` — plus the
    `dispatch(int, Resource, Runnable)` overload **if the new selector is
-   to be chainable from `@split`**, firing that callback on every exit
+   to be chainable from `@split`** (plus a phase in `SplitDistributor`
+   to call it), firing that callback on every exit
    the head itself owns. The three pool distributors all carry both
    overloads; `SplitDistributor` itself carries only the two-argument
    form, because nothing chains it. A path of the head's own that returns
