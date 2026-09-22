@@ -71,6 +71,12 @@ public final class NameResolver {
      * picking by current name and async-resolving per pick can miss
      * renamed members on small guilds with fast searches.</p>
      *
+     * <p>The list is not deduplicated: members whose tile names coincide
+     * &mdash; for example one member's {@code legacyName} equal to the current
+     * name of another who has none &mdash; each contribute an entry
+     * ({@code NameResolverTest} pins this; see
+     * {@code random-distributor-can-target-one-tile-twice}).</p>
+     *
      * <p>Returns an empty list on any failure (no guild, no network,
      * unexpected payload).</p>
      */

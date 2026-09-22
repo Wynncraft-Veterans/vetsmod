@@ -71,6 +71,10 @@ public final class OutboundCommand {
      * back-of-queue {@code queueCommand} if Wynntils' internal layout
      * changes.
      *
+     * <p>Client thread only: the queue is Wynntils' unsynchronised
+     * {@code LinkedList}, which Wynntils drains from a client-thread
+     * {@code TickEvent}. Its callers run on the client thread today.</p>
+     *
      * @param command command text without leading slash
      */
     public static void queueFront(String command) {

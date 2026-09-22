@@ -44,6 +44,16 @@ import org.wynnvets.util.ContainerScreens;
  * chat field): the server requires the player to be in a "clean"
  * session state that {@code /guild manage} doesn't. Going through
  * Manage&rarr;click reuses the only command we know is reliable.</p>
+ *
+ * <h2>No outcome is reported</h2>
+ * <p>Neither open method reports whether it worked: both are
+ * {@code void}, with no callback. This class records a failed open at
+ * most as a debug line, and the only visible sign may be a Manage menu
+ * left on screen. The arm can be spent on the wrong menu or stay live
+ * indefinitely ({@code guild-manage-opener-arm-consumed-early}). A caller
+ * learns of failure only downstream &mdash; from the searcher's watchdog or
+ * the log walker's overall cap; the Members walker has neither &mdash; and
+ * none of those disarms a live arm here.</p>
  */
 public final class GuildManageOpener {
 
