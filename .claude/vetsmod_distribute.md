@@ -519,15 +519,22 @@ uses, and the first run's pending callbacks — an `@split` chain included — a
 `OutboundCommand.queueFront(String)` puts a command at the head of
 Wynntils' outbound queue. Wynntils declares that field as
 `private final Queue<String>` on `CommandHandler` but instantiates a
-`LinkedList`, which is also a `Deque`; the class reflects the field
-once, caches the handle, and `addFirst`s on every later call. The 7-tick
-per-command spacing is untouched — only the FIFO ordering is jumped.
+`LinkedList`, which is also a `Deque`; the class reflects the field on
+first use, caches the result, and, while the field holds a `Deque`,
+`addFirst`s on every call, the first included. The 7-tick per-command
+spacing is untouched — only the FIFO ordering is jumped. On that path
+`queueFront` never sends from the call itself: even with the spacing
+already elapsed, the command waits for the next on-world `TickEvent`. (The
+`queueCommand` fallback below can send at once.)
 
 The contract worth preserving is **cache the failure, warn, degrade**:
 
-- `lookupField()` sanity-checks that the field's value is actually a
-  `Queue`, so a Wynntils type swap trips the fallback immediately rather
-  than on every call.
+- `lookupField()` sanity-checks that the field's value is a `Queue`,
+  which catches a non-`Queue` value (or a null) once, rather than on every
+  call. It does **not** catch a swap to a `Queue` that is not a
+  `Deque`: that passes, is cached as a good handle, and `obtainDeque()`
+  then falls back per call at debug level — uncached and never warned
+  (`outbound-command-queue-check-accepts-non-deque`).
 - On either of its two failure paths `lookupField()` logs at **warn**
   and returns the `FIELD_LOOKUP_FAILED` sentinel — itself a
   self-reflected field of `OutboundCommand`, so it can never be confused

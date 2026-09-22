@@ -94,7 +94,7 @@ File: `common/src/main/java/com/wynntils/handlers/command/CommandHandler.java`
 - `queueCommand(String command)` — sends with server rate limit (~350ms / 7 ticks between commands). Do NOT include leading `/`.
 - `sendCommandImmediately(String command)` — bypasses queue; for urgent / user-initiated commands.
 
-Used by vetsmod: `/gu stats`, `/gu rank`, `/find`, `/msg` — all via `queueCommand`.
+Used by vetsmod: `/gu stats`, `/gu rank`, `/find`, `/msg` — all via `queueCommand` — and `guild manage` from `/wv distribute`, which `OutboundCommand.queueFront` puts at the **front** of the same queue by reflection (`addFirst`), with `queueCommand` only as its fallback.
 
 ## Models
 

@@ -9,27 +9,32 @@ import org.wynnvets.logging.VetsLogger;
 
 /**
  * Thin wrapper around {@link com.wynntils.handlers.command.CommandHandler} that gives
- * user-initiated distribute commands {@em front-of-queue} priority over background traffic ({@code
- * /v} fanout from {@link org.wynnvets.chat.dispatcher.MessageFanoutDispatcher
- * MessageFanoutDispatcher}, {@code /find} batches, etc.).
+ * user-initiated distribute commands <em>front-of-queue</em> priority over whatever is already
+ * queued there &mdash; vetsmod's own background commands (a {@link
+ * org.wynnvets.chat.dispatcher.MessageFanoutDispatcher MessageFanoutDispatcher} {@code /msg}, for
+ * one) and Wynntils' alike.
  *
  * <h2>Why we need this</h2>
- * <p>Wynntils' {@code Handlers.Command.queueCommand} appends to an
- * internal {@code LinkedList} &mdash; FIFO with no priority API. If the
- * user starts a {@code /wv distribute} flow while staff chat is still
- * draining a fanout, our {@code /guild manage} would queue behind every
- * pending {@code /msg}, delaying the visible response by several
- * seconds at the 7-tick-per-command server rate. Distribute is
- * user-initiated and should jump the line.</p>
+ * <p>Wynntils' {@code Handlers.Command.queueCommand} sends at once when
+ * its 7-tick spacing ({@code TICKS_PER_EXECUTE}; {@code queueCommand}'s
+ * Javadoc says it respects the server rate limit) has elapsed, and
+ * otherwise appends to an internal {@code LinkedList} &mdash; FIFO with
+ * no priority API. Distribute is user-initiated, so its
+ * {@code /guild manage} should not wait behind commands other features
+ * have already queued. Wynntils' {@code sendCommandImmediately} would skip the
+ * queue <em>and</em> the spacing; this class keeps the spacing.</p>
  *
  * <h2>How</h2>
  * <p>Wynntils' command queue field is declared {@code private final
  * Queue<String>} but instantiated as a {@code LinkedList}, which
- * <em>is</em> a {@code Deque}. We reflect once, cache the {@code Field}
- * lookup, and {@code addFirst} on subsequent calls. The next
- * {@code TickEvent} drains it through the same rate-limited path as
- * every other queued command &mdash; we don't bypass the 7-tick
- * spacing, just the FIFO ordering.</p>
+ * <em>is</em> a {@code Deque}. We reflect on first use, cache the
+ * result, and &mdash; while the field holds a {@code Deque} &mdash;
+ * {@code addFirst} on every call. An on-world {@code TickEvent} drains it
+ * through the same rate-limited path as every other queued command
+ * &mdash; we don't bypass the 7-tick spacing, just the FIFO ordering.
+ * (Unlike {@code queueCommand}, this path never sends from the call
+ * itself: even when the spacing has already elapsed, the command waits
+ * for the next on-world tick.)</p>
  *
  * <p>If the reflection fails (e.g. Wynntils refactors the field name
  * or type), we fall back to {@link Handlers#Command}'s public
@@ -106,9 +111,13 @@ public final class OutboundCommand {
         try {
             Field field = CommandHandler.class.getDeclaredField("commandQueue");
             field.setAccessible(true);
-            // Sanity-check that what we got is actually queue-shaped.
-            // If Wynntils ever swaps the type to a non-Queue we want
-            // the fallback to kick in immediately, not on every call.
+            // Sanity-check that what we got is actually queue-shaped, so a
+            // value that is not a Queue at all (or a null) is caught, warned
+            // about and cached once here rather than on every call. It does not
+            // catch a swap to a Queue that is not a Deque: that passes,
+            // is cached as a good handle, and obtainDeque then falls back
+            // per call at debug level
+            // (outbound-command-queue-check-accepts-non-deque).
             Object value = field.get(Handlers.Command);
             if (!(value instanceof Queue<?>)) {
                 VetsLogger.warn(

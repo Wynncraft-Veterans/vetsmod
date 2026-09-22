@@ -92,10 +92,8 @@ public final class GuildManageOpener {
      *
      * <p>Routes through {@link OutboundCommand#queueFront(String)} so the
      * command sits at the head of Wynntils' rate-limited outbound queue.
-     * It still respects the 7-tick spacing, but jumps ahead of any
-     * background traffic ({@code /v} fanout etc.) that happens to be
-     * queued &mdash; user-initiated distribute flows shouldn't wait
-     * seconds for staff chat to drain.</p>
+     * It still respects the 7-tick spacing, but runs ahead of anything
+     * already queued there &mdash; see {@link OutboundCommand} for why.</p>
      */
     public static void openManageMembers() {
         target = Target.MEMBERS;

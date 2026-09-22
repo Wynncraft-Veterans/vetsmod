@@ -122,7 +122,7 @@ Auth detail (the `/unlock <key>` flow, key persistence, ack routing, `SessionAut
 WynntilsMod.registerEventListener(this);   // register @SubscribeEvent methods
 Models.Guild.getGuildName()
 Models.Guild.isInGuild()
-Handlers.Command                           // rate-limited queue for /gu stats, /gu rank, /find
+Handlers.Command                           // rate-limited queue for /gu stats, /gu rank, /find, /msg; guild manage goes to its front (OutboundCommand)
 ChatMessageEvent.Match                     // chat interception (.Edit is unused)
 WorldStateEvent                            // world join trigger
 StyledText, ComponentUtils, McUtils
