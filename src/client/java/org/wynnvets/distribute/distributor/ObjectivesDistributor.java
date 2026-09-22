@@ -71,9 +71,14 @@ public final class ObjectivesDistributor {
     }
 
     /**
-     * Variant with a completion callback. Fires on every exit path
-     * (success, no completers, count drop-out) so multi-phase chains
-     * like {@link SplitDistributor} can advance without stalling.
+     * Variant with a completion callback. Fires on each of this head's own
+     * exits &mdash; no completers, nothing to send, and the send loop
+     * draining &mdash; so multi-phase chains like {@link SplitDistributor}
+     * can advance past an empty pool. It only gets that far if the walk
+     * calls back, and {@link MembersListWalker} can abandon or stall a walk without
+     * doing so ({@code members-list-walker-drops-completion}); the shared send loop
+     * can end a run without it too ({@code member-slot-presser-drops-completion}).
+     * {@code vetsmod_distribute.md} §7 has the rows.
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {

@@ -35,9 +35,14 @@ import org.wynnvets.chat.ChatUtils;
  *
  * <h2>Pool failures</h2>
  * <p>Each underlying dispatcher invokes its {@code onComplete}
- * callback on every exit path, so a pool that finds no recipients
- * (empty graid log, no objective completers) doesn't stall the chain.
- * The next phase starts as soon as the previous reports done.</p>
+ * callback on its own no-recipient and roster-failure exits, so a pool
+ * that finds no recipients (empty graid log, no objective completers)
+ * doesn't stall the chain. The next phase starts
+ * {@link #PHASE_DELAY_TICKS} after the previous reports done. A phase
+ * can still end without reporting &mdash; {@code members-list-walker-drops-completion},
+ * {@code member-slot-presser-drops-completion}, and the rows of
+ * {@code vetsmod_distribute.md} §7 whose callback column says no
+ * &mdash; and the chain stalls behind it.</p>
  *
  * <h2>Skipping zero-count phases</h2>
  * <p>For very small {@code count} values (e.g. {@code 1} or {@code 2}),

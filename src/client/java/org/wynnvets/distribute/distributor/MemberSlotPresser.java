@@ -91,8 +91,10 @@ public final class MemberSlotPresser {
 
     /** Callback invoked when the full press batch finishes — on success
      *  (last press confirmed) or on timeout. Lets {@link DistributionQueue}
-     *  chain another {@code fire()} for the next recipient instead of
-     *  closing the Members menu between sends. */
+     *  chain the next recipient instead of closing the Members menu
+     *  between sends. Not invoked when {@code sendPressAndArm} finds no
+     *  Members screen open: {@code clearPending()} nulls it without running
+     *  it ({@code member-slot-presser-drops-completion}). */
     private static volatile Runnable pendingOnComplete;
 
     private MemberSlotPresser() {}
@@ -106,9 +108,12 @@ public final class MemberSlotPresser {
      * Fires {@code count} consecutive {@code pressKeyOnSlot} packets
      * against {@code slot} in the currently-open Members container, each
      * one gated by the menu-refresh observed after the previous press.
-     * Aborts cleanly if the Members screen is closed or replaced
-     * mid-loop, or if the refresh never arrives within
-     * {@link #REFRESH_TIMEOUT_TICKS}.
+     * Can stop early. If no Members screen is open when a press
+     * is due &mdash; checked by title, so a Members menu reopened under a
+     * new id still counts &mdash; the batch ends silently and the callback
+     * does not run ({@code member-slot-presser-drops-completion}). If a press's
+     * refresh is not observed within {@link #REFRESH_TIMEOUT_TICKS}, a
+     * yellow chat line prints and the callback runs.
      *
      * <p>Equivalent to
      * {@link #fire(int, Resource, int, String, Runnable) fire(..., closeMembersScreen)}
@@ -120,12 +125,16 @@ public final class MemberSlotPresser {
 
     /**
      * Variant with a completion callback invoked when the last press is
-     * confirmed by a refresh event, OR when the refresh wait times out.
-     * The screen is intentionally left open so the callback can chain
-     * another {@code fire()} call &mdash; used by {@link DistributionQueue}
-     * to visit multiple recipients in one menu session. Pass
-     * {@link #closeMembersScreen()} as {@code onComplete} to restore the
-     * single-user "close when done" behavior.
+     * confirmed by a refresh event, OR when the refresh wait times out,
+     * OR at once when {@code count} is not positive. It is not invoked
+     * when the batch ends because no Members screen is open for a press
+     * &mdash; see the four-argument overload. The screen is intentionally
+     * left open so the callback can chain the next recipient &mdash; used
+     * by {@link DistributionQueue} to visit multiple recipients in one
+     * menu session. For the single-user "close when done" behaviour, the
+     * four-argument overload passes {@link #closeMembersScreen()}, which
+     * is package-private; outside {@code distributor/}, call that
+     * overload.
      */
     public static void fire(
             int slot, Resource resource, int count, String recipientName, Runnable onComplete) {

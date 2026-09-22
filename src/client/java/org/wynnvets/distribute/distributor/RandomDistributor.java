@@ -50,8 +50,10 @@ import org.wynnvets.guild.GuildStateManager;
  * <p>If a picked member can't be located (e.g. they were just kicked
  * between the wapi fetch and the menu open), the searcher's not-found
  * callback advances the queue so the remaining picks still proceed.
- * Same for {@link MemberSlotPresser}'s refresh-timeout path. The user
- * gets a chat line per failure.</p>
+ * Same for {@link MemberSlotPresser}'s refresh-timeout path. Most of
+ * those failures print a chat line; the silent ones, and the paths that
+ * stall the queue instead of advancing it, appear among the rows of
+ * {@code vetsmod_distribute.md} §7.</p>
  */
 public final class RandomDistributor {
 
@@ -62,18 +64,23 @@ public final class RandomDistributor {
     /**
      * Fetches the guild's legacy-name roster from wapi, picks
      * {@code count} random members, and sends one of {@code resource} to
-     * each. No-op (with a chat hint) if Wynntils isn't ready or the
-     * wapi fetch returns no members.
+     * each. No-op (with a chat hint) if Wynntils isn't ready, or if no
+     * member is left after the wapi fetch and the NoAspects filter &mdash;
+     * which, when everyone is opted out, prints the roster-read-failure
+     * line ({@code all-opted-out-reported-as-roster-read-failure}).
      */
     public static void dispatch(int count, MemberSlotPresser.Resource resource) {
         dispatch(count, resource, null);
     }
 
     /**
-     * Variant with a completion callback. The callback fires on every
-     * exit path (success, no roster, no picks) so multi-phase chains
-     * like {@link SplitDistributor} can advance to the next phase
-     * without stalling on a partial failure.
+     * Variant with a completion callback. The callback fires on each of
+     * this head's own exits &mdash; Wynntils not ready, an empty pool, and
+     * the send loop draining &mdash; so multi-phase chains like
+     * {@link SplitDistributor} can advance to the next phase without
+     * stalling on a partial failure. The shared send loop can still end a
+     * run without it: see {@code member-slot-presser-drops-completion} and the
+     * searcher and presser {@code no} rows of {@code vetsmod_distribute.md} §7.
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {

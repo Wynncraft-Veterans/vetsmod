@@ -425,9 +425,8 @@ another package from scheduling.
 
 ## 7. Failure and stall matrix
 
-Not every failure path advances the chain. Three rows below say **no**;
-they are real and observable, and a matrix claiming otherwise would be
-false.
+Not every failure path advances the chain. Some rows below say **no**;
+they are real, and a matrix claiming otherwise would be false.
 
 | Trigger | Detected by | Chat output | Callback fires? |
 |---|---|---|---|
@@ -462,6 +461,8 @@ the player. A player's Esc sends only a serverbound close and posts no
 `MenuClosedEvent` (Wynntils posts `ContainerCloseEvent` and
 `ScreenClosedEvent` for it; nothing in the package subscribes to either).
 Where an Esc then ends a run depends on what the server sends for that
+| **Bound Members menu gone when the walker's scan runs** | `MembersListWalker.scanAndPaginate` | none | **no** |
+| **Walker waits on an event that never arrives** — for example a Members menu that never opens, a Next Page click whose reply the walker never sees, or a player's Esc with nothing further for the bound id | nothing: `MembersListWalker` has no watchdog | none | **not while it waits** — the walker stays armed, and a later Members menu can bind a stale unbound arm and run its callback then (`distribute-concurrent-runs-clobber-shared-state`) |
 menu afterwards — a close of its own, a reopen, slot updates answering a
 click already in flight — and none of that is verifiable from any repo.
 What the code does settle is the case where the run moves on to its next recipient
@@ -470,10 +471,14 @@ queue drains at one watchdog timeout per recipient
 (`distribute-escape-mid-run-drains-through-watchdog`). Under `@split`,
 the next phase reopens the menu for itself.
 
-The three `no` rows are three different shapes, and none is rescued:
+The `no` rows are not one shape, and none is rescued:
 
-- **The two `onMenuClose` rows are the same shape.** Both `stop()`
-  without invoking the handler. In the searcher's case `stop()` also
+The three walker rows are `members-list-walker-drops-completion`; the
+presser row is `member-slot-presser-drops-completion`.
+
+- **The two `onMenuClose` rows and the walker's scan-time row are one
+  shape.** Each calls `stop()` without invoking the handler. In the
+  searcher's case `stop()` also
   bumps `watchdogToken`, and its own comment says the bump exists so a
   pending watchdog task "fires into the void" — so the 300-tick backstop
   does **not** cover this path.
@@ -490,13 +495,24 @@ The three `no` rows are three different shapes, and none is rescued:
   not removed: it re-runs every tick until a run returns normally, and
   each throw aborts that tick's pass over the task map — whether the
   watchdog still counts down meanwhile depends on map order.
-- **`MemberSlotPresser.sendPressAndArm` is a third shape.** Finding the
-  screen gone, it calls `clearPending()`, which nulls
-  `pendingOnComplete` *and* bumps `timeoutToken` — cancelling, in the
-  same breath, the refresh timeout that would otherwise have fired the
-  callback. Contrast `MemberSlotPresser.armRefreshTimeout`, which
-  captures the callback into a local **before** `clearPending()` and
-  then runs it. Same class, two paths, one contract.
+- **The walker's waiting row is that shape with no watchdog.** It waits
+  armed for an event that never comes, and nothing times it out. The stale
+  arm stays live after the run stalls — see
+  `distribute-concurrent-runs-clobber-shared-state` for what a later
+  Members menu does with it.
+- **`MemberSlotPresser.sendPressAndArm` is a third shape.** Finding no
+  Members screen, it calls `clearPending()`, which nulls
+  `pendingOnComplete` without running it, and returns before arming a
+  timeout. With the field nulled, no later timeout or refresh can run the
+  callback. Contrast `MemberSlotPresser.armRefreshTimeout`,
+  which captures the callback into a local **before** `clearPending()`
+  and then runs it. Same class, two paths, one contract.
+
+**One run at a time.** Every piece of this machine is a static
+singleton, and nothing refuses a second `/wv distribute` while a run is
+in flight: it re-arms whichever of the searcher, walkers and presser it
+uses, and the first run's pending callbacks — an `@split` chain included — are dropped
+(`distribute-concurrent-runs-clobber-shared-state`).
 
 ## 8. `OutboundCommand` — the repo's only reflection
 
@@ -596,15 +612,20 @@ Two edits, both local:
    member cache.
 2. A distributor exposing `dispatch(int, Resource)` — plus the
    `dispatch(int, Resource, Runnable)` overload **if the new selector is
-   to be chainable from `@split`**, firing that callback on *every* exit
-   path. The three pool distributors all carry both overloads;
-   `SplitDistributor` itself carries only the two-argument form, because
-   nothing chains it. A path that returns without invoking the callback
-   stalls the whole chain.
+   to be chainable from `@split`**, firing that callback on every exit
+   the head itself owns. The three pool distributors all carry both
+   overloads; `SplitDistributor` itself carries only the two-argument
+   form, because nothing chains it. A path of the head's own that returns
+   without invoking the callback stalls the whole chain. Code the head
+   does not own still ends some runs without it — §7's `no` rows, among
+   them `member-slot-presser-drops-completion` and, for a head that walks,
+   `members-list-walker-drops-completion`.
 
 If the new head visits more than one recipient it does not write a drive
 loop: it builds a `Deque<DistributionQueue.Distribution>` and hands it to
-`DistributionQueue.processNext` with its own log tag. What it does still
+`DistributionQueue.processNext` with its own log tag — which puts the head
+in `distributor/`, since `DistributionQueue`, its `Distribution` record
+and `processNext` are all package-private. What it does still
 decide for itself is whether to arm before or after opening the menu, and
 whether its own no-recipient exits close the Members screen — §5.
 

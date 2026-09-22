@@ -93,8 +93,12 @@ final class DistributionQueue {
      *
      * @param queue drained in place; the caller keeps no other reference to it
      * @param resource which hotbar button the presser synthesises
-     * @param onComplete fired once, after the terminal close; may be {@code null} for the
-     *     heads' two-argument {@code dispatch} entry points, which chain nothing
+     * @param onComplete fired at most once, after the terminal close, and only if the queue
+     *     drains &mdash; a send or search that ends without calling back ends the run without it
+     *     ({@code member-slot-presser-drops-completion}, and the searcher and presser
+     *     {@code no} rows of {@code vetsmod_distribute.md} §7); may be {@code null} for the
+     *     heads' two-argument
+     *     {@code dispatch} entry points, which chain nothing
      * @param logTag prefix for this run's debug lines &mdash; the calling head's simple
      *     class name, so an {@code @split} run's three phases stay distinguishable in the
      *     log

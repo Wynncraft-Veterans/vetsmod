@@ -92,9 +92,13 @@ public final class GraidsDistributor {
     }
 
     /**
-     * Variant with a completion callback. Fires on every exit path so
-     * multi-phase chains like {@link SplitDistributor} advance even
-     * when this phase finds no graids or fails to read the roster.
+     * Variant with a completion callback. Fires on each of this head's own
+     * exits &mdash; no roster, no graids, nothing to send, and the send loop
+     * draining &mdash; so multi-phase chains like {@link SplitDistributor}
+     * advance even when this phase finds no graids or fails to read the
+     * roster. The shared send loop can still end a run without it: see
+     * {@code member-slot-presser-drops-completion} and the searcher and
+     * presser {@code no} rows of {@code vetsmod_distribute.md} §7.
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
