@@ -19,7 +19,9 @@ import org.wynnvets.logging.VetsLogger;
 /**
  * Walks the in-game {@code "<guild>'s Log: <category>"} GUI and
  * collects every {@link GuildLogItem} that lands in the container,
- * piggybacking on Wynntils' own auto-pagination of the log screen.
+ * piggybacking on Wynntils' own auto-pagination of the log screen
+ * &mdash; which exists only when Wynntils has wrapped that screen (see
+ * "The piggyback is conditional" below).
  *
  * <h2>Why piggyback rather than paginate ourselves</h2>
  * <p>Wynntils ships a {@code GuildLogHolder} that wraps the vanilla log
@@ -33,18 +35,37 @@ import org.wynnvets.logging.VetsLogger;
  * subscribers on the same events don't conflict on reading; only the
  * pagination is side-effectful, and we leave that to Wynntils.</p>
  *
+ * <h2>The piggyback is conditional</h2>
+ * <p>{@code GuildLogHolder} is on Wynntils' event bus only while Wynntils
+ * has wrapped the log screen, and {@code WrappedScreenHandler} wraps it
+ * only when a listener accepts {@code WrappedScreenOpenEvent} &mdash; for
+ * the log, Wynntils' {@code CustomGuildLogScreenFeature}. That feature is
+ * on by default only in some Wynntils config profiles ({@code DEFAULT}
+ * and {@code LITE} at v4.1.17), and it is gated by its shift-behaviour
+ * setting, which it compares against a shift flag that only a click made
+ * through the game's own container-click path updates &mdash; the tile
+ * click {@code GuildManageOpener} sends is a raw packet and does not.
+ * When the log is not wrapped nothing auto-paginates, the walk ends on
+ * whatever has arrived, and {@link #finishWalk}'s {@code setScreen(null)}
+ * sends no close packet for the log. See
+ * {@code graids-log-walk-depends-on-wynntils-log-screen-feature}.</p>
+ *
  * <h2>Completion detection</h2>
  * <p>Wynncraft caps the log at roughly 100 most-recent entries (about
- * 3-4 pages), and Wynntils stops paginating when a page returns fewer
- * than 32 items. We can't see that decision directly &mdash; the
+ * 3-4 pages). While the log is wrapped, the holder turns the page only
+ * while the Next Page slot is filled and 32 entries have arrived since
+ * its last turn. We can't see that decision directly &mdash; the
  * holder field is private &mdash; so we use a settle-timer instead:
  * if no new {@link GuildLogItem} has been observed for
  * {@link #SETTLE_TICKS} ticks, the walk is considered complete.</p>
  *
- * <p>On completion the walker closes the wrapped screen client-side
- * (which sends the close packet and tears down Wynntils' wrap cleanly)
- * and invokes the {@link Completion} callback with an immutable
- * snapshot of the collected items.</p>
+ * <p>When the settle timer ends the walk, the walker calls
+ * {@code setScreen(null)} on whatever screen is open
+ * ({@code guild-log-walker-closes-whatever-screen-is-open}) &mdash; if
+ * that is still Wynntils' wrap of the log, Wynntils' wrapped-screen
+ * teardown sends the close packet; if it is the unwrapped log, no close
+ * packet is sent &mdash; and invokes the {@link Completion} callback with
+ * a copy of the collected items.</p>
  */
 public final class GuildLogWalker {
 
@@ -92,8 +113,8 @@ public final class GuildLogWalker {
      * {@link org.wynnvets.distribute.distributor.GraidsDistributor GraidsDistributor}, uses
      * {@link org.wynnvets.distribute.opener.GuildManageOpener#openGuildLog()
      * GuildManageOpener#openGuildLog()}, which sends {@code /guild manage} and clicks the Guild Log
-     * tile &mdash; a direct {@code /guild log} is unreliable this soon after a menu close, which is
-     * the whole reason that route exists.
+     * tile &mdash; Wynncraft has been observed to drop a direct {@code /guild log} sent shortly
+     * after a menu close, which is the whole reason that route exists.
      */
     public static void armWalk(Completion onComplete) {
         active = true;
@@ -203,9 +224,13 @@ public final class GuildLogWalker {
         List<GuildLogItem> snapshot = new ArrayList<>(collected);
         stop();
         if (closeScreen && McUtils.mc().screen != null) {
-            // Closing the wrapped screen propagates to Wynntils' holder
-            // (via WrappedScreenHandler.onScreenClose) which sends the
-            // ServerboundContainerClosePacket. No double-close needed.
+            // If the open screen is Wynntils' wrap of the log, closing it
+            // runs WrappedScreenHandler.onScreenClose, which sends the
+            // ServerboundContainerClosePacket — no double-close needed. If
+            // it is the unwrapped log, setScreen(null) is a client-side
+            // dismiss and sends no close packet. Either way this closes
+            // whichever screen is open, not specifically the log
+            // (guild-log-walker-closes-whatever-screen-is-open).
             McUtils.mc().setScreen(null);
         }
         if (cb != null) cb.onComplete(snapshot);

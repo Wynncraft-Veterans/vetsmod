@@ -73,7 +73,7 @@ distribute/
 ├── walker/
 │   ├── MembersListSearcher.java      — bidirectional page search for one name
 │   ├── MembersListWalker.java        — forward-only full-roster collect, with lore
-│   └── GuildLogWalker.java           — piggybacks Wynntils' log auto-pagination
+│   └── GuildLogWalker.java           — piggybacks Wynntils' log auto-pagination, when Wynntils wraps the log
 ├── distributor/
 │   ├── MemberSlotPresser.java        — refresh-gated hotbar presses on one slot
 │   ├── DistributionQueue.java        — the send loop the three pool heads share
@@ -368,15 +368,32 @@ observed Wynncraft behaviour first, then the code shape it forces.
    and that timer is the one place in the package driven by
    `@SubscribeEvent onTick(TickEvent)` against
    `McUtils.player().tickCount`, not by `Managers.TickScheduler`.
+
+   ⚠️ **The auto-pagination itself is conditional.** `GuildLogHolder` is
+   on Wynntils' event bus only while Wynntils has *wrapped* the log
+   screen, and `WrappedScreenHandler` wraps it only when a listener
+   accepts `WrappedScreenOpenEvent` — for the log,
+   `CustomGuildLogScreenFeature`. At v4.1.17 that feature is on by
+   default only in the `DEFAULT` and `LITE` config profiles, and it is
+   gated by its shift-behaviour setting, which it compares against a
+   shift flag that only a click through the game's own container-click
+   path updates; `GuildManageOpener`'s tile click is a raw packet and
+   does not. Unwrapped, nothing auto-paginates, the walk ends on whatever
+   has arrived, and `GuildLogWalker.finishWalk`'s `setScreen(null)` sends
+   no close packet for the log. Filed as
+   `graids-log-walk-depends-on-wynntils-log-screen-feature`.
 5. **The guild log caps at roughly 100 most-recent entries.** Aspect
    sends write log entries of their own, so distributing anything before
    reading the log pushes graid records off the back of the window.
    That is why `@split`'s phase order is fixed with `@graids` first, and
    why the order is load-bearing rather than stylistic.
-6. **`Handlers.Command.queueCommand` is FIFO with no priority API.** A
-   user-initiated `/guild manage` queued behind a draining `/v` fanout
-   waits seconds at the queue's 7-tick-per-command rate. Hence
-   `OutboundCommand` (§8).
+6. **`Handlers.Command.queueCommand` is FIFO with no priority API.** It
+   sends at once when its 7-tick spacing (`TICKS_PER_EXECUTE`) has
+   elapsed and otherwise appends, so a user-initiated `/guild manage`
+   would wait behind whatever is already queued — vetsmod's own
+   background commands and Wynntils' alike. Wynntils'
+   `sendCommandImmediately` jumps the queue but skips the spacing too.
+   Hence `OutboundCommand` (§8), which jumps only the order.
 
 ### Constants
 
