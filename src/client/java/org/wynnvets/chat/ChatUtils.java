@@ -154,9 +154,9 @@ public final class ChatUtils {
         MutableComponent badge = Prepend.GUILD.get();
         String normalizedRank = rank == null ? "" : rank.trim();
 
-        // Convert ASCII rank text (e.g. "Recruiter" from the outbound WebSocket)
-        // to PUA pill characters for the chat/prefix font.  Ranks that are
-        // already PUA-encoded (waitlist/honourary self-messages) pass through.
+        // Convert an ASCII rank label (e.g. "Returner", as OutboundDisplayHandler passes it) to PUA
+        // pill characters. A rank that is already PUA-encoded (the waitlist self-echo's) passes
+        // through.
         String pillText = normalizedRank.isEmpty() ? "" : encodePillIfAscii(normalizedRank);
 
         MutableComponent body = Component.empty();
@@ -315,17 +315,17 @@ public final class ChatUtils {
 
     /**
      * Builds a dark-on-light pill using the frame + letter glyphs in
-     * the default font. This is the visual style used by
-     * {@link Prepend#DEFAULT the [Vetsmod] pill in /wv help} and by
-     * {@link #buildStaffPillComponent(String)} \u2014 a coloured frame with
-     * dark (black) letters inside.
+     * the default font: a coloured frame with black letters inside. This is the pill
+     * {@link #buildStaffPillComponent(String)} uses; {@link Prepend#DEFAULT}'s [Vetsmod] pill is
+     * among those that build the same frame by hand (with dark-grey letters).
      *
      * <p>Introduced in the 2026-07 permission restructure so the guild
      * chat rewriter can produce a local dark-on-light pill for chat
-     * that arrived via Wynncraft's actual guild channel (as opposed to
-     * the ASCII light-on-dark pill produced by
-     * {@link #encodePillIfAscii(String)}, which is right for
-     * bridge/honourary/queue messages piped in via vetsmod's WS).</p>
+     * that arrived via Wynncraft's actual guild channel (as opposed to the light-on-dark remote
+     * pill, also PUA-encoded, that {@link #encodePillIfAscii(String)} builds for chat relayed over
+     * vetsmod's WebSocket; see {@link PillCodec} for both styles). Today
+     * {@link org.wynnvets.chat.rewriter.EncourageUpdateRewriter EncourageUpdateRewriter} gives a
+     * guild-channel line that pill too ({@code raw-rank-pills-bypass-display-remap}).</p>
      *
      * @param label       the ASCII label rendered inside the frame (case-insensitive)
      * @param frameStyle  the style applied to the frame glyphs; the
@@ -337,13 +337,14 @@ public final class ChatUtils {
     }
 
     /**
-     * Encodes an ASCII rank name to PUA pill characters (E040 letter range
-     * with E06B/E06C frame) for the {@code chat/prefix} font.  Strings that
-     * already contain PUA codepoints are returned as-is.
+     * Encodes an ASCII rank name to PUA pill characters (E040 letter range with E06B/E06C frame):
+     * {@link PillCodec}'s remote style, which renders in the default font. Strings that already
+     * contain PUA codepoints are returned as-is.
      *
-     * <p>Public so the guild-chat rewriter (in the {@code rewriter}
-     * subpackage) can rebuild a pill client-side when remapping raw Wynn
-     * ranks to their display labels ("Steward"/"Returner").</p>
+     * <p>Within vetsmod only this class calls it, from the send methods that turn a rank string
+     * into a remote-style pill. {@link org.wynnvets.chat.rewriter.ServerGuildChatRewriter
+     * ServerGuildChatRewriter} does not: it builds a local dark-on-light pill with
+     * {@link #buildFramedPill(String, Style)} instead.</p>
      */
     public static String encodePillIfAscii(String text) {
         return PillCodec.encodeRemote(text);

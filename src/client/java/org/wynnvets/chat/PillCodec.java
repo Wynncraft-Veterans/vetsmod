@@ -17,13 +17,13 @@ import net.minecraft.network.chat.Style;
  *
  * <h2>Codepoint meaning is frame-scoped</h2>
  *
- * <p>There is one glyph page in Wynncraft's resource pack, and a codepoint in
- * it means nothing on its own — only its position inside a framed sequence
- * gives it a meaning. U+E003 is the private-message separator, U+E006 and
- * U+E002 are guild badge glyphs, and U+E010/U+E011 are frame pieces, yet all
- * of them sit inside the same U+E000 block that spells lowercase letters
- * inside a rank pill. Decode from the frame inward; never map a bare
- * codepoint to a character.</p>
+ * <p>A codepoint in Wynncraft's resource pack means nothing on its own — only
+ * its font and its position inside a framed sequence give it a meaning (the
+ * glyphs below come from more than one font; see "Fonts"). U+E003 is the
+ * private-message separator, U+E006 and U+E002 are guild badge glyphs, and
+ * U+E010/U+E011 are frame pieces, yet all of them sit inside the same U+E000
+ * block that spells lowercase letters inside a rank pill. Decode from the
+ * frame inward; never map a bare codepoint to a character.</p>
  *
  * <p>Within a frame, three letter blocks are in use:</p>
  *
@@ -66,12 +66,17 @@ import net.minecraft.network.chat.Style;
  * skipped rather than mistaken for a label.</p>
  *
  * <p><b>3. Remote pill (light on dark)</b> — {@link #encodeRemote(String)}.
- * A light label on a dark rounded field. Used for anything that reached the
- * player over vetsmod's WebSocket rather than through Wynncraft's own guild
- * channel: bridge, honourary, and queue messages. Returns a plain
- * {@code String} because the entire sequence is one colour, which lets
- * {@link PillFormatter} decide that colour per message (flat, or the
- * supporter gradient marker).</p>
+ * A light label on a dark rounded field. Used for chat that travels over
+ * vetsmod's WebSocket rather than through Wynncraft's own guild channel: the
+ * relayed lines {@link OutboundDisplayHandler} renders as ordinary chat, and
+ * the local echo of a line a queued Returner sends. Today
+ * {@link org.wynnvets.chat.rewriter.EncourageUpdateRewriter EncourageUpdateRewriter}
+ * also uses it for a line that arrived through the guild channel, and both
+ * that rewrite and the queued echo put the sender's raw rank in the pill
+ * rather than a display label ({@code raw-rank-pills-bypass-display-remap}).
+ * Returns a plain {@code String} because the entire sequence is one colour,
+ * which lets {@link PillFormatter} decide that colour per message (flat, or
+ * the supporter gradient marker).</p>
  * <pre>
  *   U+E06B                  frame open
  *   U+E040 + (c - 'A') ...  the label, uppercase
@@ -82,10 +87,11 @@ import net.minecraft.network.chat.Style;
  * A dark label on a light rounded field, matching Wynncraft's own guild pill
  * and the {@code [Vetsmod]} pill in {@code /wv help}. Used when rewriting
  * chat that genuinely arrived through Wynncraft's guild channel, so the
- * rewrite doesn't visually announce itself as mod output. Returns a
- * {@code Component} rather than a {@code String} because it is inherently
- * two-tone — the frame takes the caller's colour and the letters are always
- * black — so it cannot be expressed as a single styled run.</p>
+ * rewrite doesn't visually announce itself as mod output, and for the
+ * {@code /v} staff-channel pill ({@link ChatUtils#buildStaffPillComponent(String)}).
+ * Returns a {@code Component} rather than a {@code String} because it is
+ * inherently two-tone — the frame takes the caller's colour and the letters
+ * are always black — so it cannot be expressed as a single styled run.</p>
  * <pre>
  *   U+E010 U+2064                        frame open
  *   (U+E00F U+E012, U+E040 + (c-'A'))... one frame segment per letter,

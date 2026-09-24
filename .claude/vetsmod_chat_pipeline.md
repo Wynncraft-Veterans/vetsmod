@@ -173,11 +173,10 @@ Styles: `RANK_STYLE` = aqua, `NAME_STYLE` = dark aqua, `ADMIN_RANK_STYLE` = red,
 
 [PillFormatter](../src/client/java/org/wynnvets/chat/PillFormatter.java)
 
-Formats rank "pill" (badge) component with supporter gradient.
+Formats rank "pill" (badge) component from the caller's supporter determination. When the sender is a supporter and `SHOW_SUPPORTER_GLINTS` is on, the pill takes the animation sentinel color; otherwise it takes the flat base style.
 
-- PUA pills (server-rendered `chat/prefix` font): whole component gets single marker color (gradient-per-character breaks composite font glyph)
-- ASCII pills (bridge messages): each character gets marker color
-- If `SHOW_SUPPORTER_GLINTS` enabled and supporter → animation sentinel color
+- PUA pills (vetsmod's own encoded pill, from `PillCodec.encodeRemote` — every pill `formatPill` currently receives): whole component gets the single marker color, because a per-character gradient would break the composite glyphs. Renders in the default font, not `chat/prefix`.
+- A plain-text label would get the marker color per character instead, but no current caller passes one.
 
 ## 8. Prepend (badge dedup)
 
@@ -227,13 +226,15 @@ Batch `/find <username>` dispatcher. `enqueueFindBatch(usernames, resultFuture)`
 
 | Font | Used for | Glyphs |
 |------|----------|--------|
-| `chat/prefix` | Guild badge, alerts, block markers, rank letters | `\uDAFF\uDFFC` (guild badge), `\uE030–\uE059` (rank letters) |
+| `chat/prefix` | Guild badge, alerts, block markers | `\uDAFF\uDFFC` (guild badge) |
 | `banner/pill` | Server-rendered rank pills | background (aqua) + foreground (dark) composite |
 | Spoiler PUA | Encoded spoilers | `\uF600`/`\uF601` delimiters, `\uF602–\uF700` content |
 
+Rank-letter glyphs aren't `chat/prefix`: vetsmod's own pills render in the default font (uppercase `\uE040–\uE059`), and the server's rank pill uses `banner/pill`. See [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
+
 `PillCodec` owns both halves of this: the pill sequences, and the predicate for whether a codepoint is glyph art at all — `isCustomGlyph(int)`, six callers, three deliberate non-callers. Both are documented in [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
 
-**Gap:** two top-level `chat/` classes go unmentioned in this reference — `DiscordTimestamps` and `RankDisplayMap`. (`NickResolver` carried the same marker until Phase 5a gave it a §3 section, alongside the `GuildChatLine` that phase created.)
+**Gap:** two top-level `chat/` classes have no section in this reference — `DiscordTimestamps` (not mentioned at all) and `RankDisplayMap` (named only in §3's `ServerGuildChatRewriter` entry). (`NickResolver` carried the same marker until Phase 5a gave it a §3 section, alongside the `GuildChatLine` that phase created.)
 
 ## 12. Regex quick reference
 

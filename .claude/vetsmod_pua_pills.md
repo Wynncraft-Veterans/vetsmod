@@ -17,13 +17,14 @@ Everything below is implemented there; prefer it over hand-rolling sequences.
 
 ## Codepoint meaning is frame-scoped
 
-There is one glyph page in Wynncraft's resource pack, and **a codepoint in it
-means nothing on its own** — only its position inside a framed sequence gives
-it a meaning. `U+E003` is the private-message separator, `U+E006` and `U+E002`
-are guild badge glyphs, `U+E010`/`U+E011` are frame pieces — and all of them
-sit inside the same `U+E000` block that spells lowercase letters inside a rank
-pill. In the captured logs `U+E003` alone appears 25,432 times, none of them as
-the letter `d`.
+A codepoint in Wynncraft's resource pack **means nothing on its own** — only
+its font and its position inside a framed sequence give it a meaning (these
+glyphs come from more than one font; see "Fonts — a correction" below).
+`U+E003` is the private-message separator, `U+E006` and `U+E002` are guild
+badge glyphs, `U+E010`/`U+E011` are frame pieces — and all of them sit inside
+the same `U+E000` block that spells lowercase letters inside a rank pill. In the
+captured logs `U+E003` alone appears 25,432 times, none of them as the letter
+`d`.
 
 Decode from the frame inward. Never map a bare codepoint to a character.
 
@@ -108,9 +109,13 @@ traffic.
 
 `PillCodec.encodeRemote(label) -> String`
 
-A light label on a dark rounded field. Used for anything that reached the
-player over vetsmod's WebSocket rather than through Wynncraft's guild channel:
-bridge, honourary, and queue messages.
+A light label on a dark rounded field. Used for chat that travels over
+vetsmod's WebSocket rather than through Wynncraft's guild channel: the relayed
+lines `OutboundDisplayHandler` renders as ordinary chat, and the local echo of
+a line a queued Returner sends. Today `EncourageUpdateRewriter` also uses it
+for a line that arrived through the guild channel, and both that rewrite and
+the queued echo put the sender's raw rank in the pill rather than a display
+label (bug `raw-rank-pills-bypass-display-remap`).
 
 ```
 U+E06B                  frame open
@@ -132,7 +137,8 @@ rank that arrived pre-encoded (waitlist and honourary self-messages do).
 A dark label on a light rounded field, matching Wynncraft's own guild pill and
 the `[Vetsmod]` pill in `/wv help`. Used when rewriting chat that genuinely
 arrived through Wynncraft's guild channel, so the rewrite doesn't visually
-announce itself as mod output.
+announce itself as mod output, and for the `/v` staff-channel pill
+(`ChatUtils.buildStaffPillComponent`).
 
 ```
 U+E010 U+2064                        frame open

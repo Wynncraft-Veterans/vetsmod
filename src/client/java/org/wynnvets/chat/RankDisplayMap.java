@@ -46,9 +46,9 @@ public final class RankDisplayMap {
     }
 
     /**
-     * The tag string rendered next to a staff member's name in the
-     * {@code /v} menu. Strategists get {@code "staff"}; chiefs and owners
-     * get {@code "owner"}; anything else returns {@code null}.
+     * The label rendered in the pill of a {@code /v} staff-channel line (see
+     * {@link ChatUtils#buildStaffPillComponent(String)}). Strategists get {@code "staff"}; chiefs
+     * and owners get {@code "owner"}; anything else returns {@code null}.
      */
     public static String vTagFor(String rawRank) {
         if (rawRank == null) {

@@ -337,21 +337,25 @@ public final class WynntilsEventListener {
     /**
      * Decodes the guild rank from pill PUA glyph characters in the plain text.
      *
-     * <p>Wynncraft renders rank badges as Private Use Area characters in the
-     * {@code banner/pill} font. The "foreground" (dark) characters encode
-     * rank letters at codepoints {@code \uE030} (A) through {@code \uE049} (Z).
-     * This method scans for those codepoints, decodes the letters, and matches
-     * against known rank names.</p>
+     * <p>In guild chat captured with vetsmod's debug logging in 2026-09, Wynncraft draws the rank
+     * pill in the {@code banner/pill} font as two layers: an aqua background layer with one glyph
+     * per letter of the rank, keyed {@code \uE030} (A) through {@code \uE049} (Z), and a dark
+     * foreground layer keyed from {@code \uE000} (a). The glyphs are the server's output, so it
+     * does not matter that the capture ran a different Wynntils version from the one this project
+     * builds against. This method decodes the background layer, falling back to the uppercase
+     * block vetsmod's own pills use, and matches the result against known rank names.</p>
      *
      * @param plainText the plain-text form of the guild message
      * @return the rank name or empty string if decoding fails
      */
     private static String decodePillRank(String plainText) {
-        // Scan for pill foreground letter glyphs in the E030-E049 range
-        // (used by the Wynncraft server) and the E040-E059 range (used by
-        // the mod's own pill builder).  The ranges partially overlap
-        // (E040-E049), so a non-empty decode from one range may be garbage.
-        // Try each range and accept the first that matches a known rank.
+        // Scan for pill background letter glyphs in the E030-E049 range
+        // (Wynncraft's server pill) and, as a fallback, the E040-E059
+        // range (vetsmod's own pill alphabet, though the isInternalDispatch
+        // guard in onGuildChat normally stops vetsmod's own lines before
+        // they get here). The ranges partially overlap (E040-E049), so a
+        // non-empty decode from one range may be garbage. Try each range
+        // and accept the first that matches a known rank.
         String decoded = tryDecodeRange(plainText, '\uE030', '\uE049');
         VetsLogger.debug("decodePillRank E030-E049 decoded [{}]", decoded);
         String matched = matchRankName(decoded);

@@ -11,11 +11,13 @@ import org.wynnvets.rendering.colors.ShaderColorPalette;
 /**
  * Reusable system for formatting guild chat pill (rank) components.
  *
- * <p>Determines the appropriate pill styling based on the message sender's username.
- * Supporters receive a gradient pill ({@link ShaderColorPalette#AQUA AQUA} →
- * {@link ShaderColorPalette#DARK_AQUA DARK_AQUA}) for ASCII pills (bridge messages),
- * or a single supporter colour for PUA pills (server messages where the
- * {@code chat/prefix} font renders composite badge glyphs).</p>
+ * <p>Styles the pill from the caller's supporter determination; the sender's username is not
+ * read. For a supporter, while {@code showSupporterGlints} is on, the pill takes the animation
+ * marker colour, animated at render time from {@link ShaderColorPalette#DARK_AQUA DARK_AQUA} by
+ * default (see {@link AnimatedGradientSequence}). A pill containing custom glyphs, which is what
+ * every current caller passes, is marked as one component; a plain-text label would be marked per
+ * character. Otherwise the pill takes the flat base style. In every branch it renders in the
+ * default font, not {@code chat/prefix} (see {@link PillCodec}).</p>
  *
  * <p>To add new pill styles, add additional checks before the default fallback in
  * {@link #formatPill(String, String, Style, boolean)}.</p>
@@ -35,12 +37,12 @@ public final class PillFormatter {
     /**
      * Formats a pill component using the given base style.
      *
-     * <p>If the sender is a supporter, the pill receives a gradient between
-     * {@link ShaderColorPalette#AQUA} and {@link ShaderColorPalette#DARK_AQUA}
-     * for plain-text pills (bridge messages).  For PUA-based pills (server messages)
-     * the entire pill is rendered as a single component with one supporter colour,
-     * because the {@code chat/prefix} font requires specific colour patterning and
-     * per-character gradient colours break composite glyph rendering.</p>
+     * <p>If the sender is a supporter and {@code showSupporterGlints} is on, the pill takes the
+     * animation marker colour, animated at render time from {@link ShaderColorPalette#DARK_AQUA}
+     * by default. A plain-text label, which no current caller passes, is marked per character. The
+     * PUA pill every current caller passes is marked as one component instead, because a
+     * per-character gradient would break the composite glyphs. In every branch the pill renders in
+     * the default font, not {@code chat/prefix}.</p>
      *
      * @param pillText    the text to display in the pill
      * @param username    the display name of the message sender
@@ -56,11 +58,11 @@ public final class PillFormatter {
                 && org.wynnvets.config.VetsConfig.get(
                         org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS)) {
             if (containsCustomFontGlyph(pillText)) {
-                // PUA/supplementary pills from the server: the chat/prefix font uses
-                // a two-tone colour structure (aqua frame + dark letters) baked into
-                // specific codepoints.  Applying a per-character gradient destroys
-                // this structure.  Instead, render the entire pill as a single
-                // component with the animation marker so the mixin can animate it.
+                // PUA pills (vetsmod's own encoded pill, which is every current caller's input)
+                // render in the default font: the frame and letter glyphs are baked into specific
+                // codepoints, so a per-character gradient would break them. Instead, render the
+                // entire pill as a single component with the animation marker so the mixin can
+                // animate it.
                 return Component.literal(pillText)
                         .setStyle(
                                 baseStyle
@@ -70,7 +72,7 @@ public final class PillFormatter {
                                         .withoutShadow());
             }
 
-            // ASCII pills (bridge messages) — per-character marker is safe.
+            // Plain-text pill, unreachable from any current caller: per-character marker is safe.
             // Each character gets the marker colour; the AnimatedChatMixin will
             // replace it with animated gradient colours at render time.
             return GradientTextBuilder.linear(

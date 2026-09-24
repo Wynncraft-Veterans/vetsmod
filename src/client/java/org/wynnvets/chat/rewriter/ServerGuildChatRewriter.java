@@ -30,14 +30,13 @@ import org.wynnvets.rendering.colors.AnimatedGradientSequence;
  * two-layer badge: <b>background glyphs</b> (aqua-coloured, forming the pill
  * shape) and <b>foreground glyphs</b> (dark-coloured text letters).</p>
  *
- * <p>2026-07 permission restructure: expanded from the supporter-only path
- * to fire on ALL guild chat with a decodable rank pill. Strategist / Chief
- * / Owner now render as "Steward"; Recruiter / Captain render as
- * "Returner". The pill is rebuilt client-side using the {@code chat/prefix}
- * font (same path as bridge messages), so the visual style changes from
- * the aqua server-native pill to the ASCII-encoded label pill. Supporter
- * gradients still compose on top when the viewing client has
- * {@code showSupporterGlints} on.</p>
+ * <p>2026-07 permission restructure: expanded from the supporter-only path to also fire when a
+ * decodable rank pill maps to a different display label: Strategist / Chief / Owner now render as
+ * "Steward"; Recruiter / Captain render as "Returner". The pill is rebuilt client-side as a local
+ * dark-on-light pill carrying the display label ({@link ChatUtils#buildFramedPill(String, Style)},
+ * over {@link PillCodec#encodeLocal(String, Style)}): the same visual family as the server-native
+ * pill, not the light-on-dark remote pill that WebSocket-relayed chat gets. Supporter gradients
+ * still compose on top when the viewing client has {@code showSupporterGlints} on.</p>
  *
  * <p>The whole rewriter is gated on {@link GuildStateManager#isVetsGuildChat()}.
  * Wynn's pill glyphs carry no guild identity, so for an honourary member —
@@ -122,9 +121,12 @@ public final class ServerGuildChatRewriter {
             // same visual family as Wynncraft's native guild pill and
             // the [Vetsmod] pill in /wv help. Local chat (arriving via
             // Wynncraft's actual guild channel through the mixin) uses
-            // this style; remote messages (bridge / honourary / queue)
-            // still get the light-on-dark ASCII pill via
-            // OutboundDisplayHandler + ChatUtils.encodePillIfAscii.
+            // this style; remote chat lines (the relayed chat
+            // OutboundDisplayHandler renders as ordinary chat) still get
+            // the light-on-dark remote pill via ChatUtils.encodePillIfAscii.
+            // Today EncourageUpdateRewriter's rewrite of a guild-channel
+            // line takes the remote pill too
+            // (raw-rank-pills-bypass-display-remap).
             Style frameStyle =
                     isSupporter
                             ? ChatUtils.RANK_STYLE
