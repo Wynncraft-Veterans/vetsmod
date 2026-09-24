@@ -66,9 +66,9 @@ public final class AnniWsHandler {
         // transfer that drops the socket would otherwise leave the
         // cache frozen on whatever was current at the previous connect
         // until the next server-initiated push (which may never come
-        // for the user's own RSVP/role edits). Cheap on cold start
-        // (single-flight queue collapses with the StampFetcher cold
-        // path), correct on reconnect.
+        // for the user's own RSVP/role edits). Cheap on cold start: one small
+        // frame, possibly alongside StampFetcher's world-join pull (queries are
+        // queued FIFO, not coalesced). Correct on reconnect.
         V1ApiManager.addInboundPostConnectListener(AnniQueryClient::query);
         VetsLogger.debug("AnniWsHandler registered");
     }

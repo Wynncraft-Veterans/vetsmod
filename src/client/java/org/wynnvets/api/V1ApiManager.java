@@ -93,9 +93,11 @@ public final class V1ApiManager {
      *  inbound handler classifies as staff-action-shaped (see the {@code staffShaped}
      *  test in {@link #connect()}), or an error ack while a callback is pending and no
      *  auth ack is outstanding, pops the head callback and invokes it. The protocol has no
-     *  per-frame correlation ID, so this is a strict-order queue --
-     *  rapidly-fired commands without an interleaving wait may receive
-     *  reordered callbacks, but the alternative (correlation IDs) was
+     *  per-frame correlation ID, so this is a strict-order queue: it stays aligned only
+     *  while each enqueued frame's ack, and no other ack, reaches it in enqueue order.
+     *  An ack that never arrives shifts every later ack onto the previous caller's
+     *  callback until {@link #disconnect()} drains the queue
+     *  ({@code staff-action-queue-not-drained-on-socket-reconnect}). Correlation IDs were
      *  judged not worth the wire-protocol churn for the current scale. */
     private static final java.util.concurrent.ConcurrentLinkedDeque<Consumer<JsonObject>>
             staffActionCallbacks = new java.util.concurrent.ConcurrentLinkedDeque<>();
@@ -230,9 +232,9 @@ public final class V1ApiManager {
                                 if (wasStaff && !confirmedStaff) {
                                     CommandDispatcher.resetStaffChatEligibilityCache();
                                 }
-                                // Close the cold-start gap: the next scheduled poll may be up
+                                // Refresh ahead of schedule: the next scheduled poll may be up
                                 // to two minutes away, so trigger an immediate refresh of the
-                                // receiver-side staff cache as soon as auth completes.
+                                // receiver-side staff cache on every successful auth ack.
                                 StaffRanksPoller.refreshNow();
                                 GuildStateManager.onAuthSuccess(tier);
                                 // MWE auto-enable: a tier-vets user (member/waitlist/

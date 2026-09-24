@@ -19,12 +19,17 @@ import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
 /**
- * Periodically fetches confirmed staff ranks and caches them locally.
+ * Periodically fetches the server's list of confirmed staff who are currently online
+ * (per temporary-server, {@code /v1/outbound/staff} lists online staff only) and caches it
+ * locally.
  *
  * <p>Two-tier cache:
  * <ul>
- *   <li>{@code staffRanksByUsername} — entries populated by the periodic
- *       2-minute poll of {@code /v1/outbound/staff}.</li>
+ *   <li>{@code staffRanksByUsername} — entries populated by each fetch of
+ *       {@code /v1/outbound/staff} (the periodic 2-minute poll and {@link #refreshNow()}),
+ *       and removed early by a {@code staff_offline} frame. The poll swaps it by
+ *       {@code clear()} then {@code putAll()}, which is not atomic
+ *       ({@code staff-ranks-poll-swap-not-atomic}).</li>
  *   <li>{@code liveStaffRanksByUsername} — entries pushed via
  *       {@code staff_online} outbound frames; preserved across poll
  *       cycles so a push-known staff member is never temporarily
@@ -39,9 +44,9 @@ import org.wynnvets.util.Json;
  * <p>{@link #confirmedRankFor} checks the live map first, then the poll
  * map. Both are keyed by lowercase username and store one of
  * strategist/chief/owner. Captain was retired in the 2026-07 permission
- * restructure; stray captains are silently dropped from
- * {@link #ALLOWED_RANKS} and therefore treated as non-staff Returners
- * client-side.</p>
+ * restructure; a stray captain fails the {@link #ALLOWED_RANKS} check and is dropped
+ * (silently from a poll, with a debug log line from a push), so client-side it is
+ * treated as a non-staff Returner.</p>
  */
 public final class StaffRanksPoller {
     private static final int REFRESH_INTERVAL_MINUTES = 2;
@@ -114,7 +119,7 @@ public final class StaffRanksPoller {
      * from the v1 outbound WebSocket.
      *
      * <p>When {@code online} is {@code true}, {@code rank} must be one of
-     * the allowed ranks; malformed ranks are dropped silently.</p>
+     * the allowed ranks; an unrecognised rank is dropped with a debug log line.</p>
      *
      * <p>When {@code online} is {@code false}, the username is removed
      * from both caches eagerly -- waiting for the next poll would leave a
@@ -143,10 +148,10 @@ public final class StaffRanksPoller {
     /**
      * Triggers an off-schedule fetch of {@code /v1/outbound/staff}.
      *
-     * <p>Called on inbound auth-ack to close the cold-start gap before
-     * the first scheduled poll fires (the initial scheduled poll fires
-     * on mod init, which may be minutes before the player joins a world
-     * and authenticates).</p>
+     * <p>Called on each successful inbound auth ack, so the cache need not wait up to
+     * two minutes for the next scheduled poll. The first scheduled poll ran at mod
+     * init, which may be minutes before the player joins a world and
+     * authenticates.</p>
      */
     public static void refreshNow() {
         Thread t = new Thread(StaffRanksPoller::fetchStaffRanks, "VetsMod-StaffRanksRefreshNow");

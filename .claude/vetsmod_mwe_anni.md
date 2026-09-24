@@ -804,7 +804,9 @@ name in their docstrings as the thing they mirror. See
 three clones: `AnniQueryClient` (returns `CompletableFuture<AnniSnapshot>`),
 `AnniScrollspotClient` (returns `CompletableFuture<Ack>`),
 `AnniRsvpClient` (returns `CompletableFuture<Ack>`). FIFO
-`ConcurrentLinkedDeque`; the `orTimeout` deadline is **5 s on the two
+`ConcurrentLinkedDeque`. "Single-flight" is this repo's name for that FIFO of
+per-call futures; it does not coalesce concurrent calls (each call sends its own
+frame). The `orTimeout` deadline is **5 s on the two
 ack clients and 8 s on `AnniQueryClient`**, not 5 s across the board.
 The `exceptionally` handler removes *that* future by identity
 (`remove(future)`) — **not** the head. Head-polling (`pollFirst()`)

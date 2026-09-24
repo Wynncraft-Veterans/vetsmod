@@ -33,7 +33,7 @@ Key methods:
 **Not exhaustive** — `sendQueueStatus`, `sendRankChange`, `sendStaffActionFrame`, `addInboundListener` and `addInboundPostConnectListener` also exist; §7.1 depends on the inbound fan-out. `staff_online` / `staff_offline` are likewise intercepted before the outbound listeners.
 
 **Register frame fields:** `type`, `uuid`, `username`, `tier`.
-**Auth frame fields:** `type:"auth"`, `key:"<43-char base64url>"`. Server replies `{status:"ok", tier, ws_tier, mc_uuid, mc_username, is_staff, staff_rank, staff_rank_display}` or `{status:"error", detail:"auth rejected: <reason>"}`. `is_staff` and `staff_rank` are read by `V1ApiManager` into `confirmedStaff` / `confirmedStaffRank`. `staff_rank_display` is the additive 2026-07 label — the server still sends it, and it is `null` exactly when `staff_rank` is, but the client does not read it; display labels come from `RankDisplayMap.displayFor` at each render site. Auth-success replies are discriminated from chat-success acks by the presence of the `tier` field (resilient to ack reordering).
+**Auth frame fields:** `type:"auth"`, `key:"<43-char base64url>"`. Server replies `{status:"ok", tier, ws_tier, mc_uuid, mc_username, is_staff, staff_rank, staff_rank_display}` or `{status:"error", detail:"auth rejected: <reason>"}`. `is_staff` and `staff_rank` are read by `V1ApiManager` into `confirmedStaff` / `confirmedStaffRank`. `staff_rank_display` is the additive 2026-07 label — the server still sends it, and it is `null` exactly when `staff_rank` is, but the client does not read it; display labels come from `RankDisplayMap.displayFor` at each render site. Auth-success replies are told apart from chat-success acks by the presence of the `tier` field, so a success is recognised whether or not `expectingAuthAck` is set.
 **Message fields:** `uuid`, `type`, `timestamp`, `rank`, `username`, `message`.
 **Server → client unsolicited:** `{type:"server_info", unauth_enabled: bool}` is pushed once on outbound connect so the mod knows which session-warning copy to show.
 
@@ -219,12 +219,10 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 [StaffRanksPoller.start()](../src/client/java/org/wynnvets/fetcher/polling/StaffRanksPoller.java)
 - **Two** `ConcurrentHashMap<String, String>` caches, both keyed by lowercase name: `staffRanksByUsername` (replaced wholesale each poll) and `liveStaffRanksByUsername`, a push overlay fed by `staff_online` / `staff_offline` outbound frames. `confirmedRankFor` checks the live map first, so a pushed staff member is never evicted by a stale poll snapshot. **The overlay is empty today**: those frames never reach vetsmod (§1)
 - Runs every 2 minutes, scheduled initially immediate
-- Fetches `VetsApi.STAFF`, replaces entire cache atomically
+- Fetches `VetsApi.STAFF` (per temp-server, the staff currently online) and replaces the entire poll cache each time. The swap is `clear()` then `putAll()`, which is not atomic (bug `staff-ranks-poll-swap-not-atomic`)
 - `ALLOWED_RANKS` is strategist/chief/owner only — **captain is rejected**, retired in the 2026-07 permission restructure, and a stray captain is dropped and treated as a non-staff Returner client-side
-- Read by `V1ApiManager`, `EncourageUpdateRewriter`, `StaffChannelMessageRewriter`, `StaffGuildAlertRewriter`, `GuildChatDispatcher` and `ListFetcher` (underline styling); started by `VetsmodClient`. The `**Gap:**` note below already points at two entry points (`applyLiveStaffEvent`, `refreshNow()`) whose caller is `V1ApiManager` — so the omission was visible from inside this section
+- Read (`confirmedRankFor`) by `EncourageUpdateRewriter`, `StaffChannelMessageRewriter`, `StaffGuildAlertRewriter`, `GuildChatDispatcher` and `ListFetcher` (underline styling). Written by `V1ApiManager` through `applyLiveStaffEvent(username, rank, online)` (from `staff_online` / `staff_offline` frames) and `refreshNow()` (an off-schedule fetch on every successful auth ack). Started by `VetsmodClient`
 - Why poll as well as push? The push carries only changes; the poll supplies the full online-staff set at start and resyncs it every 2 min. Today the poll is the only source that works, because the push never reaches vetsmod (§1)
-
-**Gap:** the two entry points behind the behaviour described above are unnamed here — `applyLiveStaffEvent(username, rank, online)`, which writes the overlay from `staff_online`/`staff_offline` frames, and `refreshNow()`, which fires an off-schedule fetch on every successful auth ack to close the cold-start gap. See `StaffRanksPoller`.
 
 ### SupportersPoller (5 min)
 [SupportersPoller.start()](../src/client/java/org/wynnvets/fetcher/polling/SupportersPoller.java)

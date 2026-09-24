@@ -52,9 +52,11 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * before an anni are polled but not drawn, and that is deliberate on both
  * sides.</p>
  *
- * <p>Cost analysis: 30 s × ~90 minutes = 180 query frames per anni
- * window, single-flight queued. Each frame is &lt;100 bytes on the
- * inbound socket. Negligible vs. the existing party-observation cadence.</p>
+ * <p>Cost: up to 180 queries per anni window (one every 30 s for 90 minutes), each a
+ * small request frame queued FIFO in {@link AnniQueryClient}, not coalesced. Each reply
+ * carries a full snapshot. Per temporary-server, a reply comes from its short-lived
+ * snapshot cache while that is fresh, and from a live vets-anni fetch otherwise
+ * (v1_protocol.md §1.11).</p>
  */
 public final class AnniSnapshotPoller {
 
