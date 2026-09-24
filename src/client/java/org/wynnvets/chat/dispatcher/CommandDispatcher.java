@@ -34,8 +34,10 @@ import org.wynnvets.util.Json;
  * batches (via {@link FindDispatcher}).  Only one command is ever in-flight
  * at a time, so the suppression ACK systems are unambiguous.</p>
  *
- * <p>Callers outside this package should use only the public methods on this class.
- * The two dispatcher classes are implementation details.</p>
+ * <p>{@code /v} fan-out and both chat-hook suppression checks are entered through this
+ * class. {@code /find} batches are not: callers outside this package enqueue them on
+ * {@link FindDispatcher#enqueueFindBatch} directly and read
+ * {@link FindDispatcher#PRIVATE_SERVER} there too.</p>
  *
  * <h3>Architecture — Threading and Data Flow</h3>
  * <pre>
@@ -44,9 +46,10 @@ import org.wynnvets.util.Json;
  *
  *   /v command entered
  *        │
- *        ├─► eligibility gate
- *        │   (async staff API check,
- *        │    cached per world)
+ *        ├─► eligibility gate: auth-ack fast path,
+ *        │    else the cache, else an async staff-feed
+ *        │    check, after which the steps below run
+ *        │    on the VetsMod-StaffPresenceCheck thread
  *        │
  *        ▼
  *   enqueueAndDispatch(msg)
@@ -64,11 +67,11 @@ import org.wynnvets.util.Json;
  *                                       │       │     (HTTP GET → staff API)
  *                                       │       │
  *                                       │       └─► for each recipient:
- *                                       │             /msg recipient 🔐message
- *                                       │                │
- *                                       │                ├─► queueSuppression()
- *                                       │                ├─► awaitingSuppression = ...
- *                                       │                └─► wait on SUPPRESSION_ACK_LOCK
+ *                                       │             ├─► minecraft.execute → render thread:
+ *                                       │             │     queueSuppression()
+ *                                       │             │     awaitingSuppression = ...
+ *                                       │             │     /msg recipient 🔐message
+ *                                       │             └─► wait on SUPPRESSION_ACK_LOCK
  *                                       │                         ▲
  *                                       │                         │ notifyAll()
  *                                       │                         │
@@ -81,9 +84,10 @@ import org.wynnvets.util.Json;
  *                                             .processFindBatch()
  *                                               │
  *                                               └─► for each username:
- *                                                     /find username
- *                                                        │
- *                                                        └─► wait on FIND_RESPONSE_LOCK
+ *                                                     ├─► minecraft.execute → render thread:
+ *                                                     │     awaitingFindResponse = ...
+ *                                                     │     /find username
+ *                                                     └─► wait on FIND_RESPONSE_LOCK
  *                                                                 ▲
  *                                                                 │ notifyAll()
  *                                                                 │
@@ -93,10 +97,16 @@ import org.wynnvets.util.Json;
  * <h3>Key Invariants</h3>
  * <ul>
  *   <li>Exactly one command in-flight at a time (single-threaded executor).</li>
- *   <li>/msg batches drain before /find batches (priority ordering).</li>
+ *   <li>/msg broadcasts take priority over /find batches: each dispatch pass handles
+ *       queued /msg broadcasts before it starts on queued /find batches. Today a /msg
+ *       that arrives while a pass is working through /find batches waits for that pass
+ *       to finish ({@code find-phase-does-not-yield-to-queued-msg}).</li>
  *   <li>Suppression matching uses the 🔐 lock prefix as a unique discriminator.</li>
  *   <li>Offline users are tracked per-batch and skipped for remaining messages.</li>
- *   <li>Self-presence in the staff API feed is verified once per world session.</li>
+ *   <li>A gated call skips the staff-feed check while the auth ack confirms staff, or
+ *       once an earlier gated call has confirmed this player since
+ *       {@link #resetStaffChatEligibilityCache()} last cleared the cache. A failed check
+ *       is not cached.</li>
  * </ul>
  */
 public final class CommandDispatcher {
@@ -130,7 +140,10 @@ public final class CommandDispatcher {
     // Whether a dispatch batch is currently running on the executor.
     private static final AtomicBoolean BATCH_IN_PROGRESS = new AtomicBoolean(false);
 
-    // Per-world eligibility gate for the self-presence check.
+    // Staff-eligibility cache shared by both gates: set by the auth-ack fast path or a
+    // successful feed check, cleared by resetStaffChatEligibilityCache(). While the
+    // in-flight flag is set, a gated call that needs a feed check is dropped; the reset
+    // clears the flag too.
     private static volatile boolean selfSeenInStaffFeedThisWorld;
     private static final AtomicBoolean SELF_PRESENCE_CHECK_IN_FLIGHT = new AtomicBoolean(false);
 
@@ -139,8 +152,14 @@ public final class CommandDispatcher {
     // ──────────────────────────── Public API ────────────────────────────
 
     /**
-     * Sends /v chat only after confirming this player has appeared in the WV online staff list.
-     * Once confirmed in the current world context, subsequent /v messages skip the check.
+     * Sends /v chat once this player is known to be staff: either the v1 auth ack flagged
+     * this session as staff ({@link V1ApiManager#isConfirmedStaff()}), or an earlier gated
+     * call already confirmed it since the eligibility cache was last cleared
+     * ({@link #resetStaffChatEligibilityCache()}). Otherwise, unless another check is
+     * already running, the WV online staff feed is checked on a background thread
+     * ({@code VetsMod-StaffPresenceCheck}), which sends the message if the player is
+     * listed. The message is dropped with a wait notice if another check is running, the
+     * player is not listed, or the check fails.
      */
     public static void dispatchStaffChatWithEligibilityGate(
             String displayName, String message, String rank) {
@@ -203,9 +222,10 @@ public final class CommandDispatcher {
     }
 
     /**
-     * Runs the given action only after confirming this player appears in the WV online staff feed.
-     * Shares the same per-world cache as {@link #dispatchStaffChatWithEligibilityGate}.
-     * If the check must be performed asynchronously, the action is scheduled back on the render thread.
+     * Runs the given action once this player is known to be staff, by the same tests and
+     * the same cache as {@link #dispatchStaffChatWithEligibilityGate}, and drops it with the
+     * same wait notice in the same cases. When the feed has to be checked, the action is
+     * scheduled back on the render thread; otherwise it runs on the caller's thread.
      */
     public static void executeWithStaffEligibilityGate(Runnable action) {
         // Fast path: same rationale as dispatchStaffChatWithEligibilityGate.
@@ -251,7 +271,12 @@ public final class CommandDispatcher {
     }
 
     /**
-     * Clears the per-world /v eligibility cache so the next message re-verifies feed presence.
+     * Clears the staff-eligibility cache shared by
+     * {@link #dispatchStaffChatWithEligibilityGate} and
+     * {@link #executeWithStaffEligibilityGate}, and releases their in-flight guard. The
+     * next gated call then re-checks the feed, unless the auth ack confirms staff or a
+     * check already running when this was called has since succeeded: such a check is
+     * not cancelled, and its success refills the cache.
      */
     public static void resetStaffChatEligibilityCache() {
         selfSeenInStaffFeedThisWorld = false;

@@ -40,9 +40,10 @@ import org.wynnvets.util.Json;
  *
  * <p>Combines the same data sources as {@link ListFetcher} to determine online
  * members, then fans out {@code /find <username>} commands through
- * {@link FindDispatcher}'s shared single-threaded dispatcher to
- * discover each player's current Wynncraft server.  Results are grouped by
- * region and server, sorted by member count (descending).</p>
+ * {@link FindDispatcher}, on the single-threaded dispatch executor that
+ * {@code /find} shares with the {@code /v} fan-out, to discover each player's
+ * current Wynncraft server.  Results are grouped by region and server, sorted by
+ * member count (descending).</p>
  */
 public final class WorldListFetcher {
 
@@ -221,9 +222,11 @@ public final class WorldListFetcher {
                             FindDispatcher.enqueueFindBatch(canonicalNames, retryFuture);
                             return retryFuture.thenApply(
                                     retryMap -> {
-                                        // Defensive copy: enqueueFindBatch can return Map.of()
-                                        // in some edge paths, and we don't want to surprise
-                                        // downstream readers by mutating the input.
+                                        // Defensive copy: worldMap can be an immutable
+                                        // Map.of() (enqueueFindBatch completes its future
+                                        // with one in some edge paths), and we don't want
+                                        // to surprise downstream readers by mutating the
+                                        // input.
                                         Map<String, String> augmented =
                                                 new LinkedHashMap<>(worldMap);
                                         for (var e : renameMap.entrySet()) {
@@ -480,8 +483,8 @@ public final class WorldListFetcher {
     /**
      * Classifies a server name into a display region.  Standard Wynncraft servers
      * use GeoLite2 / GeoIP2 continent codes ({@code AF, AS, EU, NA, OC, SA}) followed
-     * by a numeric ID.  Players on private servers (media, dev, staff, etc.) are
-     * identified by the {@link FindDispatcher#PRIVATE_SERVER} sentinel.
+     * by a numeric ID.  A player {@code /find} reports as being on a private server
+     * is identified by the {@link FindDispatcher#PRIVATE_SERVER} sentinel.
      */
     private static String classifyRegion(String server) {
         if (FindDispatcher.PRIVATE_SERVER.equalsIgnoreCase(server)) {

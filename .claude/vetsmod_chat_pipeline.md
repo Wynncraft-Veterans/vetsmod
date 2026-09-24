@@ -192,7 +192,7 @@ Solves: serialize command dispatch on a single-threaded executor and wait for se
 ### CommandDispatcher
 [CommandDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/CommandDispatcher.java)
 
-Single-threaded `DISPATCH_EXECUTOR`. `/msg` batches drain first (priority), then `/find`. Provides `shouldSuppressFeedback()` and `shouldSuppressFindResponse()` used by ChatLogMixin.
+Single-threaded `DISPATCH_EXECUTOR`. `/msg` takes priority: each pass handles queued `/msg` first, then every queued `/find` batch, including ones queued during that phase. Today a `/msg` arriving mid-`/find` waits for the next pass (bug `find-phase-does-not-yield-to-queued-msg`). Provides `shouldSuppressFeedback()` and `shouldSuppressFindResponse()` used by ChatLogMixin.
 
 ### MessageFanoutDispatcher
 [MessageFanoutDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/MessageFanoutDispatcher.java)
@@ -204,7 +204,7 @@ Fans `/v` out as `/msg <recipient> 🔐 <message>` to every online staff member.
 - `INTER_SEND_DELAY_MS = 600`
 - `MAX_DISPATCH_RETRIES = 3`
 
-Multi-strategy feedback matching (called from ChatLogMixin on incoming messages):
+Multi-strategy feedback matching in `MessageFanoutDispatcher.shouldSuppressFeedback` (reached from ChatLogMixin; the direct caller is `CommandDispatcher.shouldSuppressFeedback`):
 1. Offline-guidance blanket-suppression (4s window after offline error)
 2. Direct echo match (exact normalized payload + recipient or lock prefix)
 3. Lock-prefix + recipient fallback (Wynntils rewrote coordinates)
@@ -214,7 +214,7 @@ Multi-strategy feedback matching (called from ChatLogMixin on incoming messages)
 ### FindDispatcher
 [FindDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/FindDispatcher.java)
 
-Batch `/find <username>` dispatcher. `enqueueFindBatch()` returns `CompletableFuture<Map<username,server>>`. Parses responses: "currently on server XX##", "currently on a private server" (sentinel `"PRIVATE"`), "not currently online" (null). `FIND_RESPONSE_WAIT_MS = 6_000`.
+Batch `/find <username>` dispatcher. `enqueueFindBatch(usernames, resultFuture)` completes the caller-supplied `CompletableFuture<Map<username, server>>`; `WorldListFetcher` calls it directly rather than through `CommandDispatcher`'s delegate. Parses responses: "currently on server XX##" (server stored lower-cased), "currently on a private server" (sentinel `"PRIVATE"`), "not currently online" (null); a lookup with no matching reply within `FIND_RESPONSE_WAIT_MS = 6_000` is null too.
 
 ## 10. AnimatedChatMixin
 

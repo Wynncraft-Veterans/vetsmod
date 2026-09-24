@@ -225,9 +225,10 @@ public final class V1ApiManager {
                                 } else {
                                     confirmedStaffRank = "";
                                 }
-                                // Same-world demotion clears the eligibility cache so the
-                                // fast-path bypass in CommandDispatcher doesn't keep treating
-                                // us as staff. World change already resets it via
+                                // Same-world demotion clears the eligibility cache, which
+                                // CommandDispatcher's auth-ack fast path fills while we are
+                                // staff, so later gated calls don't keep treating us as
+                                // staff. World change already resets it via
                                 // GuildStateManager.onEnteredWorld ->
                                 // resetStaffChatEligibilityCache.
                                 if (wasStaff && !confirmedStaff) {

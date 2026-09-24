@@ -18,14 +18,18 @@ import net.minecraft.client.player.LocalPlayer;
  * Handles {@code /find} batch lookups, serialized on the shared dispatch executor
  * so they never interleave with {@code /msg} fanout.
  *
- * <p>Called from {@link CommandDispatcher}'s batch coordinator; provides the public suppression
- * hook consumed by {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin}.</p>
+ * <p>{@link #enqueueFindBatch} is called directly by callers outside this package (not
+ * through {@link CommandDispatcher}); {@link CommandDispatcher}'s batch coordinator then
+ * runs each queued batch. This class's suppression hook,
+ * {@link #shouldSuppressFindResponse}, is reached from
+ * {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} through
+ * {@link CommandDispatcher#shouldSuppressFindResponse}.</p>
  */
 public final class FindDispatcher {
 
     /**
-     * Sentinel server value returned by {@code /find} when a player is on a
-     * private server (media, dev, staff, etc.).
+     * Sentinel server value this dispatcher records when a {@code /find} reply says the
+     * player is on a private server.
      */
     public static final String PRIVATE_SERVER = "PRIVATE";
 
@@ -41,9 +45,14 @@ public final class FindDispatcher {
 
     /**
      * Enqueues a batch of {@code /find} lookups to run on the shared dispatch executor.
-     * The find commands are serialized behind any pending {@code /msg} broadcasts so the
-     * two never interleave. Results are delivered via the returned future as a map of
-     * username → server (or {@code null} value for offline / not-found users).
+     * The lookups are driven from the same single dispatch thread as {@code /msg}
+     * fan-out, so the two never interleave; see {@link CommandDispatcher} for how a
+     * dispatch pass orders them. Completes the caller-supplied {@code resultFuture} with
+     * a map of username → lower-cased server name, {@link #PRIVATE_SERVER} for a private
+     * server, or {@code null} otherwise (for example, the player is reported offline or
+     * no matching reply arrives in time). A null or empty list, or no local player,
+     * completes it with an empty map; an exception while the batch runs completes it
+     * exceptionally.
      */
     public static void enqueueFindBatch(
             List<String> usernames, CompletableFuture<Map<String, String>> resultFuture) {
@@ -84,7 +93,9 @@ public final class FindDispatcher {
 
     /**
      * Sends {@code /find <username>} and waits for the server response.
-     * Returns the server name (e.g. "AS25") or {@code null} if offline/not found.
+     * Returns the server name, lower-cased as matched (e.g. {@code "as25"}),
+     * {@link #PRIVATE_SERVER} for a private server, or {@code null} otherwise (for
+     * example, the player is reported offline or no matching reply arrives in time).
      */
     private static String tryFindUser(Minecraft minecraft, LocalPlayer player, String username) {
         CountDownLatch submitted = new CountDownLatch(1);
