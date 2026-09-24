@@ -86,11 +86,12 @@ public final class V1ApiManager {
     private static final CopyOnWriteArrayList<Runnable> inboundPostConnectListeners =
             new CopyOnWriteArrayList<>();
 
-    /** FIFO queue of callbacks awaiting a staff-action ack frame. Each
-     *  outgoing caution_check / caution_add / warn_add / eject_add frame
-     *  enqueues one callback; each incoming ack with a staff-action
-     *  shape ({@code kind}, {@code triggered}, or {@code would_trigger})
-     *  pops the head callback and invokes it. The protocol has no
+    /** FIFO queue of callbacks awaiting a staff-action ack frame. Each frame sent
+     *  through {@link #sendStaffActionFrame} with a callback enqueues one callback (the
+     *  caution/warn/eject family, and {@code check_membership}). Each incoming ack the
+     *  inbound handler classifies as staff-action-shaped (see the {@code staffShaped}
+     *  test in {@link #connect()}), or an error ack while a callback is pending and no
+     *  auth ack is outstanding, pops the head callback and invokes it. The protocol has no
      *  per-frame correlation ID, so this is a strict-order queue --
      *  rapidly-fired commands without an interleaving wait may receive
      *  reordered callbacks, but the alternative (correlation IDs) was
@@ -147,7 +148,9 @@ public final class V1ApiManager {
 
                             // Staff-action ack shape: commits carry `kind`+`triggered`,
                             // checks carry `total_points`, preflight carries
-                            // `status:"would_trigger"`. We pop ONE pending callback per
+                            // `status:"would_trigger"`, and membership-check acks match only
+                            // on `target_uuid` (which every successful staff-action ack
+                            // carries). We pop ONE pending callback per
                             // matching ack so multiple in-flight staff actions resolve
                             // in send order. Errors (status=="error") are also routed to
                             // the callback queue when one is pending and we aren't
@@ -793,22 +796,30 @@ public final class V1ApiManager {
     }
 
     /**
-     * Sends a staff-action control frame (caution_check / caution_add /
-     * warn_add / eject_add) and registers a callback for the matching
-     * server ack.
+     * Sends a staff-action control frame (the caution/warn/eject family --
+     * caution_check / caution_add / warn_add / eject_add -- or check_membership) and
+     * registers a callback for the matching server ack.
      *
-     * <p>Callers MUST verify {@link #isConfirmedStaff()} before calling --
-     * the server will reject the frame otherwise, and the rejection
-     * burns a callback slot. The {@code fields} map is merged into the
-     * outgoing JSON; do NOT include {@code "type"} (this method sets
-     * it). The callback runs on the WebSocket reader thread and is
-     * single-use.</p>
+     * <p>A session the server does not treat as staff gets an error ack, which normally
+     * resolves this frame's callback like any other ack; callers that want to spare
+     * non-staff the round trip check {@link #isConfirmedStaff()} first
+     * ({@code VetsSnapshotProvider}'s {@code check_membership} does not:
+     * {@code vets-snapshot-provider-skips-confirmed-staff-check}). The {@code fields} map
+     * is merged into the outgoing JSON after {@code "type"} is set, so do NOT include
+     * {@code "type"} -- it would replace the frame type. The callback is single-use. It
+     * normally runs on the thread that delivers inbound frames, but runs on the caller's
+     * thread when the socket is down and on the disconnecting thread when
+     * {@link #disconnect()} drains it -- bounce to the main thread for game-state
+     * work.</p>
      *
-     * @param type     "caution_check" / "caution_add" / "warn_add" / "eject_add"
+     * @param type     the staff-action frame type (e.g. "caution_check", "eject_add",
+     *                 "check_membership")
      * @param fields   frame-specific fields (e.g. target_username, message, confirm)
-     * @param callback invoked with the server's ack JSON. May be a
-     *                 {"status":"ok",...} (success), {"status":"would_trigger",...}
-     *                 (caution preflight), or {"status":"error","detail":...}.
+     * @param callback invoked once, normally with the server's ack JSON and otherwise
+     *                 with a client-built error ack (socket down, or drained by
+     *                 {@link #disconnect()}). May be a {"status":"ok",...} (success),
+     *                 {"status":"would_trigger",...} (caution preflight), or
+     *                 {"status":"error","detail":...}.
      */
     public static void sendStaffActionFrame(
             String type, JsonObject fields, Consumer<JsonObject> callback) {
