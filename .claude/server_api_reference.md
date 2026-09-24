@@ -42,11 +42,11 @@ spec documents it. vetsmod's own senders are in
 | Frame | Handler | Reply | Spec |
 |---|---|---|---|
 | chat (`guild`/`queue`/`waitlist`/`honourary`) | chat pipeline | generic ack | §1.2 (shape), §1.4 (pipeline) |
-| `register` | `_handle_register` | none (invalid registrations are silently ignored) | §1.7 |
-| `tablist` | `_handle_tablist` | none | **not specified** — named in passing only |
-| `queue_status` | `_handle_queue_status` | none | **not specified** — named in passing only |
+| `register` | `_handle_register` | `{"status":"ok"}` (sent even when an invalid registration is silently ignored) | §1.7 |
+| `tablist` | `_handle_tablist` | `{"status":"ok"}` | **not specified** — named in passing only |
+| `queue_status` | `_handle_queue_status` | `{"status":"ok"}` | **not specified** — named in passing only |
 | `auth` | `_handle_auth` | auth ack (below) | §1.8 |
-| `rank_change` | `_handle_rank_change` | always `{"status":"ok"}` | §1.9 |
+| `rank_change` | `_handle_rank_change` | `{"status":"ok"}` (even when a validation failure drops it); an "Authentication required" error when `unauth` is disabled and the session is unauthenticated | §1.9 |
 | `caution_check` | `_handle_caution_check` | history ack | §1.10 |
 | `caution_add` / `warn_add` / `eject_add` | `_handle_staff_commit` | commit ack, or a `would_trigger` preflight | §1.10 |
 | `check_membership` | `_handle_check_membership` | membership ack | **not in spec** |

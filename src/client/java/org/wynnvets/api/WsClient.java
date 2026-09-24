@@ -63,7 +63,8 @@ public class WsClient implements WebSocket.Listener {
 
     /**
      * Sets a callback to be invoked every time the WebSocket (re)connects.
-     * Used by {@link V1ApiManager} to re-send registration after reconnects.
+     * Used by {@link V1ApiManager} to re-send the auth and registration frames, and run
+     * its post-connect listeners, after each (re)connect.
      */
     public void setOnConnectCallback(Runnable callback) {
         this.onConnectCallback = callback;
@@ -119,7 +120,9 @@ public class WsClient implements WebSocket.Listener {
                         });
     }
 
-    /** Sends a JSON text frame. Silently drops the message if not connected. */
+    /** Sends a JSON text frame, fire-and-forget: silently dropped if not connected, and,
+     *  because the returned send future is ignored, also lost if another send on this
+     *  socket is still pending ({@code ws-client-send-ignores-send-pending-failure}). */
     public void send(JsonObject json) {
         WebSocket ws = wsRef.get();
         if (ws == null) return;

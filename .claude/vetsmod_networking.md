@@ -278,13 +278,13 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 | Direction | Type | Sender | Receiver | Purpose |
 |---|---|---|---|---|
 | Inbound | `anni_query` | `V1ApiManager.sendAnniQuery` | temp-server `_handle_anni_query` | On-demand snapshot pull; ack as `anni_query_response`. |
-| Outbound | `anni_query_response` | temp-server | `AnniQueryClient.onResponse` | Synchronous reply to `anni_query`; single-flight FIFO queue. |
+| Inbound | `anni_query_response` | temp-server | `AnniQueryClient.onResponse` | Reply to `anni_query`, on the socket that carried it; FIFO queue of per-call futures (nothing coalesces). |
 | Inbound (S5) | `anni_scrollspot_set` | `V1ApiManager.sendAnniScrollspotSet` | temp-server `_handle_anni_scrollspot_set` | Host writes (or clears) party scroll-spot. **Authenticated only.** Server reads MC UUID from session — never from frame. |
-| Outbound (S5) | `anni_scrollspot_response` | temp-server | `AnniScrollspotClient.onResponse` | Ack for `anni_scrollspot_set`. `{status: ok|error, detail}`; FIFO queue. |
+| Inbound (S5) | `anni_scrollspot_response` | temp-server | `AnniScrollspotClient.onResponse` | Ack for `anni_scrollspot_set`. `{status: ok|error, detail}`; FIFO queue. |
 | Inbound (S6) | `anni_rsvp` | `V1ApiManager.sendAnniRsvp` | temp-server `_handle_anni_rsvp` | In-game `/wv anni rsvp <hard|soft|revoke>`. **Authenticated only**; MC UUID from session. |
-| Outbound (S6) | `anni_rsvp_response` | temp-server | `AnniRsvpClient.onResponse` | Ack for `anni_rsvp`. `{status: ok|error, detail}`; FIFO queue. |
+| Inbound (S6) | `anni_rsvp_response` | temp-server | `AnniRsvpClient.onResponse` | Ack for `anni_rsvp`. `{status: ok|error, detail}`; FIFO queue. |
 | Inbound (S7) | `anni_party_observation` | `V1ApiManager.sendAnniPartyObservation` | temp-server `_handle_anni_party_observation` | Vetsmod reports its local Wynncraft party roster when an organiser username is in the party. **Authenticated only**; observer UUID stamped from session. Names go over the wire (Wynncraft only exposes party members by username); vets-anni resolves via its roster + alias caches. |
-| Outbound (S7) | `anni_party_observation_response` | temp-server | `AnniWsHandler` (debug log only) | Ack for `anni_party_observation`. No client-side single-flight queue — observation is fire-and-forget; debug-logged only. |
+| Inbound (S7) | `anni_party_observation_response` | temp-server | `AnniWsHandler` (debug log only) | Ack for `anni_party_observation`. No client-side queue — observation is fire-and-forget; debug-logged only. |
 | Outbound | `anni_state` | temp-server `anni_snapshot_poller` | `AnniWsHandler.onOutbound` → `AnniSnapshotCache.update` | Server-initiated snapshot push (per-uuid gated on the eligibility set). Sent only to an authenticated outbound socket, so **never received today** (§1). |
 
 Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.network` and time out at 5–8 s. `AnniWsHandler` is the single demux for all types — its `onInbound`/`onOutbound` branches route to the right consumer.

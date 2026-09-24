@@ -69,20 +69,21 @@ public final class V1ApiManager {
 
     /** Listeners that receive every typed inbound frame. V1ApiManager's own
      *  inbound handler only processes ``{"status":...}``-shaped acks (auth,
-     *  staff-action, chat); anything carrying a ``type`` field is a typed
+     *  staff-action, chat, and the plain ok/error acks to the other untyped frames);
+     *  anything carrying a ``type`` field is a typed
      *  response and gets fanned out here so consumers (currently:
      *  {@link org.wynnvets.mwe.anni.network.AnniWsHandler}) can route by
      *  type. Symmetric to {@link #outboundListeners}. */
     private static final CopyOnWriteArrayList<Consumer<JsonObject>> inboundListeners =
             new CopyOnWriteArrayList<>();
 
-    /** Listeners that fire after the inbound socket (re)connects and the
-     *  auth + registration frames have been sent. Use this when a feature
-     *  needs to refresh its server-side state after a reconnect — e.g.
-     *  anni snapshots, which the server only pushes on internal events
-     *  and so go stale silently after a world transfer drops the WS.
-     *  Listeners run on the WebSocket reader thread; defer any
-     *  game-state-touching work via {@code Minecraft.getInstance().execute}. */
+    /** Listeners that fire after the inbound socket (re)connects and any auth and
+     *  registration frames have been handed to it. Use this when a feature needs to
+     *  refresh its server-side state after a reconnect — e.g. anni snapshots, which
+     *  otherwise go stale silently across a socket drop. Listeners run off the render
+     *  thread, on whichever thread completes the socket's connect (not necessarily the
+     *  thread that delivers frames); defer any game-state-touching work via
+     *  {@code Minecraft.getInstance().execute}. */
     private static final CopyOnWriteArrayList<Runnable> inboundPostConnectListeners =
             new CopyOnWriteArrayList<>();
 
@@ -118,9 +119,11 @@ public final class V1ApiManager {
                         inboundUri,
                         "inbound",
                         json -> {
-                            // Typed inbound frames (carrying a `type` field, no `status`)
-                            // are server replies whose contract has a dedicated response
-                            // shape rather than the generic {"status":...} ack. Fan them
+                            // Typed inbound frames (carrying a `type` field; every one but
+                            // anni_query_response also carries `status`, which is why
+                            // `type` is tested first) are server replies whose contract has
+                            // a dedicated response shape rather than the generic
+                            // {"status":...} ack. Fan them
                             // out to registered inbound listeners — V1ApiManager doesn't
                             // know about specific MWE/feature types here. Symmetric to
                             // the outbound listener fan-out below.
@@ -287,12 +290,14 @@ public final class V1ApiManager {
                         inboundClient.send(reg);
                         VetsLogger.debug("Re-sent pending registration on inbound reconnect");
                     }
-                    // Notify post-connect listeners after auth + registration are
-                    // queued. The server processes frames in send order on the
-                    // single inbound socket, so any frame a listener emits here
-                    // will land after auth is honoured. Used by AnniWsHandler to
-                    // re-pull a fresh snapshot on every reconnect — without this
-                    // the cache silently goes stale across world transfers.
+                    // Notify post-connect listeners after any auth and registration
+                    // frames have been handed to the socket. The server handles frames
+                    // in send order on the single inbound socket, so a frame a listener
+                    // emits here is handled after the auth frame, provided that one was
+                    // sent and not dropped (ws-client-send-ignores-send-pending-failure).
+                    // Used by AnniWsHandler to re-pull a fresh snapshot on every
+                    // reconnect — without this the cache silently goes stale across a
+                    // socket drop.
                     for (Runnable listener : inboundPostConnectListeners) {
                         try {
                             listener.run();
@@ -311,7 +316,9 @@ public final class V1ApiManager {
                             // Server pushes a `server_info` hello frame on connect to tell
                             // us the current `unauth` toggle state. Routed straight to
                             // SessionAuthWarning so its session-start warning can pick the
-                            // right copy. Other frames are real chat — fan out to listeners.
+                            // right copy. staff_online / staff_offline go to StaffRanksPoller
+                            // below; everything else (chat, and the typed pushes the listeners
+                            // pick out by type) fans out to the listeners.
                             if (json.has("type")) {
                                 String frameType = json.get("type").getAsString();
                                 if ("server_info".equals(frameType)) {
@@ -342,7 +349,9 @@ public final class V1ApiManager {
         VetsLogger.debug("V1 API connections initiated");
     }
 
-    /** Closes both WebSocket connections permanently. */
+    /** Closes both WebSocket connections for good: the closed {@link WsClient}s do not
+     *  reconnect, and the next server join's {@link #connect()} builds a new pair. Also
+     *  clears the confirmed-staff state and fails any pending staff-action callbacks. */
     public static void disconnect() {
         if (inboundClient != null) {
             inboundClient.close();
@@ -464,8 +473,10 @@ public final class V1ApiManager {
     /**
      * Sends a message to the v1/inbound endpoint.
      *
-     * @param type     one of "guild", "waitlist", "honourary"
-     * @param rank     the sender's guild rank (may be empty)
+     * @param type     one of "guild", "queue", "waitlist", "honourary"
+     * @param rank     the sender's guild rank; temporary-server rejects a {@code guild} or
+     *                 {@code queue} frame whose rank is empty or not a Wynncraft guild
+     *                 rank, so it may be empty only for the other two types
      * @param username the sender's true Minecraft username (never a nickname)
      * @param message  the message content
      */
@@ -492,7 +503,7 @@ public final class V1ApiManager {
      * clients and dispatches the alert (BAN/KICK to dazebot, MOTE to the
      * bridge channel). See v1_protocol.md §1.9.
      *
-     * @param actor          the captain/chief who issued the rank change
+     * @param actor          the player the broadcast names as having set the rank
      * @param target         the player whose rank was changed
      * @param fromRank       previous rank (Recruit, Recruiter, Captain, Strategist, Chief, Owner)
      * @param toRank         new rank
@@ -524,8 +535,9 @@ public final class V1ApiManager {
     }
 
     /**
-     * Sends the current tab list guild entries to the server so its {@code !list}
-     * command can include players not connected via VetsMod.
+     * Sends the current tab list guild entries to the server, which uses them in its
+     * {@code !list} command (to include players not connected via VetsMod) among other
+     * things.
      *
      * @param entries list of {@code {server, username}} pairs parsed from the tab list
      */
@@ -560,16 +572,19 @@ public final class V1ApiManager {
      * sessions get an {@code error: "mc_uuid required"} response, which
      * surfaces as a null snapshot via {@link org.wynnvets.mwe.anni.network.AnniQueryClient#query()}.)</p>
      *
-     * <p>The actual single-flight queue + response routing lives in
-     * {@link org.wynnvets.mwe.anni.network.AnniQueryClient}; this method just dispatches the frame
-     * and reports whether it went out. The dedicated frame type ({@code anni_query_response}) means
-     * we don't need to share the staff-action callback queue or expose extra state-shaping hooks
-     * here — the V1 outbound listener fans the ack straight to
-     * {@link org.wynnvets.mwe.anni.network.AnniQueryClient AnniQueryClient} via
-     * {@link org.wynnvets.mwe.anni.network.AnniWsHandler AnniWsHandler}.</p>
+     * <p>The pending-reply queue (a FIFO of per-call futures; nothing coalesces
+     * concurrent calls) lives in {@link org.wynnvets.mwe.anni.network.AnniQueryClient};
+     * this method just dispatches the frame and reports whether it went out. The dedicated
+     * frame type ({@code anni_query_response}) means we don't need to share the staff-action
+     * callback queue or expose extra state-shaping hooks here — the reply comes back on the
+     * inbound socket, and the inbound-listener fan-out hands it to
+     * {@link org.wynnvets.mwe.anni.network.AnniWsHandler AnniWsHandler}, which passes it to
+     * {@link org.wynnvets.mwe.anni.network.AnniQueryClient AnniQueryClient}.</p>
      *
-     * @return true iff the frame was actually sent (inbound connection up);
-     *         false when the caller must fall back to a null snapshot.
+     * @return true when the inbound connection was up at the check and the frame was
+     *         passed to {@link WsClient#send(JsonObject)}, which does not confirm
+     *         delivery; false when it was down and the caller must fall back to a null
+     *         snapshot.
      */
     public static boolean sendAnniQuery() {
         if (inboundClient == null || !inboundClient.isConnected()) {
@@ -601,7 +616,9 @@ public final class V1ApiManager {
      * @param x  block-X (nullable triplet = clear)
      * @param y  block-Y
      * @param z  block-Z
-     * @return true iff the frame was actually sent (inbound connection up).
+     * @return true when the inbound connection was up at the check and the frame was
+     *         passed to {@link WsClient#send(JsonObject)}, which does not confirm
+     *         delivery; false when it was down.
      */
     public static boolean sendAnniScrollspotSet(Integer x, Integer y, Integer z) {
         if (inboundClient == null || !inboundClient.isConnected()) {
@@ -644,7 +661,9 @@ public final class V1ApiManager {
      * {@link java.util.concurrent.CompletableFuture}.</p>
      *
      * @param notice {@code "hard"}, {@code "soft"}, or {@code "revoke"}
-     * @return true iff the frame was actually sent (inbound connection up).
+     * @return true when the inbound connection was up at the check and the frame was
+     *         passed to {@link WsClient#send(JsonObject)}, which does not confirm
+     *         delivery; false when it was down.
      */
     public static boolean sendAnniRsvp(String notice) {
         if (inboundClient == null || !inboundClient.isConnected()) {
@@ -746,8 +765,10 @@ public final class V1ApiManager {
     }
 
     /**
-     * Registers a listener that receives every outbound message from the server.
-     * Listeners are invoked on the WebSocket reader thread.
+     * Registers a listener that receives every outbound message from the server except
+     * the {@code server_info} and staff-presence frames this class routes itself.
+     * Listeners are invoked on the thread that delivers the socket's frames, not the
+     * render thread.
      */
     public static void addOutboundListener(Consumer<JsonObject> listener) {
         outboundListeners.add(listener);
@@ -761,12 +782,13 @@ public final class V1ApiManager {
     /**
      * Registers a listener that receives every typed inbound frame (any
      * frame carrying a {@code type} field). Listeners are invoked on the
-     * WebSocket reader thread; bounce to the main thread via
+     * thread that delivers the socket's frames; bounce to the main thread via
      * {@code Minecraft.getInstance().execute(...)} for any work that
      * touches game state.
      *
      * <p>V1ApiManager's own inbound routing handles only
-     * {@code {"status":...}}-shaped acks (auth, staff-action, chat).
+     * {@code {"status":...}}-shaped acks (auth, staff-action, chat, and the plain
+     * ok/error acks to the other untyped frames).
      * Anything with a {@code type} field is fanned out to these
      * listeners. Listeners MUST filter by type — they will see every
      * typed inbound frame, including frames from features they don't
@@ -778,18 +800,17 @@ public final class V1ApiManager {
 
     /**
      * Registers a callback that fires after the inbound WebSocket
-     * (re)connects and auth + registration have been queued. Use this
-     * when a feature needs to re-pull server-side state on every
-     * reconnect — e.g. the anni snapshot, which the server pushes only
-     * on certain events and so goes stale silently after a world
-     * transfer drops the socket.
+     * (re)connects and any auth and registration frames have been handed to it.
+     * Use this when a feature needs to re-pull server-side state on every
+     * reconnect — e.g. the anni snapshot, which otherwise goes stale silently
+     * across a socket drop.
      *
-     * <p>Listeners run on the WebSocket reader thread; defer
-     * game-state-touching work via
+     * <p>Listeners run off the render thread, on whichever thread completes the
+     * socket's connect; defer game-state-touching work via
      * {@code Minecraft.getInstance().execute(...)}. Listeners MUST be
      * idempotent — the cold-start sequence fires this exactly once,
-     * but every subsequent reconnect (network blip, world transfer,
-     * server restart) fires it again.</p>
+     * but every subsequent reconnect (a network blip, a temporary-server restart, or
+     * a server leave and rejoin) fires it again.</p>
      */
     public static void addInboundPostConnectListener(Runnable listener) {
         inboundPostConnectListeners.add(listener);

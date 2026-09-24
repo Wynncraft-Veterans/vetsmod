@@ -55,9 +55,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * <p>Threading: Wynntils event listeners run on the render thread. We
  * capture a defensively-copied snapshot on that thread (so the send can't
  * race a concurrent {@code PartyModel} mutation), then hop to a daemon
- * single-thread scheduler for the actual send. The scheduler's send call
- * goes through {@link V1ApiManager#sendAnniPartyObservation} which
- * performs a thread-safe WebSocket write.</p>
+ * single-thread scheduler for the actual send. The scheduler thread sends through
+ * {@link V1ApiManager#sendAnniPartyObservation}, which is not serialised against other
+ * senders: a send that overlaps another frame on the same socket is dropped
+ * ({@code ws-client-send-ignores-send-pending-failure}).</p>
  */
 public final class PartyRosterListener {
 
