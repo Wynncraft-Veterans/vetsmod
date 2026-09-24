@@ -100,6 +100,10 @@ NameResolver.fetchUuidToLegacyName|1|NameResolver#fetchUuidToLegacyName: Used by
 GuildStateManager.setDebugForceGuildlessUnlocked|0|GuildStateManager#setDebugForceGuildlessUnlocked: Nothing in vetsmod calls this today (in-class half in PATTERNS)
 GuildStateManager.isProcessingModGuildCheck|0|GuildStateManager#isProcessingModGuildCheck: Nothing calls it at present (in-class half in PATTERNS)
 StaffRanksPoller.refreshNow|1|StaffRanksPoller#refreshNow: called on each successful inbound auth ack, the one V1ApiManager site
+ChatUtils.encodePillIfAscii|0|ChatUtils#encodePillIfAscii: Within vetsmod only this class calls it
+ChatUtils.sendGuildChatMessageRed|0|vetsmod_chat_pipeline.md sec 6: reached only through sendStaffChannelMessage (in-class half in PATTERNS)
+QueueDetector.handleTitleText|1|QueueDetector#handleTitleText: the TitleSetTextEvent handler and QueueTitleMixin; the mixin is the qualified site (in-class half in PATTERNS)
+RankDisplayMap.vTagFor|1|RankDisplayMap#vTagFor: the label of a /v staff-channel pill, read by ChatUtils.buildStaffPillComponent
 '
 
 # file (under $SRC)|fixed string|expected occurrences on non-comment lines|note
@@ -108,6 +112,8 @@ org/wynnvets/mwe/anni/debug/AnniDebugCommands.java|requireDebug(ctx)|24|AnniDebu
 org/wynnvets/mwe/anni/debug/AnniDebugCommands.java|requireStaffOrOrganiser(ctx)|5|AnniDebugCommands class doc: the five scrollspot handlers
 org/wynnvets/guild/GuildStateManager.java|setDebugForceGuildlessUnlocked(|2|no-caller claim, in-class half: the declaration plus its UnlockManager delegate call
 org/wynnvets/guild/GuildStateManager.java|isProcessingModGuildCheck(|2|no-caller claim, in-class half: the declaration plus its GuildChecker delegate call
+org/wynnvets/chat/ChatUtils.java|sendGuildChatMessageRed(|2|one-caller claim, in-class half: the declaration plus the one sendStaffChannelMessage call
+org/wynnvets/queue/QueueDetector.java|handleTitleText(|2|two-caller claim, in-class half: the declaration plus the TitleSetTextEvent handler call
 '
 
 # Count non-comment call sites of Class.method( across the client source set.
