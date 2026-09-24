@@ -9,15 +9,17 @@ import java.time.Duration;
  * <p>Eighteen classes each built a character-identical chain &mdash; {@code HTTP_1_1}, a 5 s
  * connect timeout, no other customisation of any kind &mdash; and each held the result in its
  * own {@code private static final HttpClient HTTP_CLIENT}. They all call {@link #standard()}
- * instead; the field stayed where it was and only its initialiser changed, so no call site and
- * no import moved. <b>Seventeen hold it today</b> &mdash; {@code GuildRosterCache} and
+ * instead; the field stayed where it was, only its initialiser changed and one import was
+ * added, so no call site moved and no existing import was touched. <b>Seventeen hold it
+ * today</b> &mdash; {@code GuildRosterCache} and
  * {@code WynnAliasCache} were later merged into a single {@code PolledJsonMap}. Every count
  * below is that seventeen, not the eighteen this class was extracted from.</p>
  *
  * <p><b>Never call {@code close()}, {@code shutdown()} or {@code shutdownNow()} on the client
  * this hands back, and never use it in a try-with-resources.</b> Java 21 made
- * {@link java.net.http.HttpClient HttpClient} an {@link AutoCloseable}: {@code close()} blocks
- * until every in-flight operation finishes and then permanently disables the client. One
+ * {@link java.net.http.HttpClient HttpClient} an {@link AutoCloseable}: {@code close()} refuses
+ * new requests at once, then blocks until every in-flight one finishes, and the client stays
+ * shut for good. One
  * try-with-resources anywhere would therefore take down the HTTP of all seventeen subsystems
  * that share it, for the rest of the session, and nothing in the type system objects. No
  * reviewer will be looking for this.</p>
@@ -26,19 +28,25 @@ import java.time.Duration;
  * default {@code SSLContext} fails to resolve, the first class to touch this one gets an
  * {@link ExceptionInInitializerError} and the other sixteen get
  * {@code NoClassDefFoundError: Could not initialize class org.wynnvets.util.HttpClients},
- * which carries no trace of the original cause. Vanishingly unlikely &mdash; a default
+ * whose cause, on JDK 21, is an {@link ExceptionInInitializerError} naming the original
+ * exception and the thread it was thrown on; the first class's
+ * {@link ExceptionInInitializerError} is still the one that holds the original itself.
+ * Vanishingly unlikely &mdash; a default
  * {@code SSLContext} is part of every JRE this mod can run on &mdash; and accepted.</p>
  *
  * <p><b>What can honestly be asserted about sharing, and what cannot.</b>
  * {@link org.wynnvets.fetcher.lookup.PlayerLookup PlayerLookup} already shares one client
  * across five of its six providers (the sixth, {@code VetsSnapshotProvider}, goes over the
- * WebSocket), and its {@code runCascadeStep} uses {@code thenCompose} to launch provider N+1's
- * request from a completion thread of provider N's response, on that same client. That runs
- * in production, so the default executor is demonstrably not single-threaded and does
- * tolerate a nested request. It does <b>not</b> prove the pool is
- * unbounded: {@code HttpClient.Builder.executor}'s javadoc guarantees only that a default
- * executor exists per client and says nothing about its sizing, so no argument of the form
- * "it is a cached pool, so blocking on it is fine" is admissible here.</p>
+ * WebSocket), and its {@code runCascadeStep} uses {@code thenCompose} to launch each
+ * provider's request once the previous provider's future has completed. That proves nothing
+ * about the client's executor: {@code sendAsync} does not block the thread that calls it, and
+ * in the JDK 21 implementation the future it returns completes on {@code CompletableFuture}'s
+ * default async pool, so a caller's continuations run there (or on the thread that attaches
+ * them, if the future is already done) rather than on the client's executor. Nor can anything
+ * be argued from how that executor is built: {@code HttpClient.Builder.executor}'s javadoc
+ * guarantees only that a default executor exists per client and says nothing about its
+ * sizing, so no argument of the form "it is a cached pool, so blocking on it is fine" is
+ * admissible here.</p>
  *
  * <p><b>Two deliberate non-residents.</b>
  * {@link org.wynnvets.mwe.anni.zone.AnniZone AnniZone} and
@@ -50,8 +58,8 @@ import java.time.Duration;
  * re-declares its 10 s on the WebSocket builder, where it governs the whole handshake;
  * {@code AnniZone}'s is a synchronous GET client whose 10 s comes from its own
  * {@code HTTP_TIMEOUT_SECONDS} and also drives its request timeout. Merging the two would put
- * guild-chat frame delivery behind a 60 s world-events poller on one executor, to save two
- * objects.</p>
+ * guild-chat frame delivery and a 60 s world-events poller on one selector thread and one
+ * executor, to save two objects.</p>
  *
  * @see Json
  */
