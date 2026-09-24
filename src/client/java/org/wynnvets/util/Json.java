@@ -74,13 +74,14 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p><b>Why tolerant, and why loud.</b> The case against a tolerant body was that it "would
  * turn a loud failure into a silent fallback". Traced to where each exception actually landed,
- * that did not hold: not one of the four throwing sites let the exception reach a user as a
- * failure. Two were caught into a {@code VetsLogger.debug} that dropped an <i>entire</i>
- * payload &mdash; the whole connected-user list, the whole staff-name set, or a member walk
- * abandoned mid-iteration with a half-filled accumulator. One was caught by
- * {@code V1ApiManager}'s outbound fan-out into a generic WARN, and the chat line never
- * rendered. One reached {@code BlockableEventLoop.doRunTask}, which logs a FATAL-marker ERROR
- * and then swallows it, aborting a {@code /caution} readout with its header already on screen.
+ * that did not hold: no throwing read let the exception reach a user as a failure. Where a parse
+ * loop's own {@code catch} took it, the loop gave up its payload &mdash; the whole connected-user
+ * list (logged only at debug), the whole staff-name set (not logged at all), or a guild-member
+ * walk abandoned mid-iteration with a half-filled accumulator. The outbound reads were caught by
+ * {@code V1ApiManager}'s outbound fan-out into a generic WARN, and the chat line or warning
+ * banner never rendered. The {@code /caution} reads reached {@code BlockableEventLoop.doRunTask},
+ * which logs a FATAL-marker ERROR and then swallows it, aborting a {@code /caution} readout with
+ * its header already on screen. The per-site table is in vetsmod_networking.md &sect;3.
  * So the change is not "loud to silent"; it is <b>"most of a payload destroyed, half of it
  * invisibly" to "one field defaulted, always named"</b>. The warn is what makes the second half
  * of that true, and it is why these methods are not pure functions &mdash; {@code JsonTest}
@@ -95,11 +96,11 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p><b>The warn is unconditional; there is no suppression cache.</b> A dedup map would put
  * mutable state in a class whose whole charter is holding policy, to throttle a condition that
- * previously destroyed the entire payload at four of the five clusters. Warning once per
- * occurrence is strictly less disruptive than that. The ceiling worth knowing:
- * {@code OnlineMemberService}'s roster loop reads three fields per member, so a wholly
- * malformed roster costs three warns per member per poll. Throttling is a separate change if
- * it ever bites.</p>
+ * previously destroyed a whole payload, or everything after the failing read, wherever it threw.
+ * Warning once per occurrence is strictly less disruptive than that. The ceiling worth knowing:
+ * {@code OnlineMemberService}'s connected-user loop reads three fields per entry before any gate,
+ * so a wholly malformed list costs three warns per entry each time it is fetched. Throttling is a
+ * separate change if it ever bites.</p>
  *
  * <p><b>Gson caveats that survive unchanged</b>, and that the "wrong type gives the fallback"
  * row does not cover:</p>
@@ -112,16 +113,17 @@ import org.wynnvets.logging.VetsLogger;
  *   <li><b>Primitives coerce.</b> {@code 42} read as a string gives {@code "42"};
  *       {@code true} gives {@code "true"}. A wrongly-but-primitively typed field is accepted
  *       silently, because to Gson it is not wrongly typed.</li>
- *   <li><b>{@code optInt} is lenient in three more ways.</b> It parses a numeric string
+ *   <li><b>{@code optInt} is lenient in three more ways.</b> It parses an integer string
  *       ({@code "42"} &rarr; {@code 42}); it truncates a decimal toward zero ({@code 3.9}
  *       &rarr; {@code 3}, {@code -3.9} &rarr; {@code -3}); and it <i>narrows</i> an
  *       out-of-range literal rather than rejecting it, so a JSON {@code 4294967298} arrives as
  *       {@code 2}. None of the three fires the fallback or the warn.</li>
  * </ul>
  *
- * <p><b>Scope.</b> These four are what those seven declarations and three named inline
- * reads collapse onto &mdash; {@code NameResolver}'s {@code legacyName} and {@code uuid}, and
- * {@code WarningRewriter}'s {@code points_after}. The other thirty-one inlined
+ * <p><b>Scope.</b> These four are what those seven declarations collapse onto, along with three
+ * more reads &mdash; {@code NameResolver}'s {@code legacyName} and {@code uuid} (through two
+ * private helpers of its own) and {@code WarningRewriter}'s inline {@code points_after}. The
+ * other thirty-one inlined
  * {@code isJsonNull()} reads across the client are deliberately out of scope, and that is a
  * boundary rather than a gap: most of them throw on a wrong type today, so each conversion is
  * its own behaviour change and belongs in its own commit.</p>
@@ -203,7 +205,7 @@ public final class Json {
      * Reads {@code key} as an {@code int}, answering {@code fallback} on every failure.
      *
      * <p>Same three-axis policy as {@link #optString}, and the same Gson leniency plus three
-     * more: numeric strings parse, decimals truncate toward zero, and an out-of-range literal
+     * more: integer strings parse, decimals truncate toward zero, and an out-of-range literal
      * narrows rather than failing. All three are documented on the class.</p>
      *
      * @param obj      the object to read; a {@code null} is tolerated and warns

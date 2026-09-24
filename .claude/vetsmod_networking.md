@@ -108,14 +108,14 @@ int    optInt(JsonObject obj, String key, int fallback)
 
 Three names for one string function is deliberate. The fallback is not an axis — `null` and `""` *are* fallbacks — and the two conveniences exist so that the call sites which take no fallback do not have to grow an argument — **28 of 50** at `1592f7d` (`stringOrNull` 17, `stringOrEmpty` 11), up from 23 of 44 when 5g landed. `Json`'s own Javadoc carries the per-method figures and is the copy to trust.
 
-**The policy, on all three axes: fallback.** A missing key or a JSON null is normal and falls back *silently*. A wrong-typed value or a `null` receiver falls back *and warns* (`VetsLogger.warn`, naming the key and the exception class). The warn is unconditional — no suppression cache, because that would put mutable state in the class and the condition it would throttle previously destroyed whole payloads. Ceiling: `OnlineMemberService`'s roster loop reads three fields per member, so a wholly malformed roster costs three warns per member per poll.
+**The policy, on all three axes: fallback.** A missing key or a JSON null is normal and falls back *silently*. A wrong-typed value or a `null` receiver falls back *and warns* (`VetsLogger.warn`, naming the key and the exception class). The warn is unconditional — no suppression cache, because that would put mutable state in the class, to throttle a condition that previously destroyed a whole payload, or everything after the failing read, wherever it threw. Ceiling: `OnlineMemberService.parseConnectedUsers` reads three fields per connected user, so a wholly malformed `/list` payload costs three warns per entry per `/wv list` call.
 
 Six classes hand-rolled this read before — seven methods over the 44 call sites that existed **then**, a pre-5g figure, not a current one — and they answered those three questions **four different ways**. What each one gave up by adopting the shared policy is the interesting half, because in every case the old answer destroyed *more*:
 
 | Former site | Old wrong-type answer | What that cost |
 |---|---|---|
 | `OnlineMemberService.stringOrEmpty` ×3 | threw | `parseConnectedUsers`' own `catch` logged at **debug** and returned `List.of()` — the **entire** connected-user list gone, invisibly unless `/wv debug` was on |
-| `WorldListFetcher` via that same method ×1 | threw | `parseStaffUsernames`' `catch` returned `Set.of()` — `/wv world` marked **nobody** as staff |
+| `WorldListFetcher` via that same method ×1 | threw | `parseStaffUsernames`' `catch` returned `Set.of()` — `/wv list world` marked **nobody** as staff |
 | `NameResolver.legacyNameOf` / `uuidOf` ×5 | threw | `forEachGuildMember`'s `catch` logged at debug and abandoned the walk **mid-iteration** — a *silently truncated* member list, worse than an empty one |
 | `OutboundDisplayHandler.getStringOrEmpty` ×7, and `WarningRewriter`'s 3 `optString` + 1 `optInt` beneath it | threw | `V1ApiManager`'s outbound fan-out `catch` logged a generic WARN — the chat line or warning banner **never rendered** |
 | `CautionCommands.optString` ×14 | threw | reached `BlockableEventLoop.doRunTask` via `Minecraft.execute` → FATAL-marker ERROR, then swallowed — the `/caution` readout **aborted mid-render**, header already on screen |
@@ -128,9 +128,9 @@ So the change was not "loud failure → silent fallback". It was *most of a payl
 
 - A **singleton array is unwrapped, not rejected** — Gson delegates `getAsString`/`getAsInt` on a one-element array to that element, so `["x"]` arrives as `"x"` and never reaches the fallback. A two-element array does throw, and does fall back. No accessor in the repo ever rejected the shape.
 - **Primitives coerce**: `42` → `"42"`, `true` → `"true"`. Wrongly-but-primitively typed fields are accepted silently, because to Gson they are not wrongly typed.
-- `optInt` is lenient three more ways: numeric strings parse, decimals truncate toward zero (`3.9` → `3`), and an out-of-range literal **narrows** rather than failing (`4294967298` → `2`). None fires the fallback or the warn.
+- `optInt` is lenient three more ways: integer strings parse, decimals truncate toward zero (`3.9` → `3`), and an out-of-range literal **narrows** rather than failing (`4294967298` → `2`). None fires the fallback or the warn.
 
-**31 inlined `isJsonNull()` reads elsewhere in the client have not adopted these**, and that is a boundary rather than a gap — most of them throw on a wrong type today, so each conversion is its own behaviour change and belongs in its own commit. The scope 5g took was the seven declarations plus three named inlines (`NameResolver`'s `legacyName` and `uuid`, `WarningRewriter`'s `points_after`).
+**31 inlined `isJsonNull()` reads elsewhere in the client have not adopted these**, and that is a boundary rather than a gap — most of them throw on a wrong type today, so each conversion is its own behaviour change and belongs in its own commit. The tolerant rewrite's scope was the seven declarations, plus three more reads (`NameResolver`'s `legacyName` and `uuid`, through two private helpers of its own, and `WarningRewriter`'s inline `points_after`).
 
 ## 4. On-demand fetchers
 

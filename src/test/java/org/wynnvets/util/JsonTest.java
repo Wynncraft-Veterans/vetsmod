@@ -20,10 +20,11 @@ import org.junit.jupiter.api.Test;
  * per-site restatements are restatements of each other. What the five pinned that survives is
  * every <i>axis</i> and every <i>literal</i>, and all of both are below.</p>
  *
- * <p>⚠️ <b>The warn is not asserted, and cannot be.</b> Three of the cases here —
- * {@code wrongType}, {@code twoElementArray} and {@code nullReceiver}, for both entry-point
- * families — also emit a {@code VetsLogger.warn}, and that warn is half of why the tolerant
- * body was acceptable at all. No log-capture library is on the test classpath and there is no
+ * <p>⚠️ <b>The warn is not asserted, and cannot be.</b> Every case here that falls back on a
+ * wrong-typed value (an object or a two-element array), on a {@code null} receiver, or, for
+ * {@code optInt}, on an unparseable string also emits a {@code VetsLogger.warn}, and that warn is
+ * half of why the tolerant body was acceptable at all. No log-capture library is on the test
+ * classpath and there is no
  * precedent for adding one ({@code VetsLoggerTest} only toggles a flag); a capture seam would
  * be a structural change made for a test, which {@code CLAUDE.md} forbids. So these methods are
  * specified here by return value only, and the warn is verified by reading. Said out loud so
@@ -101,10 +102,11 @@ class JsonTest {
 
     @Test
     void optString_aWrongTypedValueGivesTheFallback() {
-        // Axis 2, and the behaviour change item 8 actually made: four of the
-        // six string accessors let this escape as an UnsupportedOperationException
-        // or an IllegalStateException. Both shapes are probed — an object and a
-        // TWO-element array, because a singleton is unwrapped (below).
+        // Axis 2, and the behaviour change the tolerant rewrite actually made:
+        // before it, four of the six string accessors let this escape as an
+        // UnsupportedOperationException or an IllegalStateException. Both shapes
+        // are probed — an object and a TWO-element array, because a singleton is
+        // unwrapped (below).
         assertEquals("fb", Json.optString(withValue(new JsonObject()), "k", "fb"), "object");
         assertEquals("fb", Json.optString(withValue(array("a", "b")), "k", "fb"), "2-array");
     }
