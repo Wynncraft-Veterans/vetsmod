@@ -112,7 +112,7 @@ Allowed-from-vetsmod surface: anything fronted by `api.wynnvets.org` or `wss://a
 
 ## User tiers (brief)
 
-`member` / `waitlist` / `honourary` / `other`. Tier is **resolved server-side** from Discord roles + linked MC account; the mod gets it back in the `auth` frame ack and uses it for client-side display + warning copy. Staff (captain+) is orthogonal to tier — detected via `/gu rank`, cached 24h.
+`member` / `waitlist` / `honourary` / `other`. Tier is **resolved server-side** from Discord roles + linked MC account; the mod gets it back in the `auth` frame ack and uses it for the client-side unlock predicates (`GuildStateManager.isUnlocked` and the waitlist/honourary checks that route chat and gate commands) as well as display and warning copy; the server's own tier gate decides what the session may send. Staff status is orthogonal to tier and comes from two signals: `GuildStateManager.isStaff()` — Captain+ by an in-game `/gu rank` probe, in whatever guild the player is in, cached 24 h, a client-side UX gate — and `isConfirmedStaff()`, the server's `is_staff` on the auth ack, which the server does not grant to captains since the 2026-07 restructure and which is the signal that gates `/caution`, `/warn` and `/eject`.
 
 Auth detail (the `/unlock <key>` flow, key persistence, ack routing, `SessionAuthWarning`) is in [vetsmod_guild_system.md](vetsmod_guild_system.md). Wire-level tier gating is in [vetsmod_networking.md §8](vetsmod_networking.md).
 

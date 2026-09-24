@@ -10,8 +10,8 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>Staff status is persisted across sessions via {@link VetsConfig} and
  * refreshed once per day (controlled by {@link #STAFF_CHECK_COOLDOWN_MS}).
- * The check runs asynchronously on a background thread with render-thread
- * round-trips to send the command and receive the response.</p>
+ * The check queues {@code /gu rank} through Wynntils' command queue and completes when
+ * {@link #processMessage(String)} sees the reply in chat, or times out.</p>
  *
  * <p>This class is package-private and accessed exclusively through
  * {@link GuildStateManager}'s facade methods.</p>

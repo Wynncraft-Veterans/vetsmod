@@ -150,8 +150,9 @@ public final class GuildChatDispatcher {
         // /caution-go path skips the preflight (used by the click
         // handler) and is also the manual-bypass entry point.
         //
-        // These dispatch real /gu kick / /gu rank commands on success, so
-        // they can't trust the local rank cache -- the WS-auth-derived
+        // These can dispatch real /gu kick / /gu rank commands (when a commit's
+        // ack reports an eject), so they can't trust the local rank cache -- the
+        // WS-auth-derived
         // isConfirmedStaff() is the only signal that gates them.
         // Passthrough silently when not confirmed staff.
         if (command.regionMatches(true, 0, "caution-go ", 0, 11)) {

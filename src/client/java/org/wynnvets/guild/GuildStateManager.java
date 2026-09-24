@@ -306,13 +306,16 @@ public class GuildStateManager {
     }
 
     /**
-     * Get whether the user is staff (Captain+ rank in Returners).
+     * Get whether the user is staff by the cached {@code /gu rank} probe: Captain+ in
+     * whatever guild the player was in when it last answered. The probe does not check
+     * which guild that is.
      *
      * <p><b>Note:</b> This reads the client-side {@link StaffRankChecker}
      * cache (refreshed daily via {@code /gu rank}). It is suitable for UX
-     * gates ({@code /v}, {@code /a}, {@code /encourage}, {@code /wv check})
-     * but NOT for high-trust actions like {@code /caution} / {@code /warn}
-     * / {@code /eject}, which dispatch real in-game commands. Those use
+     * gates ({@code /v}, {@code /a}, {@code /encourage}, {@code /wv list world},
+     * {@code /wv check}) but NOT for high-trust actions like {@code /caution} /
+     * {@code /warn} / {@code /eject}, any of whose commits can end in a real in-game
+     * {@code /gu} command. Those use
      * {@link #isConfirmedStaff()} instead -- the server-side roster check
      * resolved at WS auth time.</p>
      *
@@ -327,8 +330,8 @@ public class GuildStateManager {
      * auth. Resolved by temporary-server against the canonical staff
      * roster (see v1_protocol.md §1.8). This is the only staff signal
      * that should gate {@code /caution} / {@code /warn} / {@code /eject},
-     * because those commands dispatch real {@code /gu kick} / {@code /gu
-     * rank} commands on success.
+     * because a commit from any of them can end in a real {@code /gu kick} /
+     * {@code /gu rank} command (when the server's ack reports an eject).
      *
      * @return true when the most recent ok auth ack reported {@code is_staff=true};
      *         an auth failure or leaving the server clears it (a newly stored
@@ -399,7 +402,8 @@ public class GuildStateManager {
     /**
      * Check if currently processing a mod-initiated staff rank check command.
      *
-     * @return true if rank check was initiated by the mod
+     * @return true during a mod-initiated rank check or the brief suppression grace
+     *         period after one completes
      */
     public static boolean isProcessingModStaffRankCheck() {
         return StaffRankChecker.isProcessingModStaffRankCheck();
@@ -446,7 +450,8 @@ public class GuildStateManager {
     }
 
     /**
-     * Check if currently processing a mod-initiated guild check.
+     * Check if currently processing a mod-initiated guild check. Nothing calls it at
+     * present.
      *
      * @return true if guild check is active or in suppression grace period
      */
