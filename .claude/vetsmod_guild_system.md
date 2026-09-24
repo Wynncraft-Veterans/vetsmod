@@ -99,7 +99,7 @@ On disconnect, `reset()` reloads persisted state from config (not in-memory clea
 
 **Purpose:** Manage the player's vetsmod auth state. Owns the persisted bearer key and the transient session-auth flags.
 
-The legacy SHA-256 password matching has been removed. The two old hashes (`vetsWaitlistUnlockTime`, `vetsHonouraryUnlockTime`) survive on disk *only* as a "this user used the old system" signal for the session-start warning copy — they no longer grant access.
+The legacy SHA-256 password matching has been removed. The two legacy markers (`vetsWaitlistUnlockTime`, `vetsHonouraryUnlockTime`: long timestamps from the old unlock, not hashes) are meant to survive on disk *only* as a "this user used the old system" signal for the session-start warning copy, and no longer grant access. **Today they still do**: `isWaitlistUnlocked()` / `isHonouraryUnlocked()` each OR their own positive marker in and nothing clears them, so a pre-migration user stays client-side unlocked (bug `legacy-unlock-markers-still-grant-client-unlock`). The §1 table and the bullets below describe the code as it is.
 
 **Constants:**
 - `MIN_KEY_LENGTH = 32`, `MAX_KEY_LENGTH = 200`
@@ -118,7 +118,7 @@ The legacy SHA-256 password matching has been removed. The two old hashes (`vets
 **Public API (package-level):**
 - `tryUnlock(key)` returns `GuildStateManager.UnlockAttemptResult` (`MISSING_KEY` / `MALFORMED` / `STORED_VERIFYING`). Stores the key, clears stale tier state, dispatches an auth frame on the existing inbound WS via `V1ApiManager.sendAuth(key)`.
 - `onAuthSuccess(tier)` / `onAuthFailure(detail)` — reached from `V1ApiManager`'s inbound message handler; the direct caller is `GuildStateManager.onAuthSuccess` / `.onAuthFailure`, which delegate here when the auth ack arrives.
-- `isWaitlistUnlocked()` / `isHonouraryUnlocked()` — true when (auth verified + matching tier this session) OR (legacy marker present, for back-compat warning logic).
+- `isWaitlistUnlocked()` / `isHonouraryUnlocked()` — true when (auth verified + matching tier this session) OR (legacy marker present; see the paragraph above).
 - `legacyWaitlistMarker()` / `legacyHonouraryMarker()` — raw read of the pre-migration timestamps.
 - `loadPersistedState()`, `reset()`.
 
@@ -166,8 +166,8 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 | `vetsAuthKey` | string | UnlockManager |
 | `vetsAuthTier` | string | UnlockManager |
 | `vetsAuthVerifiedAt` | long (ts) | UnlockManager |
-| `vetsWaitlistUnlockTime` | long (ts) | **legacy** — kept only as a "previously unlocked under SHA-256 system" marker for warnings |
-| `vetsHonouraryUnlockTime` | long (ts) | same — legacy marker |
+| `vetsWaitlistUnlockTime` | long (ts) | **legacy** — meant only as a "previously unlocked under SHA-256 system" marker for warnings; today it still unlocks (§4) |
+| `vetsHonouraryUnlockTime` | long (ts) | same — legacy marker; same caveat |
 
 ## 8. Edge cases
 

@@ -16,16 +16,20 @@ import org.wynnvets.logging.VetsLogger;
  * persisted in {@link VetsConfig} and sent in an {@code auth} frame after
  * each WebSocket connection is established.</p>
  *
- * <p>The legacy {@code VETS_WAITLIST_UNLOCK_TIME} /
- * {@code VETS_HONOURARY_UNLOCK_TIME} fields are retained as a "previously
- * unlocked under the old system" marker so {@link GuildStateManager} can
- * decide whether to show a session-start nag warning encouraging the user
- * to migrate to the new {@code /unlock &lt;key&gt;} flow.</p>
+ * <p>The legacy {@code VETS_WAITLIST_UNLOCK_TIME} / {@code VETS_HONOURARY_UNLOCK_TIME}
+ * timestamps are meant to be kept only as a "previously unlocked under the old system"
+ * marker, so {@link SessionAuthWarning} (through
+ * {@link GuildStateManager#hasLegacyPasswordUnlock()}) can decide whether to show a
+ * session-start nag encouraging the user to migrate to the new
+ * {@code /unlock &lt;key&gt;} flow. Today they also still unlock:
+ * {@link #isWaitlistUnlocked()} and {@link #isHonouraryUnlocked()} each OR their own
+ * positive marker in, and nothing clears them
+ * ({@code legacy-unlock-markers-still-grant-client-unlock}).</p>
  *
  * <p>Tier values follow the canonical vetsmod tier vocabulary:
  * {@code member}, {@code waitlist}, {@code honourary}, {@code other}.
- * The legacy unlock states map to {@code waitlist} / {@code honourary}
- * respectively for back-compat warning logic.</p>
+ * The two legacy markers correspond to {@code waitlist} / {@code honourary}
+ * respectively.</p>
  *
  * <p>This class is package-private and accessed exclusively through
  * {@link GuildStateManager}'s facade methods.</p>
@@ -108,8 +112,10 @@ final class UnlockManager {
                 || legacyHonouraryMarker();
     }
 
-    /** Whether legacy SHA-256-based waitlist unlock state is still on disk.
-     *  Used only as a "this user used the old system" signal for warning copy. */
+    /** Whether the legacy SHA-256-era waitlist unlock timestamp is still on disk (a
+     *  positive {@code VETS_WAITLIST_UNLOCK_TIME}). Meant only as a "this user used the
+     *  old system" signal for warning copy; today {@link #isWaitlistUnlocked()} also ORs
+     *  it in ({@code legacy-unlock-markers-still-grant-client-unlock}). */
     static boolean legacyWaitlistMarker() {
         return VetsConfig.getLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME) > 0L;
     }

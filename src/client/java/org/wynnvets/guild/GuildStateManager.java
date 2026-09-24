@@ -203,7 +203,11 @@ public class GuildStateManager {
     }
 
     /**
-     * Check if the player has unlocked as a waitlist (guildless) user.
+     * Whether the player counts as waitlist-unlocked: a waitlist-tier auth this session,
+     * or a legacy on-disk waitlist marker. The marker arm is meant to go
+     * ({@code legacy-unlock-markers-still-grant-client-unlock}). Does not check
+     * guildlessness itself; callers that mean the waitlist tier pair it with
+     * {@link #isGuildless()}.
      *
      * @return true if waitlist-unlocked, false otherwise
      */
@@ -212,7 +216,9 @@ public class GuildStateManager {
     }
 
     /**
-     * Check if the player has unlocked as an honourary member.
+     * Whether the player counts as honourary-unlocked: an honourary-tier auth this
+     * session, or a legacy on-disk honourary marker. The marker arm is meant to go
+     * ({@code legacy-unlock-markers-still-grant-client-unlock}).
      *
      * @return true if honourary-unlocked, false otherwise
      */
