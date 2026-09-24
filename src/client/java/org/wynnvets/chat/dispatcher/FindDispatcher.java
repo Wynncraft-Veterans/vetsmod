@@ -140,8 +140,9 @@ public final class FindDispatcher {
     }
 
     /**
-     * Blocks until the find-response system signals that the server responded
-     * to a {@code /find} command.
+     * Blocks until the find-response system signals that the server responded to a
+     * {@code /find} command, or until {@link #FIND_RESPONSE_WAIT_MS} passes or the wait
+     * is interrupted, in which case it returns {@code null}.
      */
     private static String waitForFindResponse(String usernameLower) {
         long deadline = System.currentTimeMillis() + FIND_RESPONSE_WAIT_MS;

@@ -20,8 +20,9 @@ import org.wynnvets.logging.VetsLogger;
  * for the staff chat system ({@code /v}).
  *
  * <p>All dispatch is serialized on the shared single-threaded executor owned
- * by {@link CommandDispatcher}.  The suppression ACK system ensures that
- * only one {@code /msg} is ever in-flight at a time.</p>
+ * by {@link CommandDispatcher}.  The suppression ACK system keeps at most one
+ * {@code /msg} awaiting a reply at a time; one whose wait times out is abandoned,
+ * not cancelled, so its reply can still arrive later.</p>
  */
 public final class MessageFanoutDispatcher {
 
@@ -32,7 +33,10 @@ public final class MessageFanoutDispatcher {
     private static final long SUPPRESSION_WAIT_MS = 5_000L;
     private static final int MAX_DISPATCH_RETRIES = 3;
 
-    // Suppression state — safe because dispatch is single-threaded.
+    // Suppression state. The pending queue and the offline-guidance window are touched
+    // from the render thread; awaitingSuppression is shared with the dispatch thread
+    // under SUPPRESSION_ACK_LOCK. One awaiting slot suffices because dispatch is
+    // single-threaded.
     private static final ConcurrentLinkedQueue<PendingSuppression> PENDING_SUPPRESSIONS =
             new ConcurrentLinkedQueue<>();
     private static final Object SUPPRESSION_ACK_LOCK = new Object();
@@ -44,8 +48,11 @@ public final class MessageFanoutDispatcher {
     // ──────────────────────────── Batch processing ────────────────────────────
 
     /**
-     * Drains all queued /msg broadcasts, sending each to every online staff member in order.
-     * Staff list is fetched once per batch; offline users are tracked and skipped.
+     * Drains all queued /msg broadcasts, sending each to every other online staff member
+     * in the feed, in order. Staff list is fetched once per batch; offline users are
+     * tracked and skipped. Today, with no local player, it returns without draining, so
+     * each pass ends by starting another at once
+     * ({@code fanout-null-player-spins-dispatch-executor}).
      */
     static void processMessageBatch() {
         try {
@@ -62,7 +69,7 @@ public final class MessageFanoutDispatcher {
             staffUsernames.removeIf(u -> CommandDispatcher.isSelfRecipient(u, selfPlayer));
 
             if (staffUsernames.isEmpty()) {
-                // Drain the queue and warn for each message
+                // Drain the queue and warn once
                 while (CommandDispatcher.MESSAGE_QUEUE.poll() != null) {
                     // drained
                 }
@@ -148,7 +155,7 @@ public final class MessageFanoutDispatcher {
                 return result;
             }
 
-            // FAILED (timeout) — retry after a delay
+            // FAILED (no feedback in time, or the send was not confirmed) — retry after a delay
             if (attempt < MAX_DISPATCH_RETRIES) {
                 VetsLogger.debug(
                         "No /msg feedback for {} attempt {}. Retrying...", recipient, attempt);
@@ -218,8 +225,9 @@ public final class MessageFanoutDispatcher {
     }
 
     /**
-     * Blocks until the suppression system signals that server feedback was received,
-     * distinguishing between successful delivery and offline-user errors.
+     * Blocks until the suppression system signals that server feedback was received
+     * (delivered or offline), or until {@link #SUPPRESSION_WAIT_MS} passes or the wait is
+     * interrupted (FAILED).
      */
     private static FeedbackResult waitForFeedback(String usernameLower, String lockPayload) {
         long deadlineMs = System.currentTimeMillis() + SUPPRESSION_WAIT_MS;
@@ -271,19 +279,26 @@ public final class MessageFanoutDispatcher {
      * offline-player errors, suppresses them from display, and signals the dispatch thread so it
      * can proceed strategically.
      *
-     * <p>Matching strategy (in order of attempt):</p>
+     * <p>Checks, in the order the code tries them:</p>
      * <ol>
-     *   <li>Offline guidance suppression — blanket-suppress "be sure to use exact names..."
-     *       messages within a short window after an offline-user error.</li>
-     *   <li>Direct payload echo — the server echoes our /msg back; match by normalized
-     *       payload content AND (recipient name OR 🔐 lock prefix).</li>
-     *   <li>Lock-prefix + recipient fallback — when Wynntils rewrites coordinates in the
-     *       echo Component, payload comparison fails; fall back to prefix + recipient.</li>
-     *   <li>Censored variant — Wynncraft's profanity filter replaces characters with
-     *       {@code *}; match when non-star characters align with the payload.</li>
-     *   <li>Token subsequence — last resort: tokenize both strings and check if the
-     *       payload tokens appear as a subsequence in the message tokens.</li>
+     *   <li>Offline guidance — within a short window after an offline-recipient error,
+     *       the server's follow-up guidance lines ("be sure to use exact names..." and
+     *       similar) are suppressed outright. Nothing is signalled.</li>
+     *   <li>Payload echo — the normalised payload is looked for as a plain substring,
+     *       then as a censored variant (Wynncraft's profanity filter can replace
+     *       characters with {@code *}), then as a token subsequence. Any of the three
+     *       counts only if the line also names the recipient or carries the 🔐 lock
+     *       prefix.</li>
+     *   <li>Lock prefix + recipient with no payload match — e.g. when Wynntils
+     *       rewrites coordinates in the echo Component.</li>
+     *   <li>An offline-recipient error naming the recipient. A line that matches here
+     *       is signalled as offline, whatever else it matched, and opens the
+     *       offline-guidance window.</li>
      * </ol>
+     *
+     * <p>Items 2 to 4 are tried against each pending suppression in turn, oldest
+     * first; the first entry that any of them matches is consumed, with its duplicates,
+     * and signalled.</p>
      */
     public static boolean shouldSuppressFeedback(String message) {
         if (message == null || message.isEmpty()) {
@@ -315,8 +330,10 @@ public final class MessageFanoutDispatcher {
 
             // Fallback: if payload comparison fails (e.g. Wynntils rewrites coordinates
             // in the Component before we see it), still accept when both the lock prefix
-            // and the expected recipient are present. Safe because dispatch is serialized
-            // and only VetsMod uses the 🔐 prefix.
+            // and the expected recipient are present. The 🔐 prefix marks all VetsMod
+            // /v traffic, incoming included, so it does not by itself identify our own
+            // echo; the recipient check (the name after the private-message separator)
+            // is what is meant to.
             if (!isDirectMessageEcho && lockPrefixPresent && recipientMatch) {
                 isDirectMessageEcho = true;
             }

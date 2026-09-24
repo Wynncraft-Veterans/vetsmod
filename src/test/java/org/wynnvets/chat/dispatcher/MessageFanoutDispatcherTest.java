@@ -163,9 +163,10 @@ class MessageFanoutDispatcherTest {
 
     @Test
     void normalize_keepsEmojiBecauseTheyAreOtherSymbolNotPrivateUse() {
-        // The padlock the bridge prefixes locked messages with survives
-        // normalisation, so it participates in the echo comparison on both
-        // sides rather than being silently dropped from one.
+        // The 🔐 lock prefix the /v fan-out puts on every /msg payload
+        // (CommandDispatcher.LOCK_PREFIX) survives normalisation, so it
+        // participates in the echo comparison on both sides rather than
+        // being silently dropped from one.
         String padlock = new StringBuilder().appendCodePoint(0x1F510).toString();
         assertEquals(
                 padlock + "hi",

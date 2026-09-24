@@ -31,8 +31,14 @@ import org.wynnvets.util.Json;
  *
  * <p>Coordinates the shared dispatch executor that serializes
  * both {@code /msg} fanout (via {@link MessageFanoutDispatcher}) and {@code /find}
- * batches (via {@link FindDispatcher}).  Only one command is ever in-flight
- * at a time, so the suppression ACK systems are unambiguous.</p>
+ * batches (via {@link FindDispatcher}).  At most one command at a time is awaiting
+ * its reply, which is why each suppression system needs only a single awaiting slot.
+ * A command whose wait times out is abandoned, not cancelled, so its reply can still
+ * arrive while a later command is being awaited. A retry resends the same recipient
+ * and payload, so a late echo of the earlier {@code /msg} attempt, arriving while the
+ * retry is awaited, is taken as the retry's. Today a late {@code /find} reply is also
+ * credited to the awaited name when the reply's name ends with it
+ * ({@code find-response-matches-username-as-substring}).</p>
  *
  * <p>{@code /v} fan-out and both chat-hook suppression checks are entered through this
  * class. {@code /find} batches are not: callers outside this package enqueue them on
@@ -96,12 +102,18 @@ import org.wynnvets.util.Json;
  *
  * <h3>Key Invariants</h3>
  * <ul>
- *   <li>Exactly one command in-flight at a time (single-threaded executor).</li>
+ *   <li>At most one command awaiting its reply at a time (single-threaded executor
+ *       plus each dispatcher's bounded wait).</li>
  *   <li>/msg broadcasts take priority over /find batches: each dispatch pass handles
  *       queued /msg broadcasts before it starts on queued /find batches. Today a /msg
  *       that arrives while a pass is working through /find batches waits for that pass
  *       to finish ({@code find-phase-does-not-yield-to-queued-msg}).</li>
- *   <li>Suppression matching uses the 🔐 lock prefix as a unique discriminator.</li>
+ *   <li>Echo matching pairs signals: the payload with either the recipient named in
+ *       the line's header or the 🔐 lock prefix, or the prefix with the recipient. The
+ *       prefix alone is not enough, but a plain payload match always carries it, since
+ *       the payload starts with it. Offline-recipient errors match on the recipient's
+ *       name and an offline phrase. See
+ *       {@link MessageFanoutDispatcher#shouldSuppressFeedback}.</li>
  *   <li>Offline users are tracked per-batch and skipped for remaining messages.</li>
  *   <li>A gated call skips the staff-feed check while the auth ack confirms staff, or
  *       once an earlier gated call has confirmed this player since
@@ -125,7 +137,9 @@ public final class CommandDispatcher {
                     .GET()
                     .build();
 
-    // Single-threaded executor ensures exactly one command is in-flight at a time.
+    // Single-threaded executor. With each dispatcher's wait-for-reply, at most one of
+    // this class's commands is awaiting a reply at a time; a command whose wait times
+    // out is abandoned, not cancelled, so its reply can still arrive later.
     private static final ExecutorService DISPATCH_EXECUTOR =
             Executors.newSingleThreadExecutor(
                     r -> {

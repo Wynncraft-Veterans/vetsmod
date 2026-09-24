@@ -197,8 +197,8 @@ Single-threaded `DISPATCH_EXECUTOR`. `/msg` takes priority: each pass handles qu
 ### MessageFanoutDispatcher
 [MessageFanoutDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/MessageFanoutDispatcher.java)
 
-Fans `/v` out as `/msg <recipient> 🔐 <message>` to every online staff member. Constants:
-- `CommandDispatcher.LOCK_PREFIX = "🔐"` (unique `/v` discriminator; declared there, not here)
+Fans `/v` out as `/msg <recipient> 🔐<message>` (no space after the lock) to every online staff member in the feed except yourself. Constants:
+- `CommandDispatcher.LOCK_PREFIX = "🔐"` (the `/v` fan-out marker, and one of the echo-matching signals; declared there, not here)
 - `SUPPRESSION_TTL_MS = 15_000`
 - `OFFLINE_GUIDANCE_SUPPRESSION_WINDOW_MS = 4_000`
 - `INTER_SEND_DELAY_MS = 600`
@@ -206,10 +206,11 @@ Fans `/v` out as `/msg <recipient> 🔐 <message>` to every online staff member.
 
 Multi-strategy feedback matching in `MessageFanoutDispatcher.shouldSuppressFeedback` (reached from ChatLogMixin; the direct caller is `CommandDispatcher.shouldSuppressFeedback`):
 1. Offline-guidance blanket-suppression (4s window after offline error)
-2. Direct echo match (exact normalized payload + recipient or lock prefix)
-3. Lock-prefix + recipient fallback (Wynntils rewrote coordinates)
-4. Censored variant (non-`*` chars align with payload)
-5. Token subsequence (last resort)
+2. Payload echo (plain match, then censored variant, then token subsequence; needs the recipient or the lock prefix too)
+3. Lock-prefix + recipient fallback, when the payload test fails (e.g. Wynntils rewrote coordinates)
+4. Offline-recipient error for the pending recipient (reports offline, opens the guidance window)
+
+Steps 2–4 are tried against each pending send in turn, oldest first; the first match wins.
 
 ### FindDispatcher
 [FindDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/FindDispatcher.java)
