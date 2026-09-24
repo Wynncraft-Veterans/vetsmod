@@ -64,17 +64,22 @@ public class VetsConfig {
 
     // ── Vetsmod /unlock <key> auth state ─────────────────────────────────
     /** Bearer key issued by dazebot's /vetsmod command and stored on disk so
-     *  it survives mod restarts. Sent in an `auth` frame on every WebSocket
-     *  (re)connect. Empty string when the user hasn't run /unlock yet. */
+     *  it survives mod restarts. Sent in an {@code auth} frame on every (re)connect of the
+     *  inbound v1 WebSocket, and straight away when {@code /unlock <key>} stores a new key
+     *  while that socket is up. Empty string when the user hasn't run /unlock yet. */
     public static final String VETS_AUTH_KEY = "vetsAuthKey";
 
-    /** Last server-confirmed tier (member/waitlist/honourary/other) for the
-     *  stored key. Refreshed on every auth-frame success. Persisted only as
-     *  a UX hint — the authoritative value comes from the server each session. */
+    /** Tier (member/waitlist/honourary/other) that the last successful auth ack reported,
+     *  refreshed on every such ack. A new {@code /unlock} key or a rejection does not clear
+     *  it, so it can belong to an earlier key. Nothing gates on it; it is read only for the
+     *  {@code /wv debug} diagnostics log
+     *  ({@link org.wynnvets.debug.diagnostics.DiagnosticsHandler DiagnosticsHandler}). */
     public static final String VETS_AUTH_TIER = "vetsAuthTier";
 
-    /** Epoch millis of the last successful auth-frame response, or 0. Used
-     *  for staleness display and to gate "previously authenticated" warnings. */
+    /** Epoch millis of the last successful auth-frame ack, or 0. Only displayed, by the
+     *  diagnostics dump
+     *  ({@link org.wynnvets.debug.diagnostics.DiagnosticsHandler DiagnosticsHandler}); no
+     *  warning gates on it. */
     public static final String VETS_AUTH_VERIFIED_AT = "vetsAuthVerifiedAt";
 
     // ── User-facing configuration keys (toggled via /wv config) ─────────────
@@ -282,7 +287,9 @@ public class VetsConfig {
      *  whenever an auth failure occurs, so a single confirmation is shown after
      *  each error→success transition. The user can also manually re-enable it
      *  via {@code /wv config printSuccessfulAuth true} to force the next ack
-     *  to display. */
+     *  to display. A {@code /unlock <key>} run forces the next ack to render
+     *  regardless of this key, and does not re-arm it when it is already
+     *  {@code false}. */
     public static final String PRINT_SUCCESSFUL_AUTH = "printSuccessfulAuth";
 
     /** CSS/Minecraft colour name for the top of the gradient drawn behind legacy item icons.

@@ -31,12 +31,13 @@ import org.wynnvets.logging.VetsLogger;
  * The two legacy markers correspond to {@code waitlist} / {@code honourary}
  * respectively.</p>
  *
- * <p>This class is package-private and accessed exclusively through
- * {@link GuildStateManager}'s facade methods.</p>
+ * <p>This class is package-private. Callers outside the package reach it through
+ * {@link GuildStateManager}'s facade methods; within the package,
+ * {@link SessionAuthWarning} also reads {@link #lastAuthFailureReason()} directly.</p>
  */
 final class UnlockManager {
 
-    /** Canonical tier strings — kept in sync with dazebot's lib/verify_keys.py. */
+    /** Canonical tier strings — kept in sync with dazebot's lib/staff/verify_keys.py. */
     static final String TIER_MEMBER = "member";
 
     static final String TIER_WAITLIST = "waitlist";
@@ -164,7 +165,7 @@ final class UnlockManager {
      *
      * <p>The direct caller is {@link GuildStateManager#tryUnlock(String)}, which
      * is what {@link org.wynnvets.mixin.client.command.UnlockCommandMixin} invokes
-     * when the user runs {@code /unlock &lt;key&gt;}; the mixin never names this
+     * when the user runs {@code /unlock &lt;key&gt;}; the mixin's code never calls this
      * class. The key is persisted to
      * {@link VetsConfig} and an {@code auth} frame is sent on the existing
      * inbound WebSocket connection. The result is reported to the user

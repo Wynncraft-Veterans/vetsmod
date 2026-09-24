@@ -25,14 +25,15 @@ import org.wynnvets.mwe.anni.mode.AnniModeManager;
  * live from Wynntils' {@code Models.Guild}, which Wynntils fills from its character-info
  * menu scan and from guild join/leave chat lines. World-join triggers are
  * provided by {@link org.wynnvets.listeners.WynntilsEventListener} via
- * {@code WorldStateEvent}. Once the player's guild is confirmed as the
- * Returners guild, mod features (bridge, MOTD, staff chat, etc.) are
- * enabled.</p>
+ * {@code WorldStateEvent}. Returners membership is one route through vetsmod's feature
+ * gates; a waitlist or honourary unlock ({@link #isWaitlistUnlocked()},
+ * {@link #isHonouraryUnlocked()}) is another, and each feature chooses which of the
+ * predicates below it gates on.</p>
  *
- * <p>Delegates staff-rank detection to {@link StaffRankChecker} and
- * password-based unlock management to {@link UnlockManager}. External
- * callers should use this class's facade methods rather than accessing
- * those helpers directly.</p>
+ * <p>Delegates staff-rank detection to {@link StaffRankChecker}, the {@code /gu stats}
+ * guild check to {@link GuildChecker}, and bearer-key auth state (with the legacy unlock
+ * markers) to {@link UnlockManager}. Those three are package-private, so callers outside
+ * this package go through this class's facade methods.</p>
  */
 public class GuildStateManager {
 
@@ -239,11 +240,11 @@ public class GuildStateManager {
      * Whether the player is eligible for the enriched vets-anni experience.
      *
      * <p>Three rank-signal trip-wires (any one triggers eligibility): Returners guild membership,
-     * guildless + waitlist-unlocked, or honourary-unlocked. Mirrors the "external vs vets" predicate
-     * that {@link org.wynnvets.mwe.anni.render.AnniCommandRenderer AnniCommandRenderer} uses to
-     * decide between the enriched printout and the legacy stamp-only fallback, and drives the
+     * guildless + waitlist-unlocked, or honourary-unlocked. It is the predicate behind
+     * {@link org.wynnvets.mwe.anni.render.AnniCommandRenderer AnniCommandRenderer}'s "external vs
+     * vets" test (enriched printout vs the legacy stamp-only fallback), and it drives the
      * eligibility-based default anni mode (PASSIVE if eligible, SILENT otherwise) in
-     * {@link AnniModeManager}.</p>
+     * {@link AnniModeManager}. {@code /wv help} also uses it as the vet gate.</p>
      *
      * @return true if eligible for enrichment, false otherwise
      */
@@ -255,6 +256,8 @@ public class GuildStateManager {
 
     /**
      * Enable/disable debug override that forces the user to be treated as guildless and unlocked.
+     * Nothing in vetsmod calls this today, so the override is never on
+     * ({@code unlock-debug-flag-tier-asymmetry}).
      *
      * @param enabled true to force guildless+unlocked behavior, false to use normal state
      */
@@ -272,8 +275,9 @@ public class GuildStateManager {
     }
 
     /**
-     * Check if mod features should be enabled.
-     * Features are only enabled when guild is Returners.
+     * Whether vetsmod's Returners-only features are enabled; today this is
+     * {@link #isReturners()}. Most other features gate on {@link #isUnlocked()} or the
+     * tier predicates instead.
      *
      * @return true if features should be enabled, false otherwise
      */
@@ -382,7 +386,8 @@ public class GuildStateManager {
     }
 
     /**
-     * Load persisted staff, guild check, and unlock state from config.
+     * Restore the persisted staff-rank and guild-check results from config, and clear
+     * {@link UnlockManager}'s session fields (the stored key itself is read on demand).
      */
     public static void loadPersistedState() {
         StaffRankChecker.loadPersistedState();
@@ -672,7 +677,8 @@ public class GuildStateManager {
         MISSING_KEY,
         /** The key didn't pass the local shape sanity check (length / charset). */
         MALFORMED,
-        /** Key passed local checks, was persisted, and an auth frame is in flight. */
+        /** Key passed local checks and was persisted; its auth frame has been sent, or will
+         *  be on the next inbound (re)connect. */
         STORED_VERIFYING,
     }
 

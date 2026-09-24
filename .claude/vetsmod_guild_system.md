@@ -102,12 +102,12 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 
 **Constants:**
 - `MIN_KEY_LENGTH = 32`, `MAX_KEY_LENGTH = 200`
-- Canonical tier strings: `member`, `waitlist`, `honourary`, `other` (kept in sync with dazebot's `lib/verify_keys.py`)
+- Canonical tier strings: `member`, `waitlist`, `honourary`, `other` (kept in sync with dazebot's `lib/staff/verify_keys.py`)
 
 **Persisted state (string/long via VetsConfig):**
 - `vetsAuthKey` — the bearer key stored on `/unlock <key>`
-- `vetsAuthTier` — last server-confirmed tier (UX hint only; authoritative value comes from the server each session)
-- `vetsAuthVerifiedAt` — epoch millis of the last successful auth-frame ack
+- `vetsAuthTier` — the tier the last successful auth ack reported. Written by `V1ApiManager`'s auth-ack handler and never cleared, so after a new key or a rejection it can belong to an earlier key; read only by the diagnostics dump
+- `vetsAuthVerifiedAt` — epoch millis of the last successful auth-frame ack; written by `V1ApiManager`, display-only (diagnostics)
 
 **Transient session state (volatile):**
 - `currentTier` — populated by the server's auth-frame ack
@@ -131,10 +131,10 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 
 **Cases:**
 1. Authenticated this session → silent.
-2. Stored key but server rejected → "Your stored vetsmod key was rejected (<reason>). Run /vetsmod in #bot-commands to issue a new one." (red)
+2. Stored key but server rejected → "Your stored vetsmod key was rejected (<reason>). Run ~vetsmod in #bot-commands to issue a new one." (red). Today this fires whenever a stored key has no ok ack 5 s after world join, rejected or not (bug `session-auth-warning-reports-rejection-without-one`).
 3. Plausible VETS user (in Returners or has legacy unlock marker) with no stored key:
-   - if server's `unauth_enabled=true` → "vetsmod is running unauthenticated. Vets chat still works for now, but authentication will become mandatory soon. Run /vetsmod in #bot-commands to /unlock." (yellow)
-   - if server's `unauth_enabled=false` → "You aren't authenticated, so vetsmod cannot send or receive VETS chat or use guild-specific features until you /unlock. Run /vetsmod in #bot-commands to get a key." (red)
+   - if server's `unauth_enabled=true` → "vetsmod is running unauthenticated. Vets chat still works for now, but authentication will become mandatory soon. Run ~vetsmod in #bot-commands to /unlock." (yellow)
+   - if server's `unauth_enabled=false` → "You aren't authenticated, so vetsmod cannot send or receive VETS chat or use guild-specific features until you /unlock. Run ~vetsmod in #bot-commands to get a key." (red)
 4. Plain non-VETS user → silent.
 
 **`unauth_enabled` discovery:** The temporary-server pushes a `{type:"server_info", unauth_enabled: bool}` frame on outbound connect. `V1ApiManager` routes it directly to `SessionAuthWarning.onServerInfo()`. Defaults to `true` if the frame hasn't arrived yet (warning fires 5s after world join).
@@ -150,7 +150,7 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 | `honourary` | `honourary` | HONOURARY Discord role |
 | `other` | _(none — chat-channel access denied)_ | Anything else (linked but no role match, or blocklisted) |
 
-The tier is **resolved server-side** by dazebot's `lib/verify_keys.resolve_tier()` on every introspection. Tier changes propagate to active sessions on the next WS reconnect (or whenever temporary-server's 60s LRU cache expires the cached introspection).
+The tier is **resolved server-side**: temporary-server introspects the key against dazebot, whose `resolve_tier()` (`lib/staff/verify_keys.py`) re-derives it from the member's live roles on each introspection, falling back to the tier stored with the key when the member can't be looked up. Tier changes propagate to active sessions on the next WS reconnect (or whenever temporary-server's 60s LRU cache expires the cached introspection).
 
 ## 7. Persistence summary
 
@@ -163,15 +163,15 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 | `vetsIsStaff` | bool | StaffRankChecker |
 | `vetsLastStaffCheck` | long (ts) | StaffRankChecker |
 | `vetsAuthKey` | string | UnlockManager |
-| `vetsAuthTier` | string | UnlockManager |
-| `vetsAuthVerifiedAt` | long (ts) | UnlockManager |
+| `vetsAuthTier` | string | V1ApiManager (auth-ack handler) |
+| `vetsAuthVerifiedAt` | long (ts) | V1ApiManager (auth-ack handler) |
 | `vetsWaitlistUnlockTime` | long (ts) | **legacy** — meant only as a "previously unlocked under SHA-256 system" marker for warnings; today it still unlocks (§4) |
 | `vetsHonouraryUnlockTime` | long (ts) | same — legacy marker; same caveat |
 
 ## 8. Edge cases
 
-- **Returners guild members still need to /unlock** under the new system. Guild detection alone no longer grants chat access — the server's tier gate enforces that authenticated users can only send chat types their tier allows. Pre-migration users discover this via the SessionAuthWarning.
+- **Returners guild members need to /unlock** under the new system once the server's `unauth` toggle is off. While it is on, unauthenticated sessions are exempt from the tier gate (back-compat); when it is off, their chat frames are rejected. Authenticated sessions can only send the chat types their tier allows. Pre-migration users discover this via the SessionAuthWarning.
 - **`forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears **neither** cache — it prints diagnostics and re-runs both checks (`refreshStaffStatusIfNeeded(true)` and `GuildChecker.refreshGuildStatus()`). Not clearing is deliberate and commented twice in `GuildStateManager`: `GuildChecker` is cleared only by `onGuildInfoUpdated()`, which fires from Wynntils' `GuildEvent.Joined`/`.Left` handlers and from the post-world-join recheck poll once guild info turns up. It also does *not* re-auth; that happens automatically on every inbound WS reconnect.
 - **Wynntils `GuildEvent`** is authoritative — when it fires, `GuildChecker` cache is invalidated.
 - **`/gu stats` vs Wynntils** — a valid `/gu stats` result (`GuildChecker`) takes precedence; Wynntils' `Models.Guild` is the live fallback while there is none. Wynntils usually lands first in time. `MORE_RELIABLE_GUILD_CHECK` schedules the `/gu stats` check that refreshes the cache.
-- **Rotating a leaked key:** users run `/vetsmod rotate` in Discord; their old key fails introspection on the next WS connect. The mod surfaces the failure via `onAuthFailure()` and the SessionAuthWarning prompts them to `/unlock` again.
+- **Rotating a leaked key:** a staff member runs dazebot's staff-only `/change rotate key <target>` (users cannot self-rotate); the old key fails introspection on the next WS connect (subject to temporary-server's 60 s introspection cache). The mod surfaces the failure via `onAuthFailure()` and the SessionAuthWarning prompts them to `/unlock` again.

@@ -18,7 +18,9 @@ import org.wynnvets.logging.VetsLogger;
  * <ol>
  *   <li><b>Authenticated</b> — no warning.</li>
  *   <li><b>Has stored key, server rejected it</b> — show a "your key was
- *       rejected, run /vetsmod" warning regardless of unauth toggle.</li>
+ *       rejected, run /vetsmod" warning regardless of unauth toggle. Today it fires
+ *       whenever a stored key has no ok ack {@link #WARNING_DELAY_MS} after world join,
+ *       rejected or not ({@code session-auth-warning-reports-rejection-without-one}).</li>
  *   <li><b>No stored key, but plausibly a VETS user</b> (in Returners or has
  *       legacy unlock markers from the old SHA-256 system) — show one of
  *       two warnings depending on whether unauth chat is currently allowed
