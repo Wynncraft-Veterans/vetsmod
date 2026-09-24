@@ -97,12 +97,17 @@ GuildLogWalker.armWalk|1|GuildLogWalker#armWalk: The only caller today, GraidsDi
 MembersListWalker.armWalk|1|MembersListWalker class doc: its one caller pairs armWalk with openManageMembers
 NameResolver.fetchAllLegacyNames|1|NameResolver#fetchAllLegacyNames: Used by RandomDistributor (names the class, pinned as one site)
 NameResolver.fetchUuidToLegacyName|1|NameResolver#fetchUuidToLegacyName: Used by NoAspectsFilter (names the class, pinned as one site)
+GuildStateManager.setDebugForceGuildlessUnlocked|0|GuildStateManager#setDebugForceGuildlessUnlocked: Nothing in vetsmod calls this today (in-class half in PATTERNS)
+GuildStateManager.isProcessingModGuildCheck|0|GuildStateManager#isProcessingModGuildCheck: Nothing calls it at present (in-class half in PATTERNS)
+StaffRanksPoller.refreshNow|1|StaffRanksPoller#refreshNow: called on each successful inbound auth ack, the one V1ApiManager site
 '
 
 # file (under $SRC)|fixed string|expected occurrences on non-comment lines|note
 PATTERNS='
 org/wynnvets/mwe/anni/debug/AnniDebugCommands.java|requireDebug(ctx)|24|AnniDebugCommands class doc: all 24 handlers open with requireDebug
 org/wynnvets/mwe/anni/debug/AnniDebugCommands.java|requireStaffOrOrganiser(ctx)|5|AnniDebugCommands class doc: the five scrollspot handlers
+org/wynnvets/guild/GuildStateManager.java|setDebugForceGuildlessUnlocked(|2|no-caller claim, in-class half: the declaration plus its UnlockManager delegate call
+org/wynnvets/guild/GuildStateManager.java|isProcessingModGuildCheck(|2|no-caller claim, in-class half: the declaration plus its GuildChecker delegate call
 '
 
 # Count non-comment call sites of Class.method( across the client source set.
