@@ -17,8 +17,18 @@ import org.wynnvets.logging.VetsLogger;
 /**
  * Central manager for the v1 WebSocket API connections (inbound and outbound).
  *
- * <p>Inbound is used to send messages to the server. Outbound is used to
- * receive messages (guild, waitlist, honourary, bridge) pushed by the server.</p>
+ * <p>Inbound carries the frames vetsmod sends and the server's replies to them. Outbound
+ * carries what the server pushes: relayed chat (guild, queue, waitlist, honourary,
+ * bridge), the {@code server_info} hello, and frames the server sends only to an
+ * authenticated socket ({@code staff_online} / {@code staff_offline}, {@code anni_state},
+ * and the targeted {@code warning} frame).</p>
+ *
+ * <p>temporary-server keeps its authenticated session per socket, and {@link #connect()}
+ * sends the {@code auth} frame on the inbound socket only. So today the outbound socket is
+ * never authenticated: none of those authenticated-only frames arrives, and relayed chat
+ * arrives without the server's tier filter while its {@code unauth} toggle is on (and not
+ * at all with it off). See {@code outbound-socket-never-authenticated}; the mechanism is in
+ * {@code vetsmod_networking.md} §1.</p>
  */
 public final class V1ApiManager {
 
@@ -696,6 +706,10 @@ public final class V1ApiManager {
      * staff-rank cache fresh between scheduled polls so the chat
      * rewriters recognise a newly-online staff member's whispers
      * within milliseconds rather than waiting up to two minutes.
+     *
+     * <p>Never reached today: the server sends these frames only to an authenticated
+     * outbound socket, and vetsmod never authenticates that socket
+     * ({@code outbound-socket-never-authenticated}).</p>
      */
     private static void handleStaffPresenceFrame(String type, JsonObject json) {
         String username =

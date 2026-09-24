@@ -25,7 +25,8 @@ would produce a pointer to nothing.
 ## 1. WebSocket endpoints
 
 Two endpoints, `/v1/inbound` (client → server) and `/v1/outbound`
-(server → all clients). Inbound frames are JSON text; the payload guard is
+(server → clients; which frames reach a socket depends on whether it has
+authenticated, see §"Frame inventory" below). Inbound frames are JSON text; the payload guard is
 65,536 — despite the constant's name it is compared against the decoded
 string, so it caps characters, not bytes. Inbound acks are
 `{"status": "ok"}` or `{"status": "error", "detail": "..."}`, except where a
@@ -56,7 +57,10 @@ spec documents it. vetsmod's own senders are in
 
 Server-initiated frames on `/v1/outbound`: broadcast chat and `bridge`,
 `anni_state` (§1.15), `staff_online` / `staff_offline` (§2.6), the targeted
-`warning` frame, and `server_info`.
+`warning` frame, and `server_info`. Of these, a socket that has not sent its own
+`auth` frame receives only `server_info` and the broadcast chat (the chat only while
+`unauth` is on). vetsmod never authenticates its outbound socket, so it is always
+such a socket (bug `outbound-socket-never-authenticated`).
 
 `rank_change` acks `ok` even when the handler silently drops the frame on a
 validation failure, so a client cannot tell accepted from discarded.
@@ -170,7 +174,9 @@ staff ranks all map there. Old clients ignore the key and keep reading
 Authenticated chat is tier-gated: `guild` may send `guild`+`queue`, `waitlist`
 only `waitlist`, `honourary` only `honourary`. There is no `queue` tier — it is
 a guild-tier privilege. The same `auth` frame is accepted on `/v1/outbound`,
-where the resulting tier filters what the client receives.
+where the resulting tier filters what the client receives. vetsmod does not send it
+there, so no tier filter applies to what vetsmod receives
+(`outbound-socket-never-authenticated`).
 
 ### `server_info` hello
 

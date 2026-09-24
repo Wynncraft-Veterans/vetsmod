@@ -10,9 +10,10 @@ import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.Json;
 
 /**
- * Renders an inbound {@code "warning"} chat-bus frame -- a server-pushed
- * formal-warning or eject notice routed only to the warned player's
- * vetsmod clients (see v1_protocol.md §2.5).
+ * Renders a {@code "warning"} frame from the outbound WebSocket -- a server-pushed
+ * formal-warning or eject notice routed only to the warned player's authenticated
+ * outbound sockets (see v1_protocol.md §2.5). Today it never reaches vetsmod, which
+ * does not authenticate that socket ({@code outbound-socket-never-authenticated}).
  *
  * <p>Visually styled distinctly from regular guild chat so the player
  * can't miss it: gold/yellow palette with a "WARNING" / "EJECTED"
@@ -34,7 +35,7 @@ public final class WarningRewriter {
     /**
      * Renders the warning frame in chat. Called from
      * {@link org.wynnvets.chat.OutboundDisplayHandler#onOutboundMessage
-     * OutboundDisplayHandler#onOutboundMessage} when the inbound frame's type is {@code "warning"}.
+     * OutboundDisplayHandler#onOutboundMessage} when the frame's type is {@code "warning"}.
      *
      * @param json the raw frame from the v1/outbound WebSocket
      */

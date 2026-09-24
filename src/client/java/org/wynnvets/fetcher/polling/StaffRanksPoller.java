@@ -31,6 +31,11 @@ import org.wynnvets.util.Json;
  *       evicted by a stale poll snapshot.</li>
  * </ul>
  *
+ * <p>Today the live tier stays empty: the server pushes those frames only to an
+ * authenticated outbound socket, and vetsmod never authenticates that socket
+ * ({@code outbound-socket-never-authenticated}). The poll is the only source that
+ * works.</p>
+ *
  * <p>{@link #confirmedRankFor} checks the live map first, then the poll
  * map. Both are keyed by lowercase username and store one of
  * strategist/chief/owner. Captain was retired in the 2026-07 permission
@@ -87,6 +92,9 @@ public final class StaffRanksPoller {
      * {@code staff_online} is recognised by the recipient's chat
      * rewriters within milliseconds, even if the 2-minute poll has not
      * yet refreshed.</p>
+     *
+     * <p>That holds once {@code staff_online} frames arrive. Today none does
+     * ({@code outbound-socket-never-authenticated}), so only the poll map answers.</p>
      */
     public static Optional<String> confirmedRankFor(String username) {
         if (username == null || username.isEmpty()) {

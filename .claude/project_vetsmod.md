@@ -35,7 +35,7 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 
 **Networking:**
 - Inbound WS: `wss://api.wynnvets.org/v1/inbound` — client sends guild/waitlist/honourary messages
-- Outbound WS: `wss://api.wynnvets.org/v1/outbound` — server pushes messages to all clients
+- Outbound WS: `wss://api.wynnvets.org/v1/outbound` — server pushes chat to all clients; its authenticated-only frames never reach vetsmod, which never authenticates this socket (bug `outbound-socket-never-authenticated`; [vetsmod_networking.md](vetsmod_networking.md) §1)
 - Both auto-reconnect (3s delay), 30s ping keepalive
 - Registration frame (`type="register"`) AND `auth` frame (`type="auth", key="<43-char base64url>"`) re-sent on every inbound reconnect
 - Outbound server pushes a `{type:"server_info", unauth_enabled: bool}` frame on connect so the mod knows which session-warning copy to use

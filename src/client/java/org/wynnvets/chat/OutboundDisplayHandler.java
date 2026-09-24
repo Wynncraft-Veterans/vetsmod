@@ -124,6 +124,9 @@ public final class OutboundDisplayHandler {
         // aren't a tier that normally renders outbound chat. Targeting is
         // enforced server-side by mc_uuid match before the frame is
         // pushed, so receiving the frame here implies it's for us.
+        // Today this branch never runs: the server pushes warning frames only to an
+        // authenticated outbound socket, and vetsmod never authenticates that socket
+        // (outbound-socket-never-authenticated).
         if ("warning".equals(Json.stringOrEmpty(json, "type"))) {
             WarningRewriter.render(json);
             return;

@@ -11,11 +11,15 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
 /**
  * Belt-and-braces snapshot refresher for the anni window.
  *
- * <p>The {@code anni_state} server push is the primary delivery channel
- * for snapshot updates. In practice it goes silent for many board edits
- * (own RSVP/role changes, organiser edits propagated to affected players)
- * and recovery requires either a manual {@code /wv anni} or a config
- * toggle. This poller fires an {@link AnniQueryClient#query()} every
+ * <p>The {@code anni_state} server push is meant to be the primary delivery
+ * channel for snapshot updates. Today it never reaches vetsmod: the server sends it
+ * only to an authenticated outbound socket, and vetsmod never authenticates that
+ * socket ({@code outbound-socket-never-authenticated}). That is the likelier reason it
+ * was seen to go silent for board edits. Outside this poller's ticks (and the
+ * {@code /wv debug tree anni} simulation commands) the cache changes only on a pull: the
+ * post-connect re-pull, {@code StampFetcher}'s pull while the cache is empty, and the
+ * refresh after an in-game RSVP. This poller fires an
+ * {@link AnniQueryClient#query()} every
  * {@value #POLL_INTERVAL_SECONDS} seconds while the player is inside the
  * anni window (T-90m → anni). Outside the window the poll is a no-op —
  * users running idle hours before anni don't need a 30 s heartbeat.</p>

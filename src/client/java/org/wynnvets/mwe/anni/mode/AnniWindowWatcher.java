@@ -16,8 +16,14 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * ~5 min outside it, and vetsmod's
  * {@link org.wynnvets.fetcher.polling.AnniSnapshotPoller AnniSnapshotPoller} adds a
  * 30 s query while inside the 90-minute bar window — so at the T+30 m edge the
- * reset lands on whichever push arrives first, typically within ~10 s. The bar
- * window has closed by then; this is the slower safety net.</p>
+ * reset was meant to land on whichever push arrives first, typically within ~10 s. The
+ * bar window has closed by then; this is the slower safety net.</p>
+ *
+ * <p>Today no push arrives: the server sends {@code anni_state} only to an authenticated
+ * outbound socket, and vetsmod never authenticates that socket
+ * ({@code outbound-socket-never-authenticated}). {@code AnniSnapshotPoller} stops once the
+ * announced stamp passes, so the reset waits for the next snapshot pull, in practice the
+ * next inbound (re)connect.</p>
  *
  * <p>Delegates the target selection to
  * {@link AnniModeManager#preferredMode()} rather than hard-coding

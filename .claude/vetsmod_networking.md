@@ -11,8 +11,10 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 [V1ApiManager](../src/client/java/org/wynnvets/api/V1ApiManager.java)
 
 Manages two `WsClient` instances:
-- **Inbound:** `wss://api.wynnvets.org/v1/inbound` — client sends messages
-- **Outbound:** `wss://api.wynnvets.org/v1/outbound` — server pushes to all clients
+- **Inbound:** `wss://api.wynnvets.org/v1/inbound` — client sends messages; the server's replies to them (acks and the typed anni responses) come back on it
+- **Outbound:** `wss://api.wynnvets.org/v1/outbound` — server pushes: relayed chat to every connected client (to an unauthenticated one only while `unauth` is on); `staff_online`/`staff_offline`, `anni_state` and the targeted `warning` frame only to a socket that has sent its own `auth` frame
+
+⚠️ **vetsmod never sends that `auth` frame on the outbound socket.** `connect()` installs the auth-sending `onConnect` on `inboundClient` only, and temporary-server keeps its authenticated session per socket (read at temporary-server `ffd8c17`). So the authenticated-only pushes never arrive, and relayed chat arrives without the server's tier filter while `unauth` is on (and not at all with it off). Filed as `outbound-socket-never-authenticated`. The sections below describe what those pushes are for.
 
 State:
 - `inboundClient`, `outboundClient` (volatile `WsClient`)
@@ -215,12 +217,12 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 
 ### StaffRanksPoller (2 min)
 [StaffRanksPoller.start()](../src/client/java/org/wynnvets/fetcher/polling/StaffRanksPoller.java)
-- **Two** `ConcurrentHashMap<String, String>` caches, both keyed by lowercase name: `staffRanksByUsername` (replaced wholesale each poll) and `liveStaffRanksByUsername`, a push overlay fed by `staff_online` / `staff_offline` outbound frames. `confirmedRankFor` checks the live map first, so a pushed staff member is never evicted by a stale poll snapshot
+- **Two** `ConcurrentHashMap<String, String>` caches, both keyed by lowercase name: `staffRanksByUsername` (replaced wholesale each poll) and `liveStaffRanksByUsername`, a push overlay fed by `staff_online` / `staff_offline` outbound frames. `confirmedRankFor` checks the live map first, so a pushed staff member is never evicted by a stale poll snapshot. **The overlay is empty today**: those frames never reach vetsmod (§1)
 - Runs every 2 minutes, scheduled initially immediate
 - Fetches `VetsApi.STAFF`, replaces entire cache atomically
 - `ALLOWED_RANKS` is strategist/chief/owner only — **captain is rejected**, retired in the 2026-07 permission restructure, and a stray captain is dropped and treated as a non-staff Returner client-side
 - Read by `V1ApiManager`, `EncourageUpdateRewriter`, `StaffChannelMessageRewriter`, `StaffGuildAlertRewriter`, `GuildChatDispatcher` and `ListFetcher` (underline styling); started by `VetsmodClient`. The `**Gap:**` note below already points at two entry points (`applyLiveStaffEvent`, `refreshNow()`) whose caller is `V1ApiManager` — so the omission was visible from inside this section
-- Why polling? No server event stream; cheap + simple
+- Why poll as well as push? The push carries only changes; the poll supplies the full online-staff set at start and resyncs it every 2 min. Today the poll is the only source that works, because the push never reaches vetsmod (§1)
 
 **Gap:** the two entry points behind the behaviour described above are unnamed here — `applyLiveStaffEvent(username, rank, online)`, which writes the overlay from `staff_online`/`staff_offline` frames, and `refreshNow()`, which fires an off-schedule fetch on every successful auth ack to close the cold-start gap. See `StaffRanksPoller`.
 
@@ -283,7 +285,7 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 | Outbound (S6) | `anni_rsvp_response` | temp-server | `AnniRsvpClient.onResponse` | Ack for `anni_rsvp`. `{status: ok|error, detail}`; FIFO queue. |
 | Inbound (S7) | `anni_party_observation` | `V1ApiManager.sendAnniPartyObservation` | temp-server `_handle_anni_party_observation` | Vetsmod reports its local Wynncraft party roster when an organiser username is in the party. **Authenticated only**; observer UUID stamped from session. Names go over the wire (Wynncraft only exposes party members by username); vets-anni resolves via its roster + alias caches. |
 | Outbound (S7) | `anni_party_observation_response` | temp-server | `AnniWsHandler` (debug log only) | Ack for `anni_party_observation`. No client-side single-flight queue — observation is fire-and-forget; debug-logged only. |
-| Outbound | `anni_state` | temp-server `anni_snapshot_poller` | `AnniWsHandler.onOutbound` → `AnniSnapshotCache.update` | Server-initiated snapshot push (per-uuid gated on the eligibility set). |
+| Outbound | `anni_state` | temp-server `anni_snapshot_poller` | `AnniWsHandler.onOutbound` → `AnniSnapshotCache.update` | Server-initiated snapshot push (per-uuid gated on the eligibility set). Sent only to an authenticated outbound socket, so **never received today** (§1). |
 
 Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.network` and time out at 5–8 s. `AnniWsHandler` is the single demux for all types — its `onInbound`/`onOutbound` branches route to the right consumer.
 
