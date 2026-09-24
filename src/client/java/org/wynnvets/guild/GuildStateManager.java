@@ -55,10 +55,12 @@ public class GuildStateManager {
     private static final int GUILD_RECHECK_MAX_ATTEMPTS = 3;
     private static final long GUILD_RECHECK_INTERVAL_MS = 2_000L;
 
-    // Tracks whether the guild MOTD was shown this session.
+    // Set when fetchAndDisplayMotd() starts either MOTD fetch (guild or
+    // standard); blocks onGuildInfoUpdated()'s re-fetch for the session.
     private static volatile boolean guildMotdDisplayedThisSession = false;
 
-    // Tracks whether the annihilation stamp was shown this session.
+    // Set when a stamp fetch starts (whether or not anything is then shown);
+    // consulted only by onGuildInfoUpdated() and onGuildCheckCompleted().
     private static volatile boolean stampDisplayedThisSession = false;
 
     // Whether the player has entered a world at least once since reset.
@@ -425,9 +427,10 @@ public class GuildStateManager {
     }
 
     /**
-     * Process incoming chat messages to detect staff rank-check responses.
+     * Process incoming chat messages to detect staff rank-check responses, capturing the
+     * local player name on the first call that has a player.
      *
-     * @param component The chat message Component (with formatting)
+     * @param component the chat message Component (currently unused)
      * @param message   The plain text chat message
      */
     public static void processMessage(Component component, String message) {
@@ -469,9 +472,11 @@ public class GuildStateManager {
      * player enters a Wynncraft world ({@code WorldStateEvent} with
      * {@code newState == WORLD}).
      *
-     * <p>Replaces the old "Welcome to Wynncraft!" chat-message detection.
-     * Reads guild info straight from {@code Models.Guild}, fetches MOTD and
-     * stamp, and triggers a staff-rank refresh when needed.</p>
+     * <p>Replaces the old "Welcome to Wynncraft!" chat-message detection. Starts
+     * vetsmod's world-join work: the MOTD and (for Returners) the anni stamp, a staff-rank
+     * refresh when due, presence registration, the follow-up guild checks, the
+     * session-auth warning and the default anni mode. The body is the authority on
+     * order.</p>
      */
     public static void onEnteredWorld() {
         enteredWorld = true;
@@ -531,20 +536,27 @@ public class GuildStateManager {
         // Apply the eligibility-based default anni mode (PASSIVE for
         // enrichment-eligible users, SILENT otherwise) if the user hasn't
         // explicitly picked a mode. No-op once VETS_ANNI_MODE_USER_SET is
-        // true. Also re-runs on onGuildInfoUpdated() so a mid-session
-        // eligibility flip (e.g. /unlock waitlist) still promotes the user.
+        // true. onGuildInfoUpdated() re-runs it, so an eligibility flip that
+        // reaches that method (a Wynntils guild join/leave event, or
+        // scheduleGuildRecheck()'s poll) still moves a still-unset user to the
+        // new default. Flips that arrive another way (an auth ack after
+        // /unlock <key>, or the /gu stats check completing) wait for the next
+        // world join (anni-default-not-reapplied-on-auth-tier-flip).
         AnniModeManager.applyStartupDefaultIfNeeded();
     }
 
     /**
-     * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when
-     * a {@code GuildEvent.Joined} or {@code GuildEvent.Left} event fires.
+     * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when a
+     * {@code GuildEvent.Joined} or {@code GuildEvent.Left} event fires, and by
+     * {@link #scheduleGuildRecheck()}'s poll (on its own thread) once Wynntils reports a
+     * guild after world join, where no event fired.
      *
-     * <p>Clears the mod's own guild check result (since the Wynntils event
-     * is authoritative) and re-evaluates guild-dependent state.</p>
+     * <p>Clears the mod's own guild check result on both paths, treating Wynntils' guild
+     * data as authoritative ({@code guild-recheck-poll-clears-gu-stats-cache}), and
+     * re-evaluates guild-dependent state.</p>
      */
     public static void onGuildInfoUpdated() {
-        // Wynntils guild events are authoritative — clear our override
+        // Wynntils' guild data is treated as authoritative — clear our override
         GuildChecker.clearResult();
         VetsLogger.debug(
                 "onGuildInfoUpdated: guild={}, guildless={}, returners={}",
@@ -557,10 +569,10 @@ public class GuildStateManager {
                 fetchAndDisplayStampMessage();
             }
 
-            // If the MOTD was already fetched but guild info wasn't available yet
-            // (race between WorldStateEvent and GuildEvent.Joined), the standard
-            // MOTD was shown instead of the guild MOTD.  Re-fetch now that we know
-            // the player is in Returners.
+            // Only reached if onEnteredWorld's MOTD fetch never ran (e.g. no local
+            // player yet). fetchAndDisplayMotd() sets guildMotdDisplayedThisSession for
+            // the standard MOTD too, deliberately, so a guild confirmation that lands
+            // after world join does not print a second MOTD.
             if (enteredWorld && !guildMotdDisplayedThisSession) {
                 VetsLogger.debug("Guild info now available — re-fetching guild MOTD");
                 fetchAndDisplayMotd();
@@ -570,8 +582,8 @@ public class GuildStateManager {
             sendRegistrationIfReady();
         }
 
-        // Eligibility may have just flipped (a mid-session /unlock waitlist,
-        // or Wynntils' guild scan finally landing after WorldStateEvent);
+        // Eligibility may have just flipped (a guild join or leave, or Wynntils'
+        // guild scan landing after world join, seen by the recheck poll);
         // re-evaluate the default anni mode for still-unset users.
         AnniModeManager.applyStartupDefaultIfNeeded();
     }
@@ -604,9 +616,10 @@ public class GuildStateManager {
                             || (isGuildless() && isWaitlistUnlocked())
                             || isHonouraryUnlocked();
 
-            // Use NewBlock so the motd gets a fresh full [VETSMOD] badge —
-            // it visually separates from the anni-motd block that follows
-            // (rather than the two collapsing into one compact-badged run).
+            // Use NewBlock so the motd gets a fresh full [VETSMOD] badge and stays
+            // visually separate from the anni-motd block rather than collapsing into
+            // one compact-badged run. The two are fetched independently and print in
+            // completion order (world-join-motd-and-anni-motd-print-in-completion-order).
             if (useGuildMotd) {
                 MotdFetcher.fetchGuildMotd()
                         .thenAccept(
@@ -661,8 +674,8 @@ public class GuildStateManager {
                             stampMessage -> {
                                 if (stampMessage != null) {
                                     VetsLogger.debug("Displaying annihilation countdown");
-                                    // NewBlock so the anni-motd gets a fresh full [VETSMOD] badge
-                                    // — visually separates it from the guild motd above.
+                                    // NewBlock so the anni-motd gets a fresh full [VETSMOD] badge,
+                                    // separate from the motd block.
                                     ChatUtils.sendLocalMessageNewBlock(stampMessage);
                                 }
                             });
@@ -909,8 +922,9 @@ public class GuildStateManager {
     }
 
     /**
-     * Reset all transient state. Called on server disconnect so that the next
-     * world join starts fresh.
+     * Reset per-connection state. Called on server disconnect so that the next
+     * world join starts fresh. The cached player name and the Wynntils-ready flag are
+     * kept.
      */
     public static void reset() {
         lastMotdFetchTime = 0;
