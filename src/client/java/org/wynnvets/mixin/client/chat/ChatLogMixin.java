@@ -48,8 +48,9 @@ import org.wynnvets.mwe.anni.mode.StreamerModeChatDetector;
  * staff channel, rank remaps and supporter gradients, spoilers. Messages
  * generated internally by the mod are passed through unmodified.</p>
  *
- * <p>{@code vetsmod_chat_pipeline.md} §"ChatLogMixin — the chokepoint" is the
- * owning statement and enumerates the steps individually.</p>
+ * <p>{@code vetsmod_chat_pipeline.md} §"ChatLogMixin — the single-argument
+ * addMessage hook" is the owning statement and enumerates the steps
+ * individually.</p>
  */
 @Mixin(ChatComponent.class)
 public class ChatLogMixin {

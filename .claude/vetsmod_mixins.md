@@ -14,7 +14,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 [ChatLogMixin](../src/client/java/org/wynnvets/mixin/client/chat/ChatLogMixin.java)
 - **Target:** `@Mixin(ChatComponent.class)`
 - **Method:** `addMessage(Component)` at `@At("HEAD")`, `cancellable=true`
-- **Purpose:** Main chat pipeline hook. Runs streamer-mode observe → log → guild state detect → mod-initiated response suppression → five-rewriter chain. The observe call is **first**, before logging and before the internal-dispatch check; [vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §"ChatLogMixin — the chokepoint" owns the full step list
+- **Purpose:** Main chat pipeline hook. Runs streamer-mode observe → log → guild state detect → mod-initiated response suppression → five-rewriter chain. The observe call is **first**, before logging and before the internal-dispatch check; [vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §"ChatLogMixin — the single-argument addMessage hook" owns the full step list
 - **Why:** Centralizes chat interception; blocks mod-internal dispatch loops (ThreadLocal `INTERNAL_CHAT_DISPATCH`); suppresses `/gu stats`, `/gu rank`, `/v`, `/find` echo feedback; delegates to rewriters
 
 ### AnimatedChatMixin

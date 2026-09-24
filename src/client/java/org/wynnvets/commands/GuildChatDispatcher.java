@@ -198,8 +198,9 @@ public final class GuildChatDispatcher {
     // ── /g — Guild chat ─────────────────────────────────────────────────
 
     /**
-     * Handles {@code /g <message>}. For waitlist users the message is relayed
-     * via WebSocket. For Returners, spoiler markers are encoded before sending.
+     * Handles {@code /g <message>}. Waitlist users, and Returners sitting in a
+     * world queue, are relayed over the WebSocket; otherwise, for Returners,
+     * spoiler markers are encoded before sending.
      *
      * @return {@code true} to cancel the original command
      */
@@ -368,18 +369,27 @@ public final class GuildChatDispatcher {
      * <p>The message is sent with {@code type="queue"}, a distinct protocol
      * type that semantically equals a guild message but skips the
      * in-game-guild suppression every client applies to {@code "guild"}
-     * outbound echoes.  This lets <em>all</em> vetsmod clients — including
-     * older ones that predate queue awareness — render queue-originated
-     * messages in chat.</p>
+     * outbound echoes, so other vetsmod clients — including older ones that
+     * predate queue awareness — can render queue-originated messages
+     * wherever they render relayed guild chat at all (see
+     * {@link OutboundDisplayHandler}'s display gates). Per v1_protocol.md
+     * §2.4 an authenticated waitlist or honourary socket would get no queue
+     * frames; today, because vetsmod never authenticates its outbound socket
+     * ({@code outbound-socket-never-authenticated}), that gate does not
+     * apply, and a waitlist or honourary viewer does receive and render
+     * them too.</p>
      *
      * <p>Receivers:</p>
      * <ul>
      *   <li>Discord bridge: the server maps {@code queue} to the
      *       {@code [Guild]} prefix — indistinguishable from a normal guild
      *       message on the Discord side.</li>
-     *   <li>All other vetsmod clients (any version): the {@code "queue"}
-     *       type falls through the Returners {@code guild}-suppression gate,
-     *       so the message renders as ordinary guild chat.</li>
+     *   <li>Other vetsmod clients, wherever they render relayed guild chat at
+     *       all: the {@code "queue"} type falls through the Returners
+     *       {@code guild}-suppression gate and renders like any other
+     *       relayed guild line — with honourary styling for an
+     *       honourary-unlocked viewer, or a staff ALERT box for a leading
+     *       ‼ line.</li>
      * </ul>
      */
     private static void relayQueuedReturnersChat(String message) {

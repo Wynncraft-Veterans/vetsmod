@@ -210,12 +210,12 @@ public class ChatLogger {
     }
 
     /**
-     * Truncate message content at the first Wynncraft custom-glyph character.
-     * The game uses codepoints from Planes 12-13 (U+C0000-U+DFFFF, guild prefix
-     * marks, rank badges) and the Supplementary Private Use Areas in Planes 15-16
-     * (U+F0000-U+10FFFD).  These mark the start of the next guild message's rank
-     * indicator when multiple chat messages have been concatenated into a single
-     * buffer dump.
+     * Truncate message content at the first codepoint in U+C0000–U+10FFFD
+     * (Planes 12-16, Plane 14 included). The game uses codepoints from Planes
+     * 12-13 (guild prefix marks, rank badges) and the Supplementary Private Use
+     * Areas in Planes 15-16; these mark the start of the next guild message's
+     * rank indicator when multiple chat messages have been concatenated into a
+     * single buffer dump. BMP PUA glyphs do not truncate.
      */
     private static String stripConcatenatedContent(String message) {
         for (int i = 0; i < message.length(); ) {

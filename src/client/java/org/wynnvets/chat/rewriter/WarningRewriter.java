@@ -16,11 +16,12 @@ import org.wynnvets.util.Json;
  * does not authenticate that socket ({@code outbound-socket-never-authenticated}).
  *
  * <p>Visually styled distinctly from regular guild chat so the player
- * can't miss it: gold/yellow palette with a "WARNING" / "EJECTED"
- * banner, the actor's name, the formal message body, and the running
- * caution-point total. The Discord DM that fires in parallel from
- * dazebot ({@code lib.staff_actions._deliver_dm}) carries the same
- * text, so a player who is offline still gets the information.</p>
+ * can't miss it: a "⚠ WARNING ⚠" banner (gold, red for an eject, which
+ * reuses the warning format), the formal message body, the actor's
+ * name and, when sent, the running caution-point total. The Discord DM
+ * that fires in parallel from dazebot
+ * ({@code lib.staff.staff_actions._deliver_dm}) carries the same text,
+ * so a player who is offline still gets the information.</p>
  *
  * <p>The frame's {@code target_uuid} is filtered server-side -- by the
  * time it reaches this rewriter, the receiving session is already

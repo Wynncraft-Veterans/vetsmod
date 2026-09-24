@@ -52,9 +52,9 @@ public final class WynntilsEventListener {
 
     private static final int MAX_SENT_FINGERPRINTS = 100;
 
-    /** Max characters of message text used for dedup fingerprints.
-     *  Wynntils line-wrapping can alter trailing chars; truncating
-     *  prevents wrapped variants from escaping dedup. */
+    /** Max characters of message text used for dedup fingerprints. Two copies
+     *  of a long line that differ only past this length (for example after
+     *  soft-wrap handling) still collide. */
     private static final int DEDUP_FINGERPRINT_MAX_CHARS = 200;
 
     private static final Deque<SentFingerprint> recentSentFingerprints = new ArrayDeque<>();
@@ -66,8 +66,14 @@ public final class WynntilsEventListener {
     private WynntilsEventListener() {}
 
     /**
-     * Registers this listener with the Wynntils event bus.
-     * Should be called once during client initialization.
+     * Registers this listener, {@link LegacyTooltipEventListener} and
+     * {@link LegacyHighlightEventListener} with the Wynntils event bus, then
+     * marks Wynntils ready ({@link GuildStateManager#setWynntilsReady()
+     * GuildStateManager.setWynntilsReady()}). Call it once, from
+     * {@link org.wynnvets.VetsmodClient#onInitializeClient() VetsmodClient}'s
+     * {@code CLIENT_STARTED} callback, not from the initializer body:
+     * {@code WynntilsMod.registerEventListener} needs the event bus that
+     * Wynntils' own init creates.
      */
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
@@ -237,8 +243,9 @@ public final class WynntilsEventListener {
         }
 
         // Repair URLs broken by Wynncraft line-wrapping (spaces injected at
-        // wrap points within a URL).  Must happen before sending to the server
-        // so that Discord receives intact clickable links.
+        // wrap points within a URL). temporary-server's sanitize_inbound repeats
+        // the same repair as a safety net for older clients, so this pass is not
+        // the only one that keeps Discord links clickable.
         String repairedMessage = repairWrappedUrls(messageContent);
 
         VetsLogger.debug(

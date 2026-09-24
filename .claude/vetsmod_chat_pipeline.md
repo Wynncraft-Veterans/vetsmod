@@ -16,7 +16,7 @@ The vetsmod chat system is a multi-stage pipeline that intercepts each chat mess
 
 **Remote push (WebSocket → client):** `V1ApiManager` outbound listener → `OutboundDisplayHandler.onOutboundMessage()` → display gates, UUID dedup, self suppression, Returners' own `guild` frames dropped outside a queue → `ChatUtils.sendHonouraryChatMessage()` when this client is honourary-unlocked, else `ChatUtils.sendGuildChatMessage()`. A `warning` frame branches off to `WarningRewriter` before the gates (none arrives today: bug `outbound-socket-never-authenticated`), and a staff `‼` alert to `StaffGuildAlertRewriter` after them; `bridge` frames are only recorded here, for `WynntilsEventListener`'s echo check. Full order in §5.
 
-## 2. ChatLogMixin — the chokepoint
+## 2. ChatLogMixin — the single-argument addMessage hook
 
 [ChatLogMixin](../src/client/java/org/wynnvets/mixin/client/chat/ChatLogMixin.java)
 
@@ -253,6 +253,6 @@ Rank-letter glyphs aren't `chat/prefix`: vetsmod's own pills render in the defau
 
 ## 14. Feature gates
 
-- `PRINT_BRIDGE_MESSAGES` — enable bridge message display (default true)
+- `PRINT_BRIDGE_MESSAGES` — display of all WebSocket-relayed chat, not only bridge; server-pushed `warning` frames bypass it (default true)
 - `SHOW_SUPPORTER_GLINTS` — enable animated gradient pill (default true)
 - `HANDLE_SPOILERS` — tri-state: null=default(on)/true/false

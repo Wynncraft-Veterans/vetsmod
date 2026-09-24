@@ -212,7 +212,7 @@ nothing to collapse.
 - **Line wrapping:** truncation match (≥20 chars)
 - **Pure-PUA item shares:** the raw-message fallback in `_fingerprint`
 - **Profanity censoring:** NOT handled (would require fuzzy matching) — each censored variant is distinct
-- **URLs with spaces:** NOT handled at server level — vetsmod client repairs these before relay
+- **URLs with spaces:** the vetsmod client repairs these before relay; since 2026-07, `sanitize_inbound` repeats the same repair server-side too, so this is no longer client-only
 
 ## Edge cases NOT handled (by design)
 

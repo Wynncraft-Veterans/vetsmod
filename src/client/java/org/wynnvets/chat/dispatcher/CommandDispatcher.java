@@ -370,8 +370,8 @@ public final class CommandDispatcher {
         }
     }
 
-    // ──────────────────────────── Helpers (package-private for dispatchers)
-    // ────────────────────────────
+    // ──────────────────────────── Helpers (some package-private, for the
+    // dispatchers) ────────────────────────────
 
     static void showNoRecipientsWarning() {
         ChatUtils.sendLocalMessage(
@@ -427,7 +427,9 @@ public final class CommandDispatcher {
     }
 
     /**
-     * Fetches staff usernames from the API, filtering to only those marked as online.
+     * Fetches staff usernames from the API, dropping entries marked offline (by an
+     * {@code online}, {@code isOnline} or {@code status} field); an entry with none
+     * of those fields is kept.
      */
     static List<String> fetchOnlineStaffUsernames() throws Exception {
         HttpResponse<String> response =

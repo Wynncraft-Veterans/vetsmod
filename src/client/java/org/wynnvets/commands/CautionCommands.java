@@ -208,11 +208,11 @@ public final class CautionCommands {
      */
     public static void runCheckCautions(String username) {
         if (username == null || username.isBlank()) return;
-        // Silent gate: this method is also called as an addendum to the
-        // legacy /wv check (which has its own client-side staff gate),
-        // so we don't want to print a second "you must be staff" line
-        // for users who passed the legacy gate but haven't WS-auth'd as
-        // staff yet. We just skip the augmented readout entirely.
+        // Silent gate: both /wv check entry points (CommandRegistry.check and
+        // GuildChatDispatcher's chat path) already refuse non-confirmed staff
+        // with their own message before calling this, using the same
+        // isConfirmedStaff() flag, so this re-check is defensive and
+        // deliberately prints nothing.
         if (!GuildStateManager.isConfirmedStaff()) return;
 
         JsonObject fields = new JsonObject();
@@ -433,8 +433,7 @@ public final class CautionCommands {
                                             .withStyle(ChatFormatting.AQUA));
             if (!created.isEmpty()) {
                 // Server already sends ISO-8601; show the date prefix only to
-                // keep the line compact. Full timestamp is on hover (server
-                // returns it as the created_at field).
+                // keep the line compact.
                 String shortDate = created.length() >= 10 ? created.substring(0, 10) : created;
                 row.append(Component.literal(" " + shortDate).withStyle(ChatFormatting.DARK_GRAY));
             }

@@ -185,8 +185,10 @@ public final class ServerGuildChatRewriter {
      * fool; the codec covers ranks the table has never seen, which is what
      * keeps a future Wynncraft rank from silently losing its rewrite.
      * Anything the codec returns still passes through
-     * {@link RankDisplayMap}, so an unrecognised rank maps to itself and
-     * ends up rendering exactly as the server sent it.</p>
+     * {@link RankDisplayMap}, so an unrecognised rank maps to itself: the line
+     * is left as the server sent it, unless the sender is a supporter and this
+     * client shows glints, in which case the supporter path restyles the
+     * original pill.</p>
      */
     private static String decodeRawRank(String rankIndicator) {
         for (Map.Entry<String, String> entry : ChatLogger.rankMap().entrySet()) {

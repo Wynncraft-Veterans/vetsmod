@@ -17,8 +17,11 @@ import org.wynnvets.logging.VetsLogger;
  * </ul>
  *
  * <p>For ASCII spoiler content (the common case), each character maps to exactly
- * one PUA char, and the delimiters add only 2 chars (vs 4 for {@code ||...||}),
- * so the encoded form is always at least as compact as the original.</p>
+ * one PUA char and the two delimiters stand in for the four {@code |}.
+ * {@link #encodeSpoilers} also adds the visible {@link #WRAPPER_PREFIX}/
+ * {@link #WRAPPER_SUFFIX} framing, so a message containing a spoiler comes out
+ * longer than it went in, and a caller enforcing a length limit must check the
+ * encoded form.</p>
  */
 public final class SpoilerCodec {
 

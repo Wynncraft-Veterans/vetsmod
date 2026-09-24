@@ -36,9 +36,10 @@ public final class DiscordTimestamps {
     private static final Pattern TIMESTAMP = Pattern.compile("<t:(\\d{1,12})(?::([tTdDfFR]))?>");
 
     /**
-     * 2100-01-01. Anything past it is an authoring slip rather than a date —
-     * a millisecond epoch pasted where seconds were wanted is the usual one,
-     * and rendering it as the year 318857 is worse than showing the markup.
+     * 2100-01-01. An epoch past it is treated as an authoring slip and the
+     * markup is shown raw. (A present-day millisecond epoch never reaches
+     * this check: at 13 digits it fails {@link #TIMESTAMP}'s 12-digit cap
+     * and stays unexpanded text.)
      */
     private static final long MAX_EPOCH_SECONDS = 4102444800L;
 

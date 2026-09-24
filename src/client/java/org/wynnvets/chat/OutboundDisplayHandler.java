@@ -72,8 +72,10 @@ public final class OutboundDisplayHandler {
     private OutboundDisplayHandler() {}
 
     /**
-     * Registers the outbound listener with the V1ApiManager.
-     * Should be called once during initialization, after V1ApiManager.connect().
+     * Registers the outbound listener with the V1ApiManager; a call while already
+     * registered is a no-op. Called at client init and again on every server join
+     * (the disconnect handler unregisters it), each time after
+     * {@link V1ApiManager#connect() V1ApiManager.connect()}.
      */
     public static void register() {
         if (registeredListener != null) {
@@ -155,8 +157,8 @@ public final class OutboundDisplayHandler {
         }
 
         // UUID dedup: skip messages already processed within the TTL window.
-        // Guards against duplicate delivery from dual WebSocket connections or
-        // network-level frame duplication.
+        // Guards against the same frame arriving twice, e.g. over two
+        // overlapping outbound sockets during a reconnect.
         String uuid = Json.stringOrEmpty(json, "uuid");
         if (!uuid.isEmpty() && isDuplicateUuid(uuid)) {
             VetsLogger.debug("onOutboundMessage: duplicate UUID suppressed [{}]", uuid);
@@ -167,8 +169,10 @@ public final class OutboundDisplayHandler {
         String rawRank = Json.stringOrEmpty(json, "rank");
         // ``pill_display`` is the 2026-07 additive field carrying the
         // client-facing label ("Steward"/"Returner"). Prefer it when the
-        // server sent it; otherwise remap the raw rank locally so pre-
-        // 2026-07 servers still get the display rewrite for new clients.
+        // server sent it; otherwise remap the raw rank locally.
+        // v1_protocol.md §2.3 documents it on bridge frames only, so every
+        // relayed non-bridge frame takes the local remap too, as does every
+        // frame from a pre-2026-07 server.
         String pillDisplay = Json.stringOrEmpty(json, "pill_display");
         String rank;
         if (!pillDisplay.isEmpty()) {
@@ -191,10 +195,11 @@ public final class OutboundDisplayHandler {
         }
 
         // Returners members already receive guild chat from the Wynncraft
-        // server with proper pill rendering, nicknames, and supporter
-        // gradients — normally we suppress outbound guild echoes to avoid
-        // double-display.  While queued, however, the game-server channel
-        // is silent, so we must render WS-delivered guild chat ourselves.
+        // server, with its own pills and nicknames (which
+        // ServerGuildChatRewriter may restyle on that path) — normally we
+        // suppress outbound guild echoes to avoid double-display.  While
+        // queued, however, the game-server channel is silent, so we must
+        // render WS-delivered guild chat ourselves.
         if (GuildStateManager.isReturners()
                 && "guild".equals(type)
                 && !QueueStateManager.isInQueue()) {

@@ -78,6 +78,7 @@ Also: `GUILD_UUID = "a36bd64c-c053-4727-872d-b0d0729f474a"` (Returners).
 
 [WynnCraftApi](../src/client/java/org/wynnvets/api/WynnCraftApi.java):
 - `playerInfo(UUID)` → `https://api.wynncraft.com/v3/player/{uuid}`
+- `playerInfo(String nameOrUuid)` → the same endpoint by name (used by `PlayerLookup`'s Wynncraft provider)
 - `guildInfo(String name)` → `https://api.wynncraft.com/v3/guild/{url-encoded}`
 
 [MojangApi](../src/client/java/org/wynnvets/api/MojangApi.java):

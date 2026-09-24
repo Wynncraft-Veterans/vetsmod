@@ -257,7 +257,9 @@ public class VetsConfig {
         "subtle", "normal", "strong",
     };
 
-    /** Whether bridge (guild chat relay) messages are displayed in chat. */
+    /** Whether WebSocket-relayed chat is displayed: bridge messages and every other relayed
+     *  chat type {@link org.wynnvets.chat.OutboundDisplayHandler OutboundDisplayHandler}
+     *  renders. Server-pushed {@code warning} frames bypass it. */
     public static final String PRINT_BRIDGE_MESSAGES = "printBridgeMessages";
 
     /** Whether supporter animated gradient glints are shown on nametags and pills. */
