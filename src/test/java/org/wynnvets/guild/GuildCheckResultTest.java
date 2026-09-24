@@ -24,7 +24,8 @@ import org.wynnvets.guild.GuildChecker.GuildCheckResult;
  * methods reach {@code VetsConfig}, and {@code completeCheck} spawns a thread
  * and calls {@code GuildStateManager}, which loads Wynntils. The enum has no
  * such dependency: initializing a nested type does not initialize its
- * enclosing class, and the enum's own static state is four longs. If a future
+ * enclosing class, and the enum's own static state is its four constants, each
+ * carrying a {@code long}. If a future
  * contributor gives {@code GuildCheckResult} a static initializer that loads
  * MC/Wynntils, this test starts failing at class-init time — the fix is to
  * move the mapping into its own pure type.</p>
