@@ -757,8 +757,15 @@ public class GuildStateManager {
     /**
      * Schedules a delayed guild info re-check.  Wynntils' compass scan runs
      * asynchronously after world join, so guild info may not be populated yet.
-     * This method polls {@code Models.Guild} after an initial delay and retries
-     * a few times if the guild name is still empty.
+     *
+     * <p>Sleeps {@link #GUILD_RECHECK_DELAY_MS} on its own thread, then polls
+     * {@code Models.Guild} up to {@link #GUILD_RECHECK_MAX_ATTEMPTS} times,
+     * {@link #GUILD_RECHECK_INTERVAL_MS} apart, reading it off the client thread. The first
+     * time it reports a guild, it calls {@link #onGuildInfoUpdated()} from that same thread,
+     * which also clears {@link GuildChecker}'s cached result
+     * ({@code guild-recheck-poll-clears-gu-stats-cache}). Gives up if {@link #reset()} (a
+     * disconnect) has cleared the world-entered flag by the time it polls; a new world
+     * entry sets the flag again, so an in-flight poll can survive a quick reconnect.</p>
      */
     private static void scheduleGuildRecheck() {
         new Thread(
