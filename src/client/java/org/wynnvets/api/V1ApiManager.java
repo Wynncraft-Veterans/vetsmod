@@ -39,17 +39,23 @@ public final class V1ApiManager {
     private static volatile WsClient outboundClient;
     private static volatile JsonObject pendingRegistration;
 
-    /** Tracks whether the *next* inbound ack frame should be routed to
-     *  {@link GuildStateManager} as an auth response. Set whenever we send
-     *  an auth frame; cleared on the corresponding ack. Without this we
-     *  can't tell apart a chat-frame ack from an auth-frame ack — both
-     *  arrive as `{"status": "ok"}` from the server. */
+    /** Whether an auth frame is still awaiting its ack. Set whenever we send
+     *  one; cleared when an ack is read as the auth reply. Auth-success acks are
+     *  recognised by their {@code tier} key alone, so this flag matters only for
+     *  error acks: an error that arrives while it is set is treated as an auth
+     *  failure and is kept out of {@link #staffActionCallbacks} (an error whose detail
+     *  starts with an auth-failure prefix counts as one whatever the flag says). Neither
+     *  {@link #disconnect()} nor a socket drop resets it. */
     private static volatile boolean expectingAuthAck = false;
 
     /** Server-confirmed staff status from the most recent successful auth.
-     *  Cleared on disconnect. The value is "modern verification token +
-     *  WAPI-confirmed staff" -- not the local /gu rank cache. Used to gate
-     *  /caution, /warn, /eject, and /wv check (caution view). */
+     *  Rewritten by every ok auth ack; cleared by an auth failure and by
+     *  {@link #disconnect()}. The value is "modern verification token +
+     *  WAPI-confirmed staff" -- not the local /gu rank cache. Read through
+     *  {@link #isConfirmedStaff()} (directly, or via
+     *  {@link GuildStateManager#isConfirmedStaff()}) by the staff-only commands and by
+     *  the staff-chat eligibility gate in
+     *  {@link org.wynnvets.chat.dispatcher.CommandDispatcher CommandDispatcher}. */
     private static volatile boolean confirmedStaff = false;
 
     /** In-game guild rank from the staff roster ("strategist"/"chief"/
@@ -129,10 +135,12 @@ public final class V1ApiManager {
                                 return;
                             }
 
-                            // Acknowledgements from the server. Auth-frame responses share
-                            // the {"status":...} shape with chat acks; we route them based on
-                            // whether an auth was the most recent frame we sent (and on the
-                            // tier/ws_tier hint that auth-success responses include).
+                            // Acknowledgements from the server. Auth-success acks are
+                            // recognised by the `tier` key, which only they carry. An error ack
+                            // that the staff-action queue below does not claim counts as an
+                            // auth failure when an auth frame is awaiting its ack
+                            // (expectingAuthAck) or its detail starts with an auth-failure
+                            // prefix.
                             if (!json.has("status")) return;
                             String status = json.get("status").getAsString();
                             boolean wasAuthAck = expectingAuthAck;
@@ -147,9 +155,10 @@ public final class V1ApiManager {
                             // strand the caller's UI in "loading" forever on a
                             // server-side validation failure.
                             //
-                            // Auth responses are explicitly excluded by the `tier` key
-                            // (only auth acks carry it) so a future `total_points`
-                            // collision can't misroute auth into the staff queue.
+                            // Auth-success responses are explicitly excluded by the `tier` key
+                            // (only they carry it) so a future `total_points` collision can't
+                            // misroute auth into the staff queue; auth errors are kept out by
+                            // the expectingAuthAck test in staffOrphanError.
                             boolean isAuthShaped = json.has("tier");
                             boolean staffShaped =
                                     !isAuthShaped
@@ -180,8 +189,9 @@ public final class V1ApiManager {
                                 return;
                             }
 
-                            // Auth success responses carry a `tier` key — chat acks don't.
-                            // This double-check protects against ack reordering on lossy nets.
+                            // Auth success responses carry a `tier` key -- chat and control acks
+                            // don't -- so success is recognised by that key alone, whatever
+                            // expectingAuthAck says.
                             if ("ok".equals(status) && json.has("tier")) {
                                 expectingAuthAck = false;
                                 String tier =
@@ -397,7 +407,9 @@ public final class V1ApiManager {
      *
      * <p>The server validates the key against dazebot, stores the resolved
      * identity/tier on the WebSocket connection, and replies with either
-     * {@code {"status":"ok","tier":"...","ws_tier":"..."}} or
+     * {@code {"status":"ok","tier":"...","ws_tier":"...",...}} (the full success
+     * shape, including the {@code is_staff} and {@code staff_rank} this class reads, is in
+     * {@code vetsmod_networking.md} §1) or
      * {@code {"status":"error","detail":"auth rejected: ..."}}. The reply
      * is routed to {@link GuildStateManager#onAuthSuccess(String)} /
      * {@link GuildStateManager#onAuthFailure(String)} by the inbound

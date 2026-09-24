@@ -266,8 +266,9 @@ final class UnlockManager {
         GuildStateManager.sendRegistrationIfReady();
     }
 
-    /** Called when the server returns
-     *  {@code {"status":"error", "detail":"auth rejected: <reason>"}}. */
+    /** Called (through {@link GuildStateManager#onAuthFailure(String)}) when an error ack
+     *  answers our auth frame, or carries an "auth rejected" / "Authentication required"
+     *  detail; typically {@code {"status":"error", "detail":"auth rejected: <reason>"}}. */
     static void onAuthFailure(String detail) {
         currentTier = "";
         authVerifiedThisSession = false;

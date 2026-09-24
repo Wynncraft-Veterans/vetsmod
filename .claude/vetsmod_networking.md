@@ -25,7 +25,7 @@ Key methods:
 - `connect()` — initialize both; inbound gets reconnect callback that re-sends BOTH the cached `register` frame AND a fresh `auth` frame (using `vetsAuthKey` from `VetsConfig`)
 - `disconnect()` — close both cleanly
 - `sendRegistration(uuid, username, tier)` — sends `{type:"register", uuid, username, tier}`; cached for auto-retry
-- `sendAuth(key)` — sends `{type:"auth", key}`; sets `expectingAuthAck = true` so the inbound message handler routes the next ack to `GuildStateManager.onAuthSuccess`/`onAuthFailure`
+- `sendAuth(key)` — sends `{type:"auth", key}` and sets `expectingAuthAck`. An `ok` ack carrying `tier` reaches `GuildStateManager.onAuthSuccess` whether or not the flag is set; while it is set, a non-`ok` ack goes to `onAuthFailure` instead of a pending staff-action callback or the warning log (see `V1ApiManager.connect`)
 - `sendInbound(type, rank, username, message)` — `type` is one of `guild`/`queue`/`waitlist`/`honourary`. `queue` is the one `GuildChatDispatcher` uses while the player is in a world queue and the game server is dropping `/g`
 - `sendTabList(entries)` — sends `{type:"tablist", entries:[{server, username},...]}`
 - `addOutboundListener(listener)` — register consumer (note: `server_info` frames are intercepted before listeners and routed straight to `SessionAuthWarning.onServerInfo()`)

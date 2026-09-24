@@ -75,8 +75,9 @@ public class GuildStateManager {
      * of some guild.
      *
      * <p>Two sources, in order: first the server-confirmed rank from the
-     * vetsmod WS auth ack ({@link #confirmedStaffRank()}, stable for the
-     * whole session), then Wynntils' live {@code Models.Guild.getGuildRank()}
+     * vetsmod WS auth ack ({@link #confirmedStaffRank()}, which survives world joins:
+     * each auth ack rewrites it, and an auth failure or leaving the server clears it),
+     * then Wynntils' live {@code Models.Guild.getGuildRank()}
      * as the fallback for any chief the auth ack has not confirmed &mdash; a
      * chief of another guild, say, or a Returners chief without a confirming
      * auth ack.
@@ -320,8 +321,9 @@ public class GuildStateManager {
      * because those commands dispatch real {@code /gu kick} / {@code /gu
      * rank} commands on success.
      *
-     * @return true iff the current session is authenticated AND the
-     *         server reported {@code is_staff=true} on the auth ack
+     * @return true when the most recent ok auth ack reported {@code is_staff=true};
+     *         an auth failure or leaving the server clears it (a newly stored
+     *         {@code /unlock} key does not, until its own ack arrives)
      */
     public static boolean isConfirmedStaff() {
         return V1ApiManager.isConfirmedStaff();
@@ -678,13 +680,16 @@ public class GuildStateManager {
         UnlockManager.onAuthSuccess(tier);
     }
 
-    /** Called by {@link V1ApiManager} when the server rejects our auth frame. */
+    /** Called by {@link V1ApiManager} when an inbound error ack is classed as an auth
+     *  failure: a rejected {@code auth} frame, or the server refusing another frame
+     *  because the session is unauthenticated. V1ApiManager's inbound handler has the
+     *  exact test. */
     public static void onAuthFailure(String detail) {
         UnlockManager.onAuthFailure(detail);
     }
 
-    /** @return {@code true} once an auth frame has been server-confirmed
-     *  during the current session. */
+    /** @return {@code true} from an ok auth ack until an auth failure, a newly stored
+     *  {@code /unlock} key or a disconnect clears it. */
     public static boolean isAuthenticatedThisSession() {
         return UnlockManager.isAuthenticatedThisSession();
     }
@@ -700,15 +705,18 @@ public class GuildStateManager {
         return UnlockManager.legacyWaitlistMarker() || UnlockManager.legacyHonouraryMarker();
     }
 
-    /** @return the tier string from the most recent successful auth this
-     *  session (e.g. {@code "member"}, {@code "waitlist"}, {@code "honourary"},
-     *  {@code "other"}), or empty string if not yet authenticated. */
+    /** @return the tier from the latest ok auth ack (e.g. {@code "member"},
+     *  {@code "waitlist"}, {@code "honourary"}, {@code "other"}), or empty string when
+     *  none is standing: not yet authenticated, or cleared by an auth failure or a newly
+     *  stored {@code /unlock} key. */
     public static String currentAuthTier() {
         return UnlockManager.currentTier();
     }
 
-    /** @return the most recent auth-frame failure reason from the server,
-     *  or empty string if there hasn't been one this session. */
+    /** @return the standing auth-failure reason from the server, or empty string when
+     *  none is standing (a later successful auth or a newly stored {@code /unlock} key
+     *  clears it). It can also be an "Authentication required" refusal of a non-auth
+     *  frame. */
     public static String lastAuthFailureReason() {
         return UnlockManager.lastAuthFailureReason();
     }
