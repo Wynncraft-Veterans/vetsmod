@@ -62,7 +62,8 @@ public final class OutboundDisplayHandler {
     private static Consumer<JsonObject> registeredListener;
 
     // UUID-based dedup: prevents duplicate display when the same outbound
-    // message is delivered more than once (e.g. dual WebSocket connections).
+    // message is delivered more than once, e.g. over two overlapping outbound
+    // sockets during a reconnect.
     private static final int MAX_RECENT_UUIDS = 200;
     private static final long UUID_TTL_MS = TimeUnit.SECONDS.toMillis(10);
     private static final LinkedHashMap<String, Long> recentUuids =

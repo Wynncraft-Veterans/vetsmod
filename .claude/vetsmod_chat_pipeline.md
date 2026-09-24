@@ -57,7 +57,7 @@ Triggers on a `‼` (U+203C) prefix from a sender `StaffRanksPoller.confirmedRan
 ### StaffChannelMessageRewriter
 [StaffChannelMessageRewriter](../src/client/java/org/wynnvets/chat/rewriter/StaffChannelMessageRewriter.java)
 
-Triggers on `🔐` lock prefix in private messages (the `/v` fanout discriminator).
+Triggers on `🔐` lock prefix in private messages (the `/v` fan-out marker).
 Extracts sender from: click event (`/msg <name>`), hover text (via `NickResolver.flattenComponent` + `realUsernameFromHover`), or username regex at end. Displays via `ChatUtils.sendStaffChannelMessage()`.
 
 ### ServerGuildChatRewriter

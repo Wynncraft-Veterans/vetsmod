@@ -29,7 +29,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 - **Target:** `@Mixin(ClientPacketListener.class)`
 - **Method:** `sendCommand(String command)` at `@At("HEAD")`, `cancellable=true`
 - **Purpose:** Routes `/g`, `/wg`, `/v` and nine more prefixes through `GuildChatDispatcher.intercept(command)` — **not exhaustive**, see `GuildChatDispatcher.intercept`, which matches 12. `/msg` is not one of them
-- **Why:** Staff `/v` gets fanned out to all online staff via `MessageFanoutDispatcher`; Wynncraft natively has no multi-staff chat
+- **Why:** Staff `/v` gets fanned out to every other staff member in the WV online staff feed via `MessageFanoutDispatcher`; Wynncraft natively has no multi-staff chat
 
 ## Command (1)
 

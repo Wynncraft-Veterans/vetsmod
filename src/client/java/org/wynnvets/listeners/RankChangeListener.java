@@ -42,10 +42,11 @@ import org.wynnvets.logging.VetsLogger;
  * {@code Captain → Strategist}) are not handled — no guidance from product
  * on what they should do. They are dropped client-side.</p>
  *
- * <p>Client-side dedup over a 30s window prevents the same Wynntils chat
- * event firing twice (e.g. via {@code .Match} and {@code .Edit}) from
- * generating duplicate WS frames. Server-side dedup at temporary-server
- * is the authoritative cross-client deduplicator.</p>
+ * <p>Client-side dedup drops a rank change (same actor, target and ranks) matching
+ * one of the last {@code MAX_DEDUP_ENTRIES} this listener passed to
+ * {@link V1ApiManager#sendRankChange} within 30s, whatever brought the repeat.
+ * Server-side dedup at temporary-server is the authoritative cross-client
+ * deduplicator.</p>
  */
 public final class RankChangeListener {
 
