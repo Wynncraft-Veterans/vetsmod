@@ -26,15 +26,19 @@ import org.wynnvets.rendering.colors.AnimatedGradientSequence;
  * Centralized utility for sending formatted chat messages to the local player.
  * Heavily inspired by pixlze's guild-api
  *
- * <p>All mod-initiated chat output should go through this class so that messages
- * are consistently formatted: {@code <badge> <pill> <username>: <message>}.</p>
+ * <p>All mod-initiated chat output should go through this class. Its send methods
+ * prefix a {@link Prepend} badge; the guild-style ones produce
+ * {@code <badge> <pill> <username>: <message>}.</p>
  */
 public final class ChatUtils {
 
     private static final ThreadLocal<Boolean> INTERNAL_CHAT_DISPATCH =
             ThreadLocal.withInitial(() -> false);
 
-    /** Style used for rank "pill" text. */
+    /**
+     * Style used for the rank pill, separator and message body of guild chat (the
+     * counterpart of {@link #HONOURARY_RANK_STYLE}).
+     */
     public static final Style RANK_STYLE = Style.EMPTY.withColor(ChatFormatting.AQUA);
 
     /** Style used for the display-name portion of guild chat. */
@@ -55,10 +59,10 @@ public final class ChatUtils {
     public static final Style HONOURARY_NAME_STYLE =
             Style.EMPTY.withColor(TextColor.fromRgb(0x56FFFF));
 
-    /** Red style used for admin-locked guild message body text. */
+    /** Red style for the {@code /v} staff-channel pill frame, separator and message body. */
     public static final Style ADMIN_RANK_STYLE = Style.EMPTY.withColor(ChatFormatting.RED);
 
-    /** Dark-red style used for admin-locked guild message display names. */
+    /** Dark-red style for {@code /v} staff-channel display names. */
     public static final Style ADMIN_NAME_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_RED);
 
     private static final String GUILD_PREPEND_FULL =
@@ -115,8 +119,8 @@ public final class ChatUtils {
     /**
      * Same as {@link #sendLocalMessage(Component)} but marks this as the
      * start of a new render block first ({@link Prepend#resetDedup()}).
-     * The next badge dedup hit re-extends to the full banner, giving
-     * staff a visual divider between back-to-back command outputs.
+     * The next badge dedup hit re-extends to the full banner, giving the player a visual
+     * divider between back-to-back command outputs.
      * Use for the *first* line of any new command response; subsequent
      * lines in the same block should keep using plain
      * {@link #sendLocalMessage(Component)} so they demote to the compact
@@ -183,7 +187,9 @@ public final class ChatUtils {
 
     /**
      * Sends an honourary-chat–style message:
-     * {@code &9<guild badge> &3<rank> &b<displayName>&3: <message>}.
+     * {@code &9<guild badge> &3<rank> <displayName>&3: <message>}, with the name in
+     * {@link #HONOURARY_NAME_STYLE}: a near-{@code &b} that deliberately is not {@code &b}
+     * (see that field).
      *
      * <p>Used for outgoing {@code /wg} echoes and, while this client is
      * honourary-unlocked, for the relayed chat lines
@@ -232,8 +238,8 @@ public final class ChatUtils {
     }
 
     /**
-     * Sends a guild-chat–style message in admin-locked red styling with a custom
-     * pre-styled rank pill component.
+     * Sends a guild-chat–style message in the red {@code /v} staff-channel styling with a
+     * custom pre-styled rank pill component.
      */
     public static void sendGuildChatMessageRed(
             Component rankComponent, String displayName, String message) {
@@ -289,9 +295,9 @@ public final class ChatUtils {
     }
 
     /**
-     * Sends a staff-channel styled message using the same visuals as /v self echo.
-     * Defaults to Strategist when rank is unknown (Captain was retired
-     * in the 2026-07 permission restructure).
+     * Renders a /v staff-channel line; both the sender's own echo and received /v lines
+     * come through here. With no known staff rank the pill reads {@code "staff"}, the
+     * Strategist tag (Captain was retired in the 2026-07 permission restructure).
      */
     public static void sendStaffChannelMessage(String displayName, String message, String rank) {
         sendGuildChatMessageRed(buildStaffPillComponent(rank), displayName, message);
@@ -303,9 +309,10 @@ public final class ChatUtils {
      * <p>2026-07 permission restructure: the pill label is now the
      * {@link RankDisplayMap#vTagFor(String) /v tag} for the given rank
      * ({@code staff} for strategists, {@code owner} for chiefs / owners).
-     * Falls back to {@code "staff"} for any rank that isn't a known
-     * staff tier, since /v chat is staff-only by definition and every
-     * participant qualifies for at least the baseline Staff tag.</p>
+     * Falls back to {@code "staff"} for any rank that isn't a known staff tier: {@code /v}
+     * chat is meant to be staff-only, so every participant should qualify for at least the
+     * baseline Staff tag. Today the receive path does not check that a lock-prefixed sender
+     * is staff; see {@code staff-channel-rewriter-renders-unverified-senders-as-staff}.</p>
      */
     public static Component buildStaffPillComponent(String rank) {
         String vTag = RankDisplayMap.vTagFor(rank);
@@ -350,9 +357,12 @@ public final class ChatUtils {
         return PillCodec.encodeRemote(text);
     }
 
+    // ── Message-body and legacy-text formatting ────────────────────────
+
     /**
-     * Formats a raw message body into a styled component, processing inline
-     * prefix markers and converting URLs into clickable links.
+     * Formats a raw message body into a styled component: strips server wrap
+     * continuations, replaces inline prefix markers, renders encoded spoilers (unless
+     * spoiler handling is off) and converts URLs into clickable links.
      *
      * @param message   the raw message text (may be {@code null})
      * @param textStyle the default style applied to non-marker text
@@ -371,10 +381,10 @@ public final class ChatUtils {
                 break;
             }
 
-            // Check whether a '\n' immediately precedes this marker.  If so, the
-            // marker is a server-injected line-continuation prefix — absorb both
-            // the '\n' and the marker (plus any trailing space) so that the text
-            // re-flows as a single paragraph for wrapBlockMessage() to re-wrap.
+            // Unreachable: stripServerContinuations (called above) already removed every
+            // '\n' + marker sequence, so a marker found here is never preceded by '\n' and
+            // isServerWrap below is always false. The live copy of this consumption loop is
+            // the inner loop in stripServerContinuations.
             int markerStart = match.index;
             boolean isServerWrap = markerStart > 0 && bodyText.charAt(markerStart - 1) == '\n';
 
@@ -389,10 +399,9 @@ public final class ChatUtils {
                 if (cursor < bodyText.length() && bodyText.charAt(cursor) == ' ') {
                     cursor++;
                 }
-                // The server sometimes emits multiple consecutive markers on
-                // continuation lines (e.g. "\n<compact> <compact> text").
                 // Consume any additional marker+space pairs so that only one
-                // continuation bar is rendered after wrapBlockMessage() re-wraps.
+                // continuation bar would be rendered after wrapBlockMessage() re-wraps,
+                // if this branch could run (see the note above).
                 while (cursor < bodyText.length()) {
                     MarkerMatch extra = nextPrefixMarker(bodyText, cursor);
                     if (extra == null || extra.index != cursor) {
@@ -427,9 +436,9 @@ public final class ChatUtils {
 
     /**
      * Strips server-injected line-continuation sequences ({@code \n<marker>}) from
-     * the body text, joining wrapped lines with a single space.  This ensures that
-     * inline patterns like {@code ||spoiler||} are not split across segments before
-     * spoiler and URL processing.
+     * the body text, joining wrapped lines with a single space.  This keeps an encoded
+     * spoiler block (see {@link org.wynnvets.chat.spoiler.SpoilerCodec SpoilerCodec}) from
+     * being split across segments before spoiler and URL processing.
      *
      * <p>Inline markers (not preceded by {@code \n}) are left intact for the main
      * loop in {@link #formatMessageBody} to handle.</p>
@@ -453,6 +462,10 @@ public final class ChatUtils {
                 if (cursor < text.length() && text.charAt(cursor) == ' ') {
                     cursor++;
                 }
+                // The server appears to sometimes emit multiple consecutive markers on
+                // continuation lines (e.g. "\n<compact> <compact> text"); consume any
+                // additional marker+space pairs so only one continuation bar is rendered
+                // after wrapBlockMessage() re-wraps. (Server-side behaviour, unverified.)
                 while (cursor < text.length()) {
                     MarkerMatch extra = nextPrefixMarker(text, cursor);
                     if (extra == null || extra.index != cursor) {
@@ -476,7 +489,8 @@ public final class ChatUtils {
 
     /**
      * Builds a fresh {@link MutableComponent} from text containing legacy
-     * {@code §}-formatting codes, detecting URLs and making them clickable.
+     * {@code §}-formatting codes, detecting URLs and making them clickable, and
+     * rendering PUA-encoded spoiler blocks as spoiler labels (see {@link #formatMessageBody}).
      * Bare hosts (e.g. {@code example.com/path}) are displayed as-typed but
      * linked to {@code https://}-prefixed URIs. URL segments inherit the
      * accumulated legacy style (color, bold, underline, …) from the codes
@@ -515,9 +529,10 @@ public final class ChatUtils {
 
     /**
      * Apply a single legacy {@code §X} code to the accumulating style. Color
-     * codes reset formatting back to {@code baseStyle} per vanilla behavior;
-     * format codes (k/l/m/n/o) add to whatever {@code currentStyle} already has;
-     * {@code §r} resets to {@code baseStyle}.
+     * codes reset to {@code baseStyle} plus the new colour (vanilla clears the format
+     * flags instead; the two agree when {@code baseStyle} carries none, as
+     * {@code Style.EMPTY} does); format codes (k/l/m/n/o) add to whatever
+     * {@code currentStyle} already has; {@code §r} resets to {@code baseStyle}.
      */
     private static Style applyLegacyCode(Style baseStyle, Style currentStyle, char code) {
         switch (code) {
@@ -571,8 +586,10 @@ public final class ChatUtils {
     }
 
     /**
-     * Appends a text segment to a parent component, detecting URLs and making
-     * them clickable with {@link ClickEvent.OpenUrl}.
+     * Appends a text segment to a parent component, making URLs clickable with
+     * {@link ClickEvent.OpenUrl} and passing the text between them through
+     * {@link SpoilerFormatter#appendWithSpoilers SpoilerFormatter.appendWithSpoilers}
+     * (encoded spoiler blocks).
      */
     private static void appendTextWithUrls(MutableComponent parent, String text, Style textStyle) {
         if (text.isEmpty()) {
@@ -723,7 +740,7 @@ public final class ChatUtils {
         Prepend.addRenderedLines(lineCount);
     }
 
-    // ── Internal ───────────────────────────────────────────────────────
+    // ── Dispatch ───────────────────────────────────────────────────────
 
     /**
      * Dispatches a component with the animated gradient context set. That context is not what
@@ -731,9 +748,10 @@ public final class ChatUtils {
      * wraps every newly inserted chat line without reading the context, and the wrapper recolours
      * only characters carrying a marker colour. The gradient comes from
      * {@link AnimatedGradientSequence#effectiveDefaultStart()} and
-     * {@link AnimatedGradientSequence#effectiveDefaultEnd()} ({@code DARK_AQUA} to
-     * {@code 0xAADDFF}, or the colour-blind pair) on a 3 s cycle, the same values this method
-     * passes.
+     * {@link AnimatedGradientSequence#effectiveDefaultEnd()}
+     * ({@link org.wynnvets.rendering.colors.ShaderColorPalette#DARK_AQUA
+     * ShaderColorPalette.DARK_AQUA}, {@code 0x55FFFF}, to {@code 0xAADDFF}, or the
+     * colour-blind pair) on a 3 s cycle, the same values this method passes.
      *
      * @param message      the full message component
      * @param prependStyle the badge style used for continuation-line block markers

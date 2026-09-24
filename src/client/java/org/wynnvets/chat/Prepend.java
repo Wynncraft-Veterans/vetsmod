@@ -121,7 +121,7 @@ public enum Prepend {
      * Forces the next call to {@link #get()} on any prepend to return the
      * full badge regardless of recent dedup state. Use at the boundary
      * between temporally-distinct render blocks (e.g. the start of a new
-     * {@code /wv check} response) so staff get a clear visual separator
+     * {@code /wv check} response) so the player gets a clear visual separator
      * between back-to-back command outputs instead of one long undivided
      * compact-indicator wall.
      *

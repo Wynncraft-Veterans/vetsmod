@@ -155,7 +155,7 @@ Flow: a `warning` frame → `WarningRewriter.render`, skipping every step after 
 
 Key methods (`stripServerContinuations` and `wrapBlockMessage` are private helpers, not entry points):
 - `sendGuildChatMessage()` — `<badge> <pill> <username>: <body>`
-- `sendGuildChatMessageRed()` — admin-locked red styling
+- `sendGuildChatMessageRed()` — red guild-chat styling; reached only through `sendStaffChannelMessage()` (the `/v` staff-channel look)
 - `sendStaffChannelMessage()` — staff-style with special pill
 - `formatMessageBody()` — strips server continuation markers, makes URLs clickable, formats spoilers
 - `stripServerContinuations()` — removes `\n + marker` sequences
