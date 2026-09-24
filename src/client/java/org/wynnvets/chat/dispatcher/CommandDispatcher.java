@@ -152,7 +152,10 @@ public final class CommandDispatcher {
         // session as staff against the canonical roster. Skip the WAPI-probe
         // wait entirely -- the recipient-side rewriter consults its own
         // (push-fed) staff cache, so as long as auth succeeded, fanout will
-        // be transformed correctly on the receiver.
+        // be transformed correctly on the receiver. Today that cache is fed only by
+        // StaffRanksPoller's 2-minute poll (no staff_online push reaches vetsmod:
+        // outbound-socket-never-authenticated), so a receiver can lack a newly
+        // authenticated sender's rank until its next poll.
         if (V1ApiManager.isConfirmedStaff()) {
             selfSeenInStaffFeedThisWorld = true;
             ChatUtils.sendStaffChannelMessage(displayName, message, rank);

@@ -106,7 +106,10 @@ public final class AnniRsvpCommand {
                         // cadence, so without a fire-and-forget refresh here the
                         // cached snapshot would still report the pre-RSVP state
                         // (e.g. "EARLY WALK-IN") for up to 5 minutes — confusing
-                        // immediately after the user committed. The query() pull
+                        // immediately after the user committed. Today no anni_state
+                        // push reaches vetsmod (outbound-socket-never-authenticated),
+                        // so without this refresh the pre-RSVP state would last until
+                        // the next pull. The query() pull
                         // hits temp-server's anni_query handler, which serves a
                         // cached snapshot if <15s old or re-fetches from vets-anni
                         // synchronously. Either way the new RSVP shows up on the

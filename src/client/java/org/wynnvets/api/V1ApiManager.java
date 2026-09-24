@@ -576,7 +576,8 @@ public final class V1ApiManager {
      *
      * <p>The pending-reply queue (a FIFO of per-call futures; nothing coalesces
      * concurrent calls) lives in {@link org.wynnvets.mwe.anni.network.AnniQueryClient};
-     * this method just dispatches the frame and reports whether it went out. The dedicated
+     * this method just sends the frame when the inbound socket is up and reports whether it was,
+     * not whether the frame went out. The dedicated
      * frame type ({@code anni_query_response}) means we don't need to share the staff-action
      * callback queue or expose extra state-shaping hooks here — the reply comes back on the
      * inbound socket, and the inbound-listener fan-out hands it to
@@ -706,7 +707,9 @@ public final class V1ApiManager {
      *                        an empty leader)
      * @param world           the Wynncraft world name (e.g. {@code WC1});
      *                        forwarded for observability
-     * @return true iff the frame was actually sent (inbound connection up).
+     * @return true when the inbound connection was up at the check and the frame was
+     *         passed to {@link WsClient#send(JsonObject)}, which does not confirm
+     *         delivery; false when it was down.
      */
     public static boolean sendAnniPartyObservation(
             List<String> memberUsernames, String leaderUsername, String world) {

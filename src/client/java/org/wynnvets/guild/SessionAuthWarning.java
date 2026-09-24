@@ -107,9 +107,11 @@ public final class SessionAuthWarning {
         boolean hasLegacy = GuildStateManager.hasLegacyPasswordUnlock();
         boolean plausibleVetsUser = inReturners || hasLegacy;
 
-        // Case 2: stored key but server rejected it. Always show, regardless
-        // of unauth toggle — the user explicitly tried to authenticate and
-        // failed, and the path to fix it is the same in both modes.
+        // Case 2: meant for "stored key but server rejected it". Always show,
+        // regardless of unauth toggle — the user explicitly tried to authenticate
+        // and failed, and the path to fix it is the same in both modes. Today it
+        // fires whenever a stored key has no ok ack 5 s after world join, rejected
+        // or not (session-auth-warning-reports-rejection-without-one).
         if (hasKey) {
             String reason = UnlockManager.lastAuthFailureReason();
             String reasonSuffix = reason.isEmpty() ? "" : " (" + reason + ")";

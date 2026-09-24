@@ -62,10 +62,9 @@ public final class AnniWsHandler {
         V1ApiManager.addOutboundListener(AnniWsHandler::onOutbound);
         // Re-pull a fresh snapshot on every inbound (re)connect — the
         // server pushes anni_state only on certain events (and today not to
-        // vetsmod at all: outbound-socket-never-authenticated), so a world
-        // transfer that drops the socket would otherwise leave the
-        // cache frozen on whatever was current at the previous connect
-        // until the next server-initiated push (which may never come
+        // vetsmod at all: outbound-socket-never-authenticated), so a socket drop
+        // would otherwise leave the cache frozen on whatever was current at the
+        // previous connect until the next server-initiated push (which may never come
         // for the user's own RSVP/role edits). Cheap on cold start: one small
         // frame, possibly alongside StampFetcher's world-join pull (queries are
         // queued FIFO, not coalesced). Correct on reconnect.

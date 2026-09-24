@@ -661,8 +661,11 @@ Wire pieces on the network layer:
    were removed in Phase 2 of the cleanup.
 5. **Auto-refresh on success.** `AnniRsvpCommand.renderAck` fires
    `AnniQueryClient.query()` after a successful ack. Without this,
-   `/wv anni` reads the cached snapshot which is up to 5 minutes stale
-   outside the T-2h hot window (push poller cadence). User reported the
+   `/wv anni` reads the cached snapshot, which the push poller's cadence
+   was meant to keep at most 5 minutes stale outside the T-2h hot window.
+   Today no `anni_state` push reaches vetsmod (bug
+   `outbound-socket-never-authenticated`), so it would stay stale until
+   the next pull. User reported the
    exact symptom: post-`/wv anni rsvp soft`, the next `/wv anni` still
    showed `RSVP Type: EARLY WALK-IN`. The query is fire-and-forget; the
    listener bus in `AnniSnapshotCache` re-renders everything that
@@ -941,7 +944,7 @@ Listed in `AnniDebugCommands.PRESETS`.
 | `member_announced` | Vets + announced (NOW+8h) + unassigned (attendance bar) |
 | `member_in_party` | Vets + announced (NOW+8h) + party (ASSIGNED + party block) |
 
-All seven are `schema_version: 1` with no `event.all_parties`. `member_in_party` still covers the own-party role colours (six members, one per role, via the v1 `board.party.members` field) and, by registry miss, the outsider branch; only the *other-vets-party* grey tier is unreachable from a preset. Reach that one with `/wv debug tree anni registry set <username> other`, plus `zone enter`, a non-silent mode, and a cached stamp inside the hot window (`AnniWindows.inHotWindow`, T-2h to T+30m). No preset supplies one: the two announced presets sit at `NOW+8h` and the rest carry no stamp. The stamp requirement also applies to seeing `member_in_party`'s role colours in-world. So inject a preset, run `time`, and only then `registry set`: `time` goes through a cache update, and the registry's rebuild drops any injected entry. Keep the offset above 5400. From T-90m `AnniSnapshotPoller` re-queries every 30 s, and a returned snapshot replaces the fixture and, through the same rebuild, the injected entry. `time 7000` sits in the gap for about 27 minutes. An `anni_state` push over the WebSocket replaces the cache at any offset, so the gap is not a guarantee.
+All seven are `schema_version: 1` with no `event.all_parties`. `member_in_party` still covers the own-party role colours (six members, one per role, via the v1 `board.party.members` field) and, by registry miss, the outsider branch; only the *other-vets-party* grey tier is unreachable from a preset. Reach that one with `/wv debug tree anni registry set <username> other`, plus `zone enter`, a non-silent mode, and a cached stamp inside the hot window (`AnniWindows.inHotWindow`, T-2h to T+30m). No preset supplies one: the two announced presets sit at `NOW+8h` and the rest carry no stamp. The stamp requirement also applies to seeing `member_in_party`'s role colours in-world. So inject a preset, run `time`, and only then `registry set`: `time` goes through a cache update, and the registry's rebuild drops any injected entry. Keep the offset above 5400. From T-90m `AnniSnapshotPoller` re-queries every 30 s, and a returned snapshot replaces the fixture and, through the same rebuild, the injected entry. `time 7000` sits in the gap for about 27 minutes. The gap is not a guarantee: any pull that returns a snapshot replaces the cache at any offset, such as the post-connect re-pull after a reconnect or the refresh after an in-game RSVP. An `anni_state` push would too, but today none reaches vetsmod (bug `outbound-socket-never-authenticated`).
 
 ## Where the render-pipeline lessons went
 

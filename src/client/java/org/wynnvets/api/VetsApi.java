@@ -33,7 +33,7 @@ public final class VetsApi {
 
     // ── Staff & supporter endpoints ───────────────────────────────────
 
-    /** GET confirmed staff members and their ranks. */
+    /** GET the confirmed staff who are online now, with their ranks (per temporary-server). */
     public static final URI STAFF = URI.create("https://api.wynnvets.org/v1/outbound/staff");
 
     /** GET the list of users who receive special supporter styling. */

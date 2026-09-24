@@ -54,16 +54,20 @@ final class UnlockManager {
 
     // ── Transient session state ────────────────────────────────────────
 
-    /** Last successful auth-frame response from the server. Empty when
-     *  the current session has not yet authenticated. */
+    /** Tier from the last successful auth-frame response from the server. Empty
+     *  until the session authenticates, and cleared again by an auth failure, a
+     *  newly stored key, or disconnect/reset. */
     private static volatile String currentTier = "";
 
     /** {@code true} once an {@code auth} frame has come back {@code ok}
-     *  during the current session. Cleared on disconnect/reset. */
+     *  during the current session. Cleared by an auth failure, a newly stored
+     *  key, or disconnect/reset. */
     private static volatile boolean authVerifiedThisSession = false;
 
-    /** Most recent auth failure reason from the server (e.g. "revoked",
-     *  "unknown key"), shown to the user on world join when relevant. */
+    /** Standing auth-failure reason from the server (e.g. "revoked",
+     *  "unknown key"), shown to the user on world join when relevant. Cleared by
+     *  a later ok auth ack, a newly stored key, or disconnect/reset. It can also be
+     *  an "Authentication required" refusal of a non-auth frame. */
     private static volatile String lastAuthFailureReason = "";
 
     /** {@code true} when the user has just run {@code /unlock} and is awaiting
@@ -86,12 +90,14 @@ final class UnlockManager {
         return key != null && !key.isEmpty();
     }
 
-    /** @return the tier string from the most recent successful auth this session */
+    /** @return the tier from the latest ok auth ack, or empty when none is standing (not
+     *  yet authenticated, or cleared by an auth failure, a newly stored key or a disconnect) */
     static String currentTier() {
         return currentTier;
     }
 
-    /** @return {@code true} once the server has accepted our auth this session */
+    /** @return {@code true} from an ok auth ack until an auth failure, a
+     *  newly stored key, or a disconnect clears it */
     static boolean isAuthenticatedThisSession() {
         return authVerifiedThisSession;
     }
@@ -167,9 +173,10 @@ final class UnlockManager {
      * is what {@link org.wynnvets.mixin.client.command.UnlockCommandMixin} invokes
      * when the user runs {@code /unlock &lt;key&gt;}; the mixin's code never calls this
      * class. The key is persisted to
-     * {@link VetsConfig} and an {@code auth} frame is sent on the existing
-     * inbound WebSocket connection. The result is reported to the user
-     * asynchronously via the auth-frame response handler in
+     * {@link VetsConfig} and passed to {@link V1ApiManager#sendAuth(String)}, which sends
+     * the {@code auth} frame on the inbound WebSocket if it is up and otherwise leaves the
+     * stored key to go out on the next inbound (re)connect. The result is reported to the
+     * user asynchronously via the auth-frame response handler in
      * {@link V1ApiManager}.</p>
      *
      * @param key the bearer token typed by the user

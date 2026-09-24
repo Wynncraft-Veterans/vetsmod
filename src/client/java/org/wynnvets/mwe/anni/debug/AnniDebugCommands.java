@@ -828,9 +828,11 @@ public final class AnniDebugCommands {
      *  re-render in their no-snapshot state. Push frames from temp-server
      *  only fire on a diff against temp-server's own cache, so clearing
      *  the local cache does NOT trigger a re-push. The cache stays empty
-     *  until something refills it, such as a server-side change, a
-     *  {@code refresh}, or any other client-side {@code anni_query} that
-     *  returns a snapshot (a cold-cache {@code /wv anni} can issue one).
+     *  until something refills it, such as a {@code refresh} or any other
+     *  client-side {@code anni_query} that returns a snapshot (a cold-cache
+     *  {@code /wv anni} can issue one). A server-side change was meant to
+     *  refill it too, but today no {@code anni_state} push reaches vetsmod
+     *  ({@code outbound-socket-never-authenticated}).
      *  Use this command to test the no-snapshot rendering branch; use
      *  {@code refresh} to undo synthetic injects and re-pull real data —
      *  it replaces the cache only when the query returns a snapshot.</p> */
@@ -865,8 +867,10 @@ public final class AnniDebugCommands {
      *  {@code refresh} to wipe the synthetic data and re-pull the real
      *  state from the server. Only a non-null snapshot replaces the cache:
      *  if the query times out, the WS is down, or the response carries no
-     *  parseable snapshot, the synthetic one stays until a later push
-     *  replaces it, and the failure line does not say so.</p> */
+     *  parseable snapshot, the synthetic one stays until a later pull
+     *  replaces it (an {@code anni_state} push would too, but today none
+     *  reaches vetsmod: {@code outbound-socket-never-authenticated}), and
+     *  the failure line does not say so.</p> */
     private static int snapshotRefresh(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;

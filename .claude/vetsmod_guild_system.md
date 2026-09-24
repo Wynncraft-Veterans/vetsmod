@@ -20,7 +20,7 @@ Key public methods (all package-level or client-facing):
 | `isGuildless()` | Check player not in any guild |
 | `isUnlocked()` | Any unlock (Returners or waitlist/honourary auth) |
 | `isWaitlistUnlocked()` / `isHonouraryUnlocked()` | Delegated to UnlockManager — true when auth-frame succeeded with that tier OR legacy SHA-256 marker still present |
-| `isAuthenticatedThisSession()` | True after the server's auth-frame ack returned ok |
+| `isAuthenticatedThisSession()` | True from an ok auth-frame ack until an auth failure, a newly stored key, or a disconnect clears it |
 | `hasStoredAuthKey()` | True when `vetsAuthKey` is non-empty (regardless of validation) |
 | `hasLegacyPasswordUnlock()` | True if any pre-migration `vets*UnlockTime` marker exists |
 | `tryUnlock(key)` | Store + dispatch auth frame for a `/unlock` key |
@@ -32,7 +32,7 @@ Key public methods (all package-level or client-facing):
 | `selfStaffRank()` | "captain"/"strategist"/"chief"/"owner" |
 | `loadPersistedState()` | Restore from `VetsConfig` on startup |
 | `onEnteredWorld()` | World-join trigger; schedules SessionAuthWarning |
-| `onGuildInfoUpdated()` | Wynntils `GuildEvent` callback |
+| `onGuildInfoUpdated()` | Wynntils `GuildEvent` callback; also called by the post-world-join recheck poll |
 | `forceGuildRecheck()` | Debug forced recheck |
 | `refreshStaffStatusIfNeeded(forceRefresh)` | Staff rank refresh |
 | `sendRegistrationIfReady()` | Push presence frame on inbound WS |
@@ -111,11 +111,11 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 
 **Transient session state (volatile):**
 - `currentTier` — populated by the server's auth-frame ack
-- `authVerifiedThisSession` — boolean flipped true on first successful ack
-- `lastAuthFailureReason` — populated on rejection, used by SessionAuthWarning
+- `authVerifiedThisSession` — boolean set true by each ok auth ack; cleared by an auth failure, a newly stored key, or a disconnect
+- `lastAuthFailureReason` — set by `onAuthFailure`: an auth rejection, or another error ack `V1ApiManager` classes as an auth failure, such as an "Authentication required" refusal of a non-auth frame. Cleared by a later ok auth ack, a newly stored key, or a disconnect. Used by SessionAuthWarning (case 2)
 
 **Public API (package-level):**
-- `tryUnlock(key)` returns `GuildStateManager.UnlockAttemptResult` (`MISSING_KEY` / `MALFORMED` / `STORED_VERIFYING`). Stores the key, clears stale tier state, dispatches an auth frame on the existing inbound WS via `V1ApiManager.sendAuth(key)`.
+- `tryUnlock(key)` returns `GuildStateManager.UnlockAttemptResult` (`MISSING_KEY` / `MALFORMED` / `STORED_VERIFYING`). Stores the key, clears stale tier state, and calls `V1ApiManager.sendAuth(key)`, which sends the auth frame now if the inbound WS is up or otherwise leaves it to go out on the next (re)connect.
 - `onAuthSuccess(tier)` / `onAuthFailure(detail)` — reached from `V1ApiManager`'s inbound message handler; the direct caller is `GuildStateManager.onAuthSuccess` / `.onAuthFailure`, which delegate here when the auth ack arrives.
 - `isWaitlistUnlocked()` / `isHonouraryUnlocked()` — true when (auth verified + matching tier this session) OR (legacy marker present; see the paragraph above).
 - `legacyWaitlistMarker()` / `legacyHonouraryMarker()` — raw read of the pre-migration timestamps.

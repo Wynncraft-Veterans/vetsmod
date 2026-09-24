@@ -21,7 +21,7 @@ The six repos in this workspace make up one auth/chat ecosystem (the seventh sib
 - `../temporary-server` — FastAPI Python backend at `wss://api.wynnvets.org/`. Owns the v1 inbound/outbound WebSockets that vetsmod connects to. Validates `/unlock` keys via HTTP introspection against dazebot.
 - `../dazebot` — In-house Discord bot. Issues vetsmod auth keys via the `/vetsmod` slash command (DM with `/unlock <key>` body), exposes `POST /api/auth/introspect` for temporary-server to validate keys, owns the `VerifyKey` ORM table.
 - `../auth-stack` — Fork of [PicoLimbo](https://github.com/Quozul/PicoLimbo) at `verify.wynnvets.org:25565`. Forwards every chat line on its mini-server to dazebot's `/api/auth/{uuid}/{msg}` for the link-code consumption flow (separate from vetsmod auth — handles the Discord↔Minecraft account *link*, not the vetsmod *unlock*).
-- `../vets-anni` — Annihilation-event app at `anni.wynnvets.org` (FastAPI web board + **fishbot**). Owns RSVP, party/role assignment and the MWE snapshots temporary-server polls and pushes to vetsmod over the `anni_*` frames. See [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md).
+- `../vets-anni` — Annihilation-event app at `anni.wynnvets.org` (FastAPI web board + **fishbot**). Owns RSVP, party/role assignment and the MWE snapshots temporary-server polls and pushes to vetsmod over the `anni_*` frames; today vetsmod gets them only by pulling (`anni_query`), since the `anni_state` push never reaches it (bug `outbound-socket-never-authenticated`). See [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md).
 - `../vets-deploy` — Docker stack definitions + ops docs for the VPS at `timasca.wynnvets.org`. Where the five above actually run.
 - `../Wynntils` — Read-only reference copy of the Wynntils mod source. Do not edit.
 
