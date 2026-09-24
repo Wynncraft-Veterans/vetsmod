@@ -216,7 +216,7 @@ Show only staff grouped by rank.
 
 A second staff-only embed path exists: `_ENCOURAGE_PATTERN` matches vetsmod's whole triple-warning `/encourage` template and replaces it with a blurple *Vetsmod* info embed carrying a version footer. The regex is fully anchored so a mid-sentence quote of the text does not trigger it.
 
-Relay also carries the PUA item-render path: when `state.pua_renderer` is configured and `_extract_pua_substrings` finds Wynncraft item encodings, it spawns a background `pua-render` task and returns, so the inbound WS handler is never blocked on the sidecar round-trip.
+Relay also carries the PUA item-render path: when `state.pua_renderer` is configured and `_extract_pua_substrings` finds Wynncraft/Wynntils item encodings (`pua_decoder.py`'s own hedge), it spawns a background `pua-render` task and returns, so the inbound WS handler is never blocked on the sidecar round-trip.
 
 ### 8a. BridgeSender
 

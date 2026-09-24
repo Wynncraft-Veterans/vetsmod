@@ -38,14 +38,16 @@ public final class WynntilsEventListener {
      * Pattern to extract rank and message from a guild chat line.
      * The plain-text form (after stripping formatting) looks like:
      *     &lt;rank-glyph&gt; Username: message text
-     * The rank glyphs have already been stripped by Wynntils so we match the
-     * visible "Username: message" portion.
+     * The rank and badge glyphs are still in the plain text here, because
+     * {@code StyledText.stripAlignment} removes only Wynncraft's positive/negative-space
+     * characters. Group 1 therefore carries them: {@code onGuildChat} strips them from the name
+     * with {@code stripPuaCharacters}, and {@code resolveRank} reads the pill from the plain
+     * text.
      */
     private static final Pattern GUILD_CHAT_PATTERN = Pattern.compile("^\\s*(.+?):\\s+(.+)$");
 
-    /** Client-side dedup — prevents multiple sends when Wynntils fires the
-     *  same guild message event more than once (e.g. PUA-encoded and decoded
-     *  variants for item links). */
+    /** Client-side dedup: stops a second relay when the same guild line reaches this listener
+     *  twice within the TTL. */
     private static final long SENT_DEDUP_TTL_MS = TimeUnit.SECONDS.toMillis(5);
 
     private static final int MAX_SENT_FINGERPRINTS = 100;
@@ -130,8 +132,11 @@ public final class WynntilsEventListener {
      * Handles guild chat messages detected by Wynntils and relays them to the
      * v1 inbound WebSocket for bridge distribution.
      *
-     * <p>Only fires for Returners members (guild inbound relay). Guildless
-     * and honourary relay are handled separately by command mixins.</p>
+     * <p>Only fires for Returners members' in-game guild chat. Waitlist and honourary relay, and
+     * a Returners member's {@code /g} while queued, go out from {@link
+     * org.wynnvets.commands.GuildChatDispatcher GuildChatDispatcher} when the command is sent
+     * (reached through {@link org.wynnvets.mixin.client.chat.GuildChatCommandMixin
+     * GuildChatCommandMixin}), not from here.</p>
      *
      * @param event the chat message match event
      */
@@ -189,7 +194,8 @@ public final class WynntilsEventListener {
             return;
         }
 
-        // Resolve the true username from hover text — never send nicknames
+        // Prefer the real username from Wynncraft's nickname hover. With no such hover this falls
+        // back to the name shown in chat, which may itself be a nickname.
         String trueUsername = extractTrueUsername(unwrapped, displayName);
         VetsLogger.debug(
                 "onGuildChat trueUsername [{}] (displayName was [{}])", trueUsername, displayName);
@@ -214,9 +220,8 @@ public final class WynntilsEventListener {
         // Resolve the sender's rank: try hover text first, then pill glyph
         // decoding, and finally the Wynntils guild model for the current player.
         String rank = resolveRank(unwrapped, plain, trueUsername);
-        // Client-side dedup: normalize message by stripping PUA (item encodings
-        // produce multiple event variants with different PUA content but the same
-        // surrounding text).  Only the first variant within the TTL window is sent.
+        // Client-side dedup: normalise by stripping glyph art, so two copies of a line that differ
+        // only in PUA content collide. Only the first within the TTL is sent.
         boolean hadItemPua = containsSupplementaryPua(messageContent);
         String stripped = stripPuaCharacters(messageContent).replaceAll("  +", " ").trim();
         // A pure-PUA message strips to empty, producing a "{user}\0" fingerprint
@@ -247,15 +252,16 @@ public final class WynntilsEventListener {
     }
 
     /**
-     * Resolves the true username for a chat sender by inspecting hover events
-     * on the message parts for Wynntils' nickname annotation.
+     * Resolves the true username for a chat sender by inspecting hover events on the message
+     * parts for Wynncraft's nickname hover (parsed by Wynntils'
+     * {@code StyledTextUtils.extractNameAndNick}).
      *
      * <p>If a nickname pattern is found, the real username from the hover text
      * is returned. Otherwise falls back to the display name visible in chat.</p>
      *
      * @param message     the full styled message
      * @param displayName the name shown in chat (may be a nickname)
-     * @return the true Minecraft username
+     * @return the real username from the hover, else the name shown in chat
      */
     private static String extractTrueUsername(StyledText message, String displayName) {
         Pair<String, String> nameAndNick = StyledTextUtils.extractNameAndNick(message);
@@ -435,9 +441,8 @@ public final class WynntilsEventListener {
                 if (recent.fingerprint.equals(fp)) {
                     return true;
                 }
-                // Item-encoded messages fire twice via Wynntils: once with PUA
-                // glyphs (stripped here) and again with the decoded item name.
-                // The decoded variant's fingerprint starts with the stripped one.
+                // Defensive: a copy of this line with a trailing item decoded would have a
+                // fingerprint that starts with this one's.
                 if (recent.hadItemPua && fp.startsWith(recent.fingerprint)) {
                     return true;
                 }
@@ -580,10 +585,11 @@ public final class WynntilsEventListener {
     }
 
     /**
-     * Returns {@code true} if the text contains any supplementary Private Use
-     * Area codepoints (U+F0000 and above).  These are used by Wynncraft for
-     * item encoding; Wynntils fires the chat event twice for such messages
-     * (once with the raw PUA glyphs, once with decoded item names).
+     * Returns {@code true} if the text contains any codepoint at U+F0000 or above: the
+     * supplementary private-use planes that Wynntils' chat-item encoding uses (Wynntils'
+     * {@code ItemEncodingModel}). Wynntils posts one {@code ChatMessageEvent.Match} per incoming
+     * line and decodes chat items only afterwards, in {@code ChatMessageEvent.Edit}, so
+     * {@link #onGuildChat} sees the encoded form.
      */
     private static boolean containsSupplementaryPua(String text) {
         if (text == null) return false;

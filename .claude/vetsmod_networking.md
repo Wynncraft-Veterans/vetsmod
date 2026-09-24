@@ -242,7 +242,7 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 - `@SubscribeEvent WorldStateEvent` → on WORLD state, call `GuildStateManager.onEnteredWorld()`
 - `@SubscribeEvent GuildEvent.Joined/.Left` → call `GuildStateManager.onGuildInfoUpdated()`
 - `@SubscribeEvent ChatMessageEvent.Match` (GUILD type) → guild chat relay:
-  1. Extract username + message via `^(.+?):\s+(.+)$`
+  1. Extract username + message via `GUILD_CHAT_PATTERN` (`^\s*(.+?):\s+(.+)$`)
   2. Strip PUA badge glyphs
   3. Extract real username from hover ("X's real name is Y")
   4. Bridge echo suppression

@@ -483,7 +483,9 @@ public final class V1ApiManager {
      * @param rank     the sender's guild rank; temporary-server rejects a {@code guild} or
      *                 {@code queue} frame whose rank is empty or not a Wynncraft guild
      *                 rank, so it may be empty only for the other two types
-     * @param username the sender's true Minecraft username (never a nickname)
+     * @param username the sender's username. True for every type but {@code guild}, where the
+     *                 sender may be a nickname if Wynncraft's hover was absent when the line was
+     *                 parsed.
      * @param message  the message content
      */
     public static void sendInbound(String type, String rank, String username, String message) {

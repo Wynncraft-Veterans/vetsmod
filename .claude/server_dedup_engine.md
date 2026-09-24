@@ -115,10 +115,12 @@ The user/message split that strategies 3 and 4 need is done once via
 
 ### 2. Prefix match (item-encoded dual events)
 
-Wynncraft fires item-encoded messages twice: once with raw PUA glyphs, once
-with the decoded text. The prefix recorded from the first is scanned against
-in `_item_prefixes`; an in-window entry the incoming fingerprint starts with
-suppresses it. This is the one strategy with **no length threshold**.
+Older mod clients fired the chat event twice for an item-encoded line: once
+with raw PUA glyphs, once with the decoded text. `dedup.py`'s own docstring
+names the actor as older mod clients, not Wynncraft. The prefix recorded
+from the first is scanned against in `_item_prefixes`; an in-window entry
+the incoming fingerprint starts with suppresses it. This is the one
+strategy with **no length threshold**.
 
 ### 3. Truncation match (soft-wrap)
 
@@ -206,7 +208,7 @@ nothing to collapse.
 ## Edge cases handled
 
 - **Nicknames:** cross-user alias + truncation match
-- **Item encoding:** prefix match (dual-event Wynncraft behaviour)
+- **Item encoding:** prefix match (dual-event behaviour from older mod clients, per `dedup.py`)
 - **Line wrapping:** truncation match (≥20 chars)
 - **Pure-PUA item shares:** the raw-message fallback in `_fingerprint`
 - **Profanity censoring:** NOT handled (would require fuzzy matching) — each censored variant is distinct
