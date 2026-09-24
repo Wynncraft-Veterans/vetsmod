@@ -28,10 +28,10 @@ import org.junit.jupiter.api.Test;
  * orchestrator no later phase is extracting.</p>
  *
  * <p>NOTE: {@link MessageFanoutDispatcher} imports Minecraft and Wynntils, but
- * its static state is six primitives, a queue and a lock object, so nothing
- * loads during class-init. If a future contributor adds a static initializer
- * that loads MC or Wynntils, this test starts failing at class-init time and
- * the fix is to extract the leaves into a pure type.</p>
+ * its static state is a String, six primitives, a queue, a lock object and a
+ * null field, so nothing loads during class-init. If a future contributor adds
+ * a static initializer that loads MC or Wynntils, this test starts failing at
+ * class-init time and the fix is to extract the leaves into a pure type.</p>
  */
 class MessageFanoutDispatcherTest {
 
@@ -150,11 +150,10 @@ class MessageFanoutDispatcherTest {
 
     @Test
     void normalize_stripsUnassignedCodepointsInsideTheBmpToo() {
-        // This is what makes the predicate *unbounded*, and it is the single
-        // property that separates it from the canonical isCustomGlyph used by
-        // the guild-chat parsers, which qualify UNASSIGNED with `cp > 0xFFFF`.
-        // The supplementary probe above passes under either form; only this one
-        // discriminates. U+0378 is unassigned and inside the BMP.
+        // This is what makes the UNASSIGNED clause *unbounded*: the canonical
+        // isCustomGlyph qualifies it with `cp > 0xFFFF`. The supplementary probe
+        // above passes under either form; only this one discriminates the bound.
+        // U+0378 is unassigned and inside the BMP.
         assertEquals(
                 "ab",
                 MessageFanoutDispatcher.normalizeForEchoComparison("a" + (char) 0x0378 + "b"),
