@@ -211,10 +211,11 @@ public final class OutboundDisplayHandler {
             recordBridgeOutbound(message);
         }
 
-        // Staff alert display: rewrite ‼-prefixed guild messages from staff
-        // into the shout-style ALERT box.  For Returners this is handled by
-        // StaffGuildAlertRewriter via ChatLogMixin on the server message;
-        // for waitlist/honourary users it must be handled here instead.
+        // Staff alert display: rewrite ‼-prefixed guild/queue frames from
+        // staff into the shout-style ALERT box. The copy a Returner reads in
+        // the game's own guild channel is handled by StaffGuildAlertRewriter
+        // via ChatLogMixin instead; this branch tries every guild- or
+        // queue-typed frame that gets past the checks above.
         if (("guild".equals(type) || "queue".equals(type))
                 && StaffGuildAlertRewriter.tryRewriteOutbound(username, message)) {
             return;

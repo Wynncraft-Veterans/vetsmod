@@ -38,12 +38,20 @@ public final class StaffGuildAlertRewriter {
     private StaffGuildAlertRewriter() {}
 
     /**
-     * Attempts to display an outbound WebSocket guild message as a staff alert.
+     * Attempts to display an outbound WebSocket guild or queue message as a
+     * staff alert.
      *
      * <p>Unlike {@link #tryRewrite}, this variant works with pre-parsed fields
      * from the outbound JSON (no Minecraft {@link Component} parsing needed).
-     * Used for honorary and waitlist users who receive {@code /a} alerts via
-     * the WebSocket rather than the Wynncraft server chat.</p>
+     * {@link org.wynnvets.chat.OutboundDisplayHandler OutboundDisplayHandler}
+     * calls it for each {@code guild} or {@code queue} frame that passes its
+     * gates: chat this client does not also see in Wynncraft's own guild
+     * channel. For a Returner that is queue relays, plus guild frames while
+     * queued; a waitlist- or honourary-unlocked user gets both types. Those
+     * users get them today only because vetsmod never authenticates its
+     * outbound socket, so temporary-server's tier filter, which would withhold
+     * both types from them, does not apply
+     * ({@code outbound-socket-never-authenticated}).</p>
      *
      * @param username the sender's username (already resolved by the server)
      * @param message  the message body (may start with {@code ‼})

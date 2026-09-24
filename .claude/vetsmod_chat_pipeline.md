@@ -52,7 +52,7 @@ Parses staff-broadcast version, compares to local; outdated → obfuscated red; 
 ### StaffGuildAlertRewriter
 [StaffGuildAlertRewriter](../src/client/java/org/wynnvets/chat/rewriter/StaffGuildAlertRewriter.java)
 
-Triggers on `‼` prefix. Builds purple shout prefix + "ALERT" pill + body (bold if `!!`). Has `tryRewrite()` for in-game Component and `tryRewriteOutbound()` for WebSocket JSON. Resolves real usernames from hover text "X's real name is Y".
+Triggers on a `‼` (U+203C) prefix from a sender `StaffRanksPoller.confirmedRankFor` knows as staff. Builds purple shout prefix + "ALERT" pill + body; the body is bold when a further `!` follows the prefix. Has `tryRewrite()` for in-game Component and `tryRewriteOutbound()` for WebSocket JSON. Resolves real usernames from hover text "X's real name is Y".
 
 ### StaffChannelMessageRewriter
 [StaffChannelMessageRewriter](../src/client/java/org/wynnvets/chat/rewriter/StaffChannelMessageRewriter.java)
@@ -247,7 +247,7 @@ Batch `/find <username>` dispatcher. `enqueueFindBatch()` returns `CompletableFu
 
 ## 13. Thread safety
 
-All rewriters + ChatLogMixin run on the render thread. Dispatcher serializes outbound commands via a single-threaded executor. Suppression state protected by `Object` locks (`SUPPRESSION_ACK_LOCK`, `FIND_RESPONSE_LOCK`). Dedup caches use `ConcurrentLinkedQueue` + synchronized blocks.
+`ChatLogMixin` and its rewriter chain run on the render thread. `WarningRewriter.render` and `StaffGuildAlertRewriter.tryRewriteOutbound` do not: `OutboundDisplayHandler` calls them on the thread that delivers the outbound socket's frames, and their output reaches chat only through `ChatUtils`' own `Minecraft.execute` bounce to the render thread. Dispatcher serializes outbound commands via a single-threaded executor. Suppression state protected by `Object` locks (`SUPPRESSION_ACK_LOCK`, `FIND_RESPONSE_LOCK`). Dedup caches are plain collections read and written inside `synchronized` blocks (`OutboundDisplayHandler`'s three each have their own lock object).
 
 ## 14. Feature gates
 
