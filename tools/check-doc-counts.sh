@@ -11,7 +11,7 @@
 # It is deliberately NOT a build gate. Spelled-out numerals in prose are
 # ambiguous enough to false-positive on correct text, and adding a third
 # mechanical gate mid-plan is a change to Mellow Rain's standing rules.
-# Run it by hand, and in the 5.5b-5.5f sweeps.
+# Run it by hand, and in every comment-reconciliation sweep.
 #
 # KNOWN BLIND SPOT, found by 5.5b: count_calls greps for "Class.method(", so it
 # sees QUALIFIED call sites only. A caller inside the declaring class calls the

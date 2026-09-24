@@ -20,7 +20,9 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * order, so the FIFO pairs correctly while each query gets its reply before its deadline.
  * A query that gets no reply (its frame or its reply lost), a reply that arrives after
  * its future was dropped at the deadline, or two concurrent calls whose frames go out in
- * the opposite order to their enqueues, shifts the pairing onto the next pending query.
+ * the opposite order to their enqueues, mis-pairs the replies that follow: each lands on
+ * a neighbouring query's future (two concurrent calls swap theirs) until the queue drains
+ * or a deadline drops the future left over.
  * Nothing coalesces concurrent calls: each {@link #query()} queues its own future and
  * sends its own frame. Correlation IDs were judged not worth the wire-protocol churn for
  * the current scale — same call-out the staff-action queue makes.</p>

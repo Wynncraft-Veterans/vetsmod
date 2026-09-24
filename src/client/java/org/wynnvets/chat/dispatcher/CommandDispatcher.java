@@ -153,7 +153,8 @@ public final class CommandDispatcher {
         // wait entirely -- the recipient-side rewriter consults its own
         // (push-fed) staff cache, so as long as auth succeeded, fanout will
         // be transformed correctly on the receiver. Today that cache is fed only by
-        // StaffRanksPoller's 2-minute poll (no staff_online push reaches vetsmod:
+        // StaffRanksPoller's fetches, the 2-minute poll and the refresh on the receiver's own
+        // auth ack (no staff_online push reaches vetsmod:
         // outbound-socket-never-authenticated), so a receiver can lack a newly
         // authenticated sender's rank until its next poll.
         if (V1ApiManager.isConfirmedStaff()) {

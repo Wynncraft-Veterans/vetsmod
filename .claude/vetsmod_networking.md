@@ -25,7 +25,7 @@ Key methods:
 - `connect()` — initialize both; inbound gets reconnect callback that re-sends BOTH the cached `register` frame AND a fresh `auth` frame (using `vetsAuthKey` from `VetsConfig`)
 - `disconnect()` — close both cleanly
 - `sendRegistration(uuid, username, tier)` — sends `{type:"register", uuid, username, tier}`; cached for auto-retry
-- `sendAuth(key)` — sends `{type:"auth", key}` and sets `expectingAuthAck`. An `ok` ack carrying `tier` reaches `GuildStateManager.onAuthSuccess` whether or not the flag is set; while it is set, a non-`ok` ack goes to `onAuthFailure` instead of a pending staff-action callback or the warning log (see `V1ApiManager.connect`)
+- `sendAuth(key)` — sends `{type:"auth", key}` and sets `expectingAuthAck`. An `ok` ack carrying `tier` reaches `GuildStateManager.onAuthSuccess` whether or not the flag is set; while it is set, an `error` ack goes to `onAuthFailure` instead of a pending staff-action callback or the warning log (a staff-action-shaped ack, such as a `would_trigger` preflight, still goes to its callback) (see `V1ApiManager.connect`)
 - `sendInbound(type, rank, username, message)` — `type` is one of `guild`/`queue`/`waitlist`/`honourary`. `queue` is the one `GuildChatDispatcher` uses while the player is in a world queue and the game server is dropping `/g`
 - `sendTabList(entries)` — sends `{type:"tablist", entries:[{server, username},...]}`
 - `addOutboundListener(listener)` — register consumer (note: `server_info` frames are intercepted before listeners and routed straight to `SessionAuthWarning.onServerInfo()`)
@@ -56,7 +56,7 @@ Listener methods: `onOpen`, `onText` (buffers fragments until last), `onPong`, `
 
 On close/error → schedule reconnect 3s later. Ping scheduled on every connect via `schedulePing()`.
 
-Silent drop if `send()` called while not connected (no queuing).
+Silent drop if `send()` called while not connected (no queuing), and also while another text send on the socket is still pending (bug `ws-client-send-ignores-send-pending-failure`).
 
 ## 3. HTTP endpoint constants
 
@@ -89,7 +89,7 @@ Also: `GUILD_UUID = "a36bd64c-c053-4727-872d-b0d0729f474a"` (Returners).
 
 One shared client means one selector thread, one default executor and one connection pool, and the seventeen fields now reuse each other's keep-alive connections instead of each holding private idle ones. Reuse is per host, so what matters is that the pool spans **six**: `api.wynnvets.org` (twelve of the seventeen), `api.wynncraft.com` (`InviteGate`, `NameResolver`, `UserInfoFetcher`, `TerritoryLineManager`, and `PlayerLookup` via `WynncraftProvider`), and — all five through `PlayerLookup`'s copy — `playerdb.co`, `api.ashcon.app`, `api.minecraftservices.com` and `api.mojang.com`. The saving concentrates on the first two, which is where the repeat traffic is; the four lookup hosts are cascade fallbacks and mostly cold.
 
-Sharing the executor reaches less far than it sounds. In the JDK 21 implementation a `sendAsync` future completes on `CompletableFuture`'s default async pool, not on this client's executor, so continuations attached to it run there (or on the attaching thread, if the response is already in). A blocking `.join()` inside such a continuation therefore holds a thread of whatever completed its inputs — that pool, or the WebSocket thread when one input comes from `VetsSnapshotProvider` — and is worth noticing wherever one appears.
+Sharing the executor reaches less far than it sounds. In the JDK 21 implementation a `sendAsync` future completes on `CompletableFuture`'s default async pool, not on this client's executor, so continuations attached to it run there (or on the attaching thread, if the response is already in). A blocking `.join()` inside such a continuation therefore holds a thread of whatever completed its inputs — that pool, or the thread that delivers the inbound socket's frames when one input comes from `VetsSnapshotProvider` — and is worth noticing wherever one appears.
 
 **Never call `close()`, `shutdown()` or `shutdownNow()` on it, and never put it in a try-with-resources.** Java 21 made `HttpClient` `AutoCloseable`; `close()` refuses new requests at once and then blocks until in-flight operations finish, and the client stays shut, taking the HTTP of all seventeen subsystems that share it with it for the rest of the session.
 

@@ -15,9 +15,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *
  * <p>Clone of {@link AnniScrollspotClient}: FIFO callback queue, the next
  * incoming {@code anni_rsvp_response} frame resolves the head future. The
- * V1 protocol has no per-frame correlation IDs, so rapid back-to-back calls
- * would interleave arbitrarily; the per-command UX deliberately blocks on
- * the previous future so this never matters in practice.</p>
+ * V1 protocol has no per-frame correlation IDs, and temporary-server answers in
+ * send order, so the FIFO mis-pairs only on a lost or late reply or when two concurrent
+ * calls send in the opposite order to their enqueues; the per-command UX deliberately
+ * blocks on the previous future so this never matters in practice.</p>
  *
  * <p>The future resolves to an immutable {@link Ack} record with
  * {@code (ok, detail)}; callers render the detail on failure. A 5-second

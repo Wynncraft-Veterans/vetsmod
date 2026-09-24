@@ -44,7 +44,8 @@ public final class V1ApiManager {
      *  recognised by their {@code tier} key alone, so this flag matters only for
      *  error acks: an error that arrives while it is set is treated as an auth
      *  failure and is kept out of {@link #staffActionCallbacks} (an error whose detail
-     *  starts with an auth-failure prefix counts as one whatever the flag says). Neither
+     *  starts with an auth-failure prefix counts as one whatever the flag says, unless the
+     *  flag is clear and a staff-action callback is pending: that callback takes it). Neither
      *  {@link #disconnect()} nor a socket drop resets it. */
     private static volatile boolean expectingAuthAck = false;
 
@@ -69,7 +70,7 @@ public final class V1ApiManager {
 
     /** Listeners that receive every typed inbound frame. V1ApiManager's own
      *  inbound handler only processes ``{"status":...}``-shaped acks (auth,
-     *  staff-action, chat, and the plain ok/error acks to the other untyped frames);
+     *  staff-action, chat, and the plain ok/error acks to the other frames it sends);
      *  anything carrying a ``type`` field is a typed
      *  response and gets fanned out here so consumers (currently:
      *  {@link org.wynnvets.mwe.anni.network.AnniWsHandler}) can route by
@@ -352,8 +353,10 @@ public final class V1ApiManager {
     }
 
     /** Closes both WebSocket connections for good: the closed {@link WsClient}s do not
-     *  reconnect, and the next server join's {@link #connect()} builds a new pair. Also
-     *  clears the confirmed-staff state and fails any pending staff-action callbacks. */
+     *  reconnect, and the next server join's {@link #connect()} builds a new pair. A
+     *  handshake still in flight is not stopped: today it completes and leaves its socket
+     *  open ({@code ws-client-close-during-handshake-leaves-socket-open}). Also clears the
+     *  confirmed-staff state and fails any pending staff-action callbacks. */
     public static void disconnect() {
         if (inboundClient != null) {
             inboundClient.close();
@@ -575,7 +578,8 @@ public final class V1ApiManager {
      * surfaces as a null snapshot via {@link org.wynnvets.mwe.anni.network.AnniQueryClient#query()}.)</p>
      *
      * <p>The pending-reply queue (a FIFO of per-call futures; nothing coalesces
-     * concurrent calls) lives in {@link org.wynnvets.mwe.anni.network.AnniQueryClient};
+     * concurrent calls) lives in
+     * {@link org.wynnvets.mwe.anni.network.AnniQueryClient AnniQueryClient};
      * this method just sends the frame when the inbound socket is up and reports whether it was,
      * not whether the frame went out. The dedicated
      * frame type ({@code anni_query_response}) means we don't need to share the staff-action
@@ -829,7 +833,8 @@ public final class V1ApiManager {
      * <p>A session the server does not treat as staff gets an error ack, which normally
      * resolves this frame's callback like any other ack; callers that want to spare
      * non-staff the round trip check {@link #isConfirmedStaff()} first
-     * ({@code VetsSnapshotProvider}'s {@code check_membership} does not:
+     * ({@link org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider VetsSnapshotProvider}'s
+     * {@code check_membership} does not:
      * {@code vets-snapshot-provider-skips-confirmed-staff-check}). The {@code fields} map
      * is merged into the outgoing JSON after {@code "type"} is set, so do NOT include
      * {@code "type"} -- it would replace the frame type. The callback is single-use. It

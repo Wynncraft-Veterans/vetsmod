@@ -13,8 +13,9 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>Replaces the legacy SHA-256 password unlock with a per-user bearer key
  * issued by dazebot via the Discord {@code /vetsmod} command. The key is
- * persisted in {@link VetsConfig} and sent in an {@code auth} frame after
- * each WebSocket connection is established.</p>
+ * persisted in {@link VetsConfig} and sent in an {@code auth} frame each time the
+ * inbound WebSocket (re)connects; the outbound socket never gets one
+ * ({@code outbound-socket-never-authenticated}).</p>
  *
  * <p>The legacy {@code VETS_WAITLIST_UNLOCK_TIME} / {@code VETS_HONOURARY_UNLOCK_TIME}
  * timestamps are meant to be kept only as a "previously unlocked under the old system"
@@ -275,8 +276,9 @@ final class UnlockManager {
     }
 
     /** Called (through {@link GuildStateManager#onAuthFailure(String)}) when an error ack
-     *  answers our auth frame, or carries an "auth rejected" / "Authentication required"
-     *  detail; typically {@code {"status":"error", "detail":"auth rejected: <reason>"}}. */
+     *  arrives while an auth ack is awaited, or carries an "auth rejected" /
+     *  "Authentication required" detail that no staff-action callback claims; typically
+     *  {@code {"status":"error", "detail":"auth rejected: <reason>"}}. */
     static void onAuthFailure(String detail) {
         currentTier = "";
         authVerifiedThisSession = false;

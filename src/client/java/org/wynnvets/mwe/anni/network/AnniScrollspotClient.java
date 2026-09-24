@@ -13,9 +13,10 @@ import org.wynnvets.logging.VetsLogger;
  * <p>Mirrors {@link AnniQueryClient}: a FIFO callback queue, the next
  * incoming {@code anni_scrollspot_response} frame resolves the head future.
  * No correlation IDs — same trade-off the rest of the V1 protocol made.
- * Concurrent {@code /wv debug tree anni scrollspot} invocations would interleave
- * arbitrarily, but the per-command UX deliberately blocks on the previous
- * call so this never matters in practice.</p>
+ * temporary-server answers in send order, so concurrent
+ * {@code /wv debug tree anni scrollspot} invocations mis-pair only on a lost or late reply
+ * or when two send in the opposite order to their enqueues; the per-command UX
+ * deliberately blocks on the previous call so this never matters in practice.</p>
  *
  * <p>The future resolves to an immutable {@link Ack} record with
  * {@code (ok, detail)}; callers render the detail on failure. A 5-second

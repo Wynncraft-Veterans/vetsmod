@@ -318,8 +318,8 @@ public class GuildStateManager {
      *
      * <p><b>Note:</b> This reads the client-side {@link StaffRankChecker}
      * cache (refreshed daily via {@code /gu rank}). It is suitable for UX
-     * gates ({@code /v}, {@code /a}, {@code /encourage}, {@code /wv list world},
-     * {@code /wv check}) but NOT for high-trust actions like {@code /caution} /
+     * gates ({@code /v}, {@code /a}, {@code /encourage}, {@code /wv list world}) but NOT
+     * for high-trust actions like {@code /caution} /
      * {@code /warn} / {@code /eject}, any of whose commits can end in a real in-game
      * {@code /gu} command. Those use
      * {@link #isConfirmedStaff()} instead -- the server-side roster check
@@ -536,12 +536,12 @@ public class GuildStateManager {
         // Apply the eligibility-based default anni mode (PASSIVE for
         // enrichment-eligible users, SILENT otherwise) if the user hasn't
         // explicitly picked a mode. No-op once VETS_ANNI_MODE_USER_SET is
-        // true. onGuildInfoUpdated() re-runs it, so an eligibility flip that
-        // reaches that method (a Wynntils guild join/leave event, or
-        // scheduleGuildRecheck()'s poll) still moves a still-unset user to the
-        // new default. Flips that arrive another way (an auth ack after
-        // /unlock <key>, or the /gu stats check completing) wait for the next
-        // world join (anni-default-not-reapplied-on-auth-tier-flip).
+        // true. onGuildInfoUpdated() re-runs it so that a mid-session eligibility
+        // flip still moves a still-unset user to the new default. Today only flips
+        // that reach that method (a Wynntils guild join/leave event, or
+        // scheduleGuildRecheck()'s poll) do; flips that arrive another way (an auth
+        // ack or failure, a newly stored key, or the /gu stats check completing)
+        // wait for the next world join (anni-default-not-reapplied-on-auth-tier-flip).
         AnniModeManager.applyStartupDefaultIfNeeded();
     }
 
@@ -714,9 +714,10 @@ public class GuildStateManager {
     }
 
     /** Called by {@link V1ApiManager} when an inbound error ack is classed as an auth
-     *  failure: a rejected {@code auth} frame, or the server refusing another frame
-     *  because the session is unauthenticated. V1ApiManager's inbound handler has the
-     *  exact test. */
+     *  failure: a rejected {@code auth} frame, any other error ack that arrives while an
+     *  auth ack is awaited, or (when no staff-action callback claims it) the server refusing
+     *  another frame because the session is unauthenticated. V1ApiManager's inbound handler
+     *  has the exact test. */
     public static void onAuthFailure(String detail) {
         UnlockManager.onAuthFailure(detail);
     }
@@ -747,8 +748,8 @@ public class GuildStateManager {
     }
 
     /** @return the standing auth-failure reason from the server, or empty string when
-     *  none is standing (a later successful auth or a newly stored {@code /unlock} key
-     *  clears it). It can also be an "Authentication required" refusal of a non-auth
+     *  none is standing (a later successful auth, a newly stored {@code /unlock} key or a
+     *  disconnect clears it). It can also be an "Authentication required" refusal of a non-auth
      *  frame. */
     public static String lastAuthFailureReason() {
         return UnlockManager.lastAuthFailureReason();

@@ -53,8 +53,9 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * sides.</p>
  *
  * <p>Cost: up to 180 queries per anni window (one every 30 s for 90 minutes), each a
- * small request frame queued FIFO in {@link AnniQueryClient}, not coalesced. Each reply
- * carries a full snapshot. Per temporary-server, a reply comes from its short-lived
+ * small request frame whose reply future is queued FIFO in {@link AnniQueryClient}, not
+ * coalesced. A reply carries a full snapshot, or none when temporary-server has none to
+ * give. Per temporary-server, a reply comes from its short-lived
  * snapshot cache while that is fresh, and from a live vets-anni fetch otherwise
  * (v1_protocol.md §1.11).</p>
  */

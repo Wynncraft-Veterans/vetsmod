@@ -12,8 +12,8 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  *
  * <p>Subscribes to {@link AnniSnapshotCache}; every push or pull that
  * lands a snapshot checks whether the window has closed. temporary-server
- * pushes {@code anni_state} frames every ~10 s in its own hot window and
- * ~5 min outside it, and vetsmod's
+ * checks for changed snapshots every ~10 s in its own hot window and ~5 min outside it,
+ * pushing {@code anni_state} only for a snapshot that changed, and vetsmod's
  * {@link org.wynnvets.fetcher.polling.AnniSnapshotPoller AnniSnapshotPoller} adds a
  * 30 s query while inside the 90-minute bar window — so at the T+30 m edge the
  * reset was meant to land on whichever push arrives first, typically within ~10 s. The

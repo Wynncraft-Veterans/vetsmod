@@ -238,11 +238,12 @@ public final class AnniModeManager {
      * Idempotent — becomes a no-op forever once the user picks a mode.
      *
      * <p>Called from {@link GuildStateManager#onEnteredWorld} and
-     * {@code onGuildInfoUpdated}, so an eligibility change that reaches either (a world
-     * join, or Wynntils' guild data turning up after one) re-derives the default for a
-     * still-unset user: PASSIVE if enrichment-eligible, SILENT otherwise. An auth-tier
-     * change from an {@code /unlock <key>} ack calls neither, so it takes effect at the
-     * next world join ({@code anni-default-not-reapplied-on-auth-tier-flip}). Routes
+     * {@code onGuildInfoUpdated}, so that an eligibility change re-derives the default for a
+     * still-unset user: PASSIVE if enrichment-eligible, SILENT otherwise. Today only a change
+     * that reaches one of them (a world join, a Wynntils guild join or leave, or Wynntils'
+     * guild data turning up after a join) does; one from an auth ack or failure, a newly
+     * stored key, or a {@code /gu stats} result waits for the next world join
+     * ({@code anni-default-not-reapplied-on-auth-tier-flip}). Routes
      * through {@link #transitionTo} so the
      * {@code /stream} mutex is honoured — if streaming, the transition
      * is silently refused and {@link StreamerModeChatDetector} will

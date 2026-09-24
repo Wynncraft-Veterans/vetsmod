@@ -121,7 +121,7 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 - `legacyWaitlistMarker()` / `legacyHonouraryMarker()` — raw read of the pre-migration timestamps.
 - `loadPersistedState()`, `reset()`.
 
-**Debug override:** `setDebugForceGuildlessUnlocked(boolean)` — forces guildless+unlocked for testing.
+**Debug override:** `setDebugForceGuildlessUnlocked(boolean)` — meant to force guildless+unlocked for testing; nothing calls it today, so the override is never on (bug `unlock-debug-flag-tier-asymmetry`).
 
 ## 5. SessionAuthWarning
 
@@ -150,7 +150,7 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 | `honourary` | `honourary` | HONOURARY Discord role |
 | `other` | _(none — chat-channel access denied)_ | Anything else (linked but no role match, or blocklisted) |
 
-The tier is **resolved server-side**: temporary-server introspects the key against dazebot, whose `resolve_tier()` (`lib/staff/verify_keys.py`) re-derives it from the member's live roles on each introspection, falling back to the tier stored with the key when the member can't be looked up. Tier changes propagate to active sessions on the next WS reconnect (or whenever temporary-server's 60s LRU cache expires the cached introspection).
+The tier is **resolved server-side**: temporary-server introspects the key against dazebot, whose `resolve_tier()` (`lib/staff/verify_keys.py`) re-derives it from the member's live roles on each introspection, falling back to the tier stored with the key when the member can't be looked up. A tier change reaches a session only at its next `auth` frame (the next inbound WS reconnect, or a new `/unlock`), and only once temporary-server's 60s LRU cache no longer holds the old introspection (it can serve a stale entry longer while dazebot is unreachable); cache expiry by itself changes nothing for a session that is already authenticated.
 
 ## 7. Persistence summary
 

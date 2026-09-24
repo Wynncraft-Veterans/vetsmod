@@ -64,8 +64,9 @@ public final class AnniWsHandler {
         // server pushes anni_state only on certain events (and today not to
         // vetsmod at all: outbound-socket-never-authenticated), so a socket drop
         // would otherwise leave the cache frozen on whatever was current at the
-        // previous connect until the next server-initiated push (which may never come
-        // for the user's own RSVP/role edits). Cheap on cold start: one small
+        // previous connect until another pull refreshes it (AnniSnapshotPoller only
+        // runs inside the anni window; a push may never come for the user's own
+        // RSVP/role edits, and today none arrives). Cheap on cold start: one small
         // frame, possibly alongside StampFetcher's world-join pull (queries are
         // queued FIFO, not coalesced). Correct on reconnect.
         V1ApiManager.addInboundPostConnectListener(AnniQueryClient::query);

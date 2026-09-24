@@ -85,7 +85,7 @@ VetsmodClient (entry point)
 Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `auth` frame re-sent on each inbound reconnect. The outbound socket sends neither, ever, so the server never authenticates it: `staff_online`/`staff_offline`, `anni_state` and the targeted `warning` frame never reach vetsmod, and relayed chat arrives without the server's tier filter while its `unauth` toggle is on (bug `outbound-socket-never-authenticated`; [vetsmod_networking.md](vetsmod_networking.md) §1).
 
 - **Inbound** `wss://api.wynnvets.org/v1/inbound` — client sends messages; the server's replies come back on it
-- **Outbound** `wss://api.wynnvets.org/v1/outbound` — server pushes: relayed chat to every client (to an unauthenticated one only while `unauth` is on), the rest only to authenticated sockets
+- **Outbound** `wss://api.wynnvets.org/v1/outbound` — server pushes: relayed chat to every client (to an unauthenticated one only while `unauth` is on), the `server_info` hello to every socket on connect, and the rest only to authenticated sockets
 
 **Control frames** (sent by client) — the four below are the presence/identity set; `/v1/inbound` accepts fourteen in all, adding `rank_change`, the five staff-action frames and the four MWE anni frames. Full inventory in [server_api_reference.md](server_api_reference.md).
 - `register` — presence (uuid, username, tier)
@@ -98,7 +98,7 @@ Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `a
 
 **Chat message fields:** `uuid`, `type` (`guild`|`queue`|`waitlist`|`honourary`|`bridge`), `timestamp`, `rank`, `username`, `message`. `queue` carries guild chat originated by a sender stuck in a world queue (the game server drops `/g` while queued); semantically a guild message but routed via the WS so it still reaches the rest of the guild. Inbound dedup is skipped for `queue` since only the queued sender originates it.
 
-**Tier gating:** when authenticated, the mod can only send/receive chat types its tier permits — `guild`-tier covers `guild`+`queue`, `waitlist`/`honourary` cover only their own type. `bridge` is visible to every authenticated tier. Unauthenticated sessions get unrestricted access *only* while the server's `unauth` toggle is enabled (see `../../temporary-server/v1_protocol.md` §3).
+**Tier gating:** when authenticated, the mod can only send/receive chat types its tier permits — `guild`-tier covers `guild`+`queue`, `waitlist`/`honourary` cover only their own type. `bridge` is visible to every authenticated tier. Unauthenticated sessions get unrestricted access *only* while the server's `unauth` toggle is enabled (see `../../temporary-server/v1_protocol.md` §3). Today only the send half applies to vetsmod: temporary-server filters what a socket receives by that socket's own `auth`, and vetsmod never authenticates its outbound socket, so it receives every chat type while `unauth` is on and none with it off (bug `outbound-socket-never-authenticated`).
 
 ### API boundary — vetsmod talks to temporary-server, NOT to dazebot
 
@@ -112,7 +112,7 @@ Allowed-from-vetsmod surface: anything fronted by `api.wynnvets.org` or `wss://a
 
 ## User tiers (brief)
 
-`member` / `waitlist` / `honourary` / `other`. Tier is **resolved server-side** from Discord roles + linked MC account; the mod gets it back in the `auth` frame ack and uses it for the client-side unlock predicates (`GuildStateManager.isUnlocked` and the waitlist/honourary checks that route chat and gate commands) as well as display and warning copy; the server's own tier gate decides what the session may send. Staff status is orthogonal to tier and comes from two signals: `GuildStateManager.isStaff()` — Captain+ by an in-game `/gu rank` probe, in whatever guild the player is in, cached 24 h, a client-side UX gate — and `isConfirmedStaff()`, the server's `is_staff` on the auth ack, which the server does not grant to captains since the 2026-07 restructure and which is the signal that gates `/caution`, `/warn` and `/eject`.
+`member` / `waitlist` / `honourary` / `other`. Tier is **resolved server-side** from Discord roles + linked MC account; the mod gets it back in the `auth` frame ack and uses it for the client-side unlock predicates (`GuildStateManager.isUnlocked` and the waitlist/honourary checks that route chat and gate commands) as well as display and warning copy; the server's own tier gate decides what the session may send. Staff status is orthogonal to tier and comes from two signals: `GuildStateManager.isStaff()` — Captain+ by an in-game `/gu rank` probe, in whatever guild last answered it, cached 24 h (a cached `true` may outlive leaving the guild: bug `staff-rank-cache-survives-leaving-guild`), a client-side UX gate — and `isConfirmedStaff()`, the server's `is_staff` on the auth ack, which the server does not grant to captains since the 2026-07 restructure and which is the signal that gates `/caution`, `/warn` and `/eject`.
 
 Auth detail (the `/unlock <key>` flow, key persistence, ack routing, `SessionAuthWarning`) is in [vetsmod_guild_system.md](vetsmod_guild_system.md). Wire-level tier gating is in [vetsmod_networking.md §8](vetsmod_networking.md).
 

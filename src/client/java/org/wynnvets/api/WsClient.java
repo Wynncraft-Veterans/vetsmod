@@ -139,7 +139,9 @@ public class WsClient implements WebSocket.Listener {
         return ws != null && !ws.isOutputClosed();
     }
 
-    /** Permanently closes the connection and stops the reconnect scheduler. */
+    /** Permanently closes the connection and stops the reconnect scheduler. Today a
+     *  handshake still in flight completes afterwards and its socket stays open
+     *  ({@code ws-client-close-during-handshake-leaves-socket-open}). */
     public void close() {
         closed.set(true);
         scheduler.shutdownNow();

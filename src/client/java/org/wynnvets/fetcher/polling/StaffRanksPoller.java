@@ -27,7 +27,8 @@ import org.wynnvets.util.Json;
  * <ul>
  *   <li>{@code staffRanksByUsername} — entries populated by each fetch of
  *       {@code /v1/outbound/staff} (the periodic 2-minute poll and {@link #refreshNow()}),
- *       and removed early by a {@code staff_offline} frame. The poll swaps it by
+ *       and meant to be removed early by a {@code staff_offline} frame (none arrives today;
+ *       see below). The poll swaps it by
  *       {@code clear()} then {@code putAll()}, which is not atomic
  *       ({@code staff-ranks-poll-swap-not-atomic}).</li>
  *   <li>{@code liveStaffRanksByUsername} — entries pushed via
@@ -149,9 +150,9 @@ public final class StaffRanksPoller {
      * Triggers an off-schedule fetch of {@code /v1/outbound/staff}.
      *
      * <p>Called on each successful inbound auth ack, so the cache need not wait up to
-     * two minutes for the next scheduled poll. The first scheduled poll ran at mod
-     * init, which may be minutes before the player joins a world and
-     * authenticates.</p>
+     * two minutes for the next scheduled poll. The first scheduled poll runs at mod init,
+     * when the sockets also first connect and a stored key is first sent; each later server
+     * join opens a new pair and re-sends it, at any point in the poll's cycle.</p>
      */
     public static void refreshNow() {
         Thread t = new Thread(StaffRanksPoller::fetchStaffRanks, "VetsMod-StaffRanksRefreshNow");

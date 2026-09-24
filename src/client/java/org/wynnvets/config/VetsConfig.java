@@ -274,7 +274,8 @@ public class VetsConfig {
 
     /** Whether the mod schedules its own {@code /gu stats} check after world join. A valid
      *  cached result (persisted, 3 days) takes precedence over Wynntils' guild detection in
-     *  {@code GuildStateManager.isReturners()} / {@code isGuildless()}; Wynntils' guild name
+     *  {@link org.wynnvets.guild.GuildStateManager GuildStateManager}'s {@code isReturners()} /
+     *  {@code isGuildless()}; Wynntils' guild name
      *  is empty, not null, until its character-info scan or a guild-join message fills it. */
     public static final String MORE_RELIABLE_GUILD_CHECK = "moreReliableGuildCheck";
 

@@ -195,9 +195,12 @@ listeners. Old clients see a frame with no `username`/`message` and ignore it.
 
 ### `/v1/outbound` broadcast
 
-Clients register in the outbound manager's connection set and receive every
-processed message via the FIFO `state.outbound_queue`. Client frames are read
-only to detect disconnect, and non-`auth` frames are silently dropped. Dead
+Clients register in the outbound manager's connection set and receive processed
+messages from the FIFO `state.outbound_queue`, filtered per socket: an authenticated
+socket gets its tier's chat types plus `bridge`, and an unauthenticated one gets
+everything while `unauth` is on and nothing while it is off. Client `auth` frames are
+honoured (see "Auth frame and ack"); every other client frame is read and silently
+dropped. Dead
 connections are pruned. The broadcaster loop dequeues, records traffic, checks
 the disabled toggle, and broadcasts — messages are consumed even when
 `outbound` is disabled, just not sent.
