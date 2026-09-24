@@ -9,14 +9,17 @@ import org.wynnvets.logging.VetsLogger;
  * Determines the player's guild membership by issuing {@code /gu stats}
  * to the Wynncraft server and parsing the multi-line response.
  *
- * <p>Unlike Wynntils' {@link Models#Guild} (which reads scoreboard/compass
- * data and can remain {@code null} for extended periods), this checker
- * queries the server directly and caches the result for
- * {@value #GUILD_CHECK_EXPIRY_DAYS} days.</p>
+ * <p>Unlike Wynntils' {@link Models#Guild} (which learns the guild from its character-menu
+ * scan and from guild chat lines, and whose guild name can stay empty for extended
+ * periods), this checker queries the server directly and caches the result for
+ * {@value #GUILD_CHECK_EXPIRY_DAYS} days. While that result is valid it takes precedence
+ * over Wynntils in {@link GuildStateManager#isReturners()} and
+ * {@link GuildStateManager#isGuildless()}.</p>
  *
- * <p>The command is dispatched through Wynntils' rate-limited command queue
- * ({@code Handlers.Command}) so it never interferes with other mod-initiated
- * commands (staff rank checks, /msg fanout, etc.).</p>
+ * <p>The command is dispatched through Wynntils' command queue ({@code Handlers.Command}),
+ * which spaces it from other mod-initiated commands (staff rank checks, /msg fanout,
+ * etc.). A concurrent {@code /gu rank} reply can still arrive mid-check, which
+ * {@link #isStaffRankCheckResponse(String)} guards against.</p>
  *
  * <p>This class is package-private and accessed exclusively through
  * {@link GuildStateManager}'s facade methods.</p>
@@ -147,9 +150,11 @@ final class GuildChecker {
     }
 
     /**
-     * Clears the in-memory and persisted result.  Called when Wynntils fires
-     * a {@code GuildEvent} (join/leave), since that real-time data is
-     * authoritative over our cached check.
+     * Clears the in-memory and persisted result. Reached through
+     * {@link GuildStateManager#onGuildInfoUpdated()}, which runs on Wynntils' guild
+     * join/leave events and also when the post-world-join recheck finds Wynntils' guild
+     * data populated, where no event fired ({@code guild-recheck-poll-clears-gu-stats-cache});
+     * the real-time data is treated as authoritative over our cached check.
      */
     static void clearResult() {
         cachedResult = GuildCheckResult.UNKNOWN;

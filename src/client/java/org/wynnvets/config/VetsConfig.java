@@ -267,8 +267,10 @@ public class VetsConfig {
     /** Whether {@code ||spoiler||} markers are rendered as hoverable spoiler labels. */
     public static final String HANDLE_SPOILERS = "handleSpoilers";
 
-    /** Whether the mod runs its own {@code /gu stats} check on world join instead of
-     *  relying solely on Wynntils' guild detection (which can remain null). */
+    /** Whether the mod schedules its own {@code /gu stats} check after world join. A valid
+     *  cached result (persisted, 3 days) takes precedence over Wynntils' guild detection in
+     *  {@code GuildStateManager.isReturners()} / {@code isGuildless()}; Wynntils' guild name
+     *  is empty, not null, until its character-info scan or a guild-join message fills it. */
     public static final String MORE_RELIABLE_GUILD_CHECK = "moreReliableGuildCheck";
 
     /** Whether to show the {@code ✅ vetsmod authentication verified — tier: …}

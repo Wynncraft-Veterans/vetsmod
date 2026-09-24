@@ -20,8 +20,10 @@ import org.wynnvets.mwe.anni.mode.AnniModeManager;
  * Central authority for the player's guild membership, staff rank, and
  * feature-gate state.
  *
- * <p>Reads guild affiliation directly from the Wynntils {@code Models.Guild}
- * API (backed by scoreboard/character-info parsing). World-join triggers are
+ * <p>Reads guild affiliation from two sources. vetsmod's own {@code /gu stats} check
+ * ({@link GuildChecker}, persisted) wins while its result is valid; otherwise it is read
+ * live from Wynntils' {@code Models.Guild}, which Wynntils fills from its character-info
+ * menu scan and from guild join/leave chat lines. World-join triggers are
  * provided by {@link org.wynnvets.listeners.WynntilsEventListener} via
  * {@code WorldStateEvent}. Once the player's guild is confirmed as the
  * Returners guild, mod features (bridge, MOTD, staff chat, etc.) are
@@ -46,7 +48,8 @@ public class GuildStateManager {
     private static volatile long lastMotdFetchTime = 0;
     private static final long MOTD_FETCH_COOLDOWN_MS = 1_000L;
 
-    // Delayed guild re-check for guildless users after world switch.
+    // Delayed guild re-check, scheduled by onEnteredWorld() when Wynntils
+    // reports no guild yet (its character-menu scan can land after world join).
     private static final long GUILD_RECHECK_DELAY_MS = 3_000L;
     private static final int GUILD_RECHECK_MAX_ATTEMPTS = 3;
     private static final long GUILD_RECHECK_INTERVAL_MS = 2_000L;
@@ -82,7 +85,9 @@ public class GuildStateManager {
      * chief of another guild, say, or a Returners chief without a confirming
      * auth ack.
      * Trying the confirmed rank first avoids the execution-time race where
-     * the live model returns {@code null} briefly after world joins and a
+     * the live rank is still {@code null} (Wynntils fills it from its character-menu
+     * scan, which lands shortly after the first world join of a launch, or from a guild
+     * join or rank-change chat line) and a
      * confirmed Returners chief would otherwise be refused. Called from
      * {@code /wv distribute}'s executor-time check ({@code ensureChief}), not
      * from its {@code .requires} (that is {@link #isStaffOfAnyGuild()}).</p>
@@ -122,7 +127,7 @@ public class GuildStateManager {
      *
      * <p>If the mod's own guild check ({@link GuildChecker}) has a valid
      * (non-expired) result, that takes precedence over Wynntils'
-     * {@code Models.Guild} data, which can remain {@code null} for
+     * {@code Models.Guild} data, whose guild name can stay empty for
      * extended periods after world join.</p>
      *
      * @return true if guild is "Returners", false otherwise
@@ -160,9 +165,10 @@ public class GuildStateManager {
      * minutes after world join). When neither has landed this returns
      * {@code false} and the caller leaves the server's own rendering alone —
      * a real Returner may see vanilla pills early in a session, which is the
-     * harmless direction to be wrong in, and it self-heals when the
-     * {@code /gu stats} check scheduled by {@link #scheduleDelayedGuildCheck()}
-     * lands a few seconds after world join.</p>
+     * harmless direction to be wrong in, and it self-heals as soon as either source
+     * lands: Wynntils' guild scan, or the {@code /gu stats} check that
+     * {@link #scheduleDelayedGuildCheck()} runs a few seconds after world join while
+     * {@code moreReliableGuildCheck} is on (the default).</p>
      *
      * @return true when guild chat should get vetsmod's treatment
      */
@@ -174,7 +180,9 @@ public class GuildStateManager {
      * Get whether the player is not in a guild.
      *
      * <p>Checks the mod's own guild check result first, falling back to
-     * Wynntils' {@code Models.Guild}.</p>
+     * Wynntils' {@code Models.Guild}. Until one of them reports a guild it answers
+     * {@code true}, so a guild member can read as guildless early in a session: the
+     * opposite default to {@link #isReturners()}.</p>
      *
      * @return true if player is not in a guild, false otherwise
      */
@@ -283,8 +291,9 @@ public class GuildStateManager {
     }
 
     /**
-     * Check if the player has entered a world at least once since the last
-     * reset, meaning guild info from Wynntils should be available.
+     * Whether {@link #onEnteredWorld()} has started since the last reset. This does not
+     * mean Wynntils' guild info is available yet: that can lag world join (see
+     * {@link #scheduleGuildRecheck()}).
      *
      * @return true once the first world-join has been processed
      */
@@ -852,8 +861,9 @@ public class GuildStateManager {
                 selfStaffRank().isEmpty() ? "(none)" : selfStaffRank(),
                 ChatFormatting.AQUA);
 
-        // Trigger guild info update path (without clearing GuildChecker —
-        // that only happens on GuildEvent from Wynntils, not on forced recheck)
+        // Trigger guild info update path without clearing GuildChecker: only
+        // onGuildInfoUpdated() clears it (Wynntils' guild events and the
+        // post-world-join recheck poll), and a forced recheck is neither.
         if (inGuild) {
             VetsLogger.info("forceGuildRecheck: Wynntils has guild info, re-evaluating");
             // Don't call onGuildInfoUpdated() here as it clears GuildChecker.
@@ -871,7 +881,8 @@ public class GuildStateManager {
                 staffRefreshStarted ? "started" : "already in progress",
                 staffRefreshStarted ? ChatFormatting.GREEN : ChatFormatting.YELLOW);
 
-        // Always run our own /gu stats check from forceChecks
+        // Run our own /gu stats check whatever moreReliableGuildCheck says
+        // (skipped if one is already in flight)
         boolean guildCheckStarted = GuildChecker.refreshGuildStatus();
         sendDiagLine(
                 "Guild check (/gu stats)",
@@ -923,9 +934,10 @@ public class GuildStateManager {
     private static final long GUILD_CHECK_WORLD_JOIN_DELAY_MS = 5_000L;
 
     /**
-     * Schedules a {@code /gu stats} guild check to run after a delay,
-     * ensuring Wynntils has finished its own world-join processing and
-     * the command queue is clear.
+     * Starts a {@code /gu stats} guild check {@link #GUILD_CHECK_WORLD_JOIN_DELAY_MS} after
+     * world join, to give Wynntils' own world-join commands time to go first. Sleeps on
+     * its own thread, then hops to the client thread and queues the check only if the
+     * player is still on a world.
      */
     private static void scheduleDelayedGuildCheck() {
         new Thread(

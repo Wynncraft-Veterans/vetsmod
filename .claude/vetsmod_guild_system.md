@@ -39,18 +39,17 @@ Key public methods (all package-level or client-facing):
 
 ### Guild membership flow on world join
 
-`onEnteredWorld()` checks in order:
-1. `GuildChecker.hasValidResult()` — cached `/gu stats` result, valid 3 days
-2. Wynntils `Models.Guild.getGuildName()` — live but may be null
-3. If `MORE_RELIABLE_GUILD_CHECK` config enabled, schedules a `/gu stats` 5s after world join
+`isReturners()` / `isGuildless()` prefer a valid `GuildChecker` result (the persisted `/gu stats` cache, 3-day expiry), else read Wynntils' `Models.Guild` live (the name is empty, not null, until Wynntils' character-info scan or a guild-join message fills it). `onEnteredWorld()` then schedules two follow-ups:
+1. a `/gu stats` check 5 s after world join, while `MORE_RELIABLE_GUILD_CHECK` is on (the default);
+2. when Wynntils reports no guild yet, the recheck poll (`GUILD_RECHECK_*` constants), which calls `onGuildInfoUpdated()` once a guild appears.
 
-Wynntils `GuildEvent.Joined` / `.Left` invalidates the `GuildChecker` cache (authoritative source).
+`onGuildInfoUpdated()` invalidates the `GuildChecker` cache. It runs on Wynntils' `GuildEvent.Joined` / `.Left` and from that recheck poll, where no event fired (bug `guild-recheck-poll-clears-gu-stats-cache`).
 
 ## 2. GuildChecker
 
 [GuildChecker](../src/client/java/org/wynnvets/guild/GuildChecker.java)
 
-**Purpose:** Parse multi-line `/gu stats` response to detect guild name when Wynntils data isn't available.
+**Purpose:** Parse the multi-line `/gu stats` response into a cached guild result. While valid (3 days) it takes precedence over Wynntils' `Models.Guild` in `isReturners()` / `isGuildless()`; it runs after world join while `moreReliableGuildCheck` is on (the default).
 
 **Result enum:**
 | Value | persistedValue |
@@ -174,5 +173,5 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 - **Returners guild members still need to /unlock** under the new system. Guild detection alone no longer grants chat access — the server's tier gate enforces that authenticated users can only send chat types their tier allows. Pre-migration users discover this via the SessionAuthWarning.
 - **`forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears **neither** cache — it prints diagnostics and re-runs both checks (`refreshStaffStatusIfNeeded(true)` and `GuildChecker.refreshGuildStatus()`). Not clearing is deliberate and commented twice in `GuildStateManager`: `GuildChecker` is cleared only by `onGuildInfoUpdated()`, which fires from Wynntils' `GuildEvent.Joined`/`.Left` handlers and from the post-world-join recheck poll once guild info turns up. It also does *not* re-auth; that happens automatically on every inbound WS reconnect.
 - **Wynntils `GuildEvent`** is authoritative — when it fires, `GuildChecker` cache is invalidated.
-- **`/gu stats` vs Wynntils** — Wynntils data is tried first; `/gu stats` is the reliable fallback (hence `MORE_RELIABLE_GUILD_CHECK` config).
+- **`/gu stats` vs Wynntils** — a valid `/gu stats` result (`GuildChecker`) takes precedence; Wynntils' `Models.Guild` is the live fallback while there is none. Wynntils usually lands first in time. `MORE_RELIABLE_GUILD_CHECK` schedules the `/gu stats` check that refreshes the cache.
 - **Rotating a leaked key:** users run `/vetsmod rotate` in Discord; their old key fails introspection on the next WS connect. The mod surfaces the failure via `onAuthFailure()` and the SessionAuthWarning prompts them to `/unlock` again.

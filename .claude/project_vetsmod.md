@@ -50,7 +50,7 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 - `WorldStateEvent` for world join trigger
 - `StyledText`, `ComponentUtils`, `McUtils`
 
-**Guild detection:** Hybrid — Wynntils `Models.Guild` first, falls back to `/gu stats` parser. Cached 3 days. Retries 3x with 2s intervals on world join.
+**Guild detection:** Hybrid — a valid `/gu stats` result (cached 3 days) takes precedence; Wynntils' `Models.Guild` is the live fallback. After world join, while Wynntils reports no guild, a recheck poll checks up to 3 times (3 s after the join, then every 2 s).
 
 **User tiers:** `member` (`guild` on the wire) | `waitlist` | `honourary` | `other`. Tier is resolved server-side by dazebot from the user's Discord roles + linked MC account; the mod gets it back in the `auth` frame ack. Authentication is via a 43-char URL-safe base64 bearer key issued by dazebot's `/vetsmod` Discord command and supplied by the user via `/unlock <key>`. The legacy SHA-256 password unlock has been retired. Its markers are meant to stay on disk only for warning copy; today they still unlock client-side (bug `legacy-unlock-markers-still-grant-client-unlock`). Staff detected via `/gu rank` (captain+), cached 24h, orthogonal to tier.
 
