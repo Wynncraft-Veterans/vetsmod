@@ -195,10 +195,14 @@ public final class WynntilsEventListener {
                 "onGuildChat trueUsername [{}] (displayName was [{}])", trueUsername, displayName);
 
         // Bridge echo suppression: if this message was recently displayed by
-        // the outbound handler as a bridge message, skip it.  isInternalDispatch
-        // is unreliable for wrapped multi-line messages, so this catch-all
-        // comparison (whitespace-stripped) handles both the re-fire from the
-        // mod's own display and any Wynncraft server echo.
+        // the outbound handler as a bridge message, skip it. isInternalDispatch
+        // covers only work that runs synchronously inside ChatUtils' own
+        // displayClientMessage call. A Wynntils build that replays a line on a
+        // later tick escapes it (Wynntils 4.0.2's chat page detector did this
+        // for multi-line lines while NPC-dialogue extraction was on). This
+        // catch-all comparison, which strips whitespace and glyph art
+        // (OutboundDisplayHandler.wasBridgeEcho), also covers any Wynncraft
+        // server echo of a bridge message.
         if (OutboundDisplayHandler.wasBridgeEcho(messageContent)) {
             VetsLogger.debug(
                     "onGuildChat: bridge echo suppressed for [{}] [{}]",

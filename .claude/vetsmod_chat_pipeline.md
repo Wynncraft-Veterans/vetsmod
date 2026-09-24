@@ -14,7 +14,7 @@ The vetsmod chat system is a multi-stage pipeline that intercepts each chat mess
 
 **Outbound (user → server):** `ClientPacketListener.sendCommand()` → `GuildChatCommandMixin` HEAD → `GuildChatDispatcher.intercept()` for `/g`, `/wg`, `/v` and nine more prefixes — **not exhaustive**, see `GuildChatDispatcher.intercept`, which matches 12. `/msg` is not among them.
 
-**Remote push (WebSocket → client):** `V1ApiManager` outbound listener → `OutboundDisplayHandler.onOutboundMessage()` → UUID dedup + self + bridge echo suppression → `ChatUtils.sendGuildChatMessage()`.
+**Remote push (WebSocket → client):** `V1ApiManager` outbound listener → `OutboundDisplayHandler.onOutboundMessage()` → display gates, UUID dedup, self suppression, Returners' own `guild` frames dropped outside a queue → `ChatUtils.sendHonouraryChatMessage()` when this client is honourary-unlocked, else `ChatUtils.sendGuildChatMessage()`. A `warning` frame branches off to `WarningRewriter` before the gates (none arrives today: bug `outbound-socket-never-authenticated`), and a staff `‼` alert to `StaffGuildAlertRewriter` after them; `bridge` frames are only recorded here, for `WynntilsEventListener`'s echo check. Full order in §5.
 
 ## 2. ChatLogMixin — the chokepoint
 
@@ -140,14 +140,14 @@ Pipe regex: `\|\|(.+?)\|\|` (non-greedy). Predicates: `containsPipeSpoiler()`, `
 
 [OutboundDisplayHandler](../src/client/java/org/wynnvets/chat/OutboundDisplayHandler.java)
 
-Receives all server-pushed messages from `V1ApiManager`.
+Receives the outbound frames `V1ApiManager` fans out to its outbound listeners. It is one of them, and `V1ApiManager` routes `server_info` and `staff_online`/`staff_offline` away before the fan-out.
 
 State:
 - `pendingSelfMessages` Deque (max 50, 30s TTL) — echo-suppress messages user just sent
-- `recentBridgeMessages` Deque (max 200, 10s TTL) — bridge-echo dedup via normalized-text compare (strips whitespace + PUA)
+- `recentBridgeMessages` Deque (max 200, 10s TTL) — bridge-echo dedup via normalized-text compare (strips whitespace and every `PillCodec.isCustomGlyph` codepoint)
 - `recentUuids` LinkedHashMap (max 200, 10s TTL) — UUID-based dedup
 
-Flow: message → UUID dedup → self suppression → bridge echo check → display via `ChatUtils.sendGuildChatMessage()`.
+Flow: a `warning` frame → `WarningRewriter.render`, skipping every step after it (today none arrives: bug `outbound-socket-never-authenticated`). Any other frame → `PRINT_BRIDGE_MESSAGES` gate → audience gate (`shouldDisplayMessages`) → UUID dedup → dropped if `username` or `message` is empty → self suppression → Returners' `guild` frames dropped unless queued → `bridge` frames recorded for `WynntilsEventListener.onGuildChat`'s echo check (`wasBridgeEcho`) → for a `guild` or `queue` frame, a staff `‼` alert via `StaffGuildAlertRewriter.tryRewriteOutbound` → otherwise display via `ChatUtils.sendHonouraryChatMessage()` (honourary-unlocked viewer) or `ChatUtils.sendGuildChatMessage()`.
 
 ## 6. ChatUtils — the formatting engine
 

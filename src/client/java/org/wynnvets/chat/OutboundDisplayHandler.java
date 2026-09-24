@@ -22,13 +22,27 @@ import org.wynnvets.util.Json;
  * in the player's chat HUD.
  *
  * <p>Replaces the old polling fetchers ({@code ChatMessageFetcher} and
- * {@code BridgeMessageFetcher}) with a push-based approach. Messages are
- * displayed based on the player's current state:
+ * {@code BridgeMessageFetcher}) with a push-based approach. A
+ * {@code "warning"} frame goes to {@link WarningRewriter} ahead of every
+ * gate below. Any other frame displays only while
+ * {@link VetsConfig#PRINT_BRIDGE_MESSAGES} is on, and only for (see
+ * {@code shouldDisplayMessages()}):
  * <ul>
- *   <li>Returners members: all guild and bridge messages</li>
- *   <li>Waitlist-unlocked users: all guild and bridge messages</li>
- *   <li>Honourary-unlocked users: all guild and bridge messages</li>
+ *   <li>Returners members &mdash; except, outside a world queue, their
+ *       {@code "guild"} frames, which the Wynncraft server already delivers</li>
+ *   <li>guildless, waitlist-unlocked users</li>
+ *   <li>honourary-unlocked users</li>
  * </ul>
+ *
+ * <p>Apart from that Returners exception, these gates test this client's own
+ * settings and state, not the frame's {@code type}; which types arrive is
+ * meant to be temporary-server's tier filter's call. Today that filter does
+ * not apply, because vetsmod never authenticates this socket
+ * ({@code outbound-socket-never-authenticated}): no {@code warning} frame
+ * arrives, and every chat type does while the server's {@code unauth} toggle
+ * is on (none with it off). So a Returner also renders {@code waitlist} and
+ * {@code honourary} relays, and the other viewers above also render
+ * {@code guild} and {@code queue} chat.</p>
  *
  * <p>Self-message suppression prevents echo of messages the player just sent.
  * Server-side dedup handles guild message fingerprinting.</p>
@@ -188,10 +202,11 @@ public final class OutboundDisplayHandler {
         }
 
         // Record bridge messages for echo suppression in onGuildChat.
-        // When the mod displays a bridge message, isInternalDispatch can
-        // fail for wrapped multi-line messages, causing Wynntils to re-fire
-        // the event.  Recording the message here lets onGuildChat detect
-        // and suppress the re-fire.
+        // isInternalDispatch covers only work that runs synchronously inside
+        // ChatUtils' own displayClientMessage call; a Wynntils build that
+        // replays a line on a later tick would escape it. Recording the
+        // message here lets onGuildChat catch such a replay, and any
+        // Wynncraft server echo of it.
         if ("bridge".equals(type)) {
             recordBridgeOutbound(message);
         }
@@ -213,7 +228,8 @@ public final class OutboundDisplayHandler {
     }
 
     private static boolean shouldDisplayMessages() {
-        // Returners members see outbound messages (bridge messages)
+        // Returners members see outbound messages (onOutboundMessage still
+        // drops their "guild" frames unless they are queued)
         if (GuildStateManager.isReturners()) {
             return true;
         }
@@ -230,7 +246,8 @@ public final class OutboundDisplayHandler {
 
     private static boolean shouldSuppressSelfMessage(String username, String message, String type) {
         // Only suppress game-sourced messages (sent by this client through the temp server).
-        // Covers guild (Returners), waitlist (guildless relay), and honourary relay types.
+        // Covers guild (Returners), queue (queued Returners), waitlist
+        // (guildless relay), and honourary relay types.
         if (!"guild".equals(type)
                 && !"queue".equals(type)
                 && !"waitlist".equals(type)
@@ -301,11 +318,15 @@ public final class OutboundDisplayHandler {
 
     /**
      * Checks whether a guild-chat message is an echo of a recently displayed
-     * bridge outbound message.  Comparison strips all whitespace and PUA
-     * characters so that Wynncraft line-wrap artefacts (spaces injected at
-     * wrap points) do not prevent a match.
+     * bridge outbound message.  Comparison strips whitespace and every
+     * codepoint {@link PillCodec#isCustomGlyph(int)} accepts, so that
+     * Wynncraft line-wrap artefacts (spaces injected at wrap points) do not
+     * prevent a match.
      *
-     * @param message the guild-chat message text extracted by Wynntils
+     * @param message the guild-chat message text
+     *     {@link org.wynnvets.listeners.WynntilsEventListener#onGuildChat
+     *     WynntilsEventListener.onGuildChat} extracted from a Wynntils
+     *     guild-chat event
      * @return true if the message matches a recent bridge outbound
      */
     public static boolean wasBridgeEcho(String message) {
@@ -341,9 +362,11 @@ public final class OutboundDisplayHandler {
     }
 
     /**
-     * Normalizes a message for bridge echo dedup by stripping all whitespace
-     * and PUA/unassigned codepoints.  This allows matching despite Wynncraft
-     * line-wrap spaces and PUA badge/pill differences.
+     * Normalizes a message for bridge echo dedup by stripping whitespace
+     * ({@link Character#isWhitespace(int)}) and every codepoint
+     * {@link PillCodec#isCustomGlyph(int)} classifies as resource-pack glyph
+     * art. This allows matching despite Wynncraft line-wrap spaces and PUA
+     * badge/pill differences.
      */
     private static String normalizeBridgeDedup(String text) {
         if (text == null) return "";

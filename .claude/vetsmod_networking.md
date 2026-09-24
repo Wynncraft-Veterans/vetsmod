@@ -268,8 +268,8 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 **Outbound (WebSocket → user sees it):**
 1. Server pushes JSON via outbound WS
 2. `WsClient.handleText()` → `V1ApiManager` → `OutboundDisplayHandler.onOutboundMessage()`
-3. UUID dedup (10s TTL), self-suppression (30s TTL), bridge echo suppression (10s TTL)
-4. `ChatUtils.sendGuildChatMessage()` formats + displays
+3. A `warning` frame goes to `WarningRewriter` and skips the rest (none arrives today: bug `outbound-socket-never-authenticated`, §1). Any other frame: display gates, UUID dedup (10s TTL), self-suppression (30s TTL); Returners' `guild` frames drop unless queued, and `bridge` frames are recorded (10s TTL) for `WynntilsEventListener`'s echo check, which runs there, not in this flow
+4. A staff `‼` alert on a `guild` or `queue` frame goes to `StaffGuildAlertRewriter`; otherwise `ChatUtils.sendHonouraryChatMessage()` (honourary-unlocked viewer) or `sendGuildChatMessage()` formats + displays
 
 ## 7.1 MWE/anni frames
 

@@ -185,11 +185,20 @@ public final class ChatUtils {
      * Sends an honourary-chat–style message:
      * {@code &9<guild badge> &3<rank> &b<displayName>&3: <message>}.
      *
-     * <p>Used for outgoing {@code /wg} echoes and for inbound messages with
-     * {@code type="honourary"}.  The badge uses the {@code U+E013} glyph
-     * instead of the regular {@code U+E006}, and the colour scheme inverts
-     * the rank/name relationship so honourary chat is distinguishable from
-     * Returners guild chat.</p>
+     * <p>Used for outgoing {@code /wg} echoes and, while this client is
+     * honourary-unlocked, for the relayed chat lines
+     * {@link OutboundDisplayHandler} renders as ordinary chat &mdash; a choice
+     * keyed on the viewer's own unlock state, not on the frame's
+     * {@code type}. An honourary socket would get only {@code honourary} and
+     * {@code bridge} chat from temporary-server's tier filter. Today no filter
+     * applies, because vetsmod never authenticates its outbound socket
+     * ({@code outbound-socket-never-authenticated}): while the server's
+     * {@code unauth} toggle is on, an honourary-unlocked client can render any
+     * relayed chat type here, and an {@code honourary} frame that another
+     * viewer displays goes through {@link #sendGuildChatMessage} instead. The
+     * badge uses the {@code U+E013} glyph instead of the regular
+     * {@code U+E006}, and the colour scheme inverts the rank/name relationship
+     * so honourary chat is distinguishable from Returners guild chat.</p>
      */
     public static void sendHonouraryChatMessage(String rank, String displayName, String message) {
         MutableComponent badge = Prepend.GUILD_HONOURARY.get();
