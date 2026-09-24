@@ -74,8 +74,8 @@ public final class WorldListFetcher {
     // ── Public entry point ──────────────────────────────────────────
 
     /**
-     * Gathers online members, locates each via {@code /find}, and returns a
-     * formatted world-grouped listing.
+     * Gathers online members, locates each via {@code /find}, and posts a world-grouped listing
+     * to chat. Returns immediately; progress and results arrive asynchronously.
      */
     public static void fetchWorldList() {
         ChatUtils.sendLocalMessage(
@@ -171,8 +171,8 @@ public final class WorldListFetcher {
      * correct server bucket; a retry miss / timeout leaves the original
      * {@code worldMap} entry untouched (= original behaviour).</p>
      *
-     * <p>Returns a copy of {@code worldMap} with augmented entries; never
-     * mutates the input.</p>
+     * <p>Returns {@code worldMap} itself when nothing needed retrying, otherwise an augmented
+     * copy; never mutates the input.</p>
      */
     private static CompletableFuture<Map<String, String>> retryStragglersUnderCanonicalNames(
             List<OnlineMemberService.OnlinePlayer> players, Map<String, String> worldMap) {

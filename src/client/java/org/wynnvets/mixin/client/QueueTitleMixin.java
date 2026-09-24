@@ -12,11 +12,14 @@ import org.wynnvets.queue.QueueDetector;
  * Intercepts title packets directly at the network handler level to detect
  * Wynncraft's world-queue title ("Queueing for XX##...").
  *
- * <p>This mixin exists because the primary detection path via Wynntils'
- * {@code TitleSetTextEvent} can be silently bypassed when another mod
- * (e.g. WynnLimbo) injects into the same method and cancels the callback
- * before Wynntils' mixin fires. Reading the packet ourselves at
- * {@code HEAD} sidesteps Wynntils' event entirely, and that part works.</p>
+ * <p>This mixin exists because the primary detection path via Wynntils' {@code TitleSetTextEvent}
+ * can be silently bypassed when another mod cancels that event. What keeps this path fed then is
+ * vanilla's thread hop: {@code setTitleText} is entered first on the network thread, where
+ * Wynntils' own {@code HEAD} inject returns early and this one runs; on the second, render-thread
+ * entry Wynntils' inject runs before this one (see below) and its {@code ci.cancel()} for a
+ * cancelled event skips it.
+ * {@link org.wynnvets.queue.QueueDetector#handleTitleText(String) QueueDetector.handleTitleText}
+ * is therefore also called off the render thread.</p>
  *
  * <p><b>The {@code priority = 500} does not add to that, and it orders the
  * opposite way from how it reads.</b> Mixin applies in ascending priority

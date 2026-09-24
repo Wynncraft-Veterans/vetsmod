@@ -54,7 +54,8 @@ VetsmodClient (entry point)
   ├── V1ApiManager            Dual WebSocket (inbound + outbound) to api.wynnvets.org
   │                           Sends `auth` frame after inbound connect using the stored /unlock key
   ├── OutboundDisplayHandler  Receives WS messages, deduplicates, displays in chat
-  ├── QueueStateManager       In-queue state + listeners; fed by QueueDetector (title + world events)
+  ├── QueueStateManager       In-queue state + listeners; fed by QueueDetector (title/world/disconnect/timeout)
+  │                           also cleared directly by WynntilsEventListener on native guild chat
   ├── fetcher/polling/ (6)    Six schedules over five classes, one PollingService lifecycle:
   │                           SupportersPoller 5m, StaffRanksPoller 2m, AnniStampPoller 5m,
   │                           AnniSnapshotPoller 30s (only inside the anni window), and

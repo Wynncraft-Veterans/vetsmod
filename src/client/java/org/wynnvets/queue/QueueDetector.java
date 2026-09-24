@@ -76,10 +76,15 @@ public final class QueueDetector {
     }
 
     /**
-     * Processes a raw title string for queue detection.  Called from both
-     * the Wynntils event handler and the direct mixin fallback so that
-     * queue detection works regardless of whether another mod (e.g.
-     * WynnLimbo) cancels the title packet before Wynntils sees it.
+     * Processes a raw title string for queue detection. Called from the Wynntils
+     * {@code TitleSetTextEvent} handler and from
+     * {@link org.wynnvets.mixin.client.QueueTitleMixin QueueTitleMixin}, which reads the packet
+     * at the head of {@code ClientPacketListener.setTitleText} &mdash; including vanilla's first
+     * entry on the network thread, so this method also runs off the render thread. That second
+     * path means a mod cancelling Wynntils' event does not blind queue detection; a mod
+     * cancelling {@code setTitleText} itself at {@code HEAD} ahead of {@code QueueTitleMixin}
+     * still can ({@code queue-title-mixin-priority-inverts-its-own-goal};
+     * {@code vetsmod_mixins.md} §"Injection priorities").
      *
      * @param text the plain-text title string
      */

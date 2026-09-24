@@ -151,15 +151,18 @@ Package: [org.wynnvets.fetcher.ondemand](../src/client/java/org/wynnvets/fetcher
 Parses JSON array, extracts `{username, rank, world/server}`, filters online, sorts by rank priority (owner=0, chief=1, strategist=2, captain=3), then alpha.
 
 ### ListFetcher partitions
-1. Guild with VetsMod (UUID in connected set)
-2. Guild without VetsMod
-3. Honourary (italic light purple)
-4. Waitlist (italic dark aqua)
+1. Guild with VetsMod, not queued
+2. Guild — in Queue (VetsMod, queued)
+3. Guild without VetsMod
+4. Honourary
+5. Waitlist
+
+(Names AQUA, italic for honourary and waitlist; the italic light-purple / dark-aqua styles are `/wv list world`'s.)
 
 Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporters gradient glint (via `SupportersPoller.isSupporter()`). Hover shows "Click to message X"; the click is a `ClickEvent.SuggestCommand` — it pre-fills the chat box with `/msg X ` (trailing space) rather than sending anything.
 
 ### WorldListFetcher flow
-"Looking up..." → gather players → fetch staff names → dispatch `/find` batch via `FindDispatcher.enqueueFindBatch()` → group by server → group by region (GeoIP2 prefix: EU→Europe, AS→Asia, etc.) → sort by count desc.
+"Looking up..." → gather players and fetch staff names (concurrently) → dispatch `/find` batch via `FindDispatcher.enqueueFindBatch()` → re-query unplaced players under `PlayerLookup`'s canonical names → group by server → group by region (GeoIP2 prefix) → sort by count desc.
 
 ### StampFetcher formats
 - <1 hour: `"Annihilation is in X mins!"` (red) + "Click here for more info" link

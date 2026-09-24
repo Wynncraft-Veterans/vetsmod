@@ -13,14 +13,16 @@ import org.wynnvets.logging.VetsLogger;
  * {@link org.wynnvets.commands.GuildChatDispatcher}) query this manager to
  * decide whether to take the queue-aware path.</p>
  *
- * <p>State is driven by {@link QueueDetector}, which subscribes to the
- * relevant Wynntils and Fabric events.  This class is a plain state store and
- * does not know about detection signals — detection logic lives in
- * {@link QueueDetector} so the two can evolve independently.</p>
+ * <p>State is driven by {@link QueueDetector}, which subscribes to the relevant Wynntils and
+ * Fabric events, and one exit is raised elsewhere:
+ * {@link org.wynnvets.listeners.WynntilsEventListener WynntilsEventListener} clears the state
+ * when server-native guild chat arrives. This class is a plain state store and does not know
+ * about detection signals &mdash; detection logic lives in {@link QueueDetector} so the two can
+ * evolve independently.</p>
  *
- * <p>The class is thread-safe: all public mutators synchronize on the
- * singleton instance, and the listener list is a {@link CopyOnWriteArrayList}
- * so callbacks can be dispatched without holding the lock.</p>
+ * <p>The mutators are {@code static synchronized} (they lock the class) and invoke listeners
+ * while still holding that lock; the listener list is a {@link CopyOnWriteArrayList} so
+ * {@link #addListener} never races an in-progress dispatch.</p>
  */
 public final class QueueStateManager {
 

@@ -25,8 +25,9 @@ import org.wynnvets.util.Json;
 /**
  * On-demand fetcher that retrieves the list of currently online staff members.
  *
- * <p>Formats the result as a styled chat component for display via
- * {@code /wv staff}. Staff names are colour-coded by rank.</p>
+ * <p>Formats the result as a styled chat component for display via {@code /wv staff}. Each name
+ * is followed by its rank's display label ({@code RankDisplayMap}) and world; entries sort by
+ * rank, then name.</p>
  */
 public final class StaffFetcher {
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();
