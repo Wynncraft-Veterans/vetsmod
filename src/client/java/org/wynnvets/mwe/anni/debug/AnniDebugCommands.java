@@ -36,8 +36,9 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *
  * <p>Anni is infrequent and hard to test against live events; these commands
  * let a developer reproduce every render branch without waiting for a real
- * anni cycle. Gated by {@link VetsLogger#isDebugEnabled()} (not the
- * {@code vetsAnniEnabled} master toggle) so the whole subsystem stays
+ * anni cycle. Gated by {@link VetsLogger#isDebugEnabled()} (not
+ * {@code vetsAnniEnabled}, which gates only the snapshot-driven render paths in
+ * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}) so the whole subsystem stays
  * testable while still being accidentally-safe (debug logging is off by
  * default, is opt-in via {@code /wv debug true}, and is not restored at
  * startup once three days have passed since it was switched on — that check

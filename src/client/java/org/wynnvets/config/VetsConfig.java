@@ -52,14 +52,27 @@ public class VetsConfig {
     public static final String VETS_LAST_GUILD_CHECK = "vetsLastGuildCheck";
     public static final String VETS_DEBUG_ENABLED_AT = "vetsDebugEnabledAt";
 
-    /** Master toggle for the MWE (Major World Event / anni) integration —
-     *  the snapshot listener, anni-aware {@code /wv anni} renderer, boss bar
-     *  (S3), outlines (S4), etc. Off by default. Auto-set to {@code true}
-     *  on the first successful auth ack whose tier ∈ {@code {member,
-     *  waitlist, honourary}}, so vets players just get the enriched view
-     *  without a manual toggle. Non-vets users can opt in via
-     *  {@code /wv config vetsAnniEnabled true} if they want the on-demand
-     *  pull (Hard Rule #3: pulls are open to anyone). */
+    /** Gates the snapshot-driven render paths in
+     *  {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}: with it off, the world-join
+     *  anni-motd and {@code /wv anni} take the legacy stamp path, and each skips its own cold-cache
+     *  {@link org.wynnvets.mwe.anni.network.AnniQueryClient#query() AnniQueryClient#query()} pull.
+     *  It does not gate the boss bar, the highlights or the aggressive components (those key off
+     *  {@link #VETS_ANNI_MODE}), and it is independent of the anni mode itself
+     *  ({@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager} never reads it).
+     *  {@link org.wynnvets.mwe.anni.network.AnniWsHandler AnniWsHandler}'s post-connect re-pull and
+     *  {@link org.wynnvets.fetcher.polling.AnniSnapshotPoller AnniSnapshotPoller} read neither key.
+     *  {@link #PRINT_ANNI} suppresses the world-join line earlier, before {@code StampFetcher}
+     *  runs. Off by default.
+     *  <p>Meant to give vets players the enriched view without a manual toggle. Today
+     *  {@link org.wynnvets.api.V1ApiManager V1ApiManager}'s auth-ack handler sets it {@code true}
+     *  whenever an ok auth ack with tier member, waitlist or honourary finds it {@code false}, so
+     *  a vets-tier opt-out lasts only until the next ack. Anyone can opt in with
+     *  {@code /wv config vetsAnniEnabled true}, but the pull it enables asks for the authenticated
+     *  session's own snapshot
+     *  ({@link org.wynnvets.api.V1ApiManager#sendAnniQuery() V1ApiManager#sendAnniQuery()} names
+     *  no UUID), so until an {@code /unlock} key has authenticated the inbound socket it resolves
+     *  to no snapshot and both callers fall back to the legacy path. Slated for retirement
+     *  ({@code vets-anni-enabled-to-be-retired}). */
     public static final String VETS_ANNI_ENABLED = "vetsAnniEnabled";
 
     // ── Vetsmod /unlock <key> auth state ─────────────────────────────────

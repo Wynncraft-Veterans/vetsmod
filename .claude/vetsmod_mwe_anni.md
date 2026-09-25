@@ -854,7 +854,7 @@ One table, every key. `vetsAnniOutlinesEnabled` and `vetsAnniNametagsEnabled` ga
 
 | Key | Type | Default | Purpose |
 |--|--|--|--|
-| `vetsAnniEnabled` | bool | false (auto-true on first vets-tier auth ack) | Master MWE toggle |
+| `vetsAnniEnabled` | bool | false (today, auto-true on every vets-tier auth ack that finds it off) | Gates only `StampFetcher`'s snapshot-driven render paths (`/wv anni`, anni-motd) and their cold-cache pulls; the boss bar and outlines follow `vetsAnniMode` instead (bug `vets-anni-enabled-to-be-retired`) |
 | `vetsAnniMode` | string | `silent` on disk, but `AnniModeManager.applyStartupDefaultIfNeeded` promotes still-unset enrichment-eligible users to `passive` at world-join | Active anni mode. Not settable via `/wv config` — see §Mode state |
 | `vetsAnniRoleStyle` | string | `descriptive` | Role-naming style (`descriptive`/`short`/`formal`) — boss bar always uses `short` |
 | `vetsAnniShowHoverDetails` | bool | true | Populate hover tooltips on chips |

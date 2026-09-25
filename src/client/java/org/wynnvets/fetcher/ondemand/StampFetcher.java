@@ -44,11 +44,10 @@ import org.wynnvets.util.HttpClients;
  *       invocation never returns null — it always has something to say.</li>
  * </ul>
  *
- * <p>S2's snapshot path requires the MWE master toggle to be on. S1
- * auto-enables {@link VetsConfig#VETS_ANNI_ENABLED} for vets-tier users on
- * the first auth ack; everyone else can opt in via
- * {@code /wv config vetsAnniEnabled true} if they want the enriched
- * view (Hard Rule #3: pulls are open to anyone).</p>
+ * <p>The snapshot path in both callers, cold-cache pull included, runs only while
+ * {@link VetsConfig#VETS_ANNI_ENABLED} is on. That key's Javadoc owns what it gates, when it is
+ * switched on for vets-tier users, and what a manual opt-in gets without an {@code /unlock} key
+ * ({@code vets-anni-enabled-to-be-retired}).</p>
  */
 public class StampFetcher {
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();
@@ -128,8 +127,9 @@ public class StampFetcher {
             // This is the standard cold-start path: vetsmod just logged in,
             // the push poller hasn't ticked yet, but the user invoked the
             // command. AnniQueryClient.query() resolves null when the
-            // inbound WS is down or the player isn't in vets-anni's DB
-            // (e.g. an external user); both cases drop to legacy.
+            // inbound WS is down, when no /unlock key has authenticated that
+            // socket (the frame names no UUID), or when the player isn't in
+            // vets-anni's DB (e.g. an external user); each drops to legacy.
             return AnniQueryClient.query()
                     .thenCompose(
                             pulled -> {
@@ -213,9 +213,9 @@ public class StampFetcher {
                         });
     }
 
-    /** True when the S2 snapshot-driven path is allowed to short-circuit
-     *  the legacy stamp call. Gated by the master MWE toggle so non-vets
-     *  users keep the unchanged legacy experience until they opt in. */
+    /** True when the S2 snapshot-driven path is allowed to short-circuit the legacy stamp call:
+     *  reads {@link VetsConfig#VETS_ANNI_ENABLED}, off by default, so both callers take the legacy
+     *  path until a vets-tier auth ack or the user turns it on. */
     private static boolean anniIntegrationActive() {
         return VetsConfig.get(VetsConfig.VETS_ANNI_ENABLED);
     }
