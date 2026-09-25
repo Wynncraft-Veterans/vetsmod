@@ -227,7 +227,7 @@ Entry: `CommandRegistry.anni()` → `StampFetcher.fetchStampAndCreateAnniCommand
 
 "Announced" is `event.announced() && stampEpoch != null && stampEpoch > now`, and that test runs **before** the external check. A snapshot with `announced=true` and a stamp already in the past therefore renders the *not-announced* form and can never reach the null/legacy path — reachable via the debug `time <seconds>` leaf, and in the real gap between an anni starting and vets-anni nulling `stamp_epoch` on the following frame.
 
-There is a fourth terminal state neither branch produces. `StampFetcher.legacyFallback` resolves `null` when `fetchSimple()` yields nothing (HTTP or parse failure) while `AnniStampPoller.getLatestStamp()` still holds a non-zero future stamp; `CommandRegistry.anni` then prints a yellow `Annihilation timer is currently unavailable.`. `StampFetcher`'s own class Javadoc claims the manual invocation never returns null, which is wrong. The `isEmpty()` half of that guard is defensive only — no producer returns an empty list.
+There is a fourth terminal state neither branch produces. `StampFetcher.legacyFallback` resolves `null` when `fetchSimple()` yields nothing (HTTP or parse failure) while `AnniStampPoller.getLatestStamp()` still holds a non-zero future stamp; `CommandRegistry.anni` then prints a yellow `Annihilation timer is currently unavailable.`. With an empty or past cached stamp the same failure prints the red not-announced line instead; today a failed fetch never falls back to a cached countdown (bug `stamp-fallback-says-not-announced-on-cold-network-failure`). The `isEmpty()` half of that guard is defensive only — no producer returns an empty list.
 
 Three branches:
 - **Not announced** — header (or red headline for external) + prediction line + (if vets) the not-announced registration block. No board section here (no anni to be placed in).
@@ -755,10 +755,11 @@ temp-server and vets-anni halves are listed in
   reads `snapshot.event().stampEpoch()` — the same field `/wv anni`
   consumes. *Note: this intentionally does NOT read
   `AnniStampPoller.getLatestStamp()` — the legacy live-temp-server
-  cache returns 0 in dev when no anni is actually announced, so
-  debug-inject (which populates only `AnniSnapshotCache`) would fail
-  the gate.* General rule: any new code reads the active stamp from
-  the snapshot, not from the legacy poller.
+  cache holds only temp-server's real stamp, which an inject never
+  touches, so debug-inject (which populates only `AnniSnapshotCache`)
+  would fail the gate whenever no real anni is within two hours.*
+  General rule: any new code reads the active stamp from the
+  snapshot, not from the legacy poller.
 
 ### Reference templates
 

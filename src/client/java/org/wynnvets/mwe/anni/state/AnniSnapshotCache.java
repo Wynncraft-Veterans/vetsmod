@@ -87,9 +87,10 @@ public final class AnniSnapshotCache {
      * Update the cache and notify every listener.
      *
      * <p>{@code null} is accepted and stored as a "no snapshot available"
-     * signal — listeners must tolerate the null (the legacy fall-back
-     * branch triggers on it, in {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s
-     * {@code fetchStampAndCreateAnniCommandMessage} rather than in the
+     * signal — listeners must tolerate the null (the branch that handles it is
+     * in {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s
+     * {@code fetchStampAndCreateAnniCommandMessage}, which with {@code vetsAnniEnabled}
+     * on pulls on demand before any legacy fall-back, rather than in the
      * {@code /wv anni} renderer it feeds).</p>
      */
     public static void update(AnniSnapshot snapshot) {

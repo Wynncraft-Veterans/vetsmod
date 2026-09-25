@@ -37,11 +37,23 @@ import org.wynnvets.util.HttpClients;
  *       stamp-only text. This keeps the world-join behaviour for external users completely
  *       unchanged.</li>
  *   <li>{@link #fetchStampAndCreateAnniCommandMessage()} — invoked by
- *       {@code /wv anni} (no args). Prefers {@link AnniCommandRenderer}
- *       when a cached snapshot is present; otherwise falls back to the
- *       legacy stamp message, with the past-stamp branch expanded to
- *       the legacy "not announced" string. Per spec, the manual
- *       invocation never returns null — it always has something to say.</li>
+ *       {@code /wv anni} (no args). With {@code vetsAnniEnabled} on it
+ *       prefers {@link AnniCommandRenderer}, pulling a snapshot first
+ *       when the cache is cold; otherwise, or when that yields nothing
+ *       to render, it falls back to the legacy stamp message, with the
+ *       past-stamp branch expanded to the legacy "not announced" string.
+ *       Per spec the manual invocation never comes back {@code null}: it
+ *       always has something to say.
+ *       Today the future resolves {@code null} when the legacy fetch
+ *       yields nothing while {@link AnniStampPoller} holds a future stamp,
+ *       which {@code CommandRegistry.anni} prints as its "timer is
+ *       currently unavailable" line
+ *       ({@code stamp-fallback-says-not-announced-on-cold-network-failure});
+ *       and a cold-cache pull that hits its deadline completes the future
+ *       exceptionally, so nothing prints
+ *       ({@code anni-ack-clients-ortimeout-completes-exceptionally}).
+ *       {@code vetsmod_mwe_anni.md} §"{@code /wv anni} render dispatch"
+ *       owns the terminal states.</li>
  * </ul>
  *
  * <p>The snapshot path in both callers, cold-cache pull included, runs only while
@@ -103,10 +115,16 @@ public class StampFetcher {
      * chat block by the caller — the imminent (within-2h) render uses
      * this to break the mode-switch UI out into its own prefixed block.
      *
-     * <p>Returns {@code null} from the future when nothing is available
-     * (parse failures, request errors). Empty lists are never returned —
-     * the renderer either produces ≥1 element or returns {@code null} to
-     * signal "fall back to legacy."</p>
+     * <p>Returns {@code null} from the future when the legacy stamp fetch
+     * yields nothing (parse failures, request errors) while
+     * {@link AnniStampPoller} holds a future stamp; with a zero or past
+     * cached stamp the same failure today gives the "not announced" line
+     * ({@code stamp-fallback-says-not-announced-on-cold-network-failure}).
+     * Today a cold-cache pull that hits its deadline completes the future
+     * exceptionally instead of falling back to legacy
+     * ({@code anni-ack-clients-ortimeout-completes-exceptionally}). Empty
+     * lists are never returned — the renderer either produces ≥1 element
+     * or returns {@code null} to signal "fall back to legacy."</p>
      */
     public static CompletableFuture<List<MutableComponent>>
             fetchStampAndCreateAnniCommandMessage() {
@@ -147,9 +165,12 @@ public class StampFetcher {
     }
 
     /** Shared legacy fallback returning the stamp/"not announced" line
-     *  as a single-element list. {@code null} from the future when the
-     *  stamp is missing AND the cache poller has nothing either (true
-     *  cold start with network errors). */
+     *  as a single-element list. When {@link #fetchSimple()} yields no
+     *  countdown, a zero or past {@link AnniStampPoller} stamp gives the
+     *  red "not yet been announced" line and a future one gives
+     *  {@code null} from the future. Today that includes a failed fetch,
+     *  and the cached countdown is never shown
+     *  ({@code stamp-fallback-says-not-announced-on-cold-network-failure}). */
     private static CompletableFuture<List<MutableComponent>> legacyFallback() {
         return fetchSimple()
                 .thenApply(

@@ -16,27 +16,42 @@ import org.wynnvets.util.HttpClients;
  *
  * <p>Two write paths feed the same volatile cache:
  * <ul>
- *   <li>Scheduled sweep every {@value #REFRESH_INTERVAL_MINUTES} minutes,
- *       on the shared {@link PollingService} this class holds — not a
- *       scheduler of its own, which it has not had since the lifecycle
- *       moved into that class. Initial delay {@code 0}.</li>
- *   <li>{@link #updateFromExternalFetch(long)} — called by
- *       {@link org.wynnvets.fetcher.ondemand.StampFetcher} on each
- *       successful on-demand fetch (driven by {@code /wv anni} and the
- *       world-join auto-display). So whenever the user is actively
- *       interacting with the anni surfaces, the cache is fresh without
- *       the poll cadence needing to be tight.</li>
+ *   <li>Scheduled sweep every {@value #REFRESH_INTERVAL_MINUTES} minutes on
+ *       this class's own {@link PollingService} instance, which builds a
+ *       dedicated single-thread daemon executor in
+ *       {@link PollingService#start()}; the class no longer hand-rolls it.
+ *       Initial delay {@code 0}.</li>
+ *   <li>{@link #updateFromExternalFetch(long)}: called by
+ *       {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s
+ *       legacy stamp fetch after each 200 whose body parses.
+ *       {@code /wv anni} and the world-join display reach that fetch only
+ *       when they fall back to the legacy stamp text. With
+ *       {@code vetsAnniEnabled} on and a snapshot cached, they usually
+ *       render from the snapshot instead, and then only the scheduled
+ *       sweep refreshes this cache.</li>
  * </ul>
  *
  * <p>Cache semantics: a successful parse stores the absolute epoch-seconds
- * value verbatim ({@code 0} reserved for "never populated / unparseable /
- * empty body"). A failed fetch leaves the previous value in place — the
- * /wv anni and anni_party_observation callsites both already tolerate a
- * stale stamp the same way they tolerate a zero one (no UI, no send).</p>
+ * value verbatim. When a 200 has an empty body, the scheduled sweep stores
+ * {@code 0} (no announced anni); today
+ * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s fetch logs that body as
+ * a parse failure and writes nothing
+ * ({@code stamp-fetcher-empty-body-warns-and-skips-cache}). A failed fetch or an
+ * unparseable body leaves the previous value in place. The only reader today is
+ * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s legacy {@code /wv anni}
+ * fallback, which consults this cache only when its own live fetch yields no countdown.
+ * Today a zero or past value then gives the "not yet announced" line even when that
+ * fetch failed, and a future value gives {@code null} rather than the cached countdown,
+ * which {@code /wv anni} prints as the timer being unavailable
+ * ({@code stamp-fallback-says-not-announced-on-cold-network-failure}).
+ * {@code anni_party_observation} does not read this cache &mdash;
+ * {@link org.wynnvets.listeners.PartyRosterListener PartyRosterListener} takes its stamp
+ * from the snapshot.</p>
  *
- * <p>The polling interval is intentionally loose ({@value #REFRESH_INTERVAL_MINUTES} minutes). The
- * stamp rarely changes; consumers that care about edge accuracy ride the
- * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher} on-demand cache-warming path.</p>
+ * <p>The polling interval is intentionally loose
+ * ({@value #REFRESH_INTERVAL_MINUTES} minutes): the stamp rarely changes, and
+ * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher} fetches it live whenever it
+ * prints the legacy countdown.</p>
  */
 public final class AnniStampPoller {
     private static final int REFRESH_INTERVAL_MINUTES = 5;
@@ -50,7 +65,10 @@ public final class AnniStampPoller {
                     .GET()
                     .build();
 
-    /** Latest cached anni epoch-seconds. {@code 0} = never populated / empty / unparseable. */
+    /**
+     * Latest cached anni epoch-seconds. {@code 0} = never populated, or
+     * the last write was the scheduled sweep's empty-body reset.
+     */
     private static volatile long latestStamp = 0L;
 
     private static final PollingService SERVICE =
@@ -74,7 +92,11 @@ public final class AnniStampPoller {
         SERVICE.start();
     }
 
-    /** @return last known anni epoch-seconds, or {@code 0} if never populated. */
+    /**
+     * @return last known anni epoch-seconds, or {@code 0} if never
+     *     populated or the last write was the scheduled sweep's
+     *     empty-body reset (no announced anni).
+     */
     public static long getLatestStamp() {
         return latestStamp;
     }
