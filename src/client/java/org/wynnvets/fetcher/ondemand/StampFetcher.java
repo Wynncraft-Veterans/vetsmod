@@ -109,7 +109,7 @@ public class StampFetcher {
                 // gets none: the frame names no UUID, temporary-server (at
                 // ffd8c17) answers "mc_uuid required", and the pull resolves
                 // null, so each of their world joins takes the legacy text
-                // (vets-anni-enabled-to-be-retired).
+                // (the key is slated for retirement: vets-anni-enabled-to-be-retired).
                 AnniQueryClient.query();
             }
         }
@@ -157,8 +157,9 @@ public class StampFetcher {
             // until something fills it, such as the post-connect re-pull
             // returning a snapshot. AnniQueryClient.query() resolves null when the
             // inbound WS is down, when no /unlock key has authenticated that
-            // socket (the frame names no UUID), or when the player isn't in
-            // vets-anni's DB (e.g. an external user); each drops to legacy.
+            // socket (the frame names no UUID; temporary-server at ffd8c17 answers
+            // "mc_uuid required"), or when the player isn't in vets-anni's DB (e.g.
+            // an external user), among other cases; each drops to legacy.
             return AnniQueryClient.query()
                     .thenCompose(
                             pulled -> {

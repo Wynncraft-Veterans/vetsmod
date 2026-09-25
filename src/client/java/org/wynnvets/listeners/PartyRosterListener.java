@@ -24,7 +24,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * vets-anni can light up the {@code ONLINE_PARTY} status border for board members whose reported
  * party leader is their assigned host.
  *
- * <p>Subscribes to most Wynntils {@link PartyEvent} variants (the handlers below; invites and
+ * <p>Subscribes to most Wynntils {@code PartyEvent} variants (the handlers below; invites and
  * priority reorders are skipped) and, on each, captures a snapshot of {@code Models.Party} and
  * schedules a debounced {@link V1ApiManager#sendAnniPartyObservation} send. The debounce coalesces
  * the typical burst (a {@code /party list} response fires multiple events) into a single frame; the
@@ -44,10 +44,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * <p>S7 gate: send iff the anni stamp is within {@link
  * #ACTIVE_WINDOW_SEC} of {@code now} AND the snapshot's
  * {@code organiser_usernames} list contains at least one party member's
- * username (case-insensitive). An anni party's host is always among the snapshot's organisers
- * (vets-anni lists the lead organiser and every party host), so "any party member is an organiser"
- * is a cheap pre-filter. vets-anni itself upgrades {@code ONLINE_WORLD → ONLINE_PARTY} only when
- * the reported party leader is that member's assigned host. Snapshot-driven recaptures
+ * username (case-insensitive). Per vets-anni (8615b67), the snapshot's organisers are the lead
+ * organiser and every party host, so "any party member is an organiser" is a cheap pre-filter;
+ * vets-anni itself upgrades {@code ONLINE_WORLD → ONLINE_PARTY} only when the reported party
+ * leader is that member's assigned host. Snapshot-driven recaptures
  * ({@link #requestRecapture()}) are meant to cover the "anni window opens while parked in a party"
  * case, where no {@link PartyEvent} would fire on its own. Today they fire when the organiser set
  * changes, not when the window opens, so a set that was already complete before the window opened
@@ -56,8 +56,8 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * <p>Threading: the design captures a defensively-copied snapshot on the render thread, where
  * Wynntils events arrive, so the send can't race a concurrent {@code PartyModel} mutation. Today
  * {@link #requestRecapture()} captures on whichever thread called {@link AnniSnapshotCache#update}:
- * the one delivering WebSocket frames, or the command thread for a debug injection. The first
- * reads {@code PartyModel} off the render thread; see
+ * the one delivering WebSocket frames, or, for a debug injection, the render thread that runs
+ * client commands. The first reads {@code PartyModel} off the render thread; see
  * {@code party-roster-recapture-reads-party-model-off-thread}. Either way, the send then runs on a
  * daemon single-thread scheduler. The scheduler thread sends through
  * {@link V1ApiManager#sendAnniPartyObservation}, which is not serialised against other

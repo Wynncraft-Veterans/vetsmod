@@ -201,7 +201,9 @@ public final class AnniDebugCommands {
 
     /** Role codes suggested for {@code /wv debug tree anni registry set <user> <role>}
      *  (the argument accepts any word; an unrecognised code renders grey).
-     *  Mirrors the cases in {@link org.wynnvets.mwe.anni.outline.AnniOutlinePalette#chatFormattingForRole}
+     *  Mirrors the cases in
+     *  {@link org.wynnvets.mwe.anni.outline.AnniOutlinePalette#chatFormattingForRole
+     *  AnniOutlinePalette#chatFormattingForRole}
      *  except its {@code HEAL} alias for {@code HEALER},
      *  plus the synthetic {@code other} alias for the {@code OTHER_VETS_PARTY}
      *  tier (light grey, role-agnostic). */

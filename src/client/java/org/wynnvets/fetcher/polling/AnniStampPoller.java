@@ -33,7 +33,7 @@ import org.wynnvets.util.HttpClients;
  *
  * <p>Cache semantics: a successful parse stores the absolute epoch-seconds
  * value verbatim. When a 200 has an empty body, the scheduled sweep stores
- * {@code 0} (no announced anni); today
+ * {@code 0} (temporary-server, at ffd8c17, sends that body while it holds no stamp); today
  * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s fetch logs that body as
  * a parse failure and writes nothing
  * ({@code stamp-fetcher-empty-body-warns-and-skips-cache}). A failed fetch or an
@@ -102,9 +102,9 @@ public final class AnniStampPoller {
     }
 
     /**
-     * Writes a value into the cache from an external caller (typically
-     * {@link org.wynnvets.fetcher.ondemand.StampFetcher} after a successful
-     * on-demand fetch). Idempotent and concurrency-safe — {@link #latestStamp}
+     * Writes a value into the cache. Its only caller is
+     * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s legacy stamp fetch,
+     * after a 200 whose body parses. Idempotent and concurrency-safe — {@link #latestStamp}
      * is volatile.
      */
     public static void updateFromExternalFetch(long stamp) {

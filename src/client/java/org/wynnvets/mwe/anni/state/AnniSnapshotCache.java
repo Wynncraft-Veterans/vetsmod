@@ -29,7 +29,8 @@ import org.wynnvets.logging.VetsLogger;
  *       stored.</li>
  *   <li>{@link org.wynnvets.mwe.anni.network.AnniQueryClient#onResponse
  *       AnniQueryClient#onResponse}, on the {@code anni_query_response} pull.
- *       {@link org.wynnvets.mwe.anni.network.AnniWsHandler AnniWsHandler} is the <em>route</em> to it, not the caller. It
+ *       {@link org.wynnvets.mwe.anni.network.AnniWsHandler AnniWsHandler} is the
+ *       <em>route</em> to it, not the caller. It
  *       writes only when the parsed snapshot is non-null, so a successful response
  *       whose {@code snapshot} is {@code null} — which the wire contract allows —
  *       completes the caller's future with {@code null} and leaves this cache
@@ -43,12 +44,13 @@ import org.wynnvets.logging.VetsLogger;
  *       value becomes {@code null} after a session has gone warm.</li>
  * </ul>
  *
- * <p>Single-player by design: snapshots received here are always for the
- * local player (the server's per-uuid push routing guarantees this). Today no
+ * <p>Single-player by design: snapshots received here are meant to be for the
+ * local player (the server routes pushes per UUID). Today no
  * {@code anni_state} push reaches vetsmod
  * ({@code outbound-socket-never-authenticated}), so snapshots arrive as pull
  * replies: the {@code anni_query} frame names no UUID, and temporary-server
- * (at ffd8c17) answers for the UUID its authenticated session carries. A
+ * (at ffd8c17) answers for the UUID its authenticated session carries, which
+ * is the {@code /unlock} key's account, not necessarily the one logged in. A
  * future fan-out that delivers snapshots for other players would live on a
  * separate cache, not here.</p>
  *
@@ -57,8 +59,10 @@ import org.wynnvets.logging.VetsLogger;
  * addListener never blocks reader threads; the iteration cost is irrelevant at a
  * single-digit listener count.</p>
  *
- * <p>Listeners run on whichever thread called {@link #update} — typically
- * the WebSocket reader thread. They MUST NOT block on the main game tick
+ * <p>Listeners run on whichever thread called {@link #update} — the one
+ * delivering WebSocket frames, or the render thread, which runs client
+ * commands, for a debug injection.
+ * They MUST NOT block on the main game tick
  * (use {@code Minecraft.getInstance().execute(...)} to bounce work onto
  * the render thread if needed &mdash; the bounce {@link
  * org.wynnvets.chat.ChatUtils ChatUtils} performs beneath {@link

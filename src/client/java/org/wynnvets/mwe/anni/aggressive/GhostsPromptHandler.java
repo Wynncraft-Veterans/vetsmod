@@ -31,10 +31,9 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * area.</p>
  *
  * <p><b>Detection (decision-locked this session):</b> walk
- * {@link Minecraft#level}.players(); if ANY player returns
- * {@link com.wynntils.models.players.PlayerModel#isPlayerGhost(net.minecraft.world.entity.player.Player)
- * true}, ghosts must be ON (otherwise Wynncraft wouldn't have sent the
- * client those players in the first place). Show the prompt
+ * {@code Minecraft.level.players()}; if ANY player returns {@code true} from
+ * {@code Models.Player.isPlayerGhost}, ghosts must be ON (otherwise Wynncraft wouldn't have sent
+ * the client those players in the first place). Show the prompt
  * unconditionally in that case — it's useful info. If zero visible
  * players are ghosts, it's ambiguous (could be off, could just be an
  * empty area); fall back to a per-stamp_epoch sentinel

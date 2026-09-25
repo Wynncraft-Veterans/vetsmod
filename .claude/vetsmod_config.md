@@ -39,7 +39,7 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `legacyItemShowEnchantments` | true | Name the specific enchantment on legacy items the enchant branch already highlights: a LEGACY ENCHANTMENTS block on the powder page of paged tooltips, or in the tooltip text on items with no pages (`LegacyEnchantmentRenderer.showEnchantment` picks the form). No effect unless `legacyItemHighlighting` is on. |
 | `printMOTD` | true | Auto-print MOTD on world join |
 | `printANNI` | true | Auto-print annihilation timer on world join, for Returners guild members only |
-| `vetsAnniEnabled` | false | Gates the snapshot-driven `/wv anni` renderer and anni-motd (through `StampFetcher.anniIntegrationActive`), and their cold-cache pulls; the boss bar and outlines don't read it — they follow `vetsAnniMode` instead. Today, a vets-tier (member/waitlist/honourary) auth ack sets it `true` whenever it finds it off, so a vets-tier user's opt-out lasts only until the next ack; anyone can opt in manually, but the pull it enables needs a live authenticated `/unlock` session or it resolves to no snapshot (bug `vets-anni-enabled-to-be-retired`). |
+| `vetsAnniEnabled` | false | Gates the snapshot-driven `/wv anni` renderer and anni-motd (through `StampFetcher.anniIntegrationActive`), and their cold-cache pulls; the boss bar and outlines don't read it — they follow `vetsAnniMode` instead. Meant to give vets-tier users the enriched view without a manual toggle; today a vets-tier (member/waitlist/honourary) auth ack sets it `true` whenever it finds it off, so a vets-tier user's opt-out lasts only until the next ack. Anyone can opt in manually, but the pull names no UUID, so per temporary-server (at ffd8c17) it resolves to no snapshot until an `/unlock` key has authenticated the inbound socket (bug `vets-anni-enabled-to-be-retired`). |
 | `vetsAnniShowHoverDetails` | true | Populate descriptive hover tooltips on `/wv anni` and motd widgets (role chips, RSVP badge, attendance bar, party world chip). When off, lines render with no hover but keep click-to-open URLs. |
 | `vetsAnniPromptRsvp` | true | Show the placement / RSVP status line under the countdown on the auto-displayed anni-motd; off means the countdown line alone. `/wv anni`'s RSVP widgets don't read this key. |
 | `vetsAnniShowPrediction` | true | Show the `\guess`-style prediction window (earliest/median/latest) in `/wv anni` when no anni stamp is announced. The auto-motd never shows the prediction unsolicited regardless of this flag. |
@@ -86,7 +86,7 @@ Default 69 for top opacity approximates the old `0xB0` alpha byte.
 
 ## 3. API (static methods, all public except `save()`)
 
-All methods keyed by string. Returns false when validation fails.
+All methods keyed by string. The setters return false when the key is not registered in their map; none validates the value.
 
 | Method | Notes |
 |--------|-------|

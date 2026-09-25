@@ -295,7 +295,7 @@ Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.networ
 
 `PartyRosterListener` no longer fires the legacy `party_status` frame. Instead, on the Wynntils `PartyEvent`s `PartyRosterListener` subscribes to, on every `WorldStateEvent`, AND on every snapshot update that changes the lowercased `organiser_usernames` set (`AnniPartyReporter` observes the change and calls `PartyRosterListener.requestRecapture()`, which is the listener's own method — the reporter is the trigger, not the owner), the listener:
 
-1. Captures `Models.Party.getPartyLeader()` + `getPartyMembers()` on the thread that triggered it: the render thread for a Wynntils event, or, for a snapshot-driven recapture, whichever thread called `AnniSnapshotCache.update` — the one delivering WebSocket frames, or the command thread for a debug injection. The WebSocket case reads `PartyModel` off the render thread (bug `party-roster-recapture-reads-party-model-off-thread`).
+1. Captures `Models.Party.getPartyLeader()` + `getPartyMembers()` on the thread that triggered it: the render thread for a Wynntils event, or, for a snapshot-driven recapture, whichever thread called `AnniSnapshotCache.update` — the one delivering WebSocket frames, or the render thread, which runs client commands, for a debug injection. Only the WebSocket case reads `PartyModel` off the render thread (bug `party-roster-recapture-reads-party-model-off-thread`).
 2. Debounces 300 ms (coalesces the `/party list` burst).
 3. Gates on `stamp ± 2 h` AND any party member's username appears in `AnniSnapshotCache.latest().organiserUsernames()` (case-insensitive).
 4. Fires `V1ApiManager.sendAnniPartyObservation(members, leader, world)` if the gate passes.

@@ -75,9 +75,10 @@ public class VetsConfig {
      *  {@code /wv config vetsAnniEnabled true}, but the pull it enables asks for the authenticated
      *  session's own snapshot
      *  ({@link org.wynnvets.api.V1ApiManager#sendAnniQuery() V1ApiManager#sendAnniQuery()} names
-     *  no UUID), so until an {@code /unlock} key has authenticated the inbound socket it resolves
+     *  no UUID), so, per temporary-server (at ffd8c17), until an {@code /unlock} key has
+     *  authenticated the inbound socket it resolves
      *  to no snapshot and both callers fall back to the legacy path. Slated for retirement
-     *  ({@code vets-anni-enabled-to-be-retired}). */
+     *  ({@code vets-anni-enabled-to-be-retired}).</p> */
     public static final String VETS_ANNI_ENABLED = "vetsAnniEnabled";
 
     // ── Vetsmod /unlock <key> auth state ─────────────────────────────────
@@ -158,8 +159,11 @@ public class VetsConfig {
      *  {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker AnniAggressiveTicker} (S5);
      *  {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}'s class Javadoc lists
      *  the readers inside it.
-     *  <b>No waypoint class reads the mode</b> &mdash; {@link org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider ScrollSpotMarkerProvider} gates on
-     *  {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker#isAggressiveActive() AnniAggressiveTicker#isAggressiveActive()} instead, which is where the S5 reading
+     *  <b>No waypoint class reads the mode</b> &mdash;
+     *  {@link org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider ScrollSpotMarkerProvider}
+     *  gates on
+     *  {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker#isAggressiveActive()
+     *  AnniAggressiveTicker#isAggressiveActive()} instead, which is where the S5 reading
      *  comes from. Absent from {@link #USER_CONFIG_KEYS}, so {@code /wv
      *  config} cannot read or write it. When the anni window closes (T+30 min after stamp_epoch)
      *  {@link org.wynnvets.mwe.anni.mode.AnniWindowWatcher AnniWindowWatcher} restores
@@ -174,11 +178,12 @@ public class VetsConfig {
     };
 
     /** Internal flag — {@code true} once the user has explicitly chosen an
-     *  anni mode via {@code /wv anni <mode>} (or the mode-switch buttons under {@code /wv anni}). Set
-     *  only for {@code Source.USER_COMMAND} transitions in
-     *  {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}; never touched by internal
-     *  transitions (window-close, stream, startup). When {@code false}, {@link #VETS_ANNI_MODE} is
-     *  treated as an unremembered default and gets overwritten to the eligibility-based default
+     *  anni mode via {@code /wv anni <mode>} (or the mode-switch buttons under
+     *  {@code /wv anni}). Set only for {@code Source.USER_COMMAND} transitions in
+     *  {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}; never touched by
+     *  internal transitions (window-close, stream, startup). When {@code false},
+     *  {@link #VETS_ANNI_MODE} is treated as an unremembered default and gets overwritten to the
+     *  eligibility-based default
      *  (PASSIVE for enrichment-eligible users, SILENT otherwise) at the next restore moment. Also
      *  serves as the pre-0.14.5 install boundary — old installs lack this key, so their
      *  pre-existing {@code vetsAnniMode} is discarded and the new default applies. */
@@ -260,14 +265,15 @@ public class VetsConfig {
      *  holds. Past the gate, today it gates only the outsider-outline suppression: the
      *  registry-tier glow is applied whenever the gate holds, so with this off and nametags on,
      *  registry members still glow and the nametags-only half can't be had
-     *  ({@code outlines-toggle-does-not-gate-registry-glow}). Default {@code true}. */
+     *  ({@code outlines-toggle-does-not-gate-registry-glow}). Default {@code true}.</p> */
     public static final String VETS_ANNI_OUTLINES_ENABLED = "vetsAnniOutlinesEnabled";
 
     /** S4 — Master toggle for the per-player nametag overlay (role colour
-     *  on own-party members, light-grey on other-vets-party members, dark- grey on outsiders). Gated
-     *  on the same window+zone+mode predicate as {@link #VETS_ANNI_OUTLINES_ENABLED}. Default {@code
-     *  true}. The branch added to {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} runs
-     *  before the supporter glint branch — so an own-party supporter shows the role colour for the
+     *  on own-party members, light-grey on other-vets-party members, dark-grey on outsiders).
+     *  Gated on the same window+zone+mode predicate as
+     *  {@link #VETS_ANNI_OUTLINES_ENABLED}. Default {@code true}. The branch added to
+     *  {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} runs before the supporter glint
+     *  branch — so an own-party supporter shows the role colour for the
      *  duration of the highlight gate and reverts to the animated supporter glint afterwards.
      *  That ordering is the TAIL injector's; that mixin has two, and when wynnmod is
      *  present the TAIL path returns before the supporter branch and its {@code @WrapOperation}
@@ -294,9 +300,11 @@ public class VetsConfig {
      *  hot window (T-2h .. T+30m). */
     public static final String VETS_ANNI_CHAT_ALERTS = "vetsAnniChatAlerts";
 
-    /** S5 — Toggle for the {@code [Suggest: /toggle ghosts none]} prompt shown on a zone-entry
-     *  rising edge while aggressive mode is on and the cached stamp is inside T-2h..T+30m. If its
-     *  scan of visible players finds a ghost it fires on every such entry; otherwise it fires at
+    /** S5 — Toggle for the {@code [Suggest: /toggle ghosts none]} prompt shown on a rising edge
+     *  of being in the anni zone while aggressive mode is active (the cached snapshot's stamp
+     *  inside T-2h..T+30m): a zone entry, or that gate opening with the player already in the
+     *  zone. If its scan of visible players finds a ghost it fires on every such edge;
+     *  otherwise it fires at
      *  most once per stamp_epoch, tracked in {@link #VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP}. See
      *  {@link org.wynnvets.mwe.anni.aggressive.GhostsPromptHandler GhostsPromptHandler}. Default
      *  {@code true}. */

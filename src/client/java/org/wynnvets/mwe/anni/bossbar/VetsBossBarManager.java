@@ -40,8 +40,8 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * {@code (T-20s, T-90m]} and zone entry widens only its top.
  * {@code vetsmod_mwe_anni.md} §"Activation gate" is the owning statement.</p>
  *
- * <p>The synthetic {@link LerpingBossEvent} lives in
- * {@link BossHealthOverlay#events} via {@link BossHealthOverlayAccessor}.</p>
+ * <p>The synthetic {@code LerpingBossEvent} lives in
+ * {@code BossHealthOverlay#events} via {@link BossHealthOverlayAccessor}.</p>
  *
  * <p>Coexistence with vanilla / Wynncraft / Wynntils boss bars is
  * handled <b>on the render side</b>:

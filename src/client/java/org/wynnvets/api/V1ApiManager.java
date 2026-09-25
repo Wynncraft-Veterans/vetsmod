@@ -247,7 +247,9 @@ public final class V1ApiManager {
                                 // tier downgrade — the user may have toggled it on manually and we
                                 // don't want to override that. The toggle only helps a client whose
                                 // inbound socket an /unlock key has authenticated (its pull names
-                                // no UUID); what a downgraded user is served is the server's call.
+                                // no UUID; per temporary-server at ffd8c17, an unauthenticated pull
+                                // gets no snapshot); what a downgraded user is served is the
+                                // server's call.
                                 if (("member".equals(tier)
                                                 || "waitlist".equals(tier)
                                                 || "honourary".equals(tier))
@@ -582,7 +584,8 @@ public final class V1ApiManager {
      * the authenticated session's identity, so a key-authed vetsmod
      * client always asks "give me my own snapshot." (Unauthenticated
      * sessions get an {@code error: "mc_uuid required"} response, which
-     * surfaces as a null snapshot via {@link org.wynnvets.mwe.anni.network.AnniQueryClient#query()}.)</p>
+     * surfaces as a null snapshot via
+     * {@link org.wynnvets.mwe.anni.network.AnniQueryClient#query() AnniQueryClient#query()}.)</p>
      *
      * <p>The pending-reply queue (a FIFO of per-call futures; nothing coalesces
      * concurrent calls) lives in
