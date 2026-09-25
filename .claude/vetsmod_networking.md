@@ -293,17 +293,22 @@ Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.networ
 
 ### S7 — Party back-report gate
 
-`PartyRosterListener` no longer fires the legacy `party_status` frame. Instead, on every Wynntils `PartyEvent` / `WorldStateEvent`, AND on every snapshot update that changes the lowercased `organiser_usernames` set (`AnniPartyReporter` observes the change and calls `PartyRosterListener.requestRecapture()`, which is the listener's own method — the reporter is the trigger, not the owner), the listener:
+`PartyRosterListener` no longer fires the legacy `party_status` frame. Instead, on the Wynntils `PartyEvent`s `PartyRosterListener` subscribes to, on every `WorldStateEvent`, AND on every snapshot update that changes the lowercased `organiser_usernames` set (`AnniPartyReporter` observes the change and calls `PartyRosterListener.requestRecapture()`, which is the listener's own method — the reporter is the trigger, not the owner), the listener:
 
-1. Captures `Models.Party.getPartyLeader()` + `getPartyMembers()` on the event thread.
+1. Captures `Models.Party.getPartyLeader()` + `getPartyMembers()` on the thread that triggered it: the render thread for a Wynntils event, or, for a snapshot-driven recapture, whichever thread called `AnniSnapshotCache.update` — the one delivering WebSocket frames, or the command thread for a debug injection. The WebSocket case reads `PartyModel` off the render thread (bug `party-roster-recapture-reads-party-model-off-thread`).
 2. Debounces 300 ms (coalesces the `/party list` burst).
 3. Gates on `stamp ± 2 h` AND any party member's username appears in `AnniSnapshotCache.latest().organiserUsernames()` (case-insensitive).
 4. Fires `V1ApiManager.sendAnniPartyObservation(members, leader, world)` if the gate passes.
 
 vets-anni resolves names → UUIDs server-side and writes
 `state.party_leader_by_uuid[member_uuid] = leader_uuid` for the presence
-classifier's `ONLINE_WORLD → ONLINE_PARTY` upgrade. Entries are TTL-gated
-(60 s) so a vetsmod disconnect mid-window degrades cleanly back to cyan.
+classifier's `ONLINE_WORLD → ONLINE_PARTY` upgrade. Per vets-anni, the whole
+map shares one freshness stamp (`state.party_observation_fetched_at`, stale
+`_PARTY_LEADER_TTL_SECONDS` = 60 s after it), which any client's observation
+refreshes, and its receiver only adds or overwrites entries. vetsmod reports
+no leave (an empty capture never passes the gate), so a member who leaves the
+host's party keeps their pairing to the host until an observation maps them to
+another leader, and it counts as fresh while any client keeps reporting. See bug `party-observation-lapses-within-vets-anni-freshness`.
 
 ## 8. Auth
 

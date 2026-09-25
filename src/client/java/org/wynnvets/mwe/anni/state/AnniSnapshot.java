@@ -90,8 +90,9 @@ public final class AnniSnapshot {
     /** S7 — usernames of every organiser (lead + party hosts) in the same
      *  parallel order as {@link #organisers()}. Used by
      *  {@link org.wynnvets.listeners.PartyRosterListener#shouldSend PartyRosterListener#shouldSend}
-     *  and {@link org.wynnvets.mwe.anni.party.AnniPartyReporter AnniPartyReporter}
-     *  to gate the {@code anni_party_observation} frame on "is any party member an organiser?".
+     *  to gate the {@code anni_party_observation} frame on "is any party member an organiser?",
+     *  and by {@link org.wynnvets.mwe.anni.party.AnniPartyReporter AnniPartyReporter}, which
+     *  triggers a party recapture when the case-folded set changes.
      *  Names go over the wire (not UUIDs) because Wynncraft exposes party members by username only
      *  — see {@code Wynntils PartyModel.getPartyMembers()}. */
     public List<String> organiserUsernames() {

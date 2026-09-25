@@ -682,10 +682,11 @@ are in [`vets-anni/.claude/snapshot_integration.md`](../../vets-anni/.claude/sna
 
 `PartyRosterListener` uses a direct organiser-presence gate (the legacy
 `party_status` frame is removed end-to-end across vetsmod / temp-server
-/ vets-anni). Anni parties only exist inside the active window, and an
-anni party's host is always in `organisers`, so the broader year-round
-signal would be over-collection and the organiser-presence gate is the
-exact signal vets-anni needs.
+/ vets-anni). vets-anni lists every party host in `organisers`, so the
+gate, together with the ±2 h stamp window, is a cheap client-side
+pre-filter that skips parties with no organiser in them. vets-anni itself
+upgrades a member to `ONLINE_PARTY` only when the leader reported for that
+member is their assigned host.
 
 The snapshot field the gate reads (`organiser_usernames`, parallel to
 `organisers`), vets-anni's `POST /api/internal/anni-party-observation`
@@ -709,9 +710,11 @@ party members by username — see `Wynntils PartyModel.getPartyMembers()`.
    [`AnniPartyReporter`](../src/client/java/org/wynnvets/mwe/anni/party/AnniPartyReporter.java)
    subscribes to `AnniSnapshotCache`. On any change to the lowercased
    `organiser_usernames` set, calls
-   `PartyRosterListener.requestRecapture()`. Handles "anni opens while
-   parked in a static party for 30 min" — no `PartyEvent` would fire
-   on its own. ⚠️ **There is no `VetsmodClient.onClientStarted`** — the only
+   `PartyRosterListener.requestRecapture()`. It is meant to handle "anni
+   opens while parked in a static party for 30 min", where no `PartyEvent`
+   would fire on its own. Today it fires on a set change, not when the
+   window opens, so a set that was already complete before the window
+   opened triggers nothing then (bug `party-reporter-window-open-not-a-trigger`). ⚠️ **There is no `VetsmodClient.onClientStarted`** — the only
    methods are `onInitializeClient()` and the `CLIENT_STARTED.register(…)`
    lambda inside it. `AnniPartyReporter.init()` is called **from that lambda,
    which is itself inside `onInitializeClient`**; what is forbidden is the

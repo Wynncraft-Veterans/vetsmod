@@ -21,41 +21,45 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 /**
  * Reports the local player's current Wynncraft party roster to the v1
  * inbound WebSocket as an {@code anni_party_observation} frame (S7) so
- * vets-anni can light up the {@code ONLINE_PARTY} status border for any
- * board member sharing this client's party with the assigned host.
+ * vets-anni can light up the {@code ONLINE_PARTY} status border for board members whose reported
+ * party leader is their assigned host.
  *
- * <p>Subscribes to every Wynntils {@link PartyEvent} variant that
- * materially changes the roster and, on each, captures a snapshot of
- * {@code Models.Party} and schedules a debounced
- * {@link V1ApiManager#sendAnniPartyObservation} send. The debounce
- * coalesces the typical burst (a {@code /party list} response fires
- * multiple events) into a single frame. Snapshot capture happens on the
- * event thread (where {@code PartyModel} is consistent); the send fires
- * on the scheduler thread from the captured snapshot, never re-reading
- * {@code Models.Party}.</p>
+ * <p>Subscribes to most Wynntils {@link PartyEvent} variants (the handlers below; invites and
+ * priority reorders are skipped) and, on each, captures a snapshot of {@code Models.Party} and
+ * schedules a debounced {@link V1ApiManager#sendAnniPartyObservation} send. The debounce coalesces
+ * the typical burst (a {@code /party list} response fires multiple events) into a single frame; the
+ * send never re-reads {@code Models.Party}. See Threading below for which thread the capture runs
+ * on.</p>
  *
- * <p>Wynntils has no dedicated event for "you left the party" or "your
- * party was disbanded" — both cases reset {@code PartyModel} silently.
- * We catch these via {@link WorldStateEvent}: any transition out of
- * {@code WorldState#WORLD} (server/world hop, disconnect, returning to
- * hub) sends a final snapshot reflecting whatever
- * {@code Models.Party.isInParty()} reports at the time, which correctly
- * emits the empty "not in a party" frame after a disband.</p>
+ * <p>Wynntils has no dedicated event for "you left the party", a disband or a kick. Those chat
+ * lines make {@code PartyModel} reset itself, as does any {@link WorldStateEvent} out of
+ * {@code WorldState#WORLD} (server/world hop, disconnect, returning to hub); the reset posts
+ * {@code PartyEvent.Listed}, which {@link #onListed} catches. The capture that follows is empty,
+ * and {@link #shouldSend}'s organiser-overlap rule suppresses an empty capture, so no "not in a
+ * party" frame is sent; per vets-anni, its receiver also returns early on an empty leader. Today
+ * vetsmod therefore reports no leave, and vets-anni keeps the departed member's pairing, counting
+ * it fresh while any client keeps reporting; see
+ * {@code party-observation-lapses-within-vets-anni-freshness}.</p>
  *
  * <p>S7 gate: send iff the anni stamp is within {@link
  * #ACTIVE_WINDOW_SEC} of {@code now} AND the snapshot's
  * {@code organiser_usernames} list contains at least one party member's
- * username (case-insensitive). Anni parties only exist in-window and an
- * anni party's host is always in {@code organisers}, so "any party member
- * is an organiser" is the exact signal vets-anni needs to upgrade
- * {@code ONLINE_WORLD → ONLINE_PARTY}. Snapshot-driven recaptures
- * ({@link #requestRecapture()}) cover the "anni window opens while parked
- * in a party" case, where no {@link PartyEvent} would fire on its own.</p>
+ * username (case-insensitive). An anni party's host is always among the snapshot's organisers
+ * (vets-anni lists the lead organiser and every party host), so "any party member is an organiser"
+ * is a cheap pre-filter. vets-anni itself upgrades {@code ONLINE_WORLD → ONLINE_PARTY} only when
+ * the reported party leader is that member's assigned host. Snapshot-driven recaptures
+ * ({@link #requestRecapture()}) are meant to cover the "anni window opens while parked in a party"
+ * case, where no {@link PartyEvent} would fire on its own. Today they fire when the organiser set
+ * changes, not when the window opens, so a set that was already complete before the window opened
+ * triggers nothing then; see {@code party-reporter-window-open-not-a-trigger}.</p>
  *
- * <p>Threading: Wynntils event listeners run on the render thread. We
- * capture a defensively-copied snapshot on that thread (so the send can't
- * race a concurrent {@code PartyModel} mutation), then hop to a daemon
- * single-thread scheduler for the actual send. The scheduler thread sends through
+ * <p>Threading: the design captures a defensively-copied snapshot on the render thread, where
+ * Wynntils events arrive, so the send can't race a concurrent {@code PartyModel} mutation. Today
+ * {@link #requestRecapture()} captures on whichever thread called {@link AnniSnapshotCache#update}:
+ * the one delivering WebSocket frames, or the command thread for a debug injection. The first
+ * reads {@code PartyModel} off the render thread; see
+ * {@code party-roster-recapture-reads-party-model-off-thread}. Either way, the send then runs on a
+ * daemon single-thread scheduler. The scheduler thread sends through
  * {@link V1ApiManager#sendAnniPartyObservation}, which is not serialised against other
  * senders: a send that overlaps another frame on the same socket is dropped
  * ({@code ws-client-send-ignores-send-pending-failure}).</p>
@@ -123,10 +127,11 @@ public final class PartyRosterListener {
     }
 
     /**
-     * Re-broadcasts on every world transition. Entering {@code WorldState#WORLD}
-     * covers re-auth after reconnect and world hops; leaving covers disband /
-     * self-leave (Wynntils fires no dedicated event for those), and a
-     * disconnect that drops {@code PartyModel} state.
+     * Recaptures on every world transition. In Wynntils v4.1.17 {@code PartyModel} resets itself on
+     * leaving {@code WorldState#WORLD} and requests {@code /party list} on entering it, so the
+     * capture a transition leaves behind is normally empty and {@link #shouldSend} suppresses it.
+     * After a reconnect or world hop, the roster comes back through the {@code /party list} reply's
+     * {@code PartyEvent.Listed}, which {@link #onListed} catches.
      */
     @SubscribeEvent
     public void onWorldState(WorldStateEvent event) {
@@ -136,9 +141,12 @@ public final class PartyRosterListener {
     /**
      * Trigger a synthetic recapture from outside the Wynntils event bus.
      * Used by {@link org.wynnvets.mwe.anni.party.AnniPartyReporter} when an
-     * incoming snapshot's {@code organiser_usernames} list changes — at
-     * window-open the local party may have been static for ages and no
-     * {@link PartyEvent} would fire on its own.
+     * incoming snapshot's {@code organiser_usernames} list changes — meant for
+     * window-open, when the local party may have been static for ages and no
+     * {@link PartyEvent} would fire on its own. Today a window opening with an
+     * unchanged organiser set calls nothing here
+     * ({@code party-reporter-window-open-not-a-trigger}). The capture runs on the
+     * caller's thread; see Threading in the class doc.
      */
     public static void requestRecapture() {
         captureAndSchedule();
@@ -147,8 +155,11 @@ public final class PartyRosterListener {
     // --- snapshot + send ---------------------------------------------------
 
     private static void captureAndSchedule() {
-        // Capture on the calling (render) thread where PartyModel reads are
-        // consistent. The send runs from the scheduler thread off this snapshot.
+        // Capture on the calling thread, meant to be the render thread, where PartyModel reads
+        // are consistent. Today a snapshot-driven recapture runs on whichever thread called
+        // AnniSnapshotCache.update, which for a pulled snapshot is not the render thread
+        // (party-roster-recapture-reads-party-model-off-thread). The send runs from the
+        // scheduler thread off this snapshot.
         Snapshot snap;
         if (Models.Party.isInParty()) {
             String leader = Models.Party.getPartyLeader().orElse("");
@@ -217,7 +228,8 @@ public final class PartyRosterListener {
      * </ol>
      *
      * @param snap     the captured party snapshot from Wynntils
-     * @param snapshot the latest anni snapshot, or {@code null} when cold
+     * @param snapshot the latest anni snapshot, or {@code null}, not only when cold (see
+     *                 {@link AnniSnapshotCache#latest()})
      * @param stamp    anni epoch-seconds (0 = none announced)
      * @param now      current wall-clock epoch-seconds
      */

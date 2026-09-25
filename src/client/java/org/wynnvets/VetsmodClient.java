@@ -103,8 +103,10 @@ public class VetsmodClient implements ClientModInitializer {
                     ScrollSpotMarkerProvider.registerWithWynntils();
                     // S7 — same deferred-init rule as ScrollSpotMarkerProvider above. The
                     // reporter subscribes to AnniSnapshotCache and fires
-                    // PartyRosterListener.requestRecapture() on organiser-set transitions
-                    // so a window-open mid-static-party doesn't go silent.
+                    // PartyRosterListener.requestRecapture() on organiser-set transitions,
+                    // meant to stop a window-open mid-static-party going silent. Today a
+                    // window opening with an unchanged organiser set fires nothing
+                    // (party-reporter-window-open-not-a-trigger).
                     org.wynnvets.mwe.anni.party.AnniPartyReporter.init();
                     QueueStateManager.addListener(
                             new QueueStateListener() {

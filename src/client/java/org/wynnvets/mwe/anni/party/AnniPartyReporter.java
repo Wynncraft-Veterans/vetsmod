@@ -12,12 +12,13 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 /**
  * S7 — snapshot-driven trigger for the party-back-report pipeline.
  *
- * <p>The {@link PartyRosterListener} already fires
- * {@code anni_party_observation} on every Wynntils {@code PartyEvent} or
- * {@code WorldStateEvent}. This reporter adds the missing case: if the
- * local player has been parked in the same Wynncraft party for some time
- * BEFORE the anni window opens, no event fires when the window opens —
- * the listener would never recapture.</p>
+ * <p>The {@link PartyRosterListener} already recaptures on the Wynntils {@code PartyEvent}s it
+ * subscribes to and on every {@code WorldStateEvent}, sending {@code anni_party_observation} when
+ * its gate passes. This reporter is meant to add the missing case: if the local player has been
+ * parked in the same Wynncraft party for some time BEFORE the anni window opens, no event marks
+ * the opening, so the listener may not recapture. Today it fires on an organiser-set change
+ * (below), not on the window opening, so a set that was already complete before the window opened
+ * triggers nothing then; see {@code party-reporter-window-open-not-a-trigger}.</p>
  *
  * <p>Solution: subscribe to {@link AnniSnapshotCache} and trigger a
  * synthetic {@link PartyRosterListener#requestRecapture()} on <b>any</b>
