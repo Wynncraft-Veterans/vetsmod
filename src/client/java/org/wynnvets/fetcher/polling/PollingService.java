@@ -12,9 +12,9 @@ import java.util.concurrent.TimeUnit;
  * {@link java.util.concurrent.ThreadFactory ThreadFactory} that names its thread and marks it
  * a daemon, a plain {@code boolean} idempotence guard, and a {@code scheduleAtFixedRate} call.
  * The copies had drifted &mdash; on the guard's name, on whether the lifecycle methods were
- * {@code synchronized}, on where the start-log line went. This class holds the shape once;
- * each poller keeps only the {@link Runnable} it schedules and the parameters it schedules it
- * with.</p>
+ * {@code synchronized}, on whether there was a start-log line at all. This class holds the shape
+ * once; each poller keeps only the {@link Runnable} it schedules and the parameters it schedules
+ * it with.</p>
  *
  * <p><b>The task is taken as-is.</b> Nothing is wrapped around it &mdash; no exception
  * handling, no logging, no rescheduling. Every caller already catches inside its own lambda,
@@ -23,7 +23,8 @@ import java.util.concurrent.TimeUnit;
  * therefore inherited rather than fixed: no caller catches {@link Throwable}, so an
  * {@link Error} escaping the task &mdash; {@code NoClassDefFoundError},
  * {@code OutOfMemoryError} &mdash; permanently cancels that schedule, silently, exactly as
- * {@link ScheduledExecutorService#scheduleAtFixedRate} has always specified.</p>
+ * {@link ScheduledExecutorService#scheduleAtFixedRate} has always specified. Filed as
+ * {@code poll-task-error-permanently-cancels-the-schedule}.</p>
  *
  * <p><b>The thread name is the caller's, verbatim.</b> Two of the names passed in disagree
  * with the class that passes them ({@code VetsMod-StaffRanksFetcher},
@@ -108,7 +109,7 @@ public final class PollingService {
     }
 
     /**
-     * Stops the schedule, draining for {@value #DRAIN_TIMEOUT_SECONDS} seconds before
+     * Stops the schedule, draining for up to {@value #DRAIN_TIMEOUT_SECONDS} seconds before
      * cancelling what is still running.
      *
      * <p>If the calling thread is interrupted while draining, the executor is cancelled and
@@ -134,8 +135,12 @@ public final class PollingService {
         running = false;
     }
 
-    /** @return {@code true} between a {@link #start()} that returned {@code true} and the
-     *  {@link #stop()} that follows it. */
+    /**
+     * @return {@code true} between a {@link #start()} that returned {@code true} and the
+     *     {@link #stop()} that follows it. It reports the lifecycle flag, not whether the
+     *     schedule is still alive: an {@link Error} that cancels the schedule leaves this
+     *     {@code true} (see {@code poll-task-error-permanently-cancels-the-schedule}).
+     */
     public synchronized boolean isRunning() {
         return running;
     }

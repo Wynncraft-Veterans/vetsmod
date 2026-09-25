@@ -230,7 +230,7 @@ connected user with their tier and world.
 | `/stamp` | Latest Discord `<t:…>` stamp as plain text, empty when unset |
 | `/list` | `{"connected": [...]}`, deduped by UUID, incl. the 30s grace window |
 | `/roster` | Guild `{uuid: username}` map |
-| `/aliases` | Stale-Wynncraft-name → current-name map |
+| `/aliases` | Stale-name → UUID map (`legacyName` from the v3.8 guild payload, lowercased) |
 | `/no-aspects` | `[{uuid, username}]` opted out of aspect distribution |
 
 Naming is inconsistent in source and is not normalised here: `no-aspects` and

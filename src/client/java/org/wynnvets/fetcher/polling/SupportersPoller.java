@@ -16,10 +16,13 @@ import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
 /**
- * Fetches and caches the list of supporters from the API.
+ * Fetches and caches the usernames the VetsMod server lists at {@code /v1/outbound/supporters}. Per
+ * temp-server, that is today its currently-glinted list rather than every supporter.
  *
- * <p>Supporters receive special pill styling (gradient) in guild chat.
- * The list is refreshed every {@value #REFRESH_INTERVAL_MINUTES} minutes.</p>
+ * <p>Supporters can get glint styling on chat pills, nametags and {@code /wv list} entries, gated
+ * on the viewing client's {@code showSupporterGlints}; the readers are listed in
+ * vetsmod_networking.md §5. The list is refreshed every {@value #REFRESH_INTERVAL_MINUTES}
+ * minutes.</p>
  */
 public class SupportersPoller {
     private static final int REFRESH_INTERVAL_MINUTES = 5;

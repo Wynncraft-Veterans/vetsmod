@@ -76,7 +76,7 @@ app/
 - `GET /v1/outbound/stamp` — latest webhook timestamp
 - `GET /v1/outbound/list` — connected VetsMod clients (registered presence)
 - `GET /v1/outbound/roster` — guild UUID→current-username map
-- `GET /v1/outbound/aliases` — stale-Wynncraft-username → current-username map (for reconciling Wynncraft API names that lag Mojang)
+- `GET /v1/outbound/aliases` — lowercase stale-Wynncraft-username → UUID map, built from the v3.8 guild payload's `legacyName` (read by vetsmod's `PolledJsonMap.WYNN_ALIASES`)
 - `GET /v1/outbound/no-aspects` — members opted out of aspect distribution, read by vetsmod's `NoAspectsFilter`
 
 Naming is inconsistent in source and is not normalised here: `no-aspects` and `anni-snapshot` are hyphenated while `donor_pool` and `guild_motd` are underscored.

@@ -112,7 +112,8 @@ Fields by subsystem:
 **`_refresh_roster()`** (runs in thread pool):
 - Fetch guild from Wynncraft API
 - Build roster via `_build_guild_roster()` (all roles: owner → recruit)
-- Update `state.guild_roster_by_uuid`
+- Build the alias map via `_build_legacy_name_aliases()` (lowercase v3.8 `legacyName` → UUID)
+- Update `state.guild_roster_by_uuid`; update `state.wynn_name_aliases` (backs `/v1/outbound/aliases`) only when the alias map is non-empty
 
 **`_build_guild_roster()`**:
 - Same UUID extraction logic as StaffPoller

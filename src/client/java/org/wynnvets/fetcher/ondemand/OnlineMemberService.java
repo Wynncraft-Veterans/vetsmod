@@ -253,7 +253,7 @@ public final class OnlineMemberService {
         mergedOnlineGuild.addAll(modGuildUuids);
 
         // Tab list entries: resolve to UUID by current username, falling back to
-        // the server-learned legacyName alias (v3.8 populates WYNN_ALIASES via
+        // the server's legacyName alias (v3.8 populates WYNN_ALIASES via
         // /v1/outbound/aliases).  Unresolved names are kept as tab-only entries.
         Set<String> tabOnlyUsernames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         for (TabListGuildParser.GuildEntry entry : tabEntries) {
