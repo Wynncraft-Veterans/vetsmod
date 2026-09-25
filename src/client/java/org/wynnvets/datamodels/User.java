@@ -7,7 +7,8 @@ import org.wynnvets.api.VetsApi;
  *
  * <p>Fields are populated by GSON from the WynnCraft API response JSON.
  * Provides convenience accessors for guild membership, veteran status,
- * and formatted join dates used by the {@code /wv check} command.</p>
+ * and formatted join dates, used by the {@code /wv check} renderer and
+ * the {@code /gu invite} gate.</p>
  */
 public class User {
     private String username;
@@ -54,10 +55,10 @@ public class User {
     }
 
     /**
-     * Wynncraft veteran badge state. The API returns {@code true} when the
-     * player has the in-game veteran badge and omits the field (→ {@code null})
-     * otherwise; an explicit {@code false} is never sent. Renderers should
-     * treat {@code null} as "not a veteran", not as "hidden".
+     * Wynncraft veteran badge state: {@code true} when the API reports the
+     * badge, otherwise {@code null} (field absent or JSON null) or
+     * {@code false}. Renderers should treat anything but {@code true} as
+     * "not a veteran", not as "hidden".
      */
     public Boolean getVeteran() {
         return veteran;

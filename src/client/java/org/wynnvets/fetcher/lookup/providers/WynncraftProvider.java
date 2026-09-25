@@ -20,7 +20,8 @@ import org.wynnvets.util.Json;
  *
  * <p>This is the most valuable provider in the cascade: it returns both
  * the UUID and the full {@link User} profile in one call, so a Wynncraft
- * hit lets the invite gate skip its secondary Wynn fetch entirely.</p>
+ * hit lets a caller that needs the profile skip its own Wynn fetch
+ * entirely.</p>
  */
 public final class WynncraftProvider implements LookupProvider {
 

@@ -35,7 +35,11 @@ import org.wynnvets.util.HttpClients;
  * <p>If every provider misses, the result distinguishes
  * {@link FailureReason#PLAYER_NOT_FOUND} (every miss was definite) from
  * {@link FailureReason#ALL_PROVIDERS_TRANSIENT} (at least one was
- * transient — fail open).</p>
+ * transient, {@link org.wynnvets.commands.InviteGate InviteGate}'s
+ * fail-open case). Today every exhausted cascade ends in
+ * {@code ALL_PROVIDERS_TRANSIENT}, because {@link VetsSnapshotProvider}
+ * never reports a definite miss (see
+ * {@code vets-snapshot-provider-makes-player-not-found-unreachable}).</p>
  *
  * <p>Single-flight: concurrent {@link #resolve(String)} calls for the
  * same lowercased name share one underlying cascade.</p>

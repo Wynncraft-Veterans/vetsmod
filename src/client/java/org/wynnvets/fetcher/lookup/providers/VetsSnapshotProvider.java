@@ -25,8 +25,8 @@ import org.wynnvets.util.Json;
  *
  * <p>The ack returns both the UUID and the full
  * {@link MembershipSnapshot} (Discord link, blocklist state, waitlist
- * count, etc.) — so a Vets hit lets the invite gate skip its secondary
- * snapshot fetch.</p>
+ * count, etc.) — so a Vets hit lets a caller that needs the snapshot skip
+ * its own snapshot fetch.</p>
  *
  * <p>Skipped when the inbound WebSocket isn't connected: the frame would
  * synthesise a connection-closed error ack and we'd treat that as

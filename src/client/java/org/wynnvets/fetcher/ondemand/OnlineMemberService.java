@@ -33,8 +33,11 @@ import org.wynnvets.util.Json;
 /**
  * Shared service for fetching and merging online guild member data.
  *
- * <p>Combines three sources — tab list, VetsMod server, Wynntils guild API —
- * into a unified online member list. Used by {@link ListFetcher},
+ * <p>Combines the tab list, the VetsMod server's connected-user list and
+ * the Wynntils guild API into a unified online member list, corrected by
+ * the server's polled roster and alias maps ({@link PolledJsonMap}) and
+ * topped up with recently seen names from {@link OnlineGuildCache}. Used
+ * by {@link ListFetcher},
  * {@link WorldListFetcher}, and {@link
  * org.wynnvets.fetcher.ondemand.UserInfoFetcher}.</p>
  */
@@ -118,13 +121,14 @@ public final class OnlineMemberService {
     /**
      * Looks up the current server name (e.g. {@code "NA35"}) for
      * {@code username} by scanning the local Minecraft tab list.
-     * Returns {@code null} when the player is not visible — either
-     * offline, in a different guild, or the local player isn't in
-     * any guild.
+     * Returns {@code null} when the player is not visible: for example when
+     * they are offline, in a different guild or past the tab list's
+     * truncated guild-member window (see {@link TabListGuildParser}), or
+     * when the local player isn't in any guild or on a Wynncraft world.
      *
-     * <p>Cheap synchronous call: does not trigger any of the three
-     * async fetches used by {@link #gatherOnlinePlayers()}. Safe to
-     * call inline from per-player commands like {@code /wv check}.
+     * <p>Cheap synchronous call: does not trigger any of the async
+     * fetches {@link #gatherOnlinePlayers()} starts. Safe to
+     * call inline from per-player commands like {@code /wv check}.</p>
      */
     static String getCurrentServer(String username) {
         if (username == null || username.isEmpty()) {

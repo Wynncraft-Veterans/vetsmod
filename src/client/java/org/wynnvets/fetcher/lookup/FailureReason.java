@@ -4,9 +4,14 @@ package org.wynnvets.fetcher.lookup;
  * Why a {@link PlayerLookup#resolve(String)} cascade did not produce a hit.
  *
  * <p>Distinguishes "we couldn't find out" from "every provider definitively
- * said no such player." Callers act differently on these: {@code
- * ALL_PROVIDERS_TRANSIENT} fails open (dispatch the invite anyway with a
- * warning), while {@code PLAYER_NOT_FOUND} blocks cleanly.</p>
+ * said no such player." Callers can act differently on these.
+ * {@link org.wynnvets.commands.InviteGate InviteGate} fails open on
+ * {@code ALL_PROVIDERS_TRANSIENT} (dispatches the invite anyway with a
+ * warning) and blocks on {@code PLAYER_NOT_FOUND};
+ * {@link org.wynnvets.fetcher.ondemand.UserInfoFetcher UserInfoFetcher}
+ * prints a distinct error for each. Today no cascade ends in
+ * {@code PLAYER_NOT_FOUND} (see
+ * {@code vets-snapshot-provider-makes-player-not-found-unreachable}).</p>
  */
 public enum FailureReason {
     /** Input was blank/empty. */

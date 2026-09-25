@@ -13,13 +13,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.Map;
-// >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-// Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
-// Remove: when Wynncraft invalidates the player endpoint on
-//   officer-write events, or exposes a webhook, or an offline-player
-//   spot-check shows <10min staleness.
 import java.util.Optional;
-// <<< PATCH END: WYNN-STALE-WORKAROUND
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.ChatFormatting;
@@ -34,11 +28,6 @@ import org.wynnvets.datamodels.Guild;
 import org.wynnvets.datamodels.MembershipSnapshot;
 import org.wynnvets.datamodels.User;
 import org.wynnvets.datamodels.UserUUID;
-// >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-// Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
-// Remove: when Wynncraft invalidates the player endpoint on
-//   officer-write events, or exposes a webhook, or an offline-player
-//   spot-check shows <10min staleness.
 import org.wynnvets.fetcher.lookup.FailureReason;
 import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.PlayerLookup;
@@ -47,16 +36,16 @@ import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
-// <<< PATCH END: WYNN-STALE-WORKAROUND
-
 /**
  * On-demand fetcher for the {@code /wv check} command.
  *
- * <p>Fans out three concurrent lookups for an arbitrary Minecraft player
- * (Mojang UUID → Wynncraft player profile, Returners roster cross-check,
- * dazebot membership snapshot via the WS bridge) and renders the
- * combined output as a multi-line block in the local chat HUD. Each
- * logical line is dispatched via its own {@link ChatUtils#sendLocalMessage}
+ * <p>Resolves the name through {@link PlayerLookup}, gathers the Wynncraft
+ * player profile and the dazebot membership snapshot (reusing either when
+ * the cascade's hit already carries it; the snapshot travels over the WS
+ * bridge), and, once there is a profile, cross-checks guild membership
+ * against Wynncraft's guild rosters (see {@link #fetchAndRender}). It
+ * renders the combined output as a multi-line block in the local chat HUD.
+ * Each logical line is dispatched via its own {@link ChatUtils#sendLocalMessage}
  * call so the {@link org.wynnvets.chat.Prepend#DEFAULT} dedup auto-demotes
  * the badge to the compact block-indicator on continuation lines.</p>
  */
@@ -68,7 +57,10 @@ public class UserInfoFetcher {
     private static final Style MUTED_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_GRAY);
     private static final Style HIDDEN_STYLE = Style.EMPTY.withColor(ChatFormatting.YELLOW);
 
-    /** Lightweight result of the Returners roster cross-check. */
+    /**
+     * Lightweight result of a guild-roster cross-check; {@link #analyzeRoster}
+     * also produces it for guilds other than Returners.
+     */
     private record ReturnersMembership(boolean inGuild, String legacyName, String rank) {
         static ReturnersMembership notInGuild() {
             return new ReturnersMembership(false, null, null);
@@ -152,7 +144,8 @@ public class UserInfoFetcher {
      * Strips dashes and lowercases, so a dashed and a dashless UUID compare equal. Twin of
      * {@link org.wynnvets.distribute.utils.NameResolver#normalizeUuid
      * NameResolver#normalizeUuid} &mdash; identical behaviour down to the
-     * null-becomes-empty-string contract, and that one has always linked here.
+     * null-becomes-empty-string contract, and that one has always pointed
+     * here (as a live link since 5fb6f26).
      * The pairing now reads both ways, so whichever copy a future consolidation opens
      * first names the other.
      */
@@ -205,11 +198,16 @@ public class UserInfoFetcher {
     }
 
     /**
-     * Fetches the Returners roster from the Wynncraft API and returns
-     * membership status, plus best-effort {@code legacyName} and rank
-     * extraction. Falls back to {@link #containsUuid} for the boolean if
-     * the structured walk misses (defends against Wynncraft API shape
-     * changes).
+     * Fetches the Returners roster from the Wynncraft API and reports
+     * membership plus a best-effort {@code legacyName} and rank. Membership
+     * is {@link #containsUuid}'s answer: a shape-agnostic walk of the whole
+     * payload, which is what defends against Wynncraft API shape changes.
+     * {@link #analyzeRoster}'s structured {@code members.<rank>.<name>}
+     * walk only supplies the rank and {@code legacyName}. Today a non-200,
+     * failed or unparseable fetch also yields
+     * {@link ReturnersMembership#notInGuild()}, indistinguishable from
+     * absence (see
+     * {@code wv-check-guild-line-conflates-roster-failure-with-absence}).
      */
     private static CompletableFuture<ReturnersMembership> returnersMembership(String uuid) {
         HttpRequest request =
@@ -241,11 +239,16 @@ public class UserInfoFetcher {
     // Remove: when Wynncraft invalidates the player endpoint on
     //   officer-write events, or exposes a webhook, or an offline-player
     //   spot-check shows <10min staleness.
+    // Imports used only by this workaround: java.util.Optional and
+    // org.wynnvets.guild.GuildStateManager.
     /**
-     * Fetches {@code guildName}'s roster and returns the confirming rank when
-     * {@code normalizedUuid} appears in it. Empty on 404 / timeout / malformed
-     * response / UUID absent from the roster. Structural mirror of
-     * {@link #returnersMembership} + {@link #analyzeRoster}.
+     * Fetches {@code guildName}'s roster and returns the rank it lists for
+     * {@code normalizedUuid}. Empty on a non-200, a timeout, a malformed
+     * response or an absent UUID. It is also empty when the UUID is present
+     * but no rank could be read, so an empty result does not by itself mean
+     * "not a member"; today {@link #renderGuildLine} reads it as one (see
+     * {@code wv-check-guild-line-conflates-roster-failure-with-absence}).
+     * Mirrors {@link #returnersMembership} and reuses {@link #analyzeRoster}.
      */
     private static CompletableFuture<Optional<String>> confirmArbitraryGuildRank(
             String guildName, String normalizedUuid) {
@@ -338,9 +341,10 @@ public class UserInfoFetcher {
     /**
      * Orchestrates the full {@code /wv check} readout for {@code playerName}:
      * resolves name → UUID via {@link PlayerLookup} (Wynncraft, temporary-server,
-     * playerdb, ashcon, Mojang), then fans out the remaining lookups (Wynn
-     * player profile, Returners roster, dazebot snapshot) and renders the
-     * combined block line-by-line.
+     * playerdb, ashcon, Mojang), then gathers whatever the cascade's hit did
+     * not already carry (Wynn player profile, dazebot snapshot), cross-checks
+     * guild rosters once there is a profile, and renders the combined block
+     * line-by-line.
      *
      * <p>Failures are surfaced as a single error line; partial results
      * (e.g. Wynn fetch succeeds but the snapshot doesn't) still render the
@@ -375,10 +379,13 @@ public class UserInfoFetcher {
         UserUUID synthUuid = makeUserUUID(uuid, canonical);
 
         // Reuse the cascade's attached payload when present; fetch only what's
-        // missing. When the Vets snapshot wasn't part of the resolving provider's
-        // payload, we synthesise a sentinel rather than re-firing the WS frame —
-        // the cascade just tried Vets and the renderer handles "(snapshot
-        // unavailable)" gracefully.
+        // missing. Only a Vets-provider hit carries a snapshot (the Wynncraft
+        // provider, which PlayerLookup tries first, carries none), so a missing
+        // one is requested afresh through VetsSnapshotProvider.requestSnapshot, a
+        // new check_membership frame. A null result becomes the
+        // snapshotUnavailable sentinel, which the renderer shows as "(snapshot
+        // unavailable)"; today the Blocklist line doubles that phrase (see
+        // wv-check-blocklist-line-doubles-snapshot-unavailable).
         CompletableFuture<User> wynnFuture =
                 lookup.wynnProfile() != null
                         ? CompletableFuture.completedFuture(lookup.wynnProfile())
@@ -403,10 +410,11 @@ public class UserInfoFetcher {
                     //   officer-write events, or exposes a webhook, or an offline-player
                     //   spot-check shows <10min staleness.
                     // Original gated on `user.isInVets()` (payload claims Returners).
-                    // Drop the gate so we always crosscheck the Returners roster --
-                    // needed to catch the rejoin case where the payload transitions
-                    // through a non-Returners guild name mid-invalidation. Cost: one
-                    // extra /v3/guild/Returners fetch per /wv check. Guild bucket is
+                    // Drop the isInVets() gate so we crosscheck the Returners roster
+                    // whenever there is a Wynncraft profile -- needed to catch the
+                    // rejoin case where the payload transitions through a
+                    // non-Returners guild name mid-invalidation. Cost: one extra
+                    // /v3/guild/Returners fetch per such /wv check. Guild bucket is
                     // 50 req/s and /wv check cadence is low.
                     CompletableFuture<ReturnersMembership> returnersFuture =
                             (user != null)
@@ -440,8 +448,15 @@ public class UserInfoFetcher {
                                 //   officer-write events, or exposes a webhook, or an
                                 // offline-player
                                 //   spot-check shows <10min staleness.
-                                // Join the roster crosscheck before render; helper is bounded by
-                                // its own 5s HTTP timeout and returns Optional.empty() on failure.
+                                // Join the roster crosscheck before render. The helper's 5s
+                                // request timeout bounds the wait for response headers (in JDK
+                                // 21's implementation, not the body read), and it returns
+                                // Optional.empty() on failure. Today, while the crosscheck is
+                                // still pending, the join blocks whichever thread completed the
+                                // later of returnersFuture and snapFuture, such as a
+                                // CompletableFuture default-pool thread or the thread that
+                                // delivers inbound WebSocket frames (see
+                                // user-info-fetcher-join-blocks-completing-thread).
                                 Optional<String> confirmedNonReturnersRank =
                                         confirmedNonReturnersRankFuture.join();
                                 // <<< PATCH END: WYNN-STALE-WORKAROUND
@@ -519,10 +534,11 @@ public class UserInfoFetcher {
                 (user != null && user.getUsername() != null) ? user.getUsername() : requestedName;
 
         // Tab list is our freshest signal — local Minecraft state, no HTTP
-        // round-trip, no CDN cache. It's bounded to whichever guild the local
-        // player is in, so a lookup miss is normal for cross-guild targets;
-        // a hit is authoritative. Cheap O(N) scan over <100 entries, always
-        // run.
+        // round-trip, no CDN cache. It only covers the local player's guild, and
+        // only as many online members as the tab list's guild column holds (see
+        // TabListGuildParser), so a miss is normal — for cross-guild targets and
+        // in a busy guild alike; a hit is authoritative. Cheap O(N) scan over
+        // <100 entries, always run.
         String tabListServer = OnlineMemberService.getCurrentServer(displayName);
 
         // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
@@ -538,7 +554,9 @@ public class UserInfoFetcher {
         boolean tabListConfirmsReturners = tabListServer != null && GuildStateManager.isReturners();
         // <<< PATCH END: WYNN-STALE-WORKAROUND
 
-        // Self-check: by definition we're online right now. Skips the whole
+        // Self-check: the local player is treated as online, since they are
+        // the one running /wv check (normally from Wynncraft; the command does
+        // not check which server the client is on). Skips the whole
         // signal-aggregation dance below and avoids the "Wynn's cached
         // online=false for the local player" trap.
         String localName =
@@ -567,7 +585,9 @@ public class UserInfoFetcher {
         }
 
         if (user == null) {
-            // Items 1–5 collapse when there's no Wynn profile.
+            // The profile items (first seen, last seen, playtime, online) collapse
+            // into this one line when there's no Wynn profile; the guild and
+            // veteran lines below still render, each with its own placeholder.
             ChatUtils.sendLocalMessage(
                     label("Wynncraft profile: ")
                             .append(
@@ -595,13 +615,20 @@ public class UserInfoFetcher {
 
     /**
      * Aggregates "is this player on Wynncraft right now?" across four
-     * signals, in order of authoritativeness: trivially true for self,
-     * then local tab list (live), then Wynn's {@code online} field
-     * (2-min CDN cache, can lag), then a recent ({@literal <}10 min)
-     * server-change observation from dazebot's {@code server_watcher}.
-     * Used to qualify the {@code (hiatus)} discord-line annotation:
-     * any positive signal means staff should be told the role state
-     * may be stale.
+     * signals, in order of authoritativeness: true for self (the local
+     * player is treated as online), then local tab list (live), then Wynn's
+     * {@code online} field (2-min CDN cache, can lag), then a recent
+     * ({@literal <}10 min) {@code last_seen_observed.ts}: dazebot's
+     * best-guess last-online time, which several dazebot paths keep
+     * current, its {@code server_watcher} among them. Today this fourth
+     * signal cannot fire, because temporary-server's ack does not carry
+     * {@code last_seen_observed} (see
+     * {@code check-membership-ack-drops-last-seen-observed}). Used to
+     * qualify the {@code (hiatus)} discord-line annotation: a positive
+     * signal is meant to tell staff the role state may be stale. Today
+     * being online is not evidence of that, since dazebot's HIATUS means a
+     * guildless ex-member (see
+     * {@code wv-check-hiatus-stale-hint-keys-off-online}).
      */
     private static boolean isCurrentlyOnline(
             User user, MembershipSnapshot snapshot, String tabListServer, boolean isSelf) {
@@ -642,9 +669,12 @@ public class UserInfoFetcher {
                                             .setStyle(MUTED_STYLE)));
         }
 
-        // Item 2: last seen. Fall back to dazebot's server_watcher observation
-        // when Wynn API hides lastJoin (privacy on); finally `(hidden)` only
-        // when we have nothing at all.
+        // Item 2: last seen. When the Wynn API hides lastJoin (privacy on), fall
+        // back to self, then the tab list, then dazebot's last_seen_observed
+        // best guess (several dazebot paths keep it current); `(hidden)` only
+        // when we have nothing at all. Today the dazebot fallback never fires
+        // because temporary-server drops last_seen_observed (see
+        // check-membership-ack-drops-last-seen-observed).
         String lastJoin = user.getLastJoinDate();
         if (lastJoin != null) {
             ChatUtils.sendLocalMessage(
@@ -672,9 +702,9 @@ public class UserInfoFetcher {
         }
 
         // Item 3b: currently online. Surfaced between playtime and guild because
-        // it's the most actionable signal for a staff vetting decision — and
-        // because it directly resolves whether a `(hiatus)` annotation below is
-        // stale (see Discord line).
+        // it's the most actionable signal for a staff vetting decision. The
+        // Discord line's `(hiatus)` qualifier asks a related question through
+        // isCurrentlyOnline, which weighs the signals differently.
         renderOnlineLine(user, snapshot, tabListServer, isSelf);
     }
 
@@ -720,8 +750,9 @@ public class UserInfoFetcher {
             User user, MembershipSnapshot snapshot, String tabListServer, boolean isSelf) {
         MutableComponent line = label("Currently online: ");
 
-        // Self is trivially online — the local player wouldn't be running
-        // /wv check otherwise.
+        // Self is treated as online: the local player is the one running /wv
+        // check, normally from Wynncraft (the command does not check which
+        // server the client is on).
         if (isSelf) {
             line.append(
                     Component.literal("yes").setStyle(Style.EMPTY.withColor(ChatFormatting.GREEN)));
@@ -766,7 +797,8 @@ public class UserInfoFetcher {
             return;
         }
 
-        // Wynn hidden — try recent server-watcher observation.
+        // Wynn hidden — try the last_seen_observed best guess (today never
+        // present; see check-membership-ack-drops-last-seen-observed).
         MembershipSnapshot.LastSeenObserved obs =
                 snapshot != null ? snapshot.getLastSeenObserved() : null;
         if (obs != null && obs.getTs() > 0) {
@@ -905,6 +937,10 @@ public class UserInfoFetcher {
             // Original block used guild.getRank() directly; now prefer the
             // confirming roster's rank when present (the payload rank can lag
             // even for a still-in-guild member after a promotion/demotion).
+            // Today the payload fallback is effectively unreachable: for any
+            // guild not named Returners, the mismatch block above has already
+            // returned when that rank is absent (see
+            // wv-check-guild-line-conflates-roster-failure-with-absence).
             String rankText = confirmedNonReturnersRank.orElse(guild.getRank());
             if (rankText != null && !rankText.isEmpty()) {
                 line.append(Component.literal("  —  ").setStyle(LABEL_STYLE))
@@ -947,9 +983,11 @@ public class UserInfoFetcher {
     }
 
     private static void renderVeteranLine(User user) {
-        // Wynncraft's /v3/player returns `veteran: true` for vets and omits the
-        // field for everyone else; an explicit `false` never appears on the wire.
-        // Treat null as "no" — the privacy-hidden interpretation is wrong here.
+        // Only an explicit `veteran: true` counts. What Wynncraft sends for
+        // non-vets isn't pinned here — absent, null and false are all possible
+        // shapes (Wynntils' own parser allows for null) — and absent and null
+        // both arrive as null. Treat anything but TRUE as "no"; the
+        // privacy-hidden interpretation is wrong here.
         MutableComponent line = label("Veteran tag: ");
         if (user == null) {
             line.append(Component.literal("(no Wynncraft data)").setStyle(HIDDEN_STYLE));
@@ -1056,9 +1094,12 @@ public class UserInfoFetcher {
                             .setStyle(Style.EMPTY.withColor(ChatFormatting.AQUA)));
         }
         if (disc.isHiatus()) {
-            // dazebot already attempts a state-machine refresh during the
-            // snapshot fetch; if HIATUS still rides through AND the player is
-            // currently online, the role is stale and staff should know.
+            // dazebot attempts (best-effort) a guild re-read and role
+            // reconciliation during the snapshot fetch, before it reports
+            // HIATUS. The qualifier below is meant to flag a HIATUS role that
+            // is stale; today it keys off being online, which dazebot's HIATUS
+            // (a guildless ex-member) does not rule out, so it is a weak hint,
+            // not evidence (see wv-check-hiatus-stale-hint-keys-off-online).
             Style hiatusStyle = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
             line.append(Component.literal("  (hiatus").setStyle(hiatusStyle));
             if (currentlyOnline) {
@@ -1086,7 +1127,8 @@ public class UserInfoFetcher {
     }
 
     private static void renderCultLine(MembershipSnapshot snapshot) {
-        // Suppressed when not in any cult per the "when applicable" spec.
+        // Suppressed when the snapshot names no cult, including when the
+        // snapshot is unavailable.
         if (snapshot == null
                 || snapshot.getCult() == null
                 || snapshot.getCult().getName() == null) {

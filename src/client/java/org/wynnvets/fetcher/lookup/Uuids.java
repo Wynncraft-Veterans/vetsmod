@@ -9,7 +9,8 @@ public final class Uuids {
 
     /**
      * Parses either a dashed or undashed UUID string. Returns null if the
-     * input is null, blank, or not parseable as 32 or 36 hex characters.
+     * input is null, blank, or rejected by {@link UUID#fromString} (a
+     * 32-character input is re-dashed first).
      */
     public static UUID parse(String raw) {
         if (raw == null) return null;

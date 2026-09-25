@@ -27,7 +27,8 @@ import org.wynnvets.util.Json;
  * any HTTP work when the cooldown is active, so a 429-triggered cooldown
  * naturally lets the cascade settle on
  * {@link org.wynnvets.fetcher.lookup.FailureReason#ALL_PROVIDERS_TRANSIENT}
- * (fail open) rather than burning the same Mojang quota repeatedly.</p>
+ * ({@link org.wynnvets.commands.InviteGate InviteGate}'s fail-open case)
+ * rather than burning the same Mojang quota repeatedly.</p>
  *
  * <p>On 429, parses {@code Retry-After} (seconds or HTTP-date) into
  * {@link MojangCooldown#record429(Duration)} so future requests skip this

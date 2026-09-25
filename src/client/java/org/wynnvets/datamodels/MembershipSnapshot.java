@@ -1,15 +1,17 @@
 package org.wynnvets.datamodels;
 
 /**
- * GSON-deserialisable model for the {@code check_membership} ack frame
- * (returned by {@code temporary-server} forwarding dazebot's
- * {@code GET /api/internal/check-snapshot/{name_or_uuid}} endpoint).
+ * GSON-deserialisable model for the {@code check_membership} ack frame:
+ * temporary-server's re-serialisation of dazebot's
+ * {@code GET /api/internal/check-snapshot/{name_or_uuid}} response.
  *
- * <p>Carries the Discord-link / tier / blocklist / vetsmod-key snapshot
- * needed by the {@code /wv check} renderer to display items 6, 7, and 8
- * (blocklist state, Discord identity + tier, stage-2 vetsmod-key
- * boolean). Mirrors the JSON shape produced by dazebot one-to-one;
- * adjust both ends together if the wire format changes.</p>
+ * <p>Carries the membership snapshot that, among other readers, the
+ * {@code /wv check} renderer and the {@code /gu invite} gate use. The
+ * fields are modelled on dazebot's JSON shape; temporary-server forwards
+ * an explicit subset of it, so a field added at dazebot reaches this class
+ * only once temporary-server forwards it too. Today
+ * {@code last_seen_observed} is one it does not forward (see
+ * {@code check-membership-ack-drops-last-seen-observed}).</p>
  */
 public class MembershipSnapshot {
     private String target_uuid;
@@ -67,19 +69,24 @@ public class MembershipSnapshot {
     }
 
     /**
-     * Best-guess last-seen derived from dazebot's {@code server_watcher}
-     * observation cache. Used as a fallback when the Wynncraft API hides
+     * dazebot's best-guess last-seen time ({@code MinecraftAccount.last_online}),
+     * which several dazebot paths keep current, its {@code server_watcher}
+     * among them. Used as a fallback when the Wynncraft API hides
      * {@code lastJoin} / {@code online} due to player privacy settings.
-     * {@code null} or {@code ts == 0} means "no observation on record".
+     * {@code null} or {@code ts == 0} is meant to mean "no observation on
+     * record"; today it is always {@code null}, because temporary-server's
+     * ack does not carry the field (see
+     * {@code check-membership-ack-drops-last-seen-observed}).
      */
     public LastSeenObserved getLastSeenObserved() {
         return last_seen_observed;
     }
 
     /**
-     * Best-guess activity signal derived from dazebot's {@code server_watcher}
-     * (a periodic poll that records a {@code last_online} timestamp whenever
-     * the player's {@code server} field changes, even for API-hidden players).
+     * Best-guess last-online signal: dazebot's
+     * {@code MinecraftAccount.last_online}, kept current by several dazebot
+     * paths (among them its periodic guild-activity check and its
+     * {@code server_watcher}), not only a server-change observation.
      */
     public static class LastSeenObserved {
         private Long ts;

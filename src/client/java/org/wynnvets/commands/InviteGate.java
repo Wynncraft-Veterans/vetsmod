@@ -36,10 +36,18 @@ import org.wynnvets.util.Json;
  * (waitlist, honourary, etc.) get pass-through behaviour because they
  * have no guild-invite permission server-side.</p>
  *
- * <p>For <b>non-staff</b> Returners members the gate blocks with a
- * deliberately vague "please ask staff" message when the target is
- * dazebot-blocklisted, joined Wynncraft on or after 2020, or the guild
- * is so full that the next slot is reserved for the waitlist queue.</p>
+ * <p>For <b>non-staff</b> Returners members the gate is meant to block with
+ * a deliberately vague "please ask staff" message when the target is
+ * dazebot-blocklisted, joined Wynncraft on or after 2020, or has no
+ * readable first-join date, and to ask them to route the target through
+ * the waitlist instead when the guild is so full that the next slot is
+ * reserved for the waitlist queue. Without a Wynncraft profile it checks
+ * only the blocklist, and names any listing, for staff and non-staff
+ * alike. Today a non-staff session gets no membership snapshot, because
+ * temporary-server accepts {@code check_membership} only from confirmed
+ * staff, so the gate cancels the invite with a snapshot-failure message
+ * whenever the target resolves (see
+ * {@code vets-snapshot-provider-skips-confirmed-staff-check}).</p>
  *
  * <p>For <b>staff</b> (confirmed-staff via the vetsmod token) the gate
  * surfaces the exact reason and offers a clickable
@@ -51,7 +59,9 @@ import org.wynnvets.util.Json;
  * Services / Mojang legacy in that order. If every source fails
  * transiently the gate fails open (dispatches the invite anyway with a
  * warning); if every source returns a definite 404 the gate blocks with
- * a "no such player" message.</p>
+ * a "no such player" message. Today no lookup ends that second way, so a
+ * name that no source knows also fails open (see
+ * {@code vets-snapshot-provider-makes-player-not-found-unreachable}).</p>
  */
 public final class InviteGate {
 
@@ -95,17 +105,20 @@ public final class InviteGate {
                             // ALL_PROVIDERS_TRANSIENT / INPUT_INVALID — fail open: every UUID
                             // source we tried was either down or rate-limited, so we can't
                             // verify the cutoff but the player almost certainly exists. Let
-                            // the server make the final call.
+                            // the server make the final call. Today a name that no source
+                            // knows lands here too (see
+                            // vets-snapshot-provider-makes-player-not-found-unreachable).
                             failOpenInvite(target);
                         });
     }
 
     /**
-     * Bypass entry point used by {@code /wv invite-force}. Skips all
-     * vetsmod-side checks and sends {@code /gu invite <target>} directly
-     * to the server via {@link GuildChatDispatcher#sendCommandBypassed},
-     * which suppresses the chat-command mixin so this won't re-trigger
-     * {@link #checkInvite}.
+     * Sends {@code /gu invite <target>} with every vetsmod-side check
+     * skipped, via {@link GuildChatDispatcher#sendCommandBypassed}, which
+     * makes the dispatcher's intercept pass it through so this won't
+     * re-trigger {@link #checkInvite}. The entry point for
+     * {@code /wv invite-force}, and also this class's own allow and
+     * fail-open paths.
      */
     public static void forceDispatch(String target) {
         GuildChatDispatcher.sendCommandBypassed("gu invite " + target);
@@ -162,7 +175,10 @@ public final class InviteGate {
         // Snapshot null = internal WS infrastructure failure (temporary-server
         // unreachable, ack drained on disconnect, etc.). Distinct from the
         // upstream-UUID-source failure that triggered the failOpenInvite path
-        // above. Keep the existing safety-block here.
+        // above. Keep the existing safety-block here. Today a null snapshot is
+        // also what every non-staff session gets, since temporary-server
+        // accepts check_membership only from confirmed staff (see
+        // vets-snapshot-provider-skips-confirmed-staff-check).
         if (snap == null || snap.getDiscord() == null) {
             renderError(
                     "Membership snapshot lookup failed for '"
@@ -258,7 +274,9 @@ public final class InviteGate {
      * the invite anyway with a yellow warning so staff know to verify
      * manually once sources recover. Per the cascade design, this should be
      * rare — Wynncraft alone has historically been resilient even when
-     * Mojang isn't.
+     * Mojang isn't. Today it is also where every name that no provider
+     * knows ends up (see
+     * {@code vets-snapshot-provider-makes-player-not-found-unreachable}).
      */
     private static void failOpenInvite(String target) {
         Minecraft.getInstance()

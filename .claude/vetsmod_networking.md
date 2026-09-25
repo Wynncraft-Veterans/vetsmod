@@ -145,7 +145,7 @@ Package: [org.wynnvets.fetcher.ondemand](../src/client/java/org/wynnvets/fetcher
 | `WorldListFetcher` | `/wv list world` | Above + `/find` batch dispatch | Region-grouped list |
 | `ReturnFetcher` | `/wv return` | `VetsApi.RETURN` | Component (JSON-serialized) |
 | `StampFetcher` | `/wv anni`, auto | `VetsApi.STAMP` | Countdown or "not announced" |
-| `UserInfoFetcher` | `/wv check <name>` | Mojang → WynnCraft → Returners roster | Profile component |
+| `UserInfoFetcher` | `/wv check <name>` | `PlayerLookup` cascade; WynnCraft `/v3/player` and `/v3/guild` rosters; `check_membership` over the WebSocket | Chat lines, sent one per `sendLocalMessage` |
 | `OnlineMemberService` | internal | Tab, `/list`, Wynntils | Merged roster |
 
 ### StaffFetcher details
@@ -177,7 +177,7 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 3. Supplement with VetsMod usernames for unresolved UUIDs
 4. Merged guild online = Wynntils online ∪ VetsMod guild UUIDs ∪ tab list
 5. Honourary + waitlist from VetsMod `/list`
-6. Tab-only usernames added as guild tier
+6. Tab-only usernames (no UUID match, including no `PolledJsonMap.WYNN_ALIASES` hit) added as guild tier
 7. Apply grace-period cache (recently-seen players)
 
 ## 5. Polling services
