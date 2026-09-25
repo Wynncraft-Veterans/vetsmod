@@ -36,8 +36,9 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * </ul>
  *
  * <p>{@link #register()} additionally installs a post-connect
- * {@link AnniQueryClient#query()} re-pull, so a reconnect warms the
- * cache without waiting for the next push.</p>
+ * {@link AnniQueryClient#query()} re-pull. It runs on the first inbound
+ * connect as well as on every reconnect, so each connection asks for a
+ * fresh snapshot.</p>
  *
  * <p>Idempotent registration via the static {@link #register()} method —
  * call from {@link org.wynnvets.VetsmodClient#onInitializeClient()} after

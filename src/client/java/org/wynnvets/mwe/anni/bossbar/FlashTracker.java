@@ -47,9 +47,11 @@ import org.wynnvets.mwe.anni.state.AnniSnapshots;
  * </ul>
  *
  * <p>Singleton listener on {@link AnniSnapshotCache}. Snapshot diffs
- * fire on the WS reader thread; the listener bounces onto the client
- * thread before mutating state. {@link #tick()} runs per client tick
- * via the boss-bar manager's tick loop — no separate tick wiring.</p>
+ * fire on whichever thread calls {@link AnniSnapshotCache#update} — the
+ * one delivering WebSocket frames, or the command thread for a debug
+ * injection; the listener bounces onto the client thread before
+ * mutating state. {@link #tick()} runs per client tick via the
+ * boss-bar manager's tick loop — no separate tick wiring.</p>
  */
 public final class FlashTracker {
 
@@ -213,7 +215,9 @@ public final class FlashTracker {
 
     // ── Internals ───────────────────────────────────────────────────────
 
-    /** Snapshot listener — invoked on the WS reader thread. Bounces
+    /** Snapshot listener — invoked on whichever thread calls
+     *  {@link AnniSnapshotCache#update}: the one delivering WebSocket
+     *  frames, or the command thread for a debug injection. Bounces
      *  the diff onto the client thread. */
     private static void onSnapshotChanged(AnniSnapshot snapshot) {
         if (snapshot == null) return;

@@ -34,8 +34,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} matches this; {@code level.players()}
  * iteration in the ticker matches this too.</p>
  *
- * <p>Thread-safety: rebuilds run on the WS reader thread (via {@link AnniSnapshotCache} listener).
- * Reads run off that thread — from the client tick ({@link AnniOutlineTicker}) and from the
+ * <p>Thread-safety: after the one in {@link #register()}, rebuilds run on whichever thread
+ * calls {@link AnniSnapshotCache#update} (this class is one of its listeners) — the one
+ * delivering WebSocket frames, or the command thread for a debug injection. Reads come from
+ * the client tick ({@link AnniOutlineTicker}) and from the
  * render path ({@link org.wynnvets.mixin.client.NametagMixin NametagMixin},
  * {@link org.wynnvets.mixin.client.EntityOutlineColorMixin EntityOutlineColorMixin}, both injecting
  * into {@code extractRenderState}). {@link ConcurrentHashMap} gives both sides lock-free O(1)

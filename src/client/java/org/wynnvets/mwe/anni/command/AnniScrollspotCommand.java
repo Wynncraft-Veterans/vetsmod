@@ -23,8 +23,9 @@ import org.wynnvets.mwe.anni.network.AnniScrollspotClient;
  * {@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands},
  * which owns the brigadier node and delegates the three host writes here.
  * {@code vetsmod_mwe_anni.md} §"Aggressive mode" locked decision 6 states
- * this, and states it as a negative — the command is deliberately hidden from
- * the main tree because it is staff-only and rarely used. An earlier version
+ * this, and states it as a negative — the command is deliberately kept out of
+ * the {@code /wv anni} tree because only a few hosts use it, and rarely; that does
+ * not hide it from tab-complete. An earlier version
  * of this paragraph called the class an "S5 brigadier handler for
  * {@code /wv anni scrollspot set|here|clear}", which is a path that does not
  * resolve. ⚠️ <b>This file still advertises that path to the user at

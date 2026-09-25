@@ -55,9 +55,10 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>Listeners run on whichever thread called {@link #update} — typically
  * the WebSocket reader thread. They MUST NOT block on the main game tick
- * (use {@code MinecraftClient.getInstance().execute(...)} to bounce work
- * onto the render thread if needed, same pattern as
- * {@link org.wynnvets.chat.OutboundDisplayHandler OutboundDisplayHandler}).</p>
+ * (use {@code Minecraft.getInstance().execute(...)} to bounce work onto
+ * the render thread if needed &mdash; the bounce {@link
+ * org.wynnvets.chat.ChatUtils ChatUtils} performs beneath {@link
+ * org.wynnvets.chat.OutboundDisplayHandler OutboundDisplayHandler}).</p>
  */
 public final class AnniSnapshotCache {
 

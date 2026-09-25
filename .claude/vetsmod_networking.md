@@ -184,7 +184,7 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 
 Package: [org.wynnvets.fetcher.polling](../src/client/java/org/wynnvets/fetcher/polling/)
 
-Six fixed-rate schedules live in this package across five classes, all started back-to-back from `VetsmodClient.onInitializeClient`: `SupportersPoller` 5m, `StaffRanksPoller` 2m, `AnniStampPoller` 5m, `AnniSnapshotPoller` 30s, and `PolledJsonMap`'s two instances — `GUILD_ROSTER` 5m and `WYNN_ALIASES` 5m. `AnniSnapshotPoller` is the only gated one — its tick returns early unless an anni stamp is announced and within 90 minutes. Four of the six have a subsection below; `AnniStampPoller` and `AnniSnapshotPoller` do not.
+Six fixed-rate schedules live in this package across five classes, all started back-to-back from `VetsmodClient.onInitializeClient`: `SupportersPoller` 5m, `StaffRanksPoller` 2m, `AnniStampPoller` 5m, `AnniSnapshotPoller` 30s, and `PolledJsonMap`'s two instances — `GUILD_ROSTER` 5m and `WYNN_ALIASES` 5m. `AnniSnapshotPoller` is the only gated one — its tick returns early unless the cached snapshot's `stamp_epoch` is in the future and within 90 minutes (it does not read `announced`). Four of the six have a subsection below; `AnniStampPoller` and `AnniSnapshotPoller` do not.
 
 **Initial delay, which no doc stated in full before** — `PollingService`'s own `@param` defines it, the `StaffRanksPoller` bullet below records "scheduled initially immediate" for one of the six, and `PollingServiceTest` pins both directions. What was missing is the column. `PollingService`'s constructor is `(threadName, task, initialDelay, period, unit)`, and the third argument is not the second:
 

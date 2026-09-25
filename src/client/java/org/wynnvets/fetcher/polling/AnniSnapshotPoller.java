@@ -29,10 +29,14 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * {@code PollingService}'s {@code initialDelay} as well as its
  * {@code period}, where the other five pass {@code 0}; so <em>this</em> poller
  * does not tick for the first {@value #POLL_INTERVAL_SECONDS} seconds of a
- * session, while the other five fire immediately. The
- * cold-start pull that covers that gap is
- * {@link org.wynnvets.fetcher.ondemand.StampFetcher}'s, not this
- * class's.</p>
+ * session, while the other five fire immediately. That delay costs
+ * nothing at cold start: {@code tick()} queries only once a snapshot
+ * with an in-window stamp is already cached, so this poller never fills
+ * a cold cache. Cold-start pulls come from elsewhere, among them {@link
+ * org.wynnvets.mwe.anni.network.AnniWsHandler AnniWsHandler}'s
+ * post-connect re-pull and {@link org.wynnvets.fetcher.ondemand.StampFetcher
+ * StampFetcher}'s cold-cache paths ({@code vetsmod_mwe_anni.md}
+ * §"Snapshot pipeline").</p>
  *
  * <p>Reuses the same 90-minute window as
  * {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager VetsBossBarManager}'s
@@ -50,7 +54,11 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * {@code secondsUntilAnni > 0}; the bar stops twenty seconds earlier, at its
  * {@code DROP_DEAD_SECONDS_BEFORE_ANNI} hard return. So the last twenty seconds
  * before an anni are polled but not drawn, and that is deliberate on both
- * sides.</p>
+ * sides. The bar's ceiling is not always that number either: its gate ORs the
+ * window test with the player standing in
+ * {@link org.wynnvets.mwe.anni.zone.AnniZone AnniZone}, so a player in the zone
+ * before T-90m can have a bar that this poller does not refresh
+ * ({@code vetsmod_mwe_anni.md} §"Anni time windows").</p>
  *
  * <p>Cost: up to 180 queries per anni window (one every 30 s for 90 minutes), each a
  * small request frame whose reply future is queued FIFO in {@link AnniQueryClient}, not
@@ -58,6 +66,10 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * give. Per temporary-server, a reply comes from its short-lived
  * snapshot cache while that is fresh, and from a live vets-anni fetch otherwise
  * (v1_protocol.md §1.11).</p>
+ *
+ * <p>Because its gate reads the cached stamp, a debug-injected in-window snapshot arms
+ * this poller, and today a reply that carries a snapshot then overwrites it
+ * ({@code anni-poller-erases-injected-debug-state}).</p>
  */
 public final class AnniSnapshotPoller {
 
