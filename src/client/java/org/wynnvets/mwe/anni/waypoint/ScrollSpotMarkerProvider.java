@@ -101,7 +101,9 @@ public final class ScrollSpotMarkerProvider implements MarkerProvider<MarkerPoi>
         AnniSnapshotCache.addListener(INSTANCE::onSnapshot);
         // Apply the current cache, if any, so a marker shows up
         // immediately on registration instead of waiting for the next
-        // snapshot push.
+        // snapshot push. Today no anni_state push reaches vetsmod
+        // (outbound-socket-never-authenticated), so the wait would be for the
+        // next cache update: a pull that returns a snapshot, or a debug command.
         INSTANCE.onSnapshot(AnniSnapshotCache.latest());
         VetsLogger.debug("ScrollSpotMarkerProvider registered with Wynntils");
     }

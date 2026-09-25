@@ -88,9 +88,11 @@ public class StampFetcher {
                 // Cache cold — kick a fire-and-forget snapshot pull so the boss
                 // bar (S3) and the aggressive components (S5) light up without
                 // waiting for the next push-poller tick. Outside the T-2h hot
-                // window the push interval is 5 min, which made the in-game
-                // experience: "I logged in inside the anni zone, the legacy
-                // motd showed, but the bar didn't appear until I ran /wv anni."
+                // window the push interval is 5 min, and today no anni_state
+                // push reaches vetsmod at all (outbound-socket-never-authenticated).
+                // That made the in-game experience: "I logged in inside the anni
+                // zone, the legacy motd showed, but the bar didn't appear until
+                // I ran /wv anni."
                 // That manual command incidentally triggered the same query
                 // and unblocked the bar — symptoms identical to a missing
                 // listener, but the actual cause was that nothing on world-
@@ -101,7 +103,13 @@ public class StampFetcher {
                 // for the round-trip, so on the very first cold-start world
                 // join the user sees the legacy text and the rich bar appears
                 // a moment later. Subsequent world joins find the cache warm
-                // and render the rich motd directly.
+                // and render the rich motd directly, once a pull has returned a
+                // snapshot. Today a player with vetsAnniEnabled on whose inbound
+                // socket no /unlock key has authenticated (a manual opt-in, say)
+                // gets none: the frame names no UUID, temporary-server (at
+                // ffd8c17) answers "mc_uuid required", and the pull resolves
+                // null, so each of their world joins takes the legacy text
+                // (vets-anni-enabled-to-be-retired).
                 AnniQueryClient.query();
             }
         }
@@ -144,7 +152,10 @@ public class StampFetcher {
             // Cache cold — try a fresh on-demand pull before giving up.
             // This is the standard cold-start path: vetsmod just logged in,
             // the push poller hasn't ticked yet, but the user invoked the
-            // command. AnniQueryClient.query() resolves null when the
+            // command. Today no anni_state push reaches vetsmod at all
+            // (outbound-socket-never-authenticated), so the cache stays cold
+            // until something fills it, such as the post-connect re-pull
+            // returning a snapshot. AnniQueryClient.query() resolves null when the
             // inbound WS is down, when no /unlock key has authenticated that
             // socket (the frame names no UUID), or when the player isn't in
             // vets-anni's DB (e.g. an external user); each drops to legacy.

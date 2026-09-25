@@ -1473,7 +1473,11 @@ public final class AnniDebugCommands {
 
     /** {@code /wv debug tree anni registry clearall} — drop every entry,
      *  including any naturally-derived from the current snapshot. The
-     *  next snapshot push (or {@code snapshot refresh}) rebuilds. */
+     *  next snapshot push (or {@code snapshot refresh}) rebuilds. Today no
+     *  {@code anni_state} push reaches vetsmod
+     *  ({@code outbound-socket-never-authenticated}); the rebuild comes with
+     *  the next cache write, which is a pull that returns a snapshot (a
+     *  successful {@code snapshot refresh}, say) or a debug command. */
     private static int registryClearAll(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
