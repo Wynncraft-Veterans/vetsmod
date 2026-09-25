@@ -103,7 +103,7 @@ Entry point: called from `LegacyItemTooltipMixin` via `LegacyItemHandler.process
 
 **Gap:** the `appendEnchantmentBlock` wiring (called from five tooltip branches plus `tryNewFormatRewrite`) and `tryNewFormatRewrite` itself (called from branches 2, 3 and 6), undocumented. See `LegacyTooltipRenderer`.
 
-**New-format tooltip rewriting** (`NewFormatRenderer`): detects items via presence of `tooltip/emblem/frame` or `banner/box` fonts. `isNewFormatItem` sets the sticky `newTooltipStylesAvailable` flag as a side effect. Pre-encoded `LEGACY_BOX_TEXT` (PUA glyphs in `banner/box` font, gold) is inserted before the first rarity box in the Component tree via a 3-phase recursive descent (direct child → sibling → recursive).
+**New-format tooltip rewriting** (`NewFormatRenderer`): detects items via presence of `tooltip/emblem/frame` or `banner/box` fonts. `isNewFormatItem` sets the sticky `newTooltipStylesAvailable` flag as a side effect. The LEGACY chip, built by `legacyBox()` (a gold `banner/box` run of `LEGACY_BOX_BACKGROUND` with the black lettering `LEGACY_BOX_FOREGROUND` as a nested child), is inserted, with a delimiter node, before the first rarity box in the Component tree via a 3-phase recursive descent (direct child → banner/symbol-sibling heuristic → recursive).
 
 No hardcoded tooltip strings — everything is YAML-driven or runtime-derived from the item's rarity.
 

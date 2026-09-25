@@ -38,15 +38,18 @@ final class NewFormatRenderer {
             new FontDescription.Resource(Identifier.parse("space"));
 
     /**
-     * PUA-encoded "LEGACY" text for the {@code banner/box} font.
+     * Box half of the gold LEGACY chip in the {@code banner/box} font. Its
+     * lettering is {@link #LEGACY_BOX_FOREGROUND}, drawn over it as a nested
+     * child by {@link #legacyBox()}.
      *
      * <p>Wynncraft's box font renders rarity labels (RARE, LEGENDARY, etc.) using
      * a two-layer PUA encoding: background letter glyphs provide the coloured box
      * fill, and foreground letter glyphs render the text on top.  Negative-width
      * spacing characters overlap the layers.</p>
      *
-     * <p>Byte-level structure of this constant:</p>
+     * <p>Byte-level structure of both halves:</p>
      * <pre>
+     *   LEGACY_BOX_BACKGROUND
      *   E060                  — box_start (opens the coloured box frame)
      *   [DAFF DFFF  E03B]     — neg_space + bg 'L'  (E030 + 11)
      *   [DAFF DFFF  E034]     — neg_space + bg 'E'  (E030 + 4)
@@ -55,8 +58,10 @@ final class NewFormatRenderer {
      *   [DAFF DFFF  E032]     — neg_space + bg 'C'  (E030 + 2)
      *   [DAFF DFFF  E048]     — neg_space + bg 'Y'  (E030 + 24)
      *   DAFF DFFF  E062       — neg_space + box_end (closes the coloured box frame)
-     *   DAFF DFDA             — inter-box spacing (same width class as 6-letter words like COMMON)
-     *   00A7 30               — §0 = black colour code (section sign + '0')
+     *   DAFF DFDA             — back-kern (U+CFFDA, 38 px left): returns the cursor
+     *                           into the box so the lettering draws over it; sized
+     *                           to the box just drawn
+     *   LEGACY_BOX_FOREGROUND
      *   E00B E004 E006        — fg 'L' 'E' 'G'      (E000 + letter offset)
      *   E000 E002 E018        — fg 'A' 'C' 'Y'      (E000 + letter offset)
      *   DB00 DC02             — terminator (surrogate pair)
@@ -70,17 +75,21 @@ final class NewFormatRenderer {
                     + "\uDAFF\uDFFF\uE030\uDAFF\uDFFF\uE032\uDAFF\uDFFF\uE048"
                     + "\uDAFF\uDFFF\uE062\uDAFF\uDFDA";
 
-    /** Foreground half of the same constant: the letters drawn back over the box. */
+    /**
+     * Lettering half of the LEGACY chip: the letters drawn back over
+     * {@link #LEGACY_BOX_BACKGROUND}, then the trailing terminator.
+     */
     private static final String LEGACY_BOX_FOREGROUND =
             "\uE00B\uE004\uE006\uE000\uE002\uE018\uDB00\uDC02";
 
     /**
-     * Shadow colour Wynncraft puts on its own rarity chips \u2014 white at zero alpha.
+     * Shadow colour Wynncraft puts on its own rarity chips (white at zero alpha),
+     * mirrored so the chip's style matches theirs.
      *
-     * <p>{@link Style#withoutShadow()} is <em>not</em> equivalent: it compiles to
-     * {@code withShadowColor(0)}, black at zero alpha, which leaves a black drop
-     * shadow under the chip's black lettering and reads as bold beside the
-     * server's own UNIQUE/BOW chips.</p>
+     * <p>For visible output this matches {@link Style#withoutShadow()}
+     * ({@code withShadowColor(0)}) in vanilla: a shadow colour of exactly 0
+     * skips the shadow pass, and vanilla's text shader discards this colour's
+     * zero-alpha pass.</p>
      */
     private static final int BOX_SHADOW = 0xFFFFFF;
 
@@ -88,10 +97,12 @@ final class NewFormatRenderer {
      * Builds the gold LEGACY chip as two nodes, mirroring how Wynncraft emits its
      * own: the box run, then the lettering as a nested child.
      *
-     * <p>The foreground must be a child rather than a {@code \u00A70} colour code
-     * inlined into the run \u2014 a legacy colour code resets the style mid-string and
-     * takes the shadow setting with it, so the lettering would draw its shadow
-     * regardless of what the run asked for.</p>
+     * <p>The foreground is a child rather than a {@code \u00A70} colour code inlined
+     * into the run, matching the two-node shape Wynncraft emits.  The shadow is
+     * not the reason: vanilla's {@code Style.applyLegacyFormat} carries the run's
+     * shadow colour across an inlined colour code (Wynntils' {@code StyledText}
+     * parser, by contrast, drops it, keeping only the colour and the inherited
+     * font).</p>
      */
     private static MutableComponent legacyBox() {
         return Component.literal(LEGACY_BOX_BACKGROUND)
@@ -115,6 +126,11 @@ final class NewFormatRenderer {
      * Detected by the presence of {@code tooltip/emblem/frame} or {@code banner/box}
      * font in a tooltip line.  The latter covers Wynntils-rebuilt tooltips that
      * preserve PUA rarity boxes but use a different font for the emblem/name.
+     *
+     * <p>On a hit it also sets the sticky
+     * {@link LegacyItemHandler#newTooltipStylesAvailable} flag (the
+     * PATCH(old-server-compat) block below; drop this sentence with it), so it is
+     * not a pure probe.</p>
      */
     static boolean isNewFormatItem(List<Component> lines) {
         for (Component line : lines) {
@@ -170,7 +186,7 @@ final class NewFormatRenderer {
 
     /**
      * Modifies the new-format emblem/frame name line to show
-     * "Enchanted [name]" in yellow, preserving font structure and PUA spacing.
+     * "Enchanted [name]" in gold, preserving font structure and PUA spacing.
      * Scans from line 0 so wynnmod-decorated layouts (which promote the
      * emblem/frame line to index 0) are handled identically to the
      * Wynntils-default layout (which keeps a customName placeholder at

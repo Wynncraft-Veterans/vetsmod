@@ -52,7 +52,7 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <h2>PUA encoding</h2>
  * <p>Two glyph alphabets drive the boxed header, the same pair documented on
- * {@code NewFormatRenderer.LEGACY_BOX_TEXT}: a background letter at
+ * {@link NewFormatRenderer#LEGACY_BOX_BACKGROUND}: a background letter at
  * {@code U+E030 + (c - 'A')} draws the coloured box segment behind each
  * character, and a foreground letter at {@code U+E000 + (c - 'A')} draws the
  * text on top.  A back-kern between the two layers returns the cursor to the
@@ -112,13 +112,13 @@ final class LegacyEnchantmentRenderer {
     private static final ChatFormatting BULLET_COLOR = ChatFormatting.GREEN;
 
     /**
-     * Shadow colour Wynncraft puts on its boxed headers — white at zero alpha.
+     * Shadow colour Wynncraft puts on its boxed headers (white at zero alpha),
+     * mirrored so this header's style matches theirs.
      *
-     * <p>Deliberately not {@link Style#withoutShadow()}, which compiles to
-     * {@code withShadowColor(0)}: black at zero alpha.  The alpha does not
-     * suppress the shadow, so that leaves a black drop shadow under black label
-     * text, doubling every glyph into something that reads as bold.  White
-     * disappears into the box fill instead.</p>
+     * <p>For visible output this matches {@link Style#withoutShadow()}
+     * ({@code withShadowColor(0)}) in vanilla: a shadow colour of exactly 0
+     * skips the shadow pass, and vanilla's text shader discards this colour's
+     * zero-alpha pass.</p>
      */
     private static final int BOX_SHADOW = 0xFFFFFF;
 
