@@ -98,8 +98,9 @@ import org.wynnvets.logging.VetsLogger;
  * mutable state in a class whose whole charter is holding policy, to throttle a condition that
  * previously destroyed a whole payload, or everything after the failing read, wherever it threw.
  * Warning once per occurrence is strictly less disruptive than that. The ceiling worth knowing:
- * {@code OnlineMemberService}'s connected-user loop reads three fields per entry before any gate,
- * so a wholly malformed list costs three warns per entry each time it is fetched. Throttling is a
+ * {@code OnlineMemberService}'s connected-user loop reads three fields from every object entry
+ * before its non-empty check, so a list of objects with wrong-typed fields costs three warns per
+ * entry each time it is fetched. Throttling is a
  * separate change if it ever bites.</p>
  *
  * <p><b>Gson caveats that survive unchanged</b>, and that the "wrong type gives the fallback"
@@ -121,8 +122,8 @@ import org.wynnvets.logging.VetsLogger;
  * </ul>
  *
  * <p><b>Scope.</b> These four are what those seven declarations collapse onto, along with three
- * more reads &mdash; {@code NameResolver}'s {@code legacyName} and {@code uuid} (through two
- * private helpers of its own) and {@code WarningRewriter}'s inline {@code points_after}. The
+ * more reads &mdash; {@code NameResolver}'s {@code legacyName} and {@code uuid} (formerly via
+ * two private helpers) and {@code WarningRewriter}'s inline {@code points_after}. The
  * other thirty-one inlined
  * {@code isJsonNull()} reads across the client are deliberately out of scope, and that is a
  * boundary rather than a gap: most of them throw on a wrong type today, so each conversion is

@@ -17,8 +17,9 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>Signals:</p>
  * <ul>
- *   <li><b>Entry</b> — Wynntils {@link TitleSetTextEvent} matching the
- *       Wynncraft queue title (e.g. {@code Queueing for NA30.}).  The queue
+ *   <li><b>Entry</b> — a title matching the Wynncraft queue title (e.g.
+ *       {@code Queueing for NA30.}), from Wynntils' {@link TitleSetTextEvent}
+ *       or {@link org.wynnvets.mixin.client.QueueTitleMixin QueueTitleMixin}.  The queue
  *       server re-sends this title every few ticks, so only the first match
  *       produces a state change thanks to the idempotent
  *       {@link QueueStateManager#enter(String)}.</li>

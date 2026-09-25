@@ -27,8 +27,10 @@ import org.wynnvets.queue.QueueDetector;
  * {@code HEAD} the later-applied callback is prepended, so this one runs
  * <em>last</em>. A third-party cancelling {@code HEAD} inject at <b>any</b>
  * priority above 500 would skip it — the default 1000 is merely the common
- * case — which is the very scenario the
- * paragraph above cites. Nothing is known-broken today; whether the defence
+ * case. Wynntils' own inject does that on the render-thread entry when its
+ * event is cancelled (above); a third-party cancel on the network-thread entry
+ * would leave nothing feeding {@code handleTitleText}.
+ * Nothing is known-broken today; whether the defence
  * is wanted is filed as
  * {@code queue-title-mixin-priority-inverts-its-own-goal}. See
  * {@code vetsmod_mixins.md} §"Injection priorities" for which way

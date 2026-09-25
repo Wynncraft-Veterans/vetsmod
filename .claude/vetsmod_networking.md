@@ -109,7 +109,7 @@ int    optInt(JsonObject obj, String key, int fallback)
 
 Three names for one string function is deliberate. The fallback is not an axis — `null` and `""` *are* fallbacks — and the two conveniences exist so that the call sites which take no fallback do not have to grow an argument — **28 of 50** at `1592f7d` (`stringOrNull` 17, `stringOrEmpty` 11), up from 23 of 44 when 5g landed. `Json`'s own Javadoc carries the per-method figures and is the copy to trust.
 
-**The policy, on all three axes: fallback.** A missing key or a JSON null is normal and falls back *silently*. A wrong-typed value or a `null` receiver falls back *and warns* (`VetsLogger.warn`, naming the key and the exception class). The warn is unconditional — no suppression cache, because that would put mutable state in the class, to throttle a condition that previously destroyed a whole payload, or everything after the failing read, wherever it threw. Ceiling: `OnlineMemberService.parseConnectedUsers` reads three fields per connected user, so a wholly malformed `/list` payload costs three warns per entry per `/wv list` call.
+**The policy, on all three axes: fallback.** A missing key or a JSON null is normal and falls back *silently*. A wrong-typed value or a `null` receiver falls back *and warns* (`VetsLogger.warn`, naming the key and the exception class). The warn is unconditional — no suppression cache, because that would put mutable state in the class, to throttle a condition that previously destroyed a whole payload, or everything after the failing read, wherever it threw. Ceiling: `OnlineMemberService.parseConnectedUsers` reads three fields per connected user, so a wholly malformed `/list` payload costs three warns per entry per `/wv list` or `/wv list world` call.
 
 Six classes hand-rolled this read before — seven methods over the 44 call sites that existed **then**, a pre-5g figure, not a current one — and they answered those three questions **four different ways**. What each one gave up by adopting the shared policy is the interesting half, because in every case the old answer destroyed *more*:
 
@@ -158,7 +158,7 @@ Parses JSON array, extracts `{username, rank, world/server}`, filters online, so
 4. Honourary
 5. Waitlist
 
-(Names AQUA, italic for honourary and waitlist; the italic light-purple / dark-aqua styles are `/wv list world`'s.)
+(Names AQUA, except LIGHT_PURPLE for in-queue and GRAY for without-VetsMod; italic for honourary and waitlist. The italic light-purple / dark-aqua honourary / waitlist styles are `/wv list world`'s.)
 
 Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporters gradient glint (via `SupportersPoller.isSupporter()`). Hover shows "Click to message X"; the click is a `ClickEvent.SuggestCommand` — it pre-fills the chat box with `/msg X ` (trailing space) rather than sending anything.
 

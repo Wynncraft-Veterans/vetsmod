@@ -35,7 +35,7 @@ import org.wynnvets.queue.QueueStateManager;
 public final class WynntilsEventListener {
 
     /**
-     * Pattern to extract rank and message from a guild chat line.
+     * Pattern to split a guild chat line into its sender (glyphs included) and message.
      * The plain-text form (after stripping formatting) looks like:
      *     &lt;rank-glyph&gt; Username: message text
      * The rank and badge glyphs are still in the plain text here, because
@@ -243,9 +243,12 @@ public final class WynntilsEventListener {
         }
 
         // Repair URLs broken by Wynncraft line-wrapping (spaces injected at
-        // wrap points within a URL). temporary-server's sanitize_inbound repeats
-        // the same repair as a safety net for older clients, so this pass is not
-        // the only one that keeps Discord links clickable.
+        // wrap points within a URL). Today it also glues each following word
+        // onto the URL until one is all-lowercase ASCII
+        // (url-repair-merges-following-non-lowercase-token). temporary-server's
+        // sanitize_inbound repeats the same repair as a safety net for older
+        // clients, so this pass is not the only one that keeps Discord links
+        // clickable.
         String repairedMessage = repairWrappedUrls(messageContent);
 
         VetsLogger.debug(

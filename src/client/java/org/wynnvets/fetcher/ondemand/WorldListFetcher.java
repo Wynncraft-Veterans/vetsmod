@@ -171,8 +171,9 @@ public final class WorldListFetcher {
      * correct server bucket; a retry miss / timeout leaves the original
      * {@code worldMap} entry untouched (= original behaviour).</p>
      *
-     * <p>Returns {@code worldMap} itself when nothing needed retrying, otherwise an augmented
-     * copy; never mutates the input.</p>
+     * <p>Returns {@code worldMap} itself when there is nothing to re-query (no unplaced player,
+     * or none whose canonical name differs), otherwise an augmented copy; never mutates the
+     * input.</p>
      */
     private static CompletableFuture<Map<String, String>> retryStragglersUnderCanonicalNames(
             List<OnlineMemberService.OnlinePlayer> players, Map<String, String> worldMap) {

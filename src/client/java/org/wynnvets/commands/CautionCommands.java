@@ -27,7 +27,7 @@ import org.wynnvets.util.Json;
  *
  * <p>Wire shape and threshold logic live server-side in
  * {@code app.chat.inbound._handle_staff_commit} (preflight) and
- * {@code dazebot.lib.staff_actions.record_action} (commit). This
+ * {@code dazebot.lib.staff.staff_actions.record_action} (commit). This
  * client only sends frames, displays results, and on a successful
  * eject dispatches the right {@code /gu kick} or
  * {@code /gu rank ... recruit} command.</p>
@@ -209,7 +209,7 @@ public final class CautionCommands {
     public static void runCheckCautions(String username) {
         if (username == null || username.isBlank()) return;
         // Silent gate: both /wv check entry points (CommandRegistry.check and
-        // GuildChatDispatcher's chat path) already refuse non-confirmed staff
+        // GuildChatDispatcher.intercept) already refuse non-confirmed staff
         // with their own message before calling this, using the same
         // isConfirmedStaff() flag, so this re-check is defensive and
         // deliberately prints nothing.

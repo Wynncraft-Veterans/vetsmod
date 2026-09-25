@@ -52,7 +52,7 @@ public final class QueueStateManager {
         return enteredAtMs;
     }
 
-    // ── State transitions (called by QueueDetector) ────────────────────
+    // ── State transitions (QueueDetector; exit also WynntilsEventListener) ──
 
     /**
      * Marks the client as having entered a world queue.  Idempotent: repeated

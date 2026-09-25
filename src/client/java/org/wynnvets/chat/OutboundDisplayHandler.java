@@ -171,9 +171,10 @@ public final class OutboundDisplayHandler {
         // ``pill_display`` is the 2026-07 additive field carrying the
         // client-facing label ("Steward"/"Returner"). Prefer it when the
         // server sent it; otherwise remap the raw rank locally.
-        // v1_protocol.md §2.3 documents it on bridge frames only, so every
-        // relayed non-bridge frame takes the local remap too, as does every
-        // frame from a pre-2026-07 server.
+        // temporary-server sets it only on the bridge frames its Discord bot
+        // relays (app/discord/bot.py; v1_protocol.md §2.3 agrees), so every
+        // relayed non-bridge frame with a rank takes the local remap too, as
+        // does every frame from a pre-2026-07 server.
         String pillDisplay = Json.stringOrEmpty(json, "pill_display");
         String rank;
         if (!pillDisplay.isEmpty()) {

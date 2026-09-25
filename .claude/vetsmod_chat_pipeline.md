@@ -232,9 +232,9 @@ Batch `/find <username>` dispatcher. `enqueueFindBatch(usernames, resultFuture)`
 
 Rank-letter glyphs aren't `chat/prefix`: vetsmod's own pills render in the default font (uppercase `\uE040–\uE059`), and the server's rank pill uses `banner/pill`. See [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
 
-`PillCodec` owns both halves of this: the pill sequences, and the predicate for whether a codepoint is glyph art at all — `isCustomGlyph(int)`, six callers, three deliberate non-callers. Both are documented in [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
+`PillCodec` owns both halves of this: the pill sequences, and the predicate for whether a codepoint is glyph art at all — `isCustomGlyph(int)`, seven call sites across six classes, three deliberate non-callers. Both are documented in [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
 
-**Gap:** two top-level `chat/` classes have no section in this reference — `DiscordTimestamps` (not mentioned at all) and `RankDisplayMap` (named only in §3's `ServerGuildChatRewriter` entry). (`NickResolver` carried the same marker until Phase 5a gave it a §3 section, alongside the `GuildChatLine` that phase created.)
+**Gap:** two top-level `chat/` classes have no section in this reference — `DiscordTimestamps` (not mentioned at all) and `RankDisplayMap` (named only in §3's `ServerGuildChatRewriter` entry). (`NickResolver` carried the same marker until it got a §3 section, alongside the `GuildChatLine` created with it.)
 
 ## 12. Regex quick reference
 

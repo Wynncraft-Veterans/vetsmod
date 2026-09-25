@@ -211,11 +211,12 @@ public class ChatLogger {
 
     /**
      * Truncate message content at the first codepoint in U+C0000–U+10FFFD
-     * (Planes 12-16, Plane 14 included). The game uses codepoints from Planes
-     * 12-13 (guild prefix marks, rank badges) and the Supplementary Private Use
-     * Areas in Planes 15-16; these mark the start of the next guild message's
-     * rank indicator when multiple chat messages have been concatenated into a
-     * single buffer dump. BMP PUA glyphs do not truncate.
+     * (Planes 12-16, Plane 14 included). The game's guild prefix marks and
+     * rank-pill markers use Planes 12-13 (see {@link #RANK_MAP}); one marks the
+     * start of the next guild message's rank indicator when multiple chat
+     * messages have been concatenated into a single buffer dump. Planes 15-16
+     * hold Wynntils' chat-item encoding, not a rank indicator. BMP PUA glyphs do
+     * not truncate.
      */
     private static String stripConcatenatedContent(String message) {
         for (int i = 0; i < message.length(); ) {

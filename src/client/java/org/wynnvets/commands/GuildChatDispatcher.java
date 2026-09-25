@@ -199,8 +199,10 @@ public final class GuildChatDispatcher {
 
     /**
      * Handles {@code /g <message>}. Waitlist users, and Returners sitting in a
-     * world queue, are relayed over the WebSocket; otherwise, for Returners,
-     * spoiler markers are encoded before sending.
+     * world queue, are relayed over the WebSocket; any other Returner's line goes
+     * to the game server (refused if encoding its spoilers would pass 253
+     * characters). Unless spoiler handling is off, spoiler markers are encoded on
+     * all three paths.
      *
      * @return {@code true} to cancel the original command
      */
@@ -340,9 +342,9 @@ public final class GuildChatDispatcher {
 
         UserInfoFetcher.checkUser(playerName);
         // Append the caution history readout -- same data shown by Discord's
-        // ~warnings command. Gated on confirmed-staff inside
-        // CautionCommands.runCheckCautions so it is silently skipped for
-        // non-confirmed users.
+        // ~warnings command. intercept has already refused non-confirmed
+        // staff; CautionCommands.runCheckCautions re-checks the same flag
+        // defensively and prints nothing.
         CautionCommands.runCheckCautions(playerName);
         return true;
     }
@@ -372,12 +374,14 @@ public final class GuildChatDispatcher {
      * outbound echoes, so other vetsmod clients — including older ones that
      * predate queue awareness — can render queue-originated messages
      * wherever they render relayed guild chat at all (see
-     * {@link OutboundDisplayHandler}'s display gates). Per v1_protocol.md
-     * §2.4 an authenticated waitlist or honourary socket would get no queue
-     * frames; today, because vetsmod never authenticates its outbound socket
-     * ({@code outbound-socket-never-authenticated}), that gate does not
-     * apply, and a waitlist or honourary viewer does receive and render
-     * them too.</p>
+     * {@link OutboundDisplayHandler}'s display gates). Per
+     * temporary-server's outbound tier filter ({@code app/chat/outbound.py};
+     * v1_protocol.md §2.4 agrees) an authenticated waitlist or honourary socket
+     * would get no queue frames; today, because vetsmod never authenticates its
+     * outbound socket ({@code outbound-socket-never-authenticated}), that gate
+     * does not apply: while the server's {@code unauth} toggle is on, a waitlist
+     * or honourary viewer receives and renders them too (with it off, no chat
+     * arrives).</p>
      *
      * <p>Receivers:</p>
      * <ul>
@@ -387,9 +391,10 @@ public final class GuildChatDispatcher {
      *   <li>Other vetsmod clients, wherever they render relayed guild chat at
      *       all: the {@code "queue"} type falls through the Returners
      *       {@code guild}-suppression gate and renders like any other
-     *       relayed guild line — with honourary styling for an
-     *       honourary-unlocked viewer, or a staff ALERT box for a leading
-     *       ‼ line.</li>
+     *       relayed guild line — as a staff ALERT box when it leads with ‼
+     *       and {@code StaffRanksPoller} confirms the sender as staff (checked
+     *       first), otherwise with honourary styling for an honourary-unlocked
+     *       viewer.</li>
      * </ul>
      */
     private static void relayQueuedReturnersChat(String message) {

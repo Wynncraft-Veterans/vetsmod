@@ -187,8 +187,8 @@ public final class ServerGuildChatRewriter {
      * Anything the codec returns still passes through
      * {@link RankDisplayMap}, so an unrecognised rank maps to itself: the line
      * is left as the server sent it, unless the sender is a supporter and this
-     * client shows glints, in which case the supporter path restyles the
-     * original pill.</p>
+     * client shows glints, in which case the supporter path rebuilds the line
+     * around a gradient copy of the original pill.</p>
      */
     private static String decodeRawRank(String rankIndicator) {
         for (Map.Entry<String, String> entry : ChatLogger.rankMap().entrySet()) {
