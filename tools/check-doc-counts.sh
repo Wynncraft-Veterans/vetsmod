@@ -62,7 +62,8 @@ cd "$(dirname "$0")/.." || exit 2
 SRC=src/client/java
 # symbol|expected|note   -- expected is the live call-site count at HEAD.
 MANIFEST='
-Json.optString|17|Json.java class doc
+Json.optString|17|no prose states it - pinned with Json.optInt so the 28-of-50 split in JsonTest and vetsmod_networking.md stays derivable
+Json.optInt|5|no prose states it - see the Json.optString row
 Json.stringOrNull|17|Json.java: "seventeen once NameResolver s five joined"
 Json.stringOrEmpty|11|Json.java: "eleven call sites"
 ColorMath.interpolateRgb|4|vetsmod_rendering.md + ColorMath.java, stated 3x

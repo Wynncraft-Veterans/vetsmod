@@ -15,9 +15,10 @@ import org.wynnvets.guild.GuildStateManager;
  * {@link MutableComponent}, and the {@code helpX} handler that sends it.  The
  * pair exists so the page bodies can be consolidated without changing what is
  * emitted — a returned component can be compared against its predecessor, one
- * handed straight to a send cannot.  All methods are package-private so they
- * can be referenced from {@link CommandRegistry} without being part of the
- * public API.</p>
+ * handed straight to a send cannot.  The {@code helpX} handlers are package-private so
+ * {@link CommandRegistry} can reference them without being part of the public API; the
+ * {@code buildX} halves, {@link Access} and {@link #access} are package-private for
+ * {@code HelpCommandsTest}; everything else here is private.</p>
  */
 final class HelpCommands {
 

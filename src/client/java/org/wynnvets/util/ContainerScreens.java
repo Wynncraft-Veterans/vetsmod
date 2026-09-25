@@ -6,7 +6,7 @@ import java.util.regex.Pattern;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 
 /**
- * The two ways this mod asks <em>"which container screen is open right now?"</em>.
+ * The two shared ways this mod asks <em>"which container screen is open right now?"</em>.
  *
  * <p>Seven sites pattern-matched {@code McUtils.mc().screen} against
  * {@link AbstractContainerScreen} for themselves, each following it with one of exactly two
@@ -22,7 +22,9 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
  * <ul>
  *   <li>{@link #currentWithId(int)} asks <b>"is the menu I bound still the one on screen?"</b>
  *       An id mismatch is a <em>signal</em>: the menu was replaced, and a caller driving a
- *       multi-step interaction against a stale id would have its packets dropped silently.</li>
+ *       multi-step interaction against a stale id would have its clicks ignored (a vanilla server
+ *       drops a container click whose id is not the open menu's without replying, and Wynncraft is
+ *       presumed to do the same).</li>
  *   <li>{@link #currentWithTitle(Pattern)} asks <b>"is a screen of this kind on screen?"</b>
  *       Wynncraft can reassign the container id when it refreshes a menu, so a caller that must
  *       survive a refresh &mdash; or that is rebinding <em>because</em> of one &mdash; cannot

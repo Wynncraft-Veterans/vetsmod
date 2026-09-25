@@ -66,7 +66,7 @@ VetsmodClient (entry point)
   │                           NewFormatRenderer, LegacyEnchantmentRenderer, LegacyScreenshotHandler,
   │                           LegacyHighlightPainter (the slot highlight both draw sites call)
   ├── mwe/anni/               MWE/annihilation subsystem — snapshot cache, boss bar, outlines,
-  │                           zone lines, waypoint, RSVP, debug tree (29 files, 12 sub-packages)
+  │                           zone lines, waypoint, RSVP, debug tree (12 sub-packages)
   ├── distribute/             /wv distribute — Guild Management GUI automation: sends
   │                           `/guild manage`, walks Manage Members / Guild Log, presses
   │                           the send slot. Visible to staff, executable by chief+
@@ -183,7 +183,7 @@ Two gates run on the Java side, both enforced in CI before the build step.
 
 Consequences worth knowing before you edit:
 
-- **Do not run an IDE "optimize imports".** Ten imports exist only to resolve a Javadoc `{@link}` and have no code call site. Stripping them now fails the build rather than rotting silently, but it still costs you a round trip.
+- **Do not run an IDE "optimize imports".** Some imports exist only to resolve a Javadoc `{@link}` and have no code call site. An optimizer that does not read Javadoc strips them, and the reference gate then fails the build rather than letting the link rot silently, but it still costs you a round trip. They are the known exceptions to the next rule, still to be converted; converting one lets its import go.
 - **Cross-package Javadoc references are fully qualified with a label** — `{@link org.wynnvets.p.Foo Foo}` — rather than resolved by adding an import. A doc-only import would assert a dependency edge that no code has. Renders identically.
 - **Moving or renaming a class breaks every Javadoc reference to it, loudly.** Fix the references as part of the move; there is no sweep afterwards.
 - **Changing `org.gradle.jvmargs` needs `./gradlew --stop`** or you are testing the old daemon's flags.

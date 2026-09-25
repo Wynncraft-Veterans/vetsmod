@@ -147,8 +147,10 @@ spotless {
 		// Google import order, which is exactly the default.
 		//
 		// google-java-format also removes unused imports unconditionally, with
-		// no opt-out on this step. Ten imports here are kept alive only by a
-		// Javadoc {@link}; gjf's remover is DocTree-aware, so they survive.
+		// no opt-out on this step. An import referenced only from a Javadoc
+		// {@link} survives, because gjf's remover is DocTree-aware - though
+		// house style is to write such a reference fully qualified instead (see
+		// .claude/CLAUDE.md, Mechanical gates).
 		googleJavaFormat("${google_java_format_version}")
 				.aosp()
 				.formatJavadoc(false)
