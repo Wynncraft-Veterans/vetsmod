@@ -48,7 +48,8 @@ import org.wynnvets.logging.VetsLogger;
  *       line (the old Wynncraft stat format). Alpha vs beta is decided by
  *       whether a standard rarity line exists.</li>
  *   <li><b>Enchanted (foil)</b> — item has the glint effect and is not in
- *       the unenchanted exclusion list. Displayed as "⬡ Enchanted Name".</li>
+ *       the unenchanted exclusion list. Displayed as "Enchanted Name", with a
+ *       leading ⬡ when the tooltip is rewritten in the old format.</li>
  *   <li><b>Junk rarity</b> — lore contains "Junk Item" and the name is
  *       not in the notjunk exclusion list.</li>
  *   <li><b>Crafting rarity</b> — lore contains "Crafting Item".</li>
@@ -64,15 +65,19 @@ import org.wynnvets.logging.VetsLogger;
  *   <li><b>New format:</b> Names wrapped in PUA (Private Use Area) Unicode
  *       for custom fonts/spacing, rarity encoded in the {@code tooltip_style}
  *       data component instead of lore. Tooltip is rewritten by delegating
- *       to {@link NewFormatRenderer} which inserts a LEGACY box into the
- *       PUA emblem/frame line and recolours the name gold.</li>
+ *       to {@link NewFormatRenderer}, which recolours the PUA emblem/frame name
+ *       line gold and inserts a LEGACY box into the banner/box rarity line.</li>
  * </ul>
- * <p>Each detection branch tries the new-format path first (PUA box insertion),
- * and falls back to old-format rewriting (gold name + rarity line swap) when
- * the item is old-format or the PUA insertion fails.</p>
+ * <p>Some branches try the new-format path first (PUA box insertion) and fall
+ * back to old-format rewriting (gold name + rarity line swap) when the item is
+ * old-format or the PUA insertion fails; the blank-first-line fallback tries
+ * only the new-format path, the crafted-item skip rewrites nothing, and the
+ * rest rewrite in the old format only.  See {@link #processTooltip} for which
+ * is which.</p>
  *
  * <p>Coordinates detection state from {@link LegacyItemHandler}, delegates
- * new-format PUA-encoded operations to {@link NewFormatRenderer}, and handles
+ * new-format PUA-encoded operations to {@link NewFormatRenderer} and
+ * enchantment naming to {@link LegacyEnchantmentRenderer}, and handles
  * old-format rarity line replacement and text helpers locally.</p>
  */
 final class LegacyTooltipRenderer {
@@ -131,9 +136,10 @@ final class LegacyTooltipRenderer {
             plainText = stripPercentSuffix(plainText);
         }
 
-        // Suppress name-based legacy checks for new-format items whose names
-        // also appear in the override list (items that exist in both old and new
-        // formats — when seen in new format, they are modern and not legacy).
+        // Suppress the definitions and misc_definitions name matches (Branches 2
+        // and 3) for new-format items whose names also appear in the override list
+        // (items that exist in both old and new formats — when seen in new format,
+        // they are modern and not legacy).
         boolean newFormatOverridden =
                 !LegacyItemHandler.currentItemStack.isEmpty()
                         && LegacyItemHandler.isNewFormatItem(LegacyItemHandler.currentItemStack)
@@ -256,13 +262,13 @@ final class LegacyTooltipRenderer {
 
         // ── Branch 4b: Pedestal-wiped vanilla armour/weapon shells ──────────
         // The item is a vanilla armour piece (helmet/chestplate/leggings/boots)
-        // or weapon-class proxy (shears/iron_shovel/bow/stick/cocoa_beans/paper), has no lore, and
-        // its
-        // custom name carries a §a/§b/§d/§e colour-code prefix.  The pedestal item-
-        // wipe strips lore from legendary/rare/unique items while preserving the
-        // coloured name and vanilla item ID, so these bare shells get a dedicated
-        // "Legacy Item (Pedestal-Wiped)" label instead of falling through to the
-        // foil/beta-marker branches below.
+        // or weapon-class proxy (shears/iron_shovel/bow/stick/cocoa_beans/paper), has
+        // no lore, and its custom name carries a §a/§b/§d/§e colour-code prefix.  The
+        // pedestal item-wipe strips lore from set, legendary, rare or unique items
+        // (the rarities getRarityFromNameColor reads from those codes) while
+        // preserving the coloured name and vanilla item ID, so these bare shells get
+        // a dedicated "Legacy Item (Pedestal-Wiped)" label instead of falling through
+        // to the foil/beta-marker branches below.
         if (LegacyItemHandler.isPedestalWipedItem(LegacyItemHandler.currentItemStack)) {
             List<Component> modified = new ArrayList<>(tooltipLines);
             modified.set(0, buildGoldName(plainText, false, raritySuffix));
@@ -296,8 +302,10 @@ final class LegacyTooltipRenderer {
 
         // ── Branch 6: Enchanted items (foil/glint detection) ────────────────
         // Items with the enchantment glint that aren't in the unenchanted
-        // exclusion list.  Modern Wynncraft items never have foil, so any
-        // foil-bearing item is legacy.  Displayed as "⬡ Enchanted <name>".
+        // exclusion list.  Foil is treated as a legacy signal; the unenchanted and
+        // enchant_excluded_items lists exist because some modern items carry it too.
+        // Displayed as "Enchanted <name>", with a leading ⬡ when the tooltip is
+        // rewritten in the old format.
         if (LegacyItemHandler.currentItemHasFoil
                 && plainText != null
                 && !ItemDefinitions.isUnenchanted(plainText)) {

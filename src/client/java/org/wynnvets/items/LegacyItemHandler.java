@@ -29,10 +29,21 @@ import net.minecraft.world.item.component.ItemLore;
  */
 public class LegacyItemHandler {
 
-    /** Set by the highlight mixin before tooltip processing to indicate the hovered item has foil. */
+    /**
+     * Set before tooltip processing by
+     * {@link org.wynnvets.mixin.client.legacy.LegacyHighlightMixin LegacyHighlightMixin}
+     * and {@link org.wynnvets.listeners.LegacyTooltipEventListener
+     * LegacyTooltipEventListener}: the hovered item has foil and is not an
+     * enchant-excluded item.
+     */
     public static boolean currentItemHasFoil = false;
 
-    /** Set by the highlight mixin before tooltip processing to provide item context for tooltip_style access. */
+    /**
+     * Set before tooltip processing by
+     * {@link org.wynnvets.mixin.client.legacy.LegacyHighlightMixin LegacyHighlightMixin}
+     * and {@link org.wynnvets.listeners.LegacyTooltipEventListener
+     * LegacyTooltipEventListener}: provides item context for tooltip_style access.
+     */
     public static ItemStack currentItemStack = ItemStack.EMPTY;
 
     /** Set by the highlight mixin alongside {@link #currentItemStack}.  Provides
@@ -49,17 +60,23 @@ public class LegacyItemHandler {
     // BEGIN PATCH(old-server-compat): Remove field once all servers use new tooltip borders.
     /**
      * Sticky server-session flag: set to {@code true} when any item with a
-     * {@code tooltip_style} data component or new-format emblem/frame font is
-     * encountered.  When {@code false} (i.e. on old servers that lack the new
-     * resource pack), the gold tooltip border override is suppressed to avoid
-     * garish fallback colours.
+     * {@code tooltip_style} data component is drawn in a container slot, or when
+     * {@link NewFormatRenderer#isNewFormatItem} finds a new-format font
+     * ({@code tooltip/emblem/frame} or {@code banner/box}) in a tooltip.  When
+     * {@code false} (i.e. on old servers that lack the new resource pack), the
+     * gold tooltip border override is suppressed to avoid garish fallback
+     * colours.
      * <p>Reset on disconnect by {@link org.wynnvets.listeners.ServerConnectionListener}.</p>
      */
     public static boolean newTooltipStylesAvailable = false;
 
     // END PATCH(old-server-compat)
 
-    /** Gold tooltip border identifier — matches the vanilla "unique" rarity border. */
+    /**
+     * Gold tooltip border identifier — Wynncraft's resource-pack
+     * {@code minecraft:unique} tooltip style (vanilla ships only the default
+     * tooltip sprites).
+     */
     public static final Identifier LEGACY_BORDER = Identifier.parse("unique");
 
     /**
@@ -79,9 +96,10 @@ public class LegacyItemHandler {
 
     /**
      * Returns {@code true} if the item uses Wynncraft's new display format,
-     * identified by supplementary PUA characters (U+10000+) in the custom name
-     * component.  Used with {@link ItemDefinitions#isNewFormatOverride} to suppress
-     * legacy name matches for specific items that exist in both old and new formats.
+     * identified by any supplementary Unicode code point (U+10000+) in the
+     * custom name component.  Used with {@link ItemDefinitions#isNewFormatOverride}
+     * to suppress legacy name matches for specific items that exist in both old
+     * and new formats.
      */
     public static boolean isNewFormatItem(ItemStack stack) {
         Component customName = stack.get(DataComponents.CUSTOM_NAME);
@@ -102,9 +120,11 @@ public class LegacyItemHandler {
      *
      * <p>Detection uses a priority cascade of 8 independent checks, each targeting
      * a different category of legacy item.  The {@code newFormatOverridden} flag
-     * prevents false positives on items that exist in both old and new Wynncraft
-     * item formats — those are only treated as legacy when explicitly listed in
-     * the new-format override table.</p>
+     * prevents false positives on names that exist in both old and new Wynncraft
+     * item formats: a new-format stack whose name is in {@code definitions.yml}'s
+     * {@code new_format_override} section skips checks 1 and 2 (the
+     * {@code definitions} and {@code misc_definitions} name lookups); the other
+     * checks still apply.</p>
      */
     public static boolean isLegacyItem(ItemStack stack) {
         if (!org.wynnvets.config.VetsConfig.get(
@@ -135,7 +155,9 @@ public class LegacyItemHandler {
                 && !name.isBlank()
                 && ItemDefinitions.isNoLoreLegacy(name)) return true;
 
-        // 4. Pedestal-wiped: vanilla armour/weapon shells with a §b/§d/§e custom name and no lore
+        // 4. Pedestal-wiped: vanilla armour/weapon shells with a §a/§b/§d/§e custom
+        // name (the colours getRarityFromNameColor maps to set, legendary, rare and
+        // unique) and no lore
         if (isPedestalWipedItem(stack)) return true;
 
         // 5. Beta marker: lore contains the explicit beta-legacy indicator line
@@ -158,8 +180,10 @@ public class LegacyItemHandler {
     /**
      * Normalizes item names for pattern matching by stripping:
      * <ul>
-     *   <li>Supplementary PUA characters (U+F0000-U+10FFFF) used by Wynncraft's
-     *       new item format as invisible spacing/formatting glyphs</li>
+     *   <li>Every supplementary code point (U+10000 and above) and BMP Private Use
+     *       Area glyph (U+E000–U+F8FF), which Wynncraft's new item format uses for
+     *       invisible spacing, font switching and inline sprites; if any is
+     *       removed, the result is also trimmed (see {@link #stripSupplementaryPua})</li>
      *   <li>Trailing À (U+00C0) appended in trade market listings</li>
      * </ul>
      */
@@ -285,9 +309,10 @@ public class LegacyItemHandler {
      * ({@code iron_shovel}, {@code shears}, {@code bow}, {@code stick},
      * {@code cocoa_beans}, {@code paper}).
      *
-     * <p>The pedestal mechanic strips all lore from a legendary/rare/unique item
-     * while preserving its coloured name and vanilla item ID; this detector
-     * gives those bare shells a "Legacy Item (Pedestal-Wiped)" tooltip.</p>
+     * <p>The pedestal mechanic strips all lore from a set, legendary, rare or
+     * unique item (the rarities {@link #getRarityFromNameColor} reads from those
+     * colour codes) while preserving its coloured name and vanilla item ID; this
+     * detector gives those bare shells a "Legacy Item (Pedestal-Wiped)" tooltip.</p>
      */
     public static boolean isPedestalWipedItem(ItemStack stack) {
         if (stack.isEmpty()) return false;
@@ -403,13 +428,14 @@ public class LegacyItemHandler {
      * Returns a plain "Sharpness I"-style label for the item's legacy
      * enchantment, or {@code null} when it carries none.
      *
-     * <p>Wynncraft hides the vanilla enchantment lines behind
-     * {@code tooltip_display}, but that is a render-time instruction only — the
-     * {@code minecraft:enchantments} component itself is still on the stack the
-     * client holds.  Modern items ship the component with an empty map, so a
-     * non-empty map is a legacy signal in its own right, unlike
-     * {@link ItemStack#hasFoil()} which is also true for
-     * {@code enchantment_glint_override}.</p>
+     * <p>On new-format items Wynncraft hides the vanilla enchantment lines behind
+     * {@code tooltip_display} (V2-era items leave them visible; see
+     * {@link LegacyEnchantmentRenderer#showEnchantment}), but that is a
+     * render-time instruction only — the {@code minecraft:enchantments}
+     * component itself is still on the stack the client holds.  Modern items
+     * ship the component with an empty map, so a non-empty map is a legacy
+     * signal in its own right, unlike {@link ItemStack#hasFoil()} which is also
+     * true for {@code enchantment_glint_override}.</p>
      */
     public static String getEnchantmentLabel(ItemStack stack) {
         return LegacyEnchantmentRenderer.enchantmentLabel(stack);

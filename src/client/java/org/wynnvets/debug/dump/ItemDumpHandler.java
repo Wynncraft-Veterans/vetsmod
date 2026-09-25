@@ -239,9 +239,10 @@ public final class ItemDumpHandler {
         analysis.addProperty(
                 "isNotJunk", plainName != null && ItemDefinitions.isNotJunk(plainName));
         analysis.addProperty("isEnchantExcludedItem", ItemDefinitions.isEnchantExcludedItem(stack));
-        // The specific enchantment, which Wynncraft hides from the tooltip via
-        // tooltip_display but still ships on the stack. Null on modern items —
-        // they carry the component with an empty map.
+        // The specific enchantment: on new-format items Wynncraft hides it from the
+        // tooltip via tooltip_display but it still ships on the stack (V2-era items
+        // leave it visible in the tooltip already). Null on modern items — they carry
+        // the component with an empty map.
         analysis.addProperty("enchantment", LegacyItemHandler.getEnchantmentLabel(stack));
         analysis.addProperty("hasMiscRarity", LegacyItemHandler.hasMiscRarity(lore.lines()));
         analysis.addProperty("hasJunkRarity", LegacyItemHandler.hasJunkRarity(lore.lines()));

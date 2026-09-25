@@ -165,7 +165,7 @@ Registered in `VetsConfig.USER_CONFIG_KEYS`. Validation delegated to `VetsConfig
 
 ## 8. Edge cases & quirks
 
-- **`new_format_override`**: an item like Skeleton Key exists in old (legacy) and new (modern) formats with the same display name. When `isNewFormatItem(stack)` (supplementary PUA in custom name, `cp >= 0x10000`) AND the name is in this list, branches 1 & 2 are skipped.
+- **`new_format_override`**: an item like Skeleton Key exists in old (legacy) and new (modern) formats with the same display name. When `isNewFormatItem(stack)` (any supplementary code point in custom name, `cp >= 0x10000`) AND the name is in this list, branches 1 & 2 are skipped.
 - **`enchant_excluded_items`**: `minecraft:experience_bottle` / `minecraft:enchanted_book` always have vanilla foil — excluded by Minecraft registry ID, not name.
 - **`notjunk`**: modern junk-tier farming materials (Leather, Tanned Sunfish, Roasted Flesh, Vines, Rubble, Ghostly*, Dusty Rum Bottle, Golden Teeth) — excluded from branch 7.
 - **`unenchanted`**: items that legitimately have foil in modern Wynncraft — `???`, Ability Shard, Breathing Helmet*, Liquid Emerald*, Mythic Everlasting Pufferfish, Shiny*, Transcriber* — bypass branch 6.

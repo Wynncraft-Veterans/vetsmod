@@ -21,13 +21,15 @@ import org.wynnvets.logging.VetsLogger;
 /**
  * Names the specific vanilla enchantment a legacy item carries: a
  * "LEGACY ENCHANTMENTS" block on page 2 (the powder page) of Wynncraft's
- * new-format tooltips, or a plain text entry on tooltips that have no such
- * page.  See {@link #showEnchantment} for which form goes where.
+ * new-format tooltips, the level restored to Minecraft's own enchantment line
+ * where the tooltip draws one, or else, on a tooltip with no pages at all, a
+ * plain text entry.  See {@link #showEnchantment} for which form goes where.
  *
  * <h2>Why this data still exists</h2>
  * <p>Wynncraft applies a real {@code minecraft:enchantments} component to
- * legacy enchanted items and then suppresses it from the tooltip via
- * {@code minecraft:tooltip_display}'s {@code hiddenComponents} set.  That
+ * legacy enchanted items and, on new-format items, suppresses it from the
+ * tooltip via {@code minecraft:tooltip_display}'s {@code hiddenComponents} set
+ * (V2-era items leave it visible; see {@link #showEnchantment}).  That
  * suppression is <em>render-time only</em> — the component is still on the
  * stack the client holds, on every page of the item.  Modern items ship the
  * same component with an <em>empty</em> map, so a non-empty map is itself a
@@ -56,9 +58,13 @@ import org.wynnvets.logging.VetsLogger;
  * {@code U+E030 + (c - 'A')} draws the coloured box segment behind each
  * character, and a foreground letter at {@code U+E000 + (c - 'A')} draws the
  * text on top.  A back-kern between the two layers returns the cursor to the
- * box interior.  Horizontal movement uses the {@code minecraft:space} font,
- * where the codepoint {@code U+D0000 + n} advances the cursor by {@code n}
- * pixels (negative {@code n} lands below {@code U+D0000} and moves left).</p>
+ * box interior.  Horizontal movement uses the signed-advance codepoints of the
+ * {@code minecraft:space} font, where the codepoint {@code U+D0000 + n}
+ * advances the cursor by {@code n} pixels (negative {@code n} lands below
+ * {@code U+D0000} and moves left).  Only the count's padding is drawn in that
+ * font; the kerns inside the {@code banner/box} and {@code tooltip/socket} runs
+ * rely on those fonts resolving the same codepoints (so does Wynntils'
+ * {@code BannerBoxFont}).</p>
  *
  * <p>Both the back-kern and the count's right-alignment padding are
  * <em>measured at runtime</em> via {@link Font#width} rather than hardcoded,
@@ -84,10 +90,13 @@ final class LegacyEnchantmentRenderer {
     /** Base of the {@code minecraft:space} font's signed-advance range. */
     private static final int SPACE_BASE = 0xD0000;
 
-    /** Box frame glyphs in the {@code banner/box} font. */
+    /** Opening edge of a box in the {@code banner/box} font. */
     private static final char BOX_START = '';
 
+    /** Box-fill segment drawn behind a space, or behind any character outside A-Z. */
     private static final char BOX_SPACE = '';
+
+    /** Closing edge of a box in the {@code banner/box} font. */
     private static final char BOX_END = '';
 
     /** Background (box fill) alphabet origin — {@code U+E030} is 'A'. */
@@ -99,7 +108,10 @@ final class LegacyEnchantmentRenderer {
     /** Trailing terminator Wynncraft appends after a boxed label. */
     private static final String BOX_TERMINATOR = "󐀂";
 
-    /** Header label. Uppercase only — the box alphabets cover A-Z and space. */
+    /**
+     * Header label. Uppercase only: {@link #boxGlyph} encodes A-Z and turns anything
+     * else into the alphabet's space glyph.
+     */
     private static final String HEADER_LABEL = "LEGACY ENCHANTMENTS";
 
     /** Colour of Wynncraft's own POWDER SOCKETS box fill. */
@@ -145,8 +157,9 @@ final class LegacyEnchantmentRenderer {
     /**
      * The six enchantments Wynncraft ever applied to items, mapped to the
      * element whose colour they are shown in.  Keyed by the enchantment's
-     * registry path so an unexpected enchantment falls through to a neutral
-     * rendering rather than being silently dropped.
+     * registry path so an unexpected enchantment still renders (in Earth's
+     * sprite and colour, see {@link #elementFor}) rather than being silently
+     * dropped.
      */
     private static final Map<String, Element> ENCHANT_ELEMENTS =
             Map.of(
@@ -197,10 +210,11 @@ final class LegacyEnchantmentRenderer {
      * </pre>
      *
      * <p>The insertion point is the end of the tooltip's content, before any F3+H
-     * debug lines — which on an unidentified item is exactly below the item-guess
-     * block, since that is the last thing anything adds.  Anchoring on position
-     * rather than on the word "Possibilities" keeps this working when Wynntils is
-     * absent, when its item-guess feature is off, and in every locale.</p>
+     * debug lines, which on an unidentified item is normally just below the
+     * item-guess block, since Wynntils appends that block at the end of the
+     * content.  Anchoring on position rather than on the word "Possibilities"
+     * keeps this working when Wynntils is absent, when its item-guess feature is
+     * off, and in every locale.</p>
      *
      * <p>Restricted to pageless tooltips.  Pages 1 and 3 of a paged item reach
      * here as well — no socket line, and no vanilla line either — and must not be
@@ -418,20 +432,19 @@ final class LegacyEnchantmentRenderer {
         String background = boxBackground(HEADER_LABEL);
         String foreground = boxForeground(HEADER_LABEL);
 
-        // Measure each layer separately and derive the assembled advance. Measuring
-        // the assembled box instead gives a wrong answer, because its background
-        // advance is cancelled by an equal negative back-kern and Font#width does
-        // not sum those layered negative advances the way rendering lays them out.
+        // Measure each layer separately: the back-kern is derived from the background
+        // layer's width, so it has to be known before the box can be assembled.
         int startWidth = font.width(styled(String.valueOf(BOX_START), BANNER_BOX_FONT));
         int backgroundWidth = font.width(styled(background, BANNER_BOX_FONT));
         int foregroundWidth = font.width(styled(foreground, BANNER_BOX_FONT));
 
-        // Font#width comes back one pixel short of what the background actually
-        // draws, so the back-kern needs that pixel added. Without it the foreground
-        // lands 1px right of the background; both layers are the same atlas, so the
-        // letters overdraw themselves offset by one and read as bold. Confirmed
-        // against Wynncraft's POWDER SOCKETS (-84 where we measure 83) and
-        // Wynntils' WYNNPOOL box (-50 for 8 letters).
+        // The back-kern is one pixel longer than the measured background because the
+        // background run opens with its own 1px back-kern (see boxBackground): its first
+        // segment is drawn one pixel left of where the run starts, and the foreground
+        // must start there too. Without it the foreground lands 1px right of the
+        // background; both layers are the same atlas, so the letters overdraw themselves
+        // offset by one and read as bold. Confirmed against Wynncraft's POWDER SOCKETS
+        // (-84 where we measure 83) and Wynntils' WYNNPOOL box (-50 for 8 letters).
         int backKern = -(backgroundWidth + 1);
         int boxAdvance = startWidth + backgroundWidth + backKern + foregroundWidth;
 
@@ -531,12 +544,15 @@ final class LegacyEnchantmentRenderer {
      * once the back-kern has returned the cursor to the bracket's interior.
      *
      * <p>Wynncraft emits these as a nested child carrying only {@code color=black}
-     * and a zeroed {@code shadowColor}, inheriting {@code banner/box} from the run
-     * above.  Both details matter.  Inlining a {@code §0} colour code into the run
-     * instead resets the style mid-string and restores the text shadow — black
-     * glyphs over a black shadow are what read as "bold".  Setting
-     * {@code minecraft:default} on the child instead picks up that font's
-     * unrelated {@code U+E000} block rather than the letter alphabet.</p>
+     * and a zero-alpha white {@code shadowColor} ({@link #BOX_SHADOW}), inheriting
+     * {@code banner/box} from the run above.  The font inheritance is
+     * load-bearing: setting {@code minecraft:default} on the child instead picks
+     * up that font's unrelated {@code U+E000} block rather than the letter
+     * alphabet.  Keeping the lettering a child rather than inlining a {@code §0}
+     * colour code also matches Wynncraft's shape; the shadow is not the reason,
+     * since vanilla's {@code Style.applyLegacyFormat} carries the run's shadow
+     * colour across an inlined colour code (Wynntils' {@code StyledText} parser,
+     * by contrast, drops it).</p>
      */
     private static String boxForeground(String label) {
         StringBuilder foreground = new StringBuilder();
