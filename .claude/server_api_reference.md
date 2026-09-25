@@ -75,9 +75,10 @@ already decided by the time the frame leaves. Only three cases are ever sent:
 - `kick` — the `Recruit → Recruit` self-loop, a failed-onboarding signal
 - `mote` — `from == to` on a rank that is not Recruit
 
-Real promotions across distinct ranks are dropped client-side and never
-framed. The auth gate matches chat (authenticated when `unauth` is disabled),
-but the frame is **not** tier-gated — any tier may report. Server-side the
+Every other change between distinct ranks (a real promotion, or a demotion
+that does not land on Recruit) is dropped client-side and never framed. The
+auth gate matches chat (authenticated when `unauth` is disabled), but the
+frame is **not** tier-gated — any tier may report. Server-side the
 dispatcher deduplicates across the N clients that saw the same broadcast, so
 one event yields one alert. Field semantics and dazebot's downstream
 behaviour are in `v1_protocol.md` §1.9.

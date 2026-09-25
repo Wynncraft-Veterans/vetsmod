@@ -22,15 +22,15 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>Wynntils' {@code GuildModel.MSG_RANK_CHANGED} regex captures only the
  * target name and new rank, and only updates internal state for the local
- * player — it does not fire any event we could subscribe to. This listener
- * runs against the same unwrapped {@link StyledText} but with a fuller regex
- * that also captures the actor and old rank, then classifies the event:</p>
+ * player — it does not fire any event we could subscribe to. Wynntils
+ * runs that regex against the raw message; this listener runs a fuller regex,
+ * which also captures the actor and old rank, against its own unwrapped,
+ * alignment-stripped copy of the {@link StyledText}, then classifies the event:</p>
  *
  * <ul>
  *   <li><b>ban</b> — {@code from ∈ {Recruiter, Captain, Strategist, Chief, Owner}}
  *       and {@code to = Recruit}. Any non-trivial demotion to recruit is a
- *       ban request: the captain who set this is asking admins to remove
- *       the player.</li>
+ *       ban request: whoever set it is asking admins to remove the player.</li>
  *   <li><b>kick</b> — {@code from = Recruit} and {@code to = Recruit}. Used
  *       in the guild as a "failed onboarding" signal — the only case
  *       where a {@code → Recruit} broadcast is *not* a ban request.</li>
@@ -38,9 +38,10 @@ import org.wynnvets.logging.VetsLogger;
  *       in the guild as a celebratory non-promotion-promotion.</li>
  * </ul>
  *
- * <p>Real promotions across distinct ranks (e.g. {@code Recruit → Recruiter},
- * {@code Captain → Strategist}) are not handled — no guidance from product
- * on what they should do. They are dropped client-side.</p>
+ * <p>Any other change between distinct ranks is not handled: a real promotion
+ * (e.g. {@code Recruit → Recruiter}, {@code Captain → Strategist}) or a demotion
+ * that does not land on Recruit (e.g. {@code Chief → Captain}). There is no
+ * product guidance for these, and they are dropped client-side.</p>
  *
  * <p>Client-side dedup drops a rank change (same actor, target and ranks) matching
  * one of the last {@code MAX_DEDUP_ENTRIES} this listener passed to
@@ -152,8 +153,8 @@ public final class RankChangeListener {
             // The only "→ Recruit" event that is *not* a ban request is the
             // self-loop Recruit→Recruit (failed-onboarding KICK signal).
             // Every other demotion to recruit — including the routine
-            // Recruiter→Recruit case — is the captain asking admins to
-            // remove the player. WAPI cross-checks the post-fact rank a
+            // Recruiter→Recruit case — is a request to admins to remove
+            // the player. WAPI cross-checks the post-fact rank a
             // few minutes later for confidence.
             return fromRecruit ? "kick" : "ban";
         }

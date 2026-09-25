@@ -1,11 +1,11 @@
 package org.wynnvets.rendering.colors;
 
 /**
- * Colour constants used for text styling throughout VetsMod.
+ * Colour constants for text styling.
  *
- * <p>Includes both standard colours ({@link #AQUA}, {@link #DARK_AQUA}) used for
- * gradient pill rendering, and Wynncraft resource-pack shader sentinel colours
- * that trigger GPU-animated text effects when the server resource pack is active.</p>
+ * <p>{@link #DARK_AQUA} is the chat supporter shimmer's default start colour (via
+ * {@link AnimatedGradientSequence#DEFAULT_START_COLOR}); {@link #AQUA} and the Wynncraft
+ * resource-pack shader sentinel colours below have no reader today.</p>
  */
 public final class ShaderColorPalette {
     private ShaderColorPalette() {}
@@ -21,7 +21,8 @@ public final class ShaderColorPalette {
     // Simply setting a text component's colour to one of these values will
     // trigger the corresponding animation while the pack is active.
     //
-    // Reference: Wynntils CommonColors / Wynncraft resource-pack shaders.
+    // Reference: Wynntils' WynncraftShaderColor enum (v4.1.17), which lists more sentinels
+    // than this file, and the Wynncraft resource-pack shaders.
 
     /** Animated rainbow colour cycle. */
     public static final int RAINBOW = 0x00F000;
@@ -29,10 +30,10 @@ public final class ShaderColorPalette {
     /** Animated gradient from #f56217 → #0b486b. */
     public static final int GRADIENT = 0x00F004;
 
-    /** Smooth animated fade from #5af082 → black. */
+    /** Smooth animated fade from #5af082 (Wynntils describes the far end as transparent). */
     public static final int FADE = 0x00F008;
 
-    /** Animated blink between #e63232 and black. */
+    /** Animated blink of #e63232 (Wynntils describes the other phase as transparent). */
     public static final int BLINK = 0x00F00C;
 
     /** Animated gradient from #560505 → #8a0303. */

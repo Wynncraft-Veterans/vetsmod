@@ -49,7 +49,7 @@ Features:
 - Case-insensitive username location (searches from END for last occurrence)
 - Handles Wynncraft nametag format: `[colour1][symbol] [colour2][prefix] username` with PUA chars
 - Segment boundary handling for split username parts
-- Called every render frame from `NametagMixin` — no external tick. From **both** of that mixin's injectors: the `extractRenderState` TAIL inject and the `submitNameTag` `@WrapOperation`, which is what re-runs the animator after wynnmod's wrap
+- Called every render frame from `NametagMixin` — no external tick — through `applyOverride`'s supporter branch, which the anni nametag branch pre-empts while it fires (highlight gate open and `vetsAnniNametagsEnabled` on). With wynnmod loaded the `extractRenderState` TAIL path returns before the supporter branch (`WYNNMOD_PRESENT`) and only the `submitNameTag` `@WrapOperation` animates, re-glinting inside wynnmod's badge. Without wynnmod both injectors reach it; the second pass is meant to leave the glint as the first drew it, but today it re-animates the already-glinted name, so the glint is animated twice per frame (bug `nametag-supporter-glint-reanimated-without-wynnmod`)
 
 ## 3. Colors subpackage
 
@@ -125,15 +125,15 @@ No static fields, no supertypes — so no `<clinit>`, and `ColorMathTest` loads 
 
 Colour constants including Wynncraft resource-pack shader sentinel colours.
 
-Gradient/util:
-- `AQUA = 0xC7FFE5`
-- `DARK_AQUA = 0x55FFFF`
+Plain colours:
+- `AQUA = 0xC7FFE5` — no code reader today
+- `DARK_AQUA = 0x55FFFF` — `AnimatedGradientSequence`'s default start colour for the chat supporter shimmer
 
 Resource-pack shader sentinels (GPU-animated by server pack shader):
 - `RAINBOW = 0x00F000` — rainbow cycle
 - `GRADIENT = 0x00F004` — #f56217 → #0b486b
-- `FADE = 0x00F008` — #5af082 → black
-- `BLINK = 0x00F00C` — #e63232 ↔ black
+- `FADE = 0x00F008` — #5af082 (Wynntils describes the far end as transparent)
+- `BLINK = 0x00F00C` — #e63232 (Wynntils describes the other phase as transparent)
 - `GRADIENT_2 = 0x00F010` — #560505 → #8a0303
 - `SHINE = 0x00F014` — #a3cc52 → #ffffd2
 
@@ -150,11 +150,11 @@ This lets e.g. `PillFormatter` compose components in one pass and have animation
 
 | Subsystem | Uses |
 |-----------|------|
-| `PillFormatter` | Marker colour + AnimatedGradientSequence for supporter pills |
+| `PillFormatter` | Marker colour + AnimatedGradientSequence for supporter pills (a plain-text pill, which no current caller passes, would go through `GradientTextBuilder.linear`) |
 | `ChatUtils.dispatchAnimatedChat` | Begin/end animation context around a dispatch |
 | `ServerGuildChatRewriter` | Marker colour on server-rendered pill backgrounds |
 | `NametagMixin` | `NametagAnimator.tryAnimate()` |
-| `ListFetcher` / `WorldListFetcher` | `GradientTextBuilder` for static supporter gradient on list entries |
+| `ListFetcher` | Marker colour (`MARKER_COLOR` / `GREY_MARKER_COLOR`) on supporter names, for the animated glint |
 | `EncourageUpdateRewriter` | `ComponentUtils.makeRainbowStyle()` for up-to-date case |
 | `/wv line` | `TerritoryLineRenderer` + `TerritoryLineManager` |
 

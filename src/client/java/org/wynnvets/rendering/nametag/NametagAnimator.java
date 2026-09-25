@@ -32,8 +32,9 @@ public final class NametagAnimator {
     private static final int CYCLE_TIME_MS = 3000;
 
     /**
-     * How far to blend the original colour toward white when computing the
-     * animation end-colour.  0.65 produces a clearly visible lightening that
+     * How far {@link #lighten(int)} blends the original colour toward light
+     * lavender (255, 225, 255) when computing the animation end-colour outside
+     * colour-blind mode.  0.65 produces a clearly visible lightening that
      * works across all nametag colours (aqua, blue, green, yellow, etc.).
      */
     private static final float LIGHTEN_FACTOR = 0.65f;
