@@ -138,8 +138,9 @@ final class LegacyTooltipRenderer {
 
         // Suppress the definitions and misc_definitions name matches (Branches 2
         // and 3) for new-format items whose names also appear in the override list
-        // (items that exist in both old and new formats — when seen in new format,
-        // they are modern and not legacy).
+        // (items that exist in both old and new formats; seen in new format, a name
+        // match alone does not mark them legacy, but Branch 4's no_lore_legacy match
+        // and the later branches still apply).
         boolean newFormatOverridden =
                 !LegacyItemHandler.currentItemStack.isEmpty()
                         && LegacyItemHandler.isNewFormatItem(LegacyItemHandler.currentItemStack)
@@ -263,10 +264,10 @@ final class LegacyTooltipRenderer {
         // ── Branch 4b: Pedestal-wiped vanilla armour/weapon shells ──────────
         // The item is a vanilla armour piece (helmet/chestplate/leggings/boots)
         // or weapon-class proxy (shears/iron_shovel/bow/stick/cocoa_beans/paper), has
-        // no lore, and its custom name carries a §a/§b/§d/§e colour-code prefix.  The
-        // pedestal item-wipe strips lore from set, legendary, rare or unique items
-        // (the rarities getRarityFromNameColor reads from those codes) while
-        // preserving the coloured name and vanilla item ID, so these bare shells get
+        // no lore, and its custom name carries a §a/§b/§d/§e colour-code prefix (the
+        // codes getRarityFromNameColor reads as set, legendary, rare and unique).  The
+        // pedestal item-wipe strips lore while preserving the coloured name and
+        // vanilla item ID, so these bare shells get
         // a dedicated "Legacy Item (Pedestal-Wiped)" label instead of falling through
         // to the foil/beta-marker branches below.
         if (LegacyItemHandler.isPedestalWipedItem(LegacyItemHandler.currentItemStack)) {

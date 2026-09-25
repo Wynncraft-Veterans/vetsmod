@@ -81,7 +81,7 @@ tasks.withType(JavaCompile).configureEach {
 	// UTF-8; native.encoding on a Windows box is still Cp1252. Pin it.
 	it.options.encoding = 'UTF-8'
 
-	// Javadoc reference gate — the Java side's only mechanical gate.
+	// Javadoc reference gate — a mechanical gate alongside the Spotless format gate below.
 	// `reference` checks {@link}, @see, {@value} and @throws targets plus
 	// @param name matching. Deliberately not `all` and not `html`: PillCodec's
 	// class Javadoc has a hand-built <table border="1"> that -Xdoclint:html

@@ -98,8 +98,9 @@ public class LegacyItemHandler {
      * Returns {@code true} if the item uses Wynncraft's new display format,
      * identified by any supplementary Unicode code point (U+10000+) in the
      * custom name component.  Used with {@link ItemDefinitions#isNewFormatOverride}
-     * to suppress legacy name matches for specific items that exist in both old
-     * and new formats.
+     * to suppress the {@code definitions} and {@code misc_definitions} name matches
+     * for specific items that exist in both old and new formats; the
+     * {@code no_lore_legacy} match still applies.
      */
     public static boolean isNewFormatItem(ItemStack stack) {
         Component customName = stack.get(DataComponents.CUSTOM_NAME);
@@ -309,10 +310,12 @@ public class LegacyItemHandler {
      * ({@code iron_shovel}, {@code shears}, {@code bow}, {@code stick},
      * {@code cocoa_beans}, {@code paper}).
      *
-     * <p>The pedestal mechanic strips all lore from a set, legendary, rare or
-     * unique item (the rarities {@link #getRarityFromNameColor} reads from those
-     * colour codes) while preserving its coloured name and vanilla item ID; this
-     * detector gives those bare shells a "Legacy Item (Pedestal-Wiped)" tooltip.</p>
+     * <p>The pedestal mechanic strips an item's lore while preserving its
+     * coloured name and vanilla item ID; which rarities it applies to is not
+     * sourced here. This detector gives those bare shells a
+     * "Legacy Item (Pedestal-Wiped)" tooltip, and of the name colour codes it
+     * accepts only the four {@link #getRarityFromNameColor} reads as set,
+     * legendary, rare and unique.</p>
      */
     public static boolean isPedestalWipedItem(ItemStack stack) {
         if (stack.isEmpty()) return false;

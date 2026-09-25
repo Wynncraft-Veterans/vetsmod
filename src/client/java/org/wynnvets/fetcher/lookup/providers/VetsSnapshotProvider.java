@@ -38,7 +38,12 @@ public final class VetsSnapshotProvider implements LookupProvider {
      * Sends a {@code check_membership} frame and adapts the single-use ack
      * callback into a future. Used by this provider AND by InviteGate /
      * UserInfoFetcher for their secondary "snapshot only" fetch path (when
-     * the cascade's hit didn't already provide one).
+     * the cascade's hit didn't already provide one). The frame is staff-only:
+     * temporary-server (at ffd8c17) rejects it from any session it has not
+     * confirmed as staff. This sends it without checking
+     * {@code isConfirmedStaff()}; today, for any such session, the rejection
+     * completes the future with {@code null} (see
+     * {@code vets-snapshot-provider-skips-confirmed-staff-check}).
      */
     public static CompletableFuture<MembershipSnapshot> requestSnapshot(String target) {
         CompletableFuture<MembershipSnapshot> cf = new CompletableFuture<>();
@@ -89,7 +94,10 @@ public final class VetsSnapshotProvider implements LookupProvider {
         if (snap == null) {
             // Could be "no such player" or a transient WS failure; the ack
             // shape doesn't reliably distinguish, so call it transient and
-            // let later providers settle the question.
+            // let later providers settle the question. Today they can settle it
+            // only with a hit: this transient miss keeps the cascade from ever
+            // ending PLAYER_NOT_FOUND (see
+            // vets-snapshot-provider-makes-player-not-found-unreachable).
             return ProviderOutcome.transientMiss();
         }
         String uuidStr = snap.getTargetUuid();

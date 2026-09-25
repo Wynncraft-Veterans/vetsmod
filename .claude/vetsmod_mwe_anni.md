@@ -64,7 +64,7 @@ mwe/anni/
 ## Snapshot pipeline
 
 1. **vets-anni** assembles per-uuid snapshots via `app/domain/snapshot.py::assemble_snapshot`. The `event` block is populated whenever any past `AnniEvent` exists; `event: null` is only emitted on a truly empty DB.
-2. **temp-server's poller** (`app/services/anni_snapshot_poller.py`) hits vets-anni's `/api/internal/anni-snapshot-batch` and `/api/internal/anni-player/{uuid}`; pushes per-uuid changes as `anni_state` frames every ~10 s in the hot window, ~5 min otherwise. Eligibility refreshes every 60 s. ⚠️ **Today these pushes never reach vetsmod**: the server sends them only to an authenticated outbound socket, and vetsmod never authenticates that socket (bug `outbound-socket-never-authenticated`; [vetsmod_networking.md](vetsmod_networking.md) §1). Outside the `/wv debug tree anni` simulation commands, the cache is refreshed only by pulls: item 5, the post-connect re-pull, `AnniSnapshotPoller`, and the refresh after an in-game RSVP (`AnniRsvpCommand`).
+2. **temp-server's poller** (`app/services/anni_snapshot_poller.py`) hits vets-anni's `/api/internal/anni-snapshot-batch` and `/api/internal/anni-player/{uuid}`; pushes per-uuid changes as `anni_state` frames every ~10 s in the hot window, ~5 min otherwise. Eligibility refreshes every 60 s. ⚠️ **Today these pushes never reach vetsmod**: the server sends them only to an authenticated outbound socket, and vetsmod never authenticates that socket (bug `outbound-socket-never-authenticated`; [vetsmod_networking.md](vetsmod_networking.md) §1). Outside the `/wv debug tree anni` simulation commands, the cache is refreshed only by pulls: step 5's cold-start pull, the post-connect re-pull, `AnniSnapshotPoller`, a cold-cache `/wv anni`, and the refresh after an in-game RSVP (`AnniRsvpCommand`).
 3. **vetsmod's `AnniWsHandler`** is the frame router. On the *outbound* channel it handles `anni_state` (push) alone — hydrating it into `AnniSnapshot` and dropping it into `AnniSnapshotCache`. On *inbound* it branches four ways: `anni_query_response`, `anni_scrollspot_response` and `anni_rsvp_response` go to their single-flight clients (`AnniQueryClient` / `AnniScrollspotClient` / `AnniRsvpClient`), and `anni_party_observation_response` is debug-logged inline with no queue and no consumer state.
 4. **`AnniSnapshotCache`** is a single-player, volatile, listener-bus cache. Listeners run on whichever thread called `update` — the one delivering WebSocket frames, or the render thread, which runs client commands, when `AnniDebugCommands` injects — so bounce to the main thread via `Minecraft.getInstance().execute(...)` if you need to touch render state. `schemaVersion()` is surfaced but never validated: a v1 payload just degrades, it is not rejected.
 5. **Cold start pulls rather than waiting for the push.** `StampFetcher.fetchStampAndCreateMessage` (the world-join motd path) reads `AnniSnapshotCache.latest()` and on `null` fires a fire-and-forget `AnniQueryClient.query()` before falling through to legacy stamp text. *Note: this intentionally does NOT rely on the push alone. The ~5 min figure is temporary-server's out-of-window `anni_state` cadence (step 2), and vetsmod's own `AnniSnapshotPoller` does not close that gap: it runs on a fixed 30 s schedule but its tick returns immediately unless the cached stamp is inside the 90-minute bar window, floored at `> 0`; its 30 s initial delay, the only non-zero one among the pollers, costs nothing here, because a tick at 0 s would find the cache empty and return (see [vetsmod_networking.md](vetsmod_networking.md) §5). So on cold start a user already inside the anni zone — hours before the window opens — would otherwise see legacy motd and no boss bar until the next push. Today no push arrives (bug `outbound-socket-never-authenticated`), and `AnniSnapshotPoller` has no stamp to poll against while the cache is empty, so the wait would last until some other pull: a reconnect's re-pull, an in-game RSVP, or a cold-cache `/wv anni`.* Any new component that depends on the cache being warm at world-join time gets this for free — but only while `vetsAnniEnabled` is true, since `StampFetcher` gates the pull behind `anniIntegrationActive()`, and only once a pull returns a snapshot. Per temporary-server (at ffd8c17), that needs an inbound socket an `/unlock` key has authenticated, because the frame names no UUID; an unauthenticated pull is answered `mc_uuid required` and resolves null. `vetsAnniEnabled` itself is slated for retirement (bug `vets-anni-enabled-to-be-retired`). `AnniWsHandler.register()` installs the reconnect counterpart — a post-connect `AnniQueryClient::query` re-pull, which also runs on the first inbound connect and is not gated on `vetsAnniEnabled`.
@@ -84,7 +84,7 @@ where they are, for the reasons in the table.
 > `secondsUntil >= -HOT_WINDOW_AFTER_SECONDS && secondsUntil <= HOT_WINDOW_BEFORE_SECONDS`,
 > i.e. `now ∈ [stamp − 7200, stamp + 1800]`, pinned by `AnniWindowsTest` at
 > `-1800` in and `-1801` out. It is the most misread value in the set — even
-> an earlier doc audit called it "T−30m".
+> the brief for an earlier doc audit called it "T−30m".
 >
 > ⚠️ **"90 minutes" denotes two unrelated things in this repo.**
 > `AnniWindows.BAR_WINDOW_SECONDS` is the client-side boss-bar and snapshot-poll
@@ -304,13 +304,13 @@ what the bar says, which is
 disqualifying on its own. Nothing in the bar's chip is to be folded into
 `noticeColor` or vice versa.
 
-Three corrections to how that exclusion was recorded, because the old wording
-sent the decision round in a circle:
+Three corrections to how this decision was once recorded, because the old
+wording sent it round in a circle:
 
-1. **`rsvpChip` is not one of "the three".** The exclusion names three
+1. **`rsvpChip` is not one of "the three".** "The three" are the
    *role*-colour tables — `AnniOutlinePalette.chatFormattingForRole`,
    `AnniHoverBuilder.roleColor` and `VetsBossBarContentBuilder.roleColor`. This is
-   a *notice*-colour table, a fourth the exclusion never enumerated. (And of the
+   a *notice*-colour table, a fourth that the old record never enumerated. (And of the
    three role tables only the last diverges, which is why the first two collapsed
    — see §`AnniOutlinePalette`.)
 2. **The PINK rationale does not apply here.** `net.minecraft.ChatFormatting` has

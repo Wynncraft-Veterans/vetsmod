@@ -243,8 +243,8 @@ public class UserInfoFetcher {
     // org.wynnvets.guild.GuildStateManager.
     /**
      * Fetches {@code guildName}'s roster and returns the rank it lists for
-     * {@code normalizedUuid}. Empty on a non-200, a timeout, a malformed
-     * response or an absent UUID. It is also empty when the UUID is present
+     * {@code normalizedUuid}. Empty on a non-200, a timeout or other failed
+     * request, a malformed response or an absent UUID. It is also empty when the UUID is present
      * but no rank could be read, so an empty result does not by itself mean
      * "not a member"; today {@link #renderGuildLine} reads it as one (see
      * {@code wv-check-guild-line-conflates-roster-failure-with-absence}).
@@ -348,7 +348,10 @@ public class UserInfoFetcher {
      *
      * <p>Failures are surfaced as a single error line; partial results
      * (e.g. Wynn fetch succeeds but the snapshot doesn't) still render the
-     * portions that resolved.</p>
+     * portions that resolved. Today, while a snapshot request's callback goes
+     * unanswered, the whole block stays unrendered, with no error line, since
+     * nothing bounds that wait (see
+     * {@code staff-action-queue-not-drained-on-socket-reconnect}).</p>
      */
     public static void checkUser(String playerName) {
         PlayerLookup.resolve(playerName)
@@ -414,8 +417,8 @@ public class UserInfoFetcher {
                     // whenever there is a Wynncraft profile -- needed to catch the
                     // rejoin case where the payload transitions through a
                     // non-Returners guild name mid-invalidation. Cost: one extra
-                    // /v3/guild/Returners fetch per such /wv check. Guild bucket is
-                    // 50 req/s and /wv check cadence is low.
+                    // /v3/guild/Returners fetch per /wv check whose payload does not
+                    // claim Returners; /wv check cadence is low.
                     CompletableFuture<ReturnersMembership> returnersFuture =
                             (user != null)
                                     ? returnersMembership(synthUuid.id)
@@ -704,7 +707,10 @@ public class UserInfoFetcher {
         // Item 3b: currently online. Surfaced between playtime and guild because
         // it's the most actionable signal for a staff vetting decision. The
         // Discord line's `(hiatus)` qualifier asks a related question through
-        // isCurrentlyOnline, which weighs the signals differently.
+        // isCurrentlyOnline, which differs only in letting a recent
+        // last_seen_observed outrank Wynncraft's online=false. Today that field
+        // never arrives, so that case cannot occur (see
+        // check-membership-ack-drops-last-seen-observed).
         renderOnlineLine(user, snapshot, tabListServer, isSelf);
     }
 
@@ -1098,8 +1104,8 @@ public class UserInfoFetcher {
             // reconciliation during the snapshot fetch, before it reports
             // HIATUS. The qualifier below is meant to flag a HIATUS role that
             // is stale; today it keys off being online, which dazebot's HIATUS
-            // (a guildless ex-member) does not rule out, so it is a weak hint,
-            // not evidence (see wv-check-hiatus-stale-hint-keys-off-online).
+            // (a guildless ex-member) does not rule out, so it can flag a correct
+            // role and miss a stale one (see wv-check-hiatus-stale-hint-keys-off-online).
             Style hiatusStyle = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
             line.append(Component.literal("  (hiatus").setStyle(hiatusStyle));
             if (currentlyOnline) {

@@ -50,8 +50,8 @@ import org.wynnvets.util.Json;
  * {@code vets-snapshot-provider-skips-confirmed-staff-check}).</p>
  *
  * <p>For <b>staff</b> (confirmed-staff via the vetsmod token) the gate
- * surfaces the exact reason and offers a clickable
- * {@code /wv invite-force <name>} bypass. The slot-pressure check is
+ * surfaces the exact reason and, when the target has a Wynncraft profile,
+ * offers a clickable {@code /wv invite-force <name>} bypass. The slot-pressure check is
  * skipped for staff entirely — they're trusted to make the call.</p>
  *
  * <p>Name → UUID resolution runs through {@link PlayerLookup}, which

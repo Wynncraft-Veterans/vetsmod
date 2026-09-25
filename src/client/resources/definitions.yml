@@ -113,8 +113,9 @@ definitions:
 # Unlike the "definitions" section (which matches regardless of lore), items here
 # must ALSO have an empty lore to be treated as legacy.  This covers old keys,
 # vanilla materials, holiday items, and other confirmed loreless legacy items.
-# Items that also appear in "definitions" are listed here for completeness but
-# will be caught by the earlier definitions check first.
+# Items that also appear in "definitions" are normally caught by the earlier
+# definitions check first; a new_format_override name on a new-format item skips
+# that check and can still match here (e.g. a loreless new-format Skeleton Key).
 no_lore_legacy:
   - "(?i)^Animal Key$"
   - "(?i)^Block of Quartz$"

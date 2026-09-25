@@ -40,7 +40,7 @@ Animated gradient for supporter usernames in nametags.
 
 Animation mechanics:
 - Cycle: 3000ms ping-pong
-- Lighten factor: 0.65 — blends toward light lavender (255, 225, 255)
+- Lighten factor: 0.65 — blends toward light lavender (255, 225, 255) outside colour-blind mode; in colour-blind mode the wave runs from a darkened copy (`CV_DARKEN_FACTOR`) to a blend toward white (`CV_LIGHTEN_FACTOR`) instead
 - Per-character phase: `charPhase = idx / (usernameLen - 1)`, then `phase = (charPhase + time) % 1.0`
 - Wave formula matches `AnimatedGradientSequence`; the RGB interpolation underneath it is shared code, `ColorMath.interpolateRgb`
 - `mixToward` / `lighten` / `darken` do **not** share `ColorMath` — they clamp each channel into `0..255`, and `ColorMath` deliberately does not

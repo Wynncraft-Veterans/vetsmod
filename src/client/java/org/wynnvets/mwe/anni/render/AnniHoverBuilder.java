@@ -51,9 +51,10 @@ public final class AnniHoverBuilder {
      *  {@link org.wynnvets.mwe.anni.outline.AnniOutlinePalette#chatFormattingForRole
      *  AnniOutlinePalette#chatFormattingForRole}; this method is the chat surfaces'
      *  entry point to it and does nothing else. The two carried the same seven arms
-     *  independently until this delegation, disagreeing only in that this side passed
-     *  {@link Locale#ROOT} and the palette did not — a chat hover and an outline
-     *  that named different colours for the same player under a Turkish default.</p>
+     *  independently until this delegation. Until the locale-fold fix that landed just
+     *  before it, they disagreed only in that this side passed {@link Locale#ROOT} and the
+     *  palette did not — a chat hover and an outline that named different colours for
+     *  the same player under a Turkish default.</p>
      *
      *  <p>The palette is the surviving body rather than this one because it is a
      *  fieldless {@link ChatFormatting}-only table — it had one production caller

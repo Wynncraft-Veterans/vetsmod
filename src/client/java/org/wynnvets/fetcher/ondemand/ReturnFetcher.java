@@ -103,7 +103,9 @@ public class ReturnFetcher {
 
     /**
      * Closing line of a {@code /wv return} printout, pointing at the Discord
-     * channel the post was mirrored from (see {@link #RETURN_CHANNEL_URL}).
+     * channel the post was mirrored from (see {@link #RETURN_CHANNEL_URL}). Today its
+     * hover text says it opens the announcement post (see
+     * {@code return-footer-hover-says-it-opens-the-post}).
      *
      * <p>Spec is {@code &6&oFor more info, click &e&n&ohere &6for the
      * announcement post!} — note the trailing {@code &6}, which under vanilla

@@ -10,7 +10,7 @@
 #
 # It is deliberately NOT a build gate. Spelled-out numerals in prose are
 # ambiguous enough to false-positive on correct text, and adding a third
-# mechanical gate is a change to the project's standing rules.
+# mechanical gate is a change to .claude/CLAUDE.md's Mechanical gates.
 # Run it by hand, and in every comment-reconciliation sweep.
 #
 # KNOWN BLIND SPOT: count_calls greps for "Class.method(", so it sees

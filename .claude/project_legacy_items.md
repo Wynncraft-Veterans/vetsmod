@@ -46,7 +46,7 @@ Guard conditions (return `false` early):
 - `stack.isEmpty()`
 - `isBlockedScreen()` — true whenever Wynntils reports `Models.Housing.isInEditMode()`, and otherwise when the screen title matches one of the 9 `blocked_screen_titles` patterns in `definitions.yml` (housing/island menus that abuse enchant glint as a UI selector)
 
-Name is normalized via `stripSupplementaryPua()` + `ChatFormatting.stripFormatting()` before matching. The `newFormatOverridden` flag suppresses the `definitions` and `misc_definitions` name matches (branches 1 & 2) when the item is new-format AND its name is in `new_format_override`; branch 3's `no_lore_legacy` match and the other branches still apply.
+Name is normalized via `ChatFormatting.stripFormatting()` then `normalizeName()` (`stripSupplementaryPua()` plus the trade-market trailing `À` strip) before matching. The `newFormatOverridden` flag suppresses the `definitions` and `misc_definitions` name matches (branches 1 & 2) when the item is new-format AND its name is in `new_format_override`; branch 3's `no_lore_legacy` match and the other branches still apply.
 
 Eight independent branches — **any one** triggers legacy. The numbering matches
 the `// 1.` … `// 8.` comments in the method body:
@@ -92,8 +92,8 @@ Entry point: called from `LegacyItemTooltipMixin` via `LegacyItemHandler.process
 | 3 | `isMiscLegacy(name)` + misc rarity | same as branch 2 |
 | 4 | `isNoLoreLegacy(name)` + empty lore | gold name; rarity inferred from `tooltip_style` component or `§`-colour prefix; insert "Legacy Item (Rarity)" before debug lines |
 | 4b | `isPedestalWipedItem(currentItemStack)` | gold name; label = "Legacy Item (Pedestal-Wiped)" |
-| 5 | beta-legacy marker ("Lv. min" gold line) | gold name; label "Alpha Legacy Item" when no standard rarity line exists (a `tooltip_style` rarity is appended in parentheses if present), else "Beta Legacy Item (Rarity)" |
-| 6 | `hasFoil` + not excluded/unenchanted | prepend "Enchanted" in gold (old-format: `buildGoldName` adds a white ⬡ before it; new-format: `NewFormatRenderer.deepEnchantName` rewrites the name literal) + rarity swap (old-format only) |
+| 5 | beta-legacy marker ("Lv. min" gold line) | gold name; label "Alpha Legacy Item" when no standard rarity line exists (a `tooltip_style` rarity is appended in parentheses if present), else "Beta Legacy Item (Rarity)"; a foil item that passes branch 6's test gets the "Enchanted" prefix too, as in branch 2 |
+| 6 | `hasFoil` + not excluded/unenchanted | prepend "Enchanted" in gold (old-format: `buildGoldName` adds a white ⬡ before it; new-format: `NewFormatRenderer.deepEnchantName` rewrites the name literal) + rarity swap (old-format; new-format inserts the LEGACY box instead) |
 | 7 | junk rarity + not in `notjunk` | gold name + rarity swap |
 | 8 | crafting rarity | gold name + rarity swap |
 
@@ -105,7 +105,7 @@ Entry point: called from `LegacyItemTooltipMixin` via `LegacyItemHandler.process
 
 **New-format tooltip rewriting** (`NewFormatRenderer`): detects items via presence of `tooltip/emblem/frame` or `banner/box` fonts. `isNewFormatItem` sets the sticky `newTooltipStylesAvailable` flag as a side effect. The LEGACY chip, built by `legacyBox()` (a gold `banner/box` run of `LEGACY_BOX_BACKGROUND` with the black lettering `LEGACY_BOX_FOREGROUND` as a nested child), is inserted, with a delimiter node, before the first rarity box in the Component tree via a 3-phase recursive descent (direct child → banner/symbol-sibling heuristic → recursive).
 
-Only the §3 lists come from YAML; the remaining detection rules (lore lines, foil, item IDs) and the labels themselves (the "Legacy Item (…)" family, "Enchanted", "LEGACY ENCHANTMENTS") are hardcoded in Java.
+Only the §3 lists come from YAML; the remaining detection rules (e.g. lore lines, foil, item IDs, name colour codes, fonts) and the labels themselves (e.g. the "Legacy Item (…)" family, "Enchanted", "LEGACY ENCHANTMENTS") are hardcoded in Java.
 
 **Spoiler handling (`handleSpoilers` config) is unrelated to legacy items** — it encodes `||spoiler||` markers you type before sending (`GuildChatDispatcher` via `SpoilerCodec`) and renders received encoded spoilers via `SpoilerRewriter`/`SpoilerFormatter`, not item tooltips.
 
@@ -165,10 +165,10 @@ Registered in `VetsConfig.USER_CONFIG_KEYS`. Validation delegated to `VetsConfig
 
 ## 8. Edge cases & quirks
 
-- **`new_format_override`**: an item like Skeleton Key exists in old (legacy) and new (modern) formats with the same display name. When `isNewFormatItem(stack)` (any supplementary code point in custom name, `cp >= 0x10000`) AND the name is in this list, branches 1 & 2 are skipped.
+- **`new_format_override`**: an item like Skeleton Key exists in old (legacy) and new (modern) formats with the same display name. When `isNewFormatItem(stack)` (any supplementary code point in custom name, `cp >= 0x10000`) AND the name is in this list, `isLegacyItem`'s branches 1 & 2 (`processTooltip`'s Branches 2 & 3) are skipped; `no_lore_legacy` still applies.
 - **`enchant_excluded_items`**: `minecraft:experience_bottle` / `minecraft:enchanted_book` always have vanilla foil — excluded by Minecraft registry ID, not name.
-- **`notjunk`**: modern junk-tier farming materials (Leather, Tanned Sunfish, Roasted Flesh, Vines, Rubble, Ghostly*, Dusty Rum Bottle, Golden Teeth) — excluded from branch 7.
-- **`unenchanted`**: items that legitimately have foil in modern Wynncraft — e.g. `???`, Ability Shard, Breathing Helmet*, Liquid Emerald*, Mythic Everlasting Pufferfish, Shiny*, Transcriber* — bypass branch 6.
+- **`notjunk`**: modern junk-tier farming materials (e.g. Leather, Tanned Sunfish, Roasted Flesh, Vines, Rubble, Ghostly*, Dusty Rum Bottle, Golden Teeth) — excluded from branch 7.
+- **`unenchanted`**: items that legitimately have foil in modern Wynncraft — e.g. `???`, Ability Shard, `Breathing Helmet *`, `*Liquid Emerald*`, `*Mythic Everlasting Pufferfish*`, `Shiny *`, `*Transcriber` (a `*` marks where the pattern's wildcard sits) — bypass branch 6.
 - **Alpha vs Beta legacy**: both triggered by gold "Lv. min: N" lore line. Alpha = no standard rarity line present; Beta = has one. Label differs accordingly.
 - **Unidentified gear**: name contains BMP PUA lock icon; `stripSupplementaryPua()` normalises it before name matching. No separate identified-vs-unidentified branching.
 - **"Crafted" items (player-made with durability)**: never legacy — early bail in branch 0 of tooltip renderer.

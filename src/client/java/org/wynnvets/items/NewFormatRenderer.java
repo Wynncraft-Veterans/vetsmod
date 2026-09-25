@@ -101,8 +101,8 @@ final class NewFormatRenderer {
      * into the run, matching the two-node shape Wynncraft emits.  The shadow is
      * not the reason: vanilla's {@code Style.applyLegacyFormat} carries the run's
      * shadow colour across an inlined colour code (Wynntils' {@code StyledText}
-     * parser, by contrast, drops it, keeping only the colour and the inherited
-     * font).</p>
+     * parser, by contrast, drops it, restarting the style from the colour and
+     * the inherited font).</p>
      */
     private static MutableComponent legacyBox() {
         return Component.literal(LEGACY_BOX_BACKGROUND)

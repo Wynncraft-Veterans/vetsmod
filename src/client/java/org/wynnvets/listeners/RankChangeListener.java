@@ -25,7 +25,7 @@ import org.wynnvets.logging.VetsLogger;
  * player — it does not fire any event we could subscribe to. Wynntils
  * runs that regex against the raw message; this listener runs a fuller regex,
  * which also captures the actor and old rank, against its own unwrapped,
- * alignment-stripped copy of the {@link StyledText}, then classifies the event:</p>
+ * alignment-stripped copy of the {@code StyledText}, then classifies the event:</p>
  *
  * <ul>
  *   <li><b>ban</b> — {@code from ∈ {Recruiter, Captain, Strategist, Chief, Owner}}
@@ -154,8 +154,10 @@ public final class RankChangeListener {
             // self-loop Recruit→Recruit (failed-onboarding KICK signal).
             // Every other demotion to recruit — including the routine
             // Recruiter→Recruit case — is a request to admins to remove
-            // the player. WAPI cross-checks the post-fact rank a
-            // few minutes later for confidence.
+            // the player. Server-side, the alert is re-checked against
+            // WAPI a few minutes later: temporary-server (at ffd8c17)
+            // forwards it to dazebot, whose lib/staff/rank_alerts.py
+            // runs that verification pass.
             return fromRecruit ? "kick" : "ban";
         }
         if (fromRank.equals(toRank)) {
