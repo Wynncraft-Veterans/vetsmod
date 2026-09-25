@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
  * <p>The two {@code ancestorHover…} cases carry over from the retired
  * {@code EncourageUpdateRewriterTest} and are the ones that pin it for
  * {@code hoverEvent} specifically, which is the field the "real name is …" scan
- * reads and the one that was resolved the wrong way round until Phase 5a.
+ * reads and the one that was resolved the wrong way round until it was fixed.
  * {@link #flattenComponent_siblingWithoutColorInheritsParent()} holds under
  * <em>either</em> orientation and is not coverage of it — it fails only when the
  * inheritance is dropped altogether.</p>

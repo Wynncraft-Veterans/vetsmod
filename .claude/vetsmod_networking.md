@@ -98,7 +98,7 @@ Sharing the executor reaches less far than it sounds. In the JDK 21 implementati
 
 [Json](../src/client/java/org/wynnvets/util/Json.java) is the matching shared `Gson` — `new Gson()`, no builder, read by twenty classes. The three `GsonBuilder`-configured instances (`VetsConfig`, `ItemDumpHandler`, `AnniDebugCommands`) are not residents and must not become ones; each depends on what it configured. **The accessors below do not weaken that**: they read an already-parsed `JsonObject` and touch no `Gson` at all.
 
-**`Json` also owns the mod's JSON field accessors** — four entry points over one shape, added by 5g. Twenty-three classes reference `Json` in total; the twenty above are the ones that want `GSON`.
+**`Json` also owns the mod's JSON field accessors** — four entry points over one shape, added to replace the hand-rolled reads described below. Twenty-three classes reference `Json` in total; the twenty above are the ones that want `GSON`.
 
 ```java
 String optString(JsonObject obj, String key, String fallback)
@@ -107,11 +107,11 @@ String stringOrEmpty(JsonObject obj, String key)  // → optString(obj, key, "")
 int    optInt(JsonObject obj, String key, int fallback)
 ```
 
-Three names for one string function is deliberate. The fallback is not an axis — `null` and `""` *are* fallbacks — and the two conveniences exist so that the call sites which take no fallback do not have to grow an argument — **28 of 50** at `1592f7d` (`stringOrNull` 17, `stringOrEmpty` 11), up from 23 of 44 when 5g landed. `Json`'s own Javadoc carries the per-method figures and is the copy to trust.
+Three names for one string function is deliberate. The fallback is not an axis — `null` and `""` *are* fallbacks — and the two conveniences exist so that the call sites which take no fallback do not have to grow an argument — **28 of 50** at `1592f7d` (`stringOrNull` 17, `stringOrEmpty` 11), up from 23 of 44 when the accessors landed. `Json`'s own Javadoc carries the per-method figures and is the copy to trust.
 
 **The policy, on all three axes: fallback.** A missing key or a JSON null is normal and falls back *silently*. A wrong-typed value or a `null` receiver falls back *and warns* (`VetsLogger.warn`, naming the key and the exception class). The warn is unconditional — no suppression cache, because that would put mutable state in the class, to throttle a condition that previously destroyed a whole payload, or everything after the failing read, wherever it threw. Ceiling: `OnlineMemberService.parseConnectedUsers` reads three fields per connected user, so a wholly malformed `/list` payload costs three warns per entry per `/wv list` or `/wv list world` call.
 
-Six classes hand-rolled this read before — seven methods over the 44 call sites that existed **then**, a pre-5g figure, not a current one — and they answered those three questions **four different ways**. What each one gave up by adopting the shared policy is the interesting half, because in every case the old answer destroyed *more*:
+Six classes hand-rolled this read before — seven methods over the 44 call sites that existed **then**, a pre-accessor figure, not a current one — and they answered those three questions **four different ways**. What each one gave up by adopting the shared policy is the interesting half, because in every case the old answer destroyed *more*:
 
 | Former site | Old wrong-type answer | What that cost |
 |---|---|---|

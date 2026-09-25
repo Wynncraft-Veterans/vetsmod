@@ -216,7 +216,7 @@ class HelpCommandsTest {
     }
 
     /**
-     * Phase 2's {@code be482b1} is the fix this protects: {@code /wv list} was
+     * Commit {@code be482b1} is the fix this protects: {@code /wv list} was
      * printed twice, and advertised on the vet predicate rather than on
      * {@code isUnlocked()}. Across all sixteen combinations it must appear exactly
      * once when unlocked and never otherwise.

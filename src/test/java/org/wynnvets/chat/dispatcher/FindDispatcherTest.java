@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test;
  * <p>Its strip is <b>deliberately wider</b> than
  * {@code org.wynnvets.chat.PillCodec#isCustomGlyph}: it adds {@code SURROGATE}
  * and {@code FORMAT}, and its {@code UNASSIGNED} clause carries no
- * supplementary bound. Phase 4 flagged the difference as unpinned and left the
- * decision to Phase 5; the decision is to <b>keep the wider strip</b>. This
+ * supplementary bound. An earlier review flagged the difference as unpinned and left the
+ * decision open; the decision is to <b>keep the wider strip</b>. This
  * method exists to normalise a Wynncraft {@code /find} response for prose
  * comparison ({@code "currently on server WC12"}), where stripping more is the
  * point — nothing downstream reads a codepoint, only the words. Narrowing it to
@@ -88,8 +88,8 @@ class FindDispatcherTest {
 
     @Test
     void strip_alsoRemovesBmpUnassignedFormatAndSurrogates() {
-        // The three cells that make this strip wider, and the decision Phase 5
-        // was asked to take explicitly. Each of these is kept by
+        // The three cells that make this strip wider, and the decision that had to
+        // be made explicitly. Each of these is kept by
         // PillCodec.isCustomGlyph and dropped here.
         assertEquals(
                 "ab",

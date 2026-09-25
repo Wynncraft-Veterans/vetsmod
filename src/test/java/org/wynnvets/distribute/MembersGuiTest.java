@@ -118,7 +118,7 @@ class MembersGuiTest {
      * <p>Not obviously unreachable, either: the two scan loops iterate a real item list, but
      * {@code MembersListSearcher.onSetSlot} hands this method whatever slot the event carries.
      * What is pinned is that the answer matches the three copies this predicate replaced,
-     * which is the only claim this chunk is entitled to make.</p>
+     * which is the only claim the consolidation is entitled to make.</p>
      */
     @Test
     void aNegativeSlotIsNotATileAndDoesNotThrow() {

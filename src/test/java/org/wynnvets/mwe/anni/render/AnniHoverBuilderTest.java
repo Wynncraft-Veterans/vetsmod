@@ -13,7 +13,7 @@ import org.wynnvets.mwe.anni.outline.AnniOutlinePalette;
  * Tests for {@link AnniHoverBuilder#roleColor(String)} — the chat surfaces'
  * entry point to the seven-arm role colour mapping.
  *
- * <p>This is one half of a pair, and since Phase 5d it is the half that does not
+ * <p>This is one half of a pair, and since the delegation it is the half that does not
  * carry the table: {@code roleColor} delegates to
  * {@link org.wynnvets.mwe.anni.outline.AnniOutlinePalette#chatFormattingForRole
  * AnniOutlinePalette#chatFormattingForRole}, which the outline renderer and
@@ -22,7 +22,7 @@ import org.wynnvets.mwe.anni.outline.AnniOutlinePalette;
  * an independent copy and are kept unmodified so the delegation had to reproduce
  * every answer exactly.</p>
  *
- * <p>The two copies disagreed under a Turkish or Azeri default until Phase 5d:
+ * <p>The two copies disagreed under a Turkish or Azeri default until the fold was fixed:
  * the palette folded with the no-argument {@code toUpperCase()} while this side
  * has always passed {@link Locale#ROOT}, so {@code fill} / {@code primary} /
  * {@code tertiary} produced one colour in chat and another in the outline. See
@@ -122,7 +122,7 @@ class AnniHoverBuilderTest {
         // Demonstrates that the argument to toUpperCase is load-bearing rather
         // than decorative. Written when the sibling still folded with the
         // default locale; it asserts on String.toUpperCase directly rather than
-        // on either subject, so the Phase 5d fix left it green — which is what
+        // on either subject, so the locale-fold fix left it green — which is what
         // its bug file predicted.
         Locale.setDefault(TURKISH);
 
@@ -133,7 +133,7 @@ class AnniHoverBuilderTest {
         assertEquals("FILL", "fill".toUpperCase(Locale.ROOT), "Locale.ROOT does");
     }
 
-    // ----- Equivalence with the outline palette (item 9c) -----
+    // ----- Equivalence with the outline palette -----
 
     /** Every key the two surfaces can disagree on, including the lower-case
      *  forms — those are the only ones a fold can break — plus the four

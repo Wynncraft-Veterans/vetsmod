@@ -24,8 +24,7 @@ import org.junit.jupiter.api.Test;
  * payload matches anything at all.</p>
  *
  * <p>{@code shouldSuppressFeedback} is deliberately not covered. Populating its
- * queue would need a second seam plus a reset hook that does not exist, for an
- * orchestrator no later phase is extracting.</p>
+ * queue would need a second seam plus a reset hook that does not exist.</p>
  *
  * <p>NOTE: {@link MessageFanoutDispatcher} imports Minecraft and Wynntils, but
  * its static state is a String, six primitives, a queue, a lock object and a

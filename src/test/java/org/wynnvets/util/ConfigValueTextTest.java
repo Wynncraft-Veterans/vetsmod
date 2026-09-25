@@ -13,9 +13,9 @@ import org.wynnvets.util.ConfigValueText.Verb;
 /**
  * Tests for {@link ConfigValueText}'s four value kinds and its two label axes.
  *
- * <p>This is the coverage that outlives the chunk. Per-site pins in
+ * <p>This is the coverage that outlives the consolidation. Per-site pins in
  * {@code ConfigCommandsTest} and {@code DebugCommandsTest} existed only to prove
- * that the eighteen render sites 5h collapsed had converged onto this class
+ * that the eighteen render sites it collapsed had converged onto this class
  * — a pre-consolidation count; there are fourteen calls into this class at
  * {@code 1592f7d}. They were deleted
  * once they had, so neither is in the tree; these are the tests that say what the

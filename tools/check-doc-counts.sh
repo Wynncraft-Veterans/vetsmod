@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Verify call-site counts asserted in Javadoc and in .claude/ prose.
 #
-# Why this exists: Phase 5.5a's dead-consumer sweep audited 149 prose
+# Why this exists: an earlier dead-consumer sweep audited 149 prose
 # references and found 23 defects. Five of the 23 were stale NUMBERS, and
 # numbers are the one part of that sweep a machine can settle outright --
 # extract the claimed count, grep the real one, compare. At the time it was
@@ -10,11 +10,11 @@
 #
 # It is deliberately NOT a build gate. Spelled-out numerals in prose are
 # ambiguous enough to false-positive on correct text, and adding a third
-# mechanical gate mid-plan is a change to Mellow Rain's standing rules.
+# mechanical gate is a change to the project's standing rules.
 # Run it by hand, and in every comment-reconciliation sweep.
 #
-# KNOWN BLIND SPOT, found by 5.5b: count_calls greps for "Class.method(", so it
-# sees QUALIFIED call sites only. A caller inside the declaring class calls the
+# KNOWN BLIND SPOT: count_calls greps for "Class.method(", so it sees
+# QUALIFIED call sites only. A caller inside the declaring class calls the
 # method unqualified and is invisible here. Worked example --
 # AnniHoverBuilder.roleColor genuinely has two callers, AnniHoverBuilder.roleChip
 # and AnniMotdRenderer.assignedToPartyLine, and this script reports 1, because
@@ -23,13 +23,13 @@
 # reading it as "the prose is stale". Symbols with in-class callers have to be
 # checked by hand.
 #
-# 5.5c checked its six packages against that rule and EXCLUDED two symbols
+# Six anni packages were checked against that rule; two symbols were EXCLUDED
 # for it: AnniModeManager.current has an in-class caller in transitionTo, and
 # AnniModeManager.transitionTo has one in applyStartupDefaultIfNeeded. The
 # script reports 3 and 5; the real totals are 4 and 6. Neither belongs here.
 #
-# SECOND BLIND SPOT, found by 5.5d: count_calls used to match a bare
-# substring, so "DebugCommands.buildCommandTree(" also matched every
+# SECOND BLIND SPOT: count_calls used to match a bare substring, so
+# "DebugCommands.buildCommandTree(" also matched every
 # "AnniDebugCommands.buildCommandTree(" and reported 2 where the truth is 1.
 # The pattern now starts at a word boundary (\b), so a class name that is a
 # suffix of another class name no longer inflates the count. A package-
@@ -41,9 +41,9 @@
 # see: occurrences of a fixed string on NON-comment lines of ONE file. It
 # exists for in-class call counts the header above rules out of MANIFEST,
 # e.g. the 24 requireDebug(ctx) and 5 requireStaffOrOrganiser(ctx) sites in
-# AnniDebugCommands, which its class doc states and 6d will inherit. Only
-# use it for strings that never wrap across lines after spotlessApply: a
-# method reference split onto a continuation line is invisible to it (the
+# AnniDebugCommands, which its class doc states. Only use it for strings
+# that never wrap across lines after spotlessApply: a method reference split
+# onto a continuation line is invisible to it (the
 # text AnniDebugCommands:: matches 16 of that class 24 handler references).
 #
 # NOTE: MANIFEST and PATTERNS are single-quoted, so a note field must not

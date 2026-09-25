@@ -191,7 +191,7 @@ the reason at its own declaration; the short version:
 | `MessageFanoutDispatcher.normalizeForEchoComparison` | adds `CONTROL`, `FORMAT`, `SURROGATE`, unbounded `UNASSIGNED`, `isWhitespace` | The server's echo comes back re-wrapped, re-spaced and re-badged; anything invisible has to go before the two sides compare at all |
 
 Read as a sweep that missed three sites, this table is the correction — which
-is how the cleanup brief came to claim eleven copies of one predicate.
+is how an earlier audit came to claim eleven copies of one predicate.
 
 ## Evidence
 

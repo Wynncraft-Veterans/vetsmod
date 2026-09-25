@@ -32,8 +32,8 @@ import org.junit.jupiter.api.Test;
  * here, because extracting one is precisely the change being protected.</p>
  *
  * <p>{@code filterIndex} is a third pure, Wynntils-free method, covered at the
- * foot of this class. The Phase 4 target list missed it and that phase was closed
- * by the time the verify pass caught it; Mellow-Rain 5f added the cases. Its
+ * foot of this class. The first round of tests missed it, and that round had closed
+ * by the time its verify pass caught it; a later sweep added the cases. Its
  * identity return is pinned deliberately — the method hands the caller's own map
  * back when nothing is excluded, and a later "always take a defensive copy"
  * tidy-up would change that with no signature move and nothing else failing.

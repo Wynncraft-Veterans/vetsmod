@@ -118,7 +118,7 @@ That orientation is load bearing in two directions and both are pinned in
 hover on a descendant. And a span with no font of its own must inherit one, or
 `ServerGuildChatRewriter` selects no pill fragments at all.
 
-This walk itself was never wrong. What was wrong until Phase 5a was
+This walk itself was never wrong. What was wrong was
 `EncourageUpdateRewriter`'s **private copy** of it, which had receiver and
 argument swapped — that is what made a nicked staff sender fail the staff gate,
 and it affected only that one rewriter. The copy is gone.
@@ -242,7 +242,7 @@ Rank-letter glyphs aren't `chat/prefix`: vetsmod's own pills render in the defau
 |---------|-----------|---------|
 | `(?<!§)(https?://\S+\|[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+/\S*)` | `ChatUtils.URL_PATTERN` | URL detection (scheme or schemeless) |
 | `\|\|(.+?)\|\|` | `SpoilerCodec.PIPE_SPOILER` | Pipe spoilers |
-| `real\s+name\s+is\s+([A-Za-z0-9_]{1,16})` | `NickResolver.REAL_NAME_PATTERN` | Hover→real-name (one copy; `EncourageUpdateRewriter`'s private duplicate was deleted in Phase 5a) |
+| `real\s+name\s+is\s+([A-Za-z0-9_]{1,16})` | `NickResolver.REAL_NAME_PATTERN` | Hover→real-name (one copy; `EncourageUpdateRewriter`'s private duplicate was deleted) |
 | `/msg\s+([A-Za-z0-9_]{1,16})` | `StaffChannelMessageRewriter.MSG_COMMAND_PATTERN` | Click→recipient |
 | `([A-Za-z0-9_]{1,16})\s*$` | `StaffChannelMessageRewriter.USERNAME_AT_END` | Username-at-end |
 | `⚠⚠⚠ If you are using vetsmod.*` | `EncourageUpdateRewriter.ENCOURAGE_PATTERN` | Version nag |

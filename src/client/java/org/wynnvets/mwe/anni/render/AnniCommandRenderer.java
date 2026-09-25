@@ -44,7 +44,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
  * <em>that</em> frame which dispatches each block through
  * {@link org.wynnvets.chat.ChatUtils ChatUtils}. {@code StampFetcher} does not reference
  * {@code ChatUtils} at all — naming it as this class's caller conflates the route with the
- * caller, which is the shape a 5.5a sweep corrected in five other facades. See {@link #render}
+ * caller, which is the shape an earlier sweep corrected in five other facades. See {@link #render}
  * for the list-and-{@code null} contract.</p>
  */
 public final class AnniCommandRenderer {
