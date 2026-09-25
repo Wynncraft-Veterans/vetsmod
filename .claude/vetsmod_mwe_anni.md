@@ -850,7 +850,7 @@ The scroll waypoint does **not**. `ScrollSpotMarkerProvider` never references `A
 
 ## Config keys
 
-One table, every key. `vetsAnniOutlinesEnabled` and `vetsAnniNametagsEnabled` gate the two halves of §Player highlights; the last four gate the §Aggressive mode components.
+One table, every key. `vetsAnniOutlinesEnabled` and `vetsAnniNametagsEnabled` together gate whether the S4 highlight pass runs (at least one must be on); `vetsAnniNametagsEnabled` then gates its own nametag-recolour branch, but `vetsAnniOutlinesEnabled` gates only the outsider-outline suppression, not the registry-tier glow itself (bug `outlines-toggle-does-not-gate-registry-glow`); the last four gate the §Aggressive mode components.
 
 | Key | Type | Default | Purpose |
 |--|--|--|--|
@@ -864,7 +864,7 @@ One table, every key. `vetsAnniOutlinesEnabled` and `vetsAnniNametagsEnabled` ga
 | `vetsAnniFlashIntensity` | string | `normal` | `subtle`=5s / `normal`=10s / `strong`=20s flash duration per field change. |
 | `vetsAnniFlashSound` | bool | true | Whether a field change (or a debug `flash`) plays `SoundEvents.EXPERIENCE_ORB_PICKUP` twice, 110 ms apart. Concurrent changes collapse to one 2-ping burst. |
 | `vetsAnniOutlinesEnabled` | bool | true | Counts toward the gate's at-least-one-toggle condition in `AnniOutlineTicker.gateHolds`, so it is read even when the gate then fails, and gates exactly one behaviour: `EntityOutlineColorMixin` zeroing an outsider's `state.outlineColor`. It does **not** gate `AnniOutlineTicker`'s `setGlowColor` call or `EntityGlowingMixin` — with this off and `vetsAnniNametagsEnabled` on, registry members still get their tier glow, and outsiders that vanilla already renders as glowing keep their native team outline instead of having it zeroed |
-| `vetsAnniNametagsEnabled` | bool | true | Nametag overlay (matching colour scheme). Separable from outlines so users can pick one half. |
+| `vetsAnniNametagsEnabled` | bool | true | Nametag overlay (matching colour scheme). Meant to be separable from outlines so users can pick one half. `NametagMixin`'s anni branch reads this key, so turning it off with `vetsAnniOutlinesEnabled` on drops the nametag recolour; the other way round doesn't separate today — with this on and `vetsAnniOutlinesEnabled` off, registry members still get the tier glow, since `AnniOutlineTicker`'s `setGlowColor` call reads neither toggle (bug `outlines-toggle-does-not-gate-registry-glow`). |
 | `vetsAnniZoneLines` | bool | true | `AnniZoneLineRenderer`'s cylinder cage around each anni disc. |
 | `vetsAnniScrollWaypoint` | bool | true | `ScrollSpotMarkerProvider`'s dark-red beacon on the host-pinned scroll spot. |
 | `vetsAnniChatAlerts` | bool | true | `AggressiveAlertDispatcher`'s per-field diff alerts and the two readiness alerts. |

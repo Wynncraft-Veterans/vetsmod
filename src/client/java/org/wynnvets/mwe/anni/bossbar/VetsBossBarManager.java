@@ -165,7 +165,10 @@ public final class VetsBossBarManager {
     }
 
     private static void tickInner() {
-        // Mode gate. SILENT is a strict no-op (per spec).
+        // Mode gate. SILENT is a strict no-op (per spec). Today this gate stops the bar only:
+        // tick() runs FlashTracker.tick() after tickInner returns, early or not, so pings that
+        // FlashTracker's snapshot listener queued still play
+        // (anni-flash-pings-play-while-bar-is-down).
         AnniMode mode = AnniModeManager.current();
         if (mode == AnniMode.SILENT) {
             if (active) deactivate();

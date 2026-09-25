@@ -194,7 +194,10 @@ public class VetsConfig {
      *  is {@code passive} or {@code aggressive} — silent is a strict
      *  no-op regardless. Lets advanced users keep the rest of the
      *  passive/aggressive subsystem (outlines, waypoint, alerts) while
-     *  opting out of the boss bar specifically. */
+     *  opting out of the boss bar specifically. Today neither this key nor
+     *  silent mode stops the flash-sound pings ({@link #VETS_ANNI_FLASH_SOUND}),
+     *  which still play on a snapshot change while the bar is down
+     *  ({@code anni-flash-pings-play-while-bar-is-down}). */
     public static final String VETS_ANNI_BOSSBAR_ENABLED = "vetsAnniBossbarEnabled";
 
     /** Boss-bar pulse intensity controlling the {@code &l ↔ &n&l} flash
@@ -206,19 +209,28 @@ public class VetsConfig {
      *  rate at which the bold/underline alternates. */
     public static final String VETS_ANNI_FLASH_INTENSITY = "vetsAnniFlashIntensity";
 
-    /** Whether per-field change flashes also play the Wynntils-style
-     *  name-ping sound twice (per spec §3.1.1). On by default; toggle
-     *  off if the audio cue becomes spammy during heavy snapshot churn. */
+    /** Whether a role, party, RSVP or world change in the snapshot plays a two-ping sound. Spec
+     *  §3.1.1 asked for the Wynntils name-mention sound, played twice; today the ping is
+     *  {@code SoundEvents.EXPERIENCE_ORB_PICKUP}
+     *  ({@code anni-flash-ping-is-not-the-wynntils-mention-sound}). The pings are meant to go with
+     *  the boss bar's flashes, but today their queueing ignores the mode,
+     *  {@link #VETS_ANNI_BOSSBAR_ENABLED} and the bar window, so they still play while the bar is
+     *  down, {@code silent} included ({@code anni-flash-pings-play-while-bar-is-down}); of the
+     *  config keys, only this one stops them. On by default. */
     public static final String VETS_ANNI_FLASH_SOUND = "vetsAnniFlashSound";
 
-    /** S4 — Master toggle for the per-player outline overlay (role-coloured
-     *  glow on own-party members, light-grey glow on other-vets-party
-     *  members, native Wynncraft team outlines suppressed for outsiders).
-     *  Only consulted while the highlight gate is held (mode != silent,
-     *  within T-2h..T+30m, in the anni zone). Default {@code true}.
-     *  Separable from {@link #VETS_ANNI_NAMETAGS_ENABLED} so users who
-     *  want nametag recolouring without outlines (or vice versa) can pick
-     *  exactly one half. */
+    /** S4 — Toggle for the per-player outline overlay: role-coloured glow on own-party members,
+     *  light-grey glow on other-vets-party members, and suppression of native Wynncraft team
+     *  outlines on outsiders. Separable from {@link #VETS_ANNI_NAMETAGS_ENABLED} so users who want
+     *  nametag recolouring without outlines (or vice versa) can pick exactly one half.
+     *  <p>Counts toward the highlight gate in
+     *  {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker} (mode not silent,
+     *  at least one of this and {@link #VETS_ANNI_NAMETAGS_ENABLED} on, T-2h..T+30m, in the anni
+     *  zone), which reads it right after the mode check, whether or not the rest of the gate then
+     *  holds. Past the gate, today it gates only the outsider-outline suppression: the
+     *  registry-tier glow is applied whenever the gate holds, so with this off and nametags on,
+     *  registry members still glow and the nametags-only half can't be had
+     *  ({@code outlines-toggle-does-not-gate-registry-glow}). Default {@code true}. */
     public static final String VETS_ANNI_OUTLINES_ENABLED = "vetsAnniOutlinesEnabled";
 
     /** S4 — Master toggle for the per-player nametag overlay (role colour
@@ -251,17 +263,18 @@ public class VetsConfig {
      *  hot window (T-2h .. T+30m). */
     public static final String VETS_ANNI_CHAT_ALERTS = "vetsAnniChatAlerts";
 
-    /** S5 — Master toggle for the {@code [Suggest: /toggle ghosts none]}
-     *  prompt fired at most once per stamp_epoch on first zone entry per
-     *  anni. Suppressed when {@code Models.Player.isPlayerGhost} confirms
-     *  every visible player is non-ghost (= user already toggled ghosts off).
-     *  Default {@code true}. */
+    /** S5 — Toggle for the {@code [Suggest: /toggle ghosts none]} prompt shown on a zone-entry
+     *  rising edge while aggressive mode is on and the cached stamp is inside T-2h..T+30m. If its
+     *  scan of visible players finds a ghost it fires on every such entry; otherwise it fires at
+     *  most once per stamp_epoch, tracked in {@link #VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP}. See
+     *  {@link org.wynnvets.mwe.anni.aggressive.GhostsPromptHandler GhostsPromptHandler}. Default
+     *  {@code true}. */
     public static final String VETS_ANNI_GHOSTS_PROMPT = "vetsAnniGhostsPrompt";
 
-    /** S5 — Persisted "stamp_epoch of the anni for which the ghosts prompt
-     *  last fired". Internal sentinel — not a user-facing knob; ensures a
-     *  client restart inside the same window doesn't re-prompt. Empty string
-     *  means "never fired in any session". */
+    /** S5 — Internal sentinel, not a user-facing knob: the stamp_epoch for which the ghosts prompt
+     *  last fired on its no-ghost-seen branch, persisted so a restart inside the same window
+     *  doesn't repeat that fire. A fire on the ghost-seen branch does not write it. Empty until the
+     *  no-ghost-seen branch first fires. */
     public static final String VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP =
             "vetsAnniGhostsPromptShownForStamp";
 

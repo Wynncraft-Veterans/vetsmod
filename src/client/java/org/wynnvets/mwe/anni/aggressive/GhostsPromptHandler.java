@@ -19,13 +19,16 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 import org.wynnvets.mwe.anni.zone.AnniZone;
 
 /**
- * S5 — clickable "Suggest /toggle ghosts none" prompt on first zone entry
- * per stamp_epoch.
+ * S5 — clickable "Suggest /toggle ghosts none" prompt on a zone-entry rising
+ * edge: on every such entry when its scan sees a ghost-flagged player, else at
+ * most once per stamp_epoch.
  *
  * <p>Per the parent plan §S5: ghost players (other-world phased players)
  * are a major source of visual noise during anni. Wynncraft's
  * {@code /toggle ghosts off|none} hides them. We nag the user to set it
- * once per anni, suppressed when we can prove they've already set it.</p>
+ * on every zone entry where the scan sees a ghost, and otherwise at most once
+ * per anni, since a scan that sees none can't tell ghosts-off from an empty
+ * area.</p>
  *
  * <p><b>Detection (decision-locked this session):</b> walk
  * {@link Minecraft#level}.players(); if ANY player returns

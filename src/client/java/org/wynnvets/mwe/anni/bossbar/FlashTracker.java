@@ -22,7 +22,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshots;
  * toggle it between {@code &l} and {@code &n&l}." World changes get
  * the additional "flash indefinitely until the user is on that world"
  * — that's modelled as a live mismatch predicate, not a one-shot
- * timed flash window.</p>
+ * timed flash window. Today the ping is
+ * {@code SoundEvents.EXPERIENCE_ORB_PICKUP}, not the Wynntils mention
+ * sound the quote asks for
+ * ({@code anni-flash-ping-is-not-the-wynntils-mention-sound}).</p>
  *
  * <p>Two ping/flash models:</p>
  * <ul>

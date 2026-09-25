@@ -7,7 +7,10 @@ import org.wynnvets.config.VetsConfig;
  *
  * <ul>
  *   <li>{@link #SILENT} — strict no-op. Boss-bar pipeline disengaged,
- *       outline/waypoint hooks inert. This is the only mode allowed
+ *       outline/waypoint hooks inert. Today the flash-sound pings
+ *       ({@link VetsConfig#VETS_ANNI_FLASH_SOUND}) still play on a snapshot
+ *       change in this mode ({@code anni-flash-pings-play-while-bar-is-down}).
+ *       This is the only mode allowed
  *       while {@code /stream} is active (spec §3.1, "ONLY mode allowed
  *       when the vanilla /stream is enabled").</li>
  *   <li>{@link #PASSIVE} — synthetic boss bar driven by the snapshot;
