@@ -104,6 +104,8 @@ ChatUtils.encodePillIfAscii|0|ChatUtils#encodePillIfAscii: Within vetsmod only t
 ChatUtils.sendGuildChatMessageRed|0|vetsmod_chat_pipeline.md sec 6: reached only through sendStaffChannelMessage (in-class half in PATTERNS)
 QueueDetector.handleTitleText|1|QueueDetector#handleTitleText: the TitleSetTextEvent handler and QueueTitleMixin; the mixin is the qualified site (in-class half in PATTERNS)
 RankDisplayMap.vTagFor|1|RankDisplayMap#vTagFor: the label of a /v staff-channel pill, read by ChatUtils.buildStaffPillComponent
+AnniStampPoller.getLatestStamp|1|AnniStampPoller class doc: the only reader today is the StampFetcher legacy fallback (in-class half in PATTERNS)
+AnniStampPoller.updateFromExternalFetch|1|AnniStampPoller class doc: called only from the StampFetcher legacy fetch (in-class half in PATTERNS)
 '
 
 # file (under $SRC)|fixed string|expected occurrences on non-comment lines|note
@@ -114,6 +116,9 @@ org/wynnvets/guild/GuildStateManager.java|setDebugForceGuildlessUnlocked(|2|no-c
 org/wynnvets/guild/GuildStateManager.java|isProcessingModGuildCheck(|2|no-caller claim, in-class half: the declaration plus its GuildChecker delegate call
 org/wynnvets/chat/ChatUtils.java|sendGuildChatMessageRed(|2|one-caller claim, in-class half: the declaration plus the one sendStaffChannelMessage call
 org/wynnvets/queue/QueueDetector.java|handleTitleText(|2|two-caller claim, in-class half: the declaration plus the TitleSetTextEvent handler call
+org/wynnvets/fetcher/polling/AnniStampPoller.java|getLatestStamp(|1|only-reader claim, in-class half: the declaration alone
+org/wynnvets/fetcher/polling/AnniStampPoller.java|updateFromExternalFetch(|1|only-caller claim, in-class half: the declaration alone
+org/wynnvets/fetcher/ondemand/StampFetcher.java|anniIntegrationActive(|3|VetsConfig#VETS_ANNI_ENABLED: its one reader, called by the world-join and /wv anni paths (declaration plus two calls)
 '
 
 # Count non-comment call sites of Class.method( across the client source set.
