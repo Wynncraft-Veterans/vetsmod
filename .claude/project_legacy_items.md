@@ -46,7 +46,7 @@ Guard conditions (return `false` early):
 - `stack.isEmpty()`
 - `isBlockedScreen()` — true whenever Wynntils reports `Models.Housing.isInEditMode()`, and otherwise when the screen title matches one of the 9 `blocked_screen_titles` patterns in `definitions.yml` (housing/island menus that abuse enchant glint as a UI selector)
 
-Name is normalized via `stripSupplementaryPua()` + `ChatFormatting.stripFormatting()` before matching. The `newFormatOverridden` flag suppresses name-based matches (branches 1 & 2) when the item is new-format AND its name is in `new_format_override`.
+Name is normalized via `stripSupplementaryPua()` + `ChatFormatting.stripFormatting()` before matching. The `newFormatOverridden` flag suppresses the `definitions` and `misc_definitions` name matches (branches 1 & 2) when the item is new-format AND its name is in `new_format_override`; branch 3's `no_lore_legacy` match and the other branches still apply.
 
 Eight independent branches — **any one** triggers legacy. The numbering matches
 the `// 1.` … `// 8.` comments in the method body:
@@ -75,7 +75,7 @@ File: [definitions.yml](../src/client/resources/definitions.yml). Parsed by `Ite
 | `not_pedestal` | Names that must never be treated as a pedestal-wiped shell (merchant items) | exclusion in branch 4 |
 | `notjunk` | Modern junk-tier items (e.g. Leather, Tanned Sunfish, Ghostly, Roasted Flesh, Vines, Rubble) | exclusion in branch 7 |
 | `enchant_excluded_items` | Minecraft namespaced IDs (`minecraft:experience_bottle`, `minecraft:enchanted_book`) — always have vanilla foil | exclusion in branch 6 |
-| `new_format_override` | Names that exist in both old & new formats (e.g. Skeleton Key) — when item is new-format, name match is suppressed | gate on branches 1 & 2 |
+| `new_format_override` | Names that exist in both old & new formats (e.g. Skeleton Key) — when item is new-format, its `definitions` / `misc_definitions` name match is suppressed (`no_lore_legacy` still applies) | gate on branches 1 & 2 |
 | `blocked_screen_titles` | Screen titles where the whole system bails (housing/island menus that abuse enchant glint as a UI selector) | `isBlockedScreen()` guard |
 
 `ItemDefinitions` responsibilities: YAML parsing, regex pre-compilation into 8 static `List<Pattern>` fields plus one `Set<String>` (`enchantExcludedItems`), and 9 lookup predicates (`isLegacy`, `isMiscLegacy`, `isNoLoreLegacy`, `isUnenchanted`, `isEnchantExcludedItem`, `isNotPedestal`, `isNotJunk`, `isNewFormatOverride`, `isBlockedScreenTitle`). Loaded from `VetsmodClient.onInitializeClient()` after `VetsConfig.load()`.

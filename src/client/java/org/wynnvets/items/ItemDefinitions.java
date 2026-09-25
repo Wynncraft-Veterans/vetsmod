@@ -226,8 +226,9 @@ public class ItemDefinitions {
 
     /**
      * Returns {@code true} if the given name matches a new-format override pattern.
-     * Items matching these patterns should not be treated as legacy when they appear
-     * in the new display format (PUA-encoded custom name).
+     * On a new-format item (see {@link LegacyItemHandler#isNewFormatItem}), such a
+     * name skips the {@code definitions} and {@code misc_definitions} name matches;
+     * the other legacy checks, {@code no_lore_legacy} included, still apply.
      */
     public static boolean isNewFormatOverride(String itemName) {
         for (Pattern pattern : newFormatOverridePatterns) {

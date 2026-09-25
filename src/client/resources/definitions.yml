@@ -181,7 +181,9 @@ enchant_excluded_items:
 ---
 # Items whose names collide with legacy patterns but also exist as current
 # new-format items.  When a name matches here AND the item uses the new
-# display format (PUA in custom_name), the legacy name match is suppressed.
+# display format (a code point at U+10000 or above in custom_name), its
+# definitions and misc_definitions matches are suppressed; the other checks,
+# no_lore_legacy included, still apply.
 new_format_override:
   - "(?i)^Skeleton Key$"
   - "(?i)^Wolf Fang$"
