@@ -390,8 +390,10 @@ final class LegacyTooltipRenderer {
 
     /**
      * Names the specific enchantment: the LEGACY ENCHANTMENTS block on new-format
-     * items' powder page, or the level added to Minecraft's own enchantment line
-     * on older items that have no pages.  Gated on the caller having already
+     * items' powder page, or, on items that have no pages, the level added to
+     * Minecraft's own enchantment line or else a plain text entry;
+     * {@link LegacyEnchantmentRenderer#showEnchantment} tries them in that order.
+     * Gated on the caller having already
      * decided the item is glinted-and-legacy, so the enchant branch's
      * false-positive escape hatches ({@code isEnchantExcludedItem},
      * {@code isUnenchanted}) govern this display too rather than it keying off the

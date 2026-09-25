@@ -107,7 +107,7 @@ Entry point: called from `LegacyItemTooltipMixin` via `LegacyItemHandler.process
 
 No hardcoded tooltip strings — everything is YAML-driven or runtime-derived from the item's rarity.
 
-**Spoiler handling (`handleSpoilers` config) is unrelated to legacy items** — it handles `||spoiler||` chat markers in `SpoilerRewriter`, not item tooltips.
+**Spoiler handling (`handleSpoilers` config) is unrelated to legacy items** — it encodes `||spoiler||` markers you type before sending (`GuildChatDispatcher` via `SpoilerCodec`) and renders received encoded spoilers via `SpoilerRewriter`/`SpoilerFormatter`, not item tooltips.
 
 ## 5. Visual rendering — gradient + sprite
 
@@ -129,7 +129,7 @@ Sprites (`LEGACY_ITEM_FOREGROUND_SPRITE`): `wynn`, `tag`, `circle_transparent`, 
 
 Colours resolved via `NamedColor.COLORS` map: Minecraft formatting codes + rarity colours + CSS colours + custom `legacy_orange` (0xF0501E) + `transparent`. Opacity is clamped 0–100 and packed as `(alpha << 24) | (rgb & 0xFFFFFF)`.
 
-**Supporter glints (`SHOW_SUPPORTER_GLINTS`) are independent**: rendered on nametags/pills via a separate mixin, never interacts with legacy-item gradient — both can apply to the same item.
+**Supporter glints (`SHOW_SUPPORTER_GLINTS`) are independent**: rendered on nametags/pills via a separate mixin and on `/wv list` roster names via `ListFetcher`, never interacts with legacy-item gradient — both can apply to the same item.
 
 ## 6. User-facing config keys (all via `/wv config`)
 
@@ -179,8 +179,8 @@ Registered in `VetsConfig.USER_CONFIG_KEYS`. Validation delegated to `VetsConfig
 
 ## 9. Related config that isn't legacy-specific
 
-- `handleSpoilers` (tri-state) — chat `||spoiler||` handling only, **not** item tooltips.
-- `showSupporterGlints` — nametag decoration, independent of legacy rendering.
+- `handleSpoilers` (tri-state) — chat `||spoiler||` handling (encode outbound, render inbound), **not** item tooltips.
+- `showSupporterGlints` — supporter glint on nametags, pills, and the `/wv list` roster; independent of legacy rendering.
 
 ## 10. Wynncraft item era history (background)
 

@@ -454,7 +454,7 @@ Let vanilla and Wynntils track bars normally (no `update()` cancellation, no `ev
 
 Two, not three. The source's comments used to read `"Gate n of 3"`, counting `AnniWindowWatcher`'s T+30m **mode** reset as the third — which is not a bar gate; Phase 5.5a renumbered them to `"of 2"`, and two of those comments had both been numbered `"Gate 1 of 3"` for different gates. There is also a separate 2.5 h `FAILSAFE_DEACTIVATE_MS` watchdog, which is not a T-20s gate either.
 
-Plus the slower net: at T+30m `AnniWindowWatcher` restores `AnniModeManager.preferredMode()` — silent only in the never-set-a-mode, not-enrichment-eligible sub-case.
+Plus the slower net: at T+30m `AnniWindowWatcher` restores `AnniModeManager.preferredMode()` — not an unconditional reset to silent: it is silent both in the never-set-a-mode, not-enrichment-eligible sub-case, and whenever the user's remembered pick was silent.
 
 ## Player highlights
 
@@ -872,7 +872,7 @@ One table, every key. `vetsAnniOutlinesEnabled` and `vetsAnniNametagsEnabled` to
 | `vetsAnniOutlinesEnabled` | bool | true | Counts toward the gate's at-least-one-toggle condition in `AnniOutlineTicker.gateHolds`, so it is read even when the gate then fails, and gates exactly one behaviour: `EntityOutlineColorMixin` zeroing an outsider's `state.outlineColor`. It does **not** gate `AnniOutlineTicker`'s `setGlowColor` call or `EntityGlowingMixin` — with this off and `vetsAnniNametagsEnabled` on, registry members still get their tier glow, and outsiders that vanilla already renders as glowing keep their native team outline instead of having it zeroed |
 | `vetsAnniNametagsEnabled` | bool | true | Nametag overlay (matching colour scheme). Meant to be separable from outlines so users can pick one half. `NametagMixin`'s anni branch reads this key, so turning it off with `vetsAnniOutlinesEnabled` on drops the nametag recolour; the other way round doesn't separate today — with this on and `vetsAnniOutlinesEnabled` off, registry members still get the tier glow, since `AnniOutlineTicker`'s `setGlowColor` call reads neither toggle (bug `outlines-toggle-does-not-gate-registry-glow`). |
 | `vetsAnniZoneLines` | bool | true | `AnniZoneLineRenderer`'s cylinder cage around each anni disc. |
-| `vetsAnniScrollWaypoint` | bool | true | `ScrollSpotMarkerProvider`'s dark-red beacon on the host-pinned scroll spot. |
+| `vetsAnniScrollWaypoint` | bool | true | `ScrollSpotMarkerProvider`'s dark-red beacon on the party's scroll spot: the host-pinned one, or the fixed default until the host pins one; no marker outside a party. |
 | `vetsAnniChatAlerts` | bool | true | `AggressiveAlertDispatcher`'s per-field diff alerts and the two readiness alerts. |
 | `vetsAnniGhostsPrompt` | bool | true | `GhostsPromptHandler`'s rising-edge zone-entry prompt. |
 

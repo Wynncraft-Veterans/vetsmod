@@ -61,7 +61,8 @@ public final class LegacyItemStyle {
      * Parse {@link VetsConfig#LEGACY_ITEM_BACKGROUND_GRADIENT_TOP} into an ARGB int,
      * combining the colour name with the top opacity setting.
      *
-     * @return the computed ARGB colour, or orange at 69% on error
+     * @return the computed ARGB colour; an unknown colour name falls back to
+     *         orange at the configured opacity
      */
     public static int getBackgroundGradientTopColor() {
         String name = VetsConfig.getString(VetsConfig.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP);
@@ -76,7 +77,8 @@ public final class LegacyItemStyle {
      * Parse {@link VetsConfig#LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM} into an ARGB int,
      * combining the colour name with the bottom opacity setting.
      *
-     * @return the computed ARGB colour, or crimson at 100% on error
+     * @return the computed ARGB colour; an unknown colour name falls back to
+     *         crimson at the configured opacity
      */
     public static int getBackgroundGradientBottomColor() {
         String name = VetsConfig.getString(VetsConfig.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM);

@@ -139,7 +139,7 @@ class ConfigValueTextTest {
 
     /**
      * Once a tri-state has a value it <em>is</em> the boolean, so the two must not
-     * drift apart: same text, same colour, same tree.
+     * drift apart: same text, same sibling count, same value colour.
      */
     @Test
     void triStateLine_matchesBooleanLineExactlyWhenSet() {
@@ -198,9 +198,10 @@ class ConfigValueTextTest {
     // ----- the shape itself -----
 
     /**
-     * Every kind produces the same two-run shape. A collapse that merged the label
-     * and value into one run would render identically and is the mistake the
-     * per-site pins exist to catch; this states the rule once.
+     * Every kind produces the same two-run shape. A collapse that merged the
+     * label and value into one run would read the same as plain text; this
+     * pins the shape for every kind at once. The per-site pins that also
+     * checked it were deleted (see the class note).
      */
     @Test
     void everyKindProducesALabelRunPlusExactlyOneValueSibling() {

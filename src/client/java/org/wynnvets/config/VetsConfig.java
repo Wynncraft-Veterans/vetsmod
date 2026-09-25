@@ -107,15 +107,23 @@ public class VetsConfig {
     /** Whether legacy/enchanted/junk item highlighting is shown in tooltips and inventory slots. */
     public static final String LEGACY_ITEM_HIGHLIGHTING = "legacyItemHighlighting";
 
-    /** Whether the LEGACY ENCHANTMENTS block naming the specific enchantment is
-     *  drawn on the powder page of items the enchant branch already highlights.
+    /** Whether legacy items the enchant branch already highlights get their
+     *  specific enchantment named: as a LEGACY ENCHANTMENTS block on the
+     *  powder page of paged tooltips, or in the tooltip text on items that
+     *  have no pages (see {@link
+     *  org.wynnvets.items.LegacyEnchantmentRenderer#showEnchantment
+     *  LegacyEnchantmentRenderer#showEnchantment}).
      *  Has no effect unless {@link #LEGACY_ITEM_HIGHLIGHTING} is on. */
     public static final String LEGACY_ITEM_SHOW_ENCHANTMENTS = "legacyItemShowEnchantments";
 
     /** Whether the MOTD is automatically printed on world join. */
     public static final String PRINT_MOTD = "printMOTD";
 
-    /** Whether the annihilation stamp is automatically printed on world join. */
+    /** Whether the annihilation stamp (the anni-motd, when
+     *  {@link #VETS_ANNI_ENABLED} and a cached snapshot allow it) is
+     *  printed automatically on world join. vetsmod makes that print only
+     *  for Returners guild members; see
+     *  {@link org.wynnvets.guild.GuildStateManager GuildStateManager}. */
     public static final String PRINT_ANNI = "printANNI";
 
     /** Whether the snapshot-driven {@code /wv anni} and anni-motd populate
@@ -125,13 +133,13 @@ public class VetsConfig {
      *  hover text. */
     public static final String VETS_ANNI_SHOW_HOVER_DETAILS = "vetsAnniShowHoverDetails";
 
-    /** Whether the snapshot-driven anni-motd nags an un-RSVP'd vets-anni user
-     *  with the "RSVP via /wv anni rsvp …" prompt. The {@code /wv anni}
-     *  manual invocation always shows the RSVP widget when applicable; this
-     *  key only suppresses the auto-print nag for users who find it noisy. */
+    /** Whether the snapshot-driven anni-motd prints its second line, the
+     *  player's placement / RSVP status, under the countdown. When
+     *  {@code false} the motd is the countdown line alone. The RSVP widgets
+     *  of {@code /wv anni} do not read this key. */
     public static final String VETS_ANNI_PROMPT_RSVP = "vetsAnniPromptRsvp";
 
-    /** Whether {@code /wv anni} shows the {@code \\guess}-style prediction
+    /** Whether {@code /wv anni} shows the {@code \guess}-style prediction
      *  window (earliest/median/latest) when the stamp is past or unknown.
      *  The anni-motd auto-print never shows the prediction unsolicited (per
      *  spec §"For external users"); this key only affects the manual
@@ -139,17 +147,25 @@ public class VetsConfig {
     public static final String VETS_ANNI_SHOW_PREDICTION = "vetsAnniShowPrediction";
 
     /** Active anni mode — {@code silent}, {@code passive}, or
-     *  {@code aggressive}. Set by {@code /wv anni <mode>} and read through
-     *  {@code AnniModeManager.current()} by exactly three classes: {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager VetsBossBarManager}
-     *  (S3+), {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker} (S4+) and {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker AnniAggressiveTicker} (S5).
+     *  {@code aggressive}. Set only through
+     *  {@link org.wynnvets.mwe.anni.mode.AnniModeManager#transitionTo
+     *  AnniModeManager#transitionTo}, whose {@code Source} enum names every trigger:
+     *  {@code /wv anni <mode>} (and its buttons), the automatic transitions, and a
+     *  debug override. Outside the mode package it is read through
+     *  {@code AnniModeManager.current()}, by
+     *  {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager VetsBossBarManager} (S3+),
+     *  {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker} (S4+) and
+     *  {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker AnniAggressiveTicker} (S5);
+     *  {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}'s class Javadoc lists
+     *  the readers inside it.
      *  <b>No waypoint class reads the mode</b> &mdash; {@link org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider ScrollSpotMarkerProvider} gates on
      *  {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker#isAggressiveActive() AnniAggressiveTicker#isAggressiveActive()} instead, which is where the S5 reading
      *  comes from. Absent from {@link #USER_CONFIG_KEYS}, so {@code /wv
      *  config} cannot read or write it. When the anni window closes (T+30 min after stamp_epoch)
      *  {@link org.wynnvets.mwe.anni.mode.AnniWindowWatcher AnniWindowWatcher} restores
      *  {@link org.wynnvets.mwe.anni.mode.AnniModeManager#preferredMode()
-     *  AnniModeManager#preferredMode()} — which is {@code silent} only for a user who never set a
-     *  mode and is not enrichment-eligible, not unconditionally. */
+     *  AnniModeManager#preferredMode()}, which is not an unconditional reset to
+     *  {@code silent}: an explicit pick survives the window close. */
     public static final String VETS_ANNI_MODE = "vetsAnniMode";
 
     /** Valid values for {@link #VETS_ANNI_MODE}. */
@@ -175,7 +191,10 @@ public class VetsConfig {
      *  user's preferred value — on stream-off we restore from this key. */
     public static final String VETS_ANNI_USER_MODE = "vetsAnniUserMode";
 
-    /** Role-naming style for {@code /wv anni} role chips. Three values:
+    /** Role-naming style for role names rendered through {@link
+     *  org.wynnvets.mwe.anni.render.AnniHoverBuilder#displayRole(String)
+     *  AnniHoverBuilder#displayRole}, such as {@code /wv anni}'s role chips and
+     *  the anni-motd's assigned-party line. Three values:
      *  <ul>
      *    <li>{@code descriptive} (default) — TANK, HEALER, SUNKILL,
      *        MOBKILL, BOSSKILL, FILL. Action-flavoured names that map to
@@ -186,8 +205,9 @@ public class VetsConfig {
      *        TERTIARY, FILL. The spec-canonical role names verbatim, for
      *        users who prefer the dashboard's terminology.</li>
      *  </ul>
-     *  Unknown values fall through to the raw role code (uppercase),
-     *  same as if the role isn't recognised in any style table. */
+     *  Unknown or unset style values render with the {@code descriptive}
+     *  table. A role code that no table knows renders as the raw code,
+     *  uppercased. */
     public static final String VETS_ANNI_ROLE_STYLE = "vetsAnniRoleStyle";
 
     /** Valid values for {@link #VETS_ANNI_ROLE_STYLE}; the first is the
@@ -260,10 +280,11 @@ public class VetsConfig {
      *  countdown is in the T-2h..T+30m window. Default {@code true}. */
     public static final String VETS_ANNI_ZONE_LINES = "vetsAnniZoneLines";
 
-    /** S5 — Master toggle for the Scroll Spot waypoint (Wynntils
-     *  {@code MarkerProvider} for the party's pinned scroll spot). Default
-     *  {@code true}; honoured only in aggressive mode and inside the
-     *  hot window (T-2h .. T+30m). */
+    /** S5 — Master toggle for the Scroll Spot waypoint (a Wynntils
+     *  {@code MarkerProvider} for the party's scroll spot: the host-pinned
+     *  one, or a fixed default until the host pins one; no marker outside a
+     *  party). Default {@code true}; honoured only in aggressive mode and
+     *  inside the hot window (T-2h .. T+30m). */
     public static final String VETS_ANNI_SCROLL_WAYPOINT = "vetsAnniScrollWaypoint";
 
     /** S5 — Master toggle for the diff-aware chat-alert dispatcher (role /
@@ -300,16 +321,24 @@ public class VetsConfig {
      *  renders. Server-pushed {@code warning} frames bypass it. */
     public static final String PRINT_BRIDGE_MESSAGES = "printBridgeMessages";
 
-    /** Whether supporter animated gradient glints are shown on nametags and pills. */
+    /** Whether this client draws the supporter glint wherever vetsmod shows
+     *  one: nametags, chat pills, and names in the {@code /wv list} roster. */
     public static final String SHOW_SUPPORTER_GLINTS = "showSupporterGlints";
 
-    /** Whether to render glints (and other future colour-coded UI) with a colour-vision-deficiency
-     *  friendly palette: the supporter glint's two-colour shimmer keeps the cyan/blue family but
-     *  widens the luminance delta so the alternation is visible to protan/deutan users for whom
-     *  the default {@code 0x55FFFF ↔ 0xAADDFF} pair flattens to a single tone. Off by default. */
+    /** Whether to render glints (and other future colour-coded UI) with a
+     *  colour-vision-deficiency friendly palette. In the chat glint (pills,
+     *  and {@code /wv list} names) the cyan {@code 0x55FFFF ↔ 0xAADDFF}
+     *  pair, and the grey pair {@code /wv list} uses, switch to
+     *  wider-luminance variants of the same families. The nametag glint
+     *  pulses the nametag's own colour rather than the cyan pair; this mode
+     *  widens it to a swing from a darker to a much lighter copy of that
+     *  colour. Off by default. */
     public static final String COLOR_BLIND_MODE = "colorBlindMode";
 
-    /** Whether {@code ||spoiler||} markers are rendered as hoverable spoiler labels. */
+    /** Whether vetsmod handles {@code ||spoiler||} markers: it encodes the
+     *  ones you type in {@code /g} or {@code /wg} messages vetsmod sends or
+     *  relays, and renders received encoded spoilers as hoverable labels.
+     *  Tri-state; {@code null} (the default) means on. */
     public static final String HANDLE_SPOILERS = "handleSpoilers";
 
     /** Whether the mod schedules its own {@code /gu stats} check after world join. A valid
@@ -452,8 +481,9 @@ public class VetsConfig {
     };
 
     // ── Colour / sprite helpers ───────────────────────────────────────────
-    // Delegated to LegacyItemStyle.  Thin wrappers kept here for backward
-    // compatibility with mixin FQN callsites.
+    // Thin delegates to LegacyItemStyle, kept from when mixins called them by
+    // FQN; since the legacy highlight draws moved to LegacyHighlightPainter,
+    // no mixin calls them any more.
 
     /** @see LegacyItemStyle#getColorNames() */
     public static Set<String> getColorNames() {

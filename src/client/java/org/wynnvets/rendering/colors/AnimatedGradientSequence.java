@@ -74,14 +74,16 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
                 : DEFAULT_END_COLOR;
     }
 
-    /** Start colour for the offline/queued supporter shimmer, honouring {@code colorBlindMode}. */
+    /** Start colour for the grey supporter shimmer {@code /wv list} gives supporters in its
+     *  grey-coloured list, honouring {@code colorBlindMode}. */
     public static int effectiveGreyStart() {
         return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE)
                 ? CV_GREY_START_COLOR
                 : DEFAULT_GREY_START_COLOR;
     }
 
-    /** End colour for the offline/queued supporter shimmer, honouring {@code colorBlindMode}. */
+    /** End colour for the grey supporter shimmer {@code /wv list} gives supporters in its
+     *  grey-coloured list, honouring {@code colorBlindMode}. */
     public static int effectiveGreyEnd() {
         return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE)
                 ? CV_GREY_END_COLOR

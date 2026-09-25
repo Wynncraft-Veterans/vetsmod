@@ -14,9 +14,9 @@ import net.minecraft.network.chat.Component;
  * same way.</p>
  *
  * <h2>The line is two runs, and that is the contract</h2>
- * <p>Every method here returns a component whose own run is the GRAY label and which carries
- * exactly one sibling: the value, in the colour its kind dictates. A label and a value
- * concatenated into a single styled run would render identically to a player and would be a
+ * <p>Every public method here returns a component whose own run is the GRAY label and which
+ * carries exactly one sibling: the value, in the colour its kind dictates. A label and a value
+ * concatenated into a single styled run would read the same as plain text and would be a
  * different component &mdash; different sibling count, and the value would inherit the label's
  * grey. The two-run shape is what the callers had before this class existed and is what they
  * must still have after it.</p>
@@ -31,14 +31,15 @@ import net.minecraft.network.chat.Component;
  *   <li><b>int</b> &mdash; always AQUA. Nothing about the number changes it.</li>
  *   <li><b>string</b> &mdash; the caller supplies the value already styled, and it is appended
  *       untouched. It has to be: colour-name keys resolve through
- *       {@code VetsConfig.getColorRgb} to an arbitrary RGB, which reaches {@code LegacyItemStyle}
- *       and so cannot be resolved anywhere this class could be tested.</li>
+ *       {@code VetsConfig.getColorRgb}, which reaches {@code LegacyItemStyle}, a class that
+ *       cannot load in a test &mdash; and which string keys are colours at all is the
+ *       caller's to say, not this class's.</li>
  * </ul>
  *
  * <p>{@link Form} and {@link Verb} are enums rather than a {@code boolean} and a {@code String}
  * because they are closed sets that the call sites read back: three verbs are in use and a
  * fourth would be a deliberate addition, and the indent exists only in the list form, where it
- * is what nests a key under the {@code Configuration:} header.</p>
+ * is what nests each key under its listing's header.</p>
  */
 public final class ConfigValueText {
 

@@ -136,11 +136,13 @@ public class VetsmodClient implements ClientModInitializer {
         AnniOutlineRegistry.register();
         AnniOutlineTicker.register();
         // S5 — aggressive-mode components. AnniAggressiveTicker computes the
-        // per-tick "is aggressive active" flag every other component reads;
-        // register it first so the other four observe a populated flag on
-        // their first tick. ScrollSpotMarkerProvider is deferred to
-        // CLIENT_STARTED above — touching Wynntils' Models class here
-        // crashes the game (see comment above).
+        // per-tick "is aggressive active" flag the aggressive-mode components
+        // read. Registering it first means readers on the same END_CLIENT_TICK
+        // event see this tick's value (Fabric runs a phase's listeners in
+        // registration order); readers on other hooks are not ordered by this.
+        // ScrollSpotMarkerProvider is deferred to CLIENT_STARTED above —
+        // touching Wynntils' Models class here crashes the game (see comment
+        // above).
         AnniAggressiveTicker.register();
         AggressiveAlertDispatcher.register();
         AnniZoneLineRenderer.register();

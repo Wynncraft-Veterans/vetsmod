@@ -65,9 +65,10 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * </ol>
  * Plus the existing {@link org.wynnvets.mwe.anni.mode.AnniWindowWatcher AnniWindowWatcher} which
  * at T+30 m restores {@link org.wynnvets.mwe.anni.mode.AnniModeManager#preferredMode()
- * AnniModeManager.preferredMode()} — a slower safety net. That target is silent
- * <em>only</em> in the never-set-a-mode, not-enrichment-eligible sub-case; it is not
- * an unconditional reset to silent.</p>
+ * AnniModeManager.preferredMode()} — a slower safety net. That target is not
+ * an unconditional reset to silent: it is silent both in the never-set-a-mode,
+ * not-enrichment-eligible sub-case, and whenever the user's own remembered
+ * pick was silent.</p>
  */
 public final class VetsBossBarManager {
 
