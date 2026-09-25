@@ -18,8 +18,10 @@ import org.wynnvets.util.ConfigValueText.Verb;
 /**
  * Handlers and suggestion providers for the {@code /wv config} subcommand tree.
  *
- * <p>Each method is package-private so it can be referenced from
- * {@link CommandRegistry} without being part of the public API.</p>
+ * <p>The command handlers and suggestion providers that {@link CommandRegistry}
+ * wires into the tree are package-private, so it can reference them without
+ * their being part of the public API; everything else here, the
+ * {@code handle*ConfigSet} helpers included, is private.</p>
  */
 final class ConfigCommands {
 
@@ -66,7 +68,10 @@ final class ConfigCommands {
                                 if (s.startsWith(partial)) builder.suggest(s);
                             }
                         } else {
-                            // Colour name keys (gradient top/bottom, foreground color)
+                            // Colour name keys (gradient top/bottom, foreground color);
+                            // today vetsAnniFlashIntensity, which has no arm of its
+                            // own, lands here too
+                            // (config-set-rejects-role-style-and-flash-intensity).
                             for (String name : VetsConfig.getColorNames()) {
                                 if (name.startsWith(partial)) builder.suggest(name);
                             }
@@ -224,7 +229,9 @@ final class ConfigCommands {
         if (key.equals(VetsConfig.LEGACY_ITEM_FOREGROUND_SPRITE)) {
             return Component.literal(value).withStyle(ChatFormatting.AQUA);
         }
-        // All other string keys are colour names
+        // All other string keys are treated as colour names; today that
+        // wrongly includes vetsAnniRoleStyle and vetsAnniFlashIntensity
+        // (config-set-rejects-role-style-and-flash-intensity).
         int rgb = VetsConfig.getColorRgb(value);
         return Component.literal(value).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(rgb)));
     }
@@ -261,7 +268,9 @@ final class ConfigCommands {
             return 1;
         }
 
-        // Colour name keys (gradient top/bottom, foreground color)
+        // Colour name keys (gradient top/bottom, foreground color); today
+        // this arm also wrongly matches vetsAnniRoleStyle and
+        // vetsAnniFlashIntensity (config-set-rejects-role-style-and-flash-intensity).
         String lower = rawValue.toLowerCase();
         if (!VetsConfig.isValidColor(lower)) {
             ChatUtils.sendLocalMessage(

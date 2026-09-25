@@ -90,7 +90,7 @@ No permission. [ConfigCommands](../src/client/java/org/wynnvets/commands/ConfigC
 
 Every `key = value` line the three forms print — and the three `/wv debug set` prints — is built by `util/ConfigValueText`. `ConfigCommands.Kind.of(key)` picks which of `VetsConfig`'s four typed accessors a key uses, and the same enum drives both the read paths and the write dispatch, so the type ladder is written once.
 
-Suggestion providers (`ConfigCommands.SUGGEST_CONFIG_KEYS` and `ConfigCommands.SUGGEST_CONFIG_VALUES`): colour names via `VetsConfig.getColorNames()`, sprite names (10 total), opacity int values `reset|0|25|50|69|75|100`, tri-state `default|true|false`. Validation via `VetsConfig.isValidColor()`, `isValidSprite()`.
+Suggestion providers (`ConfigCommands.SUGGEST_CONFIG_KEYS` and `ConfigCommands.SUGGEST_CONFIG_VALUES`): colour names via `VetsConfig.getColorNames()`, sprite names (10 total), the 3 role styles for `vetsAnniRoleStyle`, opacity int values `reset|0|25|50|69|75|100`, tri-state `default|true|false`. `vetsAnniFlashIntensity` has no arm of its own and gets the colour names. Today setting either `vetsAnniRoleStyle` or `vetsAnniFlashIntensity` validates the value as a colour name, so every documented value of both is refused (bug `config-set-rejects-role-style-and-flash-intensity`). A further arm offers the anni modes for `vetsAnniMode`; the key suggester never offers that key (it is absent from `USER_CONFIG_KEYS`), so the arm fires only for a hand-typed key, which `/wv config` then refuses as unknown (bug `config-commands-anni-mode-suggestion-arm-unreachable`). Validation via `VetsConfig.isValidColor()`, `isValidSprite()`.
 
 ### /wv line <church|scrap|bat|hegea|lighthouse>
 Returners. [CommandRegistry.lineToggle()](../src/client/java/org/wynnvets/commands/CommandRegistry.java). Delegates to `TerritoryLineManager.toggle(alias)`. Requires `areFeaturesEnabled()` (Returners only).
@@ -167,7 +167,7 @@ Routes `/g`, `/wg`, `/v` and nine more prefixes through `GuildChatDispatcher.int
 
 ## 3. Suggestion providers
 
-`ConfigCommands.SUGGEST_CONFIG_KEYS` and `SUGGEST_CONFIG_VALUES` provide Brigadier tab completion. Tri-state keys suggest `default|true|false`. Int keys (opacity) suggest `reset|0|25|50|69|75|100`. String keys suggest from `VetsConfig.getColorNames()` or the 10 sprite names.
+`ConfigCommands.SUGGEST_CONFIG_KEYS` and `SUGGEST_CONFIG_VALUES` provide Brigadier tab completion. Tri-state keys suggest `default|true|false`. Int keys (opacity) suggest `reset|0|25|50|69|75|100`. String keys suggest `reset` plus names from `VetsConfig.getColorNames()`, the 10 sprite names, or (for `vetsAnniRoleStyle`) the 3 role styles; `vetsAnniFlashIntensity` has no arm of its own and gets the colour names. Today setting either of those two anni keys validates the value as a colour name, so the suggested role styles are refused too (bug `config-set-rejects-role-style-and-flash-intensity`).
 
 ## 4. Things to know when adding commands
 

@@ -57,7 +57,7 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `colorBlindMode` | false | Swap the supporter-glint colour pairs (chat + nametag) for a high-luminance-delta variant so the shimmer is visible under protan/deutan CVD. Still subtle; same cyan/blue family. |
 | `moreReliableGuildCheck` | true | Run `/gu stats` on world join for guild detection |
 
-### Strings (colour names or sprite names)
+### Strings (colour names, sprite names, or the values listed per key)
 | Key | Default | Valid values |
 |-----|---------|--------------|
 | `legacyItemBackgroundGradientTop` | `orange` | CSS/Minecraft colour names (see `NamedColor.COLORS`) |
@@ -66,6 +66,8 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `legacyItemForegroundSprite` | `box_gradient_2` | `wynn`, `tag`, `circle_transparent`, `circle_opaque`, `circle_outline_large`, `circle_outline_small`, `box_transparent`, `box_opaque`, `box_gradient_1`, `box_gradient_2` |
 | `vetsAnniRoleStyle` | `descriptive` | `descriptive` (TANK/HEALER/SUNKILL/MOBKILL/BOSSKILL/FILL — action-flavoured), `short` (TANK/HEAL/SUNK/MOBK/PRIM/FILL — 4-char compact), `formal` (TANK/HEALER/SECONDARY/TERTIARY/PRIMARY/FILL — spec-canonical) |
 | `vetsAnniFlashIntensity` | `normal` | `subtle` (5s flash window), `normal` (10s), `strong` (20s). Controls the per-field on-change flash duration; the bold↔underline pulse half-period (250ms) is fixed. |
+
+Today `/wv config` validates `vetsAnniRoleStyle` and `vetsAnniFlashIntensity` as colour names, so it refuses every value listed for them and accepts colour names instead, which `AnniHoverBuilder.displayRole` and `FlashTracker.flashDurationMs` treat as the default (bug `config-set-rejects-role-style-and-flash-intensity`).
 
 ### Integers (0–100 opacity)
 | Key | Default |
@@ -165,7 +167,7 @@ JSON pretty-printed via GSON. Parent dir created if missing. Missing keys use in
 
 ## 8. Related config-adjacent state
 
-**Debug config** — separate system at [DebugConfigManager](../src/client/java/org/wynnvets/debug/DebugConfigManager.java) (not merged into VetsConfig). Current debug keys: `itemDump` (bool) — when true, numpad `+` while hovering item dumps full Component tree JSON to `vetsmod/dumps/`.
+**Debug config** — keys declared in [DebugConfigManager](../src/client/java/org/wynnvets/debug/DebugConfigManager.java) rather than among VetsConfig's constants, but registered into VetsConfig's boolean map via `registerDefault` and persisted in the same `config.json`. Current debug keys: `itemDump` (bool) — when true, numpad `+` while hovering item dumps full Component tree JSON to `vetsmod/dumps/`.
 
 Must call `DebugConfigManager.init()` before `VetsConfig.load()` (they share the same storage location).
 

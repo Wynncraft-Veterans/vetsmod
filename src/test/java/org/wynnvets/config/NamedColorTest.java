@@ -34,8 +34,9 @@ class NamedColorTest {
     void getNames_hasFortyEntriesInInsertionOrder() {
         List<String> names = List.copyOf(NamedColor.getNames());
         assertEquals(40, names.size(), "the registry holds 40 named colours");
-        // LinkedHashMap, so the set is ordered — the config screen renders it
-        // in this order and the first/last entries anchor it.
+        // LinkedHashMap, so the set is ordered; Brigadier re-sorts it for
+        // tab-completion, so the order is pinned here rather than seen in
+        // game. The first/last entries below still anchor insertion order.
         assertEquals("black", names.get(0), "insertion order starts at the first § colour");
         assertEquals("transparent", names.get(39), "the special entry is last");
     }

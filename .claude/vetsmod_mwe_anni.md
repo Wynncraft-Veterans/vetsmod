@@ -277,7 +277,7 @@ Gated by `vetsAnniShowPrediction`. When that is on but `event.prediction()` is n
 | TERTIARY | MOBKILL | MOBK | TERTIARY |
 | FILL | FILL | FILL | FILL |
 
-**Policy and mechanism differ here, so keep them apart.** The policy — short codes (HRSVP / SUNK / MOBK) belong on the boss bar, and chat callers spell things out — stands, and is recorded as the `feedback_anni_short_codes_reserved_for_bossbar.md` memory. The mechanism is not what "reserved" implies: `short` **is** one of the three configured `vetsAnniRoleStyle` values, so a user can select it for chat, and `displayRole`'s only callers are chat surfaces (`AnniHoverBuilder.roleChip`, `AnniCommandRenderer.registrationSection`, `AnniMotdRenderer.assignedToPartyLine`). The bar does not read this table at all — it uses its own hardcoded `VetsBossBarContentBuilder.toShortLabel`.
+**Policy and mechanism differ here, so keep them apart.** The policy — short codes (HRSVP / SUNK / MOBK) belong on the boss bar, and chat callers spell things out — stands, and is recorded as the `feedback_anni_short_codes_reserved_for_bossbar.md` memory. The mechanism is not what "reserved" implies: `short` **is** one of the three configured `vetsAnniRoleStyle` values, meant to be user-selectable for chat (today `/wv config` refuses it, leaving a hand edit of `config.json` as the way to select it — bug `config-set-rejects-role-style-and-flash-intensity`), and `displayRole`'s only callers are chat surfaces (`AnniHoverBuilder.roleChip`, `AnniCommandRenderer.registrationSection`, `AnniMotdRenderer.assignedToPartyLine`). The bar does not read this table at all — it uses its own hardcoded `VetsBossBarContentBuilder.toShortLabel`.
 
 ### RSVP / attendance / board labels
 

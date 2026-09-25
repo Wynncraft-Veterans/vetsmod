@@ -131,7 +131,7 @@ StyledText, ComponentUtils, McUtils
 
 ## Config keys
 
-**User-facing (via `/wv config`):** 30 keys. `VetsConfig.USER_CONFIG_KEYS` order — which is also the order `/wv config` prints and suggests them in — is: the eight `legacyItem*` keys (highlighting, enchantment naming, gradient colours/opacity, sprite), `printMOTD`, `printANNI`, the 14 `vetsAnni*` keys, `printBridgeMessages`, `printSuccessfulAuth`, `showSupporterGlints`, `colorBlindMode`, `handleSpoilers`, `moreReliableGuildCheck`. Full table in [vetsmod_config.md](vetsmod_config.md).
+**User-facing (via `/wv config`):** 30 keys. `VetsConfig.USER_CONFIG_KEYS` order — which is also the order `/wv config` prints them in; tab-completion is alphabetical — is: the eight `legacyItem*` keys (highlighting, enchantment naming, gradient colours/opacity, sprite), `printMOTD`, `printANNI`, the 14 `vetsAnni*` keys, `printBridgeMessages`, `printSuccessfulAuth`, `showSupporterGlints`, `colorBlindMode`, `handleSpoilers`, `moreReliableGuildCheck`. Full table in [vetsmod_config.md](vetsmod_config.md).
 
 **Internal — vetsmod auth state:** `vetsAuthKey` (string), `vetsAuthTier` (string), `vetsAuthVerifiedAt` (long). Old `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` longs are meant to survive only as a "legacy unlock marker" for the session-start warning; today they also still unlock client-side (bug `legacy-unlock-markers-still-grant-client-unlock`).
 

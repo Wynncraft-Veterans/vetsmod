@@ -19,15 +19,20 @@ import org.wynnvets.logging.VetsLogger;
 /**
  * Configuration manager for VetsMod toggleable features.
  *
- * <p>Provides an expandable system for managing boolean and long configuration
- * options, persisted as JSON to {@code vetsmod/storage/config.json}.  Keys fall
- * into two categories:</p>
+ * <p>Provides boolean, long, string and tri-state configuration options,
+ * persisted as JSON to {@code vetsmod/storage/config.json}.  Keys fall
+ * into three categories:</p>
  * <ul>
  *   <li><b>Internal</b> — used by the mod to cache transient state (e.g.
  *       {@link #VETS_IS_STAFF}, {@link #VETS_LAST_STAFF_CHECK}).  These are
  *       <em>not</em> exposed to the {@code /wv config} command.</li>
  *   <li><b>User-facing</b> — toggleable by the player via {@code /wv config
  *       &lt;key&gt; &lt;value&gt;}.  Listed in {@link #USER_CONFIG_KEYS}.</li>
+ *   <li><b>Debug</b> — declared in
+ *       {@link org.wynnvets.debug.DebugConfigManager DebugConfigManager} rather
+ *       than here, and registered as boolean keys through
+ *       {@link #registerDefault(String, boolean)}.  Not in
+ *       {@link #USER_CONFIG_KEYS}; set through {@code /wv debug set}.</li>
  * </ul>
  */
 public class VetsConfig {
@@ -42,7 +47,7 @@ public class VetsConfig {
             Collections.synchronizedMap(new HashMap<>());
     private static final Map<String, String> stringConfig = new ConcurrentHashMap<>();
 
-    // ── Internal configuration keys (not user-facing) ───────────────────────
+    // ── Internal configuration keys (not user-facing, except VETS_ANNI_ENABLED) ────
     public static final String VETS_AUTOMESSAGE = "vetsAutomessage";
     public static final String VETS_IS_STAFF = "vetsIsStaff";
     public static final String VETS_LAST_STAFF_CHECK = "vetsLastStaffCheck";
@@ -96,6 +101,8 @@ public class VetsConfig {
     public static final String VETS_AUTH_VERIFIED_AT = "vetsAuthVerifiedAt";
 
     // ── User-facing configuration keys (toggled via /wv config) ─────────────
+    // Not every key declared below is user-facing: USER_CONFIG_KEYS is the
+    // list /wv config reaches.
 
     /** Whether legacy/enchanted/junk item highlighting is shown in tooltips and inventory slots. */
     public static final String LEGACY_ITEM_HIGHLIGHTING = "legacyItemHighlighting";
@@ -183,8 +190,11 @@ public class VetsConfig {
      *  same as if the role isn't recognised in any style table. */
     public static final String VETS_ANNI_ROLE_STYLE = "vetsAnniRoleStyle";
 
-    /** Valid values for {@link #VETS_ANNI_ROLE_STYLE}, in suggest-completion
-     *  order. */
+    /** Valid values for {@link #VETS_ANNI_ROLE_STYLE}; the first is the
+     *  default. Brigadier sorts suggestions alphabetically, so
+     *  tab-completion does not show this order. Today {@code /wv config}
+     *  suggests these values but refuses to set any of them
+     *  ({@code config-set-rejects-role-style-and-flash-intensity}). */
     public static final String[] VALID_ROLE_STYLES = {
         "descriptive", "short", "formal",
     };
@@ -278,7 +288,9 @@ public class VetsConfig {
     public static final String VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP =
             "vetsAnniGhostsPromptShownForStamp";
 
-    /** Valid values for {@link #VETS_ANNI_FLASH_INTENSITY}. */
+    /** Valid values for {@link #VETS_ANNI_FLASH_INTENSITY}. Today nothing reads
+     *  this array, and {@code /wv config} refuses to set any of these values
+     *  ({@code config-set-rejects-role-style-and-flash-intensity}). */
     public static final String[] VALID_FLASH_INTENSITIES = {
         "subtle", "normal", "strong",
     };
@@ -398,7 +410,13 @@ public class VetsConfig {
     };
 
     /**
-     * Subset of user-facing keys that store a string value.
+     * String-valued keys for {@code /wv config}'s type dispatch: the
+     * user-facing string keys, plus {@link #VETS_ANNI_MODE}, which is not
+     * user-facing (bug
+     * {@code config-commands-anni-mode-suggestion-arm-unreachable}; see
+     * {@code vetsmod_config.md}, the "vetsAnniMode is not in this list"
+     * note). Not a list of every string key — persistence types a key by
+     * its backing map, not by this array.
      */
     public static final String[] STRING_CONFIG_KEYS = {
         LEGACY_ITEM_BACKGROUND_GRADIENT_TOP,
@@ -711,7 +729,7 @@ public class VetsConfig {
      * Set the string value of a configuration option.
      *
      * @param key   The configuration key
-     * @param value The new value (must be one of the valid options for this key)
+     * @param value The new value; not validated here, so callers own validation
      * @return true if the key exists and was updated, false otherwise
      */
     public static boolean setString(String key, String value) {
