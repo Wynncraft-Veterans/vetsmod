@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Style;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.Prepend;
+import org.wynnvets.chat.dispatcher.GuildChatDispatcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.Json;

@@ -1,4 +1,4 @@
-package org.wynnvets.commands;
+package org.wynnvets.chat.dispatcher;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.models.guild.type.GuildRank;
@@ -8,8 +8,9 @@ import net.minecraft.network.chat.Component;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.OutboundDisplayHandler;
-import org.wynnvets.chat.dispatcher.DispatchCoordinator;
 import org.wynnvets.chat.spoiler.SpoilerCodec;
+import org.wynnvets.commands.CautionCommands;
+import org.wynnvets.commands.InviteGate;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;

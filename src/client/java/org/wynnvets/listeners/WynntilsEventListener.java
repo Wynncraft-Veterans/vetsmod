@@ -140,8 +140,8 @@ public final class WynntilsEventListener {
      *
      * <p>Only fires for Returners members' in-game guild chat. Waitlist and honourary relay, and
      * a Returners member's {@code /g} while queued, go out from {@link
-     * org.wynnvets.commands.GuildChatDispatcher GuildChatDispatcher} when the command is sent
-     * (reached through {@link org.wynnvets.mixin.client.chat.GuildChatCommandMixin
+     * org.wynnvets.chat.dispatcher.GuildChatDispatcher GuildChatDispatcher} when the command is
+     * sent (reached through {@link org.wynnvets.mixin.client.chat.GuildChatCommandMixin
      * GuildChatCommandMixin}), not from here.</p>
      *
      * @param event the chat message match event

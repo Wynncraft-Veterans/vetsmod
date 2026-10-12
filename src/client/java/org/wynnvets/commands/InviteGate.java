@@ -19,6 +19,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.api.WynnCraftApi;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.dispatcher.GuildChatDispatcher;
 import org.wynnvets.datamodels.MembershipSnapshot;
 import org.wynnvets.datamodels.User;
 import org.wynnvets.fetcher.lookup.FailureReason;

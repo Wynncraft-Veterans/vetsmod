@@ -10,8 +10,8 @@ import org.wynnvets.logging.VetsLogger;
  * {@code /g} commands and does not relay inbound guild chat to the client.
  * Features that need to work around this (e.g. the WebSocket-backed guild
  * chat relay in {@link org.wynnvets.chat.OutboundDisplayHandler} and
- * {@link org.wynnvets.commands.GuildChatDispatcher}) query this manager to
- * decide whether to take the queue-aware path.</p>
+ * {@link org.wynnvets.chat.dispatcher.GuildChatDispatcher GuildChatDispatcher}) query this
+ * manager to decide whether to take the queue-aware path.</p>
  *
  * <p>State is driven by {@link QueueDetector}, which subscribes to the relevant Wynntils and
  * Fabric events, and one exit is raised elsewhere:

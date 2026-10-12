@@ -5,7 +5,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.commands.GuildChatDispatcher;
+import org.wynnvets.chat.dispatcher.GuildChatDispatcher;
 
 /**
  * Intercepts outbound chat commands to handle guild chat ({@code /g}),
