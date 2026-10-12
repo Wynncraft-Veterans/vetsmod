@@ -376,8 +376,8 @@ public final class DispatchCoordinator {
         }
     }
 
-    // ──────────────────────────── Helpers (some package-private, for the
-    // MessageFanoutDispatcher and FindDispatcher) ────────────────────────────
+    // ──────────────────────────── Helpers (some package-private, for
+    // MessageFanoutDispatcher) ────────────────────────────
 
     static void showNoRecipientsWarning() {
         ChatUtils.sendLocalMessage(
