@@ -14,7 +14,7 @@ The vetsmod chat system is a multi-stage pipeline that intercepts each chat mess
 
 **Outbound (user → server):** `ClientPacketListener.sendCommand()` → `GuildChatCommandMixin` HEAD → `GuildChatDispatcher.intercept()` for `/g`, `/wg`, `/v` and nine more prefixes — **not exhaustive**, see `GuildChatDispatcher.intercept`, which matches 12. `/msg` is not among them.
 
-**Remote push (WebSocket → client):** `V1ApiManager` outbound listener → `OutboundDisplayHandler.onOutboundMessage()` → display gates, UUID dedup, self suppression, Returners' own `guild` frames dropped outside a queue → `ChatUtils.sendHonouraryChatMessage()` when this client is honourary-unlocked, else `ChatUtils.sendGuildChatMessage()`. A `warning` frame branches off to `WarningRewriter` before the gates (none arrives today: bug `outbound-socket-never-authenticated`), and a staff `‼` alert to `StaffGuildAlertRewriter` after them; `bridge` frames are only recorded here, for `WynntilsEventListener`'s echo check. Full order in §5.
+**Remote push (WebSocket → client):** `V1ApiManager` outbound listener → `OutboundDisplayHandler.onOutboundMessage()` → display gates, UUID dedup, self suppression, Returners' own `guild` frames dropped outside a queue → `ChatUtils.sendHonouraryChatMessage()` when this client is honourary-unlocked, else `ChatUtils.sendGuildChatMessage()`. A `warning` frame branches off to `WarningFrameRenderer` before the gates (none arrives today: bug `outbound-socket-never-authenticated`), and a staff `‼` alert to `StaffGuildAlertRewriter` after them; `bridge` frames are only recorded here, for `WynntilsEventListener`'s echo check. Full order in §5.
 
 ## 2. ChatLogMixin — the single-argument addMessage hook
 
@@ -39,7 +39,7 @@ The vetsmod chat system is a multi-stage pipeline that intercepts each chat mess
 
 Each rewriter returns `true` to cancel the vanilla event (consumed).
 
-**Gap:** `WarningRewriter` — the sixth rewriter on disk, invoked from `OutboundDisplayHandler` for server-pushed `warning` frames rather than from this chain. It has no section here; the one-line summary lives in [CLAUDE.md](CLAUDE.md) and [project_vetsmod.md](project_vetsmod.md).
+`WarningFrameRenderer` is not part of this chain: `OutboundDisplayHandler` calls it for server-pushed `warning` frames (§5).
 
 ## 3. Rewriters and their shared helpers
 
@@ -147,7 +147,7 @@ State:
 - `recentBridgeMessages` Deque (max 200, 10s TTL) — bridge-echo dedup via normalized-text compare (strips whitespace and every `PillCodec.isCustomGlyph` codepoint)
 - `recentUuids` LinkedHashMap (max 200, 10s TTL) — UUID-based dedup
 
-Flow: a `warning` frame → `WarningRewriter.render`, skipping every step after it (today none arrives: bug `outbound-socket-never-authenticated`). Any other frame → `PRINT_BRIDGE_MESSAGES` gate → audience gate (`shouldDisplayMessages`) → UUID dedup → dropped if `username` or `message` is empty → self suppression → Returners' `guild` frames dropped unless queued → `bridge` frames recorded for `WynntilsEventListener.onGuildChat`'s echo check (`wasBridgeEcho`) → for a `guild` or `queue` frame, a staff `‼` alert via `StaffGuildAlertRewriter.tryRewriteOutbound` → otherwise display via `ChatUtils.sendHonouraryChatMessage()` (honourary-unlocked viewer) or `ChatUtils.sendGuildChatMessage()`.
+Flow: a `warning` frame → `WarningFrameRenderer.render`, skipping every step after it (today none arrives: bug `outbound-socket-never-authenticated`). Any other frame → `PRINT_BRIDGE_MESSAGES` gate → audience gate (`shouldDisplayMessages`) → UUID dedup → dropped if `username` or `message` is empty → self suppression → Returners' `guild` frames dropped unless queued → `bridge` frames recorded for `WynntilsEventListener.onGuildChat`'s echo check (`wasBridgeEcho`) → for a `guild` or `queue` frame, a staff `‼` alert via `StaffGuildAlertRewriter.tryRewriteOutbound` → otherwise display via `ChatUtils.sendHonouraryChatMessage()` (honourary-unlocked viewer) or `ChatUtils.sendGuildChatMessage()`.
 
 ## 6. ChatUtils — the formatting engine
 
@@ -236,7 +236,7 @@ Rank-letter glyphs aren't `chat/prefix`: vetsmod's own pills render in the defau
 
 `PillCodec` owns both halves of this: the pill sequences, and the predicate for whether a codepoint is glyph art at all — `isCustomGlyph(int)`, seven call sites across six classes, three deliberate non-callers. Both are documented in [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
 
-**Gap:** two top-level `chat/` classes have no section in this reference — `DiscordTimestamps` (not mentioned at all) and `RankDisplayMap` (named only in §3's `ServerGuildChatRewriter` entry). (`NickResolver` carried the same marker until it got a §3 section, alongside the `GuildChatLine` created with it.)
+**Gap:** some top-level `chat/` classes have no section in this reference — among them `DiscordTimestamps` (not mentioned at all), `RankDisplayMap` (named only in §3's `ServerGuildChatRewriter` entry), `ChatLogger` (named only in §2's step list) and `WarningFrameRenderer` (named only in passing). (`NickResolver` carried the same marker until it got a §3 section, alongside the `GuildChatLine` created with it.)
 
 ## 12. Regex quick reference
 
@@ -251,7 +251,7 @@ Rank-letter glyphs aren't `chat/prefix`: vetsmod's own pills render in the defau
 
 ## 13. Thread safety
 
-`ChatLogMixin` and its rewriter chain run on the render thread. `WarningRewriter.render` and `StaffGuildAlertRewriter.tryRewriteOutbound` do not: `OutboundDisplayHandler` calls them on the thread that delivers the outbound socket's frames, and their output reaches chat only through `ChatUtils`' own `Minecraft.execute` bounce to the render thread. `DispatchCoordinator` serializes the `/v` fan-out and the `/find` lookups on a single-threaded executor; each command itself is queued from the render thread. Suppression state protected by `Object` locks (`SUPPRESSION_ACK_LOCK`, `FIND_RESPONSE_LOCK`). Dedup caches are plain collections read and written inside `synchronized` blocks (`OutboundDisplayHandler`'s three each have their own lock object).
+`ChatLogMixin` and its rewriter chain run on the render thread. `WarningFrameRenderer.render` and `StaffGuildAlertRewriter.tryRewriteOutbound` do not: `OutboundDisplayHandler` calls them on the thread that delivers the outbound socket's frames, and their output reaches chat only through `ChatUtils`' own `Minecraft.execute` bounce to the render thread. `DispatchCoordinator` serializes the `/v` fan-out and the `/find` lookups on a single-threaded executor; each command itself is queued from the render thread. Suppression state protected by `Object` locks (`SUPPRESSION_ACK_LOCK`, `FIND_RESPONSE_LOCK`). Dedup caches are plain collections read and written inside `synchronized` blocks (`OutboundDisplayHandler`'s three each have their own lock object).
 
 ## 14. Feature gates
 

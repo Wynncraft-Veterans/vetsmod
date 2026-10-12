@@ -1,11 +1,9 @@
-package org.wynnvets.chat.rewriter;
+package org.wynnvets.chat;
 
 import com.google.gson.JsonObject;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.Prepend;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.Json;
 
@@ -14,6 +12,8 @@ import org.wynnvets.util.Json;
  * formal-warning or eject notice routed only to the warned player's authenticated
  * outbound sockets (see v1_protocol.md §2.5). Today it never reaches vetsmod, which
  * does not authenticate that socket ({@code outbound-socket-never-authenticated}).
+ *
+ * <p>Formerly {@code chat.rewriter.WarningRewriter}.</p>
  *
  * <p>Visually styled distinctly from regular guild chat so the player
  * can't miss it: a "⚠ WARNING ⚠" banner (gold, red for an eject, which
@@ -24,14 +24,14 @@ import org.wynnvets.util.Json;
  * so a player who is offline still gets the information.</p>
  *
  * <p>The frame's {@code target_uuid} is filtered server-side -- by the
- * time it reaches this rewriter, the receiving session is already
+ * time it reaches this class, the receiving session is already
  * known to be the warned player. No additional client-side filtering
  * is needed (or possible: the receiver doesn't always know its own
  * authoritative mc_uuid).</p>
  */
-public final class WarningRewriter {
+public final class WarningFrameRenderer {
 
-    private WarningRewriter() {}
+    private WarningFrameRenderer() {}
 
     /**
      * Renders the warning frame in chat. Called from

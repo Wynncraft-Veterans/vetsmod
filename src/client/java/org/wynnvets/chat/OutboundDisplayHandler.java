@@ -10,7 +10,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
-import org.wynnvets.chat.rewriter.WarningRewriter;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
@@ -23,7 +22,7 @@ import org.wynnvets.util.Json;
  *
  * <p>Replaces the old polling fetchers ({@code ChatMessageFetcher} and
  * {@code BridgeMessageFetcher}) with a push-based approach. A
- * {@code "warning"} frame goes to {@link WarningRewriter} ahead of every
+ * {@code "warning"} frame goes to {@link WarningFrameRenderer} ahead of every
  * gate below. Any other frame displays only while
  * {@link VetsConfig#PRINT_BRIDGE_MESSAGES} is on, and only for (see
  * {@code shouldDisplayMessages()}):
@@ -145,7 +144,7 @@ public final class OutboundDisplayHandler {
         // authenticated outbound socket, and vetsmod never authenticates that socket
         // (outbound-socket-never-authenticated).
         if ("warning".equals(Json.stringOrEmpty(json, "type"))) {
-            WarningRewriter.render(json);
+            WarningFrameRenderer.render(json);
             return;
         }
 

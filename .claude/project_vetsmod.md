@@ -12,9 +12,9 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 
 **Key packages and responsibilities:**
 - `org.wynnvets.api` — `V1ApiManager` (dual WebSocket), `WsClient`, `VetsApi`, `WynnCraftApi`, `MojangApi`
-- `org.wynnvets.chat` — `OutboundDisplayHandler`, `ChatLogger`, `ChatUtils`, `PillFormatter`
+- `org.wynnvets.chat` — top-level chat classes, among them `OutboundDisplayHandler`, `ChatLogger`, `ChatUtils`, `PillFormatter` and `WarningFrameRenderer` (renders server-pushed `warning` frames)
 - `org.wynnvets.chat.dispatcher` — `GuildChatDispatcher` (the outbound prefix router `GuildChatCommandMixin` calls) and the three classes behind `/v` and `/find`: `DispatchCoordinator`, `MessageFanoutDispatcher`, `FindDispatcher`
-- `org.wynnvets.chat.rewriter` — six chat message transformers: encourage-update, staff guild alert, staff channel, server guild, spoiler (those five form `ChatLogMixin`'s chain, in that order) and `WarningRewriter`, which runs from `OutboundDisplayHandler` instead
+- `org.wynnvets.chat.rewriter` — the chat message transformers that form `ChatLogMixin`'s chain, in this order: encourage-update, staff guild alert, staff channel, server guild, spoiler
 - `org.wynnvets.chat.spoiler` — `SpoilerCodec`, `SpoilerFormatter` (PUA encoding)
 - `org.wynnvets.commands` — `CommandRegistry`, `/wv` command tree
 - `org.wynnvets.config` — `VetsConfig` (JSON-backed) at `vetsmod/storage/config.json`
