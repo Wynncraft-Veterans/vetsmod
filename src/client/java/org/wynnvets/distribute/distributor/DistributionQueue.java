@@ -5,7 +5,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.opener.GuildManageOpener;
-import org.wynnvets.distribute.utils.NameResolver;
+import org.wynnvets.distribute.recipients.NameResolver;
 import org.wynnvets.distribute.walker.GuildLogWalker;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.distribute.walker.MembersListWalker;

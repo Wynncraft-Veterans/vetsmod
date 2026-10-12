@@ -82,7 +82,7 @@ distribute/
 │   ├── ObjectivesDistributor.java    — @objectives: even split over completers
 │   ├── GraidsDistributor.java        — @graids: proportional to log frequency
 │   └── SplitDistributor.java         — @split: thirds, graids → objectives → random
-└── utils/
+└── recipients/
     ├── NameResolver.java             — wapi guild roster, read four different ways
     └── NoAspectsFilter.java          — opt-out UUIDs → legacy names, fail-open
 ```

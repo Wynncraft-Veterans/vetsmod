@@ -58,7 +58,7 @@ public final class VetsApi {
      * shape {@code {"uuid", "username"}}; consumers filter against the
      * UUID set (translated to legacy/tile names via the wapi guild
      * response) before dispatching. See
-     * {@link org.wynnvets.distribute.utils.NoAspectsFilter}.
+     * {@link org.wynnvets.distribute.recipients.NoAspectsFilter NoAspectsFilter}.
      */
     public static final URI NO_ASPECTS =
             URI.create("https://api.wynnvets.org/v1/outbound/no-aspects");

@@ -142,7 +142,7 @@ public class UserInfoFetcher {
 
     /**
      * Strips dashes and lowercases, so a dashed and a dashless UUID compare equal. Twin of
-     * {@link org.wynnvets.distribute.utils.NameResolver#normalizeUuid
+     * {@link org.wynnvets.distribute.recipients.NameResolver#normalizeUuid
      * NameResolver#normalizeUuid} &mdash; identical behaviour down to the
      * null-becomes-empty-string contract, and that one has always pointed
      * here (as a live link since 5fb6f26).

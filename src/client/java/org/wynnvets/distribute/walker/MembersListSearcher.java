@@ -17,7 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.MembersGui;
-import org.wynnvets.distribute.utils.NameResolver;
+import org.wynnvets.distribute.recipients.NameResolver;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.ContainerScreens;
 

@@ -1,4 +1,4 @@
-package org.wynnvets.distribute.utils;
+package org.wynnvets.distribute.recipients;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

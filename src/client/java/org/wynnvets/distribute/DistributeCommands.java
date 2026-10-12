@@ -23,8 +23,8 @@ import org.wynnvets.distribute.distributor.ObjectivesDistributor;
 import org.wynnvets.distribute.distributor.RandomDistributor;
 import org.wynnvets.distribute.distributor.SplitDistributor;
 import org.wynnvets.distribute.opener.GuildManageOpener;
-import org.wynnvets.distribute.utils.NameResolver;
-import org.wynnvets.distribute.utils.NoAspectsFilter;
+import org.wynnvets.distribute.recipients.NameResolver;
+import org.wynnvets.distribute.recipients.NoAspectsFilter;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
 
