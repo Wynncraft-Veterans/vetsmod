@@ -20,7 +20,7 @@ import org.wynnvets.logging.VetsLogger;
  * for the staff chat system ({@code /v}).
  *
  * <p>All dispatch is serialized on the shared single-threaded executor owned
- * by {@link CommandDispatcher}.  The suppression ACK system keeps at most one
+ * by {@link DispatchCoordinator}.  The suppression ACK system keeps at most one
  * {@code /msg} awaiting a reply at a time; one whose wait times out is abandoned,
  * not cancelled, so its reply can still arrive later.</p>
  */
@@ -56,7 +56,7 @@ public final class MessageFanoutDispatcher {
      */
     static void processMessageBatch() {
         try {
-            List<String> staffUsernames = CommandDispatcher.fetchOnlineStaffUsernames();
+            List<String> staffUsernames = DispatchCoordinator.fetchOnlineStaffUsernames();
             Minecraft minecraft = Minecraft.getInstance();
             LocalPlayer selfPlayer = minecraft.player;
 
@@ -66,14 +66,14 @@ public final class MessageFanoutDispatcher {
             }
 
             // Remove self from recipients
-            staffUsernames.removeIf(u -> CommandDispatcher.isSelfRecipient(u, selfPlayer));
+            staffUsernames.removeIf(u -> DispatchCoordinator.isSelfRecipient(u, selfPlayer));
 
             if (staffUsernames.isEmpty()) {
                 // Drain the queue and warn once
-                while (CommandDispatcher.MESSAGE_QUEUE.poll() != null) {
+                while (DispatchCoordinator.MESSAGE_QUEUE.poll() != null) {
                     // drained
                 }
-                CommandDispatcher.showNoRecipientsWarning();
+                DispatchCoordinator.showNoRecipientsWarning();
                 return;
             }
 
@@ -82,8 +82,8 @@ public final class MessageFanoutDispatcher {
             boolean deliveredAnyMessageToAnyone = false;
 
             String message;
-            while ((message = CommandDispatcher.MESSAGE_QUEUE.poll()) != null) {
-                String payload = CommandDispatcher.LOCK_PREFIX + message;
+            while ((message = DispatchCoordinator.MESSAGE_QUEUE.poll()) != null) {
+                String payload = DispatchCoordinator.LOCK_PREFIX + message;
                 boolean deliveredThisMessage = false;
 
                 for (String recipient : staffUsernames) {
@@ -122,15 +122,15 @@ public final class MessageFanoutDispatcher {
             }
 
             if (!deliveredAnyMessageToAnyone) {
-                CommandDispatcher.showNoRecipientsWarning();
+                DispatchCoordinator.showNoRecipientsWarning();
             }
         } catch (Exception e) {
             VetsLogger.warn("Failed to dispatch staff /v broadcast batch: {}", e.getMessage());
             // Drain remaining messages to avoid retrying a failed batch indefinitely
-            while (CommandDispatcher.MESSAGE_QUEUE.poll() != null) {
+            while (DispatchCoordinator.MESSAGE_QUEUE.poll() != null) {
                 // drained
             }
-            CommandDispatcher.showNoRecipientsWarning();
+            DispatchCoordinator.showNoRecipientsWarning();
         }
     }
 
@@ -159,7 +159,7 @@ public final class MessageFanoutDispatcher {
             if (attempt < MAX_DISPATCH_RETRIES) {
                 VetsLogger.debug(
                         "No /msg feedback for {} attempt {}. Retrying...", recipient, attempt);
-                CommandDispatcher.sleepQuietly(INTER_SEND_DELAY_MS);
+                DispatchCoordinator.sleepQuietly(INTER_SEND_DELAY_MS);
             }
         }
 
@@ -185,7 +185,7 @@ public final class MessageFanoutDispatcher {
                             return;
                         }
 
-                        if (CommandDispatcher.isSelfRecipient(recipient, player)) {
+                        if (DispatchCoordinator.isSelfRecipient(recipient, player)) {
                             skippedSelf.set(true);
                             return;
                         }
@@ -268,7 +268,7 @@ public final class MessageFanoutDispatcher {
         }
     }
 
-    // ──────────────────────────── Suppression (direct caller: CommandDispatcher)
+    // ──────────────────────────── Suppression (direct caller: DispatchCoordinator)
     // ────────────────────────────
 
     /**
@@ -308,7 +308,7 @@ public final class MessageFanoutDispatcher {
 
         long now = System.currentTimeMillis();
         String lower = message.toLowerCase(Locale.ROOT);
-        String lockPrefixLower = CommandDispatcher.LOCK_PREFIX.toLowerCase(Locale.ROOT);
+        String lockPrefixLower = DispatchCoordinator.LOCK_PREFIX.toLowerCase(Locale.ROOT);
 
         if (now <= suppressOfflineGuidanceUntilMs && isOfflineGuidanceMessage(lower)) {
             return true;

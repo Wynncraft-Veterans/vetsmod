@@ -121,7 +121,7 @@ import org.wynnvets.util.Json;
  *       is not cached.</li>
  * </ul>
  */
-public final class CommandDispatcher {
+public final class DispatchCoordinator {
 
     static final String LOCK_PREFIX = "🔐";
 
@@ -161,7 +161,7 @@ public final class CommandDispatcher {
     private static volatile boolean selfSeenInStaffFeedThisWorld;
     private static final AtomicBoolean SELF_PRESENCE_CHECK_IN_FLIGHT = new AtomicBoolean(false);
 
-    private CommandDispatcher() {}
+    private DispatchCoordinator() {}
 
     // ──────────────────────────── Public API ────────────────────────────
 
@@ -337,7 +337,7 @@ public final class CommandDispatcher {
 
     static void startBatchIfIdle() {
         if (BATCH_IN_PROGRESS.compareAndSet(false, true)) {
-            DISPATCH_EXECUTOR.submit(CommandDispatcher::processBatch);
+            DISPATCH_EXECUTOR.submit(DispatchCoordinator::processBatch);
         }
         // If already running, the running batch will pick up queued messages.
     }

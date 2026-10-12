@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Component;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.OutboundDisplayHandler;
-import org.wynnvets.chat.dispatcher.CommandDispatcher;
+import org.wynnvets.chat.dispatcher.DispatchCoordinator;
 import org.wynnvets.chat.spoiler.SpoilerCodec;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
@@ -307,7 +307,7 @@ public final class GuildChatDispatcher {
             return true;
         }
 
-        CommandDispatcher.executeWithStaffEligibilityGate(
+        DispatchCoordinator.executeWithStaffEligibilityGate(
                 () -> sendCommandBypassed("g \u203C" + message));
         return true;
     }
@@ -321,7 +321,7 @@ public final class GuildChatDispatcher {
             return true;
         }
 
-        CommandDispatcher.executeWithStaffEligibilityGate(
+        DispatchCoordinator.executeWithStaffEligibilityGate(
                 () ->
                         sendCommandBypassed(
                                 "g \u26A0\u26A0\u26A0 If you are using vetsmod, it's outdated (current version "
@@ -451,7 +451,7 @@ public final class GuildChatDispatcher {
                                             : selfRank;
                                 });
 
-        CommandDispatcher.dispatchStaffChatWithEligibilityGate(username, message, rank);
+        DispatchCoordinator.dispatchStaffChatWithEligibilityGate(username, message, rank);
     }
 
     private static String resolveUsername(Minecraft minecraft) {

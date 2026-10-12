@@ -28,8 +28,8 @@ The vetsmod chat system is a multi-stage pipeline that intercepts each chat mess
 4. Compute `isStaffRankCheck` = `GuildStateManager.isProcessingModStaffRankCheck()` AND the line looks like a staff-rank-check response
 5. `GuildStateManager.processMessage(message, messageString)` — unconditional, and it runs *before* the suppression below, so a suppressed rank-check line is still processed
 6. Suppress if `isStaffRankCheck`
-7. Suppress via `CommandDispatcher.shouldSuppressFeedback()` (`/v` echo)
-8. Suppress via `CommandDispatcher.shouldSuppressFindResponse()` (`/find` result)
+7. Suppress via `DispatchCoordinator.shouldSuppressFeedback()` (`/v` echo)
+8. Suppress via `DispatchCoordinator.shouldSuppressFindResponse()` (`/find` result)
 9. Rewriter chain (only when NOT internally dispatched):
    1. `EncourageUpdateRewriter.tryRewrite()`
    2. `StaffGuildAlertRewriter.tryRewrite()`
@@ -188,8 +188,8 @@ Enum, four constants: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge,
 
 Solves: serialize command dispatch on a single-threaded executor and wait for server feedback before next send.
 
-### CommandDispatcher
-[CommandDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/CommandDispatcher.java)
+### DispatchCoordinator
+[DispatchCoordinator](../src/client/java/org/wynnvets/chat/dispatcher/DispatchCoordinator.java)
 
 Single-threaded `DISPATCH_EXECUTOR`. `/msg` takes priority: each pass handles queued `/msg` first, then every queued `/find` batch, including ones queued during that phase. Today a `/msg` arriving mid-`/find` waits for the next pass (bug `find-phase-does-not-yield-to-queued-msg`). Provides `shouldSuppressFeedback()` and `shouldSuppressFindResponse()` used by ChatLogMixin.
 
@@ -197,13 +197,13 @@ Single-threaded `DISPATCH_EXECUTOR`. `/msg` takes priority: each pass handles qu
 [MessageFanoutDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/MessageFanoutDispatcher.java)
 
 Fans `/v` out as `/msg <recipient> 🔐<message>` (no space after the lock) to every online staff member in the feed except yourself. Constants:
-- `CommandDispatcher.LOCK_PREFIX = "🔐"` (the `/v` fan-out marker, and one of the echo-matching signals; declared there, not here)
+- `DispatchCoordinator.LOCK_PREFIX = "🔐"` (the `/v` fan-out marker, and one of the echo-matching signals; declared there, not here)
 - `SUPPRESSION_TTL_MS = 15_000`
 - `OFFLINE_GUIDANCE_SUPPRESSION_WINDOW_MS = 4_000`
 - `INTER_SEND_DELAY_MS = 600`
 - `MAX_DISPATCH_RETRIES = 3`
 
-Multi-strategy feedback matching in `MessageFanoutDispatcher.shouldSuppressFeedback` (reached from ChatLogMixin; the direct caller is `CommandDispatcher.shouldSuppressFeedback`):
+Multi-strategy feedback matching in `MessageFanoutDispatcher.shouldSuppressFeedback` (reached from ChatLogMixin; the direct caller is `DispatchCoordinator.shouldSuppressFeedback`):
 1. Offline-guidance blanket-suppression (4s window after offline error)
 2. Payload echo (plain match, then censored variant, then token subsequence; needs the recipient or the lock prefix too)
 3. Lock-prefix + recipient fallback, when the payload test fails (e.g. Wynntils rewrote coordinates)
@@ -214,7 +214,7 @@ Steps 2–4 are tried against each pending send in turn, oldest first; the first
 ### FindDispatcher
 [FindDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/FindDispatcher.java)
 
-Batch `/find <username>` dispatcher. `enqueueFindBatch(usernames, resultFuture)` completes the caller-supplied `CompletableFuture<Map<username, server>>`; `WorldListFetcher` calls it directly rather than through `CommandDispatcher`'s delegate. Parses responses: "currently on server XX##" (server stored lower-cased), "currently on a private server" (sentinel `"PRIVATE"`), "not currently online" (null); a lookup with no matching reply within `FIND_RESPONSE_WAIT_MS = 6_000` is null too.
+Batch `/find <username>` dispatcher. `enqueueFindBatch(usernames, resultFuture)` completes the caller-supplied `CompletableFuture<Map<username, server>>`; `WorldListFetcher` calls it directly rather than through `DispatchCoordinator`'s delegate. Parses responses: "currently on server XX##" (server stored lower-cased), "currently on a private server" (sentinel `"PRIVATE"`), "not currently online" (null); a lookup with no matching reply within `FIND_RESPONSE_WAIT_MS = 6_000` is null too.
 
 ## 10. AnimatedChatMixin
 

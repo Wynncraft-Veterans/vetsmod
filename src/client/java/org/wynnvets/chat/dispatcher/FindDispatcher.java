@@ -19,11 +19,11 @@ import net.minecraft.client.player.LocalPlayer;
  * so they never interleave with {@code /msg} fanout.
  *
  * <p>{@link #enqueueFindBatch} is called directly by callers outside this package (not
- * through {@link CommandDispatcher}); {@link CommandDispatcher}'s batch coordinator then
+ * through {@link DispatchCoordinator}); {@link DispatchCoordinator}'s batch coordinator then
  * runs each queued batch. This class's suppression hook,
  * {@link #shouldSuppressFindResponse}, is reached from
  * {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} through
- * {@link CommandDispatcher#shouldSuppressFindResponse}.</p>
+ * {@link DispatchCoordinator#shouldSuppressFindResponse}.</p>
  */
 public final class FindDispatcher {
 
@@ -46,7 +46,7 @@ public final class FindDispatcher {
     /**
      * Enqueues a batch of {@code /find} lookups to run on the shared dispatch executor.
      * The lookups are driven from the same single dispatch thread as {@code /msg}
-     * fan-out, so the two never interleave; see {@link CommandDispatcher} for how a
+     * fan-out, so the two never interleave; see {@link DispatchCoordinator} for how a
      * dispatch pass orders them. Completes the caller-supplied {@code resultFuture} with
      * a map of username → lower-cased server name, {@link #PRIVATE_SERVER} for a private
      * server, or {@code null} otherwise (for example, the player is reported offline or
@@ -62,7 +62,7 @@ public final class FindDispatcher {
         }
 
         FIND_BATCH_QUEUE.add(new FindBatch(new ArrayList<>(usernames), resultFuture));
-        CommandDispatcher.startBatchIfIdle();
+        DispatchCoordinator.startBatchIfIdle();
     }
 
     // ──────────────────────────── Find-batch dispatch ────────────────────────────
@@ -183,7 +183,7 @@ public final class FindDispatcher {
         }
     }
 
-    // ──────────────────────────── Find-response suppression (direct caller: CommandDispatcher)
+    // ──────────────────────────── Find-response suppression (direct caller: DispatchCoordinator)
     // ────────────────────────────
 
     /**

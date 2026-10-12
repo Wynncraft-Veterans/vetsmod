@@ -9,7 +9,7 @@ import net.minecraft.network.chat.Component;
 import org.apache.commons.lang3.StringUtils;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.dispatcher.CommandDispatcher;
+import org.wynnvets.chat.dispatcher.DispatchCoordinator;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
 import org.wynnvets.fetcher.ondemand.StampFetcher;
@@ -480,7 +480,7 @@ public class GuildStateManager {
      */
     public static void onEnteredWorld() {
         enteredWorld = true;
-        CommandDispatcher.resetStaffChatEligibilityCache();
+        DispatchCoordinator.resetStaffChatEligibilityCache();
 
         // Capture player name
         Minecraft minecraft = Minecraft.getInstance();
@@ -944,7 +944,7 @@ public class GuildStateManager {
         GuildChecker.reset();
         UnlockManager.reset();
         SessionAuthWarning.reset();
-        CommandDispatcher.resetStaffChatEligibilityCache();
+        DispatchCoordinator.resetStaffChatEligibilityCache();
     }
 
     /**

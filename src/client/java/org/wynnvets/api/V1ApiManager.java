@@ -8,7 +8,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import net.fabricmc.loader.api.FabricLoader;
 import org.wynnvets.Vetsmod;
-import org.wynnvets.chat.dispatcher.CommandDispatcher;
+import org.wynnvets.chat.dispatcher.DispatchCoordinator;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.guild.GuildStateManager;
@@ -56,7 +56,7 @@ public final class V1ApiManager {
      *  {@link #isConfirmedStaff()} (directly, or via
      *  {@link GuildStateManager#isConfirmedStaff()}) by the staff-only commands and by
      *  the staff-chat eligibility gate in
-     *  {@link org.wynnvets.chat.dispatcher.CommandDispatcher CommandDispatcher}. */
+     *  {@link org.wynnvets.chat.dispatcher.DispatchCoordinator DispatchCoordinator}. */
     private static volatile boolean confirmedStaff = false;
 
     /** In-game guild rank from the staff roster ("strategist"/"chief"/
@@ -226,13 +226,13 @@ public final class V1ApiManager {
                                     confirmedStaffRank = "";
                                 }
                                 // Same-world demotion clears the eligibility cache, which
-                                // CommandDispatcher's auth-ack fast path fills while we are
+                                // DispatchCoordinator's auth-ack fast path fills while we are
                                 // staff, so later gated calls don't keep treating us as
                                 // staff. World change already resets it via
                                 // GuildStateManager.onEnteredWorld ->
                                 // resetStaffChatEligibilityCache.
                                 if (wasStaff && !confirmedStaff) {
-                                    CommandDispatcher.resetStaffChatEligibilityCache();
+                                    DispatchCoordinator.resetStaffChatEligibilityCache();
                                 }
                                 // Refresh ahead of schedule: the next scheduled poll may be up
                                 // to two minutes away, so trigger an immediate refresh of the
@@ -273,7 +273,7 @@ public final class V1ApiManager {
                                     confirmedStaff = false;
                                     confirmedStaffRank = "";
                                     if (wasStaff) {
-                                        CommandDispatcher.resetStaffChatEligibilityCache();
+                                        DispatchCoordinator.resetStaffChatEligibilityCache();
                                     }
                                     GuildStateManager.onAuthFailure(detail);
                                 } else {

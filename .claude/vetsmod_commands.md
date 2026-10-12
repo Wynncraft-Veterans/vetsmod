@@ -163,7 +163,7 @@ The legacy SHA-256 password matching has been removed. Users with stored `vetsWa
 ### GuildChatCommandMixin
 [GuildChatCommandMixin](../src/client/java/org/wynnvets/mixin/client/chat/GuildChatCommandMixin.java)
 
-Routes `/g`, `/wg`, `/v` and nine more prefixes through `GuildChatDispatcher.intercept(command)` — **not exhaustive**, see `GuildChatDispatcher.intercept`, which matches 12. Staff `/v` goes through `CommandDispatcher` → `MessageFanoutDispatcher` for fan-out to online staff with 🔐 lock prefix. `/msg` is **not** intercepted: vetsmod only ever emits it, via `Handlers.Command.queueCommand` in the fan-out and as a `SuggestCommand` click on `/wv list` entries.
+Routes `/g`, `/wg`, `/v` and nine more prefixes through `GuildChatDispatcher.intercept(command)` — **not exhaustive**, see `GuildChatDispatcher.intercept`, which matches 12. Staff `/v` goes through `DispatchCoordinator` → `MessageFanoutDispatcher` for fan-out to online staff with 🔐 lock prefix. `/msg` is **not** intercepted: vetsmod only ever emits it, via `Handlers.Command.queueCommand` in the fan-out and as a `SuggestCommand` click on `/wv list` entries.
 
 ## 3. Suggestion providers
 
