@@ -19,7 +19,7 @@ import net.minecraft.client.player.LocalPlayer;
  * so they never interleave with {@code /msg} fanout.
  *
  * <p>{@link #enqueueFindBatch} is called directly by callers outside this package (not
- * through {@link DispatchCoordinator}); {@link DispatchCoordinator}'s batch coordinator then
+ * through {@link DispatchCoordinator}); {@link DispatchCoordinator}'s dispatch pass then
  * runs each queued batch. This class's suppression hook,
  * {@link #shouldSuppressFindResponse}, is reached from
  * {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} through

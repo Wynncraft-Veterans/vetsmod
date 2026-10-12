@@ -27,12 +27,17 @@ import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
 /**
- * Shared single-threaded command dispatcher for serialized outbound Wynncraft commands.
+ * Gates the staff-only chat commands ({@code /v}, {@code /a}, {@code /encourage}) on staff
+ * eligibility, and owns the single outbound dispatch thread that drives the {@code /v} fan-out
+ * and the {@code /find} batches, handing each command to the render thread and waiting for its
+ * reply, or a timeout, before the next.
  *
- * <p>Coordinates the shared dispatch executor that serializes
- * both {@code /msg} fanout (via {@link MessageFanoutDispatcher}) and {@code /find}
- * batches (via {@link FindDispatcher}).  At most one command at a time is awaiting
- * its reply, which is why each suppression system needs only a single awaiting slot.
+ * <p>Formerly {@code CommandDispatcher}.</p>
+ *
+ * <p>The {@code /v} fan-out runs in {@link MessageFanoutDispatcher}, where it goes out as
+ * {@code /msg}, and the {@code /find} batches in {@link FindDispatcher}.  At most one command
+ * at a time is awaiting its reply, which is why each suppression system needs only a single
+ * awaiting slot.
  * A command whose wait times out is abandoned, not cancelled, so its reply can still
  * arrive while a later command is being awaited. A retry resends the same recipient
  * and payload, so a late echo of the earlier {@code /msg} attempt, arriving while the
