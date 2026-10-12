@@ -1,4 +1,4 @@
-package org.wynnvets.mwe.anni.waypoint;
+package org.wynnvets.mwe.anni;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.models.marker.type.MarkerInfo;

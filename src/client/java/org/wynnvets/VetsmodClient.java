@@ -26,6 +26,7 @@ import org.wynnvets.listeners.RankChangeListener;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.listeners.WynntilsEventListener;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.ScrollSpotMarkerProvider;
 import org.wynnvets.mwe.anni.aggressive.AggressiveAlertDispatcher;
 import org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker;
 import org.wynnvets.mwe.anni.aggressive.GhostsPromptHandler;
@@ -34,7 +35,6 @@ import org.wynnvets.mwe.anni.mode.AnniWindowWatcher;
 import org.wynnvets.mwe.anni.network.AnniWsHandler;
 import org.wynnvets.mwe.anni.outline.AnniOutlineRegistry;
 import org.wynnvets.mwe.anni.outline.AnniOutlineTicker;
-import org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider;
 import org.wynnvets.mwe.anni.zone.AnniZone;
 import org.wynnvets.mwe.anni.zone.AnniZoneLineRenderer;
 import org.wynnvets.queue.QueueDetector;
@@ -107,7 +107,7 @@ public class VetsmodClient implements ClientModInitializer {
                     // meant to stop a window-open mid-static-party going silent. Today a
                     // window opening with an unchanged organiser set fires nothing
                     // (party-reporter-window-open-not-a-trigger).
-                    org.wynnvets.mwe.anni.party.AnniPartyReporter.init();
+                    org.wynnvets.mwe.anni.AnniPartyReporter.init();
                     QueueStateManager.addListener(
                             new QueueStateListener() {
                                 @Override

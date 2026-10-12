@@ -160,7 +160,7 @@ public class VetsConfig {
      *  {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}'s class Javadoc lists
      *  the readers inside it.
      *  <b>No waypoint class reads the mode</b> &mdash;
-     *  {@link org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider ScrollSpotMarkerProvider}
+     *  {@link org.wynnvets.mwe.anni.ScrollSpotMarkerProvider ScrollSpotMarkerProvider}
      *  gates on
      *  {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker#isAggressiveActive()
      *  AnniAggressiveTicker#isAggressiveActive()} instead, which is where the S5 reading

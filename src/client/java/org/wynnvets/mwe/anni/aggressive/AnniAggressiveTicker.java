@@ -68,7 +68,7 @@ public final class AnniAggressiveTicker {
      *
      * <p><b>Four behavioural readers</b> —
      * {@link org.wynnvets.mwe.anni.zone.AnniZoneLineRenderer AnniZoneLineRenderer},
-     * {@link org.wynnvets.mwe.anni.waypoint.ScrollSpotMarkerProvider ScrollSpotMarkerProvider},
+     * {@link org.wynnvets.mwe.anni.ScrollSpotMarkerProvider ScrollSpotMarkerProvider},
      * {@link AggressiveAlertDispatcher} and {@link GhostsPromptHandler} — each
      * testing it at the top of its hot path. <b>Two diagnostic reads</b> also
      * report it: {@link org.wynnvets.debug.DebugCommands DebugCommands}'

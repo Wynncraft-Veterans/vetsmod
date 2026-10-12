@@ -66,7 +66,7 @@ VetsmodClient (entry point)
   │                           NewFormatRenderer, LegacyEnchantmentRenderer, LegacyScreenshotHandler,
   │                           LegacyHighlightPainter (the slot highlight both draw sites call)
   ├── mwe/anni/               MWE/annihilation subsystem — snapshot cache, boss bar, outlines,
-  │                           zone lines, waypoint, RSVP, debug tree (12 sub-packages)
+  │                           zone lines, waypoint, RSVP, debug tree
   ├── distribute/             /wv distribute — Guild Management GUI automation: sends
   │                           `/guild manage`, walks Manage Members / Guild Log, presses
   │                           the send slot. Visible to staff, executable by chief+

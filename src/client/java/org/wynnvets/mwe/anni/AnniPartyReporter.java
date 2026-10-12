@@ -1,4 +1,4 @@
-package org.wynnvets.mwe.anni.party;
+package org.wynnvets.mwe.anni;
 
 import java.util.HashSet;
 import java.util.List;

@@ -140,7 +140,7 @@ public final class PartyRosterListener {
 
     /**
      * Trigger a synthetic recapture from outside the Wynntils event bus.
-     * Used by {@link org.wynnvets.mwe.anni.party.AnniPartyReporter} when an
+     * Used by {@link org.wynnvets.mwe.anni.AnniPartyReporter AnniPartyReporter} when an
      * incoming snapshot's {@code organiser_usernames} list changes — meant for
      * window-open, when the local party may have been static for ages and no
      * {@link PartyEvent} would fire on its own. Today a window opening with an

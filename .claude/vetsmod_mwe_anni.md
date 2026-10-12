@@ -16,6 +16,8 @@ Most anni-side code lives under `org.wynnvets.mwe.anni.*`. The ones that do not,
 
 ```
 mwe/anni/
+├── AnniPartyReporter.java          — snapshot listener; on organiser-set change calls PartyRosterListener.requestRecapture
+├── ScrollSpotMarkerProvider.java   — Wynntils MarkerProvider, dark-red beacon
 ├── state/
 │   ├── AnniSnapshot.java          — Gson-hydrated bean mirroring the wire shape; snake_case fields, deliberately not a record
 │   ├── AnniSnapshotCache.java     — process-wide volatile + listener bus
@@ -48,13 +50,9 @@ mwe/anni/
 │   ├── AggressiveAlertDispatcher.java  — snapshot diffs + T-10m/T-5m readiness
 │   ├── AnniAggressiveTicker.java       — volatile flag; mode==AGGRESSIVE ∧ window
 │   └── GhostsPromptHandler.java        — rising-edge zone-entry prompt
-├── waypoint/
-│   └── ScrollSpotMarkerProvider.java   — Wynntils MarkerProvider, dark-red beacon
 ├── command/
 │   ├── AnniRsvpCommand.java        — brigadier handler: auth gate, dispatch, render ack
 │   └── AnniScrollspotCommand.java  — invoked from debug tree (not main /wv)
-├── party/
-│   └── AnniPartyReporter.java      — snapshot listener; on organiser-set change calls PartyRosterListener.requestRecapture
 └── render/
     ├── AnniHoverBuilder.java      — colour tokens, role chips, rsvp badges, link/click/hover helpers
     ├── AnniCommandRenderer.java   — /wv anni payload builder; returns List<MutableComponent>
@@ -709,7 +707,7 @@ party members by username — see `Wynntils PartyModel.getPartyMembers()`.
    testable core; legacy `vetsConnected` / `tier` parameters are gone.
 
 2. **Mid-window snapshot trigger** —
-   [`AnniPartyReporter`](../src/client/java/org/wynnvets/mwe/anni/party/AnniPartyReporter.java)
+   [`AnniPartyReporter`](../src/client/java/org/wynnvets/mwe/anni/AnniPartyReporter.java)
    subscribes to `AnniSnapshotCache`. On any change to the lowercased
    `organiser_usernames` set, calls
    `PartyRosterListener.requestRecapture()`. It is meant to handle "anni
