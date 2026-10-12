@@ -108,7 +108,7 @@ import org.wynnvets.util.Json;
  * <h3>Key Invariants</h3>
  * <ul>
  *   <li>At most one command awaiting its reply at a time (single-threaded executor
- *       plus each dispatcher's bounded wait).</li>
+ *       plus {@link MessageFanoutDispatcher}'s and {@link FindDispatcher}'s bounded waits).</li>
  *   <li>/msg broadcasts take priority over /find batches: each dispatch pass handles
  *       queued /msg broadcasts before it starts on queued /find batches. Today a /msg
  *       that arrives while a pass is working through /find batches waits for that pass
@@ -142,9 +142,10 @@ public final class DispatchCoordinator {
                     .GET()
                     .build();
 
-    // Single-threaded executor. With each dispatcher's wait-for-reply, at most one of
-    // this class's commands is awaiting a reply at a time; a command whose wait times
-    // out is abandoned, not cancelled, so its reply can still arrive later.
+    // Single-threaded executor. With MessageFanoutDispatcher's and FindDispatcher's
+    // wait-for-reply, at most one of this class's commands is awaiting a reply at a time;
+    // a command whose wait times out is abandoned, not cancelled, so its reply can still
+    // arrive later.
     private static final ExecutorService DISPATCH_EXECUTOR =
             Executors.newSingleThreadExecutor(
                     r -> {
@@ -376,7 +377,7 @@ public final class DispatchCoordinator {
     }
 
     // ──────────────────────────── Helpers (some package-private, for the
-    // dispatchers) ────────────────────────────
+    // MessageFanoutDispatcher and FindDispatcher) ────────────────────────────
 
     static void showNoRecipientsWarning() {
         ChatUtils.sendLocalMessage(

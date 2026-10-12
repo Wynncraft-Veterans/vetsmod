@@ -188,7 +188,7 @@ Enum, four constants: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge,
 
 Solves, for the three executor-backed classes below: serialize command dispatch on a single-threaded executor and wait for server feedback before next send.
 
-`GuildChatDispatcher`, also in this package, has no executor. It is the synchronous prefix router that `GuildChatCommandMixin` calls at the head of every `ClientPacketListener.sendCommand` (§1, outbound), and it reaches this section only through `DispatchCoordinator`'s staff gate: `/v` via `dispatchStaffChatWithEligibilityGate`, `/a` and `/encourage` via `executeWithStaffEligibilityGate`.
+`GuildChatDispatcher`, also in `chat/dispatcher/`, has no executor. It is the synchronous prefix router that `GuildChatCommandMixin` calls at the head of every `ClientPacketListener.sendCommand` (§1, outbound), and it reaches this section only through `DispatchCoordinator`'s staff gate: `/v` via `dispatchStaffChatWithEligibilityGate`, `/a` and `/encourage` via `executeWithStaffEligibilityGate`.
 
 ### DispatchCoordinator
 [DispatchCoordinator](../src/client/java/org/wynnvets/chat/dispatcher/DispatchCoordinator.java)
