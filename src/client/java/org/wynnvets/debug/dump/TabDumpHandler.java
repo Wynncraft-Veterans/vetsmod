@@ -4,7 +4,7 @@ import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.guild.TabListGuildParser;
+import org.wynnvets.fetcher.ondemand.TabListGuildParser;
 import org.wynnvets.logging.VetsLogger;
 
 /**

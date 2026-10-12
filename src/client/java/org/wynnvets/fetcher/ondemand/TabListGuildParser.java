@@ -1,4 +1,4 @@
-package org.wynnvets.guild;
+package org.wynnvets.fetcher.ondemand;
 
 import com.wynntils.core.text.StyledText;
 import com.wynntils.utils.mc.McUtils;

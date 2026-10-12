@@ -86,7 +86,7 @@ Also: `GUILD_UUID = "a36bd64c-c053-4727-872d-b0d0729f474a"` (Returners).
 
 ### The shared client
 
-[HttpClients](../src/client/java/org/wynnvets/util/HttpClients.java) — one `HttpClient` for the whole mod, built `HTTP_1_1` with a 5 s connect timeout and **no** redirect, proxy, executor, authenticator, cookie-handler or SSL customisation of any kind. Seventeen classes hold it in their own `private static final HttpClient HTTP_CLIENT = HttpClients.standard()` field: `DispatchCoordinator`, `InviteGate`, `NameResolver`, `NoAspectsFilter`, `PlayerLookup`, seven of the eight `fetcher/ondemand` fetchers (all but `ListFetcher`, which holds no client and delegates to `OnlineMemberService`), four of the six `fetcher/polling` classes (all but `AnniSnapshotPoller`, which goes over the WebSocket, and `PollingService`, which is transport-free by design) and `TerritoryLineManager`. `PlayerLookup` passes its copy down to five of its six lookup providers.
+[HttpClients](../src/client/java/org/wynnvets/util/HttpClients.java) — one `HttpClient` for the whole mod, built `HTTP_1_1` with a 5 s connect timeout and **no** redirect, proxy, executor, authenticator, cookie-handler or SSL customisation of any kind. Seventeen classes hold it in their own `private static final HttpClient HTTP_CLIENT = HttpClients.standard()` field: `DispatchCoordinator`, `InviteGate`, `NameResolver`, `NoAspectsFilter`, `PlayerLookup`, every `fetcher/ondemand` class except `ListFetcher` (which holds no client and delegates to `OnlineMemberService`) and the two tab-list helpers `TabListGuildParser` and `OnlineGuildCache` (which make no requests), four of the six `fetcher/polling` classes (all but `AnniSnapshotPoller`, which goes over the WebSocket, and `PollingService`, which is transport-free by design) and `TerritoryLineManager`. `PlayerLookup` passes its copy down to five of its six lookup providers.
 
 One shared client means one selector thread, one default executor and one connection pool, and the seventeen fields now reuse each other's keep-alive connections instead of each holding private idle ones. Reuse is per host, so what matters is that the pool spans **six**: `api.wynnvets.org` (twelve of the seventeen), `api.wynncraft.com` (`InviteGate`, `NameResolver`, `UserInfoFetcher`, `TerritoryLineManager`, and `PlayerLookup` via `WynncraftProvider`), and — all five through `PlayerLookup`'s copy — `playerdb.co`, `api.ashcon.app`, `api.minecraftservices.com` and `api.mojang.com`. The saving concentrates on the first two, which is where the repeat traffic is; the four lookup hosts are cascade fallbacks and mostly cold.
 
@@ -147,6 +147,8 @@ Package: [org.wynnvets.fetcher.ondemand](../src/client/java/org/wynnvets/fetcher
 | `StampFetcher` | `/wv anni`, auto | `VetsApi.STAMP` | Countdown or "not announced" |
 | `UserInfoFetcher` | `/wv check <name>` | `PlayerLookup` cascade; WynnCraft `/v3/player` and `/v3/guild` rosters; `check_membership` over the WebSocket | Chat lines, sent one per `sendLocalMessage` |
 | `OnlineMemberService` | internal | Tab, `/list`, Wynntils | Merged roster |
+| `TabListGuildParser` | internal | The tab list's guild column (no request) | `GuildEntry` list, truncated past ~19 online |
+| `OnlineGuildCache` | internal | None (in memory) | Names kept listed for a 30 s grace period |
 
 ### StaffFetcher details
 Parses JSON array, extracts `{username, rank, world/server}`, filters online, sorts by rank priority (owner=0, chief=1, strategist=2, captain=3), then alpha.
@@ -175,10 +177,10 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 1. Build UUID→username from Wynntils (authoritative)
 2. Overlay `PolledJsonMap.GUILD_ROSTER.snapshot()` (Mojang-resolved, takes precedence over stale API)
 3. Supplement with VetsMod usernames for unresolved UUIDs
-4. Merged guild online = Wynntils online ∪ VetsMod guild UUIDs ∪ tab list
+4. Merged guild online = Wynntils online ∪ VetsMod guild UUIDs ∪ tab list (`TabListGuildParser`)
 5. Honourary + waitlist from VetsMod `/list`
 6. Tab-only usernames (no UUID match, including no `PolledJsonMap.WYNN_ALIASES` hit) added as guild tier
-7. Apply grace-period cache (recently-seen players)
+7. Apply grace-period cache (`OnlineGuildCache`: recently-seen players)
 
 ## 5. Polling services
 

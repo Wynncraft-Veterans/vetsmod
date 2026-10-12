@@ -1,4 +1,4 @@
-package org.wynnvets.guild;
+package org.wynnvets.fetcher.ondemand;
 
 import java.util.Set;
 import java.util.TreeSet;

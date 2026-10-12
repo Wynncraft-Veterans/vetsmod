@@ -24,8 +24,6 @@ import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.fetcher.polling.PolledJsonMap;
 import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.guild.OnlineGuildCache;
-import org.wynnvets.guild.TabListGuildParser;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
