@@ -1,5 +1,6 @@
 package org.wynnvets.util;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -7,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Locale;
 import java.util.UUID;
+import net.minecraft.core.UUIDUtil;
 import org.junit.jupiter.api.Test;
 
 class UuidsTest {
@@ -112,5 +114,112 @@ class UuidsTest {
     @Test
     void toUndashed_dropsTheDashes() {
         assertEquals(UNDASHED, Uuids.toUndashed(EXPECTED));
+    }
+
+    // ----- int arrays -----
+
+    // A UUID with every int non-zero, its int array, and the array as Tag.toString spells it.
+    private static final UUID GOLDEN = UUID.fromString("085d0e58-29d4-44aa-8379-92a4568a59d6");
+    private static final int[] GOLDEN_INTS = {140316248, 701777066, -2089184604, 1451907542};
+    private static final String GOLDEN_SNBT = "[I;140316248,701777066,-2089184604,1451907542]";
+
+    // A negative low word under a high word that is not -1: this is what a dropped
+    // 0xFFFFFFFFL mask gets wrong (the golden vector's low words are both positive).
+    private static final UUID SIGN = UUID.fromString("00000000-8000-0000-0000-000080000000");
+    private static final int[] SIGN_INTS = {0, -2147483648, 0, -2147483648};
+
+    @Test
+    void intArray_goldenVector_bothDirections() {
+        assertEquals(GOLDEN, Uuids.fromIntArray(GOLDEN_INTS));
+        assertArrayEquals(GOLDEN_INTS, Uuids.toIntArray(GOLDEN));
+        assertEquals(GOLDEN_SNBT, Uuids.toIntArrayString(GOLDEN));
+        assertEquals(GOLDEN, Uuids.parseIntArray(GOLDEN_SNBT));
+        assertEquals("085d0e5829d444aa837992a4568a59d6", Uuids.toUndashed(GOLDEN));
+    }
+
+    @Test
+    void intArray_signBoundaryVector_keepsTheLowWords() {
+        assertEquals(SIGN, Uuids.fromIntArray(SIGN_INTS));
+        assertArrayEquals(SIGN_INTS, Uuids.toIntArray(SIGN));
+        assertEquals("[I;0,-2147483648,0,-2147483648]", Uuids.toIntArrayString(SIGN));
+    }
+
+    @Test
+    void intArray_roundTrips() {
+        for (UUID u : new UUID[] {new UUID(0L, 0L), new UUID(-1L, -1L), SIGN, GOLDEN, EXPECTED}) {
+            assertEquals(u, Uuids.fromIntArray(Uuids.toIntArray(u)));
+            assertEquals(u, Uuids.parseIntArray(Uuids.toIntArrayString(u)));
+        }
+    }
+
+    @Test
+    void intArray_nullAndLengthRules() {
+        assertNull(Uuids.fromIntArray(null));
+        assertNull(Uuids.fromIntArray(new int[3]));
+        assertNull(Uuids.fromIntArray(new int[5]));
+        assertNull(Uuids.toIntArray(null));
+        assertNull(Uuids.toIntArrayString(null));
+    }
+
+    @Test
+    void parseIntArray_acceptsBothMinecraftSpellings() {
+        assertEquals(GOLDEN, Uuids.parseIntArray(GOLDEN_SNBT));
+        assertEquals(
+                GOLDEN, Uuids.parseIntArray("[I; 140316248, 701777066, -2089184604, 1451907542]"));
+        assertEquals(GOLDEN, Uuids.parseIntArray("  " + GOLDEN_SNBT + "\n"));
+        assertEquals(
+                Uuids.fromIntArray(new int[] {1, 0, -1, 0}),
+                Uuids.parseIntArray("[I;00000000001,0,-00000000001,0]"));
+    }
+
+    @Test
+    void parseIntArray_rejectsEverythingElse() {
+        for (String bad :
+                new String[] {
+                    null,
+                    "",
+                    "   ",
+                    "junk",
+                    "[i;1,2,3,4]",
+                    "[L;1,2,3,4]",
+                    "[I;1,2,3]",
+                    "[I;1,2,3,4,5]",
+                    "[I;1,2,3,4",
+                    "I;1,2,3,4]",
+                    "[I;1,,3,4]",
+                    "[I;-,2,3,4]",
+                    "[I;+1,2,3,4]",
+                    "[I;  1,2,3,4]",
+                    "[I;1 ,2,3,4]",
+                    "[I; 1,2,3,4]",
+                    "[I;1, 2,3,4]",
+                    "[I; 1, 2,3, 4]",
+                    "[I;2147483648,0,0,0]",
+                    "[I;-2147483649,0,0,0]",
+                    "[I;99999999999,0,0,0]",
+                    "[I;\u0661,2,3,4]",
+                    DASHED
+                }) {
+            assertNull(Uuids.parseIntArray(bad), String.valueOf(bad));
+        }
+    }
+
+    @Test
+    void parseAny_readsEverySpelling() {
+        assertEquals(EXPECTED, Uuids.parseAny(DASHED));
+        assertEquals(EXPECTED, Uuids.parseAny(UNDASHED));
+        assertEquals(GOLDEN, Uuids.parseAny(GOLDEN_SNBT));
+        assertEquals(GOLDEN, Uuids.parseAny("[I; 140316248, 701777066, -2089184604, 1451907542]"));
+        assertNull(Uuids.parseAny("junk"));
+        assertNull(Uuids.parseAny(null));
+    }
+
+    @Test
+    void intArray_agreesWithMinecraftsUuidUtil() {
+        for (UUID u : new UUID[] {new UUID(0L, 0L), new UUID(-1L, -1L), SIGN, GOLDEN, EXPECTED}) {
+            assertEquals(u, UUIDUtil.uuidFromIntArray(Uuids.toIntArray(u)));
+            assertEquals(u, Uuids.fromIntArray(UUIDUtil.uuidToIntArray(u)));
+            assertArrayEquals(UUIDUtil.uuidToIntArray(u), Uuids.toIntArray(u));
+        }
     }
 }
