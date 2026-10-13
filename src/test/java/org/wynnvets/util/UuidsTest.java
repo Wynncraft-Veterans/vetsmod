@@ -1,4 +1,4 @@
-package org.wynnvets.fetcher.lookup;
+package org.wynnvets.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;

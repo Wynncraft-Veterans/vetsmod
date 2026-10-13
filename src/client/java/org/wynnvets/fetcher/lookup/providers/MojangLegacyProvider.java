@@ -16,9 +16,9 @@ import org.wynnvets.fetcher.lookup.LookupProvider;
 import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.MojangCooldown;
 import org.wynnvets.fetcher.lookup.ProviderOutcome;
-import org.wynnvets.fetcher.lookup.Uuids;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.Json;
+import org.wynnvets.util.Uuids;
 
 /**
  * Last-resort resolver: legacy {@code api.mojang.com/users/profiles/minecraft/{name}}.

@@ -15,9 +15,9 @@ import java.util.concurrent.CompletableFuture;
 import org.wynnvets.fetcher.lookup.LookupProvider;
 import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.ProviderOutcome;
-import org.wynnvets.fetcher.lookup.Uuids;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.Json;
+import org.wynnvets.util.Uuids;
 
 /**
  * Mojang Services resolver:

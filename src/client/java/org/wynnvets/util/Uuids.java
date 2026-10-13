@@ -1,8 +1,12 @@
-package org.wynnvets.fetcher.lookup;
+package org.wynnvets.util;
 
 import java.util.UUID;
 
-/** Small UUID helpers shared by providers that receive undashed IDs. */
+/**
+ * Small UUID helpers shared by providers that receive undashed IDs.
+ *
+ * <p>Formerly {@code fetcher.lookup.Uuids}.</p>
+ */
 public final class Uuids {
 
     private Uuids() {}
