@@ -36,7 +36,8 @@ public final class V1ApiManager {
     private static final String INBOUND_BASE = "wss://api.wynnvets.org/v1/inbound";
     private static final URI OUTBOUND_URI = URI.create("wss://api.wynnvets.org/v1/outbound");
 
-    private static volatile WsClient inboundClient;
+    // Package-private for unit tests. See V1ApiManagerFramesTest.
+    static volatile WsClient inboundClient;
     private static volatile WsClient outboundClient;
     private static volatile JsonObject pendingRegistration;
 
