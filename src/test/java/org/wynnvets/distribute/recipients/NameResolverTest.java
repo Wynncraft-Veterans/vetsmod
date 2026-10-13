@@ -10,8 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link NameResolver}'s four payload extractors plus
- * {@code normalizeUuid}.
+ * Tests for {@link NameResolver}'s four payload extractors.
  *
  * <p>These decide which Members-GUI tile a distribution lands on, so a wrong
  * answer misroutes resources rather than merely logging oddly. The HTTP halves
@@ -73,26 +72,6 @@ class NameResolverTest {
               }
             }
             """;
-
-    // ----- normalizeUuid -----
-
-    @Test
-    void normalizeUuid_stripsDashesAndLowercases() {
-        assertEquals(
-                "aaaaaaaabbbbccccddddeeeeeeeeeeee",
-                NameResolver.normalizeUuid("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"));
-        assertEquals(
-                "aaaaaaaabbbbccccddddeeeeeeeeeeee",
-                NameResolver.normalizeUuid("aaaaaaaabbbbccccddddeeeeeeeeeeee"),
-                "an already-normalised uuid is idempotent");
-    }
-
-    @Test
-    void normalizeUuid_nullBecomesEmptyStringNotNull() {
-        // Callers use the result as a map key, so a null would poison the index
-        // rather than simply missing.
-        assertEquals("", NameResolver.normalizeUuid(null));
-    }
 
     // ----- extractAllLegacyNames -----
 

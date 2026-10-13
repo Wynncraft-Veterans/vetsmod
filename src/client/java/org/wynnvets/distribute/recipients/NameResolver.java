@@ -21,6 +21,7 @@ import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
+import org.wynnvets.util.Uuids;
 
 /**
  * Resolves a user-supplied name to the {@code legacyName} that the
@@ -214,12 +215,12 @@ public final class NameResolver {
                 body,
                 (currentName, member) -> {
                     if (member == null) return false;
-                    // Raw form; normalizeUuid below reduces the dashed and
+                    // Raw form; Uuids.normalizeUndashed below reduces the dashed and
                     // undashed spellings wapi may emit to one 32-char key.
                     String uuid = Json.stringOrNull(member, "uuid");
                     if (uuid == null) return false;
                     String legacy = Json.stringOrNull(member, "legacyName");
-                    map.put(normalizeUuid(uuid), legacy != null ? legacy : currentName);
+                    map.put(Uuids.normalizeUndashed(uuid), legacy != null ? legacy : currentName);
                     return false;
                 });
         return map;
@@ -299,20 +300,5 @@ public final class NameResolver {
         } catch (Exception e) {
             VetsLogger.debug("NameResolver: parse error: {}", e.getMessage());
         }
-    }
-
-    /** Strips dashes and lowercases — wapi may emit either form, and
-     *  the no-aspects endpoint emits dashed UUIDs; both reduce to the same 32-char hex string for
-     *  equality comparison. Mirrors
-     *  {@link org.wynnvets.fetcher.ondemand.UserInfoFetcher#normalizeUuidText
-     *  UserInfoFetcher#normalizeUuidText}. */
-    // Package-private for NoAspectsFilter.parseUuids, a production caller in another class of
-    // this package — not a test seam. NameResolverTest covers it as well, but this deliberately
-    // does not carry the usual "Package-private for unit tests" marker: that marker asserts
-    // narrowing back to private is safe once the test goes, and here it would break
-    // NoAspectsFilter.
-    static String normalizeUuid(String uuid) {
-        if (uuid == null) return "";
-        return uuid.replace("-", "").toLowerCase(Locale.ROOT);
     }
 }

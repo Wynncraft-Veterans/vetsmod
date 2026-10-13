@@ -97,7 +97,7 @@ Wynntils' `GuildMemberListContainer`), not the subset ≥2 callers share,
 so `PREVIOUS_PAGE_SLOT` / `PREVIOUS_PAGE_PATTERN` live there despite
 having one caller. The tick constants stay on their own classes — §6.
 
-One helper lives outside the package: `org.wynnvets.util.ContainerScreens`
+One distribute-only helper lives outside the package: `org.wynnvets.util.ContainerScreens`
 holds the two "which container screen is open" predicates, because the
 id-matching one also drives the *Manage* menu and so is not
 Members-specific. See §6 point 2.
@@ -600,7 +600,8 @@ of any kind:
 tile name, lowercase-keyed) and `fetchUuidToLegacyName` (dashless
 lowercase UUID → tile name). `NoAspectsFilter` calls the last of those
 to translate the opt-out payload's UUIDs — the rename-proof key — into
-the tile names the distributors actually filter on.
+the tile names the distributors actually filter on. Both sides key that
+join through `org.wynnvets.util.Uuids.normalizeUndashed`.
 
 **Everything fails open.** An HTTP error, a parse error or a missing
 wapi response yields an empty exclude set, which means nobody is

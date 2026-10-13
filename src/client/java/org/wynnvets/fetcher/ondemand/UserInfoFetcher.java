@@ -35,6 +35,7 @@ import org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
+import org.wynnvets.util.Uuids;
 
 /**
  * On-demand fetcher for the {@code /wv check} command.
@@ -140,34 +141,14 @@ public class UserInfoFetcher {
         return y + (y == 1 ? " year" : " years");
     }
 
-    /**
-     * Strips dashes and lowercases, so a dashed and a dashless UUID compare equal. Twin of
-     * {@link org.wynnvets.distribute.recipients.NameResolver#normalizeUuid
-     * NameResolver#normalizeUuid} &mdash; identical behaviour down to the
-     * null-becomes-empty-string contract, and that one has always pointed
-     * here (as a live link since 5fb6f26).
-     * The pairing now reads both ways, so whichever copy a future consolidation opens
-     * first names the other.
-     */
-    private static String normalizeUuidText(String raw) {
-        if (raw == null) {
-            return "";
-        }
-        return raw.replace("-", "").toLowerCase(Locale.ROOT);
-    }
-
-    private static boolean isUuidLike(String value) {
-        return value != null && value.length() == 32 && value.matches("[0-9a-f]{32}");
-    }
-
     private static boolean containsUuid(JsonElement element, String normalizedUuid) {
         if (element == null || element.isJsonNull()) {
             return false;
         }
 
         if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
-            String normalized = normalizeUuidText(element.getAsString());
-            return isUuidLike(normalized) && normalized.equals(normalizedUuid);
+            String normalized = Uuids.normalizeUndashed(element.getAsString());
+            return Uuids.isUndashedLowercase(normalized) && normalized.equals(normalizedUuid);
         }
 
         if (element.isJsonArray()) {
@@ -183,8 +164,9 @@ public class UserInfoFetcher {
         if (element.isJsonObject()) {
             JsonObject object = element.getAsJsonObject();
             for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
-                String normalizedKey = normalizeUuidText(entry.getKey());
-                if (isUuidLike(normalizedKey) && normalizedKey.equals(normalizedUuid)) {
+                String normalizedKey = Uuids.normalizeUndashed(entry.getKey());
+                if (Uuids.isUndashedLowercase(normalizedKey)
+                        && normalizedKey.equals(normalizedUuid)) {
                     return true;
                 }
 
@@ -217,7 +199,7 @@ public class UserInfoFetcher {
                         .GET()
                         .build();
 
-        String normalizedUuid = normalizeUuidText(uuid);
+        String normalizedUuid = Uuids.normalizeUndashed(uuid);
 
         return HTTP_CLIENT
                 .sendAsync(request, HttpResponse.BodyHandlers.ofString())
@@ -302,7 +284,7 @@ public class UserInfoFetcher {
                         JsonObject member = memberEl.getAsJsonObject();
                         JsonElement uuidEl = member.get("uuid");
                         if (uuidEl == null || !uuidEl.isJsonPrimitive()) continue;
-                        String memberUuid = normalizeUuidText(uuidEl.getAsString());
+                        String memberUuid = Uuids.normalizeUndashed(uuidEl.getAsString());
                         if (memberUuid.equals(normalizedUuid)) {
                             rank = capitalizeRank(rankKey);
                             if (member.has("legacyName")
@@ -497,7 +479,7 @@ public class UserInfoFetcher {
 
     private static UserUUID makeUserUUID(UUID uuid, String name) {
         UserUUID u = new UserUUID();
-        u.id = uuid.toString().replace("-", "");
+        u.id = Uuids.toUndashed(uuid);
         u.name = name;
         return u;
     }

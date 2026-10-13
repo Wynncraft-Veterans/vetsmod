@@ -16,6 +16,7 @@ import org.wynnvets.api.VetsApi;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
+import org.wynnvets.util.Uuids;
 
 /**
  * Fetches the NoAspects opt-out list from
@@ -132,7 +133,9 @@ public final class NoAspectsFilter {
                 if (!obj.has("uuid") || obj.get("uuid").isJsonNull()) continue;
                 String uuid = obj.get("uuid").getAsString();
                 if (uuid != null && !uuid.isEmpty()) {
-                    uuids.add(NameResolver.normalizeUuid(uuid));
+                    // The no-aspects endpoint emits dashed UUIDs; this gives the same undashed
+                    // key NameResolver.extractUuidToLegacyName gives wapi's, so the two compare.
+                    uuids.add(Uuids.normalizeUndashed(uuid));
                 }
             }
             return uuids;
