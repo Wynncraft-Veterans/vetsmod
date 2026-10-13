@@ -30,7 +30,7 @@ import org.wynnvets.util.ConfigValueText.Verb;
  * <p>{@link ConfigValueText} declares no static state beyond two enums, so nothing
  * loads at class-init. That is deliberate: the string kind takes an
  * already-resolved value precisely so this class never has to reach
- * {@code VetsConfig}.</p>
+ * {@code LegacyItemStyle}.</p>
  */
 class ConfigValueTextTest {
 

@@ -86,7 +86,7 @@ Default 69 for top opacity approximates the old `0xB0` alpha byte.
 
 ## 3. API (static methods, all public except `save()`)
 
-The methods are split between two classes, named in the first column; `VetsConfigKeys` holds only the key-name constants. Every method in the table takes a key except `load()`, `save()` and `getColorNames()`, which take nothing, and `isValidColor(name)` / `isValidSprite(name)`, which take a value. The setters return false when the key is not registered in their map; none validates the value.
+The first column names the class that declares each method. `VetsConfigKeys` holds only the key-name constants, and the colour and sprite rows are `LegacyItemStyle`'s, which `/wv config` calls directly. Every method in the table takes a key except `load()`, `save()` and `getColorNames()`, which take nothing, and `isValidColor(name)` / `isValidSprite(name)`, which take a value. The setters return false when the key is not registered in their map; none validates the value.
 
 | Class | Method | Notes |
 |-------|--------|-------|
@@ -100,9 +100,9 @@ The methods are split between two classes, named in the first column; `VetsConfi
 | `VetsConfig` | `registerDefault(key, defaultValue)` | for subsystems; boolean keys only, must run before `load()` |
 | `VetsConfig` | `load()` | creates the file from defaults when absent |
 | `VetsConfig` | `save()` | **private**; called by every setter and by `load()` |
-| `VetsConfig` | `isValidColor(name)` | delegated to `LegacyItemStyle.isValidColor`, which reads `NamedColor`'s private `COLORS` map |
-| `VetsConfig` | `isValidSprite(name)` | delegated to `LegacyItemStyle.isValidSprite`, which matches against the `VetsConfigSchema.VALID_SPRITES` array — there is no sprite enum |
-| `VetsConfig` | `getColorNames()` | for command suggestion |
+| `LegacyItemStyle` | `isValidColor(name)` | delegates to `NamedColor.isValid`, which reads `NamedColor`'s private `COLORS` map |
+| `LegacyItemStyle` | `isValidSprite(name)` | matches against the `VetsConfigSchema.VALID_SPRITES` array — there is no sprite enum |
+| `LegacyItemStyle` | `getColorNames()` | for command suggestion |
 
 ## 4. USER_CONFIG_KEYS order (for /wv config listing)
 

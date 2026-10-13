@@ -4,14 +4,12 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.wynntils.utils.render.Texture;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import net.fabricmc.loader.api.FabricLoader;
 import org.wynnvets.logging.VetsLogger;
@@ -37,51 +35,6 @@ public class VetsConfig {
     private static final Map<String, Boolean> triStateConfig =
             Collections.synchronizedMap(new HashMap<>());
     private static final Map<String, String> stringConfig = new ConcurrentHashMap<>();
-
-    // ── Colour / sprite helpers ───────────────────────────────────────────
-    // Thin delegates to LegacyItemStyle, kept from when mixins called them by
-    // FQN; since the legacy highlight draws moved to LegacyHighlightPainter,
-    // no mixin calls them any more.
-
-    /** @see LegacyItemStyle#getColorNames() */
-    public static Set<String> getColorNames() {
-        return LegacyItemStyle.getColorNames();
-    }
-
-    /** @see LegacyItemStyle#isValidColor(String) */
-    public static boolean isValidColor(String value) {
-        return LegacyItemStyle.isValidColor(value);
-    }
-
-    /** @see LegacyItemStyle#isValidSprite(String) */
-    public static boolean isValidSprite(String value) {
-        return LegacyItemStyle.isValidSprite(value);
-    }
-
-    /** @see LegacyItemStyle#getBackgroundGradientTopColor() */
-    public static int getLegacyBackgroundGradientTopColor() {
-        return LegacyItemStyle.getBackgroundGradientTopColor();
-    }
-
-    /** @see LegacyItemStyle#getBackgroundGradientBottomColor() */
-    public static int getLegacyBackgroundGradientBottomColor() {
-        return LegacyItemStyle.getBackgroundGradientBottomColor();
-    }
-
-    /** @see LegacyItemStyle#getForegroundColor() */
-    public static int getLegacyForegroundColor() {
-        return LegacyItemStyle.getForegroundColor();
-    }
-
-    /** @see LegacyItemStyle#getColorRgb(String) */
-    public static int getColorRgb(String name) {
-        return LegacyItemStyle.getColorRgb(name);
-    }
-
-    /** @see LegacyItemStyle#getForegroundTexture() */
-    public static Texture getLegacyForegroundTexture() {
-        return LegacyItemStyle.getForegroundTexture();
-    }
 
     // Default values
     static {

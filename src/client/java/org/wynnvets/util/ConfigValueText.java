@@ -31,7 +31,7 @@ import net.minecraft.network.chat.Component;
  *   <li><b>int</b> &mdash; always AQUA. Nothing about the number changes it.</li>
  *   <li><b>string</b> &mdash; the caller supplies the value already styled, and it is appended
  *       untouched. It has to be: colour-name keys resolve through
- *       {@code VetsConfig.getColorRgb}, which reaches {@code LegacyItemStyle}, a class that
+ *       {@code LegacyItemStyle.getColorRgb}, and {@code LegacyItemStyle} is a class that
  *       cannot load in a test &mdash; and which string keys are colours at all is the
  *       caller's to say, not this class's.</li>
  * </ul>

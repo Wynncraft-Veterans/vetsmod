@@ -4,7 +4,7 @@ import com.wynntils.utils.colors.CustomColor;
 import com.wynntils.utils.render.RenderUtils;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.item.ItemStack;
-import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.LegacyItemStyle;
 
 /**
  * The legacy-item slot highlight: a configurable background gradient with a sprite drawn over
@@ -61,12 +61,12 @@ public final class LegacyHighlightPainter {
                 y,
                 x + 16,
                 y + 16,
-                VetsConfig.getLegacyBackgroundGradientTopColor(),
-                VetsConfig.getLegacyBackgroundGradientBottomColor());
+                LegacyItemStyle.getBackgroundGradientTopColor(),
+                LegacyItemStyle.getBackgroundGradientBottomColor());
         RenderUtils.drawSprite(
                 guiGraphics,
-                VetsConfig.getLegacyForegroundTexture(),
-                CustomColor.fromARGBInt(VetsConfig.getLegacyForegroundColor()),
+                LegacyItemStyle.getForegroundTexture(),
+                CustomColor.fromARGBInt(LegacyItemStyle.getForegroundColor()),
                 x - 10,
                 y - 10,
                 36,

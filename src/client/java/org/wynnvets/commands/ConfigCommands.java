@@ -10,6 +10,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.config.LegacyItemStyle;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.config.VetsConfigSchema;
@@ -74,7 +75,7 @@ final class ConfigCommands {
                             // today vetsAnniFlashIntensity, which has no arm of its
                             // own, lands here too
                             // (config-set-rejects-role-style-and-flash-intensity).
-                            for (String name : VetsConfig.getColorNames()) {
+                            for (String name : LegacyItemStyle.getColorNames()) {
                                 if (name.startsWith(partial)) builder.suggest(name);
                             }
                         }
@@ -234,7 +235,7 @@ final class ConfigCommands {
         // All other string keys are treated as colour names; today that
         // wrongly includes vetsAnniRoleStyle and vetsAnniFlashIntensity
         // (config-set-rejects-role-style-and-flash-intensity).
-        int rgb = VetsConfig.getColorRgb(value);
+        int rgb = LegacyItemStyle.getColorRgb(value);
         return Component.literal(value).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(rgb)));
     }
 
@@ -255,7 +256,7 @@ final class ConfigCommands {
 
         if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)) {
             String lower = rawValue.toLowerCase();
-            if (!VetsConfig.isValidSprite(lower)) {
+            if (!LegacyItemStyle.isValidSprite(lower)) {
                 ChatUtils.sendLocalMessage(
                         Component.literal(
                                         "Unknown sprite. Valid options: "
@@ -274,7 +275,7 @@ final class ConfigCommands {
         // this arm also wrongly matches vetsAnniRoleStyle and
         // vetsAnniFlashIntensity (config-set-rejects-role-style-and-flash-intensity).
         String lower = rawValue.toLowerCase();
-        if (!VetsConfig.isValidColor(lower)) {
+        if (!LegacyItemStyle.isValidColor(lower)) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Unknown colour name. Tab-complete to see options.")
                             .withStyle(ChatFormatting.RED));

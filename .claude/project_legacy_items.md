@@ -123,7 +123,7 @@ Guard chain, both sites, inside the painter: `stack.isEmpty()` → `LegacyItemHa
 
 Drawing sequence:
 1. `guiGraphics.fillGradient(x, y, x+16, y+16, topColor, bottomColor)` — top/bottom colours from `LegacyItemStyle.getBackgroundGradientTopColor()` / `…BottomColor()` with per-colour opacity packed into ARGB alpha
-2. `RenderUtils.drawSprite(guiGraphics, VetsConfig.getLegacyForegroundTexture(), CustomColor.fromARGBInt(VetsConfig.getLegacyForegroundColor()), x - 10, y - 10, 36, 36)` — Wynntils' own sprite renderer, 36×36 at offset −10, taking a `com.wynntils.utils.render.Texture` enum value from `LegacyItemStyle`'s `HIGHLIGHT_*` table (fallback `Texture.HIGHLIGHT_WYNN`). There is no `blit` call and no raw texture path anywhere in the repo
+2. `RenderUtils.drawSprite(guiGraphics, LegacyItemStyle.getForegroundTexture(), CustomColor.fromARGBInt(LegacyItemStyle.getForegroundColor()), x - 10, y - 10, 36, 36)` — Wynntils' own sprite renderer, 36×36 at offset −10, taking a `com.wynntils.utils.render.Texture` enum value from `LegacyItemStyle`'s `HIGHLIGHT_*` table (fallback `Texture.HIGHLIGHT_WYNN`). There is no `blit` call and no raw texture path anywhere in the repo
 
 `LegacyHighlightMixin` itself **does not draw** — it only captures hover state (`currentItemHasFoil`, `currentItemStack` for the tooltip pipeline, `currentHoveredSlot` for the item-dump tool) in its `renderTooltip` head and, via a server-compat patch in its `renderSlot` head, sets `newTooltipStylesAvailable` if it sees a `tooltip_style` component.
 
@@ -135,7 +135,7 @@ Colours resolved via `NamedColor.COLORS` map: Minecraft formatting codes + rarit
 
 ## 6. User-facing config keys (all via `/wv config`)
 
-Registered in `VetsConfigSchema.USER_CONFIG_KEYS`. Validation delegated to `VetsConfig.isValidColor()` / `isValidSprite()`; opacity clamped 0–100. Persisted to `vetsmod/storage/config.json`.
+Registered in `VetsConfigSchema.USER_CONFIG_KEYS`. Validation goes through `LegacyItemStyle.isValidColor()` / `isValidSprite()`; opacity clamped 0–100. Persisted to `vetsmod/storage/config.json`.
 
 | Key | Type | Default |
 |-----|------|---------|
