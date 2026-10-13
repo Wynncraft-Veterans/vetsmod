@@ -10,23 +10,23 @@ import java.time.Duration;
  * connect timeout, no other customisation of any kind &mdash; and each held the result in its
  * own {@code private static final HttpClient HTTP_CLIENT}. They all call {@link #standard()}
  * instead; the field stayed where it was, only its initialiser changed and one import was
- * added, so no call site moved and no existing import was touched. <b>Seventeen hold it
- * today</b> &mdash; {@code GuildRosterCache} and
- * {@code WynnAliasCache} were later merged into a single {@code PolledJsonMap}. Every count
- * below is that seventeen, not the eighteen this class was extracted from.</p>
+ * added, so no call site moved and no existing import was touched. That eighteen counts the
+ * classes of the extraction, and the set has changed since: {@code GuildRosterCache} and
+ * {@code WynnAliasCache} were later merged into a single {@code PolledJsonMap}, and a class
+ * split out since declares a field of its own. So nothing below counts the holders.</p>
  *
  * <p><b>Never call {@code close()}, {@code shutdown()} or {@code shutdownNow()} on the client
  * this hands back, and never use it in a try-with-resources.</b> Java 21 made
  * {@link java.net.http.HttpClient HttpClient} an {@link AutoCloseable}: {@code close()} refuses
  * new requests at once, then blocks until every in-flight one finishes, and the client stays
  * shut for good. One
- * try-with-resources anywhere would therefore take down the HTTP of all seventeen subsystems
- * that share it, for the rest of the session, and nothing in the type system objects. No
+ * try-with-resources anywhere would therefore take down the HTTP of every subsystem
+ * that shares it, for the rest of the session, and nothing in the type system objects. No
  * reviewer will be looking for this.</p>
  *
- * <p><b>One failure domain.</b> All seventeen callers depend on this class initialising. If the
+ * <p><b>One failure domain.</b> Every holder depends on this class initialising. If the
  * default {@code SSLContext} fails to resolve, the first class to touch this one gets an
- * {@link ExceptionInInitializerError} and the other sixteen get
+ * {@link ExceptionInInitializerError} and every other holder gets
  * {@code NoClassDefFoundError: Could not initialize class org.wynnvets.util.HttpClients},
  * whose cause, on JDK 21, is an {@link ExceptionInInitializerError} naming the original
  * exception and the thread it was thrown on; the first class's
@@ -76,8 +76,8 @@ public final class HttpClients {
      * {@code HTTP_1_1}, a 5 s connect timeout, and no redirect, proxy, executor,
      * authenticator, cookie-handler or SSL customisation whatsoever.
      *
-     * <p>Every call returns the same instance, so the seventeen fields hold one selector
-     * thread, one default executor and one connection pool between them.</p>
+     * <p>Every call returns the same instance, so every field initialised from it holds the
+     * same selector thread, default executor and connection pool.</p>
      */
     public static HttpClient standard() {
         return STANDARD;

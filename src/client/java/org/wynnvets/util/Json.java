@@ -9,8 +9,9 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>Twenty-one classes each declared their own {@code private static final Gson GSON = new
  * Gson()} &mdash; character-identical, unconfigured, and per-class in nothing but where the
- * copy happened to land. They all read this field instead. <b>Twenty read it today</b>, two of
- * the original twenty-one having since been merged into a single {@code PolledJsonMap}.</p>
+ * copy happened to land. They all read this field instead. That twenty-one is a count from the
+ * extraction: classes have since been merged (two into a single {@code PolledJsonMap}) and
+ * split, so this doc keeps no current count.</p>
  *
  * <p>Sharing one instance is safe by Gson's own contract: {@code Gson} is documented as
  * thread-safe and intended to be reused across an application. What sharing it actually

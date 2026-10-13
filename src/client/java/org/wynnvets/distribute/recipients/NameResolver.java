@@ -29,8 +29,8 @@ import org.wynnvets.util.Uuids;
  * {@code wapi /v3/guild/<localPlayerGuild>}.
  *
  * <p>The v3 payload's {@code members.<rank>.<currentName>.legacyName} shape (see
- * {@link org.wynnvets.fetcher.ondemand.UserInfoFetcher#analyzeRoster
- * UserInfoFetcher#analyzeRoster}) lets us map a player's <em>current</em> Mojang username to
+ * {@link org.wynnvets.fetcher.ondemand.ReturnersRosterProbe#analyzeRoster
+ * ReturnersRosterProbe#analyzeRoster}) lets us map a player's <em>current</em> Mojang username to
  * whatever name the Wynncraft server has frozen onto its in-game tiles. Input matching is
  * case-insensitive against both the {@code currentName} key and the {@code legacyName} value, so
  * either form resolves to the correct GUI tile name.</p>
