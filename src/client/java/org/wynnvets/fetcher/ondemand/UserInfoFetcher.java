@@ -9,8 +9,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -66,79 +64,6 @@ public class UserInfoFetcher {
         static ReturnersMembership notInGuild() {
             return new ReturnersMembership(false, null, null);
         }
-    }
-
-    private static String toRelativeDateLabel(String dateText) {
-        LocalDate date;
-
-        try {
-            date = LocalDate.parse(dateText);
-        } catch (RuntimeException ignored) {
-            return dateText;
-        }
-
-        long days = ChronoUnit.DAYS.between(date, LocalDate.now());
-        if (days == 0) {
-            return "today";
-        }
-        if (days == 1) {
-            return "yesterday";
-        }
-        if (days > 1) {
-            return days + " days ago";
-        }
-
-        long daysUntil = Math.abs(days);
-        if (daysUntil == 1) {
-            return "tomorrow";
-        }
-        return "in " + daysUntil + " days";
-    }
-
-    /**
-     * Coarse-grained relative date label: years > months > days, picking the
-     * coarsest unit that yields a value ≥ 1. Falls back to {@link
-     * #toRelativeDateLabel} for sub-month spans. Used for "first seen" where
-     * "4342 days ago" is unreadable but "11 years ago" is at-a-glance useful.
-     */
-    private static String toCoarseRelativeDateLabel(String dateText) {
-        LocalDate date;
-        try {
-            date = LocalDate.parse(dateText);
-        } catch (RuntimeException ignored) {
-            return dateText;
-        }
-        LocalDate now = LocalDate.now();
-        long years = ChronoUnit.YEARS.between(date, now);
-        if (years >= 1) {
-            return years == 1 ? "1 year ago" : years + " years ago";
-        }
-        long months = ChronoUnit.MONTHS.between(date, now);
-        if (months >= 1) {
-            return months == 1 ? "1 month ago" : months + " months ago";
-        }
-        return toRelativeDateLabel(dateText);
-    }
-
-    /**
-     * Coarse "age" formatter for "{@code N ago}" presentations of a duration
-     * in seconds. Picks the coarsest unit that yields ≥ 1: years > months >
-     * days > hours > minutes > seconds. Used for best-guess timestamps where
-     * we have unix seconds (not an ISO date) — e.g. dazebot's
-     * {@code last_seen_observed.ts}.
-     */
-    private static String humanizeAge(long secs) {
-        if (secs < 0) secs = 0;
-        if (secs < 60) return secs + "s";
-        if (secs < 3600) return (secs / 60) + "m";
-        if (secs < 86400) return (secs / 3600) + "h";
-        if (secs < 86400L * 30) return (secs / 86400) + "d";
-        if (secs < 86400L * 365) {
-            long m = secs / (86400L * 30);
-            return m + (m == 1 ? " month" : " months");
-        }
-        long y = secs / (86400L * 365);
-        return y + (y == 1 ? " year" : " years");
     }
 
     private static boolean containsUuid(JsonElement element, String normalizedUuid) {
@@ -647,7 +572,8 @@ public class UserInfoFetcher {
             ChatUtils.sendLocalMessage(
                     label("First seen on Wynncraft: ")
                             .append(
-                                    Component.literal(toCoarseRelativeDateLabel(firstJoin))
+                                    Component.literal(
+                                                    TimeLabels.toCoarseRelativeDateLabel(firstJoin))
                                             .setStyle(VALUE_STYLE))
                             .append(
                                     Component.literal("  (" + firstJoin + ")")
@@ -665,7 +591,7 @@ public class UserInfoFetcher {
             ChatUtils.sendLocalMessage(
                     label("Last seen on Wynncraft: ")
                             .append(
-                                    Component.literal(toRelativeDateLabel(lastJoin))
+                                    Component.literal(TimeLabels.toRelativeDateLabel(lastJoin))
                                             .setStyle(VALUE_STYLE))
                             .append(
                                     Component.literal("  (" + lastJoin + ")")
@@ -718,7 +644,9 @@ public class UserInfoFetcher {
                 snapshot != null ? snapshot.getLastSeenObserved() : null;
         if (obs != null && obs.getTs() > 0) {
             long ageSec = Instant.now().getEpochSecond() - obs.getTs();
-            line.append(Component.literal(humanizeAge(ageSec) + " ago").setStyle(HIDDEN_STYLE))
+            line.append(
+                            Component.literal(TimeLabels.humanizeAge(ageSec) + " ago")
+                                    .setStyle(HIDDEN_STYLE))
                     .append(
                             Component.literal("  (best guess — server-change observed")
                                     .setStyle(MUTED_STYLE));
@@ -793,7 +721,7 @@ public class UserInfoFetcher {
             long ageSec = Instant.now().getEpochSecond() - obs.getTs();
             if (ageSec >= 0 && ageSec < 600) {
                 line.append(
-                        Component.literal("~" + humanizeAge(ageSec) + " ago")
+                        Component.literal("~" + TimeLabels.humanizeAge(ageSec) + " ago")
                                 .setStyle(HIDDEN_STYLE));
                 if (obs.getServerAtObservation() != null
                         && !obs.getServerAtObservation().isEmpty()) {
