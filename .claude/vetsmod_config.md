@@ -1,6 +1,6 @@
 ---
 name: vetsmod Config Reference
-description: Complete VetsConfig reference — every key (user-facing and internal), defaults, validation, persistence; JSON at vetsmod/storage/config.json
+description: Complete config reference (VetsConfig, VetsConfigKeys, VetsConfigSchema) — every key (user-facing and internal), defaults, validation, persistence; JSON at vetsmod/storage/config.json
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
@@ -8,7 +8,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 
 Single-file JSON config at `vetsmod/storage/config.json` (resolved via `FabricLoader.getInstance().getGameDir()`).
 
-Implementation: [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java), the store, and [VetsConfigKeys](../src/client/java/org/wynnvets/config/VetsConfigKeys.java), the key names.
+Implementation: [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java), the store; [VetsConfigKeys](../src/client/java/org/wynnvets/config/VetsConfigKeys.java), the key names; and [VetsConfigSchema](../src/client/java/org/wynnvets/config/VetsConfigSchema.java), the `/wv config` key lists, valid-value lists and `reset` defaults.
 
 Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-null). All coexist in one flat JSON object — no nesting, no version field, no migration logic.
 
@@ -86,27 +86,27 @@ Default 69 for top opacity approximates the old `0xB0` alpha byte.
 
 ## 3. API (static methods, all public except `save()`)
 
-All methods keyed by string. The setters return false when the key is not registered in their map; none validates the value.
+The methods are split between two classes, named in the first column; `VetsConfigKeys` holds only the key-name constants. Every method in the table takes a key except `load()`, `save()` and `getColorNames()`, which take nothing, and `isValidColor(name)` / `isValidSprite(name)`, which take a value. The setters return false when the key is not registered in their map; none validates the value.
 
-| Method | Notes |
-|--------|-------|
-| `get(key)` / `set(key,value)` | boolean map |
-| `getLong(key)` / `setLong(key,value)` | long map |
-| `getTriState(key)` / `setTriState(key,value)` | tri-state map |
-| `getString(key)` / `setString(key,value)` | string map |
-| `isUserConfigKey(key)` | scans `USER_CONFIG_KEYS` |
-| `isTriStateKey(key)` / `isStringKey(key)` / `isIntKey(key)` | scan `TRISTATE_KEYS` / `STRING_CONFIG_KEYS` / `INT_CONFIG_KEYS` |
-| `getIntDefault(key)` / `getStringDefault(key)` | from INT_DEFAULTS/STRING_DEFAULTS maps |
-| `registerDefault(key, defaultValue)` | for subsystems; boolean keys only, must run before `load()` |
-| `load()` | creates the file from defaults when absent |
-| `save()` | **private**; called by every setter and by `load()` |
-| `isValidColor(name)` | delegated to `LegacyItemStyle.isValidColor`, which reads `NamedColor`'s private `COLORS` map |
-| `isValidSprite(name)` | delegated to `LegacyItemStyle.isValidSprite`, which matches against the `VetsConfig.VALID_SPRITES` array — there is no sprite enum |
-| `getColorNames()` | for command suggestion |
+| Class | Method | Notes |
+|-------|--------|-------|
+| `VetsConfig` | `get(key)` / `set(key,value)` | boolean map |
+| `VetsConfig` | `getLong(key)` / `setLong(key,value)` | long map |
+| `VetsConfig` | `getTriState(key)` / `setTriState(key,value)` | tri-state map |
+| `VetsConfig` | `getString(key)` / `setString(key,value)` | string map |
+| `VetsConfigSchema` | `isUserConfigKey(key)` | scans `USER_CONFIG_KEYS` |
+| `VetsConfigSchema` | `isTriStateKey(key)` / `isStringKey(key)` / `isIntKey(key)` | scan `TRISTATE_KEYS` / `STRING_CONFIG_KEYS` / `INT_CONFIG_KEYS` |
+| `VetsConfigSchema` | `getIntDefault(key)` / `getStringDefault(key)` | from INT_DEFAULTS/STRING_DEFAULTS maps |
+| `VetsConfig` | `registerDefault(key, defaultValue)` | for subsystems; boolean keys only, must run before `load()` |
+| `VetsConfig` | `load()` | creates the file from defaults when absent |
+| `VetsConfig` | `save()` | **private**; called by every setter and by `load()` |
+| `VetsConfig` | `isValidColor(name)` | delegated to `LegacyItemStyle.isValidColor`, which reads `NamedColor`'s private `COLORS` map |
+| `VetsConfig` | `isValidSprite(name)` | delegated to `LegacyItemStyle.isValidSprite`, which matches against the `VetsConfigSchema.VALID_SPRITES` array — there is no sprite enum |
+| `VetsConfig` | `getColorNames()` | for command suggestion |
 
 ## 4. USER_CONFIG_KEYS order (for /wv config listing)
 
-Declared by [VetsConfig.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/config/VetsConfig.java) — **30 entries**, in this order:
+Declared by [VetsConfigSchema.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/config/VetsConfigSchema.java) — **30 entries**, in this order:
 
 1. `legacyItemHighlighting`
 2. `legacyItemShowEnchantments`
@@ -141,10 +141,15 @@ Declared by [VetsConfig.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/config
 
 ## 5. Static defaults
 
+Two classes hold the defaults of the keys in `VetsConfigKeys`; the debug keys get theirs from `registerDefault` (§8).
+
+`VetsConfig`'s static initializer sets the first-run default of every key in `VetsConfigKeys`. Booleans default there, and not all of them are true: `vetsIsStaff`, `vetsAnniEnabled`, `vetsAnniModeUserSet` and `colorBlindMode` default `false`. Timestamp/count longs default `0L`.
+HANDLE_SPOILERS default: null.
+
+`VetsConfigSchema` holds a second copy of seven of the string defaults and both int defaults, which `/wv config <key> reset` writes (its `vetsAnniMode` entry is never reached, since `/wv config` refuses that key):
 INT_DEFAULTS: opacity values.
 STRING_DEFAULTS: seven entries — the four colour/sprite keys plus `vetsAnniRoleStyle` (`descriptive`), `vetsAnniMode` (`silent`) and `vetsAnniFlashIntensity` (`normal`).
-Booleans default in the static initializer, and not all of them are true: `vetsIsStaff`, `vetsAnniEnabled`, `vetsAnniModeUserSet` and `colorBlindMode` default `false`. Timestamp/count longs default `0L`.
-HANDLE_SPOILERS default: null.
+The two copies agree; nothing checks that they keep agreeing.
 
 ## 6. Persistence
 

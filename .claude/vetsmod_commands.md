@@ -84,7 +84,7 @@ Unauthenticated message uses spec wording: `Use \rsvp on discord — or run ~vet
 
 ### /wv config [<key> [<value>]]
 No permission. [ConfigCommands](../src/client/java/org/wynnvets/commands/ConfigCommands.java). Three forms:
-- `/wv config` — list all `VetsConfig.USER_CONFIG_KEYS` with current values
+- `/wv config` — list all `VetsConfigSchema.USER_CONFIG_KEYS` with current values
 - `/wv config <key>` — show current value
 - `/wv config <key> <value>` — persist
 

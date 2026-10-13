@@ -15,7 +15,7 @@ import java.util.Set;
  */
 public final class LegacyItemStyle {
 
-    /** Parallel to {@link VetsConfig#VALID_SPRITES} (same index = same sprite). */
+    /** Parallel to {@link VetsConfigSchema#VALID_SPRITES} (same index = same sprite). */
     private static final Texture[] FOREGROUND_TEXTURES = {
         Texture.HIGHLIGHT_WYNN,
         Texture.HIGHLIGHT_TAG,
@@ -49,7 +49,7 @@ public final class LegacyItemStyle {
 
     public static boolean isValidSprite(String value) {
         if (value == null) return false;
-        for (String s : VetsConfig.VALID_SPRITES) {
+        for (String s : VetsConfigSchema.VALID_SPRITES) {
             if (s.equalsIgnoreCase(value)) return true;
         }
         return false;
@@ -126,8 +126,8 @@ public final class LegacyItemStyle {
     public static Texture getForegroundTexture() {
         String name = VetsConfig.getString(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE);
         if (name != null) {
-            for (int i = 0; i < VetsConfig.VALID_SPRITES.length; i++) {
-                if (VetsConfig.VALID_SPRITES[i].equalsIgnoreCase(name))
+            for (int i = 0; i < VetsConfigSchema.VALID_SPRITES.length; i++) {
+                if (VetsConfigSchema.VALID_SPRITES[i].equalsIgnoreCase(name))
                     return FOREGROUND_TEXTURES[i];
             }
         }

@@ -12,6 +12,7 @@ import net.minecraft.network.chat.TextColor;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
+import org.wynnvets.config.VetsConfigSchema;
 import org.wynnvets.util.ConfigValueText;
 import org.wynnvets.util.ConfigValueText.Form;
 import org.wynnvets.util.ConfigValueText.Verb;
@@ -33,7 +34,7 @@ final class ConfigCommands {
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_CONFIG_KEYS =
             (ctx, builder) -> {
                 String partial = builder.getRemaining().toLowerCase();
-                for (String key : VetsConfig.USER_CONFIG_KEYS) {
+                for (String key : VetsConfigSchema.USER_CONFIG_KEYS) {
                     if (key.toLowerCase().startsWith(partial)) {
                         builder.suggest(key);
                     }
@@ -46,26 +47,26 @@ final class ConfigCommands {
                 String partial = builder.getRemaining().toLowerCase();
                 try {
                     String key = StringArgumentType.getString(ctx, "key");
-                    if (VetsConfig.isIntKey(key)) {
+                    if (VetsConfigSchema.isIntKey(key)) {
                         if ("reset".startsWith(partial)) builder.suggest("reset");
                         for (String v : new String[] {"0", "25", "50", "69", "75", "100"}) {
                             if (v.startsWith(partial)) builder.suggest(v);
                         }
                         return builder.buildFuture();
                     }
-                    if (VetsConfig.isStringKey(key)) {
+                    if (VetsConfigSchema.isStringKey(key)) {
                         // Always suggest "reset" for string keys
                         if ("reset".startsWith(partial)) builder.suggest("reset");
                         if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)) {
-                            for (String s : VetsConfig.VALID_SPRITES) {
+                            for (String s : VetsConfigSchema.VALID_SPRITES) {
                                 if (s.startsWith(partial)) builder.suggest(s);
                             }
                         } else if (key.equals(VetsConfigKeys.VETS_ANNI_ROLE_STYLE)) {
-                            for (String s : VetsConfig.VALID_ROLE_STYLES) {
+                            for (String s : VetsConfigSchema.VALID_ROLE_STYLES) {
                                 if (s.startsWith(partial)) builder.suggest(s);
                             }
                         } else if (key.equals(VetsConfigKeys.VETS_ANNI_MODE)) {
-                            for (String s : VetsConfig.VALID_ANNI_MODES) {
+                            for (String s : VetsConfigSchema.VALID_ANNI_MODES) {
                                 if (s.startsWith(partial)) builder.suggest(s);
                             }
                         } else {
@@ -79,7 +80,7 @@ final class ConfigCommands {
                         }
                         return builder.buildFuture();
                     }
-                    if (VetsConfig.isTriStateKey(key) && "default".startsWith(partial)) {
+                    if (VetsConfigSchema.isTriStateKey(key) && "default".startsWith(partial)) {
                         builder.suggest("default");
                     }
                 } catch (IllegalArgumentException ignored) {
@@ -109,9 +110,9 @@ final class ConfigCommands {
         BOOLEAN;
 
         static Kind of(String key) {
-            if (VetsConfig.isIntKey(key)) return INT;
-            if (VetsConfig.isStringKey(key)) return STRING;
-            if (VetsConfig.isTriStateKey(key)) return TRI_STATE;
+            if (VetsConfigSchema.isIntKey(key)) return INT;
+            if (VetsConfigSchema.isStringKey(key)) return STRING;
+            if (VetsConfigSchema.isTriStateKey(key)) return TRI_STATE;
             return BOOLEAN;
         }
     }
@@ -147,7 +148,7 @@ final class ConfigCommands {
 
         // USER_CONFIG_KEYS' order is the order these print in, which
         // .claude/vetsmod_config.md states as fact. Do not sort here.
-        for (String key : VetsConfig.USER_CONFIG_KEYS) {
+        for (String key : VetsConfigSchema.USER_CONFIG_KEYS) {
             ChatUtils.sendLocalMessage(currentValueLine(Form.LIST, key));
         }
         return 1;
@@ -156,7 +157,7 @@ final class ConfigCommands {
     static int configGet(CommandContext<FabricClientCommandSource> ctx) {
         String key = StringArgumentType.getString(ctx, "key");
 
-        if (!VetsConfig.isUserConfigKey(key)) {
+        if (!VetsConfigSchema.isUserConfigKey(key)) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Unknown config key: " + key).withStyle(ChatFormatting.RED));
             return 0;
@@ -170,7 +171,7 @@ final class ConfigCommands {
         String key = StringArgumentType.getString(ctx, "key");
         String rawValue = StringArgumentType.getString(ctx, "value");
 
-        if (!VetsConfig.isUserConfigKey(key)) {
+        if (!VetsConfigSchema.isUserConfigKey(key)) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Unknown config key: " + key).withStyle(ChatFormatting.RED));
             return 0;
@@ -240,7 +241,7 @@ final class ConfigCommands {
     private static int handleStringConfigSet(String key, String rawValue) {
         // Handle reset for all string keys
         if ("reset".equalsIgnoreCase(rawValue)) {
-            String defaultVal = VetsConfig.getStringDefault(key);
+            String defaultVal = VetsConfigSchema.getStringDefault(key);
             if (defaultVal == null) return 0;
             VetsConfig.setString(key, defaultVal);
             ChatUtils.sendLocalMessage(
@@ -258,7 +259,7 @@ final class ConfigCommands {
                 ChatUtils.sendLocalMessage(
                         Component.literal(
                                         "Unknown sprite. Valid options: "
-                                                + String.join(", ", VetsConfig.VALID_SPRITES))
+                                                + String.join(", ", VetsConfigSchema.VALID_SPRITES))
                                 .withStyle(ChatFormatting.RED));
                 return 0;
             }
@@ -290,7 +291,7 @@ final class ConfigCommands {
 
     private static int handleIntConfigSet(String key, String rawValue) {
         if ("reset".equalsIgnoreCase(rawValue)) {
-            Long defaultVal = VetsConfig.getIntDefault(key);
+            Long defaultVal = VetsConfigSchema.getIntDefault(key);
             if (defaultVal == null) return 0;
             VetsConfig.setLong(key, defaultVal);
             ChatUtils.sendLocalMessage(

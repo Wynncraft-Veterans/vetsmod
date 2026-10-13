@@ -3,7 +3,9 @@ package org.wynnvets.config;
 /**
  * The names of VetsMod's configuration keys. Each constant's value is the name the setting is
  * stored under in {@code vetsmod/storage/config.json}, so changing a value is a file-format
- * change. {@link VetsConfig} holds the values and reads and writes the file.
+ * change. {@link VetsConfig} holds the values and reads and writes the file, and
+ * {@link VetsConfigSchema} holds the key lists, valid-value lists and {@code reset} defaults
+ * that describe them.
  *
  * <p>Keys fall into three categories:</p>
  * <ul>
@@ -11,12 +13,12 @@ package org.wynnvets.config;
  *       {@link #VETS_IS_STAFF}, {@link #VETS_LAST_STAFF_CHECK}).  These are
  *       <em>not</em> exposed to the {@code /wv config} command.</li>
  *   <li><b>User-facing</b> — toggleable by the player via {@code /wv config
- *       &lt;key&gt; &lt;value&gt;}.  Listed in {@link VetsConfig#USER_CONFIG_KEYS}.</li>
+ *       &lt;key&gt; &lt;value&gt;}.  Listed in {@link VetsConfigSchema#USER_CONFIG_KEYS}.</li>
  *   <li><b>Debug</b> — declared in
  *       {@link org.wynnvets.debug.DebugConfigManager DebugConfigManager} rather
  *       than here, and registered as boolean keys through
  *       {@link VetsConfig#registerDefault(String, boolean)}.  Not in
- *       {@link VetsConfig#USER_CONFIG_KEYS}; set through {@code /wv debug set}.</li>
+ *       {@link VetsConfigSchema#USER_CONFIG_KEYS}; set through {@code /wv debug set}.</li>
  * </ul>
  */
 public final class VetsConfigKeys {
@@ -137,7 +139,7 @@ public final class VetsConfigKeys {
      *  gates on
      *  {@link org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker#isAggressiveActive()
      *  AnniAggressiveTicker#isAggressiveActive()} instead, which is where the S5 reading
-     *  comes from. Absent from {@link VetsConfig#USER_CONFIG_KEYS}, so {@code /wv
+     *  comes from. Absent from {@link VetsConfigSchema#USER_CONFIG_KEYS}, so {@code /wv
      *  config} cannot read or write it. When the anni window closes (T+30 min after stamp_epoch)
      *  {@link org.wynnvets.mwe.anni.mode.AnniWindowWatcher AnniWindowWatcher} restores
      *  {@link org.wynnvets.mwe.anni.mode.AnniModeManager#preferredMode()

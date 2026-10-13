@@ -180,7 +180,7 @@ because vets-anni emits `stamp_epoch: null` once the anni begins.
 Three config keys, not one, and the second is what makes the automatic
 transitions safe:
 
-- `VetsConfigKeys.VETS_ANNI_MODE` — string, `silent`/`passive`/`aggressive`, default `silent` on disk, persisted. **Not exposed through `/wv config`**: it is absent from `VetsConfig.USER_CONFIG_KEYS`, so `ConfigCommands.configGet`/`configSet` reject it as an unknown key and `configList` never prints it. The normal user path is `/wv anni <mode>`; `/wv debug tree anni mode set <mode>` also writes it, behind `requireDebug`.
+- `VetsConfigKeys.VETS_ANNI_MODE` — string, `silent`/`passive`/`aggressive`, default `silent` on disk, persisted. **Not exposed through `/wv config`**: it is absent from `VetsConfigSchema.USER_CONFIG_KEYS`, so `ConfigCommands.configGet`/`configSet` reject it as an unknown key and `configList` never prints it. The normal user path is `/wv anni <mode>`; `/wv debug tree anni mode set <mode>` also writes it, behind `requireDebug`.
 - `VETS_ANNI_MODE_USER_SET` (bool) and `VETS_ANNI_USER_MODE` (string) — set together, and **only** by a `Source.USER_COMMAND` transition. They are what makes an explicit pick survive a stream-forced SILENT and the T+30m window close.
 
 **`AnniMode`** (`mode/AnniMode.java`):
