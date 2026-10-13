@@ -61,6 +61,7 @@ class V1ApiManagerFramesTest {
     void reset() {
         V1ApiManager.disconnect();
         V1ApiManager.clearRegistration();
+        SessionAuthState.expectingAuthAck = false;
     }
 
     private void connect() {

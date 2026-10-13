@@ -40,32 +40,6 @@ public final class V1ApiManager {
     private static volatile WsClient outboundClient;
     private static volatile JsonObject pendingRegistration;
 
-    /** Whether an auth frame is still awaiting its ack. Set whenever we send
-     *  one; cleared when an ack is read as the auth reply. Auth-success acks are
-     *  recognised by their {@code tier} key alone, so this flag matters only for
-     *  error acks: an error that arrives while it is set is treated as an auth
-     *  failure and is kept out of {@link #staffActionCallbacks} (an error whose detail
-     *  starts with an auth-failure prefix counts as one whatever the flag says, unless the
-     *  flag is clear and a staff-action callback is pending: that callback takes it). Neither
-     *  {@link #disconnect()} nor a socket drop resets it. */
-    private static volatile boolean expectingAuthAck = false;
-
-    /** Server-confirmed staff status from the most recent successful auth.
-     *  Rewritten by every ok auth ack; cleared by an auth failure and by
-     *  {@link #disconnect()}. The value is "modern verification token +
-     *  WAPI-confirmed staff" -- not the local /gu rank cache. Read through
-     *  {@link #isConfirmedStaff()} (directly, or via
-     *  {@link GuildStateManager#isConfirmedStaff()}) by the staff-only commands and by
-     *  the staff-chat eligibility gate in
-     *  {@link org.wynnvets.chat.dispatcher.DispatchCoordinator DispatchCoordinator}. */
-    private static volatile boolean confirmedStaff = false;
-
-    /** In-game guild rank from the staff roster ("strategist"/"chief"/
-     *  "owner"), populated alongside {@link #confirmedStaff}. Empty when
-     *  not staff. Captain was retired in the 2026-07 permission
-     *  restructure; stray captains never reach {@code is_staff=true}. */
-    private static volatile String confirmedStaffRank = "";
-
     private static final CopyOnWriteArrayList<Consumer<JsonObject>> outboundListeners =
             new CopyOnWriteArrayList<>();
 
@@ -151,7 +125,7 @@ public final class V1ApiManager {
                             // prefix.
                             if (!json.has("status")) return;
                             String status = json.get("status").getAsString();
-                            boolean wasAuthAck = expectingAuthAck;
+                            boolean wasAuthAck = SessionAuthState.expectingAuthAck;
 
                             // Staff-action ack shape: commits carry `kind`+`triggered`,
                             // checks carry `total_points`, preflight carries
@@ -203,7 +177,7 @@ public final class V1ApiManager {
                             // don't -- so success is recognised by that key alone, whatever
                             // expectingAuthAck says.
                             if ("ok".equals(status) && json.has("tier")) {
-                                expectingAuthAck = false;
+                                SessionAuthState.expectingAuthAck = false;
                                 String tier =
                                         json.get("tier").isJsonNull()
                                                 ? ""
@@ -214,17 +188,18 @@ public final class V1ApiManager {
                                 // Capture server-confirmed staff status from the auth ack.
                                 // The roster lookup happens server-side; the client just
                                 // reads whatever the server resolved.
-                                boolean wasStaff = confirmedStaff;
-                                confirmedStaff =
+                                boolean wasStaff = SessionAuthState.confirmedStaff;
+                                SessionAuthState.confirmedStaff =
                                         json.has("is_staff")
                                                 && !json.get("is_staff").isJsonNull()
                                                 && json.get("is_staff").getAsBoolean();
-                                if (confirmedStaff
+                                if (SessionAuthState.confirmedStaff
                                         && json.has("staff_rank")
                                         && !json.get("staff_rank").isJsonNull()) {
-                                    confirmedStaffRank = json.get("staff_rank").getAsString();
+                                    SessionAuthState.confirmedStaffRank =
+                                            json.get("staff_rank").getAsString();
                                 } else {
-                                    confirmedStaffRank = "";
+                                    SessionAuthState.confirmedStaffRank = "";
                                 }
                                 // Same-world demotion clears the eligibility cache, which
                                 // DispatchCoordinator's auth-ack fast path fills while we are
@@ -232,7 +207,7 @@ public final class V1ApiManager {
                                 // staff. World change already resets it via
                                 // GuildStateManager.onEnteredWorld ->
                                 // resetStaffChatEligibilityCache.
-                                if (wasStaff && !confirmedStaff) {
+                                if (wasStaff && !SessionAuthState.confirmedStaff) {
                                     DispatchCoordinator.resetStaffChatEligibilityCache();
                                 }
                                 // Refresh ahead of schedule: the next scheduled poll may be up
@@ -269,10 +244,10 @@ public final class V1ApiManager {
                                 if (wasAuthAck
                                         || detail.startsWith("auth rejected")
                                         || detail.startsWith("Authentication required")) {
-                                    expectingAuthAck = false;
-                                    boolean wasStaff = confirmedStaff;
-                                    confirmedStaff = false;
-                                    confirmedStaffRank = "";
+                                    SessionAuthState.expectingAuthAck = false;
+                                    boolean wasStaff = SessionAuthState.confirmedStaff;
+                                    SessionAuthState.confirmedStaff = false;
+                                    SessionAuthState.confirmedStaffRank = "";
                                     if (wasStaff) {
                                         DispatchCoordinator.resetStaffChatEligibilityCache();
                                     }
@@ -289,7 +264,7 @@ public final class V1ApiManager {
                 () -> {
                     String storedKey = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_KEY);
                     if (storedKey != null && !storedKey.isEmpty() && inboundClient != null) {
-                        expectingAuthAck = true;
+                        SessionAuthState.expectingAuthAck = true;
                         JsonObject auth = V1Frames.auth(storedKey);
                         inboundClient.send(auth);
                         VetsLogger.debug("Re-sent auth frame on inbound (re)connect");
@@ -372,8 +347,8 @@ public final class V1ApiManager {
             outboundClient.close();
             outboundClient = null;
         }
-        confirmedStaff = false;
-        confirmedStaffRank = "";
+        SessionAuthState.confirmedStaff = false;
+        SessionAuthState.confirmedStaffRank = "";
         // Drain any in-flight staff-action callbacks with synthetic
         // errors so callers don't hang waiting on responses that will
         // never arrive.
@@ -450,7 +425,7 @@ public final class V1ApiManager {
             VetsLogger.debug("sendAuth: inbound not connected; key will be sent on reconnect");
             return;
         }
-        expectingAuthAck = true;
+        SessionAuthState.expectingAuthAck = true;
         JsonObject payload = V1Frames.auth(key);
         inboundClient.send(payload);
         VetsLogger.debug("Sent auth frame ({}…)", key.length() >= 6 ? key.substring(0, 6) : key);
@@ -852,7 +827,7 @@ public final class V1ApiManager {
      *  be used for /caution, /warn, /eject -- {@link GuildStateManager#isStaff()}
      *  reads the spoofable client-side /gu rank cache. */
     public static boolean isConfirmedStaff() {
-        return confirmedStaff;
+        return SessionAuthState.confirmedStaff;
     }
 
     /** @return the server-confirmed in-game guild rank (one of
@@ -864,7 +839,7 @@ public final class V1ApiManager {
      *  execution of {@code /wv distribute}. Captain was retired in the
      *  2026-07 permission restructure. */
     public static String confirmedStaffRank() {
-        return confirmedStaffRank;
+        return SessionAuthState.confirmedStaffRank;
     }
 
     /** Returns true if the inbound connection is active. */

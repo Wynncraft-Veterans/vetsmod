@@ -20,6 +20,7 @@ State:
 - `inboundClient`, `outboundClient` (volatile `WsClient`)
 - `pendingRegistration` (JsonObject cached)
 - `outboundListeners` (`CopyOnWriteArrayList<Consumer<JsonObject>>`)
+- the auth-ack reply state (`expectingAuthAck`, `confirmedStaff`, `confirmedStaffRank`) lives in [SessionAuthState](../src/client/java/org/wynnvets/api/SessionAuthState.java)
 
 Key methods:
 - `connect()` — initialize both; inbound gets reconnect callback that re-sends BOTH the cached `register` frame AND a fresh `auth` frame (using `vetsAuthKey` from `VetsConfig`)
@@ -33,7 +34,7 @@ Key methods:
 **Not exhaustive** — `sendQueueStatus`, `sendRankChange`, `sendStaffActionFrame`, `addInboundListener` and `addInboundPostConnectListener` also exist; §7.1 depends on the inbound fan-out. `staff_online` / `staff_offline` are likewise intercepted before the outbound listeners.
 
 **Register frame fields:** `type`, `uuid`, `username`, `tier`.
-**Auth frame fields:** `type:"auth"`, `key:"<43-char base64url>"`. Server replies `{status:"ok", tier, ws_tier, mc_uuid, mc_username, is_staff, staff_rank, staff_rank_display}` or `{status:"error", detail:"auth rejected: <reason>"}`. `is_staff` and `staff_rank` are read by `V1ApiManager` into `confirmedStaff` / `confirmedStaffRank`. `staff_rank_display` is the additive 2026-07 label — the server still sends it, and it is `null` exactly when `staff_rank` is, but the client does not read it; display labels come from `RankDisplayMap.displayFor` at each render site. Auth-success replies are told apart from chat-success acks by the presence of the `tier` field, so a success is recognised whether or not `expectingAuthAck` is set.
+**Auth frame fields:** `type:"auth"`, `key:"<43-char base64url>"`. Server replies `{status:"ok", tier, ws_tier, mc_uuid, mc_username, is_staff, staff_rank, staff_rank_display}` or `{status:"error", detail:"auth rejected: <reason>"}`. `is_staff` and `staff_rank` are read by `V1ApiManager` into `SessionAuthState`'s `confirmedStaff` / `confirmedStaffRank`, which `isConfirmedStaff()` / `confirmedStaffRank()` return. `staff_rank_display` is the additive 2026-07 label — the server still sends it, and it is `null` exactly when `staff_rank` is, but the client does not read it; display labels come from `RankDisplayMap.displayFor` at each render site. Auth-success replies are told apart from chat-success acks by the presence of the `tier` field, so a success is recognised whether or not `expectingAuthAck` is set.
 **Message fields:** `uuid`, `type`, `timestamp`, `rank`, `username`, `message`.
 **Server → client unsolicited:** `{type:"server_info", unauth_enabled: bool}` is pushed once on outbound connect so the mod knows which session-warning copy to show.
 
