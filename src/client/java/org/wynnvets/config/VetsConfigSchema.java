@@ -24,8 +24,8 @@ public final class VetsConfigSchema {
         "descriptive", "short", "formal",
     };
 
-    /** Valid values for {@link VetsConfigKeys#VETS_ANNI_FLASH_INTENSITY}. Today nothing reads
-     *  this array, and {@code /wv config} refuses to set any of these values
+    /** Valid values for {@link VetsConfigKeys#VETS_ANNI_FLASH_INTENSITY}. Today nothing in
+     *  the mod reads this array, and {@code /wv config} refuses to set any of these values
      *  ({@code config-set-rejects-role-style-and-flash-intensity}). */
     public static final String[] VALID_FLASH_INTENSITIES = {
         "subtle", "normal", "strong",

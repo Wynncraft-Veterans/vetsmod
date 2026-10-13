@@ -547,7 +547,7 @@ dropped unrun, an `@split` chain included. One it leaves in place can
 still fire later, into the second run
 (`distribute-concurrent-runs-clobber-shared-state`).
 
-## 8. `OutboundCommand` — the repo's only reflection
+## 8. `OutboundCommand` — the mod's only reflection
 
 `OutboundCommand.queueFront(String)` puts a command at the head of
 Wynntils' outbound queue. Wynntils declares that field as
@@ -580,8 +580,9 @@ The contract worth preserving is **cache the failure, warn, degrade**:
 Two call sites, both in `GuildManageOpener`: `openManageMembers()` and
 `openGuildLog()`, each queueing `guild manage`.
 
-As of this writing, this is the only `java.lang.reflect` usage anywhere
-in `src/` — a fact worth re-checking rather than assuming.
+As of this writing, this is the only `java.lang.reflect` usage in the mod's
+own code (`src/client`, `src/main`); `VetsConfigKeysTest` reads its
+constants by reflection too. A fact worth re-checking rather than assuming.
 
 ## 9. HTTP surface
 
