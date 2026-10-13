@@ -4,7 +4,6 @@ import com.google.gson.JsonObject;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
-import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
@@ -15,7 +14,8 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * <p>{@link AnniWsHandler} routes every {@code anni_query_response} frame
  * to {@link #onResponse(JsonObject)}, which pops the head of a FIFO
  * callback queue — same strict-order pattern as
- * {@link V1ApiManager#staffActionCallbacks}. The protocol has no
+ * {@link org.wynnvets.api.V1ApiManager#staffActionCallbacks
+ * V1ApiManager#staffActionCallbacks}. The protocol has no
  * per-frame correlation ID. temporary-server answers an inbound socket's frames in send
  * order, so the FIFO pairs correctly while each query gets its reply before its deadline.
  * A query that gets no reply (its frame or its reply lost), a reply that arrives after
@@ -69,7 +69,7 @@ public final class AnniQueryClient {
     public static CompletableFuture<AnniSnapshot> query() {
         CompletableFuture<AnniSnapshot> future = new CompletableFuture<>();
         pendingQueries.addLast(future);
-        boolean dispatched = V1ApiManager.sendAnniQuery();
+        boolean dispatched = AnniWsSender.sendAnniQuery();
         if (!dispatched) {
             // The frame didn't go out — pull this future back off the
             // queue (so the next real response doesn't misroute) and

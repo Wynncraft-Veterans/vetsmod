@@ -4,7 +4,6 @@ import com.google.gson.JsonObject;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
-import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
@@ -78,7 +77,7 @@ public final class AnniRsvpClient {
         lastAttemptedNotice = notice;
         CompletableFuture<Ack> future = new CompletableFuture<>();
         pending.addLast(future);
-        boolean dispatched = V1ApiManager.sendAnniRsvp(notice);
+        boolean dispatched = AnniWsSender.sendAnniRsvp(notice);
         if (!dispatched) {
             pending.remove(future);
             Ack ack = new Ack(false, "not connected");

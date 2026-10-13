@@ -31,7 +31,7 @@ Key methods:
 - `sendTabList(entries)` — sends `{type:"tablist", entries:[{server, username},...]}`
 - `addOutboundListener(listener)` — register consumer (note: `server_info` frames are intercepted before listeners and routed straight to `SessionAuthWarning.onServerInfo()`)
 
-**Not exhaustive** — `sendQueueStatus`, `sendRankChange`, `sendStaffActionFrame`, `addInboundListener` and `addInboundPostConnectListener` also exist; §7.1 depends on the inbound fan-out. `staff_online` / `staff_offline` are likewise intercepted before the outbound listeners.
+**Not exhaustive** — `sendQueueStatus`, `sendRankChange`, `sendStaffActionFrame`, `isInboundConnected`, `sendInboundUnchecked` (a send with no check of its own, for a caller that has just checked `isInboundConnected()`; not for auth or staff-action frames), `addInboundListener` and `addInboundPostConnectListener` also exist; §7.1's senders use `isInboundConnected` and `sendInboundUnchecked`, and its receivers the inbound fan-out. `staff_online` / `staff_offline` are likewise intercepted before the outbound listeners.
 
 **Register frame fields:** `type`, `uuid`, `username`, `tier`.
 **Auth frame fields:** `type:"auth"`, `key:"<43-char base64url>"`. Server replies `{status:"ok", tier, ws_tier, mc_uuid, mc_username, is_staff, staff_rank, staff_rank_display}` or `{status:"error", detail:"auth rejected: <reason>"}`. `is_staff` and `staff_rank` are read by `InboundAckRouter` into `SessionAuthState`'s `confirmedStaff` / `confirmedStaffRank`, which `isConfirmedStaff()` / `confirmedStaffRank()` return. `staff_rank_display` is the additive 2026-07 label — the server still sends it, and it is `null` exactly when `staff_rank` is, but the client does not read it; display labels come from `RankDisplayMap.displayFor` at each render site. Auth-success replies are told apart from chat-success acks by the presence of the `tier` field, so a success is recognised whether or not `expectingAuthAck` is set.
@@ -40,7 +40,7 @@ Key methods:
 
 ### V1Frames — the frame builders
 
-[V1Frames](../src/client/java/org/wynnvets/api/V1Frames.java) builds most of the inbound frames `V1ApiManager` sends, one static method each: `register`, `auth` (also used by the on-connect re-send), `queueStatus`, `inbound` (chat), `rankChange`, `tabList` and `staffAction`. Each returns a new `JsonObject` with its keys in wire order and does nothing else; the send methods and the on-connect callback keep the connection checks, the registration cache, `expectingAuthAck`, the staff-action enqueue and the logging. `inbound` and `rankChange` stamp a random `uuid` and the current time. The four anni frames are built in their send methods, and the two synthetic error acks (`sendStaffActionFrame`'s not-connected ack and `disconnect()`'s drained ack) where they are handed to the callback.
+[V1Frames](../src/client/java/org/wynnvets/api/V1Frames.java) builds most of the inbound frames `V1ApiManager` sends, one static method each: `register`, `auth` (also used by the on-connect re-send), `queueStatus`, `inbound` (chat), `rankChange`, `tabList` and `staffAction`. Each returns a new `JsonObject` with its keys in wire order and does nothing else; the send methods and the on-connect callback keep the connection checks, the registration cache, `expectingAuthAck`, the staff-action enqueue and the logging. `inbound` and `rankChange` stamp a random `uuid` and the current time. The four anni frames are built in [AnniWsSender](../src/client/java/org/wynnvets/mwe/anni/network/AnniWsSender.java)'s send methods (§7.1), which hand them to `V1ApiManager.sendInboundUnchecked`, and the two synthetic error acks (`sendStaffActionFrame`'s not-connected ack and `disconnect()`'s drained ack) where they are handed to the callback.
 
 ### InboundAckRouter — the status-ack routing
 
@@ -293,13 +293,13 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 
 | Direction | Type | Sender | Receiver | Purpose |
 |---|---|---|---|---|
-| Inbound | `anni_query` | `V1ApiManager.sendAnniQuery` | temp-server `_handle_anni_query` | On-demand snapshot pull; ack as `anni_query_response`. |
+| Inbound | `anni_query` | `AnniWsSender.sendAnniQuery` | temp-server `_handle_anni_query` | On-demand snapshot pull; ack as `anni_query_response`. |
 | Inbound | `anni_query_response` | temp-server | `AnniQueryClient.onResponse` | Reply to `anni_query`, on the socket that carried it; FIFO queue of per-call futures (nothing coalesces). |
-| Inbound (S5) | `anni_scrollspot_set` | `V1ApiManager.sendAnniScrollspotSet` | temp-server `_handle_anni_scrollspot_set` | Host writes (or clears) party scroll-spot. **Authenticated only.** Server reads MC UUID from session — never from frame. |
+| Inbound (S5) | `anni_scrollspot_set` | `AnniWsSender.sendAnniScrollspotSet` | temp-server `_handle_anni_scrollspot_set` | Host writes (or clears) party scroll-spot. **Authenticated only.** Server reads MC UUID from session — never from frame. |
 | Inbound (S5) | `anni_scrollspot_response` | temp-server | `AnniScrollspotClient.onResponse` | Ack for `anni_scrollspot_set`. `{status: ok|error, detail}`; FIFO queue. |
-| Inbound (S6) | `anni_rsvp` | `V1ApiManager.sendAnniRsvp` | temp-server `_handle_anni_rsvp` | In-game `/wv anni rsvp <hard|soft|revoke>`. **Authenticated only**; MC UUID from session. |
+| Inbound (S6) | `anni_rsvp` | `AnniWsSender.sendAnniRsvp` | temp-server `_handle_anni_rsvp` | In-game `/wv anni rsvp <hard|soft|revoke>`. **Authenticated only**; MC UUID from session. |
 | Inbound (S6) | `anni_rsvp_response` | temp-server | `AnniRsvpClient.onResponse` | Ack for `anni_rsvp`. `{status: ok|error, detail}`; FIFO queue. |
-| Inbound (S7) | `anni_party_observation` | `V1ApiManager.sendAnniPartyObservation` | temp-server `_handle_anni_party_observation` | Vetsmod reports its local Wynncraft party roster when an organiser username is in the party. **Authenticated only**; observer UUID stamped from session. Names go over the wire (Wynncraft only exposes party members by username); vets-anni resolves via its roster + alias caches. |
+| Inbound (S7) | `anni_party_observation` | `AnniWsSender.sendAnniPartyObservation` | temp-server `_handle_anni_party_observation` | Vetsmod reports its local Wynncraft party roster when an organiser username is in the party. **Authenticated only**; observer UUID stamped from session. Names go over the wire (Wynncraft only exposes party members by username); vets-anni resolves via its roster + alias caches. |
 | Inbound (S7) | `anni_party_observation_response` | temp-server | `AnniWsHandler` (debug log only) | Ack for `anni_party_observation`. No client-side queue — observation is fire-and-forget; debug-logged only. |
 | Outbound | `anni_state` | temp-server `anni_snapshot_poller` | `AnniWsHandler.onOutbound` → `AnniSnapshotCache.update` | Server-initiated snapshot push (per-uuid gated on the eligibility set). Sent only to an authenticated outbound socket, so **never received today** (§1). |
 
@@ -312,7 +312,7 @@ Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.networ
 1. Captures `Models.Party.getPartyLeader()` + `getPartyMembers()` on the thread that triggered it: the render thread for a Wynntils event, or, for a snapshot-driven recapture, whichever thread called `AnniSnapshotCache.update` — the one delivering WebSocket frames, or the render thread, which runs client commands, for a debug injection. Only the WebSocket case reads `PartyModel` off the render thread (bug `party-roster-recapture-reads-party-model-off-thread`).
 2. Debounces 300 ms (coalesces the `/party list` burst).
 3. Gates on `stamp ± 2 h` AND any party member's username appears in `AnniSnapshotCache.latest().organiserUsernames()` (case-insensitive).
-4. Fires `V1ApiManager.sendAnniPartyObservation(members, leader, world)` if the gate passes.
+4. Fires `AnniWsSender.sendAnniPartyObservation(members, leader, world)` if the gate passes.
 
 vets-anni resolves names → UUIDs server-side and writes
 `state.party_leader_by_uuid[member_uuid] = leader_uuid` for the presence

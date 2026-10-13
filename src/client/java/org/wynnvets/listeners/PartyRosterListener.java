@@ -13,8 +13,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import net.neoforged.bus.api.SubscribeEvent;
-import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.network.AnniWsSender;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 
@@ -26,7 +26,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *
  * <p>Subscribes to most Wynntils {@code PartyEvent} variants (the handlers below; invites and
  * priority reorders are skipped) and, on each, captures a snapshot of {@code Models.Party} and
- * schedules a debounced {@link V1ApiManager#sendAnniPartyObservation} send. The debounce coalesces
+ * schedules a debounced {@link AnniWsSender#sendAnniPartyObservation} send. The debounce coalesces
  * the typical burst (a {@code /party list} response fires multiple events) into a single frame; the
  * send never re-reads {@code Models.Party}. See Threading below for which thread the capture runs
  * on.</p>
@@ -60,7 +60,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * client commands. The first reads {@code PartyModel} off the render thread; see
  * {@code party-roster-recapture-reads-party-model-off-thread}. Either way, the send then runs on a
  * daemon single-thread scheduler. The scheduler thread sends through
- * {@link V1ApiManager#sendAnniPartyObservation}, which is not serialised against other
+ * {@link AnniWsSender#sendAnniPartyObservation}, which is not serialised against other
  * senders: a send that overlaps another frame on the same socket is dropped
  * ({@code ws-client-send-ignores-send-pending-failure}).</p>
  */
@@ -192,7 +192,7 @@ public final class PartyRosterListener {
         }
         String world = Models.WorldState.getCurrentWorldName();
         try {
-            V1ApiManager.sendAnniPartyObservation(toSend.members(), toSend.leader(), world);
+            AnniWsSender.sendAnniPartyObservation(toSend.members(), toSend.leader(), world);
         } catch (Exception e) {
             VetsLogger.debug("anni_party_observation send failed: {}", e.getMessage());
         }

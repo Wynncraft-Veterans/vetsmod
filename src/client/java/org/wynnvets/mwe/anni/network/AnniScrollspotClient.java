@@ -4,7 +4,6 @@ import com.google.gson.JsonObject;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
-import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -54,7 +53,7 @@ public final class AnniScrollspotClient {
     private static CompletableFuture<Ack> dispatch(Integer x, Integer y, Integer z) {
         CompletableFuture<Ack> future = new CompletableFuture<>();
         pending.addLast(future);
-        boolean dispatched = V1ApiManager.sendAnniScrollspotSet(x, y, z);
+        boolean dispatched = AnniWsSender.sendAnniScrollspotSet(x, y, z);
         if (!dispatched) {
             pending.remove(future);
             future.complete(new Ack(false, "not connected"));

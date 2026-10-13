@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.wynnvets.mwe.anni.network.AnniQueryClient;
 import org.wynnvets.mwe.anni.network.AnniRsvpClient;
 import org.wynnvets.mwe.anni.network.AnniScrollspotClient;
+import org.wynnvets.mwe.anni.network.AnniWsSender;
 import org.wynnvets.util.Json;
 
 /**
@@ -171,20 +172,19 @@ class V1ApiManagerFramesTest {
     @Test
     void anniQuery() {
         connect();
-        assertTrue(V1ApiManager.sendAnniQuery());
+        assertTrue(AnniWsSender.sendAnniQuery());
         assertEquals(List.of("{\"type\":\"anni_query\"}"), socket.wire);
     }
 
     @Test
     void anniScrollspotSet_setAndClear() {
         connect();
-        assertTrue(V1ApiManager.sendAnniScrollspotSet(12, 64, -300));
-        assertTrue(V1ApiManager.sendAnniScrollspotSet(null, null, null));
+        assertTrue(AnniWsSender.sendAnniScrollspotSet(12, 64, -300));
+        assertTrue(AnniWsSender.sendAnniScrollspotSet(null, null, null));
         // The clear frame's scroll_spot is a JsonNull, and Json.GSON drops null members when it
         // serialises, so the key never reaches the wire. temporary-server (at 4d47cba) reads a
-        // missing scroll_spot as null, which clears the spot, though its v1_protocol.md §1.12 says
-        // a
-        // missing key is rejected (anni-scrollspot-clear-frame-omits-scroll-spot-key).
+        // missing scroll_spot as null, which clears the spot, though its v1_protocol.md §1.12
+        // says a missing key is rejected (anni-scrollspot-clear-frame-omits-scroll-spot-key).
         assertEquals(
                 List.of(
                         "{\"type\":\"anni_scrollspot_set\","
@@ -196,7 +196,7 @@ class V1ApiManagerFramesTest {
     @Test
     void anniRsvp() {
         connect();
-        assertTrue(V1ApiManager.sendAnniRsvp("hard"));
+        assertTrue(AnniWsSender.sendAnniRsvp("hard"));
         assertEquals(List.of("{\"type\":\"anni_rsvp\",\"notice\":\"hard\"}"), socket.wire);
     }
 
@@ -204,9 +204,9 @@ class V1ApiManagerFramesTest {
     void anniPartyObservation() {
         connect();
         assertTrue(
-                V1ApiManager.sendAnniPartyObservation(
+                AnniWsSender.sendAnniPartyObservation(
                         Arrays.asList("Alice", null, "", "Bob"), "Alice", "WC1"));
-        assertTrue(V1ApiManager.sendAnniPartyObservation(null, null, null));
+        assertTrue(AnniWsSender.sendAnniPartyObservation(null, null, null));
         assertEquals(
                 List.of(
                         "{\"type\":\"anni_party_observation\","
@@ -239,11 +239,11 @@ class V1ApiManagerFramesTest {
         V1ApiManager.sendInbound("guild", "Chief", "Alice", "hello there");
         V1ApiManager.sendRankChange("Alice", "Bob", "Captain", "Recruit", "mote");
         V1ApiManager.sendTabList(List.of(new V1ApiManager.TabListEntry("WC1", "Alice")));
-        assertFalse(V1ApiManager.sendAnniQuery());
-        assertFalse(V1ApiManager.sendAnniScrollspotSet(12, 64, -300));
-        assertFalse(V1ApiManager.sendAnniScrollspotSet(null, null, null));
-        assertFalse(V1ApiManager.sendAnniRsvp("hard"));
-        assertFalse(V1ApiManager.sendAnniPartyObservation(List.of("Alice"), "Alice", "WC1"));
+        assertFalse(AnniWsSender.sendAnniQuery());
+        assertFalse(AnniWsSender.sendAnniScrollspotSet(12, 64, -300));
+        assertFalse(AnniWsSender.sendAnniScrollspotSet(null, null, null));
+        assertFalse(AnniWsSender.sendAnniRsvp("hard"));
+        assertFalse(AnniWsSender.sendAnniPartyObservation(List.of("Alice"), "Alice", "WC1"));
 
         // A staff-action frame is answered at once, on the caller's thread, and nothing is queued.
         List<String> acks = new ArrayList<>();

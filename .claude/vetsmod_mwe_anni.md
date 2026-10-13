@@ -12,7 +12,7 @@ Organised by subject, not by the order the work happened. Each category — conf
 
 ## Package layout
 
-Most anni-side code lives under `org.wynnvets.mwe.anni.*`. The ones that do not, and are easy to miss: `fetcher.polling.AnniSnapshotPoller` and `AnniStampPoller`, `fetcher.ondemand.StampFetcher`, `commands.CommandRegistry`, `listeners.PartyRosterListener`, `api.V1ApiManager`'s four `sendAnni*` methods, and the four mixins under `mixin.client`.
+Most anni-side code lives under `org.wynnvets.mwe.anni.*`. The ones that do not, and are easy to miss: `fetcher.polling.AnniSnapshotPoller` and `AnniStampPoller`, `fetcher.ondemand.StampFetcher`, `commands.CommandRegistry`, `listeners.PartyRosterListener`, and the four mixins under `mixin.client`.
 
 ```
 mwe/anni/
@@ -24,6 +24,7 @@ mwe/anni/
 │   ├── AnniSnapshots.java         — the four field accessors the diffing surfaces read (role / partyOrdinal / partyWorld / rsvpNotice), all null-guarded
 │   └── AnniWindows.java           — the anni window edges, named once each, plus inHotWindow / hotWindowClosed
 ├── network/
+│   ├── AnniWsSender.java          — the four anni sends on the v1 inbound socket (anni_query, anni_scrollspot_set, anni_rsvp, anni_party_observation)
 │   ├── AnniWsHandler.java         — V1 outbound/inbound listener; one outbound + four inbound frame types (§Snapshot pipeline)
 │   ├── AnniQueryClient.java       — FIFO-queued pull (anni_query), no correlation IDs; 8s deadline
 │   ├── AnniRsvpClient.java        — ack client for anni_rsvp (§`/wv anni rsvp`)
@@ -576,7 +577,7 @@ Falls through to the supporter glint branch when the anni gate is off — and on
 
 ### Architecture
 
-Five client-side components plus three wire pieces (V1ApiManager send,
+Five client-side components plus three wire pieces (AnniWsSender send,
 AnniWsHandler ack route, AnniScrollspotClient single-flight future) and
 one vets-anni internal endpoint.
 
@@ -601,7 +602,7 @@ one vets-anni internal endpoint.
 
 Snapshot `schema_version: 3` adds `board.party.scroll_spot: {x,y,z}|null`, read client-side as `AnniSnapshot.Party.scrollSpot()`, which returns a nullable `AnniSnapshot.ScrollSpot` — a Gson-populated static nested class, not a record. It is present only on the local player's own party: `PartySummary` declares no `scroll_spot`, so `event.all_parties` genuinely cannot carry one.
 
-The server halves — the `Party` columns and their migration, the `POST /api/internal/anni-party-scrollspot` host check, and temp-server's forwarding handler — live in [`vets-anni/.claude/snapshot_integration.md`](../../vets-anni/.claude/snapshot_integration.md), which states them more precisely. The three vetsmod-side wire pieces (`V1ApiManager.sendAnniScrollspotSet`, the `AnniWsHandler.onInbound` route, `AnniScrollspotClient`) are described once under §Party back-report → Reference templates.
+The server halves — the `Party` columns and their migration, the `POST /api/internal/anni-party-scrollspot` host check, and temp-server's forwarding handler — live in [`vets-anni/.claude/snapshot_integration.md`](../../vets-anni/.claude/snapshot_integration.md), which states them more precisely. The three vetsmod-side wire pieces (`AnniWsSender.sendAnniScrollspotSet`, the `AnniWsHandler.onInbound` route, `AnniScrollspotClient`) are described once under §Party back-report → Reference templates.
 
 ## `/wv anni rsvp`
 
@@ -610,7 +611,7 @@ The server halves — the `Party` columns and their migration, the `POST /api/in
 Backs the `[Hard]`/`[Soft]` upgrade-prompt buttons in `AnniCommandRenderer` (their `SuggestCommand("/wv anni rsvp hard|soft")` targets this command). One brigadier command + a network client + a single vets-anni endpoint; no schema bump (`rsvp.notice` is already on the snapshot at v2/v3).
 
 Wire pieces on the network layer:
-- `V1ApiManager.sendAnniRsvp(String notice)` (mirror of `sendAnniScrollspotSet`).
+- `AnniWsSender.sendAnniRsvp(String notice)` (mirror of `sendAnniScrollspotSet`).
 - `AnniWsHandler.onInbound` routes `anni_rsvp_response` to `AnniRsvpClient.onResponse`.
 
 `AnniRsvpClient` is a single-flight ack future (clone of `AnniScrollspotClient`). Its `/wv debug trigger rsvpDump` diagnostic goes through `debugDump()`, which reads the private statics (`pending`, `lastAttemptedNotice`, `lastAck`) directly. It once also declared public accessors wrapping those three; they had no callers and were removed in an earlier cleanup pass.
@@ -621,7 +622,7 @@ Wire pieces on the network layer:
 /wv anni rsvp hard
   → AnniRsvpCommand.hard (GuildStateManager.isAuthenticatedThisSession() gate)
   → AnniRsvpClient.send("hard")
-  → V1ApiManager.sendAnniRsvp("hard")  → {"type":"anni_rsvp","notice":"hard"}
+  → AnniWsSender.sendAnniRsvp("hard")  → {"type":"anni_rsvp","notice":"hard"}
   → temp-server _handle_anni_rsvp (stamps actor_mc_uuid from session)
   → POST vets-anni /api/internal/anni-rsvp-by-uuid   ← server side; see
                                                        snapshot_integration.md
@@ -702,7 +703,7 @@ party members by username — see `Wynntils PartyModel.getPartyMembers()`.
    now reads `AnniSnapshotCache.latest().organiserUsernames()` and
    tests case-insensitive overlap with the captured party's
    `leader + members`. Calls
-   `V1ApiManager.sendAnniPartyObservation(members, leader, world)`.
+   `AnniWsSender.sendAnniPartyObservation(members, leader, world)`.
    Pure predicate `shouldSend(snap, anniSnapshot, stamp, now)` is the
    testable core; legacy `vetsConnected` / `tier` parameters are gone.
 
@@ -744,9 +745,9 @@ temp-server and vets-anni halves are listed in
   supplies `observer_mc_uuid`; temp-server stamps it from the session.
 - **`AnniPartyReporter` is a thin snapshot listener, NOT a wrapper
   around the send call.** `PartyRosterListener.flush()` calls
-  `V1ApiManager.sendAnniPartyObservation` directly — same shape as
-  the other `sendAnniX` methods. Splitting the send into a separate
-  class would be pure indirection.
+  `AnniWsSender.sendAnniPartyObservation` directly — same shape as
+  the other `sendAnniX` methods. Wrapping that call in
+  `AnniPartyReporter` would be pure indirection.
 - **Response frame is typed (`anni_party_observation_response`).** The
   handler in
   [`AnniWsHandler`](../src/client/java/org/wynnvets/mwe/anni/network/AnniWsHandler.java)
@@ -821,14 +822,15 @@ belongs to the response path; cloning "removes the head" into a timeout
 handler would drop an unrelated in-flight future. The party-observation report is fire-and-forget (no
 ack is needed because vetsmod doesn't render anything from the
 response), so it skips the single-flight client and just enqueues the
-frame send via `V1ApiManager.sendAnniPartyObservation(...)`.
+frame send via `AnniWsSender.sendAnniPartyObservation(...)`.
 **Don't add an `AnniPartyReporterClient` unless an ack arrives that
 the client needs to react to.**
 
-**V1ApiManager send template** — four clones (`sendAnniQuery`,
+**AnniWsSender send template** — four clones (`sendAnniQuery`,
 `sendAnniScrollspotSet`, `sendAnniRsvp`, `sendAnniPartyObservation`).
-Check `inboundClient.isConnected()`, build `{"type":"...",...}` JSON,
-call `inboundClient.send(payload)`, return bool. Mirror.
+Check `V1ApiManager.isInboundConnected()`, build `{"type":"...",...}`
+JSON, call `V1ApiManager.sendInboundUnchecked(payload)`, return bool.
+Mirror.
 
 **`AnniWsHandler.onInbound` demux** — four routes; add a fifth if a
 new frame type needs a vetsmod-side consumer.

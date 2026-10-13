@@ -49,7 +49,8 @@ public final class VetsConfigKeys {
      *  a vets-tier opt-out lasts only until the next ack. Anyone can opt in with
      *  {@code /wv config vetsAnniEnabled true}, but the pull it enables asks for the authenticated
      *  session's own snapshot
-     *  ({@link org.wynnvets.api.V1ApiManager#sendAnniQuery() V1ApiManager#sendAnniQuery()} names
+     *  ({@link org.wynnvets.mwe.anni.network.AnniWsSender#sendAnniQuery()
+     *  AnniWsSender#sendAnniQuery()} names
      *  no UUID), so, per temporary-server (at ffd8c17), until an {@code /unlock} key has
      *  authenticated the inbound socket it resolves
      *  to no snapshot and both callers fall back to the legacy path. Slated for retirement
