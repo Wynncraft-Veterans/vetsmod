@@ -37,6 +37,10 @@ Key methods:
 **Message fields:** `uuid`, `type`, `timestamp`, `rank`, `username`, `message`.
 **Server → client unsolicited:** `{type:"server_info", unauth_enabled: bool}` is pushed once on outbound connect so the mod knows which session-warning copy to show.
 
+### V1Frames — the frame builders
+
+[V1Frames](../src/client/java/org/wynnvets/api/V1Frames.java) builds most of the inbound frames `V1ApiManager` sends, one static method each: `register`, `auth` (also used by the on-connect re-send), `queueStatus`, `inbound` (chat), `rankChange`, `tabList` and `staffAction`. Each returns a new `JsonObject` with its keys in wire order and does nothing else; the send methods and the on-connect callback keep the connection checks, the registration cache, `expectingAuthAck`, the staff-action enqueue and the logging. `inbound` and `rankChange` stamp a random `uuid` and the current time. The four anni frames are built in their send methods, and the two synthetic error acks (`sendStaffActionFrame`'s not-connected ack and `disconnect()`'s drained ack) where they are handed to the callback.
+
 ## 2. WsClient — low-level WebSocket wrapper
 
 [WsClient](../src/client/java/org/wynnvets/api/WsClient.java)

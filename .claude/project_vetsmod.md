@@ -11,7 +11,7 @@ originSessionId: 879c1502-cda3-4f6b-836d-36b1515ba02c
 - Client-side: `org.wynnvets.VetsmodClient` — initializes everything
 
 **Key packages and responsibilities:**
-- `org.wynnvets.api` — `V1ApiManager` (dual WebSocket), `WsClient`, `VetsApi`, `WynnCraftApi`, `MojangApi`
+- `org.wynnvets.api` — `V1ApiManager` (dual WebSocket), `V1Frames` (builders for its non-anni inbound frames), `WsClient`, `VetsApi`, `WynnCraftApi`, `MojangApi`
 - `org.wynnvets.chat` — top-level chat classes, among them `OutboundDisplayHandler`, `ChatLogger`, `ChatUtils`, `PillFormatter` and `WarningFrameRenderer` (renders server-pushed `warning` frames)
 - `org.wynnvets.chat.dispatcher` — `GuildChatDispatcher` (the outbound prefix router `GuildChatCommandMixin` calls) and the three classes behind the staff-chat gate, the `/v` fan-out and `/find`: `DispatchCoordinator`, `MessageFanoutDispatcher`, `FindDispatcher`
 - `org.wynnvets.chat.rewriter` — the chat message transformers that form `ChatLogMixin`'s chain, in this order: encourage-update, staff guild alert, staff channel, server guild, spoiler

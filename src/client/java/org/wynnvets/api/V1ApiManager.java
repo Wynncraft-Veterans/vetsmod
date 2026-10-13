@@ -3,7 +3,6 @@ package org.wynnvets.api;
 import com.google.gson.JsonObject;
 import java.net.URI;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import net.fabricmc.loader.api.FabricLoader;
@@ -291,9 +290,7 @@ public final class V1ApiManager {
                     String storedKey = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_KEY);
                     if (storedKey != null && !storedKey.isEmpty() && inboundClient != null) {
                         expectingAuthAck = true;
-                        JsonObject auth = new JsonObject();
-                        auth.addProperty("type", "auth");
-                        auth.addProperty("key", storedKey);
+                        JsonObject auth = V1Frames.auth(storedKey);
                         inboundClient.send(auth);
                         VetsLogger.debug("Re-sent auth frame on inbound (re)connect");
                     }
@@ -406,11 +403,7 @@ public final class V1ApiManager {
      * @param tier     one of "guild", "waitlist", "honourary"
      */
     public static void sendRegistration(String uuid, String username, String tier) {
-        JsonObject payload = new JsonObject();
-        payload.addProperty("type", "register");
-        payload.addProperty("uuid", uuid);
-        payload.addProperty("username", username);
-        payload.addProperty("tier", tier);
+        JsonObject payload = V1Frames.register(uuid, username, tier);
         pendingRegistration = payload;
 
         if (inboundClient != null && inboundClient.isConnected()) {
@@ -458,9 +451,7 @@ public final class V1ApiManager {
             return;
         }
         expectingAuthAck = true;
-        JsonObject payload = new JsonObject();
-        payload.addProperty("type", "auth");
-        payload.addProperty("key", key);
+        JsonObject payload = V1Frames.auth(key);
         inboundClient.send(payload);
         VetsLogger.debug("Sent auth frame ({}…)", key.length() >= 6 ? key.substring(0, 6) : key);
     }
@@ -476,10 +467,7 @@ public final class V1ApiManager {
         if (inboundClient == null || !inboundClient.isConnected()) {
             return;
         }
-        JsonObject payload = new JsonObject();
-        payload.addProperty("type", "queue_status");
-        payload.addProperty("queued", queued);
-        payload.addProperty("world", world != null ? world : "");
+        JsonObject payload = V1Frames.queueStatus(queued, world);
         inboundClient.send(payload);
         VetsLogger.debug("Sent queue_status: queued={}, world={}", queued, world);
     }
@@ -502,13 +490,7 @@ public final class V1ApiManager {
             return;
         }
 
-        JsonObject payload = new JsonObject();
-        payload.addProperty("uuid", UUID.randomUUID().toString());
-        payload.addProperty("type", type);
-        payload.addProperty("timestamp", System.currentTimeMillis() / 1000.0);
-        payload.addProperty("rank", rank != null ? rank : "");
-        payload.addProperty("username", username);
-        payload.addProperty("message", message);
+        JsonObject payload = V1Frames.inbound(type, rank, username, message);
 
         inboundClient.send(payload);
     }
@@ -531,15 +513,7 @@ public final class V1ApiManager {
             VetsLogger.debug("Inbound WebSocket not connected, dropping rank_change");
             return;
         }
-        JsonObject payload = new JsonObject();
-        payload.addProperty("type", "rank_change");
-        payload.addProperty("uuid", UUID.randomUUID().toString());
-        payload.addProperty("timestamp", System.currentTimeMillis() / 1000.0);
-        payload.addProperty("actor", actor);
-        payload.addProperty("target", target);
-        payload.addProperty("from_rank", fromRank);
-        payload.addProperty("to_rank", toRank);
-        payload.addProperty("classification", classification);
+        JsonObject payload = V1Frames.rankChange(actor, target, fromRank, toRank, classification);
         inboundClient.send(payload);
         VetsLogger.debug(
                 "Sent rank_change: {} set {} {} -> {} ({})",
@@ -562,16 +536,7 @@ public final class V1ApiManager {
             return;
         }
 
-        JsonObject payload = new JsonObject();
-        payload.addProperty("type", "tablist");
-        com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
-        for (TabListEntry e : entries) {
-            JsonObject obj = new JsonObject();
-            obj.addProperty("server", e.server());
-            obj.addProperty("username", e.username());
-            arr.add(obj);
-        }
-        payload.add("entries", arr);
+        JsonObject payload = V1Frames.tabList(entries);
         inboundClient.send(payload);
         VetsLogger.debug("Sent tablist with {} guild entries", entries.size());
     }
@@ -873,13 +838,7 @@ public final class V1ApiManager {
             if (callback != null) callback.accept(err);
             return;
         }
-        JsonObject payload = new JsonObject();
-        payload.addProperty("type", type);
-        if (fields != null) {
-            for (var entry : fields.entrySet()) {
-                payload.add(entry.getKey(), entry.getValue());
-            }
-        }
+        JsonObject payload = V1Frames.staffAction(type, fields);
         if (callback != null) {
             staffActionCallbacks.addLast(callback);
         }
