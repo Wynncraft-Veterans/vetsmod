@@ -38,7 +38,7 @@ import org.wynnvets.util.Json;
  * by {@link ListFetcher},
  * {@link WorldListFetcher}, and {@link CheckReportRenderer}.</p>
  */
-public final class OnlineMemberService {
+final class OnlineMemberService {
 
     static final String TIER_GUILD = "guild";
     static final String TIER_WAITLIST = "waitlist";
@@ -60,7 +60,7 @@ public final class OnlineMemberService {
             Set<String> queuedUuids,
             boolean wynntilsAvailable) {}
 
-    // ── Public API ──────────────────────────────────────────────────
+    // ── Entry points ────────────────────────────────────────────────
 
     /**
      * Gathers online players from all three data sources, merges them,
