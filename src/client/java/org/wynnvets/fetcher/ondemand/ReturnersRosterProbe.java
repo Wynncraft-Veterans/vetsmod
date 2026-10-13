@@ -122,7 +122,7 @@ final class ReturnersRosterProbe {
      * {@code normalizedUuid}. Empty on a non-200, a timeout or other failed
      * request, a malformed response or an absent UUID. It is also empty when the UUID is present
      * but no rank could be read, so an empty result does not by itself mean
-     * "not a member"; today {@link UserInfoFetcher#renderGuildLine} reads it as one (see
+     * "not a member"; today {@link CheckReportRenderer#renderGuildLine} reads it as one (see
      * {@code wv-check-guild-line-conflates-roster-failure-with-absence}).
      * Mirrors {@link #returnersMembership} and reuses {@link #analyzeRoster}.
      */

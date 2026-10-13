@@ -9,7 +9,7 @@ package org.wynnvets.fetcher.lookup;
  * {@code ALL_PROVIDERS_TRANSIENT} (dispatches the invite anyway with a
  * warning) and blocks on {@code PLAYER_NOT_FOUND};
  * {@link org.wynnvets.fetcher.ondemand.UserInfoFetcher UserInfoFetcher}
- * prints a distinct error for each. Today no cascade ends in
+ * reports a distinct error for each. Today no cascade ends in
  * {@code PLAYER_NOT_FOUND} (see
  * {@code vets-snapshot-provider-makes-player-not-found-unreachable}).</p>
  */

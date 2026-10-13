@@ -86,7 +86,7 @@ Also: `GUILD_UUID = "a36bd64c-c053-4727-872d-b0d0729f474a"` (Returners).
 
 ### The shared client
 
-[HttpClients](../src/client/java/org/wynnvets/util/HttpClients.java) — one `HttpClient` for the whole mod, built `HTTP_1_1` with a 5 s connect timeout and **no** redirect, proxy, executor, authenticator, cookie-handler or SSL customisation of any kind. These classes hold it in their own `private static final HttpClient HTTP_CLIENT = HttpClients.standard()` field: `DispatchCoordinator`, `InviteGate`, `NameResolver`, `NoAspectsFilter`, `PlayerLookup`, every `fetcher/ondemand` class except those that make no request of their own (`ListFetcher`, which delegates to `OnlineMemberService`; `OnlineMemberService`'s two in-memory helpers, `TabListGuildParser` and `OnlineGuildCache`; and `TimeLabels`, which only formats dates and ages), four of the six `fetcher/polling` classes (all but `AnniSnapshotPoller`, which goes over the WebSocket, and `PollingService`, which is transport-free by design) and `TerritoryLineManager`. `PlayerLookup` passes its copy down to five of its six lookup providers.
+[HttpClients](../src/client/java/org/wynnvets/util/HttpClients.java) — one `HttpClient` for the whole mod, built `HTTP_1_1` with a 5 s connect timeout and **no** redirect, proxy, executor, authenticator, cookie-handler or SSL customisation of any kind. These classes hold it in their own `private static final HttpClient HTTP_CLIENT = HttpClients.standard()` field: `DispatchCoordinator`, `InviteGate`, `NameResolver`, `NoAspectsFilter`, `PlayerLookup`, every `fetcher/ondemand` class except those that make no request of their own (`ListFetcher`, which delegates to `OnlineMemberService`; `OnlineMemberService`'s two in-memory helpers, `TabListGuildParser` and `OnlineGuildCache`; `TimeLabels`, which only formats dates and ages; and `CheckReportRenderer`, which only renders), four of the six `fetcher/polling` classes (all but `AnniSnapshotPoller`, which goes over the WebSocket, and `PollingService`, which is transport-free by design) and `TerritoryLineManager`. `PlayerLookup` passes its copy down to five of its six lookup providers.
 
 One shared client means one selector thread, one default executor and one connection pool, and the fields now reuse each other's keep-alive connections instead of each holding private idle ones. Reuse is per host, so what matters is that the pool spans **six**: `api.wynnvets.org` (every holder not named next), `api.wynncraft.com` (`InviteGate`, `NameResolver`, `UserInfoFetcher`, `ReturnersRosterProbe`, `TerritoryLineManager`, and `PlayerLookup` via `WynncraftProvider`), and — all five through `PlayerLookup`'s copy — `playerdb.co`, `api.ashcon.app`, `api.minecraftservices.com` and `api.mojang.com`. The saving concentrates on the first two, which is where the repeat traffic is; the four lookup hosts are cascade fallbacks and mostly cold.
 
@@ -145,12 +145,13 @@ Package: [org.wynnvets.fetcher.ondemand](../src/client/java/org/wynnvets/fetcher
 | `WorldListFetcher` | `/wv list world` | Above + `/find` batch dispatch | Region-grouped list |
 | `ReturnFetcher` | `/wv return` | `VetsApi.RETURN` | Component (JSON-serialized) |
 | `StampFetcher` | `/wv anni`, auto | `VetsApi.STAMP` | Countdown or "not announced" |
-| `UserInfoFetcher` | `/wv check <name>` | `PlayerLookup` cascade; WynnCraft `/v3/player`; `check_membership` over the WebSocket | Chat lines, sent one per `sendLocalMessage` |
+| `UserInfoFetcher` | `/wv check <name>` | `PlayerLookup` cascade; WynnCraft `/v3/player`; `check_membership` over the WebSocket | What `CheckReportRenderer` renders |
 | `OnlineMemberService` | internal | Tab, `/list`, Wynntils | Merged roster |
 | `TabListGuildParser` | internal; `/wv debug trigger tabDump` | The tab list's guild column (no request) | `GuildEntry` list, truncated past ~19 online |
 | `OnlineGuildCache` | internal | None (in memory) | Names kept listed for a 30 s grace period |
 | `TimeLabels` | internal | None (formats only) | Relative date and age labels for `/wv check` |
 | `ReturnersRosterProbe` | internal (`/wv check`) | WynnCraft `/v3/guild` rosters | Membership, rank and legacy name in one guild's roster |
+| `CheckReportRenderer` | internal (`/wv check`) | The tab list's guild column, through `OnlineMemberService` (no request) | Chat lines, sent one per `sendLocalMessage` |
 
 ### StaffFetcher details
 Parses JSON array, extracts `{username, rank, world/server}`, filters online, sorts by rank priority (owner=0, chief=1, strategist=2, captain=3), then alpha.

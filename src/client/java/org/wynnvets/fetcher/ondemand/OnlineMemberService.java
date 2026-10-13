@@ -36,8 +36,7 @@ import org.wynnvets.util.Json;
  * the server's polled roster and alias maps ({@link PolledJsonMap}) and
  * topped up with recently seen names from {@link OnlineGuildCache}. Used
  * by {@link ListFetcher},
- * {@link WorldListFetcher}, and {@link
- * org.wynnvets.fetcher.ondemand.UserInfoFetcher}.</p>
+ * {@link WorldListFetcher}, and {@link CheckReportRenderer}.</p>
  */
 public final class OnlineMemberService {
 
