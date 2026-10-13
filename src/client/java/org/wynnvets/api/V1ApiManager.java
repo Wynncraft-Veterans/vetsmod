@@ -7,11 +7,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import net.fabricmc.loader.api.FabricLoader;
 import org.wynnvets.Vetsmod;
-import org.wynnvets.chat.dispatcher.DispatchCoordinator;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
-import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -43,9 +41,10 @@ public final class V1ApiManager {
     private static final CopyOnWriteArrayList<Consumer<JsonObject>> outboundListeners =
             new CopyOnWriteArrayList<>();
 
-    /** Listeners that receive every typed inbound frame. V1ApiManager's own
-     *  inbound handler only processes ``{"status":...}``-shaped acks (auth,
-     *  staff-action, chat, and the plain ok/error acks to the other frames it sends);
+    /** Listeners that receive every typed inbound frame. The inbound handler that
+     *  {@link #connect()} installs hands the ``{"status":...}``-shaped acks (auth,
+     *  staff-action, chat, and the plain ok/error acks to the other frames V1ApiManager
+     *  sends) to {@link InboundAckRouter};
      *  anything carrying a ``type`` field is a typed
      *  response and gets fanned out here so consumers (currently:
      *  {@link org.wynnvets.mwe.anni.network.AnniWsHandler}) can route by
@@ -65,17 +64,19 @@ public final class V1ApiManager {
 
     /** FIFO queue of callbacks awaiting a staff-action ack frame. Each frame sent
      *  through {@link #sendStaffActionFrame} with a callback enqueues one callback (the
-     *  caution/warn/eject family, and {@code check_membership}). Each incoming ack the
-     *  inbound handler classifies as staff-action-shaped (see the {@code staffShaped}
-     *  test in {@link #connect()}), or an error ack while a callback is pending and no
-     *  auth ack is outstanding, pops the head callback and invokes it. The protocol has no
+     *  caution/warn/eject family, and {@code check_membership}). Each incoming ack that
+     *  {@link InboundAckRouter} classifies as staff-action-shaped (see the
+     *  {@code staffShaped} test in {@link InboundAckRouter#route}), or an error ack while
+     *  a callback is pending and no auth ack is outstanding, pops the head callback and
+     *  invokes it. The protocol has no
      *  per-frame correlation ID, so this is a strict-order queue: it stays aligned only
      *  while each enqueued frame's ack, and no other ack, reaches it in enqueue order.
      *  An ack that never arrives shifts every later ack onto the previous caller's
      *  callback until {@link #disconnect()} drains the queue
      *  ({@code staff-action-queue-not-drained-on-socket-reconnect}). Correlation IDs were
      *  judged not worth the wire-protocol churn for the current scale. */
-    private static final java.util.concurrent.ConcurrentLinkedDeque<Consumer<JsonObject>>
+    // Package-private for InboundAckRouter, which pops it.
+    static final java.util.concurrent.ConcurrentLinkedDeque<Consumer<JsonObject>>
             staffActionCallbacks = new java.util.concurrent.ConcurrentLinkedDeque<>();
 
     private V1ApiManager() {}
@@ -117,145 +118,7 @@ public final class V1ApiManager {
                                 return;
                             }
 
-                            // Acknowledgements from the server. Auth-success acks are
-                            // recognised by the `tier` key, which only they carry. An error ack
-                            // that the staff-action queue below does not claim counts as an
-                            // auth failure when an auth frame is awaiting its ack
-                            // (expectingAuthAck) or its detail starts with an auth-failure
-                            // prefix.
-                            if (!json.has("status")) return;
-                            String status = json.get("status").getAsString();
-                            boolean wasAuthAck = SessionAuthState.expectingAuthAck;
-
-                            // Staff-action ack shape: commits carry `kind`+`triggered`,
-                            // checks carry `total_points`, preflight carries
-                            // `status:"would_trigger"`, and membership-check acks match only
-                            // on `target_uuid` (which every successful staff-action ack
-                            // carries). We pop ONE pending callback per
-                            // matching ack so multiple in-flight staff actions resolve
-                            // in send order. Errors (status=="error") are also routed to
-                            // the callback queue when one is pending and we aren't
-                            // currently waiting on an auth ack -- the alternative would
-                            // strand the caller's UI in "loading" forever on a
-                            // server-side validation failure.
-                            //
-                            // Auth-success responses are explicitly excluded by the `tier` key
-                            // (only they carry it) so a future `total_points` collision can't
-                            // misroute auth into the staff queue; auth errors are kept out by
-                            // the expectingAuthAck test in staffOrphanError.
-                            boolean isAuthShaped = json.has("tier");
-                            boolean staffShaped =
-                                    !isAuthShaped
-                                            && (json.has("kind")
-                                                    || json.has("triggered")
-                                                    || json.has("total_points")
-                                                    || json.has("target_uuid")
-                                                    || "would_trigger".equals(status));
-                            boolean staffOrphanError =
-                                    "error".equals(status)
-                                            && !wasAuthAck
-                                            && !staffActionCallbacks.isEmpty();
-                            if (staffShaped || staffOrphanError) {
-                                Consumer<JsonObject> cb = staffActionCallbacks.pollFirst();
-                                if (cb != null) {
-                                    try {
-                                        cb.accept(json);
-                                    } catch (Exception e) {
-                                        VetsLogger.warn(
-                                                "Staff-action callback error: {}", e.getMessage());
-                                    }
-                                    return;
-                                }
-                                VetsLogger.debug(
-                                        "Staff-action ack with empty callback queue: {}", json);
-                                // Without a callback the response is unactionable; swallow it
-                                // so it doesn't leak into the auth/chat error path below.
-                                return;
-                            }
-
-                            // Auth success responses carry a `tier` key -- chat and control acks
-                            // don't -- so success is recognised by that key alone, whatever
-                            // expectingAuthAck says.
-                            if ("ok".equals(status) && json.has("tier")) {
-                                SessionAuthState.expectingAuthAck = false;
-                                String tier =
-                                        json.get("tier").isJsonNull()
-                                                ? ""
-                                                : json.get("tier").getAsString();
-                                long now = System.currentTimeMillis();
-                                VetsConfig.setString(VetsConfigKeys.VETS_AUTH_TIER, tier);
-                                VetsConfig.setLong(VetsConfigKeys.VETS_AUTH_VERIFIED_AT, now);
-                                // Capture server-confirmed staff status from the auth ack.
-                                // The roster lookup happens server-side; the client just
-                                // reads whatever the server resolved.
-                                boolean wasStaff = SessionAuthState.confirmedStaff;
-                                SessionAuthState.confirmedStaff =
-                                        json.has("is_staff")
-                                                && !json.get("is_staff").isJsonNull()
-                                                && json.get("is_staff").getAsBoolean();
-                                if (SessionAuthState.confirmedStaff
-                                        && json.has("staff_rank")
-                                        && !json.get("staff_rank").isJsonNull()) {
-                                    SessionAuthState.confirmedStaffRank =
-                                            json.get("staff_rank").getAsString();
-                                } else {
-                                    SessionAuthState.confirmedStaffRank = "";
-                                }
-                                // Same-world demotion clears the eligibility cache, which
-                                // DispatchCoordinator's auth-ack fast path fills while we are
-                                // staff, so later gated calls don't keep treating us as
-                                // staff. World change already resets it via
-                                // GuildStateManager.onEnteredWorld ->
-                                // resetStaffChatEligibilityCache.
-                                if (wasStaff && !SessionAuthState.confirmedStaff) {
-                                    DispatchCoordinator.resetStaffChatEligibilityCache();
-                                }
-                                // Refresh ahead of schedule: the next scheduled poll may be up
-                                // to two minutes away, so trigger an immediate refresh of the
-                                // receiver-side staff cache on every successful auth ack.
-                                StaffRanksPoller.refreshNow();
-                                GuildStateManager.onAuthSuccess(tier);
-                                // MWE auto-enable: a tier-vets user (member/waitlist/honourary)
-                                // gets vetsAnniEnabled, which gates StampFetcher's rich /wv anni
-                                // and anni-motd paths, on for free. Today this runs on every such
-                                // ack that finds it off, so a vets-tier opt-out lasts only until
-                                // the next ack (vets-anni-enabled-to-be-retired). Don't disable on
-                                // tier downgrade — the user may have toggled it on manually and we
-                                // don't want to override that. The toggle only helps a client whose
-                                // inbound socket an /unlock key has authenticated (its pull names
-                                // no UUID; per temporary-server at ffd8c17, an unauthenticated pull
-                                // gets no snapshot); what a downgraded user is served is the
-                                // server's call.
-                                if (("member".equals(tier)
-                                                || "waitlist".equals(tier)
-                                                || "honourary".equals(tier))
-                                        && !VetsConfig.get(VetsConfigKeys.VETS_ANNI_ENABLED)) {
-                                    VetsConfig.set(VetsConfigKeys.VETS_ANNI_ENABLED, true);
-                                    VetsLogger.debug(
-                                            "vetsAnniEnabled auto-set on tier={} auth ack", tier);
-                                }
-                                return;
-                            }
-                            if (!"ok".equals(status)) {
-                                String detail =
-                                        json.has("detail")
-                                                ? json.get("detail").getAsString()
-                                                : "unknown";
-                                if (wasAuthAck
-                                        || detail.startsWith("auth rejected")
-                                        || detail.startsWith("Authentication required")) {
-                                    SessionAuthState.expectingAuthAck = false;
-                                    boolean wasStaff = SessionAuthState.confirmedStaff;
-                                    SessionAuthState.confirmedStaff = false;
-                                    SessionAuthState.confirmedStaffRank = "";
-                                    if (wasStaff) {
-                                        DispatchCoordinator.resetStaffChatEligibilityCache();
-                                    }
-                                    GuildStateManager.onAuthFailure(detail);
-                                } else {
-                                    VetsLogger.warn("Inbound API error: {}", detail);
-                                }
-                            }
+                            InboundAckRouter.route(json);
                         });
 
         // Re-send registration AND re-authenticate on every reconnect so the
@@ -402,12 +265,14 @@ public final class V1ApiManager {
      * <p>The server validates the key against dazebot, stores the resolved
      * identity/tier on the WebSocket connection, and replies with either
      * {@code {"status":"ok","tier":"...","ws_tier":"...",...}} (the full success
-     * shape, including the {@code is_staff} and {@code staff_rank} this class reads, is in
-     * {@code vetsmod_networking.md} §1) or
+     * shape, including the {@code is_staff} and {@code staff_rank} that
+     * {@link InboundAckRouter} reads, is in {@code vetsmod_networking.md} §1) or
      * {@code {"status":"error","detail":"auth rejected: ..."}}. The reply
-     * is routed to {@link GuildStateManager#onAuthSuccess(String)} /
-     * {@link GuildStateManager#onAuthFailure(String)} by the inbound
-     * message handler.</p>
+     * is routed by {@link InboundAckRouter} to
+     * {@link org.wynnvets.guild.GuildStateManager#onAuthSuccess(String)
+     * GuildStateManager#onAuthSuccess(String)} /
+     * {@link org.wynnvets.guild.GuildStateManager#onAuthFailure(String)
+     * GuildStateManager#onAuthFailure(String)}.</p>
      *
      * <p>If the inbound WebSocket is not yet connected the frame is dropped
      * silently — the {@code onConnect} callback registered in {@link #connect()}
@@ -747,7 +612,8 @@ public final class V1ApiManager {
      * {@code Minecraft.getInstance().execute(...)} for any work that
      * touches game state.
      *
-     * <p>V1ApiManager's own inbound routing handles only
+     * <p>The inbound handler that {@link #connect()} installs hands every frame without a
+     * {@code type} to {@link InboundAckRouter}, which routes the
      * {@code {"status":...}}-shaped acks (auth, staff-action, chat, and the plain
      * ok/error acks to the other untyped frames).
      * Anything with a {@code type} field is fanned out to these
@@ -824,8 +690,10 @@ public final class V1ApiManager {
     /** @return whether the most recent successful auth ack reported the
      *  user as confirmed staff. False until auth completes; cleared on
      *  auth failure or disconnect. This is the *only* gate that should
-     *  be used for /caution, /warn, /eject -- {@link GuildStateManager#isStaff()}
-     *  reads the spoofable client-side /gu rank cache. */
+     *  be used for /caution, /warn, /eject --
+     *  {@link org.wynnvets.guild.GuildStateManager#isStaff()
+     *  GuildStateManager#isStaff()} reads the spoofable
+     *  client-side /gu rank cache. */
     public static boolean isConfirmedStaff() {
         return SessionAuthState.confirmedStaff;
     }
@@ -833,9 +701,11 @@ public final class V1ApiManager {
     /** @return the server-confirmed in-game guild rank (one of
      *  "strategist", "chief", "owner") for the authenticated user, or
      *  empty string when not confirmed-staff. One consumer of this
-     *  accessor, reached through {@link GuildStateManager}'s delegate
-     *  of the same name:
-     *  {@link GuildStateManager#isChiefOfAnyGuild()}, which gates
+     *  accessor, reached through
+     *  {@link org.wynnvets.guild.GuildStateManager GuildStateManager}'s delegate of the same name:
+     *  {@link org.wynnvets.guild.GuildStateManager#isChiefOfAnyGuild()
+     *  GuildStateManager#isChiefOfAnyGuild()},
+     *  which gates
      *  execution of {@code /wv distribute}. Captain was retired in the
      *  2026-07 permission restructure. */
     public static String confirmedStaffRank() {

@@ -178,8 +178,8 @@ final class UnlockManager {
      * {@link VetsConfig} and passed to {@link V1ApiManager#sendAuth(String)}, which sends
      * the {@code auth} frame on the inbound WebSocket if it is up and otherwise leaves the
      * stored key to go out on the next inbound (re)connect. The result is reported to the
-     * user asynchronously via the auth-frame response handler in
-     * {@link V1ApiManager}.</p>
+     * user asynchronously when
+     * {@link org.wynnvets.api.InboundAckRouter InboundAckRouter} routes the auth-frame ack.</p>
      *
      * @param key the bearer token typed by the user
      * @return {@link GuildStateManager.UnlockAttemptResult} describing what happened locally

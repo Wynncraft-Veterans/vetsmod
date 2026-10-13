@@ -20,7 +20,8 @@ import org.wynnvets.guild.GuildStateManager;
  * on every (re)connect of that socket thereafter; the server's response
  * asynchronously confirms (or rejects) the user's tier. See
  * {@link org.wynnvets.guild.UnlockManager} and
- * {@link org.wynnvets.api.V1ApiManager} for the surrounding flow.</p>
+ * {@link org.wynnvets.api.V1ApiManager} for the surrounding flow, and
+ * {@link org.wynnvets.api.InboundAckRouter InboundAckRouter} for the reply.</p>
  */
 @Mixin(ClientPacketListener.class)
 public class UnlockCommandMixin {

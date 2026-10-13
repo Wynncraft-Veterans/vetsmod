@@ -24,7 +24,7 @@ Key public methods (all package-level or client-facing):
 | `hasStoredAuthKey()` | True when `vetsAuthKey` is non-empty (regardless of validation) |
 | `hasLegacyPasswordUnlock()` | True if any pre-migration `vets*UnlockTime` marker exists |
 | `tryUnlock(key)` | Store + dispatch auth frame for a `/unlock` key |
-| `onAuthSuccess(tier)` / `onAuthFailure(detail)` | Auth-frame ack callbacks (called by V1ApiManager) |
+| `onAuthSuccess(tier)` / `onAuthFailure(detail)` | Auth-frame ack callbacks (called by InboundAckRouter) |
 | `isStaff()` | Delegated to StaffRankChecker |
 | `areFeaturesEnabled()` | Features gated to Returners only |
 | `canExecuteCommands()` | World entered at least once |
@@ -106,17 +106,17 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 
 **Persisted state (string/long via VetsConfig):**
 - `vetsAuthKey` — the bearer key stored on `/unlock <key>`
-- `vetsAuthTier` — the tier the last successful auth ack reported. Written by `V1ApiManager`'s auth-ack handler and never cleared, so after a new key or a rejection it can belong to an earlier key; read only by the diagnostics dump
-- `vetsAuthVerifiedAt` — epoch millis of the last successful auth-frame ack; written by `V1ApiManager`, display-only (diagnostics)
+- `vetsAuthTier` — the tier the last successful auth ack reported. Written by `InboundAckRouter` when it routes an ok auth ack, and never cleared, so after a new key or a rejection it can belong to an earlier key; read only by the diagnostics dump
+- `vetsAuthVerifiedAt` — epoch millis of the last successful auth-frame ack; written by `InboundAckRouter`, display-only (diagnostics)
 
 **Transient session state (volatile):**
 - `currentTier` — populated by the server's auth-frame ack
 - `authVerifiedThisSession` — boolean set true by each ok auth ack; cleared by an auth failure, a newly stored key, or a disconnect
-- `lastAuthFailureReason` — set by `onAuthFailure`: an auth rejection, or another error ack `V1ApiManager` classes as an auth failure, such as an "Authentication required" refusal of a non-auth frame. Cleared by a later ok auth ack, a newly stored key, or a disconnect. Used by SessionAuthWarning (case 2)
+- `lastAuthFailureReason` — set by `onAuthFailure`: an auth rejection, or another error ack `InboundAckRouter` classes as an auth failure, such as an "Authentication required" refusal of a non-auth frame. Cleared by a later ok auth ack, a newly stored key, or a disconnect. Used by SessionAuthWarning (case 2)
 
 **Public API (package-level):**
 - `tryUnlock(key)` returns `GuildStateManager.UnlockAttemptResult` (`MISSING_KEY` / `MALFORMED` / `STORED_VERIFYING`). Stores the key, clears stale tier state, and calls `V1ApiManager.sendAuth(key)`, which sends the auth frame now if the inbound WS is up or otherwise leaves it to go out on the next (re)connect.
-- `onAuthSuccess(tier)` / `onAuthFailure(detail)` — reached from `V1ApiManager`'s inbound message handler; the direct caller is `GuildStateManager.onAuthSuccess` / `.onAuthFailure`, which delegate here when the auth ack arrives.
+- `onAuthSuccess(tier)` / `onAuthFailure(detail)` — reached from `InboundAckRouter.route`, which `V1ApiManager`'s inbound handler calls for every untyped frame; the direct caller is `GuildStateManager.onAuthSuccess` / `.onAuthFailure`, which delegate here when the auth ack arrives.
 - `isWaitlistUnlocked()` / `isHonouraryUnlocked()` — true when (auth verified + matching tier this session) OR (legacy marker present; see the paragraph above).
 - `legacyWaitlistMarker()` / `legacyHonouraryMarker()` — raw read of the pre-migration timestamps.
 - `loadPersistedState()`, `reset()`.
@@ -163,8 +163,8 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 | `vetsIsStaff` | bool | StaffRankChecker |
 | `vetsLastStaffCheck` | long (ts) | StaffRankChecker |
 | `vetsAuthKey` | string | UnlockManager |
-| `vetsAuthTier` | string | V1ApiManager (auth-ack handler) |
-| `vetsAuthVerifiedAt` | long (ts) | V1ApiManager (auth-ack handler) |
+| `vetsAuthTier` | string | InboundAckRouter |
+| `vetsAuthVerifiedAt` | long (ts) | InboundAckRouter |
 | `vetsWaitlistUnlockTime` | long (ts) | **legacy** — meant only as a "previously unlocked under SHA-256 system" marker for warnings; today it still unlocks (§4) |
 | `vetsHonouraryUnlockTime` | long (ts) | same — legacy marker; same caveat |
 

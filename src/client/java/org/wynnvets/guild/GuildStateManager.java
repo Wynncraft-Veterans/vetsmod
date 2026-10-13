@@ -709,15 +709,17 @@ public class GuildStateManager {
         return UnlockManager.tryUnlock(key);
     }
 
-    /** Called by {@link V1ApiManager} when the server's auth-frame ack returns ok. */
+    /** Called by {@link org.wynnvets.api.InboundAckRouter InboundAckRouter} when the server's
+     *  auth-frame ack returns ok. */
     public static void onAuthSuccess(String tier) {
         UnlockManager.onAuthSuccess(tier);
     }
 
-    /** Called by {@link V1ApiManager} when an inbound error ack is classed as an auth
+    /** Called by {@link org.wynnvets.api.InboundAckRouter InboundAckRouter} when an inbound
+     *  error ack is classed as an auth
      *  failure: a rejected {@code auth} frame, any other error ack that arrives while an
      *  auth ack is awaited, or (when no staff-action callback claims it) the server refusing
-     *  another frame because the session is unauthenticated. V1ApiManager's inbound handler
+     *  another frame because the session is unauthenticated. {@code InboundAckRouter.route}
      *  has the exact test. */
     public static void onAuthFailure(String detail) {
         UnlockManager.onAuthFailure(detail);

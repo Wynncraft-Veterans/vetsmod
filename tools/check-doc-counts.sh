@@ -100,7 +100,7 @@ NameResolver.fetchAllLegacyNames|1|NameResolver#fetchAllLegacyNames: Used by Ran
 NameResolver.fetchUuidToLegacyName|1|NameResolver#fetchUuidToLegacyName: Used by NoAspectsFilter (names the class, pinned as one site)
 GuildStateManager.setDebugForceGuildlessUnlocked|0|GuildStateManager#setDebugForceGuildlessUnlocked: Nothing in vetsmod calls this today (in-class half in PATTERNS)
 GuildStateManager.isProcessingModGuildCheck|0|GuildStateManager#isProcessingModGuildCheck: Nothing calls it at present (in-class half in PATTERNS)
-StaffRanksPoller.refreshNow|1|StaffRanksPoller#refreshNow: called on each successful inbound auth ack, the one V1ApiManager site
+StaffRanksPoller.refreshNow|1|StaffRanksPoller#refreshNow: called on each successful inbound auth ack, the one InboundAckRouter site
 ChatUtils.encodePillIfAscii|0|ChatUtils#encodePillIfAscii: Within vetsmod only this class calls it
 ChatUtils.sendGuildChatMessageRed|0|vetsmod_chat_pipeline.md sec 6: reached only through sendStaffChannelMessage (in-class half in PATTERNS)
 QueueDetector.handleTitleText|1|QueueDetector#handleTitleText: the TitleSetTextEvent handler and QueueTitleMixin; the mixin is the qualified site (in-class half in PATTERNS)

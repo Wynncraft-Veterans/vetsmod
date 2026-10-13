@@ -10,7 +10,7 @@
 - [Commands Reference](vetsmod_commands.md) — Complete /wv command tree, permissions, handlers, chat-command mixins (/unlock <key>, /g/wg/v)
 - [Guild / Unlock / Staff-Rank System](vetsmod_guild_system.md) — GuildStateManager facade, GuildChecker (3-day cache), StaffRankChecker (24h cache), UnlockManager (bearer-key auth, replaces SHA-256), SessionAuthWarning
 - [Config Reference](vetsmod_config.md) — All config keys (internal + user-facing) including new vetsAuth* fields, defaults, validation, persistence format
-- [Networking (WebSocket + Fetchers + Polling)](vetsmod_networking.md) — V1ApiManager (incl. sendAuth + auth-ack routing), WsClient reconnection/ping, on-demand HTTP fetchers, polling services
+- [Networking (WebSocket + Fetchers + Polling)](vetsmod_networking.md) — V1ApiManager (incl. sendAuth; auth-ack routing in InboundAckRouter), WsClient reconnection/ping, on-demand HTTP fetchers, polling services
 - [Legacy Items System](project_legacy_items.md) — 8-branch detection cascade, 9-branch tooltip rewriter, YAML definitions, mixins, config, edge cases
 - [Mixins Reference](vetsmod_mixins.md) — All 14 registered entries (13 mixins + 1 accessor): target class, inject point, purpose, rationale (UnlockCommandMixin intercepts `/unlock <key>`; QueueTitleMixin/CommandSuggestionsMixin handle queue UX)
 - [Queue subsystem](project_vetsmod.md) — `org.wynnvets.queue` package + how the `queue` chat type routes guild messages while the game server drops `/g`. Covered by that doc's `org.wynnvets.queue` bullet; it carries no headings, so there is no anchor to link.

@@ -44,7 +44,7 @@ public final class VetsConfigKeys {
      *  {@link #PRINT_ANNI} suppresses the world-join line earlier, before {@code StampFetcher}
      *  runs. Off by default.
      *  <p>Meant to give vets players the enriched view without a manual toggle. Today
-     *  {@link org.wynnvets.api.V1ApiManager V1ApiManager}'s auth-ack handler sets it {@code true}
+     *  {@link org.wynnvets.api.InboundAckRouter InboundAckRouter} sets it {@code true}
      *  whenever an ok auth ack with tier member, waitlist or honourary finds it {@code false}, so
      *  a vets-tier opt-out lasts only until the next ack. Anyone can opt in with
      *  {@code /wv config vetsAnniEnabled true}, but the pull it enables asks for the authenticated
