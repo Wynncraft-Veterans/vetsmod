@@ -581,8 +581,8 @@ Two call sites, both in `GuildManageOpener`: `openManageMembers()` and
 `openGuildLog()`, each queueing `guild manage`.
 
 As of this writing, this is the only `java.lang.reflect` usage in the mod's
-own code (`src/client`, `src/main`); `VetsConfigKeysTest` reads its
-constants by reflection too. A fact worth re-checking rather than assuming.
+own code (`src/client`, `src/main`); `VetsConfigKeysTest` reads
+`VetsConfigKeys`' constants by reflection too. A fact worth re-checking rather than assuming.
 
 ## 9. HTTP surface
 

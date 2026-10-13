@@ -12,12 +12,13 @@ import org.junit.jupiter.api.Test;
 /**
  * Pins the tables in {@link VetsConfigSchema}: the keys {@code /wv config} accepts and the order
  * of {@code USER_CONFIG_KEYS}, which is the order {@code configList} prints them in; the key lists
- * that decide how a key is typed; the valid-value lists; and the defaults {@code reset} writes.
- * Every expected table is a frozen literal, not read from the class; the predicate check below
- * is the exception.
+ * that decide how {@code /wv config} types a key; the valid-value lists; and the defaults
+ * {@code reset} writes. Every expected table is a frozen literal, not read from the class; the
+ * predicate check below is the exception.
  *
  * <p>The {@code is*Key} predicates are checked against the arrays they scan, for every key name
- * plus the debug key and an unknown name, so a predicate pointed at the wrong array fails here.</p>
+ * plus a debug key ({@code itemDump}) and an unknown name, so a predicate pointed at the wrong
+ * array fails here.</p>
  *
  * <p>KNOWN BUG (pinned, not fixed): fixing any of these may change a table pinned below.
  * {@code vets-anni-enabled-to-be-retired} removes {@code vetsAnniEnabled} from

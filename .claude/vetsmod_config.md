@@ -146,7 +146,7 @@ Two classes hold the defaults of the keys in `VetsConfigKeys`; the debug keys ge
 `VetsConfig`'s static initializer sets the first-run default of every key in `VetsConfigKeys`. Booleans default there, and not all of them are true: `vetsIsStaff`, `vetsAnniEnabled`, `vetsAnniModeUserSet` and `colorBlindMode` default `false`. Timestamp/count longs default `0L`.
 HANDLE_SPOILERS default: null.
 
-`VetsConfigSchema` holds a second copy of seven of the string defaults and both int defaults, which `/wv config <key> reset` writes (its `vetsAnniMode` entry is never reached, since `/wv config` refuses that key):
+`VetsConfigSchema` holds a second copy of seven of the string defaults and both int defaults, which `/wv config <key> reset` writes (`reset` never reaches its `vetsAnniMode` entry, since `/wv config` refuses that key):
 INT_DEFAULTS: opacity values.
 STRING_DEFAULTS: seven entries — the four colour/sprite keys plus `vetsAnniRoleStyle` (`descriptive`), `vetsAnniMode` (`silent`) and `vetsAnniFlashIntensity` (`normal`).
 The two copies agree; nothing checks that they keep agreeing.

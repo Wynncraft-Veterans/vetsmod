@@ -7,7 +7,7 @@ package org.wynnvets.config;
  * {@link VetsConfigSchema} holds the key lists, valid-value lists and {@code reset} defaults
  * that describe them.
  *
- * <p>Keys fall into three categories:</p>
+ * <p>Keys fall into these categories:</p>
  * <ul>
  *   <li><b>Internal</b> — used by the mod to cache transient state (e.g.
  *       {@link #VETS_IS_STAFF}, {@link #VETS_LAST_STAFF_CHECK}).  These are
