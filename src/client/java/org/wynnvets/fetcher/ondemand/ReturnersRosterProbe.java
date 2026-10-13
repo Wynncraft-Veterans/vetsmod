@@ -153,7 +153,8 @@ final class ReturnersRosterProbe {
 
     // <<< PATCH END: WYNN-STALE-WORKAROUND
 
-    private static ReturnersMembership analyzeRoster(JsonElement payload, String normalizedUuid) {
+    // Package-private for unit tests. See ReturnersRosterProbeTest.
+    static ReturnersMembership analyzeRoster(JsonElement payload, String normalizedUuid) {
         if (!containsUuid(payload, normalizedUuid)) {
             return ReturnersMembership.notInGuild();
         }
