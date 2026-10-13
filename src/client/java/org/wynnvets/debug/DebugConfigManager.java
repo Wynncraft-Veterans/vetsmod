@@ -6,7 +6,8 @@ import org.wynnvets.config.VetsConfig;
  * Manages debug-only configuration keys, separate from user-facing config.
  *
  * <p>Debug keys are toggled via {@code /wv debug set <key> <value>} and are
- * intentionally kept out of the main {@link VetsConfig} constants so that
+ * intentionally kept out of the main
+ * {@link org.wynnvets.config.VetsConfigKeys VetsConfigKeys} constants so that
  * debug tooling does not clutter production code.</p>
  *
  * <p>Call {@link #init()} <em>before</em> {@link VetsConfig#load()} so that

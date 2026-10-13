@@ -134,7 +134,7 @@ and it affected only that one rewriter. The copy is gone.
 
 Pipe regex: `\|\|(.+?)\|\|` (non-greedy). Predicates: `containsPipeSpoiler()`, `containsEncodedSpoiler()`.
 
-`SpoilerFormatter.appendWithSpoilers()` renders PUA blocks as green `[Spoiler]` labels with hover text showing decoded content. Gated by `VetsConfig.HANDLE_SPOILERS` (tri-state: null=default=on).
+`SpoilerFormatter.appendWithSpoilers()` renders PUA blocks as green `[Spoiler]` labels with hover text showing decoded content. Gated by `VetsConfigKeys.HANDLE_SPOILERS` (tri-state: null=default=on).
 
 ## 5. OutboundDisplayHandler
 

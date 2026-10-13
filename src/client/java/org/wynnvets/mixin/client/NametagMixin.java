@@ -19,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.mwe.anni.outline.AnniOutlineRegistry;
 import org.wynnvets.mwe.anni.outline.AnniOutlineTicker;
@@ -196,7 +197,7 @@ public class NametagMixin {
         // duration of the highlight gate and the supporter glint
         // resumes afterwards.
         if (AnniOutlineTicker.isOutlineSuppressionActive()
-                && VetsConfig.get(VetsConfig.VETS_ANNI_NAMETAGS_ENABLED)) {
+                && VetsConfig.get(VetsConfigKeys.VETS_ANNI_NAMETAGS_ENABLED)) {
             AnniOutlineRegistry.Entry anni = AnniOutlineRegistry.getEntry(username);
             ChatFormatting fmt =
                     (anni != null) ? anni.nametagFormatting() : ChatFormatting.DARK_GRAY;
@@ -230,7 +231,7 @@ public class NametagMixin {
         if (!fromWrap && WYNNMOD_PRESENT) return;
 
         if (!SupportersPoller.isSupporter(username)) return;
-        if (!VetsConfig.get(VetsConfig.SHOW_SUPPORTER_GLINTS)) return;
+        if (!VetsConfig.get(VetsConfigKeys.SHOW_SUPPORTER_GLINTS)) return;
 
         Component animated = NametagAnimator.tryAnimate(state.nameTag, username);
         if (animated != null) {

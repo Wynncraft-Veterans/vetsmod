@@ -5,6 +5,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.FormattedCharSink;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 
 /**
  * A {@link FormattedCharSequence} wrapper that applies an animated, moving,
@@ -62,14 +63,14 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
 
     /** Start colour for the supporter shimmer, honouring {@code colorBlindMode}. */
     public static int effectiveDefaultStart() {
-        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE)
+        return VetsConfig.get(VetsConfigKeys.COLOR_BLIND_MODE)
                 ? CV_DEFAULT_START_COLOR
                 : DEFAULT_START_COLOR;
     }
 
     /** End colour for the supporter shimmer, honouring {@code colorBlindMode}. */
     public static int effectiveDefaultEnd() {
-        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE)
+        return VetsConfig.get(VetsConfigKeys.COLOR_BLIND_MODE)
                 ? CV_DEFAULT_END_COLOR
                 : DEFAULT_END_COLOR;
     }
@@ -77,7 +78,7 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
     /** Start colour for the grey supporter shimmer {@code /wv list} gives supporters in its
      *  grey-coloured list, honouring {@code colorBlindMode}. */
     public static int effectiveGreyStart() {
-        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE)
+        return VetsConfig.get(VetsConfigKeys.COLOR_BLIND_MODE)
                 ? CV_GREY_START_COLOR
                 : DEFAULT_GREY_START_COLOR;
     }
@@ -85,7 +86,7 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
     /** End colour for the grey supporter shimmer {@code /wv list} gives supporters in its
      *  grey-coloured list, honouring {@code colorBlindMode}. */
     public static int effectiveGreyEnd() {
-        return VetsConfig.get(VetsConfig.COLOR_BLIND_MODE)
+        return VetsConfig.get(VetsConfigKeys.COLOR_BLIND_MODE)
                 ? CV_GREY_END_COLOR
                 : DEFAULT_GREY_END_COLOR;
     }

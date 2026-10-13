@@ -116,8 +116,9 @@ public class LegacyItemHandler {
 
     /**
      * Returns true if the given ItemStack should be treated as a legacy item.
-     * Always returns false when {@link org.wynnvets.config.VetsConfig#LEGACY_ITEM_HIGHLIGHTING}
-     * is disabled.
+     * Always returns false when
+     * {@link org.wynnvets.config.VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING
+     * VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING} is disabled.
      *
      * <p>Detection uses a priority cascade of 8 independent checks, each targeting
      * a different category of legacy item.  The {@code newFormatOverridden} flag
@@ -129,7 +130,7 @@ public class LegacyItemHandler {
      */
     public static boolean isLegacyItem(ItemStack stack) {
         if (!org.wynnvets.config.VetsConfig.get(
-                org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return false;
+                org.wynnvets.config.VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING)) return false;
         if (stack.isEmpty()) return false;
         if (isBlockedScreen()) return false;
 
@@ -262,8 +263,9 @@ public class LegacyItemHandler {
 
     /**
      * Processes and rewrites tooltip lines for legacy/enchanted/junk/crafting items.
-     * Returns the unmodified list when {@link org.wynnvets.config.VetsConfig#LEGACY_ITEM_HIGHLIGHTING}
-     * is disabled.
+     * Returns the unmodified list when
+     * {@link org.wynnvets.config.VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING
+     * VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING} is disabled.
      *
      * @param tooltipLines the original tooltip lines
      * @return the (possibly modified) tooltip lines

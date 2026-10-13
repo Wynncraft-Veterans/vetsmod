@@ -13,6 +13,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.mode.AnniMode;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
@@ -34,8 +35,8 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * touches the snapshot cache or the clock:</p>
  * <ol>
  *   <li>{@link AnniModeManager#current()} != {@link AnniMode#SILENT}</li>
- *   <li>At least one of {@link VetsConfig#VETS_ANNI_OUTLINES_ENABLED} or
- *       {@link VetsConfig#VETS_ANNI_NAMETAGS_ENABLED} is true (so users
+ *   <li>At least one of {@link VetsConfigKeys#VETS_ANNI_OUTLINES_ENABLED} or
+ *       {@link VetsConfigKeys#VETS_ANNI_NAMETAGS_ENABLED} is true (so users
  *       who want neither half see no S4 effect at all)</li>
  *   <li>Snapshot stamp epoch present AND {@code T-2h ≤ now ≤ T+30m}</li>
  *   <li>{@link AnniZone#isInZone(double, double)} returns true (or the
@@ -180,8 +181,8 @@ public final class AnniOutlineTicker {
         AnniMode mode = AnniModeManager.current();
         if (mode == AnniMode.SILENT) return false;
 
-        boolean outlines = VetsConfig.get(VetsConfig.VETS_ANNI_OUTLINES_ENABLED);
-        boolean nametags = VetsConfig.get(VetsConfig.VETS_ANNI_NAMETAGS_ENABLED);
+        boolean outlines = VetsConfig.get(VetsConfigKeys.VETS_ANNI_OUTLINES_ENABLED);
+        boolean nametags = VetsConfig.get(VetsConfigKeys.VETS_ANNI_NAMETAGS_ENABLED);
         if (!outlines && !nametags) return false;
 
         AnniSnapshot snapshot = AnniSnapshotCache.latest();

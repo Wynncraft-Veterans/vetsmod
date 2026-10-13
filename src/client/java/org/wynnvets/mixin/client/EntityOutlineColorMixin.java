@@ -9,13 +9,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.mwe.anni.outline.AnniOutlineRegistry;
 import org.wynnvets.mwe.anni.outline.AnniOutlineTicker;
 
 /**
  * Zeroes {@link EntityRenderState#outlineColor} for {@link AbstractClientPlayer}
  * outsiders while the S4 highlight gate holds and
- * {@link VetsConfig#VETS_ANNI_OUTLINES_ENABLED} is on.
+ * {@link VetsConfigKeys#VETS_ANNI_OUTLINES_ENABLED} is on.
  *
  * <p><b>Why not the getTeamColor route.</b> The earlier
  * {@code EntityTeamColorMixin} returned 0 from {@code Entity.getTeamColor()},
@@ -66,7 +67,7 @@ public class EntityOutlineColorMixin {
     private void vetsmod$suppressOutsiderOutline(
             Entity entity, EntityRenderState state, float partialTick, CallbackInfo ci) {
         if (!AnniOutlineTicker.isOutlineSuppressionActive()) return;
-        if (!VetsConfig.get(VetsConfig.VETS_ANNI_OUTLINES_ENABLED)) return;
+        if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_OUTLINES_ENABLED)) return;
         if (!(entity instanceof AbstractClientPlayer player)) return;
 
         String username = player.getGameProfile().name();

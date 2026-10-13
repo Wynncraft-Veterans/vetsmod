@@ -8,6 +8,7 @@ import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
 import net.minecraft.world.phys.Vec3;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker;
 
@@ -27,7 +28,7 @@ import org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker;
  * ring positions as the player moves vertically.</p>
  *
  * <p><b>Gate:</b> {@link AnniAggressiveTicker#isAggressiveActive()} AND
- * {@link VetsConfig#VETS_ANNI_ZONE_LINES}. No zone-presence check — per
+ * {@link VetsConfigKeys#VETS_ANNI_ZONE_LINES}. No zone-presence check — per
  * the S5 design, aggressive features are window-scoped, not
  * location-scoped, so standing outside the zone does not switch them off.</p>
  *
@@ -85,7 +86,7 @@ public final class AnniZoneLineRenderer {
 
     private static void render() {
         if (!AnniAggressiveTicker.isAggressiveActive()) return;
-        if (!VetsConfig.get(VetsConfig.VETS_ANNI_ZONE_LINES)) return;
+        if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_ZONE_LINES)) return;
 
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;

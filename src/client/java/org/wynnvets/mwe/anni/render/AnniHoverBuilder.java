@@ -9,6 +9,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.mwe.anni.outline.AnniOutlinePalette;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 
@@ -22,7 +23,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
  * full lines.</p>
  *
  * <p>Hover details are gated by
- * {@link VetsConfig#VETS_ANNI_SHOW_HOVER_DETAILS} (per the MWE plan's
+ * {@link VetsConfigKeys#VETS_ANNI_SHOW_HOVER_DETAILS} (per the MWE plan's
  * Hard Rule #7): with the flag off, every helper still emits the
  * coloured text plus any click action, but skips the descriptive
  * tooltip. Click URLs are never suppressed — the spec wires them for
@@ -176,14 +177,14 @@ public final class AnniHoverBuilder {
     }
 
     /** Resolve a role code to its display string per the current
-     *  {@link VetsConfig#VETS_ANNI_ROLE_STYLE} setting. Returns the
+     *  {@link VetsConfigKeys#VETS_ANNI_ROLE_STYLE} setting. Returns the
      *  uppercase role code unchanged when the style table doesn't
      *  cover it (forward-compat with new role codes added to the
      *  snapshot before this side is updated). */
     public static String displayRole(String roleCode) {
         if (roleCode == null || roleCode.isEmpty()) return "?";
         String upper = roleCode.toUpperCase(Locale.ROOT);
-        String style = VetsConfig.getString(VetsConfig.VETS_ANNI_ROLE_STYLE);
+        String style = VetsConfig.getString(VetsConfigKeys.VETS_ANNI_ROLE_STYLE);
         if (style == null) style = "descriptive";
         switch (style) {
             case "short":
@@ -399,7 +400,7 @@ public final class AnniHoverBuilder {
     // ── Internals ───────────────────────────────────────────────────────
 
     private static boolean showHovers() {
-        return VetsConfig.get(VetsConfig.VETS_ANNI_SHOW_HOVER_DETAILS);
+        return VetsConfig.get(VetsConfigKeys.VETS_ANNI_SHOW_HOVER_DETAILS);
     }
 
     /** Wrap {@code URI.create} so a malformed URL from the snapshot

@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.util.ConfigValueText;
 import org.wynnvets.util.ConfigValueText.Form;
 import org.wynnvets.util.ConfigValueText.Verb;
@@ -55,15 +56,15 @@ final class ConfigCommands {
                     if (VetsConfig.isStringKey(key)) {
                         // Always suggest "reset" for string keys
                         if ("reset".startsWith(partial)) builder.suggest("reset");
-                        if (key.equals(VetsConfig.LEGACY_ITEM_FOREGROUND_SPRITE)) {
+                        if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)) {
                             for (String s : VetsConfig.VALID_SPRITES) {
                                 if (s.startsWith(partial)) builder.suggest(s);
                             }
-                        } else if (key.equals(VetsConfig.VETS_ANNI_ROLE_STYLE)) {
+                        } else if (key.equals(VetsConfigKeys.VETS_ANNI_ROLE_STYLE)) {
                             for (String s : VetsConfig.VALID_ROLE_STYLES) {
                                 if (s.startsWith(partial)) builder.suggest(s);
                             }
-                        } else if (key.equals(VetsConfig.VETS_ANNI_MODE)) {
+                        } else if (key.equals(VetsConfigKeys.VETS_ANNI_MODE)) {
                             for (String s : VetsConfig.VALID_ANNI_MODES) {
                                 if (s.startsWith(partial)) builder.suggest(s);
                             }
@@ -226,7 +227,7 @@ final class ConfigCommands {
     // ── String-config helpers ───────────────────────────────────────────
 
     private static Component formatStringConfigValue(String key, String value) {
-        if (key.equals(VetsConfig.LEGACY_ITEM_FOREGROUND_SPRITE)) {
+        if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)) {
             return Component.literal(value).withStyle(ChatFormatting.AQUA);
         }
         // All other string keys are treated as colour names; today that
@@ -251,7 +252,7 @@ final class ConfigCommands {
             return 1;
         }
 
-        if (key.equals(VetsConfig.LEGACY_ITEM_FOREGROUND_SPRITE)) {
+        if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)) {
             String lower = rawValue.toLowerCase();
             if (!VetsConfig.isValidSprite(lower)) {
                 ChatUtils.sendLocalMessage(

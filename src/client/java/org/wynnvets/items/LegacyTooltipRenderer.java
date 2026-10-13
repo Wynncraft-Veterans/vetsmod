@@ -102,8 +102,9 @@ final class LegacyTooltipRenderer {
 
     /**
      * Processes and rewrites tooltip lines for legacy/enchanted/junk/crafting items.
-     * Returns the unmodified list when {@link org.wynnvets.config.VetsConfig#LEGACY_ITEM_HIGHLIGHTING}
-     * is disabled.
+     * Returns the unmodified list when
+     * {@link org.wynnvets.config.VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING
+     * VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING} is disabled.
      *
      * @param tooltipLines the original tooltip lines
      * @return the (possibly modified) tooltip lines
@@ -114,7 +115,7 @@ final class LegacyTooltipRenderer {
         LegacyItemHandler.lastProcessedWasLegacy = false;
 
         if (!org.wynnvets.config.VetsConfig.get(
-                org.wynnvets.config.VetsConfig.LEGACY_ITEM_HIGHLIGHTING)) return tooltipLines;
+                org.wynnvets.config.VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING)) return tooltipLines;
         if (tooltipLines.isEmpty()) return tooltipLines;
         if (LegacyItemHandler.isBlockedScreen()) return tooltipLines;
 
@@ -410,7 +411,7 @@ final class LegacyTooltipRenderer {
      */
     private static void appendEnchantmentBlock(List<Component> modified) {
         if (!org.wynnvets.config.VetsConfig.get(
-                org.wynnvets.config.VetsConfig.LEGACY_ITEM_SHOW_ENCHANTMENTS)) {
+                org.wynnvets.config.VetsConfigKeys.LEGACY_ITEM_SHOW_ENCHANTMENTS)) {
             return;
         }
         LegacyEnchantmentRenderer.showEnchantment(modified, LegacyItemHandler.currentItemStack);

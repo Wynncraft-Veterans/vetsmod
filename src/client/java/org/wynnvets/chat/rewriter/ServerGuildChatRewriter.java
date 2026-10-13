@@ -104,7 +104,7 @@ public final class ServerGuildChatRewriter {
         boolean isSupporter =
                 SupportersPoller.isSupporter(lookupUsername)
                         && org.wynnvets.config.VetsConfig.get(
-                                org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS);
+                                org.wynnvets.config.VetsConfigKeys.SHOW_SUPPORTER_GLINTS);
 
         String displayLabel = RankDisplayMap.displayFor(rawRank);
         boolean needsRemap = !displayLabel.equalsIgnoreCase(rawRank);

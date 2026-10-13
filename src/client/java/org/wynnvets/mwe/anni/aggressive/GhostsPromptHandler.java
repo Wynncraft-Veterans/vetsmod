@@ -13,6 +13,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
@@ -37,7 +38,7 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * unconditionally in that case — it's useful info. If zero visible
  * players are ghosts, it's ambiguous (could be off, could just be an
  * empty area); fall back to a per-stamp_epoch sentinel
- * ({@link VetsConfig#VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP}) so we
+ * ({@link VetsConfigKeys#VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP}) so we
  * prompt at most once per anni in that branch.</p>
  *
  * <p><b>Trigger:</b> rising edge of {@link AnniZone#isInZone(double, double)}
@@ -79,7 +80,7 @@ public final class GhostsPromptHandler {
             lastInZone = false;
             return;
         }
-        if (!VetsConfig.get(VetsConfig.VETS_ANNI_GHOSTS_PROMPT)) {
+        if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT)) {
             return;
         }
 
@@ -106,12 +107,13 @@ public final class GhostsPromptHandler {
         // to the per-stamp_epoch sentinel.
         long stamp = currentStampEpoch();
         if (stamp <= 0L) return;
-        String shownFor = VetsConfig.getString(VetsConfig.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
+        String shownFor =
+                VetsConfig.getString(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
         if (shownFor == null) shownFor = "";
         String stampStr = Long.toString(stamp);
         if (stampStr.equals(shownFor)) return;
         firePrompt();
-        VetsConfig.setString(VetsConfig.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP, stampStr);
+        VetsConfig.setString(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP, stampStr);
     }
 
     private static boolean anyVisibleGhost(ClientLevel level, LocalPlayer self) {
@@ -187,9 +189,10 @@ public final class GhostsPromptHandler {
         }
         boolean inZone = AnniZone.isInZone(self.getX(), self.getZ());
         boolean aggro = AnniAggressiveTicker.isAggressiveActive();
-        boolean toggleOn = VetsConfig.get(VetsConfig.VETS_ANNI_GHOSTS_PROMPT);
+        boolean toggleOn = VetsConfig.get(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT);
         long stamp = currentStampEpoch();
-        String shownFor = VetsConfig.getString(VetsConfig.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
+        String shownFor =
+                VetsConfig.getString(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
 
         VetsLogger.info("--- ghostsPromptDump ---");
         VetsLogger.info(

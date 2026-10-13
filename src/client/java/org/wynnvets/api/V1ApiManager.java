@@ -10,6 +10,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import org.wynnvets.Vetsmod;
 import org.wynnvets.chat.dispatcher.DispatchCoordinator;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
@@ -208,8 +209,8 @@ public final class V1ApiManager {
                                                 ? ""
                                                 : json.get("tier").getAsString();
                                 long now = System.currentTimeMillis();
-                                VetsConfig.setString(VetsConfig.VETS_AUTH_TIER, tier);
-                                VetsConfig.setLong(VetsConfig.VETS_AUTH_VERIFIED_AT, now);
+                                VetsConfig.setString(VetsConfigKeys.VETS_AUTH_TIER, tier);
+                                VetsConfig.setLong(VetsConfigKeys.VETS_AUTH_VERIFIED_AT, now);
                                 // Capture server-confirmed staff status from the auth ack.
                                 // The roster lookup happens server-side; the client just
                                 // reads whatever the server resolved.
@@ -253,8 +254,8 @@ public final class V1ApiManager {
                                 if (("member".equals(tier)
                                                 || "waitlist".equals(tier)
                                                 || "honourary".equals(tier))
-                                        && !VetsConfig.get(VetsConfig.VETS_ANNI_ENABLED)) {
-                                    VetsConfig.set(VetsConfig.VETS_ANNI_ENABLED, true);
+                                        && !VetsConfig.get(VetsConfigKeys.VETS_ANNI_ENABLED)) {
+                                    VetsConfig.set(VetsConfigKeys.VETS_ANNI_ENABLED, true);
                                     VetsLogger.debug(
                                             "vetsAnniEnabled auto-set on tier={} auth ack", tier);
                                 }
@@ -286,7 +287,7 @@ public final class V1ApiManager {
         // server's presence + auth state stays accurate across network hiccups.
         inboundClient.setOnConnectCallback(
                 () -> {
-                    String storedKey = VetsConfig.getString(VetsConfig.VETS_AUTH_KEY);
+                    String storedKey = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_KEY);
                     if (storedKey != null && !storedKey.isEmpty() && inboundClient != null) {
                         expectingAuthAck = true;
                         JsonObject auth = new JsonObject();

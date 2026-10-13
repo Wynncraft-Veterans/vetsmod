@@ -6,6 +6,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -28,7 +29,7 @@ public final class SpoilerFormatter {
      * @param textStyle the style applied to non-spoiler text
      */
     public static void appendWithSpoilers(MutableComponent parent, String text, Style textStyle) {
-        if (Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))) {
+        if (Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfigKeys.HANDLE_SPOILERS))) {
             parent.append(Component.literal(text).setStyle(textStyle));
             return;
         }

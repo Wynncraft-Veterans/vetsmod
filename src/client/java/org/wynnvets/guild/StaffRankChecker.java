@@ -2,6 +2,7 @@ package org.wynnvets.guild;
 
 import com.wynntils.core.components.Handlers;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -78,8 +79,8 @@ final class StaffRankChecker {
      * {@link VetsConfig}.
      */
     static void loadPersistedState() {
-        isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
-        long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
+        isStaff = VetsConfig.get(VetsConfigKeys.VETS_IS_STAFF);
+        long persistedCheckTime = VetsConfig.getLong(VetsConfigKeys.VETS_LAST_STAFF_CHECK);
         long now = System.currentTimeMillis();
         lastStaffCheckTime =
                 (persistedCheckTime >= 0 && persistedCheckTime <= now) ? persistedCheckTime : 0;
@@ -91,8 +92,8 @@ final class StaffRankChecker {
      */
     static void reset() {
         staffRankSuppressUntil = 0;
-        isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
-        long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
+        isStaff = VetsConfig.get(VetsConfigKeys.VETS_IS_STAFF);
+        long persistedCheckTime = VetsConfig.getLong(VetsConfigKeys.VETS_LAST_STAFF_CHECK);
         long now = System.currentTimeMillis();
         lastStaffCheckTime =
                 (persistedCheckTime >= 0 && persistedCheckTime <= now) ? persistedCheckTime : 0;
@@ -164,12 +165,12 @@ final class StaffRankChecker {
 
     private static void setStaffStatus(boolean value) {
         isStaff = value;
-        VetsConfig.set(VetsConfig.VETS_IS_STAFF, value);
+        VetsConfig.set(VetsConfigKeys.VETS_IS_STAFF, value);
     }
 
     private static void markStaffCheckCompletedNow() {
         lastStaffCheckTime = System.currentTimeMillis();
-        VetsConfig.setLong(VetsConfig.VETS_LAST_STAFF_CHECK, lastStaffCheckTime);
+        VetsConfig.setLong(VetsConfigKeys.VETS_LAST_STAFF_CHECK, lastStaffCheckTime);
     }
 
     private static void completeCheck() {

@@ -12,6 +12,7 @@ import org.wynnvets.chat.NickResolver;
 import org.wynnvets.chat.Prepend;
 import org.wynnvets.chat.spoiler.SpoilerCodec;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -38,7 +39,7 @@ public final class SpoilerRewriter {
      * @return {@code true} if rewritten (caller should cancel the original)
      */
     public static boolean tryRewrite(Component component, String messageString) {
-        if (Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))) {
+        if (Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfigKeys.HANDLE_SPOILERS))) {
             VetsLogger.debug("SpoilerRewriter: skipped — handleSpoilers config disabled");
             return false;
         }

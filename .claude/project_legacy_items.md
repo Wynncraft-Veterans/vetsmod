@@ -24,6 +24,7 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 
 **Config:**
 - [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java)
+- [VetsConfigKeys](../src/client/java/org/wynnvets/config/VetsConfigKeys.java) — the config key names
 - [LegacyItemStyle](../src/client/java/org/wynnvets/config/LegacyItemStyle.java) — resolves gradient/sprite from config
 - [NamedColor](../src/client/java/org/wynnvets/config/NamedColor.java) — colour-name → RGB + alpha packing
 
@@ -42,7 +43,7 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 [LegacyItemHandler.isLegacyItem()](../src/client/java/org/wynnvets/items/LegacyItemHandler.java)
 
 Guard conditions (return `false` early):
-- `VetsConfig.LEGACY_ITEM_HIGHLIGHTING` disabled
+- `VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING` disabled
 - `stack.isEmpty()`
 - `isBlockedScreen()` — true whenever Wynntils reports `Models.Housing.isInEditMode()`, and otherwise when the screen title matches one of the 9 `blocked_screen_titles` patterns in `definitions.yml` (housing/island menus that abuse enchant glint as a UI selector)
 

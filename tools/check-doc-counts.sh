@@ -119,7 +119,7 @@ org/wynnvets/chat/ChatUtils.java|sendGuildChatMessageRed(|2|one-caller claim, in
 org/wynnvets/queue/QueueDetector.java|handleTitleText(|2|two-caller claim, in-class half: the declaration plus the TitleSetTextEvent handler call
 org/wynnvets/fetcher/polling/AnniStampPoller.java|getLatestStamp(|1|only-reader claim, in-class half: the declaration alone
 org/wynnvets/fetcher/polling/AnniStampPoller.java|updateFromExternalFetch(|1|only-caller claim, in-class half: the declaration alone
-org/wynnvets/fetcher/ondemand/StampFetcher.java|anniIntegrationActive(|3|VetsConfig#VETS_ANNI_ENABLED: its one reader, called by the world-join and /wv anni paths (declaration plus two calls)
+org/wynnvets/fetcher/ondemand/StampFetcher.java|anniIntegrationActive(|3|VetsConfigKeys#VETS_ANNI_ENABLED: its one reader, called by the world-join and /wv anni paths (declaration plus two calls)
 org/wynnvets/commands/HelpCommands.java|sessionBacked(|6|vetsmod_commands.md: five of the six gated pages take sessionBacked (declaration plus five calls; /wv check is the sixth)
 '
 

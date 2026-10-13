@@ -52,7 +52,8 @@ public final class NametagAnimator {
     private static final int DEFAULT_TEXT_COLOR = 0xFFFFFF;
 
     private static boolean colorBlindMode() {
-        return org.wynnvets.config.VetsConfig.get(org.wynnvets.config.VetsConfig.COLOR_BLIND_MODE);
+        return org.wynnvets.config.VetsConfig.get(
+                org.wynnvets.config.VetsConfigKeys.COLOR_BLIND_MODE);
     }
 
     private NametagAnimator() {}

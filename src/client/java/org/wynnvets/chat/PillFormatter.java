@@ -56,7 +56,7 @@ public final class PillFormatter {
         // Only apply gradient styling when the user has supporter glints enabled.
         if (isSupporter
                 && org.wynnvets.config.VetsConfig.get(
-                        org.wynnvets.config.VetsConfig.SHOW_SUPPORTER_GLINTS)) {
+                        org.wynnvets.config.VetsConfigKeys.SHOW_SUPPORTER_GLINTS)) {
             if (containsCustomFontGlyph(pillText)) {
                 // PUA pills (vetsmod's own encoded pill, which is every current caller's input)
                 // render in the default font: the frame and letter glyphs are baked into specific

@@ -15,6 +15,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.polling.AnniStampPoller;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.network.AnniQueryClient;
@@ -57,7 +58,7 @@ import org.wynnvets.util.HttpClients;
  * </ul>
  *
  * <p>The snapshot path in both callers, cold-cache pull included, runs only while
- * {@link VetsConfig#VETS_ANNI_ENABLED} is on. That key's Javadoc owns what it gates, when it is
+ * {@link VetsConfigKeys#VETS_ANNI_ENABLED} is on. That key's Javadoc owns what it gates, when it is
  * switched on for vets-tier users, and what a manual opt-in gets without an {@code /unlock} key
  * ({@code vets-anni-enabled-to-be-retired}).</p>
  */
@@ -247,10 +248,10 @@ public class StampFetcher {
     }
 
     /** True when the S2 snapshot-driven path is allowed to short-circuit the legacy stamp call:
-     *  reads {@link VetsConfig#VETS_ANNI_ENABLED}, off by default, so both callers take the legacy
-     *  path until a vets-tier auth ack or the user turns it on. */
+     *  reads {@link VetsConfigKeys#VETS_ANNI_ENABLED}, off by default, so both callers take the
+     *  legacy path until a vets-tier auth ack or the user turns it on. */
     private static boolean anniIntegrationActive() {
-        return VetsConfig.get(VetsConfig.VETS_ANNI_ENABLED);
+        return VetsConfig.get(VetsConfigKeys.VETS_ANNI_ENABLED);
     }
 
     /**

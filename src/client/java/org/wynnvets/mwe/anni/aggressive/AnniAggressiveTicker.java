@@ -38,7 +38,8 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * edge appears at roughly 152 blocks — on final approach, not on the flight
  * in. The window gate is what was decided; the draw distance is a separate
  * limit that survives it. Per-feature toggles
- * ({@link org.wynnvets.config.VetsConfig#VETS_ANNI_ZONE_LINES} etc.) gate
+ * ({@link org.wynnvets.config.VetsConfigKeys#VETS_ANNI_ZONE_LINES
+ * VetsConfigKeys#VETS_ANNI_ZONE_LINES} etc.) gate
  * individual consumers — this ticker doesn't aggregate them; consumers
  * check their own toggle in addition to {@link #isAggressiveActive()}.</p>
  *

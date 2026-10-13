@@ -3,6 +3,7 @@ package org.wynnvets.guild;
 import com.wynntils.core.components.Handlers;
 import com.wynntils.core.components.Models;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -116,10 +117,10 @@ final class GuildChecker {
     // ── Lifecycle ──────────────────────────────────────────────────────
 
     static void loadPersistedState() {
-        long persistedResult = VetsConfig.getLong(VetsConfig.VETS_GUILD_CHECK_RESULT);
+        long persistedResult = VetsConfig.getLong(VetsConfigKeys.VETS_GUILD_CHECK_RESULT);
         cachedResult = GuildCheckResult.fromPersistedValue(persistedResult);
 
-        long persistedTime = VetsConfig.getLong(VetsConfig.VETS_LAST_GUILD_CHECK);
+        long persistedTime = VetsConfig.getLong(VetsConfigKeys.VETS_LAST_GUILD_CHECK);
         long now = System.currentTimeMillis();
         lastGuildCheckTime = (persistedTime >= 0 && persistedTime <= now) ? persistedTime : 0;
 
@@ -159,8 +160,8 @@ final class GuildChecker {
     static void clearResult() {
         cachedResult = GuildCheckResult.UNKNOWN;
         lastGuildCheckTime = 0;
-        VetsConfig.setLong(VetsConfig.VETS_GUILD_CHECK_RESULT, 0L);
-        VetsConfig.setLong(VetsConfig.VETS_LAST_GUILD_CHECK, 0L);
+        VetsConfig.setLong(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, 0L);
+        VetsConfig.setLong(VetsConfigKeys.VETS_LAST_GUILD_CHECK, 0L);
         VetsLogger.debug("GuildChecker result cleared (Wynntils guild event)");
     }
 
@@ -272,8 +273,8 @@ final class GuildChecker {
     private static void setResult(GuildCheckResult result) {
         cachedResult = result;
         lastGuildCheckTime = System.currentTimeMillis();
-        VetsConfig.setLong(VetsConfig.VETS_GUILD_CHECK_RESULT, result.persistedValue);
-        VetsConfig.setLong(VetsConfig.VETS_LAST_GUILD_CHECK, lastGuildCheckTime);
+        VetsConfig.setLong(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, result.persistedValue);
+        VetsConfig.setLong(VetsConfigKeys.VETS_LAST_GUILD_CHECK, lastGuildCheckTime);
     }
 
     private static void completeCheck() {

@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import net.minecraft.ChatFormatting;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
@@ -61,7 +62,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * changing the colour.</p>
  *
  * <p><b>Gate:</b> {@link AnniAggressiveTicker#isAggressiveActive()} AND
- * {@link VetsConfig#VETS_ANNI_SCROLL_WAYPOINT}. Registration happens once
+ * {@link VetsConfigKeys#VETS_ANNI_SCROLL_WAYPOINT}. Registration happens once
  * at vetsmod load via {@link Models#Marker} — {@link #isEnabled()} is
  * what gates per-tick visibility.</p>
  */
@@ -156,7 +157,7 @@ public final class ScrollSpotMarkerProvider implements MarkerProvider<MarkerPoi>
     public boolean isEnabled() {
         return current.get() != null
                 && AnniAggressiveTicker.isAggressiveActive()
-                && VetsConfig.get(VetsConfig.VETS_ANNI_SCROLL_WAYPOINT);
+                && VetsConfig.get(VetsConfigKeys.VETS_ANNI_SCROLL_WAYPOINT);
     }
 
     /** Cached {@link MarkerInfo} + {@link MarkerPoi} pair so we build them

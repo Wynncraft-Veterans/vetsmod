@@ -6,6 +6,7 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Style;
 import net.minecraft.sounds.SoundEvents;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
@@ -299,7 +300,7 @@ public final class FlashTracker {
     }
 
     private static long flashDurationMs() {
-        String intensity = VetsConfig.getString(VetsConfig.VETS_ANNI_FLASH_INTENSITY);
+        String intensity = VetsConfig.getString(VetsConfigKeys.VETS_ANNI_FLASH_INTENSITY);
         if (intensity == null) intensity = "normal";
         switch (intensity) {
             case "subtle":
@@ -313,7 +314,7 @@ public final class FlashTracker {
     }
 
     private static void queuePingSounds() {
-        if (!VetsConfig.get(VetsConfig.VETS_ANNI_FLASH_SOUND)) return;
+        if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_FLASH_SOUND)) return;
         pendingSounds = Math.min(pendingSounds + SOUNDS_PER_CHANGE, SOUNDS_CAP);
         // Play the next sound immediately if nothing is currently in flight.
         if (nextSoundAt == 0L) nextSoundAt = System.currentTimeMillis();

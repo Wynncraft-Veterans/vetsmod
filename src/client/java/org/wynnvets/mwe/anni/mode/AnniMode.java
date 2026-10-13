@@ -1,6 +1,7 @@
 package org.wynnvets.mwe.anni.mode;
 
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 
 /**
  * The three audience-centric anni modes a vetsmod user can run in.
@@ -8,7 +9,7 @@ import org.wynnvets.config.VetsConfig;
  * <ul>
  *   <li>{@link #SILENT} — strict no-op. Boss-bar pipeline disengaged,
  *       outline/waypoint hooks inert. Today the flash-sound pings
- *       ({@link VetsConfig#VETS_ANNI_FLASH_SOUND}) still play on a snapshot
+ *       ({@link VetsConfigKeys#VETS_ANNI_FLASH_SOUND}) still play on a snapshot
  *       change in this mode ({@code anni-flash-pings-play-while-bar-is-down}).
  *       This is the only mode allowed
  *       while {@code /stream} is active (spec §3.1, "ONLY mode allowed
@@ -23,7 +24,7 @@ import org.wynnvets.config.VetsConfig;
  * </ul>
  *
  * <p>Persisted as a lowercase string in
- * {@link VetsConfig#VETS_ANNI_MODE}; the canonical converter pair is
+ * {@link VetsConfigKeys#VETS_ANNI_MODE}; the canonical converter pair is
  * {@link #fromConfig()} / {@link #toConfigValue()}. The string side
  * is the source of truth (S2's command placeholders already wrote it),
  * so this enum is read-only sugar over the config — never store the
@@ -34,13 +35,13 @@ public enum AnniMode {
     PASSIVE,
     AGGRESSIVE;
 
-    /** Read the current mode from {@link VetsConfig#VETS_ANNI_MODE}.
+    /** Read the current mode from {@link VetsConfigKeys#VETS_ANNI_MODE}.
      *  Falls back to {@link #SILENT} if the config slot is empty or
      *  holds an unknown value (defensive — the {@code /wv anni …}
      *  command path validates, but a hand-edited config.json could
      *  still land an unknown string). */
     public static AnniMode fromConfig() {
-        return fromString(VetsConfig.getString(VetsConfig.VETS_ANNI_MODE));
+        return fromString(VetsConfig.getString(VetsConfigKeys.VETS_ANNI_MODE));
     }
 
     /** Convert a config-shaped string back into the enum. {@code null}
@@ -59,7 +60,7 @@ public enum AnniMode {
     }
 
     /** The lowercase string this enum persists as in
-     *  {@link VetsConfig#VETS_ANNI_MODE}. Stable wire shape — do not
+     *  {@link VetsConfigKeys#VETS_ANNI_MODE}. Stable wire shape — do not
      *  rename without coordinating with the config validator and the
      *  {@code /wv anni <mode>} command parser. */
     public String toConfigValue() {

@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.debug.diagnostics.DiagnosticsHandler;
 import org.wynnvets.debug.dump.TabDumpHandler;
 import org.wynnvets.guild.GuildStateManager;
@@ -356,8 +357,8 @@ public final class DebugCommands {
         }
 
         boolean gate = org.wynnvets.mwe.anni.outline.AnniOutlineTicker.isOutlineSuppressionActive();
-        boolean nametagsEnabled = VetsConfig.get(VetsConfig.VETS_ANNI_NAMETAGS_ENABLED);
-        boolean outlinesEnabled = VetsConfig.get(VetsConfig.VETS_ANNI_OUTLINES_ENABLED);
+        boolean nametagsEnabled = VetsConfig.get(VetsConfigKeys.VETS_ANNI_NAMETAGS_ENABLED);
+        boolean outlinesEnabled = VetsConfig.get(VetsConfigKeys.VETS_ANNI_OUTLINES_ENABLED);
 
         ChatUtils.sendLocalMessageNewBlock(
                 Component.literal(
@@ -561,7 +562,7 @@ public final class DebugCommands {
         boolean aggro = org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker.isAggressiveActive();
         boolean toggle =
                 org.wynnvets.config.VetsConfig.get(
-                        org.wynnvets.config.VetsConfig.VETS_ANNI_ZONE_LINES);
+                        org.wynnvets.config.VetsConfigKeys.VETS_ANNI_ZONE_LINES);
         boolean cold = org.wynnvets.mwe.anni.zone.AnniZone.isCold();
         java.util.List<org.wynnvets.mwe.anni.zone.AnniZone.Disc> discs =
                 org.wynnvets.mwe.anni.zone.AnniZone.getDiscs();

@@ -8,7 +8,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 
 Single-file JSON config at `vetsmod/storage/config.json` (resolved via `FabricLoader.getInstance().getGameDir()`).
 
-Implementation: [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java).
+Implementation: [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java), the store, and [VetsConfigKeys](../src/client/java/org/wynnvets/config/VetsConfigKeys.java), the key names.
 
 Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-null). All coexist in one flat JSON object — no nesting, no version field, no migration logic.
 
@@ -28,7 +28,7 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `vetsLastGuildCheck` | long | Timestamp of last `/gu stats` (3-day TTL) |
 | `vetsDebugEnabledAt` | long | When `/wv debug true` set the debug flag (0 when off). Read only at client init, which restores the flag if under three days old and otherwise zeroes this key. The age is not rechecked later, so a running session keeps debug on |
 
-**Gap:** three internal keys are missing from this table — `vetsAnniModeUserSet`, `vetsAnniUserMode` and `vetsAnniGhostsPromptShownForStamp`. See `VetsConfig`.
+**Gap:** three internal keys are missing from this table — `vetsAnniModeUserSet`, `vetsAnniUserMode` and `vetsAnniGhostsPromptShownForStamp`. See `VetsConfigKeys`.
 
 ## 2. User-facing keys (USER_CONFIG_KEYS array, settable via /wv config)
 
@@ -167,7 +167,7 @@ JSON pretty-printed via GSON. Parent dir created if missing. Missing keys use in
 
 ## 8. Related config-adjacent state
 
-**Debug config** — keys declared in [DebugConfigManager](../src/client/java/org/wynnvets/debug/DebugConfigManager.java) rather than among VetsConfig's constants, but registered into VetsConfig's boolean map via `registerDefault` and persisted in the same `config.json`. Current debug keys: `itemDump` (bool) — when true, numpad `+` while hovering item dumps full Component tree JSON to `vetsmod/dumps/`.
+**Debug config** — keys declared in [DebugConfigManager](../src/client/java/org/wynnvets/debug/DebugConfigManager.java) rather than among VetsConfigKeys' constants, but registered into VetsConfig's boolean map via `registerDefault` and persisted in the same `config.json`. Current debug keys: `itemDump` (bool) — when true, numpad `+` while hovering item dumps full Component tree JSON to `vetsmod/dumps/`.
 
 Must call `DebugConfigManager.init()` before `VetsConfig.load()` (they share the same storage location).
 

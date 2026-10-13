@@ -5,13 +5,14 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
 /**
  * Source-of-truth for mode transitions: the single chokepoint that
  * enforces the {@code /stream} mutex (spec §3.1) and owns the user-facing
- * feedback around a {@link VetsConfig#VETS_ANNI_MODE} write.
+ * feedback around a {@link VetsConfigKeys#VETS_ANNI_MODE} write.
  *
  * <p>⚠️ That feedback does <b>not</b> precede the write.
  * {@link #transitionTo(AnniMode, Source)} calls {@link VetsConfig#setString}
@@ -30,7 +31,7 @@ import org.wynnvets.logging.VetsLogger;
  *       — plus this class's own {@link #transitionTo(AnniMode, Source)}, which
  *       reads the previous mode for its "(was Y)" confirmation and its logs.
  *       The three subsystems are the readers outside this package, and
- *       {@link VetsConfig#VETS_ANNI_MODE}'s own Javadoc names them with that
+ *       {@link VetsConfigKeys#VETS_ANNI_MODE}'s own Javadoc names them with that
  *       qualifier: "Outside the mode package it is read through
  *       {@code AnniModeManager.current()}".</li>
  *   <li>Through {@link AnniMode#fromConfig()} directly: {@link AnniWindowWatcher},
@@ -44,7 +45,7 @@ import org.wynnvets.logging.VetsLogger;
  * mistake to make from inside this file, because the obvious grep for
  * {@code fromConfig()} excludes the file you are editing.</p>
  *
- * <p>Nothing writes {@link VetsConfig#VETS_ANNI_MODE} directly. The key has a
+ * <p>Nothing writes {@link VetsConfigKeys#VETS_ANNI_MODE} directly. The key has a
  * single write site, inside {@link #transitionTo(AnniMode, Source)}, which is
  * what keeps the mutex honest.</p>
  *
@@ -71,8 +72,8 @@ public final class AnniModeManager {
      *  the DEBUG bypass. */
     public enum Source {
         /** A {@code /wv anni <mode>} command from the user. Only this
-         *  source flips {@link VetsConfig#VETS_ANNI_MODE_USER_SET} and
-         *  snapshots the pick into {@link VetsConfig#VETS_ANNI_USER_MODE}. */
+         *  source flips {@link VetsConfigKeys#VETS_ANNI_MODE_USER_SET} and
+         *  snapshots the pick into {@link VetsConfigKeys#VETS_ANNI_USER_MODE}. */
         USER_COMMAND,
         /** {@link AnniWindowWatcher} closing the hot window. Routes
          *  through {@link #preferredMode()} — preserves the user's
@@ -87,7 +88,7 @@ public final class AnniModeManager {
         /** Fired once at world-join / on guild-info update to apply the
          *  eligibility-based default (PASSIVE for enrichment-eligible
          *  users, SILENT otherwise) — but only while
-         *  {@link VetsConfig#VETS_ANNI_MODE_USER_SET} is {@code false}. */
+         *  {@link VetsConfigKeys#VETS_ANNI_MODE_USER_SET} is {@code false}. */
         AUTO_STARTUP_DEFAULT,
         /** {@code /wv debug tree anni mode set …} — bypasses the
          *  {@code /stream} mutex so we can test passive/aggressive
@@ -167,7 +168,7 @@ public final class AnniModeManager {
             return false;
         }
 
-        VetsConfig.setString(VetsConfig.VETS_ANNI_MODE, target.toConfigValue());
+        VetsConfig.setString(VetsConfigKeys.VETS_ANNI_MODE, target.toConfigValue());
 
         // A USER_COMMAND transition is the *only* thing that flips the
         // explicit-choice flag. This is what makes the pick survive
@@ -175,8 +176,8 @@ public final class AnniModeManager {
         // window-close reset) — those overwrite VETS_ANNI_MODE but leave
         // VETS_ANNI_USER_MODE intact, so preferredMode() can restore it.
         if (source == Source.USER_COMMAND) {
-            VetsConfig.set(VetsConfig.VETS_ANNI_MODE_USER_SET, true);
-            VetsConfig.setString(VetsConfig.VETS_ANNI_USER_MODE, target.toConfigValue());
+            VetsConfig.set(VetsConfigKeys.VETS_ANNI_MODE_USER_SET, true);
+            VetsConfig.setString(VetsConfigKeys.VETS_ANNI_USER_MODE, target.toConfigValue());
         }
 
         // Auto-sources either print their own contextual message at the
@@ -220,18 +221,18 @@ public final class AnniModeManager {
      *
      * <p>{@link #applyStartupDefaultIfNeeded()} does <em>not</em> consult this
      * method. It re-derives the eligibility default inline, which it can because
-     * it has already returned early on {@link VetsConfig#VETS_ANNI_MODE_USER_SET}
+     * it has already returned early on {@link VetsConfigKeys#VETS_ANNI_MODE_USER_SET}
      * — the one branch this method adds over that default.</p>
      *
      * <p>If the user has ever explicitly picked a mode
-     * ({@link VetsConfig#VETS_ANNI_MODE_USER_SET} is {@code true}),
-     * their remembered pick from {@link VetsConfig#VETS_ANNI_USER_MODE}
+     * ({@link VetsConfigKeys#VETS_ANNI_MODE_USER_SET} is {@code true}),
+     * their remembered pick from {@link VetsConfigKeys#VETS_ANNI_USER_MODE}
      * wins. Otherwise the eligibility-based default applies: PASSIVE
      * for enrichment-eligible users, SILENT for external users.</p>
      */
     public static AnniMode preferredMode() {
-        if (VetsConfig.get(VetsConfig.VETS_ANNI_MODE_USER_SET)) {
-            return AnniMode.fromString(VetsConfig.getString(VetsConfig.VETS_ANNI_USER_MODE));
+        if (VetsConfig.get(VetsConfigKeys.VETS_ANNI_MODE_USER_SET)) {
+            return AnniMode.fromString(VetsConfig.getString(VetsConfigKeys.VETS_ANNI_USER_MODE));
         }
         return GuildStateManager.isEligibleForEnrichment() ? AnniMode.PASSIVE : AnniMode.SILENT;
     }
@@ -252,7 +253,7 @@ public final class AnniModeManager {
      * apply it on stream-off instead.</p>
      */
     public static void applyStartupDefaultIfNeeded() {
-        if (VetsConfig.get(VetsConfig.VETS_ANNI_MODE_USER_SET)) return;
+        if (VetsConfig.get(VetsConfigKeys.VETS_ANNI_MODE_USER_SET)) return;
         AnniMode target =
                 GuildStateManager.isEligibleForEnrichment() ? AnniMode.PASSIVE : AnniMode.SILENT;
         if (AnniMode.fromConfig() == target) return;

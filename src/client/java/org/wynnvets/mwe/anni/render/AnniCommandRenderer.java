@@ -14,6 +14,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 
@@ -147,7 +148,7 @@ public final class AnniCommandRenderer {
 
         // Prediction line (gated by vetsAnniShowPrediction).
         boolean appendedPrediction = false;
-        if (VetsConfig.get(VetsConfig.VETS_ANNI_SHOW_PREDICTION)) {
+        if (VetsConfig.get(VetsConfigKeys.VETS_ANNI_SHOW_PREDICTION)) {
             AnniSnapshot.Prediction prediction = event == null ? null : event.prediction();
             if (prediction != null
                     && prediction.earliestEpoch() != null

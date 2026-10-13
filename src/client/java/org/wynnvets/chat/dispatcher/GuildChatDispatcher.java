@@ -12,6 +12,7 @@ import org.wynnvets.chat.spoiler.SpoilerCodec;
 import org.wynnvets.commands.CautionCommands;
 import org.wynnvets.commands.InviteGate;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.guild.GuildStateManager;
@@ -212,7 +213,7 @@ public final class GuildChatDispatcher {
         if (GuildStateManager.isGuildless() && GuildStateManager.isWaitlistUnlocked()) {
             VetsLogger.debug("Intercepted /g for waitlist bridge relay");
             String outMessage =
-                    !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
+                    !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfigKeys.HANDLE_SPOILERS))
                             ? SpoilerCodec.encodeSpoilers(message)
                             : message;
             relayWaitlistChat(outMessage);
@@ -225,7 +226,7 @@ public final class GuildChatDispatcher {
         if (GuildStateManager.isReturners() && QueueStateManager.isInQueue()) {
             VetsLogger.debug("Intercepted /g for queued-Returners bridge relay");
             String outMessage =
-                    !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
+                    !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfigKeys.HANDLE_SPOILERS))
                             ? SpoilerCodec.encodeSpoilers(message)
                             : message;
             relayQueuedReturnersChat(outMessage);
@@ -234,7 +235,7 @@ public final class GuildChatDispatcher {
 
         // Returners spoiler encoding
         if (GuildStateManager.isReturners()
-                && !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
+                && !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfigKeys.HANDLE_SPOILERS))
                 && SpoilerCodec.containsPipeSpoiler(message)) {
             String encoded = SpoilerCodec.encodeSpoilers(message);
             if (encoded.length() > 253) {
@@ -257,7 +258,7 @@ public final class GuildChatDispatcher {
         if (GuildStateManager.isHonouraryUnlocked()) {
             VetsLogger.debug("Intercepted /wg for honourary bridge relay");
             String outMessage =
-                    !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))
+                    !Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfigKeys.HANDLE_SPOILERS))
                             ? SpoilerCodec.encodeSpoilers(message)
                             : message;
             relayHonouraryChat(outMessage);

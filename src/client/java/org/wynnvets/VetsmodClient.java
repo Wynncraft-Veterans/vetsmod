@@ -7,6 +7,7 @@ import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.commands.CommandRegistry;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.debug.DebugConfigManager;
 import org.wynnvets.debug.dump.DebugKeyHandler;
 import org.wynnvets.distribute.distributor.MemberSlotPresser;
@@ -63,7 +64,7 @@ public class VetsmodClient implements ClientModInitializer {
         VetsConfig.load();
 
         // Restore persisted debug logging if enabled within the last 3 days
-        long debugEnabledAt = VetsConfig.getLong(VetsConfig.VETS_DEBUG_ENABLED_AT);
+        long debugEnabledAt = VetsConfig.getLong(VetsConfigKeys.VETS_DEBUG_ENABLED_AT);
         if (debugEnabledAt > 0) {
             long threeDaysMs = 3L * 24 * 60 * 60 * 1000;
             if (System.currentTimeMillis() - debugEnabledAt < threeDaysMs) {
@@ -72,7 +73,7 @@ public class VetsmodClient implements ClientModInitializer {
                         "Debug logging restored (enabled {} hours ago)",
                         (System.currentTimeMillis() - debugEnabledAt) / 3_600_000);
             } else {
-                VetsConfig.setLong(VetsConfig.VETS_DEBUG_ENABLED_AT, 0L);
+                VetsConfig.setLong(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, 0L);
                 VetsLogger.info("Debug logging expired after 3 days, auto-disabled");
             }
         }

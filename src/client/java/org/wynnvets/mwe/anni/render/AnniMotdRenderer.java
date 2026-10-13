@@ -6,6 +6,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 
 /**
@@ -83,7 +84,7 @@ public final class AnniMotdRenderer {
 
         // vetsAnniPromptRsvp acts as the "show line 2" flag — when off,
         // the user gets only the timing line.
-        if (!VetsConfig.get(VetsConfig.VETS_ANNI_PROMPT_RSVP)) {
+        if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_PROMPT_RSVP)) {
             return root;
         }
         MutableComponent line2 = buildStatusLine(snapshot);

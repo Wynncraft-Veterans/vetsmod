@@ -11,7 +11,7 @@ import org.wynnvets.guild.GuildChecker.GuildCheckResult;
  * mapping, not the surrounding checker.
  *
  * <p>The numbers are a storage contract, not an implementation detail:
- * {@code VetsConfig.VETS_GUILD_CHECK_RESULT} ({@code "vetsGuildCheckResult"})
+ * {@code VetsConfigKeys.VETS_GUILD_CHECK_RESULT} ({@code "vetsGuildCheckResult"})
  * writes {@code persistedValue} into the player's config as a raw long and
  * reads it back through {@code fromPersistedValue}. Changing a number
  * silently re-interprets every existing user's stored result. The assertions

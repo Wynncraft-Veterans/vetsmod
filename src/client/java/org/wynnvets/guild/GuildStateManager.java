@@ -11,6 +11,7 @@ import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.dispatcher.DispatchCoordinator;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
 import org.wynnvets.fetcher.ondemand.StampFetcher;
 import org.wynnvets.logging.VetsLogger;
@@ -520,7 +521,7 @@ public class GuildStateManager {
         // When moreReliableGuildCheck is enabled, schedule our own /gu stats
         // check after a delay so Wynntils has time to finish its own
         // world-join commands and the command queue is clear.
-        if (VetsConfig.get(VetsConfig.MORE_RELIABLE_GUILD_CHECK)) {
+        if (VetsConfig.get(VetsConfigKeys.MORE_RELIABLE_GUILD_CHECK)) {
             scheduleDelayedGuildCheck();
         }
 
@@ -590,13 +591,13 @@ public class GuildStateManager {
 
     private static void fetchAndDisplayMotd() {
         // Check if auto-messages are enabled (global gate)
-        if (!VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE)) {
+        if (!VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE)) {
             VetsLogger.debug("Auto-messages disabled, skipping MOTD");
             return;
         }
 
         // Check if MOTD printing is enabled (user toggle)
-        if (!VetsConfig.get(VetsConfig.PRINT_MOTD)) {
+        if (!VetsConfig.get(VetsConfigKeys.PRINT_MOTD)) {
             VetsLogger.debug("printMOTD disabled, skipping MOTD");
             return;
         }
@@ -652,13 +653,13 @@ public class GuildStateManager {
      */
     private static void fetchAndDisplayStampMessage() {
         // Check if auto-messages are enabled (global gate)
-        if (!VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE)) {
+        if (!VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE)) {
             VetsLogger.debug("Auto-messages disabled, skipping stamp");
             return;
         }
 
         // Check if annihilation printing is enabled (user toggle)
-        if (!VetsConfig.get(VetsConfig.PRINT_ANNI)) {
+        if (!VetsConfig.get(VetsConfigKeys.PRINT_ANNI)) {
             VetsLogger.debug("printANNI disabled, skipping stamp");
             return;
         }

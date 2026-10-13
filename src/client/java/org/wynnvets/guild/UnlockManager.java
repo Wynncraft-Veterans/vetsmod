@@ -6,6 +6,7 @@ import net.minecraft.network.chat.Component;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -73,7 +74,7 @@ final class UnlockManager {
 
     /** {@code true} when the user has just run {@code /unlock} and is awaiting
      *  the resulting auth-frame ack. Forces the next success ack to render its
-     *  confirmation message regardless of {@link VetsConfig#PRINT_SUCCESSFUL_AUTH}
+     *  confirmation message regardless of {@link VetsConfigKeys#PRINT_SUCCESSFUL_AUTH}
      *  so the player always sees the result of their attempt. Cleared by both
      *  the success and failure handlers. */
     private static volatile boolean pendingUnlockNotify = false;
@@ -87,7 +88,7 @@ final class UnlockManager {
 
     /** @return {@code true} if a key is stored locally (not necessarily valid) */
     static boolean hasStoredKey() {
-        String key = VetsConfig.getString(VetsConfig.VETS_AUTH_KEY);
+        String key = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_KEY);
         return key != null && !key.isEmpty();
     }
 
@@ -125,12 +126,12 @@ final class UnlockManager {
      *  old system" signal for warning copy; today {@link #isWaitlistUnlocked()} also ORs
      *  it in ({@code legacy-unlock-markers-still-grant-client-unlock}). */
     static boolean legacyWaitlistMarker() {
-        return VetsConfig.getLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME) > 0L;
+        return VetsConfig.getLong(VetsConfigKeys.VETS_WAITLIST_UNLOCK_TIME) > 0L;
     }
 
     /** See {@link #legacyWaitlistMarker()}. */
     static boolean legacyHonouraryMarker() {
-        return VetsConfig.getLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME) > 0L;
+        return VetsConfig.getLong(VetsConfigKeys.VETS_HONOURARY_UNLOCK_TIME) > 0L;
     }
 
     /** @return {@code true} when the debug guildless+unlocked override is active */
@@ -207,7 +208,7 @@ final class UnlockManager {
             }
         }
 
-        VetsConfig.setString(VetsConfig.VETS_AUTH_KEY, key);
+        VetsConfig.setString(VetsConfigKeys.VETS_AUTH_KEY, key);
         // Clear stale tier/verified state — the server's response will
         // populate them. Until that lands the session is "key stored,
         // verifying...".
@@ -241,7 +242,7 @@ final class UnlockManager {
 
         boolean fromUnlock = pendingUnlockNotify;
         pendingUnlockNotify = false;
-        boolean configWantsPrint = VetsConfig.get(VetsConfig.PRINT_SUCCESSFUL_AUTH);
+        boolean configWantsPrint = VetsConfig.get(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH);
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null && (fromUnlock || configWantsPrint)) {
@@ -265,7 +266,7 @@ final class UnlockManager {
             // what triggered the display — a /unlock-driven render shouldn't
             // overwrite the user's standing preference.
             if (configWantsPrint) {
-                VetsConfig.set(VetsConfig.PRINT_SUCCESSFUL_AUTH, false);
+                VetsConfig.set(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH, false);
             }
         }
 
@@ -290,7 +291,7 @@ final class UnlockManager {
 
         // Re-arm the success notification so the next error→recovery cycle
         // surfaces a fresh "verified" confirmation rather than staying silent.
-        VetsConfig.set(VetsConfig.PRINT_SUCCESSFUL_AUTH, true);
+        VetsConfig.set(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH, true);
 
         ChatUtils.sendLocalMessage(
                 Component.literal(

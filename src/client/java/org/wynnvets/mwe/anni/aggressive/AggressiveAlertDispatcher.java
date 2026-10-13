@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
@@ -53,7 +54,7 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * {@code stamp_epoch} moves, so they are once-per-anni <em>per client
  * session</em>: a restart mid-window re-fires them. This is the opposite of
  * the ghosts prompt, whose sentinel persists in
- * {@link VetsConfig#VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP}.</p>
+ * {@link VetsConfigKeys#VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP}.</p>
  *
  * <h2>Threading</h2>
  *
@@ -83,7 +84,7 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * client thread too. Harmless, and left alone.</p>
  *
  * <p><b>Gated on</b> {@link AnniAggressiveTicker#isAggressiveActive()} AND
- * {@link VetsConfig#VETS_ANNI_CHAT_ALERTS}. ⚠️ <b>The two trigger families
+ * {@link VetsConfigKeys#VETS_ANNI_CHAT_ALERTS}. ⚠️ <b>The two trigger families
  * obey that gate differently.</b> For the readiness ticker it is absolute:
  * {@code tickInner} opens with {@code if (!gateHolds()) return;}, so the whole
  * tick is skipped. For the snapshot listener it governs <em>emission</em> only
@@ -278,7 +279,7 @@ public final class AggressiveAlertDispatcher {
 
     private static boolean gateHolds() {
         return AnniAggressiveTicker.isAggressiveActive()
-                && VetsConfig.get(VetsConfig.VETS_ANNI_CHAT_ALERTS);
+                && VetsConfig.get(VetsConfigKeys.VETS_ANNI_CHAT_ALERTS);
     }
 
     // ── Alert emitters ─────────────────────────────────────────────────

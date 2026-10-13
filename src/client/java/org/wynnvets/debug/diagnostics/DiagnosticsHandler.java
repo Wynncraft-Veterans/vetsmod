@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
@@ -25,7 +26,7 @@ import org.wynnvets.logging.VetsLogger;
  * <p>With no arguments, dumps diagnostic information to chat and a more
  * detailed report to the log file.  With {@code true}/{@code false}, sets
  * {@link VetsLogger}'s debug flag and records (or clears)
- * {@link VetsConfig#VETS_DEBUG_ENABLED_AT}, which
+ * {@link VetsConfigKeys#VETS_DEBUG_ENABLED_AT}, which
  * {@link org.wynnvets.VetsmodClient VetsmodClient} reads at startup to
  * restore the flag if it was set less than three days earlier.  The flag is
  * not logging-only: it is also what
@@ -52,7 +53,7 @@ public final class DiagnosticsHandler {
             dumpDiagnostics();
         } else if (arg.equalsIgnoreCase("true")) {
             VetsLogger.setDebugEnabled(true);
-            VetsConfig.setLong(VetsConfig.VETS_DEBUG_ENABLED_AT, System.currentTimeMillis());
+            VetsConfig.setLong(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, System.currentTimeMillis());
             ChatUtils.sendLocalMessage(
                     Component.literal("Debug logging ")
                             .withStyle(ChatFormatting.YELLOW)
@@ -63,7 +64,7 @@ public final class DiagnosticsHandler {
                                             .withStyle(ChatFormatting.YELLOW)));
         } else if (arg.equalsIgnoreCase("false")) {
             VetsLogger.setDebugEnabled(false);
-            VetsConfig.setLong(VetsConfig.VETS_DEBUG_ENABLED_AT, 0L);
+            VetsConfig.setLong(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, 0L);
             ChatUtils.sendLocalMessage(
                     Component.literal("Debug logging ")
                             .withStyle(ChatFormatting.YELLOW)
@@ -114,7 +115,7 @@ public final class DiagnosticsHandler {
         String selfRank = GuildStateManager.selfStaffRank();
         boolean canExecute = GuildStateManager.canExecuteCommands();
         boolean debugOverride = GuildStateManager.isDebugForceGuildlessUnlocked();
-        boolean automessageEnabled = VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE);
+        boolean automessageEnabled = VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE);
         boolean debugLogging = VetsLogger.isDebugEnabled();
         String playerName = GuildStateManager.playerName();
         boolean isSupporter = playerName != null && SupportersPoller.isSupporter(playerName);
@@ -125,8 +126,8 @@ public final class DiagnosticsHandler {
         String authTier = GuildStateManager.currentAuthTier();
         String authFailureReason = GuildStateManager.lastAuthFailureReason();
         boolean hasLegacyUnlock = GuildStateManager.hasLegacyPasswordUnlock();
-        long authVerifiedAt = VetsConfig.getLong(VetsConfig.VETS_AUTH_VERIFIED_AT);
-        String persistedTier = VetsConfig.getString(VetsConfig.VETS_AUTH_TIER);
+        long authVerifiedAt = VetsConfig.getLong(VetsConfigKeys.VETS_AUTH_VERIFIED_AT);
+        String persistedTier = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_TIER);
 
         // Server info
         String serverAddress = "unknown";

@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.queue.QueueStateManager;
@@ -24,7 +25,7 @@ import org.wynnvets.util.Json;
  * {@code BridgeMessageFetcher}) with a push-based approach. A
  * {@code "warning"} frame goes to {@link WarningFrameRenderer} ahead of every
  * gate below. Any other frame displays only while
- * {@link VetsConfig#PRINT_BRIDGE_MESSAGES} is on, and only for (see
+ * {@link VetsConfigKeys#PRINT_BRIDGE_MESSAGES} is on, and only for (see
  * {@code shouldDisplayMessages()}):
  * <ul>
  *   <li>Returners members &mdash; except, outside a world queue, their
@@ -148,7 +149,7 @@ public final class OutboundDisplayHandler {
             return;
         }
 
-        if (!VetsConfig.get(VetsConfig.PRINT_BRIDGE_MESSAGES)) {
+        if (!VetsConfig.get(VetsConfigKeys.PRINT_BRIDGE_MESSAGES)) {
             return;
         }
 

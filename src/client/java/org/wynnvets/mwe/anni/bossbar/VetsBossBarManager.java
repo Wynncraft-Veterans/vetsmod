@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.BossEvent;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mixin.client.accessors.BossHealthOverlayAccessor;
 import org.wynnvets.mwe.anni.mode.AnniMode;
@@ -177,7 +178,7 @@ public final class VetsBossBarManager {
         }
 
         // Master kill-switch — even passive/aggressive respects this.
-        if (!VetsConfig.get(VetsConfig.VETS_ANNI_BOSSBAR_ENABLED)) {
+        if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_BOSSBAR_ENABLED)) {
             if (active) deactivate();
             return;
         }

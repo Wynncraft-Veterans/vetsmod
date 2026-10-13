@@ -11,6 +11,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
@@ -178,7 +179,7 @@ public final class ListFetcher {
      */
     private static void appendPlayerList(
             MutableComponent parent, List<String> names, ChatFormatting color, boolean italic) {
-        boolean glintEnabled = VetsConfig.get(VetsConfig.SHOW_SUPPORTER_GLINTS);
+        boolean glintEnabled = VetsConfig.get(VetsConfigKeys.SHOW_SUPPORTER_GLINTS);
         for (int i = 0; i < names.size(); i++) {
             String name = names.get(i);
             boolean supporter = glintEnabled && SupportersPoller.isSupporter(name);
