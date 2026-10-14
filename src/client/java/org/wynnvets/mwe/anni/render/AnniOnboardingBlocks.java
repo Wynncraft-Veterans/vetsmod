@@ -140,8 +140,10 @@ final class AnniOnboardingBlocks {
         return out;
     }
 
-    /** Two-line prose for a vets-tier user who has not opened
-     *  anni.wynnvets.org/me at all. */
+    /** Two-line prose for the Unregistered arm: written for a vets-tier
+     *  user who has not opened anni.wynnvets.org/me at all, though today
+     *  it also reaches one who has but holds no role capability
+     *  ({@code anni-roleless-registration-shows-the-unregistered-nudge}). */
     private static MutableComponent unregisteredNudgeBlock() {
         Style redBold = Style.EMPTY.withColor(ChatFormatting.RED).withBold(true);
         Style yellowBoldUnderlinedLink =

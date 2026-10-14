@@ -31,12 +31,14 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
  *   <li>§"If the next anni has been announced and is 2+ hours in the
  *       future" — relative timestamp, then the status lines of
  *       {@link AnniStatusSections}: registration (or, in a party, the
- *       assigned role), RSVP widget, attendance bar and party assignment;
- *       expands with party details when assigned.</li>
+ *       assigned role), RSVP widget, attendance chance (the attendance
+ *       bar while unassigned) and party assignment; expands with party
+ *       details when assigned.</li>
  *   <li>§"If the next anni has been announced and within the next 2h" —
- *       the 2h+ body again (minus the RSVP upgrade prompt, whose slot
- *       cutoffs have passed), plus a [silent|passive|aggressive]
- *       mode-switch widget as its own second block.</li>
+ *       the 2h+ body again (minus the RSVP upgrade prompt, which
+ *       {@code AnniStatusSections.rsvpSection} shows only more than two
+ *       hours out), plus a [silent|passive|aggressive] mode-switch widget
+ *       as its own second block.</li>
  * </ul>
  *
  * <p>While an announced anni's stamp is still ahead, an external user gets no render at all:
@@ -366,10 +368,10 @@ public final class AnniCommandRenderer {
      *  — same body as {@link #renderFarOut} (assignment, attendance,
      *  RSVP, roles all keep showing — per user feedback the compressed
      *  status row was an unnecessary divergence), except that the RSVP
-     *  line drops its upgrade prompt, since the slot cutoffs have passed
-     *  ({@code AnniStatusSections.rsvpSection} gates it on
-     *  {@code secondsUntil} itself), plus the mode-switch
-     *  UI as its own {@code [VETSMOD]}-prefixed second block. The
+     *  line drops its upgrade prompt ({@code AnniStatusSections.rsvpSection}
+     *  shows it only while {@code secondsUntil} is over two hours, though
+     *  vets-anni still takes a hard or soft RSVP until T-90m), plus the
+     *  mode-switch UI as its own {@code [VETSMOD]}-prefixed second block. The
      *  separately-badged "Change Anni Mode?" line is the user's main
      *  cue that they're within the hot window and can opt into the
      *  passive/aggressive in-game features. Vets-only; external users

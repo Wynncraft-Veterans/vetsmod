@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The {@code /wv debug tree anni} harness builds its tree, which is what runs when the client
- * joins a server, and the tree has the shape that {@link AnniDebugCommands#buildCommandTree()}'s
- * Javadoc states.
+ * joins a server, and the tree has as many top-level children and command-bearing nodes as
+ * {@link AnniDebugCommands#buildCommandTree()}'s Javadoc counts.
  *
  * <p>The commands themselves are not run here. Building the tree initialises
  * {@link AnniDebugSuggestions}, whose providers it reads, but no sibling handler class: a method

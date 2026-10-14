@@ -83,11 +83,11 @@ final class AnniStatusSections {
     /** RSVP badge + (when far-out + un-RSVP'd) a parenthetical with
      *  click-to-suggest [Hard] [Soft] upgrade buttons.
      *
-     *  <p>The upgrade prompt is gated on {@code secondsUntil > 2h}: once
-     *  inside the imminent window, the RSVP slot cutoffs have already
-     *  passed and surfacing the buttons would only be misleading. The
+     *  <p>The upgrade prompt is gated on {@code secondsUntil > 2h}, the
      *  user-facing rule: "the prompt only shows up after RSVP type if
-     *  it is t-2h+".</p> */
+     *  it is t-2h+". vets-anni refuses a hard or soft RSVP only inside
+     *  T-90m ({@code RSVP_CUTOFF_SECONDS}), so from T-2h to T-90m the
+     *  prompt is hidden while an RSVP would still be accepted.</p> */
     static MutableComponent rsvpSection(AnniSnapshot snapshot, long secondsUntil) {
         MutableComponent line =
                 AnniHoverBuilder.label("RSVP Type", ChatFormatting.GRAY)
