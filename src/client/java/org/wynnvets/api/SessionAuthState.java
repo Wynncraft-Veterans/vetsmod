@@ -2,9 +2,10 @@ package org.wynnvets.api;
 
 /**
  * The wire-level reply state of the inbound socket's auth exchange: whether an auth frame is
- * awaiting its ack, and what the last ok auth ack said about staff, until an auth failure or a
- * disconnect clears it. Code outside this package reads the staff half through
- * {@link V1ApiManager#isConfirmedStaff()} and {@link V1ApiManager#confirmedStaffRank()}.
+ * awaiting its ack, which only an ack read as the auth reply clears, and what the last ok auth
+ * ack said about staff, which an auth failure or a disconnect clears. Code outside this package
+ * reads the staff half through {@link V1ApiManager#isConfirmedStaff()} and
+ * {@link V1ApiManager#confirmedStaffRank()}.
  *
  * <p>The client side of the session (the tier, and whether this session has verified) is
  * {@link org.wynnvets.guild.UnlockManager UnlockManager}'s, and the key is persisted in
@@ -19,10 +20,12 @@ final class SessionAuthState {
     /** Whether an auth frame is still awaiting its ack. Set whenever we send
      *  one; cleared when an ack is read as the auth reply. Auth-success acks are
      *  recognised by their {@code tier} key alone, so this flag matters only for
-     *  error acks: an error that arrives while it is set is treated as an auth
-     *  failure and is kept out of {@link V1ApiManager#staffActionCallbacks} (an error whose detail
-     *  starts with an auth-failure prefix counts as one whatever the flag says, unless the
-     *  flag is clear and a staff-action callback is pending: that callback takes it). Neither
+     *  acks that are neither ok nor shaped like a staff-action ack: such an ack that arrives while
+     *  it is set is treated as an auth failure and is kept out of
+     *  {@link V1ApiManager#staffActionCallbacks} (an error whose detail starts with an
+     *  auth-failure prefix counts as one whatever the flag says, unless the flag is clear and a
+     *  staff-action callback is pending: that callback takes it). A staff-action-shaped error goes
+     *  to the head callback, or is dropped when none is pending, whatever the flag says. Neither
      *  {@link V1ApiManager#disconnect()} nor a socket drop resets it. */
     static volatile boolean expectingAuthAck = false;
 

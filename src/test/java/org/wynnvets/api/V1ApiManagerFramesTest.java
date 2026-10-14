@@ -23,8 +23,10 @@ import org.wynnvets.util.Json;
 
 /**
  * Pins the JSON of the frame each send method writes on the v1 inbound socket, byte for byte as the
- * socket would serialise it, and what each send does when that socket is down. The on-connect auth
- * re-send is not reached: only {@code connect()} installs it.
+ * socket would serialise it, and what each send that checks the socket does when it is down. The
+ * on-connect auth re-send is not reached: only {@code connect()} installs it.
+ * {@link V1ApiManager#sendInboundUnchecked(JsonObject)} checks nothing, and the tests reach it only
+ * through sends that check first, so what it does while the socket is down is not pinned.
  *
  * <p>A recording socket stands in for the inbound connection: it never connects, records each
  * frame as {@link WsClient#send(JsonObject)} would write it, and reports a settable connection
@@ -69,7 +71,7 @@ class V1ApiManagerFramesTest {
         V1ApiManager.inboundClient = socket;
     }
 
-    // ----- connected: one test per send -----
+    // ----- connected: one test per send that checks the socket -----
 
     @Test
     void registration() {

@@ -716,11 +716,11 @@ public class GuildStateManager {
     }
 
     /** Called by {@link org.wynnvets.api.InboundAckRouter InboundAckRouter} when an inbound
-     *  error ack is classed as an auth
-     *  failure: a rejected {@code auth} frame, any other error ack that arrives while an
-     *  auth ack is awaited, or (when no staff-action callback claims it) the server refusing
-     *  another frame because the session is unauthenticated. {@code InboundAckRouter.route}
-     *  has the exact test. */
+     *  error ack is classed as an auth failure. A staff-action-shaped ack never is; any other
+     *  error ack is when it arrives while an auth ack is awaited (a rejected {@code auth} frame,
+     *  typically) or, when no staff-action callback is pending, when its detail is an auth
+     *  rejection or the server refusing another frame because the session is unauthenticated.
+     *  {@code InboundAckRouter.route} has the exact test. */
     public static void onAuthFailure(String detail) {
         UnlockManager.onAuthFailure(detail);
     }

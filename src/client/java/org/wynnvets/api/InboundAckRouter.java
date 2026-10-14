@@ -12,8 +12,9 @@ import org.wynnvets.logging.VetsLogger;
 /**
  * Routes the inbound socket's untyped {@code {"status":...}} acks: staff-action acks, and an error
  * ack while a staff-action callback is pending and no auth ack is awaited, to the head of
- * {@link V1ApiManager}'s callback queue; auth acks to {@link SessionAuthState} and
- * {@link GuildStateManager}; and any other error ack to the log. Any other ok ack is dropped.
+ * {@link V1ApiManager}'s callback queue (a staff-action ack with nothing pending is dropped);
+ * auth acks to {@link SessionAuthState} and {@link GuildStateManager}; and any other ack whose
+ * status is not ok to the log. Any other ok ack is dropped.
  */
 final class InboundAckRouter {
 
@@ -27,11 +28,11 @@ final class InboundAckRouter {
      */
     static void route(JsonObject json) {
         // Acknowledgements from the server. Auth-success acks are
-        // recognised by the `tier` key, which only they carry. An error ack
-        // that the staff-action queue below does not claim counts as an
-        // auth failure when an auth frame is awaiting its ack
-        // (expectingAuthAck) or its detail starts with an auth-failure
-        // prefix.
+        // recognised by the `tier` key, which only they carry. A non-ok ack
+        // that the staff-action branch below does not take (it takes every
+        // staff-action-shaped ack, dropping one when no callback is pending)
+        // counts as an auth failure when an auth frame is awaiting its ack
+        // (expectingAuthAck) or its detail starts with an auth-failure prefix.
         if (!json.has("status")) return;
         String status = json.get("status").getAsString();
         boolean wasAuthAck = SessionAuthState.expectingAuthAck;

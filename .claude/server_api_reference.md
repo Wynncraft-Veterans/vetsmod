@@ -37,7 +37,8 @@ query param is logged for client-version tracking and never enforced.
 
 Everything `/v1/inbound` accepts, with the handler that serves it and where the
 spec documents it. vetsmod's own senders are in
-[vetsmod_networking.md](vetsmod_networking.md) §7 and §7.1.
+[vetsmod_networking.md](vetsmod_networking.md) §1 (with its V1Frames
+subsection), §7 and §7.1.
 
 | Frame | Handler | Reply | Spec |
 |---|---|---|---|
@@ -69,6 +70,26 @@ such a socket (bug `outbound-socket-never-authenticated`).
 
 `rank_change` acks `ok` even when the handler silently drops the frame on a
 validation failure, so a client cannot tell accepted from discarded.
+
+### `tablist` and `queue_status`
+
+Two presence side-channels that the spec names but never gives a section. Each
+is acked `{"status":"ok"}`.
+
+`{"type":"tablist","entries":[{"server":"NA58","username":"Foo"}, …]}` carries the
+guild entries parsed from the tab list. `_handle_tablist` keeps the latest one
+as its snapshot for `!list`, after dropping an entry whose `server` or
+`username` is empty or whose `username` is not 3 to 16 characters of
+`[A-Za-z0-9_]`. A frame whose `entries` is not a list is dropped whole. vetsmod
+sends it only for a Returners member, and only when the tab list yielded
+entries.
+
+`{"type":"queue_status","queued":true,"world":"NA30"}` reports the sender entering
+(`queued` true) or leaving (`queued` false) a world queue; `queued` is a
+boolean and `world` a string. vetsmod sends `""` as the world when leaving, and
+for a null world. `_handle_queue_status` ignores the frame from a socket that
+has not sent `register`, and stores the world only while `queued` is true.
+vetsmod sends it only while `GuildStateManager.isUnlocked()`.
 
 ### `rank_change` — the client-side half
 

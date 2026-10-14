@@ -17,9 +17,10 @@ import org.wynnvets.util.Json;
 import org.wynnvets.util.Uuids;
 
 /**
- * Guild-roster cross-checks against Wynncraft's {@code /v3/guild} endpoint: fetch a guild's
- * roster and report whether a UUID is in it and, where the roster gives them, its rank and
- * legacy name.
+ * Guild-roster cross-checks against Wynncraft's {@code /v3/guild} endpoint. For Returners it
+ * reports whether a UUID is in the roster and, where the roster gives them, its rank and legacy
+ * name; for any other guild, only the rank the roster lists for the UUID. A failed or unreadable
+ * fetch gives the same result as absence.
  */
 final class ReturnersRosterProbe {
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();

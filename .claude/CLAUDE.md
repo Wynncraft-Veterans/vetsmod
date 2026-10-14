@@ -91,7 +91,7 @@ Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `a
 **Control frames** (sent by client) — the four below are the presence/identity set; `/v1/inbound` accepts fourteen in all, adding `rank_change`, the five staff-action frames and the four MWE anni frames. Full inventory in [server_api_reference.md](server_api_reference.md).
 - `register` — presence (uuid, username, tier)
 - `tablist` — guild tab snapshot for `!list`
-- `queue_status` — sender is currently in a Wynncraft world queue (presence side-channel; orthogonal to the `queue` chat type)
+- `queue_status` — `{queued, world}`: the sender entering (`true`) or leaving (`false`) a Wynncraft world queue (presence side-channel; orthogonal to the `queue` chat type)
 - `auth` — `{type:"auth", key:"<43-char base64url>"}` proves identity. Server replies `{status:"ok", tier, ws_tier, ...}` or `{status:"error", detail:"auth rejected: ..."}`.
 
 **Server → client unsolicited frames:**

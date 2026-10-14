@@ -29,11 +29,11 @@ import org.wynnvets.util.Uuids;
  * <p>Resolves the name through {@link PlayerLookup}, gathers the Wynncraft
  * player profile and the dazebot membership snapshot (reusing either when
  * the cascade's hit already carries it; the snapshot travels over the WS
- * bridge), and, once there is a profile, cross-checks guild membership
- * against Wynncraft's guild rosters (see {@link #fetchAndRender}). It
- * hands the combined result to {@link CheckReportRenderer}, which renders it
- * as a multi-line block in the local chat HUD. {@link TimeLabels} formats its
- * dates and {@link ReturnersRosterProbe} runs the roster cross-checks.</p>
+ * bridge), and, once there is a profile, has {@link ReturnersRosterProbe}
+ * cross-check guild membership against Wynncraft's guild rosters (see
+ * {@link #fetchAndRender}). It hands the combined result to
+ * {@link CheckReportRenderer}, which renders it as a multi-line block in the
+ * local chat HUD, with its date labels from {@link TimeLabels}.</p>
  */
 public class UserInfoFetcher {
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();
@@ -57,9 +57,9 @@ public class UserInfoFetcher {
      * Orchestrates the full {@code /wv check} readout for {@code playerName}:
      * resolves name → UUID via {@link PlayerLookup} (Wynncraft, temporary-server,
      * playerdb, ashcon, Mojang), then gathers whatever the cascade's hit did
-     * not already carry (Wynn player profile, dazebot snapshot), cross-checks
-     * guild rosters once there is a profile, and has {@link CheckReportRenderer} render the
-     * combined block line by line.
+     * not already carry (Wynn player profile, dazebot snapshot), has
+     * {@link ReturnersRosterProbe} cross-check guild rosters once there is a profile, and has
+     * {@link CheckReportRenderer} render the combined block line by line.
      *
      * <p>Failures are surfaced as a single error line; partial results
      * (e.g. Wynn fetch succeeds but the snapshot doesn't) still render the

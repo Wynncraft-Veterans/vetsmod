@@ -276,10 +276,10 @@ final class UnlockManager {
         GuildStateManager.sendRegistrationIfReady();
     }
 
-    /** Called (through {@link GuildStateManager#onAuthFailure(String)}) when an error ack
-     *  arrives while an auth ack is awaited, or carries an "auth rejected" /
-     *  "Authentication required" detail that no staff-action callback claims; typically
-     *  {@code {"status":"error", "detail":"auth rejected: <reason>"}}. */
+    /** Called (through {@link GuildStateManager#onAuthFailure(String)}) when an error ack that
+     *  is not staff-action-shaped arrives while an auth ack is awaited, or carries an "auth
+     *  rejected" / "Authentication required" detail while no staff-action callback is pending;
+     *  typically {@code {"status":"error", "detail":"auth rejected: <reason>"}}. */
     static void onAuthFailure(String detail) {
         currentTier = "";
         authVerifiedThisSession = false;

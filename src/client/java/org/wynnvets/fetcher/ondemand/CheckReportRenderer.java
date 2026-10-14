@@ -19,11 +19,11 @@ import org.wynnvets.guild.GuildStateManager;
 /**
  * Renders the {@code /wv check} readout as a multi-line block in the local chat HUD. Each
  * logical line is dispatched via its own {@link ChatUtils#sendLocalMessage} call so the
- * {@link org.wynnvets.chat.Prepend#DEFAULT} dedup auto-demotes the badge to the compact
+ * {@link Prepend#DEFAULT} dedup auto-demotes the badge to the compact
  * block-indicator on continuation lines.
  *
  * <p>No network: besides its arguments it reads the tab list, the local player, guild state and
- * the clock, and it writes chat and {@link org.wynnvets.chat.Prepend Prepend}'s dedup state.</p>
+ * the clock, and it writes chat and {@link Prepend}'s dedup state.</p>
  */
 final class CheckReportRenderer {
     private static final Style LABEL_STYLE = Style.EMPTY.withColor(ChatFormatting.GRAY);

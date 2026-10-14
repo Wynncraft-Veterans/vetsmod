@@ -735,14 +735,16 @@ temp-server and vets-anni halves are listed in
 
 ### Implementation notes
 
-- **Wire format is `{observer_mc_uuid, party_member_usernames: [str],
-  leader_username, world}` — names over the wire, vets-anni does the
-  resolution.** *Note: this intentionally does NOT use the
-  `[{uuid, username}]` shape — Wynntils' `PartyModel.getPartyMembers()`
-  returns `List<String>` of usernames only, and Wynncraft's tab list is
-  fake (80 sentinels per `TabListGuildParser`), so client-side
-  name→UUID resolution would drop 30-60% of members.* The client never
-  supplies `observer_mc_uuid`; temp-server stamps it from the session.
+- **Wire format is `{type: "anni_party_observation",
+  party_member_usernames: [str], leader_username, world}` — names over
+  the wire, vets-anni does the resolution.** *Note: this intentionally
+  does NOT use the `[{uuid, username}]` shape — Wynntils'
+  `PartyModel.getPartyMembers()` returns `List<String>` of usernames
+  only, and Wynncraft's tab list is fake (80 sentinels per
+  `TabListGuildParser`), so client-side name→UUID resolution would drop
+  30-60% of members.* The client never supplies `observer_mc_uuid`;
+  temp-server stamps it from the session when it forwards the
+  observation to vets-anni.
 - **`AnniPartyReporter` is a thin snapshot listener, NOT a wrapper
   around the send call.** `PartyRosterListener.flush()` calls
   `AnniWsSender.sendAnniPartyObservation` directly — same shape as
