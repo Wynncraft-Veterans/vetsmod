@@ -208,7 +208,8 @@ public final class AnniCommandRenderer {
      *    <li>White-bold pipe separator between countdown and date</li>
      *    <li>Uncertainty in italic gray, hugging the time</li>
      *  </ul> */
-    private static MutableComponent predictionLine(AnniSnapshot.Prediction prediction) {
+    // Package-private for unit tests. See AnniCommandRendererTest.
+    static MutableComponent predictionLine(AnniSnapshot.Prediction prediction) {
         long median = prediction.medianEpoch();
         long now = Instant.now().getEpochSecond();
         long secondsUntil = median - now;
@@ -303,7 +304,8 @@ public final class AnniCommandRenderer {
      *
      *  Numerics aqua, qualifiers dark-aqua — matches the existing
      *  aqua/dark-aqua header pairing. */
-    private static void appendCountdown(MutableComponent out, long secondsUntil) {
+    // Package-private for unit tests. See AnniCommandRendererTest.
+    static void appendCountdown(MutableComponent out, long secondsUntil) {
         long s = Math.max(0L, secondsUntil);
         long hours = s / 3600L;
         long minutes = (s % 3600L) / 60L;
@@ -351,7 +353,8 @@ public final class AnniCommandRenderer {
      *  centric (no description of what each mode does mechanically —
      *  the user wants the chooser to read as "which audience are you?"
      *  rather than "which features do you want?"). */
-    private static MutableComponent renderModeSwitchBlock() {
+    // Package-private for unit tests. See AnniCommandRendererTest.
+    static MutableComponent renderModeSwitchBlock() {
         MutableComponent line1 =
                 Component.literal("Change Anni Mode?")
                         .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
@@ -473,7 +476,8 @@ public final class AnniCommandRenderer {
      *  and the user has asked the prediction stay in hours regardless
      *  of magnitude (so a far-future stamp reads "60664h from now"
      *  rather than getting compressed into days). */
-    private static String formatCoarseHours(long seconds) {
+    // Package-private for unit tests. See AnniCommandRendererTest.
+    static String formatCoarseHours(long seconds) {
         if (seconds <= 0) return "<1m";
         if (seconds < 3600) {
             long minutes = Math.max(1, seconds / 60);
@@ -486,7 +490,8 @@ public final class AnniCommandRenderer {
     /** Standard-deviation uncertainty for the prediction line. Rounded
      *  to whole hours so the typical ~3h reading drops cleanly into
      *  "±~3h" without trailing precision noise. */
-    private static String formatUncertainty(double hours) {
+    // Package-private for unit tests. See AnniCommandRendererTest.
+    static String formatUncertainty(double hours) {
         if (hours <= 0) return "0h";
         long rounded = Math.round(hours);
         if (rounded >= 1) {

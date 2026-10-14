@@ -111,7 +111,8 @@ final class AnniStatusSections {
      *  <p>Each button's bracket+label is its own click-to-suggest
      *  surface; the {@code \rsvp} word inside the parenthetical is
      *  hoverable (no click) to explain the Discord equivalent.</p> */
-    private static MutableComponent rsvpUpgradePrompt() {
+    // Package-private for unit tests. See AnniStatusSectionsTest.
+    static MutableComponent rsvpUpgradePrompt() {
         Style gray = Style.EMPTY.withColor(ChatFormatting.GRAY);
 
         Component rsvpWord =
@@ -308,7 +309,8 @@ final class AnniStatusSections {
 
     /** Resolve the role-code for the local player from the party member
      *  list when {@code board.role} is missing. */
-    private static String findOwnRole(AnniSnapshot.Party party, String mcUuid) {
+    // Package-private for unit tests. See AnniStatusSectionsTest.
+    static String findOwnRole(AnniSnapshot.Party party, String mcUuid) {
         if (mcUuid == null || party.members() == null) return null;
         for (AnniSnapshot.MemberRef m : party.members()) {
             if (mcUuid.equalsIgnoreCase(m.uuid())) {
