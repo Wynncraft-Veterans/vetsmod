@@ -3,11 +3,6 @@ package org.wynnvets.debug.anni;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.suggestion.SuggestionProvider;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.stream.Stream;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
@@ -47,164 +42,6 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  */
 public final class AnniDebugCommands {
 
-    /** Names (no extension) of every bundled preset. Hard-coded for tab
-     *  completion — the jar's classpath isn't trivially enumerable from
-     *  inside the running mod, and the set rarely changes. Keep in sync
-     *  with the files actually shipped under
-     *  {@link AnniSnapshotDebugCommands#PRESET_CLASSPATH_PREFIX}. */
-    private static final String[] PRESETS = {
-        "empty",
-        "external_no_anni",
-        "member_announced",
-        "member_in_party",
-        "member_no_anni",
-        "member_no_anni_fill",
-        "member_no_anni_unregistered",
-    };
-
-    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_MODES =
-            (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
-                for (String mode : new String[] {"silent", "passive", "aggressive"}) {
-                    if (mode.startsWith(partial)) {
-                        builder.suggest(mode);
-                    }
-                }
-                return builder.buildFuture();
-            };
-
-    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_ZONE_ACTIONS =
-            (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
-                for (String action : new String[] {"enter", "exit"}) {
-                    if (action.startsWith(partial)) {
-                        builder.suggest(action);
-                    }
-                }
-                return builder.buildFuture();
-            };
-
-    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_DUMP_FILES =
-            (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
-                if (!Files.isDirectory(AnniSnapshotDebugCommands.SNAPSHOTS_DIR)) {
-                    return builder.buildFuture();
-                }
-                try (Stream<Path> stream = Files.list(AnniSnapshotDebugCommands.SNAPSHOTS_DIR)) {
-                    stream.filter(p -> p.getFileName().toString().endsWith(".json"))
-                            .map(
-                                    p -> {
-                                        String n = p.getFileName().toString();
-                                        return n.substring(0, n.length() - ".json".length());
-                                    })
-                            .filter(n -> n.toLowerCase().startsWith(partial))
-                            .sorted()
-                            .forEach(builder::suggest);
-                } catch (IOException ignored) {
-                    // Fall through with whatever we've collected so far.
-                }
-                return builder.buildFuture();
-            };
-
-    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_PRESETS =
-            (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
-                for (String name : PRESETS) {
-                    if (name.startsWith(partial)) {
-                        builder.suggest(name);
-                    }
-                }
-                return builder.buildFuture();
-            };
-
-    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_EXTERNAL_MODES =
-            (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
-                for (String m : new String[] {"auto", "true", "false"}) {
-                    if (m.startsWith(partial)) {
-                        builder.suggest(m);
-                    }
-                }
-                return builder.buildFuture();
-            };
-
-    /** Common offsets the user is likely to want when iterating on the
-     *  imminent / far-out / not-announced render branches. */
-    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_TIME_OFFSETS =
-            (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
-                for (String s :
-                        new String[] {
-                            "60", // 1m  — within T-5m boss-bar window (S3)
-                            "120", // 2m  — inside the T-5m window (its edge is 300)
-                            "600", // 10m
-                            "1800", // 30m
-                            "3600", // 1h
-                            "7200", // 2h  — boundary between far-out and imminent
-                            "28800", // 8h  — realistic announced-anni offset
-                            "43200", // 12h — max real announce window
-                            "-60", // ≤ 0 → timeSet nulls the stamp (not-announced branch)
-                        }) {
-                    if (s.startsWith(partial)) {
-                        builder.suggest(s);
-                    }
-                }
-                return builder.buildFuture();
-            };
-
-    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_FLASH_FIELDS =
-            (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
-                for (String field : new String[] {"role", "world", "party", "rsvp"}) {
-                    if (field.startsWith(partial)) {
-                        builder.suggest(field);
-                    }
-                }
-                return builder.buildFuture();
-            };
-
-    /** Role codes suggested for {@code /wv debug tree anni registry set <user> <role>}
-     *  (the argument accepts any word; an unrecognised code renders grey).
-     *  Mirrors the cases in
-     *  {@link org.wynnvets.mwe.anni.outline.AnniOutlinePalette#chatFormattingForRole
-     *  AnniOutlinePalette#chatFormattingForRole}
-     *  except its {@code HEAL} alias for {@code HEALER},
-     *  plus the synthetic {@code other} alias for the {@code OTHER_VETS_PARTY}
-     *  tier (light grey, role-agnostic). */
-    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_REGISTRY_ROLES =
-            (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
-                for (String role :
-                        new String[] {
-                            "PRIMARY", // red    (§c) — the canonical "red highlight + red nametag"
-                            "SECONDARY", // yellow (§e)
-                            "TERTIARY", // purple (§d)
-                            "TANK", // aqua   (§b)
-                            "HEALER", // green  (§a)
-                            "FILL", // white  (§f)
-                            "other", // grey   (§7) — OTHER_VETS_PARTY tier
-                        }) {
-                    if (role.toLowerCase().startsWith(partial)) {
-                        builder.suggest(role);
-                    }
-                }
-                return builder.buildFuture();
-            };
-
-    /** S5 — fields {@link org.wynnvets.mwe.anni.aggressive.AggressiveAlertDispatcher#forceAlert
-     *  AggressiveAlertDispatcher#forceAlert} accepts. */
-    private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_ALERT_FIELDS =
-            (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
-                for (String field :
-                        new String[] {"role", "world", "party", "rsvp", "zone", "world_ready"}) {
-                    if (field.startsWith(partial)) {
-                        builder.suggest(field);
-                    }
-                }
-                return builder.buildFuture();
-            };
-
     private AnniDebugCommands() {}
 
     /** Build the {@code anni} literal, which the caller mounts under
@@ -232,7 +69,8 @@ public final class AnniDebugCommands {
                                                                                         StringArgumentType
                                                                                                 .word())
                                                                                 .suggests(
-                                                                                        SUGGEST_DUMP_FILES)
+                                                                                        AnniDebugSuggestions
+                                                                                                .SUGGEST_DUMP_FILES)
                                                                                 .executes(
                                                                                         AnniSnapshotDebugCommands
                                                                                                 ::snapshotInjectFile)))
@@ -245,7 +83,8 @@ public final class AnniDebugCommands {
                                                                                         StringArgumentType
                                                                                                 .word())
                                                                                 .suggests(
-                                                                                        SUGGEST_PRESETS)
+                                                                                        AnniDebugSuggestions
+                                                                                                .SUGGEST_PRESETS)
                                                                                 .executes(
                                                                                         AnniSnapshotDebugCommands
                                                                                                 ::snapshotInjectPreset)))
@@ -276,28 +115,29 @@ public final class AnniDebugCommands {
                                 .then(
                                         ClientCommandManager.argument(
                                                         "mode", StringArgumentType.word())
-                                                .suggests(SUGGEST_EXTERNAL_MODES)
+                                                .suggests(
+                                                        AnniDebugSuggestions.SUGGEST_EXTERNAL_MODES)
                                                 .executes(AnniSnapshotDebugCommands::externalSet)))
                 .then(
                         ClientCommandManager.literal("time")
                                 .then(
                                         ClientCommandManager.argument(
                                                         "seconds", StringArgumentType.word())
-                                                .suggests(SUGGEST_TIME_OFFSETS)
+                                                .suggests(AnniDebugSuggestions.SUGGEST_TIME_OFFSETS)
                                                 .executes(AnniSnapshotDebugCommands::timeSet)))
                 .then(
                         ClientCommandManager.literal("zone")
                                 .then(
                                         ClientCommandManager.argument(
                                                         "action", StringArgumentType.word())
-                                                .suggests(SUGGEST_ZONE_ACTIONS)
+                                                .suggests(AnniDebugSuggestions.SUGGEST_ZONE_ACTIONS)
                                                 .executes(AnniDebugCommands::zone)))
                 .then(
                         ClientCommandManager.literal("flash")
                                 .then(
                                         ClientCommandManager.argument(
                                                         "field", StringArgumentType.word())
-                                                .suggests(SUGGEST_FLASH_FIELDS)
+                                                .suggests(AnniDebugSuggestions.SUGGEST_FLASH_FIELDS)
                                                 .executes(AnniDebugCommands::flash)))
                 .then(
                         ClientCommandManager.literal("mode")
@@ -307,7 +147,9 @@ public final class AnniDebugCommands {
                                                         ClientCommandManager.argument(
                                                                         "mode",
                                                                         StringArgumentType.word())
-                                                                .suggests(SUGGEST_MODES)
+                                                                .suggests(
+                                                                        AnniDebugSuggestions
+                                                                                .SUGGEST_MODES)
                                                                 .executes(
                                                                         AnniDebugCommands
                                                                                 ::modeSet))))
@@ -398,7 +240,7 @@ public final class AnniDebugCommands {
                                 .then(
                                         ClientCommandManager.argument(
                                                         "field", StringArgumentType.word())
-                                                .suggests(SUGGEST_ALERT_FIELDS)
+                                                .suggests(AnniDebugSuggestions.SUGGEST_ALERT_FIELDS)
                                                 .executes(AnniDebugCommands::alert)))
                 // S6 — rsvp debug mirror. Same three subcommands as the
                 // main `/wv anni rsvp` tree, gated on requireDebug only
@@ -437,7 +279,8 @@ public final class AnniDebugCommands {
                                                                                         StringArgumentType
                                                                                                 .word())
                                                                                 .suggests(
-                                                                                        SUGGEST_REGISTRY_ROLES)
+                                                                                        AnniDebugSuggestions
+                                                                                                .SUGGEST_REGISTRY_ROLES)
                                                                                 .executes(
                                                                                         AnniDebugCommands
                                                                                                 ::registrySet))))

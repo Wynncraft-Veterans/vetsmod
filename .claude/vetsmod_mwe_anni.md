@@ -115,7 +115,7 @@ and `AnniCommandRenderer.TWO_HOURS_SECONDS` — where there used to be four.
 
 ⚠️ **Greping for `7200` finds none of them.** Two are spelled `2L * 60L * 60L` and
 one `2L * 60 * 60`; that grep returns only the `"7200"` string in
-`AnniDebugCommands`' time-suggestion array. Census them by name, or grep
+`AnniDebugSuggestions`' time-suggestion array. Census them by name, or grep
 `60L \* 60L\|60 \* 60`. The earlier wording here promised the grep would find
 three declarations and it never could — a verification recipe is a
 hypothesis too.
@@ -940,7 +940,7 @@ So fixtures stay valid across long stretches of time. Use it for any new preset 
 
 ### Bundled presets
 
-Listed in `AnniDebugCommands.PRESETS`.
+Listed in `AnniDebugSuggestions.PRESETS`.
 
 | Preset | Branch tested |
 |--|--|

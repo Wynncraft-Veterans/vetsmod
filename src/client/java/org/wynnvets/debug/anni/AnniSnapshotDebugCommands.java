@@ -130,7 +130,7 @@ final class AnniSnapshotDebugCommands {
      *  {@code PRESET_CLASSPATH_PREFIX + name + ".json"} (a trailing
      *  {@code .json} on the argument is tolerated), through
      *  {@code parseAndInject}, so its NOW tokens are substituted. Any
-     *  {@code .json} file directly under that prefix loads; {@code AnniDebugCommands.PRESETS}
+     *  {@code .json} file directly under that prefix loads; {@code AnniDebugSuggestions.PRESETS}
      *  only drives tab completion. Reports and returns 0 for an unknown or
      *  unreadable preset.
      *
