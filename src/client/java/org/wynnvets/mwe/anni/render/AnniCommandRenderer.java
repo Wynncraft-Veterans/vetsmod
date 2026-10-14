@@ -343,7 +343,7 @@ public final class AnniCommandRenderer {
      *  a half-window of 5.3h. Treat it as an illustration of the
      *  arithmetic, not as the distribution — nothing pins these four
      *  numbers, and a different anchor moves all of them together.
-     *  {@code AnniDebugCommands} carries a matching σ comment that
+     *  {@code AnniSnapshotDebugCommands} carries a matching σ comment that
      *  points back here.</p>
      *
      *  <p>Visual structure (per latest user format):</p>

@@ -91,7 +91,7 @@ class AnniSnapshotsTest {
     // whether one guard was deleted or all four.
     //
     // AnniSnapshotCache.update(null) is a supported call and
-    // AnniDebugCommands.snapshotClear makes it, so latest() can hand any of
+    // AnniSnapshotDebugCommands.snapshotClear makes it, so latest() can hand any of
     // these a null at any point in a warm session.
 
     @Test

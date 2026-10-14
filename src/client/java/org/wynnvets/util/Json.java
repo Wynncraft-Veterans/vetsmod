@@ -24,7 +24,7 @@ import org.wynnvets.logging.VetsLogger;
  * {@link org.wynnvets.config.VetsConfig VetsConfig} ({@code setPrettyPrinting}),
  * {@link org.wynnvets.debug.dump.ItemDumpHandler ItemDumpHandler}
  * ({@code + disableHtmlEscaping}) and
- * {@link org.wynnvets.debug.anni.AnniDebugCommands AnniDebugCommands}
+ * {@link org.wynnvets.debug.anni.AnniSnapshotDebugCommands AnniSnapshotDebugCommands}
  * ({@code + serializeNulls}, load-bearing for the anni debug round-trip and documented at its
  * own declaration). Folding any of them in here would change what it writes. <b>The accessors
  * below do not weaken that paragraph</b> &mdash; they read a {@link JsonObject} that is already

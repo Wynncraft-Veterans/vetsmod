@@ -27,7 +27,7 @@ import org.wynnvets.util.Json;
  * require a custom {@code TypeAdapter} for snake_case wire fields.</p>
  *
  * <p><b>That field naming is also what makes the debug round-trip work</b>, which
- * is the concrete cost of converting. {@code AnniDebugCommands.timeSet}
+ * is the concrete cost of converting. {@code AnniSnapshotDebugCommands.timeSet}
  * serialises the live snapshot back out with {@code Gson#toJson}, edits the
  * resulting tree, and re-hydrates it through {@link #fromJson}; the same
  * snake_case spellings therefore have to survive in <em>both</em> directions.

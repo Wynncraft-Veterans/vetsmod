@@ -105,7 +105,7 @@ Sharing the executor reaches less far than it sounds. In the JDK 21 implementati
 
 **Two classes deliberately keep their own.** `AnniZone` (see [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md)) and `WsClient` (§2) both use a 10 s connect timeout and pin no HTTP version, so neither can adopt the shared chain without a behaviour change. Their agreement on 10 s is coincidence rather than a shared requirement: one governs a WebSocket handshake, the other a 60 s poller's GET.
 
-[Json](../src/client/java/org/wynnvets/util/Json.java) is the matching shared `Gson` — `new Gson()`, no builder. The three `GsonBuilder`-configured instances (`VetsConfig`, `ItemDumpHandler`, `AnniDebugCommands`) are not residents and must not become ones; each depends on what it configured. **The accessors below do not weaken that**: they read an already-parsed `JsonObject` and touch no `Gson` at all.
+[Json](../src/client/java/org/wynnvets/util/Json.java) is the matching shared `Gson` — `new Gson()`, no builder. The three `GsonBuilder`-configured instances (`VetsConfig`, `ItemDumpHandler`, `AnniSnapshotDebugCommands`) are not residents and must not become ones; each depends on what it configured. **The accessors below do not weaken that**: they read an already-parsed `JsonObject` and touch no `Gson` at all.
 
 **`Json` also owns the mod's JSON field accessors** — four entry points over one shape, added to replace the hand-rolled reads described below. Some classes reference `Json` only for these accessors, not for `GSON`.
 

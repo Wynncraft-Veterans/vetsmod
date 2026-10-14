@@ -35,7 +35,8 @@ import org.wynnvets.logging.VetsLogger;
  *       whose {@code snapshot} is {@code null} — which the wire contract allows —
  *       completes the caller's future with {@code null} and leaves this cache
  *       untouched.</li>
- *   <li>{@link org.wynnvets.debug.anni.AnniDebugCommands AnniDebugCommands},
+ *   <li>{@link org.wynnvets.debug.anni.AnniSnapshotDebugCommands
+ *       AnniSnapshotDebugCommands},
  *       three sites and no frames: its shared {@code parseAndInject} helper
  *       (one call site reached from three commands — {@code snapshotInject},
  *       {@code snapshotInjectFile} and {@code snapshotInjectPreset}),
@@ -83,7 +84,7 @@ public final class AnniSnapshotCache {
      *
      * <p>{@code null} is <b>not</b> a cold-start-only artefact. It is also what
      * {@link #update(AnniSnapshot)} stores when handed {@code null}, which
-     * {@code AnniDebugCommands.snapshotClear} does — so this can return
+     * {@code AnniSnapshotDebugCommands.snapshotClear} does — so this can return
      * {@code null} at any point in a warm session, and every caller must guard.
      * {@link AnniSnapshots} discharges that contract for the four fields the
      * diffing surfaces read; everything else null-checks its own way down.</p>

@@ -17,7 +17,8 @@ package org.wynnvets.mwe.anni.state;
  *
  * <p>A {@code null} snapshot is a legal cache state, not a cold-start artefact.
  * {@link AnniSnapshotCache#update(AnniSnapshot)} documents {@code null} as an
- * accepted "no snapshot available" signal, and {@code AnniDebugCommands.snapshotClear}
+ * accepted "no snapshot available" signal, and
+ * {@code AnniSnapshotDebugCommands.snapshotClear}
  * ({@code /wv debug tree anni snapshot clear}) makes exactly that call — so
  * {@link AnniSnapshotCache#latest()} can return {@code null} at any point in a warm
  * session.</p>
