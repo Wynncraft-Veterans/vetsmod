@@ -213,7 +213,7 @@ final class AnniStatusSections {
 
     /** Board state — different forms for "unplaced", "unassigned",
      *  "wont_assign", "party". */
-    static MutableComponent boardSection(AnniSnapshot snapshot, boolean partyDetails) {
+    static MutableComponent boardSection(AnniSnapshot snapshot) {
         AnniSnapshot.Board board = snapshot.board();
         if (board == null || board.state() == null) {
             return Component.literal("");
@@ -250,7 +250,7 @@ final class AnniStatusSections {
                                 Component.literal("Awaiting placement")
                                         .withStyle(ChatFormatting.GRAY));
             case "party":
-                return partyDetails ? partyAssignedBlock(snapshot) : partyOneLine(board);
+                return partyAssignedBlock(snapshot);
             default:
                 return AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY)
                         .append(Component.literal(state).withStyle(ChatFormatting.GRAY));
@@ -284,26 +284,6 @@ final class AnniStatusSections {
                             Component.literal(party.host().username())
                                     .withStyle(ChatFormatting.AQUA));
         }
-        return line;
-    }
-
-    /** Single-line party blurb. Currently unreachable: the sole caller is
-     *  {@code boardSection}'s {@code partyDetails ? … : partyOneLine(board)}
-     *  ternary, and {@code AnniCommandRenderer.renderFarOut} — also the
-     *  sole caller of {@code boardSection} — always passes {@code true}.
-     *  It is not the not-announced renderer's:
-     *  {@code AnniCommandRenderer.renderNotAnnounced} never calls
-     *  {@code boardSection} at all. */
-    private static MutableComponent partyOneLine(AnniSnapshot.Board board) {
-        AnniSnapshot.Party party = board == null ? null : board.party();
-        if (party == null) {
-            return AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY)
-                    .append(Component.literal("party").withStyle(ChatFormatting.GREEN));
-        }
-        MutableComponent line = AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY);
-        line.append(AnniHoverBuilder.partyOrdinalChip(party));
-        line.append(Component.literal("  "));
-        line.append(AnniHoverBuilder.partyWorldChip(party.world()));
         return line;
     }
 

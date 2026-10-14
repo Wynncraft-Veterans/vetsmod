@@ -96,7 +96,7 @@ class AnniStatusSectionsTest {
 
     /** {@code boardSection} as {@code renderFarOut} calls it. */
     private static String boardLine(AnniSnapshot snapshot) {
-        return AnniStatusSections.boardSection(snapshot, true).toString();
+        return AnniStatusSections.boardSection(snapshot).toString();
     }
 
     @Test

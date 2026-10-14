@@ -287,7 +287,7 @@ public final class AnniCommandRenderer {
         if (attendance != null) {
             out.append(attendance).append(Component.literal("\n"));
         }
-        out.append(AnniStatusSections.boardSection(snapshot, true));
+        out.append(AnniStatusSections.boardSection(snapshot));
         return out;
     }
 
