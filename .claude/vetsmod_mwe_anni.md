@@ -55,6 +55,7 @@ mwe/anni/
 └── render/
     ├── AnniHoverBuilder.java      — colour tokens, role chips, rsvp badges, link/click/hover helpers
     ├── AnniCommandRenderer.java   — /wv anni payload builder; returns List<MutableComponent>
+    ├── AnniOnboardingBlocks.java  — the not-announced registration block: unregistered nudge, fill-only explainer, has-roles affirmation
     └── AnniMotdRenderer.java      — world-join anni-motd (two-line "Annihilation returns in X.Yh! / You have been assigned …")
 
 debug/anni/                         — the /wv debug tree anni harness (§Debug harness)
