@@ -27,14 +27,16 @@ import org.wynnvets.util.Json;
  * on-connect auth re-send is not reached: only {@code connect()} installs it.
  * {@link V1ApiManager#sendInboundUnchecked(JsonObject)} checks nothing, and the tests reach it only
  * through sends that check first, so what it does while the socket is down is not pinned.
+ * {@code sendAuth} is also pinned to mark an auth ack as awaited when it sends, and not when the
+ * socket is down.
  *
  * <p>A recording socket stands in for the inbound connection: it never connects, records each
  * frame as {@link WsClient#send(JsonObject)} would write it, and reports a settable connection
  * state. The expected strings are literals. The frames that carry a random {@code uuid} and a clock
  * {@code timestamp} (inbound chat and {@code rank_change}) have both values checked and then
  * masked in place, so key order is still pinned. Every test ends with no inbound socket installed,
- * the callback queue drained and the cached registration cleared. No test registers a listener or
- * routes an ack.</p>
+ * no auth ack awaited, the callback queue drained and the cached registration cleared. No test
+ * registers a listener or routes an ack.</p>
  */
 class V1ApiManagerFramesTest {
 
@@ -89,6 +91,8 @@ class V1ApiManagerFramesTest {
         connect();
         V1ApiManager.sendAuth("k3y-Value_123");
         assertEquals(List.of("{\"type\":\"auth\",\"key\":\"k3y-Value_123\"}"), socket.wire);
+        // Sending marks the auth frame as awaiting its ack.
+        assertTrue(SessionAuthState.expectingAuthAck);
     }
 
     @Test
@@ -236,7 +240,10 @@ class V1ApiManagerFramesTest {
 
     private void assertNothingSentWhileDown() {
         V1ApiManager.sendRegistration("0a1b2c3d-1111-2222-3333-444455556666", "Alice", "guild");
+        SessionAuthState.expectingAuthAck = false;
         V1ApiManager.sendAuth("k3y-Value_123");
+        // Nothing was sent, so no auth ack is awaited.
+        assertFalse(SessionAuthState.expectingAuthAck);
         V1ApiManager.sendQueueStatus(true, "NA30");
         V1ApiManager.sendInbound("guild", "Chief", "Alice", "hello there");
         V1ApiManager.sendRankChange("Alice", "Bob", "Captain", "Recruit", "mote");

@@ -55,6 +55,18 @@ class ReturnersRosterProbeTest {
     }
 
     @Test
+    void member_withNullLegacyName() {
+        // A JSON null legacyName reads as none; reading it as a string would throw.
+        String json =
+                "{\"members\": {\"chief\": {\"Alice\": {\"uuid\": \"%s\", \"legacyName\": null}}}}"
+                        .formatted(ALICE);
+        ReturnersRosterProbe.ReturnersMembership m = analyze(json, ALICE_KEY);
+        assertTrue(m.inGuild());
+        assertEquals("Chief", m.rank());
+        assertNull(m.legacyName());
+    }
+
+    @Test
     void absent_isNotInGuild() {
         String json = "{\"members\": {\"chief\": {\"Bob\": {\"uuid\": \"%s\"}}}}".formatted(BOB);
         ReturnersRosterProbe.ReturnersMembership m = analyze(json, ALICE_KEY);
