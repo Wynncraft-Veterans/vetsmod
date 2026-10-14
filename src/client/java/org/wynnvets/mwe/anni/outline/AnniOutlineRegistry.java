@@ -127,8 +127,9 @@ public final class AnniOutlineRegistry {
 
     /** Drop every entry. Part of the debug API below in everything but
      *  placement: its only caller is
-     *  {@link org.wynnvets.debug.anni.AnniDebugCommands#registryClearAll
-     *  AnniDebugCommands#registryClearAll} ({@code /wv debug tree anni registry clearall}). Neither
+     *  {@link org.wynnvets.debug.anni.AnniHighlightDebugCommands#registryClearAll
+     *  AnniHighlightDebugCommands#registryClearAll}
+     *  ({@code /wv debug tree anni registry clearall}). Neither
      *  a null snapshot nor the activation gate closing reaches it — {@code rebuildFrom} does its
      *  own inline clear-and-swap, and the gate is the ticker's business, not the registry's. */
     public static void clearAll() {

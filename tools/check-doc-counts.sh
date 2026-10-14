@@ -40,9 +40,10 @@
 # PATTERNS is a second, smaller manifest for counts no call-site grep can
 # see: occurrences of a fixed string on NON-comment lines of ONE file. It
 # exists for in-class call counts the header above rules out of MANIFEST,
-# e.g. the requireDebug(ctx) sites in AnniDebugCommands and
-# AnniSnapshotDebugCommands and the 5 requireStaffOrOrganiser(ctx) sites in
-# AnniDebugCommands, which the class docs state. Only use it for strings
+# e.g. the requireDebug(ctx) sites in AnniDebugCommands,
+# AnniSnapshotDebugCommands and AnniHighlightDebugCommands and the 5
+# requireStaffOrOrganiser(ctx) sites in AnniDebugCommands, which the class
+# docs state. Only use it for strings
 # that never wrap across lines after spotlessApply: a method reference split
 # onto a continuation line is invisible to it (the text AnniDebugCommands::
 # does not match a handler reference that spotless split after the class name).
@@ -73,7 +74,7 @@ ConfigValueText.intLine|3|ConfigValueTextTest
 ConfigValueText.stringLine|4|ConfigValueTextTest
 ConfigValueText.triStateLine|2|ConfigValueTextTest
 AnniOutlinePalette.chatFormattingForRole|2|AnniOutlinePalette + AnniHoverBuilder#roleColor: "Two callers"
-AnniOutlineRegistry.clearAll|1|AnniOutlineRegistry: "its only caller is AnniDebugCommands#registryClearAll"
+AnniOutlineRegistry.clearAll|1|AnniOutlineRegistry: "its only caller is AnniHighlightDebugCommands#registryClearAll"
 AnniOutlineTicker.isOutlineSuppressionActive|4|AnniOutlineTicker: "two behavioural readers" + "two debug dumps"
 VetsBossBarManager.isActive|2|VetsBossBarManager: mixin gate + DebugCommands dump
 VetsBossBarManager.barUuid|2|VetsBossBarManager: mixin filter + DebugCommands dump
@@ -112,8 +113,9 @@ AnniStampPoller.updateFromExternalFetch|1|AnniStampPoller class doc: called only
 
 # file (under $SRC)|fixed string|expected occurrences on non-comment lines|note
 PATTERNS='
-org/wynnvets/debug/anni/AnniDebugCommands.java|requireDebug(ctx)|15|AnniDebugCommands class doc: all 24 handlers open with requireDebug; 15 of them are here
+org/wynnvets/debug/anni/AnniDebugCommands.java|requireDebug(ctx)|11|AnniDebugCommands class doc: all 24 handlers open with requireDebug; 11 of them are here
 org/wynnvets/debug/anni/AnniSnapshotDebugCommands.java|requireDebug(ctx)|9|AnniSnapshotDebugCommands class doc: every handler opens with requireDebug; 9 of the 24 are here
+org/wynnvets/debug/anni/AnniHighlightDebugCommands.java|requireDebug(ctx)|4|AnniHighlightDebugCommands class doc: every handler opens with requireDebug; 4 of the 24 are here
 org/wynnvets/debug/anni/AnniDebugCommands.java|requireStaffOrOrganiser(ctx)|5|AnniDebugCommands class doc: the five scrollspot handlers
 org/wynnvets/guild/GuildStateManager.java|setDebugForceGuildlessUnlocked(|2|no-caller claim, in-class half: the declaration plus its UnlockManager delegate call
 org/wynnvets/guild/GuildStateManager.java|isProcessingModGuildCheck(|2|no-caller claim, in-class half: the declaration plus its GuildChecker delegate call
