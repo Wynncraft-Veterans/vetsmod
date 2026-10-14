@@ -111,8 +111,8 @@ AnniStampPoller.updateFromExternalFetch|1|AnniStampPoller class doc: called only
 
 # file (under $SRC)|fixed string|expected occurrences on non-comment lines|note
 PATTERNS='
-org/wynnvets/mwe/anni/debug/AnniDebugCommands.java|requireDebug(ctx)|24|AnniDebugCommands class doc: all 24 handlers open with requireDebug
-org/wynnvets/mwe/anni/debug/AnniDebugCommands.java|requireStaffOrOrganiser(ctx)|5|AnniDebugCommands class doc: the five scrollspot handlers
+org/wynnvets/debug/anni/AnniDebugCommands.java|requireDebug(ctx)|24|AnniDebugCommands class doc: all 24 handlers open with requireDebug
+org/wynnvets/debug/anni/AnniDebugCommands.java|requireStaffOrOrganiser(ctx)|5|AnniDebugCommands class doc: the five scrollspot handlers
 org/wynnvets/guild/GuildStateManager.java|setDebugForceGuildlessUnlocked(|2|no-caller claim, in-class half: the declaration plus its UnlockManager delegate call
 org/wynnvets/guild/GuildStateManager.java|isProcessingModGuildCheck(|2|no-caller claim, in-class half: the declaration plus its GuildChecker delegate call
 org/wynnvets/chat/ChatUtils.java|sendGuildChatMessageRed(|2|one-caller claim, in-class half: the declaration plus the one sendStaffChannelMessage call

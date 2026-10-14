@@ -66,14 +66,15 @@ VetsmodClient (entry point)
   │                           NewFormatRenderer, LegacyEnchantmentRenderer, LegacyScreenshotHandler,
   │                           LegacyHighlightPainter (the slot highlight both draw sites call)
   ├── mwe/anni/               MWE/annihilation subsystem — snapshot cache, boss bar, outlines,
-  │                           zone lines, waypoint, RSVP, debug tree
+  │                           zone lines, waypoint, RSVP
   ├── distribute/             /wv distribute — Guild Management GUI automation: sends
   │                           `/guild manage`, walks Manage Members / Guild Log, presses
   │                           the send slot. Visible to staff, executable by chief+
   │                           (16 files, 5 sub-packages)
   ├── rendering/              Territory lines, nametag animator, gradient/colour helpers
   ├── datamodels/             Guild, User, UserUUID, MembershipSnapshot DTOs
-  ├── debug/                  /wv debug tree, DebugConfigManager, diagnostics, dumps
+  ├── debug/                  /wv debug tree, DebugConfigManager, diagnostics, dumps;
+  │                           debug/anni/, the anni harness (/wv debug tree anni)
   ├── WynntilsEventListener   WorldStateEvent, GuildEvent, ChatMessageEvent
   └── Mixins (14)             Chat (3), Legacy items (3), Command (1 — UnlockCommandMixin),
                                top-level (6 — NametagMixin, CommandSuggestionsMixin,

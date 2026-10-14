@@ -30,7 +30,7 @@ import org.wynnvets.logging.VetsLogger;
  * {@link org.wynnvets.VetsmodClient VetsmodClient} reads at startup to
  * restore the flag if it was set less than three days earlier.  The flag is
  * not logging-only: it is also what
- * {@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands}'
+ * {@link org.wynnvets.debug.anni.AnniDebugCommands AnniDebugCommands}'
  * {@code requireDebug} tests.</p>
  *
  * <p>This is a <b>debug-only</b> utility — invoked from the

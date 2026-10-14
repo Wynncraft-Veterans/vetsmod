@@ -12,7 +12,7 @@ Organised by subject, not by the order the work happened. Each category — conf
 
 ## Package layout
 
-Most anni-side code lives under `org.wynnvets.mwe.anni.*`. The ones that do not, and are easy to miss: `fetcher.polling.AnniSnapshotPoller` and `AnniStampPoller`, `fetcher.ondemand.StampFetcher`, `commands.CommandRegistry`, `listeners.PartyRosterListener`, and the four mixins under `mixin.client`.
+Most anni-side code lives under `org.wynnvets.mwe.anni.*`. The ones that do not, and are easy to miss: `fetcher.polling.AnniSnapshotPoller` and `AnniStampPoller`, `fetcher.ondemand.StampFetcher`, `commands.CommandRegistry`, `listeners.PartyRosterListener`, the four mixins under `mixin.client`, and `debug.anni`, the `/wv debug tree anni` harness.
 
 ```
 mwe/anni/
@@ -29,8 +29,6 @@ mwe/anni/
 │   ├── AnniQueryClient.java       — FIFO-queued pull (anni_query), no correlation IDs; 8s deadline
 │   ├── AnniRsvpClient.java        — ack client for anni_rsvp (§`/wv anni rsvp`)
 │   └── AnniScrollspotClient.java  — ack client for anni_scrollspot_set (§Aggressive mode)
-├── debug/
-│   └── AnniDebugCommands.java     — the /wv debug tree anni harness: 11 top-level literals, 24 leaves (§Debug harness)
 ├── mode/
 │   ├── AnniMode.java                  — enum SILENT/PASSIVE/AGGRESSIVE + config converters
 │   ├── AnniModeManager.java           — single chokepoint for transitions; enforces /stream mutex
@@ -58,6 +56,8 @@ mwe/anni/
     ├── AnniHoverBuilder.java      — colour tokens, role chips, rsvp badges, link/click/hover helpers
     ├── AnniCommandRenderer.java   — /wv anni payload builder; returns List<MutableComponent>
     └── AnniMotdRenderer.java      — world-join anni-motd (two-line "Annihilation returns in X.Yh! / You have been assigned …")
+
+debug/anni/                         — the /wv debug tree anni harness (§Debug harness)
 ```
 
 ## Snapshot pipeline

@@ -15,10 +15,10 @@ import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
+import org.wynnvets.debug.anni.AnniDebugCommands;
 import org.wynnvets.debug.diagnostics.DiagnosticsHandler;
 import org.wynnvets.debug.dump.TabDumpHandler;
 import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.mwe.anni.debug.AnniDebugCommands;
 import org.wynnvets.util.ConfigValueText;
 import org.wynnvets.util.ConfigValueText.Form;
 import org.wynnvets.util.ConfigValueText.Verb;
@@ -32,7 +32,7 @@ import org.wynnvets.util.ConfigValueText.Verb;
  * single integration point: {@link #buildCommandTree()}. It does not
  * build every node itself: the {@code anni} subtree under {@code tree}
  * comes from
- * {@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands},
+ * {@link org.wynnvets.debug.anni.AnniDebugCommands AnniDebugCommands},
  * and several handlers delegate to other classes (for example, the
  * diagnostics dump and the debug toggle go to {@link DiagnosticsHandler}).</p>
  *

@@ -53,9 +53,10 @@ package org.wynnvets.mwe.anni.state;
  *       because vets-anni emits {@code stamp_epoch: null} once the anni begins — so
  *       reading the current snapshot would lose the anchor at exactly the moment it
  *       is needed. Do not "simplify" it onto this class.</li>
- *   <li>{@link org.wynnvets.mwe.anni.render.AnniMotdRenderer AnniMotdRenderer}, {@link org.wynnvets.mwe.anni.render.AnniCommandRenderer AnniCommandRenderer} and
- *       {@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands} are render and diagnostic surfaces scheduled for
- *       splits of their own.</li>
+ *   <li>{@link org.wynnvets.mwe.anni.render.AnniMotdRenderer AnniMotdRenderer} and
+ *       {@link org.wynnvets.mwe.anni.render.AnniCommandRenderer AnniCommandRenderer}, and the
+ *       {@code /wv debug tree anni} harness in {@code org.wynnvets.debug.anni}, are render and
+ *       diagnostic surfaces, not diffing ones.</li>
  * </ul>
  *
  * <p>Pure: no clock, no cache read, no statics. Callers fetch their own snapshot and

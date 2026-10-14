@@ -35,7 +35,7 @@ import org.wynnvets.logging.VetsLogger;
  *       whose {@code snapshot} is {@code null} — which the wire contract allows —
  *       completes the caller's future with {@code null} and leaves this cache
  *       untouched.</li>
- *   <li>{@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands},
+ *   <li>{@link org.wynnvets.debug.anni.AnniDebugCommands AnniDebugCommands},
  *       three sites and no frames: its shared {@code parseAndInject} helper
  *       (one call site reached from three commands — {@code snapshotInject},
  *       {@code snapshotInjectFile} and {@code snapshotInjectPreset}),

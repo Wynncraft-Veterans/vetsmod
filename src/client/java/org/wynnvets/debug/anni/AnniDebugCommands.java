@@ -1,4 +1,4 @@
-package org.wynnvets.mwe.anni.debug;
+package org.wynnvets.debug.anni;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

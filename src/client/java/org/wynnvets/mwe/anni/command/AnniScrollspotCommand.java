@@ -20,7 +20,7 @@ import org.wynnvets.mwe.anni.network.AnniScrollspotClient;
  * <p>⚠️ <b>The command path is {@code /wv debug tree anni scrollspot …}, not
  * {@code /wv anni scrollspot …}</b>, and this class registers nothing. The
  * only {@code "scrollspot"} literal in the tree is in
- * {@link org.wynnvets.mwe.anni.debug.AnniDebugCommands AnniDebugCommands},
+ * {@link org.wynnvets.debug.anni.AnniDebugCommands AnniDebugCommands},
  * which owns the brigadier node and delegates the three host writes here.
  * {@code vetsmod_mwe_anni.md} §"Aggressive mode" locked decision 6 states
  * this, and states it as a negative — the command is deliberately kept out of
