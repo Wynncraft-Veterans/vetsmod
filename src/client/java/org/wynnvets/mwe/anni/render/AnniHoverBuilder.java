@@ -16,11 +16,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
 /**
  * Widget helpers for the rich-text {@code /wv anni} / anni-motd render.
  *
- * <p>Centralises the colour tokens and hover/click decoration shared by
- * {@link AnniCommandRenderer} and {@link AnniMotdRenderer} so that the
- * two surfaces stay visually consistent. Methods return individual
- * {@link MutableComponent} segments — the renderers compose them into
- * full lines.</p>
+ * <p>Centralises the colour tokens and the hover and click decoration
+ * that render's widgets use, so that its surfaces stay visually
+ * consistent. Methods return individual {@link MutableComponent}
+ * segments — the renderers compose them into full lines.</p>
  *
  * <p>Hover details are gated by
  * {@link VetsConfigKeys#VETS_ANNI_SHOW_HOVER_DETAILS} (per the MWE plan's
@@ -358,7 +357,9 @@ public final class AnniHoverBuilder {
         return Component.literal(world).withStyle(style);
     }
 
-    /** Party chip — "Party 3" coloured + clickable to the party host hover. */
+    /** Party chip — "Party 3", coloured, with a hover (when hover details are on) that names
+     *  the party and, when the snapshot has them, its host and member count. It has no click
+     *  action. */
     public static MutableComponent partyOrdinalChip(AnniSnapshot.Party party) {
         if (party == null) {
             return Component.literal("TBD").withStyle(ChatFormatting.GRAY);
@@ -411,5 +412,11 @@ public final class AnniHoverBuilder {
         } catch (Exception e) {
             return new ClickEvent.OpenUrl(URI.create(DOCS_ANNI_BASE));
         }
+    }
+
+    // ── Line labels ─────────────────────────────────────────────────────
+
+    static MutableComponent label(String text, ChatFormatting color) {
+        return Component.literal(text + ": ").withStyle(color);
     }
 }

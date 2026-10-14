@@ -201,7 +201,7 @@ public final class AnniCommandRenderer {
         if (reg.roles().isEmpty()) {
             return fillOnlyExplainerBlock();
         }
-        MutableComponent line = label("Eligible Roles", ChatFormatting.GRAY);
+        MutableComponent line = AnniHoverBuilder.label("Eligible Roles", ChatFormatting.GRAY);
         boolean first = true;
         for (AnniSnapshot.RoleEntry role : reg.roles()) {
             if (!first) {
@@ -366,7 +366,7 @@ public final class AnniCommandRenderer {
         String dateStr = MEDIAN_DATE_FMT.format(medianInstant);
         String timeStr = MEDIAN_TIME_FMT.format(medianInstant);
 
-        return label("Prediction", ChatFormatting.GOLD)
+        return AnniHoverBuilder.label("Prediction", ChatFormatting.GOLD)
                 .append(Component.literal(hoursStr).withStyle(ChatFormatting.YELLOW))
                 .append(Component.literal(qualifierStr).withStyle(ChatFormatting.GOLD))
                 .append(Component.literal("|").withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD))
@@ -480,7 +480,7 @@ public final class AnniCommandRenderer {
         if (roleCode == null && board != null && board.party() != null) {
             roleCode = findOwnRole(board.party(), snapshot.mcUuid());
         }
-        MutableComponent line = label("Assigned Role", ChatFormatting.GRAY);
+        MutableComponent line = AnniHoverBuilder.label("Assigned Role", ChatFormatting.GRAY);
         if (roleCode != null) {
             line.append(roleChipFor(snapshot, roleCode));
         } else {
@@ -609,7 +609,7 @@ public final class AnniCommandRenderer {
     private static MutableComponent registrationSection(AnniSnapshot snapshot) {
         AnniSnapshot.Registration reg = snapshot.registration();
         if (reg == null || !reg.registered()) {
-            return label("Eligible Roles", ChatFormatting.GRAY)
+            return AnniHoverBuilder.label("Eligible Roles", ChatFormatting.GRAY)
                     .append(Component.literal("not registered  ").withStyle(ChatFormatting.YELLOW))
                     .append(
                             AnniHoverBuilder.linkBadge(
@@ -619,7 +619,7 @@ public final class AnniCommandRenderer {
                                     ChatFormatting.AQUA));
         }
         if (reg.roles().isEmpty()) {
-            return label("Eligible Roles", ChatFormatting.GRAY)
+            return AnniHoverBuilder.label("Eligible Roles", ChatFormatting.GRAY)
                     .append(
                             Component.literal(AnniHoverBuilder.displayRole("FILL") + " only")
                                     .withStyle(ChatFormatting.WHITE))
@@ -633,7 +633,7 @@ public final class AnniCommandRenderer {
                                     "Open your roles dashboard",
                                     ChatFormatting.AQUA));
         }
-        MutableComponent line = label("Eligible Roles", ChatFormatting.GRAY);
+        MutableComponent line = AnniHoverBuilder.label("Eligible Roles", ChatFormatting.GRAY);
         boolean first = true;
         for (AnniSnapshot.RoleEntry role : reg.roles()) {
             if (!first) {
@@ -655,7 +655,7 @@ public final class AnniCommandRenderer {
      *  it is t-2h+".</p> */
     private static MutableComponent rsvpSection(AnniSnapshot snapshot, long secondsUntil) {
         MutableComponent line =
-                label("RSVP Type", ChatFormatting.GRAY)
+                AnniHoverBuilder.label("RSVP Type", ChatFormatting.GRAY)
                         .append(AnniHoverBuilder.rsvpBadge(snapshot.rsvp(), snapshot.attendance()));
 
         boolean rsvped =
@@ -757,18 +757,18 @@ public final class AnniCommandRenderer {
         if (state == null) return null;
         switch (state) {
             case "party":
-                return label("Attendance Chance", ChatFormatting.GRAY)
+                return AnniHoverBuilder.label("Attendance Chance", ChatFormatting.GRAY)
                         .append(
                                 Component.literal("ASSIGNED")
                                         .withStyle(
                                                 ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD));
             case "wont_assign":
-                return label("Attendance Chance", ChatFormatting.GRAY)
+                return AnniHoverBuilder.label("Attendance Chance", ChatFormatting.GRAY)
                         .append(
                                 Component.literal("COULD NOT ASSIGN")
                                         .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
             case "unassigned":
-                return label("Attendance Chance", ChatFormatting.GRAY)
+                return AnniHoverBuilder.label("Attendance Chance", ChatFormatting.GRAY)
                         .append(AnniHoverBuilder.attendanceBar(snapshot.attendance()));
             default:
                 return null;
@@ -785,14 +785,14 @@ public final class AnniCommandRenderer {
         String state = board.state().toLowerCase();
         switch (state) {
             case "unplaced":
-                return label("Party Assignment", ChatFormatting.GRAY)
+                return AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY)
                         .append(Component.literal("unplaced").withStyle(ChatFormatting.YELLOW))
                         .append(
                                 Component.literal(" — register & RSVP to join the placement queue")
                                         .withStyle(ChatFormatting.GRAY));
             case "wont_assign":
                 MutableComponent wont =
-                        label("Party Assignment", ChatFormatting.GRAY)
+                        AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY)
                                 .append(
                                         Component.literal("won't assign")
                                                 .withStyle(
@@ -807,7 +807,7 @@ public final class AnniCommandRenderer {
                 // Don't restate the RSVP — the RSVP line right above
                 // already shows HRSVP/SRSVP. Just say what board state
                 // means for placement.
-                return label("Party Assignment", ChatFormatting.GRAY)
+                return AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY)
                         .append(Component.literal("unassigned").withStyle(ChatFormatting.GOLD))
                         .append(Component.literal(" — ").withStyle(ChatFormatting.DARK_GRAY))
                         .append(
@@ -816,7 +816,7 @@ public final class AnniCommandRenderer {
             case "party":
                 return partyDetails ? partyAssignedBlock(snapshot) : partyOneLine(board);
             default:
-                return label("Party Assignment", ChatFormatting.GRAY)
+                return AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY)
                         .append(Component.literal(state).withStyle(ChatFormatting.GRAY));
         }
     }
@@ -826,7 +826,7 @@ public final class AnniCommandRenderer {
         AnniSnapshot.Board board = snapshot.board();
         AnniSnapshot.Party party = board == null ? null : board.party();
         if (party == null) {
-            return label("Party Assignment", ChatFormatting.GRAY)
+            return AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY)
                     .append(
                             Component.literal("party (details pending)")
                                     .withStyle(ChatFormatting.GRAY));
@@ -834,16 +834,16 @@ public final class AnniCommandRenderer {
         // Role lives on the "Assigned Role" line above this block —
         // see renderFarOut. Don't repeat it here.
         MutableComponent line =
-                label("Party", ChatFormatting.GRAY)
+                AnniHoverBuilder.label("Party", ChatFormatting.GRAY)
                         .append(AnniHoverBuilder.partyOrdinalChip(party))
                         .append(Component.literal("  "));
 
-        line.append(label("World", ChatFormatting.GRAY))
+        line.append(AnniHoverBuilder.label("World", ChatFormatting.GRAY))
                 .append(AnniHoverBuilder.partyWorldChip(party.world()));
 
         if (party.host() != null && party.host().username() != null) {
             line.append(Component.literal("\n"));
-            line.append(label("Host", ChatFormatting.GRAY))
+            line.append(AnniHoverBuilder.label("Host", ChatFormatting.GRAY))
                     .append(
                             Component.literal(party.host().username())
                                     .withStyle(ChatFormatting.AQUA));
@@ -860,10 +860,10 @@ public final class AnniCommandRenderer {
     private static MutableComponent partyOneLine(AnniSnapshot.Board board) {
         AnniSnapshot.Party party = board == null ? null : board.party();
         if (party == null) {
-            return label("Party Assignment", ChatFormatting.GRAY)
+            return AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY)
                     .append(Component.literal("party").withStyle(ChatFormatting.GREEN));
         }
-        MutableComponent line = label("Party Assignment", ChatFormatting.GRAY);
+        MutableComponent line = AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY);
         line.append(AnniHoverBuilder.partyOrdinalChip(party));
         line.append(Component.literal("  "));
         line.append(AnniHoverBuilder.partyWorldChip(party.world()));
@@ -889,10 +889,6 @@ public final class AnniCommandRenderer {
         root.append(Component.literal(" — ").withStyle(ChatFormatting.DARK_GRAY));
         root.append(Component.literal(subtitle).withStyle(ChatFormatting.WHITE));
         return root;
-    }
-
-    private static MutableComponent label(String text, ChatFormatting color) {
-        return Component.literal(text + ": ").withStyle(color);
     }
 
     private static MutableComponent line(ChatFormatting color, String text) {
