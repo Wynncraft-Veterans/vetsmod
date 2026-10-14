@@ -19,7 +19,7 @@ import org.wynnvets.mwe.anni.render.AnniHoverBuilder;
  * <p>Three subcommands, single shape: shoot the inbound frame, await the
  * ack, render success or error in chat. Lights up the rsvpUpgradePrompt
  * {@code [Hard]} / {@code [Soft]} buttons in
- * {@link org.wynnvets.mwe.anni.render.AnniCommandRenderer} (their
+ * {@link org.wynnvets.mwe.anni.render.AnniStatusSections AnniStatusSections} (their
  * {@code suggestCommand} strings target this command verbatim).</p>
  *
  * <p><b>Registered twice.</b> The user-facing node is

@@ -76,7 +76,7 @@ S6. Authenticated only (must have run `~vetsmod`). [AnniRsvpCommand](../src/clie
 - `soft` — tentative. SOFT chip (green).
 - `revoke` — withdraw. Soft-deletes (`Rsvp.revoked_at`) and posts `<user> withdrew their RSVP.` to RSVP_CHANNEL_ID. Silent (no public post) if there was no active RSVP to withdraw.
 
-Lights up the `[Hard]` / `[Soft]` `SuggestCommand` buttons in [AnniCommandRenderer.rsvpUpgradePrompt()](../src/client/java/org/wynnvets/mwe/anni/render/AnniCommandRenderer.java) — those buttons emit `/wv anni rsvp hard` / `/wv anni rsvp soft` verbatim, so user click-through now resolves.
+Lights up the `[Hard]` / `[Soft]` `SuggestCommand` buttons in [AnniStatusSections.rsvpUpgradePrompt()](../src/client/java/org/wynnvets/mwe/anni/render/AnniStatusSections.java) — those buttons emit `/wv anni rsvp hard` / `/wv anni rsvp soft` verbatim, so user click-through now resolves.
 
 Trust chain: vetsmod sends `anni_rsvp` ([`AnniWsSender.sendAnniRsvp`](../src/client/java/org/wynnvets/mwe/anni/network/AnniWsSender.java)) → temp-server's [`_handle_anni_rsvp`](../../temporary-server/app/chat/inbound.py) stamps the session's `mc_uuid` as `actor_mc_uuid` → vets-anni's [`POST /api/internal/anni-rsvp-by-uuid`](../../vets-anni/app/web/routers/anni_internal.py) calls [`execute_uuid_rsvp`](../../vets-anni/app/domain/rsvp_by_uuid.py) which reuses the Discord cog's `_auto_place_after_rsvp` / `_broadcast_board_snapshot` / `_post_public` helpers verbatim. Ack flows back as `anni_rsvp_response` (routed to [`AnniRsvpClient`](../src/client/java/org/wynnvets/mwe/anni/network/AnniRsvpClient.java)'s pending future; 5s timeout).
 

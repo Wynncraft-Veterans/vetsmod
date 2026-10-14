@@ -56,6 +56,7 @@ mwe/anni/
     ├── AnniHoverBuilder.java      — colour tokens, role chips, rsvp badges, link/click/hover helpers
     ├── AnniCommandRenderer.java   — /wv anni payload builder; returns List<MutableComponent>
     ├── AnniOnboardingBlocks.java  — the not-announced registration block: unregistered nudge, fill-only explainer, has-roles affirmation
+    ├── AnniStatusSections.java    — the announced body's status lines: role, RSVP type and upgrade prompt, attendance, party
     └── AnniMotdRenderer.java      — world-join anni-motd (two-line "Annihilation returns in X.Yh! / You have been assigned …")
 
 debug/anni/                         — the /wv debug tree anni harness (§Debug harness)
@@ -106,9 +107,10 @@ where they are, for the reasons in the table.
 | Party-observation | ±2 h | `PartyRosterListener.ACTIVE_WINDOW_SEC` | **symmetric** — a third guard shape, answering a different question |
 
 `AnniCommandRenderer.TWO_HOURS_SECONDS` is a sixth entry and is not a window at
-all: it selects the far-out versus imminent render branch of `/wv anni`. It stays
-where it is for the same reason `PartyRosterListener`'s does — two files agreeing
-on a number today is not shared configuration.
+all: it selects the far-out versus imminent render branch of `/wv anni`, and
+`AnniStatusSections.rsvpSection` drops the RSVP upgrade prompt at or below it.
+It stays where it is for the same reason `PartyRosterListener`'s does — two
+files agreeing on a number today is not shared configuration.
 
 **Three constant declarations now hold 7200** —
 `AnniWindows.HOT_WINDOW_BEFORE_SECONDS`, `PartyRosterListener.ACTIVE_WINDOW_SEC`
@@ -279,7 +281,7 @@ Gated by `vetsAnniShowPrediction`. When that is on but `event.prediction()` is n
 | TERTIARY | MOBKILL | MOBK | TERTIARY |
 | FILL | FILL | FILL | FILL |
 
-**Policy and mechanism differ here, so keep them apart.** The policy — short codes (HRSVP / SUNK / MOBK) belong on the boss bar, and chat callers spell things out — stands, and is recorded as the `feedback_anni_short_codes_reserved_for_bossbar.md` memory. The mechanism is not what "reserved" implies: `short` **is** one of the three configured `vetsAnniRoleStyle` values, meant to be user-selectable for chat (today `/wv config` refuses it, leaving a hand edit of `config.json` as the way to select it — bug `config-set-rejects-role-style-and-flash-intensity`), and `displayRole`'s only callers are chat surfaces (`AnniHoverBuilder.roleChip`, `AnniCommandRenderer.registrationSection`, `AnniMotdRenderer.assignedToPartyLine`). The bar does not read this table at all — it uses its own hardcoded `VetsBossBarContentBuilder.toShortLabel`.
+**Policy and mechanism differ here, so keep them apart.** The policy — short codes (HRSVP / SUNK / MOBK) belong on the boss bar, and chat callers spell things out — stands, and is recorded as the `feedback_anni_short_codes_reserved_for_bossbar.md` memory. The mechanism is not what "reserved" implies: `short` **is** one of the three configured `vetsAnniRoleStyle` values, meant to be user-selectable for chat (today `/wv config` refuses it, leaving a hand edit of `config.json` as the way to select it — bug `config-set-rejects-role-style-and-flash-intensity`), and `displayRole`'s only callers are chat surfaces (`AnniHoverBuilder.roleChip`, `AnniStatusSections.registrationSection`, `AnniMotdRenderer.assignedToPartyLine`). The bar does not read this table at all — it uses its own hardcoded `VetsBossBarContentBuilder.toShortLabel`.
 
 ### RSVP / attendance / board labels
 
@@ -609,7 +611,7 @@ The server halves — the `Party` columns and their migration, the `POST /api/in
 
 ### Architecture
 
-Backs the `[Hard]`/`[Soft]` upgrade-prompt buttons in `AnniCommandRenderer` (their `SuggestCommand("/wv anni rsvp hard|soft")` targets this command). One brigadier command + a network client + a single vets-anni endpoint; no schema bump (`rsvp.notice` is already on the snapshot at v2/v3).
+Backs the `[Hard]`/`[Soft]` upgrade-prompt buttons in `AnniStatusSections` (their `SuggestCommand("/wv anni rsvp hard|soft")` targets this command). One brigadier command + a network client + a single vets-anni endpoint; no schema bump (`rsvp.notice` is already on the snapshot at v2/v3).
 
 Wire pieces on the network layer:
 - `AnniWsSender.sendAnniRsvp(String notice)` (mirror of `sendAnniScrollspotSet`).
@@ -639,7 +641,7 @@ Wire pieces on the network layer:
 
 1. **`/wv anni rsvp` lives in the main brigadier tree**, NOT under `/wv debug`
    (opposite of scrollspot). This is a public-facing user command — the
-   `rsvpUpgradePrompt` buttons in `AnniCommandRenderer` point
+   `rsvpUpgradePrompt` buttons in `AnniStatusSections` point
    `SuggestCommand` at it. The debug-tree mirror under
    `/wv debug tree anni rsvp` is gated on
    `requireDebug` only (no staff/organiser perm — action only affects
@@ -867,7 +869,7 @@ One table, every key. `vetsAnniOutlinesEnabled` and `vetsAnniNametagsEnabled` to
 | `vetsAnniMode` | string | `silent` on disk, but `AnniModeManager.applyStartupDefaultIfNeeded` promotes still-unset enrichment-eligible users to `passive` at world-join | Active anni mode. Not settable via `/wv config` — see §Mode state |
 | `vetsAnniRoleStyle` | string | `descriptive` | Role-naming style (`descriptive`/`short`/`formal`) — boss bar always uses `short` |
 | `vetsAnniShowHoverDetails` | bool | true | Populate hover tooltips on chips |
-| `vetsAnniPromptRsvp` | bool | true | Show line 2 of anni-motd. Its only reader is `AnniMotdRenderer.render` — it does **not** gate the `[Hard]`/`[Soft]` pills on `/wv anni`, which `AnniCommandRenderer.rsvpSection` emits from `!rsvped && farOut` with no config read |
+| `vetsAnniPromptRsvp` | bool | true | Show line 2 of anni-motd. Its only reader is `AnniMotdRenderer.render` — it does **not** gate the `[Hard]`/`[Soft]` pills on `/wv anni`, which `AnniStatusSections.rsvpSection` emits from `!rsvped && farOut` with no config read |
 | `vetsAnniShowPrediction` | bool | true | Show `\guess`-style prediction in `/wv anni` not-announced |
 | `vetsAnniBossbarEnabled` | bool | true | Master kill-switch for the synthetic boss bar. Only consulted in passive/aggressive. |
 | `vetsAnniFlashIntensity` | string | `normal` | `subtle`=5s / `normal`=10s / `strong`=20s flash duration per field change. |

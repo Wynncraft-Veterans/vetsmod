@@ -67,8 +67,9 @@ package org.wynnvets.mwe.anni.state;
  *       ({@code |stamp − now| <= 7200}); it answers "is the roster worth
  *       reporting", a different question with a third guard shape.</li>
  *   <li>{@code AnniCommandRenderer.TWO_HOURS_SECONDS} — 7200, used to select the
- *       far-out versus imminent render branch of {@code /wv anni}. A layout
- *       decision, not an activation window.</li>
+ *       far-out versus imminent render branch of {@code /wv anni}, and by
+ *       {@code AnniStatusSections.rsvpSection} to drop the RSVP upgrade prompt inside
+ *       it. A layout decision, not an activation window.</li>
  *   <li>{@code VetsBossBarManager.DROP_DEAD_SECONDS_BEFORE_ANNI} and
  *       {@code VetsBossBarContentBuilder.T_MINUS_20_GATE_SECONDS} — both 20, the two
  *       halves of the bar's documented T−20s design. The first is the bar window's
