@@ -117,7 +117,7 @@ public final class VetsConfigKeys {
     public static final String VETS_ANNI_PROMPT_RSVP = "vetsAnniPromptRsvp";
 
     /** Whether {@code /wv anni} shows the {@code \guess}-style prediction
-     *  window (earliest/median/latest) when the stamp is past or unknown.
+     *  line (the median, with a ± from the window) when the stamp is past or unknown.
      *  The anni-motd auto-print never shows the prediction unsolicited (per
      *  spec §"For external users"); this key only affects the manual
      *  {@code /wv anni} invocation. */

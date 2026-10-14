@@ -23,28 +23,52 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
  * <p>Implements the three branches from the integration spec:</p>
  * <ul>
  *   <li>§"If the next anni has not yet been announced" — show the
- *       {@code \guess}-style prediction window, registration status,
- *       and either listed roles or a register-now link.</li>
+ *       {@code \guess}-style prediction line and, for a vets user, the
+ *       registration block: the listed roles, a fill-only explainer, or
+ *       a register-now nudge ({@link AnniOnboardingBlocks}). An external
+ *       user gets the lean form: a red headline and the prediction line,
+ *       with no anni.wynnvets.org link and no registration block.</li>
  *   <li>§"If the next anni has been announced and is 2+ hours in the
- *       future" — relative timestamp, registration, RSVP widget, and
- *       attendance bar; expands with party details when assigned.</li>
+ *       future" — relative timestamp, then the status lines of
+ *       {@link AnniStatusSections}: registration (or, in a party, the
+ *       assigned role), RSVP widget, attendance bar and party assignment;
+ *       expands with party details when assigned.</li>
  *   <li>§"If the next anni has been announced and within the next 2h" —
  *       the 2h+ body again (minus the RSVP upgrade prompt, whose slot
  *       cutoffs have passed), plus a [silent|passive|aggressive]
  *       mode-switch widget as its own second block.</li>
  * </ul>
  *
- * <p><b>Not</b> a pure function: it reads the wall clock, the mutable {@link #externalOverride},
- * live {@link GuildStateManager} state, and {@link VetsConfig} flags that {@code /wv config} can
- * change mid-session, so one snapshot can render more than one way.</p>
+ * <p>While an announced anni's stamp is still ahead, an external user gets no render at all:
+ * {@link #render} returns {@code null}, and its caller falls back to the legacy stamp text. Once
+ * the stamp has passed, the snapshot takes the not-announced branch, external user or not. See
+ * {@link #render} for the list-and-{@code null} contract.</p>
+ *
+ * <p><b>Not</b> a pure function, so one snapshot can render more than one way:</p>
+ * <ul>
+ *   <li>It reads the wall clock, in {@link #render} (whether the stamp is still ahead, the
+ *       countdown and the two-hour split) and in {@code predictionLine} (how far off the median
+ *       is).</li>
+ *   <li>Whether the user is external comes from {@link #isExternal}. That reads the mutable
+ *       {@link #externalOverride}, which the debug commands set and clear
+ *       ({@code /wv debug tree anni external}, and each successful preset inject). With no
+ *       override it asks
+ *       {@link GuildStateManager#isEligibleForEnrichment}, which fans out to the guild check, the
+ *       waitlist unlock and the honourary unlock; the guild check reads the clock too, since
+ *       {@code GuildChecker}'s cached result expires. {@link AnniMotdRenderer} also calls
+ *       {@code isExternal}, so the override steers the world-join anni-motd as well.</li>
+ *   <li>It reads {@link VetsConfig} flags that {@code /wv config} can change mid-session.</li>
+ * </ul>
  *
  * <p>The direct caller is {@code StampFetcher.fetchStampAndCreateAnniCommandMessage}, which
  * calls {@link #render} and hands the result back up to {@code CommandRegistry}; it is
  * <em>that</em> frame which dispatches each block through
  * {@link org.wynnvets.chat.ChatUtils ChatUtils}. {@code StampFetcher} does not reference
  * {@code ChatUtils} at all — naming it as this class's caller conflates the route with the
- * caller, which is the shape an earlier sweep corrected in five other facades. See {@link #render}
- * for the list-and-{@code null} contract.</p>
+ * caller, which is the shape an earlier sweep corrected in five other facades. {@code render}
+ * runs on the client thread when a snapshot is cached. On a cold cache it runs only if the
+ * on-demand pull brings a snapshot back, and then on the thread that completes the pull
+ * (normally the WebSocket reader).</p>
  */
 public final class AnniCommandRenderer {
 
@@ -71,8 +95,12 @@ public final class AnniCommandRenderer {
      *  {@code false} → force vets rendering. Settable from
      *  {@code /wv debug tree anni external …} — the {@code tree} literal
      *  is load-bearing, since {@code DebugCommands.buildCommandTree}
-     *  mounts the whole anni subtree under it. Not persisted; resets on
-     *  vetsmod reload. */
+     *  mounts the whole anni subtree under it — and set again by each
+     *  successful {@code /wv debug tree anni snapshot inject preset}:
+     *  {@code true} for a preset whose name starts with
+     *  {@code external}, {@code false} for {@code member}, and
+     *  {@code null} for any other.
+     *  Not persisted; resets on vetsmod reload. */
     private static volatile Boolean externalOverride = null;
 
     /** Debug override hook — see {@link #externalOverride}. */
@@ -118,7 +146,8 @@ public final class AnniCommandRenderer {
     // ────────────────────────────────────────────────── not announced
 
     /** Spec §"If the next anni has not yet been announced" — prediction
-     *  window, registration status, role chips or registration nudge.
+     *  line, then, for a vets user, the registration block: role chips,
+     *  the fill-only explainer or the registration nudge.
      *
      *  External (non-vets) users get the lean form: a red "not yet
      *  announced" headline followed by the prediction line — no
@@ -336,7 +365,10 @@ public final class AnniCommandRenderer {
     /** Spec §"If the next anni has been announced and within the next 2h"
      *  — same body as {@link #renderFarOut} (assignment, attendance,
      *  RSVP, roles all keep showing — per user feedback the compressed
-     *  status row was an unnecessary divergence), plus the mode-switch
+     *  status row was an unnecessary divergence), except that the RSVP
+     *  line drops its upgrade prompt, since the slot cutoffs have passed
+     *  ({@code AnniStatusSections.rsvpSection} gates it on
+     *  {@code secondsUntil} itself), plus the mode-switch
      *  UI as its own {@code [VETSMOD]}-prefixed second block. The
      *  separately-badged "Change Anni Mode?" line is the user's main
      *  cue that they're within the hot window and can opt into the
@@ -472,7 +504,8 @@ public final class AnniCommandRenderer {
     }
 
     /** Coarse "Xh" / "Xm" countdown for the prediction line — minute
-     *  granularity is noise when the underlying window is ~10h wide,
+     *  granularity is noise when the underlying window is hours wide
+     *  (10.6h in the worked example on {@link #predictionLine}),
      *  and the user has asked the prediction stay in hours regardless
      *  of magnitude (so a far-future stamp reads "60664h from now"
      *  rather than getting compressed into days). */
@@ -488,8 +521,11 @@ public final class AnniCommandRenderer {
     }
 
     /** Standard-deviation uncertainty for the prediction line. Rounded
-     *  to whole hours so the typical ~3h reading drops cleanly into
-     *  "±~3h" without trailing precision noise. */
+     *  to the nearest hour so a reading such as the worked example's
+     *  σ ≈ 3.06h (see {@link #predictionLine}) drops cleanly into
+     *  "±~3h" without trailing precision noise. Below half an hour it
+     *  prints whole minutes instead (at least {@code 1min}), and zero
+     *  or less prints {@code 0h}. */
     // Package-private for unit tests. See AnniCommandRendererTest.
     static String formatUncertainty(double hours) {
         if (hours <= 0) return "0h";

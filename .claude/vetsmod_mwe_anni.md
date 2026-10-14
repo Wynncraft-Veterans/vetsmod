@@ -236,7 +236,7 @@ There is a fourth terminal state neither branch produces. `StampFetcher.legacyFa
 Three branches:
 - **Not announced** — header (or red headline for external) + prediction line + (if vets) the not-announced registration block. No board section here (no anni to be placed in).
 - **Far-out (T-2h+)** — header (link + "returns in Xh Ym (HH:MM, day d)") + Assigned Role *or* Eligible Roles + RSVP Type + Attendance Chance + Party Assignment + Host. Countdown resolution scales with magnitude (`AnniCommandRenderer.appendCountdown`): `≥ 1h → Xh Ym`, `< 1h ≥ 1m → Xm Ys`, `< 1m → Ys` — sub-hour readouts surface seconds. `AnniMotdRenderer.formatHours` uses a **different** ladder: one-decimal hours (`7.2h`) for anything ≥ 0.1 h (6 min), then `Xm YYs`, then `Ys`. It never emits `Xh Ym`; only the sub-6-minute tail coincides.
-- **Imminent (at or within 2h)** — the far-out test is `secondsUntil > TWO_HOURS_SECONDS`, so exactly 2h takes this branch. Same body as far-out + a second block with `Change Anni Mode? (Click:) / [Silent] | [Passive] | [Aggressive]`.
+- **Imminent (at or within 2h)** — the far-out test is `secondsUntil > TWO_HOURS_SECONDS`, so exactly 2h takes this branch. Same body as far-out, minus the RSVP upgrade prompt (`AnniStatusSections.rsvpSection` drops it at or below 2h), + a second block with `Change Anni Mode? (Click:) / [Silent] | [Passive] | [Aggressive]`.
 
 ### Not-announced registration block
 
@@ -262,9 +262,9 @@ The `externalOverride` field (settable via `/wv debug tree anni external <auto|t
 
 ### Prediction line
 
-`Prediction: <countdown> from now|overdue | <MMM d> @<HH:mm> ±~<σ>h` — gold label, yellow numerics, white-bold-pipe separator, gray italic uncertainty. The countdown comes from `formatCoarseHours` (hours only above 1h) and the qualifier flips from `from now` to `overdue` past the median; the uncertainty comes from `formatUncertainty`.
+`Prediction: <countdown> from now|overdue | <MMM d> @<HH:mm>±~<σ>` — gold label, yellow numerics, white-bold-pipe separator, gray italic uncertainty hugging the time. The countdown comes from `formatCoarseHours` (hours only above 1h) and the qualifier flips from `from now` to `overdue` past the median; the uncertainty comes from `formatUncertainty` (nearest hour as `Xh`; below half an hour `Xmin`, at least `1min`; zero or less `0h`).
 
-`σ = window_hours / √12` (~3.06h on the standard 10.6h Uniform window). NOT half-window — q0/q4 are misleading tails and ± in chat reads as standard deviation.
+`σ = window_hours / √12` (≈3.06h for the 10.6h Uniform window one observed snapshot carried; the window is read from each snapshot, so neither figure is a constant). NOT half-window — q0/q4 are misleading tails and ± in chat reads as standard deviation.
 
 Gated by `vetsAnniShowPrediction`. When that is on but `event.prediction()` is null — or any of `earliestEpoch()` / `medianEpoch()` / `latestEpoch()` is — `renderNotAnnounced` substitutes a gray `Prediction window unavailable — no recent anchor.` instead.
 
