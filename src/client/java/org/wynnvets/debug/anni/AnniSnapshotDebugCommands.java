@@ -26,7 +26,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 
 /**
- * The snapshot half of the {@code /wv debug tree anni} harness: the handlers that put a snapshot
+ * The snapshot part of the {@code /wv debug tree anni} harness: the handlers that put a snapshot
  * into {@link AnniSnapshotCache} by hand, write the cached one to disk, and pull a real one.
  *
  * <p>{@code snapshot inject} (inline JSON, a dump file or a bundled preset), {@code snapshot clear}
@@ -34,16 +34,16 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * {@code {NOW…}} tokens first. {@code snapshot refresh} and {@code guess} issue an
  * {@code anni_query} through {@link AnniQueryClient#query()}, whose response handler writes the
  * cache when the reply carries a snapshot. {@code snapshot dump} writes the cached snapshot under
- * the game directory, where {@code inject file} reads it back. Whatever these commands write lasts
- * only until the next pull that returns a snapshot, and inside the boss-bar window the snapshot
- * poller pulls on a schedule ({@code anni-poller-erases-injected-debug-state}).</p>
+ * the game directory, where {@code inject file} reads it back. Whatever these commands put in the
+ * cache lasts only until the next pull that returns a snapshot, and inside the boss-bar window the
+ * snapshot poller pulls on a schedule ({@code anni-poller-erases-injected-debug-state}).</p>
  *
  * <p>{@code external} and a successful {@code snapshot inject preset} write
  * {@code AnniCommandRenderer}'s external override.</p>
  *
  * <p>The dump's {@link Gson} keeps explicit nulls ({@code serializeNulls}), so a dump keeps the
- * nulls the wire format carries and {@code inject file} can load it back; {@code time}
- * round-trips the cached snapshot through the same instance.</p>
+ * nulls the wire format carries; {@code time} round-trips the cached snapshot through the same
+ * instance.</p>
  *
  * <p>Every handler opens with {@code AnniDebugCommands.requireDebug}. {@link #SNAPSHOTS_DIR}
  * resolves the game directory when this class initialises, which happens at a handler's first run
@@ -54,8 +54,10 @@ final class AnniSnapshotDebugCommands {
     // serializeNulls so dumps keep the explicit nulls the wire format
     // carries (server-side python json.dumps emits them; Gson drops null
     // fields by default). Not byte-equivalent: the dump is pretty-printed.
-    // Lets `inject file` round-trip a dump and lets a human-eye diff against
-    // the canonical /api/internal/anni-player/{uuid} response succeed.
+    // Lets a human-eye diff against the canonical
+    // /api/internal/anni-player/{uuid} response succeed. `inject file`
+    // loads a dump either way: Gson reads an absent field and a JSON null
+    // into the same AnniSnapshot.
     private static final Gson GSON =
             new GsonBuilder().setPrettyPrinting().serializeNulls().create();
 

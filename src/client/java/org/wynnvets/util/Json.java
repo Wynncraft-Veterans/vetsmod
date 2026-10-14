@@ -25,10 +25,10 @@ import org.wynnvets.logging.VetsLogger;
  * {@link org.wynnvets.debug.dump.ItemDumpHandler ItemDumpHandler}
  * ({@code + disableHtmlEscaping}) and
  * {@link org.wynnvets.debug.anni.AnniSnapshotDebugCommands AnniSnapshotDebugCommands}
- * ({@code + serializeNulls}, load-bearing for the anni debug round-trip and documented at its
- * own declaration). Folding any of them in here would change what it writes. <b>The accessors
- * below do not weaken that paragraph</b> &mdash; they read a {@link JsonObject} that is already
- * parsed and never touch a {@code Gson} at all.</p>
+ * ({@code + serializeNulls}, which keeps the wire format's explicit nulls in a dump and is
+ * documented at its own declaration). Folding any of them in here would change what it writes.
+ * <b>The accessors below do not weaken that paragraph</b> &mdash; they read a {@link JsonObject}
+ * that is already parsed and never touch a {@code Gson} at all.</p>
  *
  * <p>This class holds JSON policy and nothing else. In particular it constructs no
  * {@code HttpClient}, so a JSON-only code path never drags a transport construction into its

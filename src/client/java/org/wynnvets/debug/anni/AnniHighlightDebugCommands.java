@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 
 /**
- * The highlight half of the {@code /wv debug tree anni} harness: debug hooks for the S4 player
+ * The highlight part of the {@code /wv debug tree anni} harness: debug hooks for the S4 player
  * highlight overlay, that is {@code AnniOutlineRegistry} and {@code AnniOutlineTicker}'s gate.
  *
  * <p>{@code zone enter|exit} sets or removes the ticker's in-zone override, which only the

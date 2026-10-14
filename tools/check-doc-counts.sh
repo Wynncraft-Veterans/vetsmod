@@ -40,10 +40,12 @@
 # PATTERNS is a second, smaller manifest for counts no call-site grep can
 # see: occurrences of a fixed string on NON-comment lines of ONE file. It
 # exists for in-class call counts the header above rules out of MANIFEST,
-# e.g. the requireDebug(ctx) sites in AnniDebugCommands,
-# AnniSnapshotDebugCommands and AnniHighlightDebugCommands and the 5
-# requireStaffOrOrganiser(ctx) sites in AnniDebugCommands, which the class
-# docs state. Only use it for strings
+# e.g. the requireDebug(ctx) and 5 requireStaffOrOrganiser(ctx) sites in
+# AnniDebugCommands, which its class doc states. The qualified callers of
+# requireDebug are pinned here per file too, because the symbol is out of
+# MANIFEST: the AnniDebugCommands.requireDebug(ctx) calls in
+# AnniSnapshotDebugCommands and AnniHighlightDebugCommands, whose class
+# docs say every handler makes one. Only use it for strings
 # that never wrap across lines after spotlessApply: a method reference split
 # onto a continuation line is invisible to it (the text AnniDebugCommands::
 # does not match a handler reference that spotless split after the class name).

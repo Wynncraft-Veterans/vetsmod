@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
  * Javadoc states.
  *
  * <p>The commands themselves are not run here. Building the tree initialises
- * {@link AnniDebugSuggestions}, whose providers it reads, but none of the handler classes: a method
+ * {@link AnniDebugSuggestions}, whose providers it reads, but no sibling handler class: a method
  * reference does not initialise its target class until it is invoked. That matters for
  * {@link AnniSnapshotDebugCommands}, whose initialiser resolves the game directory and would throw
  * outside a launch.</p>

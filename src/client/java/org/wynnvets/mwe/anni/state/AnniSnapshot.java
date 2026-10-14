@@ -35,8 +35,8 @@ import org.wynnvets.util.Json;
  * {@code stamp_epoch} on the way back in, so a {@code TypeAdapter} is not an
  * optional nicety here — it is load-bearing for a debug command in another
  * package. Anyone proposing the conversion should price that in; the round-trip
- * is the part that is easy to miss, because it lives two packages away and
- * nothing at either end points at the other.</p>
+ * is the part that is easy to miss, because it lives in another package tree
+ * ({@code org.wynnvets.debug.anni}) and nothing there says it relies on the field naming.</p>
  */
 public final class AnniSnapshot {
 
