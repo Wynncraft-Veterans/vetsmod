@@ -6,7 +6,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Guild State System
 
-`GuildStateManager` is the central facade. It owns four collaborators: `GuildChecker` (guild membership), `StaffRankChecker` (captain+ detection), `UnlockManager` (bearer-key auth + legacy unlock markers), `SessionAuthWarning` (per-session nag for unauthenticated users).
+`GuildStateManager` is the central facade. It owns five collaborators: `GuildChecker` (guild membership), `StaffRankChecker` (captain+ detection), `UnlockManager` (bearer-key auth + legacy unlock markers), `SessionAuthWarning` (per-session nag for unauthenticated users), `WorldJoinAnnouncer` (the world-join MOTD and anni-stamp prints).
 
 ## 1. GuildStateManager facade
 

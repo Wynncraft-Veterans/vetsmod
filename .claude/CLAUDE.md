@@ -50,7 +50,7 @@ In any user-facing chat string emitted from vetsmod (i.e. anything sent via `Cha
 VetsmodClient (entry point)
   ├── VetsConfig              JSON config at vetsmod/storage/config.json
   ├── ItemDefinitions         YAML regex patterns (src/client/resources/definitions.yml)
-  ├── GuildStateManager       Facade: GuildChecker, StaffRankChecker, UnlockManager, SessionAuthWarning
+  ├── GuildStateManager       Facade: GuildChecker, StaffRankChecker, UnlockManager, SessionAuthWarning, WorldJoinAnnouncer
   ├── V1ApiManager            Dual WebSocket (inbound + outbound) to api.wynnvets.org
   │                           Sends `auth` frame after inbound connect using the stored /unlock key
   ├── OutboundDisplayHandler  Receives WS messages, deduplicates, displays in chat

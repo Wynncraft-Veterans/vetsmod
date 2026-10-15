@@ -31,8 +31,8 @@ import org.wynnvets.util.HttpClients;
  * <p>Two callers:</p>
  * <ul>
  *   <li>{@link #fetchStampAndCreateMessage()} — invoked by the world-join
- *       auto-display path ({@link org.wynnvets.guild.GuildStateManager#fetchAndDisplayStampMessage
- *       GuildStateManager#fetchAndDisplayStampMessage}). Prefers {@link AnniMotdRenderer}
+ *       auto-display path ({@link org.wynnvets.guild.WorldJoinAnnouncer#fetchAndDisplayStampMessage
+ *       WorldJoinAnnouncer#fetchAndDisplayStampMessage}). Prefers {@link AnniMotdRenderer}
  *       (snapshot-driven, condensed) when a cached snapshot is present <em>and</em> {@code
  *       vetsAnniEnabled} is true; otherwise falls back to {@link #fetchSimple()} — the legacy
  *       stamp-only text. This keeps the world-join behaviour for external users completely

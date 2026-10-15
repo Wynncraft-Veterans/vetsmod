@@ -12,8 +12,6 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.dispatcher.DispatchCoordinator;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
-import org.wynnvets.fetcher.ondemand.MotdFetcher;
-import org.wynnvets.fetcher.ondemand.StampFetcher;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
 
@@ -46,23 +44,11 @@ public class GuildStateManager {
 
     private static volatile String playerName = StringUtils.EMPTY;
 
-    // State tracking for MOTD to prevent duplicate fetches
-    private static volatile long lastMotdFetchTime = 0;
-    private static final long MOTD_FETCH_COOLDOWN_MS = 1_000L;
-
     // Delayed guild re-check, scheduled by onEnteredWorld() when Wynntils
     // reports no guild yet (its character-menu scan can land after world join).
     private static final long GUILD_RECHECK_DELAY_MS = 3_000L;
     private static final int GUILD_RECHECK_MAX_ATTEMPTS = 3;
     private static final long GUILD_RECHECK_INTERVAL_MS = 2_000L;
-
-    // Set when fetchAndDisplayMotd() starts either MOTD fetch (guild or
-    // standard); blocks onGuildInfoUpdated()'s re-fetch for the session.
-    private static volatile boolean guildMotdDisplayedThisSession = false;
-
-    // Set when a stamp fetch starts (whether or not anything is then shown);
-    // consulted only by onGuildInfoUpdated() and onGuildCheckCompleted().
-    private static volatile boolean stampDisplayedThisSession = false;
 
     // Whether the player has entered a world at least once since reset.
     private static volatile boolean enteredWorld = false;
@@ -498,13 +484,14 @@ public class GuildStateManager {
         SessionAuthWarning.scheduleOnceForThisSession();
 
         long currentTime = System.currentTimeMillis();
-        if (currentTime - lastMotdFetchTime > MOTD_FETCH_COOLDOWN_MS) {
-            lastMotdFetchTime = currentTime;
-            fetchAndDisplayMotd();
+        if (currentTime - WorldJoinAnnouncer.lastMotdFetchTime
+                > WorldJoinAnnouncer.MOTD_FETCH_COOLDOWN_MS) {
+            WorldJoinAnnouncer.lastMotdFetchTime = currentTime;
+            WorldJoinAnnouncer.fetchAndDisplayMotd();
         }
 
         if (isReturners()) {
-            fetchAndDisplayStampMessage();
+            WorldJoinAnnouncer.fetchAndDisplayStampMessage();
         }
 
         refreshStaffStatusIfNeeded(false);
@@ -566,17 +553,17 @@ public class GuildStateManager {
                 isReturners());
 
         if (isReturners()) {
-            if (!stampDisplayedThisSession) {
-                fetchAndDisplayStampMessage();
+            if (!WorldJoinAnnouncer.stampDisplayedThisSession) {
+                WorldJoinAnnouncer.fetchAndDisplayStampMessage();
             }
 
             // Only reached if onEnteredWorld's MOTD fetch never ran (e.g. no local
             // player yet). fetchAndDisplayMotd() sets guildMotdDisplayedThisSession for
             // the standard MOTD too, deliberately, so a guild confirmation that lands
             // after world join does not print a second MOTD.
-            if (enteredWorld && !guildMotdDisplayedThisSession) {
+            if (enteredWorld && !WorldJoinAnnouncer.guildMotdDisplayedThisSession) {
                 VetsLogger.debug("Guild info now available — re-fetching guild MOTD");
-                fetchAndDisplayMotd();
+                WorldJoinAnnouncer.fetchAndDisplayMotd();
             }
 
             // Re-register now that guild membership is confirmed.
@@ -587,100 +574,6 @@ public class GuildStateManager {
         // guild scan landing after world join, seen by the recheck poll);
         // re-evaluate the default anni mode for still-unset users.
         AnniModeManager.applyStartupDefaultIfNeeded();
-    }
-
-    private static void fetchAndDisplayMotd() {
-        // Check if auto-messages are enabled (global gate)
-        if (!VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE)) {
-            VetsLogger.debug("Auto-messages disabled, skipping MOTD");
-            return;
-        }
-
-        // Check if MOTD printing is enabled (user toggle)
-        if (!VetsConfig.get(VetsConfigKeys.PRINT_MOTD)) {
-            VetsLogger.debug("printMOTD disabled, skipping MOTD");
-            return;
-        }
-
-        VetsLogger.debug("Fetching MOTD");
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
-
-        if (player != null) {
-            // Mark MOTD as shown now — prevents onGuildInfoUpdated() from re-fetching
-            // if guild info arrives after WorldStateEvent.WORLD (race condition).
-            guildMotdDisplayedThisSession = true;
-
-            // Use guild MOTD for eligible users (Returners, waitlist-unlocked, honourary-unlocked)
-            boolean useGuildMotd =
-                    isReturners()
-                            || (isGuildless() && isWaitlistUnlocked())
-                            || isHonouraryUnlocked();
-
-            // Use NewBlock so the motd gets a fresh full [VETSMOD] badge and stays
-            // visually separate from the anni-motd block rather than collapsing into
-            // one compact-badged run. The two are fetched independently and print in
-            // completion order (world-join-motd-and-anni-motd-print-in-completion-order).
-            if (useGuildMotd) {
-                MotdFetcher.fetchGuildMotd()
-                        .thenAccept(
-                                guildMotdComponent -> {
-                                    String text = guildMotdComponent.getString();
-                                    if (text != null && !text.isEmpty()) {
-                                        ChatUtils.sendLocalMessageNewBlock(guildMotdComponent);
-                                    } else {
-                                        // Fall back to standard MOTD if guild MOTD is empty
-                                        MotdFetcher.fetchMotd()
-                                                .thenAccept(
-                                                        motdComponent -> {
-                                                            ChatUtils.sendLocalMessageNewBlock(
-                                                                    motdComponent);
-                                                        });
-                                    }
-                                });
-            } else {
-                MotdFetcher.fetchMotd()
-                        .thenAccept(
-                                motdComponent -> {
-                                    ChatUtils.sendLocalMessageNewBlock(motdComponent);
-                                });
-            }
-        }
-    }
-
-    /**
-     * Fetch and display the annihilation stamp message (if applicable)
-     */
-    private static void fetchAndDisplayStampMessage() {
-        // Check if auto-messages are enabled (global gate)
-        if (!VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE)) {
-            VetsLogger.debug("Auto-messages disabled, skipping stamp");
-            return;
-        }
-
-        // Check if annihilation printing is enabled (user toggle)
-        if (!VetsConfig.get(VetsConfigKeys.PRINT_ANNI)) {
-            VetsLogger.debug("printANNI disabled, skipping stamp");
-            return;
-        }
-
-        VetsLogger.debug("Fetching annihilation stamp");
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
-
-        if (player != null) {
-            stampDisplayedThisSession = true;
-            StampFetcher.fetchStampAndCreateMessage()
-                    .thenAccept(
-                            stampMessage -> {
-                                if (stampMessage != null) {
-                                    VetsLogger.debug("Displaying annihilation countdown");
-                                    // NewBlock so the anni-motd gets a fresh full [VETSMOD] badge,
-                                    // separate from the motd block.
-                                    ChatUtils.sendLocalMessageNewBlock(stampMessage);
-                                }
-                            });
-        }
     }
 
     /** Local-only outcome of running {@code /unlock &lt;key&gt;}. The eventual
@@ -904,7 +797,7 @@ public class GuildStateManager {
             // Don't call onGuildInfoUpdated() here as it clears GuildChecker.
             // Just re-evaluate dependent state directly.
             if (isReturners()) {
-                fetchAndDisplayStampMessage();
+                WorldJoinAnnouncer.fetchAndDisplayStampMessage();
             }
             sendRegistrationIfReady();
         }
@@ -938,9 +831,9 @@ public class GuildStateManager {
      * kept.
      */
     public static void reset() {
-        lastMotdFetchTime = 0;
-        guildMotdDisplayedThisSession = false;
-        stampDisplayedThisSession = false;
+        WorldJoinAnnouncer.lastMotdFetchTime = 0;
+        WorldJoinAnnouncer.guildMotdDisplayedThisSession = false;
+        WorldJoinAnnouncer.stampDisplayedThisSession = false;
         enteredWorld = false;
         V1ApiManager.clearRegistration();
         StaffRankChecker.reset();
@@ -960,8 +853,9 @@ public class GuildStateManager {
 
         sendRegistrationIfReady();
 
-        if (result == GuildChecker.GuildCheckResult.RETURNERS && !stampDisplayedThisSession) {
-            fetchAndDisplayStampMessage();
+        if (result == GuildChecker.GuildCheckResult.RETURNERS
+                && !WorldJoinAnnouncer.stampDisplayedThisSession) {
+            WorldJoinAnnouncer.fetchAndDisplayStampMessage();
         }
     }
 

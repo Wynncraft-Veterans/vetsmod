@@ -375,7 +375,7 @@ boss bar says.
 
 ## anni-motd (world-join)
 
-Entry: `GuildStateManager.fetchAndDisplayStampMessage` → `StampFetcher.fetchStampAndCreateMessage` → `AnniMotdRenderer.render`.
+Entry: `WorldJoinAnnouncer.fetchAndDisplayStampMessage` → `StampFetcher.fetchStampAndCreateMessage` → `AnniMotdRenderer.render`.
 
 Two lines after a full `[VETSMOD]` badge (uses `sendLocalMessageNewBlock` so it doesn't collapse into the guild motd's badge):
 
