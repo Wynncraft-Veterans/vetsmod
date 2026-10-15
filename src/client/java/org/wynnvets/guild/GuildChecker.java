@@ -22,14 +22,17 @@ import org.wynnvets.logging.VetsLogger;
  * etc.). A concurrent {@code /gu rank} reply can still arrive mid-check, which
  * {@link #isStaffRankCheckResponse(String)} guards against.</p>
  *
- * <p>This class is package-private. Outside the package it is reached through
- * {@link GuildStateManager}'s facade methods; {@link GuildLifecycle} also calls it directly.</p>
+ * <p>The class, its result enum and the members the forced guild check uses are public, for
+ * {@link org.wynnvets.debug.diagnostics.GuildDiagnostics GuildDiagnostics} in another package;
+ * everything else is package-private or private. Within the package,
+ * {@link GuildStateManager}'s facade methods and {@link GuildLifecycle} call it directly.</p>
  */
-final class GuildChecker {
+public final class GuildChecker {
 
     // ── Result enum ────────────────────────────────────────────────────
 
-    enum GuildCheckResult {
+    // Public for GuildDiagnostics, which reports the cached result.
+    public enum GuildCheckResult {
         UNKNOWN(0),
         RETURNERS(1),
         OTHER_GUILD(2),
@@ -91,17 +94,20 @@ final class GuildChecker {
     /**
      * @return {@code true} when a non-expired check result is available
      */
-    static boolean hasValidResult() {
+    // Public for GuildDiagnostics, which reports whether the result has expired.
+    public static boolean hasValidResult() {
         if (cachedResult == GuildCheckResult.UNKNOWN) return false;
         long elapsed = System.currentTimeMillis() - lastGuildCheckTime;
         return elapsed >= 0 && elapsed < GUILD_CHECK_EXPIRY_MS;
     }
 
-    static GuildCheckResult getResult() {
+    // Public for GuildDiagnostics, which reports the cached result.
+    public static GuildCheckResult getResult() {
         return cachedResult;
     }
 
-    static long getLastCheckTime() {
+    // Public for GuildDiagnostics, which reports the result's age.
+    public static long getLastCheckTime() {
         return lastGuildCheckTime;
     }
 
@@ -173,7 +179,8 @@ final class GuildChecker {
      *
      * @return {@code true} if a check was started
      */
-    static synchronized boolean refreshGuildStatus() {
+    // Public for GuildDiagnostics, which starts a check on demand.
+    public static synchronized boolean refreshGuildStatus() {
         if (waitingForGuildCheck) {
             return false;
         }

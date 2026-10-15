@@ -2,14 +2,11 @@ package org.wynnvets.guild;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.models.guild.type.GuildRank;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import org.apache.commons.lang3.StringUtils;
 import org.wynnvets.api.V1ApiManager;
-import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.logging.VetsLogger;
 
 /**
  * Central authority for the player's guild membership, staff rank, and
@@ -520,125 +517,15 @@ public class GuildStateManager {
     }
 
     /**
-     * Reads guild membership and rank from Wynntils' {@code Models.Guild}
-     * and reports them to chat alongside vetsmod's own guild and staff
-     * state.  If Wynntils reports a guild, re-evaluates dependent state
-     * directly; it deliberately does not call {@link GuildLifecycle#onGuildInfoUpdated()},
-     * which would clear {@code GuildChecker}.  Then forces a staff rank
-     * refresh and starts our own {@code /gu stats} guild check, each
-     * skipped if one is already in flight.
-     *
-     * <p>Intended for use from {@code /wv debug trigger forceChecks}.</p>
-     */
-    public static void forceGuildRecheck() {
-        if (!wynntilsReady) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Wynntils is not ready yet — cannot check guild state.")
-                            .withStyle(ChatFormatting.RED));
-            return;
-        }
-
-        String guildName = Models.Guild.getGuildName();
-        boolean inGuild = Models.Guild.isInGuild();
-        GuildRank rank = Models.Guild.getGuildRank();
-
-        ChatUtils.sendLocalMessage(
-                Component.literal("Force Guild Check Results:").withStyle(ChatFormatting.GOLD));
-
-        sendDiagLine(
-                "Wynntils Guild Name",
-                guildName.isEmpty() ? "(empty)" : guildName,
-                guildName.isEmpty() ? ChatFormatting.RED : ChatFormatting.GREEN);
-        sendDiagLine(
-                "Wynntils isInGuild",
-                String.valueOf(inGuild),
-                inGuild ? ChatFormatting.GREEN : ChatFormatting.RED);
-        sendDiagLine(
-                "Wynntils Guild Rank",
-                rank == null ? "(null)" : rank.name(),
-                rank == null ? ChatFormatting.RED : ChatFormatting.GREEN);
-
-        // GuildChecker state
-        GuildChecker.GuildCheckResult gcResult = GuildChecker.getResult();
-        boolean gcValid = GuildChecker.hasValidResult();
-        long gcAge =
-                GuildChecker.getLastCheckTime() > 0
-                        ? (System.currentTimeMillis() - GuildChecker.getLastCheckTime()) / 1000
-                        : -1;
-
-        sendDiagLine(
-                "GuildChecker result",
-                gcResult.name() + (gcValid ? "" : " (expired)"),
-                gcValid ? ChatFormatting.GREEN : ChatFormatting.RED);
-        if (gcAge >= 0) {
-            String ageStr =
-                    gcAge < 3600
-                            ? gcAge + "s"
-                            : gcAge < 86400 ? (gcAge / 3600) + "h" : (gcAge / 86400) + "d";
-            sendDiagLine("GuildChecker age", ageStr, ChatFormatting.AQUA);
-        }
-
-        sendDiagLine(
-                "VetsMod isReturners",
-                String.valueOf(isReturners()),
-                isReturners() ? ChatFormatting.GREEN : ChatFormatting.RED);
-        sendDiagLine(
-                "VetsMod isGuildless",
-                String.valueOf(isGuildless()),
-                isGuildless() ? ChatFormatting.YELLOW : ChatFormatting.GREEN);
-        sendDiagLine(
-                "VetsMod isStaff",
-                String.valueOf(isStaff()),
-                isStaff() ? ChatFormatting.GREEN : ChatFormatting.GRAY);
-        sendDiagLine(
-                "VetsMod selfStaffRank",
-                selfStaffRank().isEmpty() ? "(none)" : selfStaffRank(),
-                ChatFormatting.AQUA);
-
-        // Trigger guild info update path without clearing GuildChecker: only
-        // onGuildInfoUpdated() clears it (Wynntils' guild events and the
-        // post-world-join recheck poll), and a forced recheck is neither.
-        if (inGuild) {
-            VetsLogger.info("forceGuildRecheck: Wynntils has guild info, re-evaluating");
-            // Don't call onGuildInfoUpdated() here as it clears GuildChecker.
-            // Just re-evaluate dependent state directly.
-            if (isReturners()) {
-                WorldJoinAnnouncer.fetchAndDisplayStampMessage();
-            }
-            sendRegistrationIfReady();
-        }
-
-        // Force staff rank refresh regardless of cooldown
-        boolean staffRefreshStarted = refreshStaffStatusIfNeeded(true);
-        sendDiagLine(
-                "Staff rank refresh",
-                staffRefreshStarted ? "started" : "already in progress",
-                staffRefreshStarted ? ChatFormatting.GREEN : ChatFormatting.YELLOW);
-
-        // Run our own /gu stats check whatever moreReliableGuildCheck says
-        // (skipped if one is already in flight)
-        boolean guildCheckStarted = GuildChecker.refreshGuildStatus();
-        sendDiagLine(
-                "Guild check (/gu stats)",
-                guildCheckStarted ? "started" : "already in progress",
-                guildCheckStarted ? ChatFormatting.GREEN : ChatFormatting.YELLOW);
-    }
-
-    private static void sendDiagLine(String label, String value, ChatFormatting color) {
-        ChatUtils.sendLocalMessage(
-                Component.literal("  " + label + ": ")
-                        .withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(value).withStyle(color)));
-    }
-
-    /**
      * Send a presence registration to the server if the player is eligible.
      *
      * <p>Determines the player's tier (guild / waitlist / honourary) and sends
      * a {@code register} frame via the inbound WebSocket.  The payload is
      * cached inside {@link V1ApiManager} so it is automatically re-sent on
      * reconnect.  Called from {@link GuildLifecycle#onEnteredWorld()},
-     * {@link GuildLifecycle#onGuildInfoUpdated()}, {@link #forceGuildRecheck()},
+     * {@link GuildLifecycle#onGuildInfoUpdated()},
+     * {@link org.wynnvets.debug.diagnostics.GuildDiagnostics#forceGuildRecheck()
+     * GuildDiagnostics#forceGuildRecheck()},
      * {@link GuildLifecycle#onGuildCheckCompleted()} and
      * {@link org.wynnvets.guild.UnlockManager#onAuthSuccess UnlockManager#onAuthSuccess}
      * &mdash; five callers. {@link #tryUnlock} is <b>not</b> one of them; it is a

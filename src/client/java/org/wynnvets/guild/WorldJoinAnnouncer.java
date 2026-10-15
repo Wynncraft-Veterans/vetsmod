@@ -19,7 +19,7 @@ import org.wynnvets.logging.VetsLogger;
  * when its fetch starts, keeps the later guild callbacks from starting that print again on the
  * same connection. A disconnect clears the timestamp and the flags.</p>
  */
-final class WorldJoinAnnouncer {
+public final class WorldJoinAnnouncer {
 
     // State tracking for MOTD to prevent duplicate fetches
     // Package-private for GuildLifecycle, which sets it on world join and clears it on reset.
@@ -104,8 +104,8 @@ final class WorldJoinAnnouncer {
     /**
      * Fetch and display the annihilation stamp message (if applicable)
      */
-    // Package-private for GuildLifecycle and GuildStateManager.forceGuildRecheck, which call it.
-    static void fetchAndDisplayStampMessage() {
+    // Public for GuildDiagnostics, whose forced recheck reprints it. GuildLifecycle calls it too.
+    public static void fetchAndDisplayStampMessage() {
         // Check if auto-messages are enabled (global gate)
         if (!VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE)) {
             VetsLogger.debug("Auto-messages disabled, skipping stamp");

@@ -17,8 +17,8 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.debug.anni.AnniDebugCommands;
 import org.wynnvets.debug.diagnostics.DiagnosticsHandler;
+import org.wynnvets.debug.diagnostics.GuildDiagnostics;
 import org.wynnvets.debug.dump.TabDumpHandler;
-import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.util.ConfigValueText;
 import org.wynnvets.util.ConfigValueText.Form;
 import org.wynnvets.util.ConfigValueText.Verb;
@@ -323,11 +323,10 @@ public final class DebugCommands {
      * alongside vetsmod's own guild and staff state, then forces a
      * staff-rank refresh and starts vetsmod's own {@code /gu stats} guild
      * check (each skipped if one is already in flight). Delegates to
-     * {@link org.wynnvets.guild.GuildStateManager#forceGuildRecheck()
-     * GuildStateManager#forceGuildRecheck()}.
+     * {@link GuildDiagnostics#forceGuildRecheck()}.
      */
     private static int triggerForceChecks(CommandContext<FabricClientCommandSource> ctx) {
-        GuildStateManager.forceGuildRecheck();
+        GuildDiagnostics.forceGuildRecheck();
         return 1;
     }
 

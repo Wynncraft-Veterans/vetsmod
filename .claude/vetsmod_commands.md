@@ -109,7 +109,7 @@ Public. Tree built in [DebugCommands.buildCommandTree()](../src/client/java/org/
 - `/wv debug set` — list debug config keys
 - `/wv debug set <key> [value]` — get/set debug key (e.g. `itemDump`)
 - `/wv debug trigger charDump` — render PUA glyphs `\uE001-\uE040` in `chat/prefix` font, 8 per line
-- `/wv debug trigger forceChecks` — force guild/rank/staff re-check via `GuildStateManager.forceGuildRecheck()`
+- `/wv debug trigger forceChecks` — force guild/rank/staff re-check via `GuildDiagnostics.forceGuildRecheck()`
 - `/wv debug trigger tabDump` — `TabDumpHandler.execute()`
 - `/wv debug trigger bossBarsDump` — snapshot of vanilla's `BossHealthOverlay#events` map, read through `BossHealthOverlayAccessor`: a header (entry count, `VetsBossBarManager.isActive`), then three chat lines per bar — index / short UUID / `← OURS` marker, colour / overlay / progress / darken-music-fog flags, and the raw name component.
 - `/wv debug trigger nametagsDump` — a header of `outlineSuppressionActive` / `vetsAnniNametagsEnabled` / `vetsAnniOutlinesEnabled` and a player count, then one line per player in `level.players()`: `AnniOutlineRegistry` hit/miss, tier, role, and the colour `NametagMixin`'s anni branch would resolve right now. Reads the registry directly; it does not observe the mixin or `state.nameTag`.

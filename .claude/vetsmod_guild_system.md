@@ -31,7 +31,6 @@ Key public methods (all package-level or client-facing):
 | `playerName()` | Local player username |
 | `selfStaffRank()` | "captain"/"strategist"/"chief"/"owner" |
 | `loadPersistedState()` | Restore from `VetsConfig` on startup |
-| `forceGuildRecheck()` | Debug forced recheck |
 | `refreshStaffStatusIfNeeded(forceRefresh)` | Staff rank refresh |
 | `sendRegistrationIfReady()` | Push presence frame on inbound WS |
 
@@ -42,6 +41,8 @@ Key public methods (all package-level or client-facing):
 | `onEnteredWorld()` | World-join trigger; schedules SessionAuthWarning |
 | `onGuildInfoUpdated()` | Wynntils `GuildEvent` callback; also called by the post-world-join recheck poll |
 | `reset()` | Disconnect reset of the per-connection state |
+
+`/wv debug trigger forceChecks`'s readout is [GuildDiagnostics](../src/client/java/org/wynnvets/debug/diagnostics/GuildDiagnostics.java)`.forceGuildRecheck()`, in `org.wynnvets.debug.diagnostics`.
 
 ### Guild membership flow on world join
 
@@ -177,7 +178,7 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 ## 8. Edge cases
 
 - **Returners guild members need to /unlock** under the new system once the server's `unauth` toggle is off. While it is on, unauthenticated sessions are exempt from the tier gate (back-compat); when it is off, their chat frames are rejected. Authenticated sessions can only send the chat types their tier allows. Pre-migration users discover this via the SessionAuthWarning.
-- **`forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears **neither** cache — it prints diagnostics and re-runs both checks (`refreshStaffStatusIfNeeded(true)` and `GuildChecker.refreshGuildStatus()`). Not clearing is deliberate and commented twice in `GuildStateManager`: `GuildChecker` is cleared only by `onGuildInfoUpdated()`, which fires from Wynntils' `GuildEvent.Joined`/`.Left` handlers and from the post-world-join recheck poll once guild info turns up. It also does *not* re-auth; that happens automatically on every inbound WS reconnect.
+- **`GuildDiagnostics.forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears **neither** cache — it prints diagnostics and re-runs both checks (`refreshStaffStatusIfNeeded(true)` and `GuildChecker.refreshGuildStatus()`). Not clearing is deliberate and commented twice in `GuildDiagnostics`: `GuildChecker` is cleared only by `onGuildInfoUpdated()`, which fires from Wynntils' `GuildEvent.Joined`/`.Left` handlers and from the post-world-join recheck poll once guild info turns up. It also does *not* re-auth; that happens automatically on every inbound WS reconnect.
 - **Wynntils `GuildEvent`** is authoritative — when it fires, `GuildChecker` cache is invalidated.
 - **`/gu stats` vs Wynntils** — a valid `/gu stats` result (`GuildChecker`) takes precedence; Wynntils' `Models.Guild` is the live fallback while there is none. Wynntils usually lands first in time. `MORE_RELIABLE_GUILD_CHECK` schedules the `/gu stats` check that refreshes the cache.
 - **Rotating a leaked key:** a staff member runs dazebot's staff-only `/change rotate key <target>` (users cannot self-rotate); the old key fails introspection on the next WS connect (subject to temporary-server's 60 s introspection cache). The mod surfaces the failure via `onAuthFailure()` and the SessionAuthWarning prompts them to `/unlock` again.
