@@ -9,23 +9,28 @@ import org.apache.commons.lang3.StringUtils;
 import org.wynnvets.api.V1ApiManager;
 
 /**
- * Central authority for the player's guild membership, staff rank, and
- * feature-gate state.
+ * The player's guild, staff and unlock status: whether they are a Returner, guildless, unlocked
+ * or eligible for the enriched vets-anni experience, their staff standing and bearer-key auth
+ * state, and the presence registration those decide.
  *
  * <p>Reads guild affiliation from two sources. vetsmod's own {@code /gu stats} check
  * ({@link GuildChecker}, persisted) wins while its result is valid; otherwise it is read
  * live from Wynntils' {@code Models.Guild}, which Wynntils fills from its character-info
- * menu scan and from guild join/leave chat lines. World-join triggers are
- * provided by {@link org.wynnvets.listeners.WynntilsEventListener} via
- * {@code WorldStateEvent}. Returners membership is one route through vetsmod's feature
- * gates; a waitlist or honourary unlock ({@link #isWaitlistUnlocked()},
+ * menu scan and from guild join/leave chat lines. Returners membership is one route through
+ * vetsmod's feature gates; a waitlist or honourary unlock ({@link #isWaitlistUnlocked()},
  * {@link #isHonouraryUnlocked()}) is another, and each feature chooses which of the
  * predicates below it gates on.</p>
  *
  * <p>Delegates staff-rank detection to {@link StaffRankChecker}, the {@code /gu stats}
  * guild check to {@link GuildChecker}, and bearer-key auth state (with the legacy unlock
- * markers) to {@link UnlockManager}. Those three are package-private, so callers outside
- * this package go through this class's facade methods.</p>
+ * markers) to {@link UnlockManager}. Callers outside this package reach the three through this
+ * class or through {@link GuildLifecycle}, which calls them directly, except that
+ * {@link org.wynnvets.debug.diagnostics.GuildDiagnostics GuildDiagnostics} calls
+ * {@code GuildChecker} itself, to read its result and start a check.</p>
+ *
+ * <p>The world-join flow and the disconnect reset are {@link GuildLifecycle}'s, the world-join
+ * MOTD and anni-stamp prints are {@link WorldJoinAnnouncer}'s, and the
+ * {@code /wv debug trigger forceChecks} readout is {@code GuildDiagnostics}'.</p>
  */
 public class GuildStateManager {
 
@@ -502,8 +507,8 @@ public class GuildStateManager {
 
     /** @return the tier from the latest ok auth ack (e.g. {@code "member"},
      *  {@code "waitlist"}, {@code "honourary"}, {@code "other"}), or empty string when
-     *  none is standing: not yet authenticated, or cleared by an auth failure or a newly
-     *  stored {@code /unlock} key. */
+     *  none is standing: not yet authenticated, or cleared by an auth failure, a newly
+     *  stored {@code /unlock} key or a disconnect. */
     public static String currentAuthTier() {
         return UnlockManager.currentTier();
     }
