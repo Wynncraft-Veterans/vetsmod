@@ -23,10 +23,11 @@ public final class MessageBodyFormatter {
 
     private static final String GUILD_PREPEND_FULL =
             "\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
-    // Package-private for ChatUtils.wrapBlockMessage, which prefixes continuation lines with it.
+    // Package-private for LocalChatDispatch, which prefixes wrapped continuation lines with it.
     static final String GUILD_PREPEND_COMPACT = "\uDAFF\uDFFC\uE001\uDB00\uDC06";
     private static final String PRIVATE_SEPARATOR_GLYPH = "\uE003";
-    // Package-private for ChatUtils.wrapBlockMessage, which draws the continuation marker in it.
+    // Package-private for LocalChatDispatch, which draws the continuation marker of wrapped lines
+    // in it.
     static final Style CHAT_PREFIX_STYLE =
             Style.EMPTY
                     .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
@@ -99,8 +100,9 @@ public final class MessageBodyFormatter {
                     cursor++;
                 }
                 // Consume any additional marker+space pairs so that only one
-                // continuation bar would be rendered after ChatUtils.wrapBlockMessage()
-                // re-wraps, if this branch could run (see the note above).
+                // continuation bar would be rendered after
+                // LocalChatDispatch.wrapBlockMessage() re-wraps, if this branch could run
+                // (see the note above).
                 while (cursor < bodyText.length()) {
                     MarkerMatch extra = nextPrefixMarker(bodyText, cursor);
                     if (extra == null || extra.index != cursor) {
@@ -165,8 +167,8 @@ public final class MessageBodyFormatter {
                 // The server appears to sometimes emit multiple consecutive markers on
                 // continuation lines (e.g. "\n<compact> <compact> text"); consume any
                 // additional marker+space pairs so only one continuation bar is rendered
-                // after ChatUtils.wrapBlockMessage() re-wraps. (Server-side behaviour,
-                // unverified.)
+                // after LocalChatDispatch.wrapBlockMessage() re-wraps. (Server-side
+                // behaviour, unverified.)
                 while (cursor < text.length()) {
                     MarkerMatch extra = nextPrefixMarker(text, cursor);
                     if (extra == null || extra.index != cursor) {

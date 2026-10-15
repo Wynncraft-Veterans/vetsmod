@@ -23,7 +23,7 @@ The vetsmod chat system is a multi-stage pipeline that intercepts each chat mess
 `@Mixin(ChatComponent.class) @Inject(method="addMessage", at=@At("HEAD"), cancellable=true)` — runs in order:
 
 1. `StreamerModeChatDetector.observe(message)` — runs first, before any logging
-2. `ChatLogger.logMessage(...)` unless `ChatUtils.isInternalDispatch()` is true (the `INTERNAL_CHAT_DISPATCH` ThreadLocal is private to `ChatUtils`; the mixin reads it through that accessor)
+2. `ChatLogger.logMessage(...)` unless `LocalChatDispatch.isInternalDispatch()` is true (the `INTERNAL_CHAT_DISPATCH` ThreadLocal is private to `LocalChatDispatch`; the mixin reads it through that accessor)
 3. `GuildStateManager.processGuildCheckMessage(msg)` (pulls `/gu stats` responses out of chat)
 4. Compute `isStaffRankCheck` = `GuildStateManager.isProcessingModStaffRankCheck()` AND the line looks like a staff-rank-check response
 5. `GuildStateManager.processMessage(message, messageString)` — unconditional, and it runs *before* the suppression below, so a suppressed rank-check line is still processed
@@ -155,17 +155,12 @@ Flow: a `warning` frame → `WarningFrameRenderer.render`, skipping every step a
 
 [ChatUtils](../src/client/java/org/wynnvets/chat/ChatUtils.java)
 
-Key methods (`wrapBlockMessage` is a private helper, not an entry point):
+Key methods:
 - `sendGuildChatMessage()` — `<badge> <pill> <username>: <body>`
 - `sendGuildChatMessageRed()` — red guild-chat styling; reached only through `sendStaffChannelMessage()` (the `/v` staff-channel look)
 - `sendStaffChannelMessage()` — staff-style with special pill
-- `wrapBlockMessage()` — word-wrap with continuation block markers
-- `dispatchToChat()` — thread-safe dispatch
-- `dispatchAnimatedChat()` — dispatch with gradient animation context
 
 Styles: `RANK_STYLE` = aqua, `NAME_STYLE` = dark aqua, `ADMIN_RANK_STYLE` = red.
-
-`INTERNAL_CHAT_DISPATCH` ThreadLocal marks mod-generated messages (skip re-logging + rewriter chain).
 
 ### MessageBodyFormatter
 
@@ -183,6 +178,17 @@ URL regex (`URL_PATTERN`, case-insensitive): `(?<!§)(https?://\S+|[A-Za-z0-9][A
 ### LegacyTextParser
 
 [LegacyTextParser](../src/client/java/org/wynnvets/chat/LegacyTextParser.java)`.literalWithUrls()` builds a component from text carrying legacy `§` codes (the MOTD bodies `MotdFetcher` fetches): each code styles the text after it, and URLs and encoded spoilers go through `MessageBodyFormatter`'s URL and spoiler handling. A colour code resets to the base style plus the colour, where vanilla clears the format flags; the two agree when the base style carries none.
+
+### LocalChatDispatch
+
+[LocalChatDispatch](../src/client/java/org/wynnvets/chat/LocalChatDispatch.java) puts a built line on the chat HUD: `ChatUtils`' senders hand their lines to it, and the rewriters that rebuild a whole line call it directly.
+
+Key methods (`wrapBlockMessage` is a private helper, not an entry point):
+- `wrapBlockMessage()` — word-wrap with continuation block markers
+- `dispatchToChat()` — thread-safe dispatch
+- `dispatchAnimatedChat()` — dispatch with gradient animation context
+
+`INTERNAL_CHAT_DISPATCH` ThreadLocal marks mod-generated messages (skip re-logging + rewriter chain).
 
 ## 7. PillFormatter
 
@@ -266,7 +272,7 @@ Rank-letter glyphs aren't `chat/prefix`: vetsmod's own pills render in the defau
 
 ## 13. Thread safety
 
-`ChatLogMixin` and its rewriter chain run on the render thread. `WarningFrameRenderer.render` and `StaffGuildAlertRewriter.tryRewriteOutbound` do not: `OutboundDisplayHandler` calls them on the thread that delivers the outbound socket's frames, and their output reaches chat only through `ChatUtils`' own `Minecraft.execute` bounce to the render thread. `DispatchCoordinator` serializes the `/v` fan-out and the `/find` lookups on a single-threaded executor; each command itself is queued from the render thread. Suppression state protected by `Object` locks (`SUPPRESSION_ACK_LOCK`, `FIND_RESPONSE_LOCK`). Dedup caches are plain collections read and written inside `synchronized` blocks (`OutboundDisplayHandler`'s three each have their own lock object).
+`ChatLogMixin` and its rewriter chain run on the render thread. `WarningFrameRenderer.render` and `StaffGuildAlertRewriter.tryRewriteOutbound` do not: `OutboundDisplayHandler` calls them on the thread that delivers the outbound socket's frames, and their output reaches chat only through `LocalChatDispatch`'s own `Minecraft.execute` bounce to the render thread. `DispatchCoordinator` serializes the `/v` fan-out and the `/find` lookups on a single-threaded executor; each command itself is queued from the render thread. Suppression state protected by `Object` locks (`SUPPRESSION_ACK_LOCK`, `FIND_RESPONSE_LOCK`). Dedup caches are plain collections read and written inside `synchronized` blocks (`OutboundDisplayHandler`'s three each have their own lock object).
 
 ## 14. Feature gates
 

@@ -62,7 +62,7 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * {@link Minecraft#execute(Runnable)}; each calls
  * {@link ChatUtils#sendLocalMessage(Component)} directly. <b>That is safe from
  * any thread, and not because of anything in this class:</b>
- * {@code sendLocalMessage} delegates to {@code ChatUtils.dispatchToChat}, which
+ * {@code sendLocalMessage} delegates to {@code LocalChatDispatch.dispatchToChat}, which
  * wraps the {@code displayClientMessage} call in {@code minecraft.execute(...)}
  * unconditionally. There is no path around it. So the chat write is already on
  * the main thread one frame below every emitter, and a new emitter added here

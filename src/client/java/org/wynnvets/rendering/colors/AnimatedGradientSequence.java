@@ -95,10 +95,11 @@ public class AnimatedGradientSequence implements FormattedCharSequence {
 
     /** Write-only by decision: set by {@link #beginAnimation} and cleared by
      *  {@link #endAnimation}, never read. The accessor that read it had no callers and was removed;
-     *  the pair itself stays because {@link org.wynnvets.chat.ChatUtils#dispatchAnimatedChat
-     *  ChatUtils#dispatchAnimatedChat} calls endAnimation() from the same finally block that
-     *  restores INTERNAL_CHAT_DISPATCH, so collapsing them would strand that ThreadLocal true and
-     *  make every later chat line look mod-generated. */
+     *  the pair itself stays because
+     *  {@link org.wynnvets.chat.LocalChatDispatch#dispatchAnimatedChat
+     *  LocalChatDispatch#dispatchAnimatedChat} calls endAnimation() from the same finally block
+     *  that restores INTERNAL_CHAT_DISPATCH, so collapsing them would strand that ThreadLocal
+     *  true and make every later chat line look mod-generated. */
     private static final ThreadLocal<AnimConfig> CURRENT_CONFIG = new ThreadLocal<>();
 
     /** Sets the animation parameters for the current thread. */

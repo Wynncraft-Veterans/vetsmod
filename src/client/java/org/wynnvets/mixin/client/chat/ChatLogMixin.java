@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.wynnvets.chat.ChatLogger;
-import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.LocalChatDispatch;
 import org.wynnvets.chat.dispatcher.DispatchCoordinator;
 import org.wynnvets.chat.rewriter.EncourageUpdateRewriter;
 import org.wynnvets.chat.rewriter.ServerGuildChatRewriter;
@@ -70,7 +70,7 @@ public class ChatLogMixin {
         // Skip logging for mod-injected messages (bridge display, rewritten chat, etc.).
         // ChatLogger writes only the local debug file; the guards that keep displayed
         // bridge messages from being re-sent to the API are in WynntilsEventListener.
-        boolean isInternalDispatch = ChatUtils.isInternalDispatch();
+        boolean isInternalDispatch = LocalChatDispatch.isInternalDispatch();
 
         if (!isInternalDispatch) {
             // Only log externally-sourced chat messages to the debug file
@@ -138,7 +138,7 @@ public class ChatLogMixin {
 
         // Rewrite VETS guild chat lines whose sender's rank pill needs a display remap,
         // or whose sender is a supporter and this client shows glints (gradient pill).
-        // Re-entry is blocked by ChatUtils internal dispatch guard above.
+        // Re-entry is blocked by LocalChatDispatch's internal dispatch guard above.
         if (ServerGuildChatRewriter.tryRewrite(message, messageString)) {
             ci.cancel();
             return;

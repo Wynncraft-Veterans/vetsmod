@@ -8,6 +8,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.LocalChatDispatch;
 import org.wynnvets.chat.MessageBodyFormatter;
 import org.wynnvets.chat.NickResolver;
 import org.wynnvets.chat.Prepend;
@@ -52,7 +53,7 @@ public final class SpoilerRewriter {
                 "SpoilerRewriter: rewriting message with encoded spoiler (len={})",
                 messageString.length());
         MutableComponent result = rebuildWithDecodedSpoilers(component);
-        ChatUtils.dispatchToChat(result, Prepend.GUILD.get().getStyle());
+        LocalChatDispatch.dispatchToChat(result, Prepend.GUILD.get().getStyle());
         return true;
     }
 

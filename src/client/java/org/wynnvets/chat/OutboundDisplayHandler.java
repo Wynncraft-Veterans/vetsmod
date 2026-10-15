@@ -210,7 +210,7 @@ public final class OutboundDisplayHandler {
 
         // Record bridge messages for echo suppression in onGuildChat.
         // isInternalDispatch covers only work that runs synchronously inside
-        // ChatUtils' own displayClientMessage call; a Wynntils build that
+        // LocalChatDispatch's own displayClientMessage call; a Wynntils build that
         // replays a line on a later tick would escape it. Recording the
         // message here lets onGuildChat catch such a replay, and any
         // Wynncraft server echo of it.

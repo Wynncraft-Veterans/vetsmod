@@ -66,7 +66,7 @@ import org.wynnvets.logging.VetsLogger;
  * They MUST NOT block on the main game tick
  * (use {@code Minecraft.getInstance().execute(...)} to bounce work onto
  * the render thread if needed &mdash; the bounce {@link
- * org.wynnvets.chat.ChatUtils ChatUtils} performs beneath {@link
+ * org.wynnvets.chat.LocalChatDispatch LocalChatDispatch} performs beneath {@link
  * org.wynnvets.chat.OutboundDisplayHandler OutboundDisplayHandler}).</p>
  */
 public final class AnniSnapshotCache {

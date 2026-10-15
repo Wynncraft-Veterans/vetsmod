@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
 import net.minecraft.network.chat.HoverEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.api.V1ApiManager;
-import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.LocalChatDispatch;
 import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.chat.PillCodec;
 import org.wynnvets.guild.GuildLifecycle;
@@ -160,7 +160,7 @@ public final class WynntilsEventListener {
         // chat, etc.).  displayClientMessage → ChatListener.handleSystemMessage
         // → Wynntils event pipeline, so this guard prevents the feedback loop
         // where bridge messages are re-sent to the server as guild messages.
-        if (ChatUtils.isInternalDispatch()) {
+        if (LocalChatDispatch.isInternalDispatch()) {
             VetsLogger.debug("onGuildChat: skipping internal dispatch");
             return;
         }
@@ -209,7 +209,7 @@ public final class WynntilsEventListener {
 
         // Bridge echo suppression: if this message was recently displayed by
         // the outbound handler as a bridge message, skip it. isInternalDispatch
-        // covers only work that runs synchronously inside ChatUtils' own
+        // covers only work that runs synchronously inside LocalChatDispatch's own
         // displayClientMessage call. A Wynntils build that replays a line on a
         // later tick escapes it (Wynntils 4.0.2's chat page detector did this
         // for multi-line lines while NPC-dialogue extraction was on). This

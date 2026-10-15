@@ -13,6 +13,7 @@ import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatLogger;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.GuildChatLine;
+import org.wynnvets.chat.LocalChatDispatch;
 import org.wynnvets.chat.MessageBodyFormatter;
 import org.wynnvets.chat.NickResolver;
 import org.wynnvets.chat.PillCodec;
@@ -168,9 +169,9 @@ public final class ServerGuildChatRewriter {
                         .append(messageBody);
 
         if (isSupporter) {
-            ChatUtils.dispatchAnimatedChat(body, badge.getStyle());
+            LocalChatDispatch.dispatchAnimatedChat(body, badge.getStyle());
         } else {
-            ChatUtils.dispatchToChat(body, badge.getStyle());
+            LocalChatDispatch.dispatchToChat(body, badge.getStyle());
         }
         return true;
     }

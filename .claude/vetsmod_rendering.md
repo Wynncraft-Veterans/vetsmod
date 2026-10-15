@@ -85,7 +85,7 @@ t = phase < 0.5 ? phase * 2.0 : 2.0 - phase * 2.0  // oscillates 0→1→0
 color = ColorMath.interpolateRgb(start, end, t)     // linear RGB interp, shared
 ```
 
-`AnimatedChatMixin` wraps newly-inserted lines at insert time. It does **not** read the ThreadLocal config — it builds every wrapper from the `effective*()` defaults above, so custom colours handed to `beginAnimation` are dropped. The one real caller, `ChatUtils.dispatchAnimatedChat`, passes exactly those defaults, which is why nothing looks wrong.
+`AnimatedChatMixin` wraps newly-inserted lines at insert time. It does **not** read the ThreadLocal config — it builds every wrapper from the `effective*()` defaults above, so custom colours handed to `beginAnimation` are dropped. The one real caller, `LocalChatDispatch.dispatchAnimatedChat`, passes exactly those defaults, which is why nothing looks wrong.
 
 ### GradientTextBuilder
 [GradientTextBuilder](../src/client/java/org/wynnvets/rendering/colors/GradientTextBuilder.java)
@@ -151,7 +151,7 @@ This lets e.g. `PillFormatter` compose components in one pass and have animation
 | Subsystem | Uses |
 |-----------|------|
 | `PillFormatter` | Marker colour + AnimatedGradientSequence for supporter pills (a plain-text pill, which no current caller passes, would go through `GradientTextBuilder.linear`) |
-| `ChatUtils.dispatchAnimatedChat` | Begin/end animation context around a dispatch |
+| `LocalChatDispatch.dispatchAnimatedChat` | Begin/end animation context around a dispatch |
 | `ServerGuildChatRewriter` | Marker colour on server-rendered pill backgrounds |
 | `NametagMixin` | `NametagAnimator.tryAnimate()` |
 | `ListFetcher` | Marker colour (`MARKER_COLOR` / `GREY_MARKER_COLOR`) on supporter names, for the animated glint |

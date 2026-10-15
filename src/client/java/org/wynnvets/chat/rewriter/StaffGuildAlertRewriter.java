@@ -6,8 +6,8 @@ import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
-import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.GuildChatLine;
+import org.wynnvets.chat.LocalChatDispatch;
 import org.wynnvets.chat.MessageBodyFormatter;
 import org.wynnvets.chat.NickResolver;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
@@ -84,7 +84,7 @@ public final class StaffGuildAlertRewriter {
                         .append(Component.literal(": ").setStyle(bodyStyle))
                         .append(MessageBodyFormatter.formatMessageBody(alertMessage, bodyStyle));
 
-        ChatUtils.dispatchToChat(body, SHOUT_PREFIX_STYLE);
+        LocalChatDispatch.dispatchToChat(body, SHOUT_PREFIX_STYLE);
         return true;
     }
 
@@ -131,7 +131,7 @@ public final class StaffGuildAlertRewriter {
                         .append(Component.literal(": ").setStyle(bodyStyle))
                         .append(MessageBodyFormatter.formatMessageBody(alertMessage, bodyStyle));
 
-        ChatUtils.dispatchToChat(body, SHOUT_PREFIX_STYLE);
+        LocalChatDispatch.dispatchToChat(body, SHOUT_PREFIX_STYLE);
         return true;
     }
 
