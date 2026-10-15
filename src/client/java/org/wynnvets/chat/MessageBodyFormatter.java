@@ -145,7 +145,8 @@ public final class MessageBodyFormatter {
      * loop in {@link #formatMessageBody} to handle, unless they directly follow a
      * stripped continuation: those are consumed with it, each with at most one trailing space.</p>
      */
-    private static String stripServerContinuations(String text) {
+    // Package-private for unit tests. See MessageBodyFormatterTest.
+    static String stripServerContinuations(String text) {
         if (text.indexOf('\n') < 0) {
             return text;
         }
