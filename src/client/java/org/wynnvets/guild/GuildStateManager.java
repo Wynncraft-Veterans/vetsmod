@@ -9,11 +9,7 @@ import net.minecraft.network.chat.Component;
 import org.apache.commons.lang3.StringUtils;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.dispatcher.DispatchCoordinator;
-import org.wynnvets.config.VetsConfig;
-import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.mwe.anni.mode.AnniModeManager;
 
 /**
  * Central authority for the player's guild membership, staff rank, and
@@ -40,18 +36,11 @@ public class GuildStateManager {
 
     // Wynntils readiness gate — set to true once CLIENT_STARTED fires and
     // WynntilsEventListener has successfully registered.
-    private static volatile boolean wynntilsReady = false;
+    // Package-private for GuildLifecycle, whose recheck guard and background threads check it.
+    static volatile boolean wynntilsReady = false;
 
-    private static volatile String playerName = StringUtils.EMPTY;
-
-    // Delayed guild re-check, scheduled by onEnteredWorld() when Wynntils
-    // reports no guild yet (its character-menu scan can land after world join).
-    private static final long GUILD_RECHECK_DELAY_MS = 3_000L;
-    private static final int GUILD_RECHECK_MAX_ATTEMPTS = 3;
-    private static final long GUILD_RECHECK_INTERVAL_MS = 2_000L;
-
-    // Whether the player has entered a world at least once since reset.
-    private static volatile boolean enteredWorld = false;
+    // Package-private for GuildLifecycle, which captures it on world join.
+    static volatile String playerName = StringUtils.EMPTY;
 
     /**
      * Check if Wynntils is fully initialised and safe to access Models.
@@ -157,7 +146,7 @@ public class GuildStateManager {
      * a real Returner may see vanilla pills early in a session, which is the
      * harmless direction to be wrong in, and it self-heals as soon as either source
      * lands: Wynntils' guild scan, or the {@code /gu stats} check that
-     * {@link #scheduleDelayedGuildCheck()} runs a few seconds after world join while
+     * {@link GuildLifecycle#scheduleDelayedGuildCheck()} runs a few seconds after world join while
      * {@code moreReliableGuildCheck} is on (the default).</p>
      *
      * @return true when guild chat should get vetsmod's treatment
@@ -233,7 +222,8 @@ public class GuildStateManager {
      * {@link org.wynnvets.mwe.anni.render.AnniCommandRenderer AnniCommandRenderer}'s "external vs
      * vets" test (enriched printout vs the legacy stamp-only fallback), and it drives the
      * eligibility-based default anni mode (PASSIVE if eligible, SILENT otherwise) in
-     * {@link AnniModeManager}. {@code /wv help} also uses it as the vet gate.</p>
+     * {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}. {@code /wv help}
+     * also uses it as the vet gate.</p>
      *
      * @return true if eligible for enrichment, false otherwise
      */
@@ -284,14 +274,14 @@ public class GuildStateManager {
     }
 
     /**
-     * Whether {@link #onEnteredWorld()} has started since the last reset. This does not
-     * mean Wynntils' guild info is available yet: that can lag world join (see
-     * {@link #scheduleGuildRecheck()}).
+     * Whether {@link GuildLifecycle#onEnteredWorld()} has started since the last reset. This
+     * does not mean Wynntils' guild info is available yet: that can lag world join (see
+     * {@link GuildLifecycle#scheduleGuildRecheck()}).
      *
      * @return true once the first world-join has been processed
      */
     public static boolean canExecuteCommands() {
-        return enteredWorld;
+        return GuildLifecycle.enteredWorld;
     }
 
     public static String playerName() {
@@ -454,128 +444,6 @@ public class GuildStateManager {
         return GuildChecker.isProcessingModGuildCheck();
     }
 
-    /**
-     * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when the
-     * player enters a Wynncraft world ({@code WorldStateEvent} with
-     * {@code newState == WORLD}).
-     *
-     * <p>Replaces the old "Welcome to Wynncraft!" chat-message detection. Starts
-     * vetsmod's world-join work: the MOTD and (for Returners) the anni stamp, a staff-rank
-     * refresh when due, presence registration, the follow-up guild checks, the
-     * session-auth warning and the default anni mode. The body is the authority on
-     * order.</p>
-     */
-    public static void onEnteredWorld() {
-        enteredWorld = true;
-        DispatchCoordinator.resetStaffChatEligibilityCache();
-
-        // Capture player name
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
-        if (player != null && playerName.equals(StringUtils.EMPTY)) {
-            playerName = player.getName().getString();
-        }
-
-        // Once-per-session warning when our auth state diverges from what the
-        // user probably expects (key present but unverified, or no key at all
-        // with legacy unlock markers / Returners membership). We schedule it
-        // shortly after world join so the WS reconnect + auth round-trip has
-        // a chance to land first.
-        SessionAuthWarning.scheduleOnceForThisSession();
-
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - WorldJoinAnnouncer.lastMotdFetchTime
-                > WorldJoinAnnouncer.MOTD_FETCH_COOLDOWN_MS) {
-            WorldJoinAnnouncer.lastMotdFetchTime = currentTime;
-            WorldJoinAnnouncer.fetchAndDisplayMotd();
-        }
-
-        if (isReturners()) {
-            WorldJoinAnnouncer.fetchAndDisplayStampMessage();
-        }
-
-        refreshStaffStatusIfNeeded(false);
-
-        // Send presence registration to the server.
-        sendRegistrationIfReady();
-
-        VetsLogger.debug(
-                "onEnteredWorld: guild={}, guildless={}, returners={}",
-                Models.Guild.getGuildName(),
-                isGuildless(),
-                isReturners());
-
-        // When moreReliableGuildCheck is enabled, schedule our own /gu stats
-        // check after a delay so Wynntils has time to finish its own
-        // world-join commands and the command queue is clear.
-        if (VetsConfig.get(VetsConfigKeys.MORE_RELIABLE_GUILD_CHECK)) {
-            scheduleDelayedGuildCheck();
-        }
-
-        // When guild info is not yet available (empty name), Wynntils may still
-        // be scanning the compass menu asynchronously.  Schedule a delayed
-        // re-check so we don't stay stuck as "guildless" for the entire session.
-        if (!UnlockManager.isDebugForceGuildlessUnlocked()
-                && wynntilsReady
-                && !Models.Guild.isInGuild()) {
-            scheduleGuildRecheck();
-        }
-
-        // Apply the eligibility-based default anni mode (PASSIVE for
-        // enrichment-eligible users, SILENT otherwise) if the user hasn't
-        // explicitly picked a mode. No-op once VETS_ANNI_MODE_USER_SET is
-        // true. onGuildInfoUpdated() re-runs it so that a mid-session eligibility
-        // flip still moves a still-unset user to the new default. Today only flips
-        // that reach that method (a Wynntils guild join/leave event, or
-        // scheduleGuildRecheck()'s poll) do; flips that arrive another way (an auth
-        // ack or failure, a newly stored key, or the /gu stats check completing)
-        // wait for the next world join (anni-default-not-reapplied-on-auth-tier-flip).
-        AnniModeManager.applyStartupDefaultIfNeeded();
-    }
-
-    /**
-     * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when a
-     * {@code GuildEvent.Joined} or {@code GuildEvent.Left} event fires, and by
-     * {@link #scheduleGuildRecheck()}'s poll (on its own thread) once Wynntils reports a
-     * guild after world join, where no event fired.
-     *
-     * <p>Clears the mod's own guild check result on both paths, treating Wynntils' guild
-     * data as authoritative ({@code guild-recheck-poll-clears-gu-stats-cache}), and
-     * re-evaluates guild-dependent state.</p>
-     */
-    public static void onGuildInfoUpdated() {
-        // Wynntils' guild data is treated as authoritative — clear our override
-        GuildChecker.clearResult();
-        VetsLogger.debug(
-                "onGuildInfoUpdated: guild={}, guildless={}, returners={}",
-                Models.Guild.getGuildName(),
-                isGuildless(),
-                isReturners());
-
-        if (isReturners()) {
-            if (!WorldJoinAnnouncer.stampDisplayedThisSession) {
-                WorldJoinAnnouncer.fetchAndDisplayStampMessage();
-            }
-
-            // Only reached if onEnteredWorld's MOTD fetch never ran (e.g. no local
-            // player yet). fetchAndDisplayMotd() sets guildMotdDisplayedThisSession for
-            // the standard MOTD too, deliberately, so a guild confirmation that lands
-            // after world join does not print a second MOTD.
-            if (enteredWorld && !WorldJoinAnnouncer.guildMotdDisplayedThisSession) {
-                VetsLogger.debug("Guild info now available — re-fetching guild MOTD");
-                WorldJoinAnnouncer.fetchAndDisplayMotd();
-            }
-
-            // Re-register now that guild membership is confirmed.
-            sendRegistrationIfReady();
-        }
-
-        // Eligibility may have just flipped (a guild join or leave, or Wynntils'
-        // guild scan landing after world join, seen by the recheck poll);
-        // re-evaluate the default anni mode for still-unset users.
-        AnniModeManager.applyStartupDefaultIfNeeded();
-    }
-
     /** Local-only outcome of running {@code /unlock &lt;key&gt;}. The eventual
      *  server verdict on the key arrives asynchronously via
      *  {@link #onAuthSuccess(String)} / {@link #onAuthFailure(String)}. */
@@ -652,72 +520,10 @@ public class GuildStateManager {
     }
 
     /**
-     * Schedules a delayed guild info re-check.  Wynntils' compass scan runs
-     * asynchronously after world join, so guild info may not be populated yet.
-     *
-     * <p>Sleeps {@link #GUILD_RECHECK_DELAY_MS} on its own thread, then polls
-     * {@code Models.Guild} up to {@link #GUILD_RECHECK_MAX_ATTEMPTS} times,
-     * {@link #GUILD_RECHECK_INTERVAL_MS} apart, reading it off the client thread. The first
-     * time it reports a guild, it calls {@link #onGuildInfoUpdated()} from that same thread,
-     * which also clears {@link GuildChecker}'s cached result
-     * ({@code guild-recheck-poll-clears-gu-stats-cache}). Gives up if {@link #reset()} (a
-     * disconnect) has cleared the world-entered flag by the time it polls; a new world
-     * entry sets the flag again, so an in-flight poll can survive a quick reconnect.</p>
-     */
-    private static void scheduleGuildRecheck() {
-        new Thread(
-                        () -> {
-                            try {
-                                Thread.sleep(GUILD_RECHECK_DELAY_MS);
-
-                                for (int attempt = 1;
-                                        attempt <= GUILD_RECHECK_MAX_ATTEMPTS;
-                                        attempt++) {
-                                    if (!wynntilsReady || !enteredWorld) {
-                                        VetsLogger.debug(
-                                                "Guild recheck aborted: wynntilsReady={}, enteredWorld={}",
-                                                wynntilsReady,
-                                                enteredWorld);
-                                        return;
-                                    }
-
-                                    boolean inGuild = Models.Guild.isInGuild();
-                                    String name = Models.Guild.getGuildName();
-                                    VetsLogger.debug(
-                                            "Guild recheck attempt {}/{}: inGuild={}, name={}",
-                                            attempt,
-                                            GUILD_RECHECK_MAX_ATTEMPTS,
-                                            inGuild,
-                                            name);
-
-                                    if (inGuild) {
-                                        VetsLogger.info(
-                                                "Guild info now available after recheck: {}", name);
-                                        onGuildInfoUpdated();
-                                        return;
-                                    }
-
-                                    if (attempt < GUILD_RECHECK_MAX_ATTEMPTS) {
-                                        Thread.sleep(GUILD_RECHECK_INTERVAL_MS);
-                                    }
-                                }
-
-                                VetsLogger.debug(
-                                        "Guild recheck exhausted — player appears genuinely guildless");
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                VetsLogger.debug("Guild recheck interrupted");
-                            }
-                        },
-                        "vetsmod-guild-recheck")
-                .start();
-    }
-
-    /**
      * Reads guild membership and rank from Wynntils' {@code Models.Guild}
      * and reports them to chat alongside vetsmod's own guild and staff
      * state.  If Wynntils reports a guild, re-evaluates dependent state
-     * directly; it deliberately does not call {@link #onGuildInfoUpdated()},
+     * directly; it deliberately does not call {@link GuildLifecycle#onGuildInfoUpdated()},
      * which would clear {@code GuildChecker}.  Then forces a staff rank
      * refresh and starts our own {@code /gu stats} guild check, each
      * skipped if one is already in flight.
@@ -826,92 +632,14 @@ public class GuildStateManager {
     }
 
     /**
-     * Reset per-connection state. Called on server disconnect so that the next
-     * world join starts fresh. The cached player name and the Wynntils-ready flag are
-     * kept.
-     */
-    public static void reset() {
-        WorldJoinAnnouncer.lastMotdFetchTime = 0;
-        WorldJoinAnnouncer.guildMotdDisplayedThisSession = false;
-        WorldJoinAnnouncer.stampDisplayedThisSession = false;
-        enteredWorld = false;
-        V1ApiManager.clearRegistration();
-        StaffRankChecker.reset();
-        GuildChecker.reset();
-        UnlockManager.reset();
-        SessionAuthWarning.reset();
-        DispatchCoordinator.resetStaffChatEligibilityCache();
-    }
-
-    /**
-     * Called by {@link GuildChecker} when its {@code /gu stats} check completes.
-     * Re-evaluates guild-dependent state and updates registration.
-     */
-    static void onGuildCheckCompleted() {
-        GuildChecker.GuildCheckResult result = GuildChecker.getResult();
-        VetsLogger.debug("onGuildCheckCompleted: result={}", result);
-
-        sendRegistrationIfReady();
-
-        if (result == GuildChecker.GuildCheckResult.RETURNERS
-                && !WorldJoinAnnouncer.stampDisplayedThisSession) {
-            WorldJoinAnnouncer.fetchAndDisplayStampMessage();
-        }
-    }
-
-    /** Delay before running our /gu stats check after world join, giving
-     *  Wynntils time to finish its own world-join commands. */
-    private static final long GUILD_CHECK_WORLD_JOIN_DELAY_MS = 5_000L;
-
-    /**
-     * Starts a {@code /gu stats} guild check {@link #GUILD_CHECK_WORLD_JOIN_DELAY_MS} after
-     * world join, to give Wynntils' own world-join commands time to go first. Sleeps on
-     * its own thread, then hops to the client thread and queues the check only if the
-     * player is still on a world.
-     */
-    private static void scheduleDelayedGuildCheck() {
-        new Thread(
-                        () -> {
-                            try {
-                                Thread.sleep(GUILD_CHECK_WORLD_JOIN_DELAY_MS);
-
-                                if (!wynntilsReady || !enteredWorld) {
-                                    VetsLogger.debug(
-                                            "Delayed guild check aborted: wynntilsReady={}, enteredWorld={}",
-                                            wynntilsReady,
-                                            enteredWorld);
-                                    return;
-                                }
-
-                                // Verify the world is still loaded before queuing the command
-                                Minecraft minecraft = Minecraft.getInstance();
-                                minecraft.execute(
-                                        () -> {
-                                            if (!Models.WorldState.onWorld()) {
-                                                VetsLogger.debug(
-                                                        "Delayed guild check aborted: not on world");
-                                                return;
-                                            }
-                                            GuildChecker.refreshGuildStatus();
-                                        });
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                VetsLogger.debug("Delayed guild check interrupted");
-                            }
-                        },
-                        "vetsmod-delayed-guild-check")
-                .start();
-    }
-
-    /**
      * Send a presence registration to the server if the player is eligible.
      *
      * <p>Determines the player's tier (guild / waitlist / honourary) and sends
      * a {@code register} frame via the inbound WebSocket.  The payload is
      * cached inside {@link V1ApiManager} so it is automatically re-sent on
-     * reconnect.  Called from {@link #onEnteredWorld()},
-     * {@link #onGuildInfoUpdated()}, {@link #forceGuildRecheck()},
-     * {@link #onGuildCheckCompleted()} and
+     * reconnect.  Called from {@link GuildLifecycle#onEnteredWorld()},
+     * {@link GuildLifecycle#onGuildInfoUpdated()}, {@link #forceGuildRecheck()},
+     * {@link GuildLifecycle#onGuildCheckCompleted()} and
      * {@link org.wynnvets.guild.UnlockManager#onAuthSuccess UnlockManager#onAuthSuccess}
      * &mdash; five callers. {@link #tryUnlock} is <b>not</b> one of them; it is a
      * pure delegate to {@link UnlockManager#tryUnlock(String)} and calls nothing

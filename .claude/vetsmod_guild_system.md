@@ -1,12 +1,12 @@
 ---
 name: vetsmod Guild / Unlock / Staff-Rank System
-description: GuildStateManager facade — GuildChecker (/gu stats, 3-day TTL), StaffRankChecker (/gu rank, 24h TTL), UnlockManager (vetsmod /unlock <key> bearer auth), SessionAuthWarning
+description: GuildStateManager facade and GuildLifecycle (world join, disconnect reset) — GuildChecker (/gu stats, 3-day TTL), StaffRankChecker (/gu rank, 24h TTL), UnlockManager (vetsmod /unlock <key> bearer auth), SessionAuthWarning
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Guild State System
 
-`GuildStateManager` is the central facade. It owns five collaborators: `GuildChecker` (guild membership), `StaffRankChecker` (captain+ detection), `UnlockManager` (bearer-key auth + legacy unlock markers), `SessionAuthWarning` (per-session nag for unauthenticated users), `WorldJoinAnnouncer` (the world-join MOTD and anni-stamp prints).
+`GuildStateManager` is the central facade for the player's guild, staff and unlock status, over three collaborators: `GuildChecker` (guild membership), `StaffRankChecker` (captain+ detection) and `UnlockManager` (bearer-key auth + legacy unlock markers). `GuildLifecycle` runs the world-join flow and the disconnect reset: it calls the three directly, schedules `SessionAuthWarning` (per-session nag for unauthenticated users), and starts `WorldJoinAnnouncer`'s MOTD and anni-stamp prints.
 
 ## 1. GuildStateManager facade
 
@@ -31,19 +31,25 @@ Key public methods (all package-level or client-facing):
 | `playerName()` | Local player username |
 | `selfStaffRank()` | "captain"/"strategist"/"chief"/"owner" |
 | `loadPersistedState()` | Restore from `VetsConfig` on startup |
-| `onEnteredWorld()` | World-join trigger; schedules SessionAuthWarning |
-| `onGuildInfoUpdated()` | Wynntils `GuildEvent` callback; also called by the post-world-join recheck poll |
 | `forceGuildRecheck()` | Debug forced recheck |
 | `refreshStaffStatusIfNeeded(forceRefresh)` | Staff rank refresh |
 | `sendRegistrationIfReady()` | Push presence frame on inbound WS |
 
+[GuildLifecycle](../src/client/java/org/wynnvets/guild/GuildLifecycle.java) holds the world-join flow:
+
+| Method | Purpose |
+|--------|---------|
+| `onEnteredWorld()` | World-join trigger; schedules SessionAuthWarning |
+| `onGuildInfoUpdated()` | Wynntils `GuildEvent` callback; also called by the post-world-join recheck poll |
+| `reset()` | Disconnect reset of the per-connection state |
+
 ### Guild membership flow on world join
 
-`isReturners()` / `isGuildless()` prefer a valid `GuildChecker` result (the persisted `/gu stats` cache, 3-day expiry), else read Wynntils' `Models.Guild` live (the name is empty, not null, until Wynntils' character-info scan or a guild-join message fills it). `onEnteredWorld()` then schedules two follow-ups:
+`isReturners()` / `isGuildless()` prefer a valid `GuildChecker` result (the persisted `/gu stats` cache, 3-day expiry), else read Wynntils' `Models.Guild` live (the name is empty, not null, until Wynntils' character-info scan or a guild-join message fills it). `GuildLifecycle.onEnteredWorld()` then schedules two follow-ups:
 1. a `/gu stats` check 5 s after world join, while `MORE_RELIABLE_GUILD_CHECK` is on (the default);
 2. when Wynntils reports no guild yet, the recheck poll (`GUILD_RECHECK_*` constants), which calls `onGuildInfoUpdated()` once a guild appears.
 
-`onGuildInfoUpdated()` invalidates the `GuildChecker` cache. It runs on Wynntils' `GuildEvent.Joined` / `.Left` and from that recheck poll, where no event fired (bug `guild-recheck-poll-clears-gu-stats-cache`).
+`GuildLifecycle.onGuildInfoUpdated()` invalidates the `GuildChecker` cache. It runs on Wynntils' `GuildEvent.Joined` / `.Left` and from that recheck poll, where no event fired (bug `guild-recheck-poll-clears-gu-stats-cache`).
 
 ## 2. GuildChecker
 

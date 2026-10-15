@@ -35,7 +35,9 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>This class is package-private. Callers outside the package reach it through
  * {@link GuildStateManager}'s facade methods; within the package,
- * {@link SessionAuthWarning} also reads {@link #lastAuthFailureReason()} directly.</p>
+ * {@link SessionAuthWarning} also reads {@link #lastAuthFailureReason()} directly, and
+ * {@link GuildLifecycle} calls {@link #isDebugForceGuildlessUnlocked()} and {@link #reset()}
+ * directly.</p>
  */
 final class UnlockManager {
 

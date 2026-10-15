@@ -42,7 +42,7 @@ public final class SessionAuthWarning {
      *  value as soon as the server pushes the frame. */
     private static volatile boolean unauthEnabled = true;
 
-    /** Once-per-session latch. Reset by {@link GuildStateManager#reset()}. */
+    /** Once-per-session latch. Reset by {@link GuildLifecycle#reset()}. */
     private static final AtomicBoolean firedThisSession = new AtomicBoolean(false);
 
     /** Discord URL used in warning copy — same one used elsewhere in the mod. */

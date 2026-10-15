@@ -240,7 +240,8 @@ public final class AnniModeManager {
     /**
      * Idempotent — becomes a no-op forever once the user picks a mode.
      *
-     * <p>Called from {@link GuildStateManager#onEnteredWorld} and
+     * <p>Called from {@link org.wynnvets.guild.GuildLifecycle#onEnteredWorld
+     * GuildLifecycle#onEnteredWorld} and
      * {@code onGuildInfoUpdated}, so that an eligibility change re-derives the default for a
      * still-unset user: PASSIVE if enrichment-eligible, SILENT otherwise. Today only a change
      * that reaches one of them (a world join, a Wynntils guild join or leave, or Wynntils'

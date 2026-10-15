@@ -24,6 +24,7 @@ import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.chat.PillCodec;
+import org.wynnvets.guild.GuildLifecycle;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.queue.QueueStateManager;
@@ -87,7 +88,7 @@ public final class WynntilsEventListener {
      * Handles world state transitions from Wynntils.
      *
      * <p>When the player enters a {@link WorldState#WORLD}, triggers
-     * {@link GuildStateManager#onEnteredWorld()} to begin guild and staff
+     * {@link GuildLifecycle#onEnteredWorld()} to begin guild and staff
      * rank resolution.
      *
      * @param event the world state change event
@@ -99,7 +100,7 @@ public final class WynntilsEventListener {
                     "WorldStateEvent: entered WORLD (world={}, firstJoin={})",
                     event.getWorldName(),
                     event.isFirstJoinWorld());
-            GuildStateManager.onEnteredWorld();
+            GuildLifecycle.onEnteredWorld();
         } else if (event.getOldState() == WorldState.WORLD
                 && event.getNewState() != WorldState.WORLD) {
             VetsLogger.debug("WorldStateEvent: left WORLD → {}", event.getNewState());
@@ -109,7 +110,7 @@ public final class WynntilsEventListener {
     /**
      * Handles the player joining a guild.
      *
-     * <p>Delegates to {@link GuildStateManager#onGuildInfoUpdated()} to
+     * <p>Delegates to {@link GuildLifecycle#onGuildInfoUpdated()} to
      * re-evaluate guild membership and feature gates.
      *
      * @param event the guild joined event
@@ -117,13 +118,13 @@ public final class WynntilsEventListener {
     @SubscribeEvent
     public void onGuildJoined(GuildEvent.Joined event) {
         VetsLogger.debug("GuildEvent.Joined: {}", event.getGuildName());
-        GuildStateManager.onGuildInfoUpdated();
+        GuildLifecycle.onGuildInfoUpdated();
     }
 
     /**
      * Handles the player leaving a guild.
      *
-     * <p>Delegates to {@link GuildStateManager#onGuildInfoUpdated()} to
+     * <p>Delegates to {@link GuildLifecycle#onGuildInfoUpdated()} to
      * re-evaluate guild membership and feature gates.
      *
      * @param event the guild left event
@@ -131,7 +132,7 @@ public final class WynntilsEventListener {
     @SubscribeEvent
     public void onGuildLeft(GuildEvent.Left event) {
         VetsLogger.debug("GuildEvent.Left: {}", event.getGuildName());
-        GuildStateManager.onGuildInfoUpdated();
+        GuildLifecycle.onGuildInfoUpdated();
     }
 
     /**

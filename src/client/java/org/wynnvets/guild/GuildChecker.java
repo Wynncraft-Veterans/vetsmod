@@ -22,8 +22,8 @@ import org.wynnvets.logging.VetsLogger;
  * etc.). A concurrent {@code /gu rank} reply can still arrive mid-check, which
  * {@link #isStaffRankCheckResponse(String)} guards against.</p>
  *
- * <p>This class is package-private and accessed exclusively through
- * {@link GuildStateManager}'s facade methods.</p>
+ * <p>This class is package-private. Outside the package it is reached through
+ * {@link GuildStateManager}'s facade methods; {@link GuildLifecycle} also calls it directly.</p>
  */
 final class GuildChecker {
 
@@ -152,7 +152,7 @@ final class GuildChecker {
 
     /**
      * Clears the in-memory and persisted result. Reached through
-     * {@link GuildStateManager#onGuildInfoUpdated()}, which runs on Wynntils' guild
+     * {@link GuildLifecycle#onGuildInfoUpdated()}, which runs on Wynntils' guild
      * join/leave events and also when the post-world-join recheck finds Wynntils' guild
      * data populated, where no event fired ({@code guild-recheck-poll-clears-gu-stats-cache});
      * the real-time data is treated as authoritative over our cached check.
@@ -302,8 +302,8 @@ final class GuildChecker {
                         "vetsmod-guild-check-grace")
                 .start();
 
-        // Notify GuildStateManager that the check completed
-        GuildStateManager.onGuildCheckCompleted();
+        // Notify GuildLifecycle that the check completed
+        GuildLifecycle.onGuildCheckCompleted();
     }
 
     private static boolean isInSuppressionGrace() {

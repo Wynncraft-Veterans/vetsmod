@@ -109,7 +109,7 @@ final class InboundAckRouter {
             // DispatchCoordinator's auth-ack fast path fills while we are
             // staff, so later gated calls don't keep treating us as
             // staff. World change already resets it via
-            // GuildStateManager.onEnteredWorld ->
+            // GuildLifecycle.onEnteredWorld ->
             // resetStaffChatEligibilityCache.
             if (wasStaff && !SessionAuthState.confirmedStaff) {
                 DispatchCoordinator.resetStaffChatEligibilityCache();

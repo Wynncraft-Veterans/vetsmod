@@ -14,8 +14,9 @@ import org.wynnvets.logging.VetsLogger;
  * The check queues {@code /gu rank} through Wynntils' command queue and completes when
  * {@link #processMessage(String)} sees the reply in chat, or times out.</p>
  *
- * <p>This class is package-private and accessed exclusively through
- * {@link GuildStateManager}'s facade methods.</p>
+ * <p>This class is package-private. Outside the package it is reached through
+ * {@link GuildStateManager}'s facade methods; {@link GuildLifecycle} also calls
+ * {@link #reset()} directly.</p>
  */
 final class StaffRankChecker {
 

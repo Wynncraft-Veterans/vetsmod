@@ -100,7 +100,7 @@ public final class VetsConfigKeys {
      *  {@link #VETS_ANNI_ENABLED} and a cached snapshot allow it) is
      *  printed automatically on world join. vetsmod makes that print only
      *  for Returners guild members; see
-     *  {@link org.wynnvets.guild.GuildStateManager GuildStateManager}. */
+     *  {@link org.wynnvets.guild.GuildLifecycle GuildLifecycle}. */
     public static final String PRINT_ANNI = "printANNI";
 
     /** Whether the snapshot-driven {@code /wv anni} and anni-motd populate

@@ -22,25 +22,25 @@ import org.wynnvets.logging.VetsLogger;
 final class WorldJoinAnnouncer {
 
     // State tracking for MOTD to prevent duplicate fetches
-    // Package-private for GuildStateManager, which sets it on world join and clears it on reset.
+    // Package-private for GuildLifecycle, which sets it on world join and clears it on reset.
     static volatile long lastMotdFetchTime = 0;
 
-    // Package-private for GuildStateManager, whose world-join cooldown check reads it.
+    // Package-private for GuildLifecycle, whose world-join cooldown check reads it.
     static final long MOTD_FETCH_COOLDOWN_MS = 1_000L;
 
     // Set when fetchAndDisplayMotd() starts either MOTD fetch (guild or
     // standard); blocks onGuildInfoUpdated()'s re-fetch for the session.
-    // Package-private for GuildStateManager, which reads it on guild updates and resets it.
+    // Package-private for GuildLifecycle, which reads it on guild updates and resets it.
     static volatile boolean guildMotdDisplayedThisSession = false;
 
     // Set when a stamp fetch starts (whether or not anything is then shown);
     // consulted only by onGuildInfoUpdated() and onGuildCheckCompleted().
-    // Package-private for GuildStateManager, which gates later stamp prints on it and resets it.
+    // Package-private for GuildLifecycle, which gates later stamp prints on it and resets it.
     static volatile boolean stampDisplayedThisSession = false;
 
     private WorldJoinAnnouncer() {}
 
-    // Package-private for GuildStateManager, which calls it on world join and on a guild update.
+    // Package-private for GuildLifecycle, which calls it on world join and on a guild update.
     static void fetchAndDisplayMotd() {
         // Check if auto-messages are enabled (global gate)
         if (!VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE)) {
@@ -104,7 +104,7 @@ final class WorldJoinAnnouncer {
     /**
      * Fetch and display the annihilation stamp message (if applicable)
      */
-    // Package-private for GuildStateManager, whose lifecycle and diagnostics call it.
+    // Package-private for GuildLifecycle and GuildStateManager.forceGuildRecheck, which call it.
     static void fetchAndDisplayStampMessage() {
         // Check if auto-messages are enabled (global gate)
         if (!VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE)) {

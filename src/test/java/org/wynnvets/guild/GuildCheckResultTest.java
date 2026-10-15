@@ -22,7 +22,8 @@ import org.wynnvets.guild.GuildChecker.GuildCheckResult;
  *
  * <p>NOTE: only the nested enum is exercised. {@link GuildChecker}'s own
  * methods reach {@code VetsConfig}, and {@code completeCheck} spawns a thread
- * and calls {@code GuildStateManager}, which loads Wynntils. The enum has no
+ * and calls {@code GuildLifecycle}, which reaches {@code Minecraft} and, through
+ * {@code GuildStateManager}, Wynntils. The enum has no
  * such dependency: initializing a nested type does not initialize its
  * enclosing class, and the enum's own static state is its four constants, each
  * carrying a {@code long}. If a future

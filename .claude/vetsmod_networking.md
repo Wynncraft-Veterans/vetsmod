@@ -257,8 +257,8 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 - Fabric `ClientPlayConnectionEvents.DISCONNECT` → reset guild state, reset `newTooltipStylesAvailable`, disconnect WebSockets, unregister the outbound handler, and clear `OutboundDisplayHandler`'s three dedup/suppression caches
 
 [WynntilsEventListener](../src/client/java/org/wynnvets/listeners/WynntilsEventListener.java):
-- `@SubscribeEvent WorldStateEvent` → on WORLD state, call `GuildStateManager.onEnteredWorld()`
-- `@SubscribeEvent GuildEvent.Joined/.Left` → call `GuildStateManager.onGuildInfoUpdated()`
+- `@SubscribeEvent WorldStateEvent` → on WORLD state, call `GuildLifecycle.onEnteredWorld()`
+- `@SubscribeEvent GuildEvent.Joined/.Left` → call `GuildLifecycle.onGuildInfoUpdated()`
 - `@SubscribeEvent ChatMessageEvent.Match` (GUILD type) → guild chat relay:
   1. Extract username + message via `GUILD_CHAT_PATTERN` (`^\s*(.+?):\s+(.+)$`)
   2. Strip PUA badge glyphs
