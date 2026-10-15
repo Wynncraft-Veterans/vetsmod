@@ -194,7 +194,7 @@ public final class MessageBodyFormatter {
      * {@link SpoilerFormatter#appendWithSpoilers SpoilerFormatter.appendWithSpoilers}
      * (encoded spoiler blocks).
      */
-    // Package-private for ChatUtils.literalWithUrls, which links each run of legacy-styled text.
+    // Package-private for LegacyTextParser, which links each run of legacy-styled text.
     static void appendTextWithUrls(MutableComponent parent, String text, Style textStyle) {
         if (text.isEmpty()) {
             return;

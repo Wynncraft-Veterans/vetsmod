@@ -180,6 +180,10 @@ URL regex (`URL_PATTERN`, case-insensitive): `(?<!§)(https?://\S+|[A-Za-z0-9][A
 
 `CHAT_PREFIX_STYLE` references custom `chat/prefix` font for the inline separator and the continuation markers.
 
+### LegacyTextParser
+
+[LegacyTextParser](../src/client/java/org/wynnvets/chat/LegacyTextParser.java)`.literalWithUrls()` builds a component from text carrying legacy `§` codes (the MOTD bodies `MotdFetcher` fetches): each code styles the text after it, and URLs and encoded spoilers go through `MessageBodyFormatter`'s URL and spoiler handling. A colour code resets to the base style plus the colour, where vanilla clears the format flags; the two agree when the base style carries none.
+
 ## 7. PillFormatter
 
 [PillFormatter](../src/client/java/org/wynnvets/chat/PillFormatter.java)

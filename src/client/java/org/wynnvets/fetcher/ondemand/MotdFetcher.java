@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.api.VetsApi;
-import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.LegacyTextParser;
 import org.wynnvets.util.HttpClients;
 
 /**
@@ -50,7 +50,8 @@ public class MotdFetcher {
                 .thenApply(
                         response -> {
                             if (response.statusCode() == HttpURLConnection.HTTP_OK) {
-                                return ChatUtils.literalWithUrls(response.body(), Style.EMPTY);
+                                return LegacyTextParser.literalWithUrls(
+                                        response.body(), Style.EMPTY);
                             } else {
                                 return Component.literal(
                                         "Failed to fetch MOTD (Status: "
