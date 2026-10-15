@@ -108,9 +108,12 @@ import net.minecraft.network.chat.Style;
  *
  * <p>Both vetsmod styles render in the <em>default</em> font and rely on
  * Wynncraft's resource pack supplying the PUA glyphs — no font override is
- * applied anywhere on the pill path. The named {@code chat/prefix} font
- * ({@link ChatUtils#CHAT_PREFIX_STYLE}) is used for badges and continuation
- * markers, not for pills, and the server's own pill uses {@code banner/pill}.
+ * applied anywhere on the pill path. The named {@code chat/prefix} font draws
+ * the badges, in styles of their own ({@link Prepend}'s, and the staff alert's
+ * in {@link org.wynnvets.chat.rewriter.StaffGuildAlertRewriter StaffGuildAlertRewriter}),
+ * and the inline separator and continuation markers, in
+ * {@link MessageBodyFormatter#CHAT_PREFIX_STYLE}; it is not used for pills, and
+ * the server's own pill uses {@code banner/pill}.
  * Several older docstrings loosely attribute vetsmod pills to
  * {@code chat/prefix}; that is not what the code does.</p>
  *

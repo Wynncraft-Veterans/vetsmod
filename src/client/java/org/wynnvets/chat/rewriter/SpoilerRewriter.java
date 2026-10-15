@@ -8,6 +8,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.MessageBodyFormatter;
 import org.wynnvets.chat.NickResolver;
 import org.wynnvets.chat.Prepend;
 import org.wynnvets.chat.spoiler.SpoilerCodec;
@@ -23,7 +24,7 @@ import org.wynnvets.logging.VetsLogger;
  * <p>This rewriter fires for server-originating messages (guild chat from
  * other players).  Bridge and mod-constructed messages are handled by
  * {@link org.wynnvets.chat.spoiler.SpoilerFormatter} through the
- * {@link ChatUtils#formatMessageBody} path instead.</p>
+ * {@link MessageBodyFormatter#formatMessageBody} path instead.</p>
  */
 public final class SpoilerRewriter {
 
@@ -66,7 +67,7 @@ public final class SpoilerRewriter {
      * spoiler ({@code \uF600…\uF601}) may be split across separate component
      * fragments.  If no single fragment contains a complete spoiler pair, we
      * fall back to accumulating the message body across fragments and processing
-     * it through {@link ChatUtils#formatMessageBody}, which strips continuation
+     * it through {@link MessageBodyFormatter#formatMessageBody}, which strips continuation
      * markers and handles spoiler formatting correctly.</p>
      */
     private static MutableComponent rebuildWithDecodedSpoilers(Component component) {
@@ -160,7 +161,7 @@ public final class SpoilerRewriter {
      * Handles spoilers that span multiple component fragments due to Wynncraft
      * line-wrapping.  Prefix fragments (rank pill, badge, display name, colon)
      * are preserved as-is; body fragments are accumulated and processed through
-     * {@link ChatUtils#formatMessageBody} which strips continuation markers and
+     * {@link MessageBodyFormatter#formatMessageBody} which strips continuation markers and
      * handles spoiler formatting via {@link org.wynnvets.chat.spoiler.SpoilerFormatter}.
      */
     private static MutableComponent rebuildCrossFragmentSpoilers(
@@ -219,7 +220,9 @@ public final class SpoilerRewriter {
 
         // Process accumulated body through formatMessageBody, which strips
         // continuation markers, detects URLs, and formats spoilers.
-        result.append(ChatUtils.formatMessageBody(bodyBuilder.toString(), ChatUtils.RANK_STYLE));
+        result.append(
+                MessageBodyFormatter.formatMessageBody(
+                        bodyBuilder.toString(), ChatUtils.RANK_STYLE));
 
         return result;
     }

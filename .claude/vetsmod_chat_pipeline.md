@@ -68,7 +68,7 @@ Rewrites VETS guild chat lines (gated on `GuildStateManager.isVetsGuildChat()`) 
 ### SpoilerRewriter
 [SpoilerRewriter](../src/client/java/org/wynnvets/chat/rewriter/SpoilerRewriter.java)
 
-Flattens through `NickResolver.flattenComponent`, then takes one of two paths: fast (single fragment contains complete PUA spoiler block) or cross-fragment (spans fragments / server-wrapped). Cross-fragment path preserves pill+name+colon prefix, accumulates body, processes through `ChatUtils.formatMessageBody()` which strips continuation markers.
+Flattens through `NickResolver.flattenComponent`, then takes one of two paths: fast (single fragment contains complete PUA spoiler block) or cross-fragment (spans fragments / server-wrapped). Cross-fragment path preserves pill+name+colon prefix, accumulates body, processes through `MessageBodyFormatter.formatMessageBody()` which strips continuation markers.
 
 ### GuildChatLine
 [GuildChatLine](../src/client/java/org/wynnvets/chat/GuildChatLine.java)
@@ -149,25 +149,36 @@ State:
 
 Flow: a `warning` frame → `WarningFrameRenderer.render`, skipping every step after it (today none arrives: bug `outbound-socket-never-authenticated`). Any other frame → `PRINT_BRIDGE_MESSAGES` gate → audience gate (`shouldDisplayMessages`) → UUID dedup → dropped if `username` or `message` is empty → self suppression → Returners' `guild` frames dropped unless queued → `bridge` frames recorded for `WynntilsEventListener.onGuildChat`'s echo check (`wasBridgeEcho`) → for a `guild` or `queue` frame, a staff `‼` alert via `StaffGuildAlertRewriter.tryRewriteOutbound` → otherwise display via `ChatUtils.sendHonouraryChatMessage()` (honourary-unlocked viewer) or `ChatUtils.sendGuildChatMessage()`.
 
-## 6. ChatUtils — the formatting engine
+## 6. The formatting engine
+
+### ChatUtils
 
 [ChatUtils](../src/client/java/org/wynnvets/chat/ChatUtils.java)
 
-Key methods (`stripServerContinuations` and `wrapBlockMessage` are private helpers, not entry points):
+Key methods (`wrapBlockMessage` is a private helper, not an entry point):
 - `sendGuildChatMessage()` — `<badge> <pill> <username>: <body>`
 - `sendGuildChatMessageRed()` — red guild-chat styling; reached only through `sendStaffChannelMessage()` (the `/v` staff-channel look)
 - `sendStaffChannelMessage()` — staff-style with special pill
-- `formatMessageBody()` — strips server continuation markers, makes URLs clickable, formats spoilers
-- `stripServerContinuations()` — removes `\n + marker` sequences
 - `wrapBlockMessage()` — word-wrap with continuation block markers
 - `dispatchToChat()` — thread-safe dispatch
 - `dispatchAnimatedChat()` — dispatch with gradient animation context
 
-URL regex (`URL_PATTERN`, case-insensitive): `(?<!§)(https?://\S+|[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+/\S*)` — it also matches schemeless `domain.tld/path`, and the lookbehind keeps it off section-sign colour codes.
-
-Styles: `RANK_STYLE` = aqua, `NAME_STYLE` = dark aqua, `ADMIN_RANK_STYLE` = red, `CHAT_PREFIX_STYLE` references custom `chat/prefix` font for glyphs.
+Styles: `RANK_STYLE` = aqua, `NAME_STYLE` = dark aqua, `ADMIN_RANK_STYLE` = red.
 
 `INTERNAL_CHAT_DISPATCH` ThreadLocal marks mod-generated messages (skip re-logging + rewriter chain).
+
+### MessageBodyFormatter
+
+[MessageBodyFormatter](../src/client/java/org/wynnvets/chat/MessageBodyFormatter.java) formats a message body for the senders above and for the rewriters that rebuild a server line.
+
+Key methods (`stripServerContinuations` is a private helper, not an entry point):
+- `formatMessageBody()` — strips server continuation markers, makes URLs clickable, formats spoilers
+- `stripServerContinuations()` — removes `\n + marker` sequences
+- `isWrapStructure()` — whether a fragment is only wrap structure (a lone newline or a prefix marker)
+
+URL regex (`URL_PATTERN`, case-insensitive): `(?<!§)(https?://\S+|[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+/\S*)` — it also matches schemeless `domain.tld/path`, and the lookbehind keeps it off section-sign colour codes.
+
+`CHAT_PREFIX_STYLE` references custom `chat/prefix` font for the inline separator and the continuation markers.
 
 ## 7. PillFormatter
 
@@ -242,7 +253,7 @@ Rank-letter glyphs aren't `chat/prefix`: vetsmod's own pills render in the defau
 
 | Pattern | Constant | Purpose |
 |---------|-----------|---------|
-| `(?<!§)(https?://\S+\|[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+/\S*)` | `ChatUtils.URL_PATTERN` | URL detection (scheme or schemeless) |
+| `(?<!§)(https?://\S+\|[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+/\S*)` | `MessageBodyFormatter.URL_PATTERN` | URL detection (scheme or schemeless) |
 | `\|\|(.+?)\|\|` | `SpoilerCodec.PIPE_SPOILER` | Pipe spoilers |
 | `real\s+name\s+is\s+([A-Za-z0-9_]{1,16})` | `NickResolver.REAL_NAME_PATTERN` | Hover→real-name (one copy; `EncourageUpdateRewriter`'s private duplicate was deleted) |
 | `/msg\s+([A-Za-z0-9_]{1,16})` | `StaffChannelMessageRewriter.MSG_COMMAND_PATTERN` | Click→recipient |

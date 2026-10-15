@@ -13,6 +13,7 @@ import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatLogger;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.GuildChatLine;
+import org.wynnvets.chat.MessageBodyFormatter;
 import org.wynnvets.chat.NickResolver;
 import org.wynnvets.chat.PillCodec;
 import org.wynnvets.chat.Prepend;
@@ -274,7 +275,7 @@ public final class ServerGuildChatRewriter {
     /**
      * Extracts the message body from the original component tree, preserving
      * click and hover events from interactive elements (links, items).
-     * Non-interactive text is processed through {@link ChatUtils#formatMessageBody}
+     * Non-interactive text is processed through {@link MessageBodyFormatter#formatMessageBody}
      * for marker stripping and URL detection.
      *
      * @param root           the original chat Component
@@ -307,10 +308,11 @@ public final class ServerGuildChatRewriter {
 
             boolean isInteractive =
                     frag.style().getClickEvent() != null || frag.style().getHoverEvent() != null;
-            if (isInteractive && !ChatUtils.isWrapStructure(text)) {
+            if (isInteractive && !MessageBodyFormatter.isWrapStructure(text)) {
                 if (accumulated.length() > 0) {
                     result.append(
-                            ChatUtils.formatMessageBody(accumulated.toString(), defaultStyle));
+                            MessageBodyFormatter.formatMessageBody(
+                                    accumulated.toString(), defaultStyle));
                     accumulated.setLength(0);
                 }
                 result.append(Component.literal(text).setStyle(frag.style()));
@@ -322,7 +324,8 @@ public final class ServerGuildChatRewriter {
         }
 
         if (accumulated.length() > 0) {
-            result.append(ChatUtils.formatMessageBody(accumulated.toString(), defaultStyle));
+            result.append(
+                    MessageBodyFormatter.formatMessageBody(accumulated.toString(), defaultStyle));
         }
 
         return result;

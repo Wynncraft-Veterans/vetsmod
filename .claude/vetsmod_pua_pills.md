@@ -216,8 +216,10 @@ Both vetsmod styles render in the **default font**, relying on Wynncraft's
 resource pack to supply the PUA glyphs. No font override is applied anywhere on
 the pill path.
 
-`ChatUtils.CHAT_PREFIX_STYLE` (the named `chat/prefix` font) is used only for
-badges and continuation markers. The server's own pill uses `banner/pill`,
+The named `chat/prefix` font draws the badges, in styles of their own (`Prepend`'s,
+and `StaffGuildAlertRewriter`'s for the staff alert), and the inline separator and
+continuation markers, in `MessageBodyFormatter.CHAT_PREFIX_STYLE`. The server's own
+pill uses `banner/pill`,
 which `ServerGuildChatRewriter` does reference when it extracts pill fragments
 from an incoming component tree. Several older docstrings loosely attribute
 *vetsmod's* pills to `chat/prefix`; that isn't what the code does.
