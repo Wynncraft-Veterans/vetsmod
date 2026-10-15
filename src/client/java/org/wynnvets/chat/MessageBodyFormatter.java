@@ -81,55 +81,16 @@ public final class MessageBodyFormatter {
                 break;
             }
 
-            // Unreachable: stripServerContinuations (called above) already removed every
-            // '\n' + marker sequence, so a marker found here is never preceded by '\n' and
-            // isServerWrap below is always false. The live copy of this consumption loop is
-            // the inner loop in stripServerContinuations.
             int markerStart = match.index;
-            boolean isServerWrap = markerStart > 0 && bodyText.charAt(markerStart - 1) == '\n';
-
-            if (isServerWrap) {
-                // Emit text up to the '\n' (excluding it)
-                int textEnd = markerStart - 1;
-                if (textEnd > cursor) {
-                    appendTextWithUrls(formatted, bodyText.substring(cursor, textEnd), textStyle);
-                }
-                // Skip the '\n', the marker itself, and any single trailing space
-                cursor = match.index + match.length;
-                if (cursor < bodyText.length() && bodyText.charAt(cursor) == ' ') {
-                    cursor++;
-                }
-                // Consume any additional marker+space pairs so that only one
-                // continuation bar would be rendered after
-                // LocalChatDispatch.wrapBlockMessage() re-wraps, if this branch could run
-                // (see the note above).
-                while (cursor < bodyText.length()) {
-                    MarkerMatch extra = nextPrefixMarker(bodyText, cursor);
-                    if (extra == null || extra.index != cursor) {
-                        break;
-                    }
-                    cursor = extra.index + extra.length;
-                    if (cursor < bodyText.length() && bodyText.charAt(cursor) == ' ') {
-                        cursor++;
-                    }
-                }
-                // Ensure words don't merge across the join point
-                if (cursor < bodyText.length()) {
-                    formatted.append(Component.literal(" ").setStyle(textStyle));
-                }
-            } else {
-                // Inline marker (not from server wrapping) — replace with the
-                // separator glyph in chat/prefix font, preserving the original
-                // visual intent.
-                if (markerStart > cursor) {
-                    appendTextWithUrls(
-                            formatted, bodyText.substring(cursor, markerStart), textStyle);
-                }
-                formatted.append(
-                        Component.literal(PRIVATE_SEPARATOR_GLYPH)
-                                .setStyle(prefixStyleFor(textStyle)));
-                cursor = match.index + match.length;
+            // Inline marker (not from server wrapping) — replace with the
+            // separator glyph in chat/prefix font, preserving the original
+            // visual intent.
+            if (markerStart > cursor) {
+                appendTextWithUrls(formatted, bodyText.substring(cursor, markerStart), textStyle);
             }
+            formatted.append(
+                    Component.literal(PRIVATE_SEPARATOR_GLYPH).setStyle(prefixStyleFor(textStyle)));
+            cursor = match.index + match.length;
         }
 
         return formatted;
