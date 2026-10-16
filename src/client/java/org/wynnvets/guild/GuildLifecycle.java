@@ -16,11 +16,15 @@ import org.wynnvets.mwe.anni.mode.AnniModeManager;
  * when Wynntils or vetsmod's own {@code /gu stats} check reports the player's guild afterwards, and
  * when the player leaves the server.
  *
- * <p>It reads the player's guild through {@link GuildStateManager}'s predicates and calls
- * {@link GuildChecker}, {@link StaffRankChecker} and {@link UnlockManager} directly. A world join
- * can start the guild recheck poll and the delayed {@code /gu stats} check, each on its own thread
- * that sleeps first; each gives up if a disconnect has cleared {@link #enteredWorld} by the time it
- * looks. The session-auth warning it schedules does not check the flag.</p>
+ * <p>It reads the player's guild through {@link GuildStateManager}'s predicates, except in the
+ * world-join recheck gate and the recheck poll, which read Wynntils' {@code Models.Guild} directly
+ * because they wait on Wynntils' own scan, and in {@link #onGuildCheckCompleted()}, which reads
+ * {@link GuildChecker}'s stored result when a {@code /gu stats} check ends; its debug lines log
+ * {@code Models.Guild}'s guild name. It calls {@link GuildChecker}, {@link StaffRankChecker} and
+ * {@link UnlockManager} directly. A world join can start the guild recheck poll and the delayed
+ * {@code /gu stats} check, each on its own thread that sleeps first; each gives up if a disconnect
+ * has cleared {@link #enteredWorld} by the time it looks. The session-auth warning it schedules
+ * does not check the flag.</p>
  */
 public final class GuildLifecycle {
 
