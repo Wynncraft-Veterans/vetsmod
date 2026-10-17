@@ -16,8 +16,8 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 - [LegacyTooltipRenderer](../src/client/java/org/wynnvets/items/LegacyTooltipRenderer.java) — 9-branch tooltip rewriter
 - [NewFormatRenderer](../src/client/java/org/wynnvets/items/NewFormatRenderer.java) — PUA / new-format component-tree manipulation
 - [LegacyHighlightPainter](../src/client/java/org/wynnvets/items/LegacyHighlightPainter.java) — `paintIfLegacy()`, the guard-and-paint both highlight sites call (§5)
-
-**Gap:** `LegacyEnchantmentRenderer` (names the specific enchantment a legacy item carries) and `LegacyScreenshotHandler` (re-renders the modified tooltip to the clipboard), undocumented. See those classes.
+- [LegacyEnchantmentRenderer](../src/client/java/org/wynnvets/items/LegacyEnchantmentRenderer.java) — names the specific enchantment a legacy item carries (§4)
+- [LegacyScreenshotHandler](../src/client/java/org/wynnvets/items/LegacyScreenshotHandler.java) — re-renders the modified tooltip to the clipboard (§4)
 
 **Data:**
 - [definitions.yml](../src/client/resources/definitions.yml) — 9 sections
@@ -103,13 +103,29 @@ Entry point: called from `LegacyItemTooltipMixin` via `LegacyItemHandler.process
 
 **Wynntils percentage suffix** (e.g. `[61.7%]`) is extracted and re-appended to preserve Wynntils stat output.
 
-**Gap:** the `appendEnchantmentBlock` wiring (called from five tooltip branches plus `tryNewFormatRewrite`) and `tryNewFormatRewrite` itself (called from branches 2, 3 and 6), undocumented. See `LegacyTooltipRenderer`.
+**The new-format rewrite and the enchantment, by branch.** `tryNewFormatRewrite(modified, plainText)` is branches 2, 3 and 6's new-format path. If `NewFormatRenderer.isNewFormatItem` says the tooltip is new-format, it gives the name line the "Enchanted" treatment (`applyEnchantedToNewFormatNameLine`) or the gold recolour (`recolorNewFormatNameLine`), inserts the LEGACY box (`insertLegacyBoxLine`) and, for an enchanted item, calls `appendEnchantmentBlock`. It returns `true` only once the box is in; otherwise the branch goes on to its old-format rewrite. Branch 1 runs the same steps inline for a new-format legacy item whose line 0 is blank. An item counts as enchanted when it has foil, its item id is not on the `enchant_excluded_items` list (both are folded into `LegacyItemHandler.currentItemHasFoil`), and its name is not on the `unenchanted` list. That is the test branch 6 opens on.
+
+`appendEnchantmentBlock` returns at once while `legacyItemShowEnchantments` is off (§6) and otherwise hands the tooltip to `LegacyEnchantmentRenderer.showEnchantment` (below). It runs only once a branch has decided the item is enchanted and legacy: from branch 1 and `tryNewFormatRewrite` for an enchanted item, from branches 2, 3 and 5's old-format rewrites under the same test, and unconditionally from branch 6's old-format rewrite. Branches 4, 4b, 7 and 8 never call it.
 
 **New-format tooltip rewriting** (`NewFormatRenderer`): detects items via presence of `tooltip/emblem/frame` or `banner/box` fonts. `isNewFormatItem` sets the sticky `newTooltipStylesAvailable` flag as a side effect. The LEGACY chip, built by `legacyBox()` (a gold `banner/box` run of `LEGACY_BOX_BACKGROUND` with the black lettering `LEGACY_BOX_FOREGROUND` as a nested child), is inserted, with a delimiter node, before the first rarity box in the Component tree via a 3-phase recursive descent (direct child → banner/symbol-sibling heuristic → recursive).
 
 Only the §3 lists come from YAML; the remaining detection rules (e.g. lore lines, foil, item IDs, name colour codes, fonts) and the labels themselves (e.g. the "Legacy Item (…)" family, "Enchanted", "LEGACY ENCHANTMENTS") are hardcoded in Java.
 
 **Spoiler handling (`handleSpoilers` config) is unrelated to legacy items** — it encodes `||spoiler||` markers you type before sending (`GuildChatDispatcher` via `SpoilerCodec`) and renders received encoded spoilers via `SpoilerRewriter`/`SpoilerFormatter`, not item tooltips.
+
+### `LegacyEnchantmentRenderer`
+
+[LegacyEnchantmentRenderer](../src/client/java/org/wynnvets/items/LegacyEnchantmentRenderer.java) names the specific vanilla enchantment a legacy item carries, read from the stack's `minecraft:enchantments` component. Wynncraft hides that component from new-format tooltips through `tooltip_display`, but it stays on the stack, and modern items carry it with an empty map, so a non-empty map is itself a legacy signal. `showEnchantment` tries these forms, in order:
+
+1. **A paged new-format item:** a `LEGACY ENCHANTMENTS` block on the powder page, under Wynncraft's POWDER SOCKETS block and drawn like it: a boxed header with a right-aligned `1/1` count, a blank line, then one socket-sprite entry such as `◈ Knockback I`.
+2. **A V2-era item**, which has no pages and leaves `minecraft:enchantments` visible: Minecraft already draws an enchantment line without its numeral, and the level is added to that line in place.
+3. **An unidentified item**, new-format but pageless: a plain `- Legacy:` / `- Enchantment: …` pair at the end of the tooltip's content, shaped like Wynntils' item-guess block.
+
+The boxed header uses the PUA box alphabets `NewFormatRenderer.LEGACY_BOX_BACKGROUND` documents, and its kerning and right-alignment are measured at runtime from the resource pack's glyph widths.
+
+### `LegacyScreenshotHandler`
+
+[LegacyScreenshotHandler](../src/client/java/org/wynnvets/items/LegacyScreenshotHandler.java) replaces Wynntils' item screenshot of a legacy item. Wynntils' `ItemScreenshotFeature` captures the tooltip before vetsmod rewrites it, so its image has no gold name and no LEGACY box. When Wynntils' screenshot keybind is pressed in an inventory, `LegacyTooltipEventListener` sets a one-shot flag (`LegacyItemHandler.notifyScreenshotKeyPressed`). On the next tooltip pass that rewrites a legacy item, `LegacyItemTooltipMixin` calls `LegacyItemHandler.screenshotIfRequested`, which consumes the flag, renders the final tooltip offscreen and copies the image to the clipboard 250 ms later, after Wynntils' own copy. A pass that rewrites nothing does not make that call, so a press over an item vetsmod leaves alone stays latched until the next legacy tooltip, whose image then replaces the clipboard (bug `legacy-screenshot-latch-survives-non-legacy-press`).
 
 ## 5. Visual rendering — gradient + sprite
 

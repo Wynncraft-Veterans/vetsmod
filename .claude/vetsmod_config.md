@@ -27,8 +27,9 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `vetsGuildCheckResult` | long | Cached `/gu stats` result enum (0=UNKNOWN,1=RETURNERS,2=OTHER_GUILD,3=GUILDLESS) |
 | `vetsLastGuildCheck` | long | Timestamp of last `/gu stats` (3-day TTL) |
 | `vetsDebugEnabledAt` | long | When `/wv debug true` set the debug flag (0 when off). Read only at client init, which restores the flag if under three days old and otherwise zeroes this key. The age is not rechecked later, so a running session keeps debug on |
-
-**Gap:** three internal keys are missing from this table — `vetsAnniModeUserSet`, `vetsAnniUserMode` and `vetsAnniGhostsPromptShownForStamp`. See `VetsConfigKeys`.
+| `vetsAnniModeUserSet` | bool | Set by a `/wv anni <mode>` pick (an `AnniModeManager.transitionTo` with `Source.USER_COMMAND`). Read by `AnniModeManager.preferredMode()` and `applyStartupDefaultIfNeeded()`; [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md) §Mode state owns what it changes. Installs from before the key existed lack it, so their earlier `vetsAnniMode` is replaced by the default. See [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md) §Mode state. |
+| `vetsAnniUserMode` | string | The user's last explicit anni-mode pick, written with `vetsAnniModeUserSet` and kept apart from `vetsAnniMode`, so a `/stream`-forced silent does not overwrite it. Empty until the first pick. |
+| `vetsAnniGhostsPromptShownForStamp` | string | The stamp for which the ghosts prompt last fired on its no-ghost-seen branch, persisted so a restart in the same window does not repeat that fire. Empty until that branch first fires. |
 
 ## 2. User-facing keys (USER_CONFIG_KEYS array, settable via /wv config)
 
@@ -172,7 +173,7 @@ JSON pretty-printed via GSON. Parent dir created if missing. Missing keys use in
 
 ## 8. Related config-adjacent state
 
-**Debug config** — keys declared in [DebugConfigManager](../src/client/java/org/wynnvets/debug/DebugConfigManager.java) rather than among VetsConfigKeys' constants, but registered into VetsConfig's boolean map via `registerDefault` and persisted in the same `config.json`. Current debug keys: `itemDump` (bool) — when true, numpad `+` while hovering item dumps full Component tree JSON to `vetsmod/dumps/`.
+**Debug config** — keys declared in [DebugConfigManager](../src/client/java/org/wynnvets/debug/DebugConfigManager.java) rather than among VetsConfigKeys' constants, but registered into VetsConfig's boolean map via `registerDefault` and persisted in the same `config.json`. Current debug keys: `itemDump` (bool) — when true, numpad `+` while hovering item dumps full Component tree JSON to `vetsmod/dumps/items/`.
 
 Must call `DebugConfigManager.init()` before `VetsConfig.load()` (they share the same storage location).
 

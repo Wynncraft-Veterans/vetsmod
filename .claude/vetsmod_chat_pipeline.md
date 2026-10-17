@@ -259,7 +259,7 @@ Rank-letter glyphs aren't `chat/prefix`: vetsmod's own pills render in the defau
 
 `PillCodec` owns both halves of this: the pill sequences, and the predicate for whether a codepoint is glyph art at all — `isCustomGlyph(int)`, seven call sites across six classes, three deliberate non-callers. Both are documented in [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
 
-**Gap:** some top-level `chat/` classes have no section in this reference — among them `DiscordTimestamps` (not mentioned at all), `RankDisplayMap` (named only in §3's `ServerGuildChatRewriter` entry), `ChatLogger` (named only in §2's step list) and `WarningFrameRenderer` (named only in passing). (`NickResolver` carried the same marker until it got a §3 section, alongside the `GuildChatLine` created with it.)
+**Top-level `chat/` classes described elsewhere.** `DiscordTimestamps`, which expands Discord's `<t:EPOCH:STYLE>` markup client-side, is described with its one caller, `/wv return`, in [vetsmod_commands.md](vetsmod_commands.md) §1. `RankDisplayMap` maps a raw Wynncraft guild rank to what vetsmod shows for it: `displayFor` gives the display label from the 2026-07 permission restructure (Returner, Steward) and returns a rank it does not know unchanged, and `vTagFor` gives the tag on a `/v` staff-channel pill (`ChatUtils.buildStaffPillComponent`). [vetsmod_pua_pills.md](vetsmod_pua_pills.md) §"Where decoding happens" shows where `ServerGuildChatRewriter` applies it, after the pill decode that tries `ChatLogger`'s rank map first. `ChatLogger`'s logging is step 2 of §2's list, and `WarningFrameRenderer` is the `warning`-frame path in §5.
 
 ## 12. Regex quick reference
 

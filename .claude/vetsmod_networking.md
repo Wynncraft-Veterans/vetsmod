@@ -31,7 +31,7 @@ Key methods:
 - `sendTabList(entries)` — sends `{type:"tablist", entries:[{server, username},...]}`
 - `addOutboundListener(listener)` — register consumer (note: `server_info` frames are intercepted before listeners and routed straight to `SessionAuthWarning.onServerInfo()`)
 
-**Not exhaustive** — `sendQueueStatus`, `sendRankChange`, `sendStaffActionFrame`, `isInboundConnected`, `sendInboundUnchecked` (a send with no check of its own, for a caller that has just checked `isInboundConnected()`; not for register, auth or staff-action frames), `addInboundListener` and `addInboundPostConnectListener` also exist; §7.1's senders use `isInboundConnected` and `sendInboundUnchecked`, and its client-side receivers the inbound fan-out, except `anni_state`'s, an outbound listener (`AnniWsHandler.onOutbound`). `staff_online` / `staff_offline` are likewise intercepted before the outbound listeners.
+**Also public:** `clearRegistration`, `sendQueueStatus`, `sendRankChange`, `sendStaffActionFrame`, `isInboundConnected`, `sendInboundUnchecked` (a send with no check of its own, for a caller that has just checked `isInboundConnected()`; not for register, auth or staff-action frames), `isConfirmedStaff`, `confirmedStaffRank`, `addInboundListener`, `addInboundPostConnectListener` and `removeOutboundListener`, plus the `TabListEntry` record that `sendTabList` takes. The class's `public static` methods are the list to trust, since it changes: `grep -n 'public static' src/client/java/org/wynnvets/api/V1ApiManager.java`. §7.1's senders use `isInboundConnected` and `sendInboundUnchecked`, and its client-side receivers the inbound fan-out, except `anni_state`'s, an outbound listener (`AnniWsHandler.onOutbound`). `staff_online` / `staff_offline` are likewise intercepted before the outbound listeners.
 
 **Register frame fields:** `type`, `uuid`, `username`, `tier`.
 **Auth frame fields:** `type:"auth"`, `key:"<43-char base64url>"`. Server replies `{status:"ok", tier, ws_tier, mc_uuid, mc_username, is_staff, staff_rank, staff_rank_display}` or `{status:"error", detail:"auth rejected: <reason>"}`. `is_staff` and `staff_rank` are read by `InboundAckRouter` into `SessionAuthState`'s `confirmedStaff` / `confirmedStaffRank`, which `isConfirmedStaff()` / `confirmedStaffRank()` return. `staff_rank_display` is the additive 2026-07 label — the server still sends it, and it is `null` exactly when `staff_rank` is, but the client does not read it; display labels come from `RankDisplayMap.displayFor` at each render site. Auth-success replies are told apart from chat-success acks by the presence of the `tier` field, so a success is recognised whether or not `expectingAuthAck` is set.
@@ -80,10 +80,12 @@ Silent drop if `send()` called while not connected (no queuing), and also while 
 | `SUPPORTERS` | `/v1/outbound/supporters` |
 | `LIST` | `/v1/outbound/list` |
 | `ROSTER` | `/v1/outbound/roster` |
+| `ALIASES` | `/v1/outbound/aliases`, read by `PolledJsonMap.WYNN_ALIASES` |
+| `NO_ASPECTS` | `/v1/outbound/no-aspects`, read by `NoAspectsFilter` |
 
 Also: `GUILD_UUID = "a36bd64c-c053-4727-872d-b0d0729f474a"` (Returners).
 
-**Not exhaustive** — `VetsApi` also declares `ALIASES` (`/v1/outbound/aliases`, read by `PolledJsonMap.WYNN_ALIASES`), `NO_ASPECTS` (`/v1/outbound/no-aspects`, read by `NoAspectsFilter`) and the external `ANNI` link.
+`ANNI` is the one external link: `https://wynnvets.org/anni`, the anni schedule page.
 
 [WynnCraftApi](../src/client/java/org/wynnvets/api/WynnCraftApi.java):
 - `playerInfo(UUID)` → `https://api.wynncraft.com/v3/player/{uuid}`
