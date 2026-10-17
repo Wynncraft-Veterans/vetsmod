@@ -169,7 +169,8 @@ is what the searcher matches). Each step names the class that owns it:
    `MembersGui.isTileSlot`, which is also what
    `MembersListWalker.collectVisiblePage` collects from and what the
    searcher's `onSetSlot` filters on, so the three cannot drift apart.
-   On a miss it calls `advancePagination`.
+   On a miss it checks the page cap, then calls `advancePagination` (the
+   step-by-step below).
 7. On a hit it captures the handler, calls `stop()` to clear all search
    state, *then* invokes `SlotMatchHandler.onMatch(slot)`. The handler
    receives only the slot index, so the callee reads the container from
@@ -195,10 +196,34 @@ is what the searcher matches). Each step names the class that owns it:
     the menu left open — and on its terminal invocation, when the queue
     is empty, calls `MemberSlotPresser.closeMembersScreen` itself.
 
-**Gap:** the searcher's rebind and sweep-retry sub-machine is summarised
-by its constants (§6) but its state transitions are not written out
-here. See `MembersListSearcher.scanAndPaginate` and
-`MembersListSearcher.advancePagination`.
+**The searcher's scan, step by step.** `MembersListSearcher.scanAndPaginate` runs
+`SCAN_DELAY_TICKS` after the last event that triggers it (§6 point 3) and takes the
+first of these that applies:
+
+1. **No screen carries the bound id** (`ContainerScreens.currentWithId` returns
+   `null`). If a Members menu is open by title and fewer than `MAX_REBIND_ATTEMPTS`
+   rebinds have been used, it rebinds to that menu's id and schedules another scan.
+   Otherwise it gives up through `invokeNotFound`.
+2. **A tile on the page matches an armed name.** It stops the search and calls the
+   match handler with the slot.
+3. **The pass has already made `MAX_PAGES` page clicks.** A yellow "Could not find
+   <name> (reached page limit)." and `invokeNotFound`.
+4. **A page click is possible** (`advancePagination`). Going forward, it clicks Next
+   while there is one; when there is none it turns backward and clicks Previous.
+   Going backward, it clicks Previous while there is one. The page update the click
+   brings triggers the next scan.
+5. **No click is possible**, so the sweep is exhausted: a forward run ended with no
+   Previous to turn to, or a backward run reached page 1. If the retry is unused
+   (`MAX_RETRY_ATTEMPTS`), it resets the page count and the direction and schedules a
+   fresh scan about `RETRY_DELAY_TICKS` later, from the page it is on. Otherwise a
+   yellow "Could not find <name> in members list." and `invokeNotFound`.
+
+`invokeNotFound` stops the search and runs the not-found handler, if one was armed;
+`DistributionQueue` arms one to move on to the next recipient. The watchdog
+(`WATCHDOG_TICKS`, counted from `armSearch`) also ends a search through
+`invokeNotFound`, after a yellow "Search for <name> timed out — advancing." A
+server-sent close for the bound id ends a search through `onMenuClose`, which runs
+no handler.
 
 ## 5. The five heads
 
@@ -634,13 +659,29 @@ to three requests (two wapi, one vets); `@random` and
 `@graids` up to three each; `@objectives` up to two; `@split` up to the
 sum of the phases it actually runs.
 
-**Gap:** the `members.<rank>.<currentName>` traversal shape and the four
-entry points' differing failure returns are not written out here. See
-`NameResolver.forEachGuildMember`.
+**`NameResolver`, written out.** Each entry point makes its own `fetchGuildJson` call, a
+fresh `GET /v3/guild/<the player's guild>` that completes with the body or with the
+`null` described above, so a single-target send's two wapi requests are two of these
+calls. `forEachGuildMember` walks
+`members.<rank>.<currentName>`, skipping the `total` key and any rank bucket that is
+not an object. It hands each member's current name and JSON object (`null` when the
+value is missing or not an object) to a callback that can stop the walk, and a parse
+error ends the walk quietly. A member's tile name is its `legacyName` when it has
+one, else its current name. On `null`, or a body that does not parse, each entry
+point falls back its own way:
 
-**Gap:** the package's user-facing chat strings are not inventoried.
-There are 19 `ChatUtils.sendLocalMessage` call sites under `distribute/`;
-§7 quotes only the failure-path ones.
+| Entry point | Caller | Returns | On failure |
+|---|---|---|---|
+| `resolveLegacyName(input)` | `DistributeCommands`' literal-name head | the tile name of the first member whose current or legacy name equals the input, ignoring case; members with no object are skipped; the input unchanged when none matches | the input unchanged |
+| `fetchAllLegacyNames()` | `RandomDistributor` | every member's tile name, not deduplicated | an empty list |
+| `fetchNameIndex()` | `GraidsDistributor` | each member's current and tile names, lower-cased, mapped to the tile name | an empty map |
+| `fetchUuidToLegacyName()` | `NoAspectsFilter` | each member's UUID, undashed and lower-cased, mapped to the tile name; members with no object or no `uuid` are skipped | an empty map |
+
+**Not inventoried here: the package's user-facing chat strings.** They change with
+the code, so the grep finds them, each string on the lines after its call:
+`grep -rn 'sendLocalMessage' src/client/java/org/wynnvets/distribute`. §7 quotes the
+failure-path ones. `NameOrSelectorArgument`'s Brigadier error, "Expected a member name
+or @selector", is not a chat call; the chat screen's command hint shows it.
 
 ## 10. Adding a new selector
 
