@@ -7,7 +7,7 @@
 ## vetsmod (Fabric client mod — Java)
 - [vetsmod Architecture](project_vetsmod.md) — Entry points, package map, WebSocket protocol, user tiers, Wynntils integration summary
 - [Chat Pipeline](vetsmod_chat_pipeline.md) — ChatLogMixin hook, rewriter chain (5 rewriters), dispatcher (staff fanout + /find), OutboundDisplayHandler, PillFormatter, SpoilerCodec, state/caches
-- [Commands Reference](vetsmod_commands.md) — Complete /wv command tree, permissions, handlers, chat-command mixins (/unlock <key>, /g/wg/v)
+- [Commands Reference](vetsmod_commands.md) — Index of the command surface: the /wv tree and root /motd, the intercepted chat commands (/unlock and GuildChatDispatcher's prefixes: /g, /wg, /v, /a, /encourage, /wv check, the caution family, /gu and /guild invite), the dump key and click buttons; gates, handlers, bugs
 - [Guild / Unlock / Staff-Rank System](vetsmod_guild_system.md) — GuildStateManager facade, GuildLifecycle (world join, disconnect reset), GuildChecker (3-day cache), StaffRankChecker (24h cache), UnlockManager (bearer-key auth, replaces SHA-256), SessionAuthWarning
 - [Config Reference](vetsmod_config.md) — All config keys (internal + user-facing) including new vetsAuth* fields, defaults, validation, persistence format
 - [Networking (WebSocket + Fetchers + Polling)](vetsmod_networking.md) — V1ApiManager (incl. sendAuth; frame builders in V1Frames; auth-ack routing in InboundAckRouter), WsClient reconnection/ping, on-demand HTTP fetchers, polling services

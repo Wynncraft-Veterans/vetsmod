@@ -1,6 +1,6 @@
 ---
 name: vetsmod /wv Command Reference
-description: Complete /wv command tree — subcommands, permissions, handlers, chat-command mixins (/unlock, /g/wg/v)
+description: Index of vetsmod's command surface — the /wv tree and root /motd, the intercepted chat commands, the dump key and click buttons; gates, handlers, side effects, bugs
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
@@ -40,7 +40,8 @@ The tables name these kinds of gate:
 - **Parse gate:** a node's `.requires(…)`. Brigadier tests it live when it parses a typed command:
   typing a refused child gets Fabric's red "Incorrect argument for command" (Brigadier's
   `dispatcherUnknownArgument`, which Fabric shows instead of forwarding), and nothing reaches the
-  handler or the server. So a handler that re-tests its own parse gate cannot refuse through Brigadier.
+  handler or the server. So a handler that re-tests its own parse gate refuses only if the gate's state
+  changes between parse and run.
   Tab completion reads a copy instead: Fabric copies the client tree into the vanilla dispatcher only
   when a `minecraft:commands` packet arrives, leaving out each node whose `.requires` fails at that
   moment, and vetsmod never calls `ClientCommandManager.refreshCommandCompletions()`. So a node is
@@ -122,8 +123,8 @@ site that wrote it:
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
-| `/wv check <playerName>` | `isConfirmedStaff()` | the same, so its refusal cannot fire through Brigadier | `CommandRegistry.check` | `UserInfoFetcher.checkUser`: name → UUID through the `PlayerLookup` cascade, then the Wynncraft profile, dazebot's membership snapshot and, once there is a profile, guild-roster cross-checks. Then `CautionCommands.runCheckCautions` for the caution history | HTTP: the name lookup cascade, the Wynncraft profile and guild rosters. WebSocket: `check_membership` and `caution_check` frames | `help-advertises-wv-check-on-a-weaker-gate`; the `wv-check-*` files; `check-membership-ack-drops-last-seen-observed`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `user-is-in-vets-npe-on-missing-guild-uuid`, `user-info-fetcher-join-blocks-completing-thread`, `staff-action-queue-not-drained-on-socket-reconnect` |
-| `/wv invite-force <playerName>` | `isConfirmedStaff()` | the same, so its refusal cannot fire through Brigadier | `CommandRegistry.inviteForce` → `InviteGate.forceDispatch` | Sends `/gu invite <playerName>` with every `InviteGate` check skipped, and prints a yellow "Dispatching /gu invite <name> (vetsmod gate bypassed)." `InviteGate`'s `[Invite anyway]` button runs it | in-game `/gu invite`, sent through `GuildChatDispatcher.sendCommandBypassed` | none |
+| `/wv check <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.check` | `UserInfoFetcher.checkUser`: name → UUID through the `PlayerLookup` cascade, then the Wynncraft profile, dazebot's membership snapshot and, once there is a profile, guild-roster cross-checks. Then `CautionCommands.runCheckCautions` for the caution history | HTTP: the name lookup cascade, the Wynncraft profile and guild rosters. WebSocket: `check_membership` and `caution_check` frames | `help-advertises-wv-check-on-a-weaker-gate`; the `wv-check-*` files; `check-membership-ack-drops-last-seen-observed`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `user-is-in-vets-npe-on-missing-guild-uuid`, `user-info-fetcher-join-blocks-completing-thread`, `staff-action-queue-not-drained-on-socket-reconnect` |
+| `/wv invite-force <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.inviteForce` → `InviteGate.forceDispatch` | Sends `/gu invite <playerName>` with every `InviteGate` check skipped, and prints a yellow "Dispatching /gu invite <name> (vetsmod gate bypassed)." `InviteGate`'s `[Invite anyway]` button runs it | in-game `/gu invite`, sent through `GuildChatDispatcher.sendCommandBypassed` | none |
 
 `/wv check <playerName>` and `/wv invite-force <playerName>` read the name with
 `StringArgumentType.string()`, so a name is one unquoted token or a quoted string. Which hook handles a
@@ -404,8 +405,9 @@ Because every prefix ends in a space and typed input arrives trimmed, a bare `/v
 hold never print from typed chat (bug `intercept-usage-arms-unreachable-from-typed-chat`). `/eject <name>`
 with no message does print its usage line.
 
-The chat-path `/wv check` and Fabric's §1 node both see a typed `/wv check`. Which handles it is a
-question of injection order that source has not settled; bug `help-advertises-wv-check-on-a-weaker-gate`
+The chat-path `/wv check` and Fabric's §1 node both hook a typed `/wv check`, and whichever runs first and
+acts on it cancels the send, so the other never sees it. Which runs first is a question of injection order
+that source has not settled; bug `help-advertises-wv-check-on-a-weaker-gate`
 holds the reading and the in-game check that would settle it.
 
 `/msg` is not intercepted. vetsmod emits it: the `/v` fan-out queues one per recipient, and the names in
@@ -471,13 +473,44 @@ Links in chat (Discord, the anni site, URLs in messages) open a browser and run 
 
 ## 3. Suggestion providers
 
-`ConfigCommands.SUGGEST_CONFIG_KEYS` and `SUGGEST_CONFIG_VALUES` provide Brigadier tab completion. Tri-state keys suggest `default|true|false`. Int keys (opacity) suggest `reset|0|25|50|69|75|100`. String keys suggest `reset` plus names from `LegacyItemStyle.getColorNames()`, the 10 sprite names, or (for `vetsAnniRoleStyle`) the 3 role styles; `vetsAnniFlashIntensity` has no arm of its own and gets the colour names. A hand-typed `vetsAnniMode` key gets the three anni modes, which `/wv config` then refuses as an unknown key (bug `config-commands-anni-mode-suggestion-arm-unreachable`). Today setting either of those two anni keys validates the value as a colour name, so the suggested role styles are refused too (bug `config-set-rejects-role-style-and-flash-intensity`).
+Every suggestion provider in the tree, by builder. A node with no provider and only literal children gets its
+suggestion list from Brigadier (§4).
+
+| Provider | On | Offers |
+|---|---|---|
+| `ConfigCommands.SUGGEST_CONFIG_KEYS` | `/wv config <key>` | the keys in `VetsConfigSchema.USER_CONFIG_KEYS` |
+| `ConfigCommands.SUGGEST_CONFIG_VALUES` | `/wv config <key> <value>` | values by key type (below) |
+| `DebugCommands.SUGGEST_DEBUG_CONFIG_KEYS` | `/wv debug set <key>` | the keys in `DebugConfigManager.DEBUG_CONFIG_KEYS` |
+| `DebugCommands.SUGGEST_BOOLEAN_VALUES` | `/wv debug set <key> <value>` | `true`, `false` |
+| `AnniDebugSuggestions.SUGGEST_DUMP_FILES` | `snapshot inject file <name>` | the `.json` files in `vetsmod/dumps/anni/`, without the extension |
+| `AnniDebugSuggestions.SUGGEST_PRESETS` | `snapshot inject preset <name>` | the bundled preset names |
+| `AnniDebugSuggestions.SUGGEST_EXTERNAL_MODES` | `external <mode>` | `auto`, `true`, `false` |
+| `AnniDebugSuggestions.SUGGEST_TIME_OFFSETS` | `time <seconds>` | offsets from one minute to twelve hours, and `-60` for the not-announced form |
+| `AnniDebugSuggestions.SUGGEST_ZONE_ACTIONS` | `zone <action>` | `enter`, `exit` |
+| `AnniDebugSuggestions.SUGGEST_FLASH_FIELDS` | `flash <field>` | `role`, `world`, `party`, `rsvp` |
+| `AnniDebugSuggestions.SUGGEST_MODES` | `mode set <mode>` | `silent`, `passive`, `aggressive` |
+| `AnniDebugSuggestions.SUGGEST_ALERT_FIELDS` | `alert <field>` | `role`, `world`, `party`, `rsvp`, `zone`, `world_ready` |
+| `AnniDebugSuggestions.SUGGEST_REGISTRY_ROLES` | `registry set <username> <role>` | the role codes and `other` |
+| `DistributeCommands.suggestGuildMembers` | `/wv distribute <name>` | the `@`-selectors and, once Wynntils' member cache is filled, the guild members from `Models.Guild.getGuildMembers()` |
+| `DistributeCommands.suggestCounts` | `/wv distribute … <count>` | `DistributeCommands.COMMON_COUNTS` |
+
+The anni rows are under `/wv debug tree anni`.
+
+**`SUGGEST_CONFIG_VALUES` by key.** Boolean keys suggest `true|false`, and tri-state keys `default|true|false`.
+Int keys (opacity) suggest
+`reset|0|25|50|69|75|100`. String keys suggest `reset` plus the colour names from
+`LegacyItemStyle.getColorNames()`, the sprite names (`VetsConfigSchema.VALID_SPRITES`), or, for
+`vetsAnniRoleStyle`, the role styles; `vetsAnniFlashIntensity` has no arm of its own and gets the colour
+names. A hand-typed `vetsAnniMode` key gets the anni modes, which `/wv config` then refuses as an
+unknown key (bug `config-commands-anni-mode-suggestion-arm-unreachable`). Today setting either of those two
+anni keys validates the value as a colour name, so the suggested role styles are refused too (bug
+`config-set-rejects-role-style-and-flash-intensity`).
 
 ## 4. Things to know when adding commands
 
-- Register new subcommand inside `CommandRegistry.register()` using Brigadier literal/argument pattern.
-- Gate with a real predicate. `CommandRegistry`'s own `userIsCaptain`/`userIsVet` are all-true stubs; the genuinely-gated commands call a `GuildStateManager` predicate directly — `isConfirmedStaff()`, `isStaff()`, `areFeaturesEnabled()`, `isUnlocked()`, `isStaffOfAnyGuild()`, `isChiefOfAnyGuild()` and `isAuthenticatedThisSession()` are all in use.
+- Register a new `/wv` subcommand in `CommandRegistry.register()` with Brigadier's literal and argument builders, or give a whole subtree its own `buildCommandTree()` and mount it with `.then(…)`, as `/wv debug` and `/wv distribute` are.
+- Gate with a real predicate. `CommandRegistry`'s own `userIsCaptain`/`userIsVet` are all-true stubs; the gated commands call one of the gates in §1's table directly. A `.requires` is a parse gate, so a handler that re-tests it refuses only if the gate's state changes between parse and run: a refusal that should explain itself belongs in the handler.
 - Avoid heavy work on the main thread; use `CompletableFuture` from `HttpClient`.
 - Chat output: use `ChatUtils.sendLocalMessage(Component)` (or `sendLocalMessageNewBlock` for the first line of a new response). Both prepend the vetsmod badge and hand off to `LocalChatDispatch.dispatchToChat(Component, Style)`, which is thread-safe and marks the dispatch internal so the chat pipeline skips re-logging and the rewriter chain. Calling `dispatchToChat` directly skips that badge; some chat rewriters do so for lines they rebuild themselves. The badge's full or compact form is meant to follow the chat lines already shown. Today it counts only vetsmod's own lines, and it is chosen on the calling thread before `dispatchToChat` hops to the render thread, so a send from an HTTP completion thread can also race that count (bug `prepend-dedup-decided-off-thread-and-counts-only-mod-lines`).
 - Tab completion: use Brigadier `SuggestionProvider`s, with `ConfigCommands.SUGGEST_CONFIG_KEYS` / `SUGGEST_CONFIG_VALUES` as templates.
-- **A fixed set of choices does not need a `SuggestionProvider` at all.** Literal children give Brigadier its own suggestion list for free — `hard`/`soft`/`revoke` under `rsvp`, and `silent`/`passive`/`aggressive` under `anni`, are both spelled that way. Reach for `StringArgumentType.word()` plus a custom provider only when the value set is open or computed at runtime.
+- **A fixed set of choices does not need a `SuggestionProvider` at all.** Literal children give Brigadier its own suggestion list for free — `hard`/`soft`/`revoke` under `rsvp`, and `silent`/`passive`/`aggressive` under `anni`, are both spelled that way. Reach for `StringArgumentType.word()` plus a custom provider only when the value set is open or computed at runtime. The tree does not always follow this. `/wv debug set <key> <value>` and the anni harness's `snapshot inject preset`, `external`, `zone`, `flash`, `mode set` and `alert` take a fixed set through `word()` and a provider, and `/wv debug <true|false>` takes one through `word()` with no provider. Each handler checks the word except `alert`'s, which passes any word to `AggressiveAlertDispatcher.forceAlert` and prints "anni alert <field> triggered" either way; `forceAlert` only logs a field it does not know.
