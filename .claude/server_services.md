@@ -229,7 +229,7 @@ When the dazebot pair is disabled, `/v1/outbound/supporters` and `/v1/outbound/d
 
 [app/config/loader.py](../../temporary-server/app/config/loader.py)
 
-Config file: `config.yml` at repo root.
+Config file: `config.yml`, at the repo root unless `CONFIG_FILE` points elsewhere (below).
 
 ```yaml
 discord_bot_token: "<token>"
@@ -242,26 +242,39 @@ Loading priority: env vars (`DISCORD_BOT_TOKEN`, `MOTD`) > file values > built-i
 
 **Atomic write** (`update_config(key, value)`): Write to temp file in same dir → `os.replace()` (atomic rename). Thread-safe via `_CONFIG_WRITE_LOCK`.
 
-Legacy: `config.json` and `motd.yml` migrated on first run to `config.yml`.
-
 `donatorList` is still loaded, defaulted and normalised by the loader, but it
 no longer feeds `/v1/outbound/supporters` — that endpoint now composes from
 `state.glinted_slots`, which `GlintedPoller` fills from dazebot. The URL and
 the wire format were kept; only the source of truth moved.
 
-**Gap:** the loader's env-override table, its legacy-migration path and
-`_normalize_donator_list` are not described beyond the above.
+**What else the loader does** (`app/config/loader.py`):
+
+- **Environment overrides.** `DISCORD_BOT_TOKEN`, when it is not blank, replaces
+  `discord_bot_token`, and `MOTD`, when it is set and non-empty, replaces `motd`, with a
+  literal `\n` turned into a newline. Both apply at runtime only and are never written to
+  `config.yml`. `CONFIG_FILE` sets the file's path (default: `config.yml` at the project
+  root). Production points it into a directory bind mount so the atomic replace works;
+  where `os.replace` fails with `EBUSY`, the writer falls back to an in-place write.
+- **Legacy migration.** Only when `config.yml` does not exist: it is created with
+  `discord_bot_token` from a legacy `config.json` (or empty), `motd` from a legacy `motd.yml`
+  (or the built-in default), an empty `guild_motd` and the default `donatorList`. Once `config.yml`
+  exists, the legacy files are never read.
+- **Normalisation.** Each load fills a missing key with its default, replaces a value of
+  the wrong type with its default, and passes `donatorList` through
+  `_normalize_donator_list`, which keeps only the entries that parse as UUIDs, in canonical
+  form, and falls back to the built-in list when none survive. If that changes anything,
+  the normalised file values are written back.
 
 ## 9. Modules this doc does not cover
 
-`app/services/` holds 17 modules. The sections above describe five of them
+`app/services/` holds more modules than this doc describes. The sections above describe five of them
 (`state`, `staff_poller`, `guild_roster_poller`, `username_cache`,
 `recorder`), plus the processing pipeline and config loader from sibling
 packages. The rest are named here so their existence is discoverable, and
 deliberately not expanded — they are server-internal, and vetsmod's behaviour
 does not depend on their internals.
 
-**Gap:** the following are named only. Read the source when you need them.
+Read the source when you need them:
 
 | Module | What it is |
 |---|---|
@@ -276,6 +289,7 @@ does not depend on their internals.
 | `webhook_timestamp_store.py` | Persists the anni stamp so `/v1/outbound/stamp` survives a restart |
 | `pua_decoder.py` | `split_pua_items` — splits a multi-item PUA run |
 | `pua_renderer.py` | `PuaRenderer` — HTTP client for the item-renderer sidecar |
+| `wynnpool_fallback.py` | `WynnpoolFallback.describe` — decodes a shared PUA item through Wynnpool's live API when the item-renderer sidecar cannot draw it, returning an `ItemCard` or `None`; on by default (`WYNNPOOL_API_URL`; empty disables it), but the relay reaches it only when `PUA_RENDERER_URL` configures the sidecar |
 | `dedup.py` | Documented separately in [server_dedup_engine.md](server_dedup_engine.md) |
 
 ## 10. Poller shape

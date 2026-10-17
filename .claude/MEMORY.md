@@ -20,7 +20,7 @@
 - [Guild Resource Distribution](vetsmod_distribute.md) — /wv distribute, the Manage-Members GUI automation state machine, the five modes, the NoAspects opt-out, front-of-queue command reflection
 
 ## temporary-server (FastAPI Python backend)
-- [temporary-server Architecture](project_server.md) — Stack, three pillars plus the auxiliary dazebot HTTP introspection client, file structure (all 17 service modules), REST endpoints, dedup summary, Discord command surface
+- [temporary-server Architecture](project_server.md) — Stack, three pillars plus the auxiliary dazebot HTTP introspection client, file structure (every service module), REST endpoints, dedup summary, Discord command surface
 - [API Reference](server_api_reference.md) — /v1/inbound WS (incl. auth frame + tier gate), /v1/outbound WS (incl. server_info hello + tier filter), all REST endpoints, admin toggles, protocol details, TTLs
 - [Deduplication Engine](server_dedup_engine.md) — Fingerprinting, 4 matching strategies (exact/prefix/truncation/cross-user) plus the no-match fallthrough that records and accepts, the 35s window, alias TTL, cleanup, edge cases
 - [Discord Bot](server_discord_bot.md) — Bridge routing, role→rank mapping, all admin commands incl. `unauth` toggle, !list, staff alert relay, mention resolution, sanitization

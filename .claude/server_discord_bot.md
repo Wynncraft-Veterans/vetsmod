@@ -226,7 +226,7 @@ All bridge-channel traffic — chat relay and staff alerts alike — goes throug
 - Under backpressure it drops the **oldest text** first, deliberately preserving embeds — a dropped chat line costs less than a dropped staff alert.
 - Constructed in `create_app` against `DISCORD_CHANNEL_ID`; `start()` is called in the lifespan immediately after the bot task, i.e. *before* login completes. That is safe: the worker's channel resolve returns None until the client is ready and it retries, so pre-login items are held rather than lost.
 
-**Gap:** the queue cap, pacing interval and per-send timeout are constants in `bridge_sender.py` and are not restated here.
+**Not restated here: the queue's tuning.** Module constants in `bridge_sender.py` set it: `_QUEUE_CAP`, the items held before the oldest text is dropped; `_MIN_SEND_INTERVAL`, the least gap between two sends, kept under Discord's per-channel rate bucket; and `_SEND_TIMEOUT`, the bound on one send, so discord.py's 429 retries cannot hold the worker past it. Their values are not given here: they live in another repo, and nothing in this one can check them, so read them in `bridge_sender.py`.
 
 ## 9. Mention resolution
 

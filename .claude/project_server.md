@@ -41,7 +41,7 @@ app/
     static.py          # Both REST routers: /v1/outbound/* and the /v0/outbound/* legacy set
     anni_delta.py      # POST /api/internal/anni-snapshot-delta — the only secret-gated route
     magbot_health.py   # GET /magbot-health — 503 when magbot is offline/invisible/unknown
-  services/            # 17 modules; see server_services.md
+  services/            # see server_services.md
     state.py           # AppState dataclass — the single shared mutable container
     dedup.py           # Dedup engine + the `guild_deduplicator` module-level singleton
     staff_poller.py    # Wynncraft API staff polling (5min roster, 10s per-player probe)
@@ -58,6 +58,7 @@ app/
     webhook_timestamp_store.py  # Persists the anni stamp so it survives a restart
     pua_decoder.py          # Splits a multi-item Wynncraft PUA run into individual items
     pua_renderer.py         # HTTP client for the item-renderer sidecar (PUA → PNG card)
+    wynnpool_fallback.py    # Wynnpool live-API decode for items the sidecar cannot draw
     recorder.py             # Traffic capture for debugging
 ```
 
