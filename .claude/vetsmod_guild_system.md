@@ -34,6 +34,9 @@ Key public methods (all package-level or client-facing):
 | `refreshStaffStatusIfNeeded(forceRefresh)` | Staff rank refresh |
 | `sendRegistrationIfReady()` | Push presence frame on inbound WS |
 
+The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` and `isChiefOfAnyGuild()`;
+[vetsmod_commands.md](vetsmod_commands.md) §1's gate table describes them with the other command gates.
+
 [GuildLifecycle](../src/client/java/org/wynnvets/guild/GuildLifecycle.java) holds the world-join flow:
 
 | Method | Purpose |
