@@ -32,8 +32,9 @@ import org.wynnvets.rendering.territory.TerritoryLineManager;
  * the existing singletons ({@link GuildStateManager}, {@link VetsConfig})
  * and delegate API calls to the appropriate fetcher classes.</p>
  *
- * <p>Called from {@link org.wynnvets.VetsmodClient#onInitializeClient()} via
- * {@code ClientCommandRegistrationCallback}.</p>
+ * <p>{@link org.wynnvets.VetsmodClient#onInitializeClient() VetsmodClient#onInitializeClient()}
+ * registers {@link #register} as a {@code ClientCommandRegistrationCallback}. Fabric calls it on
+ * every login, so the tree is built afresh, into a new dispatcher, each time.</p>
  */
 public final class CommandRegistry {
 

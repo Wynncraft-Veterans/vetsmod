@@ -36,8 +36,10 @@ import org.wynnvets.util.Json;
  * <p>The staff gate everywhere here is
  * {@link GuildStateManager#isConfirmedStaff()} -- the server-confirmed
  * roster check resolved at WS auth time. The local {@code /gu rank}
- * cache is NOT consulted, because /eject dispatches real in-game
- * commands and a spoofed staff bit must not be load-bearing.</p>
+ * cache is NOT consulted, because any commit whose ack reports
+ * {@code triggered="eject"} -- an /eject, or a caution or warning whose
+ * commit crosses the ban threshold -- dispatches real in-game commands, and a
+ * spoofed staff bit must not be load-bearing.</p>
  */
 public final class CautionCommands {
 

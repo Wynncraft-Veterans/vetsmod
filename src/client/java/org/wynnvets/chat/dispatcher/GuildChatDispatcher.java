@@ -96,8 +96,8 @@ public final class GuildChatDispatcher {
             return handleHonouraryChat(command.substring(3));
         }
 
-        // Client-side-staff-gated commands: passthrough silently when the
-        // local rank cache doesn't show staff, opportunistically refreshing
+        // /v, /a and /encourage are gated on the local rank cache: passthrough
+        // silently when it doesn't show staff, opportunistically refreshing
         // so the next attempt has a chance to succeed.
         if (command.regionMatches(true, 0, "v ", 0, 2)) {
             if (!staffOrRefresh()) return false;
@@ -111,6 +111,8 @@ public final class GuildChatDispatcher {
             if (!staffOrRefresh()) return false;
             return handleEncourage(command.substring(10).trim());
         }
+        // The chat-path /wv check is gated on isConfirmedStaff() instead, and
+        // refuses with a message rather than passing through.
         if (command.regionMatches(true, 0, "wv check ", 0, 9)) {
             if (!GuildStateManager.isConfirmedStaff()) {
                 ChatUtils.sendLocalMessage(

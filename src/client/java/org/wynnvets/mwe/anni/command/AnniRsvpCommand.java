@@ -32,9 +32,11 @@ import org.wynnvets.mwe.anni.render.AnniHoverBuilder;
  * package's shape should not be inferred from either one alone.</p>
  *
  * <p>Client-side guard: {@link GuildStateManager#isAuthenticatedThisSession()}
- * must be true (no auth frame ever sent otherwise, so temp-server has no
- * session to read the {@code mc_uuid} from). UX-only — the server-side
- * trust chain is the actual gate.</p>
+ * must be true. It is false until an ok auth ack arrives, and again after an
+ * auth failure, a newly stored {@code /unlock} key or leaving the game server.
+ * It does not follow the inbound socket, on which temp-server keeps the session
+ * it reads the {@code mc_uuid} from, so it stays true across a socket drop.
+ * UX-only — the server-side trust chain is the actual gate.</p>
  *
  * <p>Unauthenticated message uses spec wording per the S6 plan:
  * <em>"Use \rsvp on discord — or run ~vetsmod first."</em> Surfaces both

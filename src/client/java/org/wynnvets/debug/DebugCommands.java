@@ -332,11 +332,13 @@ public final class DebugCommands {
 
     /**
      * {@code /wv debug trigger nametagsDump} — per-player diagnostic for the
-     * S4 nametag pipeline. For each nearby {@code AbstractClientPlayer},
-     * reports:
+     * S4 nametag pipeline. A header line reports the live
+     * {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker#isOutlineSuppressionActive()
+     * AnniOutlineTicker#isOutlineSuppressionActive()} flag and the anni nametag
+     * and outline toggles. Then, for each nearby {@code AbstractClientPlayer},
+     * it reports:
      * <ul>
      *   <li>their gameProfile username;</li>
-     *   <li>the live {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker#isOutlineSuppressionActive() AnniOutlineTicker#isOutlineSuppressionActive()} flag;</li>
      *   <li>whether {@link org.wynnvets.mwe.anni.outline.AnniOutlineRegistry} has
      *       an entry for them and the resolved tier / nametag {@link net.minecraft.ChatFormatting};</li>
      *   <li>what colour the {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} TAIL-of-{@code extractRenderState}
