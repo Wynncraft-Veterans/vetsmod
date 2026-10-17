@@ -6,15 +6,16 @@ import java.util.regex.Pattern;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 
 /**
- * The two shared ways this mod asks <em>"which container screen is open right now?"</em>.
+ * The shared ways this mod asks <em>"which container screen is open right now?"</em>.
  *
  * <p>Seven sites pattern-matched {@code McUtils.mc().screen} against
  * {@link AbstractContainerScreen} for themselves, each following it with one of exactly two
  * discriminators. The idiom lives here once so a reader comparing two call sites is comparing
- * the discriminators rather than re-deriving that both start the same way. The two bodies
- * below are the only remaining occurrences in {@code src/}, which is what makes that grep-able.</p>
+ * the discriminators rather than re-deriving that both start the same way. An eighth site, which
+ * used no discriminator, now calls {@link #current()}. The bodies below are the only remaining
+ * occurrences in {@code src/}, which is what makes that grep-able.</p>
  *
- * <h2>The two predicates are not interchangeable</h2>
+ * <h2>The predicates are not interchangeable</h2>
  * <p>They answer different questions and a caller that swaps one for the other changes
  * behaviour on the path it exists to survive &mdash; which is why they are separate methods
  * with separate names rather than one method with a flag:</p>
@@ -29,19 +30,32 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
  *       Wynncraft can reassign the container id when it refreshes a menu, so a caller that must
  *       survive a refresh &mdash; or that is rebinding <em>because</em> of one &mdash; cannot
  *       discriminate on id at all.</li>
+ *   <li>{@link #current()} asks <b>"is any container screen on screen?"</b> It checks neither
+ *       id nor title, so a caller that must tell one menu from another cannot use it.</li>
  * </ul>
  *
- * <p>Neither method checks what the other checks. {@code currentWithId} does not look at the
- * title, so the bound id is the whole predicate; {@code currentWithTitle} does not look at the
- * id, which is exactly what makes it refresh-proof.</p>
+ * <p>Neither discriminating method checks what the other checks. {@code currentWithId} does
+ * not look at the title, so the bound id is the whole predicate; {@code currentWithTitle} does
+ * not look at the id, which is exactly what makes it refresh-proof.</p>
  *
- * <p>Both return {@code null} rather than an {@code Optional}. Every call site is a null
+ * <p>Each returns {@code null} rather than an {@code Optional}. Every call site is a null
  * check deciding whether the next step runs, and {@code null} is what the five methods among
  * the seven returned; the other two were inline {@code if}/{@code else} blocks branching on
  * the same test, whose callers now branch on the null instead. The point of this class is that
  * nothing at a call site decides differently.</p>
  */
 public final class ContainerScreens {
+
+    /**
+     * The open container screen, whatever its id or title, otherwise {@code null}. No
+     * discriminator &mdash; for a caller that reads whichever menu is open, not one it bound.
+     */
+    public static AbstractContainerScreen<?> current() {
+        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen) {
+            return screen;
+        }
+        return null;
+    }
 
     /**
      * The open container screen iff its menu carries {@code containerId}, otherwise

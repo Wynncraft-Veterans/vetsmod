@@ -97,10 +97,10 @@ Wynntils' `GuildMemberListContainer`), not the subset ≥2 callers share,
 so `PREVIOUS_PAGE_SLOT` / `PREVIOUS_PAGE_PATTERN` live there despite
 having one caller. The tick constants stay on their own classes — §6.
 
-One distribute-only helper lives outside the package: `org.wynnvets.util.ContainerScreens`
-holds the two "which container screen is open" predicates, because the
-id-matching one also drives the *Manage* menu and so is not
-Members-specific. See §6 point 2.
+`org.wynnvets.util.ContainerScreens`, outside the package, holds the id and title "which container
+screen is open" predicates the package uses, because the id-matching one also drives the *Manage*
+menu and so is not Members-specific. Its third predicate, `current()`, discriminates on nothing,
+and nothing in this package uses it. See §6 point 2.
 
 `DistributionQueue` is in `distributor/` rather than beside `MembersGui`
 because it calls `MemberSlotPresser.closeMembersScreen()`, which is

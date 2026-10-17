@@ -10,6 +10,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import org.wynnvets.items.LegacyItemHandler;
+import org.wynnvets.util.ContainerScreens;
 
 /**
  * Reads the live client state behind an item dump: the slot under the cursor, a tooltip built fresh
@@ -36,9 +37,8 @@ final class HoverDumps {
             return obj;
         }
 
-        Minecraft mc = Minecraft.getInstance();
-        Screen screen = mc != null ? mc.screen : null;
-        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
+        AbstractContainerScreen<?> containerScreen = ContainerScreens.current();
+        if (containerScreen == null) {
             obj.addProperty(
                     "status", "no container screen open (stashed slot reference may be stale)");
             return obj;
@@ -63,7 +63,7 @@ final class HoverDumps {
         obj.addProperty("x", slot.x);
         obj.addProperty("y", slot.y);
         obj.addProperty("containerId", containerScreen.getMenu().containerId);
-        obj.addProperty("screenTitle", screen.getTitle().getString());
+        obj.addProperty("screenTitle", containerScreen.getTitle().getString());
         obj.addProperty(
                 "stackMatchesSlotItem", ItemStack.isSameItemSameComponents(slot.getItem(), stack));
         return obj;
