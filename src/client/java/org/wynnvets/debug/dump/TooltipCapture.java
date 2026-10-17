@@ -17,7 +17,7 @@ import net.minecraft.world.item.ItemStack;
  * The captured input list therefore reflects post-Wynntils, post-wynnmod
  * state — exactly what vetsmod's legacy detection actually sees.</p>
  *
- * <p>Used by {@link ItemDumpHandler} to compare the captured list against
+ * <p>Used by {@link HoverDumps} to compare the captured list against
  * a freshly-built tooltip ({@code Screen.getTooltipFromItem}).  That path
  * fires Wynntils' {@code ItemTooltipFlagsEvent} but none of the render-time
  * call-site wraps: neither Wynntils' own {@code ItemTooltipRenderEvent.Pre},
