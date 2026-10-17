@@ -30,6 +30,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 - **Method:** `sendCommand(String command)` at `@At("HEAD")`, `cancellable=true`
 - **Purpose:** Routes `/g`, `/wg`, `/v` and nine more prefixes through `GuildChatDispatcher.intercept(command)` — **not exhaustive**, see `GuildChatDispatcher.intercept`, which matches 12. `/msg` is not one of them
 - **Why:** Staff `/v` gets fanned out to every other staff member in the WV online staff feed via `MessageFanoutDispatcher`; Wynncraft natively has no multi-staff chat
+- **Not hooked — the click path:** a chat button that runs a command (`ClickEvent.RunCommand`) reaches `ClientPacketListener.sendUnattendedCommand`, not `sendCommand`, and no vetsmod mixin hooks it. Fabric's command API does: a click that names a registered client command runs it there (`/wv invite-force`, `/wv anni <mode>`). Anything else goes to vanilla's `verifyCommand`, which sends it at once only when the client's copy of the server's command tree parses it with no issue; otherwise a confirmation screen opens, and for a command the tree cannot parse, its Run button sends the raw packet. So a click on `/caution-go …` never reaches `GuildChatDispatcher` (bug `caution-confirm-click-bypasses-intercept`)
 
 ## Command (1)
 
@@ -37,8 +38,8 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 [UnlockCommandMixin](../src/client/java/org/wynnvets/mixin/client/command/UnlockCommandMixin.java)
 - **Target:** `@Mixin(ClientPacketListener.class)`
 - **Method:** `sendCommand(String command)` at `@At("HEAD")`, `cancellable=true`
-- **Purpose:** Intercepts `/unlock <key>` before server. Validates the key shape locally (32–200 char URL-safe base64), persists it to `vetsAuthKey`, and dispatches an `auth` frame on the inbound WS via `V1ApiManager.sendAuth(key)`.
-- **Why:** The key is a bearer token issued by dazebot's `/vetsmod` Discord command; it must never be sent to the Wynncraft server. Server-side validation happens asynchronously via dazebot HTTP introspection — see [vetsmod_guild_system.md §4](vetsmod_guild_system.md) and [vetsmod_networking.md §8](vetsmod_networking.md).
+- **Purpose:** Intercepts `/unlock` and `/unlock <key>` before the server. It matches a command that starts with `unlock`, case-sensitively, followed by a space or the end, so `/Unlock <key>` passes through (bug `unlock-intercept-is-case-sensitive`). It cancels the send and hands the key to `GuildStateManager.tryUnlock`; checking the key's shape, storing it in `vetsAuthKey` and sending the `auth` frame are `UnlockManager`'s.
+- **Why:** The key is a bearer token issued by dazebot's `/vetsmod` Discord command, and is meant never to reach the Wynncraft server. Server-side validation happens asynchronously via dazebot HTTP introspection — see [vetsmod_guild_system.md §4](vetsmod_guild_system.md) and [vetsmod_networking.md §8](vetsmod_networking.md).
 
 ## Legacy item (3)
 

@@ -37,7 +37,7 @@ All six (plus the `Wynntils` reference clone) are sibling directories under what
 **Vetsmod authentication (per-user, replaces SHA-256 password unlock):**
 1. User runs `/vetsmod` in Discord (`#bot-commands`).
 2. Dazebot DMs them the modrinth link + a `/unlock <43-char-key>` command.
-3. User pastes `/unlock <key>` in Minecraft. The mod intercepts it, persists the key, and sends an `auth` frame on the inbound WS.
+3. User pastes `/unlock <key>` in Minecraft. The mod intercepts it, persists the key, and sends an `auth` frame on the inbound WS, or, while that socket is down, on its next connect.
 4. Temporary-server validates the key via dazebot's `POST /api/auth/introspect` (60s LRU cache), stores `(disc_uuid, mc_uuid, mc_username, tier, ws_tier, is_staff, staff_rank)` on the connection, and replies with the resolved tier.
 5. Subsequent chat is gated: `member`-tier may send/receive `guild`+`queue`, `waitlist` only `waitlist`, etc. Today the receive half never applies to vetsmod, which never authenticates its outbound socket (bug `outbound-socket-never-authenticated`).
 6. Connections without a valid auth are accepted *only* while the server's `unauth` admin toggle is enabled (default during alpha).

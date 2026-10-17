@@ -7,9 +7,11 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 # vetsmod Commands Reference
 
 This is the index of vetsmod's command surface. §1 is the Brigadier tree: the `/wv` command and a
-standalone `/motd`. §2 is the chat commands vetsmod's mixins intercept before they reach the server. Each
-§1 entry gives the command's path, its gates, its handler, what it does, its side effects and its known
-bugs.
+standalone `/motd`. §2 is everything else a player can type, press or click that vetsmod acts on: the
+commands its mixins intercept before they reach the server, the item-dump key, and vetsmod's own chat
+buttons. Each §1 entry gives the command's path, its gates, its handler, what it does, its side effects
+and its known bugs. §2's prefix table gives each intercepted prefix its gate, handler, behaviour and known
+bugs, and its other entries say what triggers each input and what it does.
 Where another doc owns the detail, the entry links it rather than restating it.
 
 ## 1. The `/wv` tree
@@ -307,33 +309,165 @@ Everything downstream of the executor — the menu routes, the pagination and pr
 tick constants, the `NoAspects` opt-out and the failure/stall matrix — is in
 [vetsmod_distribute.md](vetsmod_distribute.md).
 
-## 2. Chat command mixins
+## 2. Intercepted commands and other inputs
 
-**Gap:** the `/caution`, `/caution-go`, `/warn` and `/eject` chat-intercept commands, undocumented. They are not Brigadier-registered — they share `GuildChatDispatcher`'s intercept path. See `CautionCommands`.
+Everything here, except the chat buttons that run or fill in a §1 command, reaches vetsmod outside
+Brigadier. vetsmod's mixins on `ClientPacketListener.sendCommand` inject at its `HEAD`, cancellable:
+[`UnlockCommandMixin`](../src/client/java/org/wynnvets/mixin/client/command/UnlockCommandMixin.java) for
+`/unlock`, and
+[`GuildChatCommandMixin`](../src/client/java/org/wynnvets/mixin/client/chat/GuildChatCommandMixin.java),
+which hands every command to
+[`GuildChatDispatcher.intercept`](../src/client/java/org/wynnvets/chat/dispatcher/GuildChatDispatcher.java).
+Fabric's command API injects at the same point to run §1's client commands, and Wynntils does too.
+[vetsmod_mixins.md](vetsmod_mixins.md) owns the hooks.
 
-**Gap:** nine of the twelve intercepted prefixes are undocumented — `/a`, `/encourage`, the chat-path `/wv check`, `/gu invite`, `/guild invite`, `/caution-go`, `/caution`, `/warn`, `/eject`. Only `/g`, `/wg` and `/v` are covered, in §2. See `GuildChatDispatcher.intercept`.
+These rules hold for everything below:
 
-Target `ClientPacketListener.sendCommand(String)`; HEAD + cancellable.
+- **Typed input is normalised first.** The chat screen trims a typed line and collapses its runs of spaces
+  before it calls `sendCommand`, so a typed `/v ` arrives as `v`.
+- **vetsmod's own sends pass through.** `GuildChatDispatcher.sendCommandBypassed` sets a `BYPASS` flag
+  around its `sendCommand` call, and `intercept` passes everything through while it is set. That is how
+  `/wv invite-force`, the invite gate's allow path and the eject dispatch send their in-game commands
+  without re-running the intercept. The commands vetsmod queues through Wynntils (`/msg`, `/find`,
+  `/gu rank`, `/gu stats`, and distribute's `/guild manage`) re-enter the hooks too, and match no prefix.
+- **A click takes another path.** A chat button that runs a command calls `sendUnattendedCommand`, which
+  no vetsmod mixin hooks; [vetsmod_mixins.md](vetsmod_mixins.md) has where such a click goes. A button
+  that names one of §1's client commands works. A button that names an intercepted command does not reach
+  `GuildChatDispatcher` (bug `caution-confirm-click-bypasses-intercept`).
 
-### UnlockCommandMixin
-[UnlockCommandMixin](../src/client/java/org/wynnvets/mixin/client/command/UnlockCommandMixin.java)
+### `/unlock`
 
-Intercepts `/unlock <key>`. The "key" is a 43-character URL-safe base64 bearer token (32 bytes of entropy via `secrets.token_urlsafe(32)`) issued by dazebot's `/vetsmod` Discord command.
+`/unlock <key>` stores the player's vetsmod key. The key is a 43-character URL-safe base64 bearer token
+(32 bytes of entropy via `secrets.token_urlsafe(32)`) issued by dazebot's `/vetsmod` Discord command.
 
-Flow:
-1. Mixin cancels the server-bound packet.
-2. Delegates to `GuildStateManager.tryUnlock(key)` → `UnlockManager.tryUnlock(key)`.
-3. Local checks: length ∈ [32, 200], charset is URL-safe base64 (`a-zA-Z0-9_-`).
-4. Persists to `vetsAuthKey` and dispatches an `auth` frame on the inbound WS via `V1ApiManager.sendAuth(key)`.
-5. Player sees `⏳ Saved your vetsmod key. Verifying with the server…` (yellow).
-6. Server's auth-frame ack lands asynchronously → `GuildStateManager.onAuthSuccess(tier)` shows `✅ vetsmod authentication verified — tier: <tier>` (green) **at most once per error→recovery cycle**, gated by the persisted `printSuccessfulAuth` flag (defaults `true`; latched to `false` after a successful render; reset to `true` by `onAuthFailure`). Display path: **action bar** during normal in-world play, **chat fallback** when a `Screen` is open at dispatch time (Wynncraft's class-selection screen on login is the canonical case — action-bar overlays are suppressed under screens but chat renders through). `onAuthFailure(detail)` always displays `❌ vetsmod authentication failed: <reason>` (red) **in chat** (it carries an actionable Discord URL that the action bar would truncate). Manually re-show the next ack with `/wv config printSuccessfulAuth true`.
+1. `UnlockCommandMixin` matches a command that starts with `unlock`, case-sensitively, followed by a space
+   or the end, and cancels the send. `/Unlock <key>` matches nothing and goes to the server, key included
+   (bug `unlock-intercept-is-case-sensitive`). A bare `/unlock` prints a red usage line.
+2. It calls `GuildStateManager.tryUnlock(key)` → `UnlockManager.tryUnlock(key)`.
+3. Local checks: length ∈ [32, 200], charset URL-safe base64 (`a-zA-Z0-9_-`). A failure prints a red
+   `❌ That doesn't look like a vetsmod key. …` and stores nothing.
+4. It persists the key to `vetsAuthKey`, clears the session's tier, verified flag and failure reason, arms
+   a one-shot flag that makes the next auth ack show its result unless the player leaves the server
+   first, and calls
+   `V1ApiManager.sendAuth(key)`. That sends an `auth` frame on the inbound WebSocket, or, while the socket
+   is down, returns without sending; the key then goes out when the socket next connects.
+5. The player sees `⏳ Saved your vetsmod key. Verifying with the server…` (yellow), whether or not the
+   frame went out.
+6. The server's ack arrives asynchronously. An ok ack reaches `UnlockManager.onAuthSuccess`, which shows
+   `✅ vetsmod authentication verified — tier: <tier>` (green) when step 4's flag is armed or
+   `printSuccessfulAuth` is on. A rejection reaches `onAuthFailure`, which always prints
+   `❌ vetsmod authentication failed: <reason>. …` (red) in chat. Where the success line renders is in
+   [vetsmod_guild_system.md](vetsmod_guild_system.md) §4, and how the setting latches is in
+   [vetsmod_config.md](vetsmod_config.md)'s `printSuccessfulAuth` row.
 
-The legacy SHA-256 password matching has been removed. Users with stored `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` markers from before the migration get a session-start warning prompting them to run `/vetsmod` in Discord — see [vetsmod_guild_system.md §5](vetsmod_guild_system.md#5-sessionauthwarning). The markers are meant to do nothing else; today they also still unlock client-side (bug `legacy-unlock-markers-still-grant-client-unlock`).
+The legacy SHA-256 password matching has been removed. A user with a pre-migration
+`vetsWaitlistUnlockTime` or `vetsHonouraryUnlockTime` marker and no stored key gets the session-start
+warning to get a key — see [vetsmod_guild_system.md §5](vetsmod_guild_system.md#5-sessionauthwarning),
+case 3. The markers are meant to do nothing else; today they also still unlock client-side (bug
+`legacy-unlock-markers-still-grant-client-unlock`).
 
-### GuildChatCommandMixin
-[GuildChatCommandMixin](../src/client/java/org/wynnvets/mixin/client/chat/GuildChatCommandMixin.java)
+Bugs: `unlock-intercept-is-case-sensitive`, `legacy-unlock-markers-still-grant-client-unlock`,
+`auth-success-toast-rendered-off-render-thread`, `anni-default-not-reapplied-on-auth-tier-flip`,
+`outbound-socket-never-authenticated`, `session-auth-warning-reports-rejection-without-one`,
+`ws-client-send-ignores-send-pending-failure`.
 
-Routes `/g`, `/wg`, `/v` and nine more prefixes through `GuildChatDispatcher.intercept(command)` — **not exhaustive**, see `GuildChatDispatcher.intercept`, which matches 12. Staff `/v` goes through `DispatchCoordinator` → `MessageFanoutDispatcher` for fan-out to online staff with 🔐 lock prefix. `/msg` is **not** intercepted: vetsmod only ever emits it, via `Handlers.Command.queueCommand` in the fan-out and as a `SuggestCommand` click on `/wv list` entries.
+### The intercepted prefixes
+
+`GuildChatDispatcher.intercept` matches twelve prefixes, each with `regionMatches(true, …)`: case-insensitive,
+and with a trailing space that is part of the prefix. `/g` is checked first; for every other prefix, a
+player who fails `isUnlocked()` has the command passed through to the server as typed. "Passes through"
+below means the same.
+
+| Typed | Gate | Handler | What happens | Bugs |
+|---|---|---|---|---|
+| `/g <message>` | none | `handleGuildChat` | A guildless waitlist-unlocked player's line goes to the bridge as `waitlist`, and a Returners player's line goes as `queue` while they sit in a world queue; both are cancelled and echoed locally. A Returners line with a `\|\|` spoiler is re-sent spoiler-encoded, or refused in red if that passes 253 characters. Anything else passes through. The relays and the encoding honour `handleSpoilers` | `relay-chat-echoes-locally-while-socket-down`, `v1-sockets-open-off-wynncraft`, `banned-chars-e080-00c1-reach-chat`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock`, `url-repair-merges-following-non-lowercase-token`, `raw-rank-pills-bypass-display-remap` |
+| `/wg <message>` | `isUnlocked()` | `handleHonouraryChat` | Always cancelled. An honourary-unlocked player's line goes to the bridge as `honourary` and is echoed locally; anyone else gets a red "You must unlock with an honourary password to use /wg." | `wg-gate-message-says-honourary-password`, `relay-chat-echoes-locally-while-socket-down`, `v1-sockets-open-off-wynncraft`, `banned-chars-e080-00c1-reach-chat`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock` |
+| `/v <message>` | `isUnlocked()`, then `isStaff()`; a non-staff command passes through, and a staff-rank refresh starts | `handleStaffChat` | Refused in red during `/stream` and above 234 characters. Otherwise, once the staff-presence check passes, echoed locally and sent to each other online staff member as `/msg <name> 🔐<message>` | `dispatcher-notices-misattribute-cause`, `fanout-null-player-spins-dispatch-executor`, `find-phase-does-not-yield-to-queued-msg`, `staff-channel-badge-shares-guild-badge-dedup`, `staff-ranks-poll-swap-not-atomic`, `intercept-usage-arms-unreachable-from-typed-chat` |
+| `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | `dispatcher-notices-misattribute-cause`, `intercept-usage-arms-unreachable-from-typed-chat` |
+| `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you are using vetsmod, it's outdated (current version <version>) ⚠⚠⚠` | `dispatcher-notices-misattribute-cause`, `raw-rank-pills-bypass-display-remap`, `staff-ranks-poll-swap-not-atomic`, `intercept-usage-arms-unreachable-from-typed-chat` |
+| `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "You must be confirmed staff (vetsmod authenticated) to use /wv check." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | `help-advertises-wv-check-on-a-weaker-gate`, `intercept-usage-arms-unreachable-from-typed-chat`, and §1's `/wv check` row |
+| `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `invite-gate-no-profile-line-says-dispatching-before-blocklist-cancel`, `vets-snapshot-provider-skips-confirmed-staff-check`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
+| `/guild invite <name>` | as `/gu invite` | `InviteGate.checkInvite` | As `/gu invite`; an allowed invite is sent as `gu invite` | as `/gu invite` |
+| `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `caution-confirm-click-bypasses-intercept`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `intercept-usage-arms-unreachable-from-typed-chat`, `outbound-socket-never-authenticated` |
+| `/caution <name> [message]` | as `/caution-go` | `CautionCommands.runCaution` | Asks for a preflight (`caution_add`); commits at once if the caution crosses no threshold | as `/caution-go` |
+| `/warn <name> [message]` | as `/caution-go` | `CautionCommands.runWarn` | Commits a formal warning (`warn_add`) | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `intercept-usage-arms-unreachable-from-typed-chat`, `outbound-socket-never-authenticated` |
+| `/eject <name> <message>` | as `/caution-go` | `CautionCommands.runEject` | Commits an eject (`eject_add`); refuses a missing message | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `outbound-socket-never-authenticated` |
+
+`/v`, `/a` and `/encourage` share `DispatchCoordinator`'s staff-presence check, and a player it cannot confirm
+as staff gets a yellow "Please wait until the server updates your online status before using staff chat."
+and nothing is sent; [vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §9 owns that check and the `/v` fan-out.
+The waitlist, queue and honourary relays echo the line before `V1ApiManager.sendInbound`, which drops it silently
+while the inbound socket is down (bug `relay-chat-echoes-locally-while-socket-down`).
+
+Because every prefix ends in a space and typed input arrives trimmed, a bare `/v`, `/a`, `/encourage`,
+`/caution`, `/caution-go`, `/warn` or `/wv check` matches nothing here, and the usage lines those handlers
+hold never print from typed chat (bug `intercept-usage-arms-unreachable-from-typed-chat`). `/eject <name>`
+with no message does print its usage line.
+
+The chat-path `/wv check` and Fabric's §1 node both see a typed `/wv check`. Which handles it is a
+question of injection order that source has not settled; bug `help-advertises-wv-check-on-a-weaker-gate`
+holds the reading and the in-game check that would settle it.
+
+`/msg` is not intercepted. vetsmod emits it: the `/v` fan-out queues one per recipient, and the names in
+`/wv list` and `/wv list world` are buttons that fill the chat box with `/msg <name> `.
+
+**The caution family.** `/caution`, `/caution-go`, `/warn` and `/eject` each send a staff-action frame over
+the inbound WebSocket (`V1ApiManager.sendStaffActionFrame`) and print the server's answer; temporary-server
+checks that the session is authenticated staff, and dazebot records the action. A `/caution` that would
+cross a threshold comes back as `would_trigger`, and `CautionCommands` prints the threshold and two buttons:
+`[Confirm and send]` (or `[Send generic warning]`), which runs `/caution-go …`, and `[Edit reason]` (or
+`[Type a custom warning]`), which fills the chat box with it. The first button does not commit today: a
+click never reaches `GuildChatDispatcher` (bug `caution-confirm-click-bypasses-intercept`). The second
+works once the player presses Enter. A commit from any of the four whose ack reports `triggered="eject"`
+dispatches `/gu kick <name>` or `/gu rank <name> recruit`, whichever the ack's `suggested_dispatch` names.
+For a player who is not confirmed staff, the four commands pass through to Wynncraft as typed, as
+`GuildChatDispatcher`'s comment there intends. `/wv check` appends the target's caution history
+(`caution_check`).
+
+**The invite gate.** For a Returners player, `/gu invite <name>` and `/guild invite <name>` are cancelled
+and handed to [`InviteGate.checkInvite`](../src/client/java/org/wynnvets/commands/InviteGate.java), which
+checks the target and then sends `/gu invite` itself, through `sendCommandBypassed`. Only the first word
+after `invite` is kept. It first resolves the name. If no lookup source can be reached, it prints a yellow
+notice and sends the invite; a name no source knows should be refused, and today goes the same way (bug
+`vets-snapshot-provider-makes-player-not-found-unreachable`). Otherwise it gathers the target's Wynncraft
+profile, dazebot's membership snapshot and, for a player who is not confirmed staff, the Returners guild's
+size and level, and decides, in this order:
+
+- **the snapshot lookup fails:** cancelled, in red, with a pointer to `/wv invite-force` for confirmed
+  staff. Every player who is not confirmed staff lands here today whenever the name resolves, because
+  temporary-server refuses them `check_membership` (bug `vets-snapshot-provider-skips-confirmed-staff-check`);
+- **the profile cannot be fetched:** a yellow notice that the invite is going out anyway, then a blocklist
+  check alone. A blocklisted target is refused in red for everyone, with no button, after that notice (bug
+  `invite-gate-no-profile-line-says-dispatching-before-blocklist-cancel`); anyone else is invited;
+- **the target is blocklisted, joined Wynncraft on or after 2020-01-01, or hides their first join:**
+  confirmed staff get a gold warning and an `[Invite anyway]` button that runs `/wv invite-force <name>`;
+  anyone else gets a red "Please ask staff before inviting this user as they do not qualify under the
+  usual criteria.";
+- **a player who is not confirmed staff, with the guild near capacity against its waitlist:** a yellow
+  notice asking them to point the target at the waitlist;
+- **otherwise:** the invite is sent.
+
+### Other inputs
+
+| Input | Gate | Handler | What happens |
+|---|---|---|---|
+| Numpad `+` | the `itemDump` debug key (`/wv debug set itemDump true`), a focused window, the key's rising edge | `DebugKeyHandler` → `ItemDumpHandler.dump` | Writes the hovered item to a new JSON file under `vetsmod/dumps/items/`, or prints a yellow "No item under cursor. Hover over an item in an inventory." `DebugKeyHandler` polls the key each client tick and returns first while `itemDump` is off |
+| Wynntils' screenshot keybind, in an inventory | none | `LegacyTooltipEventListener` → `LegacyItemHandler.notifyScreenshotKeyPressed` | Tells the legacy-item code the screenshot key was pressed; see [project_legacy_items.md](project_legacy_items.md) |
+| Typing in the chat box while in a world queue | none | `CommandSuggestionsMixin` | Suppresses the chat box's usage hint and its red parse error; see [vetsmod_mixins.md](vetsmod_mixins.md) |
+
+vetsmod's own chat buttons:
+
+| Button | Where | Click | Result |
+|---|---|---|---|
+| `[Invite anyway]` | the invite gate's staff warning | runs `/wv invite-force <name>` | works: a §1 client command |
+| `[Silent]` / `[Passive]` / `[Aggressive]` | `/wv anni`'s imminent form | runs `/wv anni <mode>` | works: a §1 client command |
+| `[Confirm and send]` / `[Send generic warning]` | the `/caution` preflight | runs `/caution-go …` | does not commit (bug `caution-confirm-click-bypasses-intercept`) |
+| `[Edit reason]` / `[Type a custom warning]` | the `/caution` preflight | fills the chat box with `/caution-go …` | works after Enter |
+| `[Hard]` / `[Soft]` | `/wv anni`'s far-out RSVP line | fills the chat box with `/wv anni rsvp hard` or `soft` | works after Enter |
+| player names | `/wv list`, `/wv list world` | fill the chat box with `/msg <name> ` | a Wynncraft command |
+| `[Suggest: /toggle ghosts none]` | the anni ghosts prompt | fills the chat box with it | a Wynncraft command |
+
+Links in chat (Discord, the anni site, URLs in messages) open a browser and run no command.
 
 ## 3. Suggestion providers
 
