@@ -174,8 +174,9 @@ imminent form's `[Silent] | [Passive] | [Aggressive]` buttons run the mode liter
 line's `[Hard]` / `[Soft]` buttons suggest `/wv anni rsvp hard` and `soft`.
 
 **RSVP, server side.** An RSVP goes through temporary-server, which stamps the session's `mc_uuid`, to
-vets-anni, which reuses its Discord cog's helpers, so the RSVP row, the auto-placement and the public
-confirmation post come from the same code as a Discord `\rsvp`'s. vetsmod never sees the private reply: a revoke with
+vets-anni, which reuses its Discord cog's helpers: the RSVP row and the auto-placement come from the same
+code as a Discord `\rsvp`'s, and the public confirmation line, built in the cog's format, goes out through
+the same `_post_public`. vetsmod never sees the private reply: a revoke with
 no active RSVP still prints "Your RSVP has been withdrawn." (bug
 `in-game-rsvp-revoke-of-nothing-says-withdrawn`). vets-anni closes RSVP 90 minutes before an anni,
 server-side: vets-anni refuses a hard or soft RSVP inside that cutoff with "RSVP is closed (within 90 min
@@ -225,7 +226,7 @@ there.
 | `/wv debug <true\|false>` | none | none | `DiagnosticsHandler.execute` | Turns `VetsLogger`'s debug flag on or off. Case-insensitive; any other word prints a usage line and changes nothing | writes `vetsDebugEnabledAt` | `anni-debug-chat-strings-omit-tree-literal` |
 | `/wv debug set` | none | none | `DebugCommands.debugConfigList` | Lists the debug config keys (`itemDump` is the only one) | chat only | none |
 | `/wv debug set <key> [<value>]` | none | none | `DebugCommands.debugConfigGet`, `debugConfigSet` | Prints or sets a debug key. Refuses an unknown key, and a value other than `true` or `false` | the set form persists the config | none |
-| `/wv debug trigger <name>` | none | none | `DebugCommands` (see below) | One of the diagnostic dumps below | chat or log; `forceChecks` also queues `/gu rank` and `/gu stats` | `help-debug-trigger-documents-three-of-eight-leaves`, `nametags-dump-missing-original-column` |
+| `/wv debug trigger <name>` | none | none | `DebugCommands` (see below) | One of the diagnostic dumps below | chat or log; `forceChecks` also queues `/gu rank` and `/gu stats` and, when Wynntils reports a guild, can send a WebSocket `register` frame and re-run the stamp print, which can send an `anni_query` and GET `VetsApi.STAMP` (below) | `help-debug-trigger-documents-three-of-eight-leaves`, `nametags-dump-missing-original-column` |
 | `/wv debug tree anni …` | none | `requireDebug` on every leaf; `requireStaffOrOrganiser` on the `scrollspot` leaves | `AnniDebugCommands`, `AnniSnapshotDebugCommands`, `AnniHighlightDebugCommands` | The anni debug harness (below) | see below | `anni-debug-chat-strings-omit-tree-literal`, `anni-poller-erases-injected-debug-state`, `anni-scrollspot-clear-frame-omits-scroll-spot-key`, `force-alert-reads-the-snapshot-cache-twice`, `anni-ack-clients-ortimeout-completes-exceptionally` |
 
 `/wv debug true` records the time in `vetsDebugEnabledAt`, and `false` clears it. `VetsmodClient` reads that
@@ -317,8 +318,9 @@ Brigadier. vetsmod's mixins on `ClientPacketListener.sendCommand` inject at its 
 [`UnlockCommandMixin`](../src/client/java/org/wynnvets/mixin/client/command/UnlockCommandMixin.java) for
 `/unlock`, and
 [`GuildChatCommandMixin`](../src/client/java/org/wynnvets/mixin/client/chat/GuildChatCommandMixin.java),
-which hands every command to
-[`GuildChatDispatcher.intercept`](../src/client/java/org/wynnvets/chat/dispatcher/GuildChatDispatcher.java).
+which hands each command that reaches it to
+[`GuildChatDispatcher.intercept`](../src/client/java/org/wynnvets/chat/dispatcher/GuildChatDispatcher.java)
+(a command that an earlier `HEAD` hook cancels never reaches it; see the `/wv check` note below).
 Fabric's command API injects at the same point to run §1's client commands, and Wynntils does too.
 [vetsmod_mixins.md](vetsmod_mixins.md) owns the hooks.
 
