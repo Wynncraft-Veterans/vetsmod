@@ -5,6 +5,7 @@ import com.wynntils.core.components.Models;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.TickDelays;
 
 /**
  * Determines the player's guild membership by issuing {@code /gu stats}
@@ -291,23 +292,14 @@ public final class GuildChecker {
 
         // Schedule clearing the mod-initiated flag after grace period
         long graceEnd = guildCheckSuppressUntil;
-        new Thread(
-                        () -> {
-                            try {
-                                long remaining = graceEnd - System.currentTimeMillis();
-                                if (remaining > 0) {
-                                    Thread.sleep(remaining);
-                                }
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                            } finally {
-                                if (guildCheckSuppressUntil == graceEnd) {
-                                    isModInitiatedGuildCheck = false;
-                                }
-                            }
-                        },
-                        "vetsmod-guild-check-grace")
-                .start();
+        TickDelays.runAfter(
+                SUPPRESSION_GRACE_MS,
+                "Guild check grace",
+                () -> {
+                    if (guildCheckSuppressUntil == graceEnd) {
+                        isModInitiatedGuildCheck = false;
+                    }
+                });
 
         // Notify GuildLifecycle that the check completed
         GuildLifecycle.onGuildCheckCompleted();
