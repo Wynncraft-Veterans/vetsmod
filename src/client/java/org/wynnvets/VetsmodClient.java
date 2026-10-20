@@ -121,8 +121,9 @@ public class VetsmodClient implements ClientModInitializer {
     }
 
     /**
-     * The second phase of the bootstrap: the steps that need Wynntils' event bus or one of its core
-     * components. {@link #onInitializeClient()} registers it as a
+     * The second phase of the bootstrap. Most of its steps need Wynntils' event bus or one of its
+     * core components; {@code AnniPartyReporter}'s snapshot listener reaches {@code Models.Party};
+     * {@code QueueStatusReporter} needs neither. {@link #onInitializeClient()} registers it as a
      * {@code ClientLifecycleEvents.CLIENT_STARTED} listener, which Fabric runs once, on the game
      * thread, when {@code Minecraft.run()} begins. Every mod's client entrypoint has run by then,
      * so Wynntils' {@code WynntilsMod.init} has created its event bus; Wynntils' features start

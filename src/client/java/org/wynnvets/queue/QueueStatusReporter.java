@@ -8,10 +8,10 @@ import org.wynnvets.guild.GuildStateManager;
  * {@code queue_status} frame through
  * {@link org.wynnvets.api.V1ApiManager#sendQueueStatus(boolean, String) V1ApiManager}, while
  * {@link org.wynnvets.guild.GuildStateManager#isUnlocked() GuildStateManager.isUnlocked()} holds.
+ * An exit caused by a disconnect is not sent: the sockets are already closed by then.
  *
- * <p>{@link #register()} subscribes one instance to {@link QueueStateManager}. It is called once,
- * from {@code VetsmodClient}'s {@code CLIENT_STARTED} phase, and has no guard against a second
- * call.</p>
+ * <p>{@link #register()} subscribes a new instance to {@link QueueStateManager} each time it is
+ * called; it has no guard against a second call.</p>
  */
 public final class QueueStatusReporter implements QueueStateListener {
 
