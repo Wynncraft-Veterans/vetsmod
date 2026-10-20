@@ -91,11 +91,11 @@ public final class GuildManageOpener {
     private GuildManageOpener() {}
 
     /**
-     * Registers this opener with the Wynntils event bus. Must be called after Wynntils has finished
-     * its own initialisation &mdash; {@code WynntilsMod.registerEventListener} needs the event bus
-     * that {@code WynntilsMod.init} creates &mdash; so it must stay in {@code VetsmodClient}'s
-     * {@code ClientLifecycleEvents.CLIENT_STARTED} callback (or later), where it is registered
-     * today.
+     * Registers this opener with the Wynntils event bus. Must be called after Wynntils' entrypoint
+     * has run {@code WynntilsMod.init} &mdash; {@code WynntilsMod.registerEventListener} needs the
+     * event bus that it creates &mdash; so it must stay in
+     * {@link org.wynnvets.VetsmodClient#onClientStarted() VetsmodClient.onClientStarted()}, the
+     * {@code ClientLifecycleEvents.CLIENT_STARTED} phase (or later), where it is registered today.
      */
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);

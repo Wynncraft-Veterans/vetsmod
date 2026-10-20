@@ -24,9 +24,10 @@ public final class QueueStatusReporter implements QueueStateListener {
 
     @Override
     public void onQueueEntered(String worldName) {
-        // Only report queue state from vets-context users -- the server
-        // can't usefully attribute queue status from sessions that
-        // never sent a `register` frame.
+        // Only report queue state from vets-context users (isUnlocked(): a
+        // Returners member, or an unlocked waitlist or honourary user). The
+        // server ignores queue_status from a socket that has not sent
+        // `register`; this gate is the client's own and does not check that.
         if (!GuildStateManager.isUnlocked()) return;
         V1ApiManager.sendQueueStatus(true, worldName);
     }

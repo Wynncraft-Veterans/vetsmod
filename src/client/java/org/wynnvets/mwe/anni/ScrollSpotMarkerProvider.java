@@ -62,9 +62,9 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * changing the colour.</p>
  *
  * <p><b>Gate:</b> {@link AnniAggressiveTicker#isAggressiveActive()} AND
- * {@link VetsConfigKeys#VETS_ANNI_SCROLL_WAYPOINT}. Registration happens once
- * at vetsmod load via {@link Models#Marker} — {@link #isEnabled()} is
- * what gates per-tick visibility.</p>
+ * {@link VetsConfigKeys#VETS_ANNI_SCROLL_WAYPOINT}. Registration happens once,
+ * from {@link org.wynnvets.VetsmodClient#onClientStarted() VetsmodClient.onClientStarted()}, via
+ * {@link Models#Marker} — {@link #isEnabled()} is what gates per-tick visibility.</p>
  */
 public final class ScrollSpotMarkerProvider implements MarkerProvider<MarkerPoi> {
 

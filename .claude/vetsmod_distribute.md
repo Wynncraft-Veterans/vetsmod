@@ -122,10 +122,10 @@ other Wynntils-bus listeners. Two of those reach the bus indirectly —
 from inside `WynntilsEventListener.register()`, one line above. Nothing
 in the mod unregisters any of them.
 
-That method carries a long crash-rationale comment about deferring
-`Models.*` access until after Wynntils' own init — but it is attached to
-`ScrollSpotMarkerProvider`'s line further down, and documents that
-class's constraint. Four of the five record no reason of their own;
+That method's Javadoc gives the crash rationale: nothing may touch
+Wynntils' event bus or `Models.*` before Wynntils' own init. The S5
+comment on `ScrollSpotMarkerProvider`'s line further down applies it to
+that class. Four of the five record no reason of their own;
 `GuildManageOpener.register`'s Javadoc states the after-Wynntils-init
 requirement (`WynntilsMod.registerEventListener` needs the event bus that
 `WynntilsMod.init` creates) — a requirement all five share, since each

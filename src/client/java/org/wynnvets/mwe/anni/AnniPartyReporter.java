@@ -35,9 +35,12 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * {@link org.wynnvets.VetsmodClient#onClientStarted() VetsmodClient.onClientStarted()}, the
  * {@code ClientLifecycleEvents.CLIENT_STARTED} phase, NEVER from
  * {@link org.wynnvets.VetsmodClient#onInitializeClient VetsmodClient#onInitializeClient} itself —
- * Wynntils' {@code Models.*} access from the initializer body cold-start-crashes the game (see
- * {@code feedback_vetsmod_wynntils_init_order.md}). Runtime hooks are safe; Wynntils is fully
- * constructed by the time snapshots arrive.</p>
+ * Wynntils' {@code Models.*} access from the initializer body can crash the game at start-up (see
+ * {@code feedback_vetsmod_wynntils_init_order.md}). Its snapshot listener reaches
+ * {@code Models.Party} through {@link PartyRosterListener#requestRecapture()}; subscribed at
+ * {@code CLIENT_STARTED}, it sees no snapshot before Wynntils' own init has run. A listener
+ * subscribed in the initializer body has no such guarantee
+ * ({@code mod-init-snapshot-listeners-can-reach-wynntils-before-its-init}).</p>
  */
 public final class AnniPartyReporter {
 

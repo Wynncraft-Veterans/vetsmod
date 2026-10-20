@@ -43,13 +43,27 @@ import org.wynnvets.queue.QueueStatusReporter;
 import org.wynnvets.rendering.territory.TerritoryLineRenderer;
 
 /**
- * Client-side entry point for the VetsMod Fabric mod.
+ * Client-side entry point for the VetsMod Fabric mod. Fabric creates it and calls
+ * {@link #onInitializeClient()}, which bootstraps the client in two phases:
  *
- * <p>Bootstraps all mod subsystems on client initialisation: configuration,
- * guild state, item definitions, message fetchers, server connection hooks,
- * and the {@code /wv} client command tree (via {@link CommandRegistry}).
- * Each subsystem is started in dependency order so that later components
- * can rely on earlier ones.</p>
+ * <ol>
+ *   <li>{@link #onInitializeClient()} runs during the game's start-up, before Wynntils' own
+ *       entrypoint in production: configuration and guild state, item definitions, the
+ *       WebSockets and their listeners, the pollers, the tick, render and server-connection
+ *       hooks, and the callback through which Fabric builds the {@code /wv} command tree (via
+ *       {@link CommandRegistry}).</li>
+ *   <li>{@link #onClientStarted()} runs once the game has started: everything that needs
+ *       Wynntils' event bus or one of its core components. Its Javadoc says why the two are
+ *       kept apart.</li>
+ * </ol>
+ *
+ * <p>Some of the order in {@link #onInitializeClient()} matters: {@code DebugConfigManager.init()},
+ * {@code VetsConfig.load()}, the debug-logging restore and
+ * {@code GuildStateManager.loadPersistedState()} each read what the one before set up;
+ * {@code AnniAggressiveTicker} registers before the {@code END_CLIENT_TICK} listeners that read
+ * its flag; and the socket listeners register straight after {@code V1ApiManager.connect()},
+ * which only starts the first connect, and rely on being in place before its handshake
+ * completes. The rest is today's order, kept as it is.</p>
  */
 public class VetsmodClient implements ClientModInitializer {
 
@@ -78,11 +92,12 @@ public class VetsmodClient implements ClientModInitializer {
         AnniOutlineTicker.register();
         // S5 — aggressive-mode components. AnniAggressiveTicker computes the
         // per-tick "is aggressive active" flag the aggressive-mode components
-        // read. Registering it first means readers on the same END_CLIENT_TICK
-        // event see this tick's value (Fabric runs a phase's listeners in
+        // read. Registering it before AggressiveAlertDispatcher and
+        // GhostsPromptHandler, its readers on the same END_CLIENT_TICK event,
+        // means they see this tick's value (Fabric runs a phase's listeners in
         // registration order); readers on other hooks are not ordered by this.
         // ScrollSpotMarkerProvider is deferred to CLIENT_STARTED (onClientStarted
-        // below) — touching Wynntils' Models class here crashes the game (see
+        // below) — touching Wynntils' Models class here can crash the game (see
         // the comment there).
         AnniAggressiveTicker.register();
         AggressiveAlertDispatcher.register();
@@ -140,19 +155,21 @@ public class VetsmodClient implements ClientModInitializer {
         RankChangeListener.register();
         PartyRosterListener.register();
         QueueDetector.register();
-        // S5 — must register AFTER Wynntils' own onInitializeClient has
-        // run (`com.wynntils.fabric.WynntilsModFabric`). Wynntils is a
-        // separate fabric mod; entrypoint order between mods is not
-        // guaranteed, and touching `Models.Marker` from vetsmod's
-        // onInitializeClient triggers `Models.<clinit>` — which in turn
-        // tries to post events on `WynntilsMod.eventBus`. If our init runs
-        // first, eventBus is null and the resulting NPE leaves Wynntils'
-        // own init permanently broken (cascade-crashes in
-        // `Managers.<clinit>` later). CLIENT_STARTED fires after every
-        // mod's onInitializeClient, so by here Wynntils' init has completed
-        // and the eventBus is wired up. See attempt-3 crash log.
+        // S5 — registerWithWynntils() touches `Models.Marker`, a Wynntils core
+        // component, so it runs here and never in onInitializeClient. In
+        // production, onInitializeClient runs before Wynntils' entrypoint
+        // (`com.wynntils.fabric.WynntilsModFabric`) has created its event bus,
+        // and a first touch of `Models` there starts the `ServerListModel` ->
+        // `Managers` race in this method's Javadoc. If the race is lost,
+        // `Managers.<clinit>` fails, `Managers` stays unusable and Wynntils' own
+        // init dies, as the client did on 2026-06-18.
         ScrollSpotMarkerProvider.registerWithWynntils();
-        // S7 — same deferred-init rule as ScrollSpotMarkerProvider above. The
+        // S7 — AnniPartyReporter.register() itself touches no Wynntils class,
+        // but its snapshot listener reaches Models.Party (through
+        // PartyRosterListener.requestRecapture()), and a snapshot could arrive
+        // before Wynntils' entrypoint has run, so it subscribes here rather
+        // than in onInitializeClient
+        // (mod-init-snapshot-listeners-can-reach-wynntils-before-its-init). The
         // reporter subscribes to AnniSnapshotCache and fires
         // PartyRosterListener.requestRecapture() on organiser-set transitions,
         // meant to stop a window-open mid-static-party going silent. Today a

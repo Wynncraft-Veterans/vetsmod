@@ -45,7 +45,8 @@ public class GuildStateManager {
     static volatile String playerName = StringUtils.EMPTY;
 
     /**
-     * Check if Wynntils is fully initialised and safe to access Models.
+     * Check whether Wynntils' own init has run, so its event bus and {@code Models} exist, and
+     * vetsmod's Wynntils event-bus listeners are registered.
      *
      * @return true once Wynntils event bus registration has completed
      */
@@ -267,7 +268,8 @@ public class GuildStateManager {
     }
 
     /**
-     * Mark Wynntils as fully initialised.  Called once from
+     * Mark Wynntils as ready: its own init has run, and vetsmod's bus listeners are registered.
+     * Called once from
      * {@link org.wynnvets.listeners.WynntilsEventListener#register()} after
      * the event bus is available.
      */

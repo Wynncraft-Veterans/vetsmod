@@ -150,9 +150,10 @@ public final class StaffRanksPoller {
      * Triggers an off-schedule fetch of {@code /v1/outbound/staff}.
      *
      * <p>Called on each successful inbound auth ack, so the cache need not wait up to
-     * two minutes for the next scheduled poll. The first scheduled poll runs at mod init,
-     * when the sockets also first connect and a stored key is first sent; each later server
-     * join opens a new pair and re-sends it, at any point in the poll's cycle.</p>
+     * two minutes for the next scheduled poll. The first scheduled poll runs at mod init, just
+     * after the sockets start their first connect, which sends a stored key once it completes;
+     * each later server join opens a new pair and re-sends it, at any point in the poll's
+     * cycle.</p>
      */
     public static void refreshNow() {
         Thread t = new Thread(StaffRanksPoller::fetchStaffRanks, "VetsMod-StaffRanksRefreshNow");
