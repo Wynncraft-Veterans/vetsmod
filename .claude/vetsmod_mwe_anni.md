@@ -719,7 +719,7 @@ party members by username — see `Wynntils PartyModel.getPartyMembers()`.
    would fire on its own. Today it fires on a set change, not when the
    window opens, so a set that was already complete before the window
    opened triggers nothing then (bug `party-reporter-window-open-not-a-trigger`).
-   `AnniPartyReporter.init()` is called from `VetsmodClient.onClientStarted()`,
+   `AnniPartyReporter.register()` is called from `VetsmodClient.onClientStarted()`,
    the bootstrap's `CLIENT_STARTED` phase, and must not move into the body of
    `onInitializeClient`, where touching Wynntils `Models.*` cold-start-crashes
    the game, per `feedback_vetsmod_wynntils_init_order.md`.

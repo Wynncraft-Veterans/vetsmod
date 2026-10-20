@@ -158,7 +158,7 @@ public class VetsmodClient implements ClientModInitializer {
         // meant to stop a window-open mid-static-party going silent. Today a
         // window opening with an unchanged organiser set fires nothing
         // (party-reporter-window-open-not-a-trigger).
-        org.wynnvets.mwe.anni.AnniPartyReporter.init();
+        org.wynnvets.mwe.anni.AnniPartyReporter.register();
         QueueStatusReporter.register();
     }
 

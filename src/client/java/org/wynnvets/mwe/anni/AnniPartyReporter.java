@@ -31,7 +31,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * The listener's debounce coalesces this with any near-simultaneous
  * Wynntils events so we never double-send.</p>
  *
- * <p>Init order: call {@link #init()} from
+ * <p>Init order: call {@link #register()} from
  * {@link org.wynnvets.VetsmodClient#onClientStarted() VetsmodClient.onClientStarted()}, the
  * {@code ClientLifecycleEvents.CLIENT_STARTED} phase, NEVER from
  * {@link org.wynnvets.VetsmodClient#onInitializeClient VetsmodClient#onInitializeClient} itself —
@@ -47,7 +47,7 @@ public final class AnniPartyReporter {
     private AnniPartyReporter() {}
 
     /** Wire the snapshot listener. Idempotent. */
-    public static void init() {
+    public static void register() {
         if (registered) {
             return;
         }
