@@ -95,7 +95,7 @@ public final class ScrollSpotMarkerProvider implements MarkerProvider<MarkerPoi>
 
     /** One-time wiring to Wynntils' {@link Models#Marker} + snapshot
      *  listener. Idempotent. */
-    public static void registerWithWynntils() {
+    public static void register() {
         if (wynntilsRegistered) return;
         wynntilsRegistered = true;
         Models.Marker.registerMarkerProvider(INSTANCE);

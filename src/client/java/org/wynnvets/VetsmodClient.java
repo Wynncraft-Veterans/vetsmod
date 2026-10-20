@@ -156,15 +156,15 @@ public class VetsmodClient implements ClientModInitializer {
         RankChangeListener.register();
         PartyRosterListener.register();
         QueueDetector.register();
-        // S5 — registerWithWynntils() touches `Models.Marker`, a Wynntils core
-        // component, so it runs here and never in onInitializeClient. In
-        // production, onInitializeClient runs before Wynntils' entrypoint
-        // (`com.wynntils.fabric.WynntilsModFabric`) has created its event bus,
-        // and a first touch of `Models` there starts the `ServerListModel` ->
-        // `Managers` race in this method's Javadoc. If the race is lost,
-        // `Managers.<clinit>` fails, `Managers` stays unusable and Wynntils' own
-        // init dies, as the client did on 2026-06-18.
-        ScrollSpotMarkerProvider.registerWithWynntils();
+        // S5 — ScrollSpotMarkerProvider.register() touches `Models.Marker`, a
+        // Wynntils core component, so it runs here and never in
+        // onInitializeClient. In production, onInitializeClient runs before
+        // Wynntils' entrypoint (`com.wynntils.fabric.WynntilsModFabric`) has
+        // created its event bus, and a first touch of `Models` there starts the
+        // `ServerListModel` -> `Managers` race in this method's Javadoc. If the
+        // race is lost, `Managers.<clinit>` fails, `Managers` stays unusable and
+        // Wynntils' own init dies, as the client did on 2026-06-18.
+        ScrollSpotMarkerProvider.register();
         // S7 — AnniPartyReporter.register() itself touches no Wynntils class,
         // but its snapshot listener reaches Models.Party (through
         // PartyRosterListener.requestRecapture()), and a snapshot could arrive
