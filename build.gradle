@@ -44,6 +44,16 @@ loom {
 		}
 	}
 
+	// In production, Fabric Loader orders mods by id, so vetsmod's client entrypoint runs before
+	// Wynntils' and finds Wynntils' event bus still null. A dev launch shuffles the mod order
+	// unless this property is set. With it, dev launches use production's order, so a Wynntils
+	// event-bus registration misplaced into onInitializeClient crashes every dev launch, as it
+	// would every production one. It reaches Loom's dev runs only, never the jar.
+	runs {
+		client {
+			vmArg "-Dfabric.debug.disableModShuffle=true"
+		}
+	}
 }
 
 dependencies {
