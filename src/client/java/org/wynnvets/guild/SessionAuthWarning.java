@@ -8,6 +8,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.TickDelays;
 
 /**
  * Displays a single per-session warning in chat when the player's vetsmod
@@ -19,7 +20,7 @@ import org.wynnvets.logging.VetsLogger;
  *   <li><b>Authenticated</b> — no warning.</li>
  *   <li><b>Has stored key, server rejected it</b> — show a "your key was
  *       rejected, run ~vetsmod" warning regardless of unauth toggle. Today it fires
- *       whenever a stored key has no ok ack {@link #WARNING_DELAY_MS} after world join,
+ *       whenever a stored key has no ok ack about {@link #WARNING_DELAY_MS} after world join,
  *       rejected or not ({@code session-auth-warning-reports-rejection-without-one}).</li>
  *   <li><b>No stored key, but plausibly a VETS user</b> (in Returners or has
  *       legacy unlock markers from the old SHA-256 system) — show one of
@@ -77,23 +78,16 @@ public final class SessionAuthWarning {
         if (!firedThisSession.compareAndSet(false, true)) {
             return;
         }
-        new Thread(
-                        () -> {
-                            try {
-                                Thread.sleep(WARNING_DELAY_MS);
-                            } catch (InterruptedException ignored) {
-                                Thread.currentThread().interrupt();
-                                return;
-                            }
-                            try {
-                                fireWarningIfApplicable();
-                            } catch (Exception e) {
-                                VetsLogger.debug(
-                                        "SessionAuthWarning fire failed: {}", e.getMessage());
-                            }
-                        },
-                        "vetsmod-session-auth-warning")
-                .start();
+        TickDelays.runAfter(
+                WARNING_DELAY_MS,
+                "Session-auth warning",
+                () -> {
+                    try {
+                        fireWarningIfApplicable();
+                    } catch (Exception e) {
+                        VetsLogger.debug("SessionAuthWarning fire failed: {}", e.getMessage());
+                    }
+                });
     }
 
     private static void fireWarningIfApplicable() {
@@ -110,7 +104,7 @@ public final class SessionAuthWarning {
         // Case 2: meant for "stored key but server rejected it". Always show,
         // regardless of unauth toggle — the user explicitly tried to authenticate
         // and failed, and the path to fix it is the same in both modes. Today it
-        // fires whenever a stored key has no ok ack 5 s after world join, rejected
+        // fires whenever a stored key has no ok ack about 5 s after world join, rejected
         // or not (session-auth-warning-reports-rejection-without-one).
         if (hasKey) {
             String reason = UnlockManager.lastAuthFailureReason();
