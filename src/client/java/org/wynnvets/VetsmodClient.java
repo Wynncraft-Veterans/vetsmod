@@ -52,9 +52,10 @@ import org.wynnvets.rendering.territory.TerritoryLineRenderer;
  *       WebSockets and their listeners, the pollers, the tick, render and server-connection
  *       hooks, and the callback through which Fabric builds the {@code /wv} command tree (via
  *       {@link CommandRegistry}).</li>
- *   <li>{@link #onClientStarted()} runs once the game has started: everything that needs
- *       Wynntils' event bus or one of its core components. Its Javadoc says why the two are
- *       kept apart.</li>
+ *   <li>{@link #onClientStarted()} runs once the game has started: the steps that need
+ *       Wynntils' event bus or one of its core components, with {@code AnniPartyReporter} and
+ *       {@code QueueStatusReporter} beside them. Its Javadoc says why the two phases are kept
+ *       apart.</li>
  * </ol>
  *
  * <p>Some of the order in {@link #onInitializeClient()} matters: {@code DebugConfigManager.init()},

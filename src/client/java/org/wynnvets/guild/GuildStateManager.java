@@ -50,7 +50,7 @@ public class GuildStateManager {
      * listeners are on the bus; the rest of {@code VetsmodClient.onClientStarted()}'s bus listeners
      * register just after, on the same thread.
      *
-     * @return true once Wynntils event bus registration has completed
+     * @return true once {@code WynntilsEventListener.register()} has run
      */
     public static boolean isWynntilsReady() {
         return wynntilsReady;
