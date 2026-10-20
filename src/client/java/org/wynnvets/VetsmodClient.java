@@ -39,8 +39,7 @@ import org.wynnvets.mwe.anni.outline.AnniOutlineTicker;
 import org.wynnvets.mwe.anni.zone.AnniZone;
 import org.wynnvets.mwe.anni.zone.AnniZoneLineRenderer;
 import org.wynnvets.queue.QueueDetector;
-import org.wynnvets.queue.QueueStateListener;
-import org.wynnvets.queue.QueueStateManager;
+import org.wynnvets.queue.QueueStatusReporter;
 import org.wynnvets.rendering.territory.TerritoryLineRenderer;
 
 /**
@@ -109,23 +108,7 @@ public class VetsmodClient implements ClientModInitializer {
                     // window opening with an unchanged organiser set fires nothing
                     // (party-reporter-window-open-not-a-trigger).
                     org.wynnvets.mwe.anni.AnniPartyReporter.init();
-                    QueueStateManager.addListener(
-                            new QueueStateListener() {
-                                @Override
-                                public void onQueueEntered(String worldName) {
-                                    // Only report queue state from vets-context users -- the server
-                                    // can't usefully attribute queue status from sessions that
-                                    // never sent a `register` frame.
-                                    if (!GuildStateManager.isUnlocked()) return;
-                                    V1ApiManager.sendQueueStatus(true, worldName);
-                                }
-
-                                @Override
-                                public void onQueueExited(String reason) {
-                                    if (!GuildStateManager.isUnlocked()) return;
-                                    V1ApiManager.sendQueueStatus(false, "");
-                                }
-                            });
+                    QueueStatusReporter.register();
                 });
         ItemDefinitions.load();
 
