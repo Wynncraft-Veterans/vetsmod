@@ -166,7 +166,7 @@ Registered in `VetsConfigSchema.USER_CONFIG_KEYS`. Validation goes through `Lega
 
 ## 7. Data flow summary
 
-**Startup:** `VetsmodClient.onInitializeClient()` → `VetsConfig.load()` → `ItemDefinitions.load()` (compiles regex) → event listeners registered.
+**Startup:** `VetsmodClient.onInitializeClient()` → `VetsConfig.load()` → … → `ItemDefinitions.load()` (compiles regex); then, once the game has started, `VetsmodClient.onClientStarted()` → `WynntilsEventListener.register()`, which registers the legacy tooltip and highlight listeners on Wynntils' event bus.
 
 **Hotbar frame:** vanilla `Gui.renderSlot()` → `LegacyHotbarMixin` HEAD → `LegacyHighlightPainter.paintIfLegacy()` → `isLegacyItem()` → 8-branch cascade → if true draw gradient + sprite → vanilla continues.
 

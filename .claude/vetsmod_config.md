@@ -175,7 +175,7 @@ JSON pretty-printed via GSON. Parent dir created if missing. Missing keys use in
 
 **Debug config** — keys declared in [DebugConfigManager](../src/client/java/org/wynnvets/debug/DebugConfigManager.java) rather than among VetsConfigKeys' constants, but registered into VetsConfig's boolean map via `registerDefault` and persisted in the same `config.json`. Current debug keys: `itemDump` (bool) — when true, numpad `+` while hovering item dumps full Component tree JSON to `vetsmod/dumps/items/`.
 
-Must call `DebugConfigManager.init()` before `VetsConfig.load()` (they share the same storage location).
+Must call `DebugConfigManager.init()` before `VetsConfig.load()`: `load()` reads from `config.json` only the keys already registered, so a debug key registered after it would not pick up its persisted value.
 
 ## 9. Quirks / gotchas
 

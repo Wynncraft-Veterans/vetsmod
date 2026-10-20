@@ -250,7 +250,7 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 - Normalization: trim, strip NBSP, strip level tags `<N>`, lowercase
 - Nickname mode: split on `/`, check both halves
 - Fetches `VetsApi.SUPPORTERS` every 5 min
-- Read by `ChatUtils`, `ServerGuildChatRewriter`, `ListFetcher` (gradient glint), `NametagMixin` and `DiagnosticsHandler` (started by `VetsmodClient`). ⚠️ **Not** `PillFormatter` or `NametagAnimator` — both take a `boolean isSupporter` from their caller and never touch the poller; `NametagAnimator`'s own Javadoc says so
+- Read by `ChatUtils`, `ServerGuildChatRewriter`, `ListFetcher` (gradient glint), `NametagMixin` and `DiagnosticsHandler` (the `/wv debug` readout). ⚠️ **Not** `PillFormatter` or `NametagAnimator` — both take a `boolean isSupporter` from their caller and never touch the poller; `NametagAnimator`'s own Javadoc says so
 
 ## 6. Listeners
 
