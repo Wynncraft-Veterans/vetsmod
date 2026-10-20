@@ -461,14 +461,15 @@ from behaviour observed elsewhere. Values are current.
 | `OVERALL_TIMEOUT_TICKS` | `GuildLogWalker` | 200 | ~10 s hard cap on the whole log walk |
 | `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Belt-and-braces settle gap before each objectives or random phase starts, on top of `queueCommand`'s 7-tick spacing. A phase that ends on the Members menu gives it no close packet to wait for: it dismisses the menu through `MemberSlotPresser.closeMembersScreen`, which sends none (`close-members-screen-sends-no-close-packet`) |
 
-`distribute/` is currently the repo's only consumer of
-`Managers.TickScheduler` — 11 `scheduleLater` calls across 8 of its 16
-files, none elsewhere in `src/`. Four of the 11 are delay-0 marshalling
+`distribute/` makes 11 of the repo's 12 `Managers.TickScheduler.scheduleLater`
+calls, across 8 of its 16 files, and calls the scheduler directly. The twelfth
+is in `util.TickDelays`, the mod-wide helper for delayed work on the client
+thread. Four of the 11 are delay-0 marshalling
 hops back onto the tick thread, not delays — three always off a
 background HTTP-completion thread, and `ObjectivesDistributor.dispatch`'s whenever its
 opt-out fetch outlasts the walk (when it does not, that call is a
 same-thread deferral through the scheduler instead). Treat
-the exclusivity as a snapshot rather than a design invariant; nothing stops
+the counts as a snapshot rather than a design invariant; nothing stops
 another package from scheduling.
 
 ## 7. Failure and stall matrix
