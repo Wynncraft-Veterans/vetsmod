@@ -22,10 +22,10 @@ import org.wynnvets.util.TickDelays;
  * because they wait on Wynntils' own scan, and in {@link #onGuildCheckCompleted()}, which reads
  * {@link GuildChecker}'s stored result when a {@code /gu stats} check ends; its debug lines log
  * {@code Models.Guild}'s guild name. It calls {@link GuildChecker}, {@link StaffRankChecker} and
- * {@link UnlockManager} directly. A world join can start the guild recheck poll, which runs on
- * the client thread through {@link TickDelays}, and the delayed {@code /gu stats} check, on its own
- * thread that sleeps first; each gives up if a disconnect has cleared {@link #enteredWorld} by the
- * time it looks. The session-auth warning it schedules does not check the flag.</p>
+ * {@link UnlockManager} directly. A world join can start the guild recheck poll and the delayed
+ * {@code /gu stats} check, both run on the client thread a few seconds later through
+ * {@link TickDelays}; each gives up if a disconnect has cleared {@link #enteredWorld} by the time
+ * it looks. The session-auth warning it schedules does not check the flag.</p>
  */
 public final class GuildLifecycle {
 
@@ -258,42 +258,30 @@ public final class GuildLifecycle {
     }
 
     /**
-     * Starts a {@code /gu stats} guild check {@link #GUILD_CHECK_WORLD_JOIN_DELAY_MS} after
-     * world join, to give Wynntils' own world-join commands time to go first. Sleeps on
-     * its own thread, then hops to the client thread and queues the check only if the
-     * player is still on a world.
+     * Starts a {@code /gu stats} guild check about {@link #GUILD_CHECK_WORLD_JOIN_DELAY_MS}
+     * after world join, to give Wynntils' own world-join commands time to go first. Runs on the
+     * client thread through {@link TickDelays}, and queues the check only if the player is still
+     * on a world.
      */
     private static void scheduleDelayedGuildCheck() {
-        new Thread(
-                        () -> {
-                            try {
-                                Thread.sleep(GUILD_CHECK_WORLD_JOIN_DELAY_MS);
+        TickDelays.runAfter(
+                GUILD_CHECK_WORLD_JOIN_DELAY_MS,
+                "Delayed guild check",
+                () -> {
+                    if (!GuildStateManager.wynntilsReady || !enteredWorld) {
+                        VetsLogger.debug(
+                                "Delayed guild check aborted: wynntilsReady={}, enteredWorld={}",
+                                GuildStateManager.wynntilsReady,
+                                enteredWorld);
+                        return;
+                    }
 
-                                if (!GuildStateManager.wynntilsReady || !enteredWorld) {
-                                    VetsLogger.debug(
-                                            "Delayed guild check aborted: wynntilsReady={}, enteredWorld={}",
-                                            GuildStateManager.wynntilsReady,
-                                            enteredWorld);
-                                    return;
-                                }
-
-                                // Verify the world is still loaded before queuing the command
-                                Minecraft minecraft = Minecraft.getInstance();
-                                minecraft.execute(
-                                        () -> {
-                                            if (!Models.WorldState.onWorld()) {
-                                                VetsLogger.debug(
-                                                        "Delayed guild check aborted: not on world");
-                                                return;
-                                            }
-                                            GuildChecker.refreshGuildStatus();
-                                        });
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                VetsLogger.debug("Delayed guild check interrupted");
-                            }
-                        },
-                        "vetsmod-delayed-guild-check")
-                .start();
+                    // Verify the world is still loaded before queuing the command
+                    if (!Models.WorldState.onWorld()) {
+                        VetsLogger.debug("Delayed guild check aborted: not on world");
+                        return;
+                    }
+                    GuildChecker.refreshGuildStatus();
+                });
     }
 }

@@ -50,7 +50,7 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 ### Guild membership flow on world join
 
 `isReturners()` / `isGuildless()` prefer a valid `GuildChecker` result (the persisted `/gu stats` cache, 3-day expiry), else read Wynntils' `Models.Guild` live (the name is empty, not null, until Wynntils' character-info scan or a guild-join message fills it). `GuildLifecycle.onEnteredWorld()` then schedules two follow-ups:
-1. a `/gu stats` check 5 s after world join, while `MORE_RELIABLE_GUILD_CHECK` is on (the default);
+1. a `/gu stats` check about 5 s after world join, while `MORE_RELIABLE_GUILD_CHECK` is on (the default);
 2. when Wynntils reports no guild yet, the recheck poll (`GUILD_RECHECK_*` constants), which calls `onGuildInfoUpdated()` once a guild appears.
 
 `GuildLifecycle.onGuildInfoUpdated()` invalidates the `GuildChecker` cache. It runs on Wynntils' `GuildEvent.Joined` / `.Left` and from that recheck poll, where no event fired (bug `guild-recheck-poll-clears-gu-stats-cache`).
