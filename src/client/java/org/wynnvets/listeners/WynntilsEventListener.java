@@ -71,8 +71,8 @@ public final class WynntilsEventListener {
      * {@link LegacyHighlightEventListener} with the Wynntils event bus, then
      * marks Wynntils ready ({@link GuildStateManager#setWynntilsReady()
      * GuildStateManager.setWynntilsReady()}). Call it once, from
-     * {@link org.wynnvets.VetsmodClient#onInitializeClient() VetsmodClient}'s
-     * {@code CLIENT_STARTED} callback, not from the initializer body:
+     * {@link org.wynnvets.VetsmodClient#onClientStarted() VetsmodClient.onClientStarted()}, the
+     * {@code CLIENT_STARTED} phase, not from {@code onInitializeClient}'s body:
      * {@code WynntilsMod.registerEventListener} needs the event bus that
      * Wynntils' own init creates.
      */

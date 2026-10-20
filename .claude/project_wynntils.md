@@ -123,7 +123,7 @@ It doubles as a one-way presence detector for the local user's `/toggle ghosts` 
 
 Fabric does **not** guarantee entrypoint order between sibling mods. Static-touching `Models.Marker` — or any other `Models.X` — from `VetsmodClient.onInitializeClient()`'s body triggers `Models.<clinit>`, which constructs `FriendsModel` / `PartyModel` etc.; their `<init>`s call `WynntilsMod.postEvent(...)` against the not-yet-initialised event bus, NPE, leave `Models` half-initialised, and then Wynntils' own `Managers.<clinit>` cascade-crashes the game during boot.
 
-**Defer any init-time `Models.X.something(...)` call into the existing `ClientLifecycleEvents.CLIENT_STARTED` handler**, which fires after every mod's `onInitializeClient`. Runtime calls — per-tick, per-snapshot-listener — are always safe; by tick time Wynntils is up. Saved as the `feedback_vetsmod_wynntils_init_order.md` memory.
+**Defer any init-time `Models.X.something(...)` call into `VetsmodClient.onClientStarted()`, the `ClientLifecycleEvents.CLIENT_STARTED` phase**, which runs after every mod's `onInitializeClient`. Runtime calls — per-tick, per-snapshot-listener — are always safe; by tick time Wynntils is up. Saved as the `feedback_vetsmod_wynntils_init_order.md` memory.
 
 ## Utility classes
 

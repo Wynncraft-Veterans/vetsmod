@@ -718,14 +718,11 @@ party members by username — see `Wynntils PartyModel.getPartyMembers()`.
    opens while parked in a static party for 30 min", where no `PartyEvent`
    would fire on its own. Today it fires on a set change, not when the
    window opens, so a set that was already complete before the window
-   opened triggers nothing then (bug `party-reporter-window-open-not-a-trigger`). ⚠️ **There is no `VetsmodClient.onClientStarted`** — the only
-   methods are `onInitializeClient()` and the `CLIENT_STARTED.register(…)`
-   lambda inside it. `AnniPartyReporter.init()` is called **from that lambda,
-   which is itself inside `onInitializeClient`**; what is forbidden is the
-   initializer *body*, where touching Wynntils `Models.*` cold-start-crashes
-   the game, per `feedback_vetsmod_wynntils_init_order.md`. The earlier wording
-   both named a non-existent method and banned the very method the call lives
-   in.
+   opened triggers nothing then (bug `party-reporter-window-open-not-a-trigger`).
+   `AnniPartyReporter.init()` is called from `VetsmodClient.onClientStarted()`,
+   the bootstrap's `CLIENT_STARTED` phase, and must not move into the body of
+   `onInitializeClient`, where touching Wynntils `Models.*` cold-start-crashes
+   the game, per `feedback_vetsmod_wynntils_init_order.md`.
 
 ### What got deleted
 

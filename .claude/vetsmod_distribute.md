@@ -115,14 +115,14 @@ Five of the classes are event-bus singletons with a static `register()`
 that calls `WynntilsMod.registerEventListener(INSTANCE)`:
 `GuildManageOpener`, `MembersListSearcher`, `MembersListWalker`,
 `GuildLogWalker`, `MemberSlotPresser`. All five are registered
-back-to-back inside `VetsmodClient.onInitializeClient`'s
-`ClientLifecycleEvents.CLIENT_STARTED` callback, alongside the mod's
+back-to-back in `VetsmodClient.onClientStarted()`, the bootstrap's
+`ClientLifecycleEvents.CLIENT_STARTED` phase, alongside the mod's
 other Wynntils-bus listeners. Two of those reach the bus indirectly —
 `LegacyTooltipEventListener` and `LegacyHighlightEventListener` register
 from inside `WynntilsEventListener.register()`, one line above. Nothing
 in the mod unregisters any of them.
 
-That callback carries a long crash-rationale comment about deferring
+That method carries a long crash-rationale comment about deferring
 `Models.*` access until after Wynntils' own init — but it is attached to
 `ScrollSpotMarkerProvider`'s line further down, and documents that
 class's constraint. Four of the five record no reason of their own;
