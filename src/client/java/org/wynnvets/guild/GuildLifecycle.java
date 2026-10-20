@@ -10,6 +10,7 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
+import org.wynnvets.util.TickDelays;
 
 /**
  * The world-join flow and the disconnect reset: what runs when the player enters a Wynncraft world,
@@ -21,10 +22,10 @@ import org.wynnvets.mwe.anni.mode.AnniModeManager;
  * because they wait on Wynntils' own scan, and in {@link #onGuildCheckCompleted()}, which reads
  * {@link GuildChecker}'s stored result when a {@code /gu stats} check ends; its debug lines log
  * {@code Models.Guild}'s guild name. It calls {@link GuildChecker}, {@link StaffRankChecker} and
- * {@link UnlockManager} directly. A world join can start the guild recheck poll and the delayed
- * {@code /gu stats} check, each on its own thread that sleeps first; each gives up if a disconnect
- * has cleared {@link #enteredWorld} by the time it looks. The session-auth warning it schedules
- * does not check the flag.</p>
+ * {@link UnlockManager} directly. A world join can start the guild recheck poll, which runs on
+ * the client thread through {@link TickDelays}, and the delayed {@code /gu stats} check, on its own
+ * thread that sleeps first; each gives up if a disconnect has cleared {@link #enteredWorld} by the
+ * time it looks. The session-auth warning it schedules does not check the flag.</p>
  */
 public final class GuildLifecycle {
 
@@ -126,8 +127,8 @@ public final class GuildLifecycle {
     /**
      * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when a
      * {@code GuildEvent.Joined} or {@code GuildEvent.Left} event fires, and by
-     * {@link #scheduleGuildRecheck()}'s poll (on its own thread) once Wynntils reports a
-     * guild after world join, where no event fired.
+     * {@link #scheduleGuildRecheck()}'s poll once Wynntils reports a guild after world join,
+     * where no event fired. Both run on the client thread.
      *
      * <p>Clears the mod's own guild check result on both paths, treating Wynntils' guild
      * data as authoritative ({@code guild-recheck-poll-clears-gu-stats-cache}), and
@@ -172,62 +173,54 @@ public final class GuildLifecycle {
      * Schedules a delayed guild info re-check.  Wynntils' compass scan runs
      * asynchronously after world join, so guild info may not be populated yet.
      *
-     * <p>Sleeps {@link #GUILD_RECHECK_DELAY_MS} on its own thread, then polls
-     * {@code Models.Guild} up to {@link #GUILD_RECHECK_MAX_ATTEMPTS} times,
-     * {@link #GUILD_RECHECK_INTERVAL_MS} apart, reading it off the client thread. The first
-     * time it reports a guild, it calls {@link #onGuildInfoUpdated()} from that same thread,
-     * which also clears {@link GuildChecker}'s cached result
+     * <p>Polls {@code Models.Guild} on the client thread through {@link TickDelays}: about
+     * {@link #GUILD_RECHECK_DELAY_MS} after the call, then up to
+     * {@link #GUILD_RECHECK_MAX_ATTEMPTS} times in all, about {@link #GUILD_RECHECK_INTERVAL_MS}
+     * apart, each attempt scheduling the next. The first time it reports a guild, it calls
+     * {@link #onGuildInfoUpdated()}, which also clears {@link GuildChecker}'s cached result
      * ({@code guild-recheck-poll-clears-gu-stats-cache}). Gives up if {@link #reset()} (a
      * disconnect) has cleared the world-entered flag by the time it polls; a new world
      * entry sets the flag again, so an in-flight poll can survive a quick reconnect.</p>
      */
     private static void scheduleGuildRecheck() {
-        new Thread(
-                        () -> {
-                            try {
-                                Thread.sleep(GUILD_RECHECK_DELAY_MS);
+        TickDelays.runAfter(GUILD_RECHECK_DELAY_MS, "Guild recheck", () -> recheckAttempt(1));
+    }
 
-                                for (int attempt = 1;
-                                        attempt <= GUILD_RECHECK_MAX_ATTEMPTS;
-                                        attempt++) {
-                                    if (!GuildStateManager.wynntilsReady || !enteredWorld) {
-                                        VetsLogger.debug(
-                                                "Guild recheck aborted: wynntilsReady={}, enteredWorld={}",
-                                                GuildStateManager.wynntilsReady,
-                                                enteredWorld);
-                                        return;
-                                    }
+    /**
+     * One attempt of the poll {@link #scheduleGuildRecheck()} starts; {@code attempt} counts
+     * from 1. Schedules the next attempt itself while attempts remain.
+     */
+    private static void recheckAttempt(int attempt) {
+        if (!GuildStateManager.wynntilsReady || !enteredWorld) {
+            VetsLogger.debug(
+                    "Guild recheck aborted: wynntilsReady={}, enteredWorld={}",
+                    GuildStateManager.wynntilsReady,
+                    enteredWorld);
+            return;
+        }
 
-                                    boolean inGuild = Models.Guild.isInGuild();
-                                    String name = Models.Guild.getGuildName();
-                                    VetsLogger.debug(
-                                            "Guild recheck attempt {}/{}: inGuild={}, name={}",
-                                            attempt,
-                                            GUILD_RECHECK_MAX_ATTEMPTS,
-                                            inGuild,
-                                            name);
+        boolean inGuild = Models.Guild.isInGuild();
+        String name = Models.Guild.getGuildName();
+        VetsLogger.debug(
+                "Guild recheck attempt {}/{}: inGuild={}, name={}",
+                attempt,
+                GUILD_RECHECK_MAX_ATTEMPTS,
+                inGuild,
+                name);
 
-                                    if (inGuild) {
-                                        VetsLogger.info(
-                                                "Guild info now available after recheck: {}", name);
-                                        onGuildInfoUpdated();
-                                        return;
-                                    }
+        if (inGuild) {
+            VetsLogger.info("Guild info now available after recheck: {}", name);
+            onGuildInfoUpdated();
+            return;
+        }
 
-                                    if (attempt < GUILD_RECHECK_MAX_ATTEMPTS) {
-                                        Thread.sleep(GUILD_RECHECK_INTERVAL_MS);
-                                    }
-                                }
+        if (attempt < GUILD_RECHECK_MAX_ATTEMPTS) {
+            TickDelays.runAfter(
+                    GUILD_RECHECK_INTERVAL_MS, "Guild recheck", () -> recheckAttempt(attempt + 1));
+            return;
+        }
 
-                                VetsLogger.debug(
-                                        "Guild recheck exhausted — player appears genuinely guildless");
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                VetsLogger.debug("Guild recheck interrupted");
-                            }
-                        },
-                        "vetsmod-guild-recheck")
-                .start();
+        VetsLogger.debug("Guild recheck exhausted — player appears genuinely guildless");
     }
 
     /**

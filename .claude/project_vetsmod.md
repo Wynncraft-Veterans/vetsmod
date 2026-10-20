@@ -53,7 +53,7 @@ The root `org.wynnvets` package has no bullet; it is covered under **Entry point
 - `WorldStateEvent` for world join trigger
 - `StyledText`, `ComponentUtils`, `McUtils`
 
-**Guild detection:** Hybrid — a valid `/gu stats` result (cached 3 days) takes precedence; Wynntils' `Models.Guild` is the live fallback. After world join, while Wynntils reports no guild, a recheck poll checks up to 3 times (3 s after the join, then every 2 s).
+**Guild detection:** Hybrid — a valid `/gu stats` result (cached 3 days) takes precedence; Wynntils' `Models.Guild` is the live fallback. After world join, while Wynntils reports no guild, a recheck poll checks up to 3 times on the client thread (about 3 s after the join, then about every 2 s).
 
 **User tiers:** `member` (`guild` on the wire) | `waitlist` | `honourary` | `other`. Tier is resolved server-side by dazebot from the user's Discord roles + linked MC account; the mod gets it back in the `auth` frame ack. Authentication is via a 43-char URL-safe base64 bearer key issued by dazebot's `/vetsmod` Discord command and supplied by the user via `/unlock <key>`. The legacy SHA-256 password unlock has been retired. Its markers are meant to stay on disk only for warning copy; today they still unlock client-side (bug `legacy-unlock-markers-still-grant-client-unlock`). Staff is orthogonal to tier and has two signals: the local `/gu rank` check (captain+ in whatever guild last answered it, cached 24h; a cached `true` may outlive leaving the guild, bug `staff-rank-cache-survives-leaving-guild`), and server-confirmed staff on the `auth` ack (strategist and up since the 2026-07 restructure), which is what gates `/caution`, `/warn` and `/eject`.
 

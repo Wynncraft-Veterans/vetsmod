@@ -38,7 +38,7 @@ public class GuildStateManager {
 
     // Wynntils readiness gate — set to true once CLIENT_STARTED fires and
     // WynntilsEventListener has successfully registered.
-    // Package-private for GuildLifecycle, whose recheck guard and background threads check it.
+    // Package-private for GuildLifecycle, whose recheck guard, poll and delayed check read it.
     static volatile boolean wynntilsReady = false;
 
     // Package-private for GuildLifecycle, which captures it on world join.
