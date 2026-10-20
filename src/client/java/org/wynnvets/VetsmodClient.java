@@ -63,19 +63,7 @@ public class VetsmodClient implements ClientModInitializer {
         VetsConfig.load();
 
         // Restore persisted debug logging if enabled within the last 3 days
-        long debugEnabledAt = VetsConfig.getLong(VetsConfigKeys.VETS_DEBUG_ENABLED_AT);
-        if (debugEnabledAt > 0) {
-            long threeDaysMs = 3L * 24 * 60 * 60 * 1000;
-            if (System.currentTimeMillis() - debugEnabledAt < threeDaysMs) {
-                VetsLogger.setDebugEnabled(true);
-                VetsLogger.info(
-                        "Debug logging restored (enabled {} hours ago)",
-                        (System.currentTimeMillis() - debugEnabledAt) / 3_600_000);
-            } else {
-                VetsConfig.setLong(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, 0L);
-                VetsLogger.info("Debug logging expired after 3 days, auto-disabled");
-            }
-        }
+        restorePersistedDebugLogging();
 
         GuildStateManager.loadPersistedState();
         ClientLifecycleEvents.CLIENT_STARTED.register(
@@ -146,5 +134,27 @@ public class VetsmodClient implements ClientModInitializer {
         ClientCommandRegistrationCallback.EVENT.register(CommandRegistry::register);
 
         VetsLogger.info("Client initialized");
+    }
+
+    /**
+     * Turns debug logging back on if {@code /wv debug true} turned it on less than three days ago.
+     * If that was three days ago or more, clears the stored time instead. The time is stored as
+     * {@link VetsConfigKeys#VETS_DEBUG_ENABLED_AT} in {@code config.json}, which
+     * {@link VetsConfig#load()} reads, so this runs after it.
+     */
+    private static void restorePersistedDebugLogging() {
+        long debugEnabledAt = VetsConfig.getLong(VetsConfigKeys.VETS_DEBUG_ENABLED_AT);
+        if (debugEnabledAt > 0) {
+            long threeDaysMs = 3L * 24 * 60 * 60 * 1000;
+            if (System.currentTimeMillis() - debugEnabledAt < threeDaysMs) {
+                VetsLogger.setDebugEnabled(true);
+                VetsLogger.info(
+                        "Debug logging restored (enabled {} hours ago)",
+                        (System.currentTimeMillis() - debugEnabledAt) / 3_600_000);
+            } else {
+                VetsConfig.setLong(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, 0L);
+                VetsLogger.info("Debug logging expired after 3 days, auto-disabled");
+            }
+        }
     }
 }
