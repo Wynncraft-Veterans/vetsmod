@@ -23,8 +23,8 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 /**
  * S5 — Wynntils {@link MarkerProvider} for the party's pinned scroll spot.
  *
- * <p>Implements the parallel-marker pattern from
- * {@code waypoints.md} §5(b): we register our own provider rather than
+ * <p>A parallel marker provider ({@code vetsmod_mwe_anni.md}, "Aggressive mode", this
+ * class's Architecture row): we register our own provider rather than
  * overriding {@code USER_WAYPOINTS_PROVIDER}, so the user's existing
  * {@code /compass} waypoint coexists with ours. Both render
  * simultaneously; the user keeps full control of their compass.</p>
@@ -44,7 +44,8 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *
  * <p><b>Visual:</b> {@link Texture#MAP} (the 14×14 generic map icon —
  * <i>not</i> {@code MAP_ICON}, which is the 21×38 content-book tab — the
- * enum names are a known footgun per {@code waypoints.md} §3).
+ * enum names are a known footgun: {@code vetsmod_mwe_anni.md}, "Aggressive mode", locked
+ * decision #5).
  *
  * <p>Originally specced as "no beacon beam, icon only" but Wynntils'
  * {@code BeaconBeamFeature.onRenderLevelLast} unconditionally calls

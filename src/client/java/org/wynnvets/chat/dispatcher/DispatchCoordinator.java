@@ -157,7 +157,7 @@ public final class DispatchCoordinator {
     // FIFO queue of messages waiting to be broadcast to all staff.
     static final ConcurrentLinkedQueue<String> MESSAGE_QUEUE = new ConcurrentLinkedQueue<>();
 
-    // Whether a dispatch batch is currently running on the executor.
+    // Whether a dispatch pass is currently running on the executor.
     private static final AtomicBoolean BATCH_IN_PROGRESS = new AtomicBoolean(false);
 
     // Staff-eligibility cache shared by both gates: set by the auth-ack fast path or a
@@ -320,7 +320,7 @@ public final class DispatchCoordinator {
     // ──────────────────────────── Batch dispatch ────────────────────────────
 
     /**
-     * Enqueues a message for broadcast and starts a dispatch batch if one isn't already running.
+     * Enqueues a message for broadcast and starts a dispatch pass if one isn't already running.
      * Multiple rapid calls safely enqueue; the single dispatch thread drains them in order.
      */
     private static void enqueueAndDispatch(String message) {
@@ -336,7 +336,7 @@ public final class DispatchCoordinator {
         if (BATCH_IN_PROGRESS.compareAndSet(false, true)) {
             DISPATCH_EXECUTOR.submit(DispatchCoordinator::processBatch);
         }
-        // If already running, the running batch will pick up queued messages.
+        // If already running, the running pass will pick up queued messages.
     }
 
     /**
