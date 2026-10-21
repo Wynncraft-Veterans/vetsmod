@@ -35,8 +35,10 @@ import org.wynnvets.util.Uuids;
  * {@link CheckReportRenderer}, which renders it as a multi-line block in the
  * local chat HUD, with its date labels from {@link TimeLabels}.</p>
  */
-public class UserInfoFetcher {
+public final class UserInfoFetcher {
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();
+
+    private UserInfoFetcher() {}
 
     private static MembershipSnapshot snapshotUnavailable(String detail) {
         // GSON-deserialise from a synthetic JSON object so optional fields

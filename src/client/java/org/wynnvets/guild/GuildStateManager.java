@@ -32,7 +32,7 @@ import org.wynnvets.api.V1ApiManager;
  * MOTD and anni-stamp prints are {@link WorldJoinAnnouncer}'s, and the
  * {@code /wv debug trigger forceChecks} readout is {@code GuildDiagnostics}'.</p>
  */
-public class GuildStateManager {
+public final class GuildStateManager {
 
     private static final String RETURNERS_GUILD_NAME = "Returners";
 
@@ -43,6 +43,8 @@ public class GuildStateManager {
 
     // Package-private for GuildLifecycle, which captures it on world join.
     static volatile String playerName = StringUtils.EMPTY;
+
+    private GuildStateManager() {}
 
     /**
      * Check whether Wynntils' own init has run, so its event bus and {@code Models} exist. It turns

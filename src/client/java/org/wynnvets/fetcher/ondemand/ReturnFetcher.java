@@ -29,7 +29,7 @@ import org.wynnvets.util.HttpClients;
  * <p>Queries the VetsMod API for the active return event and formats the
  * response as a chat component for display via {@code /wv return}.</p>
  */
-public class ReturnFetcher {
+public final class ReturnFetcher {
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     /**
@@ -39,6 +39,8 @@ public class ReturnFetcher {
      */
     private static final String RETURN_CHANNEL_URL =
             "https://discord.com/channels/1313769181321236490/1320597026118828112";
+
+    private ReturnFetcher() {}
 
     /**
      * Fetches the Return information from the API asynchronously

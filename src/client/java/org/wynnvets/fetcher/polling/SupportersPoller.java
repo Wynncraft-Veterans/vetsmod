@@ -24,7 +24,7 @@ import org.wynnvets.util.Json;
  * vetsmod_networking.md §5. The list is refreshed every {@value #REFRESH_INTERVAL_MINUTES}
  * minutes.</p>
  */
-public class SupportersPoller {
+public final class SupportersPoller {
     private static final int REFRESH_INTERVAL_MINUTES = 5;
 
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();
@@ -50,6 +50,8 @@ public class SupportersPoller {
                     0,
                     REFRESH_INTERVAL_MINUTES,
                     TimeUnit.MINUTES);
+
+    private SupportersPoller() {}
 
     public static void start() {
         SERVICE.start();

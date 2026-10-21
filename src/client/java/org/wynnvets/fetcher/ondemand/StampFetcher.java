@@ -62,8 +62,10 @@ import org.wynnvets.util.HttpClients;
  * switched on for vets-tier users, and what a manual opt-in gets without an {@code /unlock} key
  * ({@code vets-anni-enabled-to-be-retired}).</p>
  */
-public class StampFetcher {
+public final class StampFetcher {
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();
+
+    private StampFetcher() {}
 
     /**
      * Auto-display path (world-join). Returns the snapshot-driven motd

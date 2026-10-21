@@ -24,7 +24,7 @@ import org.wynnvets.logging.VetsLogger;
  * {@code /wv config} key lists, valid-value lists and {@code reset} defaults
  * are in {@link VetsConfigSchema}.</p>
  */
-public class VetsConfig {
+public final class VetsConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_FILE =
             FabricLoader.getInstance().getGameDir().resolve("vetsmod/storage/config.json");
@@ -101,6 +101,8 @@ public class VetsConfig {
         longConfig.put(VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY, 69L);
         longConfig.put(VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY, 100L);
     }
+
+    private VetsConfig() {}
 
     /**
      * Get the value of a configuration option

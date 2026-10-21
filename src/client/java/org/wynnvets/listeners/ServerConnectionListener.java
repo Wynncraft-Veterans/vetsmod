@@ -14,7 +14,9 @@ import org.wynnvets.logging.VetsLogger;
  * {@link GuildLifecycle#reset() GuildLifecycle.reset()}, so that it is re-evaluated when the
  * player reconnects to a server.</p>
  */
-public class ServerConnectionListener {
+public final class ServerConnectionListener {
+
+    private ServerConnectionListener() {}
 
     public static void register() {
         ClientPlayConnectionEvents.JOIN.register(

@@ -37,7 +37,7 @@ import org.wynnvets.logging.VetsLogger;
  *       processing is skipped entirely.</li>
  * </ul>
  */
-public class ItemDefinitions {
+public final class ItemDefinitions {
     private static final List<Pattern> legacyPatterns = new ArrayList<>();
     private static final List<Pattern> noLoreLegacyPatterns = new ArrayList<>();
     private static final List<Pattern> miscPatterns = new ArrayList<>();
@@ -47,6 +47,8 @@ public class ItemDefinitions {
     private static final List<Pattern> newFormatOverridePatterns = new ArrayList<>();
     private static final Set<String> enchantExcludedItems = new HashSet<>();
     private static final List<Pattern> blockedScreenTitlePatterns = new ArrayList<>();
+
+    private ItemDefinitions() {}
 
     public static void load() {
         legacyPatterns.clear();

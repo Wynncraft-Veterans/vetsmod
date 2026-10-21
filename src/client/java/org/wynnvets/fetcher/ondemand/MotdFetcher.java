@@ -19,8 +19,10 @@ import org.wynnvets.util.HttpClients;
  * <p>Provides asynchronous methods that return {@link CompletableFuture} results,
  * suitable for use from command handlers and lifecycle hooks.</p>
  */
-public class MotdFetcher {
+public final class MotdFetcher {
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();
+
+    private MotdFetcher() {}
 
     /**
      * Fetches the MOTD from the API asynchronously

@@ -19,7 +19,7 @@ import org.wynnvets.logging.VetsLogger;
  * listener via the v1 WebSocket inbound endpoint. This class only
  * performs local file logging for debugging purposes.</p>
  */
-public class ChatLogger {
+public final class ChatLogger {
     private static final String LOG_FILE = "vetsmod/debug.log";
     private static final DateTimeFormatter TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -78,6 +78,8 @@ public class ChatLogger {
         RANK_MAP.put("󏿊󐀂", "Recruiter");
         RANK_MAP.put("󏿖󐀂", "Recruit");
     }
+
+    private ChatLogger() {}
 
     /**
      * Read-only view of the PUA-pill → raw-Wynn-rank map.

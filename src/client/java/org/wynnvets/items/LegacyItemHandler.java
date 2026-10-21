@@ -27,7 +27,7 @@ import net.minecraft.world.item.component.ItemLore;
  * special items by name pattern and rarity line, then rewrites their tooltip display names and
  * rarity labels accordingly.</p>
  */
-public class LegacyItemHandler {
+public final class LegacyItemHandler {
 
     /**
      * Set before tooltip processing by
@@ -78,6 +78,8 @@ public class LegacyItemHandler {
      * tooltip sprites).
      */
     public static final Identifier LEGACY_BORDER = Identifier.parse("unique");
+
+    private LegacyItemHandler() {}
 
     /**
      * Returns {@code true} if the current screen title matches a known menu that
