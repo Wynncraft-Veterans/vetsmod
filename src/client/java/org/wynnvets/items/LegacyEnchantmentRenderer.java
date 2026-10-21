@@ -1,10 +1,10 @@
 package org.wynnvets.items;
 
+import com.wynntils.utils.mc.McUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
@@ -330,7 +330,7 @@ final class LegacyEnchantmentRenderer {
         }
         if (header < 0) return false;
 
-        Font font = Minecraft.getInstance().font;
+        Font font = McUtils.mc().font;
         if (font == null) return false;
 
         int level =

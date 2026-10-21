@@ -1,6 +1,7 @@
 package org.wynnvets.mwe.anni.aggressive;
 
 import com.wynntils.core.components.Models;
+import com.wynntils.utils.mc.McUtils;
 import java.time.Instant;
 import java.util.Objects;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -142,7 +143,7 @@ public final class AggressiveAlertDispatcher {
     // ── Snapshot diff ──────────────────────────────────────────────────
 
     private static void onSnapshot(AnniSnapshot snapshot) {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         mc.execute(() -> applyDiff(snapshot));
     }
@@ -243,7 +244,7 @@ public final class AggressiveAlertDispatcher {
         Long stamp = event.stampEpoch();
         if (stamp == null) return;
 
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         LocalPlayer player = mc.player;
         if (player == null) return;
@@ -394,7 +395,7 @@ public final class AggressiveAlertDispatcher {
      *  snapshot diff or T-N boundary. Used by
      *  {@code /wv debug tree anni alert <field>}. */
     public static void forceAlert(String field) {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         mc.execute(
                 () -> {

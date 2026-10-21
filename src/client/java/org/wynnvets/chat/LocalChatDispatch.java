@@ -1,5 +1,6 @@
 package org.wynnvets.chat;
 
+import com.wynntils.utils.mc.McUtils;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.StringSplitter;
@@ -59,7 +60,7 @@ public final class LocalChatDispatch {
      * @return the wrapped message with {@code \n}-separated lines
      */
     private static Component wrapBlockMessage(Component message, Style prependStyle) {
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = McUtils.mc();
         Font font = minecraft.font;
         StringSplitter splitter = font.getSplitter();
 
@@ -111,7 +112,7 @@ public final class LocalChatDispatch {
      * updates {@link Prepend}'s badge deduplication counter.
      */
     private static void countRenderedLines(Component message) {
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = McUtils.mc();
         int chatWidth = ChatComponent.getWidth(minecraft.options.chatWidth().get());
         int lineCount =
                 ComponentRenderUtils.wrapComponents(message, chatWidth, minecraft.font).size();
@@ -135,7 +136,7 @@ public final class LocalChatDispatch {
      * @param prependStyle the badge style used for continuation-line block markers
      */
     public static void dispatchAnimatedChat(Component message, Style prependStyle) {
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) {
             return;
         }
@@ -172,7 +173,7 @@ public final class LocalChatDispatch {
      * @param prependStyle the badge style used for continuation-line block markers
      */
     public static void dispatchToChat(Component message, Style prependStyle) {
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) {
             return;
         }

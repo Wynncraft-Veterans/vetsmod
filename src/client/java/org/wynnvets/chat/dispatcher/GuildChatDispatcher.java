@@ -356,7 +356,7 @@ public final class GuildChatDispatcher {
     // ── Shared helpers ──────────────────────────────────────────────────
 
     private static void relayWaitlistChat(String message) {
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
 
         String username = resolveUsername(minecraft);
@@ -402,7 +402,7 @@ public final class GuildChatDispatcher {
      * </ul>
      */
     private static void relayQueuedReturnersChat(String message) {
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
 
         String username = resolveUsername(minecraft);
@@ -427,7 +427,7 @@ public final class GuildChatDispatcher {
     }
 
     private static void relayHonouraryChat(String message) {
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
 
         String username = resolveUsername(minecraft);
@@ -437,7 +437,7 @@ public final class GuildChatDispatcher {
     }
 
     private static void dispatchStaffChat(String message) {
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
 
         String username = resolveUsername(minecraft);

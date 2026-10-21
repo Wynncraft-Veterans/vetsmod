@@ -1,5 +1,6 @@
 package org.wynnvets.mwe.anni.bossbar;
 
+import com.wynntils.utils.mc.McUtils;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -212,7 +213,7 @@ public final class VetsBossBarManager {
         }
 
         double playerX = 0.0, playerZ = 0.0;
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         LocalPlayer player = mc != null ? mc.player : null;
         if (player != null) {
             playerX = player.getX();
@@ -289,7 +290,7 @@ public final class VetsBossBarManager {
     }
 
     private static Map<UUID, LerpingBossEvent> events() {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null || mc.gui == null) return null;
         BossHealthOverlay overlay = mc.gui.getBossOverlay();
         if (overlay == null) return null;

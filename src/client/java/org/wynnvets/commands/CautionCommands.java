@@ -5,7 +5,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wynntils.utils.mc.McUtils;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -85,7 +84,7 @@ public final class CautionCommands {
                 "caution_add",
                 fields,
                 ack ->
-                        Minecraft.getInstance()
+                        McUtils.mc()
                                 .execute(
                                         () ->
                                                 renderCautionPreflightOrCommit(
@@ -117,7 +116,7 @@ public final class CautionCommands {
                 "caution_add",
                 fields,
                 ack ->
-                        Minecraft.getInstance()
+                        McUtils.mc()
                                 .execute(
                                         () ->
                                                 renderCommitResult(
@@ -148,7 +147,7 @@ public final class CautionCommands {
                 "warn_add",
                 fields,
                 ack ->
-                        Minecraft.getInstance()
+                        McUtils.mc()
                                 .execute(
                                         () ->
                                                 renderCommitResult(
@@ -193,7 +192,7 @@ public final class CautionCommands {
                 "eject_add",
                 fields,
                 ack ->
-                        Minecraft.getInstance()
+                        McUtils.mc()
                                 .execute(
                                         () ->
                                                 renderCommitResult(
@@ -224,7 +223,7 @@ public final class CautionCommands {
         V1ApiManager.sendStaffActionFrame(
                 "caution_check",
                 fields,
-                ack -> Minecraft.getInstance().execute(() -> renderCautionHistory(username, ack)));
+                ack -> McUtils.mc().execute(() -> renderCautionHistory(username, ack)));
     }
 
     // ── Response rendering ──────────────────────────────────────────────

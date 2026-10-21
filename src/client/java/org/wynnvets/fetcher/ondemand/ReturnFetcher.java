@@ -3,6 +3,7 @@ package org.wynnvets.fetcher.ondemand;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
+import com.wynntils.utils.mc.McUtils;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -63,7 +64,7 @@ public final class ReturnFetcher {
                             if (response.statusCode() == HttpURLConnection.HTTP_OK) {
                                 try {
                                     // Parse the JSON response and convert it to a Component
-                                    Minecraft minecraft = Minecraft.getInstance();
+                                    Minecraft minecraft = McUtils.mc();
                                     JsonElement json = JsonParser.parseString(response.body());
                                     Component component =
                                             ComponentSerialization.CODEC

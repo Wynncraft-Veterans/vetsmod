@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.wynntils.utils.mc.McUtils;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
@@ -349,7 +350,7 @@ public final class DebugCommands {
      * {@code registry=miss}, the snapshot didn't land them in the active party.
      */
     private static int triggerNametagsDump(CommandContext<FabricClientCommandSource> ctx) {
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        net.minecraft.client.Minecraft mc = McUtils.mc();
         if (mc == null || mc.level == null) {
             ChatUtils.sendLocalMessage(
                     Component.literal("nametagsDump: no client level (not in-game?)")
@@ -455,7 +456,7 @@ public final class DebugCommands {
         java.util.UUID ourUuid = org.wynnvets.mwe.anni.bossbar.VetsBossBarManager.barUuid();
         boolean ourActive = org.wynnvets.mwe.anni.bossbar.VetsBossBarManager.isActive();
 
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        net.minecraft.client.Minecraft mc = McUtils.mc();
         net.minecraft.client.gui.components.BossHealthOverlay overlay =
                 (mc != null && mc.gui != null) ? mc.gui.getBossOverlay() : null;
         if (overlay == null) {
@@ -580,7 +581,7 @@ public final class DebugCommands {
                                         + discs.size())
                         .withStyle(ChatFormatting.GOLD));
 
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        net.minecraft.client.Minecraft mc = McUtils.mc();
         net.minecraft.client.player.LocalPlayer player = mc != null ? mc.player : null;
         double px = player != null ? player.getX() : 0.0;
         double pz = player != null ? player.getZ() : 0.0;

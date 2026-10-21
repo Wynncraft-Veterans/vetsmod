@@ -1,6 +1,7 @@
 package org.wynnvets.mwe.anni.command;
 
 import com.mojang.brigadier.context.CommandContext;
+import com.wynntils.utils.mc.McUtils;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -91,7 +92,7 @@ public final class AnniRsvpCommand {
      * "completes with null", the {@code throwable} half becomes dead.</p>
      */
     private static void renderAck(String notice, AnniRsvpClient.Ack ack, Throwable throwable) {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         mc.execute(
                 () -> {

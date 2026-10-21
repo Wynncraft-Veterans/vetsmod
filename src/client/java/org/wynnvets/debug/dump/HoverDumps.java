@@ -1,6 +1,7 @@
 package org.wynnvets.debug.dump;
 
 import com.google.gson.JsonObject;
+import com.wynntils.utils.mc.McUtils;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -81,7 +82,7 @@ final class HoverDumps {
      */
     static JsonObject buildFreshTooltipDump(ItemStack stack) {
         JsonObject obj = new JsonObject();
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) {
             obj.addProperty("status", "no Minecraft instance");
             return obj;

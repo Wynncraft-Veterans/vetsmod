@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
@@ -37,7 +36,7 @@ final class CheckReportRenderer {
     // ── Rendering ──────────────────────────────────────────────────────
 
     static void renderError(String message) {
-        Minecraft.getInstance()
+        McUtils.mc()
                 .execute(
                         () ->
                                 ChatUtils.sendLocalMessage(

@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.wynntils.utils.mc.McUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -18,7 +19,6 @@ import java.time.format.DateTimeFormatter;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.mwe.anni.network.AnniQueryClient;
@@ -398,9 +398,9 @@ final class AnniSnapshotDebugCommands {
      *  results through {@link AnniSnapshotCache#update(AnniSnapshot)}, so
      *  this command only needs to issue the request and report when the
      *  future completes. The completion callback bounces onto the main
-     *  thread via {@link Minecraft#execute(Runnable)} — a response
-     *  completes the {@link AnniQueryClient} future on the WS reader
-     *  thread, and the 8-second deadline completes it from the JDK's
+     *  thread via {@link net.minecraft.client.Minecraft#execute(Runnable)
+     *  Minecraft.execute(Runnable)} — a response completes the {@link AnniQueryClient} future on
+     *  the WS reader thread, and the 8-second deadline completes it from the JDK's
      *  {@code CompletableFuture} delay scheduler; neither is safe for chat
      *  dispatch.</p>
      *
@@ -424,7 +424,7 @@ final class AnniSnapshotDebugCommands {
         AnniQueryClient.query()
                 .whenComplete(
                         (snapshot, throwable) -> {
-                            Minecraft.getInstance()
+                            McUtils.mc()
                                     .execute(
                                             () -> {
                                                 if (throwable != null) {
@@ -507,7 +507,7 @@ final class AnniSnapshotDebugCommands {
         AnniQueryClient.query()
                 .whenComplete(
                         (snapshot, throwable) -> {
-                            Minecraft.getInstance()
+                            McUtils.mc()
                                     .execute(
                                             () -> {
                                                 if (throwable != null || snapshot == null) {

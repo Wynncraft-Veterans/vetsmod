@@ -2,6 +2,7 @@ package org.wynnvets.debug.diagnostics;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.models.worlds.type.WorldState;
+import com.wynntils.utils.mc.McUtils;
 import java.util.Collection;
 import java.util.StringJoiner;
 import net.fabricmc.loader.api.FabricLoader;
@@ -132,7 +133,7 @@ public final class DiagnosticsHandler {
         // Server info
         String serverAddress = "unknown";
         String serverBrand = "unknown";
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = McUtils.mc();
         ServerData serverData = minecraft.getCurrentServer();
         if (serverData != null) {
             serverAddress = serverData.ip;

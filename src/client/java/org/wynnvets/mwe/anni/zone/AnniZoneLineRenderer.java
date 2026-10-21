@@ -1,5 +1,6 @@
 package org.wynnvets.mwe.anni.zone;
 
+import com.wynntils.utils.mc.McUtils;
 import java.util.List;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
@@ -88,7 +89,7 @@ public final class AnniZoneLineRenderer {
         if (!AnniAggressiveTicker.isAggressiveActive()) return;
         if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_ZONE_LINES)) return;
 
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         LocalPlayer player = mc.player;
         if (player == null) return;

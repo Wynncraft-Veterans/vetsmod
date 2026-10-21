@@ -58,7 +58,7 @@ public final class V1ApiManager {
      *  otherwise go stale silently across a socket drop. Listeners run off the render
      *  thread, on whichever thread completes the socket's connect (not necessarily the
      *  thread that delivers frames); defer any game-state-touching work via
-     *  {@code Minecraft.getInstance().execute}. */
+     *  {@code McUtils.mc().execute}. */
     private static final CopyOnWriteArrayList<Runnable> inboundPostConnectListeners =
             new CopyOnWriteArrayList<>();
 
@@ -446,7 +446,7 @@ public final class V1ApiManager {
      * Registers a listener that receives every typed inbound frame (any
      * frame carrying a {@code type} field). Listeners are invoked on the
      * thread that delivers the socket's frames; bounce to the main thread via
-     * {@code Minecraft.getInstance().execute(...)} for any work that
+     * {@code McUtils.mc().execute(...)} for any work that
      * touches game state.
      *
      * <p>The inbound handler that {@link #connect()} installs hands every frame without a
@@ -471,7 +471,7 @@ public final class V1ApiManager {
      *
      * <p>Listeners run off the render thread, on whichever thread completes the
      * socket's connect; defer game-state-touching work via
-     * {@code Minecraft.getInstance().execute(...)}. Listeners MUST be
+     * {@code McUtils.mc().execute(...)}. Listeners MUST be
      * idempotent — the cold-start sequence fires this exactly once,
      * but every subsequent reconnect (a network blip, a temporary-server restart, or
      * a server leave and rejoin) fires it again.</p>

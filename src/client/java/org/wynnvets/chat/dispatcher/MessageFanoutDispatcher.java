@@ -1,6 +1,7 @@
 package org.wynnvets.chat.dispatcher;
 
 import com.wynntils.core.components.Handlers;
+import com.wynntils.utils.mc.McUtils;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -57,7 +58,7 @@ public final class MessageFanoutDispatcher {
     static void processMessageBatch() {
         try {
             List<String> staffUsernames = DispatchCoordinator.fetchOnlineStaffUsernames();
-            Minecraft minecraft = Minecraft.getInstance();
+            Minecraft minecraft = McUtils.mc();
             LocalPlayer selfPlayer = minecraft.player;
 
             if (selfPlayer == null) {

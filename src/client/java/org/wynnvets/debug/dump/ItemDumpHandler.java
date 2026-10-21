@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import com.wynntils.utils.mc.McUtils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -305,7 +306,7 @@ public final class ItemDumpHandler {
         // diagnostics, not predicates the legacy renderer tests.
         JsonObject probes = new JsonObject();
         try {
-            Minecraft mc = Minecraft.getInstance();
+            Minecraft mc = McUtils.mc();
             if (mc != null && mc.screen != null) {
                 List<Component> fresh = Screen.getTooltipFromItem(mc, stack);
                 probes.addProperty("freshLineCount", fresh.size());

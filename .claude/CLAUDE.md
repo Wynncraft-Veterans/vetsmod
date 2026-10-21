@@ -129,6 +129,7 @@ Handlers.Command                           // rate-limited queue for /gu stats, 
 ChatMessageEvent.Match                     // chat interception (.Edit is unused)
 WorldStateEvent                            // world join trigger
 StyledText, ComponentUtils, McUtils
+McUtils.mc() / .player() / .screen()     // all client access (project_wynntils.md, McUtils)
 ```
 
 ## Config keys

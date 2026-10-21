@@ -2,6 +2,7 @@ package org.wynnvets.mwe.anni.outline;
 
 import com.wynntils.mc.extension.EntityExtension;
 import com.wynntils.utils.colors.CustomColor;
+import com.wynntils.utils.mc.McUtils;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Locale;
@@ -123,7 +124,7 @@ public final class AnniOutlineTicker {
     }
 
     private static void tickInner() {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;

@@ -2,6 +2,7 @@ package org.wynnvets.mwe.anni.command;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.wynntils.utils.mc.McUtils;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -83,7 +84,7 @@ public final class AnniScrollspotCommand {
     }
 
     public static int here(CommandContext<FabricClientCommandSource> ctx) {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         LocalPlayer player = mc != null ? mc.player : null;
         if (player == null) {
             reply("Can't read your position right now.", ChatFormatting.RED);
@@ -134,7 +135,7 @@ public final class AnniScrollspotCommand {
      * "completes with null", the {@code throwable} half becomes dead.</p>
      */
     private static void renderAck(AnniScrollspotClient.Ack ack, Throwable throwable, String coord) {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         mc.execute(
                 () -> {

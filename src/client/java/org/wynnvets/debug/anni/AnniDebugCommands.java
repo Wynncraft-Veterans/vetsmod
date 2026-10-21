@@ -3,6 +3,7 @@ package org.wynnvets.debug.anni;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.wynntils.utils.mc.McUtils;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
@@ -353,7 +354,7 @@ public final class AnniDebugCommands {
     private static boolean isLocalPlayerOrganiser() {
         AnniSnapshot snap = AnniSnapshotCache.latest();
         if (snap == null) return false;
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null || mc.player == null) return false;
         String localUuid = mc.player.getUUID().toString();
         for (String orgUuid : snap.organisers()) {

@@ -1,6 +1,7 @@
 package org.wynnvets.mwe.anni.aggressive;
 
 import com.wynntils.core.components.Models;
+import com.wynntils.utils.mc.McUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -84,7 +85,7 @@ public final class GhostsPromptHandler {
             return;
         }
 
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;
@@ -147,7 +148,7 @@ public final class GhostsPromptHandler {
     }
 
     private static void firePrompt() {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         mc.execute(
                 () -> {
@@ -176,7 +177,7 @@ public final class GhostsPromptHandler {
     /** Debug entry — report whether the prompt would fire right now.
      *  Walks the player list and dumps the per-player ghost flag. */
     public static void debugDump() {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) {
             VetsLogger.info("ghostsPromptDump: no Minecraft");
             return;

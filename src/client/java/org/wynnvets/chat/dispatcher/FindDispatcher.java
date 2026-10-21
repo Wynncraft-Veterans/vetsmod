@@ -1,6 +1,7 @@
 package org.wynnvets.chat.dispatcher;
 
 import com.wynntils.core.components.Handlers;
+import com.wynntils.utils.mc.McUtils;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -72,7 +73,7 @@ public final class FindDispatcher {
      * waits for the server response, and collects results into the future.
      */
     static void processFindBatch(FindBatch batch) {
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = McUtils.mc();
         LocalPlayer player = minecraft.player;
 
         if (player == null) {

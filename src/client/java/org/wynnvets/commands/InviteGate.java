@@ -2,6 +2,7 @@ package org.wynnvets.commands;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.wynntils.utils.mc.McUtils;
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -11,7 +12,6 @@ import java.time.LocalDate;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -154,7 +154,7 @@ public final class InviteGate {
                             User wynn = wynnFuture.join();
                             MembershipSnapshot snap = snapFuture.join();
                             GuildSnapshot guildSnap = guildFuture.join();
-                            Minecraft.getInstance()
+                            McUtils.mc()
                                     .execute(
                                             () ->
                                                     decide(
@@ -280,7 +280,7 @@ public final class InviteGate {
      * {@code vets-snapshot-provider-makes-player-not-found-unreachable}).
      */
     private static void failOpenInvite(String target) {
-        Minecraft.getInstance()
+        McUtils.mc()
                 .execute(
                         () -> {
                             ChatUtils.sendLocalMessage(
@@ -298,7 +298,7 @@ public final class InviteGate {
     // ── Render helpers ──────────────────────────────────────────────────
 
     private static void renderError(String msg) {
-        Minecraft.getInstance()
+        McUtils.mc()
                 .execute(
                         () ->
                                 ChatUtils.sendLocalMessage(

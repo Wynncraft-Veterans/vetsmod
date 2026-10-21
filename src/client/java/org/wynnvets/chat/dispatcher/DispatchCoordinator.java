@@ -16,7 +16,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.api.V1ApiManager;
@@ -278,7 +277,7 @@ public final class DispatchCoordinator {
                                 }
 
                                 selfSeenInStaffFeedThisWorld = true;
-                                Minecraft.getInstance().execute(action);
+                                McUtils.mc().execute(action);
                             } catch (Exception e) {
                                 VetsLogger.warn(
                                         "Failed to verify online staff status: {}", e.getMessage());

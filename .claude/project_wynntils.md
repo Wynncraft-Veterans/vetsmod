@@ -151,19 +151,32 @@ File: `common/src/main/java/com/wynntils/utils/mc/ComponentUtils.java`
 - `formattedTextToComponent(FormattedText): Component`
 
 ### McUtils
-File: `common/src/main/java/com/wynntils/utils/mc/McUtils.java`
+File: `common/src/main/java/com/wynntils/utils/mc/McUtils.java`. A `final` class with no fields and no static
+initializer. Each accessor is a one-line pass-through, with no caching and no null check.
+
+**vetsmod reaches the Minecraft client only through `McUtils`.** Use the exact helper where one exists at
+Wynntils 4.1.4, the floor `fabric.mod.json` declares, and `McUtils.mc()` for everything else (`execute`, `font`,
+`gui`, `level`, and so on). Never call it from a static initializer or a static field. `tools/check-doc-counts.sh`
+pins the static `Minecraft` accessor at zero call sites in `src/client/java`.
+
+The helpers vetsmod calls, unchanged from 4.1.4 through 4.2.16:
 
 - `mc(): Minecraft`
-- `player(): LocalPlayer`
-- `playerName(): String`
+- `player(): LocalPlayer` (`mc().player`)
+- `playerName(): String` (`player().getName().getString()`; throws when there is no player)
+- `screen(): Screen` / `setScreen(Screen): void`
 - `options(): Options`
 - `inventory(): Inventory`
-- `containerMenu(): AbstractContainerMenu`
-- `screen(): Screen` / `setScreen(Screen): void`
-- `window(): Window`
-- `guiScale(): double`
-- `getUserProfileUUID(): UUID`
-- `getGameDirectory(): File`
+
+Also present at 4.1.4 and not called: `containerMenu`, `inventoryMenu`, `window`, `guiScale`,
+`getUserProfileUUID`, `getGameDirectory`, `playSoundUI`, `playSoundMaster`, `playSoundAmbient`,
+`sendMessageToClient`, `sendChat`, `sendPacket`, `sendSequencedPacket`, `openChatScreen`, `removeMessageFromChat`,
+`sendErrorToClient`.
+
+**Absent at the 4.1.4 floor, so never call them:** `displayToast` (from 4.1.9); `getChatWidth`,
+`sendWynntilsPrefixMessage` and `sendWynntilsPillMessage` (from 4.1.10); `getChat` and `toastManager` (from
+4.2.12). vetsmod compiles against 4.1.17, so the compiler accepts the first four. `sendWynntilsMessage` exists
+through 4.1.9 and is gone after it.
 
 ## Event priority system
 

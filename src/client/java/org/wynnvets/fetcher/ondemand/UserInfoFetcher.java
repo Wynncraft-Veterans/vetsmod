@@ -1,6 +1,7 @@
 package org.wynnvets.fetcher.ondemand;
 
 import com.google.gson.JsonObject;
+import com.wynntils.utils.mc.McUtils;
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -9,7 +10,6 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import net.minecraft.client.Minecraft;
 import org.wynnvets.api.WynnCraftApi;
 import org.wynnvets.datamodels.Guild;
 import org.wynnvets.datamodels.MembershipSnapshot;
@@ -175,7 +175,7 @@ public final class UserInfoFetcher {
                                 Optional<String> confirmedNonReturnersRank =
                                         confirmedNonReturnersRankFuture.join();
                                 // <<< PATCH END: WYNN-STALE-WORKAROUND
-                                Minecraft.getInstance()
+                                McUtils.mc()
                                         .execute(
                                                 () ->
                                                         CheckReportRenderer.renderCheck(

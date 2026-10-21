@@ -1,6 +1,7 @@
 package org.wynnvets.mwe.anni.bossbar;
 
 import com.wynntils.core.components.Models;
+import com.wynntils.utils.mc.McUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Style;
@@ -227,7 +228,7 @@ public final class FlashTracker {
      *  the diff onto the client thread. */
     private static void onSnapshotChanged(AnniSnapshot snapshot) {
         if (snapshot == null) return;
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         mc.execute(() -> applyDiff(snapshot));
     }
@@ -321,7 +322,7 @@ public final class FlashTracker {
     }
 
     private static void playPingSound() {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null || mc.getSoundManager() == null) return;
         try {
             mc.getSoundManager()
