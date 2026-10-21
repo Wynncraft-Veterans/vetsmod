@@ -152,12 +152,16 @@ File: `common/src/main/java/com/wynntils/utils/mc/ComponentUtils.java`
 
 ### McUtils
 File: `common/src/main/java/com/wynntils/utils/mc/McUtils.java`. A `final` class with no fields and no static
-initializer. Each accessor is a one-line pass-through, with no caching and no null check.
+initializer. Each helper vetsmod calls is a one-line pass-through, with no caching and no null check;
+`getUserProfileUUID` and `getGameDirectory` alone null-check `mc()`, for Wynntils' tests.
 
-**vetsmod reaches the Minecraft client only through `McUtils`.** Use the exact helper where one exists at
-Wynntils 4.1.4, the floor `fabric.mod.json` declares, and `McUtils.mc()` for everything else (`execute`, `font`,
-`gui`, `level`, and so on). Never call it from a static initializer or a static field. `tools/check-doc-counts.sh`
-pins the static `Minecraft` accessor at zero call sites in `src/client/java`.
+**vetsmod never calls `Minecraft.getInstance()`; it reaches the client through `McUtils`,** except where a Fabric
+callback hands it the instance (`DebugKeyHandler`'s `END_CLIENT_TICK` `client`). Use the exact helper where one
+exists at Wynntils 4.1.4, the floor `fabric.mod.json` declares, and `McUtils.mc()` for everything else (`execute`,
+`font`, `gui`, `level`, and so on). A site that guards the instance against null, passes it on, or also reads a
+member with no helper keeps a `McUtils.mc()` local and reads every field from it. Never call `McUtils` from a
+static initializer or a static field. `tools/check-doc-counts.sh` pins `Minecraft.getInstance` at zero call sites
+in `src/client/java`, outside static declarations, which its counter skips.
 
 The helpers vetsmod calls, unchanged from 4.1.4 through 4.2.16:
 

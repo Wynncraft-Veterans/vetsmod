@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>The subject is brigadier-only at runtime: it imports no vetsmod class.
  * Its Javadoc names {@code DistributeCommands}, which pulls Wynntils, by its
- * full name, so nothing resolves it. Its error is a
+ * full name, so the class has no reference to it at runtime. Its error is a
  * brigadier {@code LiteralMessage}, not a Minecraft {@code Component}, so
  * nothing here needs a booted client.</p>
  *
