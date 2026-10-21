@@ -304,28 +304,6 @@ public final class DispatchCoordinator {
     }
 
     /**
-     * Enqueues a message for broadcast and starts a dispatch batch if one isn't already running.
-     * Multiple rapid calls safely enqueue; the single dispatch thread drains them in order.
-     */
-    public static void enqueueAndDispatch(String message) {
-        if (message == null || message.isBlank()) {
-            return;
-        }
-
-        MESSAGE_QUEUE.add(message);
-        startBatchIfIdle();
-    }
-
-    /**
-     * Delegates to {@link FindDispatcher#enqueueFindBatch}.
-     */
-    public static void enqueueFindBatch(
-            java.util.List<String> usernames,
-            java.util.concurrent.CompletableFuture<java.util.Map<String, String>> resultFuture) {
-        FindDispatcher.enqueueFindBatch(usernames, resultFuture);
-    }
-
-    /**
      * Delegates to {@link MessageFanoutDispatcher#shouldSuppressFeedback}.
      */
     public static boolean shouldSuppressFeedback(String message) {
@@ -340,6 +318,19 @@ public final class DispatchCoordinator {
     }
 
     // ──────────────────────────── Batch dispatch ────────────────────────────
+
+    /**
+     * Enqueues a message for broadcast and starts a dispatch batch if one isn't already running.
+     * Multiple rapid calls safely enqueue; the single dispatch thread drains them in order.
+     */
+    private static void enqueueAndDispatch(String message) {
+        if (message == null || message.isBlank()) {
+            return;
+        }
+
+        MESSAGE_QUEUE.add(message);
+        startBatchIfIdle();
+    }
 
     static void startBatchIfIdle() {
         if (BATCH_IN_PROGRESS.compareAndSet(false, true)) {
