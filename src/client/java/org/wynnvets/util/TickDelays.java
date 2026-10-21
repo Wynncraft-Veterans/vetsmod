@@ -8,10 +8,12 @@ import org.wynnvets.logging.VetsLogger;
  * ({@code Managers.TickScheduler}).
  *
  * <p>{@link #runAfter} runs its body on the client (Render) thread, at the head of a client tick,
- * never earlier than the delay it is given. Ticks stretch when the client lags, so the body can
- * run later than that, never sooner.</p>
+ * about the delay it is given, counted in 50 ms ticks. Counting ticks is not counting time:
+ * Minecraft runs up to 10 overdue ticks back to back in one frame, so a body can run up to about
+ * half a second early just after a stall (up to a frame early in smooth play), and late when the
+ * client falls far enough behind that ticks are dropped.</p>
  *
- * <p>The scheduler has two traps, which this class closes:</p>
+ * <p>Besides the rounding in {@link #ticksFor}, the scheduler has traps this class closes:</p>
  *
  * <ul>
  *   <li>It keys its tasks by their {@link Runnable}, so scheduling an equal one again replaces the
@@ -35,10 +37,11 @@ public final class TickDelays {
     private TickDelays() {}
 
     /**
-     * Runs {@code body} on the client thread about {@code delayMs} from now, never earlier. Safe
-     * to call from any thread.
+     * Runs {@code body} on the client thread about {@code delayMs} from now, counted in ticks
+     * (see the class Javadoc). Safe to call from any thread.
      *
-     * @param delayMs the delay in milliseconds; zero or less runs the body on the next tick
+     * @param delayMs the delay in milliseconds; zero or less runs the body on the next tick pass
+     *     (from inside a task, possibly the current one)
      * @param label names the work in the warning logged if the body throws
      * @param body the work
      */
@@ -49,7 +52,8 @@ public final class TickDelays {
     /**
      * The scheduler delay for {@code delayMs}: {@code ceil(delayMs / 50)}, floored at 0. The
      * scheduler runs a task only after at least that many more ticks, so rounding up never runs a
-     * body before {@code delayMs}.
+     * body before {@code delayMs} worth of ticks; how long those ticks take is up to Minecraft (see
+     * the class Javadoc).
      */
     // Package-private for unit tests. See TickDelaysTest.
     static int ticksFor(long delayMs) {
