@@ -17,7 +17,6 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.MembersGui;
-import org.wynnvets.distribute.recipients.NameResolver;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.ContainerScreens;
 
@@ -59,12 +58,11 @@ import org.wynnvets.util.ContainerScreens;
  * <p>Each player-head's hover name is the member's tile name: wapi's
  * {@code legacyName} ({@code /v3/guild/<name>} &rarr;
  * {@code members.<rank>.<currentName>.legacyName}) where the member has
- * one, otherwise the {@code currentName} key (see {@link NameResolver}).
- * Matching is case-insensitive against the §-stripped hover name. Multiple
- * acceptable names can be armed via {@link #addAlternative(String)}, which
- * {@code DistributeCommands}' literal-name path uses to add the resolved
- * tile name right after arming, when it differs from the literal
- * input.</p>
+ * one, otherwise the {@code currentName} key (see
+ * {@link org.wynnvets.distribute.recipients.NameResolver NameResolver}). Matching is
+ * case-insensitive against the §-stripped hover name. Multiple acceptable names can be armed via
+ * {@link #addAlternative(String)}, which {@code DistributeCommands}' literal-name path uses to add
+ * the resolved tile name right after arming, when it differs from the literal input.</p>
  */
 public final class MembersListSearcher {
 

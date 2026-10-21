@@ -14,7 +14,6 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.lwjgl.glfw.GLFW;
 import org.wynnvets.distribute.command.OutboundCommand;
-import org.wynnvets.distribute.distributor.GraidsDistributor;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.ContainerScreens;
 
@@ -124,7 +123,7 @@ public final class GuildManageOpener {
      * Sends {@code /guild manage} and arms the post-render scan so the
      * next Manage menu auto-clicks the Guild Log tile (whichever slot
      * holds the {@code §7§lGuild Log} item), transitioning to the Log
-     * GUI. Used by {@link GraidsDistributor}.
+     * GUI. Used by {@link org.wynnvets.distribute.distributor.GraidsDistributor GraidsDistributor}.
      *
      * <p>Same front-of-queue routing as {@link #openManageMembers()}.</p>
      */

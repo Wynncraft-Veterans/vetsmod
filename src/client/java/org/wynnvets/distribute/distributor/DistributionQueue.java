@@ -4,11 +4,7 @@ import java.util.Deque;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.distribute.opener.GuildManageOpener;
-import org.wynnvets.distribute.recipients.NameResolver;
-import org.wynnvets.distribute.walker.GuildLogWalker;
 import org.wynnvets.distribute.walker.MembersListSearcher;
-import org.wynnvets.distribute.walker.MembersListWalker;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -28,28 +24,31 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>Every queued name is already in the <em>legacy</em> form the Members GUI tiles carry, so
  * {@link MembersListSearcher}'s literal-input arm matches directly and no per-recipient
- * {@link NameResolver} call is needed. That holds for all three heads, by three different
- * routes:
+ * {@link org.wynnvets.distribute.recipients.NameResolver NameResolver} call is needed. That holds
+ * for all three heads, by three different routes:
  *
  * <table border="1">
  *   <caption>Where each head's queued names come from</caption>
  *   <tr><th>Head</th><th>Source</th><th>Already legacy because</th></tr>
  *   <tr>
  *     <td>{@link RandomDistributor}</td>
- *     <td>{@link NameResolver#fetchAllLegacyNames()}</td>
+ *     <td>{@link org.wynnvets.distribute.recipients.NameResolver#fetchAllLegacyNames()
+ *         NameResolver.fetchAllLegacyNames()}</td>
  *     <td>it returns each member's tile name &mdash; wapi's {@code legacyName}, or the current
  *         name when there is none. Picking from {@code Models.Guild.getGuildMembers()} instead
  *         would hand this loop current names and need a resolve per pick.</td>
  *   </tr>
  *   <tr>
  *     <td>{@link ObjectivesDistributor}</td>
- *     <td>{@link MembersListWalker}'s tile hover names</td>
+ *     <td>{@link org.wynnvets.distribute.walker.MembersListWalker MembersListWalker}'s tile
+ *         hover names</td>
  *     <td>they were read off the Members GUI itself, so they are the tile name by
  *         construction.</td>
  *   </tr>
  *   <tr>
  *     <td>{@link GraidsDistributor}</td>
- *     <td>{@link NameResolver#fetchNameIndex()}</td>
+ *     <td>{@link org.wynnvets.distribute.recipients.NameResolver#fetchNameIndex()
+ *         NameResolver.fetchNameIndex()}</td>
  *     <td>the index maps both name forms onto the legacy one; the log's username tokens are
  *         the keys, and what comes back out is always the value.</td>
  *   </tr>
@@ -62,7 +61,8 @@ import org.wynnvets.logging.VetsLogger;
  * <ul>
  *   <li><b>The arming order.</b> {@link RandomDistributor} and {@link GraidsDistributor}
  *       call {@link #processNext} <em>before</em>
- *       {@link GuildManageOpener#openManageMembers()}, so the searcher is armed by the time
+ *       {@link org.wynnvets.distribute.opener.GuildManageOpener#openManageMembers()
+ *       GuildManageOpener.openManageMembers()}, so the searcher is armed by the time
  *       {@code MenuOpenedEvent.Pre} fires and binds on it. {@link ObjectivesDistributor}
  *       calls it with the Members menu already open &mdash; its walk ended there &mdash; and
  *       so takes the searcher's re-arm fast path instead. Only the <em>first</em> pop
@@ -76,8 +76,8 @@ import org.wynnvets.logging.VetsLogger;
  *       {@link ObjectivesDistributor} closes, because its walk left the Members menu open;
  *       {@link GraidsDistributor} does not, because none of its early-outs has opened the
  *       Members menu, so there is no Members menu for it to close &mdash; the Guild Log, if
- *       {@link GuildLogWalker} bound it, the walker closes itself, and a Manage menu the Log
- *       route left open is a different menu
+ *       {@link org.wynnvets.distribute.walker.GuildLogWalker GuildLogWalker} bound it, the walker
+ *       closes itself, and a Manage menu the Log route left open is a different menu
  *       ({@code graids-log-never-reached-reported-as-empty-log});
  *       {@link RandomDistributor} does not,
  *       because at that point it has opened nothing at all.</li>

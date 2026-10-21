@@ -9,7 +9,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.config.VetsConfig;
 import org.wynnvets.debug.DebugCommands;
 import org.wynnvets.distribute.DistributeCommands;
 import org.wynnvets.fetcher.ondemand.ListFetcher;
@@ -29,8 +28,9 @@ import org.wynnvets.rendering.territory.TerritoryLineManager;
  * Builds and registers the {@code /wv} client command tree and its handlers.
  *
  * <p>All command handlers are static — they read guild/config state through
- * the existing singletons ({@link GuildStateManager}, {@link VetsConfig})
- * and delegate API calls to the appropriate fetcher classes.</p>
+ * the static classes that hold it ({@link GuildStateManager},
+ * {@link org.wynnvets.config.VetsConfig VetsConfig}) and delegate API calls to
+ * the appropriate fetcher classes.</p>
  *
  * <p>{@link org.wynnvets.VetsmodClient#onInitializeClient() VetsmodClient#onInitializeClient()}
  * registers {@link #register} as a {@code ClientCommandRegistrationCallback}. Fabric calls it on

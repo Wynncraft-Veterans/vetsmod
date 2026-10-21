@@ -14,15 +14,14 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.recipients.NameResolver;
 import org.wynnvets.distribute.recipients.NoAspectsFilter;
-import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
 
 /**
  * Implements the {@code /wv distribute @random <resource> <count>} flow:
  * picks {@code count} random members of the local player's guild, opens
  * the Members GUI once, and visits each pick sequentially &mdash; one
- * {@link MembersListSearcher} arm + one-press {@link MemberSlotPresser}
- * call per recipient &mdash; before closing the menu at the end.
+ * {@link org.wynnvets.distribute.walker.MembersListSearcher MembersListSearcher} arm + one-press
+ * {@link MemberSlotPresser} call per recipient &mdash; before closing the menu at the end.
  *
  * <h2>Count semantics</h2>
  * <p>For {@code @random}, {@code <count>} is the <em>number of
@@ -37,16 +36,16 @@ import org.wynnvets.guild.GuildStateManager;
  * <p>The picker reads {@link NameResolver#fetchAllLegacyNames()} rather
  * than {@code Models.Guild.getGuildMembers()} &mdash; the former returns
  * each member's tile-displayed name (legacy when renamed, current
- * otherwise), which is exactly what {@link MembersListSearcher} matches
- * against on the GUI. Picking by current names would race against the
+ * otherwise), which is exactly what {@link org.wynnvets.distribute.walker.MembersListSearcher
+ * MembersListSearcher} matches against on the GUI. Picking by current names would race against the
  * per-pick async resolve and silently exclude renamed members on small
  * guilds whose searches finish in under a second.</p>
  *
  * <h2>Page coverage</h2>
  * <p>Random picks can live on any page, in any order. After the first
  * pick is found on some page P, subsequent picks may live on an earlier
- * page &mdash; {@link MembersListSearcher}'s bidirectional pagination
- * transparently switches direction so the queue can drain without the
+ * page &mdash; {@link org.wynnvets.distribute.walker.MembersListSearcher MembersListSearcher}'s
+ * bidirectional pagination transparently switches direction so the queue can drain without the
  * client re-sending {@code /guild manage} or paging back to page 1 before
  * each search.</p>
  *

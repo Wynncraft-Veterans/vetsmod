@@ -13,9 +13,9 @@ import org.junit.jupiter.api.Test;
  * Tests for {@link NameOrSelectorArgument} — the lexical shape of the
  * {@code <name>} token, and nothing else.
  *
- * <p>The subject is brigadier-only at runtime: its single vetsmod import
- * ({@code DistributeCommands}) exists to satisfy a Javadoc link and is never
- * resolved, which matters because that class pulls Wynntils. Its error is a
+ * <p>The subject is brigadier-only at runtime: it imports no vetsmod class.
+ * Its Javadoc names {@code DistributeCommands}, which pulls Wynntils, by its
+ * full name, so nothing resolves it. Its error is a
  * brigadier {@code LiteralMessage}, not a Minecraft {@code Component}, so
  * nothing here needs a booted client.</p>
  *

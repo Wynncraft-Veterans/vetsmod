@@ -15,8 +15,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.distribute.MembersGui;
-import org.wynnvets.distribute.distributor.ObjectivesDistributor;
-import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.ContainerScreens;
 
@@ -24,8 +22,8 @@ import org.wynnvets.util.ContainerScreens;
  * Walks every page of the in-game {@code "<guild>: Members"} GUI and
  * collects an entry for each player-head it sees. Used by selectors
  * whose recipient list depends on per-member tile data &mdash; e.g.
- * {@link ObjectivesDistributor}, which reads the {@code Guild Objective:}
- * lore lines to decide who qualifies.
+ * {@link org.wynnvets.distribute.distributor.ObjectivesDistributor ObjectivesDistributor}, which
+ * reads the {@code Guild Objective:} lore lines to decide who qualifies.
  *
  * <p>Built on the same event triple as {@link MembersListSearcher}
  * (MenuOpen / SetContent / SetSlot) and, like it, defers the rescan by a
@@ -47,10 +45,10 @@ import org.wynnvets.util.ContainerScreens;
  * <p>Forward-only: the walk is meant to start on a freshly-opened Members
  * menu (page 1), so there's never anything backward to cover. Its one
  * caller pairs {@link #armWalk(Completion)} with a fresh
- * {@link GuildManageOpener#openManageMembers()}. That assumes no Members
- * menu is already open at arm time: if one is, {@code armWalk}'s fast
- * path binds that menu instead, from whatever page it is on, and the walk
- * does not follow the fresh menu the caller then opens
+ * {@link org.wynnvets.distribute.opener.GuildManageOpener#openManageMembers()
+ * GuildManageOpener.openManageMembers()}. That assumes no Members menu is already open at arm time:
+ * if one is, {@code armWalk}'s fast path binds that menu instead, from whatever page it is on, and
+ * the walk does not follow the fresh menu the caller then opens
  * ({@code members-list-fast-path-binds-a-menu-about-to-be-replaced}).</p>
  */
 public final class MembersListWalker {

@@ -8,7 +8,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.item.component.ItemLore;
 import org.wynnvets.logging.VetsLogger;
 
@@ -522,7 +521,7 @@ final class LegacyTooltipRenderer {
     /**
      * Extracts a trailing Wynntils percentage suffix (e.g. "[61.7%]") from the original
      * component, preserving its color. Wynntils appends the percentage as a sibling
-     * Component with its own Style/{@link TextColor}, so we check siblings first.
+     * Component with its own Style/{@code TextColor}, so we check siblings first.
      * Falls back to scanning for §-codes in legacy-formatted text.
      * Returns null if no colored suffix is present.
      */

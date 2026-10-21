@@ -15,9 +15,7 @@ import org.junit.jupiter.api.Test;
  * {@code CustomColor} moved to {@link AnniOutlineRegistry}: constructing a
  * Wynntils type in a static initializer kills the load, and Wynntils is
  * {@code modCompileOnly} so it is absent at test runtime. The palette now
- * declares no fields at all. Its {@code CustomColor} import resolves a Javadoc
- * link and is never executed, which costs nothing — {@code invokestatic} is
- * resolved lazily.</p>
+ * declares no fields at all, and it imports nothing from Wynntils.</p>
  *
  * <p>{@link AnniOutlineRegistry} itself is still unloadable here: it builds a
  * {@code CustomColor} both in {@code <clinit>} and in {@code ownPartyEntry}.

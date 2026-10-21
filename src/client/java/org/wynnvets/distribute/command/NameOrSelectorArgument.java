@@ -8,15 +8,14 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import java.util.Collection;
 import java.util.List;
-import org.wynnvets.distribute.DistributeCommands;
 
 /**
  * Brigadier argument type for the {@code <name>} slot of
  * {@code /wv distribute <name> <resource> <count>}. Reads one
  * non-empty, space-delimited token so the {@code @}-prefixed selectors
  * &mdash; {@code @random} and whichever others
- * {@link DistributeCommands} currently tables &mdash; parse alongside
- * regular Wynncraft usernames.
+ * {@link org.wynnvets.distribute.DistributeCommands DistributeCommands} currently tables &mdash;
+ * parse alongside regular Wynncraft usernames.
  *
  * <p>{@link com.mojang.brigadier.arguments.StringArgumentType#string()
  * StringArgumentType.string()} restricts unquoted input to
@@ -29,8 +28,8 @@ import org.wynnvets.distribute.DistributeCommands;
  * <p>The set of recognised selectors is intentionally <em>not</em>
  * enforced here &mdash; this type only fixes the lexical shape of one
  * token. Dispatch (selector vs. literal username) lives in
- * {@link DistributeCommands}, so adding a new {@code @foo} never touches
- * this class: it is a row in that class's selector table plus the head
+ * {@link org.wynnvets.distribute.DistributeCommands DistributeCommands}, so adding a new
+ * {@code @foo} never touches this class: it is a row in that class's selector table plus the head
  * the row points at.</p>
  */
 public final class NameOrSelectorArgument implements ArgumentType<String> {

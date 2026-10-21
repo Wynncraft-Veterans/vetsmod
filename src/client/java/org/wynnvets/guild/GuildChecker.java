@@ -1,7 +1,6 @@
 package org.wynnvets.guild;
 
 import com.wynntils.core.components.Handlers;
-import com.wynntils.core.components.Models;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
@@ -11,7 +10,7 @@ import org.wynnvets.util.TickDelays;
  * Determines the player's guild membership by issuing {@code /gu stats}
  * to the Wynncraft server and parsing the multi-line response.
  *
- * <p>Unlike Wynntils' {@link Models#Guild} (which learns the guild from its character-menu
+ * <p>Unlike Wynntils' {@code Models.Guild} (which learns the guild from its character-menu
  * scan and from guild chat lines, and whose guild name can stay empty for extended
  * periods), this checker queries the server directly and caches the result for
  * {@value #GUILD_CHECK_EXPIRY_DAYS} days. While that result is valid it takes precedence

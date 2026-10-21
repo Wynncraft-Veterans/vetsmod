@@ -6,18 +6,18 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 import org.wynnvets.rendering.colors.GradientTextBuilder;
-import org.wynnvets.rendering.colors.ShaderColorPalette;
 
 /**
  * Reusable system for formatting guild chat pill (rank) components.
  *
  * <p>Styles the pill from the caller's supporter determination; the sender's username is not
  * read. For a supporter, while {@code showSupporterGlints} is on, the pill takes the animation
- * marker colour, animated at render time from {@link ShaderColorPalette#DARK_AQUA DARK_AQUA} by
- * default (see {@link AnimatedGradientSequence}). A pill containing custom glyphs, which is what
- * every current caller passes, is marked as one component; a plain-text label would be marked per
- * character. Otherwise the pill takes the flat base style. In every branch it renders in the
- * default font, not {@code chat/prefix} (see {@link PillCodec}).</p>
+ * marker colour, animated at render time from
+ * {@link org.wynnvets.rendering.colors.ShaderColorPalette#DARK_AQUA DARK_AQUA} by default (see
+ * {@link AnimatedGradientSequence}). A pill containing custom glyphs, which is what every current
+ * caller passes, is marked as one component; a plain-text label would be marked per character.
+ * Otherwise the pill takes the flat base style. In every branch it renders in the default font, not
+ * {@code chat/prefix} (see {@link PillCodec}).</p>
  *
  * <p>To add new pill styles, add additional checks before the default fallback in
  * {@link #formatPill(String, String, Style, boolean)}.</p>
@@ -38,11 +38,12 @@ public final class PillFormatter {
      * Formats a pill component using the given base style.
      *
      * <p>If the sender is a supporter and {@code showSupporterGlints} is on, the pill takes the
-     * animation marker colour, animated at render time from {@link ShaderColorPalette#DARK_AQUA}
-     * by default. A plain-text label, which no current caller passes, is marked per character. The
-     * PUA pill every current caller passes is marked as one component instead, because a
-     * per-character gradient would break the composite glyphs. In every branch the pill renders in
-     * the default font, not {@code chat/prefix}.</p>
+     * animation marker colour, animated at render time from
+     * {@link org.wynnvets.rendering.colors.ShaderColorPalette#DARK_AQUA
+     * ShaderColorPalette.DARK_AQUA} by default. A plain-text label, which no current caller passes,
+     * is marked per character. The PUA pill every current caller passes is marked as one component
+     * instead, because a per-character gradient would break the composite glyphs. In every branch
+     * the pill renders in the default font, not {@code chat/prefix}.</p>
      *
      * @param pillText    the text to display in the pill
      * @param username    the display name of the message sender

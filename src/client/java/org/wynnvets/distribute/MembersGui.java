@@ -7,9 +7,6 @@ import java.util.regex.Pattern;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.item.ItemStack;
 import org.lwjgl.glfw.GLFW;
-import org.wynnvets.distribute.distributor.MemberSlotPresser;
-import org.wynnvets.distribute.walker.MembersListSearcher;
-import org.wynnvets.distribute.walker.MembersListWalker;
 import org.wynnvets.util.ContainerScreens;
 
 /**
@@ -20,8 +17,8 @@ import org.wynnvets.util.ContainerScreens;
  * {@code GuildMemberListContainer}, not a bag of constants that happened to be shared. Every
  * field below is here because it says something about the menu, including
  * {@link #PREVIOUS_PAGE_SLOT} and {@link #PREVIOUS_PAGE_PATTERN}, which only
- * {@link MembersListSearcher} uses — when Wynncraft changes the menu, this is the one file to
- * check against upstream.</p>
+ * {@link org.wynnvets.distribute.walker.MembersListSearcher MembersListSearcher} uses — when
+ * Wynncraft changes the menu, this is the one file to check against upstream.</p>
  *
  * <h2>The two screen predicates</h2>
  * <p>"Is the Members menu open?" has two answers in this package and they are not
@@ -33,7 +30,7 @@ import org.wynnvets.util.ContainerScreens;
  *   <caption>Screen predicate by job</caption>
  *   <tr><th>Caller</th><th>Job</th><th>Predicate</th><th>Why</th></tr>
  *   <tr>
- *     <td>{@link MemberSlotPresser}</td>
+ *     <td>{@link org.wynnvets.distribute.distributor.MemberSlotPresser MemberSlotPresser}</td>
  *     <td>every press in a batch, the refresh-confirmation gate, and the close-when-done
  *         guard</td>
  *     <td><b>title</b></td>
@@ -43,7 +40,8 @@ import org.wynnvets.util.ContainerScreens;
  *         {@code vetsmod_distribute.md} §6 point 2 for the other refresh shape.</td>
  *   </tr>
  *   <tr>
- *     <td>{@link MembersListSearcher}, {@link MembersListWalker}</td>
+ *     <td>{@link org.wynnvets.distribute.walker.MembersListSearcher MembersListSearcher},
+ *         {@link org.wynnvets.distribute.walker.MembersListWalker MembersListWalker}</td>
  *     <td>the scan that drives pagination</td>
  *     <td><b>id</b></td>
  *     <td>They bound an id when the menu opened, and a mismatch is their <em>signal</em> that
@@ -51,7 +49,8 @@ import org.wynnvets.util.ContainerScreens;
  *         Matching on title would hide the very event they are testing for.</td>
  *   </tr>
  *   <tr>
- *     <td>{@link MembersListSearcher}, {@link MembersListWalker}</td>
+ *     <td>{@link org.wynnvets.distribute.walker.MembersListSearcher MembersListSearcher},
+ *         {@link org.wynnvets.distribute.walker.MembersListWalker MembersListWalker}</td>
  *     <td>the re-arm fast path, and the searcher's mid-search rebind</td>
  *     <td><b>title</b></td>
  *     <td>Neither has a <em>usable</em> bound id — none yet in the fast paths, and a stale

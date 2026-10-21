@@ -15,8 +15,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.wynnvets.api.WynnCraftApi;
-import org.wynnvets.distribute.distributor.RandomDistributor;
-import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.HttpClients;
@@ -68,8 +66,8 @@ public final class NameResolver {
      * tile-displayed name &mdash; i.e. {@code legacyName} when present,
      * else the current Mojang username (for members who never renamed).
      *
-     * <p>Used by {@link RandomDistributor} to pick recipients from the
-     * exact name space the Members GUI uses, avoiding the race where
+     * <p>Used by {@link org.wynnvets.distribute.distributor.RandomDistributor RandomDistributor} to
+     * pick recipients from the exact name space the Members GUI uses, avoiding the race where
      * picking by current name and async-resolving per pick can miss
      * renamed members on small guilds with fast searches.</p>
      *
@@ -108,8 +106,8 @@ public final class NameResolver {
      * (legacy) name. Both forms are added so the caller can match a
      * username encountered in arbitrary text &mdash; e.g. a guild log
      * entry written before a player renamed &mdash; and recover the
-     * single canonical legacy name that {@link MembersListSearcher} will
-     * match against in the Members GUI.
+     * single canonical legacy name that {@link org.wynnvets.distribute.walker.MembersListSearcher
+     * MembersListSearcher} will match against in the Members GUI.
      *
      * <p>Returns an empty map on failure.</p>
      */

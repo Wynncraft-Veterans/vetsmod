@@ -1,6 +1,5 @@
 package org.wynnvets.mwe.anni.outline;
 
-import com.wynntils.utils.colors.CustomColor;
 import java.util.Locale;
 import net.minecraft.ChatFormatting;
 
@@ -11,18 +10,18 @@ import net.minecraft.ChatFormatting;
  * codes ({@code §f}/{@code §b}/{@code §a}/{@code §c}/{@code §e}/{@code §d}),
  * NOT raw hex constants. {@link AnniOutlineRegistry#ownPartyEntry} turns the
  * chosen code into an outline colour through
- * {@link CustomColor#fromChatFormatting(ChatFormatting)}, which keeps the
+ * {@code CustomColor.fromChatFormatting(ChatFormatting)}, which keeps the
  * outline ARGB in sync with whatever Minecraft renders for the matching colour
  * code elsewhere (chat text, scoreboard, etc.) — if Mojang ever tweaks those
  * values, we follow along automatically.</p>
  *
- * <p>The class declares <b>no fields</b>. Every {@link CustomColor} in the
+ * <p>The class declares <b>no fields</b>. Every {@code CustomColor} in the
  * highlight path is constructed by {@link AnniOutlineRegistry}, including the
  * light-grey other-vets-party outline that used to live here. That is
  * deliberate and load-bearing: an empty {@code <clinit>} is what lets a test
- * touch this class at all, since Wynntils is absent at test runtime. The
- * {@code CustomColor} import above resolves a Javadoc link and nothing else —
- * imports are free, static initializers are not.</p>
+ * touch this class at all, since Wynntils is absent at test runtime. It
+ * imports nothing from Wynntils: static initializers, not imports, decide
+ * whether a test can load a class.</p>
  *
  * <p><b>The mod's only role table for chat and outline alike.</b> Not for the whole mod:
  * the boss bar keeps a third, described below. Two callers:
@@ -34,7 +33,7 @@ import net.minecraft.ChatFormatting;
  * DARK_AQUA, spec-cited as "distinct from S4's outline colours". Do not fold it in.</p>
  *
  * <p>{@code ownPartyEntry} takes a single {@link #chatFormattingForRole} result and derives both
- * halves of the {@code Entry} from it — the outline {@link CustomColor} and the nametag
+ * halves of the {@code Entry} from it — the outline {@code CustomColor} and the nametag
  * {@link ChatFormatting} — and it is that {@code Entry} which {@link AnniOutlineTicker} and
  * {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} read. Deriving both from one call
  * is what stops those two colours drifting. That guarantee is per-tier and does <em>not</em>
