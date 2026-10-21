@@ -304,6 +304,6 @@ public final class MemberSlotPresser {
      */
     static void closeMembersScreen() {
         if (MembersGui.currentByTitle() == null) return;
-        McUtils.mc().setScreen(null);
+        McUtils.setScreen(null);
     }
 }

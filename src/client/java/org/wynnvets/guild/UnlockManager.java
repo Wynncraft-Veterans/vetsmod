@@ -1,7 +1,7 @@
 package org.wynnvets.guild;
 
+import com.wynntils.utils.mc.McUtils;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
@@ -246,12 +246,11 @@ final class UnlockManager {
         pendingUnlockNotify = false;
         boolean configWantsPrint = VetsConfig.get(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH);
 
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null && (fromUnlock || configWantsPrint)) {
+        if (McUtils.player() != null && (fromUnlock || configWantsPrint)) {
             Component msg =
                     Component.literal("✅ vetsmod authentication verified — tier: " + currentTier)
                             .withStyle(ChatFormatting.GREEN);
-            if (mc.screen != null) {
+            if (McUtils.screen() != null) {
                 // The action-bar overlay is suppressed while a Screen is
                 // open (e.g. Wynncraft's class-selection screen shown on
                 // login), but chat scrollback still renders through the
@@ -260,7 +259,7 @@ final class UnlockManager {
                 // matters.
                 ChatUtils.sendLocalMessage(msg);
             } else {
-                mc.player.displayClientMessage(msg, true);
+                McUtils.player().displayClientMessage(msg, true);
             }
             // Latch off so the message doesn't re-fire on every WS reconnect.
             // onAuthFailure() flips it back on so a transient error→recovery

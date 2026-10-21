@@ -2,7 +2,7 @@ package org.wynnvets.guild;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.models.guild.type.GuildRank;
-import net.minecraft.client.Minecraft;
+import com.wynntils.utils.mc.McUtils;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import org.apache.commons.lang3.StringUtils;
@@ -421,8 +421,7 @@ public final class GuildStateManager {
     public static void processMessage(Component component, String message) {
         // Capture player name on first opportunity
         if (playerName.equals(StringUtils.EMPTY)) {
-            Minecraft minecraft = Minecraft.getInstance();
-            LocalPlayer player = minecraft.player;
+            LocalPlayer player = McUtils.player();
             if (player != null) {
                 playerName = player.getName().getString();
             }
@@ -544,8 +543,7 @@ public final class GuildStateManager {
      * else here.</p>
      */
     public static void sendRegistrationIfReady() {
-        Minecraft mc = Minecraft.getInstance();
-        LocalPlayer player = mc.player;
+        LocalPlayer player = McUtils.player();
         if (player == null) return;
 
         String uuid = player.getUUID().toString();

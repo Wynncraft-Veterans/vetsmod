@@ -1,7 +1,7 @@
 package org.wynnvets.guild;
 
 import com.wynntils.core.components.Models;
-import net.minecraft.client.Minecraft;
+import com.wynntils.utils.mc.McUtils;
 import net.minecraft.client.player.LocalPlayer;
 import org.apache.commons.lang3.StringUtils;
 import org.wynnvets.api.V1ApiManager;
@@ -61,8 +61,7 @@ public final class GuildLifecycle {
         DispatchCoordinator.resetStaffChatEligibilityCache();
 
         // Capture player name
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
+        LocalPlayer player = McUtils.player();
         if (player != null && GuildStateManager.playerName.equals(StringUtils.EMPTY)) {
             GuildStateManager.playerName = player.getName().getString();
         }

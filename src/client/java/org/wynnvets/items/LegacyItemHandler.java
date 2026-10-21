@@ -1,11 +1,11 @@
 package org.wynnvets.items;
 
 import com.wynntils.core.components.Models;
+import com.wynntils.utils.mc.McUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -90,7 +90,7 @@ public final class LegacyItemHandler {
      */
     public static boolean isBlockedScreen() {
         if (Models.Housing.isInEditMode()) return true;
-        Screen screen = Minecraft.getInstance().screen;
+        Screen screen = McUtils.screen();
         if (screen == null) return false;
         String title = ChatFormatting.stripFormatting(screen.getTitle().getString());
         return ItemDefinitions.isBlockedScreenTitle(title);

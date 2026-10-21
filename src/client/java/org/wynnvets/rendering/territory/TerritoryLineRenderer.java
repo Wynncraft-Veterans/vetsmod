@@ -1,7 +1,7 @@
 package org.wynnvets.rendering.territory;
 
+import com.wynntils.utils.mc.McUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
@@ -33,14 +33,13 @@ public final class TerritoryLineRenderer {
     private static void render() {
         if (!TerritoryLineManager.hasAnyActive()) return;
 
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
+        if (McUtils.player() == null) return;
 
-        BlockPos playerPos = mc.player.blockPosition();
+        BlockPos playerPos = McUtils.player().blockPosition();
         int playerX = playerPos.getX();
         int playerY = playerPos.getY();
         int playerZ = playerPos.getZ();
-        Vec3 playerVec = mc.player.position();
+        Vec3 playerVec = McUtils.player().position();
 
         for (var entry : TerritoryLineManager.getAliases().entrySet()) {
             String alias = entry.getKey();
@@ -62,7 +61,7 @@ public final class TerritoryLineRenderer {
                     Math.min(Math.abs(playerVec.x - startX), Math.abs(playerVec.x - endX))
                             + Math.min(
                                     Math.abs(playerVec.z - startZ), Math.abs(playerVec.z - endZ));
-            int maxDistance = Math.min(mc.options.renderDistance().get(), 16) * 15;
+            int maxDistance = Math.min(McUtils.options().renderDistance().get(), 16) * 15;
             if (!inTerritory && dist > maxDistance) continue;
 
             int color = inTerritory ? 0xFF00FF00 : 0xFFFF0000;

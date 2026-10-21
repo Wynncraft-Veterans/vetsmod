@@ -3,6 +3,7 @@ package org.wynnvets.commands;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.wynntils.utils.mc.McUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -458,8 +459,7 @@ public final class CautionCommands {
     // ── /eject in-game dispatch ─────────────────────────────────────────
 
     private static void dispatchEjectAction(String suggested, String target) {
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
+        LocalPlayer player = McUtils.player();
         if (player == null || player.connection == null) {
             VetsLogger.warn("Eject dispatch: no live player connection");
             return;

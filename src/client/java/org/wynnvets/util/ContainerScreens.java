@@ -8,7 +8,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 /**
  * The shared ways this mod asks <em>"which container screen is open right now?"</em>.
  *
- * <p>Seven sites pattern-matched {@code McUtils.mc().screen} against
+ * <p>Seven sites pattern-matched the open screen against
  * {@link AbstractContainerScreen} for themselves, each following it with one of exactly two
  * discriminators. The idiom lives here once so a reader comparing two call sites is comparing
  * the discriminators rather than re-deriving that both start the same way. An eighth site, which
@@ -51,7 +51,7 @@ public final class ContainerScreens {
      * discriminator &mdash; for a caller that reads whichever menu is open, not one it bound.
      */
     public static AbstractContainerScreen<?> current() {
-        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen) {
+        if (McUtils.screen() instanceof AbstractContainerScreen<?> screen) {
             return screen;
         }
         return null;
@@ -67,7 +67,7 @@ public final class ContainerScreens {
      * asked, and answering it here would be a behaviour change rather than a rehoming.</p>
      */
     public static AbstractContainerScreen<?> currentWithId(int containerId) {
-        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
+        if (McUtils.screen() instanceof AbstractContainerScreen<?> screen
                 && screen.getMenu().containerId == containerId) {
             return screen;
         }
@@ -85,7 +85,7 @@ public final class ContainerScreens {
      * themselves.</p>
      */
     public static AbstractContainerScreen<?> currentWithTitle(Pattern titlePattern) {
-        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
+        if (McUtils.screen() instanceof AbstractContainerScreen<?> screen
                 && StyledText.fromComponent(screen.getTitle()).matches(titlePattern)) {
             return screen;
         }

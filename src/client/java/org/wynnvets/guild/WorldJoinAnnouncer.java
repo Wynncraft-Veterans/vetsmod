@@ -1,6 +1,6 @@
 package org.wynnvets.guild;
 
-import net.minecraft.client.Minecraft;
+import com.wynntils.utils.mc.McUtils;
 import net.minecraft.client.player.LocalPlayer;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
@@ -55,8 +55,7 @@ public final class WorldJoinAnnouncer {
         }
 
         VetsLogger.debug("Fetching MOTD");
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
+        LocalPlayer player = McUtils.player();
 
         if (player != null) {
             // Mark MOTD as shown now — prevents onGuildInfoUpdated() from re-fetching
@@ -119,8 +118,7 @@ public final class WorldJoinAnnouncer {
         }
 
         VetsLogger.debug("Fetching annihilation stamp");
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
+        LocalPlayer player = McUtils.player();
 
         if (player != null) {
             stampDisplayedThisSession = true;

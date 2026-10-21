@@ -2,6 +2,7 @@ package org.wynnvets.chat.dispatcher;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.models.guild.type.GuildRank;
+import com.wynntils.utils.mc.McUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -60,11 +61,10 @@ public final class GuildChatDispatcher {
      * <p>No-op when the player or connection is missing.</p>
      */
     public static void sendCommandBypassed(String command) {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.player.connection == null) return;
+        if (McUtils.player() == null || McUtils.player().connection == null) return;
         BYPASS.set(Boolean.TRUE);
         try {
-            minecraft.player.connection.sendCommand(command);
+            McUtils.player().connection.sendCommand(command);
         } finally {
             BYPASS.set(Boolean.FALSE);
         }

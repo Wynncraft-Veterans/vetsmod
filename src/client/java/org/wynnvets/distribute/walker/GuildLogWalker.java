@@ -231,7 +231,7 @@ public final class GuildLogWalker {
         Completion cb = completion;
         List<GuildLogItem> snapshot = new ArrayList<>(collected);
         stop();
-        if (closeScreen && McUtils.mc().screen != null) {
+        if (closeScreen && McUtils.screen() != null) {
             // If the open screen is Wynntils' wrap of the log, closing it
             // runs WrappedScreenHandler.onScreenClose, which sends the
             // ServerboundContainerClosePacket — no double-close needed. If
@@ -239,7 +239,7 @@ public final class GuildLogWalker {
             // dismiss and sends no close packet. Either way this closes
             // whichever screen is open, not specifically the log
             // (guild-log-walker-closes-whatever-screen-is-open).
-            McUtils.mc().setScreen(null);
+            McUtils.setScreen(null);
         }
         if (cb != null) cb.onComplete(snapshot);
     }

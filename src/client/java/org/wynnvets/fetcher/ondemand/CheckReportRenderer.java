@@ -1,5 +1,6 @@
 package org.wynnvets.fetcher.ondemand;
 
+import com.wynntils.utils.mc.McUtils;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
@@ -92,10 +93,7 @@ final class CheckReportRenderer {
         // not check which server the client is on). Skips the whole
         // signal-aggregation dance below and avoids the "Wynn's cached
         // online=false for the local player" trap.
-        String localName =
-                (Minecraft.getInstance().player != null)
-                        ? Minecraft.getInstance().player.getName().getString()
-                        : null;
+        String localName = (McUtils.player() != null) ? McUtils.playerName() : null;
         boolean isSelf = localName != null && localName.equalsIgnoreCase(displayName);
 
         boolean currentlyOnline = isCurrentlyOnline(user, snapshot, tabListServer, isSelf);

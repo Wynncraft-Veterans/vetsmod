@@ -3,6 +3,7 @@ package org.wynnvets.chat.dispatcher;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.wynntils.utils.mc.McUtils;
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -383,8 +384,7 @@ public final class DispatchCoordinator {
     }
 
     private static boolean isSelfListedInOnlineStaffFeed() throws Exception {
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer selfPlayer = minecraft.player;
+        LocalPlayer selfPlayer = McUtils.player();
         if (selfPlayer == null) {
             return false;
         }

@@ -1,11 +1,11 @@
 package org.wynnvets.chat.rewriter;
 
 import com.wynntils.core.components.Models;
+import com.wynntils.utils.mc.McUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -162,8 +162,7 @@ public final class StaffChannelMessageRewriter {
             return false;
         }
 
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
+        LocalPlayer player = McUtils.player();
 
         if (matchesIdentityVariant(normalizedSender, GuildStateManager.playerName())) {
             return true;
