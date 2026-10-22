@@ -1,5 +1,6 @@
 package org.wynnvets.fetcher.ondemand;
 
+import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,7 +44,7 @@ public final class OnlineGuildCache {
     public static void markSeen(Set<String> usernames) {
         long now = System.currentTimeMillis();
         for (String name : usernames) {
-            SEEN.put(name.toLowerCase(), new Entry(name, now));
+            SEEN.put(name.toLowerCase(Locale.ROOT), new Entry(name, now));
         }
     }
 
