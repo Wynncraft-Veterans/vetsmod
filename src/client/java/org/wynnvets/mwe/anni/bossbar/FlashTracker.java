@@ -24,10 +24,8 @@ import org.wynnvets.mwe.anni.state.AnniSnapshots;
  * toggle it between {@code &l} and {@code &n&l}." World changes get
  * the additional "flash indefinitely until the user is on that world"
  * — that's modelled as a live mismatch predicate, not a one-shot
- * timed flash window. Today the ping is
- * {@code SoundEvents.EXPERIENCE_ORB_PICKUP}, not the Wynntils mention
- * sound the quote asks for
- * ({@code anni-flash-ping-is-not-the-wynntils-mention-sound}).</p>
+ * timed flash window. The ping is {@code SoundEvents.NOTE_BLOCK_PLING},
+ * the sound Wynntils' ChatMentionFeature plays for a mention.</p>
  *
  * <p>Two ping/flash models:</p>
  * <ul>
@@ -326,7 +324,7 @@ public final class FlashTracker {
         if (mc == null || mc.getSoundManager() == null) return;
         try {
             mc.getSoundManager()
-                    .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
+                    .play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f));
         } catch (Exception e) {
             VetsLogger.debug("FlashTracker.playPingSound failed: {}", e.getMessage());
         }

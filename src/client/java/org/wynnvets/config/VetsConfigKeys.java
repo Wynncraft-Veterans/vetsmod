@@ -206,14 +206,13 @@ public final class VetsConfigKeys {
      *  rate at which the bold/underline alternates. */
     public static final String VETS_ANNI_FLASH_INTENSITY = "vetsAnniFlashIntensity";
 
-    /** Whether a role, party, RSVP or world change in the snapshot plays a two-ping sound. Spec
-     *  §3.1.1 asked for the Wynntils name-mention sound, played twice; today the ping is
-     *  {@code SoundEvents.EXPERIENCE_ORB_PICKUP}
-     *  ({@code anni-flash-ping-is-not-the-wynntils-mention-sound}). The pings are meant to go with
-     *  the boss bar's flashes, but today their queueing ignores the mode,
-     *  {@link #VETS_ANNI_BOSSBAR_ENABLED} and the bar window, so they still play while the bar is
-     *  down, {@code silent} included ({@code anni-flash-pings-play-while-bar-is-down}); of the
-     *  config keys, only this one stops them. On by default. */
+    /** Whether a role, party, RSVP or world change in the snapshot plays a two-ping sound: the
+     *  Wynntils chat-mention ding ({@code SoundEvents.NOTE_BLOCK_PLING}), played twice, as spec
+     *  §3.1.1 asks. The pings are meant to go with the boss bar's flashes, but today their
+     *  queueing ignores the mode, {@link #VETS_ANNI_BOSSBAR_ENABLED} and the bar window, so they
+     *  still play while the bar is down, {@code silent} included
+     *  ({@code anni-flash-pings-play-while-bar-is-down}); of the config keys, only this one stops
+     *  them. On by default. */
     public static final String VETS_ANNI_FLASH_SOUND = "vetsAnniFlashSound";
 
     /** S4 — Toggle for the per-player outline overlay: role-coloured glow on own-party members,
