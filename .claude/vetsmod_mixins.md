@@ -38,7 +38,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 [UnlockCommandMixin](../src/client/java/org/wynnvets/mixin/client/command/UnlockCommandMixin.java)
 - **Target:** `@Mixin(ClientPacketListener.class)`
 - **Method:** `sendCommand(String command)` at `@At("HEAD")`, `cancellable=true`
-- **Purpose:** Intercepts `/unlock` and `/unlock <key>` before the server. It matches a command that starts with `unlock`, case-sensitively, followed by a space or the end, so `/Unlock <key>` passes through (bug `unlock-intercept-is-case-sensitive`). It cancels the send and hands the key to `GuildStateManager.tryUnlock`; checking the key's shape, storing it in `vetsAuthKey` and sending the `auth` frame are `UnlockManager`'s.
+- **Purpose:** Intercepts `/unlock` and `/unlock <key>` before the server. It matches a command that starts with `unlock` in any letter case (so `/Unlock <key>` too), followed by a space or the end. It cancels the send and hands the key to `GuildStateManager.tryUnlock`; checking the key's shape, storing it in `vetsAuthKey` and sending the `auth` frame are `UnlockManager`'s.
 - **Why:** The key is a bearer token issued by dazebot's `/vetsmod` Discord command, and is meant never to reach the Wynncraft server. Server-side validation happens asynchronously via dazebot HTTP introspection — see [vetsmod_guild_system.md §4](vetsmod_guild_system.md) and [vetsmod_networking.md §8](vetsmod_networking.md).
 
 ## Legacy item (3)

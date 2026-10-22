@@ -344,9 +344,9 @@ These rules hold for everything below:
 `/unlock <key>` stores the player's vetsmod key. The key is a 43-character URL-safe base64 bearer token
 (32 bytes of entropy via `secrets.token_urlsafe(32)`) issued by dazebot's `/vetsmod` Discord command.
 
-1. `UnlockCommandMixin` matches a command that starts with `unlock`, case-sensitively, followed by a space
-   or the end, and cancels the send. `/Unlock <key>` matches nothing and goes to the server, key included
-   (bug `unlock-intercept-is-case-sensitive`). A bare `/unlock` prints a red usage line.
+1. `UnlockCommandMixin` matches a command that starts with `unlock` in any letter case, as
+   `GuildChatDispatcher`'s prefixes do, followed by a space or the end, and cancels the send. So
+   `/Unlock <key>` is caught too. A bare `/unlock` prints a red usage line.
 2. It calls `GuildStateManager.tryUnlock(key)` → `UnlockManager.tryUnlock(key)`.
 3. Local checks: length ∈ [32, 200], charset URL-safe base64 (`a-zA-Z0-9_-`). A failure prints a red
    `❌ That doesn't look like a vetsmod key. …` and stores nothing.
@@ -370,7 +370,7 @@ warning to get a key — see [vetsmod_guild_system.md §5](vetsmod_guild_system.
 case 3. The markers are meant to do nothing else; today they also still unlock client-side (bug
 `legacy-unlock-markers-still-grant-client-unlock`).
 
-Bugs: `unlock-intercept-is-case-sensitive`, `legacy-unlock-markers-still-grant-client-unlock`,
+Bugs: `legacy-unlock-markers-still-grant-client-unlock`,
 `auth-success-toast-rendered-off-render-thread`, `anni-default-not-reapplied-on-auth-tier-flip`,
 `outbound-socket-never-authenticated`, `session-auth-warning-reports-rejection-without-one`,
 `ws-client-send-ignores-send-pending-failure`.
