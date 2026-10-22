@@ -22,9 +22,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>KNOWN BUG (pinned, not fixed): fixing any of these may change a table pinned below.
  * {@code vets-anni-enabled-to-be-retired} removes {@code vetsAnniEnabled} from
- * {@code USER_CONFIG_KEYS}. {@code config-commands-anni-mode-suggestion-arm-unreachable} concerns
- * {@code vetsAnniMode}'s absence from {@code USER_CONFIG_KEYS} and its place in
- * {@code STRING_CONFIG_KEYS}.
+ * {@code USER_CONFIG_KEYS}.
  * {@code config-set-rejects-role-style-and-flash-intensity} concerns the role-style and
  * flash-intensity value lists, which {@code /wv config} does not yet validate against.</p>
  */
@@ -128,7 +126,6 @@ class VetsConfigSchemaTest {
                     "legacyItemForegroundSprite",
                     "legacyItemForegroundColor",
                     "vetsAnniRoleStyle",
-                    "vetsAnniMode",
                     "vetsAnniFlashIntensity"
                 },
                 VetsConfigSchema.STRING_CONFIG_KEYS);
@@ -142,9 +139,6 @@ class VetsConfigSchemaTest {
 
     @Test
     void validValueLists() {
-        assertArrayEquals(
-                new String[] {"silent", "passive", "aggressive"},
-                VetsConfigSchema.VALID_ANNI_MODES);
         assertArrayEquals(
                 new String[] {"descriptive", "short", "formal"},
                 VetsConfigSchema.VALID_ROLE_STYLES);
@@ -183,7 +177,6 @@ class VetsConfigSchemaTest {
                 "box_gradient_2", VetsConfigSchema.getStringDefault("legacyItemForegroundSprite"));
         assertEquals("orange", VetsConfigSchema.getStringDefault("legacyItemForegroundColor"));
         assertEquals("descriptive", VetsConfigSchema.getStringDefault("vetsAnniRoleStyle"));
-        assertEquals("silent", VetsConfigSchema.getStringDefault("vetsAnniMode"));
         assertEquals("normal", VetsConfigSchema.getStringDefault("vetsAnniFlashIntensity"));
     }
 
@@ -202,7 +195,6 @@ class VetsConfigSchemaTest {
                         "legacyItemForegroundSprite",
                         "legacyItemForegroundColor",
                         "vetsAnniRoleStyle",
-                        "vetsAnniMode",
                         "vetsAnniFlashIntensity");
         for (String name : ALL_NAMES) {
             if (!ints.containsKey(name)) {

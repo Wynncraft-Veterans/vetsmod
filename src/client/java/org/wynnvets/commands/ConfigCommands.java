@@ -66,10 +66,6 @@ final class ConfigCommands {
                             for (String s : VetsConfigSchema.VALID_ROLE_STYLES) {
                                 if (s.startsWith(partial)) builder.suggest(s);
                             }
-                        } else if (key.equals(VetsConfigKeys.VETS_ANNI_MODE)) {
-                            for (String s : VetsConfigSchema.VALID_ANNI_MODES) {
-                                if (s.startsWith(partial)) builder.suggest(s);
-                            }
                         } else {
                             // Colour name keys (gradient top/bottom, foreground color);
                             // today vetsAnniFlashIntensity, which has no arm of its

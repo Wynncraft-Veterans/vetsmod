@@ -10,11 +10,6 @@ import java.util.Map;
  * first-run defaults.
  */
 public final class VetsConfigSchema {
-    /** Valid values for {@link VetsConfigKeys#VETS_ANNI_MODE}. */
-    public static final String[] VALID_ANNI_MODES = {
-        "silent", "passive", "aggressive",
-    };
-
     /** Valid values for {@link VetsConfigKeys#VETS_ANNI_ROLE_STYLE}; the first is the
      *  default. Brigadier sorts suggestions alphabetically, so
      *  tab-completion does not show this order. Today {@code /wv config}
@@ -79,12 +74,11 @@ public final class VetsConfigSchema {
 
     /**
      * String-valued keys for {@code /wv config}'s type dispatch: the
-     * user-facing string keys, plus {@link VetsConfigKeys#VETS_ANNI_MODE}, which is not
-     * user-facing (bug
-     * {@code config-commands-anni-mode-suggestion-arm-unreachable}; see
-     * {@code vetsmod_config.md}, the "vetsAnniMode is not in this list"
-     * note). Not a list of every string key — persistence types a key by
-     * its backing map, not by this array.
+     * user-facing string keys. Not a list of every string key — persistence
+     * types a key by its backing map, not by this array, and
+     * {@link VetsConfigKeys#VETS_ANNI_MODE} is a string key that is absent here
+     * because it is not user-facing (see {@code vetsmod_config.md}, the
+     * "vetsAnniMode is not in this list" note).
      */
     static final String[] STRING_CONFIG_KEYS = {
         VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP,
@@ -92,7 +86,6 @@ public final class VetsConfigSchema {
         VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE,
         VetsConfigKeys.LEGACY_ITEM_FOREGROUND_COLOR,
         VetsConfigKeys.VETS_ANNI_ROLE_STYLE,
-        VetsConfigKeys.VETS_ANNI_MODE,
         VetsConfigKeys.VETS_ANNI_FLASH_INTENSITY,
     };
 
@@ -144,7 +137,6 @@ public final class VetsConfigSchema {
                     VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE, "box_gradient_2",
                     VetsConfigKeys.LEGACY_ITEM_FOREGROUND_COLOR, "orange",
                     VetsConfigKeys.VETS_ANNI_ROLE_STYLE, "descriptive",
-                    VetsConfigKeys.VETS_ANNI_MODE, "silent",
                     VetsConfigKeys.VETS_ANNI_FLASH_INTENSITY, "normal");
 
     /**
