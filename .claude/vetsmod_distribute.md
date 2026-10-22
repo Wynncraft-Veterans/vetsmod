@@ -215,7 +215,8 @@ first of these that applies:
 5. **No click is possible**, so the sweep is exhausted: a forward run ended with no
    Previous to turn to, or a backward run reached page 1. If the retry is unused
    (`MAX_RETRY_ATTEMPTS`), it resets the page count and the direction and schedules a
-   fresh scan about `RETRY_DELAY_TICKS` later, from the page it is on. Otherwise a
+   fresh scan about `RETRY_DELAY_TICKS` later, from the page it is on, unless that search
+   has ended by then (the hop checks the watchdog token, as the watchdog does). Otherwise a
    yellow "Could not find <name> in members list." and `invokeNotFound`.
 
 `invokeNotFound` stops the search and runs the not-found handler, if one was armed;

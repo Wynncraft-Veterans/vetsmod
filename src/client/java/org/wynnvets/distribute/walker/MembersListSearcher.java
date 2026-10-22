@@ -155,7 +155,8 @@ public final class MembersListSearcher {
 
     /** Monotonic token bumped on every {@link #armSearch} and every
      *  {@link #stop()}; the per-search watchdog task captures it at arm
-     *  time and bails at fire time if it has moved on. So once a search
+     *  time and bails at fire time if it has moved on, and the sweep-retry
+     *  hop does the same with the value it sees when scheduled. So once a search
      *  ends by any path &mdash; a match, a not-found exit, or
      *  {@link #onMenuClose} &mdash; its watchdog is disarmed without
      *  needing to know, which is why a server-sent mid-search close is
@@ -466,8 +467,16 @@ public final class MembersListSearcher {
                 // throttled by the MAX_PAGES cap.
                 pagesClicked = 0;
                 direction = Direction.FORWARD;
+                // Capture the live token, without bumping it (that would disarm
+                // this search's own watchdog): if the search ends inside the
+                // delay, the hop must not scan whatever search armed next.
+                final int myWatchdog = watchdogToken;
                 Managers.TickScheduler.scheduleLater(
-                        MembersListSearcher::scheduleScan, RETRY_DELAY_TICKS);
+                        () -> {
+                            if (myWatchdog != watchdogToken) return;
+                            scheduleScan();
+                        },
+                        RETRY_DELAY_TICKS);
                 return;
             }
             stopNotFound();
