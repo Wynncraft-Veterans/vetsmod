@@ -23,7 +23,7 @@ import org.wynnvets.util.HttpClients;
  *       Initial delay {@code 0}.</li>
  *   <li>{@link #updateFromExternalFetch(long)}: called by
  *       {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s
- *       legacy stamp fetch after each 200 whose body parses.
+ *       legacy stamp fetch after each 200 whose body parses or is empty.
  *       {@code /wv anni} and the world-join display reach that fetch only
  *       when they fall back to the legacy stamp text. With
  *       {@code vetsAnniEnabled} on and a snapshot cached, they usually
@@ -32,12 +32,9 @@ import org.wynnvets.util.HttpClients;
  * </ul>
  *
  * <p>Cache semantics: a successful parse stores the absolute epoch-seconds
- * value verbatim. When a 200 has an empty body, the scheduled sweep stores
- * {@code 0} (temporary-server, at ffd8c17, sends that body while it holds no stamp); today
- * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s fetch logs that body as
- * a parse failure and writes nothing
- * ({@code stamp-fetcher-empty-body-warns-and-skips-cache}). A failed fetch or an
- * unparseable body leaves the previous value in place. The only reader today is
+ * value verbatim. When a 200 has an empty body, both write paths store
+ * {@code 0} (temporary-server, at ffd8c17, sends that body while it holds no stamp). A
+ * failed fetch or an unparseable body leaves the previous value in place. The only reader today is
  * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s legacy {@code /wv anni}
  * fallback, which consults this cache only when its own live fetch yields no countdown.
  * Today a zero or past value then gives the "not yet announced" line even when that
@@ -67,7 +64,7 @@ public final class AnniStampPoller {
 
     /**
      * Latest cached anni epoch-seconds. {@code 0} = never populated, or
-     * the last write was the scheduled sweep's empty-body reset.
+     * the last write was an empty-body reset.
      */
     private static volatile long latestStamp = 0L;
 
@@ -94,8 +91,8 @@ public final class AnniStampPoller {
 
     /**
      * @return last known anni epoch-seconds, or {@code 0} if never
-     *     populated or the last write was the scheduled sweep's
-     *     empty-body reset (no announced anni).
+     *     populated or the last write was an empty-body reset (no
+     *     announced anni).
      */
     public static long getLatestStamp() {
         return latestStamp;
@@ -104,7 +101,8 @@ public final class AnniStampPoller {
     /**
      * Writes a value into the cache. Its only caller is
      * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s legacy stamp fetch,
-     * after a 200 whose body parses. Idempotent and concurrency-safe — {@link #latestStamp}
+     * after a 200 whose body parses, or with {@code 0} after one whose body is empty.
+     * Idempotent and concurrency-safe — {@link #latestStamp}
      * is volatile.
      */
     public static void updateFromExternalFetch(long stamp) {

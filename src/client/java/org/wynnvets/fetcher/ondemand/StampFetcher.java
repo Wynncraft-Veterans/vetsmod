@@ -209,7 +209,9 @@ public final class StampFetcher {
      * Legacy stamp-only fetcher (the pre-S2 behaviour). Issues a GET to
      * {@code /v1/outbound/stamp}, parses the epoch-seconds, and returns
      * either a long-form or short-form countdown Component. Null when
-     * the stamp is past, missing, or the request errors.
+     * the stamp is past, missing, or the request errors. A missing stamp
+     * (a 200 with an empty body) also resets {@link AnniStampPoller}'s
+     * cache to {@code 0}, as its own sweep does.
      */
     public static CompletableFuture<MutableComponent> fetchSimple() {
         HttpRequest request =
@@ -224,8 +226,15 @@ public final class StampFetcher {
                 .thenApply(
                         response -> {
                             if (response.statusCode() == HttpURLConnection.HTTP_OK) {
+                                String body = response.body().trim();
+                                if (body.isEmpty()) {
+                                    // Empty body = no announced anni, as AnniStampPoller's
+                                    // sweep reads it: reset the cache, show nothing.
+                                    AnniStampPoller.updateFromExternalFetch(0L);
+                                    return null;
+                                }
                                 try {
-                                    long stamp = Long.parseLong(response.body().trim());
+                                    long stamp = Long.parseLong(body);
                                     AnniStampPoller.updateFromExternalFetch(stamp);
                                     return createMessageForStamp(stamp);
                                 } catch (NumberFormatException e) {
