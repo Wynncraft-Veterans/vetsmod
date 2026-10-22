@@ -16,8 +16,9 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * incoming {@code anni_rsvp_response} frame resolves the head future. The
  * V1 protocol has no per-frame correlation IDs, and temporary-server answers in
  * send order, so the FIFO mis-pairs only on a lost or late reply or when two concurrent
- * calls send in the opposite order to their enqueues; the per-command UX deliberately
- * blocks on the previous future so this never matters in practice.</p>
+ * calls send in the opposite order to their enqueues. Nothing waits for the previous
+ * call: {@code /wv anni rsvp} sends at once, so two RSVPs sent close together carry
+ * that risk.</p>
  *
  * <p>The future resolves to an immutable {@link Ack} record with
  * {@code (ok, detail)}, or to {@code null} at the deadline; callers render

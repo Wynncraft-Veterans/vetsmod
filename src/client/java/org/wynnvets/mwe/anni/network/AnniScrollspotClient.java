@@ -14,8 +14,8 @@ import org.wynnvets.logging.VetsLogger;
  * No correlation IDs — same trade-off the rest of the V1 protocol made.
  * temporary-server answers in send order, so concurrent
  * {@code /wv debug tree anni scrollspot} invocations mis-pair only on a lost or late reply
- * or when two send in the opposite order to their enqueues; the per-command UX
- * deliberately blocks on the previous call so this never matters in practice.</p>
+ * or when two send in the opposite order to their enqueues. Nothing waits for the previous
+ * call: each invocation sends at once, so two sent close together carry that risk.</p>
  *
  * <p>The future resolves to an immutable {@link Ack} record with
  * {@code (ok, detail)}, or to {@code null} at the deadline; callers render
