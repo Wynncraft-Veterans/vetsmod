@@ -313,17 +313,15 @@ public final class VetsBossBarManager {
      *
      *  <p>The 89.97% is derived, not observed, so it is re-checkable:
      *  {@code (5400 - 20) / (6000 - 20) = 0.89967}. It moves if either
-     *  constant does. Note also that {@code usable} is floored with
-     *  {@code Math.max(0L, …)}, so the {@code p < 0f} arm below cannot
-     *  fire — filed as
-     *  {@code vets-boss-bar-unreachable-negative-guard}, dead line, no
-     *  behaviour.</p> */
+     *  constant does. Only the upper clamp is needed: {@code usable} is
+     *  floored with {@code Math.max(0L, …)} and {@code window} is positive
+     *  past its guard, so {@code p} cannot go negative. Keep that floor —
+     *  it is the lower clamp.</p> */
     private static float progressFor(long secondsUntilAnni) {
         long window = PROGRESS_FULL_AT_SECONDS - DROP_DEAD_SECONDS_BEFORE_ANNI;
         long usable = Math.max(0L, secondsUntilAnni - DROP_DEAD_SECONDS_BEFORE_ANNI);
         if (window <= 0) return 0f;
         float p = (float) usable / (float) window;
-        if (p < 0f) return 0f;
         if (p > 1f) return 1f;
         return p;
     }
