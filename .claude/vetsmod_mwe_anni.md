@@ -651,10 +651,8 @@ Wire pieces on the network layer:
 2. **Unauthenticated message uses spec wording**:
    `"Use \\rsvp on discord — or run ~vetsmod first."` Surfaces both the
    Discord fallback and the link path. Differs from scrollspot's
-   `"Run ~vetsmod to authenticate before using /wv anni scrollspot."` — ⚠️ quoted
-   verbatim, and that path is wrong: locked decision 6 above gives the real one.
-   It is a runtime string rather than a comment, so it is filed under
-   `anni-debug-chat-strings-omit-tree-literal` rather than corrected in place.
+   `"Run ~vetsmod to authenticate first."`, which names no command path: a
+   scrollspot host has already typed the real one (locked decision 6 above).
 3. **No `username_hint` field threaded through the WS frame.**
    Temp-server already has the session's `mc_uuid`, and vets-anni's own
    placeholder fallback covers brand-new users — no need for a fragile

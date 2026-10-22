@@ -29,10 +29,8 @@ import org.wynnvets.mwe.anni.network.AnniScrollspotClient;
  * not hide it from tab-complete. An earlier version
  * of this paragraph called the class an "S5 brigadier handler for
  * {@code /wv anni scrollspot set|here|clear}", which is a path that does not
- * resolve. ⚠️ <b>This file still advertises that path to the user at
- * runtime</b>: {@code ensureAuthenticated}'s refusal line names it. That is a
- * chat string rather than a comment, so it is filed
- * ({@code anni-debug-chat-strings-omit-tree-literal}) rather than fixed here.</p>
+ * resolve. {@code ensureAuthenticated}'s refusal line names no path at all: the
+ * player cannot reach it without already knowing the real one.</p>
  *
  * <ul>
  *   <li><b>set &lt;x&gt; &lt;y&gt; &lt;z&gt;</b> — pin the coord.</li>
@@ -115,7 +113,7 @@ public final class AnniScrollspotCommand {
 
     private static boolean ensureAuthenticated() {
         if (GuildStateManager.isAuthenticatedThisSession()) return true;
-        reply("Run ~vetsmod to authenticate before using /wv anni scrollspot.", ChatFormatting.RED);
+        reply("Run ~vetsmod to authenticate first.", ChatFormatting.RED);
         return false;
     }
 

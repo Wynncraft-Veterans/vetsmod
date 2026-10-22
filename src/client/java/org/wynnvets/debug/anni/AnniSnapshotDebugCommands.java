@@ -385,8 +385,7 @@ final class AnniSnapshotDebugCommands {
         ChatUtils.sendLocalMessage(
                 Component.literal(
                                 "anni snapshot cleared (cache is null; "
-                                        + "run `/wv debug anni snapshot refresh` to re-pull, "
-                                        + "or wait for server-side changes)")
+                                        + "run `/wv debug tree anni snapshot refresh` to re-pull)")
                         .withStyle(ChatFormatting.GREEN));
         return 1;
     }
@@ -682,7 +681,8 @@ final class AnniSnapshotDebugCommands {
             ChatUtils.sendLocalMessage(
                     Component.literal(
                                     "anni time: no snapshot in cache "
-                                            + "(inject one first with `/wv debug anni snapshot inject preset …`)")
+                                            + "(inject one first with "
+                                            + "`/wv debug tree anni snapshot inject preset …`)")
                             .withStyle(ChatFormatting.YELLOW));
             return 0;
         }
