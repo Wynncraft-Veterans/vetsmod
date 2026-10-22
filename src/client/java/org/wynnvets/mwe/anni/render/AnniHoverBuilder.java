@@ -1,6 +1,7 @@
 package org.wynnvets.mwe.anni.render;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
@@ -143,6 +144,23 @@ public final class AnniHoverBuilder {
     }
 
     // ── Component widgets ───────────────────────────────────────────────
+
+    /** The {@code Eligible Roles} label followed by one {@link #roleChip(AnniSnapshot.RoleEntry)
+     *  role chip} per entry, joined by dark-gray middle dots. The not-announced registration block
+     *  ({@link AnniOnboardingBlocks}) and the announced registration section
+     *  ({@link AnniStatusSections}) render the same line, so it lives here once. */
+    static MutableComponent eligibleRolesLine(List<AnniSnapshot.RoleEntry> roles) {
+        MutableComponent line = label("Eligible Roles", ChatFormatting.GRAY);
+        boolean first = true;
+        for (AnniSnapshot.RoleEntry role : roles) {
+            if (!first) {
+                line.append(Component.literal(" · ").withStyle(ChatFormatting.DARK_GRAY));
+            }
+            line.append(roleChip(role));
+            first = false;
+        }
+        return line;
+    }
 
     /** Role chip — coloured role label, clickable to its docs anchor,
      *  hover-describing the role title. */

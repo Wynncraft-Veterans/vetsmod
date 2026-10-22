@@ -47,15 +47,7 @@ final class AnniOnboardingBlocks {
         if (reg.roles().isEmpty()) {
             return fillOnlyExplainerBlock();
         }
-        MutableComponent line = AnniHoverBuilder.label("Eligible Roles", ChatFormatting.GRAY);
-        boolean first = true;
-        for (AnniSnapshot.RoleEntry role : reg.roles()) {
-            if (!first) {
-                line.append(Component.literal(" · ").withStyle(ChatFormatting.DARK_GRAY));
-            }
-            line.append(AnniHoverBuilder.roleChip(role));
-            first = false;
-        }
+        MutableComponent line = AnniHoverBuilder.eligibleRolesLine(reg.roles());
         line.append(Component.literal("\n"));
         line.append(allSetAffirmation());
         return line;

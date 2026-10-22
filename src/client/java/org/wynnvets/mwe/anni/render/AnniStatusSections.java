@@ -68,16 +68,7 @@ final class AnniStatusSections {
                                     "Open your roles dashboard",
                                     ChatFormatting.AQUA));
         }
-        MutableComponent line = AnniHoverBuilder.label("Eligible Roles", ChatFormatting.GRAY);
-        boolean first = true;
-        for (AnniSnapshot.RoleEntry role : reg.roles()) {
-            if (!first) {
-                line.append(Component.literal(" · ").withStyle(ChatFormatting.DARK_GRAY));
-            }
-            line.append(AnniHoverBuilder.roleChip(role));
-            first = false;
-        }
-        return line;
+        return AnniHoverBuilder.eligibleRolesLine(reg.roles());
     }
 
     /** RSVP badge + (when far-out + un-RSVP'd) a parenthetical with
