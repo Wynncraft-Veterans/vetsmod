@@ -588,12 +588,11 @@ already elapsed, the command waits for the next on-world `TickEvent`. (The
 
 The contract worth preserving is **cache the failure, warn, degrade**:
 
-- `lookupField()` sanity-checks that the field's value is a `Queue`,
-  which catches a non-`Queue` value (or a null) once, rather than on every
-  call. It does **not** catch a swap to a `Queue` that is not a
-  `Deque`: that passes, is cached as a good handle, and `obtainDeque()`
-  then falls back per call at debug level — uncached and never warned
-  (`outbound-command-queue-check-accepts-non-deque`).
+- `lookupField()` sanity-checks that the field's value is a `Deque`,
+  which `addFirst` needs, so a swap to anything else (a `Queue` that is
+  not a `Deque`, a non-`Queue` value, or a null) is caught once rather
+  than on every call. `obtainDeque()`'s per-call `Deque` check stays as
+  the backstop.
 - On either of its two failure paths `lookupField()` logs at **warn**
   and returns the `FIELD_LOOKUP_FAILED` sentinel — itself a
   self-reflected field of `OutboundCommand`, so it can never be confused
