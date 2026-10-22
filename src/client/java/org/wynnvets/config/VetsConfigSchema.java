@@ -73,7 +73,7 @@ public final class VetsConfigSchema {
      * Subset of user-facing keys that support tri-state values: {@code true},
      * {@code false}, or {@code null} (meaning "use default behaviour").
      */
-    public static final String[] TRISTATE_KEYS = {
+    static final String[] TRISTATE_KEYS = {
         VetsConfigKeys.HANDLE_SPOILERS,
     };
 
@@ -86,7 +86,7 @@ public final class VetsConfigSchema {
      * note). Not a list of every string key — persistence types a key by
      * its backing map, not by this array.
      */
-    public static final String[] STRING_CONFIG_KEYS = {
+    static final String[] STRING_CONFIG_KEYS = {
         VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP,
         VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM,
         VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE,
@@ -99,7 +99,7 @@ public final class VetsConfigSchema {
     /**
      * Subset of user-facing keys that store an integer value (persisted as long).
      */
-    public static final String[] INT_CONFIG_KEYS = {
+    static final String[] INT_CONFIG_KEYS = {
         VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY,
         VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY,
     };
