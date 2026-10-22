@@ -103,7 +103,7 @@ where they are, for the reasons in the table.
 | Hot window, open edge | 2 h | `AnniOutlineTicker`, `AnniAggressiveTicker` | `AnniWindows.inHotWindow(secondsUntil)` — both edges **inclusive** |
 | Hot window, close edge | 30 m | the same two, plus `AnniWindowWatcher` | the watcher needs the closing edge alone, inverted: `AnniWindows.hotWindowClosed(anchor, now)` |
 | Bar / poll window | 90 m | `VetsBossBarManager`, `AnniSnapshotPoller` | `AnniWindows.BAR_WINDOW_SECONDS` — a constant, **no shared predicate**; see below |
-| Drop-dead | 20 s | `VetsBossBarManager.DROP_DEAD_SECONDS_BEFORE_ANNI`, `VetsBossBarContentBuilder.T_MINUS_20_GATE_SECONDS` | two boss-bar timing constants; deliberately not in `AnniWindows` |
+| Drop-dead | 20 s | `VetsBossBarManager.DROP_DEAD_SECONDS_BEFORE_ANNI`, `VetsBossBarContentBuilder.T_MINUS_20_GATE_SECONDS` | two boss-bar timing constants, each naming the other in its Javadoc; deliberately not in `AnniWindows` |
 | Party-observation | ±2 h | `PartyRosterListener.ACTIVE_WINDOW_SEC` | **symmetric** — a third guard shape, answering a different question |
 
 `AnniCommandRenderer.TWO_HOURS_SECONDS` is a sixth entry and is not a window at
@@ -453,6 +453,8 @@ Let vanilla and Wynntils track bars normally (no `update()` cancellation, no `ev
 **Two T-20s deactivation gates** (parent plan §"Risks"):
 1. `VetsBossBarContentBuilder.build` returns null at `≤20s`.
 2. Wall-clock watchdog (`DROP_DEAD_SECONDS_BEFORE_ANNI`) in `VetsBossBarManager.tickInner` — independent of builder state. Re-checks every client tick (~50 ms), so it also covers the kick-into-queue case at T-20 without needing a separate world-change hook.
+
+Each gate holds its 20 s in its own constant, `T_MINUS_20_GATE_SECONDS` and `DROP_DEAD_SECONDS_BEFORE_ANNI`, so neither depends on the other. Each constant's Javadoc names the other: change both together. Both gates end in the same `deactivate()`, so if the values differ the larger alone decides when the bar goes, silently shadowing the other gate, and `progressFor`'s ramp (the manager's constant) and the scroll countdown (the builder's) stop ending at the same moment.
 
 Two, not three. The source's comments used to read `"Gate n of 3"`, counting `AnniWindowWatcher`'s T+30m **mode** reset as the third — which is not a bar gate; an earlier fix renumbered them to `"of 2"`, and two of those comments had both been numbered `"Gate 1 of 3"` for different gates. There is also a separate 2.5 h `FAILSAFE_DEACTIVATE_MS` watchdog, which is not a T-20s gate either.
 

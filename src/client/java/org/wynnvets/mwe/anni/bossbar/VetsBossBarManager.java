@@ -86,7 +86,13 @@ public final class VetsBossBarManager {
      *  is left without the user having to read the countdown text. */
     private static final long PROGRESS_FULL_AT_SECONDS = 100L * 60L; // 100 min
 
-    /** Hard T-20s gate — independent of the content builder. */
+    /** Hard T-20s gate — independent of the content builder, whose
+     *  {@code VetsBossBarContentBuilder.T_MINUS_20_GATE_SECONDS} is the
+     *  other T-20s gate and holds the same 20. Neither constant reads the
+     *  other, on purpose; change both together. If they differ, the larger
+     *  alone decides when the bar goes, silently shadowing the other gate,
+     *  and this constant's progress ramp no longer ends where the builder's
+     *  scroll countdown does. */
     private static final long DROP_DEAD_SECONDS_BEFORE_ANNI = 20L;
 
     /** Failsafe: deactivate after this many ms regardless of mode. */

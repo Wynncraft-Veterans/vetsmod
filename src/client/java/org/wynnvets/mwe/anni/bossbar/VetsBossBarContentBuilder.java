@@ -71,7 +71,13 @@ public final class VetsBossBarContentBuilder {
      *  the manager calls {@code deactivate()} and Wynntils' anni health
      *  bar takes over unobstructed. Also doubles as the offset from
      *  anni-time to scroll-time: scrolls happen this many seconds
-     *  before anni starts. */
+     *  before anni starts. {@link VetsBossBarManager}'s
+     *  {@code DROP_DEAD_SECONDS_BEFORE_ANNI} is the other T-20s gate and
+     *  holds the same 20. Neither constant reads the other, on purpose;
+     *  change both together. If they differ, the larger alone decides
+     *  when the bar goes, silently shadowing the other gate, and this
+     *  constant's scroll countdown no longer ends where the manager's
+     *  progress ramp does. */
     private static final long T_MINUS_20_GATE_SECONDS = 20L;
 
     /** Switch from the assigned/seeking variant to the countdown
