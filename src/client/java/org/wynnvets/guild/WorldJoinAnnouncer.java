@@ -72,7 +72,7 @@ public final class WorldJoinAnnouncer {
             // Use NewBlock so the motd gets a fresh full [VETSMOD] badge and stays
             // visually separate from the anni-motd block rather than collapsing into
             // one compact-badged run. The two are fetched independently and print in
-            // completion order (world-join-motd-and-anni-motd-print-in-completion-order).
+            // completion order, which is intended.
             if (useGuildMotd) {
                 MotdFetcher.fetchGuildMotd()
                         .thenAccept(
