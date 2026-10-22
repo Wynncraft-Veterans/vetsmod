@@ -407,21 +407,13 @@ public final class AggressiveAlertDispatcher {
                             fireWorldAlert(null, "EU5");
                             break;
                         case "party":
-                            firePartyAlert(
-                                    AnniSnapshotCache.latest() != null
-                                            ? AnniSnapshotCache.latest()
-                                            : emptySnapshot(),
-                                    null,
-                                    2);
+                            firePartyAlert(latestOrEmpty(), null, 2);
                             break;
                         case "rsvp":
                             fireRsvpAlert(null, "hard");
                             break;
                         case "zone":
-                            fireZoneReadinessAlert(
-                                    AnniSnapshotCache.latest() != null
-                                            ? AnniSnapshotCache.latest()
-                                            : emptySnapshot());
+                            fireZoneReadinessAlert(latestOrEmpty());
                             break;
                         case "world_ready":
                             fireWorldReadinessAlert("EU5", "WC1");
@@ -432,8 +424,13 @@ public final class AggressiveAlertDispatcher {
                 });
     }
 
-    /** Empty snapshot placeholder for debug paths when the cache is cold. */
-    private static AnniSnapshot emptySnapshot() {
-        return AnniSnapshot.fromJson(new com.google.gson.JsonObject());
+    /** The cached snapshot for debug paths, or an empty placeholder when the cache
+     *  is cold. Reads the cache once: a second read could see a concurrent
+     *  {@code update(null)} and hand the caller the null the check ruled out. */
+    private static AnniSnapshot latestOrEmpty() {
+        AnniSnapshot snapshot = AnniSnapshotCache.latest();
+        return snapshot != null
+                ? snapshot
+                : AnniSnapshot.fromJson(new com.google.gson.JsonObject());
     }
 }

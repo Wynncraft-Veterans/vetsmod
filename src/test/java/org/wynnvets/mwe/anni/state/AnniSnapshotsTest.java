@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Fixtures come from {@link AnniSnapshot#fromJson(JsonObject)}, which is a
  * working empty-snapshot constructor and already used that way by
- * {@code AggressiveAlertDispatcher.emptySnapshot} and by
+ * {@code AggressiveAlertDispatcher.latestOrEmpty} and by
  * {@code PartyRosterListenerTest}. No mocking library is involved; the harness
  * has none.</p>
  *
@@ -61,7 +61,7 @@ class AnniSnapshotsTest {
     @Test
     void allFourReturnNullOnAnEmptySnapshot() {
         // fromJson({}) leaves board and rsvp null — the shape
-        // AggressiveAlertDispatcher.emptySnapshot builds deliberately.
+        // AggressiveAlertDispatcher.latestOrEmpty builds deliberately.
         AnniSnapshot empty = AnniSnapshot.fromJson(new JsonObject());
 
         assertNull(AnniSnapshots.role(empty));
