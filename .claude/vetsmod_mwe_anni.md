@@ -820,8 +820,10 @@ three clones: `AnniQueryClient` (returns `CompletableFuture<AnniSnapshot>`),
 `AnniRsvpClient` (returns `CompletableFuture<Ack>`). FIFO
 `ConcurrentLinkedDeque`. "Single-flight" is this repo's name for that FIFO of
 per-call futures; it does not coalesce concurrent calls (each call sends its own
-frame). The `orTimeout` deadline is **5 s on the two
-ack clients and 8 s on `AnniQueryClient`**, not 5 s across the board.
+frame). The `orTimeout` deadline is **8 s on all three**. On the two ack
+clients that is about 3 s over temporary-server's 5 s httpx timeout for the
+forward to vets-anni, which bounds each phase of the request rather than the
+whole of it.
 Each client returns the `exceptionally` stage it derives from `orTimeout`, so
 all three resolve `null` at the deadline rather than completing exceptionally.
 The `exceptionally` handler removes *that* future by identity

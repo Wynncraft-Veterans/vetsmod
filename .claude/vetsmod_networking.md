@@ -305,7 +305,7 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 | Inbound (S7) | `anni_party_observation_response` | temp-server | `AnniWsHandler` (debug log only) | Ack for `anni_party_observation`. No client-side queue — observation is fire-and-forget; debug-logged only. |
 | Outbound | `anni_state` | temp-server `anni_snapshot_poller` | `AnniWsHandler.onOutbound` → `AnniSnapshotCache.update` | Server-initiated snapshot push (per-uuid gated on the eligibility set). Sent only to an authenticated outbound socket, so **never received today** (§1). |
 
-Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.network` and time out at 5–8 s. `AnniWsHandler` is the single demux for all types — its `onInbound`/`onOutbound` branches route to the right consumer.
+Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.network` and time out at 8 s. `AnniWsHandler` is the single demux for all types — its `onInbound`/`onOutbound` branches route to the right consumer.
 
 ### S7 — Party back-report gate
 
