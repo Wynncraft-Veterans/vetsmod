@@ -112,7 +112,7 @@ ChatUtils.sendGuildChatMessageRed|0|vetsmod_chat_pipeline.md sec 6: reached only
 QueueDetector.handleTitleText|1|QueueDetector#handleTitleText: the TitleSetTextEvent handler and QueueTitleMixin; the mixin is the qualified site (in-class half in PATTERNS)
 RankDisplayMap.vTagFor|1|RankDisplayMap#vTagFor: the label of a /v staff-channel pill, read by ChatUtils.buildStaffPillComponent
 AnniStampPoller.getLatestStamp|1|AnniStampPoller class doc: the only reader today is the StampFetcher legacy fallback (in-class half in PATTERNS)
-AnniStampPoller.updateFromExternalFetch|1|AnniStampPoller class doc: called only from the StampFetcher legacy fetch (in-class half in PATTERNS)
+AnniStampPoller.updateFromExternalFetch|2|AnniStampPoller class doc: called only from the StampFetcher legacy fetch, once for a parsed stamp and once for an empty body (in-class half in PATTERNS)
 '
 
 # file (under $SRC)|fixed string|expected occurrences on non-comment lines|note
