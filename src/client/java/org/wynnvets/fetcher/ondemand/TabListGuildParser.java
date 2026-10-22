@@ -26,7 +26,7 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>Column 3 ("Guild") lists up to 19 online guild members (index 60 is
  * the header). Each entry's display name typically follows the format
- * {@code [SERVER] Username} (e.g. {@code [NA58] Coronaus}).
+ * {@code [SERVER] Username} (e.g. {@code [NA58] Coronaus}).</p>
  *
  * <p>When the guild has more than ~19 online members, the tab list is
  * truncated. Callers should fall back to the Wynncraft API for the

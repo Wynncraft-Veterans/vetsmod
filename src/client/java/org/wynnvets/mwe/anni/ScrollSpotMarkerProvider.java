@@ -45,7 +45,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * <p><b>Visual:</b> {@link Texture#MAP} (the 14×14 generic map icon —
  * <i>not</i> {@code MAP_ICON}, which is the 21×38 content-book tab — the
  * enum names are a known footgun: {@code vetsmod_mwe_anni.md}, "Aggressive mode", locked
- * decision #5).
+ * decision #5).</p>
  *
  * <p>Originally specced as "no beacon beam, icon only" but Wynntils'
  * {@code BeaconBeamFeature.onRenderLevelLast} unconditionally calls

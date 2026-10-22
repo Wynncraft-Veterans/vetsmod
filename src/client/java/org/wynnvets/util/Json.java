@@ -44,11 +44,11 @@ import org.wynnvets.logging.VetsLogger;
  * <table border="1">
  *   <caption>Policy per site, before</caption>
  *   <tr><th>Site</th><th>Missing or JSON-null</th><th>Wrong type</th><th>Null receiver</th></tr>
- *   <tr><td>{@code CommandDispatcher.stringOrNull}</td><td>null</td>
+ *   <tr><td>{@code CommandDispatcher.stringOrNull} (now {@code DispatchCoordinator})</td><td>null</td>
  *       <td>swallowed to null</td><td>NPE</td></tr>
  *   <tr><td>{@code StaffFetcher.stringOrNull}</td><td>null</td>
  *       <td>swallowed to null</td><td>NPE</td></tr>
- *   <tr><td>{@code WarningRewriter.optString}</td><td>fallback</td>
+ *   <tr><td>{@code WarningRewriter.optString} (now {@code WarningFrameRenderer})</td><td>fallback</td>
  *       <td>throws</td><td>NPE</td></tr>
  *   <tr><td>{@code CautionCommands.optString}</td><td>fallback</td>
  *       <td>throws</td><td>tolerated</td></tr>
