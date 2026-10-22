@@ -51,20 +51,21 @@ public final class MessageFanoutDispatcher {
     /**
      * Drains all queued /msg broadcasts, sending each to every other online staff member
      * in the feed, in order. Staff list is fetched once per batch; offline users are
-     * tracked and skipped. Today, with no local player, it returns without draining, so
-     * each pass ends by starting another at once
-     * ({@code fanout-null-player-spins-dispatch-executor}).
+     * tracked and skipped. With no local player it drops the queued broadcasts without
+     * fetching the feed, so the executor does not loop on them.
      */
     static void processMessageBatch() {
         try {
-            List<String> staffUsernames = DispatchCoordinator.fetchOnlineStaffUsernames();
             Minecraft minecraft = McUtils.mc();
             LocalPlayer selfPlayer = minecraft.player;
 
             if (selfPlayer == null) {
                 VetsLogger.warn("Cannot dispatch staff broadcast: player is null");
+                DispatchCoordinator.MESSAGE_QUEUE.clear();
                 return;
             }
+
+            List<String> staffUsernames = DispatchCoordinator.fetchOnlineStaffUsernames();
 
             // Remove self from recipients
             staffUsernames.removeIf(u -> DispatchCoordinator.isSelfRecipient(u, selfPlayer));
