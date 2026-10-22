@@ -56,7 +56,7 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `printSuccessfulAuth` | true | Show the `✅ vetsmod authentication verified` ack. Latched to `false` after one config-driven render and reset to `true` by `onAuthFailure`, so the *reconnect* ack appears at most once per error→recovery cycle. A `/unlock <key>` run sets a separate one-shot flag that forces the next ack to render regardless of this key, and does not re-latch it. |
 | `showSupporterGlints` | true | Animated gradient glints on nametags, pills, and `/wv list` roster names |
 | `colorBlindMode` | false | Chat (pills and `/wv list` names): swap the supporter shimmer's cyan and grey colour pairs for higher-luminance-delta variants of the same families. Nametags: pulse between a darkened and a strongly lightened copy of the nametag's own colour. Either way the aim is a shimmer visible under protan/deutan CVD. |
-| `moreReliableGuildCheck` | true | Run `/gu stats` on world join for guild detection |
+| `moreReliableGuildCheck` | true | Run `/gu stats` about 5 s after world join for guild detection, instead of relying only on Wynntils' guild name, which is empty until Wynntils' own scan fills it |
 
 ### Strings (colour names, sprite names, or the values listed per key)
 | Key | Default | Valid values |

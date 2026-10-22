@@ -279,7 +279,7 @@ class HelpCommandsTest {
                         "  Run /gu stats on world join to detect guild membership,"),
                 sib(
                         ChatFormatting.GRAY,
-                        " instead of relying solely on Wynntils (which can stay null)"));
+                        " instead of relying solely on Wynntils (it can lag on join)"));
     }
 
     @Test

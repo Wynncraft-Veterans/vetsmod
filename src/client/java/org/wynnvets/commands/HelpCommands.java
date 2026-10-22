@@ -269,7 +269,7 @@ final class HelpCommands {
                 msg,
                 "moreReliableGuildCheck\n",
                 gray("  Run /gu stats on world join to detect guild membership,"),
-                gray(" instead of relying solely on Wynntils (which can stay null)"));
+                gray(" instead of relying solely on Wynntils (it can lag on join)"));
         return msg;
     }
 
