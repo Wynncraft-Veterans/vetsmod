@@ -266,7 +266,9 @@ public final class GuildChatDispatcher {
             relayHonouraryChat(outMessage);
         } else {
             ChatUtils.sendLocalMessage(
-                    Component.literal("You must unlock with an honourary password to use /wg.")
+                    Component.literal(
+                                    "You need the honourary tier to use /wg. Run ~vetsmod in"
+                                            + " #bot-commands to get a key, then /unlock it.")
                             .withStyle(ChatFormatting.RED));
         }
         return true;
