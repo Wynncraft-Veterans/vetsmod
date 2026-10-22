@@ -43,8 +43,10 @@ import org.wynnvets.util.Json;
  * readable first-join date, and to ask them to route the target through
  * the waitlist instead when the guild is so full that the next slot is
  * reserved for the waitlist queue. Without a Wynncraft profile it checks
- * only the blocklist, and names any listing, for staff and non-staff
- * alike. Today a non-staff session gets no membership snapshot, because
+ * only the blocklist, for staff and non-staff alike: a listed target is
+ * refused with a vague red line and no bypass button, and anyone else is
+ * invited after a yellow warning. Today a non-staff session gets no
+ * membership snapshot, because
  * temporary-server accepts {@code check_membership} only from confirmed
  * staff, so the gate cancels the invite with a snapshot-failure message
  * whenever the target resolves (see
@@ -189,16 +191,11 @@ public final class InviteGate {
             return;
         }
         // Wynncraft profile null after secondary fetch — we got a UUID from a
-        // non-Wynncraft provider but Wynncraft itself didn't reply. Fail open
-        // with a warning: the membership snapshot still gates against the
-        // blocklist (preserved below), but we can't run the vet-cutoff check.
+        // non-Wynncraft provider but Wynncraft itself didn't reply. The
+        // membership snapshot still gates against the blocklist, checked first;
+        // anyone else is invited with a warning, since the vet-cutoff check
+        // can't run.
         if (wynn == null) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal(
-                                    "Profiles seem to be unreachable, unable to verify '"
-                                            + displayName
-                                            + "'. Dispatching /gu invite anyway.")
-                            .withStyle(ChatFormatting.YELLOW));
             // Blocklist is still authoritative even without a Wynn profile.
             if (snap.isBlocklisted()) {
                 renderError(
@@ -208,6 +205,12 @@ public final class InviteGate {
                                 + " Please ask a steward.");
                 return;
             }
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    "Profiles seem to be unreachable, unable to verify '"
+                                            + displayName
+                                            + "'. Dispatching /gu invite anyway.")
+                            .withStyle(ChatFormatting.YELLOW));
             forceDispatch(displayName);
             return;
         }

@@ -390,7 +390,7 @@ below means the same.
 | `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | `dispatcher-notices-misattribute-cause`, `intercept-usage-arms-unreachable-from-typed-chat` |
 | `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | `dispatcher-notices-misattribute-cause`, `raw-rank-pills-bypass-display-remap`, `staff-ranks-poll-swap-not-atomic`, `intercept-usage-arms-unreachable-from-typed-chat` |
 | `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | `help-advertises-wv-check-on-a-weaker-gate`, `intercept-usage-arms-unreachable-from-typed-chat`, and §1's `/wv check` row |
-| `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `invite-gate-no-profile-line-says-dispatching-before-blocklist-cancel`, `vets-snapshot-provider-skips-confirmed-staff-check`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
+| `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `vets-snapshot-provider-skips-confirmed-staff-check`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
 | `/guild invite <name>` | as `/gu invite` | `InviteGate.checkInvite` | As `/gu invite`; an allowed invite is sent as `gu invite` | as `/gu invite` |
 | `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `caution-confirm-click-bypasses-intercept`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `intercept-usage-arms-unreachable-from-typed-chat`, `outbound-socket-never-authenticated` |
 | `/caution <name> [message]` | as `/caution-go` | `CautionCommands.runCaution` | Asks for a preflight (`caution_add`); commits at once if the caution crosses no threshold | as `/caution-go` |
@@ -441,9 +441,9 @@ size and level, and decides, in this order:
 - **the snapshot lookup fails:** cancelled, in red, with a pointer to `/wv invite-force` for confirmed
   staff. Every player who is not confirmed staff lands here today whenever the name resolves, because
   temporary-server refuses them `check_membership` (bug `vets-snapshot-provider-skips-confirmed-staff-check`);
-- **the profile cannot be fetched:** a yellow notice that the invite is going out anyway, then a blocklist
-  check alone. A blocklisted target is refused in red for everyone, with no button, after that notice (bug
-  `invite-gate-no-profile-line-says-dispatching-before-blocklist-cancel`); anyone else is invited;
+- **the profile cannot be fetched:** a blocklist check alone. A blocklisted target is refused in red for
+  everyone, with no button; anyone else gets a yellow notice that the invite is going out anyway, and is
+  invited;
 - **the target is blocklisted, joined Wynncraft on or after 2020-01-01, or hides their first join:**
   confirmed staff get a gold warning and an `[Invite anyway]` button that runs `/wv invite-force <name>`;
   anyone else gets a red "Please ask staff before inviting this user as they do not qualify under the
