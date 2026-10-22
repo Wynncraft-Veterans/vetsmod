@@ -30,6 +30,14 @@ public class WsClient implements WebSocket.Listener {
     private static final long RECONNECT_DELAY_MS = 3000;
     private static final long PING_INTERVAL_MS = 30000;
 
+    /** The WebSocket factory every {@code WsClient} shares. One per instance meant two per
+     *  server join, none of them released; one shared client removes that without touching
+     *  {@link #close()}. Deliberately not {@link org.wynnvets.util.HttpClients HttpClients}'
+     *  shared client, whose class doc says why. Never close or shut it down: every later
+     *  {@code WsClient} connects through it. */
+    private static final HttpClient HTTP_CLIENT =
+            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+
     private final URI uri;
     private final String label;
     private final Consumer<JsonObject> messageHandler;
@@ -38,7 +46,6 @@ public class WsClient implements WebSocket.Listener {
     private final AtomicBoolean connecting = new AtomicBoolean(false);
     private final StringBuilder textBuffer = new StringBuilder();
 
-    private final HttpClient httpClient;
     private final ScheduledExecutorService scheduler;
     private volatile Runnable onConnectCallback;
 
@@ -51,7 +58,6 @@ public class WsClient implements WebSocket.Listener {
         this.uri = uri;
         this.label = label;
         this.messageHandler = messageHandler;
-        this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
         this.scheduler =
                 Executors.newSingleThreadScheduledExecutor(
                         r -> {
@@ -75,7 +81,7 @@ public class WsClient implements WebSocket.Listener {
         if (closed.get()) return;
         if (!connecting.compareAndSet(false, true)) return;
 
-        httpClient
+        HTTP_CLIENT
                 .newWebSocketBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .buildAsync(uri, this)

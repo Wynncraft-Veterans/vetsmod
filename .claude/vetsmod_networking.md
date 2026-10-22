@@ -59,7 +59,7 @@ State:
 - `closed`, `connecting` atomic flags
 - `textBuffer` accumulates multi-frame text messages (WS fragmentation)
 - `scheduler` single-threaded executor for reconnect/ping
-- `httpClient` an **instance** field, and deliberately **not** the shared `HttpClients.standard()` client: it is a WebSocket factory, its 10 s connect timeout is re-declared on the WebSocket builder where it governs the whole handshake, and it pins no HTTP version. One per `WsClient`, so two per `V1ApiManager.connect()`
+- `HTTP_CLIENT` a **static** field that every `WsClient` shares, and deliberately **not** the shared `HttpClients.standard()` client: it is a WebSocket factory, its 10 s connect timeout is re-declared on the WebSocket builder where it governs the whole handshake, and it pins no HTTP version. One for the session rather than one per `WsClient`, which ended the per-join accumulation of clients that `close()` never released, without touching `close()`. Never close or shut it down
 
 Listener methods: `onOpen`, `onText` (buffers fragments until last), `onPong`, `onClose`, `onError`.
 
