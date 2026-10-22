@@ -20,8 +20,9 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * blocks on the previous future so this never matters in practice.</p>
  *
  * <p>The future resolves to an immutable {@link Ack} record with
- * {@code (ok, detail)}; callers render the detail on failure. A 5-second
- * deadline applies. ⚠️ temp-server's own forward to vets-anni is a flat
+ * {@code (ok, detail)}, or to {@code null} at the deadline; callers render
+ * the detail on failure. A 5-second deadline applies. ⚠️ temp-server's
+ * own forward to vets-anni is a flat
  * <b>5 s</b> — {@code set_rsvp} and {@code set_scroll_spot} reuse the anni
  * snapshot poller's client, whose timeout is
  * {@code ANNI_SNAPSHOT_REQUEST_TIMEOUT_SECONDS = 5.0} — not the "3-5 s" this
@@ -85,13 +86,15 @@ public final class AnniRsvpClient {
             future.complete(ack);
             return future;
         }
-        future.orTimeout(ACK_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        // Hand back the exceptionally stage: orTimeout returns this future
+        // unchanged, and the stage is what resolves the caller's future with
+        // null at the deadline.
+        return future.orTimeout(ACK_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                 .exceptionally(
                         ex -> {
                             pending.remove(future);
-                            return null; // already-resolved branch swallowed
+                            return null;
                         });
-        return future;
     }
 
     /** Called by {@link AnniWsHandler} for every received

@@ -38,8 +38,8 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  */
 public final class AnniQueryClient {
 
-    /** Hard deadline before {@link #query()} completes with a synthetic
-     *  failure response. The server's own fetch deadline is 3 s; allow
+    /** Hard deadline after which {@link #query()}'s future resolves
+     *  {@code null}. The server's own fetch deadline is 3 s; allow
      *  generous slack for queue jitter + network. */
     private static final long QUERY_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(8);
 
@@ -78,15 +78,15 @@ public final class AnniQueryClient {
             future.complete(null);
             return future;
         }
-        // Deadline guard. The CompletableFuture API requires we schedule
-        // the timeout ourselves; orTimeout(...) suits exactly.
-        future.orTimeout(QUERY_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        // Deadline guard. orTimeout completes this future exceptionally at the
+        // deadline and returns it unchanged, so hand back the exceptionally
+        // stage: that is what resolves the caller's future with null.
+        return future.orTimeout(QUERY_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                 .exceptionally(
                         ex -> {
                             pendingQueries.remove(future);
                             return null;
                         });
-        return future;
     }
 
     /** Called by {@link AnniWsHandler} for every received

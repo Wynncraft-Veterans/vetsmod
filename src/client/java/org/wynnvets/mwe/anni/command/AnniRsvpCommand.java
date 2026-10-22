@@ -65,8 +65,7 @@ public final class AnniRsvpCommand {
     private static int dispatch(String notice) {
         if (!ensureAuthenticated()) return 0;
         reply("Sending " + label(notice) + " RSVP…", ChatFormatting.GRAY);
-        AnniRsvpClient.send(notice)
-                .whenComplete((ack, throwable) -> renderAck(notice, ack, throwable));
+        AnniRsvpClient.send(notice).thenAccept(ack -> renderAck(notice, ack));
         return 1;
     }
 
@@ -81,28 +80,18 @@ public final class AnniRsvpCommand {
     /**
      * Render the ack on the main thread.
      *
-     * <p>⚠️ The opening {@code throwable != null || ack == null} arm is not
-     * belt-and-braces: it is the reason this command still works. The client's
-     * future completes <em>exceptionally</em> on its deadline rather than with
-     * {@code null}, because {@code CompletableFuture#orTimeout} returns
-     * {@code this} and the {@code .exceptionally} stage derived from it is
-     * discarded. This site and its twin in the sibling command are the two
-     * consumers written against the real behaviour, which is what settles
-     * which side of the contradiction is wrong. Filed as
-     * {@code anni-ack-clients-ortimeout-completes-exceptionally}; whichever way
-     * that is resolved, this arm moves with it — if the contract becomes
-     * "completes with null", the {@code throwable} half becomes dead.</p>
+     * <p>The client's future never completes exceptionally: it resolves
+     * {@code null} when its deadline passes with no reply, which the opening
+     * arm reports as a failed request.</p>
      */
-    private static void renderAck(String notice, AnniRsvpClient.Ack ack, Throwable throwable) {
+    private static void renderAck(String notice, AnniRsvpClient.Ack ack) {
         Minecraft mc = McUtils.mc();
         if (mc == null) return;
         mc.execute(
                 () -> {
-                    if (throwable != null || ack == null) {
+                    if (ack == null) {
                         reply("Vets API error: RSVP request failed.", ChatFormatting.RED);
-                        VetsLogger.debug(
-                                "rsvp ack threw or null: {}",
-                                throwable != null ? throwable.getMessage() : "null");
+                        VetsLogger.debug("rsvp ack null: no reply before the deadline");
                         return;
                     }
                     if (ack.ok()) {

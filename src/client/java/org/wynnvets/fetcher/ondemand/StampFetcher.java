@@ -49,10 +49,9 @@ import org.wynnvets.util.HttpClients;
  *       yields nothing while {@link AnniStampPoller} holds a future stamp,
  *       which {@code CommandRegistry.anni} prints as its "timer is
  *       currently unavailable" line
- *       ({@code stamp-fallback-says-not-announced-on-cold-network-failure});
- *       and a cold-cache pull that hits its deadline completes the future
- *       exceptionally, so nothing prints
- *       ({@code anni-ack-clients-ortimeout-completes-exceptionally}).
+ *       ({@code stamp-fallback-says-not-announced-on-cold-network-failure}).
+ *       A cold-cache pull that hits its deadline resolves {@code null} and
+ *       drops to the legacy fetch like any other failed pull.
  *       {@code vetsmod_mwe_anni.md} §"{@code /wv anni} render dispatch"
  *       owns the terminal states.</li>
  * </ul>
@@ -131,9 +130,8 @@ public final class StampFetcher {
      * {@link AnniStampPoller} holds a future stamp; with a zero or past
      * cached stamp the same failure today gives the "not announced" line
      * ({@code stamp-fallback-says-not-announced-on-cold-network-failure}).
-     * Today a cold-cache pull that hits its deadline completes the future
-     * exceptionally instead of falling back to legacy
-     * ({@code anni-ack-clients-ortimeout-completes-exceptionally}). Empty
+     * A cold-cache pull that hits its deadline resolves {@code null} and
+     * falls back to legacy, as any other failed pull does. Empty
      * lists are never returned — the renderer either produces ≥1 element
      * or returns {@code null} to signal "fall back to legacy."</p>
      */
@@ -161,8 +159,9 @@ public final class StampFetcher {
             // returning a snapshot. AnniQueryClient.query() resolves null when the
             // inbound WS is down, when no /unlock key has authenticated that
             // socket (the frame names no UUID; temporary-server at ffd8c17 answers
-            // "mc_uuid required"), or when the player isn't in vets-anni's DB (e.g.
-            // an external user), among other cases; each drops to legacy.
+            // "mc_uuid required"), when the player isn't in vets-anni's DB (e.g.
+            // an external user), or when the pull hits its 8 s deadline, among
+            // other cases; each drops to legacy.
             return AnniQueryClient.query()
                     .thenCompose(
                             pulled -> {

@@ -222,7 +222,7 @@ Entry: `CommandRegistry.anni()` → `StampFetcher.fetchStampAndCreateAnniCommand
 `StampFetcher`:
 - `vetsAnniEnabled=false` → legacy fallback.
 - `vetsAnniEnabled=true && cache populated` → renderer.
-- `vetsAnniEnabled=true && cache cold` → `AnniQueryClient.query()` (auto-pull), then renderer if it resolves a snapshot, else legacy. ⚠️ "else legacy" holds for a null resolution, **not** for the 8 s deadline: `query()` completes exceptionally there, and the `thenCompose` in this path propagates rather than falling back — see [`anni-ack-clients-ortimeout-completes-exceptionally`](ephemeral/bugs-found-via-mellow-rain/anni-ack-clients-ortimeout-completes-exceptionally.md).
+- `vetsAnniEnabled=true && cache cold` → `AnniQueryClient.query()` (auto-pull), then renderer if it resolves a snapshot, else legacy. The 8 s deadline is one of those null resolutions, so a pull that times out drops to legacy too.
 
 `AnniCommandRenderer.render(snapshot)` returns `List<MutableComponent>`:
 - `null` → "fall back to legacy" (the only case is external + announced).
@@ -822,6 +822,8 @@ three clones: `AnniQueryClient` (returns `CompletableFuture<AnniSnapshot>`),
 per-call futures; it does not coalesce concurrent calls (each call sends its own
 frame). The `orTimeout` deadline is **5 s on the two
 ack clients and 8 s on `AnniQueryClient`**, not 5 s across the board.
+Each client returns the `exceptionally` stage it derives from `orTimeout`, so
+all three resolve `null` at the deadline rather than completing exceptionally.
 The `exceptionally` handler removes *that* future by identity
 (`remove(future)`) — **not** the head. Head-polling (`pollFirst()`)
 belongs to the response path; cloning "removes the head" into a timeout
@@ -900,7 +902,7 @@ All under `/wv debug tree anni …` (the `tree` literal nests subsystem-specific
 - `snapshot refresh` — pull fresh from server (alias for the auto-pull path).
 
 **Single-purpose literals.**
-- `guess` — pull + print fishbot-style one-liner (announced stamp + countdown OR prediction window). The pull goes through `AnniQueryClient.query()`, whose response handler pushes any snapshot it gets into `AnniSnapshotCache`. So, like `snapshot refresh`, a successful `guess` replaces an injected fixture. On a failed pull it prints the cached snapshot, flagged stale, if one is cached; otherwise it prints the failure reason.
+- `guess` — pull + print fishbot-style one-liner (announced stamp + countdown OR prediction window). The pull goes through `AnniQueryClient.query()`, whose response handler pushes any snapshot it gets into `AnniSnapshotCache`. So, like `snapshot refresh`, a successful `guess` replaces an injected fixture. On a failed pull it prints the cached snapshot, flagged stale, if one is cached; otherwise it prints a red `anni guess: no snapshot returned`.
 - `time <seconds>` — round-trip the cached snapshot through JSON and rewrite the `event` block. It does **not** preserve everything else. For a positive argument it sets `stamp_epoch = NOW + seconds`, forces `announced = true`, and nulls `prediction`. For `seconds <= 0` it nulls `stamp_epoch` and sets `announced = false`, leaving `prediction` alone — so the suggested `-60` (nominally 1m ago) cannot produce a stamp one minute in the past.
 - `external <auto|true|false>` — override `isExternal` for testing.
 - `zone <enter|exit>` — sets/clears `AnniOutlineTicker.setForceInZone(...)`, so dev sessions can verify the highlight overlay without flying to the anni location. It affects the **highlight gate only**. The boss bar, the ghosts prompt and the T-5m zone-readiness alert call `AnniZone.isInZone` directly and never see the override. The zone lines and scroll waypoint make no zone-presence check at all: the zone lines gate on `AnniAggressiveTicker.isAggressiveActive()` plus `vetsAnniZoneLines` (they read the cached discs' centres and radii via `AnniZone.getDiscs()`, and cull by distance to a centre rather than by containment), and the waypoint on a non-null entry plus `isAggressiveActive()` plus `vetsAnniScrollWaypoint`.

@@ -19,6 +19,7 @@ import org.wynnvets.fetcher.ondemand.StampFetcher;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.fetcher.ondemand.WorldListFetcher;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.command.AnniRsvpCommand;
 import org.wynnvets.mwe.anni.mode.AnniMode;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
@@ -394,6 +395,13 @@ public final class CommandRegistry {
 
     private static int anni(CommandContext<FabricClientCommandSource> ctx) {
         StampFetcher.fetchStampAndCreateAnniCommandMessage()
+                // A failed stage would otherwise skip thenAccept and print nothing;
+                // fold it into the "unavailable" line instead.
+                .exceptionally(
+                        ex -> {
+                            VetsLogger.warn("/wv anni failed: {}", ex.getMessage());
+                            return null;
+                        })
                 .thenAccept(
                         blocks -> {
                             if (blocks == null || blocks.isEmpty()) {

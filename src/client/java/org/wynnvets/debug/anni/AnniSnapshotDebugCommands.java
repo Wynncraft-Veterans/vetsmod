@@ -421,30 +421,11 @@ final class AnniSnapshotDebugCommands {
                         .withStyle(ChatFormatting.GRAY));
 
         AnniQueryClient.query()
-                .whenComplete(
-                        (snapshot, throwable) -> {
+                .thenAccept(
+                        snapshot -> {
                             McUtils.mc()
                                     .execute(
                                             () -> {
-                                                if (throwable != null) {
-                                                    // TimeoutException's getMessage() is null —
-                                                    // substitute
-                                                    // the class name so the user can tell what
-                                                    // failed.
-                                                    String detail = throwable.getMessage();
-                                                    if (detail == null || detail.isEmpty()) {
-                                                        detail =
-                                                                throwable
-                                                                        .getClass()
-                                                                        .getSimpleName();
-                                                    }
-                                                    ChatUtils.sendLocalMessage(
-                                                            Component.literal(
-                                                                            "anni snapshot refresh: query failed: "
-                                                                                    + detail)
-                                                                    .withStyle(ChatFormatting.RED));
-                                                    return;
-                                                }
                                                 if (snapshot == null) {
                                                     // Three possible causes: inbound WS down, a
                                                     // response whose snapshot is missing, null
@@ -504,12 +485,12 @@ final class AnniSnapshotDebugCommands {
                         .withStyle(ChatFormatting.GRAY));
 
         AnniQueryClient.query()
-                .whenComplete(
-                        (snapshot, throwable) -> {
+                .thenAccept(
+                        snapshot -> {
                             McUtils.mc()
                                     .execute(
                                             () -> {
-                                                if (throwable != null || snapshot == null) {
+                                                if (snapshot == null) {
                                                     AnniSnapshot stale = AnniSnapshotCache.latest();
                                                     if (stale != null) {
                                                         ChatUtils.sendLocalMessage(
@@ -522,17 +503,9 @@ final class AnniSnapshotDebugCommands {
                                                                                 formatGuess(
                                                                                         stale)));
                                                     } else {
-                                                        String reason =
-                                                                throwable != null
-                                                                                && throwable
-                                                                                                .getMessage()
-                                                                                        != null
-                                                                        ? throwable.getMessage()
-                                                                        : "no snapshot returned";
                                                         ChatUtils.sendLocalMessage(
                                                                 Component.literal(
-                                                                                "anni guess: "
-                                                                                        + reason)
+                                                                                "anni guess: no snapshot returned")
                                                                         .withStyle(
                                                                                 ChatFormatting
                                                                                         .RED));

@@ -95,8 +95,7 @@ public final class AnniScrollspotCommand {
     public static int clear(CommandContext<FabricClientCommandSource> ctx) {
         if (!ensureAuthenticated()) return 0;
         reply("Clearing scroll spot…", ChatFormatting.GRAY);
-        AnniScrollspotClient.clear()
-                .whenComplete((ack, throwable) -> renderAck(ack, throwable, null));
+        AnniScrollspotClient.clear().thenAccept(ack -> renderAck(ack, null));
         return 1;
     }
 
@@ -106,8 +105,7 @@ public final class AnniScrollspotCommand {
         if (!ensureAuthenticated()) return 0;
         reply("Pinning scroll spot to " + x + " " + y + " " + z + "…", ChatFormatting.GRAY);
         String coord = x + " " + y + " " + z;
-        AnniScrollspotClient.set(x, y, z)
-                .whenComplete((ack, throwable) -> renderAck(ack, throwable, coord));
+        AnniScrollspotClient.set(x, y, z).thenAccept(ack -> renderAck(ack, coord));
         return 1;
     }
 
@@ -120,28 +118,18 @@ public final class AnniScrollspotCommand {
     /**
      * Render the ack on the main thread.
      *
-     * <p>⚠️ The opening {@code throwable != null || ack == null} arm is not
-     * belt-and-braces: it is the reason this command still works. The client's
-     * future completes <em>exceptionally</em> on its deadline rather than with
-     * {@code null}, because {@code CompletableFuture#orTimeout} returns
-     * {@code this} and the {@code .exceptionally} stage derived from it is
-     * discarded. This site and its twin in the sibling command are the two
-     * consumers written against the real behaviour, which is what settles
-     * which side of the contradiction is wrong. Filed as
-     * {@code anni-ack-clients-ortimeout-completes-exceptionally}; whichever way
-     * that is resolved, this arm moves with it — if the contract becomes
-     * "completes with null", the {@code throwable} half becomes dead.</p>
+     * <p>The client's future never completes exceptionally: it resolves
+     * {@code null} when its deadline passes with no reply, which the opening
+     * arm reports as a failed request.</p>
      */
-    private static void renderAck(AnniScrollspotClient.Ack ack, Throwable throwable, String coord) {
+    private static void renderAck(AnniScrollspotClient.Ack ack, String coord) {
         Minecraft mc = McUtils.mc();
         if (mc == null) return;
         mc.execute(
                 () -> {
-                    if (throwable != null || ack == null) {
+                    if (ack == null) {
                         reply("Vets API error: Scroll spot request failed.", ChatFormatting.RED);
-                        VetsLogger.debug(
-                                "scrollspot ack threw or null: {}",
-                                throwable != null ? throwable.getMessage() : "null");
+                        VetsLogger.debug("scrollspot ack null: no reply before the deadline");
                         return;
                     }
                     if (ack.ok()) {
