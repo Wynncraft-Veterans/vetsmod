@@ -151,28 +151,28 @@ class HelpCommandsTest {
                         ChatFormatting.GRAY,
                         "Use /wv help <command> for details on a specific command.\n\n"),
                 sib(ChatFormatting.YELLOW, "/wv help"),
-                sib(ChatFormatting.GRAY, " — Show this help message\n"),
+                sib(ChatFormatting.GRAY, " - Show this help message\n"),
                 sib(ChatFormatting.YELLOW, "/wv anni"),
-                sib(ChatFormatting.GRAY, " — Show annihilation timer\n"),
+                sib(ChatFormatting.GRAY, " - Show annihilation timer\n"),
                 sib(ChatFormatting.YELLOW, "/wv config "),
                 sib(ChatFormatting.GOLD, "[<key> [<value>]]"),
-                sib(ChatFormatting.GRAY, " — View or change mod settings\n"),
+                sib(ChatFormatting.GRAY, " - View or change mod settings\n"),
                 sib(ChatFormatting.YELLOW, "/wv motd"),
-                sib(ChatFormatting.GRAY, " — Show the message of the day\n"),
+                sib(ChatFormatting.GRAY, " - Show the message of the day\n"),
                 sib(ChatFormatting.YELLOW, "/wv list"),
-                sib(ChatFormatting.GRAY, " — Show online members and VetsMod status\n"),
+                sib(ChatFormatting.GRAY, " - Show online guild members\n"),
                 sib(ChatFormatting.YELLOW, "/wv staff"),
-                sib(ChatFormatting.GRAY, " — Show online staff members\n"),
+                sib(ChatFormatting.GRAY, " - Show online stewards\n"),
                 sib(ChatFormatting.YELLOW, "/wv return"),
-                sib(ChatFormatting.GRAY, " — Show info about this week's event\n"),
+                sib(ChatFormatting.GRAY, " - Show info about this week's event\n"),
                 sib(ChatFormatting.YELLOW, "/wv line "),
                 sib(ChatFormatting.GOLD, "<church|scrap|bat|hegea|lighthouse>"),
-                sib(ChatFormatting.GRAY, " — Toggle gxp boundary lines\n"),
+                sib(ChatFormatting.GRAY, " - Toggle gxp boundary lines\n"),
                 sib(ChatFormatting.YELLOW, "/wv check "),
                 sib(ChatFormatting.GOLD, "<player>"),
-                sib(ChatFormatting.GRAY, " — Look up a player's eligibility\n"),
+                sib(ChatFormatting.GRAY, " - Look up a potential recruit's info\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug"),
-                sib(ChatFormatting.GRAY, " — Diagnostics & debug tools"));
+                sib(ChatFormatting.GRAY, " - Diagnostics & debug tools"));
     }
 
     /** Every gate false — only the four unconditional rows survive. */
@@ -185,14 +185,14 @@ class HelpCommandsTest {
                         ChatFormatting.GRAY,
                         "Use /wv help <command> for details on a specific command.\n\n"),
                 sib(ChatFormatting.YELLOW, "/wv help"),
-                sib(ChatFormatting.GRAY, " — Show this help message\n"),
+                sib(ChatFormatting.GRAY, " - Show this help message\n"),
                 sib(ChatFormatting.YELLOW, "/wv anni"),
-                sib(ChatFormatting.GRAY, " — Show annihilation timer\n"),
+                sib(ChatFormatting.GRAY, " - Show annihilation timer\n"),
                 sib(ChatFormatting.YELLOW, "/wv config "),
                 sib(ChatFormatting.GOLD, "[<key> [<value>]]"),
-                sib(ChatFormatting.GRAY, " — View or change mod settings\n"),
+                sib(ChatFormatting.GRAY, " - View or change mod settings\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug"),
-                sib(ChatFormatting.GRAY, " — Diagnostics & debug tools"));
+                sib(ChatFormatting.GRAY, " - Diagnostics & debug tools"));
     }
 
     /**
@@ -253,9 +253,7 @@ class HelpCommandsTest {
                 boldSib(ChatFormatting.GOLD, "Config Options\n"),
                 sib(ChatFormatting.GRAY, "Toggle with: /wv config <key> <true|false>\n\n"),
                 sib(ChatFormatting.YELLOW, "legacyItemHighlighting\n"),
-                sib(
-                        ChatFormatting.GRAY,
-                        "  Show legacy item highlighting in tooltips and inventory\n"),
+                sib(ChatFormatting.GRAY, "  Highlights old items when in your inventory\n"),
                 sib(ChatFormatting.YELLOW, "printMOTD\n"),
                 sib(ChatFormatting.GRAY, "  Auto-print the message of the day on world join\n"),
                 sib(ChatFormatting.YELLOW, "printANNI\n"),
@@ -263,8 +261,8 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "printBridgeMessages\n"),
                 sib(
                         ChatFormatting.GRAY,
-                        "  Show relayed chat: Discord bridge messages and relayed guild,"
-                                + " waitlist and honourary chat\n"),
+                        "  Show messages delivered through the bridge, including discord,"
+                                + " queue, waitlist, and honourary chats.\n"),
                 sib(ChatFormatting.YELLOW, "showSupporterGlints\n"),
                 sib(ChatFormatting.GRAY, "  Show supporter animated gradient glints on nametags\n"),
                 sib(ChatFormatting.YELLOW, "colorBlindMode\n"),
@@ -279,7 +277,7 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "moreReliableGuildCheck\n"),
                 sib(
                         ChatFormatting.GRAY,
-                        "  Run /gu stats on world join to detect guild membership,"),
+                        "  Run /gu stats on world join to detect your membership,"),
                 sib(
                         ChatFormatting.GRAY,
                         " instead of relying solely on Wynntils (it can lag on join)"));
@@ -291,9 +289,7 @@ class HelpCommandsTest {
                 HelpCommands.buildHelpCheck(HelpCommands.Access.CONFIRMED),
                 sib(ChatFormatting.YELLOW, "/wv check "),
                 sib(ChatFormatting.GOLD, "<player>\n"),
-                sib(
-                        ChatFormatting.GRAY,
-                        "Look up a player's guild membership and unlock status.\n"),
+                sib(ChatFormatting.GRAY, "Look up someone's vets membership and client status.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.AQUA, "Staff"));
     }
@@ -303,10 +299,7 @@ class HelpCommandsTest {
         assertPage(
                 HelpCommands.buildHelpReturn(HelpCommands.Access.CONFIRMED),
                 sib(ChatFormatting.YELLOW, "/wv return\n"),
-                sib(
-                        ChatFormatting.GRAY,
-                        "Display information about this week's scheduled event, "
-                                + "as fetched from the guild-announcements channel.\n"),
+                sib(ChatFormatting.GRAY, "Display information about this week's event.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.AQUA, "Returners guild member"));
     }
@@ -316,7 +309,7 @@ class HelpCommandsTest {
         assertPage(
                 HelpCommands.buildHelpStaff(HelpCommands.Access.CONFIRMED),
                 sib(ChatFormatting.YELLOW, "/wv staff\n"),
-                sib(ChatFormatting.GRAY, "Show a list of currently online staff members.\n"),
+                sib(ChatFormatting.GRAY, "Show a list of currently online stewards.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.AQUA, "Unlocked"));
     }
@@ -333,8 +326,7 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "/wv list\n"),
                 sib(
                         ChatFormatting.GRAY,
-                        "Show online Returners members, grouped by VetsMod usage, "
-                                + "honourary, and waitlist status.\n"),
+                        "Show online Returners members and some basic info about them.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.AQUA, "Veteran (Returners, waitlist, or honourary)"));
     }
@@ -393,16 +385,16 @@ class HelpCommandsTest {
                 sib(ChatFormatting.GOLD, "Subcommands:\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug "),
                 sib(ChatFormatting.GOLD, "<boolean>"),
-                sib(ChatFormatting.GRAY, " — Toggle debug logging\n"),
+                sib(ChatFormatting.GRAY, " - Toggle debug logging\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug set "),
                 sib(ChatFormatting.GOLD, "<key> <value>"),
-                sib(ChatFormatting.GRAY, " — Manage debug config keys\n"),
+                sib(ChatFormatting.GRAY, " - Manage debug config keys\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug trigger "),
                 sib(ChatFormatting.GOLD, "<action>"),
-                sib(ChatFormatting.GRAY, " — Run a one-shot debug action\n"),
+                sib(ChatFormatting.GRAY, " - Run a one-shot debug action\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug tree "),
                 sib(ChatFormatting.GOLD, "<subsystem>"),
-                sib(ChatFormatting.GRAY, " — Open a subsystem-specific debug tree (e.g. anni)\n\n"),
+                sib(ChatFormatting.GRAY, " - Open a subsystem-specific debug tree (e.g. anni)\n\n"),
                 sib(ChatFormatting.DARK_GRAY, "Use /wv help debug <set|trigger> for details.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.WHITE, "None (public)"));
@@ -422,16 +414,16 @@ class HelpCommandsTest {
                 sib(ChatFormatting.GRAY, "Manage debug-only configuration keys.\n\n"),
                 sib(ChatFormatting.GOLD, "Usage:\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug set"),
-                sib(ChatFormatting.GRAY, " — List all debug config keys and their values\n"),
+                sib(ChatFormatting.GRAY, " - List all debug config keys and their values\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug set "),
                 sib(ChatFormatting.GOLD, "<key>"),
-                sib(ChatFormatting.GRAY, " — Show the current value of a key\n"),
+                sib(ChatFormatting.GRAY, " - Show the current value of a key\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug set "),
                 sib(ChatFormatting.GOLD, "<key> <true|false>"),
-                sib(ChatFormatting.GRAY, " — Set a debug key to true or false\n\n"),
+                sib(ChatFormatting.GRAY, " - Set a debug key to true or false\n\n"),
                 sib(ChatFormatting.GOLD, "Available keys:\n"),
                 sib(ChatFormatting.YELLOW, "itemDump"),
-                sib(ChatFormatting.GRAY, " — Dump an item's full component tree\n"),
+                sib(ChatFormatting.GRAY, " - Dump an item's full component tree\n"),
                 sib(ChatFormatting.DARK_GRAY, "  When on, press numpad + while hovering it\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.WHITE, "None (public)"));

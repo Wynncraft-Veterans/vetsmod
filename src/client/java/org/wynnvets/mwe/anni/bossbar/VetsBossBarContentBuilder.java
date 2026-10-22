@@ -358,20 +358,20 @@ public final class VetsBossBarContentBuilder {
         String label;
         ChatFormatting color;
         if (notice == null) {
-            label = "WALKIN";
+            label = "WALK";
             color = ChatFormatting.YELLOW;
         } else {
             switch (notice.toLowerCase()) {
                 case "hard":
-                    label = "HRSVP";
+                    label = "HARD";
                     color = ChatFormatting.BLUE;
                     break;
                 case "soft":
-                    label = "SRSVP";
+                    label = "SOFT";
                     color = ChatFormatting.GREEN;
                     break;
                 case "walkin":
-                    label = "WALKIN";
+                    label = "WALK";
                     color = ChatFormatting.YELLOW;
                     break;
                 case "late":

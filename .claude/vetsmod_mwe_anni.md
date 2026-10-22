@@ -195,7 +195,7 @@ transitions safe:
 
 - `transitionTo(target, Source)` with `Source ∈ {USER_COMMAND, AUTO_WINDOW_CLOSE, AUTO_STREAM_ACTIVATED, AUTO_STREAM_DEACTIVATED, AUTO_STARTUP_DEFAULT, DEBUG_BYPASS_MUTEX}` — **six** constants.
 - **The `/stream` mutex applies to PASSIVE/AGGRESSIVE targets only.** `transitionTo` computes `wantsActive = target != SILENT` and consults `Models.StreamerMode.isInStream() || StreamerModeChatDetector.lastSeenInStream()` only when that holds (spec §3.1). A refusal returns `false` and leaves `VETS_ANNI_MODE` untouched — it does **not** force silent. A SILENT target skips the check entirely and always lands.
-- Only a `USER_COMMAND` refusal prints "Anni mode change refused: /stream is active. Stream is suboptimal for anni — try /toggle ghosts NONE instead."; the auto sources decline silently with a debug log.
+- Only a `USER_COMMAND` refusal prints "You have /stream, which is incompatible with vetsmod anni features, active. We would strongly prefer you use /toggle ghosts NONE instead, which does the same thing without hiding you from organisers!"; the auto sources decline silently with a debug log.
 - Likewise on success: all four `AUTO_*` sources suppress the manager's generic "Anni mode: X (was Y)" confirmation, so the caller can print something friendlier. Only `USER_COMMAND` and `DEBUG_BYPASS_MUTEX` print it.
 - `DEBUG_BYPASS_MUTEX` skips the stream check for screen-capture testing.
 - `preferredMode()` — the user's remembered pick (`VETS_ANNI_USER_MODE`, honoured only while `VETS_ANNI_MODE_USER_SET`), else the eligibility default: PASSIVE when `GuildStateManager.isEligibleForEnrichment()`, SILENT otherwise. Every automatic *restore* target comes from here (see also [vetsmod_config.md](vetsmod_config.md)).
@@ -204,8 +204,8 @@ transitions safe:
 **`StreamerModeChatDetector`** (`mode/StreamerModeChatDetector.java`):
 - Belt-and-braces backup for `Models.StreamerMode.isInStream()`. Hooks `ChatLogMixin` via a one-line `observe(message)` call on the chat HEAD inject.
 - Substring patterns on the format-stripped chat line: `"Streamer mode was enabled"` (on) / `"Streamer mode disabled"` (off).
-- On the *leading edge* of stream-on (repeat lines are no-ops): sets `lastSeenInStream=true`, and if the current mode isn't already SILENT calls `transitionTo(SILENT, AUTO_STREAM_ACTIVATED)`, printing its own "auto-changed to silent: /stream activated" block only when that returns true.
-- On stream-off — and only while `lastSeenInStream` was true — it clears the flag and **does** attempt a restore to `AnniModeManager.preferredMode()` via `Source.AUTO_STREAM_DEACTIVATED`, printing "Anni mode auto-restored to <mode>: /stream deactivated." only when `transitionTo` actually returns true. Nothing is printed when the preferred target is SILENT (`handleStreamOff` returns before `transitionTo` in that case), when it already equals `AnniMode.fromConfig()`, or when `transitionTo` still refuses because Wynntils' own `isInStream()` has not yet cleared.
+- On the *leading edge* of stream-on (repeat lines are no-ops): sets `lastSeenInStream=true`, and if the current mode isn't already SILENT calls `transitionTo(SILENT, AUTO_STREAM_ACTIVATED)`, printing its own "/stream activated. We have switched your anni mode to silent. (…)" block only when that returns true.
+- On stream-off — and only while `lastSeenInStream` was true — it clears the flag and **does** attempt a restore to `AnniModeManager.preferredMode()` via `Source.AUTO_STREAM_DEACTIVATED`, printing "/stream deactivated! We have switched your anni mode back to <mode>." only when `transitionTo` actually returns true. Nothing is printed when the preferred target is SILENT (`handleStreamOff` returns before `transitionTo` in that case), when it already equals `AnniMode.fromConfig()`, or when `transitionTo` still refuses because Wynntils' own `isInStream()` has not yet cleared.
 
 **`AnniWindowWatcher`** (`mode/AnniWindowWatcher.java`):
 - Registered in `VetsmodClient.onInitializeClient()` after `AnniWsHandler.register()`.
@@ -266,7 +266,7 @@ The `externalOverride` field (settable via `/wv debug tree anni external <auto|t
 
 `σ = window_hours / √12` (≈3.06h for the 10.6h Uniform window one observed snapshot carried; the window is read from each snapshot, so neither figure is a constant). NOT half-window — q0/q4 are misleading tails and ± in chat reads as standard deviation.
 
-Gated by `vetsAnniShowPrediction`. When that is on but `event.prediction()` is null — or any of `earliestEpoch()` / `medianEpoch()` / `latestEpoch()` is — `renderNotAnnounced` substitutes a gray `Prediction window unavailable — no recent anchor.` instead.
+Gated by `vetsAnniShowPrediction`. When that is on but `event.prediction()` is null — or any of `earliestEpoch()` / `medianEpoch()` / `latestEpoch()` is — `renderNotAnnounced` substitutes a gray `Prediction window unavailable (probably a vetsmod API error).` instead.
 
 ### Role styles
 
@@ -281,11 +281,11 @@ Gated by `vetsAnniShowPrediction`. When that is on but `event.prediction()` is n
 | TERTIARY | MOBKILL | MOBK | TERTIARY |
 | FILL | FILL | FILL | FILL |
 
-**Policy and mechanism differ here, so keep them apart.** The policy — short codes (HRSVP / SUNK / MOBK) belong on the boss bar, and chat callers spell things out — stands, and is recorded as the `feedback_anni_short_codes_reserved_for_bossbar.md` memory. The mechanism is not what "reserved" implies: `short` **is** one of the three configured `vetsAnniRoleStyle` values, meant to be user-selectable for chat (today `/wv config` refuses it, leaving a hand edit of `config.json` as the way to select it — bug `config-set-rejects-role-style-and-flash-intensity`), and `displayRole`'s only callers are chat surfaces (`AnniHoverBuilder.roleChip`, `AnniStatusSections.registrationSection`, `AnniMotdRenderer.assignedToPartyLine`). The bar does not read this table at all — it uses its own hardcoded `VetsBossBarContentBuilder.toShortLabel`.
+**Policy and mechanism differ here, so keep them apart.** The policy — short codes (HARD / SUNK / MOBK) belong on the boss bar, and chat callers spell things out — stands, and is recorded as the `feedback_anni_short_codes_reserved_for_bossbar.md` memory. The mechanism is not what "reserved" implies: `short` **is** one of the three configured `vetsAnniRoleStyle` values, meant to be user-selectable for chat (today `/wv config` refuses it, leaving a hand edit of `config.json` as the way to select it — bug `config-set-rejects-role-style-and-flash-intensity`), and `displayRole`'s only callers are chat surfaces (`AnniHoverBuilder.roleChip`, `AnniStatusSections.registrationSection`, `AnniMotdRenderer.assignedToPartyLine`). The bar does not read this table at all — it uses its own hardcoded `VetsBossBarContentBuilder.toShortLabel`.
 
 ### RSVP / attendance / board labels
 
-`AnniHoverBuilder.rsvpBadge` resolves its key from `rsvp.notice()` — but only while `rsvp != null && notice != null && !rsvp.revoked()` — otherwise from `attendance.noticeEffective()`. Long forms in chat: `HARD RSVP` / `SOFT RSVP` / `EARLY WALK-IN` / `LATE WALK-IN`, plus a gray **`NO RSVP`** when neither source yields a key, and an upper-cased passthrough of any unrecognised key. Short forms (HRSVP etc.) are the boss bar's, emitted by `VetsBossBarContentBuilder.rsvpChip`.
+`AnniHoverBuilder.rsvpBadge` resolves its key from `rsvp.notice()` — but only while `rsvp != null && notice != null && !rsvp.revoked()` — otherwise from `attendance.noticeEffective()`. Long forms in chat: `HARD RSVP` / `SOFT RSVP` / `EARLY WALK-IN` / `LATE WALK-IN`, plus a gray **`NO RSVP`** when neither source yields a key, and an upper-cased passthrough of any unrecognised key. Short forms (HARD etc.) are the boss bar's, emitted by `VetsBossBarContentBuilder.rsvpChip`.
 
 `Attendance Chance` is state-dependent:
 - party → "ASSIGNED" (light purple bold).
@@ -343,7 +343,7 @@ implements it exactly.
 
 | Notice key | Emitted by | `noticeColor` (chat) | `rsvpChip` (bar) | |
 |--|--|--|--|--|
-| `null` | either block, no fact held | `GRAY` | `YELLOW`, labelled `WALKIN` | ✗ |
+| `null` | either block, no fact held | `GRAY` | `YELLOW`, labelled `WALK` | ✗ |
 | `hard` | `rsvp.notice` | `AQUA` | `BLUE` | ✗ |
 | `soft` | `rsvp.notice` | `GREEN` | `GREEN` | ✓ |
 | `rsvp_hard` | `attendance.notice_effective` | `AQUA` | `GRAY`, labelled `RSVP_HARD` | ✗ |
@@ -364,7 +364,7 @@ passthrough agree.
 The shape of the bar's defect follows from the two spellings. `rsvpChip` prefers
 `rsvp.notice`, whose `hard` / `soft` it *does* recognise, and falls back to
 `attendance.notice_effective`, **none of whose four values it recognises at
-all**. So a player with a live RSVP gets a correct `HRSVP` / `SRSVP` chip, while
+all**. So a player with a live RSVP gets a correct `HARD` / `SOFT` chip, while
 a walk-in — who by definition has no RSVP row and therefore reaches the fallback
 — always lands on the `default` arm: `ATTEND_LATE` in grey where the chat surface
 says `LATE WALK-IN` in red. Its `walkin` and `late` arms are unreachable. It also
@@ -399,7 +399,7 @@ Line 2 is gray prose, and the two blocks above are examples, not the whole set �
 |--|--|
 | `party` | "You have been assigned to <ROLE> with Party <n>[ on <world>]" — bold-coloured callouts. Degrades to "You have been assigned to a party (details pending)." when `board.party()` is null, and the " on <world>" tail appears only when `party.world()` is non-null and non-empty |
 | `unassigned` | "You aren't yet assigned and <rsvpClause>!" |
-| `wont_assign` | "You won't be assigned — <wontReason>." / "You won't be assigned to this anni." — no callouts, no RSVP clause |
+| `wont_assign` | "You won't be assigned - <wontReason>." / "You won't be assigned to this anni." — no callouts, no RSVP clause |
 | `unplaced` | "You're not yet on the placement queue and <rsvpClause>!" |
 
 `rsvpClause` yields six strings — hard / soft / walking-in-early / walking-in-late / "have not RSVP'd" (no notice key) / "have an unrecognised RSVP" (unknown key) — keyed off `snapshot.rsvp().notice()` when there **is** a live notice — `rsvp != null && rsvp.notice() != null && !rsvp.revoked()`, all three — and off `attendance.noticeEffective()` otherwise. "Unless `revoked()`" named one of the three ways the fallback is reached; a missing `rsvp` block and a null `notice` take it too, and for a walk-in it is the missing block that does.
@@ -433,7 +433,7 @@ Let vanilla and Wynntils track bars normally (no `update()` cancellation, no `ev
 - Returns `null` at `≤20s` (`T_MINUS_20_GATE_SECONDS` — manager deactivates).
 - In-zone (`AnniZone.isInZone`) and inside `COUNTDOWN_THRESHOLD_SECONDS`, which is **5 min**, not the spec's 2 ("spec called for 2 min, user-iterated to 5 min on 2026-06-16") → the countdown variant, `anni.wynnvets.org: ANNI IN <NNN>s | …` (spec §3.1.1.3). The trailing half has two branches: `scrollSecs = max(0, anniSecs - 20)`, and the literal `SCROLLS IN <NNN>s!` is emitted only while `scrollSecs ≤ SCROLL_COUNTDOWN_START_SECONDS` (70); above that it renders an italic light-purple `Get ready for scrolls!` instead. So `ANNI IN 099s | SCROLLS IN 079s` — the string the old spec sample showed — is unproducible: 99 s implies `scrollSecs = 79 > 70`.
 - Assigned (party OR committed slot) → `anni.wynnvets.org: Role: <SHORT> | Party <n> | World: <w>` (spec §3.1.1.2). `buildAssigned` deliberately drops the `/me` path the spec writes — on a ~40-char bar every glyph counts. Role colours: TANK=blue, HEAL=green, PRIM=red, SUNK=yellow, MOBK=light-purple, FILL=dark-aqua. Note `isAssigned` can be satisfied by a non-FILL entry in `registration.roles` alone while `resolveRoleCode` reads only `board.role()`, so this variant is reachable showing a gray `Role: TBD`.
-- Seeking (no party + no committed slot) → `Seeking a <HRSVP|SRSVP|WALKIN|LATE> <CORE|FILL> SLOT for anni.wynnvets.org in <X>min` (spec §3.1.1.1). Slot type derived from `registration.roles` (specific role = CORE).
+- Seeking (no party + no committed slot) → `Seeking a <HARD|SOFT|WALK|LATE> <CORE|FILL> SLOT for anni.wynnvets.org in <X>min` (spec §3.1.1.1). Slot type derived from `registration.roles` (specific role = CORE).
 - **Four** chips wrap via `FlashTracker.styleFor(fieldKey, base)` — `role` / `party` / `world` in the assigned variant and `rsvp` in the seeking variant — so the bold↔underline pulse applies per-field. The slot chip, the link badge, the minutes chip and the whole countdown variant are unwrapped and never pulse.
 
 **Bar colour: never PINK.** The signature is `colorFor(AnniSnapshot)`, not `colorFor(String)`: it returns `PURPLE` when `board.state()` is `party` — not PINK as the original spec suggested — `RED` for `wont_assign`, and otherwise quantises `attendance.band()` through `bandToBarColor` (≤2 RED, ≤4 YELLOW, else GREEN), falling back to `PURPLE` with no snapshot or no band. Wynncraft's forced resource pack overrides `boss_bar/pink_background.png` (and its progress sprite) to be fully transparent so they can repurpose pink-bar slots as text-only HUD strips (the Lv.92 Returners XP line, territory/region names like "Corrupted Road", "ROOTS OF CORRUPTION"). Reproducible on bare vanilla MC 1.21.11 with the Wynncraft pack loaded (empirically confirmed against Wynncraft's forced resource pack). Confirmed via `/wv debug trigger bossBarsDump` — every Wynncraft text-only bar shipped `color=PINK overlay=PROGRESS`. **Future colour additions: pick from `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` only.**
@@ -649,9 +649,9 @@ Wire pieces on the network layer:
    `requireDebug` only (no staff/organiser perm — action only affects
    the caller's own RSVP).
 2. **Unauthenticated message uses spec wording**:
-   `"Use \\rsvp on discord — or run ~vetsmod first."` Surfaces both the
+   `"You aren't authenticated (~vetsmod on vetscord). For now, use the discord \\rsvp on discord (or use ~vetsmod)."` Surfaces both the
    Discord fallback and the link path. Differs from scrollspot's
-   `"Run ~vetsmod to authenticate first."`, which names no command path: a
+   `"You aren't authenticated (~vetsmod on vetscord)."`, which names no command path: a
    scrollspot host has already typed the real one (locked decision 6 above).
 3. **No `username_hint` field threaded through the WS frame.**
    Temp-server already has the session's `mc_uuid`, and vets-anni's own

@@ -124,7 +124,7 @@ site that wrote it:
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
 | `/wv check <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.check` | `UserInfoFetcher.checkUser`: name → UUID through the `PlayerLookup` cascade, then the Wynncraft profile, dazebot's membership snapshot and, once there is a profile, guild-roster cross-checks. Then `CautionCommands.runCheckCautions` for the caution history | HTTP: the name lookup cascade, the Wynncraft profile and guild rosters. WebSocket: `check_membership` and `caution_check` frames | `help-advertises-wv-check-on-a-weaker-gate`; the `wv-check-*` files; `check-membership-ack-drops-last-seen-observed`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `user-info-fetcher-join-blocks-completing-thread`, `staff-action-queue-not-drained-on-socket-reconnect` |
-| `/wv invite-force <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.inviteForce` → `InviteGate.forceDispatch` | Sends `/gu invite <playerName>` with every `InviteGate` check skipped, and prints a yellow "Dispatching /gu invite <name> (vetsmod gate bypassed)." `InviteGate`'s `[Invite anyway]` button runs it | in-game `/gu invite`, sent through `GuildChatDispatcher.sendCommandBypassed` | none |
+| `/wv invite-force <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.inviteForce` → `InviteGate.forceDispatch` | Sends `/gu invite <playerName>` with every `InviteGate` check skipped, and prints "Dispatching /gu invite <name> (vetsmod gate bypassed)." in gold, with the command itself in yellow. `InviteGate`'s `[Invite anyway]` button runs it | in-game `/gu invite`, sent through `GuildChatDispatcher.sendCommandBypassed` | none |
 
 `/wv check <playerName>` and `/wv invite-force <playerName>` read the name with
 `StringArgumentType.string()`, so a name is one unquoted token or a quoted string. Which hook handles a
@@ -136,9 +136,9 @@ typed `/wv check` first, Fabric's or `GuildChatDispatcher`'s, is not settled; se
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
 | `/wv return` | ungated | none | `CommandRegistry.returnInfo` → `ReturnFetcher.fetchReturn` | Prints the latest return-channel post, with its Discord timestamps rewritten and a link footer (below) | GETs `VetsApi.RETURN` | `help-footers-name-gates-return-and-motd-lack` |
-| `/wv list` | ungated | `isUnlocked()`: "You must be unlocked to use /wv list." | `CommandRegistry.list` → `ListFetcher.fetchList` | Prints "Looking up online members...", then the online members grouped by tier and VetsMod status: staff underlined, supporters with a glint | GETs `VetsApi.LIST`; Wynntils' Wynncraft API lookup of the Returners guild (`Models.Guild.getGuild`); for a Returners caller, a WebSocket `tablist` frame of the tab list's guild entries | `stale-registration-survives-eligibility-loss`, `staff-ranks-poll-swap-not-atomic`, `legacy-unlock-markers-still-grant-client-unlock` |
-| `/wv list world` | ungated | `isStaff()`, after `refreshStaffStatusIfNeeded(!isStaff())`: "Checking staff permissions, please retry in a moment." while a refresh starts or runs, then "You must be staff to use /wv list world." | `CommandRegistry.listWorld` → `WorldListFetcher.fetchWorldList` | For staff: finds each online member with `/find` and groups them by server region (the GeoIP2 continent codes AF, AS, EU, NA, OC and SA, then Other and Private) | in-game `/gu rank` (forced for a non-staff caller), `/find` per member; GETs `VetsApi.LIST` and `VetsApi.STAFF`; Wynntils' Wynncraft API lookup of the Returners guild; a `PlayerLookup` name lookup for each member `/find` did not place; for a Returners caller, a WebSocket `tablist` frame | `wv-list-world-never-refuses-non-staff`, `staff-rank-cache-survives-leaving-guild`, `find-response-matches-username-as-substring`, `find-phase-does-not-yield-to-queued-msg`, `vets-snapshot-provider-skips-confirmed-staff-check`, `staff-action-queue-not-drained-on-socket-reconnect` |
-| `/wv staff` | ungated | `isUnlocked()`: "You must be unlocked to use /wv staff." | `CommandRegistry.staff` → `StaffFetcher.fetchOnlineStaff` | Prints online staff, sorted by rank, then by name | GETs `VetsApi.STAFF` | `legacy-unlock-markers-still-grant-client-unlock` |
+| `/wv list` | ungated | `isUnlocked()`: "/wv list is restricted to vets members." | `CommandRegistry.list` → `ListFetcher.fetchList` | Prints "Looking up online members...", then the online members grouped by tier and VetsMod status: staff underlined, supporters with a glint | GETs `VetsApi.LIST`; Wynntils' Wynncraft API lookup of the Returners guild (`Models.Guild.getGuild`); for a Returners caller, a WebSocket `tablist` frame of the tab list's guild entries | `stale-registration-survives-eligibility-loss`, `staff-ranks-poll-swap-not-atomic`, `legacy-unlock-markers-still-grant-client-unlock` |
+| `/wv list world` | ungated | `isStaff()`, after `refreshStaffStatusIfNeeded(!isStaff())`: "We are still checking your permissions, please retry in a moment." while a refresh starts or runs, then "/wv list world is restricted to stewards." | `CommandRegistry.listWorld` → `WorldListFetcher.fetchWorldList` | For staff: finds each online member with `/find` and groups them by server region (the GeoIP2 continent codes AF, AS, EU, NA, OC and SA, then Other and Private) | in-game `/gu rank` (forced for a non-staff caller), `/find` per member; GETs `VetsApi.LIST` and `VetsApi.STAFF`; Wynntils' Wynncraft API lookup of the Returners guild; a `PlayerLookup` name lookup for each member `/find` did not place; for a Returners caller, a WebSocket `tablist` frame | `wv-list-world-never-refuses-non-staff`, `staff-rank-cache-survives-leaving-guild`, `find-response-matches-username-as-substring`, `find-phase-does-not-yield-to-queued-msg`, `vets-snapshot-provider-skips-confirmed-staff-check`, `staff-action-queue-not-drained-on-socket-reconnect` |
+| `/wv staff` | ungated | `isUnlocked()`: "/wv staff is restricted to vets members." | `CommandRegistry.staff` → `StaffFetcher.fetchOnlineStaff` | Prints online staff, sorted by rank, then by name | GETs `VetsApi.STAFF` | `legacy-unlock-markers-still-grant-client-unlock` |
 | `/wv motd` | ungated | none | `CommandRegistry.motd` | As the root `/motd` | as `/motd` | `help-footers-name-gates-return-and-motd-lack` |
 
 `/wv list world`'s non-staff refusal is unreachable: the forced refresh puts every non-staff call on the
@@ -154,7 +154,7 @@ zone), supporting every Discord style, with `f` as the default, and hangs a hove
 absolute time, its zone and the relative offset off each expansion. Malformed or out-of-range epochs fall
 through as the raw markup.
 [`ReturnFetcher.announcementFooter()`](../src/client/java/org/wynnvets/fetcher/ondemand/ReturnFetcher.java)
-then appends `For more info, click here for the announcement post!`, where `here` deep-links to the return
+then appends `For more info, see the original announcement post in this discord channel!`, where `this` deep-links to the return
 channel (`discord.com/channels/<guild>/<RETURN_CHANNEL_ID>`). The API serves the message body with no
 message ID, so the link targets the channel rather than the post, and its hover says "Open the return
 channel in Discord". The footer is skipped when the body is
@@ -165,8 +165,8 @@ blank (nothing cached upstream).
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
 | `/wv anni` | none | none | `CommandRegistry.anni` → `StampFetcher.fetchStampAndCreateAnniCommandMessage` | The anni status: the snapshot render (`AnniCommandRenderer`) when `vetsAnniEnabled` is on and a snapshot is cached or an on-demand pull brings one, else, or when the renderer declines, the legacy stamp countdown | WebSocket `anni_query` on a cold cache while `vetsAnniEnabled` is on; GETs `VetsApi.STAMP` on the legacy path | `vets-anni-enabled-to-be-retired`, `stamp-fallback-says-not-announced-on-cold-network-failure`, `anni-ack-clients-ortimeout-completes-exceptionally`, `anni-dates-print-in-the-default-format-locale`, `anni-roleless-registration-shows-the-unregistered-nudge` |
-| `/wv anni silent`, `passive`, `aggressive` | none | the `/stream` mutex, for passive and aggressive: "Anni mode change refused: /stream is active. Stream is suboptimal for anni — try /toggle ghosts NONE instead." | `CommandRegistry.anniMode` → `AnniModeManager.transitionTo(mode, USER_COMMAND)` | Sets the anni mode and prints it; a refusal changes nothing | writes `vetsAnniMode`, `vetsAnniModeUserSet` and `vetsAnniUserMode` | none |
-| `/wv anni rsvp hard`, `soft`, `revoke` | none | `isAuthenticatedThisSession()`: "Use \rsvp on discord — or run ~vetsmod first." | `AnniRsvpCommand.hard`, `soft`, `revoke` | Sends the RSVP and prints the result; on success, pulls a fresh snapshot | WebSocket `anni_rsvp`, then `anni_query` on success | `in-game-rsvp-revoke-of-nothing-says-withdrawn`, `anni-ack-clients-ortimeout-completes-exceptionally`, `ack-clients-timeout-has-zero-slack-over-the-server-forward` |
+| `/wv anni silent`, `passive`, `aggressive` | none | the `/stream` mutex, for passive and aggressive: "You have /stream, which is incompatible with vetsmod anni features, active. We would strongly prefer you use /toggle ghosts NONE instead, which does the same thing without hiding you from organisers!" | `CommandRegistry.anniMode` → `AnniModeManager.transitionTo(mode, USER_COMMAND)` | Sets the anni mode and prints it; a refusal changes nothing | writes `vetsAnniMode`, `vetsAnniModeUserSet` and `vetsAnniUserMode` | none |
+| `/wv anni rsvp hard`, `soft`, `revoke` | none | `isAuthenticatedThisSession()`: "You aren't authenticated (~vetsmod on vetscord). For now, use the discord \rsvp on discord (or use ~vetsmod)." | `AnniRsvpCommand.hard`, `soft`, `revoke` | Sends the RSVP and prints the result; on success, pulls a fresh snapshot | WebSocket `anni_rsvp`, then `anni_query` on success | `in-game-rsvp-revoke-of-nothing-says-withdrawn`, `anni-ack-clients-ortimeout-completes-exceptionally`, `ack-clients-timeout-has-zero-slack-over-the-server-forward` |
 
 [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md) owns all three: §"`/wv anni` render dispatch" has the branch
 list and the not-announced, far-out and imminent forms; §Mode state has the mode keys, the mutex and
@@ -204,7 +204,7 @@ providers, `ConfigCommands.SUGGEST_CONFIG_KEYS` and `SUGGEST_CONFIG_VALUES`, are
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
-| `/wv line church`, `scrap`, `bat`, `hegea`, `lighthouse` | none | `areFeaturesEnabled()`: "You must be a Returners guild member to use /wv line." | `CommandRegistry.lineToggle` → `TerritoryLineManager.toggle` | Toggles one territory's guild-XP boundary line and prints Enabled or Disabled | the first enable GETs `api.wynncraft.com/v3/guild/list/territory` | none |
+| `/wv line church`, `scrap`, `bat`, `hegea`, `lighthouse` | none | `areFeaturesEnabled()`: "/wv line is restricted to vets members." | `CommandRegistry.lineToggle` → `TerritoryLineManager.toggle` | Toggles one territory's guild-XP boundary line and prints Enabled or Disabled | the first enable GETs `api.wynncraft.com/v3/guild/list/territory` | none |
 
 The aliases map to territories in `TerritoryLineManager.LINE_ALIASES`:
 
@@ -262,7 +262,7 @@ The trigger leaves:
 **The anni debug harness** under `/wv debug tree anni` has 11 literals (`snapshot`, `guess`, `external`,
 `time`, `zone`, `flash`, `mode`, `scrollspot`, `alert`, `rsvp` and `registry`) and 24 executable leaves,
 both pinned by `AnniDebugCommandsTest`. Every leaf refuses without debug logging ("anni debug commands require debug
-logging — run /wv debug true first"). The `scrollspot` leaves also refuse a player who is neither staff nor
+logging - run /wv debug true first"). The `scrollspot` leaves also refuse a player who is neither staff nor
 an organiser ("scrollspot is for party hosts / staff only."), and the ones that write to the server
 (`set`, `here` and `clear`) also need an authenticated session. The leaves with effects outside the client's memory are `snapshot dump` (writes a
 file under `vetsmod/dumps/anni/`), `snapshot refresh` and `guess` (`anni_query`), `scrollspot set`, `here`
@@ -292,7 +292,7 @@ different predicates, so the red line is the normal path for staff below chief.
   `[0-9A-Za-z_.+-]` and would fail to parse `@random` at the `@`. Suggests the selectors plus current guild
   usernames from `Models.Guild.getGuildMembers()`.
 - `<resource>` — `aspects` | `tomes` | `emeralds`, mapping to `MemberSlotPresser.Resource` hotbar buttons
-  0/1/2. One press sends 1 Aspect, 1 Guild Tome, or 1024 Emeralds.
+  0/1/2. One press sends 1 Aspect, 1 Tome, or 1024 Emeralds.
 - `<count>` — `IntegerArgumentType.integer(1, 255)`. The upper bound is an unsigned-byte cap against
   typo'd bulk sends.
 
@@ -349,18 +349,18 @@ These rules hold for everything below:
    `/Unlock <key>` is caught too. A bare `/unlock` prints a red usage line.
 2. It calls `GuildStateManager.tryUnlock(key)` → `UnlockManager.tryUnlock(key)`.
 3. Local checks: length ∈ [32, 200], charset URL-safe base64 (`a-zA-Z0-9_-`). A failure prints a red
-   `❌ That doesn't look like a vetsmod key. …` and stores nothing.
+   `That doesn't look like a vetsmod key. …` and stores nothing.
 4. It persists the key to `vetsAuthKey`, clears the session's tier, verified flag and failure reason, arms
    a one-shot flag that makes the next auth ack show its result unless the player leaves the server
    first, and calls
    `V1ApiManager.sendAuth(key)`. That sends an `auth` frame on the inbound WebSocket, or, while the socket
    is down, returns without sending; the key then goes out when the socket next connects.
-5. The player sees `⏳ Saved your vetsmod key. Verifying with the server…` (yellow), whether or not the
+5. The player sees `Saved your key. Verifying with the server…` (yellow), whether or not the
    frame went out.
 6. The server's ack arrives asynchronously. An ok ack reaches `UnlockManager.onAuthSuccess`, which shows
-   `✅ vetsmod authentication verified — tier: <tier>` (green) when step 4's flag is armed or
+   `Authentication verified - tier: <tier>` (green) when step 4's flag is armed or
    `printSuccessfulAuth` is on. A rejection reaches `onAuthFailure`, which always prints
-   `❌ vetsmod authentication failed: <reason>. …` (red) in chat. Where the success line renders is in
+   `Authentication failed: <reason>. …` (red) in chat. Where the success line renders is in
    [vetsmod_guild_system.md](vetsmod_guild_system.md) §4, and how the setting latches is in
    [vetsmod_config.md](vetsmod_config.md)'s `printSuccessfulAuth` row.
 
@@ -385,11 +385,11 @@ below means the same.
 | Typed | Gate | Handler | What happens | Bugs |
 |---|---|---|---|---|
 | `/g <message>` | none | `handleGuildChat` | A guildless waitlist-unlocked player's line goes to the bridge as `waitlist`, and a Returners player's line goes as `queue` while they sit in a world queue; both are cancelled and echoed locally. A Returners line with a `\|\|` spoiler is re-sent spoiler-encoded, or refused in red if that passes 253 characters. Anything else passes through. The relays and the encoding honour `handleSpoilers` | `relay-chat-echoes-locally-while-socket-down`, `v1-sockets-open-off-wynncraft`, `banned-chars-e080-00c1-reach-chat`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock`, `url-repair-merges-following-non-lowercase-token`, `raw-rank-pills-bypass-display-remap` |
-| `/wg <message>` | `isUnlocked()` | `handleHonouraryChat` | Always cancelled. An honourary-unlocked player's line goes to the bridge as `honourary` and is echoed locally; anyone else gets a red "You need the honourary tier to use /wg. Run ~vetsmod in #bot-commands to get a key, then /unlock it." | `relay-chat-echoes-locally-while-socket-down`, `v1-sockets-open-off-wynncraft`, `banned-chars-e080-00c1-reach-chat`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock` |
+| `/wg <message>` | `isUnlocked()` | `handleHonouraryChat` | Always cancelled. An honourary-unlocked player's line goes to the bridge as `honourary` and is echoed locally; anyone else gets a red "This feature is restricted to honourary users. If you think you should have /wg, follow ~vetsmod in #bot-commands to fix your perms." | `relay-chat-echoes-locally-while-socket-down`, `v1-sockets-open-off-wynncraft`, `banned-chars-e080-00c1-reach-chat`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock` |
 | `/v <message>` | `isUnlocked()`, then `isStaff()`; a non-staff command passes through, and a staff-rank refresh starts | `handleStaffChat` | Refused in red during `/stream` and above 234 characters. Otherwise, once the staff-presence check passes, echoed locally and sent to each other online staff member as `/msg <name> 🔐<message>` | `dispatcher-notices-misattribute-cause`, `fanout-null-player-spins-dispatch-executor`, `find-phase-does-not-yield-to-queued-msg`, `staff-channel-badge-shares-guild-badge-dedup`, `staff-ranks-poll-swap-not-atomic`, `intercept-usage-arms-unreachable-from-typed-chat` |
 | `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | `dispatcher-notices-misattribute-cause`, `intercept-usage-arms-unreachable-from-typed-chat` |
-| `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you are using vetsmod, it's outdated (current version <version>) ⚠⚠⚠` | `dispatcher-notices-misattribute-cause`, `raw-rank-pills-bypass-display-remap`, `staff-ranks-poll-swap-not-atomic`, `intercept-usage-arms-unreachable-from-typed-chat` |
-| `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "You must be confirmed staff (vetsmod authenticated) to use /wv check." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | `help-advertises-wv-check-on-a-weaker-gate`, `intercept-usage-arms-unreachable-from-typed-chat`, and §1's `/wv check` row |
+| `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | `dispatcher-notices-misattribute-cause`, `raw-rank-pills-bypass-display-remap`, `staff-ranks-poll-swap-not-atomic`, `intercept-usage-arms-unreachable-from-typed-chat` |
+| `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | `help-advertises-wv-check-on-a-weaker-gate`, `intercept-usage-arms-unreachable-from-typed-chat`, and §1's `/wv check` row |
 | `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `invite-gate-no-profile-line-says-dispatching-before-blocklist-cancel`, `vets-snapshot-provider-skips-confirmed-staff-check`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
 | `/guild invite <name>` | as `/gu invite` | `InviteGate.checkInvite` | As `/gu invite`; an allowed invite is sent as `gu invite` | as `/gu invite` |
 | `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `caution-confirm-click-bypasses-intercept`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `intercept-usage-arms-unreachable-from-typed-chat`, `outbound-socket-never-authenticated` |
@@ -398,7 +398,7 @@ below means the same.
 | `/eject <name> <message>` | as `/caution-go` | `CautionCommands.runEject` | Commits an eject (`eject_add`); refuses a missing message | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `outbound-socket-never-authenticated` |
 
 `/v`, `/a` and `/encourage` share `DispatchCoordinator`'s staff-presence check, and a player it cannot confirm
-as staff gets a yellow "Please wait until the server updates your online status before using staff chat."
+as staff gets a yellow "It is taking a while for us to verify your staff perms, please hold off on vchatting."
 and nothing is sent; [vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §9 owns that check and the `/v` fan-out.
 The waitlist, queue and honourary relays echo the line before `V1ApiManager.sendInbound`, which drops it silently
 while the inbound socket is down (bug `relay-chat-echoes-locally-while-socket-down`).
@@ -449,7 +449,7 @@ size and level, and decides, in this order:
   anyone else gets a red "Please ask staff before inviting this user as they do not qualify under the
   usual criteria.";
 - **a player who is not confirmed staff, with the guild near capacity against its waitlist:** a yellow
-  notice asking them to point the target at the waitlist;
+  notice ("The guild has more waitlisted users (N) than open slots. …") asking them to point the target at the waitlist;
 - **otherwise:** the invite is sent.
 
 ### Other inputs
@@ -470,7 +470,7 @@ vetsmod's own chat buttons:
 | `[Edit reason]` / `[Type a custom warning]` | the `/caution` preflight | fills the chat box with `/caution-go …` | works after Enter |
 | `[Hard]` / `[Soft]` | `/wv anni`'s far-out RSVP line | fills the chat box with `/wv anni rsvp hard` or `soft` | works after Enter |
 | player names | `/wv list`, `/wv list world` | fill the chat box with `/msg <name> ` | a Wynncraft command |
-| `[Suggest: /toggle ghosts none]` | the anni ghosts prompt | fills the chat box with it | a Wynncraft command |
+| `[We suggest: /toggle ghosts none]` | the anni ghosts prompt | fills the chat box with it | a Wynncraft command |
 
 Links in chat (Discord, the anni site, URLs in messages) open a browser and run no command.
 

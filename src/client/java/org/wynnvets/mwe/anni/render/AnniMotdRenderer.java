@@ -163,7 +163,7 @@ public final class AnniMotdRenderer {
         AnniSnapshot.Board board = snapshot.board();
         String reason = board != null ? board.wontReason() : null;
         if (reason != null && !reason.isEmpty()) {
-            return Component.literal("You won't be assigned — " + reason + ".")
+            return Component.literal("You won't be assigned - " + reason + ".")
                     .withStyle(ChatFormatting.GRAY);
         }
         return Component.literal("You won't be assigned to this anni.")

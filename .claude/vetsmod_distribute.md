@@ -8,7 +8,7 @@ type: project
 `distribute/` drives the Wynncraft Guild Management GUI from a client
 command: it sends `/guild manage`, clicks through to Manage Members or
 Guild Log, paginates to a named player's tile, and synthesises the hotbar
-presses that hand them Aspects, Guild Tomes or Emeralds.
+presses that hand them Aspects, Tomes or Emeralds.
 
 It is one state machine with a shared tail and five heads, spread over
 five sub-packages. This doc exists because the tick constants and the
@@ -35,7 +35,7 @@ skipped.
   table (§10).
 - **`<resource>`** — three literals mapping to `MemberSlotPresser.Resource`
   hotbar button indices: `aspects`→0, `tomes`→1, `emeralds`→2. The
-  server interprets one press as 1 Aspect, 1 Guild Tome, or 1024
+  server interprets one press as 1 Aspect, 1 Tome, or 1024
   Emeralds respectively.
 - **`<count>`** — `IntegerArgumentType.integer(COUNT_MIN, COUNT_MAX)`,
   i.e. 1–255. What a count *means* differs per head (§5).
@@ -221,7 +221,7 @@ first of these that applies:
 `invokeNotFound` stops the search and runs the not-found handler, if one was armed;
 `DistributionQueue` arms one to move on to the next recipient. The watchdog
 (`WATCHDOG_TICKS`, counted from `armSearch`) also ends a search through
-`invokeNotFound`, after a yellow "Search for <name> timed out — advancing." A
+`invokeNotFound`, after a yellow "Search for <name> timed out - advancing." A
 server-sent close for the bound id ends a search through `onMenuClose`, which runs
 no handler.
 
@@ -480,7 +480,7 @@ they are real, and a matrix claiming otherwise would be false.
 | Trigger | Detected by | Chat output | Callback fires? |
 |---|---|---|---|
 | Executor run by non-chief | `DistributeCommands.ensureChief` | red "You must be a guild Chief or Owner…" | n/a — nothing armed |
-| Target on the opt-out list | `DistributeCommands.dispatchSingleTarget` | red "… is on the NoAspects list…" | n/a — nothing armed |
+| Target on the opt-out list | `DistributeCommands.dispatchSingleTarget` | red "… has opted out of receiving aspects…" | n/a — nothing armed |
 | Wynntils not ready (`@random`) | `RandomDistributor.dispatch` | red "Wynntils isn't ready yet…" | yes |
 | Empty wapi roster / name index | `RandomDistributor.beginPicks`, `GraidsDistributor.beginWalk` | yellow "Could not read guild roster from wapi…" | yes |
 | No objective completers | `ObjectivesDistributor.onWalkComplete` | yellow "No members have completed…" | yes |
@@ -488,7 +488,7 @@ they are real, and a matrix claiming otherwise would be false.
 | Name absent after both sweeps and the retry | `MembersListSearcher.stopNotFound` | yellow "Could not find X in members list." | yes † |
 | `MAX_PAGES` reached | `MembersListSearcher.scanAndPaginate` | yellow "Could not find X (reached page limit)." | yes † |
 | Bound Members menu gone, and no rebind possible (none open, or rebinds exhausted) | `MembersListSearcher.scanAndPaginate` | none | yes † |
-| Search stalls with no event arriving | `MembersListSearcher`'s watchdog, 300 ticks | yellow "Search for X timed out — advancing." | yes † |
+| Search stalls with no event arriving | `MembersListSearcher`'s watchdog, 300 ticks | yellow "Search for X timed out - advancing." | yes † |
 | Refresh never observed after a press | `MemberSlotPresser.armRefreshTimeout`, 40 ticks | yellow "Send timed out after N/M…" | yes |
 | Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | none | yes, with whatever was collected |
 | Log walk exceeds 200 ticks | `GuildLogWalker.onTick` | none | yes, possibly with an empty list |

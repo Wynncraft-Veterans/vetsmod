@@ -71,7 +71,7 @@ final class AnniOnboardingBlocks {
                                                 "https://discord.com/channels/1313769181321236490/1339393368672702567")))
                         .withHoverEvent(
                                 new HoverEvent.ShowText(
-                                        Component.literal("Open #annihilation in Discord")
+                                        Component.literal("Open #annihilation in vetscord")
                                                 .withStyle(ChatFormatting.GRAY)));
         return Component.literal("You're all set for the next ")
                 .withStyle(base)

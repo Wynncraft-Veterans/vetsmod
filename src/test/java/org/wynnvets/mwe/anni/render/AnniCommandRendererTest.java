@@ -98,7 +98,7 @@ class AnniCommandRendererTest {
                         + "siblings=[literal{Passive}[style={color=green,!bold,"
                         + "clickEvent=RunCommand[command=/wv anni passive],"
                         + "hoverEvent=ShowText[value=literal{Anni features recommended for most "
-                        + "folks attending a vets-anni}[style={color=gray}]]}], "
+                        + "folks experienced at attending vets-annis}[style={color=gray}]]}], "
                         + "literal{]}[style={color=dark_green,!bold}]]], "
                         + "literal{ | }[style={color=dark_gray}], "
                         + "literal{[}[style={color=dark_red,!bold}, "

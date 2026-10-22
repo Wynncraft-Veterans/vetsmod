@@ -164,7 +164,7 @@ public final class AnniCommandRenderer {
         if (external) {
             // Lean external form: red headline only — no anni.wynnvets.org link.
             out.append(
-                    Component.literal("Next annihilation is not yet announced!")
+                    Component.literal("The next annihilation has not yet been announced!")
                             .withStyle(ChatFormatting.RED));
         } else {
             // Vets users keep the linked header so they can click through
@@ -173,7 +173,7 @@ public final class AnniCommandRenderer {
                     header(
                             "anni.wynnvets.org",
                             ChatFormatting.DARK_AQUA,
-                            "Next annihilation is not yet announced."));
+                            "Next annihilation not yet announced."));
         }
 
         // Prediction line (gated by vetsAnniShowPrediction).
@@ -192,7 +192,7 @@ public final class AnniCommandRenderer {
                 out.append(
                         line(
                                 ChatFormatting.GRAY,
-                                "Prediction window unavailable — no recent anchor."));
+                                "Prediction window unavailable (probably a vetsmod API error)."));
                 appendedPrediction = true;
             }
         }
@@ -414,7 +414,7 @@ public final class AnniCommandRenderer {
                         ChatFormatting.GREEN,
                         ChatFormatting.DARK_GREEN,
                         "/wv anni passive",
-                        "Anni features recommended for most folks attending a vets-anni"));
+                        "Anni features recommended for most folks experienced at attending vets-annis"));
         line2.append(Component.literal(" | ").withStyle(ChatFormatting.DARK_GRAY));
         line2.append(
                 modeButton(
@@ -496,7 +496,7 @@ public final class AnniCommandRenderer {
         root.append(
                 AnniHoverBuilder.linkBadge(
                         prefix, "https://" + prefix, "Open " + prefix, prefixColor));
-        root.append(Component.literal(" — ").withStyle(ChatFormatting.DARK_GRAY));
+        root.append(Component.literal(" - ").withStyle(ChatFormatting.DARK_GRAY));
         root.append(Component.literal(subtitle).withStyle(ChatFormatting.WHITE));
         return root;
     }

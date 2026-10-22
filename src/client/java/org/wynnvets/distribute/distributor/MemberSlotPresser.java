@@ -46,8 +46,8 @@ public final class MemberSlotPresser {
      *  {@code ClickType.SWAP} click. */
     public enum Resource {
         ASPECTS(0, "Aspect"),
-        TOMES(1, "Guild Tome"),
-        EMERALDS(2, "Emerald payment");
+        TOMES(1, "Tome"),
+        EMERALDS(2, "Emerald");
 
         private final int hotbarButton;
         private final String displayName;

@@ -89,7 +89,7 @@ public final class RandomDistributor {
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
         if (!GuildStateManager.isWynntilsReady()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Wynntils isn't ready yet — cannot read guild roster.")
+                    Component.literal("Wynntils isn't ready yet - cannot read guild roster.")
                             .withStyle(ChatFormatting.RED));
             if (onComplete != null) onComplete.run();
             return;
@@ -132,7 +132,7 @@ public final class RandomDistributor {
             Runnable onComplete) {
         if (legacyNames.isEmpty()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Could not read guild roster from wapi — try again.")
+                    Component.literal("Could not read guild roster from wapi - try again.")
                             .withStyle(ChatFormatting.YELLOW));
             if (onComplete != null) onComplete.run();
             return;

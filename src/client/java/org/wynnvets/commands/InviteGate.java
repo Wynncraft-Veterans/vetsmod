@@ -97,10 +97,9 @@ public final class InviteGate {
                             }
                             if (lookup.failureReason() == FailureReason.PLAYER_NOT_FOUND) {
                                 renderError(
-                                        "No player named '"
+                                        "Unable to find a player named '"
                                                 + target
-                                                + "' on any lookup source. "
-                                                + "Check spelling.");
+                                                + "', check spelling?");
                                 return;
                             }
                             // ALL_PROVIDERS_TRANSIENT / INPUT_INVALID — fail open: every UUID
@@ -182,9 +181,10 @@ public final class InviteGate {
         // vets-snapshot-provider-skips-confirmed-staff-check).
         if (snap == null || snap.getDiscord() == null) {
             renderError(
-                    "Membership snapshot lookup failed for '"
+                    "Could not get enough info on '"
                             + displayName
-                            + "'. Invite cancelled."
+                            + "' to determine if they meet vets' recruitment criteria"
+                            + " (API down?). Invite cancelled."
                             + (isStaff ? " Use /wv invite-force to override." : ""));
             return;
         }
@@ -195,20 +195,17 @@ public final class InviteGate {
         if (wynn == null) {
             ChatUtils.sendLocalMessage(
                     Component.literal(
-                                    "Could not fetch Wynncraft profile for '"
+                                    "Profiles seem to be unreachable, unable to verify '"
                                             + displayName
-                                            + "' — vet-cutoff unverified. Dispatching /gu invite anyway.")
+                                            + "'. Dispatching /gu invite anyway.")
                             .withStyle(ChatFormatting.YELLOW));
             // Blocklist is still authoritative even without a Wynn profile.
             if (snap.isBlocklisted()) {
-                String reason = snap.getBlocklistReason();
-                if (reason == null || reason.isEmpty()) reason = "(no reason on file)";
                 renderError(
                         "'"
                                 + displayName
-                                + "' is on the dazebot blocklist: \""
-                                + reason
-                                + "\". Invite cancelled.");
+                                + "' does not appear to meet vets' recruitment criteria."
+                                + " Please ask a steward.");
                 return;
             }
             forceDispatch(displayName);
@@ -250,13 +247,9 @@ public final class InviteGate {
             if (waitlistCount > 0 && openSlots <= waitlistCount + 1) {
                 ChatUtils.sendLocalMessage(
                         Component.literal(
-                                        "Returners is near capacity ("
-                                                + Math.max(0, openSlots)
-                                                + " open slot"
-                                                + (openSlots == 1 ? "" : "s")
-                                                + " vs "
+                                        "The guild has more waitlisted users ("
                                                 + waitlistCount
-                                                + " on the waitlist). "
+                                                + ") than open slots. "
                                                 + "Please ask "
                                                 + displayName
                                                 + " to join the waitlist instead of inviting them directly.")
@@ -285,11 +278,9 @@ public final class InviteGate {
                         () -> {
                             ChatUtils.sendLocalMessage(
                                     Component.literal(
-                                                    "Could not verify '"
+                                                    "The APIs seem to be down, unable to verify '"
                                                             + target
-                                                            + "' through any lookup source "
-                                                            + "(Mojang/Wynncraft/etc. all unreachable). "
-                                                            + "Dispatching /gu invite anyway.")
+                                                            + "'. Dispatching /gu invite anyway.")
                                             .withStyle(ChatFormatting.YELLOW));
                             forceDispatch(target);
                         });
@@ -340,11 +331,11 @@ public final class InviteGate {
                             Component.literal(firstJoin.toString())
                                     .setStyle(Style.EMPTY.withColor(ChatFormatting.AQUA)))
                     .append(
-                            Component.literal(" — not a vet (cutoff " + VET_JOIN_CUTOFF + ").")
+                            Component.literal(" - not a vet (cutoff " + VET_JOIN_CUTOFF + ").")
                                     .setStyle(Style.EMPTY.withColor(ChatFormatting.YELLOW)));
         } else if (joinHidden) {
             header.append(
-                            Component.literal(" has a privacy-hidden Wynncraft profile — ")
+                            Component.literal(" has a privacy-hidden Wynncraft profile - ")
                                     .setStyle(Style.EMPTY.withColor(ChatFormatting.YELLOW)))
                     .append(
                             Component.literal("cannot verify they're a vet.")

@@ -68,7 +68,7 @@ public final class WarningFrameRenderer {
                     .append(".");
         }
         if (isEject) {
-            tail.append(" You have been added to the dazebot blocklist.");
+            tail.append(" You have been added to the blocklist.");
         }
         line.append(Component.literal(tail.toString()).withStyle(ChatFormatting.GRAY));
 

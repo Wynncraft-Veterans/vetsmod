@@ -59,7 +59,7 @@ final class AnniStatusSections {
                             Component.literal(AnniHoverBuilder.displayRole("FILL") + " only")
                                     .withStyle(ChatFormatting.WHITE))
                     .append(
-                            Component.literal(" — fill role assumed; specialise on ")
+                            Component.literal(" - fill role assumed; specialise on ")
                                     .withStyle(ChatFormatting.GRAY))
                     .append(
                             AnniHoverBuilder.linkBadge(
@@ -114,10 +114,10 @@ final class AnniStatusSections {
                                         .withHoverEvent(
                                                 new HoverEvent.ShowText(
                                                         Component.literal(
-                                                                "\\rsvp is a Discord command in vetsfish's"
-                                                                        + " #bot-commands channel.\n"
+                                                                "\\rsvp is a Discord command in vetscord's"
+                                                                        + " #annihilation channel.\n"
                                                                         + "It does the same thing as /wv anni rsvp"
-                                                                        + " — entirely optional from in-game."))));
+                                                                        + " - entirely optional from in-game."))));
 
         MutableComponent out = Component.literal("").withStyle(gray);
         out.append(Component.literal("(Buttons to upgrade your ").withStyle(gray));
@@ -129,7 +129,7 @@ final class AnniStatusSections {
                         ChatFormatting.DARK_AQUA,
                         ChatFormatting.AQUA,
                         "/wv anni rsvp hard",
-                        "HRSVP — confirms you WILL be there.\n"
+                        "HRSVP - confirms you WILL be there.\n"
                                 + "Requirement: arrive at least 20 mins before anni"
                                 + " starts, or your slot may be reassigned to a walk-in.\n"
                                 + "Click to suggest /wv anni rsvp hard."));
@@ -140,7 +140,7 @@ final class AnniStatusSections {
                         ChatFormatting.DARK_GREEN,
                         ChatFormatting.GREEN,
                         "/wv anni rsvp soft",
-                        "SRSVP — confirms you'll PROBABLY be there.\n"
+                        "SRSVP - confirms you'll PROBABLY be there.\n"
                                 + "Requirement: arrive at least 40 mins before anni"
                                 + " starts, or your slot may be reassigned.\n"
                                 + "Click to suggest /wv anni rsvp soft."));
@@ -215,7 +215,7 @@ final class AnniStatusSections {
                 return AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY)
                         .append(Component.literal("unplaced").withStyle(ChatFormatting.YELLOW))
                         .append(
-                                Component.literal(" — register & RSVP to join the placement queue")
+                                Component.literal(" - register & RSVP to join the placement queue")
                                         .withStyle(ChatFormatting.GRAY));
             case "wont_assign":
                 MutableComponent wont =
@@ -226,7 +226,7 @@ final class AnniStatusSections {
                                                         ChatFormatting.RED, ChatFormatting.BOLD));
                 if (board.wontReason() != null && !board.wontReason().isEmpty()) {
                     wont.append(
-                            Component.literal(" — " + board.wontReason())
+                            Component.literal(" - " + board.wontReason())
                                     .withStyle(ChatFormatting.GRAY));
                 }
                 return wont;
@@ -236,7 +236,7 @@ final class AnniStatusSections {
                 // it. Just say what board state means for placement.
                 return AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY)
                         .append(Component.literal("unassigned").withStyle(ChatFormatting.GOLD))
-                        .append(Component.literal(" — ").withStyle(ChatFormatting.DARK_GRAY))
+                        .append(Component.literal(" - ").withStyle(ChatFormatting.DARK_GRAY))
                         .append(
                                 Component.literal("Awaiting placement")
                                         .withStyle(ChatFormatting.GRAY));

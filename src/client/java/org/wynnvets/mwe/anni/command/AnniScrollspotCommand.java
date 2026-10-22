@@ -85,7 +85,7 @@ public final class AnniScrollspotCommand {
         Minecraft mc = McUtils.mc();
         LocalPlayer player = mc != null ? mc.player : null;
         if (player == null) {
-            reply("Can't read your position right now.", ChatFormatting.RED);
+            reply("Location Error: We can't figure out where you are.", ChatFormatting.RED);
             return 0;
         }
         BlockPos pos = player.blockPosition();
@@ -104,7 +104,7 @@ public final class AnniScrollspotCommand {
 
     private static int dispatchSet(int x, int y, int z) {
         if (!ensureAuthenticated()) return 0;
-        reply("Pinning scroll spot at " + x + " " + y + " " + z + "…", ChatFormatting.GRAY);
+        reply("Pinning scroll spot to " + x + " " + y + " " + z + "…", ChatFormatting.GRAY);
         String coord = x + " " + y + " " + z;
         AnniScrollspotClient.set(x, y, z)
                 .whenComplete((ack, throwable) -> renderAck(ack, throwable, coord));
@@ -113,7 +113,7 @@ public final class AnniScrollspotCommand {
 
     private static boolean ensureAuthenticated() {
         if (GuildStateManager.isAuthenticatedThisSession()) return true;
-        reply("Run ~vetsmod to authenticate first.", ChatFormatting.RED);
+        reply("You aren't authenticated (~vetsmod on vetscord).", ChatFormatting.RED);
         return false;
     }
 
@@ -138,7 +138,7 @@ public final class AnniScrollspotCommand {
         mc.execute(
                 () -> {
                     if (throwable != null || ack == null) {
-                        reply("Scroll spot request failed (no response).", ChatFormatting.RED);
+                        reply("Vets API error: Scroll spot request failed.", ChatFormatting.RED);
                         VetsLogger.debug(
                                 "scrollspot ack threw or null: {}",
                                 throwable != null ? throwable.getMessage() : "null");

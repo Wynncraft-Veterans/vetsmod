@@ -78,7 +78,7 @@ public final class ReturnFetcher {
                                                     .getOrThrow();
                                     if (component == null) {
                                         return Component.literal(
-                                                "Error: Received null component from API");
+                                                "Error: The vets API sent a null component?!");
                                     }
                                     // The post is authored in Discord, so it carries Discord's
                                     // <t:...> timestamp markup — expand it into the reader's local
@@ -92,16 +92,18 @@ public final class ReturnFetcher {
                                             .append(announcementFooter());
                                 } catch (Exception e) {
                                     return Component.literal(
-                                            "Error parsing return data: " + e.getMessage());
+                                            "Error: Failed to parse return data: "
+                                                    + e.getMessage());
                                 }
                             } else {
                                 return Component.literal(
-                                        "Failed to fetch return (Status: "
+                                        "Error: The api is down? (Status: "
                                                 + response.statusCode()
                                                 + ")");
                             }
                         })
-                .exceptionally(e -> Component.literal("Error fetching return: " + e.getMessage()));
+                .exceptionally(
+                        e -> Component.literal("Error: Failed to fetch return: " + e.getMessage()));
     }
 
     /**
@@ -109,8 +111,8 @@ public final class ReturnFetcher {
      * channel the post was mirrored from (see {@link #RETURN_CHANNEL_URL}), and its
      * hover text says so.
      *
-     * <p>Spec is {@code &6&oFor more info, click &e&n&ohere &6for the
-     * announcement post!} — note the trailing {@code &6}, which under vanilla
+     * <p>Spec is {@code &6&oFor more info, see the original announcement
+     * post in &e&n&othis &6discord channel!} — note the trailing {@code &6}, which under vanilla
      * legacy-code semantics resets the italic and underline, so the tail renders
      * plain gold.</p>
      */
@@ -129,9 +131,9 @@ public final class ReturnFetcher {
         Style gold =
                 Style.EMPTY.withColor(ChatFormatting.GOLD).withItalic(false).withUnderlined(false);
 
-        return Component.literal("For more info, click ")
+        return Component.literal("For more info, see the original announcement post in ")
                 .setStyle(goldItalic)
-                .append(Component.literal("here").setStyle(linkStyle))
-                .append(Component.literal(" for the announcement post!").setStyle(gold));
+                .append(Component.literal("this").setStyle(linkStyle))
+                .append(Component.literal(" discord channel!").setStyle(gold));
     }
 }

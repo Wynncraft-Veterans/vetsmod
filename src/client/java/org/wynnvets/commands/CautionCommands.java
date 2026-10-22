@@ -238,15 +238,15 @@ public final class CautionCommands {
 
             MutableComponent line =
                     Component.literal("⚠ ")
-                            .withStyle(ChatFormatting.GOLD)
+                            .withStyle(ChatFormatting.RED)
                             .append(
-                                    Component.literal("Adding this caution would trigger a formal ")
+                                    Component.literal("Adding this caution will trigger a formal ")
                                             .withStyle(ChatFormatting.YELLOW))
                             .append(
                                     Component.literal(trigger.toUpperCase())
-                                            .withStyle(ChatFormatting.RED))
+                                            .withStyle(ChatFormatting.GOLD))
                             .append(Component.literal(" against ").withStyle(ChatFormatting.YELLOW))
-                            .append(Component.literal(resolved).withStyle(ChatFormatting.AQUA))
+                            .append(Component.literal(resolved).withStyle(ChatFormatting.GOLD))
                             .append(
                                     Component.literal(" (currently " + currentPoints + " pts).")
                                             .withStyle(ChatFormatting.GRAY));
@@ -275,8 +275,8 @@ public final class CautionCommands {
                                                     : "[Send generic warning]",
                                             confirmCmd,
                                             haveReason
-                                                    ? "Click to commit this caution with your typed reason."
-                                                    : "Click to commit this caution and send a generic warning DM.",
+                                                    ? "Click to approve this caution with your typed reason."
+                                                    : "Click to approve this caution and send a generic warning DM.",
                                             ChatFormatting.GREEN))
                             .append(Component.literal("  ").withStyle(ChatFormatting.GRAY))
                             .append(
@@ -287,7 +287,7 @@ public final class CautionCommands {
                                             editCmd,
                                             haveReason
                                                     ? "Click to edit your reason before sending."
-                                                    : "Click to fill in a /caution-go command, then type your warning text.",
+                                                    : "This will fill /caution-go, which you can use to type your warning-text.",
                                             ChatFormatting.AQUA));
             ChatUtils.sendLocalMessage(prompt);
             return;
@@ -374,7 +374,7 @@ public final class CautionCommands {
             String detail = Json.optString(ack, "detail", "unknown error");
             ChatUtils.sendLocalMessage(
                     Component.literal("Caution history lookup failed: " + detail)
-                            .withStyle(ChatFormatting.RED));
+                            .withStyle(ChatFormatting.GRAY));
             return;
         }
 
@@ -475,7 +475,7 @@ public final class CautionCommands {
                     Component.literal(
                                     "Dispatching /gu rank "
                                             + target
-                                            + " recruit (chiefs will see a kick notice in #rank-alerts).")
+                                            + " recruit (owners will see a kick ping on discord).")
                             .withStyle(ChatFormatting.RED));
         } else {
             VetsLogger.warn("Eject dispatch: unknown suggestion {}", suggested);

@@ -120,7 +120,7 @@ final class AnniHighlightDebugCommands {
                     msg.copy()
                             .append(
                                     Component.literal(
-                                                    "  [gate INACTIVE — flip outlines/nametags on, set a non-silent mode, "
+                                                    "  [gate INACTIVE - flip outlines/nametags on, set a non-silent mode, "
                                                             + "inject a snapshot, and /wv debug tree anni zone enter]")
                                             .withStyle(ChatFormatting.YELLOW));
         }

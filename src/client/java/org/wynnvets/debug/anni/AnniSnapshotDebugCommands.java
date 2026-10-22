@@ -200,7 +200,7 @@ final class AnniSnapshotDebugCommands {
                             ? "auto (rank signals)"
                             : ("forced " + (override ? "external" : "vets"));
             ChatUtils.sendLocalMessage(
-                    Component.literal("(external override → " + summary + " — " + reason + ")")
+                    Component.literal("(external override → " + summary + " - " + reason + ")")
                             .withStyle(ChatFormatting.DARK_GRAY));
         }
         return result;
@@ -514,7 +514,7 @@ final class AnniSnapshotDebugCommands {
                                                     if (stale != null) {
                                                         ChatUtils.sendLocalMessage(
                                                                 Component.literal(
-                                                                                "anni guess (stale cache — pull failed): ")
+                                                                                "anni guess (stale cache - pull failed): ")
                                                                         .withStyle(
                                                                                 ChatFormatting
                                                                                         .YELLOW)

@@ -113,8 +113,8 @@ public final class AnniModeManager {
      * untouched.</p>
      *
      * <p><b>Whether anything is printed depends entirely on the source, in both
-     * directions.</b> Only {@link Source#USER_COMMAND} sees the spec's "stream is
-     * suboptimal — try /toggle ghosts NONE" guidance on a refusal; the four
+     * directions.</b> Only {@link Source#USER_COMMAND} sees the spec's "/stream
+     * is incompatible; we would strongly prefer you use /toggle ghosts NONE" guidance on a refusal; the four
      * {@code AUTO_*} sources decline with a debug log and nothing user-visible.
      * Symmetrically, only {@code USER_COMMAND} and {@link Source#DEBUG_BYPASS_MUTEX}
      * print the generic "Anni mode: X (was Y)" confirmation on success — the four
@@ -144,19 +144,21 @@ public final class AnniModeManager {
             // decline. Debug bypasses the mutex above so never reaches here.
             if (source == Source.USER_COMMAND) {
                 ChatUtils.sendLocalMessage(
-                        Component.literal("Anni mode change refused: ")
-                                .withStyle(ChatFormatting.GRAY)
+                        Component.literal(
+                                        "You have /stream, which is incompatible with vetsmod anni"
+                                                + " features, active.")
+                                .withStyle(ChatFormatting.RED)
                                 .append(
-                                        Component.literal("/stream is active")
-                                                .withStyle(ChatFormatting.RED))
-                                .append(
-                                        Component.literal(". Stream is suboptimal for anni — try ")
+                                        Component.literal(" We would strongly prefer you use ")
                                                 .withStyle(ChatFormatting.GRAY))
                                 .append(
                                         Component.literal("/toggle ghosts NONE")
                                                 .withStyle(ChatFormatting.AQUA))
                                 .append(
-                                        Component.literal(" instead.")
+                                        Component.literal(
+                                                        " instead, which does the same thing"
+                                                                + " without hiding you from"
+                                                                + " organisers!")
                                                 .withStyle(ChatFormatting.GRAY)));
             } else {
                 VetsLogger.debug(

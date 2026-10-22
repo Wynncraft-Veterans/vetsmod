@@ -321,7 +321,7 @@ public final class AnniDebugCommands {
         }
         ChatUtils.sendLocalMessage(
                 Component.literal(
-                                "anni debug commands require debug logging — run /wv debug true first")
+                                "anni debug commands require debug logging - run /wv debug true first")
                         .withStyle(ChatFormatting.RED));
         return 0;
     }

@@ -148,10 +148,10 @@ public final class GhostsPromptHandler {
         mc.execute(
                 () -> {
                     MutableComponent suggestion =
-                            Component.literal("[Suggest: /toggle ghosts none]")
+                            Component.literal("[We suggest: /toggle ghosts none]")
                                     .withStyle(
                                             s ->
-                                                    s.withColor(ChatFormatting.GOLD)
+                                                    s.withColor(ChatFormatting.GRAY)
                                                             .withUnderlined(true)
                                                             .withClickEvent(
                                                                     new ClickEvent.SuggestCommand(
@@ -159,10 +159,9 @@ public final class GhostsPromptHandler {
                                                             .withHoverEvent(
                                                                     new HoverEvent.ShowText(
                                                                             Component.literal(
-                                                                                    "Hides phased players from other worlds. "
-                                                                                            + "Less visual noise during anni."))));
+                                                                                    "Hides players from other worlds, easier to see."))));
                     MutableComponent msg =
-                            Component.literal("Anni starting soon — ")
+                            Component.literal("Anni starting soon - ")
                                     .withStyle(ChatFormatting.AQUA)
                                     .append(suggestion);
                     ChatUtils.sendLocalMessage(msg);

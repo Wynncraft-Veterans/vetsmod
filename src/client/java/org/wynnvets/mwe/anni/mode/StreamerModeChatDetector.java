@@ -112,29 +112,21 @@ public final class StreamerModeChatDetector {
                         AnniMode.SILENT, AnniModeManager.Source.AUTO_STREAM_ACTIVATED);
         if (flipped) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Anni mode auto-changed to ")
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(Component.literal("silent").withStyle(ChatFormatting.WHITE))
-                            .append(Component.literal(": ").withStyle(ChatFormatting.GRAY))
+                    Component.literal("/stream activated")
+                            .withStyle(ChatFormatting.RED)
+                            .append(Component.literal(". ").withStyle(ChatFormatting.DARK_RED))
                             .append(
-                                    Component.literal("/stream activated")
-                                            .withStyle(ChatFormatting.RED))
-                            .append(Component.literal(". ").withStyle(ChatFormatting.GRAY))
-                            .append(Component.literal("/stream").withStyle(ChatFormatting.RED))
-                            .append(
-                                    Component.literal(" does the same thing as ")
+                                    Component.literal("We have switched your anni mode to ")
                                             .withStyle(ChatFormatting.GRAY))
+                            .append(Component.literal("silent").withStyle(ChatFormatting.WHITE))
+                            .append(Component.literal(". (").withStyle(ChatFormatting.GRAY))
                             .append(
                                     Component.literal("/toggle ghosts off")
                                             .withStyle(ChatFormatting.AQUA))
                             .append(
                                     Component.literal(
-                                                    " but disables anni mode and makes things a nuisance for organisers. Prefer ")
-                                            .withStyle(ChatFormatting.GRAY))
-                            .append(
-                                    Component.literal("/toggle ghosts off")
-                                            .withStyle(ChatFormatting.AQUA))
-                            .append(Component.literal(".").withStyle(ChatFormatting.GRAY)));
+                                                    " does the same thing as stream, but without the incompatibility and without hiding you from organisers).")
+                                            .withStyle(ChatFormatting.GRAY)));
         }
     }
 
@@ -160,13 +152,12 @@ public final class StreamerModeChatDetector {
         ChatFormatting colour =
                 target == AnniMode.AGGRESSIVE ? ChatFormatting.RED : ChatFormatting.GREEN;
         ChatUtils.sendLocalMessage(
-                Component.literal("Anni mode auto-restored to ")
-                        .withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(target.toConfigValue()).withStyle(colour))
-                        .append(Component.literal(": ").withStyle(ChatFormatting.GRAY))
+                Component.literal("/stream deactivated")
+                        .withStyle(ChatFormatting.GREEN)
                         .append(
-                                Component.literal("/stream deactivated")
-                                        .withStyle(ChatFormatting.GREEN))
+                                Component.literal("! We have switched your anni mode back to ")
+                                        .withStyle(ChatFormatting.DARK_GREEN))
+                        .append(Component.literal(target.toConfigValue()).withStyle(colour))
                         .append(Component.literal(".").withStyle(ChatFormatting.GRAY)));
     }
 }

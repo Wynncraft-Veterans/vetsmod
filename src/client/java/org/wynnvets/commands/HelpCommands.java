@@ -208,27 +208,27 @@ final class HelpCommands {
                 msg,
                 ChatFormatting.GRAY,
                 "Use /wv help <command> for details on a specific command.\n\n");
-        row(msg, "/wv help", gray(" — Show this help message\n"));
-        row(msg, "/wv anni", gray(" — Show annihilation timer\n"));
-        row(msg, "/wv config [<key> [<value>]]", gray(" — View or change mod settings\n"));
+        row(msg, "/wv help", gray(" - Show this help message\n"));
+        row(msg, "/wv anni", gray(" - Show annihilation timer\n"));
+        row(msg, "/wv config [<key> [<value>]]", gray(" - View or change mod settings\n"));
         if (vet) {
-            row(msg, "/wv motd", gray(" — Show the message of the day\n"));
+            row(msg, "/wv motd", gray(" - Show the message of the day\n"));
         }
         if (unlocked) {
-            row(msg, "/wv list", gray(" — Show online members and VetsMod status\n"));
-            row(msg, "/wv staff", gray(" — Show online staff members\n"));
+            row(msg, "/wv list", gray(" - Show online guild members\n"));
+            row(msg, "/wv staff", gray(" - Show online stewards\n"));
         }
         if (featuresEnabled) {
-            row(msg, "/wv return", gray(" — Show info about this week's event\n"));
+            row(msg, "/wv return", gray(" - Show info about this week's event\n"));
             row(
                     msg,
                     "/wv line <church|scrap|bat|hegea|lighthouse>",
-                    gray(" — Toggle gxp boundary lines\n"));
+                    gray(" - Toggle gxp boundary lines\n"));
         }
         if (staff) {
-            row(msg, "/wv check <player>", gray(" — Look up a player's eligibility\n"));
+            row(msg, "/wv check <player>", gray(" - Look up a potential recruit's info\n"));
         }
-        row(msg, "/wv debug", gray(" — Diagnostics & debug tools"));
+        row(msg, "/wv debug", gray(" - Diagnostics & debug tools"));
         return msg;
     }
 
@@ -244,15 +244,15 @@ final class HelpCommands {
         row(
                 msg,
                 "legacyItemHighlighting\n",
-                gray("  Show legacy item highlighting in tooltips and inventory\n"));
+                gray("  Highlights old items when in your inventory\n"));
         row(msg, "printMOTD\n", gray("  Auto-print the message of the day on world join\n"));
         row(msg, "printANNI\n", gray("  Auto-print the annihilation timer on world join\n"));
         row(
                 msg,
                 "printBridgeMessages\n",
                 gray(
-                        "  Show relayed chat: Discord bridge messages and relayed guild,"
-                                + " waitlist and honourary chat\n"));
+                        "  Show messages delivered through the bridge, including discord,"
+                                + " queue, waitlist, and honourary chats.\n"));
         row(
                 msg,
                 "showSupporterGlints\n",
@@ -270,7 +270,7 @@ final class HelpCommands {
         row(
                 msg,
                 "moreReliableGuildCheck\n",
-                gray("  Run /gu stats on world join to detect guild membership,"),
+                gray("  Run /gu stats on world join to detect your membership,"),
                 gray(" instead of relying solely on Wynntils (it can lag on join)"));
         return msg;
     }
@@ -314,7 +314,7 @@ final class HelpCommands {
     static MutableComponent buildHelpCheck(Access access) {
         return detailPage(
                 "/wv check <player>\n",
-                "Look up a player's guild membership and unlock status.\n",
+                "Look up someone's vets membership and client status.\n",
                 access,
                 "Staff");
     }
@@ -327,8 +327,7 @@ final class HelpCommands {
     static MutableComponent buildHelpReturn(Access access) {
         return detailPage(
                 "/wv return\n",
-                "Display information about this week's scheduled event, "
-                        + "as fetched from the guild-announcements channel.\n",
+                "Display information about this week's event.\n",
                 access,
                 "Returners guild member");
     }
@@ -341,10 +340,7 @@ final class HelpCommands {
 
     static MutableComponent buildHelpStaff(Access access) {
         return detailPage(
-                "/wv staff\n",
-                "Show a list of currently online staff members.\n",
-                access,
-                "Unlocked");
+                "/wv staff\n", "Show a list of currently online stewards.\n", access, "Unlocked");
     }
 
     static int helpList(CommandContext<FabricClientCommandSource> ctx) {
@@ -356,8 +352,7 @@ final class HelpCommands {
     static MutableComponent buildHelpList(Access access) {
         return detailPage(
                 "/wv list\n",
-                "Show online Returners members, grouped by VetsMod usage, "
-                        + "honourary, and waitlist status.\n",
+                "Show online Returners members and some basic info about them.\n",
                 access,
                 "Veteran (Returners, waitlist, or honourary)");
     }
@@ -416,13 +411,13 @@ final class HelpCommands {
         MutableComponent msg = Component.empty();
         row(msg, "/wv debug\n", gray("Run diagnostics and dump mod state to chat and log.\n\n"));
         heading(msg, "Subcommands:\n");
-        row(msg, "/wv debug <boolean>", gray(" — Toggle debug logging\n"));
-        row(msg, "/wv debug set <key> <value>", gray(" — Manage debug config keys\n"));
-        row(msg, "/wv debug trigger <action>", gray(" — Run a one-shot debug action\n"));
+        row(msg, "/wv debug <boolean>", gray(" - Toggle debug logging\n"));
+        row(msg, "/wv debug set <key> <value>", gray(" - Manage debug config keys\n"));
+        row(msg, "/wv debug trigger <action>", gray(" - Run a one-shot debug action\n"));
         row(
                 msg,
                 "/wv debug tree <subsystem>",
-                gray(" — Open a subsystem-specific debug tree (e.g. anni)\n\n"));
+                gray(" - Open a subsystem-specific debug tree (e.g. anni)\n\n"));
         line(msg, ChatFormatting.DARK_GRAY, "Use /wv help debug <set|trigger> for details.\n");
         requires(msg, Access.PUBLIC, "None (public)");
         return msg;
@@ -440,17 +435,17 @@ final class HelpCommands {
                 "/wv debug set [<key> [<value>]]\n",
                 gray("Manage debug-only configuration keys.\n\n"));
         heading(msg, "Usage:\n");
-        row(msg, "/wv debug set", gray(" — List all debug config keys and their values\n"));
-        row(msg, "/wv debug set <key>", gray(" — Show the current value of a key\n"));
+        row(msg, "/wv debug set", gray(" - List all debug config keys and their values\n"));
+        row(msg, "/wv debug set <key>", gray(" - Show the current value of a key\n"));
         row(
                 msg,
                 "/wv debug set <key> <true|false>",
-                gray(" — Set a debug key to true or false\n\n"));
+                gray(" - Set a debug key to true or false\n\n"));
         heading(msg, "Available keys:\n");
         row(
                 msg,
                 "itemDump",
-                gray(" — Dump an item's full component tree\n"),
+                gray(" - Dump an item's full component tree\n"),
                 dim("  When on, press numpad + while hovering it\n"));
         requires(msg, Access.PUBLIC, "None (public)");
         return msg;

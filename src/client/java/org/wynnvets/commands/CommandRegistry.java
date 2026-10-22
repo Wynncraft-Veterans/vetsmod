@@ -271,9 +271,7 @@ public final class CommandRegistry {
     private static int check(CommandContext<FabricClientCommandSource> ctx) {
         if (!GuildStateManager.isConfirmedStaff()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal(
-                                    "You must be confirmed staff (vetsmod authenticated) "
-                                            + "to use /wv check.")
+                    Component.literal("/wv check is restricted to authenticated stewards.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -287,18 +285,21 @@ public final class CommandRegistry {
     private static int inviteForce(CommandContext<FabricClientCommandSource> ctx) {
         if (!GuildStateManager.isConfirmedStaff()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("You must be confirmed staff to use /wv invite-force.")
+                    Component.literal("/wv invite-force is restricted to authenticated stewards.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
         String playerName = StringArgumentType.getString(ctx, "playerName");
         InviteGate.forceDispatch(playerName);
         ChatUtils.sendLocalMessage(
-                Component.literal(
-                                "Dispatching /gu invite "
-                                        + playerName
-                                        + " (vetsmod gate bypassed).")
-                        .withStyle(ChatFormatting.YELLOW));
+                Component.literal("Dispatching ")
+                        .withStyle(ChatFormatting.GOLD)
+                        .append(
+                                Component.literal("/gu invite " + playerName)
+                                        .withStyle(ChatFormatting.YELLOW))
+                        .append(
+                                Component.literal(" (vetsmod gate bypassed).")
+                                        .withStyle(ChatFormatting.GOLD)));
         return 1;
     }
 
@@ -339,7 +340,7 @@ public final class CommandRegistry {
     private static int staff(CommandContext<FabricClientCommandSource> ctx) {
         if (!GuildStateManager.isUnlocked()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("You must be unlocked to use /wv staff.")
+                    Component.literal("/wv staff is restricted to vets members.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -352,7 +353,7 @@ public final class CommandRegistry {
     private static int list(CommandContext<FabricClientCommandSource> ctx) {
         if (!GuildStateManager.isUnlocked()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("You must be unlocked to use /wv list.")
+                    Component.literal("/wv list is restricted to vets members.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -374,14 +375,15 @@ public final class CommandRegistry {
 
         if (refreshStarted || GuildStateManager.isCheckingStaffStatus()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Checking staff permissions, please retry in a moment.")
+                    Component.literal(
+                                    "We are still checking your permissions, please retry in a moment.")
                             .withStyle(ChatFormatting.YELLOW));
             return 0;
         }
 
         if (!GuildStateManager.isStaff()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("You must be staff to use /wv list world.")
+                    Component.literal("/wv list world is restricted to stewards.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -422,7 +424,7 @@ public final class CommandRegistry {
     private static int lineToggle(CommandContext<FabricClientCommandSource> ctx, String alias) {
         if (!GuildStateManager.areFeaturesEnabled()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("You must be a Returners guild member to use /wv line.")
+                    Component.literal("/wv line is restricted to vets members.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }

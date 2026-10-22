@@ -248,7 +248,7 @@ final class UnlockManager {
 
         if (McUtils.player() != null && (fromUnlock || configWantsPrint)) {
             Component msg =
-                    Component.literal("✅ vetsmod authentication verified — tier: " + currentTier)
+                    Component.literal("Authentication verified - tier: " + currentTier)
                             .withStyle(ChatFormatting.GREEN);
             if (McUtils.screen() != null) {
                 // The action-bar overlay is suppressed while a Screen is
@@ -296,10 +296,10 @@ final class UnlockManager {
 
         ChatUtils.sendLocalMessage(
                 Component.literal(
-                                "❌ vetsmod authentication failed: "
+                                "Authentication failed: "
                                         + lastAuthFailureReason
-                                        + ". Run `~vetsmod` in #bot-commands at https://wynnvets.org/discord "
-                                        + "to issue a new key.")
+                                        + ". Try `~vetsmod` in #bot-commands at https://wynnvets.org/discord "
+                                        + "to issue a new key?")
                         .withStyle(ChatFormatting.RED));
     }
 }

@@ -110,7 +110,7 @@ class AnniStatusSectionsTest {
         assertEquals(
                 "literal{Party Assignment: }[style={color=gray}, "
                         + "siblings=[literal{unplaced}[style={color=yellow}], "
-                        + "literal{ — register & RSVP to join the placement "
+                        + "literal{ - register & RSVP to join the placement "
                         + "queue}[style={color=gray}]]]",
                 boardLine(board("{\"state\": \"unplaced\"}")));
     }
@@ -120,7 +120,7 @@ class AnniStatusSectionsTest {
         assertEquals(
                 "literal{Party Assignment: }[style={color=gray}, "
                         + "siblings=[literal{unassigned}[style={color=gold}], "
-                        + "literal{ — }[style={color=dark_gray}], "
+                        + "literal{ - }[style={color=dark_gray}], "
                         + "literal{Awaiting placement}[style={color=gray}]]]",
                 boardLine(board("{\"state\": \"unassigned\"}")));
     }
@@ -130,7 +130,7 @@ class AnniStatusSectionsTest {
         assertEquals(
                 "literal{Party Assignment: }[style={color=gray}, "
                         + "siblings=[literal{won't assign}[style={color=red,bold}], "
-                        + "literal{ — no healer slots}[style={color=gray}]]]",
+                        + "literal{ - no healer slots}[style={color=gray}]]]",
                 boardLine(
                         board(
                                 "{\"state\": \"wont_assign\","
@@ -175,11 +175,11 @@ class AnniStatusSectionsTest {
                 "empty[style={color=gray}, siblings=[literal{(Buttons to upgrade your "
                         + "}[style={color=gray}], literal{\\rsvp}[style={color=gray,"
                         + "hoverEvent=ShowText[value=literal{\\rsvp is a Discord command in "
-                        + "vetsfish's #bot-commands channel.\nIt does the same thing as /wv anni "
-                        + "rsvp — entirely optional from in-game.}]}], "
+                        + "vetscord's #annihilation channel.\nIt does the same thing as /wv anni "
+                        + "rsvp - entirely optional from in-game.}]}], "
                         + "literal{: }[style={color=gray}], "
                         + "empty[style={clickEvent=SuggestCommand[command=/wv anni rsvp hard],"
-                        + "hoverEvent=ShowText[value=literal{HRSVP — confirms you WILL be "
+                        + "hoverEvent=ShowText[value=literal{HRSVP - confirms you WILL be "
                         + "there.\nRequirement: arrive at least 20 mins before anni starts, "
                         + "or your slot may be reassigned to a walk-in.\nClick to suggest /wv "
                         + "anni rsvp hard.}[style={color=gray}]]}, "
@@ -187,7 +187,7 @@ class AnniStatusSectionsTest {
                         + "literal{Hard}[style={color=aqua}], "
                         + "literal{]}[style={color=dark_aqua}]]], literal{ }[style={color=gray}], "
                         + "empty[style={clickEvent=SuggestCommand[command=/wv anni rsvp soft],"
-                        + "hoverEvent=ShowText[value=literal{SRSVP — confirms you'll PROBABLY be "
+                        + "hoverEvent=ShowText[value=literal{SRSVP - confirms you'll PROBABLY be "
                         + "there.\nRequirement: arrive at least 40 mins before anni starts, "
                         + "or your slot may be reassigned.\nClick to suggest /wv anni rsvp "
                         + "soft.}[style={color=gray}]]}, "

@@ -116,9 +116,7 @@ public final class GuildChatDispatcher {
         if (command.regionMatches(true, 0, "wv check ", 0, 9)) {
             if (!GuildStateManager.isConfirmedStaff()) {
                 ChatUtils.sendLocalMessage(
-                        Component.literal(
-                                        "You must be confirmed staff (vetsmod authenticated) "
-                                                + "to use /wv check.")
+                        Component.literal("/wv check is restricted to authenticated stewards.")
                                 .withStyle(ChatFormatting.RED));
                 return true;
             }
@@ -267,8 +265,9 @@ public final class GuildChatDispatcher {
         } else {
             ChatUtils.sendLocalMessage(
                     Component.literal(
-                                    "You need the honourary tier to use /wg. Run ~vetsmod in"
-                                            + " #bot-commands to get a key, then /unlock it.")
+                                    "This feature is restricted to honourary users. If you think you"
+                                            + " should have /wg, follow ~vetsmod in #bot-commands"
+                                            + " to fix your perms.")
                             .withStyle(ChatFormatting.RED));
         }
         return true;
@@ -330,7 +329,7 @@ public final class GuildChatDispatcher {
         DispatchCoordinator.executeWithStaffEligibilityGate(
                 () ->
                         sendCommandBypassed(
-                                "g \u26A0\u26A0\u26A0 If you are using vetsmod, it's outdated (current version "
+                                "g \u26A0\u26A0\u26A0 If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v"
                                         + version
                                         + ") \u26A0\u26A0\u26A0"));
         return true;

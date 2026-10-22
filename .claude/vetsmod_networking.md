@@ -134,7 +134,7 @@ Six classes hand-rolled this read before — seven methods over the 44 call site
 | `CommandDispatcher.stringOrNull` (now `DispatchCoordinator`) ×5, `StaffFetcher.stringOrNull` ×7 | swallowed to null | nothing; these two were already tolerant, and only gained the warn |
 | `CautionCommands.optInt` ×4 | fallback | nothing — it was the model the other six converged onto, and gained only the warn and a narrowed `catch` |
 
-So the change was not "loud failure → silent fallback". It was *most of a payload destroyed, half of it invisibly* → *one field defaulted, always named*. Note the mirror: had the shared body **thrown** instead (the 4-of-6 majority), `stringOrNull`'s 12 sites would have flipped from silent-skip to throw, and `StaffFetcher.parseOnlineStaff` sits inside a `catch` that prints "Error parsing staff data: …" in red — one junk `world` field would turn a working `/wv staff` into an error screen.
+So the change was not "loud failure → silent fallback". It was *most of a payload destroyed, half of it invisibly* → *one field defaulted, always named*. Note the mirror: had the shared body **thrown** instead (the 4-of-6 majority), `stringOrNull`'s 12 sites would have flipped from silent-skip to throw, and `StaffFetcher.parseOnlineStaff` sits inside a `catch` that prints "Error parsing steward data: …" in red — one junk `world` field would turn a working `/wv staff` into an error screen.
 
 **Gson caveats the policy does not cover**, all of them pre-existing and all pinned in `JsonTest`:
 
@@ -169,7 +169,7 @@ Parses JSON array, extracts `{username, rank, world/server}`, filters online, so
 
 ### ListFetcher partitions
 1. Guild with VetsMod, not queued
-2. Guild — in Queue (VetsMod, queued)
+2. Guild - in Queue (VetsMod, queued)
 3. Guild without VetsMod
 4. Honourary
 5. Waitlist

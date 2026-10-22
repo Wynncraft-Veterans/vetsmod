@@ -48,7 +48,7 @@ public class UnlockCommandMixin {
             ChatUtils.sendLocalMessage(
                     Component.literal(
                                     "Usage: /unlock <key>  (run ~vetsmod in #bot-commands "
-                                            + "at https://wynnvets.org/discord to get a key)")
+                                            + "at wynnvets.org/discord to get a key)")
                             .withStyle(ChatFormatting.RED));
             return;
         }
@@ -69,13 +69,12 @@ public class UnlockCommandMixin {
         switch (result) {
             case STORED_VERIFYING ->
                     ChatUtils.sendLocalMessage(
-                            Component.literal(
-                                            "⏳ Saved your vetsmod key. Verifying with the server…")
+                            Component.literal("Saved your key. Verifying with the server…")
                                     .withStyle(ChatFormatting.YELLOW));
             case MALFORMED ->
                     ChatUtils.sendLocalMessage(
                             Component.literal(
-                                            "❌ That doesn't look like a vetsmod key. "
+                                            "That doesn't look like a vetsmod key. "
                                                     + "Run ~vetsmod in #bot-commands at https://wynnvets.org/discord "
                                                     + "to get one.")
                                     .withStyle(ChatFormatting.RED));

@@ -99,7 +99,7 @@ public final class WorldListFetcher {
 
                             ChatUtils.sendLocalMessage(
                                     Component.literal(
-                                                    "Finding "
+                                                    "/finding "
                                                             + players.size()
                                                             + " members across worlds... (this may take a moment)")
                                             .withStyle(ChatFormatting.GRAY));

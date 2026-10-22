@@ -131,7 +131,7 @@ public final class SessionAuthWarning {
             } else {
                 ChatUtils.sendLocalMessage(
                         makeWarning(
-                                "You aren't authenticated, so vetsmod cannot send or receive "
+                                "You aren't authenticated. Vetsmod cannot send or receive "
                                         + "VETS chat or use guild-specific features until you "
                                         + "/unlock. Run ~vetsmod in #bot-commands to get a key.",
                                 ChatFormatting.RED));

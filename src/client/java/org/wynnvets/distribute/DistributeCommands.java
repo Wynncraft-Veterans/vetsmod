@@ -241,9 +241,9 @@ public final class DistributeCommands {
             ChatUtils.sendLocalMessage(
                     Component.literal(
                                     optedOutForm
-                                            + " is on the NoAspects list. Ask staff to run !noaspects remove "
+                                            + " has opted out of receiving aspects. !noaspects remove "
                                             + optedOutForm
-                                            + " if this is in error.")
+                                            + " can fix that if it is an error.")
                             .withStyle(ChatFormatting.RED));
             return;
         }

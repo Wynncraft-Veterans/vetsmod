@@ -198,7 +198,7 @@ public final class StampFetcher {
                                 return List.of(
                                         (MutableComponent)
                                                 Component.literal(
-                                                                "The time for the next annihilation has not yet been announced")
+                                                                "The next annihilation has not yet been announced")
                                                         .withStyle(ChatFormatting.RED));
                             }
                             return null;

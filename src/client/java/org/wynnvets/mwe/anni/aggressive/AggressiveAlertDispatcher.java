@@ -298,7 +298,7 @@ public final class AggressiveAlertDispatcher {
     }
 
     private static void fireWorldAlert(String prev, String next) {
-        String prevTxt = prev != null ? prev : "—";
+        String prevTxt = prev != null ? prev : "-";
         String nextTxt = next != null ? next : "unassigned";
         MutableComponent msg =
                 Component.literal("Party world: ")

@@ -56,11 +56,11 @@ public final class MotdFetcher {
                                         response.body(), Style.EMPTY);
                             } else {
                                 return Component.literal(
-                                        "Failed to fetch MOTD (Status: "
+                                        "API Error: Unable to fetch motd (Status: "
                                                 + response.statusCode()
                                                 + ")");
                             }
                         })
-                .exceptionally(e -> Component.literal("Error fetching MOTD: " + e.getMessage()));
+                .exceptionally(e -> Component.literal("MOTD Error: " + e.getMessage()));
     }
 }

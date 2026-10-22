@@ -131,7 +131,7 @@ public final class DispatchCoordinator {
     static final String LOCK_PREFIX = "🔐";
 
     private static final String STAFF_CHAT_WAIT_ONLINE_STATUS_MESSAGE =
-            "Please wait until the server updates your online status before using staff chat.";
+            "It is taking a while for us to verify your staff perms, please hold off on vchatting.";
 
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
@@ -372,7 +372,7 @@ public final class DispatchCoordinator {
 
     static void showNoRecipientsWarning() {
         ChatUtils.sendLocalMessage(
-                Component.literal("Nobody saw your message, the vets api is probably restarting")
+                Component.literal("Nobody saw your message, the vets api might be down.")
                         .withStyle(ChatFormatting.YELLOW));
     }
 

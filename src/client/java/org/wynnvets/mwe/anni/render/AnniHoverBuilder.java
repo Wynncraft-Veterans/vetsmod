@@ -340,7 +340,7 @@ public final class AnniHoverBuilder {
                     "Band "
                             + band
                             + "/6"
-                            + (attendance.label() != null ? " — " + attendance.label() : "")
+                            + (attendance.label() != null ? " - " + attendance.label() : "")
                             + "\nMirrors the anni.wynnvets.org/me attendance bar.";
             barStyle =
                     barStyle.withHoverEvent(

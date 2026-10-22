@@ -18,8 +18,10 @@ import org.wynnvets.logging.VetsLogger;
  * Rewrites incoming guild chat "encourage update" messages from staff.
  *
  * <p>When a staff member sends {@code /encourage <version>}, it appears in guild
- * chat as {@code ⚠⚠⚠ If you are using vetsmod, it's outdated (current version <version>) ⚠⚠⚠}.
- * This rewriter intercepts that message and, for vetsmod users, replaces it with
+ * chat as {@code ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in
+ * #bot-commands on vetscord. (v<version>) ⚠⚠⚠}. Staff on older builds still send the earlier
+ * {@code ⚠⚠⚠ If you are using vetsmod, it's outdated (current version <version>) ⚠⚠⚠}, which is
+ * matched too. This rewriter intercepts either message and, for vetsmod users, replaces it with
  * a version-comparison result:</p>
  *
  * <ul>
@@ -30,6 +32,12 @@ import org.wynnvets.logging.VetsLogger;
 public final class EncourageUpdateRewriter {
 
     private static final Pattern ENCOURAGE_PATTERN =
+            Pattern.compile(
+                    "⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in"
+                            + " #bot-commands on vetscord\\. \\(v([0-9]+(?:\\.[0-9]+)*)\\) ⚠⚠⚠");
+
+    /** The wording sent by staff on builds from before {@link #ENCOURAGE_PATTERN}'s. */
+    private static final Pattern LEGACY_ENCOURAGE_PATTERN =
             Pattern.compile(
                     "⚠⚠⚠ If you are using vetsmod, it's outdated \\(current version ([0-9]+(?:\\.[0-9]+)*)\\) ⚠⚠⚠");
 
@@ -59,7 +67,10 @@ public final class EncourageUpdateRewriter {
         String cleanedMessage = stripWrapArtifacts(parsed.message());
         Matcher matcher = ENCOURAGE_PATTERN.matcher(cleanedMessage);
         if (!matcher.matches()) {
-            return false;
+            matcher = LEGACY_ENCOURAGE_PATTERN.matcher(cleanedMessage);
+            if (!matcher.matches()) {
+                return false;
+            }
         }
 
         String announcedVersion = matcher.group(1);

@@ -247,7 +247,7 @@ public final class MembersListSearcher {
                             Component.literal(
                                             "Search for "
                                                     + displayQuery
-                                                    + " timed out — advancing.")
+                                                    + " timed out - advancing.")
                                     .withStyle(ChatFormatting.YELLOW));
                     invokeNotFound();
                 },

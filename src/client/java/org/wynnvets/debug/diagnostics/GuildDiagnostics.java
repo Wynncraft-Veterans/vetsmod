@@ -38,7 +38,7 @@ public final class GuildDiagnostics {
     public static void forceGuildRecheck() {
         if (!GuildStateManager.isWynntilsReady()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Wynntils is not ready yet — cannot check guild state.")
+                    Component.literal("Wynntils is not ready yet - cannot check guild state.")
                             .withStyle(ChatFormatting.RED));
             return;
         }

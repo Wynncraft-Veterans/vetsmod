@@ -144,7 +144,7 @@ public final class GraidsDistributor {
             Runnable onComplete) {
         if (nameIndex.isEmpty()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Could not read guild roster from wapi — try again.")
+                    Component.literal("Could not read guild roster from wapi - try again.")
                             .withStyle(ChatFormatting.YELLOW));
             if (onComplete != null) onComplete.run();
             return;

@@ -40,7 +40,7 @@ import org.wynnvets.mwe.anni.render.AnniHoverBuilder;
  * UX-only — the server-side trust chain is the actual gate.</p>
  *
  * <p>Unauthenticated message uses spec wording per the S6 plan:
- * <em>"Use \rsvp on discord — or run ~vetsmod first."</em> Surfaces both
+ * <em>"You aren't authenticated (~vetsmod on vetscord). For now, use the discord \rsvp on discord (or use ~vetsmod)."</em> Surfaces both
  * the Discord fallback and the in-game link path so users who can't or
  * won't run {@code ~vetsmod} still know where to go.</p>
  */
@@ -72,7 +72,9 @@ public final class AnniRsvpCommand {
 
     private static boolean ensureAuthenticated() {
         if (GuildStateManager.isAuthenticatedThisSession()) return true;
-        reply("Use \\rsvp on discord — or run ~vetsmod first.", ChatFormatting.RED);
+        reply(
+                "You aren't authenticated (~vetsmod on vetscord). For now, use the discord \\rsvp on discord (or use ~vetsmod).",
+                ChatFormatting.RED);
         return false;
     }
 
@@ -97,7 +99,7 @@ public final class AnniRsvpCommand {
         mc.execute(
                 () -> {
                     if (throwable != null || ack == null) {
-                        reply("RSVP request failed (no response).", ChatFormatting.RED);
+                        reply("Vets API error: RSVP request failed.", ChatFormatting.RED);
                         VetsLogger.debug(
                                 "rsvp ack threw or null: {}",
                                 throwable != null ? throwable.getMessage() : "null");

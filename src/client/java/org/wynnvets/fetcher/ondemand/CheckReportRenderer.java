@@ -268,7 +268,7 @@ final class CheckReportRenderer {
                             Component.literal(TimeLabels.humanizeAge(ageSec) + " ago")
                                     .setStyle(HIDDEN_STYLE))
                     .append(
-                            Component.literal("  (best guess — server-change observed")
+                            Component.literal("  (best guess - server-change observed")
                                     .setStyle(MUTED_STYLE));
             if (obs.getServerAtObservation() != null && !obs.getServerAtObservation().isEmpty()) {
                 line.append(
@@ -410,7 +410,7 @@ final class CheckReportRenderer {
             // already kicked). Roster-only until upstream fixes invalidation.
             // <<< PATCH END: WYNN-STALE-WORKAROUND
             if (rank != null && !rank.isEmpty()) {
-                line.append(Component.literal("  —  ").setStyle(LABEL_STYLE))
+                line.append(Component.literal("  -  ").setStyle(LABEL_STYLE))
                         .append(
                                 Component.literal(rank)
                                         .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
@@ -436,7 +436,7 @@ final class CheckReportRenderer {
         if (returnersMismatch || otherGuildMismatch) {
             line.append(Component.literal("guildless").setStyle(HIDDEN_STYLE))
                     .append(
-                            Component.literal("  —  Wynncraft profile still catching up")
+                            Component.literal("  -  Wynncraft profile still catching up")
                                     .setStyle(HIDDEN_STYLE));
             ChatUtils.sendLocalMessage(line);
             return;
@@ -464,7 +464,7 @@ final class CheckReportRenderer {
             // wv-check-guild-line-conflates-roster-failure-with-absence).
             String rankText = confirmedNonReturnersRank.orElse(guild.getRank());
             if (rankText != null && !rankText.isEmpty()) {
-                line.append(Component.literal("  —  ").setStyle(LABEL_STYLE))
+                line.append(Component.literal("  -  ").setStyle(LABEL_STYLE))
                         .append(
                                 Component.literal(rankText)
                                         .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
@@ -482,20 +482,20 @@ final class CheckReportRenderer {
         if ("member".equals(tier)) {
             line.append(Component.literal("guildless").setStyle(HIDDEN_STYLE))
                     .append(
-                            Component.literal("  —  appears in vets roster (cached)")
+                            Component.literal("  -  appears in vets roster (cached)")
                                     .setStyle(HIDDEN_STYLE));
         } else if ("waitlist".equals(tier)) {
             line.append(Component.literal("guildless").setStyle(VALUE_STYLE))
-                    .append(Component.literal("  —  on waitlist").setStyle(VALUE_STYLE));
+                    .append(Component.literal("  -  on waitlist").setStyle(VALUE_STYLE));
         } else if ("honourary".equals(tier)) {
             line.append(Component.literal("guildless").setStyle(VALUE_STYLE))
-                    .append(Component.literal("  —  honourary").setStyle(VALUE_STYLE));
+                    .append(Component.literal("  -  honourary").setStyle(VALUE_STYLE));
         } else if (hiatus) {
             line.append(
                             Component.literal("guildless")
                                     .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)))
                     .append(
-                            Component.literal("  —  hiatus")
+                            Component.literal("  -  hiatus")
                                     .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
         } else {
             line.append(Component.literal("guildless").setStyle(LABEL_STYLE));
@@ -536,7 +536,7 @@ final class CheckReportRenderer {
                             .setStyle(Style.EMPTY.withColor(ChatFormatting.RED)));
             String reason = snapshot.getBlocklistReason();
             if (reason != null && !reason.isEmpty()) {
-                line.append(Component.literal("  —  \"").setStyle(LABEL_STYLE))
+                line.append(Component.literal("  -  \"").setStyle(LABEL_STYLE))
                         .append(
                                 Component.literal(reason)
                                         .setStyle(
@@ -606,7 +606,7 @@ final class CheckReportRenderer {
         if (discUuid != null && !discUuid.isEmpty()) {
             line.append(Component.literal("  (" + discUuid + ")").setStyle(MUTED_STYLE));
         }
-        line.append(Component.literal("  —  ").setStyle(LABEL_STYLE))
+        line.append(Component.literal("  -  ").setStyle(LABEL_STYLE))
                 .append(Component.literal(tierLabel).setStyle(tierStyle));
 
         if (disc.isWaitlistedModifier() && !"waitlist".equals(tier)) {
@@ -625,8 +625,8 @@ final class CheckReportRenderer {
             line.append(Component.literal("  (hiatus").setStyle(hiatusStyle));
             if (currentlyOnline) {
                 line.append(
-                        Component.literal(" — but currently online; role may be stale")
-                                .setStyle(Style.EMPTY.withColor(ChatFormatting.YELLOW)));
+                        Component.literal(" - currently online; may be stale")
+                                .setStyle(Style.EMPTY.withColor(ChatFormatting.AQUA)));
             }
             line.append(Component.literal(")").setStyle(hiatusStyle));
         }

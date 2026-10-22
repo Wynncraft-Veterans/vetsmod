@@ -46,7 +46,8 @@ Each rewriter returns `true` to cancel the vanilla event (consumed).
 ### EncourageUpdateRewriter
 [EncourageUpdateRewriter](../src/client/java/org/wynnvets/chat/rewriter/EncourageUpdateRewriter.java)
 
-Pattern: `⚠⚠⚠ If you are using vetsmod, it's outdated (current version ([0-9]+(?:\.[0-9]+)*)) ⚠⚠⚠`.
+Pattern: `⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v([0-9]+(?:\.[0-9]+)*)) ⚠⚠⚠`.
+The earlier wording, `⚠⚠⚠ If you are using vetsmod, it's outdated (current version ([0-9]+(?:\.[0-9]+)*)) ⚠⚠⚠`, is still matched (`LEGACY_ENCOURAGE_PATTERN`), because staff on older builds still send it.
 Parses staff-broadcast version, compares to local; outdated → obfuscated red; up-to-date → rainbow.
 
 ### StaffGuildAlertRewriter
@@ -270,7 +271,7 @@ Rank-letter glyphs aren't `chat/prefix`: vetsmod's own pills render in the defau
 | `real\s+name\s+is\s+([A-Za-z0-9_]{1,16})` | `NickResolver.REAL_NAME_PATTERN` | Hover→real-name (one copy; `EncourageUpdateRewriter`'s private duplicate was deleted) |
 | `/msg\s+([A-Za-z0-9_]{1,16})` | `StaffChannelMessageRewriter.MSG_COMMAND_PATTERN` | Click→recipient |
 | `([A-Za-z0-9_]{1,16})\s*$` | `StaffChannelMessageRewriter.USERNAME_AT_END` | Username-at-end |
-| `⚠⚠⚠ If you are using vetsmod.*` | `EncourageUpdateRewriter.ENCOURAGE_PATTERN` | Version nag |
+| `⚠⚠⚠ If you had vetsmod.*` (and the older `⚠⚠⚠ If you are using vetsmod.*`) | `EncourageUpdateRewriter.ENCOURAGE_PATTERN` | Version nag |
 
 ## 13. Thread safety
 

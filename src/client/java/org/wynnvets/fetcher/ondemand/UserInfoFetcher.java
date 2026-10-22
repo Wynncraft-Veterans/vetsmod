@@ -80,16 +80,15 @@ public final class UserInfoFetcher {
                             }
                             if (lookup.failureReason() == FailureReason.PLAYER_NOT_FOUND) {
                                 CheckReportRenderer.renderError(
-                                        "No player named '"
+                                        "No lookup source returned anyone named '"
                                                 + playerName
-                                                + "' on any lookup source.");
+                                                + "'.");
                                 return;
                             }
                             CheckReportRenderer.renderError(
                                     "Could not look up '"
                                             + playerName
-                                            + "' — all UUID sources unavailable (Mojang rate-limited / Wynncraft "
-                                            + "down). Try again shortly.");
+                                            + "'. All APIs appear to be down?");
                         });
     }
 

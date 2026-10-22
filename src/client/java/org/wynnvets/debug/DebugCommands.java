@@ -364,7 +364,7 @@ public final class DebugCommands {
 
         ChatUtils.sendLocalMessageNewBlock(
                 Component.literal(
-                                "S4 nametag dump — outlineSuppressionActive="
+                                "S4 nametag dump - outlineSuppressionActive="
                                         + gate
                                         + ", vetsAnniNametagsEnabled="
                                         + nametagsEnabled
@@ -384,8 +384,8 @@ public final class DebugCommands {
 
             org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.Entry entry =
                     org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.getEntry(username);
-            String tier = (entry != null) ? entry.tier().name() : "—";
-            String role = (entry != null && entry.role() != null) ? entry.role() : "—";
+            String tier = (entry != null) ? entry.tier().name() : "-";
+            String role = (entry != null && entry.role() != null) ? entry.role() : "-";
             net.minecraft.ChatFormatting fmt;
             String fmtSource;
             if (gate && nametagsEnabled) {
@@ -398,7 +398,7 @@ public final class DebugCommands {
                 }
             } else {
                 fmt = null;
-                fmtSource = "(gate off — no override)";
+                fmtSource = "(gate off - no override)";
             }
 
             MutableComponent line =
@@ -484,7 +484,7 @@ public final class DebugCommands {
 
         ChatUtils.sendLocalMessageNewBlock(
                 Component.literal(
-                                "BossHealthOverlay events dump — "
+                                "BossHealthOverlay events dump - "
                                         + events.size()
                                         + " entr"
                                         + (events.size() == 1 ? "y" : "ies")
@@ -571,7 +571,7 @@ public final class DebugCommands {
 
         ChatUtils.sendLocalMessageNewBlock(
                 Component.literal(
-                                "AnniZoneLineRenderer dump — aggressive_active="
+                                "AnniZoneLineRenderer dump - aggressive_active="
                                         + aggro
                                         + " toggle_on="
                                         + toggle
@@ -589,7 +589,7 @@ public final class DebugCommands {
         if (discs.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal(
-                                    "  (no discs cached — anni event missing from world-events API?)")
+                                    "  (no discs cached - anni event missing from world-events API?)")
                             .withStyle(ChatFormatting.DARK_GRAY));
             return;
         }
