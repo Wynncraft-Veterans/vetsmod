@@ -109,6 +109,21 @@ public class WsClient implements WebSocket.Listener {
                                                 e.getMessage());
                                     }
                                 }
+                                // close() may have run while the handshake was in flight. It
+                                // sets closed before it clears wsRef, so once this socket is
+                                // installed either close() takes it or this check sees closed.
+                                if (closed.get()) {
+                                    wsRef.compareAndSet(ws, null);
+                                    try {
+                                        ws.abort();
+                                    } catch (Exception e) {
+                                        VetsLogger.debug(
+                                                "[{}] Late-handshake abort failed: {}",
+                                                label,
+                                                e.getMessage());
+                                    }
+                                    return;
+                                }
                                 VetsLogger.debug("[{}] WebSocket connected", label);
                                 schedulePing();
                                 Runnable cb = onConnectCallback;
@@ -145,9 +160,9 @@ public class WsClient implements WebSocket.Listener {
         return ws != null && !ws.isOutputClosed();
     }
 
-    /** Permanently closes the connection and stops the reconnect scheduler. Today a
-     *  handshake still in flight completes afterwards and its socket stays open
-     *  ({@code ws-client-close-during-handshake-leaves-socket-open}). */
+    /** Permanently closes the connection and stops the reconnect scheduler. A handshake
+     *  still in flight has its socket uninstalled and aborted as soon as it completes,
+     *  without the ping or the on-connect callback. */
     public void close() {
         closed.set(true);
         scheduler.shutdownNow();

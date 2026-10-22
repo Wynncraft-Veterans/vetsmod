@@ -198,9 +198,8 @@ public final class V1ApiManager {
 
     /** Closes both WebSocket connections for good: the closed {@link WsClient}s do not
      *  reconnect, and the next server join's {@link #connect()} builds a new pair. A
-     *  handshake still in flight is not stopped: today it completes and leaves its socket
-     *  open ({@code ws-client-close-during-handshake-leaves-socket-open}). Also clears the
-     *  confirmed-staff state and fails any pending staff-action callbacks. */
+     *  handshake still in flight is aborted when it completes ({@link WsClient#close()}).
+     *  Also clears the confirmed-staff state and fails any pending staff-action callbacks. */
     public static void disconnect() {
         if (inboundClient != null) {
             inboundClient.close();

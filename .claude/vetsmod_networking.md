@@ -63,7 +63,7 @@ State:
 
 Listener methods: `onOpen`, `onText` (buffers fragments until last), `onPong`, `onClose`, `onError`.
 
-On close/error → schedule reconnect 3s later. Ping scheduled on every connect via `schedulePing()`.
+On close/error → schedule reconnect 3s later. Ping scheduled on every connect via `schedulePing()`. A handshake that completes after `close()` is aborted without installing its socket or running the on-connect callback.
 
 Silent drop if `send()` called while not connected (no queuing), and also while another text send on the socket is still pending (bug `ws-client-send-ignores-send-pending-failure`).
 
