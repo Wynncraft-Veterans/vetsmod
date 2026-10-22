@@ -4,6 +4,7 @@ import com.wynntils.core.WynntilsMod;
 import com.wynntils.core.components.Models;
 import com.wynntils.models.players.event.PartyEvent;
 import com.wynntils.models.worlds.event.WorldStateEvent;
+import com.wynntils.utils.mc.McUtils;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -12,6 +13,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import net.minecraft.client.Minecraft;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.network.AnniWsSender;
@@ -53,13 +55,13 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * changes, not when the window opens, so a set that was already complete before the window opened
  * triggers nothing then; see {@code party-reporter-window-open-not-a-trigger}.</p>
  *
- * <p>Threading: the design captures a defensively-copied snapshot on the render thread, where
- * Wynntils events arrive, so the send can't race a concurrent {@code PartyModel} mutation. Today
- * {@link #requestRecapture()} captures on whichever thread called {@link AnniSnapshotCache#update}:
- * the one delivering WebSocket frames, or, for a debug injection, the render thread that runs
- * client commands. The first reads {@code PartyModel} off the render thread; see
- * {@code party-roster-recapture-reads-party-model-off-thread}. Either way, the send then runs on a
- * daemon single-thread scheduler. The scheduler thread sends through
+ * <p>Threading: every capture takes a defensively-copied snapshot on the render thread, where
+ * Wynntils events arrive, so the send can't race a concurrent {@code PartyModel} mutation.
+ * {@link #requestRecapture()} is called on whichever thread called
+ * {@link AnniSnapshotCache#update} (the one delivering WebSocket frames, or the render thread for a
+ * debug injection), so it hands the capture to the render thread with {@code Minecraft.execute},
+ * which queues it for the next task drain, a command typed on the render thread included. The send
+ * then runs on a daemon single-thread scheduler. The scheduler thread sends through
  * {@link AnniWsSender#sendAnniPartyObservation}, which is not serialised against other
  * senders: a send that overlaps another frame on the same socket is dropped
  * ({@code ws-client-send-ignores-send-pending-failure}).</p>
@@ -146,20 +148,20 @@ public final class PartyRosterListener {
      * {@link PartyEvent} would fire on its own. Today a window opening with an
      * unchanged organiser set calls nothing here
      * ({@code party-reporter-window-open-not-a-trigger}). The capture runs on the
-     * caller's thread; see Threading in the class doc.
+     * render thread; see Threading in the class doc.
      */
     public static void requestRecapture() {
-        captureAndSchedule();
+        Minecraft mc = McUtils.mc();
+        if (mc == null) return;
+        mc.execute(PartyRosterListener::captureAndSchedule);
     }
 
     // --- snapshot + send ---------------------------------------------------
 
     private static void captureAndSchedule() {
-        // Capture on the calling thread, meant to be the render thread, where PartyModel reads
-        // are consistent. Today a snapshot-driven recapture runs on whichever thread called
-        // AnniSnapshotCache.update, which for a pulled snapshot is not the render thread
-        // (party-roster-recapture-reads-party-model-off-thread). The send runs from the
-        // scheduler thread off this snapshot.
+        // Capture on the render thread, where PartyModel reads are consistent: Wynntils events
+        // arrive there, and requestRecapture hops there. The send runs from the scheduler
+        // thread off this snapshot.
         Snapshot snap;
         if (Models.Party.isInParty()) {
             String leader = Models.Party.getPartyLeader().orElse("");

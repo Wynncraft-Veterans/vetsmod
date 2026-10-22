@@ -721,12 +721,14 @@ party members by username — see `Wynntils PartyModel.getPartyMembers()`.
    opened triggers nothing then (bug `party-reporter-window-open-not-a-trigger`).
    `AnniPartyReporter.register()` is called from `VetsmodClient.onClientStarted()`,
    the bootstrap's `CLIENT_STARTED` phase, and must not move into the body of
-   `onInitializeClient`: its snapshot listener reaches `Models.Party` through
-   `PartyRosterListener.requestRecapture()`, and a snapshot could arrive on a
-   WebSocket thread before Wynntils' entrypoint has run (bug
-   `mod-init-snapshot-listeners-can-reach-wynntils-before-its-init`). A first
-   touch of `Models` there can crash the game at start-up, per
-   `feedback_vetsmod_wynntils_init_order.md`.
+   `onInitializeClient`, the rule for snapshot listeners: a snapshot could arrive
+   on a WebSocket thread before Wynntils' entrypoint has run (bug
+   `mod-init-snapshot-listeners-can-reach-wynntils-before-its-init`), and a
+   first touch of `Models` there can crash the game at start-up, per
+   `feedback_vetsmod_wynntils_init_order.md`. This listener reaches
+   `Models.Party` only through `PartyRosterListener.requestRecapture()`, which
+   hands the read to a render-thread task, and such a task runs only once the
+   game loop does, after every entrypoint.
 
 ### What got deleted
 

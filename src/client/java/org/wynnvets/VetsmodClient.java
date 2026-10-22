@@ -166,11 +166,11 @@ public class VetsmodClient implements ClientModInitializer {
         // race is lost, `Managers.<clinit>` fails, `Managers` stays unusable and
         // Wynntils' own init dies, as the client did on 2026-06-18.
         ScrollSpotMarkerProvider.register();
-        // S7 — AnniPartyReporter.register() itself touches no Wynntils class,
-        // but its snapshot listener reaches Models.Party (through
-        // PartyRosterListener.requestRecapture()), and a snapshot could arrive
-        // before Wynntils' entrypoint has run, so it subscribes here rather
-        // than in onInitializeClient
+        // S7 — AnniPartyReporter.register() itself touches no Wynntils class, and
+        // its snapshot listener reaches Models.Party only through
+        // PartyRosterListener.requestRecapture(), which defers the read to a
+        // render-thread task. It still subscribes here rather than in
+        // onInitializeClient, the rule for snapshot listeners
         // (mod-init-snapshot-listeners-can-reach-wynntils-before-its-init). The
         // reporter subscribes to AnniSnapshotCache and fires
         // PartyRosterListener.requestRecapture() on organiser-set transitions,
