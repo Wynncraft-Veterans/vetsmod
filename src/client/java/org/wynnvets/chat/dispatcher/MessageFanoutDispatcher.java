@@ -32,7 +32,7 @@ public final class MessageFanoutDispatcher {
     private static final long OFFLINE_GUIDANCE_SUPPRESSION_WINDOW_MS = 4000L;
     private static final long INTER_SEND_DELAY_MS = 600L;
     private static final long SUPPRESSION_WAIT_MS = 5_000L;
-    private static final int MAX_DISPATCH_RETRIES = 3;
+    private static final int MAX_DISPATCH_ATTEMPTS = 3;
 
     // Suppression state. The pending queue and the offline-guidance window are touched
     // from the render thread; awaitingSuppression is shared with the dispatch thread
@@ -108,9 +108,9 @@ public final class MessageFanoutDispatcher {
                             break;
                         case FAILED:
                             VetsLogger.warn(
-                                    "Failed to deliver message to {} after {} retries",
+                                    "Failed to deliver message to {} after {} attempts",
                                     recipient,
-                                    MAX_DISPATCH_RETRIES);
+                                    MAX_DISPATCH_ATTEMPTS);
                             break;
                     }
 
@@ -149,7 +149,7 @@ public final class MessageFanoutDispatcher {
      */
     private static FeedbackResult dispatchWithRetries(
             Minecraft minecraft, String recipient, String payload) {
-        for (int attempt = 1; attempt <= MAX_DISPATCH_RETRIES; attempt++) {
+        for (int attempt = 1; attempt <= MAX_DISPATCH_ATTEMPTS; attempt++) {
             FeedbackResult result = tryDispatchOnce(minecraft, recipient, payload);
 
             if (result == FeedbackResult.DELIVERED || result == FeedbackResult.OFFLINE) {
@@ -157,7 +157,7 @@ public final class MessageFanoutDispatcher {
             }
 
             // FAILED (no feedback in time, or the send was not confirmed) — retry after a delay
-            if (attempt < MAX_DISPATCH_RETRIES) {
+            if (attempt < MAX_DISPATCH_ATTEMPTS) {
                 VetsLogger.debug(
                         "No /msg feedback for {} attempt {}. Retrying...", recipient, attempt);
                 DispatchCoordinator.sleepQuietly(INTER_SEND_DELAY_MS);

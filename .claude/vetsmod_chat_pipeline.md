@@ -226,7 +226,7 @@ Fans `/v` out as `/msg <recipient> 🔐<message>` (no space after the lock) to e
 - `SUPPRESSION_TTL_MS = 15_000`
 - `OFFLINE_GUIDANCE_SUPPRESSION_WINDOW_MS = 4_000`
 - `INTER_SEND_DELAY_MS = 600`
-- `MAX_DISPATCH_RETRIES = 3`
+- `MAX_DISPATCH_ATTEMPTS = 3` (one send and up to two retries)
 
 Multi-strategy feedback matching in `MessageFanoutDispatcher.shouldSuppressFeedback` (reached from ChatLogMixin; the direct caller is `DispatchCoordinator.shouldSuppressFeedback`):
 1. Offline-guidance blanket-suppression (4s window after offline error)
