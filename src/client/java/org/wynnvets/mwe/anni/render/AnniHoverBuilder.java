@@ -307,7 +307,7 @@ public final class AnniHoverBuilder {
         if (showHovers()) {
             String hoverBody =
                     noticeKey == null
-                            ? "You haven't RSVP'd to this anni.\nClick to /wv anni rsvp."
+                            ? "You haven't RSVP'd to this anni.\nClick to open the RSVP guide."
                             : "Effective notice: " + noticeKey + "\nClick to open the RSVP guide.";
             style =
                     style.withHoverEvent(
