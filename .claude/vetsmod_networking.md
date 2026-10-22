@@ -56,14 +56,14 @@ Constants:
 
 State:
 - `wsRef` AtomicReference<WebSocket>
-- `closed`, `connecting` atomic flags
+- `closed`, `connecting`, `pingScheduled` atomic flags
 - `textBuffer` accumulates multi-frame text messages (WS fragmentation)
 - `scheduler` single-threaded executor for reconnect/ping
 - `HTTP_CLIENT` a **static** field that every `WsClient` shares, and deliberately **not** the shared `HttpClients.standard()` client: it is a WebSocket factory, its 10 s connect timeout is re-declared on the WebSocket builder where it governs the whole handshake, and it pins no HTTP version. One for the session rather than one per `WsClient`, which ended the per-join accumulation of clients that `close()` never released, without touching `close()`. Never close or shut it down
 
 Listener methods: `onOpen`, `onText` (buffers fragments until last), `onPong`, `onClose`, `onError`.
 
-On close/error → schedule reconnect 3s later. Ping scheduled on every connect via `schedulePing()`. A handshake that completes after `close()` is aborted without installing its socket or running the on-connect callback.
+On close/error → schedule reconnect 3s later. `schedulePing()` starts the ping task once, on the first successful connect; it reads the live socket on each run, so a reconnect adds no task. A handshake that completes after `close()`, including one that finds the scheduler already shut down, has its socket uninstalled and aborted at once, without the ping or the on-connect callback.
 
 Silent drop if `send()` called while not connected (no queuing), and also while another text send on the socket is still pending (bug `ws-client-send-ignores-send-pending-failure`).
 

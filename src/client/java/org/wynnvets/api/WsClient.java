@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -44,6 +45,7 @@ public class WsClient implements WebSocket.Listener {
     private final AtomicReference<WebSocket> wsRef = new AtomicReference<>();
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicBoolean connecting = new AtomicBoolean(false);
+    private final AtomicBoolean pingScheduled = new AtomicBoolean(false);
     private final StringBuilder textBuffer = new StringBuilder();
 
     private final ScheduledExecutorService scheduler;
@@ -113,19 +115,16 @@ public class WsClient implements WebSocket.Listener {
                                 // sets closed before it clears wsRef, so once this socket is
                                 // installed either close() takes it or this check sees closed.
                                 if (closed.get()) {
-                                    wsRef.compareAndSet(ws, null);
-                                    try {
-                                        ws.abort();
-                                    } catch (Exception e) {
-                                        VetsLogger.debug(
-                                                "[{}] Late-handshake abort failed: {}",
-                                                label,
-                                                e.getMessage());
-                                    }
+                                    abandonLateSocket(ws);
                                     return;
                                 }
                                 VetsLogger.debug("[{}] WebSocket connected", label);
-                                schedulePing();
+                                if (!schedulePing()) {
+                                    // close() ran after the check above, so this client is
+                                    // closed: no callback either.
+                                    abandonLateSocket(ws);
+                                    return;
+                                }
                                 Runnable cb = onConnectCallback;
                                 if (cb != null) {
                                     try {
@@ -239,22 +238,41 @@ public class WsClient implements WebSocket.Listener {
         scheduler.schedule(this::connect, RECONNECT_DELAY_MS, TimeUnit.MILLISECONDS);
     }
 
-    private void schedulePing() {
-        if (closed.get()) return;
-        scheduler.scheduleAtFixedRate(
-                () -> {
-                    WebSocket ws = wsRef.get();
-                    if (ws != null && !ws.isOutputClosed()) {
-                        try {
-                            ws.sendPing(ByteBuffer.allocate(0));
-                        } catch (Exception e) {
-                            VetsLogger.debug(
-                                    "[{}] WebSocket ping failed: {}", label, e.getMessage());
+    /** Uninstalls and aborts a socket whose handshake finished on a closed client. */
+    private void abandonLateSocket(WebSocket ws) {
+        wsRef.compareAndSet(ws, null);
+        try {
+            ws.abort();
+        } catch (Exception e) {
+            VetsLogger.debug("[{}] Late-handshake abort failed: {}", label, e.getMessage());
+        }
+    }
+
+    /** Starts the keepalive ping, once per client: the task reads the live socket on each
+     *  run, so a reconnect needs no new one. Returns {@code false} if the client has been
+     *  closed, including when {@link #close()} shut the scheduler down first. */
+    private boolean schedulePing() {
+        if (closed.get()) return false;
+        if (!pingScheduled.compareAndSet(false, true)) return true;
+        try {
+            scheduler.scheduleAtFixedRate(
+                    () -> {
+                        WebSocket ws = wsRef.get();
+                        if (ws != null && !ws.isOutputClosed()) {
+                            try {
+                                ws.sendPing(ByteBuffer.allocate(0));
+                            } catch (Exception e) {
+                                VetsLogger.debug(
+                                        "[{}] WebSocket ping failed: {}", label, e.getMessage());
+                            }
                         }
-                    }
-                },
-                PING_INTERVAL_MS,
-                PING_INTERVAL_MS,
-                TimeUnit.MILLISECONDS);
+                    },
+                    PING_INTERVAL_MS,
+                    PING_INTERVAL_MS,
+                    TimeUnit.MILLISECONDS);
+            return true;
+        } catch (RejectedExecutionException e) {
+            return false;
+        }
     }
 }
