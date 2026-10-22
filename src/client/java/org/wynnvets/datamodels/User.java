@@ -51,7 +51,8 @@ public class User {
             return false;
         }
 
-        return guild.getUuid().equals(VetsApi.GUILD_UUID);
+        // Constant first: a guild object without a uuid is not Returners.
+        return VetsApi.GUILD_UUID.equals(guild.getUuid());
     }
 
     /**
