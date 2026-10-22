@@ -106,9 +106,8 @@ public final class ReturnFetcher {
 
     /**
      * Closing line of a {@code /wv return} printout, pointing at the Discord
-     * channel the post was mirrored from (see {@link #RETURN_CHANNEL_URL}). Today its
-     * hover text says it opens the announcement post (see
-     * {@code return-footer-hover-says-it-opens-the-post}).
+     * channel the post was mirrored from (see {@link #RETURN_CHANNEL_URL}), and its
+     * hover text says so.
      *
      * <p>Spec is {@code &6&oFor more info, click &e&n&ohere &6for the
      * announcement post!} — note the trailing {@code &6}, which under vanilla
@@ -125,7 +124,7 @@ public final class ReturnFetcher {
                         .withClickEvent(new ClickEvent.OpenUrl(URI.create(RETURN_CHANNEL_URL)))
                         .withHoverEvent(
                                 new HoverEvent.ShowText(
-                                        Component.literal("Open the announcement post in Discord")
+                                        Component.literal("Open the return channel in Discord")
                                                 .withStyle(ChatFormatting.GRAY)));
         Style gold =
                 Style.EMPTY.withColor(ChatFormatting.GOLD).withItalic(false).withUnderlined(false);
