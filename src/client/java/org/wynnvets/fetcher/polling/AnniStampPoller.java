@@ -36,11 +36,9 @@ import org.wynnvets.util.HttpClients;
  * {@code 0} (temporary-server, at ffd8c17, sends that body while it holds no stamp). A
  * failed fetch or an unparseable body leaves the previous value in place. The only reader today is
  * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s legacy {@code /wv anni}
- * fallback, which consults this cache only when its own live fetch yields no countdown.
- * Today a zero or past value then gives the "not yet announced" line even when that
- * fetch failed, and a future value gives {@code null} rather than the cached countdown,
- * which {@code /wv anni} prints as the timer being unavailable
- * ({@code stamp-fallback-says-not-announced-on-cold-network-failure}).
+ * fallback, which consults this cache only when its own live fetch yields no countdown:
+ * a future value is shown as the countdown, and a zero or past value gives the "not yet
+ * announced" line, even when that fetch failed.
  * {@code anni_party_observation} does not read this cache &mdash;
  * {@link org.wynnvets.listeners.PartyRosterListener PartyRosterListener} takes its stamp
  * from the snapshot.</p>

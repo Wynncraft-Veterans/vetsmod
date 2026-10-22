@@ -44,12 +44,9 @@ import org.wynnvets.util.HttpClients;
  *       to render, it falls back to the legacy stamp message, with the
  *       past-stamp branch expanded to the legacy "not announced" string.
  *       Per spec the manual invocation never comes back {@code null}: it
- *       always has something to say.
- *       Today the future resolves {@code null} when the legacy fetch
- *       yields nothing while {@link AnniStampPoller} holds a future stamp,
- *       which {@code CommandRegistry.anni} prints as its "timer is
- *       currently unavailable" line
- *       ({@code stamp-fallback-says-not-announced-on-cold-network-failure}).
+ *       always has something to say. When the legacy fetch yields no
+ *       countdown, the fallback shows {@link AnniStampPoller}'s cached
+ *       stamp if it is still in the future.
  *       A cold-cache pull that hits its deadline resolves {@code null} and
  *       drops to the legacy fetch like any other failed pull.
  *       {@code vetsmod_mwe_anni.md} §"{@code /wv anni} render dispatch"
@@ -125,13 +122,14 @@ public final class StampFetcher {
      * chat block by the caller — the imminent (within-2h) render uses
      * this to break the mode-switch UI out into its own prefixed block.
      *
-     * <p>Returns {@code null} from the future when the legacy stamp fetch
-     * yields nothing (parse failures, request errors) while
-     * {@link AnniStampPoller} holds a future stamp; with a zero or past
-     * cached stamp the same failure today gives the "not announced" line
-     * ({@code stamp-fallback-says-not-announced-on-cold-network-failure}).
-     * A cold-cache pull that hits its deadline resolves {@code null} and
-     * falls back to legacy, as any other failed pull does. Empty
+     * <p>Never resolves {@code null}. When the legacy stamp fetch yields
+     * no countdown (parse failures, request errors, a past or missing
+     * stamp), a future stamp cached by {@link AnniStampPoller} is shown as
+     * the countdown; with a zero or past cached stamp it gives the "not
+     * announced" line, even when the fetch failed, since
+     * {@link #fetchSimple()} does not say which happened. A cold-cache
+     * pull that hits its deadline resolves {@code null} and falls back to
+     * legacy, as any other failed pull does. Empty
      * lists are never returned — the renderer either produces ≥1 element
      * or returns {@code null} to signal "fall back to legacy."</p>
      */
@@ -180,11 +178,11 @@ public final class StampFetcher {
 
     /** Shared legacy fallback returning the stamp/"not announced" line
      *  as a single-element list. When {@link #fetchSimple()} yields no
-     *  countdown, a zero or past {@link AnniStampPoller} stamp gives the
-     *  red "not yet been announced" line and a future one gives
-     *  {@code null} from the future. Today that includes a failed fetch,
-     *  and the cached countdown is never shown
-     *  ({@code stamp-fallback-says-not-announced-on-cold-network-failure}). */
+     *  countdown, a future {@link AnniStampPoller} stamp (its last-good
+     *  cache) is shown as the countdown, and a zero or past one gives the
+     *  red "not yet been announced" line. A failed fetch with an empty or
+     *  past cache also reads as "not announced": the two differ only when
+     *  no fetch has succeeded since the anni was announced. */
     private static CompletableFuture<List<MutableComponent>> legacyFallback() {
         return fetchSimple()
                 .thenApply(
@@ -192,15 +190,18 @@ public final class StampFetcher {
                             if (message != null) {
                                 return List.of(message);
                             }
-                            long stamp = AnniStampPoller.getLatestStamp();
-                            if (stamp == 0L || isStampInPast(stamp)) {
-                                return List.of(
-                                        (MutableComponent)
-                                                Component.literal(
-                                                                "The next annihilation has not yet been announced")
-                                                        .withStyle(ChatFormatting.RED));
+                            // Built once: a stamp that elapses between a "still in the
+                            // future?" check and the render would otherwise yield null.
+                            MutableComponent cached =
+                                    createMessageForStamp(AnniStampPoller.getLatestStamp());
+                            if (cached != null) {
+                                return List.of(cached);
                             }
-                            return null;
+                            return List.of(
+                                    (MutableComponent)
+                                            Component.literal(
+                                                            "The next annihilation has not yet been announced")
+                                                    .withStyle(ChatFormatting.RED));
                         });
     }
 
@@ -290,11 +291,6 @@ public final class StampFetcher {
         } else {
             return createLongMessage((int) hours, (int) minutes);
         }
-    }
-
-    private static boolean isStampInPast(long stamp) {
-        long currentTime = System.currentTimeMillis() / 1000;
-        return stamp <= currentTime;
     }
 
     /**
