@@ -261,7 +261,10 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "printANNI\n"),
                 sib(ChatFormatting.GRAY, "  Auto-print the annihilation timer on world join\n"),
                 sib(ChatFormatting.YELLOW, "printBridgeMessages\n"),
-                sib(ChatFormatting.GRAY, "  Show bridge (guild chat relay) messages in chat\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "  Show relayed chat: Discord bridge messages and relayed guild,"
+                                + " waitlist and honourary chat\n"),
                 sib(ChatFormatting.YELLOW, "showSupporterGlints\n"),
                 sib(ChatFormatting.GRAY, "  Show supporter animated gradient glints on nametags\n"),
                 sib(ChatFormatting.YELLOW, "colorBlindMode\n"),

@@ -250,7 +250,9 @@ final class HelpCommands {
         row(
                 msg,
                 "printBridgeMessages\n",
-                gray("  Show bridge (guild chat relay) messages in chat\n"));
+                gray(
+                        "  Show relayed chat: Discord bridge messages and relayed guild,"
+                                + " waitlist and honourary chat\n"));
         row(
                 msg,
                 "showSupporterGlints\n",
