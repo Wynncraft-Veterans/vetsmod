@@ -33,10 +33,6 @@ final class NewFormatRenderer {
     private static final FontDescription BANNER_SYMBOL_FONT =
             new FontDescription.Resource(Identifier.parse("banner/symbol"));
 
-    /** Font used by Wynncraft's spacing characters (leading spacer on rarity/emblem lines). */
-    private static final FontDescription SPACE_FONT =
-            new FontDescription.Resource(Identifier.parse("space"));
-
     /**
      * Box half of the gold LEGACY chip in the {@code banner/box} font. Its
      * lettering is {@link #LEGACY_BOX_FOREGROUND}, drawn over it as a nested

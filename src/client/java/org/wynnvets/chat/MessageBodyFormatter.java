@@ -160,9 +160,6 @@ public final class MessageBodyFormatter {
      */
     // Package-private for LegacyTextParser, which links each run of legacy-styled text.
     static void appendTextWithUrls(MutableComponent parent, String text, Style textStyle) {
-        if (text.isEmpty()) {
-            return;
-        }
         Matcher matcher = URL_PATTERN.matcher(text);
         int lastEnd = 0;
         while (matcher.find()) {

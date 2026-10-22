@@ -89,8 +89,7 @@ final class HoverDumps {
         }
         if (mc.screen == null) {
             obj.addProperty(
-                    "status",
-                    "no screen open (Screen.getTooltipFromItem requires a screen for context)");
+                    "status", "no screen open (the fresh dump is only taken under an open screen)");
             return obj;
         }
         try {
@@ -134,14 +133,10 @@ final class HoverDumps {
         obj.addProperty("outputLineCount", output.size());
         obj.addProperty("outputIsSameInstance", TooltipCapture.inputOutputSameInstance());
         obj.add("inputLines", ComponentDumps.dumpComponentLines(input));
-        // The guard never fires for a real capture: TooltipCapture.record
-        // copies input and output into separate ArrayLists, so these stay
-        // distinct instances even when nothing was rewritten, and the output
-        // tree is always dumped. outputIsSameInstance above is what actually
+        // TooltipCapture.record copies input and output into separate ArrayLists,
+        // so the output tree is always dumped; outputIsSameInstance above is what
         // says whether the mixin rewrote the list.
-        if (input != output) {
-            obj.add("outputLines", ComponentDumps.dumpComponentLines(output));
-        }
+        obj.add("outputLines", ComponentDumps.dumpComponentLines(output));
         return obj;
     }
 }
