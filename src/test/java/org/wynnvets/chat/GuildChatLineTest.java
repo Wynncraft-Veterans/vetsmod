@@ -64,33 +64,33 @@ class GuildChatLineTest {
 
     @Test
     void bothReadTheNameBetweenTheLastGlyphAndTheColon() {
-        String line = PUA + " Alice: hello there";
+        String line = PUA + " Metrafish: hello there";
 
         GuildChatLine.Parsed shared = GuildChatLine.parse(line);
         assertNotNull(shared);
-        assertEquals("Alice", shared.username());
+        assertEquals("Metrafish", shared.username());
         assertEquals("hello there", shared.message());
 
         GuildChatLine.ServerParsed server = GuildChatLine.parseServerLine(line);
         assertNotNull(server);
-        assertEquals("Alice", server.username());
+        assertEquals("Metrafish", server.username());
     }
 
     @Test
     void theNameMayContainSpaces() {
-        // Wynncraft display names can carry a suffix, e.g. "EYAL5555/First Mage".
-        GuildChatLine.Parsed shared = GuildChatLine.parse(PUA + " EYAL5555/First Mage: hi");
+        // Wynncraft display names can carry a suffix, e.g. "Salted/Some Nickname".
+        GuildChatLine.Parsed shared = GuildChatLine.parse(PUA + " Salted/Some Nickname: hi");
         assertNotNull(shared);
-        assertEquals("EYAL5555/First Mage", shared.username());
+        assertEquals("Salted/Some Nickname", shared.username());
     }
 
     @Test
     void theScanTakesTheLastGlyphNotTheFirst() {
         // The rank indicator is a run of glyphs; only what follows the final one
         // is the name.
-        GuildChatLine.Parsed shared = GuildChatLine.parse(PUA + "junk" + PUA + " Alice: hi");
+        GuildChatLine.Parsed shared = GuildChatLine.parse(PUA + "junk" + PUA + " Metrafish: hi");
         assertNotNull(shared);
-        assertEquals("Alice", shared.username());
+        assertEquals("Metrafish", shared.username());
     }
 
     @Test
@@ -99,32 +99,32 @@ class GuildChatLineTest {
         // supplementary bound is deliberate: unassigned BMP codepoints turn up
         // in ordinary text, supplementary ones are Wynncraft's markers.
         GuildChatLine.Parsed viaSupplementary =
-                GuildChatLine.parse(SUPPLEMENTARY_UNASSIGNED + " Alice: hi");
+                GuildChatLine.parse(SUPPLEMENTARY_UNASSIGNED + " Metrafish: hi");
         assertNotNull(viaSupplementary);
-        assertEquals("Alice", viaSupplementary.username());
+        assertEquals("Metrafish", viaSupplementary.username());
 
         assertNull(
-                GuildChatLine.parse(BMP_UNASSIGNED + " Alice: hi"),
+                GuildChatLine.parse(BMP_UNASSIGNED + " Metrafish: hi"),
                 "an unassigned BMP codepoint is not a rank glyph");
     }
 
     @Test
     void aLineWithNoGlyphBeforeTheColonIsRejected() {
-        assertNull(GuildChatLine.parse("Alice: hi"));
-        assertNull(GuildChatLine.parseServerLine("Alice: hi"));
+        assertNull(GuildChatLine.parse("Metrafish: hi"));
+        assertNull(GuildChatLine.parseServerLine("Metrafish: hi"));
     }
 
     @Test
     void aGlyphAfterTheColonDoesNotCount() {
         // The scan stops at the colon, so a glyph in the body is invisible.
-        assertNull(GuildChatLine.parse("Alice: " + PUA + " hi"));
+        assertNull(GuildChatLine.parse("Metrafish: " + PUA + " hi"));
     }
 
     @Test
     void missingOrLeadingColonIsRejected() {
-        assertNull(GuildChatLine.parse(PUA + " Alice hi"), "no colon at all");
-        assertNull(GuildChatLine.parse(": " + PUA + " Alice"), "colonIndex <= 0");
-        assertNull(GuildChatLine.parseServerLine(PUA + " Alice hi"));
+        assertNull(GuildChatLine.parse(PUA + " Metrafish hi"), "no colon at all");
+        assertNull(GuildChatLine.parse(": " + PUA + " Metrafish"), "colonIndex <= 0");
+        assertNull(GuildChatLine.parseServerLine(PUA + " Metrafish hi"));
     }
 
     @Test
@@ -142,14 +142,14 @@ class GuildChatLineTest {
 
     @Test
     void theNameIsTrimmedOnBothSides() {
-        GuildChatLine.Parsed shared = GuildChatLine.parse(PUA + " \t Alice \t : hi");
+        GuildChatLine.Parsed shared = GuildChatLine.parse(PUA + " \t Metrafish \t : hi");
         assertNotNull(shared);
-        assertEquals("Alice", shared.username());
+        assertEquals("Metrafish", shared.username());
 
         GuildChatLine.ServerParsed server =
-                GuildChatLine.parseServerLine(PUA + " \t Alice \t : hi");
+                GuildChatLine.parseServerLine(PUA + " \t Metrafish \t : hi");
         assertNotNull(server);
-        assertEquals("Alice", server.username(), "both trim the name identically");
+        assertEquals("Metrafish", server.username(), "both trim the name identically");
     }
 
     // ----- Divergence 1: the null guard -----
@@ -177,7 +177,7 @@ class GuildChatLineTest {
 
     @Test
     void parseServerLineReturnsAnIndexAndKeepsTheRankIndicator() {
-        String line = PUA + " Alice: hello";
+        String line = PUA + " Metrafish: hello";
 
         GuildChatLine.ServerParsed server = GuildChatLine.parseServerLine(line);
         assertNotNull(server);
@@ -200,7 +200,7 @@ class GuildChatLineTest {
         // which removes tabs and newlines; parseServerLine advances only past
         // literal ' ', so it stops on the first tab or newline and the caller
         // renders it.
-        String line = PUA + " Alice: \n hello";
+        String line = PUA + " Metrafish: \n hello";
 
         GuildChatLine.Parsed shared = GuildChatLine.parse(line);
         assertNotNull(shared);
@@ -216,7 +216,7 @@ class GuildChatLineTest {
 
     @Test
     void bodyOffsetAlsoDivergesOnATab() {
-        String line = PUA + " Alice:\thello";
+        String line = PUA + " Metrafish:\thello";
 
         GuildChatLine.Parsed shared = GuildChatLine.parse(line);
         assertNotNull(shared);
@@ -231,7 +231,7 @@ class GuildChatLineTest {
     void parseAlsoTrimsTheTrailingEndOfTheBodyAndAnIndexCannot() {
         // trim() is two-sided. An index has no way to express that, so the
         // trailing whitespace survives in parseServerLine's caller.
-        String line = PUA + " Alice: hello   ";
+        String line = PUA + " Metrafish: hello   ";
 
         GuildChatLine.Parsed shared = GuildChatLine.parse(line);
         assertNotNull(shared);
@@ -244,11 +244,11 @@ class GuildChatLineTest {
 
     @Test
     void anEmptyBodyIsAnEmptyStringNotNull() {
-        GuildChatLine.Parsed shared = GuildChatLine.parse(PUA + " Alice:   ");
+        GuildChatLine.Parsed shared = GuildChatLine.parse(PUA + " Metrafish:   ");
         assertNotNull(shared);
         assertEquals("", shared.message());
 
-        String line = PUA + " Alice:   ";
+        String line = PUA + " Metrafish:   ";
         GuildChatLine.ServerParsed server = GuildChatLine.parseServerLine(line);
         assertNotNull(server);
         assertEquals(

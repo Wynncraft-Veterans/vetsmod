@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
  */
 class RandomDistributorTest {
 
-    private static final List<String> ROSTER = List.of("Alpha", "Bravo", "Charlie");
+    private static final List<String> ROSTER = List.of("Metrafish", "Holidaze", "Wenweia");
 
     // ----- The empty-exclude fast path -----
 
@@ -61,15 +61,15 @@ class RandomDistributorTest {
     @Test
     void anExcludedNameIsDroppedAndTheRestKeepTheirOrder() {
         assertEquals(
-                List.of("Alpha", "Charlie"),
-                RandomDistributor.filterNames(ROSTER, Set.of("Bravo")));
+                List.of("Metrafish", "Wenweia"),
+                RandomDistributor.filterNames(ROSTER, Set.of("Holidaze")));
     }
 
     @Test
     void everyExcludedNameIsDropped() {
         assertEquals(
-                List.of("Charlie"),
-                RandomDistributor.filterNames(ROSTER, Set.of("Alpha", "Bravo")));
+                List.of("Wenweia"),
+                RandomDistributor.filterNames(ROSTER, Set.of("Metrafish", "Holidaze")));
     }
 
     @Test
@@ -77,7 +77,7 @@ class RandomDistributorTest {
         // Set.contains, not a case-folded compare. NoAspectsFilter resolves its
         // UUIDs through the same wapi payload the roster comes from, so both
         // sides carry the server's own spelling and never need folding.
-        assertEquals(ROSTER, RandomDistributor.filterNames(ROSTER, Set.of("bravo")));
+        assertEquals(ROSTER, RandomDistributor.filterNames(ROSTER, Set.of("holidaze")));
     }
 
     // ----- Degenerate input -----
@@ -85,7 +85,7 @@ class RandomDistributorTest {
     @Test
     void excludingTheWholeRosterYieldsAnEmptyList() {
         assertTrue(
-                RandomDistributor.filterNames(ROSTER, Set.of("Alpha", "Bravo", "Charlie"))
+                RandomDistributor.filterNames(ROSTER, Set.of("Metrafish", "Holidaze", "Wenweia"))
                         .isEmpty());
     }
 
@@ -93,7 +93,7 @@ class RandomDistributorTest {
     void anEmptyRosterYieldsAnEmptyList() {
         // beginPicks' own isEmpty() check is what turns this into the
         // "Could not read guild roster from wapi" chat line.
-        assertTrue(RandomDistributor.filterNames(List.of(), Set.of("Alpha")).isEmpty());
+        assertTrue(RandomDistributor.filterNames(List.of(), Set.of("Metrafish")).isEmpty());
     }
 
     // ----- distinctIgnoringCase -----
@@ -101,21 +101,21 @@ class RandomDistributorTest {
     @Test
     void distinctIgnoringCase_keepsTheFirstSpellingOfEachTileName() {
         assertEquals(
-                List.of("Dana", "Alpha", "Bravo"),
+                List.of("Nazzae", "Metrafish", "Holidaze"),
                 RandomDistributor.distinctIgnoringCase(
-                        List.of("Dana", "Alpha", "dana", "Bravo", "DANA")));
+                        List.of("Nazzae", "Metrafish", "nazzae", "Holidaze", "NAZZAE")));
     }
 
     @Test
     void distinctIgnoringCase_foldsAnIUnderATurkishDefaultLocale() {
-        // With the JVM's default locale a Turkish default would fold "Iris" to a
+        // With the JVM's default locale a Turkish default would fold "METRAFISH" to a
         // dotless i, and the two spellings would both stay in the pool.
         Locale original = Locale.getDefault();
         Locale.setDefault(Locale.forLanguageTag("tr"));
         try {
             assertEquals(
-                    List.of("Iris"),
-                    RandomDistributor.distinctIgnoringCase(List.of("Iris", "iris")));
+                    List.of("METRAFISH"),
+                    RandomDistributor.distinctIgnoringCase(List.of("METRAFISH", "metrafish")));
         } finally {
             Locale.setDefault(original);
         }

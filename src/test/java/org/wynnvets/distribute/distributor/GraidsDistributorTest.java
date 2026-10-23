@@ -96,12 +96,12 @@ class GraidsDistributorTest {
 
     @Test
     void equalFrequenciesTieBreakOnNameCaseInsensitively() {
-        // compareToIgnoreCase, so "Bob" sorts after "alice" rather than before
+        // compareToIgnoreCase, so "Metrafish" sorts after "holidaze" rather than before
         // it as a plain compareTo would put every capitalised name first.
         Deque<DistributionQueue.Distribution> queue =
-                GraidsDistributor.buildDistribution(freq("Bob", 2, "alice", 2), 4);
+                GraidsDistributor.buildDistribution(freq("Metrafish", 2, "holidaze", 2), 4);
 
-        assertEquals(List.of("alice", "Bob"), names(queue));
+        assertEquals(List.of("holidaze", "Metrafish"), names(queue));
     }
 
     // ----- Shares are proportional, not equal -----

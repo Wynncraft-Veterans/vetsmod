@@ -83,52 +83,52 @@ class MessageBodyFormatterTest {
     @Test
     void formatMessageBody_url_isLinked() {
         assertEquals(
-                "empty[siblings=[literal{https://example.com/a}[style={color=aqua,"
-                        + "clickEvent=OpenUrl[uri=https://example.com/a]}]]]",
-                format("https://example.com/a", AQUA));
+                "empty[siblings=[literal{https://wynnvets.org/a}[style={color=aqua,"
+                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/a]}]]]",
+                format("https://wynnvets.org/a", AQUA));
     }
 
     @Test
     void formatMessageBody_bareHost_isShownAsTypedAndLinkedOverHttps() {
         assertEquals(
-                "empty[siblings=[literal{example.com/a}[style={color=aqua,"
-                        + "clickEvent=OpenUrl[uri=https://example.com/a]}]]]",
-                format("example.com/a", AQUA));
+                "empty[siblings=[literal{wynnvets.org/a}[style={color=aqua,"
+                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/a]}]]]",
+                format("wynnvets.org/a", AQUA));
     }
 
     @Test
     void formatMessageBody_upperCaseScheme_isLinkedAsTyped() {
         assertEquals(
-                "empty[siblings=[literal{HTTPS://EXAMPLE.COM/A}[style={color=aqua,"
-                        + "clickEvent=OpenUrl[uri=HTTPS://EXAMPLE.COM/A]}]]]",
-                format("HTTPS://EXAMPLE.COM/A", AQUA));
+                "empty[siblings=[literal{HTTPS://WYNNVETS.ORG/A}[style={color=aqua,"
+                        + "clickEvent=OpenUrl[uri=HTTPS://WYNNVETS.ORG/A]}]]]",
+                format("HTTPS://WYNNVETS.ORG/A", AQUA));
     }
 
     @Test
     void formatMessageBody_urlThatIsNotAValidUri_staysUnlinked() {
         assertEquals(
-                "empty[siblings=[literal{https://a.b/%zz}[style={color=aqua}]]]",
-                format("https://a.b/%zz", AQUA));
+                "empty[siblings=[literal{https://wynnvets.org/%zz}[style={color=aqua}]]]",
+                format("https://wynnvets.org/%zz", AQUA));
     }
 
     @Test
     void formatMessageBody_markerBetweenUrls_splitsThem() {
         assertEquals(
-                "empty[siblings=[literal{https://a.b/}[style={color=aqua,"
-                        + "clickEvent=OpenUrl[uri=https://a.b/]}], "
+                "empty[siblings=[literal{https://wynnvets.org/}[style={color=aqua,"
+                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/]}], "
                         + "literal{\uE003}[style={color=aqua,shadowColor=0,"
                         + "font=Resource[id=minecraft:chat/prefix]}], "
-                        + "literal{https://c.d/}[style={color=aqua,"
-                        + "clickEvent=OpenUrl[uri=https://c.d/]}]]]",
-                format("https://a.b/" + SEP + "https://c.d/", AQUA));
+                        + "literal{https://wynnvets.org/b/}[style={color=aqua,"
+                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/b/]}]]]",
+                format("https://wynnvets.org/" + SEP + "https://wynnvets.org/b/", AQUA));
     }
 
     @Test
     void formatMessageBody_leadingContinuations_areStripped() {
         assertEquals(
-                "empty[siblings=[literal{https://a.b/}[style={color=aqua,"
-                        + "clickEvent=OpenUrl[uri=https://a.b/]}]]]",
-                format("\n" + COMPACT + " " + COMPACT + " https://a.b/", AQUA));
+                "empty[siblings=[literal{https://wynnvets.org/}[style={color=aqua,"
+                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/]}]]]",
+                format("\n" + COMPACT + " " + COMPACT + " https://wynnvets.org/", AQUA));
     }
 
     // ── isWrapStructure ───────────────────────────────────────────────

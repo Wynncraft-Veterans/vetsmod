@@ -46,7 +46,7 @@ class V1ApiManagerFramesTest {
         volatile boolean connected = true;
 
         RecordingWsClient() {
-            super(URI.create("wss://example.invalid/v1/inbound"), "test", json -> {});
+            super(URI.create("wss://wynnvets.org/v1/inbound"), "test", json -> {});
         }
 
         @Override
@@ -78,11 +78,11 @@ class V1ApiManagerFramesTest {
     @Test
     void registration() {
         connect();
-        V1ApiManager.sendRegistration("0a1b2c3d-1111-2222-3333-444455556666", "Alice", "guild");
+        V1ApiManager.sendRegistration("bb171c68-7080-4d02-be7b-cc2d5dcbcd82", "Metrafish", "guild");
         assertEquals(
                 List.of(
-                        "{\"type\":\"register\",\"uuid\":\"0a1b2c3d-1111-2222-3333-444455556666\","
-                                + "\"username\":\"Alice\",\"tier\":\"guild\"}"),
+                        "{\"type\":\"register\",\"uuid\":\"bb171c68-7080-4d02-be7b-cc2d5dcbcd82\","
+                                + "\"username\":\"Metrafish\",\"tier\":\"guild\"}"),
                 socket.wire);
     }
 
@@ -111,15 +111,15 @@ class V1ApiManagerFramesTest {
     void inbound() {
         connect();
         long t0 = System.currentTimeMillis();
-        V1ApiManager.sendInbound("guild", "Chief", "Alice", "hello there");
-        V1ApiManager.sendInbound("waitlist", null, "Bob", "hi");
+        V1ApiManager.sendInbound("guild", "Chief", "Metrafish", "hello there");
+        V1ApiManager.sendInbound("waitlist", null, "Holidaze", "hi");
         long t1 = System.currentTimeMillis();
         assertEquals(
                 List.of(
                         "{\"uuid\":\"U\",\"type\":\"guild\",\"timestamp\":0,\"rank\":\"Chief\","
-                                + "\"username\":\"Alice\",\"message\":\"hello there\"}",
+                                + "\"username\":\"Metrafish\",\"message\":\"hello there\"}",
                         "{\"uuid\":\"U\",\"type\":\"waitlist\",\"timestamp\":0,\"rank\":\"\","
-                                + "\"username\":\"Bob\",\"message\":\"hi\"}"),
+                                + "\"username\":\"Holidaze\",\"message\":\"hi\"}"),
                 masked(t0, t1));
     }
 
@@ -127,12 +127,12 @@ class V1ApiManagerFramesTest {
     void rankChange() {
         connect();
         long t0 = System.currentTimeMillis();
-        V1ApiManager.sendRankChange("Alice", "Bob", "Captain", "Recruit", "mote");
+        V1ApiManager.sendRankChange("Metrafish", "Holidaze", "Captain", "Recruit", "mote");
         long t1 = System.currentTimeMillis();
         assertEquals(
                 List.of(
                         "{\"type\":\"rank_change\",\"uuid\":\"U\",\"timestamp\":0,"
-                                + "\"actor\":\"Alice\",\"target\":\"Bob\","
+                                + "\"actor\":\"Metrafish\",\"target\":\"Holidaze\","
                                 + "\"from_rank\":\"Captain\",\"to_rank\":\"Recruit\","
                                 + "\"classification\":\"mote\"}"),
                 masked(t0, t1));
@@ -143,13 +143,13 @@ class V1ApiManagerFramesTest {
         connect();
         V1ApiManager.sendTabList(
                 List.of(
-                        new V1ApiManager.TabListEntry("WC1", "Alice"),
-                        new V1ApiManager.TabListEntry("EU4", "Bob")));
+                        new V1ApiManager.TabListEntry("WC1", "Metrafish"),
+                        new V1ApiManager.TabListEntry("EU4", "Holidaze")));
         assertEquals(
                 List.of(
                         "{\"type\":\"tablist\",\"entries\":["
-                                + "{\"server\":\"WC1\",\"username\":\"Alice\"},"
-                                + "{\"server\":\"EU4\",\"username\":\"Bob\"}]}"),
+                                + "{\"server\":\"WC1\",\"username\":\"Metrafish\"},"
+                                + "{\"server\":\"EU4\",\"username\":\"Holidaze\"}]}"),
                 socket.wire);
     }
 
@@ -157,7 +157,7 @@ class V1ApiManagerFramesTest {
     void staffActionFrame_isSentAndItsCallbackQueued() {
         connect();
         JsonObject fields = new JsonObject();
-        fields.addProperty("target_username", "Bob");
+        fields.addProperty("target_username", "Holidaze");
         fields.addProperty("confirm", true);
         List<String> acks = new ArrayList<>();
         V1ApiManager.sendStaffActionFrame(
@@ -165,7 +165,7 @@ class V1ApiManagerFramesTest {
         assertEquals(
                 List.of(
                         "{\"type\":\"caution_check\","
-                                + "\"target_username\":\"Bob\",\"confirm\":true}"),
+                                + "\"target_username\":\"Holidaze\",\"confirm\":true}"),
                 socket.wire);
         assertTrue(acks.isEmpty());
         // The callback waits in the queue: disconnecting drains it with the synthetic ack.
@@ -211,13 +211,13 @@ class V1ApiManagerFramesTest {
         connect();
         assertTrue(
                 AnniWsSender.sendAnniPartyObservation(
-                        Arrays.asList("Alice", null, "", "Bob"), "Alice", "WC1"));
+                        Arrays.asList("Metrafish", null, "", "Holidaze"), "Metrafish", "WC1"));
         assertTrue(AnniWsSender.sendAnniPartyObservation(null, null, null));
         assertEquals(
                 List.of(
                         "{\"type\":\"anni_party_observation\","
-                                + "\"party_member_usernames\":[\"Alice\",\"Bob\"],"
-                                + "\"leader_username\":\"Alice\",\"world\":\"WC1\"}",
+                                + "\"party_member_usernames\":[\"Metrafish\",\"Holidaze\"],"
+                                + "\"leader_username\":\"Metrafish\",\"world\":\"WC1\"}",
                         "{\"type\":\"anni_party_observation\",\"party_member_usernames\":[],"
                                 + "\"leader_username\":\"\",\"world\":\"\"}"),
                 socket.wire);
@@ -239,20 +239,21 @@ class V1ApiManagerFramesTest {
     }
 
     private void assertNothingSentWhileDown() {
-        V1ApiManager.sendRegistration("0a1b2c3d-1111-2222-3333-444455556666", "Alice", "guild");
+        V1ApiManager.sendRegistration("bb171c68-7080-4d02-be7b-cc2d5dcbcd82", "Metrafish", "guild");
         SessionAuthState.expectingAuthAck = false;
         V1ApiManager.sendAuth("k3y-Value_123");
         // Nothing was sent, so no auth ack is awaited.
         assertFalse(SessionAuthState.expectingAuthAck);
         V1ApiManager.sendQueueStatus(true, "NA30");
-        V1ApiManager.sendInbound("guild", "Chief", "Alice", "hello there");
-        V1ApiManager.sendRankChange("Alice", "Bob", "Captain", "Recruit", "mote");
-        V1ApiManager.sendTabList(List.of(new V1ApiManager.TabListEntry("WC1", "Alice")));
+        V1ApiManager.sendInbound("guild", "Chief", "Metrafish", "hello there");
+        V1ApiManager.sendRankChange("Metrafish", "Holidaze", "Captain", "Recruit", "mote");
+        V1ApiManager.sendTabList(List.of(new V1ApiManager.TabListEntry("WC1", "Metrafish")));
         assertFalse(AnniWsSender.sendAnniQuery());
         assertFalse(AnniWsSender.sendAnniScrollspotSet(12, 64, -300));
         assertFalse(AnniWsSender.sendAnniScrollspotSet(null, null, null));
         assertFalse(AnniWsSender.sendAnniRsvp("hard"));
-        assertFalse(AnniWsSender.sendAnniPartyObservation(List.of("Alice"), "Alice", "WC1"));
+        assertFalse(
+                AnniWsSender.sendAnniPartyObservation(List.of("Metrafish"), "Metrafish", "WC1"));
 
         // A staff-action frame is answered at once, on the caller's thread, and nothing is queued.
         List<String> acks = new ArrayList<>();

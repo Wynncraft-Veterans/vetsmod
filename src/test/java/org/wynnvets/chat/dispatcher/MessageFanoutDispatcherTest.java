@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Test;
  * <p>Two live false-positive surfaces are pinned rather than described, since
  * both look like sloppiness a later pass would tidy away and both are load
  * bearing: {@code isOutboundRecipientTarget} matches the recipient segment with
- * {@code contains}, so a message to {@code bobby} is accepted as one to
- * {@code bob}; and {@code containsCensoredVariant} treats {@code *} in the
+ * {@code contains}, so a message to {@code holidazed} is accepted as one to
+ * {@code holidaze}; and {@code containsCensoredVariant} treats {@code *} in the
  * <em>message</em> as a wildcard, so a run of asterisks at least as long as the
  * payload matches anything at all.</p>
  *
@@ -43,33 +43,35 @@ class MessageFanoutDispatcherTest {
     void isOutboundRecipientTarget_matchesTheSegmentBetweenGlyphAndColon() {
         assertTrue(
                 MessageFanoutDispatcher.isOutboundRecipientTarget(
-                        "you " + SEP + " bob: hi", "bob"));
+                        "you " + SEP + " holidaze: hi", "holidaze"));
     }
 
     @Test
     void isOutboundRecipientTarget_requiresBothTheGlyphAndAColonAfterIt() {
         assertFalse(
-                MessageFanoutDispatcher.isOutboundRecipientTarget("you bob: hi", "bob"),
+                MessageFanoutDispatcher.isOutboundRecipientTarget("you holidaze: hi", "holidaze"),
                 "no separator glyph — not an outbound private message");
         assertFalse(
-                MessageFanoutDispatcher.isOutboundRecipientTarget("you " + SEP + " bob hi", "bob"),
+                MessageFanoutDispatcher.isOutboundRecipientTarget(
+                        "you " + SEP + " holidaze hi", "holidaze"),
                 "no colon after the glyph");
         assertFalse(
-                MessageFanoutDispatcher.isOutboundRecipientTarget("a: b " + SEP + " bob", "bob"),
+                MessageFanoutDispatcher.isOutboundRecipientTarget(
+                        "a: b " + SEP + " holidaze", "holidaze"),
                 "the colon must come after the glyph, not before it");
     }
 
     @Test
     void isOutboundRecipientTarget_recipientIsASubstringTestSoPrefixesFalseMatch() {
-        // Live false-positive surface: a message addressed to "bobby" is
-        // accepted as one addressed to "bob". Narrowing this to equals() would
+        // Live false-positive surface: a message addressed to "holidazed" is
+        // accepted as one addressed to "holidaze". Narrowing this to equals() would
         // change which feedback lines are attributed to which dispatch.
         assertTrue(
                 MessageFanoutDispatcher.isOutboundRecipientTarget(
-                        "you " + SEP + " bobby: hi", "bob"));
+                        "you " + SEP + " holidazed: hi", "holidaze"));
         assertFalse(
                 MessageFanoutDispatcher.isOutboundRecipientTarget(
-                        "you " + SEP + " bob: hi", "bobby"),
+                        "you " + SEP + " holidaze: hi", "holidazed"),
                 "the containment only runs one way");
     }
 
@@ -78,23 +80,26 @@ class MessageFanoutDispatcherTest {
         // The name appearing in the body rather than the header is not a match.
         assertFalse(
                 MessageFanoutDispatcher.isOutboundRecipientTarget(
-                        "you " + SEP + " alice: tell bob hi", "bob"));
+                        "you " + SEP + " metrafish: tell holidaze hi", "holidaze"));
     }
 
     // ----- isOfflineRecipientMessage / isOfflineGuidanceMessage -----
 
     @Test
     void isOfflineRecipientMessage_bothServerWordings() {
-        assertTrue(MessageFanoutDispatcher.isOfflineRecipientMessage("bob is not online", "bob"));
         assertTrue(
                 MessageFanoutDispatcher.isOfflineRecipientMessage(
-                        "bob is not currently online", "bob"));
+                        "holidaze is not online", "holidaze"));
+        assertTrue(
+                MessageFanoutDispatcher.isOfflineRecipientMessage(
+                        "holidaze is not currently online", "holidaze"));
     }
 
     @Test
     void isOfflineRecipientMessage_isAnchoredOnTheNameNotJustThePhrase() {
         assertFalse(
-                MessageFanoutDispatcher.isOfflineRecipientMessage("alice is not online", "bob"),
+                MessageFanoutDispatcher.isOfflineRecipientMessage(
+                        "metrafish is not online", "holidaze"),
                 "the name and the phrase have to be adjacent");
     }
 
@@ -107,7 +112,7 @@ class MessageFanoutDispatcherTest {
         assertTrue(
                 MessageFanoutDispatcher.isOfflineGuidanceMessage(
                         "or the user is on a separate server"));
-        assertFalse(MessageFanoutDispatcher.isOfflineGuidanceMessage("bob is not online"));
+        assertFalse(MessageFanoutDispatcher.isOfflineGuidanceMessage("holidaze is not online"));
     }
 
     // ----- normalizeForEchoComparison -----
@@ -275,7 +280,7 @@ class MessageFanoutDispatcherTest {
     void containsNormalizedPayload_matchesAcrossGlyphsSpacingAndCase() {
         assertTrue(
                 MessageFanoutDispatcher.containsNormalizedPayload(
-                        "you " + SEP + " bob: HEL" + (char) 0xE003 + "LO there", "hello"));
+                        "you " + SEP + " holidaze: HEL" + (char) 0xE003 + "LO there", "hello"));
     }
 
     @Test

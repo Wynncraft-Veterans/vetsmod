@@ -61,34 +61,34 @@ class RankChangeListenerTest {
 
     @Test
     void wasRecent_neverSeen_returnsFalse() {
-        assertFalse(RankChangeListener.wasRecent("captain", "alice", "Captain", "Captain"));
+        assertFalse(RankChangeListener.wasRecent("captain", "metrafish", "Captain", "Captain"));
     }
 
     @Test
     void recordRecent_thenWasRecent_returnsTrue() {
-        RankChangeListener.recordRecent("captain", "alice", "Captain", "Captain");
-        assertTrue(RankChangeListener.wasRecent("captain", "alice", "Captain", "Captain"));
+        RankChangeListener.recordRecent("captain", "metrafish", "Captain", "Captain");
+        assertTrue(RankChangeListener.wasRecent("captain", "metrafish", "Captain", "Captain"));
     }
 
     @Test
     void wasRecent_distinguishesByActor() {
         // The 4-tuple fingerprint is symmetric across the four fields, so we
         // only need to demonstrate the discrimination with one of them.
-        RankChangeListener.recordRecent("captain", "alice", "Captain", "Captain");
-        assertFalse(RankChangeListener.wasRecent("OTHER", "alice", "Captain", "Captain"));
+        RankChangeListener.recordRecent("captain", "metrafish", "Captain", "Captain");
+        assertFalse(RankChangeListener.wasRecent("OTHER", "metrafish", "Captain", "Captain"));
     }
 
     @Test
     void prune_removesEntriesPastTtl() {
-        RankChangeListener.recordRecent("captain", "alice", "Captain", "Captain");
-        assertTrue(RankChangeListener.wasRecent("captain", "alice", "Captain", "Captain"));
+        RankChangeListener.recordRecent("captain", "metrafish", "Captain", "Captain");
+        assertTrue(RankChangeListener.wasRecent("captain", "metrafish", "Captain", "Captain"));
 
         // Drive `now` past the TTL boundary without sleeping — prune() takes
         // `now` as a parameter precisely so we can test the expiry rule.
         long ttlMs = TimeUnit.SECONDS.toMillis(30);
         RankChangeListener.prune(System.currentTimeMillis() + ttlMs + 1_000L);
 
-        assertFalse(RankChangeListener.wasRecent("captain", "alice", "Captain", "Captain"));
+        assertFalse(RankChangeListener.wasRecent("captain", "metrafish", "Captain", "Captain"));
     }
 
     @Test

@@ -58,8 +58,8 @@ class FindDispatcherTest {
     @Test
     void strip_leavesOrdinaryProseAlone() {
         assertEquals(
-                "Alice is currently on server WC12",
-                FindDispatcher.stripFormattingAndPua("Alice is currently on server WC12"));
+                "Metrafish is currently on server WC12",
+                FindDispatcher.stripFormattingAndPua("Metrafish is currently on server WC12"));
     }
 
     @Test

@@ -152,25 +152,30 @@ class MembersGuiTest {
 
     @Test
     void pageTurned_falseWhileTheOldPageIsStillShowing() {
-        assertFalse(MembersGui.pageTurned(Set.of("Ann", "Bob"), Set.of("Ann", "Bob")));
+        assertFalse(
+                MembersGui.pageTurned(
+                        Set.of("Metrafish", "Holidaze"), Set.of("Metrafish", "Holidaze")));
     }
 
     @Test
     void pageTurned_trueOnceEveryNameIsNew() {
-        assertTrue(MembersGui.pageTurned(Set.of("Ann", "Bob"), Set.of("Cid", "Dee")));
+        assertTrue(
+                MembersGui.pageTurned(
+                        Set.of("Metrafish", "Holidaze"), Set.of("Wenweia", "Nazzae")));
     }
 
     @Test
     void pageTurned_falseOnAPartlyUpdatedPage() {
         assertFalse(
-                MembersGui.pageTurned(Set.of("Ann", "Bob"), Set.of("Cid", "Bob")),
+                MembersGui.pageTurned(
+                        Set.of("Metrafish", "Holidaze"), Set.of("Wenweia", "Holidaze")),
                 "one name left over from the old page means it has not finished turning");
     }
 
     @Test
     void pageTurned_falseOnAnEmptyPage() {
         assertFalse(
-                MembersGui.pageTurned(Set.of("Ann"), Set.of()),
+                MembersGui.pageTurned(Set.of("Metrafish"), Set.of()),
                 "an empty scan proves nothing: the tiles may be mid-update");
     }
 }

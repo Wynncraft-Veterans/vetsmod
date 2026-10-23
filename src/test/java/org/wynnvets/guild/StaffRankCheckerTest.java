@@ -80,7 +80,7 @@ class StaffRankCheckerTest {
                 "without the trailing clause it is not the /gu rank refusal");
         assertFalse(
                 StaffRankChecker.isStaffRankUnauthorizedResponse(
-                        "Captain Bob asked you to use this command"),
+                        "Captain Holidaze asked you to use this command"),
                 "without the opening clause either");
     }
 
@@ -123,7 +123,7 @@ class StaffRankCheckerTest {
         // data. A line with the placeholders filled in does not match.
         assertFalse(
                 StaffRankChecker.isStaffRankAuthorizedResponse(
-                        "Invalid arguments, try: /gu rank Alice Captain"));
+                        "Invalid arguments, try: /gu rank Metrafish Captain"));
     }
 
     @Test

@@ -35,8 +35,8 @@ import org.junit.jupiter.api.Test;
  */
 class NoAspectsFilterTest {
 
-    private static final String DASHED = "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE";
-    private static final String NORMALISED = "aaaaaaaabbbbccccddddeeeeeeeeeeee";
+    private static final String DASHED = "BB171C68-7080-4D02-BE7B-CC2D5DCBCD82";
+    private static final String NORMALISED = "bb171c6870804d02be7bcc2d5dcbcd82";
 
     // ----- fetchExcludedLegacyNames -----
 
@@ -58,7 +58,7 @@ class NoAspectsFilterTest {
         // map lookup.
         Set<String> uuids =
                 NoAspectsFilter.parseUuids(
-                        "[{\"uuid\": \"" + DASHED + "\", \"username\": \"Alice\"}]");
+                        "[{\"uuid\": \"" + DASHED + "\", \"username\": \"Metrafish\"}]");
 
         assertEquals(Set.of(NORMALISED), uuids);
     }
@@ -86,11 +86,11 @@ class NoAspectsFilterTest {
                           {"uuid": ""},
                           "not an object",
                           123,
-                          {"uuid": "11111111-2222-3333-4444-555555555555"}
+                          {"uuid": "fa8aa700-4538-485f-bf91-325263606995"}
                         ]
                         """);
 
-        assertEquals(Set.of("11111111222233334444555555555555"), uuids);
+        assertEquals(Set.of("fa8aa7004538485fbf91325263606995"), uuids);
     }
 
     @Test
@@ -137,16 +137,19 @@ class NoAspectsFilterTest {
     void buildExcludedNames_translatesUuidsToTileNames() {
         Set<String> names =
                 NoAspectsFilter.buildExcludedNames(
-                        Set.of(NORMALISED, "11111111222233334444555555555555"),
+                        Set.of(NORMALISED, "fa8aa7004538485fbf91325263606995"),
                         Map.of(
                                 NORMALISED,
-                                "OldAlice",
-                                "11111111222233334444555555555555",
-                                "Bob",
-                                "99999999999999999999999999999999",
-                                "Carol"));
+                                "OldMetrafish",
+                                "fa8aa7004538485fbf91325263606995",
+                                "Holidaze",
+                                "085d0e5829d444aa837992a4568a59d6",
+                                "Wenweia"));
 
-        assertEquals(Set.of("OldAlice", "Bob"), names, "only the opted-out members are excluded");
+        assertEquals(
+                Set.of("OldMetrafish", "Holidaze"),
+                names,
+                "only the opted-out members are excluded");
     }
 
     @Test
@@ -156,9 +159,9 @@ class NoAspectsFilterTest {
         Set<String> names =
                 NoAspectsFilter.buildExcludedNames(
                         Set.of(NORMALISED, "deadbeefdeadbeefdeadbeefdeadbeef"),
-                        Map.of(NORMALISED, "OldAlice"));
+                        Map.of(NORMALISED, "OldMetrafish"));
 
-        assertEquals(Set.of("OldAlice"), names);
+        assertEquals(Set.of("OldMetrafish"), names);
     }
 
     @Test
@@ -167,10 +170,10 @@ class NoAspectsFilterTest {
         // set of names, so both exclusions land on the one tile.
         Set<String> names =
                 NoAspectsFilter.buildExcludedNames(
-                        Set.of(NORMALISED, "11111111222233334444555555555555"),
-                        Map.of(NORMALISED, "Dana", "11111111222233334444555555555555", "Dana"));
+                        Set.of(NORMALISED, "fa8aa7004538485fbf91325263606995"),
+                        Map.of(NORMALISED, "Nazzae", "fa8aa7004538485fbf91325263606995", "Nazzae"));
 
-        assertEquals(Set.of("Dana"), names);
+        assertEquals(Set.of("Nazzae"), names);
     }
 
     @Test
@@ -190,13 +193,14 @@ class NoAspectsFilterTest {
         // list would silently stop working.
         assertEquals(
                 Set.of(),
-                NoAspectsFilter.buildExcludedNames(Set.of(DASHED), Map.of(NORMALISED, "OldAlice")),
+                NoAspectsFilter.buildExcludedNames(
+                        Set.of(DASHED), Map.of(NORMALISED, "OldMetrafish")),
                 "a dashed key does not find a normalised entry");
         assertEquals(
                 Set.of(),
                 NoAspectsFilter.buildExcludedNames(
                         Set.of(NORMALISED),
-                        Map.of(NORMALISED.toUpperCase(Locale.ROOT), "OldAlice")),
+                        Map.of(NORMALISED.toUpperCase(Locale.ROOT), "OldMetrafish")),
                 "nor does a case-mismatched one");
     }
 
@@ -207,8 +211,8 @@ class NoAspectsFilterTest {
         Set<String> uuids = NoAspectsFilter.parseUuids("[{\"uuid\": \"" + DASHED + "\"}]");
 
         assertEquals(
-                Set.of("OldAlice"),
-                NoAspectsFilter.buildExcludedNames(uuids, Map.of(NORMALISED, "OldAlice")));
+                Set.of("OldMetrafish"),
+                NoAspectsFilter.buildExcludedNames(uuids, Map.of(NORMALISED, "OldMetrafish")));
     }
 
     @Test

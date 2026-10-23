@@ -48,9 +48,9 @@ class NameResolverTest {
     }
 
     /**
-     * A wapi v3 guild payload. Casey renamed (tile shows "Dana"); Dana is a
+     * A wapi v3 guild payload. Wenweia renamed (tile shows "Holidaze"); Holidaze is a
      * different member who never renamed but whose current name collides with
-     * Casey's legacy name; Erin never renamed; "Frank" is a well-formed member
+     * Wenweia's legacy name; Metrafish never renamed; "Nazzae" is a well-formed member
      * object carrying no uuid at all; "Broken" is a malformed entry whose value
      * is not an object.
      */
@@ -61,12 +61,12 @@ class NameResolverTest {
               "members": {
                 "total": 4,
                 "owner": {
-                  "Casey": {"uuid": "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE", "legacyName": "Dana"}
+                  "Wenweia": {"uuid": "085D0E58-29D4-44AA-8379-92A4568A59D6", "legacyName": "Holidaze"}
                 },
                 "chief": {
-                  "Dana": {"uuid": "11111111-2222-3333-4444-555555555555", "legacyName": null},
-                  "Erin": {"uuid": "99999999999999999999999999999999"},
-                  "Frank": {"legacyName": "OldFrank"},
+                  "Holidaze": {"uuid": "fa8aa700-4538-485f-bf91-325263606995", "legacyName": null},
+                  "Metrafish": {"uuid": "bb171c6870804d02be7bcc2d5dcbcd82"},
+                  "Nazzae": {"legacyName": "OldNazzae"},
                   "Broken": 42
                 }
               }
@@ -80,9 +80,9 @@ class NameResolverTest {
         List<String> names = NameResolver.extractAllLegacyNames(ROSTER);
 
         assertEquals(
-                List.of("Dana", "Dana", "Erin", "OldFrank", "Broken"),
+                List.of("Holidaze", "Holidaze", "Metrafish", "OldNazzae", "Broken"),
                 names,
-                "Casey and Frank renamed; Dana, Erin and Broken fall back to their key");
+                "Wenweia and Nazzae renamed; Holidaze, Metrafish and Broken fall back to their key");
     }
 
     @Test
@@ -98,10 +98,10 @@ class NameResolverTest {
 
     @Test
     void extractAllLegacyNames_canProduceDuplicates() {
-        // Two distinct members both display as "Dana". The list is not
+        // Two distinct members both display as "Holidaze". The list is not
         // deduplicated here; RandomDistributor dedupes it before picking.
         List<String> names = NameResolver.extractAllLegacyNames(ROSTER);
-        assertEquals(2, names.stream().filter("Dana"::equals).count());
+        assertEquals(2, names.stream().filter("Holidaze"::equals).count());
     }
 
     // ----- extractUuidToLegacyName -----
@@ -110,9 +110,11 @@ class NameResolverTest {
     void extractUuidToLegacyName_keysOnTheNormalisedUuid() {
         Map<String, String> map = NameResolver.extractUuidToLegacyName(ROSTER);
 
-        assertEquals("Dana", map.get("aaaaaaaabbbbccccddddeeeeeeeeeeee"), "Casey's renamed tile");
-        assertEquals("Dana", map.get("11111111222233334444555555555555"), "Dana never renamed");
-        assertEquals("Erin", map.get("99999999999999999999999999999999"));
+        assertEquals(
+                "Holidaze", map.get("085d0e5829d444aa837992a4568a59d6"), "Wenweia's renamed tile");
+        assertEquals(
+                "Holidaze", map.get("fa8aa7004538485fbf91325263606995"), "Holidaze never renamed");
+        assertEquals("Metrafish", map.get("bb171c6870804d02be7bcc2d5dcbcd82"));
     }
 
     @Test
@@ -121,13 +123,13 @@ class NameResolverTest {
         // the member is not filtered even while on the opt-out list. Two
         // distinct guards produce
         // that outcome and the fixture exercises both — "Broken" trips the
-        // `member == null` check, "Frank" is a perfectly good member object
+        // `member == null` check, "Nazzae" is a perfectly good member object
         // that trips the later `uuid == null` one.
         Map<String, String> map = NameResolver.extractUuidToLegacyName(ROSTER);
 
-        assertEquals(3, map.size(), "Casey, Dana and Erin only");
+        assertEquals(3, map.size(), "Wenweia, Holidaze and Metrafish only");
         assertTrue(!map.containsValue("Broken"), "no member object");
-        assertTrue(!map.containsValue("OldFrank"), "member object, but no uuid to key it on");
+        assertTrue(!map.containsValue("OldNazzae"), "member object, but no uuid to key it on");
     }
 
     // ----- extractNameIndex -----
@@ -136,31 +138,32 @@ class NameResolverTest {
     void extractNameIndex_registersBothTheCurrentAndTheLegacyForm() {
         Map<String, String> index = NameResolver.extractNameIndex(ROSTER);
 
-        assertEquals("Dana", index.get("casey"), "the current name resolves to the tile name");
-        assertEquals("Dana", index.get("dana"), "so does the legacy name");
-        assertEquals("Erin", index.get("erin"));
+        assertEquals(
+                "Holidaze", index.get("wenweia"), "the current name resolves to the tile name");
+        assertEquals("Holidaze", index.get("holidaze"), "so does the legacy name");
+        assertEquals("Metrafish", index.get("metrafish"));
     }
 
     @Test
     void extractNameIndex_keysAreLowercased() {
         Map<String, String> index = NameResolver.extractNameIndex(ROSTER);
 
-        assertTrue(index.containsKey("casey"));
-        assertTrue(!index.containsKey("Casey"), "the raw-case key is not registered");
+        assertTrue(index.containsKey("wenweia"));
+        assertTrue(!index.containsKey("Wenweia"), "the raw-case key is not registered");
     }
 
     @Test
     void extractNameIndex_foldsWithLocaleRootSoATurkishClientIndexesTheSameKeys() {
         // The argument to toLowerCase is load-bearing and several neighbours in
-        // this repo omit it. "Erin" contains a capital I, which a default-locale
-        // fold would turn into the dotless U+0131 — so the key would be "erın"
-        // and every lookup for "erin" would miss.
+        // this repo omit it. "Metrafish" contains a capital I, which a default-locale
+        // fold would turn into the dotless U+0131 — so the key would be "metrafısh"
+        // and every lookup for "metrafish" would miss.
         Locale.setDefault(TURKISH);
 
         Map<String, String> index = NameResolver.extractNameIndex(ROSTER);
 
-        assertEquals("Erin", index.get("erin"), "ASCII i, not the dotless one");
-        assertTrue(!index.containsKey("erın"), "the default-locale key is never produced");
+        assertEquals("Metrafish", index.get("metrafish"), "ASCII i, not the dotless one");
+        assertTrue(!index.containsKey("metrafısh"), "the default-locale key is never produced");
     }
 
     @Test
@@ -172,29 +175,29 @@ class NameResolverTest {
 
     @Test
     void findLegacyName_resolvesACurrentNameToItsLegacyName() {
-        assertEquals("Dana", NameResolver.findLegacyName(ROSTER, "Casey"));
+        assertEquals("Holidaze", NameResolver.findLegacyName(ROSTER, "Wenweia"));
     }
 
     @Test
     void findLegacyName_isCaseInsensitiveOnBothSides() {
-        assertEquals("Dana", NameResolver.findLegacyName(ROSTER, "casey"));
-        assertEquals("Dana", NameResolver.findLegacyName(ROSTER, "CASEY"));
+        assertEquals("Holidaze", NameResolver.findLegacyName(ROSTER, "wenweia"));
+        assertEquals("Holidaze", NameResolver.findLegacyName(ROSTER, "WENWEIA"));
     }
 
     @Test
     void findLegacyName_acceptsALegacyNameVerbatim() {
-        assertEquals("Erin", NameResolver.findLegacyName(ROSTER, "erin"));
+        assertEquals("Metrafish", NameResolver.findLegacyName(ROSTER, "metrafish"));
     }
 
     @Test
     void findLegacyName_payloadOrderDecidesACollisionBetweenALegacyAndACurrentName() {
-        // "Dana" is Casey's legacy name and also another member's current name.
+        // "Holidaze" is Wenweia's legacy name and also another member's current name.
         // The walk returns on the first hit and Gson preserves document order,
         // so the owner bucket's legacy match wins over the chief bucket's
-        // current-name match. Both happen to answer "Dana" here, which is why
+        // current-name match. Both happen to answer "Holidaze" here, which is why
         // the collision is invisible in production — and why it needs pinning
         // before anything reorders the walk.
-        assertEquals("Dana", NameResolver.findLegacyName(ROSTER, "dana"));
+        assertEquals("Holidaze", NameResolver.findLegacyName(ROSTER, "holidaze"));
     }
 
     @Test
@@ -229,14 +232,14 @@ class NameResolverTest {
             assertEquals(List.of(), NameResolver.extractAllLegacyNames(body), body);
             assertEquals(Map.of(), NameResolver.extractUuidToLegacyName(body), body);
             assertEquals(Map.of(), NameResolver.extractNameIndex(body), body);
-            assertEquals("Casey", NameResolver.findLegacyName(body, "Casey"), body);
+            assertEquals("Wenweia", NameResolver.findLegacyName(body, "Wenweia"), body);
         }
     }
 
     @Test
     void nullPayloadIsAlsoFailOpen() {
         assertEquals(List.of(), NameResolver.extractAllLegacyNames(null));
-        assertEquals("Casey", NameResolver.findLegacyName(null, "Casey"));
+        assertEquals("Wenweia", NameResolver.findLegacyName(null, "Wenweia"));
     }
 
     @Test
@@ -248,7 +251,7 @@ class NameResolverTest {
         assertEquals(
                 List.of(),
                 NameResolver.extractAllLegacyNames(
-                        "{\"members\": {\"total\": {\"Alice\": {\"legacyName\": \"A\"}}}}"),
+                        "{\"members\": {\"total\": {\"Metrafish\": {\"legacyName\": \"A\"}}}}"),
                 "a bucket named total is skipped whatever it contains");
     }
 }

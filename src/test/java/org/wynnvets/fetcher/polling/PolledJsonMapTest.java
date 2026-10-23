@@ -55,12 +55,12 @@ class PolledJsonMapTest {
 
     @Test
     void rosterKeysAreNotFolded() {
-        PolledJsonMap.GUILD_ROSTER.parse("{\"A1B2-C3D4\": \"Steve\"}");
+        PolledJsonMap.GUILD_ROSTER.parse("{\"A1B2-C3D4\": \"Metrafish\"}");
 
         // OnlineMemberService.merge() overlays these keys onto a map keyed by
         // UUID.toString(); folding them here would put a second, unmatched entry in it.
-        assertEquals(Map.of("A1B2-C3D4", "Steve"), PolledJsonMap.GUILD_ROSTER.snapshot());
-        assertEquals("Steve", PolledJsonMap.GUILD_ROSTER.get("A1B2-C3D4"));
+        assertEquals(Map.of("A1B2-C3D4", "Metrafish"), PolledJsonMap.GUILD_ROSTER.snapshot());
+        assertEquals("Metrafish", PolledJsonMap.GUILD_ROSTER.get("A1B2-C3D4"));
         assertNull(PolledJsonMap.GUILD_ROSTER.get("a1b2-c3d4"));
     }
 
@@ -85,7 +85,7 @@ class PolledJsonMapTest {
 
     @Test
     void anEmptyPayloadPublishesAnEmptyMap() {
-        PolledJsonMap.GUILD_ROSTER.parse("{\"uuid-1\": \"Steve\"}");
+        PolledJsonMap.GUILD_ROSTER.parse("{\"uuid-1\": \"Metrafish\"}");
         PolledJsonMap.GUILD_ROSTER.parse("{}");
 
         // An emptied roster must replace the old one rather than be treated as a failed
@@ -96,7 +96,7 @@ class PolledJsonMapTest {
 
     @Test
     void snapshotHandsBackOneStableReference() {
-        PolledJsonMap.GUILD_ROSTER.parse("{\"uuid-1\": \"Steve\"}");
+        PolledJsonMap.GUILD_ROSTER.parse("{\"uuid-1\": \"Metrafish\"}");
         Map<String, String> first = PolledJsonMap.GUILD_ROSTER.snapshot();
         assertSame(
                 first,
@@ -104,17 +104,19 @@ class PolledJsonMapTest {
                 "two reads between polls must hand back the same map");
 
         // A caller holding a snapshot must not see the next poll land mid-iteration.
-        PolledJsonMap.GUILD_ROSTER.parse("{\"uuid-2\": \"Alex\"}");
+        PolledJsonMap.GUILD_ROSTER.parse("{\"uuid-2\": \"Holidaze\"}");
         assertEquals(
-                Map.of("uuid-1", "Steve"), first, "a held snapshot was mutated by the next poll");
-        assertEquals(Map.of("uuid-2", "Alex"), PolledJsonMap.GUILD_ROSTER.snapshot());
+                Map.of("uuid-1", "Metrafish"),
+                first,
+                "a held snapshot was mutated by the next poll");
+        assertEquals(Map.of("uuid-2", "Holidaze"), PolledJsonMap.GUILD_ROSTER.snapshot());
     }
 
     @Test
     void anUnparseableBodyLeavesThePreviousSnapshotInPlace() {
-        PolledJsonMap.GUILD_ROSTER.parse("{\"uuid-1\": \"Steve\"}");
+        PolledJsonMap.GUILD_ROSTER.parse("{\"uuid-1\": \"Metrafish\"}");
         PolledJsonMap.GUILD_ROSTER.parse("not json at all");
-        assertEquals(Map.of("uuid-1", "Steve"), PolledJsonMap.GUILD_ROSTER.snapshot());
+        assertEquals(Map.of("uuid-1", "Metrafish"), PolledJsonMap.GUILD_ROSTER.snapshot());
     }
 
     @Test
@@ -130,8 +132,8 @@ class PolledJsonMapTest {
     @Test
     void nonPrimitiveAndEmptyValuesAreDropped() {
         PolledJsonMap.GUILD_ROSTER.parse(
-                "{\"uuid-1\": \"Steve\", \"uuid-2\": \"\", \"uuid-3\": {\"nested\": 1},"
+                "{\"uuid-1\": \"Metrafish\", \"uuid-2\": \"\", \"uuid-3\": {\"nested\": 1},"
                         + " \"uuid-4\": [1, 2]}");
-        assertEquals(Map.of("uuid-1", "Steve"), PolledJsonMap.GUILD_ROSTER.snapshot());
+        assertEquals(Map.of("uuid-1", "Metrafish"), PolledJsonMap.GUILD_ROSTER.snapshot());
     }
 }
