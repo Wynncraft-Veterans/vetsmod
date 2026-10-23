@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.DistributeRuns;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.recipients.NameResolver;
 import org.wynnvets.distribute.recipients.NoAspectsFilter;
@@ -42,9 +43,10 @@ import org.wynnvets.logging.VetsLogger;
  * only when Wynntils has wrapped the log screen (see that class) &mdash;
  * and we just collect each {@link GuildLogItem} as it streams in via
  * {@code ContainerSetSlot} and stop on a quiescence timer. Without the
- * wrap nothing auto-paginates, so only the entries that arrive without a
- * page turn are counted
- * ({@code graids-log-walk-depends-on-wynntils-log-screen-feature}).</p>
+ * wrap nothing would page the log, so the run refuses rather than count
+ * only its first page: up front, before anything opens, when Wynntils'
+ * Custom Guild Log Screen feature is off, and once the log opens if
+ * Wynntils did not wrap it anyway.</p>
  *
  * <h2>What counts as a graid</h2>
  * <p>Graid-completion entries follow the shape
@@ -101,6 +103,14 @@ public final class GraidsDistributor {
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
+        // A refusal, not an empty pool: onComplete does not run, so under
+        // @split, whose first phase this is, nothing is sent at all.
+        if (!GuildLogWalker.wynntilsLogScreenEnabled()) {
+            DistributeRuns.refuse(
+                    "Graid-based distribution requires a Wynntils feature that is currently"
+                            + " disabled (Custom Guild Log Screen).");
+            return;
+        }
         // Fetch the name index and, on an aspects run, the NoAspects opt-out
         // list in parallel; strip excluded legacy names from the index so they
         // never match a graid-log username token. Per-command refresh,

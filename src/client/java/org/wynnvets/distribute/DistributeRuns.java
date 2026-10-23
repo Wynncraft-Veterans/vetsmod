@@ -13,7 +13,8 @@ import org.wynnvets.logging.VetsLogger;
  * back, and no green "complete" line follows, so {@code @split}'s later phases do not start
  * either. A recipient who cannot be found while the Members menu is still up is not a stop: the
  * run skips them and goes on. Neither is a head finding nobody to send to; that run completes as
- * usual. {@code vetsmod_distribute.md} §7 lists which exit does which.</p>
+ * usual. A run whose precondition fails is refused in red instead ({@link #refuse}).
+ * {@code vetsmod_distribute.md} §7 lists which exit does which.</p>
  */
 public final class DistributeRuns {
 
@@ -31,5 +32,15 @@ public final class DistributeRuns {
         ChatUtils.sendLocalMessage(
                 Component.literal("Distribution stopped: " + reason + ".")
                         .withStyle(ChatFormatting.YELLOW));
+    }
+
+    /**
+     * Ends the run with {@code message} in red: a precondition the run needs is not met, so
+     * it sends nothing. As with {@link #stop}, the caller disarms first and runs no completion
+     * callback.
+     */
+    public static void refuse(String message) {
+        VetsLogger.debug("DistributeRuns: refused ({})", message);
+        ChatUtils.sendLocalMessage(Component.literal(message).withStyle(ChatFormatting.RED));
     }
 }

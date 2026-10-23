@@ -329,7 +329,8 @@ Combines `NameResolver.fetchNameIndex` with the opt-out set (empty unless the
 run is aspects; excluded members are stripped from *both* index keys so their username token can
 never match), then arms `GuildLogWalker` and calls
 `GuildManageOpener.openGuildLog()` — the Manage route, not `/guild log`
-(§6).
+(§6). Before any of that it refuses in red, with nothing opened, when
+Wynntils' Custom Guild Log Screen feature is off (§6 point 4).
 
 Entries containing the literal substring `and claimed` are treated as
 graid completions. Within one, every token matching
@@ -442,9 +443,12 @@ observed Wynncraft behaviour first, then the code shape it forces.
    gated by its shift-behaviour setting, which it compares against a
    shift flag that only a click through the game's own container-click
    path updates; `GuildManageOpener`'s tile click is a raw packet and
-   does not. Unwrapped, nothing auto-paginates and the walk ends on whatever
-   has arrived. Filed as
-   `graids-log-walk-depends-on-wynntils-log-screen-feature`.
+   does not. Unwrapped, nothing would auto-paginate and the walk would end
+   on whatever had arrived. So `GraidsDistributor.dispatch` refuses in red,
+   before opening anything, when `GuildLogWalker.wynntilsLogScreenEnabled()`
+   says the feature is off, and the walker checks `WRAP_CHECK_TICKS` after
+   binding that the screen on top is Wynntils' wrap of the bound log; if it
+   is not (the shift case), it closes the log and refuses in red.
 5. **The guild log caps at roughly 100 most-recent entries.** Aspect
    sends write log entries of their own, so distributing anything before
    reading the log pushes graid records off the back of the window.
@@ -483,6 +487,7 @@ were chosen rather than observed, as their comments say. Values are current.
 | `ARM_TTL_MS` | `GuildManageOpener` | 10 s | An open whose `/guild manage` went unanswered for this long has given up, so the next menu clears its arm instead of using it. Below the searcher's 15 s watchdog. Chosen, not observed; the only constant here in milliseconds, checked lazily against `System.nanoTime()` |
 | `SETTLE_TICKS` | `GuildLogWalker` | 40 | No new log item for this long ⇒ done. The comment attributes the sizing to Wynntils' own `REQUEST_TIMEOUT = 5` plus `FORCED_LOAD_DELAY = 20` |
 | `OVERALL_TIMEOUT_TICKS` | `GuildLogWalker` | 200 | ~10 s hard cap on the whole log walk |
+| `WRAP_CHECK_TICKS` | `GuildLogWalker` | 2 | Wynntils wraps the log on the same `MenuOpenedEvent.Post` the walk binds on, in no defined order, so the wrap check waits until that event has certainly finished |
 | `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Belt-and-braces settle gap before each objectives or random phase starts, on top of `queueCommand`'s 7-tick spacing. A phase that ends on the Members menu closes it through `MembersGui.closeIfOpen`, whose close packet the gap also gives time to land |
 
 `distribute/` makes 12 of the repo's 13 `Managers.TickScheduler.scheduleLater`
@@ -509,6 +514,7 @@ line, by design (`DistributeRuns`), and nothing it armed calls back.
 | Executor run by non-chief | `DistributeCommands.ensureChief` | red "You must be a guild Chief or Owner…" | n/a — nothing armed |
 | `@` token matching no selector | `DistributeCommands.distribute` | red "Unknown selector @x. Choose from @graids, @objectives, @random, @split." | n/a — nothing armed |
 | Target on the opt-out list (aspects only) | `DistributeCommands.dispatchSingleTarget` | red "… has opted out of receiving aspects…" | n/a — nothing armed |
+| Wynntils' Custom Guild Log Screen off (`@graids`, and `@split`'s graids phase) | `GraidsDistributor.dispatch` | red "Graid-based distribution requires a Wynntils feature that is currently disabled (Custom Guild Log Screen)." | no: nothing armed, and under `@split` nothing is sent |
 | Wynntils not ready (`@random`) | `RandomDistributor.dispatch` | red "Wynntils isn't ready yet…" | yes |
 | Empty wapi roster / name index | `RandomDistributor.beginPicks`, `GraidsDistributor.beginWalk` | yellow "Could not read guild roster from wapi…" | yes |
 | No objective completers | `ObjectivesDistributor.onWalkComplete` | yellow "No members have completed…" | yes |
@@ -521,6 +527,7 @@ line, by design (`DistributeRuns`), and nothing it armed calls back.
 | Members menu gone when the next recipient is popped | `DistributionQueue.processNext` | yellow "Distribution stopped: the Members menu is not open." | no, by design: the run stops, and any later `@split` phase never starts |
 | Refresh never observed after a press | `MemberSlotPresser.armRefreshTimeout`, 40 ticks | yellow "Send timed out after N/M…" | yes |
 | Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | none | yes, with whatever was collected |
+| Guild log opened but not wrapped by Wynntils, `WRAP_CHECK_TICKS` after the bind | `GuildLogWalker.onTick` | red "Graid-based distribution requires a Wynntils feature that did not open the guild log (Custom Guild Log Screen)." | no: the log is closed and the run ends |
 | Bound log walk exceeds 200 ticks | `GuildLogWalker.onTick` | none | yes, with whatever was collected; the log is closed first |
 | Guild log no longer on top when the walk settles or times out — the player's Esc, a respawn | `GuildLogWalker.finishWalk` | yellow "Distribution stopped: the guild log closed." | no, by design: the run stops, and nothing is closed |
 | Log screen never reached — for example no Guild Log tile (the opener then closes that Manage menu), `/guild manage` unanswered, or the tile click going nowhere | `GuildLogWalker.onTick`'s overall timeout, 200 ticks | yellow "Distribution stopped: the guild log did not open." | no, by design: the run stops |

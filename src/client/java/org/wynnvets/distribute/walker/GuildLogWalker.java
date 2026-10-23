@@ -1,8 +1,10 @@
 package org.wynnvets.distribute.walker;
 
 import com.wynntils.core.WynntilsMod;
+import com.wynntils.core.components.Managers;
 import com.wynntils.core.components.Models;
 import com.wynntils.core.text.StyledText;
+import com.wynntils.features.ui.CustomGuildLogScreenFeature;
 import com.wynntils.handlers.wrappedscreen.WrappedScreen;
 import com.wynntils.mc.event.ContainerSetSlotEvent;
 import com.wynntils.mc.event.MenuEvent;
@@ -50,9 +52,12 @@ import org.wynnvets.util.ContainerScreens;
  * setting, which it compares against a shift flag that only a click made
  * through the game's own container-click path updates &mdash; the tile
  * click {@code GuildManageOpener} sends is a raw packet and does not.
- * When the log is not wrapped nothing auto-paginates and the walk ends on
- * whatever has arrived. See
- * {@code graids-log-walk-depends-on-wynntils-log-screen-feature}.</p>
+ * When the log is not wrapped nothing auto-paginates, and the walk would
+ * end on whatever had arrived. So {@code @graids} refuses up front when
+ * the feature is off ({@link #wynntilsLogScreenEnabled()}), and the walk
+ * checks {@link #WRAP_CHECK_TICKS} after binding that Wynntils did wrap the
+ * log; if it did not, the walk closes the log and refuses in red rather
+ * than count only the first page.</p>
  *
  * <h2>Completion detection</h2>
  * <p>Wynncraft caps the log at roughly 100 most-recent entries (about
@@ -89,6 +94,16 @@ public final class GuildLogWalker {
      *  nothing). ~10s. */
     private static final int OVERALL_TIMEOUT_TICKS = 200;
 
+    /** Ticks after the bind before checking that Wynntils wrapped the log. Wynntils wraps on
+     *  the same {@code MenuOpenedEvent.Post} the walk binds on, in no defined order, so the
+     *  check waits until that event has certainly finished. */
+    private static final int WRAP_CHECK_TICKS = 2;
+
+    /** The red line for a log Wynntils opened but did not wrap. */
+    private static final String NOT_WRAPPED =
+            "Graid-based distribution requires a Wynntils feature that did not open the guild"
+                    + " log (Custom Guild Log Screen).";
+
     /** Completion callback, fired once when the walk ends &mdash; on
      *  settle, on a server-sent close of the log, or on the overall
      *  timeout &mdash; with whatever was collected. Not fired when the log
@@ -118,6 +133,9 @@ public final class GuildLogWalker {
      *  {@link #ticks} starts. */
     private static volatile int lastItemTick = -1;
 
+    /** {@link #ticks} at the bind, for the wrap check; -1 once the check has run. */
+    private static volatile int bindTick = -1;
+
     private GuildLogWalker() {}
 
     public static void register() {
@@ -136,6 +154,7 @@ public final class GuildLogWalker {
      */
     public static void armWalk(Completion onComplete) {
         active = true;
+        bindTick = -1;
         completion = onComplete;
         containerId = -1;
         collected.clear();
@@ -169,6 +188,7 @@ public final class GuildLogWalker {
         // Set the last-item tick to "now" so we don't immediately settle
         // before any items have had time to arrive.
         lastItemTick = ticks;
+        bindTick = ticks;
         VetsLogger.debug("GuildLogWalker: bound to menu id={} title=[{}]", containerId, titleText);
     }
 
@@ -228,6 +248,22 @@ public final class GuildLogWalker {
             return;
         }
         if (containerId == -1) return;
+        if (bindTick >= 0 && now - bindTick >= WRAP_CHECK_TICKS) {
+            bindTick = -1;
+            if (!isWrapped(containerId)) {
+                // Nothing will page the log: refuse rather than count only the
+                // entries that arrived without a page turn.
+                VetsLogger.debug("GuildLogWalker: log id={} not wrapped by Wynntils", containerId);
+                int boundId = containerId;
+                stop();
+                LocalPlayer player = McUtils.player();
+                if (player != null && ContainerScreens.currentWithId(boundId) != null) {
+                    player.closeContainer();
+                }
+                DistributeRuns.refuse(NOT_WRAPPED);
+                return;
+            }
+        }
         if (lastItemTick >= 0 && now - lastItemTick > SETTLE_TICKS) {
             VetsLogger.debug("GuildLogWalker: settled after {} entries", collected.size());
             finishWalk(true);
@@ -263,6 +299,27 @@ public final class GuildLogWalker {
     }
 
     /**
+     * Whether Wynntils' Custom Guild Log Screen feature is enabled, without which nothing pages
+     * the log (see the class Javadoc). {@code false} when the check itself fails:
+     * {@code getFeatureInstance} throws for an unregistered feature.
+     */
+    public static boolean wynntilsLogScreenEnabled() {
+        try {
+            return Managers.Feature.getFeatureInstance(CustomGuildLogScreenFeature.class)
+                    .isEnabled();
+        } catch (RuntimeException | LinkageError e) {
+            VetsLogger.debug("GuildLogWalker: could not read CustomGuildLogScreenFeature: {}", e);
+            return false;
+        }
+    }
+
+    /** Whether the screen on top is Wynntils' wrap of the log bound as {@code boundId}. */
+    private static boolean isWrapped(int boundId) {
+        return McUtils.screen() instanceof WrappedScreen wrapped
+                && wrapped.getWrappedScreenInfo().containerId() == boundId;
+    }
+
+    /**
      * Closes the log bound as {@code boundId} if it is still the screen on top, and returns
      * whether it was. Wynntils' wrap of the log goes through {@code clientSideCloseContainer()}:
      * the wrapped-screen teardown sends the one close packet, and the call also resets
@@ -272,8 +329,7 @@ public final class GuildLogWalker {
     private static boolean closeLogIfOnTop(int boundId) {
         LocalPlayer player = McUtils.player();
         if (player == null) return false;
-        if (McUtils.screen() instanceof WrappedScreen wrapped
-                && wrapped.getWrappedScreenInfo().containerId() == boundId) {
+        if (isWrapped(boundId)) {
             player.clientSideCloseContainer();
             return true;
         }
