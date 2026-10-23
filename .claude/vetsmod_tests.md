@@ -33,6 +33,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest)
 - [`org.wynnvets.logging`](#orgwynnvetslogging) — [`VetsLoggerTest`](#vetsloggertest)
+- [`org.wynnvets.mwe.anni.aggressive`](#orgwynnvetsmweanniaggressive) — [`GhostsPromptHandlerTest`](#ghostsprompthandlertest)
 - [`org.wynnvets.mwe.anni.bossbar`](#orgwynnvetsmweannibossbar) — [`VetsBossBarContentBuilderTest`](#vetsbossbarcontentbuildertest)
 - [`org.wynnvets.mwe.anni.mode`](#orgwynnvetsmweannimode) — [`AnniModeTest`](#annimodetest)
 - [`org.wynnvets.mwe.anni.outline`](#orgwynnvetsmweannioutline) — [`AnniOutlinePaletteTest`](#annioutlinepalettetest)
@@ -1761,6 +1762,23 @@ Test: [`VetsLoggerTest.java`](../src/test/java/org/wynnvets/logging/VetsLoggerTe
   - `VetsLogger.isDebugEnabled()` is true after `setDebugEnabled(true)`.
 - **`setDisabledRestoresFalse`**: After enabling and then disabling, `isDebugEnabled()` is false.
   - `VetsLogger.isDebugEnabled()` is false after `setDebugEnabled(true)` then `setDebugEnabled(false)`.
+
+## `org.wynnvets.mwe.anni.aggressive`
+
+### `GhostsPromptHandlerTest`
+
+Test: [`GhostsPromptHandlerTest.java`](../src/test/java/org/wynnvets/mwe/anni/aggressive/GhostsPromptHandlerTest.java) · Subject: [`GhostsPromptHandler`](../src/client/java/org/wynnvets/mwe/anni/aggressive/GhostsPromptHandler.java)
+
+`GhostsPromptHandler` prints a clickable "/toggle ghosts none" suggestion when the player enters the anni zone while aggressive mode is active. The suite covers only its pure leaf `promptLead(stamp, now)`, the prompt's opening words, and pins that they say the anni is starting soon before the stamp, and underway from it on, since the aggressive gate's hot window runs past the start. An unknown stamp (0) says starting soon. All cases use `STAMP` = 1 800 000 000 (epoch seconds).
+
+- **`beforeTheStampTheAnniIsStartingSoon`**: 10 minutes before the stamp, and 1 second before it, the lead is "Anni starting soon - ".
+  - `promptLead(STAMP, STAMP - 600)` equals `"Anni starting soon - "`.
+  - `promptLead(STAMP, STAMP - 1)` equals `"Anni starting soon - "`.
+- **`fromTheStampOnTheAnniIsUnderway`**: At the stamp and 20 minutes after it, the lead is "Anni underway - ".
+  - `promptLead(STAMP, STAMP)` equals `"Anni underway - "`.
+  - `promptLead(STAMP, STAMP + 1200)` equals `"Anni underway - "`.
+- **`anUnknownStampSaysStartingSoon`**: With no stamp (0), the lead is "Anni starting soon - ".
+  - `promptLead(0L, STAMP)` equals `"Anni starting soon - "`.
 
 ## `org.wynnvets.mwe.anni.bossbar`
 
