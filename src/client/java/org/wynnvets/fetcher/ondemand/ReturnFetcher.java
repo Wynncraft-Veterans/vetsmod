@@ -41,6 +41,11 @@ public final class ReturnFetcher {
     private static final String RETURN_CHANNEL_URL =
             "https://discord.com/channels/1313769181321236490/1320597026118828112";
 
+    /** Shown in place of the post when the request fails, the API answers with an error, or the
+     *  post can't be read. Worded like {@link MotdFetcher}'s line for the same outage. */
+    private static final String UNAVAILABLE_LINE =
+            "Return Unavailable: Unable to reach the vets API, which may be down.";
+
     private ReturnFetcher() {}
 
     /**
@@ -76,10 +81,6 @@ public final class ReturnFetcher {
                                                                             JsonOps.INSTANCE),
                                                             json)
                                                     .getOrThrow();
-                                    if (component == null) {
-                                        return Component.literal(
-                                                "Error: The vets API sent a null component?!");
-                                    }
                                     // The post is authored in Discord, so it carries Discord's
                                     // <t:...> timestamp markup — expand it into the reader's local
                                     // time before display.
@@ -91,19 +92,21 @@ public final class ReturnFetcher {
                                     return rendered.append(Component.literal("\n\n"))
                                             .append(announcementFooter());
                                 } catch (Exception e) {
-                                    return Component.literal(
-                                            "Error: Failed to parse return data: "
-                                                    + e.getMessage());
+                                    VetsLogger.warn(
+                                            "Return post could not be read: {}", e.toString());
+                                    return Component.literal(UNAVAILABLE_LINE);
                                 }
                             } else {
-                                return Component.literal(
-                                        "Error: The api is down? (Status: "
-                                                + response.statusCode()
-                                                + ")");
+                                VetsLogger.debug(
+                                        "Return fetch returned status {}", response.statusCode());
+                                return Component.literal(UNAVAILABLE_LINE);
                             }
                         })
                 .exceptionally(
-                        e -> Component.literal("Error: Failed to fetch return: " + e.getMessage()));
+                        e -> {
+                            VetsLogger.debug("Return fetch failed: {}", e.toString());
+                            return Component.literal(UNAVAILABLE_LINE);
+                        });
     }
 
     /**
