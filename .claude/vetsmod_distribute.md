@@ -257,9 +257,8 @@ adds the resolved name via `MembersListSearcher.addAlternative` when a
 rename is detected, and opens the menu.
 
 `<count>` here means **presses to that one player**. This head arms with
-the two-argument `armSearch`, so `notFoundHandler` stays null: a
-not-found still prints its chat line, but nothing closes the Members
-menu afterwards.
+`MembersGui.closeIfOpen` as the not-found handler, so a search that gives
+up prints its chat line, if any, and closes the Members menu.
 
 The wait-before-arming is deliberate and costs a round trip up front —
 rejecting an opted-out target after the menu has already opened would be
@@ -525,10 +524,10 @@ they are real, and a matrix claiming otherwise would be false.
 which runs whatever `notFoundHandler` was armed. Every selector-run
 search is armed by `DistributionQueue.processNext`, which always passes
 one: it moves on to the next recipient if the Members menu is still up,
-and otherwise stops the run (the `DistributionQueue.processNext` row). The **literal-name head does not** — it uses the
-two-argument `armSearch` — so on those rows it prints the row's chat line,
-if any, clears state, and stops there without closing anything; a Members
-menu that is still open stays open.
+and otherwise stops the run (the `DistributionQueue.processNext` row). The
+**literal-name head** passes `MembersGui.closeIfOpen` instead, so on those
+rows it prints the row's chat line, if any, and closes a Members menu that
+is still open.
 
 The three walker rows are `members-list-walker-drops-completion`.
 

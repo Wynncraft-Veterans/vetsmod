@@ -195,22 +195,18 @@ public final class MembersListSearcher {
 
     /**
      * Arms the searcher to scan the next {@code "<guild>: Members"} menu
-     * for {@code name} and invoke {@code handler} once it's located.
+     * for {@code name} and invoke {@code handler} once it's located, or
+     * {@code onNotFound} once the search gives up.
      * Overwrites any previous armed query, discarding its handlers without
      * running them and superseding its watchdog
      * ({@code distribute-concurrent-runs-clobber-shared-state}).
      *
      * @param handler invoked on match; must be non-null. Passing null
      *                will NPE when a match is found.
-     */
-    public static void armSearch(String name, SlotMatchHandler handler) {
-        armSearch(name, handler, null);
-    }
-
-    /**
-     * Variant with a not-found callback. Used by the multi-recipient send
-     * loop ({@code DistributionQueue}) so the queue can advance to the next
-     * recipient when one cannot be located on any page.
+     * @param onNotFound run when the search gives up (see {@link #notFoundHandler}), or
+     *     {@code null}. The multi-recipient send loop ({@code DistributionQueue}) passes one
+     *     that moves on to the next recipient, and the single-target command one that closes
+     *     the Members menu.
      */
     public static void armSearch(String name, SlotMatchHandler handler, Runnable onNotFound) {
         displayQuery = name;

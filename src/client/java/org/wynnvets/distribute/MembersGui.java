@@ -151,8 +151,9 @@ public final class MembersGui {
      * <p>Called at the end of a single-target send (the four-argument
      * {@link org.wynnvets.distribute.distributor.MemberSlotPresser#fire(int,
      * org.wynnvets.distribute.distributor.MemberSlotPresser.Resource, int, String)
-     * MemberSlotPresser.fire}), when the multi-recipient send loop runs dry, and on
-     * {@code @objectives}' two early-outs, where its walk has left the menu open.</p>
+     * MemberSlotPresser.fire}), when a single-target search gives up, when the
+     * multi-recipient send loop runs dry, and on {@code @objectives}' two early-outs, where its
+     * walk has left the menu open.</p>
      */
     public static void closeIfOpen() {
         AbstractContainerScreen<?> screen = currentByTitle();

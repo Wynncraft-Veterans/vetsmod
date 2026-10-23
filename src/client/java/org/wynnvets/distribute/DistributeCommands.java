@@ -264,8 +264,11 @@ public final class DistributeCommands {
         // Arm with the literal input — covers the case where the user
         // already typed the legacy name. addAlternative covers the rename
         // case where the wapi resolution returns a different canonical name.
+        // A search that gives up closes the Members menu it was searching.
         MembersListSearcher.armSearch(
-                name, slot -> MemberSlotPresser.fire(slot, resource, count, name));
+                name,
+                slot -> MemberSlotPresser.fire(slot, resource, count, name),
+                MembersGui::closeIfOpen);
         if (resolved != null && !resolved.equalsIgnoreCase(name)) {
             MembersListSearcher.addAlternative(resolved);
         }
