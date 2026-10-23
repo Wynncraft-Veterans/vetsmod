@@ -411,6 +411,11 @@ public final class GuildStateManager {
         return StaffRankChecker.refreshStaffStatusIfNeeded(forceRefresh);
     }
 
+    /** Whether a staff-rank check finished within the last {@code ms} milliseconds. */
+    public static boolean staffCheckedWithin(long ms) {
+        return StaffRankChecker.checkedWithin(ms);
+    }
+
     /**
      * Process incoming chat messages to detect staff rank-check responses, capturing the
      * local player name on the first call that has a player.

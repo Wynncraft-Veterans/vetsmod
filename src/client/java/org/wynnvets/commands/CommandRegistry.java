@@ -39,6 +39,10 @@ import org.wynnvets.rendering.territory.TerritoryLineManager;
  */
 public final class CommandRegistry {
 
+    /** How recently a staff-rank check must have finished for {@code /wv list world} to refuse
+     *  a non-steward rather than check again. */
+    private static final long LIST_WORLD_RECHECK_WINDOW_MS = 60_000L;
+
     private CommandRegistry() {}
 
     // ── Registration ────────────────────────────────────────────────────
@@ -372,7 +376,14 @@ public final class CommandRegistry {
 
     private static int listWorld(CommandContext<FabricClientCommandSource> ctx) {
         boolean isCurrentlyStaff = GuildStateManager.isStaff();
-        boolean refreshStarted = GuildStateManager.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
+        // A non-steward's call forces a re-check, so a fresh promotion is caught, unless a
+        // check finished within the last minute: that call gets the refusal below instead
+        // of another "still checking".
+        boolean refreshStarted =
+                GuildStateManager.refreshStaffStatusIfNeeded(
+                        !isCurrentlyStaff
+                                && !GuildStateManager.staffCheckedWithin(
+                                        LIST_WORLD_RECHECK_WINDOW_MS));
 
         if (refreshStarted || GuildStateManager.isCheckingStaffStatus()) {
             ChatUtils.sendLocalMessage(

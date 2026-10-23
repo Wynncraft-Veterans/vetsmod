@@ -106,6 +106,11 @@ final class StaffRankChecker {
 
     // ── Refresh logic ──────────────────────────────────────────────────
 
+    /** Whether a staff-rank check finished within the last {@code ms} milliseconds. */
+    static boolean checkedWithin(long ms) {
+        return lastStaffCheckTime > 0 && System.currentTimeMillis() - lastStaffCheckTime < ms;
+    }
+
     /**
      * Starts a staff-rank refresh if the daily cooldown has elapsed (or if
      * {@code forceRefresh} is {@code true}).
