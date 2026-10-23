@@ -50,9 +50,9 @@ import org.wynnvets.util.ContainerScreens;
  * most as a debug line, and the only visible sign may be a Manage menu
  * left on screen. The arm can be spent on the wrong menu or stay live
  * indefinitely ({@code guild-manage-opener-arm-consumed-early}). A caller
- * learns of failure only downstream &mdash; from the searcher's watchdog or
- * the log walker's overall cap; the Members walker has neither &mdash; and
- * none of those disarms a live arm here.</p>
+ * learns of failure only downstream &mdash; from the searcher's watchdog,
+ * the Members walker's stall watchdog or the log walker's overall cap
+ * &mdash; and none of those disarms a live arm here.</p>
  */
 public final class GuildManageOpener {
 

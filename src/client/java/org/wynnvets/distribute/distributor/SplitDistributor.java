@@ -40,10 +40,8 @@ import org.wynnvets.chat.ChatUtils;
  * doesn't stall the chain. The next phase starts about
  * {@link #PHASE_DELAY_TICKS} after the previous reports done. A phase
  * that stops (it lost the Members menu, {@code vetsmod_distribute.md} §7)
- * does not report by design, and the whole chain ends with it. A phase can
- * also end without reporting by accident
- * ({@code members-list-walker-drops-completion}), and the chain then stalls
- * behind it.</p>
+ * does not report by design, and the whole chain ends with it. Every phase
+ * either reports done or prints that stop line.</p>
  *
  * <h2>Skipping zero-count phases</h2>
  * <p>For very small {@code count} values (e.g. {@code 1} or {@code 2}),

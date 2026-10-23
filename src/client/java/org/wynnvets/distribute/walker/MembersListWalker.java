@@ -6,6 +6,7 @@ import com.wynntils.core.text.StyledText;
 import com.wynntils.mc.event.ContainerSetContentEvent;
 import com.wynntils.mc.event.ContainerSetSlotEvent;
 import com.wynntils.mc.event.MenuEvent;
+import com.wynntils.mc.event.ScreenClosedEvent;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -14,6 +15,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import net.neoforged.bus.api.SubscribeEvent;
+import org.wynnvets.distribute.DistributeRuns;
 import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.ContainerScreens;
@@ -26,7 +28,8 @@ import org.wynnvets.util.ContainerScreens;
  * reads the {@code Guild Objective:} lore lines to decide who qualifies.
  *
  * <p>Built on the same event triple as {@link MembersListSearcher}
- * (MenuOpen / SetContent / SetSlot) and, like it, defers the rescan by a
+ * (MenuOpen / SetContent / SetSlot), plus the same screen-close nudge
+ * ({@link #onScreenClosed}), and, like it, defers the rescan by a
  * scheduler delay &mdash; but the two are not interchangeable. This class
  * uses a one-tick scheduler delay and filters {@link #onSetSlot} down to
  * {@link MembersGui#NEXT_PAGE_SLOT}; the searcher uses
@@ -42,19 +45,29 @@ import org.wynnvets.util.ContainerScreens;
  * way. When the Next Page button disappears, it invokes
  * {@link Completion#onComplete(List)} with the accumulated list.</p>
  *
+ * <p>A walk that loses its menu, or makes no progress for
+ * {@link #STALL_TICKS}, never calls back: it stops the run through
+ * {@link org.wynnvets.distribute.DistributeRuns#stop(String) DistributeRuns.stop}, with one
+ * yellow line, and disarms, so a later Members menu cannot bind a stale walk.</p>
+ *
  * <p>Forward-only: the walk is meant to start on a freshly-opened Members
  * menu (page 1), so there's never anything backward to cover. Its one
  * caller pairs {@link #armWalk(Completion)} with a fresh
  * {@link org.wynnvets.distribute.opener.GuildManageOpener#openManageMembers()
- * GuildManageOpener.openManageMembers()}. That assumes no Members menu is already open at arm time:
- * if one is, {@code armWalk}'s fast path binds that menu instead, from whatever page it is on, and
- * the walk does not follow the fresh menu the caller then opens
- * ({@code members-list-fast-path-binds-a-menu-about-to-be-replaced}).</p>
+ * GuildManageOpener.openManageMembers()}, and the walk always binds on that menu's
+ * {@code MenuOpenedEvent.Pre}: a Members menu already open at arm time is about to be
+ * replaced, so it is ignored.</p>
  */
 public final class MembersListWalker {
 
     /** Hard cap on page clicks per walk to bound runaway loops. */
     private static final int MAX_PAGES = 30;
+
+    /** A walk that has not moved on &mdash; armed, bound to its menu, or clicked a page
+     *  &mdash; for this many ticks has stalled and stops the run. ~10 s. Chosen when the
+     *  watchdog was added rather than sized against observed behaviour: well above a page
+     *  turn's round trip, and the same bound as {@code GuildLogWalker}'s overall timeout. */
+    private static final int STALL_TICKS = 200;
 
     /** One member tile's worth of data captured during the walk. */
     public record MemberEntry(String legacyName, List<String> loreLines) {}
@@ -74,6 +87,10 @@ public final class MembersListWalker {
     private static volatile Completion completion = null;
     private static final List<MemberEntry> collected = new ArrayList<>();
 
+    /** Bumped by every {@link #armStallWatchdog()} and every {@link #stop()}, so only the
+     *  latest watchdog of a live walk can fire. */
+    private static volatile int stallToken = 0;
+
     private MembersListWalker() {}
 
     public static void register() {
@@ -87,7 +104,9 @@ public final class MembersListWalker {
      * {@link #MAX_PAGES} cap), with the members it collected: meant to be
      * the whole roster when the walk ends on the last page (see the class
      * Javadoc and {@link #collectVisiblePage} for ways a page can be
-     * missed), and only the pages reached when it ends at the cap.
+     * missed), and only the pages reached when it ends at the cap. A walk
+     * that loses its menu or stalls stops the run instead, and the callback
+     * never fires.
      */
     public static void armWalk(Completion onComplete) {
         active = true;
@@ -95,19 +114,10 @@ public final class MembersListWalker {
         pagesClicked = 0;
         scanScheduled = false;
         collected.clear();
-
-        // Fast path mirroring MembersListSearcher's: if a Members menu is
-        // already open, bind to its container id and start scanning. The
-        // walker has no re-arm flow, and its caller opens a fresh menu
-        // right after arming, so if this ever fires it binds a menu that
-        // is about to be replaced (see the class Javadoc).
-        AbstractContainerScreen<?> open = MembersGui.currentByTitle();
-        if (open != null) {
-            membersContainerId = open.getMenu().containerId;
-            scheduleScan();
-        } else {
-            membersContainerId = -1;
-        }
+        // Bind only on the next MenuOpenedEvent.Pre: the caller opens a fresh
+        // menu right after arming, so one already open is about to be replaced.
+        membersContainerId = -1;
+        armStallWatchdog();
     }
 
     private static void stop() {
@@ -117,6 +127,33 @@ public final class MembersListWalker {
         pagesClicked = 0;
         scanScheduled = false;
         collected.clear();
+        stallToken++;
+    }
+
+    /**
+     * Ends the walk without its callback and stops the run with {@code reason}, closing the
+     * Members menu first when {@code closeMenu} is set and one is still on top.
+     */
+    private static void abandon(String reason, boolean closeMenu) {
+        VetsLogger.debug(
+                "MembersListWalker: abandoning walk ({}) after {} members",
+                reason,
+                collected.size());
+        stop();
+        if (closeMenu) MembersGui.closeIfOpen();
+        DistributeRuns.stop(reason);
+    }
+
+    /** (Re)starts the {@link #STALL_TICKS} watchdog; a later call or {@link #stop()}
+     *  supersedes it. */
+    private static void armStallWatchdog() {
+        final int myToken = ++stallToken;
+        Managers.TickScheduler.scheduleLater(
+                () -> {
+                    if (myToken != stallToken || !active) return;
+                    abandon("the objectives walk timed out", true);
+                },
+                STALL_TICKS);
     }
 
     @SubscribeEvent
@@ -126,29 +163,30 @@ public final class MembersListWalker {
         if (!StyledText.fromComponent(event.getTitle()).matches(MembersGui.TITLE_PATTERN)) return;
         membersContainerId = event.getContainerId();
         VetsLogger.debug("MembersListWalker: bound to menu id={}", membersContainerId);
+        armStallWatchdog();
     }
 
     @SubscribeEvent
     public void onMenuClose(MenuEvent.MenuClosedEvent event) {
         if (!active) return;
         if (event.getContainerId() != membersContainerId) return;
-        VetsLogger.debug("MembersListWalker: menu closed mid-walk, abandoning");
         // A clientbound close for the bound menu (Wynntils posts
-        // MenuClosedEvent only from its handleContainerClose hook). No
-        // callback on abandon, and no chat line either — this path is
-        // silent. There is no watchdog here at all. The searcher's
-        // WATCHDOG_TICKS is the nearest equivalent, and note it does not
-        // cover MembersListSearcher's own onMenuClose either — that calls
-        // stop(), which bumps watchdogToken and disarms it. stop() below
-        // clears the walker, so the @objectives run never resumes and any
-        // @split phase after it never starts. Same for scanAndPaginate's
-        // screen-gone path. A client-side close (the player's Esc) posts
-        // nothing here: the walk then takes that screen-gone path if a
-        // scan is pending or a late SetContent, or SetSlot on the Next
-        // Page slot, for the bound id schedules one, and otherwise waits
-        // armed with nothing scheduled.
-        // See members-list-walker-drops-completion.
-        stop();
+        // MenuClosedEvent only from its handleContainerClose hook), so the
+        // server closed it: stop the run. A client-side close (the player's
+        // Esc) posts nothing here; onScreenClosed notices that one.
+        abandon("the Members menu closed", false);
+    }
+
+    /**
+     * Notices a client-side close of the bound menu, such as the player's Esc, which posts no
+     * {@link MenuEvent.MenuClosedEvent}: any screen closing during a bound walk schedules the
+     * usual scan, which then finds the menu gone and stops the run.
+     */
+    @SubscribeEvent
+    public void onScreenClosed(ScreenClosedEvent.Post event) {
+        if (!active) return;
+        if (membersContainerId == -1) return;
+        scheduleScan();
     }
 
     @SubscribeEvent
@@ -178,7 +216,7 @@ public final class MembersListWalker {
 
         AbstractContainerScreen<?> screen = ContainerScreens.currentWithId(membersContainerId);
         if (screen == null) {
-            stop();
+            abandon("the Members menu is not open", true);
             return;
         }
 
@@ -240,6 +278,7 @@ public final class MembersListWalker {
             return;
         }
         pagesClicked++;
+        armStallWatchdog();
     }
 
     private static boolean anyMatchesName(String name) {

@@ -76,10 +76,9 @@ public final class ObjectivesDistributor {
      * exits &mdash; no completers, nothing to send, and the send loop
      * draining &mdash; so multi-phase chains like {@link SplitDistributor}
      * can advance past an empty pool. It only gets that far if the walk
-     * calls back, and {@link MembersListWalker} can abandon or stall a walk without
-     * doing so ({@code members-list-walker-drops-completion}); the shared send loop
-     * ends a run without it only when the run stops (the Members menu lost mid-run,
-     * by design). {@code vetsmod_distribute.md} §7 has the rows.
+     * calls back: a {@link MembersListWalker} walk that loses its menu or stalls
+     * stops the run instead, and so does the shared send loop when the Members menu
+     * is lost mid-run, both by design. {@code vetsmod_distribute.md} §7 has the rows.
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {

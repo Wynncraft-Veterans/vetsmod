@@ -54,15 +54,15 @@ import org.wynnvets.util.ContainerScreens;
  *     <td>the scan that drives pagination</td>
  *     <td><b>id</b></td>
  *     <td>They bound an id when the menu opened, and a mismatch is their <em>signal</em> that
- *         the menu they bound is gone — the searcher rebinds on it, the walker abandons.
+ *         the menu they bound is gone — the searcher rebinds on it, the walker stops the
+ *         run.
  *         Matching on title would hide the very event they are testing for.</td>
  *   </tr>
  *   <tr>
- *     <td>{@link org.wynnvets.distribute.walker.MembersListSearcher MembersListSearcher},
- *         {@link org.wynnvets.distribute.walker.MembersListWalker MembersListWalker}</td>
- *     <td>the re-arm fast path, and the searcher's mid-search rebind</td>
+ *     <td>{@link org.wynnvets.distribute.walker.MembersListSearcher MembersListSearcher}</td>
+ *     <td>the re-arm fast path, and the mid-search rebind</td>
  *     <td><b>title</b></td>
- *     <td>Neither has a <em>usable</em> bound id — none yet in the fast paths, and a stale
+ *     <td>Neither has a <em>usable</em> bound id — none yet in the fast path, and a stale
  *         one in the rebind, which is precisely what made
  *         {@link ContainerScreens#currentWithId(int)} return null and trigger it. Finding the
  *         menu again is the point.</td>
@@ -70,8 +70,8 @@ import org.wynnvets.util.ContainerScreens;
  * </table>
  *
  * <p>The tick constants the presser and the searcher own stay on those classes: they are
- * timing, not layout. The walker owns none &mdash; its one-tick scan delay is an inline
- * literal, and it differs from the searcher's {@code SCAN_DELAY_TICKS} because the
+ * timing, not layout. So does the walker's one, its stall watchdog's; its one-tick scan delay
+ * is an inline literal, and it differs from the searcher's {@code SCAN_DELAY_TICKS} because the
  * tick-boundary fix ({@code vetsmod_distribute.md} §6 point 3) went to the searcher only; no
  * reason for leaving the walker out is recorded.</p>
  */

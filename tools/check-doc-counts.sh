@@ -100,7 +100,7 @@ OutboundCommand.queueFront|2|vetsmod_distribute.md sec 8: Two call sites, both i
 GuildManageOpener.openGuildLog|1|GuildManageOpener#openGuildLog: Used by GraidsDistributor (names the class, pinned as one site)
 GuildLogWalker.armWalk|1|GuildLogWalker#armWalk: The only caller today, GraidsDistributor
 MembersListWalker.armWalk|1|MembersListWalker class doc: its one caller pairs armWalk with openManageMembers
-Managers.TickScheduler.scheduleLater|12|vetsmod_distribute.md sec 6: 11 in distribute plus the one in util.TickDelays
+Managers.TickScheduler.scheduleLater|13|vetsmod_distribute.md sec 6: 12 in distribute plus the one in util.TickDelays
 Minecraft.getInstance|0|project_wynntils.md McUtils section: no code calls Minecraft.getInstance
 NameResolver.fetchAllLegacyNames|1|NameResolver#fetchAllLegacyNames: Used by RandomDistributor (names the class, pinned as one site)
 NameResolver.fetchUuidToLegacyName|1|NameResolver#fetchUuidToLegacyName: Used by NoAspectsFilter (names the class, pinned as one site)
