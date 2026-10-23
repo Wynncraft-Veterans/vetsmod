@@ -378,7 +378,6 @@ case 3. The markers are meant to do nothing else; today they also still unlock c
 `legacy-unlock-markers-still-grant-client-unlock`).
 
 Bugs: `legacy-unlock-markers-still-grant-client-unlock`,
-`anni-default-not-reapplied-on-auth-tier-flip`,
 `outbound-socket-never-authenticated`,
 `ws-client-send-ignores-send-pending-failure`.
 

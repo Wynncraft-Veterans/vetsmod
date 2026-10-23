@@ -60,10 +60,12 @@ import org.wynnvets.logging.VetsLogger;
  *       detected stream-on via {@link Source#AUTO_STREAM_ACTIVATED},
  *       and auto-restores {@link #preferredMode()} on stream-off via
  *       {@link Source#AUTO_STREAM_DEACTIVATED}.</li>
- *   <li>{@link #applyStartupDefaultIfNeeded()} at world-join /
- *       guild-info-updated via {@link Source#AUTO_STARTUP_DEFAULT}
- *       promotes still-default users from SILENT to PASSIVE once
- *       enrichment eligibility is confirmed.</li>
+ *   <li>{@link #applyStartupDefaultIfNeeded()} at world-join, on a guild-info
+ *       update, a {@code /gu stats} result and an ok auth ack, via
+ *       {@link Source#AUTO_STARTUP_DEFAULT},
+ *       re-applies the eligibility default to a user who never chose a
+ *       mode, in either direction: PASSIVE while enrichment-eligible,
+ *       SILENT otherwise.</li>
  * </ul>
  */
 public final class AnniModeManager {
@@ -85,7 +87,8 @@ public final class AnniModeManager {
          *  auto-restores the user's preferred mode via
          *  {@link #preferredMode()}. */
         AUTO_STREAM_DEACTIVATED,
-        /** Fired once at world-join / on guild-info update to apply the
+        /** Fired at world-join, on a guild-info update, a {@code /gu stats} result and an ok
+         *  auth ack, to apply the
          *  eligibility-based default (PASSIVE for enrichment-eligible
          *  users, SILENT otherwise) — but only while
          *  {@link VetsConfigKeys#VETS_ANNI_MODE_USER_SET} is {@code false}. */
@@ -243,13 +246,11 @@ public final class AnniModeManager {
      * Idempotent — becomes a no-op forever once the user picks a mode.
      *
      * <p>Called from {@link org.wynnvets.guild.GuildLifecycle#onEnteredWorld
-     * GuildLifecycle#onEnteredWorld} and
-     * {@code onGuildInfoUpdated}, so that an eligibility change re-derives the default for a
-     * still-unset user: PASSIVE if enrichment-eligible, SILENT otherwise. Today only a change
-     * that reaches one of them (a world join, a Wynntils guild join or leave, or Wynntils'
-     * guild data turning up after a join) does; one from an auth ack or failure, a newly
-     * stored key, or a {@code /gu stats} result waits for the next world join
-     * ({@code anni-default-not-reapplied-on-auth-tier-flip}). Routes
+     * GuildLifecycle#onEnteredWorld}, {@code onGuildInfoUpdated} and
+     * {@code onGuildCheckCompleted}, and on an ok auth ack, so that an eligibility change
+     * re-derives the default for a still-unset user: PASSIVE if enrichment-eligible, SILENT
+     * otherwise. An auth failure or a newly stored key waits for the next of those, so a
+     * transient failure can't flicker the bar mid-anni. Routes
      * through {@link #transitionTo} so the
      * {@code /stream} mutex is honoured — if streaming, the transition
      * is silently refused and {@link StreamerModeChatDetector} will

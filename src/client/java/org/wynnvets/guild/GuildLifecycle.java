@@ -114,12 +114,10 @@ public final class GuildLifecycle {
         // Apply the eligibility-based default anni mode (PASSIVE for
         // enrichment-eligible users, SILENT otherwise) if the user hasn't
         // explicitly picked a mode. No-op once VETS_ANNI_MODE_USER_SET is
-        // true. onGuildInfoUpdated() re-runs it so that a mid-session eligibility
-        // flip still moves a still-unset user to the new default. Today only flips
-        // that reach that method (a Wynntils guild join/leave event, or
-        // scheduleGuildRecheck()'s poll) do; flips that arrive another way (an auth
-        // ack or failure, a newly stored key, or the /gu stats check completing)
-        // wait for the next world join (anni-default-not-reapplied-on-auth-tier-flip).
+        // true. onGuildInfoUpdated(), onGuildCheckCompleted() and an ok auth ack
+        // (UnlockManager) re-run it, so a mid-session eligibility flip still moves a
+        // still-unset user to the new default. An auth failure or a newly stored key
+        // waits for the next of those, so a transient failure can't flicker the bar.
         AnniModeManager.applyStartupDefaultIfNeeded();
     }
 
@@ -254,6 +252,10 @@ public final class GuildLifecycle {
                 && !WorldJoinAnnouncer.stampDisplayedThisSession) {
             WorldJoinAnnouncer.fetchAndDisplayStampMessage();
         }
+
+        // The /gu stats result can move eligibility either way; re-evaluate the
+        // default anni mode for still-unset users.
+        AnniModeManager.applyStartupDefaultIfNeeded();
     }
 
     /**

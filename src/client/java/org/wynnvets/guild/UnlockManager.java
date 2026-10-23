@@ -9,6 +9,7 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.mode.AnniModeManager;
 
 /**
  * Manages the player's vetsmod authentication state.
@@ -262,13 +263,15 @@ final class UnlockManager {
         keyRejectedByAuthAck = false;
         VetsLogger.info("Auth verified by server: tier={}", currentTier);
         // The ack arrives on the WebSocket thread. The state above is plain
-        // volatile writes; the toast, the config latch and the registration
-        // refresh belong on the client thread.
+        // volatile writes; the toast, the config latch, the registration
+        // refresh and the anni-mode default belong on the client thread.
         McUtils.mc().execute(UnlockManager::showAuthSuccess);
     }
 
-    /** The client-thread half of {@link #onAuthSuccess}: the confirmation, its latch and the
-     *  registration refresh. {@link #pendingUnlockNotify} is consumed only when the line is
+    /** The client-thread half of {@link #onAuthSuccess}: the confirmation, its latch, the
+     *  registration refresh and the anni-mode default
+     *  ({@code AnniModeManager.applyStartupDefaultIfNeeded}). {@link #pendingUnlockNotify} is
+     *  consumed only when the line is
      *  shown, so an ack that lands before there is a player leaves it for the next one. */
     private static void showAuthSuccess() {
         boolean configWantsPrint = VetsConfig.get(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH);
@@ -303,6 +306,9 @@ final class UnlockManager {
         // list reflects our (server-confirmed) tier rather than whatever
         // we inferred locally.
         GuildStateManager.sendRegistrationIfReady();
+        // The ack may have changed the tier, and with it enrichment eligibility:
+        // re-derive the default anni mode for a still-unset user, as a world join does.
+        AnniModeManager.applyStartupDefaultIfNeeded();
     }
 
     /** Called (through {@link GuildStateManager#onAuthFailure(String)}) when an error ack that
