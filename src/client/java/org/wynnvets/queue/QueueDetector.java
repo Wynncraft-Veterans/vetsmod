@@ -82,10 +82,10 @@ public final class QueueDetector {
      * {@link org.wynnvets.mixin.client.QueueTitleMixin QueueTitleMixin}, which reads the packet
      * at the head of {@code ClientPacketListener.setTitleText} &mdash; including vanilla's first
      * entry on the network thread, so this method also runs off the render thread. That second
-     * path means a mod cancelling Wynntils' event does not blind queue detection; a mod
-     * cancelling {@code setTitleText} itself at {@code HEAD} ahead of {@code QueueTitleMixin}
-     * still can ({@code queue-title-mixin-priority-inverts-its-own-goal};
-     * {@code vetsmod_mixins.md} §"Injection priorities").
+     * path means a mod cancelling Wynntils' event does not blind queue detection. The mixin's
+     * priority of 500 puts it ahead of the default-priority {@code HEAD} injects on both
+     * entries, so a mod cancelling {@code setTitleText} itself at {@code HEAD} does not either
+     * (short of one below 500; {@code vetsmod_mixins.md} §"Injection priorities").
      *
      * @param text the plain-text title string
      */
