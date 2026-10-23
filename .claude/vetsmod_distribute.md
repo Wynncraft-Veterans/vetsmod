@@ -424,10 +424,10 @@ observed Wynncraft behaviour first, then the code shape it forces.
    pagination buttons, and `SCAN_DELAY_TICKS = 2` tail-debounces the
    burst into one scan, run once no triggering packet has arrived for
    about that long; a stream that pauses longer can still be scanned
-   half-updated. `MembersListWalker` did not
-   receive the same treatment — its `onSetSlot` still triggers only on
-   `MembersGui.NEXT_PAGE_SLOT`, and its `scheduleScan` is a leading-edge
-   boolean latch with a fixed 1-tick delay rather than a token debounce.
+   half-updated. `MembersListWalker` has the same two changes: its
+   `onSetSlot` triggers on the Next Page slot and any tile, and its
+   `scheduleScan` is the same token debounce, with its own copy of
+   `SCAN_DELAY_TICKS`.
 4. **Wynntils' `GuildLogHolder` gives no completion signal we can
    subscribe to.** It auto-paginates the log and accumulates the items,
    but the state driving its stop decision is private and no `Models`
@@ -472,8 +472,9 @@ Every "why" below is the claim made by that constant's own comment —
 or, for two, by the comment it leans on: `COUNT_MAX` shares `COUNT_MIN`'s
 "Bounds on `<count>`" Javadoc, and `MAX_REBIND_ATTEMPTS`' reason is on the
 `rebindAttempts` field and in `scanAndPaginate`. None is an extrapolation
-from behaviour observed elsewhere, and two, `STALL_TICKS` and `ARM_TTL_MS`,
-were chosen rather than observed, as their comments say. Values are current.
+from behaviour observed elsewhere, except the walker's `SCAN_DELAY_TICKS`,
+copied from the searcher's, and two, `STALL_TICKS` and `ARM_TTL_MS`, were
+chosen rather than observed, as their comments say. Values are current.
 
 | Constant | Class | Value | Why |
 |---|---|---|---|
@@ -487,6 +488,7 @@ were chosen rather than observed, as their comments say. Values are current.
 | `MAX_RETRY_ATTEMPTS` | `MembersListSearcher` | 1 | One retry catches the stale-data false negative; more would only delay the not-found verdict |
 | `WATCHDOG_TICKS` | `MembersListSearcher` | 300 | ~15 s hard bound per search; a 4-page guild swept both ways with a retry is expected under 10 s |
 | `MAX_PAGES` | `MembersListWalker` | 30 | Runaway-loop bound — that is the whole of its comment. **No sizing rationale is recorded** for 30, unlike the searcher's 60. Don't infer one from the walk being forward-only |
+| `SCAN_DELAY_TICKS` | `MembersListWalker` | 2 | Copied from the searcher's, for the same reason (point 3 above); the scan runs this long after the last trigger |
 | `STALL_TICKS` | `MembersListWalker` | 200 | ~10 s with no progress (arming, binding or a page click) ⇒ the walk has stalled and stops the run. Chosen, not observed: well above a page turn's round trip, and the same bound as `OVERALL_TIMEOUT_TICKS` |
 | `ARM_TTL_MS` | `GuildManageOpener` | 10 s | An open whose `/guild manage` went unanswered for this long has given up, so the next menu clears its arm instead of using it. Below the searcher's 15 s watchdog. Chosen, not observed; the only constant here in milliseconds, checked lazily against `System.nanoTime()` |
 | `SETTLE_TICKS` | `GuildLogWalker` | 40 | No new log item for this long ⇒ done. The comment attributes the sizing to Wynntils' own `REQUEST_TIMEOUT = 5` plus `FORCED_LOAD_DELAY = 20` |

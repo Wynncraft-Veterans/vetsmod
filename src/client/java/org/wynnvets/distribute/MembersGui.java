@@ -70,10 +70,9 @@ import org.wynnvets.util.ContainerScreens;
  * </table>
  *
  * <p>The tick constants the presser and the searcher own stay on those classes: they are
- * timing, not layout. So does the walker's one, its stall watchdog's; its one-tick scan delay
- * is an inline literal, and it differs from the searcher's {@code SCAN_DELAY_TICKS} because the
- * tick-boundary fix ({@code vetsmod_distribute.md} §6 point 3) went to the searcher only; no
- * reason for leaving the walker out is recorded.</p>
+ * timing, not layout. So do the walker's two: its stall watchdog's, and the copy of the
+ * searcher's {@code SCAN_DELAY_TICKS} that the tick-boundary fix ({@code vetsmod_distribute.md}
+ * §6 point 3) uses there too.</p>
  */
 public final class MembersGui {
 

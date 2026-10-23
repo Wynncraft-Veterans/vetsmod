@@ -29,17 +29,11 @@ import org.wynnvets.util.ContainerScreens;
  *
  * <p>Built on the same event triple as {@link MembersListSearcher}
  * (MenuOpen / SetContent / SetSlot), plus the same screen-close nudge
- * ({@link #onScreenClosed}), and, like it, defers the rescan by a
- * scheduler delay &mdash; but the two are not interchangeable. This class
- * uses a one-tick scheduler delay and filters {@link #onSetSlot} down to
- * {@link MembersGui#NEXT_PAGE_SLOT}; the searcher uses
- * {@code SCAN_DELAY_TICKS} (a different value, for the reason recorded on
- * that constant) and also triggers on every in-bounds tile. And they
- * debounce differently: this class latches on the <em>first</em> trigger
- * and scans after its delay, ignoring later triggers until then, where
- * the searcher's scan waits a delay after the <em>last</em>. So here the
- * wait for straggling slot updates is fixed by the first trigger and is
- * not extended by later ones. Instead of stopping on a match it
+ * ({@link #onScreenClosed}), and the same scan debounce: {@link #onSetSlot}
+ * triggers on the Next Page slot and on every in-bounds tile, and the scan
+ * runs {@link #SCAN_DELAY_TICKS} after the <em>last</em> trigger, so a
+ * page whose {@code SetSlot} packets cross a tick boundary is scanned once
+ * it has finished arriving. Instead of stopping on a match it
  * forward-paginates exhaustively,
  * collecting every bounded player-head into {@link #collected} along the
  * way. When the Next Page button disappears, it invokes
@@ -69,6 +63,13 @@ public final class MembersListWalker {
      *  turn's round trip, and the same bound as {@code GuildLogWalker}'s overall timeout. */
     private static final int STALL_TICKS = 200;
 
+    /** Debounce delay before {@link #scanAndPaginate()} runs: each trigger bumps
+     *  {@link #scanToken}, so the scan runs this many ticks after the <em>last</em> one. Copied
+     *  from {@code MembersListSearcher}'s constant of the same name, for the same reason: a
+     *  page's {@code SetSlot} packets can cross a tick boundary, and a scan before they finish
+     *  reads a half-updated page. */
+    private static final int SCAN_DELAY_TICKS = 2;
+
     /** One member tile's worth of data captured during the walk. */
     public record MemberEntry(String legacyName, List<String> loreLines) {}
 
@@ -83,7 +84,11 @@ public final class MembersListWalker {
     private static volatile boolean active = false;
     private static volatile int membersContainerId = -1;
     private static volatile int pagesClicked = 0;
-    private static volatile boolean scanScheduled = false;
+
+    /** Bumped by every {@link #scheduleScan()} and every {@link #stop()}; a scheduled scan
+     *  runs only if it is still the latest. */
+    private static volatile int scanToken = 0;
+
     private static volatile Completion completion = null;
     private static final List<MemberEntry> collected = new ArrayList<>();
 
@@ -112,7 +117,7 @@ public final class MembersListWalker {
         active = true;
         completion = onComplete;
         pagesClicked = 0;
-        scanScheduled = false;
+        scanToken++;
         collected.clear();
         // Bind only on the next MenuOpenedEvent.Pre: the caller opens a fresh
         // menu right after arming, so one already open is about to be replaced.
@@ -125,7 +130,7 @@ public final class MembersListWalker {
         completion = null;
         membersContainerId = -1;
         pagesClicked = 0;
-        scanScheduled = false;
+        scanToken++;
         collected.clear();
         stallToken++;
     }
@@ -200,18 +205,24 @@ public final class MembersListWalker {
     public void onSetSlot(ContainerSetSlotEvent.Post event) {
         if (!active) return;
         if (event.getContainerId() != membersContainerId) return;
-        if (event.getSlot() != MembersGui.NEXT_PAGE_SLOT) return;
+        int slot = event.getSlot();
+        if (slot != MembersGui.NEXT_PAGE_SLOT && !MembersGui.isTileSlot(slot)) return;
         scheduleScan();
     }
 
+    /** Schedules a scan {@link #SCAN_DELAY_TICKS} from now, superseding any scan not yet run.
+     *  Each call posts its own lambda: the scheduler keys tasks by their {@code Runnable}. */
     private static void scheduleScan() {
-        if (scanScheduled) return;
-        scanScheduled = true;
-        Managers.TickScheduler.scheduleLater(MembersListWalker::scanAndPaginate, 1);
+        final int myToken = ++scanToken;
+        Managers.TickScheduler.scheduleLater(
+                () -> {
+                    if (myToken != scanToken) return;
+                    scanAndPaginate();
+                },
+                SCAN_DELAY_TICKS);
     }
 
     private static void scanAndPaginate() {
-        scanScheduled = false;
         if (!active) return;
 
         AbstractContainerScreen<?> screen = ContainerScreens.currentWithId(membersContainerId);
