@@ -68,8 +68,9 @@ dependencies {
 	// Wynntils dependency (compile only - users must have Wynntils installed separately)
 	modCompileOnly "maven.modrinth:wynntils:v4.1.17-fabric"
 
-	// SnakeYAML writes the shipped config.yml at build time (VetsConfigDefaults.main) and reads
-	// it in game (ShippedConfig). include bundles it inside vetsmod's jar.
+	// SnakeYAML writes the shipped config.yml at build time (VetsConfigDefaults.main) and, in
+	// game, reads it (ShippedConfig) and definitions.yml (ItemDefinitions). include bundles it
+	// inside vetsmod's jar.
 	implementation "org.yaml:snakeyaml:${project.snakeyaml_version}"
 	include "org.yaml:snakeyaml:${project.snakeyaml_version}"
 

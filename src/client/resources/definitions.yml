@@ -1,5 +1,7 @@
+# Standard YAML, read with SnakeYAML (see ItemDefinitions). A pattern holding a regex
+# backslash goes in single quotes; inside double quotes only YAML's own escapes are legal.
 unenchanted:
-  - "^\?\?\?$"
+  - '^\?\?\?$'
   - "^Ability Shard$"
   - "^Breathing Helmet .*"
   - "^Battlemaster's Crest$"

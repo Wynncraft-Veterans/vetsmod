@@ -67,7 +67,7 @@ the `// 1.` … `// 8.` comments in the method body:
 
 ## 3. definitions.yml — the 9 sections
 
-File: [definitions.yml](../src/client/resources/definitions.yml). Parsed by `ItemDefinitions.parse()` — simple state machine: `---` section delimiters, headers end with `:`, patterns prefixed `- "…"`. All patterns are pre-compiled to `java.util.regex.Pattern` once at startup. **No runtime reload** — requires restart to pick up edits.
+File: [definitions.yml](../src/client/resources/definitions.yml). Parsed by `ItemDefinitions.parse()` with SnakeYAML's safe loader: a stream of YAML documents separated by `---`, each a mapping from section name to a list of patterns. A pattern holding a regex backslash goes in single quotes (`'^\?\?\?$'`), since inside double quotes only YAML's own escapes are legal; an unknown section, or a document that is not a mapping, is ignored. All patterns are pre-compiled to `java.util.regex.Pattern` once at startup. **No runtime reload** — requires restart to pick up edits.
 
 | Section | Purpose | Gate logic |
 |---------|---------|-----------|

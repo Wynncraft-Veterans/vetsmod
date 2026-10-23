@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.error.YAMLException;
 
 /**
  * Tests for {@link ItemDefinitions}' eight testable query methods — seven that
@@ -22,9 +23,9 @@ import org.junit.jupiter.api.Test;
  * silently normalised by a table-driven rewrite, which is why they are pinned:
  * per-pattern case-sensitivity via inline {@code (?i)}, the empty-guard
  * asymmetry between the five guarded sections and the four unguarded ones,
- * {@code isUnenchanted}'s {@code isLegacy} veto, and the fact that inline
- * {@code #} comments are stripped as a side effect of quote handling rather
- * than by any comment logic.</p>
+ * {@code isUnenchanted}'s {@code isLegacy} veto, and which YAML quoting keeps a
+ * regex backslash. The file is standard YAML, parsed by SnakeYAML, so comments,
+ * quoting and the {@code ---} document breaks follow YAML's rules.</p>
  *
  * <p>{@code isEnchantExcludedItem(ItemStack)} is not covered — it resolves
  * {@code BuiltInRegistries.ITEM}, which needs {@code Bootstrap.bootStrap()}.
@@ -38,7 +39,7 @@ import org.junit.jupiter.api.Test;
 class ItemDefinitionsTest {
 
     // The mod calls load() during init; the harness does not. Load once here so
-    // the predicates have the real 203-line file behind them.
+    // the predicates have the real file behind them.
     static {
         ItemDefinitions.load();
     }
@@ -181,24 +182,80 @@ class ItemDefinitionsTest {
         assertFalse(ItemDefinitions.isLegacy("x"));
     }
 
-    // ----- Inline comment stripping is accidental -----
+    // ----- Comments and quoting follow YAML -----
 
     @Test
-    void trailingCommentsAreStrippedOnlyBecauseTheValueIsQuoted() throws IOException {
-        // extractQuotedString takes the substring between the first two quotes.
-        // Nothing in the parser knows what a '#' is, so an unquoted entry keeps
-        // its comment and compiles it into the pattern.
+    void trailingCommentsAreStrippedFromQuotedAndPlainEntriesAlike() throws IOException {
+        // The hand-written parser kept an unquoted entry's comment and compiled it
+        // into the pattern. YAML drops a comment after either form.
         parseFixture(
                 """
                 definitions:
                   - "^QuotedProbe$" # this comment is discarded
-                  - ^BareProbe$ # this comment becomes part of the regex
+                  - ^BareProbe$ # and so is this one
                 """);
 
         assertTrue(ItemDefinitions.isLegacy("QuotedProbe"));
-        assertFalse(
-                ItemDefinitions.isLegacy("BareProbe"),
-                "the unquoted entry compiled as '^BareProbe$ # ...' and matches nothing");
+        assertTrue(ItemDefinitions.isLegacy("BareProbe"));
+    }
+
+    @Test
+    void aRegexBackslashSurvivesInSingleQuotes() throws IOException {
+        // Single quotes keep a backslash as it is, so the regex sees an escaped '?'.
+        // The real file's '^\?\?\?$' depends on this.
+        parseFixture(
+                """
+                definitions:
+                  - '^Q\\?$'
+                """);
+
+        assertTrue(ItemDefinitions.isLegacy("Q?"));
+        assertFalse(ItemDefinitions.isLegacy("Q"));
+        assertTrue(ItemDefinitions.isUnenchanted("???"), "the real file's entry");
+    }
+
+    @Test
+    void theRealFileParsesWithoutError() throws IOException {
+        // load() logs a parse error rather than failing client init, so a broken
+        // definitions.yml would only thin out the categories. Parsing it here, with
+        // nothing catching, is what turns a bad edit into a failed build.
+        try (var in = ItemDefinitionsTest.class.getResourceAsStream("/definitions.yml")) {
+            ItemDefinitions.parse(in);
+        }
+    }
+
+    @Test
+    void aDoubleQuotedBackslashThatIsNotAYamlEscapeFailsTheParse() {
+        // Inside double quotes only YAML's own escapes are legal, so a regex escape
+        // such as \? there is a syntax error, not a silent change to the pattern.
+        assertThrows(
+                YAMLException.class,
+                () ->
+                        parseFixture(
+                                """
+                                definitions:
+                                  - "^Q\\?$"
+                                """));
+    }
+
+    @Test
+    void aYamlEscapeInDoubleQuotesIsDecodedBeforeTheRegexSeesIt() throws IOException {
+        // YAML's \_ is a no-break space, while the regex would read \_ as a plain '_'. So
+        // this entry matches one name or the other depending on which of the two decoded it.
+        parseFixture(
+                """
+                definitions:
+                  - "^A\\_B$"
+                """);
+        assertTrue(ItemDefinitions.isLegacy("A\u00A0B"), "YAML decoded the escape");
+        assertFalse(ItemDefinitions.isLegacy("A_B"), "the regex never saw it");
+
+        // The real file's "(?i)^Fiert\u00e9$": YAML turns the escape into the letter,
+        // which matches the same names the regex escape did.
+        assertTrue(ItemDefinitions.isNoLoreLegacy("Fiert\u00e9"));
+        assertTrue(
+                ItemDefinitions.isNoLoreLegacy("fiert\u00e9"),
+                "(?i) still folds the ASCII letters");
     }
 
     @Test
@@ -220,8 +277,9 @@ class ItemDefinitionsTest {
 
     @Test
     void sectionsEndAtTheDocumentSeparator() throws IOException {
-        // "---" resets currentSection to null, so entries after it with no new
-        // header are dropped rather than appended to the previous section.
+        // "---" starts a new YAML document. One that is a bare list rather than a
+        // mapping names no category, so its entries are dropped rather than
+        // appended to the previous section.
         parseFixture(
                 """
                 definitions:

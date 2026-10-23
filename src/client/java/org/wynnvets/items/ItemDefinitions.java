@@ -1,6 +1,5 @@
 package org.wynnvets.items;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -8,11 +7,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemStack;
 import org.wynnvets.logging.VetsLogger;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  * Loads and evaluates item name patterns from {@code definitions.yml}.
@@ -20,6 +23,12 @@ import org.wynnvets.logging.VetsLogger;
  * <p>Patterns are grouped into categories that control how items are highlighted
  * or filtered in tooltips.  Each category's regex patterns are loaded once at
  * startup and matched against item display names at runtime.</p>
+ *
+ * <p>The file is standard YAML, read with SnakeYAML's safe loader: a stream of
+ * documents separated by {@code ---}, each a mapping from category name to a
+ * list of entries. A pattern holding a regex backslash goes in single quotes,
+ * where YAML keeps the backslash; inside double quotes only YAML's own escapes
+ * are legal.</p>
  *
  * <h2>Pattern categories</h2>
  * <ul>
@@ -78,85 +87,58 @@ public final class ItemDefinitions {
                     newFormatOverridePatterns.size(),
                     enchantExcludedItems.size(),
                     blockedScreenTitlePatterns.size());
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
+            // A YAML or regex syntax error is a RuntimeException; log it rather than fail
+            // client init. The categories keep whatever loaded before the error.
             VetsLogger.error("Failed to load definitions.yml", e);
         }
     }
 
     // Package-private for unit tests. See ItemDefinitionsTest.
     static void parse(InputStream input) throws IOException {
-        try (BufferedReader reader =
-                new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8))) {
-            String currentSection = null;
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String trimmed = line.trim();
-                if (trimmed.isEmpty() || trimmed.startsWith("#")) continue;
-
-                if (trimmed.equals("---")) {
-                    currentSection = null;
+        Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
+        for (Object document : yaml.loadAll(new InputStreamReader(input, StandardCharsets.UTF_8))) {
+            // A document that is not a mapping (a bare list after "---", say) holds no
+            // category, so its entries are dropped.
+            if (!(document instanceof Map<?, ?> categories)) continue;
+            for (Map.Entry<?, ?> category : categories.entrySet()) {
+                if (!(category.getKey() instanceof String name)
+                        || !(category.getValue() instanceof List<?> entries)) {
                     continue;
                 }
-
-                // Detect section headers (no leading whitespace, ends with colon)
-                if (!line.startsWith(" ") && !line.startsWith("\t") && trimmed.endsWith(":")) {
-                    currentSection = trimmed.substring(0, trimmed.length() - 1);
-                    continue;
-                }
-
-                if (currentSection == null) continue;
-
-                if ("definitions".equals(currentSection) && trimmed.startsWith("- ")) {
-                    String pattern = extractQuotedString(trimmed.substring(2).trim());
-                    legacyPatterns.add(Pattern.compile(pattern));
-                } else if ("no_lore_legacy".equals(currentSection) && trimmed.startsWith("- ")) {
-                    String pattern = extractQuotedString(trimmed.substring(2).trim());
-                    noLoreLegacyPatterns.add(Pattern.compile(pattern));
-                } else if ("misc_definitions".equals(currentSection) && trimmed.startsWith("- ")) {
-                    String pattern = extractQuotedString(trimmed.substring(2).trim());
-                    miscPatterns.add(Pattern.compile(pattern));
-                } else if ("unenchanted".equals(currentSection) && trimmed.startsWith("- ")) {
-                    String pattern = extractQuotedString(trimmed.substring(2).trim());
-                    unenchantedPatterns.add(Pattern.compile(pattern));
-                } else if ("not_pedestal".equals(currentSection) && trimmed.startsWith("- ")) {
-                    String pattern = extractQuotedString(trimmed.substring(2).trim());
-                    if (!pattern.isEmpty()) {
-                        notPedestalPatterns.add(Pattern.compile(pattern));
-                    }
-                } else if ("notjunk".equals(currentSection) && trimmed.startsWith("- ")) {
-                    String pattern = extractQuotedString(trimmed.substring(2).trim());
-                    if (!pattern.isEmpty()) {
-                        notjunkPatterns.add(Pattern.compile(pattern));
-                    }
-                } else if ("new_format_override".equals(currentSection)
-                        && trimmed.startsWith("- ")) {
-                    String pattern = extractQuotedString(trimmed.substring(2).trim());
-                    if (!pattern.isEmpty()) {
-                        newFormatOverridePatterns.add(Pattern.compile(pattern));
-                    }
-                } else if ("enchant_excluded_items".equals(currentSection)
-                        && trimmed.startsWith("- ")) {
-                    String itemId = extractQuotedString(trimmed.substring(2).trim());
-                    if (!itemId.isEmpty()) {
-                        enchantExcludedItems.add(itemId);
-                    }
-                } else if ("blocked_screen_titles".equals(currentSection)
-                        && trimmed.startsWith("- ")) {
-                    String pattern = extractQuotedString(trimmed.substring(2).trim());
-                    if (!pattern.isEmpty()) {
-                        blockedScreenTitlePatterns.add(Pattern.compile(pattern));
-                    }
+                for (Object entry : entries) {
+                    if (entry != null) add(name, String.valueOf(entry));
                 }
             }
         }
     }
 
-    private static String extractQuotedString(String value) {
-        if (value.length() >= 2 && value.startsWith("\"")) {
-            int end = value.indexOf('"', 1);
-            if (end >= 0) return value.substring(1, end);
+    /** Adds one entry to its category. An unknown category is ignored. */
+    private static void add(String category, String value) {
+        switch (category) {
+            case "definitions" -> legacyPatterns.add(Pattern.compile(value));
+            case "no_lore_legacy" -> noLoreLegacyPatterns.add(Pattern.compile(value));
+            case "misc_definitions" -> miscPatterns.add(Pattern.compile(value));
+            case "unenchanted" -> unenchantedPatterns.add(Pattern.compile(value));
+            // The other five drop an empty entry, which the four above compile;
+            // ItemDefinitionsTest pins the asymmetry.
+            case "not_pedestal" -> {
+                if (!value.isEmpty()) notPedestalPatterns.add(Pattern.compile(value));
+            }
+            case "notjunk" -> {
+                if (!value.isEmpty()) notjunkPatterns.add(Pattern.compile(value));
+            }
+            case "new_format_override" -> {
+                if (!value.isEmpty()) newFormatOverridePatterns.add(Pattern.compile(value));
+            }
+            case "enchant_excluded_items" -> {
+                if (!value.isEmpty()) enchantExcludedItems.add(value);
+            }
+            case "blocked_screen_titles" -> {
+                if (!value.isEmpty()) blockedScreenTitlePatterns.add(Pattern.compile(value));
+            }
+            default -> {}
         }
-        return value;
     }
 
     public static boolean isLegacy(String itemName) {
