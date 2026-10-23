@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.wynnvets.fetcher.polling.PollingService;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -117,7 +118,10 @@ public final class AnniZone {
                             return t;
                         });
         scheduler.scheduleAtFixedRate(
-                AnniZone::refresh, 0L, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
+                PollingService.guard("vetsmod-anni-zone", AnniZone::refresh),
+                0L,
+                REFRESH_INTERVAL_SECONDS,
+                TimeUnit.SECONDS);
         VetsLogger.debug("AnniZone started");
     }
 

@@ -2,7 +2,9 @@ package org.wynnvets.fetcher.polling;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * One place where a poller's lifecycle is defined.
@@ -16,15 +18,13 @@ import java.util.concurrent.TimeUnit;
  * once; each poller keeps only the {@link Runnable} it schedules and the parameters it schedules
  * it with.</p>
  *
- * <p><b>The task is taken as-is.</b> Nothing is wrapped around it &mdash; no exception
- * handling, no logging, no rescheduling. Every caller already catches inside its own lambda,
- * with its own message at its own level, and pulling that in here would have rewritten log
- * call sites inside a migration whose whole claim is that nothing changed. One consequence is
- * therefore inherited rather than fixed: no caller catches {@link Throwable}, so an
- * {@link Error} escaping the task &mdash; {@code NoClassDefFoundError},
- * {@code OutOfMemoryError} &mdash; permanently cancels that schedule, silently, exactly as
- * {@link ScheduledExecutorService#scheduleAtFixedRate} has always specified. Filed as
- * {@code poll-task-error-permanently-cancels-the-schedule}.</p>
+ * <p><b>The task is guarded, not rewritten.</b> Every caller catches inside its own lambda,
+ * with its own message at its own level, and that stays theirs. What this class adds is a
+ * backstop for what no caller catches: {@link #guard} logs a {@link Throwable} escaping the
+ * task, such as a {@code NoClassDefFoundError}, and the schedule goes on, where
+ * {@link ScheduledExecutorService#scheduleAtFixedRate} would otherwise cancel it for good with
+ * nothing logged. A {@link VirtualMachineError} is rethrown, logged: the JVM is in no state to
+ * keep polling, so that schedule ends, and {@link #isRunning()} reports it.</p>
  *
  * <p><b>The thread name is the caller's, verbatim.</b> Two of the names passed in disagree
  * with the class that passes them ({@code VetsMod-StaffRanksFetcher},
@@ -61,6 +61,7 @@ public final class PollingService {
     private final TimeUnit unit;
 
     private ScheduledExecutorService scheduler;
+    private ScheduledFuture<?> future;
     private boolean running;
 
     /**
@@ -68,7 +69,7 @@ public final class PollingService {
      *
      * @param threadName the name given to the single daemon thread this service creates,
      *     used verbatim
-     * @param task run on every tick, taken as-is and never wrapped
+     * @param task run on every tick, inside {@link #guard}
      * @param initialDelay delay before the first run, in {@code unit}
      * @param period delay between runs, in {@code unit}
      * @param unit the time unit of {@code initialDelay} and {@code period}
@@ -104,8 +105,29 @@ public final class PollingService {
                             thread.setDaemon(true);
                             return thread;
                         });
-        scheduler.scheduleAtFixedRate(task, initialDelay, period, unit);
+        future = scheduler.scheduleAtFixedRate(guard(threadName, task), initialDelay, period, unit);
         return true;
+    }
+
+    /**
+     * Wraps {@code task} so that a {@link Throwable} escaping it is logged as an error and the
+     * schedule goes on. A {@link VirtualMachineError} is logged and rethrown, which ends a fixed
+     * rate schedule. Public for {@code AnniZone}, the one poll schedule outside this class.
+     * {@code WsClient}'s keepalive ping is a fixed-rate schedule too, and is not guarded.
+     *
+     * @param name what the log line calls the task, normally its thread name
+     */
+    public static Runnable guard(String name, Runnable task) {
+        return () -> {
+            try {
+                task.run();
+            } catch (VirtualMachineError e) {
+                VetsLogger.error("{} poll failed; its schedule ends", name, e);
+                throw e;
+            } catch (Throwable t) {
+                VetsLogger.error("{} poll failed; the schedule goes on", name, t);
+            }
+        };
     }
 
     /**
@@ -137,11 +159,10 @@ public final class PollingService {
 
     /**
      * @return {@code true} between a {@link #start()} that returned {@code true} and the
-     *     {@link #stop()} that follows it. It reports the lifecycle flag, not whether the
-     *     schedule is still alive: an {@link Error} that cancels the schedule leaves this
-     *     {@code true} (see {@code poll-task-error-permanently-cancels-the-schedule}).
+     *     {@link #stop()} that follows it, while the schedule is still alive: a
+     *     {@link VirtualMachineError} that ended it makes this {@code false}
      */
     public synchronized boolean isRunning() {
-        return running;
+        return running && future != null && !future.isDone();
     }
 }

@@ -239,4 +239,51 @@ class PollingServiceTest {
                 "the thread name passed in should be used verbatim");
         assertTrue(observedDaemon.get(), "the poller thread should be a daemon");
     }
+
+    @Test
+    void anErrorFromTheTaskDoesNotCancelTheSchedule() throws InterruptedException {
+        AtomicInteger runs = new AtomicInteger();
+        CountDownLatch ranAgain = new CountDownLatch(1);
+        service =
+                new PollingService(
+                        "VetsMod-Test-ErrorGuard",
+                        () -> {
+                            if (runs.incrementAndGet() == 1) {
+                                throw new NoClassDefFoundError("first tick");
+                            }
+                            ranAgain.countDown();
+                        },
+                        0,
+                        TICK_MILLIS,
+                        TimeUnit.MILLISECONDS);
+
+        service.start();
+        assertTrue(
+                ranAgain.await(2, TimeUnit.SECONDS),
+                "an Error on the first tick cancelled the schedule");
+        assertTrue(service.isRunning(), "the schedule is still alive");
+    }
+
+    @Test
+    void aVirtualMachineErrorEndsTheScheduleAndIsRunningSaysSo() throws InterruptedException {
+        CountDownLatch thrown = new CountDownLatch(1);
+        service =
+                new PollingService(
+                        "VetsMod-Test-VmError",
+                        () -> {
+                            thrown.countDown();
+                            throw new StackOverflowError("tick");
+                        },
+                        0,
+                        TICK_MILLIS,
+                        TimeUnit.MILLISECONDS);
+
+        service.start();
+        assertTrue(thrown.await(2, TimeUnit.SECONDS), "the scheduled task never ran");
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        while (service.isRunning() && System.nanoTime() < deadline) {
+            Thread.sleep(TICK_MILLIS);
+        }
+        assertFalse(service.isRunning(), "a schedule ended by a VirtualMachineError still ran");
+    }
 }

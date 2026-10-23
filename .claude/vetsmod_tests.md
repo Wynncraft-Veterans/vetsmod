@@ -1452,7 +1452,7 @@ Test: [`PolledJsonMapTest.java`](../src/test/java/org/wynnvets/fetcher/polling/P
 
 Test: [`PollingServiceTest.java`](../src/test/java/org/wynnvets/fetcher/polling/PollingServiceTest.java) · Subject: [`PollingService`](../src/client/java/org/wynnvets/fetcher/polling/PollingService.java)
 
-`PollingService` owns a poller's lifecycle: a named daemon scheduled executor that runs a caller-supplied task at a fixed rate, with idempotent `start` and a `stop` that can be followed by a fresh `start`. The suite pins start and stop behaviour, the initial delay, interrupt handling in `stop`, and the thread identity. These are the repo's concurrent tests, so every wait is bounded, periods are tens of milliseconds, and assertions rely on latches and tick counts rather than elapsed time. An `@AfterEach` clears the interrupt flag and stops the service. The negative waits (300 ms after a stop, 150 ms before a delayed start) can only fail if the property is actually broken.
+`PollingService` owns a poller's lifecycle: a named daemon scheduled executor that runs a caller-supplied task at a fixed rate, with idempotent `start` and a `stop` that can be followed by a fresh `start`. The suite pins start and stop behaviour, the initial delay, interrupt handling in `stop`, the thread identity, and the guard that keeps an escaping `Error` from cancelling the schedule. These are the repo's concurrent tests, so every wait is bounded, periods are tens of milliseconds, and assertions rely on latches and tick counts rather than elapsed time. An `@AfterEach` clears the interrupt flag and stops the service. The negative waits (300 ms after a stop, 150 ms before a delayed start) can only fail if the property is actually broken.
 
 - **`startSchedulesTheTask`**: `start()` returns true and the task runs within 2 seconds.
   - `service.start()` is true, for a `PollingService` named `VetsMod-Test-Start` whose task counts down latch `ran` (count 1), initial delay 0, period 20 ms.
@@ -1484,6 +1484,12 @@ Test: [`PollingServiceTest.java`](../src/test/java/org/wynnvets/fetcher/polling/
   - `ran.await(2, TimeUnit.SECONDS)` is true: the task ran within 2 s (service `VetsMod-Test-ThreadIdentity`, delay 0, period 20 ms); it records `Thread.currentThread()`'s name and daemon flag, then counts down `ran`.
   - `observedName.get()` equals `"VetsMod-Test-ThreadIdentity"`: the task's thread name is the name passed to the constructor.
   - `observedDaemon.get()` is true: the task's thread is a daemon.
+- **`anErrorFromTheTaskDoesNotCancelTheSchedule`**: A task that throws a `NoClassDefFoundError` on its first tick still runs again, and `isRunning()` stays true.
+  - The task (service `VetsMod-Test-ErrorGuard`, delay 0, period 20 ms) throws `NoClassDefFoundError` on its first run and counts down `ranAgain` (count 1) on the next; `ranAgain.await(2, TimeUnit.SECONDS)` is true.
+  - `service.isRunning()` is true afterwards.
+- **`aVirtualMachineErrorEndsTheScheduleAndIsRunningSaysSo`**: A task that throws a `StackOverflowError` ends the schedule, and `isRunning()` turns false.
+  - The task (service `VetsMod-Test-VmError`, delay 0, period 20 ms) counts down `thrown` (count 1) and throws `StackOverflowError`; `thrown.await(2, TimeUnit.SECONDS)` is true.
+  - Within a bounded 2 s poll, `service.isRunning()` becomes false.
 
 ## `org.wynnvets.guild`
 
