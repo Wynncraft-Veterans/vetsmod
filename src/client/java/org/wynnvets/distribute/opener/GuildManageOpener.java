@@ -111,12 +111,14 @@ public final class GuildManageOpener {
         VetsLogger.debug("Registered GuildManageOpener on Wynntils event bus");
     }
 
-    /** Disarms the open without running any callback, for
+    /** Disarms the open without running any callback, and drops a {@code /guild manage} still
+     *  waiting in Wynntils' queue, for
      *  {@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()} on a
      *  disconnect. */
     public static void cancel() {
         target = null;
         manageContainerId = -1;
+        OutboundCommand.dropQueued("guild manage");
     }
 
     /**

@@ -99,14 +99,18 @@ public final class SplitDistributor {
                     DistributeRuns.finished();
                 };
 
+        final int generation = DistributeRuns.generation();
         final Runnable randomPhase =
                 pools[2] > 0
-                        ? delayed(() -> RandomDistributor.dispatch(pools[2], resource, terminal))
+                        ? delayed(
+                                generation,
+                                () -> RandomDistributor.dispatch(pools[2], resource, terminal))
                         : terminal;
 
         final Runnable objectivesPhase =
                 pools[1] > 0
                         ? delayed(
+                                generation,
                                 () ->
                                         ObjectivesDistributor.dispatch(
                                                 pools[1], resource, randomPhase))
@@ -122,9 +126,13 @@ public final class SplitDistributor {
 
     /** Wraps {@code body} in a {@link #PHASE_DELAY_TICKS}-tick scheduler
      *  call, so the phase starts about that long after it is invoked &mdash;
-     *  normally from the previous phase's {@code onComplete}. */
-    private static Runnable delayed(Runnable body) {
-        return () -> Managers.TickScheduler.scheduleLater(body, PHASE_DELAY_TICKS);
+     *  normally from the previous phase's {@code onComplete} &mdash; unless a
+     *  disconnect came since the run read {@code generation}
+     *  ({@link DistributeRuns#fenced}). */
+    private static Runnable delayed(int generation, Runnable body) {
+        return () ->
+                Managers.TickScheduler.scheduleLater(
+                        DistributeRuns.fenced(generation, body), PHASE_DELAY_TICKS);
     }
 
     /**

@@ -105,6 +105,7 @@ public final class RandomDistributor {
         // opt-out list in parallel; combine into a filtered legacy-name pool
         // before dispatching. Per-command refresh keeps the list responsive to
         // staff mutations (see NoAspectsFilter for fail-open semantics).
+        int generation = DistributeRuns.generation();
         NameResolver.fetchAllLegacyNames()
                 .thenAcceptBoth(
                         NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects()),
@@ -117,13 +118,15 @@ public final class RandomDistributor {
                             // usually runs on a background thread; when both futures
                             // were already complete it runs inline on the command's.
                             Managers.TickScheduler.scheduleLater(
-                                    () ->
-                                            beginPicks(
-                                                    legacyNames,
-                                                    allOptedOut,
-                                                    count,
-                                                    resource,
-                                                    onComplete),
+                                    DistributeRuns.fenced(
+                                            generation,
+                                            () ->
+                                                    beginPicks(
+                                                            legacyNames,
+                                                            allOptedOut,
+                                                            count,
+                                                            resource,
+                                                            onComplete)),
                                     0);
                         });
     }

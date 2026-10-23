@@ -50,8 +50,9 @@ public final class DistributeRuns {
     /** Runs waiting for the current one to end, oldest first. */
     private static final Deque<Runnable> queued = new ArrayDeque<>();
 
-    /** Bumped by {@link #reset()}, so a queued run already scheduled in the gap does not start
-     *  after a disconnect. */
+    /** Bumped by {@link #reset()}. A step a run scheduled before a disconnect checks it through
+     *  {@link #fenced} and does nothing after one: a queued run already scheduled in the gap, or a
+     *  head's next step still waiting on its HTTP fetch or a phase gap. */
     private static int generation = 0;
 
     private DistributeRuns() {}
@@ -82,12 +83,30 @@ public final class DistributeRuns {
             return;
         }
         VetsLogger.debug("DistributeRuns: starting the next queued run, {} left", queued.size());
-        final int myGeneration = generation;
-        Managers.TickScheduler.scheduleLater(
-                () -> {
-                    if (myGeneration == generation) next.run();
-                },
-                QUEUE_GAP_TICKS);
+        Managers.TickScheduler.scheduleLater(fenced(generation, next), QUEUE_GAP_TICKS);
+    }
+
+    /** The disconnect count, for a run to capture before it hands a step to an HTTP callback or a
+     *  later tick, and pass to {@link #fenced}. */
+    public static int generation() {
+        return generation;
+    }
+
+    /**
+     * Wraps {@code step} so it runs only if no disconnect has come since the run read
+     * {@code generation} from {@link #generation()}. {@link #reset()} disarms what a run has
+     * armed, but cannot reach a step still in flight: one that lands after it would arm the
+     * searcher or the opener again in a dead or new session, and its stop or finish would free
+     * the gate of whatever run the player starts next.
+     */
+    public static Runnable fenced(int generation, Runnable step) {
+        return () -> {
+            if (generation == DistributeRuns.generation) {
+                step.run();
+            } else {
+                VetsLogger.debug("DistributeRuns: dropped a step from before a disconnect");
+            }
+        };
     }
 
     /**
@@ -132,9 +151,11 @@ public final class DistributeRuns {
      * Ends everything silently when the client disconnects (called by
      * {@link org.wynnvets.listeners.ServerConnectionListener ServerConnectionListener}): drops
      * the queue, disarms the searcher, both walkers, the presser and the opener without running
-     * their callbacks, frees the run gate, and keeps a queued run already scheduled in the gap
-     * from starting. So nothing of a run outlives a relog: no stale watchdog can stop the next
-     * session's run, and a run that never ended cannot hold the gate.
+     * their callbacks (the opener also drops a {@code /guild manage} still waiting in Wynntils'
+     * queue, which outlives a disconnect), frees the run gate, and bumps the count every
+     * {@link #fenced} step checks, so a step still in flight does nothing when it lands. So
+     * nothing of a run outlives a relog: no stale watchdog or late fetch can stop or drive the
+     * next session's run, and a run that never ended cannot hold the gate.
      */
     public static void reset() {
         if (running || !queued.isEmpty()) {

@@ -87,6 +87,21 @@ public final class OutboundCommand {
         Handlers.Command.queueCommand(command);
     }
 
+    /**
+     * Removes every queued copy of {@code command} from Wynntils' outbound queue. Wynntils keeps
+     * that queue across a disconnect and sends what is left at the next session's first on-world
+     * tick, so a run ended by one would otherwise open a menu nobody asked for. Does nothing when
+     * the queue can't be reached, as on {@link #queueFront}'s fallback path.
+     *
+     * <p>Client thread only, as {@link #queueFront}.</p>
+     */
+    public static void dropQueued(String command) {
+        Deque<String> deque = obtainDeque();
+        if (deque != null && deque.removeIf(command::equals)) {
+            VetsLogger.debug("OutboundCommand: dropped a queued {}", command);
+        }
+    }
+
     private static Deque<String> obtainDeque() {
         Field field = commandQueueField;
         if (field == null) {

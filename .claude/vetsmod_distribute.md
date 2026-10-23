@@ -618,8 +618,12 @@ distributions." (or "distribution." for one). Every run ends in exactly one
 of `DistributeRuns.finished`, `stop` or `refuse`. A disconnect ends it
 silently instead: `DistributeRuns.reset` drops the queue, disarms the
 searcher, both walkers, the presser and the opener (each has a `cancel()`
-for it) and frees the gate, so no stale watchdog can stop the next
-session's run.
+for it; the opener's also drops a `guild manage` still in Wynntils' queue,
+which outlives a disconnect) and frees the gate. Every step a head hands to
+an HTTP callback or a later tick (its next step after a wapi fetch, `@split`'s
+phase gap, a queued run's start) is wrapped in `DistributeRuns.fenced`, which
+reset's generation bump turns into a no-op. So no stale watchdog or late
+fetch can stop or drive the next session's run.
 
 ## 8. `OutboundCommand` — the mod's only reflection
 
@@ -651,7 +655,11 @@ The contract worth preserving is **cache the failure, warn, degrade**:
   nothing breaks.
 
 Two call sites, both in `GuildManageOpener`: `openManageMembers()` and
-`openGuildLog()`, each queueing `guild manage`.
+`openGuildLog()`, each queueing `guild manage`. `dropQueued(String)` uses
+the same handle to remove a command again: `GuildManageOpener.cancel()`
+drops a `guild manage` still waiting when a disconnect ends the run, since
+Wynntils keeps its queue across one and sends at the next session's first
+on-world tick. Without the handle it does nothing.
 
 As of this writing, this is the only `java.lang.reflect` usage in the mod's
 own code (`src/client`, `src/main`); `VetsConfigKeysTest` reads

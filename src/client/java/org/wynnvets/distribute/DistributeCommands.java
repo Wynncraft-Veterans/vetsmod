@@ -222,6 +222,7 @@ public final class DistributeCommands {
         // though it costs ~200-500ms upfront, rejecting after the menu has
         // already opened would be a confusing UX. Per-command refresh and
         // fail-open semantics (see NoAspectsFilter) keep this safe.
+        int generation = DistributeRuns.generation();
         CompletableFuture<String> resolveF = NameResolver.resolveLegacyName(name);
         CompletableFuture<Set<String>> excludeF =
                 NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects());
@@ -229,9 +230,11 @@ public final class DistributeCommands {
                 excludeF,
                 (resolved, excludeNames) -> {
                     Managers.TickScheduler.scheduleLater(
-                            () ->
-                                    dispatchSingleTarget(
-                                            name, resolved, excludeNames, resource, count),
+                            DistributeRuns.fenced(
+                                    generation,
+                                    () ->
+                                            dispatchSingleTarget(
+                                                    name, resolved, excludeNames, resource, count)),
                             0);
                     return null;
                 });

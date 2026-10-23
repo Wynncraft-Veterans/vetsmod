@@ -97,6 +97,7 @@ public final class ObjectivesDistributor {
         // finished first. Either way the 0 is there for the thread, not as
         // a settle delay. A run other than aspects makes no fetch: its set is
         // empty and already complete, so it always takes the inline arm.
+        int generation = DistributeRuns.generation();
         CompletableFuture<Set<String>> excludeF =
                 NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects());
         MembersListWalker.armWalk(
@@ -104,13 +105,15 @@ public final class ObjectivesDistributor {
                         excludeF.thenAccept(
                                 excludeNames ->
                                         Managers.TickScheduler.scheduleLater(
-                                                () ->
-                                                        onWalkComplete(
-                                                                members,
-                                                                count,
-                                                                resource,
-                                                                onComplete,
-                                                                excludeNames),
+                                                DistributeRuns.fenced(
+                                                        generation,
+                                                        () ->
+                                                                onWalkComplete(
+                                                                        members,
+                                                                        count,
+                                                                        resource,
+                                                                        onComplete,
+                                                                        excludeNames)),
                                                 0)));
         GuildManageOpener.openManageMembers();
     }

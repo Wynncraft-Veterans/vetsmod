@@ -126,18 +126,21 @@ public final class GraidsDistributor {
         // combined future usually completes on a background thread, or
         // inline on the calling thread when both were already complete —
         // not a delay.
+        int generation = DistributeRuns.generation();
         NameResolver.fetchNameIndex()
                 .thenAcceptBoth(
                         NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects()),
                         (index, exclude) ->
                                 Managers.TickScheduler.scheduleLater(
-                                        () ->
-                                                beginWalk(
-                                                        index,
-                                                        exclude,
-                                                        count,
-                                                        resource,
-                                                        onComplete),
+                                        DistributeRuns.fenced(
+                                                generation,
+                                                () ->
+                                                        beginWalk(
+                                                                index,
+                                                                exclude,
+                                                                count,
+                                                                resource,
+                                                                onComplete)),
                                         0));
     }
 
