@@ -146,10 +146,12 @@ Every head converges on the same sequence once it has a recipient name
 in **legacy form** (the name Wynncraft freezes onto the GUI tile, which
 is what the searcher matches). Each step names the class that owns it:
 
-1. **`GuildManageOpener.openManageMembers`** sets `target = MEMBERS` and
-   sends `guild manage` through `OutboundCommand.queueFront` (§8).
+1. **`GuildManageOpener.openManageMembers`** sets `target = MEMBERS`,
+   stamped with the time, and sends `guild manage` through
+   `OutboundCommand.queueFront` (§8). An arm older than `ARM_TTL_MS` is
+   cleared, unused, when the next menu opens.
 2. **`GuildManageOpener.onMenuOpenPre`** sees the `"<guild>: Manage"`
-   title, calls `event.setCanceled(true)` so the Manage GUI never
+   title (any other menu passes through and leaves the arm in place), calls `event.setCanceled(true)` so the Manage GUI never
    visually flashes, synthesises an empty container from the event's
    menu type, and left-clicks `MEMBERS_SLOT` (0), the top-left "Manage
    Members" tile. Mirrors Wynntils' `GuildBankHotkeyFeature` approach.
@@ -461,8 +463,8 @@ Every "why" below is the claim made by that constant's own comment —
 or, for two, by the comment it leans on: `COUNT_MAX` shares `COUNT_MIN`'s
 "Bounds on `<count>`" Javadoc, and `MAX_REBIND_ATTEMPTS`' reason is on the
 `rebindAttempts` field and in `scanAndPaginate`. None is an extrapolation
-from behaviour observed elsewhere, and one, `STALL_TICKS`, was chosen rather
-than observed, as its comment says. Values are current.
+from behaviour observed elsewhere, and two, `STALL_TICKS` and `ARM_TTL_MS`,
+were chosen rather than observed, as their comments say. Values are current.
 
 | Constant | Class | Value | Why |
 |---|---|---|---|
@@ -477,6 +479,7 @@ than observed, as its comment says. Values are current.
 | `WATCHDOG_TICKS` | `MembersListSearcher` | 300 | ~15 s hard bound per search; a 4-page guild swept both ways with a retry is expected under 10 s |
 | `MAX_PAGES` | `MembersListWalker` | 30 | Runaway-loop bound — that is the whole of its comment. **No sizing rationale is recorded** for 30, unlike the searcher's 60. Don't infer one from the walk being forward-only |
 | `STALL_TICKS` | `MembersListWalker` | 200 | ~10 s with no progress (arming, binding or a page click) ⇒ the walk has stalled and stops the run. Chosen, not observed: well above a page turn's round trip, and the same bound as `OVERALL_TIMEOUT_TICKS` |
+| `ARM_TTL_MS` | `GuildManageOpener` | 10 s | An open whose `/guild manage` went unanswered for this long has given up, so the next menu clears its arm instead of using it. Below the searcher's 15 s watchdog. Chosen, not observed; the only constant here in milliseconds, checked lazily against `System.nanoTime()` |
 | `SETTLE_TICKS` | `GuildLogWalker` | 40 | No new log item for this long ⇒ done. The comment attributes the sizing to Wynntils' own `REQUEST_TIMEOUT = 5` plus `FORCED_LOAD_DELAY = 20` |
 | `OVERALL_TIMEOUT_TICKS` | `GuildLogWalker` | 200 | ~10 s hard cap on the whole log walk |
 | `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Belt-and-braces settle gap before each objectives or random phase starts, on top of `queueCommand`'s 7-tick spacing. A phase that ends on the Members menu closes it through `MembersGui.closeIfOpen`, whose close packet the gap also gives time to land |
