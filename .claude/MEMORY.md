@@ -18,6 +18,7 @@
 - [MWE / Annihilation](vetsmod_mwe_anni.md) — The whole `mwe/anni/` subsystem: snapshot cache, mode gates, boss bar, outlines and nametags, zone lines, scroll-spot waypoint, RSVP, party back-report, one complete config-key table and one complete `/wv debug tree anni` harness listing
 - [PUA Rank Pills](vetsmod_pua_pills.md) — How invisible PUA rank pills are framed and decoded, why a codepoint's meaning is frame-scoped, and `PillCodec` as the single encode/decode authority
 - [Guild Resource Distribution](vetsmod_distribute.md) — /wv distribute, the Manage-Members GUI automation state machine, the five modes, the NoAspects opt-out, front-of-queue command reflection
+- [Unit Tests](vetsmod_tests.md) — Every JUnit class under src/test/java, by package: its subject, what the suite pins down, and per @Test a summary plus one bullet per assertion statement (expression, relation, exact expected value)
 
 ## temporary-server (FastAPI Python backend)
 - [temporary-server Architecture](project_server.md) — Stack, three pillars plus the auxiliary dazebot HTTP introspection client, file structure (every service module), REST endpoints, dedup summary, Discord command surface
