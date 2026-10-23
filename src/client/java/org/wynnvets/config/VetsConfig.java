@@ -6,8 +6,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.nio.charset.CharacterCodingException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -261,7 +263,13 @@ public final class VetsConfig {
         }
     }
 
-    private static void save() {
+    /**
+     * Writes every value to {@code config.json}. Synchronized, so two threads' saves (setters run
+     * on the client thread, the WebSocket thread and the pollers) can't interleave; and written to
+     * a sibling {@code config.json.tmp} first, then moved over the file, atomically where the file
+     * system allows, so a crash mid-write leaves the old file whole rather than a truncated one.
+     */
+    private static synchronized void save() {
         try {
             // Ensure the config directory exists
             Files.createDirectories(CONFIG_FILE.getParent());
@@ -274,9 +282,12 @@ public final class VetsConfig {
             for (Map.Entry<String, Long> entry : longConfig.entrySet()) {
                 serialized.addProperty(entry.getKey(), entry.getValue());
             }
-            for (Map.Entry<String, Boolean> entry : triStateConfig.entrySet()) {
-                if (entry.getValue() != null) {
-                    serialized.addProperty(entry.getKey(), entry.getValue());
+            // A synchronizedMap: iterating it needs its own lock.
+            synchronized (triStateConfig) {
+                for (Map.Entry<String, Boolean> entry : triStateConfig.entrySet()) {
+                    if (entry.getValue() != null) {
+                        serialized.addProperty(entry.getKey(), entry.getValue());
+                    }
                 }
             }
             for (Map.Entry<String, String> entry : stringConfig.entrySet()) {
@@ -284,7 +295,17 @@ public final class VetsConfig {
             }
 
             String json = GSON.toJson(serialized);
-            Files.writeString(CONFIG_FILE, json);
+            Path tmp = CONFIG_FILE.resolveSibling("config.json.tmp");
+            Files.writeString(tmp, json);
+            try {
+                Files.move(
+                        tmp,
+                        CONFIG_FILE,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tmp, CONFIG_FILE, StandardCopyOption.REPLACE_EXISTING);
+            }
             VetsLogger.debug("Configuration saved");
         } catch (IOException e) {
             VetsLogger.warn("Failed to save config: {}", e.getMessage());
