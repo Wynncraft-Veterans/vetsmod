@@ -39,10 +39,12 @@ import org.wynnvets.chat.ChatUtils;
  * that finds no recipients (empty graid log, no objective completers)
  * doesn't stall the chain. The next phase starts about
  * {@link #PHASE_DELAY_TICKS} after the previous reports done. A phase
- * can still end without reporting &mdash; {@code members-list-walker-drops-completion},
- * {@code member-slot-presser-drops-completion}, and the rows of
- * {@code vetsmod_distribute.md} §7 whose callback column says no
- * &mdash; and the chain stalls behind it.</p>
+ * that stops (it lost the Members menu, {@code vetsmod_distribute.md} §7)
+ * does not report by design, and the whole chain ends with it. A phase can
+ * also end without reporting by accident &mdash;
+ * {@code members-list-walker-drops-completion},
+ * {@code member-slot-presser-drops-completion} &mdash; and the chain then
+ * stalls behind it.</p>
  *
  * <h2>Skipping zero-count phases</h2>
  * <p>For very small {@code count} values (e.g. {@code 1} or {@code 2}),

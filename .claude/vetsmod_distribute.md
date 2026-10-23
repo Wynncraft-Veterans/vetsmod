@@ -60,12 +60,13 @@ enforcement.
 ## 2. Package layout
 
 All of it lives under `org.wynnvets.distribute.*` —
-[distribute/](../src/client/java/org/wynnvets/distribute/), 16 files
+[distribute/](../src/client/java/org/wynnvets/distribute/), 17 files
 across 5 sub-packages:
 
 ```
 distribute/
 ├── DistributeCommands.java           — brigadier tree, both gates, selector dispatch
+├── DistributeRuns.java               — how a run stops: the one yellow stop line (§7)
 ├── MembersGui.java                   — the Members menu's shape: title, page buttons, tiles
 ├── command/
 │   ├── NameOrSelectorArgument.java   — one-token argument type so `@x` parses
@@ -134,7 +135,7 @@ requirement (`WynntilsMod.registerEventListener` needs the event bus that
 `WynntilsMod.init` creates) — a requirement all five share, since each
 makes that same call.
 
-The remaining eleven files need no bus registration. Ten are static-only
+The remaining twelve files need no bus registration. Eleven are static-only
 with private constructors; `NameOrSelectorArgument` is the exception — a
 private-constructor singleton with instance methods, because Brigadier's
 `ArgumentType` is an interface.
@@ -197,7 +198,9 @@ is what the searcher matches). Each step names the class that owns it:
     whole phases, so under `@split` the callback is still that same
     loop. `processNext` arms the searcher for the next recipient with
     the menu left open — and on its terminal invocation, when the queue
-    is empty, calls `MembersGui.closeIfOpen` itself.
+    is empty, calls `MembersGui.closeIfOpen` itself. Each pop after the
+    first checks that the Members menu is still open, and stops the run
+    if it is not (§7).
 
 **The searcher's scan, step by step.** `MembersListSearcher.scanAndPaginate` runs
 `SCAN_DELAY_TICKS` after the last event that triggers it (§6 point 3) and takes the
@@ -223,11 +226,13 @@ first of these that applies:
    yellow "Could not find <name> in members list." and `invokeNotFound`.
 
 `invokeNotFound` stops the search and runs the not-found handler, if one was armed;
-`DistributionQueue` arms one to move on to the next recipient. The watchdog
+`DistributionQueue` arms one that moves on to the next recipient while the Members
+menu is still up, and stops the run when it is not (§7). The watchdog
 (`WATCHDOG_TICKS`, counted from `armSearch`) also ends a search through
-`invokeNotFound`, after a yellow "Search for <name> timed out - advancing." A
-server-sent close for the bound id ends a search through `onMenuClose`, which runs
-no handler.
+`invokeNotFound`, after a yellow "Search for <name> timed out.", and so does a
+server-sent close for the bound id (`onMenuClose`). A client-side close, such as the
+player's Esc, posts no close event: `onScreenClosed` schedules a scan instead, and the
+scan's first step ends the search.
 
 ## 5. The five heads
 
@@ -355,7 +360,8 @@ objectives or random phase is wrapped in `PHASE_DELAY_TICKS`, even when
 an empty graids pool makes it the first to run; the graids phase is not.
 Every underlying dispatcher fires its `onComplete` on the no-recipients
 and roster-failure paths too, so an empty pool advances the chain rather
-than ending it.
+than ending it. A phase that stops (§7) does not fire it, so a stop in one
+phase ends the whole chain.
 
 ## 6. Why the numbers and routes are what they are
 
@@ -474,7 +480,7 @@ from behaviour observed elsewhere. Values are current.
 | `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Belt-and-braces settle gap before each objectives or random phase starts, on top of `queueCommand`'s 7-tick spacing. A phase that ends on the Members menu closes it through `MembersGui.closeIfOpen`, whose close packet the gap also gives time to land |
 
 `distribute/` makes 11 of the repo's 12 `Managers.TickScheduler.scheduleLater`
-calls, across 8 of its 16 files, and calls the scheduler directly. The twelfth
+calls, across 8 of its 17 files, and calls the scheduler directly. The twelfth
 is in `util.TickDelays`, the mod-wide helper for delayed work on the client
 thread. Four of the 11 are delay-0 marshalling
 hops back onto the tick thread, not delays — three off a
@@ -502,22 +508,24 @@ they are real, and a matrix claiming otherwise would be false.
 | No graid entries in the window | `GraidsDistributor.onLogReady` | yellow "No graid completions found…" | yes |
 | Name absent after both sweeps and the retry | `MembersListSearcher.stopNotFound` | yellow "Could not find X in members list." | yes † |
 | `MAX_PAGES` reached | `MembersListSearcher.scanAndPaginate` | yellow "Could not find X (reached page limit)." | yes † |
-| Bound Members menu gone, and no rebind possible (none open, or rebinds exhausted) | `MembersListSearcher.scanAndPaginate` | none | yes † |
-| Search stalls with no event arriving | `MembersListSearcher`'s watchdog, 300 ticks | yellow "Search for X timed out - advancing." | yes † |
+| Bound Members menu gone, and no rebind possible (none open, or rebinds exhausted) | `MembersListSearcher.scanAndPaginate` | none from the searcher | yes † |
+| Search stalls with no event arriving | `MembersListSearcher`'s watchdog, 300 ticks | yellow "Search for X timed out." | yes † |
+| Members menu closed by the server mid-search | `MembersListSearcher.onMenuClose` | none from the searcher | yes † |
+| Members menu gone when the next recipient is popped | `DistributionQueue.processNext` | yellow "Distribution stopped: the Members menu is not open." | no, by design: the run stops, and any later `@split` phase never starts |
 | Refresh never observed after a press | `MemberSlotPresser.armRefreshTimeout`, 40 ticks | yellow "Send timed out after N/M…" | yes |
 | Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | none | yes, with whatever was collected |
 | Log walk exceeds 200 ticks | `GuildLogWalker.onTick` | none | yes, possibly with an empty list |
 | Log screen never reached — for example no Guild Log tile, `/guild manage` unanswered, or the tile click going nowhere (a case of the row above) | `GuildLogWalker.onTick`'s overall timeout | none from the walker; the empty list then reaches `GraidsDistributor.onLogReady`'s yellow "No graid completions found…", which reads as an empty log (`graids-log-never-reached-reported-as-empty-log`) | yes, with an empty list; a Manage menu may stay open |
-| **Members menu closed by the server mid-search** | `MembersListSearcher.onMenuClose` | none | **no** |
 | **Members menu closed by the server mid-walk** | `MembersListWalker.onMenuClose` | none | **no** |
 | **Bound Members menu gone when the walker's scan runs** | `MembersListWalker.scanAndPaginate` | none | **no** |
 | **Walker waits on an event that never arrives** — for example a Members menu that never opens, a Next Page click whose reply the walker never sees, or a player's Esc with nothing further for the bound id | nothing: `MembersListWalker` has no watchdog | none | **not while it waits** — the walker stays armed, and a later Members menu can bind a stale unbound arm and run its callback then (`distribute-concurrent-runs-clobber-shared-state`) |
 | **Members screen gone when the next press in a batch fires** | `MemberSlotPresser.sendPressAndArm` | none | **no** |
 
-† All four searcher rows end in `MembersListSearcher.invokeNotFound`,
+† All five searcher rows end in `MembersListSearcher.invokeNotFound`,
 which runs whatever `notFoundHandler` was armed. Every selector-run
 search is armed by `DistributionQueue.processNext`, which always passes
-one. The **literal-name head does not** — it uses the
+one: it moves on to the next recipient if the Members menu is still up,
+and otherwise stops the run (the `DistributionQueue.processNext` row). The **literal-name head does not** — it uses the
 two-argument `armSearch` — so on those rows it prints the row's chat line,
 if any, clears state, and stops there without closing anything; a Members
 menu that is still open stays open.
@@ -529,35 +537,28 @@ presser row is `member-slot-presser-drops-completion`.
 only from its `handleContainerClose` hook — a *clientbound* close — so
 every `onMenuClose` in the package sees the server closing a menu, never
 the player. A player's Esc sends only a serverbound close and posts no
-`MenuClosedEvent` (Wynntils posts `ContainerCloseEvent` and
-`ScreenClosedEvent` for it; nothing in the package subscribes to either).
-Where an Esc then ends a run depends first on what the client already
-has pending: a scheduled scan (or the searcher's retry hop) finds no
-screen and ends the search through the "Bound Members menu gone" row, and
-a press already scheduled finds no screen and drops the callback (the
-presser's `no` row). Otherwise it depends on what the server sends for
-that menu afterwards — a close of its own, a reopen, slot updates
-answering a click already in flight — and none of that is verifiable
-from any repo.
-What the code does settle is the case where the run moves on to its next recipient
-with no Members menu open: unless one is reopened, that head's remaining
-queue drains at one watchdog timeout per recipient
-(`distribute-escape-mid-run-drains-through-watchdog`). Under `@split`,
-the next phase reopens the menu for itself.
+`MenuClosedEvent`; Wynntils posts `ContainerCloseEvent` and
+`ScreenClosedEvent` for it. `MembersListSearcher.onScreenClosed` subscribes
+to the second: a bound search schedules a scan when any screen closes, the
+scan ends the search through the "Bound Members menu gone" row, and the
+run stops at its next pop. Nothing else in the package subscribes to
+either. Where an Esc ends a walk or a press batch depends first on what
+the client already has pending: a walker scan already scheduled finds no
+screen (the walker's scan-time row), and a press already scheduled finds
+no screen and drops the callback (the presser's `no` row). Otherwise it
+depends on what the server sends for that menu afterwards — a close of
+its own, a reopen, slot updates answering a click already in flight — and
+none of that is verifiable from any repo.
 
 The `no` rows are not one shape, and none is rescued by design:
 
-- **The two `onMenuClose` rows and the walker's scan-time row are one
-  shape.** Each calls `stop()` without invoking the handler. In the
-  searcher's case `stop()` also
-  bumps `watchdogToken`, and its own comment says the bump exists so a
-  pending watchdog task "fires into the void" — so the 300-tick backstop
-  does **not** cover this path.
+- **The walker's `onMenuClose` row and its scan-time row are one
+  shape.** Each calls `stop()` without invoking the handler.
 - **What the watchdog does cover** is the other stall shape: one where
   `stop()` is never called at all, because no matching event reaches the
   searcher. A Members menu that never opens, a dropped pagination click,
-  a player's Esc with no scan pending and nothing further arriving for
-  the bound id (above)
+  a Members menu replaced by another screen, which posts neither close
+  event
   — or a close event whose container id doesn't match the bound
   one, since `onMenuClose` returns early on that comparison and never
   reaches `stop()`. That last case is precisely why a close arriving

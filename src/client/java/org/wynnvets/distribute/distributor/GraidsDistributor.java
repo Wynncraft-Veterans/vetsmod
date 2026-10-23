@@ -96,9 +96,10 @@ public final class GraidsDistributor {
      * exits &mdash; no roster, no graids, nothing to send, and the send loop
      * draining &mdash; so multi-phase chains like {@link SplitDistributor}
      * advance even when this phase finds no graids or fails to read the
-     * roster. The shared send loop can still end a run without it: see
-     * {@code member-slot-presser-drops-completion} and the searcher and
-     * presser {@code no} rows of {@code vetsmod_distribute.md} §7.
+     * roster. The shared send loop ends a run without it when the run stops
+     * (the Members menu lost mid-run, by design), and when a send ends
+     * without calling back ({@code member-slot-presser-drops-completion}, the
+     * presser's {@code no} row of {@code vetsmod_distribute.md} §7).
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
