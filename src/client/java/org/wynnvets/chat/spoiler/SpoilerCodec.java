@@ -3,6 +3,7 @@ package org.wynnvets.chat.spoiler;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.wynnvets.chat.BannedChars;
+import org.wynnvets.chat.PillCodec;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -27,7 +28,9 @@ import org.wynnvets.logging.VetsLogger;
  * <p>Spoiler content goes past Wynncraft's chat filter in encoded form, so this
  * class strips {@link org.wynnvets.chat.BannedChars BannedChars}' hard and soft
  * sets on both sides: from the content before it is encoded, and from the
- * decoded text.</p>
+ * decoded text. Both sides also drop a custom glyph above the Basic
+ * Multilingual Plane and any unpaired surrogate; see
+ * {@code dropSupplementaryGlyphs}.</p>
  */
 public final class SpoilerCodec {
 
@@ -124,7 +127,9 @@ public final class SpoilerCodec {
      * their value is at most U+FFFF, so it can produce only what
      * {@code encodeContent} writes. Any other escape is dropped whole, all four
      * code units. A block typed by hand, or by another encoder, therefore can't
-     * reach an arbitrary character through the escape.</p>
+     * reach an arbitrary character through the escape. Two escapes can still
+     * spell a surrogate pair, so the decoded text then loses any supplementary
+     * custom glyph and unpaired surrogate as well.</p>
      */
     public static String decodeContent(String encoded) {
         if (encoded == null || encoded.isEmpty()) {
@@ -165,10 +170,33 @@ public final class SpoilerCodec {
                 i++;
             }
         }
-        String decoded = BannedChars.stripAll(sb.toString());
+        String decoded = dropSupplementaryGlyphs(BannedChars.stripAll(sb.toString()));
         VetsLogger.debug(
                 "SpoilerCodec.decodeContent: decoded \"{}\" (len={})", decoded, decoded.length());
         return decoded;
+    }
+
+    /**
+     * Drops what a spoiler must never carry above the Basic Multilingual Plane: a custom glyph
+     * ({@link PillCodec#isCustomGlyph(int)}: private use, or unassigned above U+FFFF, where
+     * Wynncraft's markers live) and any surrogate left unpaired. Emoji and other assigned
+     * supplementary characters survive. An escape carries at most U+FFFF, but two escapes can
+     * spell a surrogate pair, which is how such a glyph would otherwise get through; dropping it
+     * here keeps the decoder's range as it is, so temporary-server's mirror stays conservative.
+     */
+    private static String dropSupplementaryGlyphs(String text) {
+        StringBuilder out = new StringBuilder(text.length());
+        int i = 0;
+        while (i < text.length()) {
+            int cp = text.codePointAt(i);
+            int units = Character.charCount(cp);
+            boolean lone = units == 1 && Character.isSurrogate(text.charAt(i));
+            if (!lone && !(cp > 0xFFFF && PillCodec.isCustomGlyph(cp))) {
+                out.appendCodePoint(cp);
+            }
+            i += units;
+        }
+        return out.toString();
     }
 
     private static boolean isDigit(int digit) {
@@ -216,7 +244,7 @@ public final class SpoilerCodec {
 
     private static void encodeContent(String content, StringBuilder sb) {
         // Strip before encoding: once encoded, Wynncraft's chat filter can't see them.
-        String text = BannedChars.stripAll(content);
+        String text = dropSupplementaryGlyphs(BannedChars.stripAll(content));
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (c <= DIRECT_MAX) {

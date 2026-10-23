@@ -692,6 +692,16 @@ Test: [`SpoilerCodecTest.java`](../src/test/java/org/wynnvets/chat/spoiler/Spoil
   - `decodeContent(U+F700 U+F6FF U+F6FF U+F6FF U+F643)` equals `"A"`: an escape with all three digits in range but value above U+FFFF is dropped as all four units, not leaving three U+00FD chars.
 - **`roundTrip_highestBmpCharStillDecodes`**: A spoiler holding U+FFFF round-trips, showing the largest value an escape may carry still decodes.
   - `decodeToDiscord(encodeSpoilers("||" + U+FFFF + "||"))` equals `"||" + U+FFFF + "||"` (the largest value an escape can carry, digits 3, 3, 1).
+- **`roundTrip_dropsASupplementaryUnassignedGlyph`**: A supplementary unassigned glyph (U+CFFFC) inside a spoiler is dropped by the encoder, and the round trip yields the clean text.
+  - `encoded` = `encodeSpoilers("||a" + U+CFFFC + "b||")` (U+CFFFC written as the surrogate pair DAFF DFFC) equals `encodeSpoilers("||ab||")`: the encoder dropped it (the decoder would too, so only this pins the encode side).
+  - `decodeToDiscord(encoded)` equals `"||ab||"`.
+- **`roundTrip_keepsAnEmoji`**: An assigned supplementary character, the emoji U+1F600, round-trips unchanged.
+  - `decodeToDiscord(encodeSpoilers("||ok " + U+1F600 + "||"))` equals the input.
+- **`roundTrip_dropsALoneSurrogate`**: An unpaired high surrogate is dropped by the encoder, and the round trip yields the clean text.
+  - `encoded` = `encodeSpoilers("||a" + U+D83D + "b||")` equals `encodeSpoilers("||ab||")`.
+  - `decodeToDiscord(encoded)` equals `"||ab||"`.
+- **`decodeContent_dropsAPrivateUseGlyphSpelledByTwoEscapes`**: Two escapes that spell the surrogate pair of U+F0000 (plane 15 private use), as another encoder could write them, decode to nothing; the `A` after them stays.
+  - `decodeContent(ESC + digits 58, 220, 0 + ESC + digits 186, 220, 0 + "A"'s direct char)` equals `"A"` (ESC is U+F700; digit n is U+F602 + n).
 - **`roundTrip_cjkCharacterViaEscapePath`**: `"||中||"` round-trips through the multi-digit escape path.
   - `decodeToDiscord(encodeSpoilers("||" + U+4E2D + "||"))` equals `"||" + U+4E2D + "||"` (CJK character U+4E2D, multi-digit base-254 escape path).
 

@@ -180,6 +180,41 @@ class SpoilerCodecTest {
     }
 
     @Test
+    void roundTrip_dropsASupplementaryUnassignedGlyph() {
+        // U+CFFFC, unassigned above the BMP (isCustomGlyph), as a surrogate pair.
+        String encoded = SpoilerCodec.encodeSpoilers("||a\uDAFF\uDFFCb||");
+        // The encoded form itself: the decoder drops it too, so a round trip alone would pass
+        // without the encode-side drop, which older decoders rely on.
+        assertEquals(SpoilerCodec.encodeSpoilers("||ab||"), encoded);
+        assertEquals("||ab||", SpoilerCodec.decodeToDiscord(encoded));
+    }
+
+    @Test
+    void roundTrip_keepsAnEmoji() {
+        // U+1F600 is assigned, so it survives as the surrogate pair it was.
+        String original = "||ok \uD83D\uDE00||";
+        assertEquals(original, SpoilerCodec.decodeToDiscord(SpoilerCodec.encodeSpoilers(original)));
+    }
+
+    @Test
+    void roundTrip_dropsALoneSurrogate() {
+        String encoded = SpoilerCodec.encodeSpoilers("||a\uD83Db||");
+        // As above: the encoded form pins the encode side.
+        assertEquals(SpoilerCodec.encodeSpoilers("||ab||"), encoded);
+        assertEquals("||ab||", SpoilerCodec.decodeToDiscord(encoded));
+    }
+
+    @Test
+    void decodeContent_dropsAPrivateUseGlyphSpelledByTwoEscapes() {
+        // U+F0000 (plane 15 private use) is the pair DB80 DC00: digits 58, 220, 0 and then
+        // 186, 220, 0. A block from another encoder could write it; the 'A' after it stays.
+        assertEquals(
+                "A",
+                SpoilerCodec.decodeContent(
+                        "\uF700\uF63C\uF6DE\uF602\uF700\uF6BC\uF6DE\uF602\uF643"));
+    }
+
+    @Test
     void roundTrip_cjkCharacterViaEscapePath() {
         // CJK char also exercises the multi-digit base-254 path.
         String original = "||中||"; // 中
