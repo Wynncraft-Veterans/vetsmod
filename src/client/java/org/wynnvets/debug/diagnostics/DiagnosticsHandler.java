@@ -96,8 +96,8 @@ public final class DiagnosticsHandler {
      * client; world state and name from Wynntils' {@code Models.WorldState},
      * left as {@code "unknown"} if that throws.</p>
      *
-     * <p>The log report also carries the player name, the can-execute and
-     * debug-guildless-override flags, the persisted tier and the raw
+     * <p>The log report also carries the player name, the can-execute
+     * flag, the persisted tier and the raw
      * verification timestamp, none of which reach chat, plus the loaded-mod
      * count and a line listing every loaded mod's id and version — chat
      * carries only five of those versions (vetsmod, Minecraft, Fabric
@@ -117,7 +117,6 @@ public final class DiagnosticsHandler {
         boolean isStaff = GuildStateManager.isStaff();
         String selfRank = GuildStateManager.selfStaffRank();
         boolean canExecute = GuildStateManager.canExecuteCommands();
-        boolean debugOverride = GuildStateManager.isDebugForceGuildlessUnlocked();
         boolean automessageEnabled = VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE);
         boolean debugLogging = VetsLogger.isDebugEnabled();
         String playerName = GuildStateManager.playerName();
@@ -245,10 +244,9 @@ public final class DiagnosticsHandler {
                 canExecute);
         VetsLogger.info("Staff: {}, rank={}", isStaff, selfRank.isEmpty() ? "none" : selfRank);
         VetsLogger.info(
-                "Config: automessage={}, debugLogging={}, debugGuildlessOverride={}, supporter={}",
+                "Config: automessage={}, debugLogging={}, supporter={}",
                 automessageEnabled,
                 debugLogging,
-                debugOverride,
                 isSupporter);
         VetsLogger.info(
                 "Auth: hasKey={}, verifiedThisSession={}, tier={}, persistedTier={}, verifiedAt={}, legacyUnlock={}, lastFailure={}",

@@ -105,9 +105,7 @@ public final class GuildLifecycle {
         // When guild info is not yet available (empty name), Wynntils may still
         // be scanning the compass menu asynchronously.  Schedule a delayed
         // re-check so we don't stay stuck as "guildless" for the entire session.
-        if (!UnlockManager.isDebugForceGuildlessUnlocked()
-                && GuildStateManager.wynntilsReady
-                && !Models.Guild.isInGuild()) {
+        if (GuildStateManager.wynntilsReady && !Models.Guild.isInGuild()) {
             scheduleGuildRecheck();
         }
 

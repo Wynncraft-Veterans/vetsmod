@@ -134,8 +134,6 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 
 **What the player sees.** `onAuthSuccess` records the verdict on the thread the ack arrived on, then hands the rest to the client thread in one task (`showAuthSuccess`): it shows `Authentication verified - tier: <tier>` (green) when there is a local player and either `tryUnlock` has armed its one-shot `pendingUnlockNotify` flag since the last ack (a disconnect does not clear it, so a key typed off Wynncraft still shows its result at the next Wynncraft join), or `printSuccessfulAuth` is on, and clears the one-shot flag only when it shows the line; then it refreshes the presence registration and re-applies the default anni mode (`AnniModeManager.applyStartupDefaultIfNeeded`). The line goes to chat while a screen is open and otherwise to the action bar. [vetsmod_config.md](vetsmod_config.md)'s `printSuccessfulAuth` row has how that setting latches. `onAuthFailure` always prints a red `Authentication failed: <reason>.` line in chat, also from the client thread, which suggests the player try `~vetsmod` in #bot-commands for a new key.
 
-**Debug override:** `setDebugForceGuildlessUnlocked(boolean)` — meant to force guildless+unlocked for testing; nothing calls it today, so the override is never on (bug `unlock-debug-flag-tier-asymmetry`).
-
 ## 5. SessionAuthWarning
 
 [SessionAuthWarning](../src/client/java/org/wynnvets/guild/SessionAuthWarning.java)

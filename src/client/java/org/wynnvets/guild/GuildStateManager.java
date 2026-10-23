@@ -173,9 +173,6 @@ public final class GuildStateManager {
      * @return true if player is not in a guild, false otherwise
      */
     public static boolean isGuildless() {
-        if (UnlockManager.isDebugForceGuildlessUnlocked()) {
-            return true;
-        }
         if (GuildChecker.hasValidResult()) {
             return GuildChecker.getResult() == GuildChecker.GuildCheckResult.GUILDLESS;
         }
@@ -189,9 +186,6 @@ public final class GuildStateManager {
      * @return true if mod is unlocked, false otherwise
      */
     public static boolean isUnlocked() {
-        if (UnlockManager.isDebugForceGuildlessUnlocked()) {
-            return true;
-        }
         return isReturners()
                 || UnlockManager.isWaitlistUnlocked()
                 || UnlockManager.isHonouraryUnlocked();
@@ -238,26 +232,6 @@ public final class GuildStateManager {
         if (isReturners()) return true;
         if (isGuildless() && isWaitlistUnlocked()) return true;
         return isHonouraryUnlocked();
-    }
-
-    /**
-     * Enable/disable debug override that forces the user to be treated as guildless and unlocked.
-     * Nothing in vetsmod calls this today, so the override is never on
-     * ({@code unlock-debug-flag-tier-asymmetry}).
-     *
-     * @param enabled true to force guildless+unlocked behavior, false to use normal state
-     */
-    public static void setDebugForceGuildlessUnlocked(boolean enabled) {
-        UnlockManager.setDebugForceGuildlessUnlocked(enabled);
-    }
-
-    /**
-     * Check if debug override is active.
-     *
-     * @return true when guildless+unlocked override is enabled
-     */
-    public static boolean isDebugForceGuildlessUnlocked() {
-        return UnlockManager.isDebugForceGuildlessUnlocked();
     }
 
     /**

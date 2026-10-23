@@ -61,7 +61,7 @@ What each gate checks:
 | `isConfirmedStaff()` | `is_staff` from the last ok auth ack, which temporary-server resolves against the staff roster. An auth failure or leaving the server clears it | `GuildStateManager`, reading `V1ApiManager` |
 | `isStaffOfAnyGuild()` | `isConfirmedStaff()`, or Captain+ in the current guild by Wynntils' live rank | `GuildStateManager` |
 | `isChiefOfAnyGuild()` | the auth ack's confirmed rank is chief or owner, or Wynntils' live rank is Chief or Owner | `GuildStateManager` |
-| `isUnlocked()` | `isReturners()`, or waitlist- or honourary-unlocked: an authenticated tier this session, or a legacy on-disk marker (bug `legacy-unlock-markers-still-grant-client-unlock`). Also a debug override that nothing sets | `GuildStateManager` |
+| `isUnlocked()` | `isReturners()`, or waitlist- or honourary-unlocked: an authenticated tier this session, or a legacy on-disk marker (bug `legacy-unlock-markers-still-grant-client-unlock`) | `GuildStateManager` |
 | `isReturners()` | `GuildChecker`'s unexpired `/gu stats` result, else Wynntils' guild name is "Returners" | `GuildStateManager` |
 | `areFeaturesEnabled()` | the same as `isReturners()` | `GuildStateManager` |
 | `isAuthenticatedThisSession()` | an ok auth ack has arrived, and no auth failure, newly stored `/unlock` key or leaving the game server has cleared it since. It does not follow the inbound socket, so it stays true across a socket drop | `GuildStateManager`, reading `UnlockManager` |

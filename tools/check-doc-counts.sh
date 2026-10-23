@@ -104,7 +104,6 @@ Managers.TickScheduler.scheduleLater|14|vetsmod_distribute.md sec 6: 13 in distr
 Minecraft.getInstance|0|project_wynntils.md McUtils section: no code calls Minecraft.getInstance
 NameResolver.fetchAllLegacyNames|1|NameResolver#fetchAllLegacyNames: Used by RandomDistributor (names the class, pinned as one site)
 NameResolver.fetchUuidToLegacyName|1|NameResolver#fetchUuidToLegacyName: Used by NoAspectsFilter (names the class, pinned as one site)
-GuildStateManager.setDebugForceGuildlessUnlocked|0|GuildStateManager#setDebugForceGuildlessUnlocked: Nothing in vetsmod calls this today (in-class half in PATTERNS)
 GuildStateManager.isProcessingModGuildCheck|0|GuildStateManager#isProcessingModGuildCheck: Nothing calls it at present (in-class half in PATTERNS)
 StaffRanksPoller.refreshNow|1|StaffRanksPoller#refreshNow: called on each successful inbound auth ack, the one InboundAckRouter site
 ChatUtils.encodePillIfAscii|0|ChatUtils#encodePillIfAscii: Within vetsmod only this class calls it
@@ -121,7 +120,6 @@ org/wynnvets/debug/anni/AnniDebugCommands.java|requireDebug(ctx)|11|AnniDebugCom
 org/wynnvets/debug/anni/AnniSnapshotDebugCommands.java|requireDebug(ctx)|9|AnniSnapshotDebugCommands class doc: every handler opens with requireDebug; 9 of the 24 are here
 org/wynnvets/debug/anni/AnniHighlightDebugCommands.java|requireDebug(ctx)|4|AnniHighlightDebugCommands class doc: every handler opens with requireDebug; 4 of the 24 are here
 org/wynnvets/debug/anni/AnniDebugCommands.java|requireStaffOrOrganiser(ctx)|5|AnniDebugCommands class doc: the five scrollspot handlers
-org/wynnvets/guild/GuildStateManager.java|setDebugForceGuildlessUnlocked(|2|no-caller claim, in-class half: the declaration plus its UnlockManager delegate call
 org/wynnvets/guild/GuildStateManager.java|isProcessingModGuildCheck(|2|no-caller claim, in-class half: the declaration plus its GuildChecker delegate call
 org/wynnvets/chat/ChatUtils.java|sendGuildChatMessageRed(|2|one-caller claim, in-class half: the declaration plus the one sendStaffChannelMessage call
 org/wynnvets/queue/QueueDetector.java|handleTitleText(|2|two-caller claim, in-class half: the declaration plus the TitleSetTextEvent handler call

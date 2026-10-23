@@ -39,8 +39,7 @@ import org.wynnvets.mwe.anni.mode.AnniModeManager;
  * {@link GuildStateManager}'s facade methods; within the package,
  * {@link SessionAuthWarning} also reads {@link #lastAuthFailureReason()} and
  * {@link #keyRejectedByAuthAck()} directly, and
- * {@link GuildLifecycle} calls {@link #isDebugForceGuildlessUnlocked()} and {@link #reset()}
- * directly.</p>
+ * {@link GuildLifecycle} calls {@link #reset()} directly.</p>
  */
 final class UnlockManager {
 
@@ -91,9 +90,6 @@ final class UnlockManager {
      *  next Wynncraft join. */
     private static volatile boolean pendingUnlockNotify = false;
 
-    /** Debug-only override: pretend the user is guildless+unlocked. */
-    private static boolean debugForceGuildlessUnlocked = false;
-
     private UnlockManager() {}
 
     // ── Queries ────────────────────────────────────────────────────────
@@ -129,8 +125,7 @@ final class UnlockManager {
 
     /** @return {@code true} if the player has unlocked as a waitlist member */
     static boolean isWaitlistUnlocked() {
-        return debugForceGuildlessUnlocked
-                || (authVerifiedThisSession && TIER_WAITLIST.equals(currentTier))
+        return (authVerifiedThisSession && TIER_WAITLIST.equals(currentTier))
                 || legacyWaitlistMarker();
     }
 
@@ -153,18 +148,6 @@ final class UnlockManager {
         return VetsConfig.getLong(VetsConfigKeys.VETS_HONOURARY_UNLOCK_TIME) > 0L;
     }
 
-    /** @return {@code true} when the debug guildless+unlocked override is active */
-    static boolean isDebugForceGuildlessUnlocked() {
-        return debugForceGuildlessUnlocked;
-    }
-
-    /** Enables or disables the debug override that forces the user to be
-     *  treated as guildless and unlocked. */
-    static void setDebugForceGuildlessUnlocked(boolean enabled) {
-        debugForceGuildlessUnlocked = enabled;
-        VetsLogger.debug("Debug guildless+unlocked override: {}", enabled ? "enabled" : "disabled");
-    }
-
     // ── Lifecycle ──────────────────────────────────────────────────────
 
     /** Called by {@link GuildStateManager#loadPersistedState()}. Nothing
@@ -180,7 +163,6 @@ final class UnlockManager {
     /** Reset transient session state on disconnect. The persisted key remains, and so does
      *  {@link #pendingUnlockNotify}, so a key stored off Wynncraft still shows its result. */
     static void reset() {
-        debugForceGuildlessUnlocked = false;
         currentTier = "";
         authVerifiedThisSession = false;
         lastAuthFailureReason = "";
