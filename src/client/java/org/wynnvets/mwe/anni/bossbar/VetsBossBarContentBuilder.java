@@ -51,8 +51,12 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  *       {@code Role: TBD | Party TBD | World: TBD}. That is intended: they
  *       have committed to a slot the board has not filled yet. Spec §3.1.1.2:
  *       {@code &3anni.wynnvets.org/me&8: &7Role: <ROLE>&8 | &7Party <N>&8 | &7World: <W>}</li>
- *   <li><b>Seeking</b> — otherwise. Spec §3.1.1.1:
- *       {@code &7Seeking a <RSVP> <SLOT> &7for &3&nanni.wynnvets.org&7 in &f&l<XX>&fmin}</li>
+ *   <li><b>Seeking</b> — otherwise:
+ *       {@code <RSVP>&7; seeking <FILL|CORE> &7for &3&nanni.wynnvets.org&7 in &f&l<XX>&fmin},
+ *       reworded from spec §3.1.1.1's {@code Seeking a <RSVP> <SLOT> for …}. A player the board
+ *       will not assign ({@code board.state} {@code wont_assign}) gets
+ *       {@code &3anni.wynnvets.org&8: &7You won't be assigned - <wont_reason>} instead, with no
+ *       chip; the bar is already red ({@link #colorFor}).</li>
  * </ul>
  *
  * <p>The flash decoration ({@code &l ↔ &n&l}) is applied per-field via
@@ -309,13 +313,19 @@ public final class VetsBossBarContentBuilder {
 
     // ── Variant: seeking ────────────────────────────────────────────────
 
-    /** Spec §3.1.1.1 — "Seeking a {RSVP} {SLOT} for anni.wynnvets.org in {MIN}min". */
+    /** "{RSVP}; seeking {FILL|CORE} for anni.wynnvets.org in {MIN}min", reworded from spec
+     *  §3.1.1.1; or the won't-be-assigned line. Reached only when {@link #isAssigned} is false,
+     *  so a registered player who is sitting out keeps the assigned variant's TBD bar. */
     private static MutableComponent buildSeeking(AnniSnapshot snapshot, long secondsUntilAnni) {
-        MutableComponent out = Component.literal("Seeking a ").withStyle(ChatFormatting.GRAY);
+        AnniSnapshot.Board board = snapshot.board();
+        if (board != null && "wont_assign".equalsIgnoreCase(board.state())) {
+            return buildWontAssign(board.wontReason());
+        }
+        MutableComponent out = Component.empty();
 
-        // RSVP / WALKIN / LATE chip
+        // HrdRSVP / SftRSVP / NotRSVP chip
         out.append(rsvpChip(snapshot));
-        out.append(Component.literal(" ").withStyle(ChatFormatting.GRAY));
+        out.append(Component.literal("; seeking ").withStyle(ChatFormatting.GRAY));
 
         // CORE / FILL slot chip
         out.append(slotChip(snapshot));
@@ -338,19 +348,32 @@ public final class VetsBossBarContentBuilder {
         return out;
     }
 
+    /** "anni.wynnvets.org: You won't be assigned - {reason}", or "... to this anni" with no
+     *  reason, worded as the world-join MOTD words it. */
+    private static MutableComponent buildWontAssign(String reason) {
+        MutableComponent out =
+                Component.literal("anni.wynnvets.org")
+                        .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA));
+        out.append(Component.literal(": ").withStyle(ChatFormatting.DARK_GRAY));
+        String text =
+                (reason == null || reason.isBlank())
+                        ? "You won't be assigned to this anni"
+                        : "You won't be assigned - " + reason;
+        out.append(Component.literal(text).withStyle(ChatFormatting.GRAY));
+        return out;
+    }
+
     private static MutableComponent rsvpChip(AnniSnapshot snapshot) {
         // Prefer explicit rsvp notice; fall back to the attendance
         // block's effective notice. The two carry different spellings of
         // the same four states: rsvp.notice is normalised server-side to
         // a bare "hard"/"soft", while attendance.notice_effective is the
         // raw AttendanceNotice value -- attend_early, rsvp_hard,
-        // rsvp_soft, attend_late. Only the first of those two spellings
-        // matches an arm below, which is why a walk-in renders as a grey
-        // ATTEND_EARLY/ATTEND_LATE passthrough. Filed, not fixed:
-        // boss-bar-rsvp-chip-recognises-four-of-nine-notices -- whose slug
-        // preserves the "nine wire keys" count that this comment refutes.
-        // The id is a stable identifier, not a claim; the file itself
-        // carries the corrected four-states-two-spellings reading.
+        // rsvp_soft, attend_late. Both spellings have an arm below. A walk-in
+        // has no RSVP either, so it shares NotRSVP with "no notice from either
+        // block" (a tier that can't be tracked without one); the colour tells
+        // the three apart. The labels are the bar's own short forms; chat
+        // spells them out (AnniHoverBuilder).
         AnniSnapshot.Rsvp rsvp = snapshot.rsvp();
         String notice = (rsvp != null && !rsvp.revoked()) ? rsvp.notice() : null;
         if (notice == null) {
@@ -361,24 +384,24 @@ public final class VetsBossBarContentBuilder {
         String label;
         ChatFormatting color;
         if (notice == null) {
-            label = "WALK";
-            color = ChatFormatting.YELLOW;
+            label = "NotRSVP";
+            color = ChatFormatting.GRAY;
         } else {
             switch (notice.toLowerCase(Locale.ROOT)) {
-                case "hard":
-                    label = "HARD";
+                case "hard", "rsvp_hard":
+                    label = "HrdRSVP";
                     color = ChatFormatting.BLUE;
                     break;
-                case "soft":
-                    label = "SOFT";
+                case "soft", "rsvp_soft":
+                    label = "SftRSVP";
                     color = ChatFormatting.GREEN;
                     break;
-                case "walkin":
-                    label = "WALK";
+                case "attend_early":
+                    label = "NotRSVP";
                     color = ChatFormatting.YELLOW;
                     break;
-                case "late":
-                    label = "LATE";
+                case "attend_late":
+                    label = "NotRSVP";
                     color = ChatFormatting.RED;
                     break;
                 default:
@@ -396,7 +419,8 @@ public final class VetsBossBarContentBuilder {
         // FILL otherwise. Mirrors {@link #isAssigned} but capped to
         // the "seeking" path's needs. Since isAssigned already takes the
         // assigned variant for a non-FILL registration, the CORE arm is
-        // unreachable in practice and the seeking bar says FILL.
+        // unreachable in practice and the seeking bar says FILL. The
+        // " SLOT" the spec appends is dropped: the bar has no room for it.
         AnniSnapshot.Registration reg = snapshot.registration();
         boolean core = false;
         if (reg != null) {
@@ -408,11 +432,9 @@ public final class VetsBossBarContentBuilder {
             }
         }
         if (core) {
-            return Component.literal("CORE SLOT")
-                    .withStyle(Style.EMPTY.withColor(ChatFormatting.GREEN));
+            return Component.literal("CORE").withStyle(Style.EMPTY.withColor(ChatFormatting.GREEN));
         }
-        return Component.literal("FILL SLOT")
-                .withStyle(Style.EMPTY.withColor(ChatFormatting.YELLOW));
+        return Component.literal("FILL").withStyle(Style.EMPTY.withColor(ChatFormatting.YELLOW));
     }
 
     // ── Role label / colour helpers ─────────────────────────────────────

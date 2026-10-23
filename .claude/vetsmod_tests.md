@@ -33,6 +33,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest)
 - [`org.wynnvets.logging`](#orgwynnvetslogging) — [`VetsLoggerTest`](#vetsloggertest)
+- [`org.wynnvets.mwe.anni.bossbar`](#orgwynnvetsmweannibossbar) — [`VetsBossBarContentBuilderTest`](#vetsbossbarcontentbuildertest)
 - [`org.wynnvets.mwe.anni.mode`](#orgwynnvetsmweannimode) — [`AnniModeTest`](#annimodetest)
 - [`org.wynnvets.mwe.anni.outline`](#orgwynnvetsmweannioutline) — [`AnniOutlinePaletteTest`](#annioutlinepalettetest)
 - [`org.wynnvets.mwe.anni.render`](#orgwynnvetsmweannirender) — [`AnniCommandRendererTest`](#annicommandrenderertest), [`AnniHoverBuilderTest`](#annihoverbuildertest), [`AnniOnboardingBlocksTest`](#annionboardingblockstest), [`AnniStatusSectionsTest`](#annistatussectionstest)
@@ -1702,6 +1703,39 @@ Test: [`VetsLoggerTest.java`](../src/test/java/org/wynnvets/logging/VetsLoggerTe
   - `VetsLogger.isDebugEnabled()` is true after `setDebugEnabled(true)`.
 - **`setDisabledRestoresFalse`**: After enabling and then disabling, `isDebugEnabled()` is false.
   - `VetsLogger.isDebugEnabled()` is false after `setDebugEnabled(true)` then `setDebugEnabled(false)`.
+
+## `org.wynnvets.mwe.anni.bossbar`
+
+### `VetsBossBarContentBuilderTest`
+
+Test: [`VetsBossBarContentBuilderTest.java`](../src/test/java/org/wynnvets/mwe/anni/bossbar/VetsBossBarContentBuilderTest.java) · Subject: [`VetsBossBarContentBuilder`](../src/client/java/org/wynnvets/mwe/anni/bossbar/VetsBossBarContentBuilder.java)
+
+`VetsBossBarContentBuilder` builds the synthetic anni boss bar's text. The suite pins the seeking variant's RSVP chip for each notice the server can send, in both of its spellings (`rsvp.notice`'s bare `hard` / `soft` and `attendance.notice_effective`'s raw enum value), with its colour; the won't-be-assigned line that replaces the chip; and the assigned variant's all-TBD bar for a player registered for a specific role but not yet placed. Every test calls the public `build(snapshot, 4800, 0, 0)`: 80 minutes out, so the countdown gate short-circuits before `AnniZone.isInZone` and that class never loads. Snapshots are parsed from inline JSON with `AnniSnapshot.fromJson`; a chip's colour is read from the seeking line's first sibling.
+
+- **`aHardRsvpIsBlueInBothSpellings`**: A hard RSVP shows `HrdRSVP` in blue whether it arrives as `rsvp.notice` `hard` or as `attendance.notice_effective` `rsvp_hard`.
+  - for each of `{"rsvp":{"notice":"hard"}}` and `{"attendance":{"notice_effective":"rsvp_hard"}}`: `build(...).getString()` equals `"HrdRSVP; seeking FILL for anni.wynnvets.org in 80min"`, and the first sibling's colour is `TextColor.fromLegacyFormat(BLUE)`.
+- **`aSoftRsvpIsGreenInBothSpellings`**: A soft RSVP shows `SftRSVP` in green in both spellings.
+  - for each of `{"rsvp":{"notice":"soft"}}` and `{"attendance":{"notice_effective":"rsvp_soft"}}`: the text equals `"SftRSVP; seeking FILL for anni.wynnvets.org in 80min"`, and the chip is green.
+- **`walkInsAreYellowOnTimeAndRedLate`**: `attend_early` shows `NotRSVP` in yellow and `attend_late` shows `NotRSVP` in red.
+  - `{"attendance":{"notice_effective":"attend_early"}}` gives `"NotRSVP; seeking FILL for anni.wynnvets.org in 80min"` with a yellow chip.
+  - `{"attendance":{"notice_effective":"attend_late"}}` gives `"NotRSVP; seeking FILL for anni.wynnvets.org in 80min"` with a red chip.
+- **`noNoticeFromEitherBlockReadsAsNoRsvp`**: An empty snapshot shows `NotRSVP` in gray.
+  - `{}` gives `"NotRSVP; seeking FILL for anni.wynnvets.org in 80min"` with a gray chip.
+- **`aRevokedRsvpFallsBackToTheAttendanceNotice`**: A revoked hard RSVP is ignored in favour of the attendance notice.
+  - `{"rsvp":{"notice":"hard","revoked":true},"attendance":{"notice_effective":"attend_late"}}` gives `"NotRSVP; seeking FILL for anni.wynnvets.org in 80min"` with a red chip.
+- **`anUnknownNoticePassesThroughUpperCasedInGray`**: A notice no arm knows is shown upper-cased in gray.
+  - `{"attendance":{"notice_effective":"walk_in"}}` gives `"WALK_IN; seeking FILL for anni.wynnvets.org in 80min"` with a gray chip.
+- **`anUnassignedWalkInStillSeesTheChip`**: A player on the `unassigned` board state (which is also how vets-anni sends a volunteer to sit out) still sees the chip.
+  - `{"board":{"state":"unassigned"},"attendance":{"notice_effective":"attend_early"}}` gives `"NotRSVP; seeking FILL for anni.wynnvets.org in 80min"` with a yellow chip.
+- **`aSittingOutPlayerGetsTheReasonAndNoChip`**: On `wont_assign` with a reason, the bar shows the reason and no chip, even with a hard RSVP.
+  - `{"board":{"state":"wont_assign","wont_reason":"Sitting out"},"rsvp":{"notice":"hard"}}` gives `"anni.wynnvets.org: You won't be assigned - Sitting out"`.
+- **`wontAssignWithNoReasonSaysThisAnni`**: On `wont_assign` with no reason, the line ends "to this anni".
+  - `{"board":{"state":"wont_assign"}}` gives `"anni.wynnvets.org: You won't be assigned to this anni"`.
+- **`aSpecificRoleNotYetPlacedShowsTheAssignedVariantAllTbd`**: A TANK registration with an empty board takes the assigned variant and shows TBD for all three chips.
+  - `{"registration":{"roles":[{"role":"TANK"}]},"rsvp":{"notice":"hard"}}` gives `"anni.wynnvets.org: Role: TBD | Party TBD | World: TBD"`.
+  - that text does not contain `"seeking"`.
+- **`aFillRegistrationStaysOnTheSeekingLine`**: A FILL registration does not count as a committed slot, so the seeking line shows.
+  - `{"registration":{"roles":[{"role":"FILL"}]}}` gives text ending in `"; seeking FILL for anni.wynnvets.org in 80min"`.
 
 ## `org.wynnvets.mwe.anni.mode`
 

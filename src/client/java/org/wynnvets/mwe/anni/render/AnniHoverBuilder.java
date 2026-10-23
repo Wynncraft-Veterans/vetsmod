@@ -97,9 +97,8 @@ public final class AnniHoverBuilder {
      *  {@link #rsvpBadge} labels only the {@code null} case
      *  {@code NO RSVP}, and renders an unrecognised key as the raw
      *  string upper-cased, in the same gray. The boss
-     *  bar's {@code VetsBossBarContentBuilder.rsvpChip} paints a
-     *  {@code null} notice yellow instead; that is a filed defect on the
-     *  bar, not a second opinion about the rule.</p> */
+     *  bar's {@code VetsBossBarContentBuilder.rsvpChip} agrees on every
+     *  notice but the hard RSVP, which it keeps blue by design.</p> */
     public static ChatFormatting noticeColor(String noticeEffective) {
         if (noticeEffective == null) return ChatFormatting.GRAY;
         switch (noticeEffective.toLowerCase(Locale.ROOT)) {
@@ -273,7 +272,7 @@ public final class AnniHoverBuilder {
             noticeKey = attendance.noticeEffective();
         }
         // Long form for chat-space callers (this badge). The short forms
-        // (HRSVP / SRSVP / WALKIN / LATE) exist for boss-bar style
+        // (HrdRSVP / SftRSVP / NotRSVP) exist for boss-bar style
         // space-constrained UI surfaces and live with whichever
         // future renderer needs them; chat has space to spell it out.
         String label;

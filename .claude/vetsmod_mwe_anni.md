@@ -281,11 +281,11 @@ Gated by `vetsAnniShowPrediction`. When that is on but `event.prediction()` is n
 | TERTIARY | MOBKILL | MOBK | TERTIARY |
 | FILL | FILL | FILL | FILL |
 
-**Policy and mechanism differ here, so keep them apart.** The policy — short codes (HARD / SUNK / MOBK) belong on the boss bar, and chat callers spell things out — stands, and is recorded as the `feedback_anni_short_codes_reserved_for_bossbar.md` memory. The mechanism is not what "reserved" implies: `short` **is** one of the three configured `vetsAnniRoleStyle` values, user-selectable for chat with `/wv config vetsAnniRoleStyle short`, and `displayRole`'s only callers are chat surfaces (`AnniHoverBuilder.roleChip`, `AnniStatusSections.registrationSection`, `AnniMotdRenderer.assignedToPartyLine`). The bar does not read this table at all — it uses its own hardcoded `VetsBossBarContentBuilder.toShortLabel`.
+**Policy and mechanism differ here, so keep them apart.** The policy — short codes (HrdRSVP / SUNK / MOBK) belong on the boss bar, and chat callers spell things out — stands, and is recorded as the `feedback_anni_short_codes_reserved_for_bossbar.md` memory. The mechanism is not what "reserved" implies: `short` **is** one of the three configured `vetsAnniRoleStyle` values, user-selectable for chat with `/wv config vetsAnniRoleStyle short`, and `displayRole`'s only callers are chat surfaces (`AnniHoverBuilder.roleChip`, `AnniStatusSections.registrationSection`, `AnniMotdRenderer.assignedToPartyLine`). The bar does not read this table at all — it uses its own hardcoded `VetsBossBarContentBuilder.toShortLabel`.
 
 ### RSVP / attendance / board labels
 
-`AnniHoverBuilder.rsvpBadge` resolves its key from `rsvp.notice()` — but only while `rsvp != null && notice != null && !rsvp.revoked()` — otherwise from `attendance.noticeEffective()`. Long forms in chat: `HARD RSVP` / `SOFT RSVP` / `EARLY WALK-IN` / `LATE WALK-IN`, plus a gray **`NO RSVP`** when neither source yields a key, and an upper-cased passthrough of any unrecognised key. Short forms (HARD etc.) are the boss bar's, emitted by `VetsBossBarContentBuilder.rsvpChip`.
+`AnniHoverBuilder.rsvpBadge` resolves its key from `rsvp.notice()` — but only while `rsvp != null && notice != null && !rsvp.revoked()` — otherwise from `attendance.noticeEffective()`. Long forms in chat: `HARD RSVP` / `SOFT RSVP` / `EARLY WALK-IN` / `LATE WALK-IN`, plus a gray **`NO RSVP`** when neither source yields a key, and an upper-cased passthrough of any unrecognised key. Short forms (`HrdRSVP` etc.) are the boss bar's, emitted by `VetsBossBarContentBuilder.rsvpChip`.
 
 `Attendance Chance` is state-dependent:
 - party → "ASSIGNED" (light purple bold).
@@ -320,8 +320,9 @@ wording sent it round in a circle:
    `BossEvent.BossBarColor.PINK`, the bar's *background texture*, and belongs to
    `VetsBossBarContentBuilder.colorFor` — a different method answering a different
    question about a different enum. See **Bar colour: never PINK** under §Boss bar.
-3. **It is seven disagreeing cells and a case fold, not one hue.** `hard → BLUE`
-   versus `AQUA` was the cell everyone quoted; it is one of seven.
+3. **The hue that differs is kept on purpose.** `hard → BLUE` versus `AQUA` is
+   the bar's own colour for the hard RSVP, in both of its spellings; every other
+   notice that can arrive agrees (table below).
 
 ⚠️ **There are four notice states, not nine keys.** vets-anni's
 `AttendanceNotice` enum (`app/constants.py`) has exactly four values —
@@ -343,34 +344,28 @@ implements it exactly.
 
 | Notice key | Emitted by | `noticeColor` (chat) | `rsvpChip` (bar) | |
 |--|--|--|--|--|
-| `null` | either block, no fact held | `GRAY` | `YELLOW`, labelled `WALK` | ✗ |
-| `hard` | `rsvp.notice` | `AQUA` | `BLUE` | ✗ |
-| `soft` | `rsvp.notice` | `GREEN` | `GREEN` | ✓ |
-| `rsvp_hard` | `attendance.notice_effective` | `AQUA` | `GRAY`, labelled `RSVP_HARD` | ✗ |
-| `rsvp_soft` | `attendance.notice_effective` | `GREEN` | `GRAY`, labelled `RSVP_SOFT` | ✗ |
-| `attend_early` | `attendance.notice_effective` | `YELLOW` | `GRAY`, labelled `ATTEND_EARLY` | ✗ |
-| `attend_late` | `attendance.notice_effective` | `RED` | `GRAY`, labelled `ATTEND_LATE` | ✗ |
-| `walkin` | — **nothing** | `YELLOW` | `YELLOW` | ✓ |
+| `null` | either block, no fact held | `GRAY` | `GRAY`, labelled `NotRSVP` | ✓ |
+| `hard` | `rsvp.notice` | `AQUA` | `BLUE`, labelled `HrdRSVP` | ✗ (kept) |
+| `soft` | `rsvp.notice` | `GREEN` | `GREEN`, labelled `SftRSVP` | ✓ |
+| `rsvp_hard` | `attendance.notice_effective` | `AQUA` | `BLUE`, labelled `HrdRSVP` | ✗ (kept) |
+| `rsvp_soft` | `attendance.notice_effective` | `GREEN` | `GREEN`, labelled `SftRSVP` | ✓ |
+| `attend_early` | `attendance.notice_effective` | `YELLOW` | `YELLOW`, labelled `NotRSVP` | ✓ |
+| `attend_late` | `attendance.notice_effective` | `RED` | `RED`, labelled `NotRSVP` | ✓ |
+| `walkin` | — **nothing** | `YELLOW` | `GRAY`, labelled `WALKIN` | ✗ |
 | `walk_in` | — **nothing** | `YELLOW` | `GRAY`, labelled `WALK_IN` | ✗ |
-| `late` | — **nothing** | `RED` | `RED` | ✓ |
+| `late` | — **nothing** | `RED` | `GRAY`, labelled `LATE` | ✗ |
 | anything else | — | `GRAY` | `GRAY`, upper-cased passthrough | ✓ |
 
-Eleven rows, seven disagreements — but **two of the four agreements are on keys
-nothing sends** (`walkin` and `late`; `walk_in`, the third dead alias, is a
-*disagreement* row). Restricted to what can actually arrive, it is **six
-disagreements out of eight reachable rows**, and only `soft` and the
-passthrough agree.
+Eleven rows. On the eight that can actually arrive, the bar disagrees with chat
+only on the two spellings of the hard RSVP, the blue it keeps. The three dead
+aliases fall to the bar's upper-cased gray passthrough; nothing sends them.
 
-The shape of the bar's defect follows from the two spellings. `rsvpChip` prefers
-`rsvp.notice`, whose `hard` / `soft` it *does* recognise, and falls back to
-`attendance.notice_effective`, **none of whose four values it recognises at
-all**. So a player with a live RSVP gets a correct `HARD` / `SOFT` chip, while
-a walk-in — who by definition has no RSVP row and therefore reaches the fallback
-— always lands on the `default` arm: `ATTEND_LATE` in grey where the chat surface
-says `LATE WALK-IN` in red. Its `walkin` and `late` arms are unreachable. It folds
-with `Locale.ROOT`, as `noticeColor` does. The label defect is filed rather than
-fixed, in `.claude/ephemeral/bugs-found-via-mellow-rain/` — fixing it changes what
-the boss bar says.
+`rsvpChip` prefers `rsvp.notice` (`hard` / `soft`) and falls back to
+`attendance.notice_effective`, and has an arm for both spellings, so a walk-in,
+who by definition has no RSVP row and reaches the fallback, gets a yellow or
+red `NotRSVP` rather than the raw enum value; a gray `NotRSVP` is a player whose
+tier cannot be tracked without an RSVP. It folds with `Locale.ROOT`, as
+`noticeColor` does.
 
 ## anni-motd (world-join)
 
@@ -432,7 +427,7 @@ Let vanilla and Wynntils track bars normally (no `update()` cancellation, no `ev
 - Returns `null` at `≤20s` (`T_MINUS_20_GATE_SECONDS` — manager deactivates).
 - In-zone (`AnniZone.isInZone`) and inside `COUNTDOWN_THRESHOLD_SECONDS`, which is **5 min**, not the spec's 2 ("spec called for 2 min, user-iterated to 5 min on 2026-06-16") → the countdown variant, `anni.wynnvets.org: ANNI IN <NNN>s | …` (spec §3.1.1.3). The trailing half has two branches: `scrollSecs = max(0, anniSecs - 20)`, and the literal `SCROLLS IN <NNN>s!` is emitted only while `scrollSecs ≤ SCROLL_COUNTDOWN_START_SECONDS` (70); above that it renders an italic light-purple `Get ready for scrolls!` instead. So `ANNI IN 099s | SCROLLS IN 079s` — the string the old spec sample showed — is unproducible: 99 s implies `scrollSecs = 79 > 70`.
 - Assigned (party OR committed slot) → `anni.wynnvets.org: Role: <SHORT> | Party <n> | World: <w>` (spec §3.1.1.2). `buildAssigned` deliberately drops the `/me` path the spec writes — on a ~40-char bar every glyph counts. Role colours: TANK=blue, HEAL=green, PRIM=red, SUNK=yellow, MOBK=light-purple, FILL=dark-aqua. `isAssigned` is also satisfied by a non-FILL entry in `registration.roles` alone, while `resolveRoleCode` reads only `board.role()`, so a player registered for a specific role but not yet placed sees a gray `Role: TBD | Party TBD | World: TBD`. That is intended: they have committed to a slot the board has not filled yet.
-- Seeking (no party + no committed slot) → `Seeking a <HARD|SOFT|WALK|LATE> <CORE|FILL> SLOT for anni.wynnvets.org in <X>min` (spec §3.1.1.1). Slot type derived from `registration.roles` (specific role = CORE, which is unreachable in practice: a specific role takes the Assigned variant).
+- Seeking (no party + no committed slot) → `<HrdRSVP|SftRSVP|NotRSVP>; seeking <CORE|FILL> for anni.wynnvets.org in <X>min`, reworded from spec §3.1.1.1's `Seeking a <RSVP> <SLOT> …` (the bar has no room for ` SLOT`). Slot type derived from `registration.roles` (specific role = CORE, which is unreachable in practice: a specific role takes the Assigned variant). A player the board will not assign (`board.state` `wont_assign`) sees `anni.wynnvets.org: You won't be assigned - <wont_reason>` instead (`… to this anni` with no reason), with no chip; the bar is already red. vets-anni sends a player volunteering to sit out as plain `unassigned`, so they still see the chip.
 - **Four** chips wrap via `FlashTracker.styleFor(fieldKey, base)` — `role` / `party` / `world` in the assigned variant and `rsvp` in the seeking variant — so the bold↔underline pulse applies per-field. The slot chip, the link badge, the minutes chip and the whole countdown variant are unwrapped and never pulse.
 
 **Bar colour: never PINK.** The signature is `colorFor(AnniSnapshot)`, not `colorFor(String)`: it returns `PURPLE` when `board.state()` is `party` — not PINK as the original spec suggested — `RED` for `wont_assign`, and otherwise quantises `attendance.band()` through `bandToBarColor` (≤2 RED, ≤4 YELLOW, else GREEN), falling back to `PURPLE` with no snapshot or no band. Wynncraft's forced resource pack overrides `boss_bar/pink_background.png` (and its progress sprite) to be fully transparent so they can repurpose pink-bar slots as text-only HUD strips (the Lv.92 Returners XP line, territory/region names like "Corrupted Road", "ROOTS OF CORRUPTION"). Reproducible on bare vanilla MC 1.21.11 with the Wynncraft pack loaded (empirically confirmed against Wynncraft's forced resource pack). Confirmed via `/wv debug trigger bossBarsDump` — every Wynncraft text-only bar shipped `color=PINK overlay=PROGRESS`. **Future colour additions: pick from `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` only.**
