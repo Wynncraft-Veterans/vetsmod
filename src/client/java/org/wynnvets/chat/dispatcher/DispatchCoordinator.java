@@ -41,9 +41,8 @@ import org.wynnvets.util.Json;
  * A command whose wait times out is abandoned, not cancelled, so its reply can still
  * arrive while a later command is being awaited. A retry resends the same recipient
  * and payload, so a late echo of the earlier {@code /msg} attempt, arriving while the
- * retry is awaited, is taken as the retry's. Today a late {@code /find} reply is also
- * credited to the awaited name when the reply's name ends with it
- * ({@code find-response-matches-username-as-substring}).</p>
+ * retry is awaited, is taken as the retry's. A late {@code /find} reply counts only for the
+ * name it opens with, so it is credited to the awaited name only if it is that name's.</p>
  *
  * <p>{@code /v} fan-out and both chat-hook suppression checks are entered through this
  * class. {@code /find} batches are not: callers outside this package enqueue them on

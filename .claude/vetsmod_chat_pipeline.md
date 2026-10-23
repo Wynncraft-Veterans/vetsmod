@@ -258,7 +258,7 @@ Steps 2–4 are tried against each pending send in turn, oldest first; the first
 ### FindDispatcher
 [FindDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/FindDispatcher.java)
 
-Batch `/find <username>` dispatcher. `enqueueFindBatch(usernames, resultFuture)` completes the caller-supplied `CompletableFuture<Map<username, server>>`; `WorldListFetcher` calls it. Parses responses: "currently on server XX##" (server stored lower-cased), "currently on a private server" (sentinel `"PRIVATE"`), "not currently online" (null); a lookup with no matching reply within `FIND_RESPONSE_WAIT_MS = 6_000` is null too.
+Batch `/find <username>` dispatcher. `enqueueFindBatch(usernames, resultFuture)` completes the caller-supplied `CompletableFuture<Map<username, server>>`; `WorldListFetcher` calls it. Parses responses (`parseFindReply`), each of which must open with the awaited name, so a longer name ending with it is another player's reply: "currently on server XX##" (server stored lower-cased), "currently on a private server" (sentinel `"PRIVATE"`), "not currently online" (null); a lookup with no matching reply within `FIND_RESPONSE_WAIT_MS = 6_000` is null too.
 
 ## 10. AnimatedChatMixin
 

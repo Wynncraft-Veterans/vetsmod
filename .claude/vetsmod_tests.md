@@ -523,7 +523,7 @@ Test: [`PrependTest.java`](../src/test/java/org/wynnvets/chat/PrependTest.java) 
 
 Test: [`FindDispatcherTest.java`](../src/test/java/org/wynnvets/chat/dispatcher/FindDispatcherTest.java) · Subject: [`FindDispatcher`](../src/client/java/org/wynnvets/chat/dispatcher/FindDispatcher.java)
 
-`FindDispatcher` batches `/find` lookups for guild members and matches the server's reply lines. This suite covers only its package-private response sanitiser, `stripFormattingAndPua`, which removes section-sign colour codes and invisible or private-use characters before the reply is compared as prose. It pins that the strip is deliberately wider than `PillCodec.isCustomGlyph`: it also removes surrogates, format characters, and unassigned code points inside the BMP. Fixtures are single-character constants built from code points (a PUA pill glyph, a BMP-unassigned character, a supplementary unassigned character, a zero-width space, a lone surrogate).
+`FindDispatcher` batches `/find` lookups for guild members and matches the server's reply lines. This suite covers its two package-private pure leaves: the reply parser `parseFindReply` (cases at the end) and the response sanitiser, `stripFormattingAndPua`, which removes section-sign colour codes and invisible or private-use characters before the reply is compared as prose. It pins that the strip is deliberately wider than `PillCodec.isCustomGlyph`: it also removes surrogates, format characters, and unassigned code points inside the BMP. Fixtures are single-character constants built from code points (a PUA pill glyph, a BMP-unassigned character, a supplementary unassigned character, a zero-width space, a lone surrogate).
 
 - **`strip_nullYieldsEmptyStringNotNull`**: `null` input returns `""`, not `null`.
   - `FindDispatcher.stripFormattingAndPua(null)` equals `""`.
@@ -540,6 +540,15 @@ Test: [`FindDispatcherTest.java`](../src/test/java/org/wynnvets/chat/dispatcher/
   - `stripFormattingAndPua("a" + U+0378 + "b")` equals `"ab"`, where U+0378 is unassigned and in the BMP.
   - `stripFormattingAndPua("a" + U+200B + "b")` equals `"ab"`, where U+200B is a FORMAT character.
   - `stripFormattingAndPua("a" + U+D800 + "b")` equals `"ab"`, where U+D800 is an unpaired surrogate.
+- **`reply_readsTheServerAfterTheGlyphRunsSpace`**: A reply whose glyph run leaves a leading space after sanitising still yields its server, lower-cased.
+  - `parseFindReply(stripFormattingAndPua(U+E062 + " Metrafish is currently on server WC12"), "metrafish")` equals `"wc12"`.
+- **`reply_readsPrivateAndOffline`**: The private-server and offline replies map to `PRIVATE_SERVER` and `""`.
+  - `parseFindReply("Holidaze is currently on a private server.", "holidaze")` equals `FindDispatcher.PRIVATE_SERVER`.
+  - `parseFindReply("Wenweia is not currently online", "wenweia")` equals `""`.
+- **`reply_aLongerNameEndingWithTheTargetIsSomeoneElses`**: A reply about Metrafish is not a reply about `fish`.
+  - `parseFindReply("Metrafish is currently on server WC12", "fish")` and `parseFindReply("Metrafish is not currently online", "fish")` are null.
+- **`reply_aLineThatOnlyMentionsTheTargetIsNotAReply`**: A line that names the target mid-sentence is not a reply.
+  - `parseFindReply("Nazzae says Metrafish is currently on server WC12", "metrafish")` is null.
 
 ### `GuildChatDispatcherTest`
 
