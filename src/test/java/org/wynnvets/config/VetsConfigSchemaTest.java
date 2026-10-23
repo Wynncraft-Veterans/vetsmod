@@ -36,8 +36,6 @@ class VetsConfigSchemaTest {
                     "vetsAutomessage",
                     "vetsIsStaff",
                     "vetsLastStaffCheck",
-                    "vetsWaitlistUnlockTime",
-                    "vetsHonouraryUnlockTime",
                     "vetsGuildCheckResult",
                     "vetsLastGuildCheck",
                     "vetsDebugEnabledAt",

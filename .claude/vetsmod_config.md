@@ -22,8 +22,6 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `vetsAuthKey` | string | Bearer key from `/unlock <key>` (43-char base64url issued by dazebot's `/vetsmod`). Sent in `auth` frame on every (re)connect of the inbound WS. |
 | `vetsAuthTier` | string | Tier (`member`/`waitlist`/`honourary`/`other`) the last successful auth ack reported, written by `InboundAckRouter`. Never cleared, so after a new `/unlock` key or a rejection it can belong to an earlier key. Read only by the diagnostics dump; nothing gates on it. |
 | `vetsAuthVerifiedAt` | long | Epoch millis of the last successful auth-frame ack, written by `InboundAckRouter`. Display-only (diagnostics). |
-| `vetsWaitlistUnlockTime` | long | **legacy SHA-256 unlock marker** — meant solely as a "this user used the old system" signal for the SessionAuthWarning. Today it still grants client-side unlock: `UnlockManager`'s tier predicates OR it in (bug `legacy-unlock-markers-still-grant-client-unlock`). |
-| `vetsHonouraryUnlockTime` | long | Same — legacy marker, same caveat. |
 | `vetsGuildCheckResult` | long | Cached `/gu stats` result enum (0=UNKNOWN,1=RETURNERS,2=OTHER_GUILD,3=GUILDLESS) |
 | `vetsLastGuildCheck` | long | Timestamp of last `/gu stats` (3-day TTL) |
 | `vetsDebugEnabledAt` | long | When `/wv debug true` set the debug flag (0 when off). Read only at client init, which restores the flag if under three days old and otherwise zeroes this key. The age is not rechecked later, so a running session keeps debug on |

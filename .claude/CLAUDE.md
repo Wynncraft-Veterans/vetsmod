@@ -137,7 +137,7 @@ Managers.Connection.getConnectionState()   // on Wynncraft? gates the v1 sockets
 
 **User-facing (via `/wv config`):** 30 keys. `VetsConfigSchema.USER_CONFIG_KEYS` order — which is also the order `/wv config` prints them in; tab-completion is alphabetical — is: the eight `legacyItem*` keys (highlighting, enchantment naming, gradient colours/opacity, sprite), `printMOTD`, `printANNI`, the 14 `vetsAnni*` keys, `printBridgeMessages`, `printSuccessfulAuth`, `showSupporterGlints`, `colorBlindMode`, `handleSpoilers`, `moreReliableGuildCheck`. Full table in [vetsmod_config.md](vetsmod_config.md). The first-run defaults live in `VetsConfigDefaults`; the build also writes them to the jar's `config.yml` (SnakeYAML, bundled), whose one reader is `/wv config <key> default`.
 
-**Internal — vetsmod auth state:** `vetsAuthKey` (string), `vetsAuthTier` (string), `vetsAuthVerifiedAt` (long). Old `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` longs are meant to survive only as a "legacy unlock marker" for the session-start warning; today they also still unlock client-side (bug `legacy-unlock-markers-still-grant-client-unlock`).
+**Internal — vetsmod auth state:** `vetsAuthKey` (string), `vetsAuthTier` (string), `vetsAuthVerifiedAt` (long). The old system's `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` markers are gone; an old `config.json`'s copies are ignored and dropped at the next save.
 
 ## Chat pipeline
 

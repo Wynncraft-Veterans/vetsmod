@@ -37,8 +37,6 @@ class VetsConfigKeysTest {
         EXPECTED.put("VETS_AUTOMESSAGE", "vetsAutomessage");
         EXPECTED.put("VETS_IS_STAFF", "vetsIsStaff");
         EXPECTED.put("VETS_LAST_STAFF_CHECK", "vetsLastStaffCheck");
-        EXPECTED.put("VETS_WAITLIST_UNLOCK_TIME", "vetsWaitlistUnlockTime");
-        EXPECTED.put("VETS_HONOURARY_UNLOCK_TIME", "vetsHonouraryUnlockTime");
         EXPECTED.put("VETS_GUILD_CHECK_RESULT", "vetsGuildCheckResult");
         EXPECTED.put("VETS_LAST_GUILD_CHECK", "vetsLastGuildCheck");
         EXPECTED.put("VETS_DEBUG_ENABLED_AT", "vetsDebugEnabledAt");

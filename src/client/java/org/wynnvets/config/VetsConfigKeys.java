@@ -27,8 +27,6 @@ public final class VetsConfigKeys {
     public static final String VETS_AUTOMESSAGE = "vetsAutomessage";
     public static final String VETS_IS_STAFF = "vetsIsStaff";
     public static final String VETS_LAST_STAFF_CHECK = "vetsLastStaffCheck";
-    public static final String VETS_WAITLIST_UNLOCK_TIME = "vetsWaitlistUnlockTime";
-    public static final String VETS_HONOURARY_UNLOCK_TIME = "vetsHonouraryUnlockTime";
     public static final String VETS_GUILD_CHECK_RESULT = "vetsGuildCheckResult";
     public static final String VETS_LAST_GUILD_CHECK = "vetsLastGuildCheck";
     public static final String VETS_DEBUG_ENABLED_AT = "vetsDebugEnabledAt";

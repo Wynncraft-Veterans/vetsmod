@@ -6,7 +6,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Guild State System
 
-`GuildStateManager` is the central facade for the player's guild, staff and unlock status, over three collaborators: `GuildChecker` (guild membership), `StaffRankChecker` (captain+ detection) and `UnlockManager` (bearer-key auth + legacy unlock markers). `GuildLifecycle` runs the world-join flow and the disconnect reset: it calls the three directly, schedules `SessionAuthWarning` (per-session nag for unauthenticated users), and starts `WorldJoinAnnouncer`'s MOTD and anni-stamp prints.
+`GuildStateManager` is the central facade for the player's guild, staff and unlock status, over three collaborators: `GuildChecker` (guild membership), `StaffRankChecker` (captain+ detection) and `UnlockManager` (bearer-key auth). `GuildLifecycle` runs the world-join flow and the disconnect reset: it calls the three directly, schedules `SessionAuthWarning` (per-session nag for unauthenticated users), and starts `WorldJoinAnnouncer`'s MOTD and anni-stamp prints.
 
 ## 1. GuildStateManager facade
 
@@ -19,10 +19,9 @@ Key public methods (all package-level or client-facing):
 | `isReturners()` | Check if in Returners guild |
 | `isGuildless()` | Check player not in any guild |
 | `isUnlocked()` | Any unlock (Returners or waitlist/honourary auth) |
-| `isWaitlistUnlocked()` / `isHonouraryUnlocked()` | Delegated to UnlockManager — true when auth-frame succeeded with that tier OR legacy SHA-256 marker still present |
+| `isWaitlistUnlocked()` / `isHonouraryUnlocked()` | Delegated to UnlockManager — true when the auth frame succeeded with that tier this session |
 | `isAuthenticatedThisSession()` | True from an ok auth-frame ack until an auth failure, a newly stored key, or a disconnect clears it |
 | `hasStoredAuthKey()` | True when `vetsAuthKey` is non-empty (regardless of validation) |
-| `hasLegacyPasswordUnlock()` | True if any pre-migration `vets*UnlockTime` marker exists |
 | `tryUnlock(key)` | Store + dispatch auth frame for a `/unlock` key |
 | `onAuthSuccess(tier)` / `onAuthFailure(detail)` | Auth-frame ack callbacks (called by InboundAckRouter) |
 | `isStaff()` | Delegated to StaffRankChecker |
@@ -108,7 +107,7 @@ On disconnect, `reset()` reloads persisted state from config (not in-memory clea
 
 **Purpose:** Manage the player's vetsmod auth state. Owns the persisted bearer key and the transient session-auth flags.
 
-The legacy SHA-256 password matching has been removed. The two legacy markers (`vetsWaitlistUnlockTime`, `vetsHonouraryUnlockTime`: long timestamps from the old unlock, not hashes) are meant to survive on disk *only* as a "this user used the old system" signal for the session-start warning copy, and no longer grant access. **Today they still do**: `isWaitlistUnlocked()` / `isHonouraryUnlocked()` each OR their own positive marker in and nothing clears them, so a pre-migration user stays client-side unlocked (bug `legacy-unlock-markers-still-grant-client-unlock`). The §1 table and the bullets below describe the code as it is.
+The legacy SHA-256 password matching has been removed, and so have its two on-disk markers (`vetsWaitlistUnlockTime`, `vetsHonouraryUnlockTime`), so a pre-migration user with no key is a keyless player like any other. `VetsConfig.load` reads only the keys it knows, so an old `config.json`'s markers are ignored and dropped at the next save.
 
 **Constants:**
 - `MIN_KEY_LENGTH = 32`, `MAX_KEY_LENGTH = 200`
@@ -128,8 +127,7 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 **Public API (package-level):**
 - `tryUnlock(key)` returns `GuildStateManager.UnlockAttemptResult` (`MISSING_KEY` / `MALFORMED` / `STORED_VERIFYING`). Stores the key, clears stale tier state, and calls `V1ApiManager.sendAuth(key)`, which sends the auth frame now if the inbound WS is up or otherwise leaves it to go out on the next (re)connect.
 - `onAuthSuccess(tier)` / `onAuthFailure(detail)` — reached from `InboundAckRouter.route`, which `V1ApiManager`'s inbound handler calls for every untyped frame; the direct caller is `GuildStateManager.onAuthSuccess` / `.onAuthFailure`, which delegate here when the auth ack arrives.
-- `isWaitlistUnlocked()` / `isHonouraryUnlocked()` — true when (auth verified + matching tier this session) OR (legacy marker present; see the paragraph above).
-- `legacyWaitlistMarker()` / `legacyHonouraryMarker()` — raw read of the pre-migration timestamps.
+- `isWaitlistUnlocked()` / `isHonouraryUnlocked()` — true when auth verified + matching tier this session.
 - `loadPersistedState()`, `reset()`.
 
 **What the player sees.** `onAuthSuccess` records the verdict on the thread the ack arrived on, then hands the rest to the client thread in one task (`showAuthSuccess`): it shows `Authentication verified - tier: <tier>` (green) when there is a local player and either `tryUnlock` has armed its one-shot `pendingUnlockNotify` flag since the last ack (a disconnect does not clear it, so a key typed off Wynncraft still shows its result at the next Wynncraft join), or `printSuccessfulAuth` is on, and clears the one-shot flag only when it shows the line; then it refreshes the presence registration and re-applies the default anni mode (`AnniModeManager.applyStartupDefaultIfNeeded`). The line goes to chat while a screen is open and otherwise to the action bar. [vetsmod_config.md](vetsmod_config.md)'s `printSuccessfulAuth` row has how that setting latches. `onAuthFailure` always prints a red `Authentication failed: <reason>.` line in chat, also from the client thread, which suggests the player try `~vetsmod` in #bot-commands for a new key.
@@ -146,10 +144,10 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
    - an auth reply rejected it (`keyRejectedByAuthAck`) → "Your stored vetsmod key was rejected (<reason>). Run ~vetsmod in #bot-commands to issue a new one." (red)
    - the inbound socket is down → "Couldn't verify your vetsmod key: Unable to reach the vets API, which may be down." (yellow, no Discord link)
    - connected, no verdict yet → silent; the auth reply prints its own line when it lands
-3. Plausible VETS user (in Returners or has legacy unlock marker) with no stored key:
+3. In Returners, with no stored key:
    - if server's `unauth_enabled=true` → "vetsmod is running unauthenticated. Vets chat still works for now, but authentication will become mandatory soon. Run ~vetsmod in #bot-commands to /unlock." (yellow)
    - if server's `unauth_enabled=false` → "You aren't authenticated. Vetsmod cannot send or receive VETS chat or use guild-specific features until you /unlock. Run ~vetsmod in #bot-commands to get a key." (red)
-4. Plain non-VETS user → silent.
+4. Not in Returners, with no stored key → silent.
 
 **`unauth_enabled` discovery:** The temporary-server pushes a `{type:"server_info", unauth_enabled: bool}` frame on outbound connect. `V1ApiManager` routes it directly to `SessionAuthWarning.onServerInfo()`. Defaults to `true` if the frame hasn't arrived yet (warning fires about 5 s after world join).
 
@@ -179,8 +177,6 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 | `vetsAuthKey` | string | UnlockManager |
 | `vetsAuthTier` | string | InboundAckRouter |
 | `vetsAuthVerifiedAt` | long (ts) | InboundAckRouter |
-| `vetsWaitlistUnlockTime` | long (ts) | **legacy** — meant only as a "previously unlocked under SHA-256 system" marker for warnings; today it still unlocks (§4) |
-| `vetsHonouraryUnlockTime` | long (ts) | same — legacy marker; same caveat |
 
 ## 8. Edge cases
 

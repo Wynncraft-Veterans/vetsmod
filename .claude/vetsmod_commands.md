@@ -61,7 +61,7 @@ What each gate checks:
 | `isConfirmedStaff()` | `is_staff` from the last ok auth ack, which temporary-server resolves against the staff roster. An auth failure or leaving the server clears it | `GuildStateManager`, reading `V1ApiManager` |
 | `isStaffOfAnyGuild()` | `isConfirmedStaff()`, or Captain+ in the current guild by Wynntils' live rank | `GuildStateManager` |
 | `isChiefOfAnyGuild()` | the auth ack's confirmed rank is chief or owner, or Wynntils' live rank is Chief or Owner | `GuildStateManager` |
-| `isUnlocked()` | `isReturners()`, or waitlist- or honourary-unlocked: an authenticated tier this session, or a legacy on-disk marker (bug `legacy-unlock-markers-still-grant-client-unlock`) | `GuildStateManager` |
+| `isUnlocked()` | `isReturners()`, or waitlist- or honourary-unlocked: an authenticated tier this session | `GuildStateManager` |
 | `isReturners()` | `GuildChecker`'s unexpired `/gu stats` result, else Wynntils' guild name is "Returners" | `GuildStateManager` |
 | `areFeaturesEnabled()` | the same as `isReturners()` | `GuildStateManager` |
 | `isAuthenticatedThisSession()` | an ok auth ack has arrived, and no auth failure, newly stored `/unlock` key or leaving the game server has cleared it since. It does not follow the inbound socket, so it stays true across a socket drop | `GuildStateManager`, reading `UnlockManager` |
@@ -133,9 +133,9 @@ typed `/wv check` first, Fabric's or `GuildChatDispatcher`'s, is not settled; se
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
 | `/wv return` | none | `areFeaturesEnabled()`: "/wv return is restricted to vets members." | `CommandRegistry.returnInfo` → `ReturnFetcher.fetchReturn` | Prints the latest return-channel post, with its Discord timestamps rewritten and a link footer (below) | GETs `VetsApi.RETURN` | none |
-| `/wv list` | ungated | `isUnlocked()`: "/wv list is restricted to vets members." | `CommandRegistry.list` → `ListFetcher.fetchList` | Prints "Looking up online members...", then the online members grouped by tier and VetsMod status: staff underlined, supporters with a glint | GETs `VetsApi.LIST`; Wynntils' Wynncraft API lookup of the Returners guild (`Models.Guild.getGuild`); for a Returners caller, a WebSocket `tablist` frame of the tab list's guild entries | `stale-registration-survives-eligibility-loss`, `legacy-unlock-markers-still-grant-client-unlock` |
+| `/wv list` | ungated | `isUnlocked()`: "/wv list is restricted to vets members." | `CommandRegistry.list` → `ListFetcher.fetchList` | Prints "Looking up online members...", then the online members grouped by tier and VetsMod status: staff underlined, supporters with a glint | GETs `VetsApi.LIST`; Wynntils' Wynncraft API lookup of the Returners guild (`Models.Guild.getGuild`); for a Returners caller, a WebSocket `tablist` frame of the tab list's guild entries | `stale-registration-survives-eligibility-loss` |
 | `/wv list world` | ungated | `isStaff()`, after a `refreshStaffStatusIfNeeded` forced for a non-steward unless a staff check finished in the last minute: "We are still checking your permissions, please retry in a moment." while a refresh starts or runs, then "/wv list world is restricted to stewards." | `CommandRegistry.listWorld` → `WorldListFetcher.fetchWorldList` | For staff: finds each online member with `/find` and groups them by server region (the GeoIP2 continent codes AF, AS, EU, NA, OC and SA, then Other and Private) | in-game `/gu rank` (forced for a non-staff caller unless a staff check finished in the last minute), `/find` per member; GETs `VetsApi.LIST` and `VetsApi.STAFF`; Wynntils' Wynncraft API lookup of the Returners guild; a `PlayerLookup` name lookup for each member `/find` did not place; for a Returners caller, a WebSocket `tablist` frame | `staff-rank-cache-survives-leaving-guild`, `find-phase-does-not-yield-to-queued-msg`, `vets-snapshot-provider-skips-confirmed-staff-check`, `staff-action-queue-not-drained-on-socket-reconnect` |
-| `/wv staff` | ungated | `isUnlocked()`: "/wv staff is restricted to vets members." | `CommandRegistry.staff` → `StaffFetcher.fetchOnlineStaff` | Prints online staff, sorted by rank, then by name | GETs `VetsApi.STAFF` | `legacy-unlock-markers-still-grant-client-unlock` |
+| `/wv staff` | ungated | `isUnlocked()`: "/wv staff is restricted to vets members." | `CommandRegistry.staff` → `StaffFetcher.fetchOnlineStaff` | Prints online staff, sorted by rank, then by name | GETs `VetsApi.STAFF` | none |
 | `/wv motd` | none | none | `CommandRegistry.motd` | As the root `/motd` | as `/motd` | none |
 
 A non-steward's first `/wv list world` forces a staff re-check, so a fresh promotion is caught, and gets the
@@ -368,14 +368,11 @@ These rules hold for everything below:
    [vetsmod_guild_system.md](vetsmod_guild_system.md) §4, and how the setting latches is in
    [vetsmod_config.md](vetsmod_config.md)'s `printSuccessfulAuth` row.
 
-The legacy SHA-256 password matching has been removed. A user with a pre-migration
-`vetsWaitlistUnlockTime` or `vetsHonouraryUnlockTime` marker and no stored key gets the session-start
-warning to get a key — see [vetsmod_guild_system.md §5](vetsmod_guild_system.md#5-sessionauthwarning),
-case 3. The markers are meant to do nothing else; today they also still unlock client-side (bug
-`legacy-unlock-markers-still-grant-client-unlock`).
+The legacy SHA-256 password matching and its on-disk markers have been removed. A player with no stored
+key gets the session-start warning to get a key only in Returners — see
+[vetsmod_guild_system.md §5](vetsmod_guild_system.md#5-sessionauthwarning), case 3.
 
-Bugs: `legacy-unlock-markers-still-grant-client-unlock`,
-`outbound-socket-never-authenticated`,
+Bugs: `outbound-socket-never-authenticated`,
 `ws-client-send-ignores-send-pending-failure`.
 
 ### The intercepted prefixes
@@ -390,8 +387,8 @@ server as typed. "Passes through" below means the same.
 
 | Typed | Gate | Handler | What happens | Bugs |
 |---|---|---|---|---|
-| `/g <message>` | none | `handleGuildChat` | A guildless waitlist-unlocked player's line goes to the bridge as `waitlist`, and a Returners player's line goes as `queue` while they sit in a world queue; both are cancelled and echoed locally, with the banned characters removed ([vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §4), or refused with a red "Not sent" line while the inbound socket is down (a `queue` line also while Wynntils doesn't know the guild rank). A Returners line with a `\|\|` spoiler is re-sent spoiler-encoded, or refused in red if that passes 253 characters. Anything else passes through. The relays and the encoding honour `handleSpoilers` | `relay-echo-shows-server-refused-frames`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock`, `url-repair-merges-following-non-lowercase-token`, `raw-rank-pills-bypass-display-remap` |
-| `/wg <message>` | `isUnlocked()` | `handleHonouraryChat` | Always cancelled. An honourary-unlocked player's line goes to the bridge as `honourary` and is echoed locally, with the banned characters removed, or is refused like `/g`'s relays while the inbound socket is down; anyone else gets a red "This feature is restricted to honourary users. If you think you should have /wg, follow ~vetsmod in #bot-commands to fix your perms." | `relay-echo-shows-server-refused-frames`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock` |
+| `/g <message>` | none | `handleGuildChat` | A guildless waitlist-unlocked player's line goes to the bridge as `waitlist`, and a Returners player's line goes as `queue` while they sit in a world queue; both are cancelled and echoed locally, with the banned characters removed ([vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §4), or refused with a red "Not sent" line while the inbound socket is down (a `queue` line also while Wynntils doesn't know the guild rank). A Returners line with a `\|\|` spoiler is re-sent spoiler-encoded, or refused in red if that passes 253 characters. Anything else passes through. The relays and the encoding honour `handleSpoilers` | `relay-echo-shows-server-refused-frames`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `url-repair-merges-following-non-lowercase-token`, `raw-rank-pills-bypass-display-remap` |
+| `/wg <message>` | `isUnlocked()` | `handleHonouraryChat` | Always cancelled. An honourary-unlocked player's line goes to the bridge as `honourary` and is echoed locally, with the banned characters removed, or is refused like `/g`'s relays while the inbound socket is down; anyone else gets a red "This feature is restricted to honourary users. If you think you should have /wg, follow ~vetsmod in #bot-commands to fix your perms." | `relay-echo-shows-server-refused-frames`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect` |
 | `/v <message>` | `isUnlocked()`, then `isStaff()`; a non-staff command passes through, and a staff-rank refresh starts | `handleStaffChat` | Refused in red during `/stream` and above 234 characters. Otherwise, once the staff-presence check passes, echoed locally and sent to each other online staff member as `/msg <name> 🔐<message>`, with the banned hard set removed from both | `dispatcher-notices-misattribute-cause`, `find-phase-does-not-yield-to-queued-msg` |
 | `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | `dispatcher-notices-misattribute-cause` |
 | `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | `dispatcher-notices-misattribute-cause`, `raw-rank-pills-bypass-display-remap` |

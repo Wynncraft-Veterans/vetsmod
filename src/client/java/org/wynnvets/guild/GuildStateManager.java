@@ -22,8 +22,8 @@ import org.wynnvets.api.V1ApiManager;
  * predicates below it gates on.</p>
  *
  * <p>Delegates staff-rank detection to {@link StaffRankChecker}, the {@code /gu stats}
- * guild check to {@link GuildChecker}, and bearer-key auth state (with the legacy unlock
- * markers) to {@link UnlockManager}. Callers outside this package reach the three through this
+ * guild check to {@link GuildChecker}, and bearer-key auth state to
+ * {@link UnlockManager}. Callers outside this package reach the three through this
  * class or through {@link GuildLifecycle}, which calls them directly, except that
  * {@link org.wynnvets.debug.diagnostics.GuildDiagnostics GuildDiagnostics} calls
  * {@code GuildChecker} itself, to read its result and start a check.</p>
@@ -141,10 +141,7 @@ public final class GuildStateManager {
      * vets community member whose in-game guild is somewhere else — fails it for the same reason
      * any other outsider does: the channel they're reading isn't ours. Genuine vets chat reaches them
      * over the WebSocket bridge instead, where {@link org.wynnvets.chat.OutboundDisplayHandler
-     * OutboundDisplayHandler} keeps the full treatment. Note that {@link #isHonouraryUnlocked()} is
-     * <em>not</em> usable as a faster negative signal here: it ORs in a legacy on-disk unlock marker
-     * that is never cleared, so an honourary member who later joined Returners would keep failing
-     * forever.</p>
+     * OutboundDisplayHandler} keeps the full treatment.</p>
      *
      * <p>{@link #isReturners()} resolves in this order: the
      * {@link GuildChecker} cache (persisted, 3-day expiry, so instant when
@@ -193,10 +190,8 @@ public final class GuildStateManager {
     }
 
     /**
-     * Whether the player counts as waitlist-unlocked: a waitlist-tier auth this session,
-     * or a legacy on-disk waitlist marker. The marker arm is meant to go
-     * ({@code legacy-unlock-markers-still-grant-client-unlock}). Does not check
-     * guildlessness itself; callers that mean the waitlist tier pair it with
+     * Whether the player counts as waitlist-unlocked: a waitlist-tier auth this session.
+     * Does not check guildlessness itself; callers that mean the waitlist tier pair it with
      * {@link #isGuildless()}.
      *
      * @return true if waitlist-unlocked, false otherwise
@@ -207,8 +202,7 @@ public final class GuildStateManager {
 
     /**
      * Whether the player counts as honourary-unlocked: an honourary-tier auth this
-     * session, or a legacy on-disk honourary marker. The marker arm is meant to go
-     * ({@code legacy-unlock-markers-still-grant-client-unlock}).
+     * session.
      *
      * @return true if honourary-unlocked, false otherwise
      */
@@ -483,12 +477,6 @@ public final class GuildStateManager {
     /** @return {@code true} when a key is stored locally regardless of validation */
     public static boolean hasStoredAuthKey() {
         return UnlockManager.hasStoredKey();
-    }
-
-    /** @return {@code true} if the player has any legacy SHA-256 unlock state
-     *  (waitlist or honourary) on disk from before the migration. */
-    public static boolean hasLegacyPasswordUnlock() {
-        return UnlockManager.legacyWaitlistMarker() || UnlockManager.legacyHonouraryMarker();
     }
 
     /** @return the tier from the latest ok auth ack (e.g. {@code "member"},

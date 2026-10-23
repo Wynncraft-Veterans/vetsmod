@@ -25,12 +25,11 @@ import org.wynnvets.util.TickDelays;
  *       socket is down, a yellow "couldn't verify your key" line instead; if it is up but no
  *       verdict has arrived, nothing, since the auth reply prints its own line when it
  *       lands.</li>
- *   <li><b>No stored key, but plausibly a VETS user</b> (in Returners or has
- *       legacy unlock markers from the old SHA-256 system) — show one of
+ *   <li><b>No stored key, in Returners</b> — show one of
  *       two warnings depending on whether unauth chat is currently allowed
  *       (server tells us via a {@code server_info} frame on outbound
  *       connect; default-true assumption while we wait for that frame).</li>
- *   <li><b>Plain non-VETS player</b> — no warning. They'd just see noise.</li>
+ *   <li><b>No stored key, not in Returners</b> — no warning. They'd just see noise.</li>
  * </ol>
  *
  * <p>The warning fires once per session, after a short delay so the
@@ -108,8 +107,6 @@ public final class SessionAuthWarning {
 
         boolean hasKey = GuildStateManager.hasStoredAuthKey();
         boolean inReturners = GuildStateManager.isReturners();
-        boolean hasLegacy = GuildStateManager.hasLegacyPasswordUnlock();
-        boolean plausibleVetsUser = inReturners || hasLegacy;
 
         // Case 2: a stored key, not verified. Only an auth reply that rejected it
         // earns the "rejected" warning, shown regardless of unauth toggle — the user
@@ -137,9 +134,9 @@ public final class SessionAuthWarning {
             return;
         }
 
-        // Case 3: plausibly a VETS user, no key. Wording branches on the
-        // server's current unauth toggle.
-        if (plausibleVetsUser) {
+        // Case 3: in Returners, no key. Wording branches on the server's
+        // current unauth toggle.
+        if (inReturners) {
             if (unauthEnabled) {
                 ChatUtils.sendLocalMessage(
                         makeWarning(

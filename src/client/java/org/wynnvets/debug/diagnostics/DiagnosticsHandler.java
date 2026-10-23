@@ -127,7 +127,6 @@ public final class DiagnosticsHandler {
         boolean authVerified = GuildStateManager.isAuthenticatedThisSession();
         String authTier = GuildStateManager.currentAuthTier();
         String authFailureReason = GuildStateManager.lastAuthFailureReason();
-        boolean hasLegacyUnlock = GuildStateManager.hasLegacyPasswordUnlock();
         long authVerifiedAt = VetsConfig.getLong(VetsConfigKeys.VETS_AUTH_VERIFIED_AT);
         String persistedTier = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_TIER);
 
@@ -217,10 +216,6 @@ public final class DiagnosticsHandler {
                     Component.literal(formatRelative(authVerifiedAt) + " ago")
                             .withStyle(ChatFormatting.WHITE));
         }
-        if (hasLegacyUnlock) {
-            chatMsg.append(Component.literal(" | Legacy unlock: ").withStyle(ChatFormatting.GRAY));
-            chatMsg.append(Component.literal("yes").withStyle(ChatFormatting.YELLOW));
-        }
 
         ChatUtils.sendLocalMessageNewBlock(chatMsg);
 
@@ -249,13 +244,12 @@ public final class DiagnosticsHandler {
                 debugLogging,
                 isSupporter);
         VetsLogger.info(
-                "Auth: hasKey={}, verifiedThisSession={}, tier={}, persistedTier={}, verifiedAt={}, legacyUnlock={}, lastFailure={}",
+                "Auth: hasKey={}, verifiedThisSession={}, tier={}, persistedTier={}, verifiedAt={}, lastFailure={}",
                 hasAuthKey,
                 authVerified,
                 authTier.isEmpty() ? "none" : authTier,
                 persistedTier == null || persistedTier.isEmpty() ? "none" : persistedTier,
                 authVerifiedAt == 0L ? "never" : Long.toString(authVerifiedAt),
-                hasLegacyUnlock,
                 authFailureReason.isEmpty() ? "none" : authFailureReason);
 
         // Mod list

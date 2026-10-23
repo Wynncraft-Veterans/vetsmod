@@ -20,20 +20,11 @@ import org.wynnvets.mwe.anni.mode.AnniModeManager;
  * inbound WebSocket (re)connects; the outbound socket never gets one
  * ({@code outbound-socket-never-authenticated}).</p>
  *
- * <p>The legacy {@code VETS_WAITLIST_UNLOCK_TIME} / {@code VETS_HONOURARY_UNLOCK_TIME}
- * timestamps are meant to be kept only as a "previously unlocked under the old system"
- * marker, so {@link SessionAuthWarning} (through
- * {@link GuildStateManager#hasLegacyPasswordUnlock()}) can decide whether to show a
- * session-start nag encouraging the user to migrate to the new
- * {@code /unlock &lt;key&gt;} flow. Today they also still unlock:
- * {@link #isWaitlistUnlocked()} and {@link #isHonouraryUnlocked()} each OR their own
- * positive marker in, and nothing clears them
- * ({@code legacy-unlock-markers-still-grant-client-unlock}).</p>
- *
  * <p>Tier values follow the canonical vetsmod tier vocabulary:
- * {@code member}, {@code waitlist}, {@code honourary}, {@code other}.
- * The two legacy markers correspond to {@code waitlist} / {@code honourary}
- * respectively.</p>
+ * {@code member}, {@code waitlist}, {@code honourary}, {@code other}. A tier unlocks only
+ * through an ok auth ack this session; the old system's on-disk unlock timestamps are
+ * gone, and an old {@code config.json}'s copies are ignored and dropped at the next
+ * save.</p>
  *
  * <p>This class is package-private. Callers outside the package reach it through
  * {@link GuildStateManager}'s facade methods; within the package,
@@ -125,27 +116,12 @@ final class UnlockManager {
 
     /** @return {@code true} if the player has unlocked as a waitlist member */
     static boolean isWaitlistUnlocked() {
-        return (authVerifiedThisSession && TIER_WAITLIST.equals(currentTier))
-                || legacyWaitlistMarker();
+        return authVerifiedThisSession && TIER_WAITLIST.equals(currentTier);
     }
 
     /** @return {@code true} if the player has unlocked as an honourary member */
     static boolean isHonouraryUnlocked() {
-        return (authVerifiedThisSession && TIER_HONOURARY.equals(currentTier))
-                || legacyHonouraryMarker();
-    }
-
-    /** Whether the legacy SHA-256-era waitlist unlock timestamp is still on disk (a
-     *  positive {@code VETS_WAITLIST_UNLOCK_TIME}). Meant only as a "this user used the
-     *  old system" signal for warning copy; today {@link #isWaitlistUnlocked()} also ORs
-     *  it in ({@code legacy-unlock-markers-still-grant-client-unlock}). */
-    static boolean legacyWaitlistMarker() {
-        return VetsConfig.getLong(VetsConfigKeys.VETS_WAITLIST_UNLOCK_TIME) > 0L;
-    }
-
-    /** See {@link #legacyWaitlistMarker()}. */
-    static boolean legacyHonouraryMarker() {
-        return VetsConfig.getLong(VetsConfigKeys.VETS_HONOURARY_UNLOCK_TIME) > 0L;
+        return authVerifiedThisSession && TIER_HONOURARY.equals(currentTier);
     }
 
     // ── Lifecycle ──────────────────────────────────────────────────────

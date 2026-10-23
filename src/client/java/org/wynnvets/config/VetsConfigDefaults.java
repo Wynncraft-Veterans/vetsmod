@@ -29,8 +29,6 @@ public final class VetsConfigDefaults {
         config.put(VetsConfigKeys.VETS_AUTOMESSAGE, true);
         config.put(VetsConfigKeys.VETS_IS_STAFF, false);
         longConfig.put(VetsConfigKeys.VETS_LAST_STAFF_CHECK, 0L);
-        longConfig.put(VetsConfigKeys.VETS_WAITLIST_UNLOCK_TIME, 0L);
-        longConfig.put(VetsConfigKeys.VETS_HONOURARY_UNLOCK_TIME, 0L);
         longConfig.put(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, 0L);
         longConfig.put(VetsConfigKeys.VETS_LAST_GUILD_CHECK, 0L);
         longConfig.put(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, 0L);

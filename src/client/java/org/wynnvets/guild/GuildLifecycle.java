@@ -68,7 +68,7 @@ public final class GuildLifecycle {
 
         // Once-per-session warning when our auth state diverges from what the
         // user probably expects (key present but unverified, or no key at all
-        // with legacy unlock markers / Returners membership). We schedule it
+        // in Returners). We schedule it
         // shortly after world join so the WS reconnect + auth round-trip has
         // a chance to land first.
         SessionAuthWarning.scheduleOnceForThisSession();
