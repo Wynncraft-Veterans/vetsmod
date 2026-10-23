@@ -184,12 +184,12 @@ public final class ChatUtils {
 
     /**
      * Sends a guild-chat–style message in the red {@code /v} staff-channel styling with a
-     * custom pre-styled rank pill component.
+     * custom pre-styled rank pill component. The badge is {@link Prepend#STAFF_CHANNEL}, whose
+     * dedup is separate from {@link Prepend#GUILD}'s.
      */
     public static void sendGuildChatMessageRed(
             Component rankComponent, String displayName, String message) {
-        MutableComponent badge =
-                Prepend.GUILD.get().withStyle(style -> style.withColor(ChatFormatting.RED));
+        MutableComponent badge = Prepend.STAFF_CHANNEL.get();
 
         MutableComponent body = Component.empty();
 

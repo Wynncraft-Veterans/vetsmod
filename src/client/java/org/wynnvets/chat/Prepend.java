@@ -69,6 +69,27 @@ public enum Prepend {
                                                     Identifier.parse("chat/prefix")))
                                     .withColor(ChatFormatting.BLUE)
                                     .withoutShadow())),
+    /** The {@code /v} staff-channel badge: {@link #GUILD}'s glyphs in red, deduplicated apart
+     *  from it, so a {@code /v} line after a guild line still gets its full badge. */
+    STAFF_CHANNEL(
+            Component.literal("\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE")
+                    .append(" ")
+                    .setStyle(
+                            Style.EMPTY
+                                    .withFont(
+                                            new FontDescription.Resource(
+                                                    Identifier.parse("chat/prefix")))
+                                    .withColor(ChatFormatting.RED)
+                                    .withoutShadow()),
+            Component.literal("\uDAFF\uDFFC\uE001\uDB00\uDC06")
+                    .append(" ")
+                    .setStyle(
+                            Style.EMPTY
+                                    .withFont(
+                                            new FontDescription.Resource(
+                                                    Identifier.parse("chat/prefix")))
+                                    .withColor(ChatFormatting.RED)
+                                    .withoutShadow())),
     EMPTY(Component.empty());
 
     private static final int MAX_LINES_BEFORE_REBADGE = 18;

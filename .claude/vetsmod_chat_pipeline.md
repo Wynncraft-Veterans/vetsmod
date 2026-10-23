@@ -176,7 +176,7 @@ Flow: a `warning` frame → `WarningFrameRenderer.render`, skipping every step a
 
 Key methods:
 - `sendGuildChatMessage()` — `<badge> <pill> <username>: <body>`
-- `sendGuildChatMessageRed()` — red guild-chat styling; reached only through `sendStaffChannelMessage()` (the `/v` staff-channel look)
+- `sendGuildChatMessageRed()` — red guild-chat styling with the `Prepend.STAFF_CHANNEL` badge; reached only through `sendStaffChannelMessage()` (the `/v` staff-channel look)
 - `sendStaffChannelMessage()` — staff-style with special pill
 
 Styles: `RANK_STYLE` = aqua, `NAME_STYLE` = dark aqua, `ADMIN_RANK_STYLE` = red.
@@ -224,7 +224,7 @@ Formats rank "pill" (badge) component from the caller's supporter determination.
 
 [Prepend](../src/client/java/org/wynnvets/chat/Prepend.java)
 
-Enum, four constants: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge, compact block marker for consecutive messages within 18 lines), `GUILD_HONOURARY`, `EMPTY`. Mirrors native Wynncraft behaviour. `get()` advances the dedup state, so it is called only for a badge that is drawn; `blockIndicatorStyle()` reads a badge's style without touching it, which is how `SpoilerRewriter` picks its dispatch style.
+Enum, five constants: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge, compact block marker for consecutive messages within 18 lines), `GUILD_HONOURARY`, `STAFF_CHANNEL` (`GUILD`'s glyphs in red for `/v` lines, deduplicated apart from `GUILD`), `EMPTY`. Mirrors native Wynncraft behaviour. `get()` advances the dedup state, so it is called only for a badge that is drawn; `blockIndicatorStyle()` reads a badge's style without touching it, which is how `SpoilerRewriter` picks its dispatch style.
 
 ## 9. Dispatcher system (staff chat + /find)
 

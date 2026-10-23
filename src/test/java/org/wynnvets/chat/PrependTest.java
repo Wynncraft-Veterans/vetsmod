@@ -2,14 +2,18 @@ package org.wynnvets.chat;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link Prepend}'s badge dedup: what {@link Prepend#get()} returns after earlier
- * calls, and that {@link Prepend#blockIndicatorStyle()} leaves that state alone.
+ * calls, that {@link Prepend#blockIndicatorStyle()} leaves that state alone, and that
+ * {@link Prepend#STAFF_CHANNEL} dedups apart from {@link Prepend#GUILD}.
  *
  * <p>The dedup state is static, so every test starts and ends with
  * {@link Prepend#resetDedup()}.</p>
@@ -63,5 +67,27 @@ class PrependTest {
         assertEquals(GUILD_INDICATOR, Prepend.GUILD.get().getString());
         Prepend.addRenderedLines(1);
         assertEquals(GUILD_FULL, Prepend.GUILD.get().getString());
+    }
+
+    @Test
+    void staffChannel_afterAGuildLine_getsItsFullRedBadge() {
+        Style guildBadge = Prepend.GUILD.get().getStyle();
+        MutableComponent staff = Prepend.STAFF_CHANNEL.get();
+        assertEquals(GUILD_FULL, staff.getString());
+        // GUILD's font and shadow, in red: a /v line looks as it did when it recoloured GUILD.
+        assertEquals(guildBadge.withColor(ChatFormatting.RED), staff.getStyle());
+    }
+
+    @Test
+    void staffChannel_dedupsAgainstItself_andAGuildLineAfterItIsFull() {
+        Prepend.STAFF_CHANNEL.get();
+        MutableComponent second = Prepend.STAFF_CHANNEL.get();
+        assertEquals(GUILD_INDICATOR, second.getString());
+        assertEquals(
+                Prepend.GUILD.blockIndicatorStyle().withColor(ChatFormatting.RED),
+                second.getStyle());
+        MutableComponent guild = Prepend.GUILD.get();
+        assertEquals(GUILD_FULL, guild.getString());
+        assertEquals(TextColor.fromLegacyFormat(ChatFormatting.AQUA), guild.getStyle().getColor());
     }
 }
