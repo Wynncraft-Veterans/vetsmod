@@ -18,8 +18,9 @@ import org.wynnvets.logging.VetsLogger;
  * sends no frame (its HTTP pollers still run, as they do from launch). On disconnect, it closes
  * the sockets and clears the per-connection guild, auth and world-join state through
  * {@link org.wynnvets.guild.GuildLifecycle#reset() GuildLifecycle.reset()}, so that it is
- * re-evaluated when the player reconnects to a server, and frees {@code /wv distribute}'s run
- * gate ({@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()}).</p>
+ * re-evaluated when the player reconnects to a server, and ends any {@code /wv distribute} run
+ * and its queue
+ * ({@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()}).</p>
  */
 public final class ServerConnectionListener {
 

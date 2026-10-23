@@ -6,6 +6,11 @@ import java.util.Deque;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.distributor.MemberSlotPresser;
+import org.wynnvets.distribute.opener.GuildManageOpener;
+import org.wynnvets.distribute.walker.GuildLogWalker;
+import org.wynnvets.distribute.walker.MembersListSearcher;
+import org.wynnvets.distribute.walker.MembersListWalker;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -45,6 +50,10 @@ public final class DistributeRuns {
     /** Runs waiting for the current one to end, oldest first. */
     private static final Deque<Runnable> queued = new ArrayDeque<>();
 
+    /** Bumped by {@link #reset()}, so a queued run already scheduled in the gap does not start
+     *  after a disconnect. */
+    private static int generation = 0;
+
     private DistributeRuns() {}
 
     /**
@@ -73,7 +82,12 @@ public final class DistributeRuns {
             return;
         }
         VetsLogger.debug("DistributeRuns: starting the next queued run, {} left", queued.size());
-        Managers.TickScheduler.scheduleLater(next, QUEUE_GAP_TICKS);
+        final int myGeneration = generation;
+        Managers.TickScheduler.scheduleLater(
+                () -> {
+                    if (myGeneration == generation) next.run();
+                },
+                QUEUE_GAP_TICKS);
     }
 
     /**
@@ -115,10 +129,12 @@ public final class DistributeRuns {
     }
 
     /**
-     * Drops the queue and frees the run gate, silently, when the client disconnects (called by
-     * {@link org.wynnvets.listeners.ServerConnectionListener ServerConnectionListener}). No run
-     * survives a disconnect, and this keeps a run that never ended from holding the gate past
-     * a relog.
+     * Ends everything silently when the client disconnects (called by
+     * {@link org.wynnvets.listeners.ServerConnectionListener ServerConnectionListener}): drops
+     * the queue, disarms the searcher, both walkers, the presser and the opener without running
+     * their callbacks, frees the run gate, and keeps a queued run already scheduled in the gap
+     * from starting. So nothing of a run outlives a relog: no stale watchdog can stop the next
+     * session's run, and a run that never ended cannot hold the gate.
      */
     public static void reset() {
         if (running || !queued.isEmpty()) {
@@ -127,5 +143,11 @@ public final class DistributeRuns {
         }
         queued.clear();
         running = false;
+        generation++;
+        MembersListSearcher.cancel();
+        MembersListWalker.cancel();
+        GuildLogWalker.cancel();
+        MemberSlotPresser.cancel();
+        GuildManageOpener.cancel();
     }
 }

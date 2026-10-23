@@ -114,6 +114,13 @@ public final class MemberSlotPresser {
         VetsLogger.debug("Registered MemberSlotPresser on Wynntils event bus");
     }
 
+    /** Disarms the press batch without running any callback, for
+     *  {@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()} on a
+     *  disconnect. */
+    public static void cancel() {
+        clearPending();
+    }
+
     /**
      * Fires {@code count} consecutive {@code pressKeyOnSlot} packets
      * against {@code slot} in the currently-open Members container, each

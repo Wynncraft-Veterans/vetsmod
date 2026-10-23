@@ -109,6 +109,13 @@ public final class MembersListWalker {
         VetsLogger.debug("Registered MembersListWalker on Wynntils event bus");
     }
 
+    /** Disarms the walk without running any callback, for
+     *  {@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()} on a
+     *  disconnect. */
+    public static void cancel() {
+        stop();
+    }
+
     /**
      * Arms the walker for the next Members menu open. The callback fires
      * once the walk reaches a page with no Next Page button (or the

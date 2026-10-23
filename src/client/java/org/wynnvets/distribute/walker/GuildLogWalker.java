@@ -144,6 +144,13 @@ public final class GuildLogWalker {
         VetsLogger.debug("Registered GuildLogWalker on Wynntils event bus");
     }
 
+    /** Disarms the walk without running any callback, for
+     *  {@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()} on a
+     *  disconnect. */
+    public static void cancel() {
+        stop();
+    }
+
     /**
      * Arms the walker for the next guild log open. The caller is expected to follow up with
      * something that opens the log GUI. The only caller today,

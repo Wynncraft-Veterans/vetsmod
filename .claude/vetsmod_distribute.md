@@ -609,9 +609,11 @@ passes its checks while another run holds it is queued, with a gray
 `QUEUE_GAP_TICKS` after that run finishes or is refused. A run that stops
 cancels everything queued behind it, with "Cancelled N queued
 distributions." (or "distribution." for one). Every run ends in exactly one
-of `DistributeRuns.finished`, `stop` or `refuse`; a disconnect drops the
-queue and frees the gate silently, so a run that somehow never ended
-cannot hold it past a relog.
+of `DistributeRuns.finished`, `stop` or `refuse`. A disconnect ends it
+silently instead: `DistributeRuns.reset` drops the queue, disarms the
+searcher, both walkers, the presser and the opener (each has a `cancel()`
+for it) and frees the gate, so no stale watchdog can stop the next
+session's run.
 
 ## 8. `OutboundCommand` — the mod's only reflection
 

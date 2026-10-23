@@ -197,6 +197,13 @@ public final class MembersListSearcher {
         VetsLogger.debug("Registered MembersListSearcher on Wynntils event bus");
     }
 
+    /** Disarms the search without running any callback, for
+     *  {@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()} on a
+     *  disconnect. */
+    public static void cancel() {
+        stop();
+    }
+
     /**
      * Arms the searcher to scan the next {@code "<guild>: Members"} menu
      * for {@code name} and invoke {@code handler} once it's located, or

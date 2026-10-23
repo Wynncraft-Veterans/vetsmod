@@ -54,7 +54,8 @@ import org.wynnvets.util.ContainerScreens;
  * {@code /guild manage} goes unanswered. A caller
  * learns of failure only downstream &mdash; from the searcher's watchdog,
  * the Members walker's stall watchdog or the log walker's overall cap
- * &mdash; and none of those disarms a live arm here.</p>
+ * &mdash; and none of those disarms a live arm here; only a disconnect does, through
+ * {@link #cancel()}.</p>
  */
 public final class GuildManageOpener {
 
@@ -108,6 +109,14 @@ public final class GuildManageOpener {
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
         VetsLogger.debug("Registered GuildManageOpener on Wynntils event bus");
+    }
+
+    /** Disarms the open without running any callback, for
+     *  {@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()} on a
+     *  disconnect. */
+    public static void cancel() {
+        target = null;
+        manageContainerId = -1;
     }
 
     /**
