@@ -29,8 +29,9 @@ import org.wynnvets.mwe.anni.mode.AnniModeManager;
  * <p>This class is package-private. Callers outside the package reach it through
  * {@link GuildStateManager}'s facade methods; within the package,
  * {@link SessionAuthWarning} also reads {@link #lastAuthFailureReason()} and
- * {@link #keyRejectedByAuthAck()} directly, and
- * {@link GuildLifecycle} calls {@link #reset()} directly.</p>
+ * {@link #keyRejectedByAuthAck()} directly, {@link ReturnersReauth} reads the key and tier
+ * state and calls {@link #reauth(boolean)}, and {@link GuildLifecycle} calls {@link #reset()}
+ * directly.</p>
  */
 final class UnlockManager {
 
@@ -80,6 +81,12 @@ final class UnlockManager {
      *  survives a disconnect: a key typed off Wynncraft first goes out at the
      *  next Wynncraft join. */
     private static volatile boolean pendingUnlockNotify = false;
+
+    /** {@code true} while a quiet {@link #reauth(boolean)} awaits its ack: a
+     *  {@linkplain ReturnersReauth#isTransient transient} failure of that frame is logged, not
+     *  shown in chat, and not counted as a rejection of the key. Cleared by the next ack either
+     *  way, by a newly stored key and by reset. */
+    private static volatile boolean quietReauth = false;
 
     private UnlockManager() {}
 
@@ -143,6 +150,7 @@ final class UnlockManager {
         authVerifiedThisSession = false;
         lastAuthFailureReason = "";
         keyRejectedByAuthAck = false;
+        quietReauth = false;
     }
 
     // ── Unlock command ────────────────────────────────────────────────
@@ -196,8 +204,9 @@ final class UnlockManager {
         lastAuthFailureReason = "";
         keyRejectedByAuthAck = false;
         // Force the next auth ack to surface its result to the user, even if
-        // printSuccessfulAuth is latched off.
+        // printSuccessfulAuth is latched off, and never let a quiet re-auth swallow it.
         pendingUnlockNotify = true;
+        quietReauth = false;
 
         // Push the new key out immediately so the user sees a result this
         // session rather than only on the next reconnect. V1ApiManager will
@@ -210,6 +219,25 @@ final class UnlockManager {
         return GuildStateManager.UnlockAttemptResult.STORED_VERIFYING;
     }
 
+    /**
+     * Re-sends the stored key's auth frame, for {@link ReturnersReauth} after a mid-session
+     * Returners join. Does nothing without a stored key or a live inbound socket. With
+     * {@code quiet}, a {@linkplain ReturnersReauth#isTransient transient} failure of this frame
+     * stays out of chat (see {@link #onAuthFailure}); a definitive rejection is still shown. It is
+     * never quiet while an {@code /unlock} result is pending ({@link #pendingUnlockNotify}).
+     * A success goes through {@link #onAuthSuccess} as any ack does.
+     */
+    static void reauth(boolean quiet) {
+        String key = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_KEY);
+        if (key == null || key.isEmpty() || !V1ApiManager.isInboundConnected()) {
+            return;
+        }
+        // Never quiet while an /unlock result is pending: this frame's quiet flag would
+        // otherwise also cover that one's ack.
+        quietReauth = quiet && !pendingUnlockNotify;
+        V1ApiManager.sendAuth(key);
+    }
+
     // ── Auth-frame response handlers (direct caller: GuildStateManager) ──────────
 
     /** Called when the server returns {@code {"status":"ok", "tier":...}}
@@ -219,6 +247,7 @@ final class UnlockManager {
         authVerifiedThisSession = true;
         lastAuthFailureReason = "";
         keyRejectedByAuthAck = false;
+        quietReauth = false;
         VetsLogger.info("Auth verified by server: tier={}", currentTier);
         // The ack arrives on the WebSocket thread. The state above is plain
         // volatile writes; the toast, the config latch, the registration
@@ -272,18 +301,32 @@ final class UnlockManager {
     /** Called (through {@link GuildStateManager#onAuthFailure(String)}) when an error ack that
      *  is not staff-action-shaped arrives while an auth ack is awaited, or carries an "auth
      *  rejected" / "Authentication required" detail while no staff-action callback is pending;
-     *  typically {@code {"status":"error", "detail":"auth rejected: <reason>"}}. */
+     *  typically {@code {"status":"error", "detail":"auth rejected: <reason>"}}.
+     *
+     *  <p>The server ends the session on a failed frame, so the state is cleared either way. A
+     *  {@linkplain ReturnersReauth#isTransient transient} failure of a quiet {@link #reauth}
+     *  stops after the log line: no chat line, no re-armed latch, and no key rejection, so
+     *  {@link ReturnersReauth}'s retry still runs.</p> */
     static void onAuthFailure(String detail) {
+        boolean quiet = quietReauth && ReturnersReauth.isTransient(detail);
+        quietReauth = false;
         currentTier = "";
         authVerifiedThisSession = false;
         lastAuthFailureReason = detail == null ? "unknown" : detail;
         // temporary-server's auth handler answers a bad key with "auth rejected: <reason>";
-        // any other detail is not a verdict on the key.
-        keyRejectedByAuthAck = detail != null && detail.startsWith("auth rejected");
-        // Failure path always renders its own message below, so the /unlock
-        // notify request is satisfied by that — no special-casing needed.
+        // any other detail is not a verdict on the key, and nor is a quiet re-auth's
+        // transient one.
+        keyRejectedByAuthAck = !quiet && detail != null && detail.startsWith("auth rejected");
+        // The failure path renders its own message below, so the /unlock notify
+        // request is satisfied by that. Only a quiet re-auth skips it, and reauth is
+        // never quiet while an /unlock result is pending, so that result is never the
+        // quiet one.
         pendingUnlockNotify = false;
         VetsLogger.warn("Auth rejected by server: {}", lastAuthFailureReason);
+        if (quiet) {
+            VetsLogger.warn("Returners re-auth failed transiently; its retry will try again");
+            return;
+        }
 
         // Re-arm the success notification so the next error→recovery cycle
         // surfaces a fresh "verified" confirmation rather than staying silent.

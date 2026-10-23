@@ -29,7 +29,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.fetcher.lookup`](#orgwynnvetsfetcherlookup) — [`MojangCooldownTest`](#mojangcooldowntest)
 - [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
 - [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
-- [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`StaffRankCheckerTest`](#staffrankcheckertest)
+- [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest)
 - [`org.wynnvets.logging`](#orgwynnvetslogging) — [`VetsLoggerTest`](#vetsloggertest)
@@ -1550,6 +1550,25 @@ Test: [`GuildCheckResultTest.java`](../src/test/java/org/wynnvets/guild/GuildChe
   - `fromPersistedValue(v)` is the same instance as `UNKNOWN` for `v` = `0L`, `RETURNERS` for `1L`, `OTHER_GUILD` for `2L`, `GUILDLESS` for `3L`.
 - **`fromPersistedValue_unrecognisedFallsBackToUnknown`**: 4, -1, `Long.MAX_VALUE` and `Long.MIN_VALUE` all map to `UNKNOWN` instead of throwing, so a config written by a newer build reads as "not checked yet".
   - `fromPersistedValue(v)` is the same instance as `UNKNOWN` for `v` = `4L`, `-1L`, `Long.MAX_VALUE`, `Long.MIN_VALUE`.
+
+### `ReturnersReauthTest`
+
+Test: [`ReturnersReauthTest.java`](../src/test/java/org/wynnvets/guild/ReturnersReauthTest.java) · Subject: [`ReturnersReauth`](../src/client/java/org/wynnvets/guild/ReturnersReauth.java)
+
+`ReturnersReauth` re-sends the auth frame when the player joins Returners mid-session. The suite pins its three pure parts: `shouldReauth`, the condition each attempt sends on; `isTransient`, which failure details count as temporary-server failing to reach dazebot's introspection rather than a verdict on the key; and the disconnect fence. `onJoinedReturners` and its attempts read `UnlockManager`, `V1ApiManager` and Wynntils' tick scheduler and are not exercised; `UnlockManager.TIER_MEMBER` is a compile-time constant, so `shouldReauth` does not load `UnlockManager`.
+
+- **`shouldReauth_sendsForAStoredUnrejectedKeyOnALiveSocketBelowMember`**: With a stored, unrejected key and the socket up, every tier but `member` re-sends, including no tier at all.
+  - `shouldReauth(true, true, tier, false)` is true for `tier` = `waitlist`, `honourary`, `other` and the empty string.
+- **`shouldReauth_eachMissingConditionBlocksIt`**: No key, the socket down, a rejected key, or the `member` tier each stop it.
+  - `shouldReauth(false, true, "waitlist", false)`, `shouldReauth(true, false, "waitlist", false)`, `shouldReauth(true, true, "waitlist", true)` and `shouldReauth(true, true, "member", false)` are each false.
+- **`isTransient_holdsForEachIntrospectionFailure`**: Every introspection reason temporary-server's provider produces, as the auth handler wraps it, is transient.
+  - `isTransient` is true for `auth rejected: introspection unavailable: ConnectTimeout`, `… introspection HTTP 502`, `… introspection bad payload`, `… introspection misconfigured (401)` and `… introspection disabled at dazebot`.
+- **`isTransient_failsForAVerdictOnTheKeyAndForNonAuthDetails`**: A rejection of the key, a non-auth refusal and null are not transient.
+  - `isTransient` is false for `auth rejected: revoked`, `auth rejected: unknown key`, `auth rejected: empty key`, `Authentication required` and `null`.
+- **`fenced_runsWhenNoResetCameBetween`**: A fenced body runs when no reset came after its generation was read.
+  - after `fenced(generation(), …).run()`, the counter equals 1.
+- **`fenced_dropsTheRetryAfterAReset`**: A body fenced before a `reset()` does nothing after it.
+  - after `fenced(generation(), …)`, `reset()`, then `run()`, the counter equals 0.
 
 ### `StaffRankCheckerTest`
 

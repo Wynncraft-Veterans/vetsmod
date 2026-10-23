@@ -26,7 +26,7 @@ Key methods:
 - `connect()` — initialize both, called only on a Wynncraft join (§6); inbound gets reconnect callback that re-sends BOTH the cached `register` frame AND a fresh `auth` frame (using `vetsAuthKey` from `VetsConfig`)
 - `disconnect()` — close both cleanly
 - `sendRegistration(uuid, username, tier)` — sends `{type:"register", uuid, username, tier}`; cached for auto-retry
-- `sendAuth(key)` — while the inbound socket is connected, sends `{type:"auth", key}` and sets `expectingAuthAck`; otherwise it returns without sending, and the `connect()` callback sends the stored key on the next (re)connect. An `ok` ack carrying `tier` reaches `GuildStateManager.onAuthSuccess` whether or not the flag is set; while it is set, a non-`ok` ack goes to `onAuthFailure` instead of a pending staff-action callback or the warning log (a staff-action-shaped ack, such as a `would_trigger` preflight, still goes to the head callback, or is dropped when none is pending) (see `InboundAckRouter.route`)
+- `sendAuth(key)` — called by `UnlockManager.tryUnlock` and, after a mid-session Returners join, `UnlockManager.reauth` ([vetsmod_guild_system.md](vetsmod_guild_system.md) §4). While the inbound socket is connected, sends `{type:"auth", key}` and sets `expectingAuthAck`; otherwise it returns without sending, and the `connect()` callback sends the stored key on the next (re)connect. An `ok` ack carrying `tier` reaches `GuildStateManager.onAuthSuccess` whether or not the flag is set; while it is set, a non-`ok` ack goes to `onAuthFailure` instead of a pending staff-action callback or the warning log (a staff-action-shaped ack, such as a `would_trigger` preflight, still goes to the head callback, or is dropped when none is pending) (see `InboundAckRouter.route`)
 - `sendInbound(type, rank, username, message)` — `type` is one of `guild`/`queue`/`waitlist`/`honourary`. `queue` is the one `GuildChatDispatcher` uses while the player is in a world queue and the game server is dropping `/g`. It drops the frame with a debug log while the inbound socket is down, so `GuildChatDispatcher`'s three relays check `isInboundConnected()` first and refuse in red instead of echoing. The queue relay also refuses in red while the guild rank is unknown, since temporary-server rejects a `queue` frame with an empty rank
 - `sendTabList(entries)` — sends `{type:"tablist", entries:[{server, username},...]}`
 - `addOutboundListener(listener)` — register consumer (note: `server_info` frames are intercepted before listeners and routed straight to `SessionAuthWarning.onServerInfo()`)
@@ -260,7 +260,7 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 
 [WynntilsEventListener](../src/client/java/org/wynnvets/listeners/WynntilsEventListener.java):
 - `@SubscribeEvent WorldStateEvent` → on WORLD state, call `GuildLifecycle.onEnteredWorld()`
-- `@SubscribeEvent GuildEvent.Joined/.Left` → call `GuildLifecycle.onGuildInfoUpdated()`
+- `@SubscribeEvent GuildEvent.Joined` → call `GuildLifecycle.onGuildJoined()`, which runs `onGuildInfoUpdated()` and, for Returners, the re-auth ([vetsmod_guild_system.md](vetsmod_guild_system.md) §4); `GuildEvent.Left` → call `GuildLifecycle.onGuildInfoUpdated()`
 - `@SubscribeEvent ChatMessageEvent.Match` (GUILD type) → guild chat relay:
   1. Extract username + message via `GUILD_CHAT_PATTERN` (`^\s*(.+?):\s+(.+)$`)
   2. Strip PUA badge glyphs

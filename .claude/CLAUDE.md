@@ -51,7 +51,8 @@ VetsmodClient (entry point)
   ├── VetsConfig              JSON config at vetsmod/storage/config.json
   ├── ItemDefinitions         YAML regex patterns (src/client/resources/definitions.yml)
   ├── GuildStateManager       Guild/staff/unlock status; facade over GuildChecker, StaffRankChecker, UnlockManager
-  ├── GuildLifecycle          World join, guild updates, disconnect reset; drives SessionAuthWarning, WorldJoinAnnouncer
+  ├── GuildLifecycle          World join, guild updates, disconnect reset; drives SessionAuthWarning, WorldJoinAnnouncer,
+  │                           and ReturnersReauth (re-sends the auth frame on a mid-session Returners join)
   ├── V1ApiManager            Dual WebSocket (inbound + outbound) to api.wynnvets.org
   │                           Sends `auth` frame after inbound connect using the stored /unlock key
   ├── OutboundDisplayHandler  Receives WS messages, deduplicates, displays in chat

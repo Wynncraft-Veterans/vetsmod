@@ -408,7 +408,8 @@ down they echo nothing and print a red "Not sent: vetsmod is not connected to th
 a few seconds.", since `V1ApiManager.sendInbound` would drop the line silently. The queue relay also refuses, with
 a red "Not sent: your guild rank isn't known yet. Try again in a few seconds.", while Wynntils doesn't know the
 player's guild rank, since the server rejects a queue frame without one. A line the server rejects for the sender's
-tier is still echoed.
+tier is still echoed. A waitlister who joins Returners mid-session re-authenticates, so the
+server's tier follows within a few minutes ([vetsmod_guild_system.md](vetsmod_guild_system.md) §4).
 
 A bare `/v`, `/a`, `/encourage`, `/caution`, `/caution-go`, `/warn`, `/eject` or `/wv check` reaches its
 handler with no arguments and prints its usage line; `/eject <name>` with no message prints it too.

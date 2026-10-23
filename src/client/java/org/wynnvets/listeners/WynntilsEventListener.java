@@ -111,15 +111,15 @@ public final class WynntilsEventListener {
     /**
      * Handles the player joining a guild.
      *
-     * <p>Delegates to {@link GuildLifecycle#onGuildInfoUpdated()} to
-     * re-evaluate guild membership and feature gates.
+     * <p>Delegates to {@link GuildLifecycle#onGuildJoined()}, which re-evaluates guild
+     * membership and feature gates and, for a Returners join, re-sends the auth frame.
      *
      * @param event the guild joined event
      */
     @SubscribeEvent
     public void onGuildJoined(GuildEvent.Joined event) {
         VetsLogger.debug("GuildEvent.Joined: {}", event.getGuildName());
-        GuildLifecycle.onGuildInfoUpdated();
+        GuildLifecycle.onGuildJoined();
     }
 
     /**

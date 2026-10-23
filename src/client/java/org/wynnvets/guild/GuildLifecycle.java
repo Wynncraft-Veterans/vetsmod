@@ -25,7 +25,9 @@ import org.wynnvets.util.TickDelays;
  * {@link UnlockManager} directly. A world join can start the guild recheck poll and the delayed
  * {@code /gu stats} check, both run on the client thread a few seconds later through
  * {@link TickDelays}; each gives up if a disconnect has cleared {@link #enteredWorld} by the time
- * it looks. The session-auth warning it schedules does not check the flag.</p>
+ * it looks. The session-auth warning it schedules does not check the flag. A Returners join
+ * mid-session also hands off to {@link ReturnersReauth}, which re-sends the auth frame so the
+ * server's session picks up the member tier.</p>
  */
 public final class GuildLifecycle {
 
@@ -121,9 +123,9 @@ public final class GuildLifecycle {
 
     /**
      * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when a
-     * {@code GuildEvent.Joined} or {@code GuildEvent.Left} event fires, and by
-     * {@link #scheduleGuildRecheck()}'s poll once Wynntils reports a guild after world join,
-     * where no event fired. Both run on the client thread.
+     * {@code GuildEvent.Left} event fires, by {@link #onGuildJoined()} for
+     * {@code GuildEvent.Joined}, and by {@link #scheduleGuildRecheck()}'s poll once Wynntils
+     * reports a guild after world join, where no event fired. All run on the client thread.
      *
      * <p>Clears the mod's own guild check result on both paths, treating Wynntils' guild
      * data as authoritative ({@code guild-recheck-poll-clears-gu-stats-cache}), and
@@ -162,6 +164,20 @@ public final class GuildLifecycle {
         // guild scan landing after world join, seen by the recheck poll);
         // re-evaluate the default anni mode for still-unset users.
         AnniModeManager.applyStartupDefaultIfNeeded();
+    }
+
+    /**
+     * Called by {@link org.wynnvets.listeners.WynntilsEventListener} on the client thread when
+     * Wynntils posts {@code GuildEvent.Joined}, which it does only for the "You have joined"
+     * chat line, after recording the new guild. Re-evaluates guild state as
+     * {@link #onGuildInfoUpdated()} does, then, if the guild is Returners, starts
+     * {@link ReturnersReauth}'s re-auth.
+     */
+    public static void onGuildJoined() {
+        onGuildInfoUpdated();
+        if (GuildStateManager.isReturners()) {
+            ReturnersReauth.onJoinedReturners();
+        }
     }
 
     /**
@@ -232,6 +248,7 @@ public final class GuildLifecycle {
         StaffRankChecker.reset();
         GuildChecker.reset();
         UnlockManager.reset();
+        ReturnersReauth.reset();
         SessionAuthWarning.reset();
         DispatchCoordinator.resetStaffChatEligibilityCache();
     }
