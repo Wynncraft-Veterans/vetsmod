@@ -464,7 +464,7 @@ size and level, and decides, in this order:
 | Input | Gate | Handler | What happens |
 |---|---|---|---|
 | Numpad `+` | the `itemDump` debug key (`/wv debug set itemDump true`), a focused window, the key's rising edge | `DebugKeyHandler` → `ItemDumpHandler.dump` | Writes the hovered item to a new JSON file under `vetsmod/dumps/items/`, or prints a yellow "No item under cursor. Hover over an item in an inventory." `DebugKeyHandler` polls the key each client tick and returns first while `itemDump` is off |
-| Wynntils' screenshot keybind, in an inventory | none | `LegacyTooltipEventListener` → `LegacyItemHandler.notifyScreenshotKeyPressed` | Tells the legacy-item code the screenshot key was pressed; see [project_legacy_items.md](project_legacy_items.md) |
+| Wynntils' screenshot keybind, in an inventory | none | `LegacyTooltipEventListener` → `LegacyItemHandler.notifyScreenshotKeyPressed` | Tells the legacy-item code the screenshot key was pressed over a legacy item; see [project_legacy_items.md](project_legacy_items.md) |
 | Typing in the chat box while in a world queue | none | `CommandSuggestionsMixin` | Suppresses the chat box's usage hint and its red parse error; see [vetsmod_mixins.md](vetsmod_mixins.md) |
 
 vetsmod's own chat buttons:

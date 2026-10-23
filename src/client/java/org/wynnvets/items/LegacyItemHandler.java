@@ -279,7 +279,8 @@ public final class LegacyItemHandler {
     /**
      * If the last processed tooltip was legacy AND a press of the Wynntils screenshot
      * keybind has been latched (by LegacyTooltipEventListener, since the key may
-     * already be released by now; the latch is consumed by this call either way),
+     * already be released by now, and only for a press over a legacy item; the latch
+     * is consumed by this call either way and expires about a second after the press),
      * takes a legacy-aware screenshot of the given tooltip and
      * copies it to the clipboard, overwriting Wynntils' pre-modification screenshot.
      */
@@ -299,10 +300,10 @@ public final class LegacyItemHandler {
 
     /**
      * Called by {@link org.wynnvets.listeners.LegacyTooltipEventListener}
-     * when the Wynntils screenshot keybind is pressed in an inventory.
+     * when the Wynntils screenshot keybind is pressed over a legacy item in an inventory.
      */
     public static void notifyScreenshotKeyPressed() {
-        LegacyScreenshotHandler.screenshotKeyPressed = true;
+        LegacyScreenshotHandler.notifyKeyPressed();
     }
 
     /**

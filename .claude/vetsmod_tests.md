@@ -30,7 +30,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
 - [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
 - [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
-- [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest)
+- [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`ScreenshotLatchTest`](#screenshotlatchtest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest)
 - [`org.wynnvets.logging`](#orgwynnvetslogging) — [`VetsLoggerTest`](#vetsloggertest)
 - [`org.wynnvets.mwe.anni.aggressive`](#orgwynnvetsmweanniaggressive) — [`GhostsPromptHandlerTest`](#ghostsprompthandlertest)
@@ -1700,6 +1700,28 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - After `ItemDefinitions.load()`, `ItemDefinitions.isLegacy("ReloadProbe")` is false (`load()` clears before refilling)
   - After that `load()`, `ItemDefinitions.isLegacy("Wolf Fang")` is true (the real file is back)
   - After a second `ItemDefinitions.load()`, `ItemDefinitions.isLegacy("Wolf Fang")` is true
+
+### `ScreenshotLatchTest`
+
+Test: [`ScreenshotLatchTest.java`](../src/test/java/org/wynnvets/items/ScreenshotLatchTest.java) · Subject: [`ScreenshotLatch`](../src/client/java/org/wynnvets/items/ScreenshotLatch.java)
+
+`ScreenshotLatch` remembers a press of Wynntils' item-screenshot key until the next tooltip pass consumes it. The suite pins the three rules that stop a stale press firing on an unrelated tooltip: a press is consumed exactly once, it is live for `LIFETIME_MS` (1000 ms) after the press and no longer, and a consume past that window still clears it. Time is the `nowMs` parameter, so no test sleeps. The tests use a base time `T0` of 5000.
+
+- **`aFreshLatchIsNotArmed`**: A latch nobody pressed does not report a press.
+  - `new ScreenshotLatch().consume(T0)` is false.
+- **`aPressIsConsumedExactlyOnce`**: One press is reported once, then the latch is empty.
+  - `consume(T0 + 10)` is true after `press(T0)`.
+  - `consume(T0 + 20)` is false straight after.
+- **`aPressIsStillLiveAtTheEndOfItsLifetime`**: A consume exactly `LIFETIME_MS` after the press still counts.
+  - `consume(T0 + LIFETIME_MS)` is true after `press(T0)`.
+- **`aPressPastItsLifetimeIsDroppedAndNeverFiresLater`**: A consume one millisecond past the lifetime reports nothing and clears the press.
+  - `consume(T0 + LIFETIME_MS + 1)` is false after `press(T0)`.
+  - `consume(T0 + LIFETIME_MS + 2)` is false afterwards (the stale press was cleared, not kept).
+- **`aSecondPressRestartsTheLifetime`**: A press 900 ms after the first starts a fresh window.
+  - `consume(T0 + 900 + LIFETIME_MS)` is true after `press(T0)` then `press(T0 + 900)`, a time that is past the first press's lifetime.
+- **`aPressAfterAnExpiredOneArmsAgain`**: After a press has expired and been dropped, a new press works.
+  - `consume(T0 + 5000)` is false after `press(T0)`.
+  - `consume(T0 + 6100)` is true after then `press(T0 + 6000)`.
 
 ## `org.wynnvets.listeners`
 

@@ -66,6 +66,7 @@ VetsmodClient (entry point)
   ├── CommandRegistry         /wv command tree
   ├── items/                  ItemDefinitions plus LegacyItemHandler, LegacyTooltipRenderer,
   │                           NewFormatRenderer, LegacyEnchantmentRenderer, LegacyScreenshotHandler,
+  │                           ScreenshotLatch (its pure press latch),
   │                           LegacyHighlightPainter (the slot highlight both draw sites call)
   ├── mwe/anni/               MWE/annihilation subsystem — snapshot cache, boss bar, outlines,
   │                           zone lines, waypoint, RSVP

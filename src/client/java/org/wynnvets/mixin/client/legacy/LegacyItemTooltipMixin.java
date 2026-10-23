@@ -92,10 +92,11 @@ public class LegacyItemTooltipMixin {
                         LegacyItemHandler.lastProcessedWasLegacy);
                 ((GuiGraphics) (Object) this)
                         .setTooltipForNextFrame(font, modified, image, mouseX, mouseY, border);
-                // If a press of Wynntils' screenshot keybind has been latched (by
-                // LegacyTooltipEventListener, since the key may already be released by
-                // now), take our own screenshot with the fully-modified legacy tooltip
-                // and overwrite the clipboard.
+                // If a press of Wynntils' screenshot keybind over a legacy item has been
+                // latched (by LegacyTooltipEventListener, since the key may already be
+                // released by now; the latch expires after about a second), take our own
+                // screenshot with the fully-modified legacy tooltip and overwrite the
+                // clipboard.
                 LegacyItemHandler.screenshotIfRequested(font, modified);
             } finally {
                 vetsmod$processing = false;

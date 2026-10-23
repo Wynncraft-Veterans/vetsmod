@@ -5,6 +5,7 @@ import com.wynntils.mc.event.InventoryKeyPressEvent;
 import com.wynntils.mc.event.ItemTooltipRenderEvent;
 import com.wynntils.utils.mc.McUtils;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -49,9 +50,12 @@ public final class LegacyTooltipEventListener {
 
     /**
      * Detects when the Wynntils screenshot keybind is pressed in an inventory
-     * screen.  Sets a flag consumed by {@link org.wynnvets.items.LegacyScreenshotHandler
-     * LegacyScreenshotHandler} so the
-     * mixin can take its own screenshot after applying legacy modifications.
+     * screen.  Arms a short-lived latch consumed by the legacy screenshot handler so the
+     * mixin can take its own screenshot after applying legacy modifications.  The latch is
+     * armed only when the hovered slot holds a legacy item, because only then will the mixin
+     * rewrite the tooltip and consume it; and it expires after about a second, so a press that
+     * no tooltip pass picks up (such as the compare view, which bypasses the mixin) cannot
+     * fire on a later, unrelated tooltip.
      *
      * <p>Wynntils processes this same event in {@code KeyBindManager} and
      * passes it to {@code ItemScreenshotFeature.onInventoryPress}, which
@@ -64,9 +68,17 @@ public final class LegacyTooltipEventListener {
         for (KeyMapping km : McUtils.options().keyMappings) {
             if (km.getName().contains("screenshotItem")) {
                 if (km.matches(event.getKeyEvent())) {
-                    LegacyItemHandler.notifyScreenshotKeyPressed();
-                    VetsLogger.debug(
-                            "Screenshot keybind press detected via InventoryKeyPressEvent");
+                    Slot slot = event.getHoveredSlot();
+                    if (slot == null
+                            || !slot.hasItem()
+                            || !LegacyItemHandler.isLegacyItem(slot.getItem())) {
+                        VetsLogger.debug(
+                                "Screenshot keybind pressed over no legacy item; not latched");
+                    } else {
+                        LegacyItemHandler.notifyScreenshotKeyPressed();
+                        VetsLogger.debug(
+                                "Screenshot keybind press detected via InventoryKeyPressEvent");
+                    }
                 }
                 return;
             }

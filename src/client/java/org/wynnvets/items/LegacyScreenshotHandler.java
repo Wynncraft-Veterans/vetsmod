@@ -36,7 +36,8 @@ import org.wynnvets.logging.VetsLogger;
  * level (before our mixin runs), so its screenshot lacks our gold names and
  * LEGACY boxes.  This handler re-renders the final tooltip after all
  * modifications and copies the result to the clipboard, silently replacing
- * Wynntils' version.</p>
+ * Wynntils' version.  It acts only on a key press latched over a legacy item
+ * (see {@link ScreenshotLatch}).</p>
  */
 final class LegacyScreenshotHandler {
 
@@ -51,25 +52,30 @@ final class LegacyScreenshotHandler {
     private LegacyScreenshotHandler() {}
 
     /**
-     * Set by the {@link org.wynnvets.listeners.LegacyTooltipEventListener
-     * LegacyTooltipEventListener} when Wynntils'
-     * {@code InventoryKeyPressEvent} fires with a key matching the
-     * screenshot keybind.  Consumed (reset to false) on the next call
-     * to {@link #isScreenshotRequested()}.
+     * Armed by {@link #notifyKeyPressed()}, which the {@link
+     * org.wynnvets.listeners.LegacyTooltipEventListener LegacyTooltipEventListener} calls when
+     * Wynntils' {@code InventoryKeyPressEvent} fires with the screenshot keybind over a legacy
+     * item.  Consumed by the next call to {@link #isScreenshotRequested()}, or dropped if no
+     * tooltip pass consumes it within {@link ScreenshotLatch#LIFETIME_MS}.
      */
-    static volatile boolean screenshotKeyPressed = false;
+    private static final ScreenshotLatch LATCH = new ScreenshotLatch();
+
+    /** Arms the latch for one screenshot, valid for about a second. */
+    static void notifyKeyPressed() {
+        LATCH.press(nowMs());
+    }
 
     /**
-     * Returns {@code true} exactly once after the screenshot key was pressed.
-     * Resets the flag so subsequent tooltip renders on the same frame don't
-     * re-trigger.
+     * Returns {@code true} exactly once per press, and only if the press is under a second old.
+     * Always disarms the latch, so subsequent tooltip renders on the same frame don't re-trigger
+     * and a stale press never fires on a later tooltip.
      */
     static boolean isScreenshotRequested() {
-        if (screenshotKeyPressed) {
-            screenshotKeyPressed = false;
-            return true;
-        }
-        return false;
+        return LATCH.consume(nowMs());
+    }
+
+    private static long nowMs() {
+        return System.nanoTime() / 1_000_000L;
     }
 
     /**
