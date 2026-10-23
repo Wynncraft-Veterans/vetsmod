@@ -169,10 +169,11 @@ public class VetsmodClient implements ClientModInitializer {
         // S7 — AnniPartyReporter.register() itself touches no Wynntils class, and
         // its snapshot listener reaches Models.Party only through
         // PartyRosterListener.requestRecapture(), which defers the read to a
-        // render-thread task. It still subscribes here rather than in
-        // onInitializeClient, the rule for snapshot listeners
-        // (mod-init-snapshot-listeners-can-reach-wynntils-before-its-init). The
-        // reporter subscribes to AnniSnapshotCache and fires
+        // render-thread task. Snapshots arrive only over the sockets, which open
+        // at a Wynncraft join, or from a /wv debug tree anni command, both after
+        // CLIENT_STARTED, so this placement is kept beside the
+        // other Wynntils-facing registrations rather than needed. The reporter
+        // subscribes to AnniSnapshotCache and fires
         // PartyRosterListener.requestRecapture() on organiser-set transitions,
         // meant to stop a window-open mid-static-party going silent. Today a
         // window opening with an unchanged organiser set fires nothing

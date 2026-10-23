@@ -31,17 +31,17 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * The listener's debounce coalesces this with any near-simultaneous
  * Wynntils events so we never double-send.</p>
  *
- * <p>Init order: call {@link #register()} from
+ * <p>Init order: {@link #register()} is called from
  * {@link org.wynnvets.VetsmodClient#onClientStarted() VetsmodClient.onClientStarted()}, the
- * {@code ClientLifecycleEvents.CLIENT_STARTED} phase, NEVER from
- * {@link org.wynnvets.VetsmodClient#onInitializeClient VetsmodClient#onInitializeClient} itself —
- * Wynntils' {@code Models.*} access from the initializer body can crash the game at start-up (see
- * {@code feedback_vetsmod_wynntils_init_order.md}). Subscribed at {@code CLIENT_STARTED}, its
- * snapshot listener sees no snapshot before Wynntils' own init has run; a listener subscribed in
- * the initializer body has no such guarantee
- * ({@code mod-init-snapshot-listeners-can-reach-wynntils-before-its-init}). This one also reaches
- * {@code Models.Party} only through {@link PartyRosterListener#requestRecapture()}, which hands
- * the read to a render-thread task, and such a task runs only once the game loop does.</p>
+ * {@code ClientLifecycleEvents.CLIENT_STARTED} phase, beside the other Wynntils-facing
+ * registrations. Wynntils' {@code Models.*} access from the body of
+ * {@link org.wynnvets.VetsmodClient#onInitializeClient VetsmodClient#onInitializeClient} can
+ * crash the game at start-up (see {@code feedback_vetsmod_wynntils_init_order.md}), but this
+ * listener makes none there. It reaches {@code Models.Party} only through
+ * {@link org.wynnvets.listeners.PartyRosterListener#requestRecapture()
+ * PartyRosterListener#requestRecapture()}, which hands the read to a render-thread task,
+ * and snapshots arrive only over the sockets, which open at a Wynncraft join, or from a
+ * {@code /wv debug tree anni} command, both after {@code CLIENT_STARTED}.</p>
  */
 public final class AnniPartyReporter {
 
