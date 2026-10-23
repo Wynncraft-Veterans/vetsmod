@@ -98,6 +98,18 @@ final class LegacyScreenshotHandler {
             height += 2 + (tooltip.size() - 1) * 10;
         }
 
+        // Diagnosis for legacy-item-screenshot-key-crops-tooltip: compare these against
+        // the cropped image's pixel size.
+        VetsLogger.debug(
+                "Legacy screenshot: captured {}x{}, screen {}x{}, window {}x{}, gui scale {}",
+                width,
+                height,
+                screen.width,
+                screen.height,
+                McUtils.mc().getWindow().getWidth(),
+                McUtils.mc().getWindow().getHeight(),
+                McUtils.mc().getWindow().getGuiScale());
+
         List<ClientTooltipComponent> rendered =
                 tooltip.stream()
                         .map(Component::getVisualOrderText)
