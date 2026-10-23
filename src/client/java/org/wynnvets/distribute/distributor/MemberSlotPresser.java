@@ -5,7 +5,6 @@ import com.wynntils.core.components.Managers;
 import com.wynntils.core.text.StyledText;
 import com.wynntils.mc.event.ContainerSetContentEvent;
 import com.wynntils.mc.event.MenuEvent;
-import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.List;
 import net.minecraft.ChatFormatting;
@@ -127,11 +126,11 @@ public final class MemberSlotPresser {
      * yellow chat line prints and the callback runs.
      *
      * <p>Equivalent to
-     * {@link #fire(int, Resource, int, String, Runnable) fire(..., closeMembersScreen)}
+     * {@link #fire(int, Resource, int, String, Runnable) fire(..., MembersGui::closeIfOpen)}
      * &mdash; the single-user command closes the GUI when done.</p>
      */
     public static void fire(int slot, Resource resource, int count, String recipientName) {
-        fire(slot, resource, count, recipientName, MemberSlotPresser::closeMembersScreen);
+        fire(slot, resource, count, recipientName, MembersGui::closeIfOpen);
     }
 
     /**
@@ -144,9 +143,7 @@ public final class MemberSlotPresser {
      * left open so the callback can chain the next recipient &mdash; used
      * by {@link DistributionQueue} to visit multiple recipients in one
      * menu session. For the single-user "close when done" behaviour, the
-     * four-argument overload passes {@link #closeMembersScreen()}, which
-     * is package-private; outside {@code distributor/}, call that
-     * overload.
+     * four-argument overload passes {@link MembersGui#closeIfOpen()}.
      */
     public static void fire(
             int slot, Resource resource, int count, String recipientName, Runnable onComplete) {
@@ -286,31 +283,5 @@ public final class MemberSlotPresser {
         // Bumping the token cancels any in-flight timeout for the
         // run we're tearing down.
         timeoutToken++;
-    }
-
-    /**
-     * Dismisses the Members GUI client-side only. {@code setScreen(null)}
-     * runs {@code AbstractContainerScreen.removed()}, which calls just
-     * {@code menu.removed(player)} &mdash; a no-op for a client player
-     * &mdash; so no {@code ServerboundContainerClosePacket} is sent and
-     * {@code player.containerMenu} is not reset, as
-     * {@code LocalPlayer.closeContainer()} would do. (Wynntils' own
-     * screen-close hook sends a close only for its wrapped screens, which
-     * the Members menu is not.) What the server makes of a container it
-     * was never told is closed has not been observed; see
-     * {@code close-members-screen-sends-no-close-packet}. Guarded so it never
-     * closes an unrelated screen the user happens to have open by the
-     * time we get here.
-     *
-     * <p>Package-private so the rest of the package can use it:
-     * {@link DistributionQueue} as the final step when a multi-recipient
-     * queue drains, {@link ObjectivesDistributor} on the two early-outs
-     * where its walk has left the menu open, and this class's own
-     * 4-argument {@link #fire(int, Resource, int, String)}, which passes
-     * it as the single-user command's {@code onComplete}.</p>
-     */
-    static void closeMembersScreen() {
-        if (MembersGui.currentByTitle() == null) return;
-        McUtils.setScreen(null);
     }
 }

@@ -1,12 +1,15 @@
 package org.wynnvets.distribute;
 
 import com.wynntils.core.text.StyledText;
+import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.List;
 import java.util.regex.Pattern;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.ItemStack;
 import org.lwjgl.glfw.GLFW;
+import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.ContainerScreens;
 
 /**
@@ -31,13 +34,19 @@ import org.wynnvets.util.ContainerScreens;
  *   <tr><th>Caller</th><th>Job</th><th>Predicate</th><th>Why</th></tr>
  *   <tr>
  *     <td>{@link org.wynnvets.distribute.distributor.MemberSlotPresser MemberSlotPresser}</td>
- *     <td>every press in a batch, the refresh-confirmation gate, and the close-when-done
- *         guard</td>
+ *     <td>every press in a batch and the refresh-confirmation gate</td>
  *     <td><b>title</b></td>
  *     <td>Wynncraft refreshes the Members menu after every send, and that refresh sometimes
  *         arrives as a reopen under a <em>new</em> container id. Matching on id would
  *         fail on exactly the path this class exists to survive — see its class Javadoc, and
  *         {@code vetsmod_distribute.md} §6 point 2 for the other refresh shape.</td>
+ *   </tr>
+ *   <tr>
+ *     <td>{@link #closeIfOpen()}</td>
+ *     <td>the close at the end of a run</td>
+ *     <td><b>title</b></td>
+ *     <td>The run's last send may have refreshed the menu under a new id. What the close must
+ *         rule out is a screen the player has opened since, not a different Members id.</td>
  *   </tr>
  *   <tr>
  *     <td>{@link org.wynnvets.distribute.walker.MembersListSearcher MembersListSearcher},
@@ -129,6 +138,31 @@ public final class MembersGui {
      */
     public static AbstractContainerScreen<?> currentByTitle() {
         return ContainerScreens.currentWithTitle(TITLE_PATTERN);
+    }
+
+    /**
+     * Closes the Members menu if it is the screen on top, found by {@link #currentByTitle()},
+     * and does nothing otherwise &mdash; so it never closes a screen the player has opened since.
+     * {@code LocalPlayer.closeContainer()} sends the {@code ServerboundContainerClosePacket} for
+     * {@code player.containerMenu}, resets that menu and dismisses the screen, so the server
+     * hears the menu close and a later inventory click is not refused as one in a mismatching
+     * container.
+     *
+     * <p>Called at the end of a single-target send (the four-argument
+     * {@link org.wynnvets.distribute.distributor.MemberSlotPresser#fire(int,
+     * org.wynnvets.distribute.distributor.MemberSlotPresser.Resource, int, String)
+     * MemberSlotPresser.fire}), when the multi-recipient send loop runs dry, and on
+     * {@code @objectives}' two early-outs, where its walk has left the menu open.</p>
+     */
+    public static void closeIfOpen() {
+        AbstractContainerScreen<?> screen = currentByTitle();
+        LocalPlayer player = McUtils.player();
+        if (screen == null || player == null) return;
+        VetsLogger.debug(
+                "MembersGui: closing the Members menu (screen id={}, containerMenu id={})",
+                screen.getMenu().containerId,
+                player.containerMenu.containerId);
+        player.closeContainer();
     }
 
     /**

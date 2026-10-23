@@ -4,6 +4,7 @@ import java.util.Deque;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.logging.VetsLogger;
 
@@ -97,7 +98,8 @@ final class DistributionQueue {
     /**
      * Sends to the head of {@code queue} and re-enters itself when that send finishes, or
      * finishes the run when the queue is empty: green {@code "Distribution complete."},
-     * {@link MemberSlotPresser#closeMembersScreen()}, then {@code onComplete}.
+     * {@link org.wynnvets.distribute.MembersGui#closeIfOpen() MembersGui.closeIfOpen()}, then
+     * {@code onComplete}.
      *
      * @param queue drained in place; the caller keeps no other reference to it
      * @param resource which hotbar button the presser synthesises
@@ -119,7 +121,7 @@ final class DistributionQueue {
         if (queue.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Distribution complete.").withStyle(ChatFormatting.GREEN));
-            MemberSlotPresser.closeMembersScreen();
+            MembersGui.closeIfOpen();
             if (onComplete != null) onComplete.run();
             return;
         }

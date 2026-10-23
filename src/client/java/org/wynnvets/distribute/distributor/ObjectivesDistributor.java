@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.recipients.NoAspectsFilter;
 import org.wynnvets.distribute.walker.MembersListWalker;
@@ -140,7 +141,7 @@ public final class ObjectivesDistributor {
             ChatUtils.sendLocalMessage(
                     Component.literal("No members have completed their guild objective.")
                             .withStyle(ChatFormatting.YELLOW));
-            MemberSlotPresser.closeMembersScreen();
+            MembersGui.closeIfOpen();
             if (onComplete != null) onComplete.run();
             return;
         }
@@ -149,7 +150,7 @@ public final class ObjectivesDistributor {
         if (queue.isEmpty()) {
             // Can happen if count == 0 (excluded by brigadier bounds, but
             // defensive); nothing to send.
-            MemberSlotPresser.closeMembersScreen();
+            MembersGui.closeIfOpen();
             if (onComplete != null) onComplete.run();
             return;
         }

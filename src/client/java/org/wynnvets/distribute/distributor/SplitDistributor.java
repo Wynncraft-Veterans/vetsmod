@@ -57,11 +57,10 @@ public final class SplitDistributor {
     /** Settle gap. Belt-and-braces on top of
      *  {@code Handlers.Command.queueCommand}'s built-in 7-tick command
      *  spacing: a short scheduler delay before each objectives or random
-     *  phase starts. A phase that ends on the Members menu gives it no
-     *  close packet to wait for: it dismisses the menu client-side through
-     *  {@link MemberSlotPresser#closeMembersScreen()}, which sends no
-     *  {@code ServerboundContainerClosePacket} (see
-     *  {@code close-members-screen-sends-no-close-packet}). */
+     *  phase starts. A phase that ends on the Members menu closes it
+     *  through {@link org.wynnvets.distribute.MembersGui#closeIfOpen()
+     *  MembersGui.closeIfOpen()}, which sends the server a close packet;
+     *  the gap also gives that packet time to land. */
     private static final int PHASE_DELAY_TICKS = 10;
 
     private SplitDistributor() {}

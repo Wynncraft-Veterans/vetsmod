@@ -91,7 +91,8 @@ distribute/
 `MembersGui` sits at the package root rather than in `walker/` because
 both Members-menu classes in `walker/` (`MembersListSearcher`,
 `MembersListWalker`) and
-`distributor/`'s `MemberSlotPresser` read from it; a distributor should not import from the walker package to
+`distributor/`'s `MemberSlotPresser` read from it, and three `distributor/` classes close the menu
+through its `closeIfOpen()`; a distributor should not import from the walker package to
 learn the GUI's shape. (`opener/` does not — `GuildManageOpener` drives
 the *Manage* menu and reads only `ContainerScreens`.) It describes the *layout* (mirroring
 Wynntils' `GuildMemberListContainer`), not the subset ≥2 callers share,
@@ -104,8 +105,9 @@ menu and so is not Members-specific. Its third predicate, `current()`, discrimin
 and nothing in this package uses it. See §6 point 2.
 
 `DistributionQueue` is in `distributor/` rather than beside `MembersGui`
-because it calls `MemberSlotPresser.closeMembersScreen()`, which is
-package-private. It owns the drive loop and nothing else: who is owed what
+because the three heads that build its queues are there, and it, its
+`Distribution` record and `processNext` are package-private to them (§10).
+It owns the drive loop and nothing else: who is owed what
 stays with each head, and so do the two things that look shared and are
 not — the arming order, and whether a no-recipient early-out closes the
 menu (§5, and the class Javadoc).
@@ -189,13 +191,13 @@ is what the searcher matches). Each step names the class that owns it:
 10. **`MemberSlotPresser.onRefreshObserved`** waits `PRESS_DELAY_TICKS`,
     then either fires the next press or completes.
 11. On completion `pendingOnComplete` runs — for the literal head that
-    is `MemberSlotPresser.closeMembersScreen`; for the three pool heads
+    is `MembersGui.closeIfOpen`, which sends the close packet; for the three pool heads
     it is `DistributionQueue.processNext`, which all three share and
     none of them declares. `SplitDistributor` has none either: it chains
     whole phases, so under `@split` the callback is still that same
     loop. `processNext` arms the searcher for the next recipient with
     the menu left open — and on its terminal invocation, when the queue
-    is empty, calls `MemberSlotPresser.closeMembersScreen` itself.
+    is empty, calls `MembersGui.closeIfOpen` itself.
 
 **The searcher's scan, step by step.** `MembersListSearcher.scanAndPaginate` runs
 `SCAN_DELAY_TICKS` after the last event that triggers it (§6 point 3) and takes the
@@ -387,9 +389,9 @@ observed Wynncraft behaviour first, then the code shape it forces.
    the package and they are not interchangeable.
    `MembersGui.currentByTitle()` ignores the container id, which is what
    survives the refresh — `MemberSlotPresser` goes by title throughout:
-   every press, the close guard and the `SetContent` refresh check find
+   every press and the `SetContent` refresh check find
    the screen via `currentByTitle()`, and the reopen check matches the
-   event title,
+   event title; so does the close at the end of a run (`MembersGui.closeIfOpen`),
    and the searcher and walker use it in their re-arm fast paths and the
    searcher's mid-search rebind, where there is no *usable* bound id —
    none yet in the fast paths, a stale one in the rebind. `ContainerScreens.currentWithId(int)` takes the caller's bound id
@@ -469,7 +471,7 @@ from behaviour observed elsewhere. Values are current.
 | `MAX_PAGES` | `MembersListWalker` | 30 | Runaway-loop bound — that is the whole of its comment. **No sizing rationale is recorded** for 30, unlike the searcher's 60. Don't infer one from the walk being forward-only |
 | `SETTLE_TICKS` | `GuildLogWalker` | 40 | No new log item for this long ⇒ done. The comment attributes the sizing to Wynntils' own `REQUEST_TIMEOUT = 5` plus `FORCED_LOAD_DELAY = 20` |
 | `OVERALL_TIMEOUT_TICKS` | `GuildLogWalker` | 200 | ~10 s hard cap on the whole log walk |
-| `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Belt-and-braces settle gap before each objectives or random phase starts, on top of `queueCommand`'s 7-tick spacing. A phase that ends on the Members menu gives it no close packet to wait for: it dismisses the menu through `MemberSlotPresser.closeMembersScreen`, which sends none (`close-members-screen-sends-no-close-packet`) |
+| `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Belt-and-braces settle gap before each objectives or random phase starts, on top of `queueCommand`'s 7-tick spacing. A phase that ends on the Members menu closes it through `MembersGui.closeIfOpen`, whose close packet the gap also gives time to land |
 
 `distribute/` makes 11 of the repo's 12 `Managers.TickScheduler.scheduleLater`
 calls, across 8 of its 16 files, and calls the scheduler directly. The twelfth
