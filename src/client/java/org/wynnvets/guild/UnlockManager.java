@@ -2,6 +2,7 @@ package org.wynnvets.guild;
 
 import com.wynntils.utils.mc.McUtils;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
@@ -84,8 +85,9 @@ final class UnlockManager {
      *  the resulting auth-frame ack. Forces the next success ack to render its
      *  confirmation message regardless of {@link VetsConfigKeys#PRINT_SUCCESSFUL_AUTH}
      *  so the player always sees the result of their attempt. Cleared only by
-     *  the success and failure handlers, so it survives a disconnect: a key typed
-     *  off Wynncraft first goes out at the next Wynncraft join. */
+     *  the failure handler and by the success line actually showing, so it
+     *  survives a disconnect: a key typed off Wynncraft first goes out at the
+     *  next Wynncraft join. */
     private static volatile boolean pendingUnlockNotify = false;
 
     /** Debug-only override: pretend the user is guildless+unlocked. */
@@ -259,12 +261,20 @@ final class UnlockManager {
         lastAuthFailureReason = "";
         keyRejectedByAuthAck = false;
         VetsLogger.info("Auth verified by server: tier={}", currentTier);
+        // The ack arrives on the WebSocket thread. The state above is plain
+        // volatile writes; the toast, the config latch and the registration
+        // refresh belong on the client thread.
+        McUtils.mc().execute(UnlockManager::showAuthSuccess);
+    }
 
-        boolean fromUnlock = pendingUnlockNotify;
-        pendingUnlockNotify = false;
+    /** The client-thread half of {@link #onAuthSuccess}: the confirmation, its latch and the
+     *  registration refresh. {@link #pendingUnlockNotify} is consumed only when the line is
+     *  shown, so an ack that lands before there is a player leaves it for the next one. */
+    private static void showAuthSuccess() {
         boolean configWantsPrint = VetsConfig.get(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH);
-
-        if (McUtils.player() != null && (fromUnlock || configWantsPrint)) {
+        LocalPlayer player = McUtils.player();
+        if (player != null && (pendingUnlockNotify || configWantsPrint)) {
+            pendingUnlockNotify = false;
             Component msg =
                     Component.literal("Authentication verified - tier: " + currentTier)
                             .withStyle(ChatFormatting.GREEN);
@@ -277,7 +287,7 @@ final class UnlockManager {
                 // matters.
                 ChatUtils.sendLocalMessage(msg);
             } else {
-                McUtils.player().displayClientMessage(msg, true);
+                player.displayClientMessage(msg, true);
             }
             // Latch off so the message doesn't re-fire on every WS reconnect.
             // onAuthFailure() flips it back on so a transient error→recovery
@@ -315,12 +325,19 @@ final class UnlockManager {
         // surfaces a fresh "verified" confirmation rather than staying silent.
         VetsConfig.set(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH, true);
 
-        ChatUtils.sendLocalMessage(
-                Component.literal(
-                                "Authentication failed: "
-                                        + lastAuthFailureReason
-                                        + ". Try `~vetsmod` in #bot-commands at https://wynnvets.org/discord "
-                                        + "to issue a new key?")
-                        .withStyle(ChatFormatting.RED));
+        // Hop to the client thread for the chat line, as the success path does.
+        String reason = lastAuthFailureReason;
+        McUtils.mc()
+                .execute(
+                        () ->
+                                ChatUtils.sendLocalMessage(
+                                        Component.literal(
+                                                        "Authentication failed: "
+                                                                + reason
+                                                                + ". Try `~vetsmod` in"
+                                                                + " #bot-commands at"
+                                                                + " https://wynnvets.org/discord"
+                                                                + " to issue a new key?")
+                                                .withStyle(ChatFormatting.RED)));
     }
 }
