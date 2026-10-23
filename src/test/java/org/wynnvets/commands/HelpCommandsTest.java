@@ -251,20 +251,30 @@ class HelpCommandsTest {
         assertPage(
                 HelpCommands.buildHelpConfig(),
                 boldSib(ChatFormatting.GOLD, "Config Options\n"),
-                sib(ChatFormatting.GRAY, "Toggle with: /wv config <key> <true|false>\n\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Toggle with: /wv config <key> <true|false>;"
+                                + " handleSpoilers also takes default.\n"
+                                + "These are the common toggles; /wv config lists every key.\n\n"),
                 sib(ChatFormatting.YELLOW, "legacyItemHighlighting\n"),
                 sib(ChatFormatting.GRAY, "  Highlights old items when in your inventory\n"),
                 sib(ChatFormatting.YELLOW, "printMOTD\n"),
                 sib(ChatFormatting.GRAY, "  Auto-print the message of the day on world join\n"),
                 sib(ChatFormatting.YELLOW, "printANNI\n"),
-                sib(ChatFormatting.GRAY, "  Auto-print the annihilation timer on world join\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "  Auto-print the annihilation timer on world join"
+                                + " (Returners members only)\n"),
                 sib(ChatFormatting.YELLOW, "printBridgeMessages\n"),
                 sib(
                         ChatFormatting.GRAY,
                         "  Show messages delivered through the bridge, including discord,"
                                 + " queue, waitlist, and honourary chats.\n"),
                 sib(ChatFormatting.YELLOW, "showSupporterGlints\n"),
-                sib(ChatFormatting.GRAY, "  Show supporter animated gradient glints on nametags\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "  Show supporter animated gradient glints on nametags,"
+                                + " chat pills and /wv list\n"),
                 sib(ChatFormatting.YELLOW, "colorBlindMode\n"),
                 sib(
                         ChatFormatting.GRAY,
@@ -273,7 +283,8 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "handleSpoilers\n"),
                 sib(
                         ChatFormatting.GRAY,
-                        "  Render ||spoiler|| markers as hoverable spoiler labels\n"),
+                        "  Encode ||spoiler|| markers in your /g and /wg,"
+                                + " and render them as hoverable labels\n"),
                 sib(ChatFormatting.YELLOW, "moreReliableGuildCheck\n"),
                 sib(
                         ChatFormatting.GRAY,

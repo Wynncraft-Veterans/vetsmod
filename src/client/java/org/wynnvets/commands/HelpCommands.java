@@ -240,13 +240,23 @@ final class HelpCommands {
     static MutableComponent buildHelpConfig() {
         MutableComponent msg = Component.empty();
         title(msg, "Config Options\n");
-        line(msg, ChatFormatting.GRAY, "Toggle with: /wv config <key> <true|false>\n\n");
+        line(
+                msg,
+                ChatFormatting.GRAY,
+                "Toggle with: /wv config <key> <true|false>;"
+                        + " handleSpoilers also takes default.\n"
+                        + "These are the common toggles; /wv config lists every key.\n\n");
         row(
                 msg,
                 "legacyItemHighlighting\n",
                 gray("  Highlights old items when in your inventory\n"));
         row(msg, "printMOTD\n", gray("  Auto-print the message of the day on world join\n"));
-        row(msg, "printANNI\n", gray("  Auto-print the annihilation timer on world join\n"));
+        row(
+                msg,
+                "printANNI\n",
+                gray(
+                        "  Auto-print the annihilation timer on world join"
+                                + " (Returners members only)\n"));
         row(
                 msg,
                 "printBridgeMessages\n",
@@ -256,7 +266,9 @@ final class HelpCommands {
         row(
                 msg,
                 "showSupporterGlints\n",
-                gray("  Show supporter animated gradient glints on nametags\n"));
+                gray(
+                        "  Show supporter animated gradient glints on nametags,"
+                                + " chat pills and /wv list\n"));
         row(
                 msg,
                 "colorBlindMode\n",
@@ -266,7 +278,9 @@ final class HelpCommands {
         row(
                 msg,
                 "handleSpoilers\n",
-                gray("  Render ||spoiler|| markers as hoverable spoiler labels\n"));
+                gray(
+                        "  Encode ||spoiler|| markers in your /g and /wg,"
+                                + " and render them as hoverable labels\n"));
         row(
                 msg,
                 "moreReliableGuildCheck\n",

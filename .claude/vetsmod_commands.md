@@ -84,7 +84,7 @@ What each gate checks:
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
 | `/wv help` | none | none | `HelpCommands.help` → `buildHelp` | The index page. `/wv help`, `/wv anni`, `/wv config` and `/wv debug` always; `/wv motd` when `isEligibleForEnrichment()`; `/wv list` and `/wv staff` when `isUnlocked()`; `/wv return` and `/wv line` when `areFeaturesEnabled()`; `/wv check` when `isStaff()` | chat only | `help-advertises-wv-check-on-a-weaker-gate`, `help-footers-name-gates-return-and-motd-lack`, `wv-help-omits-five-registered-paths` |
-| `/wv help config`, `check`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger` | none | none | `HelpCommands.helpX` → `buildHelpX` | One detail page each. Most are a usage line, a line of prose and a `Requires:` footer; the config page lists its keys with no footer, and the debug pages list their subcommands, keys or actions above the footer | chat only | `help-config-page-understates-its-keys`, `help-debug-trigger-documents-three-of-eight-leaves` |
+| `/wv help config`, `check`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger` | none | none | `HelpCommands.helpX` → `buildHelpX` | One detail page each. Most are a usage line, a line of prose and a `Requires:` footer; the config page lists its keys with no footer, and the debug pages list their subcommands, keys or actions above the footer | chat only | `help-debug-trigger-documents-three-of-eight-leaves` |
 
 Every page is a `buildX` returning the page plus a `helpX` that sends it, so a page is a value a
 test can compare: `HelpCommandsTest` pins each one as a tree. The pages are assembled from `HelpCommands`'
