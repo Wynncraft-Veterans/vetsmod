@@ -888,7 +888,7 @@ Internal, not user-facing:
 
 ## Debug harness
 
-All under `/wv debug tree anni …` (the `tree` literal nests subsystem-specific debug trees so top-level `/wv debug` stays generic). `AnniDebugCommands.buildCommandTree` registers **11 top-level literals** and **24 executable leaves**.
+All under `/wv debug tree anni …` (the `tree` literal nests subsystem-specific debug trees so top-level `/wv debug` stays generic). `AnniDebugCommands.buildCommandTree` registers **11 top-level literals** and **24 executable leaves**. A node typed without the argument it needs, such as a bare `registry clear`, prints a red usage line instead of going to the server as "Invalid command"; 18 nodes carry one. A bare container such as `registry` that needs a subcommand still goes to the server.
 
 **`snapshot`** — cache manipulation.
 - `snapshot inject preset <name>` — loads from `src/client/resources/assets/vetsmod/anni_test_snapshots/<name>.json`. Preset name auto-sets the external override (`external_*` → forced external, `member_*` → forced vets, others → auto).

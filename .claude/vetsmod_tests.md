@@ -961,12 +961,13 @@ Test: [`UserTest.java`](../src/test/java/org/wynnvets/datamodels/UserTest.java) 
 
 Test: [`AnniDebugCommandsTest.java`](../src/test/java/org/wynnvets/debug/anni/AnniDebugCommandsTest.java) · Subject: [`AnniDebugCommands`](../src/client/java/org/wynnvets/debug/anni/AnniDebugCommands.java)
 
-`AnniDebugCommands` builds the Brigadier `anni` command tree mounted under `/wv debug tree`, and that tree is built when the client joins a server. The suite builds the tree and checks it does not throw and has the shape its Javadoc documents: root literal `anni`, a fixed number of top-level children and a fixed number of executable nodes. No command is run; building the tree initialises the suggestion providers but not the handler classes that need the game directory. A small recursive helper counts nodes that carry a command.
+`AnniDebugCommands` builds the Brigadier `anni` command tree mounted under `/wv debug tree`, and that tree is built when the client joins a server. The suite builds the tree and checks it does not throw and has the shape its Javadoc documents: root literal `anni`, a fixed number of top-level children, of handler leaves, and of inner nodes whose command prints a usage line. No command is run; building the tree initialises the suggestion providers but not the handler classes that need the game directory. A small recursive helper counts the nodes that carry a command, leaves or inner nodes.
 
-- **`treeBuildsWithItsDocumentedShape`**: `buildCommandTree().build()` yields a root named `anni` with 11 children and 24 descendant-or-self nodes that have a command.
+- **`treeBuildsWithItsDocumentedShape`**: `buildCommandTree().build()` yields a root named `anni` with 11 children, 24 leaves that have a command (the handlers) and 18 inner nodes that have one (the usage lines).
   - `anni.getName()` equals `"anni"`, where `anni` is the `LiteralCommandNode` from `AnniDebugCommands.buildCommandTree().build()`.
   - `anni.getChildren().size()` equals 11, the direct children of the root.
-  - `executableNodes(anni)` equals 24: the count of nodes with a non-null command, the root included, summed over the whole tree.
+  - `commandNodes(anni, true)` equals 24: leaves (no children) with a non-null command, over the whole tree.
+  - `commandNodes(anni, false)` equals 18: inner nodes (with children) with a non-null command.
 
 ## `org.wynnvets.distribute`
 

@@ -265,7 +265,8 @@ The trigger leaves:
 
 **The anni debug harness** under `/wv debug tree anni` has 11 literals (`snapshot`, `guess`, `external`,
 `time`, `zone`, `flash`, `mode`, `scrollspot`, `alert`, `rsvp` and `registry`) and 24 executable leaves,
-both pinned by `AnniDebugCommandsTest`. Every leaf refuses without debug logging ("anni debug commands require debug
+both pinned by `AnniDebugCommandsTest`, as are the 18 nodes above a required argument that print a red
+"Usage: /wv debug tree anni …" line when typed bare (rather than going to the server as "Invalid command"). Every leaf refuses without debug logging ("anni debug commands require debug
 logging - run /wv debug true first"). The `scrollspot` leaves also refuse a player who is neither staff nor
 an organiser ("scrollspot is for party hosts / staff only."), and the ones that write to the server
 (`set`, `here` and `clear`) also need an authenticated session. The leaves with effects outside the client's memory are `snapshot dump` (writes a
