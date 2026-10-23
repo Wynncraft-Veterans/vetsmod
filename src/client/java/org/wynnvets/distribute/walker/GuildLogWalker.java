@@ -100,13 +100,16 @@ public final class GuildLogWalker {
     private static volatile Completion completion = null;
     private static final List<GuildLogItem> collected = new ArrayList<>();
 
-    /** Tick of the last new GuildLogItem, or of the bind if none has
-     *  landed yet (-1 until the walk binds); the settle timer measures
-     *  from this. */
-    private static volatile int lastItemTick = -1;
+    /** Ticks since the walk was armed, counted by {@link #onTick} itself. The player entity's
+     *  {@code tickCount} would restart on a respawn or world change mid-walk, which reset both
+     *  timers below. */
+    private static volatile int ticks = 0;
 
-    /** Tick on which the walk was armed (for overall timeout). */
-    private static volatile int startTick = -1;
+    /** {@link #ticks} at the last new GuildLogItem, or at the bind if none has
+     *  landed yet (-1 until the walk binds); the settle timer measures
+     *  from this. The overall timeout measures from the arm, where
+     *  {@link #ticks} starts. */
+    private static volatile int lastItemTick = -1;
 
     private GuildLogWalker() {}
 
@@ -130,7 +133,7 @@ public final class GuildLogWalker {
         containerId = -1;
         collected.clear();
         lastItemTick = -1;
-        startTick = McUtils.player() != null ? McUtils.player().tickCount : 0;
+        ticks = 0;
         VetsLogger.debug("GuildLogWalker: armed, awaiting menu open");
     }
 
@@ -140,7 +143,7 @@ public final class GuildLogWalker {
         containerId = -1;
         collected.clear();
         lastItemTick = -1;
-        startTick = -1;
+        ticks = 0;
     }
 
     @SubscribeEvent
@@ -158,7 +161,7 @@ public final class GuildLogWalker {
         containerId = event.getContainerId();
         // Set the last-item tick to "now" so we don't immediately settle
         // before any items have had time to arrive.
-        lastItemTick = currentTick();
+        lastItemTick = ticks;
         VetsLogger.debug("GuildLogWalker: bound to menu id={} title=[{}]", containerId, titleText);
     }
 
@@ -190,20 +193,20 @@ public final class GuildLogWalker {
         // arrives in more than one SetSlot packet.
         if (alreadyCollected(item)) return;
         collected.add(item);
-        lastItemTick = currentTick();
+        lastItemTick = ticks;
     }
 
     @SubscribeEvent
     public void onTick(TickEvent event) {
         if (!active) return;
-        int now = currentTick();
+        int now = ++ticks;
         // Overall-timeout check is first and outside the containerId
         // guard so a walk that's armed but never sees a menu open
         // (e.g. the open command was silently dropped server-side)
         // still ends after the deadline: it delivers the callback (with
         // an empty list) so a chained caller advances, and it disarms,
         // so a later unrelated guild-log open can't bind the stale arm.
-        if (now - startTick > OVERALL_TIMEOUT_TICKS) {
+        if (now > OVERALL_TIMEOUT_TICKS) {
             VetsLogger.debug(
                     "GuildLogWalker: overall timeout reached (boundId={}, {} entries)",
                     containerId,
@@ -212,7 +215,7 @@ public final class GuildLogWalker {
             return;
         }
         if (containerId == -1) return;
-        if (lastItemTick > 0 && now - lastItemTick > SETTLE_TICKS) {
+        if (lastItemTick >= 0 && now - lastItemTick > SETTLE_TICKS) {
             VetsLogger.debug("GuildLogWalker: settled after {} entries", collected.size());
             finishWalk(true);
         }
@@ -242,9 +245,5 @@ public final class GuildLogWalker {
             McUtils.setScreen(null);
         }
         if (cb != null) cb.onComplete(snapshot);
-    }
-
-    private static int currentTick() {
-        return McUtils.player() != null ? McUtils.player().tickCount : 0;
     }
 }

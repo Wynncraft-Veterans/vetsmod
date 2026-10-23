@@ -428,8 +428,9 @@ observed Wynncraft behaviour first, then the code shape it forces.
    API surfaces the holder, so `GuildLogWalker` cannot ask whether the
    walk is done. It infers completion from a settle timer instead —
    and that timer is the one place in the package driven by
-   `@SubscribeEvent onTick(TickEvent)` against
-   `McUtils.player().tickCount`, not by `Managers.TickScheduler`.
+   `@SubscribeEvent onTick(TickEvent)`, not by `Managers.TickScheduler`.
+   It counts its own ticks from the arm: the player entity's
+   `tickCount` restarts on a respawn or world change.
 
    ⚠️ **The auto-pagination itself is conditional.** `GuildLogHolder` is
    on Wynntils' event bus only while Wynntils has *wrapped* the log
