@@ -157,35 +157,40 @@ public final class UserInfoFetcher {
                                             payloadGuild.getName(), synthUuid.id)
                                     : CompletableFuture.completedFuture(Optional.<String>empty());
                     // <<< PATCH END: WYNN-STALE-WORKAROUND
-                    return returnersFuture.thenCombine(
-                            snapFuture,
-                            (returners, snapshot) -> {
-                                // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-                                // Reason/Remove: see the first workaround block in this class.
-                                // Join the roster crosscheck before render. The helper's 5s
-                                // request timeout bounds the wait for response headers (in JDK
-                                // 21's implementation, not the body read), and it returns
-                                // Optional.empty() on failure. Today, while the crosscheck is
-                                // still pending, the join blocks whichever thread completed the
-                                // later of returnersFuture and snapFuture, such as a
-                                // CompletableFuture default-pool thread or the thread that
-                                // delivers inbound WebSocket frames (see
-                                // user-info-fetcher-join-blocks-completing-thread).
-                                Optional<String> confirmedNonReturnersRank =
-                                        confirmedNonReturnersRankFuture.join();
-                                // <<< PATCH END: WYNN-STALE-WORKAROUND
-                                McUtils.mc()
-                                        .execute(
-                                                () ->
-                                                        CheckReportRenderer.renderCheck(
-                                                                requestedName,
-                                                                synthUuid,
-                                                                user,
-                                                                returners,
-                                                                snapshot,
-                                                                confirmedNonReturnersRank));
-                                return null;
-                            });
+                    // Render once all three have completed, so the joins below never block
+                    // whichever thread completed the last of them, such as the one that
+                    // delivers inbound WebSocket frames. An exceptional input skips the
+                    // render, as before.
+                    return CompletableFuture.allOf(
+                                    returnersFuture, snapFuture, confirmedNonReturnersRankFuture)
+                            .thenApply(
+                                    ignored -> {
+                                        ReturnersRosterProbe.ReturnersMembership returners =
+                                                returnersFuture.join();
+                                        MembershipSnapshot snapshot = snapFuture.join();
+                                        // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
+                                        // Reason/Remove: see the first workaround block in this
+                                        // class.
+                                        // The roster crosscheck, already complete. The helper's 5s
+                                        // request timeout bounds the wait for response headers (in
+                                        // JDK
+                                        // 21's implementation, not the body read), and it returns
+                                        // Optional.empty() on failure.
+                                        Optional<String> confirmedNonReturnersRank =
+                                                confirmedNonReturnersRankFuture.join();
+                                        // <<< PATCH END: WYNN-STALE-WORKAROUND
+                                        McUtils.mc()
+                                                .execute(
+                                                        () ->
+                                                                CheckReportRenderer.renderCheck(
+                                                                        requestedName,
+                                                                        synthUuid,
+                                                                        user,
+                                                                        returners,
+                                                                        snapshot,
+                                                                        confirmedNonReturnersRank));
+                                        return null;
+                                    });
                 });
     }
 
