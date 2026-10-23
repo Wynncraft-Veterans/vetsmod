@@ -35,7 +35,8 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>This class is package-private. Callers outside the package reach it through
  * {@link GuildStateManager}'s facade methods; within the package,
- * {@link SessionAuthWarning} also reads {@link #lastAuthFailureReason()} directly, and
+ * {@link SessionAuthWarning} also reads {@link #lastAuthFailureReason()} and
+ * {@link #keyRejectedByAuthAck()} directly, and
  * {@link GuildLifecycle} calls {@link #isDebugForceGuildlessUnlocked()} and {@link #reset()}
  * directly.</p>
  */
@@ -74,6 +75,11 @@ final class UnlockManager {
      *  an "Authentication required" refusal of a non-auth frame. */
     private static volatile String lastAuthFailureReason = "";
 
+    /** {@code true} when the standing failure is a rejection of the key by an auth reply
+     *  ({@code "auth rejected: <reason>"}), as opposed to an "Authentication required" refusal
+     *  of some other frame. Cleared with {@link #lastAuthFailureReason}. */
+    private static volatile boolean keyRejectedByAuthAck = false;
+
     /** {@code true} when the user has just run {@code /unlock} and is awaiting
      *  the resulting auth-frame ack. Forces the next success ack to render its
      *  confirmation message regardless of {@link VetsConfigKeys#PRINT_SUCCESSFUL_AUTH}
@@ -109,6 +115,13 @@ final class UnlockManager {
 
     static String lastAuthFailureReason() {
         return lastAuthFailureReason;
+    }
+
+    /** Whether the standing auth failure ({@link #lastAuthFailureReason}) is a rejection of
+     *  the stored key by an auth reply; a later refusal of some other frame replaces it, and
+     *  clears this. See {@link #keyRejectedByAuthAck}. */
+    static boolean keyRejectedByAuthAck() {
+        return keyRejectedByAuthAck;
     }
 
     /** @return {@code true} if the player has unlocked as a waitlist member */
@@ -158,6 +171,7 @@ final class UnlockManager {
         currentTier = "";
         authVerifiedThisSession = false;
         lastAuthFailureReason = "";
+        keyRejectedByAuthAck = false;
     }
 
     /** Reset transient session state on disconnect. The persisted key remains, and so does
@@ -167,6 +181,7 @@ final class UnlockManager {
         currentTier = "";
         authVerifiedThisSession = false;
         lastAuthFailureReason = "";
+        keyRejectedByAuthAck = false;
     }
 
     // ── Unlock command ────────────────────────────────────────────────
@@ -218,6 +233,7 @@ final class UnlockManager {
         currentTier = "";
         authVerifiedThisSession = false;
         lastAuthFailureReason = "";
+        keyRejectedByAuthAck = false;
         // Force the next auth ack to surface its result to the user, even if
         // printSuccessfulAuth is latched off.
         pendingUnlockNotify = true;
@@ -241,6 +257,7 @@ final class UnlockManager {
         currentTier = tier == null ? TIER_OTHER : tier;
         authVerifiedThisSession = true;
         lastAuthFailureReason = "";
+        keyRejectedByAuthAck = false;
         VetsLogger.info("Auth verified by server: tier={}", currentTier);
 
         boolean fromUnlock = pendingUnlockNotify;
@@ -286,6 +303,9 @@ final class UnlockManager {
         currentTier = "";
         authVerifiedThisSession = false;
         lastAuthFailureReason = detail == null ? "unknown" : detail;
+        // temporary-server's auth handler answers a bad key with "auth rejected: <reason>";
+        // any other detail is not a verdict on the key.
+        keyRejectedByAuthAck = detail != null && detail.startsWith("auth rejected");
         // Failure path always renders its own message below, so the /unlock
         // notify request is satisfied by that — no special-casing needed.
         pendingUnlockNotify = false;

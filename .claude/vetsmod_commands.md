@@ -378,7 +378,7 @@ case 3. The markers are meant to do nothing else; today they also still unlock c
 
 Bugs: `legacy-unlock-markers-still-grant-client-unlock`,
 `auth-success-toast-rendered-off-render-thread`, `anni-default-not-reapplied-on-auth-tier-flip`,
-`outbound-socket-never-authenticated`, `session-auth-warning-reports-rejection-without-one`,
+`outbound-socket-never-authenticated`,
 `ws-client-send-ignores-send-pending-failure`.
 
 ### The intercepted prefixes

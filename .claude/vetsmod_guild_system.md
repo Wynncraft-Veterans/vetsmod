@@ -123,6 +123,7 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 - `currentTier` — populated by the server's auth-frame ack
 - `authVerifiedThisSession` — boolean set true by each ok auth ack; cleared by an auth failure, a newly stored key, or a disconnect
 - `lastAuthFailureReason` — set by `onAuthFailure`: an auth rejection, or another error ack `InboundAckRouter` classes as an auth failure, such as an "Authentication required" refusal of a non-auth frame. Cleared by a later ok auth ack, a newly stored key, or a disconnect. Used by SessionAuthWarning (case 2)
+- `keyRejectedByAuthAck` — set by `onAuthFailure` when the detail starts with `auth rejected` (temporary-server's reply to a bad key), false for any other failure; cleared with `lastAuthFailureReason`. Used by SessionAuthWarning (case 2) to tell a rejected key from an unverified one
 
 **Public API (package-level):**
 - `tryUnlock(key)` returns `GuildStateManager.UnlockAttemptResult` (`MISSING_KEY` / `MALFORMED` / `STORED_VERIFYING`). Stores the key, clears stale tier state, and calls `V1ApiManager.sendAuth(key)`, which sends the auth frame now if the inbound WS is up or otherwise leaves it to go out on the next (re)connect.
@@ -143,7 +144,10 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 
 **Cases:**
 1. Authenticated this session → silent.
-2. Stored key but server rejected → "Your stored vetsmod key was rejected (<reason>). Run ~vetsmod in #bot-commands to issue a new one." (red). Today this fires whenever a stored key has no ok ack about 5 s after world join, rejected or not (bug `session-auth-warning-reports-rejection-without-one`).
+2. Stored key, not verified about 5 s after world join:
+   - an auth reply rejected it (`keyRejectedByAuthAck`) → "Your stored vetsmod key was rejected (<reason>). Run ~vetsmod in #bot-commands to issue a new one." (red)
+   - the inbound socket is down → "Couldn't verify your vetsmod key: Unable to reach the vets API, which may be down." (yellow, no Discord link)
+   - connected, no verdict yet → silent; the auth reply prints its own line when it lands
 3. Plausible VETS user (in Returners or has legacy unlock marker) with no stored key:
    - if server's `unauth_enabled=true` → "vetsmod is running unauthenticated. Vets chat still works for now, but authentication will become mandatory soon. Run ~vetsmod in #bot-commands to /unlock." (yellow)
    - if server's `unauth_enabled=false` → "You aren't authenticated. Vetsmod cannot send or receive VETS chat or use guild-specific features until you /unlock. Run ~vetsmod in #bot-commands to get a key." (red)
