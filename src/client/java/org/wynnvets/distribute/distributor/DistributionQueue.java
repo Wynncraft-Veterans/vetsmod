@@ -80,8 +80,7 @@ import org.wynnvets.logging.VetsLogger;
  *       {@link GraidsDistributor} does not, because none of its early-outs has opened the
  *       Members menu, so there is no Members menu for it to close &mdash; the Guild Log, if
  *       {@link org.wynnvets.distribute.walker.GuildLogWalker GuildLogWalker} bound it, the walker
- *       closes itself, and a Manage menu the Log route left open is a different menu
- *       ({@code graids-log-never-reached-reported-as-empty-log});
+ *       closes itself, and the opener closes a Manage menu that has no Guild Log tile;
  *       {@link RandomDistributor} does not,
  *       because at that point it has opened nothing at all.</li>
  * </ul>

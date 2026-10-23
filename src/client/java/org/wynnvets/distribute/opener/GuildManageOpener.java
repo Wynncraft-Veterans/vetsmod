@@ -9,6 +9,7 @@ import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.List;
 import java.util.regex.Pattern;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -47,8 +48,8 @@ import org.wynnvets.util.ContainerScreens;
  * <h2>No outcome is reported</h2>
  * <p>Neither open method reports whether it worked: both are
  * {@code void}, with no callback. This class records a failed open at
- * most as a debug line, and the only visible sign may be a Manage menu
- * left on screen. An arm survives other menus opening in between, and
+ * most as a debug line; a Manage menu with no Guild Log tile is closed
+ * again. An arm survives other menus opening in between, and
  * expires {@link #ARM_TTL_MS} after the open call if its
  * {@code /guild manage} goes unanswered. A caller
  * learns of failure only downstream &mdash; from the searcher's watchdog,
@@ -212,7 +213,11 @@ public final class GuildManageOpener {
                 return;
             }
         }
-        VetsLogger.debug("GuildManageOpener: Guild Log tile not found in Manage items");
+        // No tile to click: close the Manage menu we opened rather than leave
+        // it on screen. The log walker's overall timeout then stops the run.
+        VetsLogger.debug("GuildManageOpener: Guild Log tile not found in Manage items, closing");
+        LocalPlayer player = McUtils.player();
+        if (player != null) player.closeContainer();
         target = null;
         manageContainerId = -1;
     }

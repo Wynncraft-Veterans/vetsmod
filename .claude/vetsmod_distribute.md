@@ -377,7 +377,8 @@ observed Wynncraft behaviour first, then the code shape it forces.
    and navigates: `onMenuOpenPost` binds the Manage container,
    `onSetContent` scans every item for the hover name matching
    Wynntils' `CustomGuildLogScreenFeature.GUILD_LOG_ITEM_PATTERN`
-   (`§7§lGuild Log`), and clicks that slot. The tile's index is not
+   (`§7§lGuild Log`), and clicks that slot; a Manage menu without that
+   tile is closed again. The tile's index is not
    hardcoded anywhere in Wynntils and Wynncraft has shifted the Manage
    layout before, which is why this path can't use the Members path's
    cancel-and-click-slot-0 trick.
@@ -520,9 +521,9 @@ line, by design (`DistributeRuns`), and nothing it armed calls back.
 | Members menu gone when the next recipient is popped | `DistributionQueue.processNext` | yellow "Distribution stopped: the Members menu is not open." | no, by design: the run stops, and any later `@split` phase never starts |
 | Refresh never observed after a press | `MemberSlotPresser.armRefreshTimeout`, 40 ticks | yellow "Send timed out after N/M…" | yes |
 | Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | none | yes, with whatever was collected |
-| Log walk exceeds 200 ticks | `GuildLogWalker.onTick` | none | yes, possibly with an empty list |
+| Bound log walk exceeds 200 ticks | `GuildLogWalker.onTick` | none | yes, with whatever was collected; the log is closed first |
 | Guild log no longer on top when the walk settles or times out — the player's Esc, a respawn | `GuildLogWalker.finishWalk` | yellow "Distribution stopped: the guild log closed." | no, by design: the run stops, and nothing is closed |
-| Log screen never reached — for example no Guild Log tile, `/guild manage` unanswered, or the tile click going nowhere (a case of the row above) | `GuildLogWalker.onTick`'s overall timeout | none from the walker; the empty list then reaches `GraidsDistributor.onLogReady`'s yellow "No graid completions found…", which reads as an empty log (`graids-log-never-reached-reported-as-empty-log`) | yes, with an empty list; a Manage menu may stay open |
+| Log screen never reached — for example no Guild Log tile (the opener then closes that Manage menu), `/guild manage` unanswered, or the tile click going nowhere | `GuildLogWalker.onTick`'s overall timeout, 200 ticks | yellow "Distribution stopped: the guild log did not open." | no, by design: the run stops |
 | Members menu closed by the server mid-walk | `MembersListWalker.onMenuClose` | yellow "Distribution stopped: the Members menu closed." | no, by design: the run stops |
 | Bound Members menu gone when the walker's scan runs | `MembersListWalker.scanAndPaginate` | yellow "Distribution stopped: the Members menu is not open." (a Members menu still on top is closed first) | no, by design: the run stops |
 | Walk makes no progress for 200 ticks — for example a Members menu that never opens, or a Next Page click whose reply the walker never sees | `MembersListWalker`'s stall watchdog | yellow "Distribution stopped: the objectives walk timed out." | no, by design: the run stops, and the walker disarms, so a later Members menu cannot bind it |

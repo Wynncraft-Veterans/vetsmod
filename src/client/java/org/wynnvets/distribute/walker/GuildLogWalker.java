@@ -71,7 +71,8 @@ import org.wynnvets.util.ContainerScreens;
  * {@link Completion} callback with a copy of the collected items. If the
  * log is no longer on top by then (the player's Esc, a respawn), it closes
  * nothing and stops the run instead, through
- * {@link org.wynnvets.distribute.DistributeRuns#stop(String) DistributeRuns.stop}.</p>
+ * {@link org.wynnvets.distribute.DistributeRuns#stop(String) DistributeRuns.stop}, as does a
+ * log that never opens once the overall timeout fires.</p>
  */
 public final class GuildLogWalker {
 
@@ -91,8 +92,9 @@ public final class GuildLogWalker {
     /** Completion callback, fired once when the walk ends &mdash; on
      *  settle, on a server-sent close of the log, or on the overall
      *  timeout &mdash; with whatever was collected. Not fired when the log
-     *  is gone by the time the walk settles or times out: that stops the
-     *  run. A later {@link #armWalk} replaces it without firing it. */
+     *  never opened, or is gone by the time the walk settles or times out:
+     *  those stop the run. A later {@link #armWalk} replaces it without
+     *  firing it. */
     @FunctionalInterface
     public interface Completion {
         void onComplete(List<GuildLogItem> entries);
@@ -208,15 +210,21 @@ public final class GuildLogWalker {
         // Overall-timeout check is first and outside the containerId
         // guard so a walk that's armed but never sees a menu open
         // (e.g. the open command was silently dropped server-side)
-        // still ends after the deadline: it delivers the callback (with
-        // an empty list) so a chained caller advances, and it disarms,
-        // so a later unrelated guild-log open can't bind the stale arm.
+        // still ends after the deadline. That one stops the run, since an
+        // empty list would read as a log with no graids in it, and it
+        // disarms, so a later unrelated guild-log open can't bind the
+        // stale arm.
         if (now > OVERALL_TIMEOUT_TICKS) {
             VetsLogger.debug(
                     "GuildLogWalker: overall timeout reached (boundId={}, {} entries)",
                     containerId,
                     collected.size());
-            finishWalk(containerId != -1);
+            if (containerId == -1) {
+                stop();
+                DistributeRuns.stop("the guild log did not open");
+                return;
+            }
+            finishWalk(true);
             return;
         }
         if (containerId == -1) return;
