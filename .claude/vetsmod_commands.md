@@ -339,8 +339,8 @@ These rules hold for everything below:
   `/gu rank`, `/gu stats`, and distribute's `/guild manage`) re-enter the hooks too, and match no prefix.
 - **A click takes another path.** A chat button that runs a command calls `sendUnattendedCommand`, which
   no vetsmod mixin hooks; [vetsmod_mixins.md](vetsmod_mixins.md) has where such a click goes. A button
-  that names one of §1's client commands works. A button that names an intercepted command does not reach
-  `GuildChatDispatcher` (bug `caution-confirm-click-bypasses-intercept`).
+  that names one of §1's client commands works. A button that names an intercepted command would not reach
+  `GuildChatDispatcher`, so the caution buttons fill the chat box instead and staff press Enter.
 
 ### `/unlock`
 
@@ -395,7 +395,7 @@ server as typed. "Passes through" below means the same.
 | `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | `wv-check-head-inject-order-unsettled`, and §1's `/wv check` row |
 | `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `vets-snapshot-provider-skips-confirmed-staff-check`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
 | `/guild invite <name>` | as `/gu invite` | `InviteGate.checkInvite` | As `/gu invite`; an allowed invite is sent as `gu invite` | as `/gu invite` |
-| `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `caution-confirm-click-bypasses-intercept`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `outbound-socket-never-authenticated` |
+| `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `outbound-socket-never-authenticated` |
 | `/caution <name> [message]` | as `/caution-go` | `CautionCommands.runCaution` | Asks for a preflight (`caution_add`); commits at once if the caution crosses no threshold | as `/caution-go` |
 | `/warn <name> [message]` | as `/caution-go` | `CautionCommands.runWarn` | Commits a formal warning (`warn_add`) | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `outbound-socket-never-authenticated` |
 | `/eject <name> <message>` | as `/caution-go` | `CautionCommands.runEject` | Commits an eject (`eject_add`); refuses a missing message | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `outbound-socket-never-authenticated` |
@@ -425,11 +425,12 @@ holds the reading and the in-game check that would settle it.
 **The caution family.** `/caution`, `/caution-go`, `/warn` and `/eject` each send a staff-action frame over
 the inbound WebSocket (`V1ApiManager.sendStaffActionFrame`) and print the server's answer; temporary-server
 checks that the session is authenticated staff, and dazebot records the action. A `/caution` that would
-cross a threshold comes back as `would_trigger`, and `CautionCommands` prints the threshold and two buttons:
-`[Confirm and send]` (or `[Send generic warning]`), which runs `/caution-go …`, and `[Edit reason]` (or
-`[Type a custom warning]`), which fills the chat box with it. The first button does not commit today: a
-click never reaches `GuildChatDispatcher` (bug `caution-confirm-click-bypasses-intercept`). The second
-works once the player presses Enter. A commit from any of the four whose ack reports `triggered="eject"`
+cross a threshold comes back as `would_trigger`, and `CautionCommands` prints the threshold and its buttons.
+With a typed reason there is one, the green `[Confirm and send]`; without one there are two, the green
+`[Send generic warning]` and the aqua `[Type a custom warning]`. Every button fills the chat box with
+`/caution-go …` (the reason carried over, or a bare target for the generic warning), and the player presses
+Enter, which sends it through `GuildChatDispatcher`. None runs the command on click, since a click would skip
+that intercept. A commit from any of the four whose ack reports `triggered="eject"`
 dispatches `/gu kick <name>` or `/gu rank <name> recruit`, whichever the ack's `suggested_dispatch` names.
 For a player who is not confirmed staff, the four commands pass through to Wynncraft as typed, as
 `GuildChatDispatcher`'s comment there intends. `/wv check` appends the target's caution history
@@ -472,8 +473,8 @@ vetsmod's own chat buttons:
 |---|---|---|---|
 | `[Invite anyway]` | the invite gate's staff warning | runs `/wv invite-force <name>` | works: a §1 client command |
 | `[Silent]` / `[Passive]` / `[Aggressive]` | `/wv anni`'s imminent form | runs `/wv anni <mode>` | works: a §1 client command |
-| `[Confirm and send]` / `[Send generic warning]` | the `/caution` preflight | runs `/caution-go …` | does not commit (bug `caution-confirm-click-bypasses-intercept`) |
-| `[Edit reason]` / `[Type a custom warning]` | the `/caution` preflight | fills the chat box with `/caution-go …` | works after Enter |
+| `[Confirm and send]` / `[Send generic warning]` | the `/caution` preflight | fills the chat box with `/caution-go …` | works after Enter |
+| `[Type a custom warning]` | the `/caution` preflight, when no reason was typed | fills the chat box with `/caution-go <name> ` | works after Enter |
 | `[Hard]` / `[Soft]` | `/wv anni`'s far-out RSVP line | fills the chat box with `/wv anni rsvp hard` or `soft` | works after Enter |
 | player names | `/wv list`, `/wv list world` | fill the chat box with `/msg <name> ` | a Wynncraft command |
 | `[We suggest: /toggle ghosts none]` | the anni ghosts prompt | fills the chat box with it | a Wynncraft command |

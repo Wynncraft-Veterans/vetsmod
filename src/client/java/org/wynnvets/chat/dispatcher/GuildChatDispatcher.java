@@ -160,8 +160,9 @@ public final class GuildChatDispatcher {
         // Caution / warning / eject system. The /caution path runs a
         // server-side preflight that may reply "would_trigger" with a
         // clickable confirm prompt rendered by CautionCommands; the
-        // /caution-go path skips the preflight (used by the click
-        // handler) and is also the manual-bypass entry point.
+        // /caution-go path skips the preflight (the prompt's buttons fill the
+        // chat box with it and staff press Enter, since a click would skip this
+        // intercept) and is also the manual-bypass entry point.
         //
         // These can dispatch real /gu kick / /gu rank commands (when a commit's
         // ack reports an eject), so they can't trust the local rank cache -- the

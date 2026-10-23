@@ -94,10 +94,11 @@ public final class CautionCommands {
 
     /**
      * {@code /caution-go <username> [message]} -- explicit confirm path.
-     * Always commits (no preflight). Used by the clickable confirmation
-     * suggestions that {@link #renderCautionPreflightOrCommit} prints
-     * when the preflight returns {@code would_trigger}, and whenever
-     * staff want to skip the preflight.
+     * Always commits (no preflight). Used by the confirmation buttons that
+     * {@link #renderCautionPreflightOrCommit} prints when the preflight returns
+     * {@code would_trigger} (they fill the chat box and staff press Enter, so the
+     * command reaches the dispatcher's intercept), and whenever staff want to skip the
+     * preflight.
      */
     public static void runCautionGo(String args) {
         ParsedArgs parsed = parseTwoPart(args);
@@ -253,43 +254,36 @@ public final class CautionCommands {
                                             .withStyle(ChatFormatting.GRAY));
             ChatUtils.sendLocalMessage(line);
 
-            // If staff already typed a reason, carry it into both buttons so
-            // the click commits (or pre-fills the chat box) with the reason
-            // attached -- the server dropped the message when it returned
+            // Every button only fills the chat box (SuggestCommand); staff press Enter.
+            // A RunCommand click would skip GuildChatDispatcher.intercept, which is
+            // the only handler for /caution-go (bug caution-confirm-click-bypasses-
+            // intercept). If staff already typed a reason, the single green button
+            // carries it: the server dropped the message when it returned
             // would_trigger, so the only place it still lives is here.
             boolean haveReason = !requestedMessage.isEmpty();
-            String confirmCmd =
-                    haveReason
-                            ? "/caution-go " + resolved + " " + requestedMessage
-                            : "/caution-go " + resolved;
-            String editCmd =
-                    haveReason
-                            ? "/caution-go " + resolved + " " + requestedMessage
-                            : "/caution-go " + resolved + " ";
-            MutableComponent prompt =
-                    Component.literal("  ")
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(
-                                    clickRun(
-                                            haveReason
-                                                    ? "[Confirm and send]"
-                                                    : "[Send generic warning]",
-                                            confirmCmd,
-                                            haveReason
-                                                    ? "Click to approve this caution with your typed reason."
-                                                    : "Click to approve this caution and send a generic warning DM.",
-                                            ChatFormatting.GREEN))
-                            .append(Component.literal("  ").withStyle(ChatFormatting.GRAY))
-                            .append(
-                                    clickSuggest(
-                                            haveReason
-                                                    ? "[Edit reason]"
-                                                    : "[Type a custom warning]",
-                                            editCmd,
-                                            haveReason
-                                                    ? "Click to edit your reason before sending."
-                                                    : "This will fill /caution-go, which you can use to type your warning-text.",
-                                            ChatFormatting.AQUA));
+            MutableComponent prompt = Component.literal("  ").withStyle(ChatFormatting.GRAY);
+            if (haveReason) {
+                prompt.append(
+                        clickSuggest(
+                                "[Confirm and send]",
+                                "/caution-go " + resolved + " " + requestedMessage,
+                                "Click to fill /caution-go with your reason, then press Enter to send.",
+                                ChatFormatting.GREEN));
+            } else {
+                prompt.append(
+                                clickSuggest(
+                                        "[Send generic warning]",
+                                        "/caution-go " + resolved,
+                                        "Click to fill /caution-go, then press Enter to send a generic warning DM.",
+                                        ChatFormatting.GREEN))
+                        .append(Component.literal("  ").withStyle(ChatFormatting.GRAY))
+                        .append(
+                                clickSuggest(
+                                        "[Type a custom warning]",
+                                        "/caution-go " + resolved + " ",
+                                        "This will fill /caution-go, which you can use to type your warning-text.",
+                                        ChatFormatting.AQUA));
+            }
             ChatUtils.sendLocalMessage(prompt);
             return;
         }
@@ -499,16 +493,6 @@ public final class CautionCommands {
         int sp = trimmed.indexOf(' ');
         if (sp < 0) return new ParsedArgs(trimmed, "");
         return new ParsedArgs(trimmed.substring(0, sp), trimmed.substring(sp + 1).trim());
-    }
-
-    private static MutableComponent clickRun(
-            String text, String command, String hover, ChatFormatting color) {
-        Style style =
-                Style.EMPTY
-                        .withColor(color)
-                        .withClickEvent(new ClickEvent.RunCommand(command))
-                        .withHoverEvent(new HoverEvent.ShowText(Component.literal(hover)));
-        return Component.literal(text).withStyle(style);
     }
 
     private static MutableComponent clickSuggest(
