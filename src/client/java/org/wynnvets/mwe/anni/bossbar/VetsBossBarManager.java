@@ -138,11 +138,12 @@ public final class VetsBossBarManager {
         VetsLogger.debug("VetsBossBarManager registered");
     }
 
-    /** Whether the synthetic bar is currently rendered. <b>Two</b>
+    /** Whether the synthetic bar is currently rendered. <b>Three</b>
      *  readers: {@link org.wynnvets.mixin.client.BossHealthOverlayMixin}
      *  gates packet swallowing on it — when false, vanilla boss bars
-     *  pass through unmolested — and {@code DebugCommands}' boss-bar
-     *  dump reports it. Only the first is behavioural; change the
+     *  pass through unmolested — {@link FlashTracker} queues a
+     *  snapshot-change ping only while it holds, and {@code DebugCommands}'
+     *  boss-bar dump reports it. The first two are behavioural; change the
      *  semantics and the dump's line needs re-reading too. */
     public static boolean isActive() {
         return active;
@@ -174,10 +175,8 @@ public final class VetsBossBarManager {
     }
 
     private static void tickInner() {
-        // Mode gate. SILENT is a strict no-op (per spec). Today this gate stops the bar only:
-        // tick() runs FlashTracker.tick() after tickInner returns, early or not, so pings that
-        // FlashTracker's snapshot listener queued still play
-        // (anni-flash-pings-play-while-bar-is-down).
+        // Mode gate. SILENT is a strict no-op (per spec). It also stops the snapshot pings,
+        // since FlashTracker queues one only while the bar is up.
         AnniMode mode = AnniModeManager.current();
         if (mode == AnniMode.SILENT) {
             if (active) deactivate();

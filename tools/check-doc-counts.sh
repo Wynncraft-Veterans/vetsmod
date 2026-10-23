@@ -78,7 +78,7 @@ ConfigValueText.triStateLine|2|ConfigValueTextTest
 AnniOutlinePalette.chatFormattingForRole|2|AnniOutlinePalette + AnniHoverBuilder#roleColor: "Two callers"
 AnniOutlineRegistry.clearAll|1|AnniOutlineRegistry: "its only caller is AnniHighlightDebugCommands#registryClearAll"
 AnniOutlineTicker.isOutlineSuppressionActive|4|AnniOutlineTicker: "two behavioural readers" + "two debug dumps"
-VetsBossBarManager.isActive|2|VetsBossBarManager: mixin gate + DebugCommands dump
+VetsBossBarManager.isActive|3|VetsBossBarManager: mixin gate + FlashTracker ping gate + DebugCommands dump
 VetsBossBarManager.barUuid|2|VetsBossBarManager: mixin filter + DebugCommands dump
 FlashTracker.styleFor|4|VetsBossBarContentBuilder class doc: "four chips"
 FlashTracker.reset|1|FlashTracker: "One caller: VetsBossBarManager deactivate"

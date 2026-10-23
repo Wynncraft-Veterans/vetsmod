@@ -191,10 +191,9 @@ public final class VetsConfigKeys {
      *  is {@code passive} or {@code aggressive} — silent is a strict
      *  no-op regardless. Lets advanced users keep the rest of the
      *  passive/aggressive subsystem (outlines, waypoint, alerts) while
-     *  opting out of the boss bar specifically. Today neither this key nor
-     *  silent mode stops the flash-sound pings ({@link #VETS_ANNI_FLASH_SOUND}),
-     *  which still play on a snapshot change while the bar is down
-     *  ({@code anni-flash-pings-play-while-bar-is-down}). */
+     *  opting out of the boss bar specifically. With the bar off, a
+     *  snapshot change plays no flash-sound ping ({@link #VETS_ANNI_FLASH_SOUND})
+     *  either. */
     public static final String VETS_ANNI_BOSSBAR_ENABLED = "vetsAnniBossbarEnabled";
 
     /** Boss-bar pulse intensity controlling the {@code &l ↔ &n&l} flash
@@ -208,11 +207,10 @@ public final class VetsConfigKeys {
 
     /** Whether a role, party, RSVP or world change in the snapshot plays a two-ping sound: the
      *  Wynntils chat-mention ding ({@code SoundEvents.NOTE_BLOCK_PLING}), played twice, as spec
-     *  §3.1.1 asks. The pings are meant to go with the boss bar's flashes, but today their
-     *  queueing ignores the mode, {@link #VETS_ANNI_BOSSBAR_ENABLED} and the bar window, so they
-     *  still play while the bar is down, {@code silent} included
-     *  ({@code anni-flash-pings-play-while-bar-is-down}); of the config keys, only this one stops
-     *  them. On by default. */
+     *  §3.1.1 asks. The pings go with the boss bar's flashes, so they play only while the bar is
+     *  up: {@code silent} mode, {@link #VETS_ANNI_BOSSBAR_ENABLED} off, and being outside both the
+     *  bar's window and the anni zone all stop them too. A debug {@code flash} pings whenever this
+     *  is on. On by default. */
     public static final String VETS_ANNI_FLASH_SOUND = "vetsAnniFlashSound";
 
     /** S4 — Toggle for the per-player outline overlay: role-coloured glow on own-party members,

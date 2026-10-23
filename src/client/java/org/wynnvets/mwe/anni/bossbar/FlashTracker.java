@@ -31,7 +31,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshots;
  * <ul>
  *   <li><b>Role / party / RSVP</b> — diff on snapshot push, latch a
  *       timed flash window sized by {@code vetsAnniFlashIntensity}, ping
- *       2× per change. Today no {@code anni_state} push reaches vetsmod
+ *       2× per change while the bar is up. Today no {@code anni_state} push reaches vetsmod
  *       ({@code outbound-socket-never-authenticated}), so the diff runs on
  *       each non-null snapshot a pull or a debug command stores. First
  *       observation is skipped (login-with-existing-state shouldn't bing
@@ -43,9 +43,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshots;
  *       unrecognised setting.</li>
  *   <li><b>World</b> — flash is live state ({@code party.world != null
  *       AND user is not on it}); the user walking on/off the right
- *       world toggles it silently. The ping fires on a different
- *       trigger: the snapshot's {@code party.world} value changes
- *       (assignment / reassignment). Position movement never bings.
+ *       world toggles it silently. The ping, which plays only while
+ *       the bar is up, fires on a different trigger: the snapshot's
+ *       {@code party.world} value changes (assignment /
+ *       reassignment). Position movement never bings.
  *       First observation is skipped (no bing on login).</li>
  * </ul>
  *
@@ -88,7 +89,7 @@ public final class FlashTracker {
     // value is null" — distinct from "never observed", which is what
     // the *Observed sentinels track. The first observation in a session
     // is silent; every subsequent transition (including null → set and
-    // set → null) flashes and pings.
+    // set → null) flashes, and pings while the bar is up.
     private static volatile String lastRole = null;
     private static volatile Integer lastParty = null;
     private static volatile String lastRsvp = null;
@@ -170,7 +171,8 @@ public final class FlashTracker {
 
     /** Debug entry — force the named field into its flash window.
      *  For world, sets the mismatch flag directly (cleared on the next
-     *  tick if the live state disagrees). */
+     *  tick if the live state disagrees). Its ping does not wait for the
+     *  bar: it plays in any mode while {@code vetsAnniFlashSound} is on. */
     public static void forceFlash(String fieldKey) {
         long until = System.currentTimeMillis() + flashDurationMs();
         switch (fieldKey) {
@@ -232,7 +234,8 @@ public final class FlashTracker {
     }
 
     /** Diff the new snapshot against last-seen values. All four
-     *  field-change pings live here (role / party / RSVP / world).
+     *  field-change pings live here (role / party / RSVP / world), and
+     *  queue only while {@link VetsBossBarManager#isActive()} holds.
      *  World's mismatch FLASH state is separately recomputed each tick
      *  in {@link #updateWorldMismatch()} so position movement toggles
      *  the flash silently. */
@@ -277,7 +280,10 @@ public final class FlashTracker {
         worldObserved = true;
         lastWorld = worldCode;
 
-        if (anyChange) queuePingSounds();
+        // Pings go with the bar's flashes: none while it is down. The diff above still runs,
+        // so the baseline stays fresh. isActive() is the last tick's state, so a change
+        // that itself brings the bar up does not ping.
+        if (anyChange && VetsBossBarManager.isActive()) queuePingSounds();
     }
 
     /** Per-tick: recompute the live world-mismatch flag from the
