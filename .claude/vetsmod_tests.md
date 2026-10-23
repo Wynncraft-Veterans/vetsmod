@@ -28,7 +28,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.distribute.recipients`](#orgwynnvetsdistributerecipients) — [`NameResolverTest`](#nameresolvertest), [`NoAspectsFilterTest`](#noaspectsfiltertest)
 - [`org.wynnvets.fetcher.lookup`](#orgwynnvetsfetcherlookup) — [`MojangCooldownTest`](#mojangcooldowntest)
 - [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
-- [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest)
+- [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
 - [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`StaffRankCheckerTest`](#staffrankcheckertest)
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest)
@@ -1515,6 +1515,21 @@ Test: [`PollingServiceTest.java`](../src/test/java/org/wynnvets/fetcher/polling/
 - **`aVirtualMachineErrorEndsTheScheduleAndIsRunningSaysSo`**: A task that throws a `StackOverflowError` ends the schedule, and `isRunning()` turns false.
   - The task (service `VetsMod-Test-VmError`, delay 0, period 20 ms) counts down `thrown` (count 1) and throws `StackOverflowError`; `thrown.await(2, TimeUnit.SECONDS)` is true.
   - Within a bounded 2 s poll, `service.isRunning()` becomes false.
+
+### `StaffRanksPollerTest`
+
+Test: [`StaffRanksPollerTest.java`](../src/test/java/org/wynnvets/fetcher/polling/StaffRanksPollerTest.java) · Subject: [`StaffRanksPoller`](../src/client/java/org/wynnvets/fetcher/polling/StaffRanksPoller.java)
+
+`StaffRanksPoller` caches the staff the server reports online, keyed by lower-cased username, from a periodic `/v1/outbound/staff` fetch. The suite pins what one parsed response leaves in that poll cache, through the package-private `parseStaffRanks` and the public `confirmedRankFor`: a name the next response lacks is dropped, a repeated name is kept, an unparseable body changes nothing, and a retired captain is not kept. The swap's atomicity is not pinned. An `@AfterEach` parses `[]` to empty the cache.
+
+- **`aNameTheNextResponseLacksIsDroppedAndARepeatedOneKept`**: After a response listing Metrafish and Holidaze, a response listing only Metrafish keeps Metrafish and drops Holidaze.
+  - `confirmedRankFor("holidaze")` equals `Optional.of("strategist")` after parsing `[{"username": "Metrafish", "rank": "Chief"}, {"username": "Holidaze", "rank": "strategist"}]`.
+  - `confirmedRankFor("METRAFISH")` equals `Optional.of("chief")` after then parsing `[{"username": "Metrafish", "rank": "chief"}]`.
+  - `confirmedRankFor("Holidaze")` equals `Optional.empty()` after that second parse.
+- **`anUnparseableBodyLeavesThePreviousResponseInPlace`**: A non-JSON body after a valid one leaves the valid one's entry.
+  - `confirmedRankFor("Metrafish")` equals `Optional.of("owner")` after parsing `[{"username": "Metrafish", "rank": "owner"}]` and then `not json at all`.
+- **`aRetiredCaptainIsNotKept`**: A captain entry is dropped by the allowed-ranks check.
+  - `confirmedRankFor("Wenweia")` equals `Optional.empty()` after parsing `[{"username": "Wenweia", "rank": "captain"}]`.
 
 ## `org.wynnvets.guild`
 

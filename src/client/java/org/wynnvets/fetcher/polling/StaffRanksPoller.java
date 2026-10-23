@@ -29,9 +29,9 @@ import org.wynnvets.util.Json;
  *   <li>{@code staffRanksByUsername} — entries populated by each fetch of
  *       {@code /v1/outbound/staff} (the periodic 2-minute poll and {@link #refreshNow()}),
  *       and meant to be removed early by a {@code staff_offline} frame (none arrives today;
- *       see below). The poll swaps it by
- *       {@code clear()} then {@code putAll()}, which is not atomic
- *       ({@code staff-ranks-poll-swap-not-atomic}).</li>
+ *       see below). Each fetch adds the response's entries, then drops the names it lacks, so
+ *       a name in both the old and the new response is never briefly absent; fetches run one at
+ *       a time.</li>
  *   <li>{@code liveStaffRanksByUsername} — entries pushed via
  *       {@code staff_online} outbound frames; preserved across poll
  *       cycles so a push-known staff member is never temporarily
@@ -162,7 +162,9 @@ public final class StaffRanksPoller {
         t.start();
     }
 
-    private static void fetchStaffRanks() {
+    // Synchronized: the scheduled poll and refreshNow's thread both land here, and each fetch's
+    // response must be applied whole before the next one's.
+    private static synchronized void fetchStaffRanks() {
         try {
             HttpResponse<String> response =
                     HTTP_CLIENT.send(STAFF_REQUEST, HttpResponse.BodyHandlers.ofString());
@@ -174,7 +176,8 @@ public final class StaffRanksPoller {
         }
     }
 
-    private static void parseStaffRanks(String jsonResponse) {
+    // Package-private for unit tests. See StaffRanksPollerTest.
+    static void parseStaffRanks(String jsonResponse) {
         try {
             JsonArray staffMembers = Json.GSON.fromJson(jsonResponse, JsonArray.class);
             Map<String, String> newRanks = new ConcurrentHashMap<>();
@@ -199,8 +202,9 @@ public final class StaffRanksPoller {
                 newRanks.put(username.toLowerCase(Locale.ROOT), rank);
             }
 
-            staffRanksByUsername.clear();
+            // Add first, then drop the rest, so a reader never sees a still-online name missing.
             staffRanksByUsername.putAll(newRanks);
+            staffRanksByUsername.keySet().retainAll(newRanks.keySet());
         } catch (Exception e) {
             VetsLogger.debug("Failed to parse staff ranks response: {}", e.getMessage());
         }
