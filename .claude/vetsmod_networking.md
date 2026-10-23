@@ -309,7 +309,7 @@ Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.networ
 
 ### S7 — Party back-report gate
 
-`PartyRosterListener` no longer fires the legacy `party_status` frame. Instead, on the Wynntils `PartyEvent`s `PartyRosterListener` subscribes to, on every `WorldStateEvent`, AND on every snapshot update that changes the lowercased `organiser_usernames` set (`AnniPartyReporter` observes the change and calls `PartyRosterListener.requestRecapture()`, which is the listener's own method — the reporter is the trigger, not the owner), the listener:
+`PartyRosterListener` no longer fires the legacy `party_status` frame. Instead, on the Wynntils `PartyEvent`s `PartyRosterListener` subscribes to, on every `WorldStateEvent`, AND on every snapshot update that changes the lowercased `organiser_usernames` set or is the first to find the anni stamp inside the `stamp ± 2 h` window since the last one that did not (`AnniPartyReporter` observes the change or the opening and calls `PartyRosterListener.requestRecapture()`, which is the listener's own method — the reporter is the trigger, not the owner), the listener:
 
 1. Captures `Models.Party.getPartyLeader()` + `getPartyMembers()` on the render thread. A Wynntils event already arrives there. A snapshot-driven recapture is triggered on whichever thread called `AnniSnapshotCache.update` (the one delivering WebSocket frames, or the render thread for a debug injection), so `requestRecapture` hands the capture to the render thread through `Minecraft.execute`, which queues it for the next task drain, a debug command typed on the render thread included; the 300 ms send debounce absorbs that delay.
 2. Debounces 300 ms (coalesces the `/party list` burst).

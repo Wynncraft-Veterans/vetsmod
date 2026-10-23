@@ -50,10 +50,12 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * organiser and every party host, so "any party member is an organiser" is a cheap pre-filter;
  * vets-anni itself upgrades {@code ONLINE_WORLD → ONLINE_PARTY} only when the reported party
  * leader is that member's assigned host. Snapshot-driven recaptures
- * ({@link #requestRecapture()}) are meant to cover the "anni window opens while parked in a party"
- * case, where no {@link PartyEvent} would fire on its own. Today they fire when the organiser set
- * changes, not when the window opens, so a set that was already complete before the window opened
- * triggers nothing then; see {@code party-reporter-window-open-not-a-trigger}.</p>
+ * ({@link #requestRecapture()}) cover the "anni window opens while parked in a party" case,
+ * where no {@link PartyEvent} would fire on its own: {@link
+ * org.wynnvets.mwe.anni.AnniPartyReporter AnniPartyReporter} requests one when the organiser set
+ * changes, and once when a snapshot update first finds the stamp inside the window
+ * ({@link #inActiveWindow}). The window is read on snapshot updates, so that recapture comes with
+ * the first update after T-2h, at about T-90m unless an earlier pull lands.</p>
  *
  * <p>Threading: every capture takes a defensively-copied snapshot on the render thread, where
  * Wynntils events arrive, so the send can't race a concurrent {@code PartyModel} mutation.
@@ -143,11 +145,10 @@ public final class PartyRosterListener {
     /**
      * Trigger a synthetic recapture from outside the Wynntils event bus.
      * Used by {@link org.wynnvets.mwe.anni.AnniPartyReporter AnniPartyReporter} when an
-     * incoming snapshot's {@code organiser_usernames} list changes — meant for
-     * window-open, when the local party may have been static for ages and no
-     * {@link PartyEvent} would fire on its own. Today a window opening with an
-     * unchanged organiser set calls nothing here
-     * ({@code party-reporter-window-open-not-a-trigger}). The capture runs on the
+     * incoming snapshot's {@code organiser_usernames} list changes, and when the first snapshot
+     * update finds the anni stamp inside the window. The second case is for the window
+     * opening, when the local party may have been static for ages and no
+     * {@link PartyEvent} would fire on its own. The capture runs on the
      * render thread; see Threading in the class doc.
      */
     public static void requestRecapture() {
@@ -208,7 +209,7 @@ public final class PartyRosterListener {
      * anni stamp from temp-server. Returns {@code 0} when no stamp is available, which suppresses
      * the send.
      */
-    private static long snapshotStamp(AnniSnapshot snapshot) {
+    public static long snapshotStamp(AnniSnapshot snapshot) {
         if (snapshot == null || snapshot.event() == null) return 0L;
         Long stamp = snapshot.event().stampEpoch();
         return stamp != null ? stamp : 0L;
@@ -237,9 +238,7 @@ public final class PartyRosterListener {
      */
     static boolean shouldSend(Snapshot snap, AnniSnapshot snapshot, long stamp, long now) {
         // (1) Anni window — quietest possible default.
-        if (stamp == 0) return false;
-        long delta = stamp - now;
-        if (delta < -ACTIVE_WINDOW_SEC || delta > ACTIVE_WINDOW_SEC) return false;
+        if (!inActiveWindow(stamp, now)) return false;
 
         // (2) Snapshot present and has organiser usernames.
         if (snapshot == null) return false;
@@ -265,6 +264,21 @@ public final class PartyRosterListener {
             }
         }
         return false;
+    }
+
+    /**
+     * Pure predicate (no statics, no I/O): is the anni stamp inside the active window? True when
+     * {@code stamp != 0} and {@code |stamp - now| <= ACTIVE_WINDOW_SEC}, both edges inclusive.
+     * {@link #shouldSend} applies it as rule 1, and {@link org.wynnvets.mwe.anni.AnniPartyReporter
+     * AnniPartyReporter} reads it to spot the window opening.
+     *
+     * @param stamp anni epoch-seconds (0 = none announced)
+     * @param now   current wall-clock epoch-seconds
+     */
+    public static boolean inActiveWindow(long stamp, long now) {
+        if (stamp == 0) return false;
+        long delta = stamp - now;
+        return delta >= -ACTIVE_WINDOW_SEC && delta <= ACTIVE_WINDOW_SEC;
     }
 
     record Snapshot(String leader, List<String> members) {

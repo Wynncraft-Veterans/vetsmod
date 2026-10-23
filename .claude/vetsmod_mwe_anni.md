@@ -16,7 +16,7 @@ Most anni-side code lives under `org.wynnvets.mwe.anni.*`. The ones that do not,
 
 ```
 mwe/anni/
-├── AnniPartyReporter.java          — snapshot listener; on organiser-set change calls PartyRosterListener.requestRecapture
+├── AnniPartyReporter.java          — snapshot listener; on organiser-set change or the window opening calls PartyRosterListener.requestRecapture
 ├── ScrollSpotMarkerProvider.java   — Wynntils MarkerProvider, dark-red beacon
 ├── state/
 │   ├── AnniSnapshot.java          — Gson-hydrated bean mirroring the wire shape; snake_case fields, deliberately not a record
@@ -706,13 +706,18 @@ party members by username — see `Wynntils PartyModel.getPartyMembers()`.
 
 2. **Mid-window snapshot trigger** —
    [`AnniPartyReporter`](../src/client/java/org/wynnvets/mwe/anni/AnniPartyReporter.java)
-   subscribes to `AnniSnapshotCache`. On any change to the lowercased
-   `organiser_usernames` set, calls
-   `PartyRosterListener.requestRecapture()`. It is meant to handle "anni
+   subscribes to `AnniSnapshotCache` and calls
+   `PartyRosterListener.requestRecapture()` when the pure
+   `AnniPartyReporter.shouldRecapture(prev, next, wasInWindow, nowInWindow)`
+   says so: on any change to the lowercased `organiser_usernames` set, or when
+   `PartyRosterListener.inActiveWindow(stampEpoch, now)` goes from false to
+   true between two snapshot updates, the window opening. That handles "anni
    opens while parked in a static party for 30 min", where no `PartyEvent`
-   would fire on its own. Today it fires on a set change, not when the
-   window opens, so a set that was already complete before the window
-   opened triggers nothing then (bug `party-reporter-window-open-not-a-trigger`).
+   would fire on its own, including a set that was already complete before the
+   window opened. The window is read only when a snapshot arrives and
+   `AnniSnapshotPoller` runs from T-90m, so the edge fires on the first update
+   after T-2h, at about T-90m unless an earlier pull lands. It fires once per
+   opening, not on every update inside the window.
    `AnniPartyReporter.register()` is called from `VetsmodClient.onClientStarted()`,
    the bootstrap's `CLIENT_STARTED` phase, beside the other Wynntils-facing
    registrations. Its listener reaches `Models.Party` only through

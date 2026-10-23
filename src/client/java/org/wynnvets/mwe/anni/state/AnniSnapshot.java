@@ -92,7 +92,8 @@ public final class AnniSnapshot {
      *  {@link org.wynnvets.listeners.PartyRosterListener#shouldSend PartyRosterListener#shouldSend}
      *  to gate the {@code anni_party_observation} frame on "is any party member an organiser?",
      *  and by {@link org.wynnvets.mwe.anni.AnniPartyReporter AnniPartyReporter}, which
-     *  triggers a party recapture when the case-folded set changes.
+     *  triggers a party recapture when the case-folded set changes (and when the anni window
+     *  opens).
      *  Names go over the wire (not UUIDs) because Wynncraft exposes party members by username only
      *  — see {@code Wynntils PartyModel.getPartyMembers()}. */
     public List<String> organiserUsernames() {

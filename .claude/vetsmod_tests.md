@@ -33,6 +33,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`ScreenshotLatchTest`](#screenshotlatchtest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest)
 - [`org.wynnvets.logging`](#orgwynnvetslogging) — [`VetsLoggerTest`](#vetsloggertest)
+- [`org.wynnvets.mwe.anni`](#orgwynnvetsmweanni) — [`AnniPartyReporterTest`](#annipartyreportertest)
 - [`org.wynnvets.mwe.anni.aggressive`](#orgwynnvetsmweanniaggressive) — [`GhostsPromptHandlerTest`](#ghostsprompthandlertest)
 - [`org.wynnvets.mwe.anni.bossbar`](#orgwynnvetsmweannibossbar) — [`VetsBossBarContentBuilderTest`](#vetsbossbarcontentbuildertest)
 - [`org.wynnvets.mwe.anni.mode`](#orgwynnvetsmweannimode) — [`AnniModeTest`](#annimodetest)
@@ -1771,7 +1772,7 @@ Test: [`ScreenshotLatchTest.java`](../src/test/java/org/wynnvets/items/Screensho
 
 Test: [`PartyRosterListenerTest.java`](../src/test/java/org/wynnvets/listeners/PartyRosterListenerTest.java) · Subject: [`PartyRosterListener`](../src/client/java/org/wynnvets/listeners/PartyRosterListener.java)
 
-`PartyRosterListener` captures the player's Wynncraft party and reports it to the anni backend as an `anni_party_observation` frame. The suite covers its pure, package-private gate `shouldSend(Snapshot, AnniSnapshot, stamp, now)`: a frame is sent only if the anni stamp is within a window of plus or minus two hours of `now` (inclusive) and the snapshot's `organiser_usernames` share a name, ignoring case, with the party's leader or members. Time is injected as `now`; the anni snapshot is built through `AnniSnapshot.fromJson` with only `organiser_usernames` set, and `Snapshot` is the package-private party record with an `EMPTY` constant.
+`PartyRosterListener` captures the player's Wynncraft party and reports it to the anni backend as an `anni_party_observation` frame. The suite covers its pure, package-private gate `shouldSend(Snapshot, AnniSnapshot, stamp, now)`: a frame is sent only if the anni stamp is within a window of plus or minus two hours of `now` (inclusive), which is the public `inActiveWindow(stamp, now)` that `AnniPartyReporter` also reads, and the snapshot's `organiser_usernames` share a name, ignoring case, with the party's leader or members. Time is injected as `now`; the anni snapshot is built through `AnniSnapshot.fromJson` with only `organiser_usernames` set, and `Snapshot` is the package-private party record with an `EMPTY` constant.
 
 - **`stampZeroSuppresses`**: A stamp of 0 (no anni announced) returns false even with a matching organiser.
   - `shouldSend(snap("Organiser", "M1"), anni, 0L, NOW)` is false, where `snap(...)` is a party led by `Organiser` with member `M1`, `anni` lists `Organiser` as its organiser, and `NOW` = `1_700_000_000L`; the stamp `0L` is far outside the window.
@@ -1783,6 +1784,13 @@ Test: [`PartyRosterListenerTest.java`](../src/test/java/org/wynnvets/listeners/P
   - `shouldSend(snap("Organiser", "M1"), anni, NOW + 2h, NOW)` is true (the stamp is exactly 2 h after `NOW`).
 - **`stampInTrailingWindowAllowed`**: A stamp 30 minutes before `now` is inside the window and returns true.
   - `shouldSend(snap("Organiser", "M1"), anni, NOW - 30m, NOW)` is true (the stamp is 30 min before `NOW`).
+- **`inActiveWindow_edgesAreInclusiveAndZeroIsNever`**: The window is `now` plus or minus two hours with both edges inclusive, and a stamp of 0 is never inside it.
+  - `PartyRosterListener.inActiveWindow(stamp, NOW)` is true for `stamp` = `NOW` and for `NOW + 2h`.
+  - `inActiveWindow(NOW + 2h + 1, NOW)` is false.
+  - `inActiveWindow(NOW - 2h, NOW)` is true.
+  - `inActiveWindow(NOW - 2h - 1, NOW)` is false.
+  - `inActiveWindow(0L, NOW)` is false.
+  - `inActiveWindow(0L, 0L)` is false (no stamp, even when `now` is also 0).
 - **`nullSnapshotSuppresses`**: A null `AnniSnapshot` returns false even with an in-window stamp.
   - `shouldSend(snap("Organiser", "M1"), null, NOW + 1h, NOW)` is false (the `AnniSnapshot` is null).
 - **`emptyOrganisersSuppresses`**: A snapshot whose `organiser_usernames` array is empty returns false.
@@ -1849,6 +1857,33 @@ Test: [`VetsLoggerTest.java`](../src/test/java/org/wynnvets/logging/VetsLoggerTe
   - `VetsLogger.isDebugEnabled()` is true after `setDebugEnabled(true)`.
 - **`setDisabledRestoresFalse`**: After enabling and then disabling, `isDebugEnabled()` is false.
   - `VetsLogger.isDebugEnabled()` is false after `setDebugEnabled(true)` then `setDebugEnabled(false)`.
+
+## `org.wynnvets.mwe.anni`
+
+### `AnniPartyReporterTest`
+
+Test: [`AnniPartyReporterTest.java`](../src/test/java/org/wynnvets/mwe/anni/AnniPartyReporterTest.java) · Subject: [`AnniPartyReporter`](../src/client/java/org/wynnvets/mwe/anni/AnniPartyReporter.java)
+
+`AnniPartyReporter` listens to anni snapshot updates and asks `PartyRosterListener` to recapture the party. The suite covers its pure, package-private decision `shouldRecapture(prev, next, wasInWindow, nowInWindow)`: it is true when the case-folded organiser set changed in any direction, or when the anni window opened (`wasInWindow` false and `nowInWindow` true), and false otherwise, so the window closing and updates that change neither recapture nothing. The sets are `NONE` (empty) and `ORGANISER` (`organiser`), compared as sets.
+
+- **`setChangeRecapturesInAnyDirection`**: Empty to non-empty, a replaced organiser, an added organiser and non-empty back to empty each recapture while outside the window.
+  - `AnniPartyReporter.shouldRecapture(NONE, ORGANISER, false, false)` is true.
+  - `shouldRecapture(ORGANISER, Set.of("other"), false, false)` is true.
+  - `shouldRecapture(ORGANISER, Set.of("organiser", "other"), false, false)` is true.
+  - `shouldRecapture(ORGANISER, NONE, false, false)` is true.
+- **`setChangeRecapturesInsideTheWindowToo`**: A set change recaptures when the window was already open.
+  - `shouldRecapture(NONE, ORGANISER, true, true)` is true.
+  - `shouldRecapture(ORGANISER, NONE, true, true)` is true.
+- **`windowOpeningRecapturesWithAnUnchangedSet`**: The window opening recaptures even when the set did not change, whether it is empty or not.
+  - `shouldRecapture(ORGANISER, ORGANISER, false, true)` is true.
+  - `shouldRecapture(NONE, NONE, false, true)` is true.
+- **`unchangedSetWithoutAnOpeningRecapturesNothing`**: An unchanged set recaptures nothing while the window stays closed, stays open, or closes.
+  - `shouldRecapture(ORGANISER, ORGANISER, false, false)` is false.
+  - `shouldRecapture(ORGANISER, ORGANISER, true, true)` is false.
+  - `shouldRecapture(ORGANISER, ORGANISER, true, false)` is false.
+  - `shouldRecapture(NONE, NONE, false, false)` is false.
+- **`windowClosingWithAChangedSetStillRecaptures`**: A set change recaptures on the update where the window closes.
+  - `shouldRecapture(ORGANISER, NONE, true, false)` is true.
 
 ## `org.wynnvets.mwe.anni.aggressive`
 
