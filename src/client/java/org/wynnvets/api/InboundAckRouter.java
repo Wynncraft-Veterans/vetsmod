@@ -8,6 +8,7 @@ import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Routes the inbound socket's untyped {@code {"status":...}} acks: staff-action acks, and an error
@@ -86,7 +87,9 @@ final class InboundAckRouter {
         // expectingAuthAck says.
         if ("ok".equals(status) && json.has("tier")) {
             SessionAuthState.expectingAuthAck = false;
-            String tier = json.get("tier").isJsonNull() ? "" : json.get("tier").getAsString();
+            // A null, non-string or blank tier reads as "other", UnlockManager's TIER_OTHER.
+            String tier = Json.optString(json, "tier", "other");
+            if (tier.isBlank()) tier = "other";
             long now = System.currentTimeMillis();
             VetsConfig.setString(VetsConfigKeys.VETS_AUTH_TIER, tier);
             VetsConfig.setLong(VetsConfigKeys.VETS_AUTH_VERIFIED_AT, now);

@@ -125,7 +125,7 @@ import org.wynnvets.logging.VetsLogger;
  * <p><b>Scope.</b> These four are what those seven declarations collapse onto, along with three
  * more reads &mdash; {@code NameResolver}'s {@code legacyName} and {@code uuid} (formerly via
  * two private helpers) and {@code WarningFrameRenderer}'s inline {@code points_after}. The
- * other thirty-one inlined
+ * other thirty inlined
  * {@code isJsonNull()} reads across the client are deliberately out of scope, and that is a
  * boundary rather than a gap: most of them throw on a wrong type today, so each conversion is
  * its own behaviour change and belongs in its own commit.</p>
