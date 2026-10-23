@@ -256,8 +256,9 @@ public final class ChatUtils {
      * ({@code staff} for strategists, {@code owner} for chiefs / owners).
      * Falls back to {@code "staff"} for any rank that isn't a known staff tier: {@code /v}
      * chat is meant to be staff-only, so every participant should qualify for at least the
-     * baseline Staff tag. Today the receive path does not check that a lock-prefixed sender
-     * is staff; see {@code staff-channel-rewriter-renders-unverified-senders-as-staff}.</p>
+     * baseline Staff tag. The receive path only renders a line from a sender in the
+     * confirmed-staff cache, so the fallback is reached from the sender's own {@code /v} echo,
+     * whose rank may not be known yet.</p>
      */
     public static Component buildStaffPillComponent(String rank) {
         String vTag = RankDisplayMap.vTagFor(rank);

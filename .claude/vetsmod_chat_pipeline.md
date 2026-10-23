@@ -59,7 +59,7 @@ Triggers on a `‼` (U+203C) prefix from a sender `StaffRanksPoller.confirmedRan
 [StaffChannelMessageRewriter](../src/client/java/org/wynnvets/chat/rewriter/StaffChannelMessageRewriter.java)
 
 Triggers on `🔐` lock prefix in private messages (the `/v` fan-out marker).
-Extracts sender from: click event (`/msg <name>`), hover text (via `NickResolver.flattenComponent` + `realUsernameFromHover`), or username regex at end. Displays via `ChatUtils.sendStaffChannelMessage()`.
+Extracts sender from: click event (`/msg <name>`), hover text (via `NickResolver.flattenComponent` + `realUsernameFromHover`), or username regex at end. Displays via `ChatUtils.sendStaffChannelMessage()` only when `StaffRanksPoller.confirmedRankFor` knows the sender as staff (the sender's own echo is cancelled instead); a lock-prefixed message from anyone else returns `false` and shows as the plain private message it is (except under `/stream`, which drops every lock-prefixed message before the sender check), so a staff member who has just come online reads that way until the next staff poll.
 
 ### ServerGuildChatRewriter
 [ServerGuildChatRewriter](../src/client/java/org/wynnvets/chat/rewriter/ServerGuildChatRewriter.java)

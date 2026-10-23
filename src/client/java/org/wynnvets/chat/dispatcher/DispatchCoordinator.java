@@ -194,7 +194,8 @@ public final class DispatchCoordinator {
         // StaffRanksPoller's fetches, the 2-minute poll and the refresh on the receiver's own
         // auth ack (no staff_online push reaches vetsmod:
         // outbound-socket-never-authenticated), so a receiver can lack a newly
-        // authenticated sender's rank until its next poll.
+        // authenticated sender's rank until its next poll, and shows that sender's
+        // lines as plain private messages until then.
         if (V1ApiManager.isConfirmedStaff()) {
             selfSeenInStaffFeedThisWorld = true;
             ChatUtils.sendStaffChannelMessage(displayName, message, rank);

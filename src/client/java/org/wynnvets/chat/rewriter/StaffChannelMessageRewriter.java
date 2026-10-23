@@ -4,6 +4,7 @@ import com.wynntils.core.components.Models;
 import com.wynntils.utils.mc.McUtils;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.minecraft.client.player.LocalPlayer;
@@ -16,7 +17,10 @@ import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.guild.GuildStateManager;
 
 /**
- * Rewrites lock-prefixed private messages into staff-channel styled messages.
+ * Rewrites lock-prefixed private messages from confirmed staff into staff-channel styled
+ * messages; a lock-prefixed message from anyone else is left as an ordinary private message.
+ * Under {@code /stream} every lock-prefixed message is dropped before the sender check, a
+ * staff sender's rank not yet cached included.
  */
 public final class StaffChannelMessageRewriter {
 
@@ -74,20 +78,15 @@ public final class StaffChannelMessageRewriter {
             return true;
         }
 
-        String selfName = GuildStateManager.playerName();
-        String resolvedSender = sender;
-        String knownRank =
-                StaffRanksPoller.confirmedRankFor(resolvedSender)
-                        .orElseGet(
-                                () ->
-                                        (selfName != null
-                                                        && !selfName.isEmpty()
-                                                        && resolvedSender.equalsIgnoreCase(
-                                                                selfName))
-                                                ? GuildStateManager.selfStaffRank()
-                                                : null);
+        // Only a sender in the confirmed-staff cache gets the red staff-channel
+        // rendering. Anyone else's lock-prefixed /msg is shown as the plain private
+        // message it is (the self case already returned above).
+        Optional<String> knownRank = StaffRanksPoller.confirmedRankFor(sender);
+        if (knownRank.isEmpty()) {
+            return false;
+        }
 
-        ChatUtils.sendStaffChannelMessage(resolvedSender, message, knownRank);
+        ChatUtils.sendStaffChannelMessage(sender, message, knownRank.get());
         return true;
     }
 
