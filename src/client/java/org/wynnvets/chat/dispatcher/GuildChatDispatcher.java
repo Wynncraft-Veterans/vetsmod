@@ -209,7 +209,8 @@ public final class GuildChatDispatcher {
 
     /**
      * Handles {@code /g <message>}. Waitlist users, and Returners sitting in a
-     * world queue, are relayed over the WebSocket; any other Returner's line goes
+     * world queue, are relayed over the WebSocket, or refused in red while it is
+     * down ({@link #relayConnected()}); any other Returner's line goes
      * to the game server (refused if encoding its spoilers would pass 253
      * characters). Unless spoiler handling is off, spoiler markers are encoded on
      * all three paths. The two relays also strip the banned characters
@@ -387,9 +388,28 @@ public final class GuildChatDispatcher {
         return text;
     }
 
+    /**
+     * Refuses a relay while the inbound socket is down, with a red line saying the message was not
+     * sent. {@link org.wynnvets.api.V1ApiManager#sendInbound V1ApiManager#sendInbound} drops a
+     * frame silently then, so without this check the local echo would show a line nobody
+     * received. The check is of the socket only: a frame the server then rejects still echoes.
+     *
+     * @return {@code true} when the relay may go ahead
+     */
+    private static boolean relayConnected() {
+        if (V1ApiManager.isInboundConnected()) return true;
+        ChatUtils.sendLocalMessage(
+                Component.literal(
+                                "Not sent: vetsmod is not connected to the vets API right now."
+                                        + " Try again in a few seconds.")
+                        .withStyle(ChatFormatting.RED));
+        return false;
+    }
+
     private static void relayWaitlistChat(String message) {
         Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
+        if (!relayConnected()) return;
         String text = relayText(message);
         if (text == null) return;
 
@@ -404,7 +424,8 @@ public final class GuildChatDispatcher {
      * client is sitting in a world queue.  The Wynncraft game server ignores
      * {@code /g} commands in this state, so the message never touches the
      * guild chat channel — we instead mimic the game-server delivery locally
-     * and push the message via the v1 inbound WebSocket.
+     * and push the message via the v1 inbound WebSocket, only while that
+     * socket is up ({@link #relayConnected()}).
      *
      * <p>The message is sent with {@code type="queue"}, a distinct protocol
      * type that semantically equals a guild message but skips the
@@ -438,6 +459,7 @@ public final class GuildChatDispatcher {
     private static void relayQueuedReturnersChat(String message) {
         Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
+        if (!relayConnected()) return;
         String text = relayText(message);
         if (text == null) return;
 
@@ -465,6 +487,7 @@ public final class GuildChatDispatcher {
     private static void relayHonouraryChat(String message) {
         Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
+        if (!relayConnected()) return;
         String text = relayText(message);
         if (text == null) return;
 
