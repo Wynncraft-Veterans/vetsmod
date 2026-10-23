@@ -538,7 +538,7 @@ line, by design (`DistributeRuns`), and nothing it armed calls back.
 | Members menu closed by the server mid-search | `MembersListSearcher.onMenuClose` | yellow "Distribution stopped: the Members menu closed." | no, by design: the run stops |
 | Members menu gone when the next recipient is popped | `DistributionQueue.processNext` | yellow "Distribution stopped: the Members menu is not open." | no, by design: the run stops, and any later `@split` phase never starts |
 | Refresh never observed after a press | `MemberSlotPresser.armRefreshTimeout`, 40 ticks | yellow "Send timed out after N/M…" | yes |
-| Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | none | yes, with whatever was collected |
+| Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | yellow "Distribution stopped: the guild log closed." | no, by design: the run stops; nothing is sent from the partial log |
 | Guild log opened but not wrapped by Wynntils, `WRAP_CHECK_TICKS` after the bind | `GuildLogWalker.onTick` | red "Graid-based distribution requires a Wynntils feature that did not open the guild log (Custom Guild Log Screen)." | no: the log is closed and the run ends |
 | Bound log walk exceeds 200 ticks | `GuildLogWalker.onTick` | none | yes, with whatever was collected; the log is closed first |
 | Guild log no longer on top when the walk settles or times out — the player's Esc, a respawn | `GuildLogWalker.finishWalk` | yellow "Distribution stopped: the guild log closed." | no, by design: the run stops, and nothing is closed |

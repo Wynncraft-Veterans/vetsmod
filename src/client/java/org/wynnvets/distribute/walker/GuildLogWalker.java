@@ -77,7 +77,8 @@ import org.wynnvets.util.ContainerScreens;
  * log is no longer on top by then (the player's Esc, a respawn), it closes
  * nothing and stops the run instead, through
  * {@link org.wynnvets.distribute.DistributeRuns#stop(String) DistributeRuns.stop}, as does a
- * log that never opens once the overall timeout fires.</p>
+ * log that never opens once the overall timeout fires. A server close of the log stops the run
+ * at once ({@link #onMenuClose}), so nothing is sent from a log the server closed mid-walk.</p>
  */
 public final class GuildLogWalker {
 
@@ -89,9 +90,9 @@ public final class GuildLogWalker {
      *  ({@code REQUEST_TIMEOUT = 5} + {@code FORCED_LOAD_DELAY = 20}). */
     private static final int SETTLE_TICKS = 40;
 
-    /** Safety cap: if the walk hasn't finished in this many ticks
-     *  total, end it and deliver whatever was collected (possibly
-     *  nothing). ~10s. */
+    /** Safety cap, ~10 s from the arm: a walk still going this long ends. A bound log still on
+     *  top is closed and what was collected is delivered; a log that never opened, or is no
+     *  longer on top, stops the run instead. */
     private static final int OVERALL_TIMEOUT_TICKS = 200;
 
     /** Ticks after the bind before checking that Wynntils wrapped the log. Wynntils wraps on
@@ -104,12 +105,11 @@ public final class GuildLogWalker {
             "Graid-based distribution requires a Wynntils feature that did not open the guild"
                     + " log (Custom Guild Log Screen).";
 
-    /** Completion callback, fired once when the walk ends &mdash; on
-     *  settle, on a server-sent close of the log, or on the overall
-     *  timeout &mdash; with whatever was collected. Not fired when the log
-     *  never opened, or is gone by the time the walk settles or times out:
-     *  those stop the run. A later {@link #armWalk} replaces it without
-     *  firing it. */
+    /** Completion callback, fired once when the walk ends on settle or on the overall timeout
+     *  with the bound log still on top, with whatever was collected. Not fired when the log
+     *  never opened, the server closed it, or it is gone by the time the walk settles or times
+     *  out (those stop the run), nor when Wynntils did not wrap it (that refuses the run). A
+     *  later {@link #armWalk} replaces it without firing it. */
     @FunctionalInterface
     public interface Completion {
         void onComplete(List<GuildLogItem> entries);
@@ -198,13 +198,15 @@ public final class GuildLogWalker {
         if (event.getContainerId() != containerId) return;
         // A clientbound close for the bound log — Wynntils posts
         // MenuClosedEvent only from its handleContainerClose hook, so this
-        // is the server closing it. Finish with whatever we've collected,
-        // without touching the screen. A client-side close (the player's
-        // Esc) posts nothing here: unless the server answers with a close
-        // of its own, that walk ends on onTick's settle timer (or its
-        // overall timeout) instead.
+        // is the server taking away the menu the run drives. Wynntils pages
+        // the log in place, so this is never the walk's natural end, and the
+        // walk may have missed pages: stop the run, without touching the
+        // screen. A client-side close (the player's Esc) posts nothing here:
+        // that walk ends on onTick's settle timer (or its overall timeout),
+        // which finds the log gone and stops the run the same way.
         VetsLogger.debug("GuildLogWalker: menu closed mid-walk after {} entries", collected.size());
-        finishWalk(false);
+        stop();
+        DistributeRuns.stop("the guild log closed");
     }
 
     @SubscribeEvent
@@ -244,7 +246,7 @@ public final class GuildLogWalker {
                 DistributeRuns.stop("the guild log did not open");
                 return;
             }
-            finishWalk(true);
+            finishWalk();
             return;
         }
         if (containerId == -1) return;
@@ -266,7 +268,7 @@ public final class GuildLogWalker {
         }
         if (lastItemTick >= 0 && now - lastItemTick > SETTLE_TICKS) {
             VetsLogger.debug("GuildLogWalker: settled after {} entries", collected.size());
-            finishWalk(true);
+            finishWalk();
         }
     }
 
@@ -279,12 +281,12 @@ public final class GuildLogWalker {
         return false;
     }
 
-    private static void finishWalk(boolean closeScreen) {
+    private static void finishWalk() {
         Completion cb = completion;
         List<GuildLogItem> snapshot = new ArrayList<>(collected);
         int boundId = containerId;
         stop();
-        if (closeScreen && !closeLogIfOnTop(boundId)) {
+        if (!closeLogIfOnTop(boundId)) {
             // The log is no longer the screen on top — the player closed
             // it, or a respawn did — so whatever is there now is not ours to
             // close, and the walk may have missed pages: stop the run.
