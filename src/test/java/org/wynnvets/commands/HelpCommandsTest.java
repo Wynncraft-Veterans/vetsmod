@@ -441,14 +441,14 @@ class HelpCommandsTest {
 
     /**
      * Every row here is a GRAY description followed by a DARK_GRAY clarification,
-     * and the colour boundary is a sentence boundary on all three. A description
+     * and the colour boundary is a sentence boundary on all eight. A description
      * too long for one chat line wraps into a second GRAY fragment —
      * {@code forceChecks} is the one that does — rather than spilling into the
      * DARK_GRAY run mid-sentence, which is what the colour change would then be
      * announcing.
      */
     @Test
-    void helpDebugTriggerPage_pinsItsNineteenSiblings() {
+    void helpDebugTriggerPage_pinsItsFortySiblings() {
         assertPage(
                 HelpCommands.buildHelpDebugTrigger(),
                 sib(ChatFormatting.YELLOW, "/wv debug trigger "),
@@ -462,12 +462,33 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "/wv debug trigger forceChecks\n"),
                 sib(ChatFormatting.GRAY, "  Force a re-check of guild membership, rank,\n"),
                 sib(ChatFormatting.GRAY, "  and staff status.\n"),
-                sib(ChatFormatting.DARK_GRAY, "  Runs /gu stats and /gu rank via Wynntils'\n"),
-                sib(ChatFormatting.DARK_GRAY, "  command queue, then reports state to chat.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  Reports guild and staff state to chat, then\n"),
+                sib(ChatFormatting.DARK_GRAY, "  re-runs /gu rank and /gu stats, skipping\n"),
+                sib(ChatFormatting.DARK_GRAY, "  either if one is already in flight.\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug trigger tabDump\n"),
                 sib(ChatFormatting.GRAY, "  Dump the raw tab list to chat.\n"),
                 sib(ChatFormatting.DARK_GRAY, "  Split into labelled columns, then shows the\n"),
                 sib(ChatFormatting.DARK_GRAY, "  parsed guild members.\n"),
+                sib(ChatFormatting.YELLOW, "/wv debug trigger bossBarsDump\n"),
+                sib(ChatFormatting.GRAY, "  Dump the boss bars on screen to chat.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  Order, id, name, colour, overlay and progress\n"),
+                sib(ChatFormatting.DARK_GRAY, "  of each, with vetsmod's own bar marked.\n"),
+                sib(ChatFormatting.YELLOW, "/wv debug trigger nametagsDump\n"),
+                sib(ChatFormatting.GRAY, "  Dump each player's nametag diagnostics.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  Anni gate, registry hit, tier and role, the\n"),
+                sib(ChatFormatting.DARK_GRAY, "  display name, and the colour it would get.\n"),
+                sib(ChatFormatting.YELLOW, "/wv debug trigger ghostsPromptDump\n"),
+                sib(ChatFormatting.GRAY, "  Log the ghosts-prompt inputs.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  To the log, not chat: the gate, each player's\n"),
+                sib(ChatFormatting.DARK_GRAY, "  ghost flag, and whether the prompt would fire.\n"),
+                sib(ChatFormatting.YELLOW, "/wv debug trigger zoneLinesDump\n"),
+                sib(ChatFormatting.GRAY, "  Dump the zone-line renderer's inputs.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  Gate, toggle and cache state, then each zone\n"),
+                sib(ChatFormatting.DARK_GRAY, "  disc and its distance from you.\n"),
+                sib(ChatFormatting.YELLOW, "/wv debug trigger rsvpDump\n"),
+                sib(ChatFormatting.GRAY, "  Log the RSVP client's state.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  To the log, not chat: auth, queue depth, the\n"),
+                sib(ChatFormatting.DARK_GRAY, "  last attempt and ack, and the rsvp block.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.WHITE, "None (public)"));
     }

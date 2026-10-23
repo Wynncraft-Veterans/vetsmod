@@ -484,14 +484,45 @@ final class HelpCommands {
                 "/wv debug trigger forceChecks\n",
                 gray("  Force a re-check of guild membership, rank,\n"),
                 gray("  and staff status.\n"),
-                dim("  Runs /gu stats and /gu rank via Wynntils'\n"),
-                dim("  command queue, then reports state to chat.\n"));
+                dim("  Reports guild and staff state to chat, then\n"),
+                dim("  re-runs /gu rank and /gu stats, skipping\n"),
+                dim("  either if one is already in flight.\n"));
         row(
                 msg,
                 "/wv debug trigger tabDump\n",
                 gray("  Dump the raw tab list to chat.\n"),
                 dim("  Split into labelled columns, then shows the\n"),
                 dim("  parsed guild members.\n"));
+        row(
+                msg,
+                "/wv debug trigger bossBarsDump\n",
+                gray("  Dump the boss bars on screen to chat.\n"),
+                dim("  Order, id, name, colour, overlay and progress\n"),
+                dim("  of each, with vetsmod's own bar marked.\n"));
+        row(
+                msg,
+                "/wv debug trigger nametagsDump\n",
+                gray("  Dump each player's nametag diagnostics.\n"),
+                dim("  Anni gate, registry hit, tier and role, the\n"),
+                dim("  display name, and the colour it would get.\n"));
+        row(
+                msg,
+                "/wv debug trigger ghostsPromptDump\n",
+                gray("  Log the ghosts-prompt inputs.\n"),
+                dim("  To the log, not chat: the gate, each player's\n"),
+                dim("  ghost flag, and whether the prompt would fire.\n"));
+        row(
+                msg,
+                "/wv debug trigger zoneLinesDump\n",
+                gray("  Dump the zone-line renderer's inputs.\n"),
+                dim("  Gate, toggle and cache state, then each zone\n"),
+                dim("  disc and its distance from you.\n"));
+        row(
+                msg,
+                "/wv debug trigger rsvpDump\n",
+                gray("  Log the RSVP client's state.\n"),
+                dim("  To the log, not chat: auth, queue depth, the\n"),
+                dim("  last attempt and ack, and the rsvp block.\n"));
         requires(msg, Access.PUBLIC, "None (public)");
         return msg;
     }
