@@ -225,6 +225,9 @@ public final class GuildChecker {
 
         waitingForGuildCheck = true;
         isModInitiatedGuildCheck = true;
+        // A new check ends any earlier check's grace, so that grace's pending clear, which
+        // compares this value, leaves the new check's flag alone.
+        guildCheckSuppressUntil = 0;
         guildCheckRequestTime = System.currentTimeMillis();
         lastNonEmptyCandidate = null;
 

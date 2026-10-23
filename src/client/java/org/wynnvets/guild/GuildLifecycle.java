@@ -2,6 +2,7 @@ package org.wynnvets.guild;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.utils.mc.McUtils;
+import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.client.player.LocalPlayer;
 import org.apache.commons.lang3.StringUtils;
 import org.wynnvets.api.V1ApiManager;
@@ -25,7 +26,8 @@ import org.wynnvets.util.TickDelays;
  * {@link UnlockManager} directly. A world join can start the guild recheck poll and the delayed
  * {@code /gu stats} check, both run on the client thread a few seconds later through
  * {@link TickDelays}; each gives up if a disconnect has cleared {@link #enteredWorld} by the time
- * it looks. The session-auth warning it schedules does not check the flag. A Returners join
+ * it looks, or if a later world join has scheduled a newer one of its kind (latest wins). The
+ * session-auth warning it schedules does not check the flag. A Returners join
  * mid-session also hands off to {@link ReturnersReauth}, which re-sends the auth frame so the
  * server's session picks up the member tier.</p>
  */
@@ -44,6 +46,11 @@ public final class GuildLifecycle {
     // Whether the player has entered a world at least once since reset.
     // Package-private for GuildStateManager.canExecuteCommands, which reports it.
     static volatile boolean enteredWorld = false;
+
+    // Bumped each time a recheck poll or a delayed /gu stats check is scheduled; a task that
+    // finds a newer number stops, so a quick world hop runs only the latest join's.
+    private static final AtomicInteger recheckGeneration = new AtomicInteger();
+    private static final AtomicInteger delayedCheckGeneration = new AtomicInteger();
 
     private GuildLifecycle() {}
 
@@ -198,18 +205,26 @@ public final class GuildLifecycle {
      * {@link GuildChecker}'s cached result only if the result contradicts Wynntils
      * ({@link GuildChecker#clearResultIfContradicted}), so a {@code /gu stats} answer that
      * landed first survives, and re-evaluates guild state. Gives up if {@link #reset()} (a
-     * disconnect) has cleared the world-entered flag by the time it polls; a new world
-     * entry sets the flag again, so an in-flight poll can survive a quick reconnect.</p>
+     * disconnect) has cleared the world-entered flag by the time it polls, or if a later world
+     * join has started a newer poll: the latest wins. A later join that finds a guild schedules
+     * no poll, so an earlier one still runs out its attempts.</p>
      */
     private static void scheduleGuildRecheck() {
-        TickDelays.runAfter(GUILD_RECHECK_DELAY_MS, "Guild recheck", () -> recheckAttempt(1));
+        int generation = recheckGeneration.incrementAndGet();
+        TickDelays.runAfter(
+                GUILD_RECHECK_DELAY_MS, "Guild recheck", () -> recheckAttempt(generation, 1));
     }
 
     /**
-     * One attempt of the poll {@link #scheduleGuildRecheck()} starts; {@code attempt} counts
-     * from 1. Schedules the next attempt itself while attempts remain.
+     * One attempt of the poll {@link #scheduleGuildRecheck()} starts, as its
+     * {@code generation}; {@code attempt} counts from 1. Schedules the next attempt itself while
+     * attempts remain.
      */
-    private static void recheckAttempt(int attempt) {
+    private static void recheckAttempt(int generation, int attempt) {
+        if (generation != recheckGeneration.get()) {
+            VetsLogger.debug("Guild recheck superseded by a later world join's");
+            return;
+        }
         if (!GuildStateManager.wynntilsReady || !enteredWorld) {
             VetsLogger.debug(
                     "Guild recheck aborted: wynntilsReady={}, enteredWorld={}",
@@ -236,7 +251,9 @@ public final class GuildLifecycle {
 
         if (attempt < GUILD_RECHECK_MAX_ATTEMPTS) {
             TickDelays.runAfter(
-                    GUILD_RECHECK_INTERVAL_MS, "Guild recheck", () -> recheckAttempt(attempt + 1));
+                    GUILD_RECHECK_INTERVAL_MS,
+                    "Guild recheck",
+                    () -> recheckAttempt(generation, attempt + 1));
             return;
         }
 
@@ -286,13 +303,19 @@ public final class GuildLifecycle {
      * Starts a {@code /gu stats} guild check about {@link #GUILD_CHECK_WORLD_JOIN_DELAY_MS}
      * after world join, to give Wynntils' own world-join commands time to go first. Runs on the
      * client thread through {@link TickDelays}, and queues the check only if the player is still
-     * on a world.
+     * on a world and no later world join has scheduled a newer one (latest wins, so the delay
+     * counts from the join the player is on).
      */
     private static void scheduleDelayedGuildCheck() {
+        int generation = delayedCheckGeneration.incrementAndGet();
         TickDelays.runAfter(
                 GUILD_CHECK_WORLD_JOIN_DELAY_MS,
                 "Delayed guild check",
                 () -> {
+                    if (generation != delayedCheckGeneration.get()) {
+                        VetsLogger.debug("Delayed guild check superseded by a later world join's");
+                        return;
+                    }
                     if (!GuildStateManager.wynntilsReady || !enteredWorld) {
                         VetsLogger.debug(
                                 "Delayed guild check aborted: wynntilsReady={}, enteredWorld={}",

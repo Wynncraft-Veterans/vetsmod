@@ -53,6 +53,8 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 1. a `/gu stats` check about 5 s after world join, while `MORE_RELIABLE_GUILD_CHECK` is on (the default);
 2. when Wynntils reports no guild yet, the recheck poll (`GUILD_RECHECK_*` constants), which re-evaluates guild state once a guild appears.
 
+Each kind is numbered when scheduled, and a task that finds a newer number stops, so a quick world hop runs only the latest join's check and poll.
+
 `GuildLifecycle.onGuildInfoUpdated()` invalidates the `GuildChecker` cache. It runs on Wynntils' `GuildEvent.Joined` / `.Left`. The recheck poll, where no event fired, clears it only when it contradicts Wynntils' guild data (`GuildChecker.clearResultIfContradicted`, through `GuildCheckResult.contradicts`), so a `/gu stats` answer that landed before Wynntils' scan survives, and one left from a guild change while disconnected does not.
 
 ## 2. GuildChecker
@@ -81,7 +83,7 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 - `GUILD_CHECK_EXPIRY_DAYS = 3`
 - Persisted: `VETS_GUILD_CHECK_RESULT` (long) and `VETS_LAST_GUILD_CHECK` (long timestamp)
 - `GUILD_CHECK_TIMEOUT_MS = 10_000L`
-- Suppression grace: 2 seconds after completion
+- Suppression grace: 2 seconds after completion; a new check started inside it ends it, so the old grace's pending clear can't end the new check's suppression
 
 ## 3. StaffRankChecker
 
