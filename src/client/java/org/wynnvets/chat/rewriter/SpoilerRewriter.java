@@ -53,7 +53,7 @@ public final class SpoilerRewriter {
                 "SpoilerRewriter: rewriting message with encoded spoiler (len={})",
                 messageString.length());
         MutableComponent result = rebuildWithDecodedSpoilers(component);
-        LocalChatDispatch.dispatchToChat(result, Prepend.GUILD.get().getStyle());
+        LocalChatDispatch.dispatchToChat(result, Prepend.GUILD.blockIndicatorStyle());
         return true;
     }
 

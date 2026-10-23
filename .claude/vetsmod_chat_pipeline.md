@@ -224,7 +224,7 @@ Formats rank "pill" (badge) component from the caller's supporter determination.
 
 [Prepend](../src/client/java/org/wynnvets/chat/Prepend.java)
 
-Enum, four constants: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge, compact block marker for consecutive messages within 18 lines), `GUILD_HONOURARY`, `EMPTY`. Mirrors native Wynncraft behaviour.
+Enum, four constants: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge, compact block marker for consecutive messages within 18 lines), `GUILD_HONOURARY`, `EMPTY`. Mirrors native Wynncraft behaviour. `get()` advances the dedup state, so it is called only for a badge that is drawn; `blockIndicatorStyle()` reads a badge's style without touching it, which is how `SpoilerRewriter` picks its dispatch style.
 
 ## 9. Dispatcher system (staff chat + /find)
 

@@ -15,6 +15,9 @@ import net.minecraft.resources.Identifier;
  * When the same badge is used for consecutive messages (within {@value #MAX_LINES_BEFORE_REBADGE}
  * chat lines), a compact block indicator is shown instead of the full badge to reduce visual
  * clutter — mirroring Wynncraft's native guild chat behavior.</p>
+ *
+ * <p>{@link #get()} advances that dedup state, so it is only for a badge that is drawn;
+ * {@link #blockIndicatorStyle()} reads a badge's style without touching it.</p>
  */
 public enum Prepend {
     DEFAULT(
@@ -96,6 +99,10 @@ public enum Prepend {
      * <p>If this prepend was used recently (within the last {@value #MAX_LINES_BEFORE_REBADGE}
      * lines), returns the compact block indicator instead of the full badge.</p>
      *
+     * <p>Every call counts as a drawn badge: the next call on this prepend within that many lines
+     * returns the indicator. Call it only for a badge that is appended to a line; for the style
+     * alone, use {@link #blockIndicatorStyle()}.</p>
+     *
      * @return a fresh copy of the badge or block indicator component
      */
     public MutableComponent get() {
@@ -105,6 +112,17 @@ public enum Prepend {
         lastPrepend = this;
         linesSinceBadge = 0;
         return badge.copy();
+    }
+
+    /**
+     * The style of this prepend's compact block indicator: the {@code chat/prefix} font and the
+     * badge colour, without shadow ({@link #EMPTY}'s is empty). Unlike {@link #get()}, it never
+     * touches the dedup state.
+     *
+     * @return the indicator's root style
+     */
+    public Style blockIndicatorStyle() {
+        return blockIndicator.getStyle();
     }
 
     /**
