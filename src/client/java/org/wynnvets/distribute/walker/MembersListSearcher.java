@@ -47,13 +47,16 @@ import org.wynnvets.util.ContainerScreens;
  * in one menu session without resetting to page 1 between them.</p>
  *
  * <h2>Re-arming while the menu is open</h2>
- * <p>An {@link #armSearch} made while no Members menu is open waits for
- * {@code MenuOpenedEvent.Pre} to bind the container id. One made while a
- * Members menu is open binds it and schedules a scan straight away, so
- * the pick starts searching from whatever page that menu is on &mdash;
- * normally every later pick of a multi-recipient run, since the previous
- * pick leaves the menu open, and {@code @objectives}' first pick, since
- * its walk ends in the menu.</p>
+ * <p>An {@link #armSearch} whose caller is about to open a fresh Members
+ * menu ({@code bindOpenMenu} false: the literal head, and the first pick of
+ * {@code @random} and {@code @graids}) always waits for
+ * {@code MenuOpenedEvent.Pre} to bind the container id, so a Members menu
+ * already open, which that open is about to replace, is never bound. One
+ * made with {@code bindOpenMenu} true while a Members menu is open binds it
+ * and schedules a scan straight away, so the pick starts searching from
+ * whatever page that menu is on &mdash; every later pick of a
+ * multi-recipient run, since the previous pick leaves the menu open, and
+ * {@code @objectives}' first pick, since its walk ends in the menu.</p>
  *
  * <h2>Name matching</h2>
  * <p>Each player-head's hover name is the member's tile name: wapi's
@@ -207,8 +210,11 @@ public final class MembersListSearcher {
      *     {@code null}. The multi-recipient send loop ({@code DistributionQueue}) passes one
      *     that moves on to the next recipient, and the single-target command one that closes
      *     the Members menu.
+     * @param bindOpenMenu whether a Members menu already open may be bound at once. {@code false}
+     *     when the caller is about to open a fresh one, which would replace it.
      */
-    public static void armSearch(String name, SlotMatchHandler handler, Runnable onNotFound) {
+    public static void armSearch(
+            String name, SlotMatchHandler handler, Runnable onNotFound, boolean bindOpenMenu) {
         displayQuery = name;
         queryLower.clear();
         if (name != null && !name.isEmpty()) {
@@ -250,10 +256,10 @@ public final class MembersListSearcher {
                 WATCHDOG_TICKS);
 
         // Re-arm fast-path: when the Members menu is already open (multi-user
-        // flow), bind to its container id and kick off a scan now. Otherwise
-        // leave membersContainerId at -1 and wait for the next
-        // MenuOpenedEvent.Pre to bind.
-        AbstractContainerScreen<?> open = MembersGui.currentByTitle();
+        // flow), bind to its container id and kick off a scan now. Otherwise,
+        // or when the caller is about to open a fresh menu, leave
+        // membersContainerId at -1 and wait for the next MenuOpenedEvent.Pre.
+        AbstractContainerScreen<?> open = bindOpenMenu ? MembersGui.currentByTitle() : null;
         if (open != null) {
             membersContainerId = open.getMenu().containerId;
             scheduleScan();

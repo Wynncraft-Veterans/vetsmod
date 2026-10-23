@@ -162,7 +162,8 @@ is what the searcher matches). Each step names the class that owns it:
    result and so `getMenu().getItems()` reflects what the server sent.
    In a multi-recipient chain the menu is already open, and
    `armSearch`'s re-arm fast path binds the id and schedules a scan
-   directly instead.
+   directly instead. A search armed just before its run opens the menu
+   (`bindOpenMenu` false) never takes the fast path.
 5. **`MembersListSearcher.onSetContent` / `.onSetSlot`** call
    `scheduleScan()`, which is tail-debounced through `scanToken`: every
    call posts its own task and bumps the token, and only the
@@ -289,9 +290,9 @@ before their resolve does.
 
 `beginPicks` calls `DistributionQueue.processNext` for the first pick
 **before** `openManageMembers()` — the searcher must be armed by the time
-`MenuOpenedEvent.Pre` fires, so that it can bind on that event (a Members
-menu already open at arm time is bound by the fast path instead —
-`members-list-fast-path-binds-a-menu-about-to-be-replaced`). Later picks re-arm through the fast path
+`MenuOpenedEvent.Pre` fires, so that it can bind on that event; this pop
+arms with `bindOpenMenu` false, so a Members menu already open at arm time,
+which the open is about to replace, is ignored. Later picks re-arm through the fast path
 while the menu is still open, and the searcher's bidirectional
 pagination lets a pick on an earlier page be reached without reopening.
 

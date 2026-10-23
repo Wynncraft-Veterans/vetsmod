@@ -277,7 +277,8 @@ public final class DistributeCommands {
                 slot ->
                         MemberSlotPresser.fire(
                                 slot, resource, count, name, DistributeCommands::endSingleTarget),
-                DistributeCommands::endSingleTargetSearch);
+                DistributeCommands::endSingleTargetSearch,
+                false);
         if (resolved != null && !resolved.equalsIgnoreCase(name)) {
             MembersListSearcher.addAlternative(resolved);
         }

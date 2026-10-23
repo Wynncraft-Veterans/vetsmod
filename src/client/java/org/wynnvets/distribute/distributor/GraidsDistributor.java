@@ -223,7 +223,7 @@ public final class GraidsDistributor {
                                         + " total participations)…")
                         .withStyle(ChatFormatting.AQUA));
 
-        DistributionQueue.processNext(queue, resource, onComplete, "GraidsDistributor");
+        DistributionQueue.processNext(queue, resource, onComplete, "GraidsDistributor", false);
         GuildManageOpener.openManageMembers();
     }
 

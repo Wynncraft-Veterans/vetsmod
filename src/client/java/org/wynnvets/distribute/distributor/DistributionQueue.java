@@ -65,7 +65,8 @@ import org.wynnvets.logging.VetsLogger;
  *   <li><b>The arming order.</b> {@link RandomDistributor} and {@link GraidsDistributor}
  *       call {@link #processNext} <em>before</em>
  *       {@link org.wynnvets.distribute.opener.GuildManageOpener#openManageMembers()
- *       GuildManageOpener.openManageMembers()}, so the searcher is armed by the time
+ *       GuildManageOpener.openManageMembers()}, passing {@code menuOpen = false}, so the
+ *       searcher is armed, ignoring any Members menu already open, by the time
  *       {@code MenuOpenedEvent.Pre} fires and binds on it. {@link ObjectivesDistributor}
  *       calls it with the Members menu already open &mdash; its walk ended there &mdash; and
  *       so takes the searcher's re-arm fast path instead. Only the <em>first</em> pop
@@ -100,9 +101,10 @@ final class DistributionQueue {
      * Sends to the head of {@code queue} and re-enters itself when that send finishes, or
      * finishes the run when the queue is empty: green {@code "Distribution complete."},
      * {@link org.wynnvets.distribute.MembersGui#closeIfOpen() MembersGui.closeIfOpen()}, then
-     * {@code onComplete}. Every later pop first checks that the Members menu the previous
-     * recipient left open is still there, and stops the run if it is not (see the private
-     * overload).
+     * {@code onComplete}. A pop that expects the Members menu already open first checks that it
+     * is still there, and stops the run if it is not &mdash; the player pressed Esc, or the
+     * server closed it &mdash; rather than search for each remaining recipient in a menu that
+     * is not there.
      *
      * @param queue drained in place; the caller keeps no other reference to it
      * @param resource which hotbar button the presser synthesises
@@ -114,29 +116,19 @@ final class DistributionQueue {
      * @param logTag prefix for this run's debug lines &mdash; the calling head's simple
      *     class name, so an {@code @split} run's three phases stay distinguishable in the
      *     log
+     * @param menuOpen whether this pop expects the Members menu already open: {@code true} for
+     *     every pop after a send or search, and for {@code @objectives}' first, whose walk ends
+     *     in the menu. {@code false} for a first pop armed before its head opens the menu
+     *     ({@code @random}, {@code @graids}); the searcher then ignores a Members menu that is
+     *     already open, about to be replaced, and binds the one the head opens.
      */
     static void processNext(
             Deque<Distribution> queue,
             MemberSlotPresser.Resource resource,
             Runnable onComplete,
-            String logTag) {
-        processNext(queue, resource, onComplete, logTag, false);
-    }
-
-    /**
-     * The loop itself. {@code menuExpected} is {@code false} for a head's first pop, which
-     * arms before the menu opens or with the menu its walk left open, and {@code true} for every
-     * pop after a send or search, which expects the Members menu still to be on screen. If it is
-     * not &mdash; the player pressed Esc, or the server closed it &mdash; the run stops with one
-     * yellow line rather than search for each remaining recipient in a menu that is not there.
-     */
-    private static void processNext(
-            Deque<Distribution> queue,
-            MemberSlotPresser.Resource resource,
-            Runnable onComplete,
             String logTag,
-            boolean menuExpected) {
-        if (menuExpected && MembersGui.currentByTitle() == null) {
+            boolean menuOpen) {
+        if (menuOpen && MembersGui.currentByTitle() == null) {
             VetsLogger.debug(
                     "{}: Members menu gone with {} recipients left, stopping",
                     logTag,
@@ -171,6 +163,7 @@ final class DistributionQueue {
                                 d.count(),
                                 d.legacyName(),
                                 () -> processNext(queue, resource, onComplete, logTag, true)),
-                () -> processNext(queue, resource, onComplete, logTag, true));
+                () -> processNext(queue, resource, onComplete, logTag, true),
+                menuOpen);
     }
 }

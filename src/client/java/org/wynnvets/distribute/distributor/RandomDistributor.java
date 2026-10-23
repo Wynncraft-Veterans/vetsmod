@@ -167,7 +167,7 @@ public final class RandomDistributor {
         // is armed by the time MenuOpenedEvent.Pre fires for the Members
         // GUI, and binds on it. Later picks normally re-arm via the fast
         // path while the menu is still open.
-        DistributionQueue.processNext(queue, resource, onComplete, "RandomDistributor");
+        DistributionQueue.processNext(queue, resource, onComplete, "RandomDistributor", false);
         GuildManageOpener.openManageMembers();
     }
 }

@@ -169,7 +169,7 @@ public final class ObjectivesDistributor {
                                         + " objective-completers…")
                         .withStyle(ChatFormatting.AQUA));
 
-        DistributionQueue.processNext(queue, resource, onComplete, "ObjectivesDistributor");
+        DistributionQueue.processNext(queue, resource, onComplete, "ObjectivesDistributor", true);
     }
 
     /**
