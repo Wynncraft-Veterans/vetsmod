@@ -211,7 +211,7 @@ transitions safe:
 - Registered in `VetsmodClient.onInitializeClient()` after `AnniWsHandler.register()`.
 - Subscribes to `AnniSnapshotCache`.
 - Caches the most recent non-null `stamp_epoch` (since vets-anni emits null once the anni starts).
-- On every snapshot update, checks `AnniWindows.hotWindowClosed(lastKnownStamp, now)` — i.e. `now > lastKnownStamp + 30 min`; if true it computes `AnniModeManager.preferredMode()` and, only when `AnniMode.fromConfig()` differs, calls `transitionTo(target, Source.AUTO_WINDOW_CLOSE)`. `lastKnownStamp` is cleared regardless of whether a transition fired. Delegating to `preferredMode()` is what preserves an explicit user pick across the window boundary — the target is **not** hard-coded SILENT.
+- On every snapshot update, queues a client-thread task (`McUtils.mc().execute`, so every anni-mode write is on the client thread) that checks `AnniWindows.hotWindowClosed(lastKnownStamp, now)` — i.e. `now > lastKnownStamp + 30 min`; if true it computes `AnniModeManager.preferredMode()` and, only when `AnniMode.fromConfig()` differs, calls `transitionTo(target, Source.AUTO_WINDOW_CLOSE)`. `lastKnownStamp` is cleared regardless of whether a transition fired. Delegating to `preferredMode()` is what preserves an explicit user pick across the window boundary — the target is **not** hard-coded SILENT.
 - It writes no config directly; everything goes through `transitionTo`, so when the preferred target is PASSIVE/AGGRESSIVE the `/stream` mutex applies and the reset can be silently declined (debug log only). A SILENT target is never subject to the mutex and always lands.
 - One-shot per anni cycle.
 
