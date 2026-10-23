@@ -94,11 +94,14 @@ public final class AnniHoverBuilder {
      *  up unannounced" — unannounced-but-on-time is
      *  {@code attend_early}, and that is the yellow arm. So {@code null}
      *  and any unrecognised key both fall to GRAY — though
-     *  {@link #rsvpBadge} labels only the {@code null} case
-     *  {@code NO RSVP}, and renders an unrecognised key as the raw
-     *  string upper-cased, in the same gray. The boss
+     *  {@link #rsvpBadge} labels the {@code null} case {@code RSVP-NONE},
+     *  as it does both walk-ins, so only the colour tells those three
+     *  apart, and renders an unrecognised key as the raw string
+     *  upper-cased, in the same gray. The boss
      *  bar's {@code VetsBossBarContentBuilder.rsvpChip} agrees on every
-     *  notice but the hard RSVP, which it keeps blue by design.</p> */
+     *  notice the server sends but the hard RSVP, which it keeps blue by
+     *  design; it has no arms for the three defensive aliases, which it
+     *  shows upper-cased in gray.</p> */
     public static ChatFormatting noticeColor(String noticeEffective) {
         if (noticeEffective == null) return ChatFormatting.GRAY;
         switch (noticeEffective.toLowerCase(Locale.ROOT)) {
@@ -272,30 +275,29 @@ public final class AnniHoverBuilder {
             noticeKey = attendance.noticeEffective();
         }
         // Long form for chat-space callers (this badge). The short forms
-        // (HrdRSVP / SftRSVP / NotRSVP) exist for boss-bar style
-        // space-constrained UI surfaces and live with whichever
-        // future renderer needs them; chat has space to spell it out.
+        // (HrdRSVP / SftRSVP / NotRSVP) are the boss bar's, emitted by
+        // VetsBossBarContentBuilder.rsvpChip; chat has space to spell it out.
         String label;
+        // A walk-in has no RSVP either, so both walk-ins share RSVP-NONE with the
+        // no-notice case; noticeColor tells the three apart.
         if (noticeKey == null) {
-            label = "NO RSVP";
+            label = "RSVP-NONE";
         } else {
             switch (noticeKey.toLowerCase(Locale.ROOT)) {
                 case "hard":
                 case "rsvp_hard":
-                    label = "HARD RSVP";
+                    label = "RSVP-HARD";
                     break;
                 case "soft":
                 case "rsvp_soft":
-                    label = "SOFT RSVP";
+                    label = "RSVP-SOFT";
                     break;
                 case "attend_early":
                 case "walkin":
                 case "walk_in":
-                    label = "EARLY WALK-IN";
-                    break;
                 case "attend_late":
                 case "late":
-                    label = "LATE WALK-IN";
+                    label = "RSVP-NONE";
                     break;
                 default:
                     label = noticeKey.toUpperCase(Locale.ROOT);

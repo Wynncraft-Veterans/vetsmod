@@ -285,7 +285,7 @@ Gated by `vetsAnniShowPrediction`. When that is on but `event.prediction()` is n
 
 ### RSVP / attendance / board labels
 
-`AnniHoverBuilder.rsvpBadge` resolves its key from `rsvp.notice()` — but only while `rsvp != null && notice != null && !rsvp.revoked()` — otherwise from `attendance.noticeEffective()`. Long forms in chat: `HARD RSVP` / `SOFT RSVP` / `EARLY WALK-IN` / `LATE WALK-IN`, plus a gray **`NO RSVP`** when neither source yields a key, and an upper-cased passthrough of any unrecognised key. Short forms (`HrdRSVP` etc.) are the boss bar's, emitted by `VetsBossBarContentBuilder.rsvpChip`.
+`AnniHoverBuilder.rsvpBadge` resolves its key from `rsvp.notice()` — but only while `rsvp != null && notice != null && !rsvp.revoked()` — otherwise from `attendance.noticeEffective()`. Long forms in chat: `RSVP-HARD` / `RSVP-SOFT`, and **`RSVP-NONE`** for everyone without an RSVP, which `noticeColor` colours yellow for an on-time walk-in, red for a late one and gray when neither source yields a key, plus an upper-cased passthrough of any unrecognised key. Short forms (`HrdRSVP` etc.) are the boss bar's, emitted by `VetsBossBarContentBuilder.rsvpChip`.
 
 `Attendance Chance` is state-dependent:
 - party → "ASSIGNED" (light purple bold).

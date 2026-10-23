@@ -100,7 +100,7 @@ public final class AnniRsvpCommand {
                         // Outside the T-2h hot window the push poller runs at 5-min
                         // cadence, so without a fire-and-forget refresh here the
                         // cached snapshot would still report the pre-RSVP state
-                        // (e.g. "EARLY WALK-IN") for up to 5 minutes — confusing
+                        // (e.g. a yellow "RSVP-NONE") for up to 5 minutes — confusing
                         // immediately after the user committed. Today no anni_state
                         // push reaches vetsmod (outbound-socket-never-authenticated),
                         // so without this refresh the pre-RSVP state would last until
