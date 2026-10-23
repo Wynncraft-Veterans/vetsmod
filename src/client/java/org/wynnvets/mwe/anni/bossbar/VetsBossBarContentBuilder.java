@@ -44,12 +44,12 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  *       {@code &3anni.wynnvets.org&8: &cANNI IN &f&lAAs&8 | &d&l&nSCROLLS IN BBs&d!}</li>
  *   <li><b>Assigned</b> — when {@link #isAssigned} holds: the board
  *       carries a party or a role, <em>or</em> {@code registration.roles}
- *       carries any non-FILL entry. ⚠️ That last arm reads
+ *       carries any non-FILL entry. That last arm reads
  *       {@code registration}, not {@code board}, while all three chips
- *       below read {@code board} only — so a registered-but-unplaced
- *       player selects this variant and renders
- *       {@code Role: TBD | Party TBD | World: TBD}. Filed, not fixed:
- *       {@code boss-bar-assigned-variant-renders-all-tbd}. Spec §3.1.1.2:
+ *       below read {@code board} only — so a player registered for a
+ *       specific role but not yet placed renders
+ *       {@code Role: TBD | Party TBD | World: TBD}. That is intended: they
+ *       have committed to a slot the board has not filled yet. Spec §3.1.1.2:
  *       {@code &3anni.wynnvets.org/me&8: &7Role: <ROLE>&8 | &7Party <N>&8 | &7World: <W>}</li>
  *   <li><b>Seeking</b> — otherwise. Spec §3.1.1.1:
  *       {@code &7Seeking a <RSVP> <SLOT> &7for &3&nanni.wynnvets.org&7 in &f&l<XX>&fmin}</li>
@@ -394,7 +394,9 @@ public final class VetsBossBarContentBuilder {
     private static MutableComponent slotChip(AnniSnapshot snapshot) {
         // CORE if any specific (non-FILL) role appears in registration;
         // FILL otherwise. Mirrors {@link #isAssigned} but capped to
-        // the "seeking" path's needs.
+        // the "seeking" path's needs. Since isAssigned already takes the
+        // assigned variant for a non-FILL registration, the CORE arm is
+        // unreachable in practice and the seeking bar says FILL.
         AnniSnapshot.Registration reg = snapshot.registration();
         boolean core = false;
         if (reg != null) {
