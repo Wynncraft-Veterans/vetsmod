@@ -4,11 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link MembersGui} — the tile-bounds predicate, and the literals that claim to
- * mirror Wynntils' {@code GuildMemberListContainer}.
+ * Tests for {@link MembersGui} — the tile-bounds predicate, the page-turn check the walker
+ * waits on, and the literals that claim to mirror Wynntils' {@code GuildMemberListContainer}.
  *
  * <p>The table is a boundary sweep over {@link MembersGui#isTileSlot(int)}: one either side of
  * every edge of the rows 0–4 × cols 2–8 area, plus the two page-button slots, which are the
@@ -145,5 +146,31 @@ class MembersGuiTest {
                 10,
                 MembersGui.PREVIOUS_PAGE_SLOT,
                 "GuildMemberListContainer.getPreviousItemSlot()");
+    }
+
+    // ----- pageTurned -----
+
+    @Test
+    void pageTurned_falseWhileTheOldPageIsStillShowing() {
+        assertFalse(MembersGui.pageTurned(Set.of("Ann", "Bob"), Set.of("Ann", "Bob")));
+    }
+
+    @Test
+    void pageTurned_trueOnceEveryNameIsNew() {
+        assertTrue(MembersGui.pageTurned(Set.of("Ann", "Bob"), Set.of("Cid", "Dee")));
+    }
+
+    @Test
+    void pageTurned_falseOnAPartlyUpdatedPage() {
+        assertFalse(
+                MembersGui.pageTurned(Set.of("Ann", "Bob"), Set.of("Cid", "Bob")),
+                "one name left over from the old page means it has not finished turning");
+    }
+
+    @Test
+    void pageTurned_falseOnAnEmptyPage() {
+        assertFalse(
+                MembersGui.pageTurned(Set.of("Ann"), Set.of()),
+                "an empty scan proves nothing: the tiles may be mid-update");
     }
 }

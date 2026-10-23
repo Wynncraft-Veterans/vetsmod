@@ -4,6 +4,7 @@ import com.wynntils.core.text.StyledText;
 import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
@@ -126,6 +127,20 @@ public final class MembersGui {
                 && row <= BOUNDS_END_ROW
                 && col >= BOUNDS_START_COL
                 && col <= BOUNDS_END_COL;
+    }
+
+    /**
+     * Whether a Next or Previous click has landed: {@code now}, the tile names on the page as
+     * scanned, is non-empty and shares no name with {@code before}, the names on the page the
+     * click was made from. Each member appears on one page only, so a shared name means the old
+     * page, or one only partly updated, is still showing.
+     */
+    public static boolean pageTurned(Set<String> before, Set<String> now) {
+        if (now.isEmpty()) return false;
+        for (String name : now) {
+            if (before.contains(name)) return false;
+        }
+        return true;
     }
 
     /**
