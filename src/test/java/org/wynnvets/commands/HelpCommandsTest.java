@@ -104,14 +104,12 @@ class HelpCommandsTest {
      * the production order so that regrouping the table by gate fails here.
      */
     private static List<String> expectedRows(
-            boolean vet, boolean unlocked, boolean featuresEnabled, boolean staff) {
+            boolean unlocked, boolean featuresEnabled, boolean confirmedStaff) {
         List<String> rows = new ArrayList<>();
         rows.add("/wv help");
         rows.add("/wv anni");
         rows.add("/wv config [<key> [<value>]]");
-        if (vet) {
-            rows.add("/wv motd");
-        }
+        rows.add("/wv motd");
         if (unlocked) {
             rows.add("/wv list");
             rows.add("/wv staff");
@@ -120,7 +118,7 @@ class HelpCommandsTest {
             rows.add("/wv return");
             rows.add("/wv line <church|scrap|bat|hegea|lighthouse>");
         }
-        if (staff) {
+        if (confirmedStaff) {
             rows.add("/wv check <player>");
         }
         rows.add("/wv debug");
@@ -128,24 +126,22 @@ class HelpCommandsTest {
     }
 
     private static String describe(
-            boolean vet, boolean unlocked, boolean featuresEnabled, boolean staff) {
-        return "vet="
-                + vet
-                + " unlocked="
+            boolean unlocked, boolean featuresEnabled, boolean confirmedStaff) {
+        return "unlocked="
                 + unlocked
                 + " featuresEnabled="
                 + featuresEnabled
-                + " staff="
-                + staff;
+                + " confirmedStaff="
+                + confirmedStaff;
     }
 
-    // ----- help(): the index page and its four gates -----
+    // ----- help(): the index page and its three gates -----
 
     /** Every gate true — the widest the page ever gets. */
     @Test
     void helpPage_withEveryGateTrue_pinsItsTwentyFiveSiblings() {
         assertPage(
-                HelpCommands.buildHelp(true, true, true, true),
+                HelpCommands.buildHelp(true, true, true),
                 boldSib(ChatFormatting.GOLD, "Commands\n"),
                 sib(
                         ChatFormatting.GRAY,
@@ -175,11 +171,11 @@ class HelpCommandsTest {
                 sib(ChatFormatting.GRAY, " - Diagnostics & debug tools"));
     }
 
-    /** Every gate false — only the four unconditional rows survive. */
+    /** Every gate false — only the five unconditional rows survive. */
     @Test
-    void helpPage_withNoGate_pinsItsElevenSiblings() {
+    void helpPage_withNoGate_pinsItsThirteenSiblings() {
         assertPage(
-                HelpCommands.buildHelp(false, false, false, false),
+                HelpCommands.buildHelp(false, false, false),
                 boldSib(ChatFormatting.GOLD, "Commands\n"),
                 sib(
                         ChatFormatting.GRAY,
@@ -191,51 +187,53 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "/wv config "),
                 sib(ChatFormatting.GOLD, "[<key> [<value>]]"),
                 sib(ChatFormatting.GRAY, " - View or change mod settings\n"),
+                sib(ChatFormatting.YELLOW, "/wv motd"),
+                sib(ChatFormatting.GRAY, " - Show the message of the day\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug"),
                 sib(ChatFormatting.GRAY, " - Diagnostics & debug tools"));
     }
 
     /**
-     * All sixteen gate combinations, each against its exact ordered row set. Row
-     * order is gate-interleaved — three unconditional rows, then the gated ones,
+     * All eight gate combinations, each against its exact ordered row set. Row
+     * order is gate-interleaved — four unconditional rows, then the gated ones,
      * then {@code /wv debug} — so grouping a table by gate would reorder the page
      * and fail here rather than in review.
      */
     @Test
-    void gateMatrix_allSixteenCombinationsProduceTheirExactRowSet() {
-        for (int mask = 0; mask < 16; mask++) {
-            boolean vet = (mask & 1) != 0;
-            boolean unlocked = (mask & 2) != 0;
-            boolean featuresEnabled = (mask & 4) != 0;
-            boolean staff = (mask & 8) != 0;
+    void gateMatrix_allEightCombinationsProduceTheirExactRowSet() {
+        for (int mask = 0; mask < 8; mask++) {
+            boolean unlocked = (mask & 1) != 0;
+            boolean featuresEnabled = (mask & 2) != 0;
+            boolean confirmedStaff = (mask & 4) != 0;
             assertEquals(
-                    expectedRows(vet, unlocked, featuresEnabled, staff),
-                    rowsOf(HelpCommands.buildHelp(vet, unlocked, featuresEnabled, staff)),
-                    describe(vet, unlocked, featuresEnabled, staff));
+                    expectedRows(unlocked, featuresEnabled, confirmedStaff),
+                    rowsOf(HelpCommands.buildHelp(unlocked, featuresEnabled, confirmedStaff)),
+                    describe(unlocked, featuresEnabled, confirmedStaff));
         }
     }
 
     /**
      * Commit {@code be482b1} is the fix this protects: {@code /wv list} was
      * printed twice, and advertised on the vet predicate rather than on
-     * {@code isUnlocked()}. Across all sixteen combinations it must appear exactly
+     * {@code isUnlocked()}. Across all eight combinations it must appear exactly
      * once when unlocked and never otherwise.
      */
     @Test
     void wvListIsAdvertisedExactlyOnceWhenUnlockedAndNeverOtherwise() {
-        for (int mask = 0; mask < 16; mask++) {
-            boolean vet = (mask & 1) != 0;
-            boolean unlocked = (mask & 2) != 0;
-            boolean featuresEnabled = (mask & 4) != 0;
-            boolean staff = (mask & 8) != 0;
+        for (int mask = 0; mask < 8; mask++) {
+            boolean unlocked = (mask & 1) != 0;
+            boolean featuresEnabled = (mask & 2) != 0;
+            boolean confirmedStaff = (mask & 4) != 0;
             long advertised =
-                    rowsOf(HelpCommands.buildHelp(vet, unlocked, featuresEnabled, staff)).stream()
+                    rowsOf(HelpCommands.buildHelp(unlocked, featuresEnabled, confirmedStaff))
+                            .stream()
                             .filter("/wv list"::equals)
                             .count();
             assertEquals(
                     unlocked ? 1L : 0L,
                     advertised,
-                    "/wv list advert count for " + describe(vet, unlocked, featuresEnabled, staff));
+                    "/wv list advert count for "
+                            + describe(unlocked, featuresEnabled, confirmedStaff));
         }
     }
 
@@ -344,14 +342,14 @@ class HelpCommandsTest {
     @Test
     void helpMotdPage_pinsItsFourSiblings() {
         assertPage(
-                HelpCommands.buildHelpMotd(HelpCommands.Access.CONFIRMED),
+                HelpCommands.buildHelpMotd(),
                 sib(ChatFormatting.YELLOW, "/wv motd\n"),
                 sib(
                         ChatFormatting.GRAY,
-                        "Show the guild message of the day. Also available as "
+                        "Show the message of the day. Also available as "
                                 + "a standalone /motd command.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
-                sib(ChatFormatting.AQUA, "Veteran (Returners, waitlist, or honourary)"));
+                sib(ChatFormatting.WHITE, "None (public)"));
     }
 
     @Test
@@ -535,11 +533,6 @@ class HelpCommandsTest {
                     "Veteran (Returners, waitlist, or honourary)",
                     context + "list");
             assertRequirement(
-                    HelpCommands.buildHelpMotd(access),
-                    expected,
-                    "Veteran (Returners, waitlist, or honourary)",
-                    context + "motd");
-            assertRequirement(
                     HelpCommands.buildHelpLine(access),
                     expected,
                     "Returners guild member",
@@ -565,16 +558,18 @@ class HelpCommandsTest {
     }
 
     /**
-     * The four ungated pages keep WHITE, and that is a third state rather than an
+     * The five ungated pages keep WHITE, and that is a third state rather than an
      * oversight: there is no permission to hold or lack, so a GREEN here would be
      * claiming one was granted.
      */
     @Test
-    void requiresFooter_staysWhiteOnTheFourPagesWithNoGate() {
+    void requiresFooter_staysWhiteOnTheFivePagesWithNoGate() {
         assertEquals(
                 ChatFormatting.WHITE,
                 ACCESS_COLOURS.getOrDefault(HelpCommands.Access.PUBLIC, ChatFormatting.WHITE),
                 "PUBLIC is deliberately outside the met/confirmed ladder");
+        assertRequirement(
+                HelpCommands.buildHelpMotd(), ChatFormatting.WHITE, "None (public)", "motd");
         assertRequirement(
                 HelpCommands.buildHelpAnni(), ChatFormatting.WHITE, "None (public)", "anni");
         assertRequirement(

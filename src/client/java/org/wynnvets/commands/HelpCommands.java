@@ -160,7 +160,7 @@ final class HelpCommands {
      * The {@link Access} for a gate whose only server-side confirmation is that
      * the session is authenticated at all.
      *
-     * <p>Five of the six gated pages are this shape. Their requirement — vet,
+     * <p>Four of the five gated pages are this shape. Their requirement —
      * unlocked, Returners — is decided locally from a cache the mod fills on world
      * join, and the only thing the server independently vouches for is that this
      * session presented a key and was acked. {@code /wv check} is the exception:
@@ -185,7 +185,6 @@ final class HelpCommands {
     static int help(CommandContext<FabricClientCommandSource> ctx) {
         ChatUtils.sendLocalMessageNewBlock(
                 buildHelp(
-                        GuildStateManager.isEligibleForEnrichment(),
                         GuildStateManager.isUnlocked(),
                         GuildStateManager.areFeaturesEnabled(),
                         GuildStateManager.isConfirmedStaff()));
@@ -195,14 +194,14 @@ final class HelpCommands {
     /**
      * Builds the bare {@code /wv help} index page.
      *
-     * <p>The four gates arrive as parameters rather than being read from
+     * <p>The three gates arrive as parameters rather than being read from
      * {@link GuildStateManager} here: the rows they guard are interleaved with
      * the unconditional ones, so the page is only enumerable when the gates are
      * inputs.  Reading them once, together, at the call site also stops the
      * page straddling a {@code GuildChecker} cache expiry mid-build.</p>
      */
     static MutableComponent buildHelp(
-            boolean vet, boolean unlocked, boolean featuresEnabled, boolean confirmedStaff) {
+            boolean unlocked, boolean featuresEnabled, boolean confirmedStaff) {
         MutableComponent msg = Component.empty();
         title(msg, "Commands\n");
         line(
@@ -212,9 +211,7 @@ final class HelpCommands {
         row(msg, "/wv help", gray(" - Show this help message\n"));
         row(msg, "/wv anni", gray(" - Show annihilation timer\n"));
         row(msg, "/wv config [<key> [<value>]]", gray(" - View or change mod settings\n"));
-        if (vet) {
-            row(msg, "/wv motd", gray(" - Show the message of the day\n"));
-        }
+        row(msg, "/wv motd", gray(" - Show the message of the day\n"));
         if (unlocked) {
             row(msg, "/wv list", gray(" - Show online guild members\n"));
             row(msg, "/wv staff", gray(" - Show online stewards\n"));
@@ -369,18 +366,16 @@ final class HelpCommands {
     }
 
     static int helpMotd(CommandContext<FabricClientCommandSource> ctx) {
-        ChatUtils.sendLocalMessageNewBlock(
-                buildHelpMotd(sessionBacked(GuildStateManager.isEligibleForEnrichment())));
+        ChatUtils.sendLocalMessageNewBlock(buildHelpMotd());
         return 1;
     }
 
-    static MutableComponent buildHelpMotd(Access access) {
+    static MutableComponent buildHelpMotd() {
         return detailPage(
                 "/wv motd\n",
-                "Show the guild message of the day. Also available as "
-                        + "a standalone /motd command.\n",
-                access,
-                "Veteran (Returners, waitlist, or honourary)");
+                "Show the message of the day. Also available as a standalone /motd command.\n",
+                Access.PUBLIC,
+                "None (public)");
     }
 
     static int helpAnni(CommandContext<FabricClientCommandSource> ctx) {

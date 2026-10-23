@@ -75,7 +75,7 @@ What each gate checks:
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
-| `/motd` | none | none | `CommandRegistry.motd` | Prints the guild MOTD for a Returners, guildless-and-waitlist-unlocked or honourary-unlocked player, else the plain MOTD. An empty guild MOTD falls back to the plain one | GETs `VetsApi.GUILD_MOTD` for those players, and `VetsApi.MOTD` for everyone else or as the fallback | `help-footers-name-gates-return-and-motd-lack` |
+| `/motd` | none | none | `CommandRegistry.motd` | Prints the guild MOTD for a Returners, guildless-and-waitlist-unlocked or honourary-unlocked player, else the plain MOTD. An empty guild MOTD falls back to the plain one | GETs `VetsApi.GUILD_MOTD` for those players, and `VetsApi.MOTD` for everyone else or as the fallback | none |
 
 `/wv motd` runs the same handler.
 
@@ -83,7 +83,7 @@ What each gate checks:
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
-| `/wv help` | none | none | `HelpCommands.help` → `buildHelp` | The index page. `/wv help`, `/wv anni`, `/wv config` and `/wv debug` always; `/wv motd` when `isEligibleForEnrichment()`; `/wv list` and `/wv staff` when `isUnlocked()`; `/wv return` and `/wv line` when `areFeaturesEnabled()`; `/wv check` when `isConfirmedStaff()` | chat only | `help-footers-name-gates-return-and-motd-lack`, `wv-help-omits-five-registered-paths` |
+| `/wv help` | none | none | `HelpCommands.help` → `buildHelp` | The index page. `/wv help`, `/wv anni`, `/wv config`, `/wv motd` and `/wv debug` always; `/wv list` and `/wv staff` when `isUnlocked()`; `/wv return` and `/wv line` when `areFeaturesEnabled()`; `/wv check` when `isConfirmedStaff()` | chat only | `wv-help-omits-five-registered-paths` |
 | `/wv help config`, `check`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger` | none | none | `HelpCommands.helpX` → `buildHelpX` | One detail page each. Most are a usage line, a line of prose and a `Requires:` footer; the config page lists its keys with no footer, and the debug pages list their subcommands, keys or actions above the footer | chat only | none |
 
 Every page is a `buildX` returning the page plus a `helpX` that sends it, so a page is a value a
@@ -107,16 +107,14 @@ site that wrote it:
   page carries one. `HelpCommands.Access` has the states `DENIED` RED, `GRANTED` GREEN, `CONFIRMED`
   AQUA and `PUBLIC` WHITE. The gated detail pages take an `Access` resolved by
   `access(met, confirmed)`, in which `confirmed` wins outright so a stale local cache cannot report
-  DENIED on a permission the server has granted. `access` never returns `PUBLIC`; the anni, debug,
-  debug set and debug trigger pages pass it as a constant. GREEN means *this should work*; AQUA means
-  *the server agrees*. Five of the six gated pages take `sessionBacked(met)`, whose confirmation is
+  DENIED on a permission the server has granted. `access` never returns `PUBLIC`; the motd, anni,
+  debug, debug set and debug trigger pages pass it as a constant. GREEN means *this should work*; AQUA means
+  *the server agrees*. Four of the five gated pages take `sessionBacked(met)`, whose confirmation is
   `met && isAuthenticatedThisSession()` (so an authenticated viewer who fails the local gate still sees
   DENIED). `/wv check` is the exception: its gate is `isConfirmedStaff()`, the server's roster answer,
   which it passes as both signals, so its footer is AQUA or RED and never GREEN, and the index row
-  advertises it on the same gate. The return and motd footers colour gates their commands
-  do not have, so their RED does not mean the command will refuse (bug
-  `help-footers-name-gates-return-and-motd-lack`). The detail builders take an `Access` rather than
-  reading `GuildStateManager`, for the same reason `buildHelp` takes its gates as parameters.
+  advertises it on the same gate. The detail builders take an `Access` rather than reading
+  `GuildStateManager`, for the same reason `buildHelp` takes its gates as parameters.
 
 ### `/wv check` and `/wv invite-force`
 
@@ -134,11 +132,11 @@ typed `/wv check` first, Fabric's or `GuildChatDispatcher`'s, is not settled; se
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
-| `/wv return` | ungated | none | `CommandRegistry.returnInfo` → `ReturnFetcher.fetchReturn` | Prints the latest return-channel post, with its Discord timestamps rewritten and a link footer (below) | GETs `VetsApi.RETURN` | `help-footers-name-gates-return-and-motd-lack` |
+| `/wv return` | none | `areFeaturesEnabled()`: "/wv return is restricted to vets members." | `CommandRegistry.returnInfo` → `ReturnFetcher.fetchReturn` | Prints the latest return-channel post, with its Discord timestamps rewritten and a link footer (below) | GETs `VetsApi.RETURN` | none |
 | `/wv list` | ungated | `isUnlocked()`: "/wv list is restricted to vets members." | `CommandRegistry.list` → `ListFetcher.fetchList` | Prints "Looking up online members...", then the online members grouped by tier and VetsMod status: staff underlined, supporters with a glint | GETs `VetsApi.LIST`; Wynntils' Wynncraft API lookup of the Returners guild (`Models.Guild.getGuild`); for a Returners caller, a WebSocket `tablist` frame of the tab list's guild entries | `stale-registration-survives-eligibility-loss`, `legacy-unlock-markers-still-grant-client-unlock` |
 | `/wv list world` | ungated | `isStaff()`, after a `refreshStaffStatusIfNeeded` forced for a non-steward unless a staff check finished in the last minute: "We are still checking your permissions, please retry in a moment." while a refresh starts or runs, then "/wv list world is restricted to stewards." | `CommandRegistry.listWorld` → `WorldListFetcher.fetchWorldList` | For staff: finds each online member with `/find` and groups them by server region (the GeoIP2 continent codes AF, AS, EU, NA, OC and SA, then Other and Private) | in-game `/gu rank` (forced for a non-staff caller unless a staff check finished in the last minute), `/find` per member; GETs `VetsApi.LIST` and `VetsApi.STAFF`; Wynntils' Wynncraft API lookup of the Returners guild; a `PlayerLookup` name lookup for each member `/find` did not place; for a Returners caller, a WebSocket `tablist` frame | `staff-rank-cache-survives-leaving-guild`, `find-phase-does-not-yield-to-queued-msg`, `vets-snapshot-provider-skips-confirmed-staff-check`, `staff-action-queue-not-drained-on-socket-reconnect` |
 | `/wv staff` | ungated | `isUnlocked()`: "/wv staff is restricted to vets members." | `CommandRegistry.staff` → `StaffFetcher.fetchOnlineStaff` | Prints online staff, sorted by rank, then by name | GETs `VetsApi.STAFF` | `legacy-unlock-markers-still-grant-client-unlock` |
-| `/wv motd` | ungated | none | `CommandRegistry.motd` | As the root `/motd` | as `/motd` | `help-footers-name-gates-return-and-motd-lack` |
+| `/wv motd` | none | none | `CommandRegistry.motd` | As the root `/motd` | as `/motd` | none |
 
 A non-steward's first `/wv list world` forces a staff re-check, so a fresh promotion is caught, and gets the
 yellow "retry" line; a call within a minute of a finished check gets the red refusal instead. It has no

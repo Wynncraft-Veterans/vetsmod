@@ -128,7 +128,6 @@ public final class CommandRegistry {
                         // /wv return
                         .then(
                                 ClientCommandManager.literal("return")
-                                        .requires(CommandRegistry::userIsVet)
                                         .executes(CommandRegistry::returnInfo))
 
                         // /wv list
@@ -148,10 +147,7 @@ public final class CommandRegistry {
                                         .executes(CommandRegistry::staff))
 
                         // /wv motd
-                        .then(
-                                ClientCommandManager.literal("motd")
-                                        .requires(CommandRegistry::userIsVet)
-                                        .executes(CommandRegistry::motd))
+                        .then(ClientCommandManager.literal("motd").executes(CommandRegistry::motd))
 
                         // /wv anni — base form runs the dispatcher; mode subcommands
                         // route through AnniModeManager.transitionTo so the /stream
@@ -337,6 +333,12 @@ public final class CommandRegistry {
     }
 
     private static int returnInfo(CommandContext<FabricClientCommandSource> ctx) {
+        if (!GuildStateManager.areFeaturesEnabled()) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal("/wv return is restricted to vets members.")
+                            .withStyle(ChatFormatting.RED));
+            return 0;
+        }
         ReturnFetcher.fetchReturn()
                 .thenAccept(returnInfo -> ChatUtils.sendLocalMessageNewBlock(returnInfo));
         return 1;

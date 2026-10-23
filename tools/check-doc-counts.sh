@@ -126,7 +126,7 @@ org/wynnvets/queue/QueueDetector.java|handleTitleText(|2|two-caller claim, in-cl
 org/wynnvets/fetcher/polling/AnniStampPoller.java|getLatestStamp(|1|only-reader claim, in-class half: the declaration alone
 org/wynnvets/fetcher/polling/AnniStampPoller.java|updateFromExternalFetch(|1|only-caller claim, in-class half: the declaration alone
 org/wynnvets/fetcher/ondemand/StampFetcher.java|anniIntegrationActive(|3|VetsConfigKeys#VETS_ANNI_ENABLED: its one reader, called by the world-join and /wv anni paths (declaration plus two calls)
-org/wynnvets/commands/HelpCommands.java|sessionBacked(|6|vetsmod_commands.md: five of the six gated pages take sessionBacked (declaration plus five calls; /wv check is the sixth)
+org/wynnvets/commands/HelpCommands.java|sessionBacked(|5|vetsmod_commands.md: four of the five gated pages take sessionBacked (declaration plus four calls; /wv check is the fifth)
 org/wynnvets/chat/dispatcher/GuildChatDispatcher.java|regionMatches(|5|vetsmod_commands.md section 2: four prefixes need the trailing space, plus the one in argsAfter
 '
 

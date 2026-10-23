@@ -223,8 +223,7 @@ public final class GuildStateManager {
      * {@link org.wynnvets.mwe.anni.render.AnniCommandRenderer AnniCommandRenderer}'s "external vs
      * vets" test (enriched printout vs the legacy stamp-only fallback), and it drives the
      * eligibility-based default anni mode (PASSIVE if eligible, SILENT otherwise) in
-     * {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}. {@code /wv help}
-     * also uses it as the vet gate.</p>
+     * {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}.</p>
      *
      * @return true if eligible for enrichment, false otherwise
      */
