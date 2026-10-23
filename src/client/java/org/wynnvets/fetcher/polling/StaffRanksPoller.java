@@ -8,6 +8,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -107,7 +108,7 @@ public final class StaffRanksPoller {
             return Optional.empty();
         }
 
-        String key = username.toLowerCase();
+        String key = username.toLowerCase(Locale.ROOT);
         String rank = liveStaffRanksByUsername.get(key);
         if (rank != null) {
             return Optional.of(rank);
@@ -131,7 +132,7 @@ public final class StaffRanksPoller {
         if (username == null || username.isEmpty()) {
             return;
         }
-        String key = username.toLowerCase();
+        String key = username.toLowerCase(Locale.ROOT);
         if (online) {
             String normalized = normalizeRank(rank);
             if (normalized == null) {
@@ -195,7 +196,7 @@ public final class StaffRanksPoller {
                     continue;
                 }
 
-                newRanks.put(username.toLowerCase(), rank);
+                newRanks.put(username.toLowerCase(Locale.ROOT), rank);
             }
 
             staffRanksByUsername.clear();
@@ -210,7 +211,7 @@ public final class StaffRanksPoller {
             return null;
         }
 
-        String normalized = rank.trim().toLowerCase();
+        String normalized = rank.trim().toLowerCase(Locale.ROOT);
         return ALLOWED_RANKS.contains(normalized) ? normalized : null;
     }
 }

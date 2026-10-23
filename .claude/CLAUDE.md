@@ -190,6 +190,7 @@ Consequences worth knowing before you edit:
 - **No import exists only for a Javadoc `{@link}`.** The next rule is why: a cross-package reference is written fully qualified, so an IDE "optimize imports" strips nothing a Javadoc needs. An import that only a `{@link}` uses is a defect to convert: an optimizer that does not read Javadoc strips it, and the reference gate then fails the build.
 - **Cross-package Javadoc references are fully qualified with a label** — `{@link org.wynnvets.p.Foo Foo}` — rather than resolved by adding an import. A doc-only import would assert a dependency edge that no code has. Renders identically.
 - **Moving or renaming a class breaks every Javadoc reference to it, loudly.** Fix the references as part of the move; there is no sweep afterwards.
+- **Every case fold passes `Locale.ROOT`.** A unit test, `LocaleFoldTripwireTest`, fails the build on a bare `toLowerCase()` or `toUpperCase()` anywhere under `src/main/java` or `src/client/java`, comments included. Under a Turkish or Azeri default locale the bare fold turns `I` into a dotless `ı` and `i` into a dotted `İ`.
 - **Changing `org.gradle.jvmargs` needs `./gradlew --stop`** or you are testing the old daemon's flags.
 - **`git blame` over the reformat.** `.git-blame-ignore-revs` holds the reformat commit, but git only honours it once per clone: `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 

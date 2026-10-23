@@ -5,6 +5,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.wynntils.utils.mc.McUtils;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
@@ -86,9 +87,9 @@ public final class DebugCommands {
     /** Tab-completion provider that suggests debug-configurable key names. */
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_DEBUG_CONFIG_KEYS =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 for (String key : DebugConfigManager.DEBUG_CONFIG_KEYS) {
-                    if (key.toLowerCase().startsWith(partial)) {
+                    if (key.toLowerCase(Locale.ROOT).startsWith(partial)) {
                         builder.suggest(key);
                     }
                 }
@@ -98,7 +99,7 @@ public final class DebugCommands {
     /** Tab-completion provider that suggests "true" / "false". */
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_BOOLEAN_VALUES =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 if ("true".startsWith(partial)) builder.suggest("true");
                 if ("false".startsWith(partial)) builder.suggest("false");
                 return builder.buildFuture();

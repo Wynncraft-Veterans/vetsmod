@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
@@ -181,7 +182,7 @@ final class AnniSnapshotDebugCommands {
             // anything else (e.g. "empty") clears the override back to
             // auto. Explicit `/wv debug tree anni external …` after the
             // inject still wins.
-            String lower = name.toLowerCase();
+            String lower = name.toLowerCase(Locale.ROOT);
             Boolean override;
             String reason;
             if (lower.startsWith("external")) {
@@ -588,7 +589,7 @@ final class AnniSnapshotDebugCommands {
     static int externalSet(CommandContext<FabricClientCommandSource> ctx) {
         int gate = AnniDebugCommands.requireDebug(ctx);
         if (gate == 0) return 0;
-        String mode = StringArgumentType.getString(ctx, "mode").toLowerCase();
+        String mode = StringArgumentType.getString(ctx, "mode").toLowerCase(Locale.ROOT);
         Boolean override;
         switch (mode) {
             case "auto":

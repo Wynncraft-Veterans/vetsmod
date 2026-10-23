@@ -216,41 +216,36 @@ class PillCodecTest {
 
     @Test
     void encodeRemote_upperCasesTheLabel() {
-        // Fixtures deliberately contain no 'i' — see the locale case below, which
-        // is why this is not the general property it looks like.
         assertEquals(PillCodec.encodeRemote("VET"), PillCodec.encodeRemote("vet"));
         assertEquals(PillCodec.encodeRemote("VET"), PillCodec.encodeRemote("VeT"));
     }
 
     @Test
-    void encodeRemote_dropsAnIUnderATurkishDefaultLocale() {
-        // KNOWN BUG (pinned, not fixed): encodeRemote and encodeLocal fold with
-        // the no-argument toUpperCase(). Under a Turkish default, 'i' becomes
-        // the dotted capital U+0130, which is outside A-Z, so the letter is
-        // silently dropped rather than rejected — a "vip" pill renders as "VP".
-        // See the filed bug default-locale-case-folding-cluster.
-        // Fixing it means passing Locale.ROOT; this assertion flips then.
+    void encodeRemote_keepsAnIUnderATurkishDefaultLocale() {
+        // encodeRemote and encodeLocal fold with Locale.ROOT. The JVM's default
+        // locale would turn 'i' into the dotted capital U+0130 under a Turkish
+        // default, which is outside A-Z, so the letter was silently dropped and
+        // a "vip" pill rendered as "VP".
         Locale.setDefault(TURKISH);
 
         assertEquals(
-                REMOTE_FRAME_OPEN + upperGlyphs("VP") + REMOTE_FRAME_CLOSE,
-                PillCodec.encodeRemote("vip"),
-                "the i folds to U+0130, fails the A-Z test and is dropped");
+                REMOTE_FRAME_OPEN + upperGlyphs("VIP") + REMOTE_FRAME_CLOSE,
+                PillCodec.encodeRemote("vip"));
         assertEquals(
                 REMOTE_FRAME_OPEN + upperGlyphs("VIP") + REMOTE_FRAME_CLOSE,
-                PillCodec.encodeRemote("VIP"),
-                "an already-uppercase label is untouched by the fold and survives");
+                PillCodec.encodeRemote("VIP"));
     }
 
     @Test
-    void encodeLocal_dropsAnIUnderATurkishDefaultLocaleToo() {
-        // Same defect, same cluster, second site.
+    void encodeLocal_keepsAnIUnderATurkishDefaultLocaleToo() {
         Locale.setDefault(TURKISH);
 
         assertEquals(
                 LOCAL_FRAME_OPEN
                         + LOCAL_FRAME_SEGMENT
                         + upperGlyphs("V")
+                        + LOCAL_FRAME_SEGMENT
+                        + upperGlyphs("I")
                         + LOCAL_FRAME_SEGMENT
                         + upperGlyphs("P")
                         + LOCAL_FRAME_CLOSE,

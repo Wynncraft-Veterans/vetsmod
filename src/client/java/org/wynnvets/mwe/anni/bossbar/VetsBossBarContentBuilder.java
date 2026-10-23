@@ -1,5 +1,6 @@
 package org.wynnvets.mwe.anni.bossbar;
 
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -122,7 +123,9 @@ public final class VetsBossBarContentBuilder {
         if (snapshot == null) return BossEvent.BossBarColor.PURPLE;
         AnniSnapshot.Board board = snapshot.board();
         String state =
-                (board != null && board.state() != null) ? board.state().toLowerCase() : null;
+                (board != null && board.state() != null)
+                        ? board.state().toLowerCase(Locale.ROOT)
+                        : null;
         // PURPLE rather than PINK — pink is suppressed by Wynncraft's
         // resource pack; see the class-level javadoc for the empirical
         // evidence.
@@ -361,7 +364,7 @@ public final class VetsBossBarContentBuilder {
             label = "WALK";
             color = ChatFormatting.YELLOW;
         } else {
-            switch (notice.toLowerCase()) {
+            switch (notice.toLowerCase(Locale.ROOT)) {
                 case "hard":
                     label = "HARD";
                     color = ChatFormatting.BLUE;
@@ -379,7 +382,7 @@ public final class VetsBossBarContentBuilder {
                     color = ChatFormatting.RED;
                     break;
                 default:
-                    label = notice.toUpperCase();
+                    label = notice.toUpperCase(Locale.ROOT);
                     color = ChatFormatting.GRAY;
             }
         }
@@ -431,7 +434,7 @@ public final class VetsBossBarContentBuilder {
      *  canonical {@code SECONDARY/TERTIARY} / {@code HEALER} / etc. into
      *  the boss-bar abbreviations. */
     private static String toShortLabel(String roleCode) {
-        switch (roleCode.toUpperCase()) {
+        switch (roleCode.toUpperCase(Locale.ROOT)) {
             case "TANK":
                 return "TANK";
             case "HEAL":
@@ -452,14 +455,14 @@ public final class VetsBossBarContentBuilder {
             case "FILL":
                 return "FILL";
             default:
-                return roleCode.toUpperCase();
+                return roleCode.toUpperCase(Locale.ROOT);
         }
     }
 
     /** Spec §3.1.1.2 mapping — TANK=&9, HEAL=&a, PRIM=&c, SUNK=&e,
      *  MOBK=&d, FILL=&3. Distinct from S4's outline colours. */
     private static ChatFormatting roleColor(String roleCode) {
-        switch (roleCode.toUpperCase()) {
+        switch (roleCode.toUpperCase(Locale.ROOT)) {
             case "TANK":
                 return ChatFormatting.BLUE; // &9
             case "HEAL":

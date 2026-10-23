@@ -7,24 +7,22 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 
 /**
  * Tests for all five {@link NamedColor} methods.
  *
- * <p>The class is pure {@code java.util} — four imports, one 40-entry
+ * <p>The class is pure {@code java.util} — five imports, one 40-entry
  * {@code LinkedHashMap}, no {@code ChatFormatting}, no {@code TextColor}, no
  * hex parsing. Its only consumer, {@code LegacyItemStyle}, is named in prose
  * below but never referenced from code here: that class builds a Wynntils
  * {@code Texture[]} in its static initializer and dies with
  * {@code NoClassDefFoundError} the moment it is touched.</p>
  *
- * <p>KNOWN BUG (pinned, not fixed): {@code isValid} and {@code getRgb} fold
- * case with the no-argument {@code toLowerCase()}, so they follow the JVM's
- * default locale. See the filed bug
- * {@code default-locale-case-folding-cluster}.
- * The assertions below pin today's behaviour under a Latin default locale; a
- * test asserting the locale-independent answer would be red on arrival.</p>
+ * <p>{@code isValid} and {@code getRgb} fold case with {@link Locale#ROOT}, so they
+ * answer the same under any default locale;
+ * {@link #isValid_survivesATurkishDefaultLocale} pins it.</p>
  */
 class NamedColorTest {
 
@@ -56,6 +54,18 @@ class NamedColorTest {
         assertTrue(NamedColor.isValid("gold"));
         assertTrue(NamedColor.isValid("GOLD"));
         assertTrue(NamedColor.isValid("GoLd"));
+    }
+
+    @Test
+    void isValid_survivesATurkishDefaultLocale() {
+        Locale original = Locale.getDefault();
+        Locale.setDefault(Locale.forLanguageTag("tr"));
+        try {
+            assertTrue(NamedColor.isValid("WHITE"), "the I folds to i, not the dotless one");
+            assertEquals(0xFFFFFF, NamedColor.getRgb("WHITE"));
+        } finally {
+            Locale.setDefault(original);
+        }
     }
 
     @Test

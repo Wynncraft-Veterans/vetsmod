@@ -15,6 +15,7 @@ import com.wynntils.utils.mc.StyledTextUtils;
 import com.wynntils.utils.type.Pair;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -397,11 +398,11 @@ public final class WynntilsEventListener {
         if (decoded == null || decoded.isEmpty()) {
             return "";
         }
-        String upper = decoded.toUpperCase();
+        String upper = decoded.toUpperCase(Locale.ROOT);
         for (String rankName :
                 new String[] {"OWNER", "CHIEF", "STRATEGIST", "CAPTAIN", "RECRUITER", "RECRUIT"}) {
             if (upper.equals(rankName)) {
-                return rankName.charAt(0) + rankName.substring(1).toLowerCase();
+                return rankName.charAt(0) + rankName.substring(1).toLowerCase(Locale.ROOT);
             }
         }
         return "";
@@ -444,7 +445,7 @@ public final class WynntilsEventListener {
                 normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
                         ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS)
                         : normalizedMsg;
-        String fp = username.toLowerCase() + "\0" + truncated;
+        String fp = username.toLowerCase(Locale.ROOT) + "\0" + truncated;
         synchronized (sentDedupLock) {
             long now = System.currentTimeMillis();
             pruneSentFingerprints(now);
@@ -468,7 +469,7 @@ public final class WynntilsEventListener {
                 normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
                         ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS)
                         : normalizedMsg;
-        String fp = username.toLowerCase() + "\0" + truncated;
+        String fp = username.toLowerCase(Locale.ROOT) + "\0" + truncated;
         synchronized (sentDedupLock) {
             long now = System.currentTimeMillis();
             pruneSentFingerprints(now);

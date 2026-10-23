@@ -2,6 +2,7 @@ package org.wynnvets.config;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -80,7 +81,7 @@ public final class NamedColor {
 
     /** Check whether a value is a valid colour name. */
     public static boolean isValid(String name) {
-        return name != null && COLORS.containsKey(name.toLowerCase());
+        return name != null && COLORS.containsKey(name.toLowerCase(Locale.ROOT));
     }
 
     /**
@@ -90,7 +91,7 @@ public final class NamedColor {
      */
     public static Integer getRgb(String name) {
         if (name == null) return null;
-        return COLORS.get(name.toLowerCase());
+        return COLORS.get(name.toLowerCase(Locale.ROOT));
     }
 
     /**

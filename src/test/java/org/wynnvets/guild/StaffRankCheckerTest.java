@@ -17,12 +17,10 @@ import org.junit.jupiter.api.Test;
  * their order or adjacency, so the false-positive surface pinned below is real
  * behaviour rather than a hypothetical.</p>
  *
- * <p>KNOWN BUG (pinned, not fixed): both fold case with the no-argument
- * {@code toLowerCase()}. See the filed bug
- * {@code default-locale-case-folding-cluster}.
- * This site is the one place in that cluster where the defect is reachable with
- * the server's real wording rather than only in theory — see the locale section
- * at the bottom.</p>
+ * <p>Both fold case with {@link Locale#ROOT}. With the JVM's default locale instead, a
+ * Turkish or Azeri default turned the server's real "Invalid" into "ınvalid", so a staff
+ * player was never recognised — the locale section at the bottom pins that it no longer
+ * does.</p>
  *
  * <p>NOTE: only the predicates are exercised. {@code processMessage},
  * {@code reset} and {@code loadPersistedState} all reach {@code VetsConfig},
@@ -144,30 +142,27 @@ class StaffRankCheckerTest {
         assertFalse(StaffRankChecker.isStaffRankUnauthorizedResponse(AUTHORIZED));
     }
 
-    // ----- Default-locale case folding (bug, pinned as-is) -----
+    // ----- Default-locale case folding -----
 
     @Test
-    void authorized_failsUnderATurkishDefaultLocaleOnTheRealServerLine() {
-        // "Invalid" starts with an uppercase I, which folds to the dotless
-        // U+0131 under a Turkish default. The lower-cased line then no longer
-        // contains "invalid arguments, try:" and a staff player is never
-        // recognised as staff. Reachable with the server's actual wording, not
-        // just in theory. Fixing it means passing Locale.ROOT; this assertion
-        // flips to assertTrue when that lands.
+    void authorized_survivesATurkishDefaultLocaleOnTheRealServerLine() {
+        // "Invalid" starts with an uppercase I, which a Turkish default folds to
+        // the dotless U+0131. Folding with the default locale left the line
+        // without "invalid arguments, try:", so a staff player was never
+        // recognised as staff. Locale.ROOT keeps the I an i.
         Locale.setDefault(TURKISH);
-        assertFalse(StaffRankChecker.isStaffRankAuthorizedResponse(AUTHORIZED));
+        assertTrue(StaffRankChecker.isStaffRankAuthorizedResponse(AUTHORIZED));
     }
 
     @Test
-    void unauthorized_survivesATurkishDefaultLocaleOnlyBecauseItsWordingHasNoCapitalI() {
-        // Same defect, no symptom: every I in the refusal is already lowercase.
-        // That asymmetry is why the cluster has to be fixed as a cluster — a
-        // site-by-site pass would find nothing wrong here and stop.
+    void unauthorized_survivesATurkishDefaultLocaleEvenShouted() {
+        // Every I in the refusal is already lowercase, so this one survived the
+        // default-locale fold too. Its upper-cased form did not.
         Locale.setDefault(TURKISH);
         assertTrue(StaffRankChecker.isStaffRankUnauthorizedResponse(UNAUTHORIZED));
-        assertFalse(
+        assertTrue(
                 StaffRankChecker.isStaffRankUnauthorizedResponse(
                         UNAUTHORIZED.toUpperCase(Locale.ROOT)),
-                "shout the same line and the fold breaks it too");
+                "a shouted line folds back with its I intact");
     }
 }

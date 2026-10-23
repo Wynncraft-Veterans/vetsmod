@@ -1,5 +1,6 @@
 package org.wynnvets.chat;
 
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -183,7 +184,7 @@ public final class PillCodec {
         }
         StringBuilder sb = new StringBuilder();
         sb.append(REMOTE_FRAME_OPEN);
-        for (char c : label.toUpperCase().toCharArray()) {
+        for (char c : label.toUpperCase(Locale.ROOT).toCharArray()) {
             if (c >= 'A' && c <= 'Z') {
                 sb.append((char) (UPPER_ALPHABET_BASE + (c - 'A')));
             }
@@ -208,7 +209,7 @@ public final class PillCodec {
         MutableComponent component = Component.empty();
         component.append(Component.literal(LOCAL_FRAME_OPEN).setStyle(frameStyle));
 
-        String upper = label == null ? "" : label.toUpperCase();
+        String upper = label == null ? "" : label.toUpperCase(Locale.ROOT);
         for (int i = 0; i < upper.length(); i++) {
             char letter = upper.charAt(i);
             if (letter < 'A' || letter > 'Z') {

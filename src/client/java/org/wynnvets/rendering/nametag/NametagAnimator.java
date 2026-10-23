@@ -2,6 +2,7 @@ package org.wynnvets.rendering.nametag;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -220,8 +221,8 @@ public final class NametagAnimator {
      */
     private static int indexOfIgnoreCase(String haystack, String needle) {
         if (haystack == null || needle == null) return -1;
-        String lowerHay = haystack.toLowerCase();
-        String lowerNeedle = needle.toLowerCase();
+        String lowerHay = haystack.toLowerCase(Locale.ROOT);
+        String lowerNeedle = needle.toLowerCase(Locale.ROOT);
         return lowerHay.lastIndexOf(lowerNeedle);
     }
 

@@ -2,6 +2,7 @@ package org.wynnvets.mwe.anni.command;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.wynntils.utils.mc.McUtils;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -146,7 +147,7 @@ public final class AnniRsvpCommand {
     private static String label(String notice) {
         if ("hard".equals(notice)) return "HARD";
         if ("soft".equals(notice)) return "SOFT";
-        return notice == null ? "?" : notice.toUpperCase();
+        return notice == null ? "?" : notice.toUpperCase(Locale.ROOT);
     }
 
     private static void reply(String text, ChatFormatting style) {

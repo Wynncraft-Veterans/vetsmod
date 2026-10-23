@@ -3,6 +3,7 @@ package org.wynnvets.mwe.anni.aggressive;
 import com.wynntils.core.components.Models;
 import com.wynntils.utils.mc.McUtils;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Objects;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
@@ -329,8 +330,8 @@ public final class AggressiveAlertDispatcher {
     }
 
     private static void fireRsvpAlert(String prev, String next) {
-        String prevTxt = prev != null ? prev.toUpperCase() : "none";
-        String nextTxt = next != null ? next.toUpperCase() : "none";
+        String prevTxt = prev != null ? prev.toUpperCase(Locale.ROOT) : "none";
+        String nextTxt = next != null ? next.toUpperCase(Locale.ROOT) : "none";
         MutableComponent msg =
                 Component.literal("RSVP: ")
                         .withStyle(ChatFormatting.AQUA)

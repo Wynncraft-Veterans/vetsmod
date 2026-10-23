@@ -1,5 +1,6 @@
 package org.wynnvets.mwe.anni.mode;
 
+import java.util.Locale;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 
@@ -43,10 +44,12 @@ public enum AnniMode {
     }
 
     /** Convert a config-shaped string back into the enum. {@code null}
-     *  or unknown → {@link #SILENT}. Case-insensitive. */
+     *  or unknown → {@link #SILENT}. Case-insensitive. A dotless {@code ı} reads as {@code i}:
+     *  an older build folded with the JVM's default locale, so under a Turkish or Azeri
+     *  default it wrote {@code passıve} and {@code aggressıve}. */
     public static AnniMode fromString(String value) {
         if (value == null) return SILENT;
-        switch (value.toLowerCase()) {
+        switch (value.toLowerCase(Locale.ROOT).replace('\u0131', 'i')) {
             case "passive":
                 return PASSIVE;
             case "aggressive":
@@ -62,6 +65,6 @@ public enum AnniMode {
      *  rename without coordinating with the config validator and the
      *  {@code /wv anni <mode>} command parser. */
     public String toConfigValue() {
-        return name().toLowerCase();
+        return name().toLowerCase(Locale.ROOT);
     }
 }

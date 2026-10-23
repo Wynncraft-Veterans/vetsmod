@@ -1,5 +1,6 @@
 package org.wynnvets.mwe.anni.render;
 
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -180,7 +181,10 @@ final class AnniStatusSections {
      *  {@code null} so the caller drops the line entirely. */
     static MutableComponent attendanceSection(AnniSnapshot snapshot) {
         AnniSnapshot.Board board = snapshot.board();
-        String state = board == null || board.state() == null ? null : board.state().toLowerCase();
+        String state =
+                board == null || board.state() == null
+                        ? null
+                        : board.state().toLowerCase(Locale.ROOT);
         if (state == null) return null;
         switch (state) {
             case "party":
@@ -209,7 +213,7 @@ final class AnniStatusSections {
         if (board == null || board.state() == null) {
             return Component.literal("");
         }
-        String state = board.state().toLowerCase();
+        String state = board.state().toLowerCase(Locale.ROOT);
         switch (state) {
             case "unplaced":
                 return AnniHoverBuilder.label("Party Assignment", ChatFormatting.GRAY)

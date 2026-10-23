@@ -1,6 +1,7 @@
 package org.wynnvets.guild;
 
 import com.wynntils.core.components.Handlers;
+import java.util.Locale;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
@@ -226,7 +227,7 @@ public final class GuildChecker {
         }
 
         String trimmed = safeMessage.trim();
-        String lower = trimmed.toLowerCase();
+        String lower = trimmed.toLowerCase(Locale.ROOT);
 
         // ── Guildless response ──────────────────────────────────────
         if (lower.contains("you must be in a guild")) {
@@ -309,7 +310,7 @@ public final class GuildChecker {
     }
 
     private static boolean isGuildStatsOutputLine(String message) {
-        String lower = message.trim().toLowerCase();
+        String lower = message.trim().toLowerCase(Locale.ROOT);
         return lower.startsWith("guild since:")
                 || lower.startsWith("owner:")
                 || lower.startsWith("guild level:")
@@ -324,7 +325,7 @@ public final class GuildChecker {
      * candidate guild name during a concurrent guild check.
      */
     private static boolean isStaffRankCheckResponse(String message) {
-        String lower = message.trim().toLowerCase();
+        String lower = message.trim().toLowerCase(Locale.ROOT);
         return (lower.contains("you must be a")
                         && lower.contains("captain")
                         && lower.contains("to use this command"))

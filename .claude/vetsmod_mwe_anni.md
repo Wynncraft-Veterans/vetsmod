@@ -367,11 +367,10 @@ The shape of the bar's defect follows from the two spellings. `rsvpChip` prefers
 all**. So a player with a live RSVP gets a correct `HARD` / `SOFT` chip, while
 a walk-in — who by definition has no RSVP row and therefore reaches the fallback
 — always lands on the `default` arm: `ATTEND_LATE` in grey where the chat surface
-says `LATE WALK-IN` in red. Its `walkin` and `late` arms are unreachable. It also
-folds with a bare `toLowerCase()` / `toUpperCase()` where `noticeColor` passes
-`Locale.ROOT`. Both are filed rather than fixed, in
-`.claude/ephemeral/bugs-found-via-mellow-rain/` — fixing either changes what the
-boss bar says.
+says `LATE WALK-IN` in red. Its `walkin` and `late` arms are unreachable. It folds
+with `Locale.ROOT`, as `noticeColor` does. The label defect is filed rather than
+fixed, in `.claude/ephemeral/bugs-found-via-mellow-rain/` — fixing it changes what
+the boss bar says.
 
 ## anni-motd (world-join)
 

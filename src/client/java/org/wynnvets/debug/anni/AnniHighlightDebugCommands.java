@@ -2,6 +2,7 @@ package org.wynnvets.debug.anni;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -52,7 +53,7 @@ final class AnniHighlightDebugCommands {
         ChatUtils.sendLocalMessage(
                 Component.literal(
                                 "anni zone "
-                                        + action.toLowerCase()
+                                        + action.toLowerCase(Locale.ROOT)
                                         + ": forceInZone="
                                         + enter
                                         + " (S4 highlights gate)")
@@ -100,8 +101,8 @@ final class AnniHighlightDebugCommands {
         ChatFormatting fmt = entry.nametagFormatting();
         String roleLabel =
                 entry.role() == null
-                        ? entry.tier().name().toLowerCase()
-                        : entry.role().toUpperCase();
+                        ? entry.tier().name().toLowerCase(Locale.ROOT)
+                        : entry.role().toUpperCase(Locale.ROOT);
         Component msg =
                 Component.literal("anni registry set: ")
                         .withStyle(ChatFormatting.GREEN)

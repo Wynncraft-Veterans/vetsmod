@@ -8,6 +8,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.VetsApi;
@@ -97,7 +98,10 @@ public final class SupportersPoller {
             return "";
         }
 
-        return value.trim().replace("\u00A0", "").replaceAll("(?i)<\\d+>", "").toLowerCase();
+        return value.trim()
+                .replace("\u00A0", "")
+                .replaceAll("(?i)<\\d+>", "")
+                .toLowerCase(Locale.ROOT);
     }
 
     private static void fetchSupporters() {
@@ -122,7 +126,7 @@ public final class SupportersPoller {
                 JsonObject supporter = supporters.get(i).getAsJsonObject();
                 String username = supporter.get("username").getAsString();
                 if (username != null && !username.isEmpty()) {
-                    newSet.add(username.toLowerCase());
+                    newSet.add(username.toLowerCase(Locale.ROOT));
                 }
             }
 

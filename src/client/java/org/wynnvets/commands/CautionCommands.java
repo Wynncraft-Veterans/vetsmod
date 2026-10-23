@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wynntils.utils.mc.McUtils;
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.ClickEvent;
@@ -243,7 +244,7 @@ public final class CautionCommands {
                                     Component.literal("Adding this caution will trigger a formal ")
                                             .withStyle(ChatFormatting.YELLOW))
                             .append(
-                                    Component.literal(trigger.toUpperCase())
+                                    Component.literal(trigger.toUpperCase(Locale.ROOT))
                                             .withStyle(ChatFormatting.GOLD))
                             .append(Component.literal(" against ").withStyle(ChatFormatting.YELLOW))
                             .append(Component.literal(resolved).withStyle(ChatFormatting.GOLD))

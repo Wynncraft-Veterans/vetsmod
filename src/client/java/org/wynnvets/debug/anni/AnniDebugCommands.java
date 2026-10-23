@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.wynntils.utils.mc.McUtils;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
@@ -375,7 +376,7 @@ public final class AnniDebugCommands {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
         String field = StringArgumentType.getString(ctx, "field");
-        String normalised = field == null ? "" : field.toLowerCase();
+        String normalised = field == null ? "" : field.toLowerCase(Locale.ROOT);
         switch (normalised) {
             case "role":
             case "party":
@@ -487,7 +488,7 @@ public final class AnniDebugCommands {
     private static int alert(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
-        String field = StringArgumentType.getString(ctx, "field").toLowerCase();
+        String field = StringArgumentType.getString(ctx, "field").toLowerCase(Locale.ROOT);
         org.wynnvets.mwe.anni.aggressive.AggressiveAlertDispatcher.forceAlert(field);
         ChatUtils.sendLocalMessage(
                 Component.literal("anni alert " + field + " triggered")
@@ -501,7 +502,7 @@ public final class AnniDebugCommands {
     private static int modeSet(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
-        String mode = StringArgumentType.getString(ctx, "mode").toLowerCase();
+        String mode = StringArgumentType.getString(ctx, "mode").toLowerCase(Locale.ROOT);
         if (!"silent".equals(mode) && !"passive".equals(mode) && !"aggressive".equals(mode)) {
             ChatUtils.sendLocalMessage(
                     Component.literal("anni mode set: mode must be silent|passive|aggressive")

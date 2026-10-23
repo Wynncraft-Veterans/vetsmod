@@ -1,6 +1,7 @@
 package org.wynnvets.guild;
 
 import com.wynntils.core.components.Handlers;
+import java.util.Locale;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
@@ -198,7 +199,7 @@ final class StaffRankChecker {
     // Package-private for unit tests. See StaffRankCheckerTest.
     static boolean isStaffRankUnauthorizedResponse(String message) {
         if (message == null) return false;
-        String lower = message.toLowerCase();
+        String lower = message.toLowerCase(Locale.ROOT);
         return lower.contains("you must be a")
                 && lower.contains("captain")
                 && lower.contains("to use this command");
@@ -207,7 +208,7 @@ final class StaffRankChecker {
     // Package-private for unit tests. See StaffRankCheckerTest.
     static boolean isStaffRankAuthorizedResponse(String message) {
         if (message == null) return false;
-        String lower = message.toLowerCase();
+        String lower = message.toLowerCase(Locale.ROOT);
         return lower.contains("invalid arguments, try:") && lower.contains("rank [name] [rank]");
     }
 }

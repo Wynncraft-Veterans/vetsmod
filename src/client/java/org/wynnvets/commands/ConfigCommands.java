@@ -36,9 +36,9 @@ final class ConfigCommands {
 
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_CONFIG_KEYS =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 for (String key : VetsConfigSchema.USER_CONFIG_KEYS) {
-                    if (key.toLowerCase().startsWith(partial)) {
+                    if (key.toLowerCase(Locale.ROOT).startsWith(partial)) {
                         builder.suggest(key);
                     }
                 }
@@ -47,7 +47,7 @@ final class ConfigCommands {
 
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_CONFIG_VALUES =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 try {
                     String key = StringArgumentType.getString(ctx, "key");
                     if (VetsConfigSchema.isIntKey(key)) {
@@ -275,7 +275,7 @@ final class ConfigCommands {
         }
 
         if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)) {
-            String lower = rawValue.toLowerCase();
+            String lower = rawValue.toLowerCase(Locale.ROOT);
             if (!LegacyItemStyle.isValidSprite(lower)) {
                 ChatUtils.sendLocalMessage(
                         Component.literal(
@@ -309,7 +309,7 @@ final class ConfigCommands {
             }
         } else {
             // Colour name keys (gradient top/bottom, foreground color)
-            lower = rawValue.toLowerCase();
+            lower = rawValue.toLowerCase(Locale.ROOT);
             if (!LegacyItemStyle.isValidColor(lower)) {
                 ChatUtils.sendLocalMessage(
                         Component.literal("Unknown colour name. Tab-complete to see options.")
