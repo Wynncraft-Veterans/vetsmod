@@ -10,6 +10,7 @@ import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.BannedChars;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.OutboundDisplayHandler;
+import org.wynnvets.chat.RankDisplayMap;
 import org.wynnvets.chat.spoiler.SpoilerCodec;
 import org.wynnvets.commands.CautionCommands;
 import org.wynnvets.commands.InviteGate;
@@ -501,7 +502,9 @@ public final class GuildChatDispatcher {
 
         String username = resolveUsername(minecraft);
         OutboundDisplayHandler.queuePendingSelfMessage(username, text);
-        ChatUtils.sendGuildChatMessage(rank, username, text);
+        // The echo's pill shows the display label; the frame keeps the raw rank, which
+        // older clients whitelist and receivers remap (RankDisplayMap).
+        ChatUtils.sendGuildChatMessage(RankDisplayMap.displayFor(rank), username, text);
         V1ApiManager.sendInbound("queue", rank, username, text);
     }
 

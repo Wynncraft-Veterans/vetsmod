@@ -15,7 +15,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 
 - [`org.wynnvets`](#orgwynnvets) — [`LocaleFoldTripwireTest`](#localefoldtripwiretest)
 - [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest)
-- [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest)
+- [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
 - [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
 - [`org.wynnvets.chat.spoiler`](#orgwynnvetschatspoiler) — [`SpoilerCodecTest`](#spoilercodectest)
 - [`org.wynnvets.commands`](#orgwynnvetscommands) — [`HelpCommandsTest`](#helpcommandstest)
@@ -517,6 +517,21 @@ Test: [`PrependTest.java`](../src/test/java/org/wynnvets/chat/PrependTest.java) 
   - `second.getStyle()` equals `Prepend.GUILD.blockIndicatorStyle().withColor(ChatFormatting.RED)`.
   - The next `Prepend.GUILD.get()` (`guild`) has `getString()` equal to `GUILD_FULL`.
   - `guild.getStyle().getColor()` equals `TextColor.fromLegacyFormat(ChatFormatting.AQUA)`.
+
+### `RankDisplayMapTest`
+
+Test: [`RankDisplayMapTest.java`](../src/test/java/org/wynnvets/chat/RankDisplayMapTest.java) · Subject: [`RankDisplayMap`](../src/client/java/org/wynnvets/chat/RankDisplayMap.java)
+
+`RankDisplayMap.displayFor` maps a raw Wynncraft guild rank to the label a pill shows. The queued Returner's local echo, `EncourageUpdateRewriter`'s sender pill and `OutboundDisplayHandler`'s fallback for a relayed line with no `pill_display` go through it, while the wire keeps the raw names. The suite pins the table, its case- and space-insensitivity, and that an unknown rank or null passes through.
+
+- **`displayFor_collapsesTheStaffRanksToSteward`**: Strategist, Chief and Owner all read Steward.
+  - `displayFor` returns `Steward` for `Strategist`, `Chief` and `Owner`.
+- **`displayFor_collapsesCaptainAndRecruiterToReturnerAndKeepsRecruit`**: Captain and Recruiter read Returner; Recruit stays Recruit.
+  - `displayFor` returns `Returner` for `Captain` and `Recruiter`, and `Recruit` for `Recruit`.
+- **`displayFor_ignoresCaseAndSurroundingSpace`**: The poller's lowercase names, an all-caps name and a padded one map the same way.
+  - `displayFor` returns `Steward` for `strategist` and `OWNER`, and `Returner` for ` captain `.
+- **`displayFor_passesAnUnknownRankAndNullThrough`**: A rank outside the table, the empty string and null come back unchanged.
+  - `displayFor("Moderator")` is `Moderator`, `displayFor("")` is the empty string, and `displayFor(null)` is null.
 
 ## `org.wynnvets.chat.dispatcher`
 

@@ -126,9 +126,8 @@ public final class ServerGuildChatRewriter {
             // this style; remote chat lines (the relayed chat
             // OutboundDisplayHandler renders as ordinary chat) still get
             // the light-on-dark remote pill via ChatUtils.encodePillIfAscii.
-            // Today EncourageUpdateRewriter's rewrite of a guild-channel
-            // line takes the remote pill too
-            // (raw-rank-pills-bypass-display-remap).
+            // EncourageUpdateRewriter's rewrite of a guild-channel line
+            // takes the remote pill too.
             Style frameStyle =
                     isSupporter
                             ? ChatUtils.RANK_STYLE

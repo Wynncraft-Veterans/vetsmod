@@ -70,11 +70,11 @@ import net.minecraft.network.chat.Style;
  * A light label on a dark rounded field. Used for chat that travels over
  * vetsmod's WebSocket rather than through Wynncraft's own guild channel: the
  * relayed lines {@link OutboundDisplayHandler} renders as ordinary chat, and
- * the local echo of a line a queued Returner sends. Today
+ * the local echo of a line a queued Returner sends.
  * {@link org.wynnvets.chat.rewriter.EncourageUpdateRewriter EncourageUpdateRewriter}
- * also uses it for a line that arrived through the guild channel, and both
- * that rewrite and the queued echo put the sender's raw rank in the pill
- * rather than a display label ({@code raw-rank-pills-bypass-display-remap}).
+ * also uses it for a line that arrived through the guild channel. The queued
+ * echo and that rewrite label it with {@link RankDisplayMap#displayFor}, while
+ * the queued frame keeps the raw rank on the wire.
  * Returns a plain {@code String} because the entire sequence is one colour,
  * which lets {@link PillFormatter} decide that colour per message (flat, or
  * the supporter gradient marker).</p>

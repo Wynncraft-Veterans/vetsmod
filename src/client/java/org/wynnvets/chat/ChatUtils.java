@@ -276,9 +276,9 @@ public final class ChatUtils {
      * chat rewriter can produce a local dark-on-light pill for chat
      * that arrived via Wynncraft's actual guild channel (as opposed to the light-on-dark remote
      * pill, also PUA-encoded, that {@link #encodePillIfAscii(String)} builds for chat relayed over
-     * vetsmod's WebSocket; see {@link PillCodec} for both styles). Today
-     * {@link org.wynnvets.chat.rewriter.EncourageUpdateRewriter EncourageUpdateRewriter} gives a
-     * guild-channel line that pill too ({@code raw-rank-pills-bypass-display-remap}).</p>
+     * vetsmod's WebSocket; see {@link PillCodec} for both styles).
+     * {@link org.wynnvets.chat.rewriter.EncourageUpdateRewriter EncourageUpdateRewriter} is the
+     * exception: it gives a guild-channel line the remote pill.</p>
      *
      * @param label       the ASCII label rendered inside the frame (case-insensitive)
      * @param frameStyle  the style applied to the frame glyphs; the

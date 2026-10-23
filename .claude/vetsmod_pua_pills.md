@@ -112,10 +112,10 @@ traffic.
 A light label on a dark rounded field. Used for chat that travels over
 vetsmod's WebSocket rather than through Wynncraft's guild channel: the relayed
 lines `OutboundDisplayHandler` renders as ordinary chat, and the local echo of
-a line a queued Returner sends. Today `EncourageUpdateRewriter` also uses it
-for a line that arrived through the guild channel, and both that rewrite and
-the queued echo put the sender's raw rank in the pill rather than a display
-label (bug `raw-rank-pills-bypass-display-remap`).
+a line a queued Returner sends. `EncourageUpdateRewriter` also uses it for a
+line that arrived through the guild channel. The queued echo and that
+rewrite label it with `RankDisplayMap.displayFor` (Steward, Returner,
+Recruit), while the queued frame keeps the raw rank on the wire.
 
 ```
 U+E06B                  frame open

@@ -48,7 +48,7 @@ Each rewriter returns `true` to cancel the vanilla event (consumed).
 
 Pattern: `⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v([0-9]+(?:\.[0-9]+)*)) ⚠⚠⚠`.
 The earlier wording, `⚠⚠⚠ If you are using vetsmod, it's outdated (current version ([0-9]+(?:\.[0-9]+)*)) ⚠⚠⚠`, is still matched (`LEGACY_ENCOURAGE_PATTERN`), because staff on older builds still send it.
-Parses staff-broadcast version, compares to local; outdated → obfuscated red; up-to-date → rainbow.
+Parses staff-broadcast version, compares to local; outdated → obfuscated red; up-to-date → rainbow. It rewrites only a sender `StaffRanksPoller.confirmedRankFor` knows (the whole name, then each `/`-separated part), and the same lookup labels the remote pill, through `RankDisplayMap.displayFor`.
 
 ### StaffGuildAlertRewriter
 [StaffGuildAlertRewriter](../src/client/java/org/wynnvets/chat/rewriter/StaffGuildAlertRewriter.java)
