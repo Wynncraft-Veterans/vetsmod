@@ -122,22 +122,6 @@ final class InboundAckRouter {
             // receiver-side staff cache on every successful auth ack.
             StaffRanksPoller.refreshNow();
             GuildStateManager.onAuthSuccess(tier);
-            // MWE auto-enable: a tier-vets user (member/waitlist/honourary)
-            // gets vetsAnniEnabled, which gates StampFetcher's rich /wv anni
-            // and anni-motd paths, on for free. Today this runs on every such
-            // ack that finds it off, so a vets-tier opt-out lasts only until
-            // the next ack (vets-anni-enabled-to-be-retired). Don't disable on
-            // tier downgrade — the user may have toggled it on manually and we
-            // don't want to override that. The toggle only helps a client whose
-            // inbound socket an /unlock key has authenticated (its pull names
-            // no UUID; per temporary-server at ffd8c17, an unauthenticated pull
-            // gets no snapshot); what a downgraded user is served is the
-            // server's call.
-            if (("member".equals(tier) || "waitlist".equals(tier) || "honourary".equals(tier))
-                    && !VetsConfig.get(VetsConfigKeys.VETS_ANNI_ENABLED)) {
-                VetsConfig.set(VetsConfigKeys.VETS_ANNI_ENABLED, true);
-                VetsLogger.debug("vetsAnniEnabled auto-set on tier={} auth ack", tier);
-            }
             return;
         }
         if (!"ok".equals(status)) {

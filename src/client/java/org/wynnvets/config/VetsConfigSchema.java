@@ -40,7 +40,6 @@ public final class VetsConfigSchema {
         VetsConfigKeys.LEGACY_ITEM_FOREGROUND_COLOR,
         VetsConfigKeys.PRINT_MOTD,
         VetsConfigKeys.PRINT_ANNI,
-        VetsConfigKeys.VETS_ANNI_ENABLED,
         VetsConfigKeys.VETS_ANNI_SHOW_HOVER_DETAILS,
         VetsConfigKeys.VETS_ANNI_PROMPT_RSVP,
         VetsConfigKeys.VETS_ANNI_SHOW_PREDICTION,

@@ -25,9 +25,8 @@ import org.wynnvets.util.HttpClients;
  *       {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}'s
  *       legacy stamp fetch after each 200 whose body parses or is empty.
  *       {@code /wv anni} and the world-join display reach that fetch only
- *       when they fall back to the legacy stamp text. With
- *       {@code vetsAnniEnabled} on and a snapshot cached, they usually
- *       render from the snapshot instead, and then only the scheduled
+ *       when they fall back to the legacy stamp text. With a snapshot
+ *       cached, they usually render from the snapshot instead, and then only the scheduled
  *       sweep refreshes this cache.</li>
  * </ul>
  *

@@ -32,7 +32,6 @@ public final class VetsConfigDefaults {
         longConfig.put(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, 0L);
         longConfig.put(VetsConfigKeys.VETS_LAST_GUILD_CHECK, 0L);
         longConfig.put(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, 0L);
-        config.put(VetsConfigKeys.VETS_ANNI_ENABLED, false);
         config.put(VetsConfigKeys.VETS_ANNI_MODE_USER_SET, false);
 
         // /unlock <key> auth state — keys are persisted strings, the timestamp
@@ -43,10 +42,9 @@ public final class VetsConfigDefaults {
 
         // User-facing BOOLEAN defaults — all true except colorBlindMode.
         // (moreReliableGuildCheck is true, despite what this comment used to say.)
-        // This block holds 20 of the 30 USER_CONFIG_KEYS. The other ten default
-        // outside it: vetsAnniEnabled (false, with the internal keys above), the
-        // tri-state handleSpoilers (null = on) and the six string plus two int
-        // user-facing keys, all just below.
+        // This block holds 20 of the 29 USER_CONFIG_KEYS. The other nine default
+        // outside it: the tri-state handleSpoilers (null = on) and the six string
+        // plus two int user-facing keys, all just below.
         config.put(VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING, true);
         config.put(VetsConfigKeys.LEGACY_ITEM_SHOW_ENCHANTMENTS, true);
         config.put(VetsConfigKeys.PRINT_MOTD, true);

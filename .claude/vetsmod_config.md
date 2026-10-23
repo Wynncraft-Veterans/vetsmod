@@ -38,7 +38,6 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `legacyItemShowEnchantments` | true | Name the specific enchantment on legacy items the enchant branch already highlights: a LEGACY ENCHANTMENTS block on the powder page of paged tooltips, or in the tooltip text on items with no pages (`LegacyEnchantmentRenderer.showEnchantment` picks the form). No effect unless `legacyItemHighlighting` is on. |
 | `printMOTD` | true | Auto-print MOTD on world join |
 | `printANNI` | true | Auto-print annihilation timer on world join, for Returners guild members only |
-| `vetsAnniEnabled` | false | Gates the snapshot-driven `/wv anni` renderer and anni-motd (through `StampFetcher.anniIntegrationActive`), and their cold-cache pulls; the boss bar and outlines don't read it — they follow `vetsAnniMode` instead. Meant to give vets-tier users the enriched view without a manual toggle; today a vets-tier (member/waitlist/honourary) auth ack sets it `true` whenever it finds it off, so a vets-tier user's opt-out lasts only until the next ack. Anyone can opt in manually, but the pull names no UUID, so per temporary-server (at ffd8c17) it resolves to no snapshot until an `/unlock` key has authenticated the inbound socket (bug `vets-anni-enabled-to-be-retired`). |
 | `vetsAnniShowHoverDetails` | true | Populate descriptive hover tooltips on `/wv anni` and motd widgets (role chips, RSVP badge, attendance bar, party world chip). When off, lines render with no hover but keep click-to-open URLs. |
 | `vetsAnniPromptRsvp` | true | Show the placement / RSVP status line under the countdown on the auto-displayed anni-motd; off means the countdown line alone. `/wv anni`'s RSVP widgets don't read this key. |
 | `vetsAnniShowPrediction` | true | Show the `\guess`-style prediction line (the median, with a ± from the window) in `/wv anni` when no anni stamp is announced. The auto-motd never shows the prediction unsolicited regardless of this flag. |
@@ -105,7 +104,7 @@ The first column names the class that declares each method. `VetsConfigKeys` hol
 
 ## 4. USER_CONFIG_KEYS order (for /wv config listing)
 
-Declared by [VetsConfigSchema.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/config/VetsConfigSchema.java) — **30 entries**, in this order:
+Declared by [VetsConfigSchema.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/config/VetsConfigSchema.java) — **29 entries**, in this order:
 
 1. `legacyItemHighlighting`
 2. `legacyItemShowEnchantments`
@@ -117,32 +116,31 @@ Declared by [VetsConfigSchema.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/
 8. `legacyItemForegroundColor`
 9. `printMOTD`
 10. `printANNI`
-11. `vetsAnniEnabled`
-12. `vetsAnniShowHoverDetails`
-13. `vetsAnniPromptRsvp`
-14. `vetsAnniShowPrediction`
-15. `vetsAnniRoleStyle`
-16. `vetsAnniBossbarEnabled`
-17. `vetsAnniFlashIntensity`
-18. `vetsAnniFlashSound`
-19. `vetsAnniOutlinesEnabled`
-20. `vetsAnniNametagsEnabled`
-21. `vetsAnniZoneLines`
-22. `vetsAnniScrollWaypoint`
-23. `vetsAnniChatAlerts`
-24. `vetsAnniGhostsPrompt`
-25. `printBridgeMessages`
-26. `printSuccessfulAuth`
-27. `showSupporterGlints`
-28. `colorBlindMode`
-29. `handleSpoilers`
-30. `moreReliableGuildCheck`
+11. `vetsAnniShowHoverDetails`
+12. `vetsAnniPromptRsvp`
+13. `vetsAnniShowPrediction`
+14. `vetsAnniRoleStyle`
+15. `vetsAnniBossbarEnabled`
+16. `vetsAnniFlashIntensity`
+17. `vetsAnniFlashSound`
+18. `vetsAnniOutlinesEnabled`
+19. `vetsAnniNametagsEnabled`
+20. `vetsAnniZoneLines`
+21. `vetsAnniScrollWaypoint`
+22. `vetsAnniChatAlerts`
+23. `vetsAnniGhostsPrompt`
+24. `printBridgeMessages`
+25. `printSuccessfulAuth`
+26. `showSupporterGlints`
+27. `colorBlindMode`
+28. `handleSpoilers`
+29. `moreReliableGuildCheck`
 
 ## 5. Static defaults
 
 `VetsConfigDefaults` holds the defaults of the keys in `VetsConfigKeys`, and `ShippedConfig` reads the build's copy of them from the jar's `config.yml`; the debug keys get theirs from `DebugConfigManager.DEFAULTS` through `registerDefault` (§8).
 
-`VetsConfigDefaults.seed` sets the first-run default of every key in `VetsConfigKeys`, and `VetsConfig`'s static initializer calls it. Booleans default there, and not all of them are true: `vetsIsStaff`, `vetsAnniEnabled`, `vetsAnniModeUserSet` and `colorBlindMode` default `false`. Timestamp/count longs default `0L`.
+`VetsConfigDefaults.seed` sets the first-run default of every key in `VetsConfigKeys`, and `VetsConfig`'s static initializer calls it. Booleans default there, and not all of them are true: `vetsIsStaff`, `vetsAnniModeUserSet` and `colorBlindMode` default `false`. Timestamp/count longs default `0L`.
 HANDLE_SPOILERS default: null.
 
 **The shipped `config.yml`.** The build's `generateConfigYml` task runs `VetsConfigDefaults.main`, which writes `firstRunValues()` to `config.yml` in the jar: the pairs a first-run `config.json` holds, the debug keys `DebugConfigManager.DEFAULTS` registers included and an unset tri-state left out. Its one reader is `ShippedConfig`, behind `/wv config <key> default`, which every key takes (string and int keys keep `reset` as an alias; a tri-state's `default` clears it instead). `ShippedConfig` reads the file from vetsmod's own mod container, so another mod's `config.yml` cannot stand in for it, and a missing file makes `default` refuse with "There is no shipped default for <key>.". The file is generated from the same `seed`, so it cannot drift from the code; `ShippedConfigTest` checks the copy on the test classpath. SnakeYAML, bundled in the jar with Loom's `include`, writes and reads it.

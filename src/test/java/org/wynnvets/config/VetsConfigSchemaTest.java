@@ -24,10 +24,6 @@ import org.junit.jupiter.api.Test;
  * array fails here. The string-key guard reads {@code STRING_CONFIG_KEYS} so that a new string
  * key that is neither a colour key nor the sprite key fails until it declares a fixed value list,
  * instead of being validated as a colour name.</p>
- *
- * <p>KNOWN BUG (pinned, not fixed): fixing it changes a table pinned below.
- * {@code vets-anni-enabled-to-be-retired} removes {@code vetsAnniEnabled} from
- * {@code USER_CONFIG_KEYS}.</p>
  */
 class VetsConfigSchemaTest {
 
@@ -39,7 +35,6 @@ class VetsConfigSchemaTest {
                     "vetsGuildCheckResult",
                     "vetsLastGuildCheck",
                     "vetsDebugEnabledAt",
-                    "vetsAnniEnabled",
                     "vetsAuthKey",
                     "vetsAuthTier",
                     "vetsAuthVerifiedAt",
@@ -93,7 +88,6 @@ class VetsConfigSchemaTest {
                     "legacyItemForegroundColor",
                     "printMOTD",
                     "printANNI",
-                    "vetsAnniEnabled",
                     "vetsAnniShowHoverDetails",
                     "vetsAnniPromptRsvp",
                     "vetsAnniShowPrediction",

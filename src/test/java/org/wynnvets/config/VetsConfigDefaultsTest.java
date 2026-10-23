@@ -37,7 +37,6 @@ class VetsConfigDefaultsTest {
                     entry("legacyItemForegroundColor", "orange"),
                     entry("printMOTD", true),
                     entry("printANNI", true),
-                    entry("vetsAnniEnabled", false),
                     entry("vetsAnniShowHoverDetails", true),
                     entry("vetsAnniPromptRsvp", true),
                     entry("vetsAnniShowPrediction", true),

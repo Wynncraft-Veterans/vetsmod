@@ -220,7 +220,8 @@ public final class GuildStateManager {
      * eligibility-based default anni mode (PASSIVE if eligible, SILENT otherwise) in
      * {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}. {@code /wv help} also
      * reads it, with {@link #isAuthenticatedThisSession()}, to pick its {@code /wv anni} row's
-     * text.</p>
+     * text, and {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher} sends its
+     * cold-cache snapshot pulls only while it holds.</p>
      *
      * @return true if eligible for enrichment, false otherwise
      */
