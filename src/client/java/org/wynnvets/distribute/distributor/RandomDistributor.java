@@ -73,8 +73,8 @@ public final class RandomDistributor {
      * {@code count} random members, and sends one of {@code resource} to
      * each. No-op (with a chat hint) if Wynntils isn't ready, or if no
      * member is left after the wapi fetch and, on an aspects run, the
-     * NoAspects filter &mdash; which, when everyone is opted out, prints the
-     * roster-read-failure line ({@code all-opted-out-reported-as-roster-read-failure}).
+     * NoAspects filter &mdash; a roster that read empty and one whose every member
+     * has opted out get different lines.
      * The command's entry point: the run ends
      * ({@link org.wynnvets.distribute.DistributeRuns#finished() DistributeRuns.finished()})
      * when this head does.
@@ -106,18 +106,26 @@ public final class RandomDistributor {
         // before dispatching. Per-command refresh keeps the list responsive to
         // staff mutations (see NoAspectsFilter for fail-open semantics).
         NameResolver.fetchAllLegacyNames()
-                .thenCombine(
+                .thenAcceptBoth(
                         NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects()),
-                        RandomDistributor::filterNames)
-                .thenAccept(
-                        legacyNames ->
-                                // Hop back to the Minecraft tick thread before touching the
-                                // menu / event-bus state. The HTTP completion callback
-                                // usually runs on a background thread; when both futures
-                                // were already complete it runs inline on the command's.
-                                Managers.TickScheduler.scheduleLater(
-                                        () -> beginPicks(legacyNames, count, resource, onComplete),
-                                        0));
+                        (roster, exclude) -> {
+                            List<String> legacyNames = filterNames(roster, exclude);
+                            // The read worked and everyone on it opted out: a retry can't help.
+                            boolean allOptedOut = legacyNames.isEmpty() && !roster.isEmpty();
+                            // Hop back to the Minecraft tick thread before touching the
+                            // menu / event-bus state. The HTTP completion callback
+                            // usually runs on a background thread; when both futures
+                            // were already complete it runs inline on the command's.
+                            Managers.TickScheduler.scheduleLater(
+                                    () ->
+                                            beginPicks(
+                                                    legacyNames,
+                                                    allOptedOut,
+                                                    count,
+                                                    resource,
+                                                    onComplete),
+                                    0);
+                        });
     }
 
     /** Drops opted-out names from the roster. Returns {@code names} itself when
@@ -149,12 +157,17 @@ public final class RandomDistributor {
 
     private static void beginPicks(
             List<String> legacyNames,
+            boolean allOptedOut,
             int count,
             MemberSlotPresser.Resource resource,
             Runnable onComplete) {
         if (legacyNames.isEmpty()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Could not read guild roster from wapi - try again.")
+                    Component.literal(
+                                    allOptedOut
+                                            ? "All eligible recipients have opted out of"
+                                                    + " receiving aspects."
+                                            : "Could not read guild roster from wapi - try again.")
                             .withStyle(ChatFormatting.YELLOW));
             if (onComplete != null) onComplete.run();
             return;

@@ -98,8 +98,8 @@ public final class GraidsDistributor {
 
     /**
      * Variant with a completion callback. Fires on each of this head's own
-     * exits &mdash; no roster, no graids, nothing to send, and the send loop
-     * draining &mdash; so multi-phase chains like {@link SplitDistributor}
+     * exits &mdash; no roster, everyone opted out, no graids, nothing to send,
+     * and the send loop draining &mdash; so multi-phase chains like {@link SplitDistributor}
      * advance even when this phase finds no graids or fails to read the
      * roster. Its one exit without it is the refusal when Wynntils' Custom
      * Guild Log Screen is off, which ends the run itself. The log walk and
@@ -118,21 +118,27 @@ public final class GraidsDistributor {
             return;
         }
         // Fetch the name index and, on an aspects run, the NoAspects opt-out
-        // list in parallel; strip excluded legacy names from the index so they
-        // never match a graid-log username token. Per-command refresh,
+        // list in parallel; beginWalk strips excluded legacy names from the index
+        // so they never match a graid-log username token, and keeps the unfiltered
+        // index to tell an all-opted-out pool from a failed read. Per-command refresh,
         // fail-open via NoAspectsFilter on any HTTP error. The trailing
         // scheduleLater(..., 0) is a hop back to the tick thread — the
         // combined future usually completes on a background thread, or
         // inline on the calling thread when both were already complete —
         // not a delay.
         NameResolver.fetchNameIndex()
-                .thenCombine(
+                .thenAcceptBoth(
                         NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects()),
-                        GraidsDistributor::filterIndex)
-                .thenAccept(
-                        index ->
+                        (index, exclude) ->
                                 Managers.TickScheduler.scheduleLater(
-                                        () -> beginWalk(index, count, resource, onComplete), 0));
+                                        () ->
+                                                beginWalk(
+                                                        index,
+                                                        exclude,
+                                                        count,
+                                                        resource,
+                                                        onComplete),
+                                        0));
     }
 
     /** Drops index entries whose canonical legacy name is opted out. Returns
@@ -155,13 +161,23 @@ public final class GraidsDistributor {
     }
 
     private static void beginWalk(
-            Map<String, String> nameIndex,
+            Map<String, String> fullIndex,
+            Set<String> excludeNames,
             int count,
             MemberSlotPresser.Resource resource,
             Runnable onComplete) {
-        if (nameIndex.isEmpty()) {
+        if (fullIndex.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Could not read guild roster from wapi - try again.")
+                            .withStyle(ChatFormatting.YELLOW));
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+        Map<String, String> nameIndex = filterIndex(fullIndex, excludeNames);
+        if (nameIndex.isEmpty()) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    "All eligible recipients have opted out of receiving aspects.")
                             .withStyle(ChatFormatting.YELLOW));
             if (onComplete != null) onComplete.run();
             return;
@@ -170,7 +186,7 @@ public final class GraidsDistributor {
                 Component.literal("Reading guild log…").withStyle(ChatFormatting.GRAY));
 
         GuildLogWalker.armWalk(
-                entries -> onLogReady(entries, nameIndex, count, resource, onComplete));
+                entries -> onLogReady(entries, fullIndex, nameIndex, count, resource, onComplete));
         // Open via /guild manage → click Log tile rather than direct
         // /guild log. Empirically Wynncraft drops /guild log if it
         // lands while there's any session state left over from a
@@ -184,6 +200,7 @@ public final class GraidsDistributor {
 
     private static void onLogReady(
             List<GuildLogItem> entries,
+            Map<String, String> fullIndex,
             Map<String, String> nameIndex,
             int count,
             MemberSlotPresser.Resource resource,
@@ -195,8 +212,15 @@ public final class GraidsDistributor {
                 freq.size());
 
         if (freq.isEmpty()) {
+            // If the unfiltered index finds graids, they were all opted-out members'.
+            // With nothing excluded the indexes are one map, so the recount is empty.
+            boolean allOptedOut = !countGraidFrequencies(entries, fullIndex).isEmpty();
             ChatUtils.sendLocalMessage(
-                    Component.literal("No graid completions found in the log window.")
+                    Component.literal(
+                                    allOptedOut
+                                            ? "All eligible recipients have opted out of"
+                                                    + " receiving aspects."
+                                            : "No graid completions found in the log window.")
                             .withStyle(ChatFormatting.YELLOW));
             if (onComplete != null) onComplete.run();
             return;

@@ -536,8 +536,11 @@ and lets the queue go on.
 | Wynntils' Custom Guild Log Screen off (`@graids`, and `@split`'s graids phase) | `GraidsDistributor.dispatch` | red "Graid-based distribution requires a Wynntils feature that is currently disabled (Custom Guild Log Screen)." | no: nothing armed, and under `@split` nothing is sent |
 | Wynntils not ready (`@random`) | `RandomDistributor.dispatch` | red "Wynntils isn't ready yet…" | yes |
 | Empty wapi roster / name index | `RandomDistributor.beginPicks`, `GraidsDistributor.beginWalk` | yellow "Could not read guild roster from wapi…" | yes |
+| Every roster member opted out (aspects only) | `RandomDistributor.beginPicks`, `GraidsDistributor.beginWalk` | yellow "All eligible recipients have opted out of receiving aspects." | yes |
 | No objective completers | `ObjectivesDistributor.onWalkComplete` | yellow "No members have completed…" | yes |
+| Every objective completer opted out (aspects only) | `ObjectivesDistributor.onWalkComplete` | yellow "All eligible recipients have opted out of receiving aspects." | yes |
 | No graid entries in the window | `GraidsDistributor.onLogReady` | yellow "No graid completions found…" | yes |
+| Every graid participant in the window opted out (aspects only) | `GraidsDistributor.onLogReady` | yellow "All eligible recipients have opted out of receiving aspects." | yes |
 | Name absent after both sweeps and the retry | `MembersListSearcher.stopNotFound` | yellow "Could not find X in members list." | yes † |
 | `MAX_PAGES` reached | `MembersListSearcher.scanAndPaginate` | yellow "Could not find X (reached page limit)." | yes † |
 | Bound Members menu gone, and no rebind possible (none open, or rebinds exhausted) | `MembersListSearcher.scanAndPaginate` | none from the searcher | yes † |

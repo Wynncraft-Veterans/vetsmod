@@ -63,8 +63,9 @@ public final class NoAspectsFilter {
      *
      * <p>{@code gated} is the run's {@code MemberSlotPresser.Resource#gatedByNoAspects()}.
      * When it is {@code false} this makes no request and returns an
-     * already-completed empty set, so a caller's {@code thenCombine} on it
-     * completes with the other future, on that future's thread.</p>
+     * already-completed empty set, so a caller's {@code thenCombine} or
+     * {@code thenAcceptBoth} on it completes with the other future, on that
+     * future's thread.</p>
      *
      * <p>Returns an empty set on any failure path (see class javadoc).</p>
      */

@@ -121,19 +121,21 @@ public final class ObjectivesDistributor {
             MemberSlotPresser.Resource resource,
             Runnable onComplete,
             Set<String> excludeNames) {
+        // Completion first, then the opt-out, so a pool of only opted-out
+        // completers is told apart from one nobody completed.
         List<String> completers = new ArrayList<>();
-        int skippedOptOut = 0;
+        int optedOutCompleters = 0;
         for (MembersListWalker.MemberEntry m : members) {
+            if (!hasCompletedObjective(m.loreLines())) continue;
             if (excludeNames.contains(m.legacyName())) {
-                skippedOptOut++;
-                continue;
-            }
-            if (hasCompletedObjective(m.loreLines())) {
+                optedOutCompleters++;
+            } else {
                 completers.add(m.legacyName());
             }
         }
-        if (skippedOptOut > 0) {
-            VetsLogger.debug("ObjectivesDistributor: skipped {} opted-out members", skippedOptOut);
+        if (optedOutCompleters > 0) {
+            VetsLogger.debug(
+                    "ObjectivesDistributor: skipped {} opted-out completers", optedOutCompleters);
         }
         VetsLogger.debug(
                 "ObjectivesDistributor: {} / {} members completed their objective",
@@ -142,7 +144,11 @@ public final class ObjectivesDistributor {
 
         if (completers.isEmpty()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("No members have completed their guild objective.")
+                    Component.literal(
+                                    optedOutCompleters > 0
+                                            ? "All eligible recipients have opted out of"
+                                                    + " receiving aspects."
+                                            : "No members have completed their guild objective.")
                             .withStyle(ChatFormatting.YELLOW));
             MembersGui.closeIfOpen();
             if (onComplete != null) onComplete.run();
