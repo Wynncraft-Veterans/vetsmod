@@ -1,5 +1,6 @@
 package org.wynnvets.debug;
 
+import java.util.Map;
 import org.wynnvets.config.VetsConfig;
 
 /**
@@ -18,6 +19,11 @@ public final class DebugConfigManager {
     /** When true, pressing numpad {@code +} while hovering an item dumps its full component tree. */
     public static final String ITEM_DUMP = "itemDump";
 
+    /** Each debug key's default. {@link #init()} registers them, and
+     *  {@link org.wynnvets.config.VetsConfigDefaults VetsConfigDefaults} writes them to the
+     *  shipped {@code config.yml}, as they are in a first-run {@code config.json}. */
+    public static final Map<String, Boolean> DEFAULTS = Map.of(ITEM_DUMP, false);
+
     /** All debug config keys, in display order. */
     public static final String[] DEBUG_CONFIG_KEYS = {
         ITEM_DUMP,
@@ -31,7 +37,7 @@ public final class DebugConfigManager {
      * {@link VetsConfig#load()}.
      */
     public static void init() {
-        VetsConfig.registerDefault(ITEM_DUMP, false);
+        DEFAULTS.forEach(VetsConfig::registerDefault);
     }
 
     /**

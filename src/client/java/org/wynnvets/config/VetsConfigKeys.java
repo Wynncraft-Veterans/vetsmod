@@ -3,9 +3,10 @@ package org.wynnvets.config;
 /**
  * The names of VetsMod's configuration keys. Each constant's value is the name the setting is
  * stored under in {@code vetsmod/storage/config.json}, so changing a value is a file-format
- * change. {@link VetsConfig} holds the values and reads and writes the file, and
- * {@link VetsConfigSchema} holds the key lists, valid-value lists and {@code reset} defaults
- * that describe them.
+ * change. {@link VetsConfig} holds the values and reads and writes the file,
+ * {@link VetsConfigSchema} the key lists and valid-value lists that describe them, and
+ * {@link VetsConfigDefaults} their first-run defaults, whose shipped copy
+ * {@link ShippedConfig} reads for {@code /wv config <key> default}.
  *
  * <p>Keys fall into these categories:</p>
  * <ul>

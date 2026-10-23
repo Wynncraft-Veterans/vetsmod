@@ -21,9 +21,10 @@ import org.junit.jupiter.api.Test;
  * frozen copy, not computed from the class, and the constants are read by reflection, so a key
  * added, removed or renamed fails here as well as a changed value.</p>
  *
- * <p>This pins the names only. Which keys are stored, the map each one lives in, their
- * first-run defaults and the order they are written in are set in {@link VetsConfig}, which
- * cannot load in a test: its static initializer asks Fabric for the game directory.</p>
+ * <p>This pins the names only. Which keys are stored, the map each one lives in and their
+ * first-run defaults are set in {@link VetsConfigDefaults#seed}, and {@code VetsConfigDefaultsTest}
+ * pins the user-facing ones. The order they are written in is {@link VetsConfig}'s, which cannot
+ * load in a test: its static initializer asks Fabric for the game directory.</p>
  *
  * <p>KNOWN BUG (pinned, not fixed): {@code vetsAnniEnabled} is meant to be retired
  * ({@code vets-anni-enabled-to-be-retired}). Retiring it removes its row below.</p>

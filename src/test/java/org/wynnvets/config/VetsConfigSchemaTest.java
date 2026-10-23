@@ -8,14 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
  * Pins the tables in {@link VetsConfigSchema}: the keys {@code /wv config} accepts and the order
  * of {@code USER_CONFIG_KEYS}, which is the order {@code configList} prints them in; the key lists
  * that decide how {@code /wv config} types a key; the valid-value lists and which keys
- * {@code fixedValuesOf} maps to them; and the defaults {@code reset} writes. Every expected table
+ * {@code fixedValuesOf} maps to them. The defaults are pinned in
+ * {@code VetsConfigDefaultsTest}. Every expected table
  * is a frozen literal, not read from the class; the predicate check and the string-key guard
  * below are the exceptions.
  *
@@ -207,51 +207,6 @@ class VetsConfigSchemaTest {
             assertTrue(
                     colourOrSprite.contains(key) || VetsConfigSchema.fixedValuesOf(key) != null,
                     key);
-        }
-    }
-
-    @Test
-    void resetDefaults() {
-        assertEquals(
-                Long.valueOf(69L),
-                VetsConfigSchema.getIntDefault("legacyItemBackgroundGradientTopOpacity"));
-        assertEquals(
-                Long.valueOf(100L),
-                VetsConfigSchema.getIntDefault("legacyItemBackgroundGradientBottomOpacity"));
-        assertEquals(
-                "orange", VetsConfigSchema.getStringDefault("legacyItemBackgroundGradientTop"));
-        assertEquals(
-                "crimson", VetsConfigSchema.getStringDefault("legacyItemBackgroundGradientBottom"));
-        assertEquals(
-                "box_gradient_2", VetsConfigSchema.getStringDefault("legacyItemForegroundSprite"));
-        assertEquals("orange", VetsConfigSchema.getStringDefault("legacyItemForegroundColor"));
-        assertEquals("descriptive", VetsConfigSchema.getStringDefault("vetsAnniRoleStyle"));
-        assertEquals("normal", VetsConfigSchema.getStringDefault("vetsAnniFlashIntensity"));
-    }
-
-    @Test
-    void resetDefaults_nullForEveryOtherName() {
-        Map<String, Long> ints =
-                Map.of(
-                        "legacyItemBackgroundGradientTopOpacity",
-                        69L,
-                        "legacyItemBackgroundGradientBottomOpacity",
-                        100L);
-        List<String> strings =
-                List.of(
-                        "legacyItemBackgroundGradientTop",
-                        "legacyItemBackgroundGradientBottom",
-                        "legacyItemForegroundSprite",
-                        "legacyItemForegroundColor",
-                        "vetsAnniRoleStyle",
-                        "vetsAnniFlashIntensity");
-        for (String name : ALL_NAMES) {
-            if (!ints.containsKey(name)) {
-                assertNull(VetsConfigSchema.getIntDefault(name), name);
-            }
-            if (!strings.contains(name)) {
-                assertNull(VetsConfigSchema.getStringDefault(name), name);
-            }
         }
     }
 

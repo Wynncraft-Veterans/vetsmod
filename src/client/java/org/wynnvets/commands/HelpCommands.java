@@ -243,8 +243,7 @@ final class HelpCommands {
         line(
                 msg,
                 ChatFormatting.GRAY,
-                "Toggle with: /wv config <key> <true|false>;"
-                        + " handleSpoilers also takes default.\n"
+                "Toggle with /wv config <key> <default|true|false>.\n"
                         + "These are the common toggles; /wv config lists every key.\n\n");
         row(
                 msg,

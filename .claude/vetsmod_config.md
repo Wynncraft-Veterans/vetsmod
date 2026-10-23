@@ -8,7 +8,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 
 Single-file JSON config at `vetsmod/storage/config.json` (resolved via `FabricLoader.getInstance().getGameDir()`).
 
-Implementation: [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java), the store; [VetsConfigKeys](../src/client/java/org/wynnvets/config/VetsConfigKeys.java), the key names; and [VetsConfigSchema](../src/client/java/org/wynnvets/config/VetsConfigSchema.java), the `/wv config` key lists, valid-value lists and `reset` defaults.
+Implementation: [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java), the store; [VetsConfigKeys](../src/client/java/org/wynnvets/config/VetsConfigKeys.java), the key names; [VetsConfigSchema](../src/client/java/org/wynnvets/config/VetsConfigSchema.java), the `/wv config` key lists and valid-value lists; [VetsConfigDefaults](../src/client/java/org/wynnvets/config/VetsConfigDefaults.java), the first-run defaults; and [ShippedConfig](../src/client/java/org/wynnvets/config/ShippedConfig.java), the shipped `config.yml` that `/wv config <key> default` restores from.
 
 Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-null). All coexist in one flat JSON object — no nesting, no version field, no migration logic.
 
@@ -85,7 +85,7 @@ Default 69 for top opacity approximates the old `0xB0` alpha byte.
 
 ## 3. API (static methods, all public except `save()`)
 
-The first column names the class that declares each method. `VetsConfigKeys` holds only the key-name constants, and the colour and sprite rows are `LegacyItemStyle`'s, which `/wv config` calls directly. Every method in the table takes a key except `load()`, `save()` and `getColorNames()`, which take nothing, and `isValidColor(name)` / `isValidSprite(name)`, which take a value; `isFixedValue(key,value)` takes both. The setters return false when the key is not registered in their map; none validates the value.
+The first column names the class that declares each method. `VetsConfigKeys` holds only the key-name constants, and the colour and sprite rows are `LegacyItemStyle`'s, which `/wv config` calls directly. Every method in the table takes a key except `load()`, `save()` and `getColorNames()`, which take nothing, and `isValidColor(name)` / `isValidSprite(name)`, which take a value; `isFixedValue(key,value)` takes both, and `VetsConfigDefaults`' methods take the four maps, nothing, or the output path. The setters return false when the key is not registered in their map; none validates the value.
 
 | Class | Method | Notes |
 |-------|--------|-------|
@@ -95,7 +95,8 @@ The first column names the class that declares each method. `VetsConfigKeys` hol
 | `VetsConfig` | `getString(key)` / `setString(key,value)` | string map |
 | `VetsConfigSchema` | `isUserConfigKey(key)` | scans `USER_CONFIG_KEYS` |
 | `VetsConfigSchema` | `isTriStateKey(key)` / `isStringKey(key)` / `isIntKey(key)` | scan `TRISTATE_KEYS` / `STRING_CONFIG_KEYS` / `INT_CONFIG_KEYS` |
-| `VetsConfigSchema` | `getIntDefault(key)` / `getStringDefault(key)` | from INT_DEFAULTS/STRING_DEFAULTS maps |
+| `VetsConfigDefaults` | `seed(maps)` / `firstRunValues()` / `main(args)` | the first-run defaults `VetsConfig` seeds from, and the build's writer of `config.yml` (§5); `seed` and `firstRunValues` are package-private |
+| `ShippedConfig` | `bool(key)` / `number(key)` / `string(key)` | the key's value in the shipped `config.yml`, or `null`; read once, from vetsmod's own mod container |
 | `VetsConfigSchema` | `fixedValuesOf(key)` / `isFixedValue(key,value)` | `VALID_ROLE_STYLES` for `vetsAnniRoleStyle`, `VALID_FLASH_INTENSITIES` for `vetsAnniFlashIntensity`; `null` / false for every other key |
 | `VetsConfig` | `registerDefault(key, defaultValue)` | for subsystems; boolean keys only, must run before `load()` |
 | `VetsConfig` | `load()` | creates the file from defaults when absent; a file that can't be parsed is moved aside and the defaults are used (§6) |
@@ -141,15 +142,12 @@ Declared by [VetsConfigSchema.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/
 
 ## 5. Static defaults
 
-Two classes hold the defaults of the keys in `VetsConfigKeys`; the debug keys get theirs from `registerDefault` (§8).
+`VetsConfigDefaults` holds the defaults of the keys in `VetsConfigKeys`, and `ShippedConfig` reads the build's copy of them from the jar's `config.yml`; the debug keys get theirs from `DebugConfigManager.DEFAULTS` through `registerDefault` (§8).
 
-`VetsConfig`'s static initializer sets the first-run default of every key in `VetsConfigKeys`. Booleans default there, and not all of them are true: `vetsIsStaff`, `vetsAnniEnabled`, `vetsAnniModeUserSet` and `colorBlindMode` default `false`. Timestamp/count longs default `0L`.
+`VetsConfigDefaults.seed` sets the first-run default of every key in `VetsConfigKeys`, and `VetsConfig`'s static initializer calls it. Booleans default there, and not all of them are true: `vetsIsStaff`, `vetsAnniEnabled`, `vetsAnniModeUserSet` and `colorBlindMode` default `false`. Timestamp/count longs default `0L`.
 HANDLE_SPOILERS default: null.
 
-`VetsConfigSchema` holds a second copy of six of the string defaults and both int defaults, which `/wv config <key> reset` writes. It has none for `vetsAnniMode`, which `/wv config` refuses:
-INT_DEFAULTS: opacity values.
-STRING_DEFAULTS: six entries — the four colour/sprite keys plus `vetsAnniRoleStyle` (`descriptive`) and `vetsAnniFlashIntensity` (`normal`).
-The two copies agree; nothing checks that they keep agreeing.
+**The shipped `config.yml`.** The build's `generateConfigYml` task runs `VetsConfigDefaults.main`, which writes `firstRunValues()` to `config.yml` in the jar: the pairs a first-run `config.json` holds, the debug keys `DebugConfigManager.DEFAULTS` registers included and an unset tri-state left out. Its one reader is `ShippedConfig`, behind `/wv config <key> default`, which every key takes (string and int keys keep `reset` as an alias; a tri-state's `default` clears it instead). `ShippedConfig` reads the file from vetsmod's own mod container, so another mod's `config.yml` cannot stand in for it, and a missing file makes `default` refuse with "There is no shipped default for <key>.". The file is generated from the same `seed`, so it cannot drift from the code; `ShippedConfigTest` checks the copy on the test classpath. SnakeYAML, bundled in the jar with Loom's `include`, writes and reads it.
 
 ## 6. Persistence
 

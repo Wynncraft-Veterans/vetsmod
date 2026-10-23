@@ -71,7 +71,7 @@ Json.optInt|5|no prose states it - see the Json.optString row
 Json.stringOrNull|17|Json.java: "seventeen once NameResolver s five joined"
 Json.stringOrEmpty|11|Json.java: "eleven call sites"
 ColorMath.interpolateRgb|4|vetsmod_rendering.md + ColorMath.java, stated 3x
-ConfigValueText.booleanLine|5|ConfigValueTextTest
+ConfigValueText.booleanLine|6|ConfigValueTextTest
 ConfigValueText.intLine|3|ConfigValueTextTest
 ConfigValueText.stringLine|4|ConfigValueTextTest
 ConfigValueText.triStateLine|2|ConfigValueTextTest

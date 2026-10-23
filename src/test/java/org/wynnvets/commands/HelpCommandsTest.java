@@ -253,8 +253,7 @@ class HelpCommandsTest {
                 boldSib(ChatFormatting.GOLD, "Config Options\n"),
                 sib(
                         ChatFormatting.GRAY,
-                        "Toggle with: /wv config <key> <true|false>;"
-                                + " handleSpoilers also takes default.\n"
+                        "Toggle with /wv config <key> <default|true|false>.\n"
                                 + "These are the common toggles; /wv config lists every key.\n\n"),
                 sib(ChatFormatting.YELLOW, "legacyItemHighlighting\n"),
                 sib(ChatFormatting.GRAY, "  Highlights old items when in your inventory\n"),

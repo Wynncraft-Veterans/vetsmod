@@ -1,13 +1,12 @@
 package org.wynnvets.config;
 
-import java.util.Map;
-
 /**
  * What is known about the keys in {@link VetsConfigKeys} beyond their names: which ones the player
  * can set with {@code /wv config}, how that command types them, the valid values of the keys that
- * take a fixed set of names other than colours (colour names are {@link NamedColor}'s), and the
- * defaults its {@code reset} restores. {@link VetsConfig} holds the stored values and their
- * first-run defaults.
+ * take a fixed set of names other than colours (colour names are {@link NamedColor}'s).
+ * {@link VetsConfig} holds the stored values, {@link VetsConfigDefaults} their first-run defaults,
+ * and {@link ShippedConfig} the shipped copy of those that {@code /wv config <key> default}
+ * restores.
  */
 public final class VetsConfigSchema {
     /** Valid values for {@link VetsConfigKeys#VETS_ANNI_ROLE_STYLE}; the first is the
@@ -111,40 +110,6 @@ public final class VetsConfigSchema {
         "box_gradient_1",
         "box_gradient_2",
     };
-
-    // ── Int config defaults (for reset) ─────────────────────────────────
-
-    private static final Map<String, Long> INT_DEFAULTS =
-            Map.of(
-                    VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY, 69L,
-                    VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY, 100L);
-
-    /**
-     * Returns the default value for an int config key, or {@code null} if
-     * the key is not an int config key.
-     */
-    public static Long getIntDefault(String key) {
-        return INT_DEFAULTS.get(key);
-    }
-
-    // ── String config defaults (for reset) ──────────────────────────────
-
-    private static final Map<String, String> STRING_DEFAULTS =
-            Map.of(
-                    VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP, "orange",
-                    VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM, "crimson",
-                    VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE, "box_gradient_2",
-                    VetsConfigKeys.LEGACY_ITEM_FOREGROUND_COLOR, "orange",
-                    VetsConfigKeys.VETS_ANNI_ROLE_STYLE, "descriptive",
-                    VetsConfigKeys.VETS_ANNI_FLASH_INTENSITY, "normal");
-
-    /**
-     * Returns the default value for a string config key, or {@code null} if
-     * the key is not a string config key.
-     */
-    public static String getStringDefault(String key) {
-        return STRING_DEFAULTS.get(key);
-    }
 
     /**
      * The fixed value list of a string key that takes neither a colour nor a sprite name:

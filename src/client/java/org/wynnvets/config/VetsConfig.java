@@ -22,8 +22,10 @@ import org.wynnvets.logging.VetsLogger;
  * persisted as JSON to {@code vetsmod/storage/config.json}.  Apart from the
  * debug keys, the key names are declared in {@link VetsConfigKeys}, whose
  * class doc describes the internal, user-facing and debug kinds; the
- * {@code /wv config} key lists, valid-value lists and {@code reset} defaults
- * are in {@link VetsConfigSchema}.</p>
+ * {@code /wv config} key lists and valid-value lists are in
+ * {@link VetsConfigSchema}. The first-run defaults are in
+ * {@link VetsConfigDefaults}, and the copy {@code /wv config <key> default}
+ * restores from is {@link ShippedConfig}.</p>
  */
 public final class VetsConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -37,70 +39,10 @@ public final class VetsConfig {
             Collections.synchronizedMap(new HashMap<>());
     private static final Map<String, String> stringConfig = new ConcurrentHashMap<>();
 
-    // Default values
+    // Default values. VetsConfigDefaults holds them, and the build writes the same values to
+    // the config.yml that /wv config <key> default reads (ShippedConfig).
     static {
-        // Internal defaults
-        config.put(VetsConfigKeys.VETS_AUTOMESSAGE, true);
-        config.put(VetsConfigKeys.VETS_IS_STAFF, false);
-        longConfig.put(VetsConfigKeys.VETS_LAST_STAFF_CHECK, 0L);
-        longConfig.put(VetsConfigKeys.VETS_WAITLIST_UNLOCK_TIME, 0L);
-        longConfig.put(VetsConfigKeys.VETS_HONOURARY_UNLOCK_TIME, 0L);
-        longConfig.put(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, 0L);
-        longConfig.put(VetsConfigKeys.VETS_LAST_GUILD_CHECK, 0L);
-        longConfig.put(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, 0L);
-        config.put(VetsConfigKeys.VETS_ANNI_ENABLED, false);
-        config.put(VetsConfigKeys.VETS_ANNI_MODE_USER_SET, false);
-
-        // /unlock <key> auth state — keys are persisted strings, the timestamp
-        // is a long. Defaults to empty key + epoch=0 = "never authenticated".
-        stringConfig.put(VetsConfigKeys.VETS_AUTH_KEY, "");
-        stringConfig.put(VetsConfigKeys.VETS_AUTH_TIER, "");
-        longConfig.put(VetsConfigKeys.VETS_AUTH_VERIFIED_AT, 0L);
-
-        // User-facing BOOLEAN defaults — all true except colorBlindMode.
-        // (moreReliableGuildCheck is true, despite what this comment used to say.)
-        // This block holds 20 of the 30 USER_CONFIG_KEYS. The other ten default
-        // outside it: vetsAnniEnabled (false, with the internal keys above), the
-        // tri-state handleSpoilers (null = on) and the six string plus two int
-        // user-facing keys, all just below.
-        config.put(VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING, true);
-        config.put(VetsConfigKeys.LEGACY_ITEM_SHOW_ENCHANTMENTS, true);
-        config.put(VetsConfigKeys.PRINT_MOTD, true);
-        config.put(VetsConfigKeys.PRINT_ANNI, true);
-        config.put(VetsConfigKeys.VETS_ANNI_SHOW_HOVER_DETAILS, true);
-        config.put(VetsConfigKeys.VETS_ANNI_PROMPT_RSVP, true);
-        config.put(VetsConfigKeys.VETS_ANNI_SHOW_PREDICTION, true);
-        config.put(VetsConfigKeys.VETS_ANNI_BOSSBAR_ENABLED, true);
-        config.put(VetsConfigKeys.VETS_ANNI_FLASH_SOUND, true);
-        config.put(VetsConfigKeys.VETS_ANNI_OUTLINES_ENABLED, true);
-        config.put(VetsConfigKeys.VETS_ANNI_NAMETAGS_ENABLED, true);
-        config.put(VetsConfigKeys.VETS_ANNI_ZONE_LINES, true);
-        config.put(VetsConfigKeys.VETS_ANNI_SCROLL_WAYPOINT, true);
-        config.put(VetsConfigKeys.VETS_ANNI_CHAT_ALERTS, true);
-        config.put(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT, true);
-        config.put(VetsConfigKeys.PRINT_BRIDGE_MESSAGES, true);
-        config.put(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH, true);
-        config.put(VetsConfigKeys.SHOW_SUPPORTER_GLINTS, true);
-        config.put(VetsConfigKeys.COLOR_BLIND_MODE, false);
-        config.put(VetsConfigKeys.MORE_RELIABLE_GUILD_CHECK, true);
-
-        // Tri-state defaults (null = use default behaviour)
-        triStateConfig.put(VetsConfigKeys.HANDLE_SPOILERS, null);
-
-        // String defaults
-        stringConfig.put(VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP, "orange");
-        stringConfig.put(VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM, "crimson");
-        stringConfig.put(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE, "box_gradient_2");
-        stringConfig.put(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_COLOR, "orange");
-        stringConfig.put(VetsConfigKeys.VETS_ANNI_ROLE_STYLE, "descriptive");
-        stringConfig.put(VetsConfigKeys.VETS_ANNI_MODE, "silent");
-        stringConfig.put(VetsConfigKeys.VETS_ANNI_FLASH_INTENSITY, "normal");
-        stringConfig.put(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP, "");
-        stringConfig.put(VetsConfigKeys.VETS_ANNI_USER_MODE, "");
-
-        // Int defaults (stored as long)
-        longConfig.put(VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY, 69L);
-        longConfig.put(VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY, 100L);
+        VetsConfigDefaults.seed(config, longConfig, triStateConfig, stringConfig);
     }
 
     private VetsConfig() {}

@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.LegacyItemStyle;
+import org.wynnvets.config.ShippedConfig;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.config.VetsConfigSchema;
@@ -50,6 +51,8 @@ final class ConfigCommands {
                 try {
                     String key = StringArgumentType.getString(ctx, "key");
                     if (VetsConfigSchema.isIntKey(key)) {
+                        // default, and reset as its older alias
+                        if ("default".startsWith(partial)) builder.suggest("default");
                         if ("reset".startsWith(partial)) builder.suggest("reset");
                         for (String v : new String[] {"0", "25", "50", "69", "75", "100"}) {
                             if (v.startsWith(partial)) builder.suggest(v);
@@ -57,7 +60,8 @@ final class ConfigCommands {
                         return builder.buildFuture();
                     }
                     if (VetsConfigSchema.isStringKey(key)) {
-                        // Always suggest "reset" for string keys
+                        // default, and reset as its older alias
+                        if ("default".startsWith(partial)) builder.suggest("default");
                         if ("reset".startsWith(partial)) builder.suggest("reset");
                         String[] fixed = VetsConfigSchema.fixedValuesOf(key);
                         if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)) {
@@ -77,7 +81,8 @@ final class ConfigCommands {
                         }
                         return builder.buildFuture();
                     }
-                    if (VetsConfigSchema.isTriStateKey(key) && "default".startsWith(partial)) {
+                    // Boolean and tri-state keys take default too
+                    if (VetsConfigSchema.isUserConfigKey(key) && "default".startsWith(partial)) {
                         builder.suggest("default");
                     }
                 } catch (IllegalArgumentException ignored) {
@@ -185,9 +190,17 @@ final class ConfigCommands {
     // ── Boolean-config helpers ──────────────────────────────────────────
 
     private static int handleBooleanConfigSet(String key, String rawValue) {
+        if ("default".equalsIgnoreCase(rawValue)) {
+            Boolean defaultVal = ShippedConfig.bool(key);
+            if (defaultVal == null) return noShippedDefault(key);
+            VetsConfig.set(key, defaultVal);
+            ChatUtils.sendLocalMessage(
+                    ConfigValueText.booleanLine(Form.SINGLE, key, Verb.RESET_TO, defaultVal));
+            return 1;
+        }
         if (!"true".equalsIgnoreCase(rawValue) && !"false".equalsIgnoreCase(rawValue)) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Value must be 'true' or 'false'.")
+                    Component.literal("Value must be 'true', 'false', or 'default'.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -198,6 +211,18 @@ final class ConfigCommands {
         ChatUtils.sendLocalMessage(
                 ConfigValueText.booleanLine(Form.SINGLE, key, Verb.SET_TO, value));
         return 1;
+    }
+
+    /**
+     * The refusal for {@code default} on a key that vetsmod's shipped {@code config.yml} has no
+     * value of the key's kind for. That happens only when the file is missing or unreadable, or a
+     * key was added without a default.
+     */
+    private static int noShippedDefault(String key) {
+        ChatUtils.sendLocalMessage(
+                Component.literal("There is no shipped default for " + key + ".")
+                        .withStyle(ChatFormatting.RED));
+        return 0;
     }
 
     // ── TriState-config helpers ─────────────────────────────────────────
@@ -235,10 +260,10 @@ final class ConfigCommands {
     }
 
     private static int handleStringConfigSet(String key, String rawValue) {
-        // Handle reset for all string keys
-        if ("reset".equalsIgnoreCase(rawValue)) {
-            String defaultVal = VetsConfigSchema.getStringDefault(key);
-            if (defaultVal == null) return 0;
+        // default restores the shipped value for every string key; reset is its older alias.
+        if ("default".equalsIgnoreCase(rawValue) || "reset".equalsIgnoreCase(rawValue)) {
+            String defaultVal = ShippedConfig.string(key);
+            if (defaultVal == null) return noShippedDefault(key);
             VetsConfig.setString(key, defaultVal);
             ChatUtils.sendLocalMessage(
                     ConfigValueText.stringLine(
@@ -302,9 +327,10 @@ final class ConfigCommands {
     // ── Int-config helpers ──────────────────────────────────────────────
 
     private static int handleIntConfigSet(String key, String rawValue) {
-        if ("reset".equalsIgnoreCase(rawValue)) {
-            Long defaultVal = VetsConfigSchema.getIntDefault(key);
-            if (defaultVal == null) return 0;
+        // default restores the shipped value; reset is its older alias.
+        if ("default".equalsIgnoreCase(rawValue) || "reset".equalsIgnoreCase(rawValue)) {
+            Long defaultVal = ShippedConfig.number(key);
+            if (defaultVal == null) return noShippedDefault(key);
             VetsConfig.setLong(key, defaultVal);
             ChatUtils.sendLocalMessage(
                     ConfigValueText.intLine(Form.SINGLE, key, Verb.RESET_TO, defaultVal));
@@ -316,7 +342,7 @@ final class ConfigCommands {
             parsed = Long.parseLong(rawValue);
         } catch (NumberFormatException e) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Value must be a number (0\u2013100) or 'reset'.")
+                    Component.literal("Value must be a number (0\u2013100) or 'default'.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }

@@ -25,7 +25,8 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 **Config:**
 - [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java)
 - [VetsConfigKeys](../src/client/java/org/wynnvets/config/VetsConfigKeys.java) — the config key names
-- [VetsConfigSchema](../src/client/java/org/wynnvets/config/VetsConfigSchema.java) — the `/wv config` key lists, valid-value lists (`VALID_SPRITES`) and `reset` defaults
+- [VetsConfigSchema](../src/client/java/org/wynnvets/config/VetsConfigSchema.java) — the `/wv config` key lists and valid-value lists (`VALID_SPRITES`)
+- [VetsConfigDefaults](../src/client/java/org/wynnvets/config/VetsConfigDefaults.java) — the first-run defaults, the gradient, sprite and opacity ones included, which the jar's generated `config.yml` carries for `/wv config <key> default` ([ShippedConfig](../src/client/java/org/wynnvets/config/ShippedConfig.java) reads it)
 - [LegacyItemStyle](../src/client/java/org/wynnvets/config/LegacyItemStyle.java) — resolves gradient/sprite from config
 - [NamedColor](../src/client/java/org/wynnvets/config/NamedColor.java) — colour-name → RGB + alpha packing
 

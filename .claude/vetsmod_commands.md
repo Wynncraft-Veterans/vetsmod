@@ -191,7 +191,7 @@ rsvp`".
 |---|---|---|---|---|---|---|
 | `/wv config` | none | none | `ConfigCommands.configList` | Prints every key in `VetsConfigSchema.USER_CONFIG_KEYS`, in order, with its value | chat only | none |
 | `/wv config <key>` | none | none | `ConfigCommands.configGet` | Prints one key's value; "Unknown config key: <key>" for a key outside `USER_CONFIG_KEYS` | chat only | none |
-| `/wv config <key> <value>` | none | none | `ConfigCommands.configSet` | Sets the key; string and int keys also take `reset`. Refuses an unknown key, a value of the wrong type, and a role-style or flash-intensity value outside its list | persists the config | none |
+| `/wv config <key> <value>` | none | none | `ConfigCommands.configSet` | Sets the key. Every key also takes `default`, which writes its value from the shipped `config.yml` (a tri-state's `default` clears it instead); string and int keys also take `reset`, its older alias. Refuses an unknown key, a value of the wrong type, and a role-style or flash-intensity value outside its list | persists the config | none |
 
 Every `key = value` line the three forms print, and the `/wv debug set` prints, is built by
 `util/ConfigValueText`. `ConfigCommands.Kind.of(key)` picks which of `VetsConfig`'s typed accessors a key
@@ -508,9 +508,9 @@ suggestion list from Brigadier (§4).
 
 The anni rows are under `/wv debug tree anni`.
 
-**`SUGGEST_CONFIG_VALUES` by key.** Boolean keys suggest `true|false`, and tri-state keys `default|true|false`.
+**`SUGGEST_CONFIG_VALUES` by key.** Boolean and tri-state keys suggest `default|true|false`.
 Int keys (opacity) suggest
-`reset|0|25|50|69|75|100`. String keys suggest `reset` plus the colour names from
+`default|reset|0|25|50|69|75|100`. String keys suggest `default` and `reset` plus the colour names from
 `LegacyItemStyle.getColorNames()`, the sprite names (`VetsConfigSchema.VALID_SPRITES`), or, for
 `vetsAnniRoleStyle` and `vetsAnniFlashIntensity`, the key's own list from
 `VetsConfigSchema.fixedValuesOf(key)`.
