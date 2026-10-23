@@ -18,6 +18,7 @@ import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.queue.QueueStateManager;
 
@@ -27,7 +28,8 @@ import org.wynnvets.queue.QueueStateManager;
  * ({@code /a}), and the encourage command ({@code /encourage}).
  *
  * <p><b>Not exhaustive</b> — {@link #intercept} matches twelve prefixes; read
- * it for the full list. {@code /msg} is not one of them.</p>
+ * it for the full list. {@code /msg} is not one of them. All of them are
+ * intercepted only on Wynncraft.</p>
  *
  * <p>Called from {@link org.wynnvets.mixin.client.chat.GuildChatCommandMixin}
  * to keep mixin code minimal. Each handler returns {@code true} when the
@@ -72,22 +74,27 @@ public final class GuildChatDispatcher {
     }
 
     /**
-     * Attempts to intercept an outbound chat command.
+     * Attempts to intercept an outbound chat command. Off Wynncraft (by
+     * {@link org.wynnvets.listeners.ServerConnectionListener#onWynncraft()
+     * ServerConnectionListener#onWynncraft()}) every command passes
+     * through to the server, so the prefixes keep their meaning there.
      *
      * @param command the command string (without leading {@code /})
      * @return {@code true} if the command was handled and should be cancelled;
      *         {@code false} to let it pass through to the server
      */
     public static boolean intercept(String command) {
-        if (BYPASS.get()) return false;
-        // /g: handler already falls through to vanilla for non-vets users
+        // Off Wynncraft (another server, singleplayer) these prefixes belong to that server,
+        // so nothing is intercepted.
+        if (BYPASS.get() || !ServerConnectionListener.onWynncraft()) return false;
+        // /g: on Wynncraft, the handler falls through to vanilla for non-vets users
         // via its internal isReturners / isWaitlistUnlocked / queue checks.
         if (command.regionMatches(true, 0, "g ", 0, 2)) {
             return handleGuildChat(command.substring(2));
         }
 
-        // Past /g, vetsmod stays out of the way for users who aren't part
-        // of the vets community at all -- Wynncraft handles these commands
+        // Past /g, vetsmod stays out of the way on Wynncraft for users who aren't
+        // part of the vets community at all -- Wynncraft handles these commands
         // as if the mod weren't installed.
         if (!GuildStateManager.isUnlocked()) {
             return false;

@@ -3,7 +3,6 @@ package org.wynnvets;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
-import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.commands.CommandRegistry;
 import org.wynnvets.config.VetsConfig;
@@ -49,9 +48,11 @@ import org.wynnvets.rendering.territory.TerritoryLineRenderer;
  * <ol>
  *   <li>{@link #onInitializeClient()} runs during the game's start-up, before Wynntils' own
  *       entrypoint in production: configuration and guild state, item definitions, the
- *       WebSockets and their listeners, the pollers, the tick, render and server-connection
- *       hooks, and the callback through which Fabric builds the {@code /wv} command tree (via
- *       {@link CommandRegistry}).</li>
+ *       WebSocket listeners, the pollers, the tick, render and server-connection hooks, and the
+ *       callback through which Fabric builds the {@code /wv} command tree (via
+ *       {@link org.wynnvets.commands.CommandRegistry CommandRegistry}). The WebSockets
+ *       themselves open only at a Wynncraft join
+ *       ({@link org.wynnvets.listeners.ServerConnectionListener ServerConnectionListener}).</li>
  *   <li>{@link #onClientStarted()} runs once the game has started: the steps that need
  *       Wynntils' event bus or one of its core components, with {@code AnniPartyReporter} and
  *       {@code QueueStatusReporter} beside them. Its Javadoc says why the two phases are kept
@@ -62,9 +63,9 @@ import org.wynnvets.rendering.territory.TerritoryLineRenderer;
  * {@code VetsConfig.load()}, the debug-logging restore and
  * {@code GuildStateManager.loadPersistedState()} each read what the one before set up;
  * {@code AnniAggressiveTicker} registers before the {@code END_CLIENT_TICK} listeners that read
- * its flag; and the socket listeners register straight after {@code V1ApiManager.connect()},
- * which only starts the first connect, and rely on being in place before its handshake
- * completes. The rest is today's order, kept as it is.</p>
+ * its flag; and the socket listeners register here, before any server join can open a socket,
+ * so they are in place before the first handshake completes. The rest is today's order, kept as
+ * it is.</p>
  */
 public class VetsmodClient implements ClientModInitializer {
 
@@ -84,7 +85,6 @@ public class VetsmodClient implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> onClientStarted());
         ItemDefinitions.load();
 
-        V1ApiManager.connect();
         OutboundDisplayHandler.register();
         AnniWsHandler.register();
         AnniWindowWatcher.register();

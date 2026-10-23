@@ -88,7 +88,8 @@ public final class V1ApiManager {
                 .orElse("unknown");
     }
 
-    /** Starts both inbound and outbound WebSocket connections. */
+    /** Starts both inbound and outbound WebSocket connections. Called only on a Wynncraft join,
+     *  by {@link org.wynnvets.listeners.ServerConnectionListener ServerConnectionListener}. */
     public static void connect() {
         if (inboundClient != null) return;
 
@@ -197,7 +198,7 @@ public final class V1ApiManager {
     }
 
     /** Closes both WebSocket connections for good: the closed {@link WsClient}s do not
-     *  reconnect, and the next server join's {@link #connect()} builds a new pair. A
+     *  reconnect, and the next Wynncraft join's {@link #connect()} builds a new pair. A
      *  handshake still in flight is aborted when it completes ({@link WsClient#close()}).
      *  Also clears the confirmed-staff state and fails any pending staff-action callbacks. */
     public static void disconnect() {
@@ -471,9 +472,9 @@ public final class V1ApiManager {
      * <p>Listeners run off the render thread, on whichever thread completes the
      * socket's connect; defer game-state-touching work via
      * {@code McUtils.mc().execute(...)}. Listeners MUST be
-     * idempotent — the cold-start sequence fires this exactly once,
+     * idempotent — the first Wynncraft join fires this exactly once,
      * but every subsequent reconnect (a network blip, a temporary-server restart, or
-     * a server leave and rejoin) fires it again.</p>
+     * a Wynncraft leave and rejoin) fires it again.</p>
      */
     public static void addInboundPostConnectListener(Runnable listener) {
         inboundPostConnectListeners.add(listener);

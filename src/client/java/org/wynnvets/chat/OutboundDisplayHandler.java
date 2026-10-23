@@ -74,9 +74,10 @@ public final class OutboundDisplayHandler {
 
     /**
      * Registers the outbound listener with the V1ApiManager; a call while already
-     * registered is a no-op. Called at client init and again on every server join
-     * (the disconnect handler unregisters it), each time after
-     * {@link V1ApiManager#connect() V1ApiManager.connect()}.
+     * registered is a no-op. Called at client init, before any socket opens, and again
+     * on every server join (the disconnect handler unregisters it), after
+     * {@link org.wynnvets.api.V1ApiManager#connect() V1ApiManager.connect()} when that join is
+     * to Wynncraft.
      */
     public static void register() {
         if (registeredListener != null) {

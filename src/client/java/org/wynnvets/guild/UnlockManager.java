@@ -77,8 +77,9 @@ final class UnlockManager {
     /** {@code true} when the user has just run {@code /unlock} and is awaiting
      *  the resulting auth-frame ack. Forces the next success ack to render its
      *  confirmation message regardless of {@link VetsConfigKeys#PRINT_SUCCESSFUL_AUTH}
-     *  so the player always sees the result of their attempt. Cleared by both
-     *  the success and failure handlers. */
+     *  so the player always sees the result of their attempt. Cleared only by
+     *  the success and failure handlers, so it survives a disconnect: a key typed
+     *  off Wynncraft first goes out at the next Wynncraft join. */
     private static volatile boolean pendingUnlockNotify = false;
 
     /** Debug-only override: pretend the user is guildless+unlocked. */
@@ -159,13 +160,13 @@ final class UnlockManager {
         lastAuthFailureReason = "";
     }
 
-    /** Reset transient session state on disconnect. The persisted key remains. */
+    /** Reset transient session state on disconnect. The persisted key remains, and so does
+     *  {@link #pendingUnlockNotify}, so a key stored off Wynncraft still shows its result. */
     static void reset() {
         debugForceGuildlessUnlocked = false;
         currentTier = "";
         authVerifiedThisSession = false;
         lastAuthFailureReason = "";
-        pendingUnlockNotify = false;
     }
 
     // ── Unlock command ────────────────────────────────────────────────

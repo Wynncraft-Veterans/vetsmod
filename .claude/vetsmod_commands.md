@@ -351,10 +351,11 @@ These rules hold for everything below:
 3. Local checks: length ∈ [32, 200], charset URL-safe base64 (`a-zA-Z0-9_-`). A failure prints a red
    `That doesn't look like a vetsmod key. …` and stores nothing.
 4. It persists the key to `vetsAuthKey`, clears the session's tier, verified flag and failure reason, arms
-   a one-shot flag that makes the next auth ack show its result unless the player leaves the server
-   first, and calls
+   a one-shot flag that makes the next auth ack show its result, even one that arrives after a later
+   connection (a disconnect does not clear it), and calls
    `V1ApiManager.sendAuth(key)`. That sends an `auth` frame on the inbound WebSocket, or, while the socket
-   is down, returns without sending; the key then goes out when the socket next connects.
+   is down (always, off a Wynncraft server, where no socket opens), returns without sending; the key then
+   goes out when the socket next connects.
 5. The player sees `Saved your key. Verifying with the server…` (yellow), whether or not the
    frame went out.
 6. The server's ack arrives asynchronously. An ok ack reaches `UnlockManager.onAuthSuccess`, which shows
@@ -378,14 +379,15 @@ Bugs: `legacy-unlock-markers-still-grant-client-unlock`,
 ### The intercepted prefixes
 
 `GuildChatDispatcher.intercept` matches twelve prefixes, each with `regionMatches(true, …)`: case-insensitive,
-and with a trailing space that is part of the prefix. `/g` is checked first; for every other prefix, a
-player who fails `isUnlocked()` has the command passed through to the server as typed. "Passes through"
-below means the same.
+and with a trailing space that is part of the prefix. Off Wynncraft (another server, or singleplayer),
+none of them is intercepted: every command passes through to that server. On Wynncraft, `/g` is checked
+first; for every other prefix, a player who fails `isUnlocked()` has the command passed through to the
+server as typed. "Passes through" below means the same.
 
 | Typed | Gate | Handler | What happens | Bugs |
 |---|---|---|---|---|
-| `/g <message>` | none | `handleGuildChat` | A guildless waitlist-unlocked player's line goes to the bridge as `waitlist`, and a Returners player's line goes as `queue` while they sit in a world queue; both are cancelled and echoed locally, with the banned characters removed ([vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §4). A Returners line with a `\|\|` spoiler is re-sent spoiler-encoded, or refused in red if that passes 253 characters. Anything else passes through. The relays and the encoding honour `handleSpoilers` | `relay-chat-echoes-locally-while-socket-down`, `v1-sockets-open-off-wynncraft`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock`, `url-repair-merges-following-non-lowercase-token`, `raw-rank-pills-bypass-display-remap` |
-| `/wg <message>` | `isUnlocked()` | `handleHonouraryChat` | Always cancelled. An honourary-unlocked player's line goes to the bridge as `honourary` and is echoed locally, with the banned characters removed; anyone else gets a red "This feature is restricted to honourary users. If you think you should have /wg, follow ~vetsmod in #bot-commands to fix your perms." | `relay-chat-echoes-locally-while-socket-down`, `v1-sockets-open-off-wynncraft`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock` |
+| `/g <message>` | none | `handleGuildChat` | A guildless waitlist-unlocked player's line goes to the bridge as `waitlist`, and a Returners player's line goes as `queue` while they sit in a world queue; both are cancelled and echoed locally, with the banned characters removed ([vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §4). A Returners line with a `\|\|` spoiler is re-sent spoiler-encoded, or refused in red if that passes 253 characters. Anything else passes through. The relays and the encoding honour `handleSpoilers` | `relay-chat-echoes-locally-while-socket-down`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock`, `url-repair-merges-following-non-lowercase-token`, `raw-rank-pills-bypass-display-remap` |
+| `/wg <message>` | `isUnlocked()` | `handleHonouraryChat` | Always cancelled. An honourary-unlocked player's line goes to the bridge as `honourary` and is echoed locally, with the banned characters removed; anyone else gets a red "This feature is restricted to honourary users. If you think you should have /wg, follow ~vetsmod in #bot-commands to fix your perms." | `relay-chat-echoes-locally-while-socket-down`, `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock` |
 | `/v <message>` | `isUnlocked()`, then `isStaff()`; a non-staff command passes through, and a staff-rank refresh starts | `handleStaffChat` | Refused in red during `/stream` and above 234 characters. Otherwise, once the staff-presence check passes, echoed locally and sent to each other online staff member as `/msg <name> 🔐<message>`, with the banned hard set removed from both | `dispatcher-notices-misattribute-cause`, `find-phase-does-not-yield-to-queued-msg`, `staff-channel-badge-shares-guild-badge-dedup`, `staff-ranks-poll-swap-not-atomic`, `intercept-usage-arms-unreachable-from-typed-chat` |
 | `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | `dispatcher-notices-misattribute-cause`, `intercept-usage-arms-unreachable-from-typed-chat` |
 | `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | `dispatcher-notices-misattribute-cause`, `raw-rank-pills-bypass-display-remap`, `staff-ranks-poll-swap-not-atomic`, `intercept-usage-arms-unreachable-from-typed-chat` |

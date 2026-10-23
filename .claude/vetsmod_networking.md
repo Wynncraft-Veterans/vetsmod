@@ -23,7 +23,7 @@ State:
 - the auth-ack reply state (`expectingAuthAck`, `confirmedStaff`, `confirmedStaffRank`) lives in [SessionAuthState](../src/client/java/org/wynnvets/api/SessionAuthState.java)
 
 Key methods:
-- `connect()` — initialize both; inbound gets reconnect callback that re-sends BOTH the cached `register` frame AND a fresh `auth` frame (using `vetsAuthKey` from `VetsConfig`)
+- `connect()` — initialize both, called only on a Wynncraft join (§6); inbound gets reconnect callback that re-sends BOTH the cached `register` frame AND a fresh `auth` frame (using `vetsAuthKey` from `VetsConfig`)
 - `disconnect()` — close both cleanly
 - `sendRegistration(uuid, username, tier)` — sends `{type:"register", uuid, username, tier}`; cached for auto-retry
 - `sendAuth(key)` — while the inbound socket is connected, sends `{type:"auth", key}` and sets `expectingAuthAck`; otherwise it returns without sending, and the `connect()` callback sends the stored key on the next (re)connect. An `ok` ack carrying `tier` reaches `GuildStateManager.onAuthSuccess` whether or not the flag is set; while it is set, a non-`ok` ack goes to `onAuthFailure` instead of a pending staff-action callback or the warning log (a staff-action-shaped ack, such as a `would_trigger` preflight, still goes to the head callback, or is dropped when none is pending) (see `InboundAckRouter.route`)
@@ -255,7 +255,7 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 ## 6. Listeners
 
 [ServerConnectionListener](../src/client/java/org/wynnvets/listeners/ServerConnectionListener.java)
-- Fabric `ClientPlayConnectionEvents.JOIN` → connect WebSockets, register the outbound handler. That is all it does.
+- Fabric `ClientPlayConnectionEvents.JOIN` → connect WebSockets when `onWynncraft()` holds (Wynntils' `Managers.Connection` state is not `DISCONNECTED`: for a Wynncraft host it has already left `DISCONNECTED` when Fabric's join fires, and it stays out of it across a world transfer), register the outbound handler. That is all it does. On any other server, and in singleplayer, no socket opens and vetsmod sends no frame (its HTTP pollers still run, as they do from launch); no socket connects at launch either, so the first Wynncraft join waits one connect and auth round trip for the anni snapshot and the staff state. `GuildChatDispatcher.intercept` uses the same test.
 - Fabric `ClientPlayConnectionEvents.DISCONNECT` → reset guild state, reset `newTooltipStylesAvailable`, disconnect WebSockets, unregister the outbound handler, and clear `OutboundDisplayHandler`'s three dedup/suppression caches
 
 [WynntilsEventListener](../src/client/java/org/wynnvets/listeners/WynntilsEventListener.java):
