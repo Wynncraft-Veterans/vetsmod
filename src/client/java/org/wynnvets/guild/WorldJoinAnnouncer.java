@@ -29,12 +29,15 @@ public final class WorldJoinAnnouncer {
     static final long MOTD_FETCH_COOLDOWN_MS = 1_000L;
 
     // Set when fetchAndDisplayMotd() starts either MOTD fetch (guild or
-    // standard); blocks onGuildInfoUpdated()'s re-fetch for the session.
+    // standard), or skips it because its toggles are off; blocks
+    // onGuildInfoUpdated()'s re-fetch for the session, so turning a toggle on
+    // mid-session waits for the next world entry.
     // Package-private for GuildLifecycle, which reads it on guild updates and resets it.
     static volatile boolean guildMotdDisplayedThisSession = false;
 
-    // Set when a stamp fetch starts (whether or not anything is then shown);
-    // consulted only by onGuildInfoUpdated() and onGuildCheckCompleted().
+    // Set when a stamp fetch starts (whether or not anything is then shown), or
+    // is skipped because its toggles are off; consulted only by
+    // onGuildInfoUpdated() and onGuildCheckCompleted().
     // Package-private for GuildLifecycle, which gates later stamp prints on it and resets it.
     static volatile boolean stampDisplayedThisSession = false;
 
@@ -45,12 +48,14 @@ public final class WorldJoinAnnouncer {
         // Check if auto-messages are enabled (global gate)
         if (!VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE)) {
             VetsLogger.debug("Auto-messages disabled, skipping MOTD");
+            guildMotdDisplayedThisSession = true;
             return;
         }
 
         // Check if MOTD printing is enabled (user toggle)
         if (!VetsConfig.get(VetsConfigKeys.PRINT_MOTD)) {
             VetsLogger.debug("printMOTD disabled, skipping MOTD");
+            guildMotdDisplayedThisSession = true;
             return;
         }
 
@@ -108,12 +113,14 @@ public final class WorldJoinAnnouncer {
         // Check if auto-messages are enabled (global gate)
         if (!VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE)) {
             VetsLogger.debug("Auto-messages disabled, skipping stamp");
+            stampDisplayedThisSession = true;
             return;
         }
 
         // Check if annihilation printing is enabled (user toggle)
         if (!VetsConfig.get(VetsConfigKeys.PRINT_ANNI)) {
             VetsLogger.debug("printANNI disabled, skipping stamp");
+            stampDisplayedThisSession = true;
             return;
         }
 

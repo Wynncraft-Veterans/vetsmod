@@ -147,12 +147,12 @@ public final class GuildLifecycle {
                 WorldJoinAnnouncer.fetchAndDisplayStampMessage();
             }
 
-            // Reached when WorldJoinAnnouncer.fetchAndDisplayMotd() has not started a
-            // fetch on this connection: it returns before it sets the flag when
-            // automessages or printMOTD are off, or when there is no local player yet
-            // (motd-prints-mid-session-after-its-toggle-is-turned-on). It sets the flag
-            // for the standard MOTD too, deliberately, so a guild confirmation that
-            // lands after world join does not print a second MOTD.
+            // Reached only when WorldJoinAnnouncer.fetchAndDisplayMotd() found no
+            // local player on this connection's world join: it sets the flag when it
+            // starts a fetch and when its toggles are off, so turning printMOTD on
+            // mid-session waits for the next world entry. It sets the flag for the
+            // standard MOTD too, deliberately, so a guild confirmation that lands
+            // after world join does not print a second MOTD.
             if (enteredWorld && !WorldJoinAnnouncer.guildMotdDisplayedThisSession) {
                 VetsLogger.debug("Guild info now available — re-fetching guild MOTD");
                 WorldJoinAnnouncer.fetchAndDisplayMotd();
