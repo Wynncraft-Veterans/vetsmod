@@ -266,7 +266,8 @@ rename is detected, and opens the menu.
 `<count>` here means **presses to that one player**. This head's not-found
 handler closes the Members menu and ends the run when the search gave up
 with the menu still up, after printing its chat line, if any, and stops
-the run when the menu is gone (§7).
+the run when the menu is gone (§7). Its send's completion does the same:
+it closes and ends the run, or stops it when the send lost the menu.
 
 The wait-before-arming is deliberate and costs a round trip up front —
 rejecting an opted-out target after the menu has already opened would be
@@ -545,7 +546,7 @@ line, by design (`DistributeRuns`), and nothing it armed calls back.
 | Members menu closed by the server mid-walk | `MembersListWalker.onMenuClose` | yellow "Distribution stopped: the Members menu closed." | no, by design: the run stops |
 | Bound Members menu gone when the walker's scan runs | `MembersListWalker.scanAndPaginate` | yellow "Distribution stopped: the Members menu is not open." (a Members menu still on top is closed first) | no, by design: the run stops |
 | Walk makes no progress for 200 ticks — for example a Members menu that never opens, or a Next Page click whose reply the walker never sees | `MembersListWalker`'s stall watchdog | yellow "Distribution stopped: the objectives walk timed out." | no, by design: the run stops, and the walker disarms, so a later Members menu cannot bind it |
-| Members screen gone when the next press in a batch fires | `MemberSlotPresser.sendPressAndArm` | yellow "Send stopped after N/M: the Members menu is not open." | yes; for a multi-recipient run the pop that follows then stops the run |
+| Members screen gone when the next press in a batch fires | `MemberSlotPresser.sendPressAndArm` | yellow "Send stopped after N/M: the Members menu is not open." | yes, and the run then stops: a multi-recipient run at its next pop, the literal-name head in its completion |
 
 † All four searcher rows end in `MembersListSearcher.invokeNotFound`,
 which runs whatever `notFoundHandler` was armed. Every selector-run
@@ -565,11 +566,13 @@ the player. A player's Esc sends only a serverbound close and posts no
 `MembersListWalker.onScreenClosed` subscribe to the second: a bound search
 or walk schedules a scan when any screen closes, and the scan finds the
 menu gone — the search ends through the "Bound Members menu gone" row and
-the run stops at its next pop, and the walk stops the run itself. Nothing
+the run stops (a multi-recipient run at its next pop, the literal-name head
+in its not-found handler), and the walk stops the run itself. Nothing
 else in the package subscribes to either. A press batch has no such
 listener: a press already scheduled finds no screen, says so and runs the
-callback, so the run stops at its next pop (the presser's screen-gone
-row); otherwise the batch waits on the refresh timeout. What the server
+callback, so the run stops (at its next pop, or in the literal-name head's
+completion; the presser's screen-gone row); otherwise the batch waits on
+the refresh timeout. What the server
 sends for a menu after an Esc — a close of its own, a reopen, slot
 updates answering a click already in flight — is not verifiable from any
 repo.

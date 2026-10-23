@@ -285,8 +285,16 @@ public final class DistributeCommands {
         GuildManageOpener.openManageMembers();
     }
 
-    /** The single-target send's completion: close the Members menu, end the run. */
+    /**
+     * The single-target send's completion: close the Members menu and end the run. A send that
+     * lost the menu (the presser's "Send stopped" exit) stops the run instead, as the
+     * multi-recipient send loop's next pop does.
+     */
     private static void endSingleTarget() {
+        if (MembersGui.currentByTitle() == null) {
+            DistributeRuns.stop("the Members menu is not open");
+            return;
+        }
         MembersGui.closeIfOpen();
         DistributeRuns.finished();
     }
