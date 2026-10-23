@@ -2,6 +2,8 @@ package org.wynnvets.fetcher.ondemand;
 
 import com.wynntils.utils.mc.McUtils;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.ChatFormatting;
@@ -182,6 +184,13 @@ final class CheckReportRenderer {
 
     private static void renderWynnLines(
             User user, MembershipSnapshot snapshot, String tabListServer, boolean isSelf) {
+        // Both join times are cut to the viewer's local date and labelled against the viewer's
+        // own today, so the label and the parenthetical agree with the viewer's calendar.
+        // A time that does not parse as an instant falls back to the API's own date text,
+        // labelled against today.
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate today = LocalDate.now(zone);
+
         // Item 1: first seen. Show coarse "N years ago" as the headline value
         // (raw days are unreadable for old accounts) with the ISO date as the
         // muted parenthetical.
@@ -189,14 +198,19 @@ final class CheckReportRenderer {
         if (firstJoin == null) {
             ChatUtils.sendLocalMessage(label("First seen on Wynncraft: ").append(hidden()));
         } else {
+            Instant firstInstant = user.getFirstJoinInstant();
+            LocalDate firstDate =
+                    firstInstant == null ? null : TimeLabels.toLocalDate(firstInstant, zone);
+            String firstLabel =
+                    firstDate == null
+                            ? TimeLabels.toCoarseRelativeDateLabel(firstJoin)
+                            : TimeLabels.toCoarseRelativeDateLabel(firstDate, today);
+            String firstShown = firstDate == null ? firstJoin : firstDate.toString();
             ChatUtils.sendLocalMessage(
                     label("First seen on Wynncraft: ")
+                            .append(Component.literal(firstLabel).setStyle(VALUE_STYLE))
                             .append(
-                                    Component.literal(
-                                                    TimeLabels.toCoarseRelativeDateLabel(firstJoin))
-                                            .setStyle(VALUE_STYLE))
-                            .append(
-                                    Component.literal("  (" + firstJoin + ")")
+                                    Component.literal("  (" + firstShown + ")")
                                             .setStyle(MUTED_STYLE)));
         }
 
@@ -208,13 +222,19 @@ final class CheckReportRenderer {
         // check-membership-ack-drops-last-seen-observed).
         String lastJoin = user.getLastJoinDate();
         if (lastJoin != null) {
+            Instant lastInstant = user.getLastJoinInstant();
+            LocalDate lastDate =
+                    lastInstant == null ? null : TimeLabels.toLocalDate(lastInstant, zone);
+            String lastLabel =
+                    lastDate == null
+                            ? TimeLabels.toRelativeDateLabel(lastJoin)
+                            : TimeLabels.toRelativeDateLabel(lastDate, today);
+            String lastShown = lastDate == null ? lastJoin : lastDate.toString();
             ChatUtils.sendLocalMessage(
                     label("Last seen on Wynncraft: ")
+                            .append(Component.literal(lastLabel).setStyle(VALUE_STYLE))
                             .append(
-                                    Component.literal(TimeLabels.toRelativeDateLabel(lastJoin))
-                                            .setStyle(VALUE_STYLE))
-                            .append(
-                                    Component.literal("  (" + lastJoin + ")")
+                                    Component.literal("  (" + lastShown + ")")
                                             .setStyle(MUTED_STYLE)));
         } else {
             renderLastSeenFallback(snapshot, tabListServer, isSelf);

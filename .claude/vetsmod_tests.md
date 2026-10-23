@@ -973,7 +973,7 @@ Test: [`VetsConfigSchemaTest.java`](../src/test/java/org/wynnvets/config/VetsCon
 
 Test: [`UserTest.java`](../src/test/java/org/wynnvets/datamodels/UserTest.java) · Subject: [`User`](../src/client/java/org/wynnvets/datamodels/User.java)
 
-`User` is the data model for a Wynncraft `/v3/player` payload, and `isInVets()` reports whether the player's guild is the Returners guild. The suite pins that only a guild object whose `uuid` equals `VetsApi.GUILD_UUID` counts, and that a missing guild, a null guild, or a guild without a uuid return `false` rather than throwing. Payloads are small hand-written JSON strings parsed with the shared `Json.GSON`, as the real fetchers parse them.
+`User` is the data model for a Wynncraft `/v3/player` payload. `isInVets()` reports whether the player's guild is the Returners guild: the suite pins that only a guild object whose `uuid` equals `VetsApi.GUILD_UUID` counts, and that a missing guild, a null guild, or a guild without a uuid return `false` rather than throwing. `getFirstJoinInstant()` and `getLastJoinInstant()` read the `firstJoin` and `lastJoin` timestamps as instants, `null` when absent or unparseable, while the string getters keep cutting at the `T`. Payloads are small hand-written JSON strings parsed with the shared `Json.GSON`, as the real fetchers parse them.
 
 - **`isInVets_returnersGuild`**: A guild object whose uuid is `VetsApi.GUILD_UUID` returns `true`.
   - `parse(json).isInVets()` is true, where `json` is `{"guild": {"uuid": VetsApi.GUILD_UUID}}` and `parse` is `Json.GSON.fromJson(json, User.class)`.
@@ -983,6 +983,14 @@ Test: [`UserTest.java`](../src/test/java/org/wynnvets/datamodels/UserTest.java) 
   - For each `json` in `{}`, `{"guild": null}`: `parse(json).isInVets()` is false.
 - **`isInVets_guildWithoutUuid`**: A guild with only a name, and a guild with `"uuid": null`, return `false`. Regression guard: this case used to throw.
   - For each `json` in `{"guild": {"name": "Returners"}}`, `{"guild": {"uuid": null}}`: `parse(json).isInVets()` is false.
+- **`joinInstants_parseTheApiTimestamps`**: A payload with millisecond `Z` timestamps gives both instants, and the string date getters still return the part before the `T`.
+  - `getFirstJoinInstant()` equals `Instant.parse("2015-10-14T01:00:00Z")` and `getLastJoinInstant()` equals `Instant.parse("2026-10-22T01:07:00Z")`, for `firstJoin` `2015-10-14T01:00:00.000Z` and `lastJoin` `2026-10-22T01:07:00.000Z`.
+  - `getFirstJoinDate()` equals `"2015-10-14"` and `getLastJoinDate()` equals `"2026-10-22"`.
+- **`joinInstants_keepAnOffsetAsTheSameMoment`**: A timestamp with a UTC-3 offset parses to the same moment as its UTC form.
+  - `getLastJoinInstant()` equals `Instant.parse("2026-10-22T01:07:00Z")`, for `lastJoin` `2026-10-21T22:07:00-03:00`.
+- **`joinInstants_nullWhenAbsentOrUnparseable`**: Absent fields, and text that is not an instant, give `null`; the date getter still returns text without a `T` as it is.
+  - For `{}`: `getFirstJoinInstant()` and `getLastJoinInstant()` are null.
+  - For `firstJoin` `not a time` and `lastJoin` `2026-10-22`: both instant getters are null, and `getLastJoinDate()` equals `"2026-10-22"`.
 
 ## `org.wynnvets.debug.anni`
 
@@ -1439,7 +1447,7 @@ Test: [`ReturnersRosterProbeTest.java`](../src/test/java/org/wynnvets/fetcher/on
 
 Test: [`TimeLabelsTest.java`](../src/test/java/org/wynnvets/fetcher/ondemand/TimeLabelsTest.java) · Subject: [`TimeLabels`](../src/client/java/org/wynnvets/fetcher/ondemand/TimeLabels.java)
 
-`TimeLabels` formats relative dates and ages: a day-level date label, a coarse years/months/days label, and a seconds-based age. The suite pins `humanizeAge` at each unit boundary, and the two date labels on inputs that cannot straddle a unit boundary on any calendar day. The date labels read `LocalDate.now()` themselves, so the `assertLabel` helper reads the date before and after the call and skips the assertion with `assumeTrue` if midnight passed in between. Inputs are date strings derived from the same default-zone date.
+`TimeLabels` formats relative dates and ages: a day-level date label, a coarse years/months/days label, and a seconds-based age. The suite pins `humanizeAge` at each unit boundary, and the two date labels on inputs that cannot straddle a unit boundary on any calendar day. The String overloads of the date labels read `LocalDate.now()` themselves, so the `assertLabel` helper reads the date before and after the call and skips the assertion with `assumeTrue` if midnight passed in between. Inputs are date strings derived from the same default-zone date. The overloads that take a `LocalDate` and an explicit `today`, and `toLocalDate(Instant, ZoneId)`, read no clock: they are pinned with the fixed zone `BUENOS_AIRES` (America/Argentina/Buenos_Aires, UTC-3 all year) and a fixed `today`, including the evening on which the UTC date is a day ahead of the local one.
 
 Asserting helpers:
 
@@ -1455,6 +1463,19 @@ Tests:
   - `assertLabel` on `TimeLabels::toRelativeDateLabel`: for the date string of today shifted by an offset, the label equals the expected text. Today -> `"today"`; today minus 1 day -> `"yesterday"`; minus 3 days -> `"3 days ago"`; plus 1 day -> `"tomorrow"`; plus 3 days -> `"in 3 days"`.
 - **`toCoarseRelativeDateLabel_yearsMonthsThenDays`**: 1 and 11 years back give "1 year ago" and "11 years ago", 1 and 5 months give "1 month ago" and "5 months ago", and 27 days and 1 day fall through to "27 days ago" and "yesterday".
   - `assertLabel` on `TimeLabels::toCoarseRelativeDateLabel`: for the date string of today shifted back, the label equals the expected text. Minus 1 year -> `"1 year ago"`; minus 11 years -> `"11 years ago"`; minus 1 month -> `"1 month ago"`; minus 5 months -> `"5 months ago"`; minus 27 days -> `"27 days ago"`; minus 1 day -> `"yesterday"`.
+- **`toLocalDate_cutsTheInstantAtTheGivenZone`**: An instant is cut to the calendar date in the given zone, and local midnight in UTC-3 is the boundary.
+  - `TimeLabels.toLocalDate(Instant.parse("2026-10-22T01:07:00Z"), zone)` equals 2026-10-22 for `UTC` and 2026-10-21 for `BUENOS_AIRES`.
+  - For `BUENOS_AIRES`: `2026-10-22T02:59:59Z` gives 2026-10-21 and `2026-10-22T03:00:00Z` gives 2026-10-22.
+- **`toRelativeDateLabel_explicitToday`**: With a fixed today of 2026-10-21, the same day, yesterday and 3 days back give "today", "yesterday", "3 days ago"; tomorrow and 3 days ahead give "tomorrow" and "in 3 days".
+  - `TimeLabels.toRelativeDateLabel(date, today)` equals the expected text: `today` -> `"today"`; minus 1 day -> `"yesterday"`; minus 3 days -> `"3 days ago"`; plus 1 day -> `"tomorrow"`; plus 3 days -> `"in 3 days"`.
+- **`toRelativeDateLabel_lateEveningJoinReadsToday`**: The in-game case. A join at `2026-10-22T01:07:00Z`, cut to the `BUENOS_AIRES` date and checked on local 2026-10-21, reads "today", and "yesterday" on the next local day.
+  - `toRelativeDateLabel(toLocalDate(join, BUENOS_AIRES), 2026-10-21)` equals `"today"`.
+  - The same date against 2026-10-22 equals `"yesterday"`.
+- **`toCoarseRelativeDateLabel_explicitTodayYearsMonthsThenDays`**: With a fixed today of 2026-10-13, 1 and 11 years back give "1 year ago" and "11 years ago", 1 and 5 months give "1 month ago" and "5 months ago", 27 days gives "27 days ago", and today gives "today".
+  - `TimeLabels.toCoarseRelativeDateLabel(date, today)` equals the expected text: minus 1 year -> `"1 year ago"`; minus 11 years -> `"11 years ago"`; minus 1 month -> `"1 month ago"`; minus 5 months -> `"5 months ago"`; minus 27 days -> `"27 days ago"`; the same day -> `"today"`.
+- **`toCoarseRelativeDateLabel_localAnniversaryReadsTheFullYear`**: A first join at 22:00 UTC-3 on 13 October 2015 (`2015-10-14T01:00:00Z`), checked on 2026-10-13, reads 11 years at its local date and 10 years at its UTC date.
+  - `toCoarseRelativeDateLabel(toLocalDate(firstJoin, BUENOS_AIRES), 2026-10-13)` equals `"11 years ago"`.
+  - `toCoarseRelativeDateLabel(toLocalDate(firstJoin, UTC), 2026-10-13)` equals `"10 years ago"`.
 - **`dateLabels_returnUnparseableTextAsIs`**: Both date-label methods return `not-a-date` unchanged.
   - `TimeLabels.toRelativeDateLabel("not-a-date")` equals `"not-a-date"`.
   - `TimeLabels.toCoarseRelativeDateLabel("not-a-date")` equals `"not-a-date"`.

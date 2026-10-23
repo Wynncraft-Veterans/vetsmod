@@ -1,5 +1,7 @@
 package org.wynnvets.datamodels;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import org.wynnvets.api.VetsApi;
 
 /**
@@ -44,6 +46,32 @@ public class User {
 
     public String getLastJoinDate() {
         return lastJoin == null ? null : lastJoin.split("T")[0];
+    }
+
+    /**
+     * The player's first join as an instant, or {@code null} when the field is absent or does not
+     * parse. Unlike {@link #getFirstJoinDate()}, which cuts the string at its {@code T} and so
+     * keeps only the calendar date at the string's own offset, this keeps the moment, so a caller
+     * can show it in the viewer's time zone.
+     */
+    public Instant getFirstJoinInstant() {
+        return parseInstant(firstJoin);
+    }
+
+    /** The player's last join as an instant; see {@link #getFirstJoinInstant()}. */
+    public Instant getLastJoinInstant() {
+        return parseInstant(lastJoin);
+    }
+
+    private static Instant parseInstant(String text) {
+        if (text == null) {
+            return null;
+        }
+        try {
+            return Instant.parse(text);
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
     }
 
     public boolean isInVets() {
