@@ -297,7 +297,8 @@ different predicates, so the red line is the normal path for staff below chief.
   typo'd bulk sends.
 
 The `@`-selectors decide the recipient set, each one row of the `SELECTORS` table in
-`DistributeCommands`, matched before the literal-name fan-out. What `<count>` *means* changes with the
+`DistributeCommands`, matched before the literal-name fan-out. An `@` token matching no row is refused in
+red ("Unknown selector @x. Choose from …"), before any lookup. What `<count>` *means* changes with the
 selector:
 
 | Selector | Recipients | `<count>` means |

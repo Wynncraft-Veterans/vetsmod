@@ -32,7 +32,8 @@ skipped.
   `StringArgumentType.string()` restricts unquoted input to
   `[0-9A-Za-z_.+-]`, so `@random` fails to parse at the `@`. The type
   deliberately does **not** enforce the selector set — that lives in one
-  table (§10).
+  table (§10). The executor refuses an `@` token that matches no row, with
+  a red line, before any lookup or menu (§7).
 - **`<resource>`** — three literals mapping to `MemberSlotPresser.Resource`
   hotbar button indices: `aspects`→0, `tomes`→1, `emeralds`→2. The
   server interprets one press as 1 Aspect, 1 Tome, or 1024
@@ -230,7 +231,9 @@ no handler.
 
 ### Literal name
 
-`DistributeCommands.distribute` fans out two lookups in parallel —
+A token starting with `@` that matches no `SELECTORS` row never gets here: a Minecraft
+username can't contain `@`, so it is refused as a mistyped selector, with no request
+and no menu. For a real name, `DistributeCommands.distribute` fans out two lookups in parallel —
 `NameResolver.resolveLegacyName` and
 `NoAspectsFilter.fetchExcludedLegacyNames`, up to three requests (§9) —
 and `thenCombine`s them.
@@ -481,6 +484,7 @@ they are real, and a matrix claiming otherwise would be false.
 | Trigger | Detected by | Chat output | Callback fires? |
 |---|---|---|---|
 | Executor run by non-chief | `DistributeCommands.ensureChief` | red "You must be a guild Chief or Owner…" | n/a — nothing armed |
+| `@` token matching no selector | `DistributeCommands.distribute` | red "Unknown selector @x. Choose from @graids, @objectives, @random, @split." | n/a — nothing armed |
 | Target on the opt-out list | `DistributeCommands.dispatchSingleTarget` | red "… has opted out of receiving aspects…" | n/a — nothing armed |
 | Wynntils not ready (`@random`) | `RandomDistributor.dispatch` | red "Wynntils isn't ready yet…" | yes |
 | Empty wapi roster / name index | `RandomDistributor.beginPicks`, `GraidsDistributor.beginWalk` | yellow "Could not read guild roster from wapi…" | yes |
@@ -689,9 +693,10 @@ or @selector", is not a chat call; the chat screen's command hint shows it.
 Two edits, both local:
 
 1. A row in `DistributeCommands.SELECTORS`: the token, and a method
-   reference to the head's `dispatch(int, Resource)`. Dispatch and
-   tab-completion both read that one table, so the row covers both. Row
-   position carries no meaning — dispatch matches a whole token
+   reference to the head's `dispatch(int, Resource)`. Dispatch,
+   tab-completion and the unknown-selector refusal's token list all read
+   that one table, so the row covers all three. Row position carries no
+   meaning — the refusal sorts its list, and dispatch matches a whole token
    case-insensitively, so no row can shadow another, and Brigadier's
    `Suggestions.create` HashSets and case-insensitively sorts the
    suggestion list before the client ever sees it. The selectors are

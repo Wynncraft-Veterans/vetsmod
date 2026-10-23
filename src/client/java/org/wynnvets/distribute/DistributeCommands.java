@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
@@ -75,6 +76,9 @@ import org.wynnvets.guild.GuildStateManager;
  *       necessity, not by accident &mdash; see {@link SplitDistributor}
  *       for why reordering the phases loses graid records.</li>
  * </ul>
+ *
+ * <p>Any other token starting with {@code @} is refused in red as an unknown
+ * selector, before any lookup: a Minecraft username can't contain one.</p>
  *
  * <h2>Gating</h2>
  * <p>Visibility ({@code .requires}) uses
@@ -190,6 +194,13 @@ public final class DistributeCommands {
                 return 1;
             }
         }
+        // A Minecraft username can't contain '@', so an unmatched '@' token is a mistyped
+        // selector: refuse it here, before any lookup or menu.
+        if (name.startsWith("@")) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal(unknownSelectorMessage(name)).withStyle(ChatFormatting.RED));
+            return 0;
+        }
 
         // Fan out two lookups in parallel: legacy-name resolution (so we
         // know the canonical tile name for renamed targets) and the
@@ -256,6 +267,17 @@ public final class DistributeCommands {
             MembersListSearcher.addAlternative(resolved);
         }
         GuildManageOpener.openManageMembers();
+    }
+
+    /**
+     * The refusal for an {@code @} token that matches no {@link #SELECTORS} row. The tokens are
+     * listed sorted, as tab-completion shows them, so a row's position in the table stays
+     * meaningless.
+     */
+    private static String unknownSelectorMessage(String typed) {
+        String valid =
+                SELECTORS.stream().map(Selector::token).sorted().collect(Collectors.joining(", "));
+        return "Unknown selector " + typed + ". Choose from " + valid + ".";
     }
 
     // ── Suggestion providers ─────────────────────────────────────────────
