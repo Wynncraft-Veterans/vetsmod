@@ -96,8 +96,9 @@ branch order:
      insertion order; `"Recruiter"` if none match)
    - Check Administrator permission for `is_admin`
    - Resolve mentions (`<@ID>` → `@name`, `<@&ID>` → `@role`, `<#ID>` → `#channel`)
-   - Sanitize: always strip U+E080 (dangerous PUA); non-admins also strip U+E014–E025 and `§`
+   - Sanitize: non-admins lose the soft set (`_SOFT_BANNED_RE`: `§`, the rank icons U+E014–E025, the banner pieces, the negative-width spaces and the pill letters U+E040–E06F)
    - Encode Discord `||spoilers||` to PUA via `encode_spoilers()`
+   - For every role, `strip_banned` removes the hard set (U+00C1, U+E07E, U+E080, U+E086), including any spoiler block that would decode to one
    - Build the `type="bridge"` frame: `uuid` (uuid4), `type`, `timestamp`,
      `rank`, `pill_display`, `username` (the author's `display_name`),
      `message`, `is_admin`, `source` (`"discord"`)
@@ -238,8 +239,8 @@ All bridge-channel traffic — chat relay and staff alerts alike — goes throug
 
 ## 10. Admin-only sanitization
 
-Normal users: strip `§` (Minecraft formatting codes) + U+E014–E025 PUA + U+E080.
-Admins (Administrator permission): only strip U+E080. This lets admins intentionally send formatted/PUA content through the bridge.
+Normal users lose the soft set, `_SOFT_BANNED_RE` in `app/discord/bot.py`: `§` (Minecraft formatting codes), the rank icons U+E014–E025, the banner pieces U+E00E–E011, E070, E07A and E085, the negative-width spaces and the pill letters U+E040–E06F.
+Every role, admins (Administrator permission) included, loses the hard set U+00C1, U+E07E, U+E080 and U+E086, literal or spoiler-encoded, through `app.parsers.banned_chars.strip_banned`. So admins can still send soft-set formatting or PUA content through the bridge on purpose, and vetsmod keeps it in the plain text of bridge lines; decoded spoiler text loses both sets ([vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §4).
 
 ## 11. Traffic recording
 
@@ -253,7 +254,7 @@ Requester is tracked via `state.recording_requester_id`. Single recording at a t
 
 ## 12. Spoiler codec interop
 
-[app/parsers/spoiler_codec.py](../../temporary-server/app/parsers/spoiler_codec.py) — must match [vetsmod SpoilerCodec](../src/client/java/org/wynnvets/chat/spoiler/SpoilerCodec.java). Same encoding scheme (PUA `\uF600` start, `\uF601` end, `\uF602-\uF6FF` direct, `\uF700` + 3 base-254 digits escape).
+[app/parsers/spoiler_codec.py](../../temporary-server/app/parsers/spoiler_codec.py) — must match [vetsmod SpoilerCodec](../src/client/java/org/wynnvets/chat/spoiler/SpoilerCodec.java). Same encoding scheme (PUA `\uF600` start, `\uF601` end, `\uF602-\uF6FF` direct, `\uF700` + 3 base-254 digits escape). vetsmod is the stricter of the two: its encoder drops the banned characters first, and its decoder drops out-of-range escapes, including the single above-U+FFFF escape `encode_spoilers` writes for a character above U+FFFF, most emoji (so vetsmod usually shows that character as nothing; §4 has the `strip_banned` exception), and the banned characters ([vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §4).
 
 Discord → game: `encode_spoilers(||text||)` → PUA block + `[Spoiler: ]` wrapper.
 Game → Discord: `decode_spoilers(PUA block)` → `||text||`.

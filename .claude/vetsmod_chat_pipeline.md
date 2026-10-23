@@ -126,7 +126,7 @@ and it affected only that one rewriter. The copy is gone.
 
 ## 4. Spoiler PUA codec
 
-[SpoilerCodec](../src/client/java/org/wynnvets/chat/spoiler/SpoilerCodec.java) — mirrors [temporary-server/app/parsers/spoiler_codec.py](../../temporary-server/app/parsers/spoiler_codec.py).
+[SpoilerCodec](../src/client/java/org/wynnvets/chat/spoiler/SpoilerCodec.java) — uses the same scheme as [temporary-server/app/parsers/spoiler_codec.py](../../temporary-server/app/parsers/spoiler_codec.py), but encodes UTF-16 code units where the Python side encodes code points, strips the banned characters before encoding, and has a stricter decoder (see "Banned characters" below).
 
 - `\uF600` block start, `\uF601` block end
 - `\uF602–\uF6FF` = direct 1:1 encoding for chars 0-253 (base = 0xF602)
@@ -135,7 +135,25 @@ and it affected only that one rewriter. The copy is gone.
 
 Pipe regex: `\|\|(.+?)\|\|` (non-greedy). Predicates: `containsPipeSpoiler()`, `containsEncodedSpoiler()`.
 
-`SpoilerFormatter.appendWithSpoilers()` renders PUA blocks as green `[Spoiler]` labels with hover text showing decoded content. Gated by `VetsConfigKeys.HANDLE_SPOILERS` (tri-state: null=default=on).
+`SpoilerFormatter.appendWithSpoilers()` renders PUA blocks as green `[Spoiler]` labels with hover text showing decoded content, banned characters dropped. Gated by `VetsConfigKeys.HANDLE_SPOILERS` (tri-state: null=default=on).
+
+### Banned characters
+
+[BannedChars](../src/client/java/org/wynnvets/chat/BannedChars.java) owns two sets, and this section owns where each is stripped.
+
+- **Hard:** U+00C1, U+E07E, U+E080 and U+E086. Rendering any of them through Wynncraft's resource-pack fonts breaks the client. One constant, with no config or server override; an exemption is a hard-coded, commented change at the call site that needs it.
+- **Soft:** `§`, the rank icons U+E014–E025, the banner pieces U+E00E–E011, E070, E07A and E085, the negative-width spaces U+E000, E012, E071, E07F, E087, E088 and U+2064, and the pill letters U+E040–E06F. In player text they spoof Wynncraft's badges, banners and pills. Built components and Wynncraft's own lines use them, so only player-typed text loses them.
+
+| Site | Sets | Why |
+|---|---|---|
+| `GuildChatDispatcher`'s three relays (`/g` from a waitlister or a queued Returner, `/wg`), on the text after any spoiler encoding (raw when `handleSpoilers` is off), never the rank | both | the line skips Wynncraft's filter, and its local echo skips the server's; a line left blank is dropped silently |
+| `GuildChatDispatcher.dispatchStaffChat` (`/v`) | hard | its echo renders locally |
+| `SpoilerCodec`'s encoder, before encoding | both | encoded content passes Wynncraft's filter unseen |
+| `SpoilerCodec.decodeContent`'s output | both | blocks vetsmod didn't write |
+| `OutboundDisplayHandler`, the received `username` and `message` | both; a `bridge` line's `message` loses the hard set only | another player's or a Discord author's text, from a client or server that may not strip it. temporary-server strips the soft set from non-admin Discord text and lets Discord admins send it on purpose, so a bridge body keeps it. No Minecraft name can hold either set, and a Discord name loses only characters that would break or spoof the render; a name left empty drops the line |
+| `MessageBodyFormatter.formatMessageBody` | hard | chat bodies only; names, pills, the MOTD and other server text don't pass through it |
+
+`decodeContent` decodes an escape only when its three digits are in U+F602–U+F6FF and its value is at most U+FFFF; any other escape is dropped whole, all four code units, so a hand-written block can produce only what the encoder writes. The range and value checks make it stricter than temporary-server's Python mirror, which still decodes as clients before this change did. A newer client's decoded text is always a subsequence of what the old decoder gives, so the mirror stays a conservative check. temporary-server's encoder writes one escape per code point, so a character above U+FFFF in a Discord spoiler (most emoji) arrives as one escape above U+FFFF and decodes to nothing, while the rest of the spoiler still decodes. The exception is a block temporary-server's `strip_banned` re-encoded because it also held a hard-set character: that cuts the escape to its low 16 bits, so it decodes to a BMP character. vetsmod's own encoder writes a supplementary character as two surrogate escapes, which do decode, so the bound does not keep supplementary glyphs out. A spoiler whose content is all banned characters encodes as an empty block, which Discord shows as `[Spoiler: ]`.
 
 ## 5. OutboundDisplayHandler
 
@@ -148,7 +166,7 @@ State:
 - `recentBridgeMessages` Deque (max 200, 10s TTL) — bridge-echo dedup via normalized-text compare (strips whitespace and every `PillCodec.isCustomGlyph` codepoint)
 - `recentUuids` LinkedHashMap (max 200, 10s TTL) — UUID-based dedup
 
-Flow: a `warning` frame → `WarningFrameRenderer.render`, skipping every step after it (today none arrives: bug `outbound-socket-never-authenticated`). Any other frame → `PRINT_BRIDGE_MESSAGES` gate → audience gate (`shouldDisplayMessages`) → UUID dedup → dropped if `username` or `message` is empty → self suppression → Returners' `guild` frames dropped unless queued → `bridge` frames recorded for `WynntilsEventListener.onGuildChat`'s echo check (`wasBridgeEcho`) → for a `guild` or `queue` frame, a staff `‼` alert via `StaffGuildAlertRewriter.tryRewriteOutbound` → otherwise display via `ChatUtils.sendHonouraryChatMessage()` (honourary-unlocked viewer) or `ChatUtils.sendGuildChatMessage()`.
+Flow: a `warning` frame → `WarningFrameRenderer.render`, skipping every step after it (today none arrives: bug `outbound-socket-never-authenticated`). Any other frame → `PRINT_BRIDGE_MESSAGES` gate → audience gate (`shouldDisplayMessages`) → UUID dedup → `username` and `message` lose the banned sets (§4; a `bridge` line's `message` only the hard set) → dropped if `username` is empty or `message` is blank → self suppression → Returners' `guild` frames dropped unless queued → `bridge` frames recorded for `WynntilsEventListener.onGuildChat`'s echo check (`wasBridgeEcho`) → for a `guild` or `queue` frame, a staff `‼` alert via `StaffGuildAlertRewriter.tryRewriteOutbound` → otherwise display via `ChatUtils.sendHonouraryChatMessage()` (honourary-unlocked viewer) or `ChatUtils.sendGuildChatMessage()`.
 
 ## 6. The formatting engine
 
@@ -168,7 +186,7 @@ Styles: `RANK_STYLE` = aqua, `NAME_STYLE` = dark aqua, `ADMIN_RANK_STYLE` = red.
 [MessageBodyFormatter](../src/client/java/org/wynnvets/chat/MessageBodyFormatter.java) formats a message body for the senders above and for the rewriters that rebuild a server line.
 
 Key methods (`stripServerContinuations` is a helper, package-private only for its test, not an entry point):
-- `formatMessageBody()` — strips server continuation markers, makes URLs clickable, formats spoilers
+- `formatMessageBody()` — drops the banned hard set (§4), strips server continuation markers, makes URLs clickable, formats spoilers
 - `stripServerContinuations()` — removes `\n + marker` sequences
 - `isWrapStructure()` — whether a fragment is only wrap structure (a lone newline or a prefix marker)
 
@@ -176,7 +194,7 @@ URL regex (`URL_PATTERN`, case-insensitive): `(?<!§)(https?://\S+|[A-Za-z0-9][A
 
 `CHAT_PREFIX_STYLE` references custom `chat/prefix` font for the inline separator and the continuation markers.
 
-`MessageBodyFormatterTest` pins `formatMessageBody` on bodies made only of markers and URLs, because any other text reaches `VetsConfig` through the spoiler formatter, and pins `stripServerContinuations` directly, including a check over every short string of marker pieces that no newline is left before a marker.
+`MessageBodyFormatterTest` pins `formatMessageBody` on bodies made only of markers, URLs and banned hard-set characters, because any other text reaches `VetsConfig` through the spoiler formatter, and pins `stripServerContinuations` directly, including a check over every short string of marker pieces that no newline is left before a marker.
 
 ### LegacyTextParser
 

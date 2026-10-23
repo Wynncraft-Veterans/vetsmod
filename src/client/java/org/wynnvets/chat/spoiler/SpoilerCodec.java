@@ -2,6 +2,7 @@ package org.wynnvets.chat.spoiler;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.wynnvets.chat.BannedChars;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -22,6 +23,11 @@ import org.wynnvets.logging.VetsLogger;
  * {@link #WRAPPER_SUFFIX} framing, so a message containing a spoiler comes out
  * longer than it went in, and a caller enforcing a length limit must check the
  * encoded form.</p>
+ *
+ * <p>Spoiler content goes past Wynncraft's chat filter in encoded form, so this
+ * class strips {@link org.wynnvets.chat.BannedChars BannedChars}' hard and soft
+ * sets on both sides: from the content before it is encoded, and from the
+ * decoded text.</p>
  */
 public final class SpoilerCodec {
 
@@ -111,7 +117,14 @@ public final class SpoilerCodec {
 
     /**
      * Decodes a PUA-encoded content string (without start/end delimiters) back
-     * to plaintext.
+     * to plaintext, without {@link org.wynnvets.chat.BannedChars BannedChars}'
+     * hard or soft set.
+     *
+     * <p>An escape decodes only when its three digits are in U+F602–U+F6FF and
+     * their value is at most U+FFFF, so it can produce only what
+     * {@code encodeContent} writes. Any other escape is dropped whole, all four
+     * code units. A block typed by hand, or by another encoder, therefore can't
+     * reach an arbitrary character through the escape.</p>
      */
     public static String decodeContent(String encoded) {
         if (encoded == null || encoded.isEmpty()) {
@@ -126,7 +139,13 @@ public final class SpoilerCodec {
                     int d0 = encoded.charAt(i + 1) - ENCODE_BASE;
                     int d1 = encoded.charAt(i + 2) - ENCODE_BASE;
                     int d2 = encoded.charAt(i + 3) - ENCODE_BASE;
-                    sb.append((char) (DIRECT_MAX + 1 + d0 + d1 * RADIX + d2 * RADIX * RADIX));
+                    int value = DIRECT_MAX + 1 + d0 + d1 * RADIX + d2 * RADIX * RADIX;
+                    if (isDigit(d0) && isDigit(d1) && isDigit(d2) && value <= Character.MAX_VALUE) {
+                        sb.append((char) value);
+                    } else {
+                        VetsLogger.debug(
+                                "SpoilerCodec.decodeContent: invalid escape at index {}", i);
+                    }
                     i += 4;
                 } else {
                     VetsLogger.debug(
@@ -146,8 +165,14 @@ public final class SpoilerCodec {
                 i++;
             }
         }
-        VetsLogger.debug("SpoilerCodec.decodeContent: decoded \"{}\" (len={})", sb, sb.length());
-        return sb.toString();
+        String decoded = BannedChars.stripAll(sb.toString());
+        VetsLogger.debug(
+                "SpoilerCodec.decodeContent: decoded \"{}\" (len={})", decoded, decoded.length());
+        return decoded;
+    }
+
+    private static boolean isDigit(int digit) {
+        return digit >= 0 && digit < RADIX;
     }
 
     /**
@@ -189,7 +214,9 @@ public final class SpoilerCodec {
         return sb.toString();
     }
 
-    private static void encodeContent(String text, StringBuilder sb) {
+    private static void encodeContent(String content, StringBuilder sb) {
+        // Strip before encoding: once encoded, Wynncraft's chat filter can't see them.
+        String text = BannedChars.stripAll(content);
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (c <= DIRECT_MAX) {

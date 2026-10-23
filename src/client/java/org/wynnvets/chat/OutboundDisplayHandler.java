@@ -184,10 +184,20 @@ public final class OutboundDisplayHandler {
         } else {
             rank = "";
         }
-        String username = Json.stringOrEmpty(json, "username");
-        String message = Json.stringOrEmpty(json, "message");
+        // The username and the body are free text from another player or a Discord author,
+        // and an older client or server may not have stripped them, so drop the banned sets
+        // before anything compares or renders them. No Minecraft name can hold either set, and
+        // a Discord name loses only characters that would break or spoof the render. A bridge
+        // body keeps the soft set: temporary-server strips it from non-admin Discord text and
+        // lets Discord admins send it on purpose.
+        String username = BannedChars.stripAll(Json.stringOrEmpty(json, "username"));
+        String rawMessage = Json.stringOrEmpty(json, "message");
+        String message =
+                "bridge".equals(type)
+                        ? BannedChars.stripHard(rawMessage)
+                        : BannedChars.stripAll(rawMessage);
 
-        if (username.isEmpty() || message.isEmpty()) {
+        if (username.isEmpty() || message.isBlank()) {
             return;
         }
 

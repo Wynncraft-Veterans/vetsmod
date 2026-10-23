@@ -7,6 +7,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.chat.BannedChars;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.chat.spoiler.SpoilerCodec;
@@ -204,7 +205,8 @@ public final class GuildChatDispatcher {
      * world queue, are relayed over the WebSocket; any other Returner's line goes
      * to the game server (refused if encoding its spoilers would pass 253
      * characters). Unless spoiler handling is off, spoiler markers are encoded on
-     * all three paths.
+     * all three paths. The two relays also strip the banned characters
+     * ({@link #relayText(String)}).
      *
      * @return {@code true} to cancel the original command
      */
@@ -356,14 +358,38 @@ public final class GuildChatDispatcher {
 
     // ── Shared helpers ──────────────────────────────────────────────────
 
+    /**
+     * Strips {@link org.wynnvets.chat.BannedChars BannedChars}' hard and soft sets from a relay's
+     * typed text. A relay line skips Wynncraft's chat filter, and its local echo skips the
+     * server's too, so vetsmod is the only filter the echo has. Unless spoiler handling is off,
+     * the text arrives already spoiler-encoded: this strips the plain parts, and
+     * {@code SpoilerCodec} strips spoiler content as it encodes, so keep this after
+     * {@code encodeSpoilers}. With spoiler handling off, the raw text, spoilers included, is
+     * stripped here whole. Never applied to the rank, whose pill legitimately uses soft-set
+     * glyphs.
+     *
+     * @return the text to relay, or {@code null} when nothing but whitespace is left, in which
+     *     case the relay sends and echoes nothing
+     */
+    private static String relayText(String message) {
+        String text = BannedChars.stripAll(message);
+        if (text.isBlank()) {
+            VetsLogger.debug("Dropped a relay line left blank by the banned-character strip");
+            return null;
+        }
+        return text;
+    }
+
     private static void relayWaitlistChat(String message) {
         Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
+        String text = relayText(message);
+        if (text == null) return;
 
         String username = resolveUsername(minecraft);
-        OutboundDisplayHandler.queuePendingSelfMessage(username, message);
-        ChatUtils.sendGuildChatMessage(GUILDLESS_SELF_RANK, username, message);
-        V1ApiManager.sendInbound("waitlist", "Waitlist", username, message);
+        OutboundDisplayHandler.queuePendingSelfMessage(username, text);
+        ChatUtils.sendGuildChatMessage(GUILDLESS_SELF_RANK, username, text);
+        V1ApiManager.sendInbound("waitlist", "Waitlist", username, text);
     }
 
     /**
@@ -405,12 +431,14 @@ public final class GuildChatDispatcher {
     private static void relayQueuedReturnersChat(String message) {
         Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
+        String text = relayText(message);
+        if (text == null) return;
 
         String username = resolveUsername(minecraft);
         String rank = resolveReturnersRank();
-        OutboundDisplayHandler.queuePendingSelfMessage(username, message);
-        ChatUtils.sendGuildChatMessage(rank, username, message);
-        V1ApiManager.sendInbound("queue", rank, username, message);
+        OutboundDisplayHandler.queuePendingSelfMessage(username, text);
+        ChatUtils.sendGuildChatMessage(rank, username, text);
+        V1ApiManager.sendInbound("queue", rank, username, text);
     }
 
     /**
@@ -430,16 +458,21 @@ public final class GuildChatDispatcher {
     private static void relayHonouraryChat(String message) {
         Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
+        String text = relayText(message);
+        if (text == null) return;
 
         String username = resolveUsername(minecraft);
-        OutboundDisplayHandler.queuePendingSelfMessage(username, message);
-        ChatUtils.sendHonouraryChatMessage(HONOURARY_SELF_RANK, username, message);
-        V1ApiManager.sendInbound("honourary", "Honourary", username, message);
+        OutboundDisplayHandler.queuePendingSelfMessage(username, text);
+        ChatUtils.sendHonouraryChatMessage(HONOURARY_SELF_RANK, username, text);
+        V1ApiManager.sendInbound("honourary", "Honourary", username, text);
     }
 
-    private static void dispatchStaffChat(String message) {
+    private static void dispatchStaffChat(String typed) {
         Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
+        // The /v echo renders this text locally, so drop the hard set here too; the /msg
+        // payload and the echo then agree. DispatchCoordinator refuses a blank result.
+        String message = BannedChars.stripHard(typed);
 
         String username = resolveUsername(minecraft);
         // Captain was retired in the 2026-07 permission restructure; fall

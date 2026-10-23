@@ -19,7 +19,8 @@ import org.junit.jupiter.api.Test;
  * colour, font, shadow and click event. The string form is Minecraft 1.21.11's, so a Minecraft
  * update that changes {@code Component.toString()} will need the goldens regenerated.</p>
  *
- * <p>Every body given to {@code formatMessageBody} keeps each run of plain text empty or a URL.
+ * <p>Every body given to {@code formatMessageBody} keeps each run of plain text empty or a URL
+ * once the banned hard set is stripped.
  * Any other text goes to {@code SpoilerFormatter.appendWithSpoilers}, which reads
  * {@code VetsConfig}, and {@code VetsConfig} cannot initialise in a test. So no body here reaches
  * the spoiler rendering or has text beside a URL, and no body keeps a newline or gains the space
@@ -48,6 +49,17 @@ class MessageBodyFormatterTest {
     void formatMessageBody_nullOrEmpty_isEmpty() {
         assertEquals("empty", format(null, AQUA));
         assertEquals("empty", format("", AQUA));
+    }
+
+    @Test
+    void formatMessageBody_dropsTheHardSetFirst() {
+        // The hard set goes before anything else, so a body made only of it is empty, and one
+        // beside a marker formats as the marker alone.
+        assertEquals("empty", format("\u00C1\uE07E\uE080\uE086", AQUA));
+        assertEquals(format(SEP, AQUA), format(SEP + "\u00C1", AQUA));
+        // A hard char between a newline and a continuation marker goes first, so the
+        // continuation still matches and the newline goes with it.
+        assertEquals("empty", format("\n\u00C1" + COMPACT, AQUA));
     }
 
     @Test
