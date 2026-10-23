@@ -1557,7 +1557,7 @@ Test: [`StaffRanksPollerTest.java`](../src/test/java/org/wynnvets/fetcher/pollin
 
 Test: [`GuildCheckResultTest.java`](../src/test/java/org/wynnvets/guild/GuildCheckResultTest.java) · Subject: [`GuildChecker.GuildCheckResult`](../src/client/java/org/wynnvets/guild/GuildChecker.java)
 
-`GuildCheckResult` is the nested enum that records the outcome of the guild check (unknown, Returners, other guild, guildless) and is stored in the player's config as a raw long. The suite pins that storage mapping: each constant's `persistedValue` is compared against a literal, never against `ordinal()`, and `fromPersistedValue` must invert it and degrade to `UNKNOWN` for anything unrecognised. Only the nested enum is exercised, so the enclosing `GuildChecker` (which reaches `VetsConfig` and Wynntils) is never initialised.
+`GuildCheckResult` is the nested enum that records the outcome of the guild check (unknown, Returners, other guild, guildless) and is stored in the player's config as a raw long. The suite pins that storage mapping: each constant's `persistedValue` is compared against a literal, never against `ordinal()`, and `fromPersistedValue` must invert it and degrade to `UNKNOWN` for anything unrecognised. It also pins `contradicts`, the test the recheck poll clears the cached result on. Only the nested enum is exercised, so the enclosing `GuildChecker` (which reaches `VetsConfig` and Wynntils) is never initialised.
 
 - **`persistedValues_areTheFourStorageLiterals`**: `UNKNOWN`, `RETURNERS`, `OTHER_GUILD` and `GUILDLESS` carry `persistedValue` 0, 1, 2 and 3 respectively.
   - `persistedValue` equals `0L` for `UNKNOWN`, `1L` for `RETURNERS`, `2L` for `OTHER_GUILD`, `3L` for `GUILDLESS`.
@@ -1565,6 +1565,12 @@ Test: [`GuildCheckResultTest.java`](../src/test/java/org/wynnvets/guild/GuildChe
   - `fromPersistedValue(v)` is the same instance as `UNKNOWN` for `v` = `0L`, `RETURNERS` for `1L`, `OTHER_GUILD` for `2L`, `GUILDLESS` for `3L`.
 - **`fromPersistedValue_unrecognisedFallsBackToUnknown`**: 4, -1, `Long.MAX_VALUE` and `Long.MIN_VALUE` all map to `UNKNOWN` instead of throwing, so a config written by a newer build reads as "not checked yet".
   - `fromPersistedValue(v)` is the same instance as `UNKNOWN` for `v` = `4L`, `-1L`, `Long.MAX_VALUE`, `Long.MIN_VALUE`.
+- **`contradicts_isFalseWhenWynntilsAgrees`**: Each stored result agrees with the Wynntils data it describes, so the recheck poll keeps it.
+  - `contradicts` is false for `RETURNERS` with `(true, "Returners")`, `OTHER_GUILD` with `(true, "Some Other Guild")` and `GUILDLESS` with `(false, "")`.
+- **`contradicts_isTrueWhenWynntilsDisagrees`**: A result from a guild change while disconnected disagrees, so the poll clears it.
+  - `contradicts` is true for `RETURNERS` with `(false, "")` and `(true, "Some Other Guild")`, `OTHER_GUILD` with `(false, "")` and `(true, "Returners")`, and `GUILDLESS` with `(true, "Returners")`.
+- **`contradicts_unknownDisagreesWithNothing`**: An unchecked result is never cleared as a contradiction.
+  - `contradicts` is false for `UNKNOWN` with `(true, "Returners")` and with `(false, "")`.
 
 ### `ReturnersReauthTest`
 

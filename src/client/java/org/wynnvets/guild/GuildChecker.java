@@ -51,6 +51,22 @@ public final class GuildChecker {
             }
             return UNKNOWN;
         }
+
+        /**
+         * Whether this stored result disagrees with Wynntils' live guild data: {@code RETURNERS}
+         * when Wynntils reports no guild or another one, {@code OTHER_GUILD} when it reports none
+         * or Returners, {@code GUILDLESS} when it reports a guild. {@code UNKNOWN} disagrees with
+         * nothing. {@link GuildLifecycle}'s recheck poll clears the result only on disagreement
+         * ({@link #clearResultIfContradicted}).
+         */
+        boolean contradicts(boolean inGuild, String guildName) {
+            return switch (this) {
+                case UNKNOWN -> false;
+                case RETURNERS -> !inGuild || !RETURNERS_GUILD_NAME.equals(guildName);
+                case OTHER_GUILD -> !inGuild || RETURNERS_GUILD_NAME.equals(guildName);
+                case GUILDLESS -> inGuild;
+            };
+        }
     }
 
     // ── Constants ──────────────────────────────────────────────────────
@@ -159,17 +175,38 @@ public final class GuildChecker {
 
     /**
      * Clears the in-memory and persisted result. Reached through
-     * {@link GuildLifecycle#onGuildInfoUpdated()}, which runs on Wynntils' guild
-     * join/leave events and also when the post-world-join recheck finds Wynntils' guild
-     * data populated, where no event fired ({@code guild-recheck-poll-clears-gu-stats-cache});
-     * the real-time data is treated as authoritative over our cached check.
+     * {@link GuildLifecycle#onGuildInfoUpdated()} on Wynntils' guild join/leave events: a guild
+     * change makes the cached check stale, and the real-time data is treated as authoritative.
      */
     static void clearResult() {
+        forgetResult();
+        VetsLogger.debug("GuildChecker result cleared (Wynntils guild event)");
+    }
+
+    /**
+     * Clears the result only if it {@linkplain GuildCheckResult#contradicts contradicts}
+     * Wynntils' guild data, for the post-world-join recheck poll, where no guild event fired.
+     * A result that agrees, such as a {@code /gu stats} answer that landed before Wynntils' own
+     * scan, is kept; one left from a guild change while disconnected is not.
+     */
+    static void clearResultIfContradicted(boolean inGuild, String guildName) {
+        GuildCheckResult result = cachedResult;
+        if (!result.contradicts(inGuild, guildName)) {
+            VetsLogger.debug("GuildChecker result {} kept: Wynntils' guild data agrees", result);
+            return;
+        }
+        forgetResult();
+        VetsLogger.debug(
+                "GuildChecker result {} cleared: Wynntils reports {}",
+                result,
+                inGuild ? guildName : "no guild");
+    }
+
+    private static void forgetResult() {
         cachedResult = GuildCheckResult.UNKNOWN;
         lastGuildCheckTime = 0;
         VetsConfig.setLong(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, 0L);
         VetsConfig.setLong(VetsConfigKeys.VETS_LAST_GUILD_CHECK, 0L);
-        VetsLogger.debug("GuildChecker result cleared (Wynntils guild event)");
     }
 
     // ── Refresh logic ──────────────────────────────────────────────────

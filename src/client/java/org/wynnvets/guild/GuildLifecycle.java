@@ -123,17 +123,24 @@ public final class GuildLifecycle {
 
     /**
      * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when a
-     * {@code GuildEvent.Left} event fires, by {@link #onGuildJoined()} for
-     * {@code GuildEvent.Joined}, and by {@link #scheduleGuildRecheck()}'s poll once Wynntils
-     * reports a guild after world join, where no event fired. All run on the client thread.
+     * {@code GuildEvent.Left} event fires, and by {@link #onGuildJoined()} for
+     * {@code GuildEvent.Joined}, both on the client thread.
      *
-     * <p>Clears the mod's own guild check result on both paths, treating Wynntils' guild
-     * data as authoritative ({@code guild-recheck-poll-clears-gu-stats-cache}), and
-     * re-evaluates guild-dependent state.</p>
+     * <p>A guild change makes the mod's own guild check result stale, so it is cleared, with
+     * Wynntils' guild data treated as authoritative; then guild-dependent state is
+     * re-evaluated. The recheck poll re-evaluates too, but clears the result only when it
+     * disagrees with Wynntils ({@link #recheckAttempt}).</p>
      */
     public static void onGuildInfoUpdated() {
         // Wynntils' guild data is treated as authoritative — clear our override
         GuildChecker.clearResult();
+        reevaluateGuildState();
+    }
+
+    /** What a guild change or a late Wynntils guild scan re-runs: the stamp and MOTD for a
+     *  Returners member still owed them, the presence registration, and the default anni
+     *  mode. Client thread. */
+    private static void reevaluateGuildState() {
         VetsLogger.debug(
                 "onGuildInfoUpdated: guild={}, guildless={}, returners={}",
                 Models.Guild.getGuildName(),
@@ -187,9 +194,10 @@ public final class GuildLifecycle {
      * <p>Polls {@code Models.Guild} on the client thread through {@link TickDelays}: about
      * {@link #GUILD_RECHECK_DELAY_MS} after the call, then up to
      * {@link #GUILD_RECHECK_MAX_ATTEMPTS} times in all, about {@link #GUILD_RECHECK_INTERVAL_MS}
-     * apart, each attempt scheduling the next. The first time it reports a guild, it calls
-     * {@link #onGuildInfoUpdated()}, which also clears {@link GuildChecker}'s cached result
-     * ({@code guild-recheck-poll-clears-gu-stats-cache}). Gives up if {@link #reset()} (a
+     * apart, each attempt scheduling the next. The first time it reports a guild, it clears
+     * {@link GuildChecker}'s cached result only if the result contradicts Wynntils
+     * ({@link GuildChecker#clearResultIfContradicted}), so a {@code /gu stats} answer that
+     * landed first survives, and re-evaluates guild state. Gives up if {@link #reset()} (a
      * disconnect) has cleared the world-entered flag by the time it polls; a new world
      * entry sets the flag again, so an in-flight poll can survive a quick reconnect.</p>
      */
@@ -221,7 +229,8 @@ public final class GuildLifecycle {
 
         if (inGuild) {
             VetsLogger.info("Guild info now available after recheck: {}", name);
-            onGuildInfoUpdated();
+            GuildChecker.clearResultIfContradicted(true, name);
+            reevaluateGuildState();
             return;
         }
 

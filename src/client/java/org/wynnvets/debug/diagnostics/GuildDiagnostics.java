@@ -17,7 +17,8 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>It re-requests both checks but clears no cached result. {@code GuildChecker}'s stored result
  * stays in place until the new {@code /gu stats} reply replaces it, unlike after a Wynntils guild
- * event, or a post-world-join recheck poll once Wynntils reports a guild, which clear it.</p>
+ * event, which clears it, or a post-world-join recheck poll that finds it contradicting
+ * Wynntils.</p>
  */
 public final class GuildDiagnostics {
 
@@ -103,8 +104,8 @@ public final class GuildDiagnostics {
                 ChatFormatting.AQUA);
 
         // Trigger guild info update path without clearing GuildChecker: only
-        // onGuildInfoUpdated() clears it (Wynntils' guild events and the
-        // post-world-join recheck poll), and a forced recheck is neither.
+        // Wynntils' guild events clear it outright (onGuildInfoUpdated()), and the
+        // post-world-join recheck poll only on a contradiction; a forced recheck is neither.
         if (inGuild) {
             VetsLogger.info("forceGuildRecheck: Wynntils has guild info, re-evaluating");
             // Don't call onGuildInfoUpdated() here as it clears GuildChecker.

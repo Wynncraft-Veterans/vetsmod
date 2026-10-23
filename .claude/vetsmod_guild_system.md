@@ -41,7 +41,7 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 | Method | Purpose |
 |--------|---------|
 | `onEnteredWorld()` | World-join trigger; schedules SessionAuthWarning |
-| `onGuildInfoUpdated()` | Wynntils `GuildEvent.Left` callback and the first half of `onGuildJoined()`; also called by the post-world-join recheck poll |
+| `onGuildInfoUpdated()` | Wynntils `GuildEvent.Left` callback and the first half of `onGuildJoined()`: clears the `GuildChecker` cache, then re-evaluates guild state (the post-world-join recheck poll re-evaluates without the unconditional clear) |
 | `onGuildJoined()` | Wynntils `GuildEvent.Joined` callback: `onGuildInfoUpdated()`, then, if the guild is Returners, `ReturnersReauth.onJoinedReturners()` (§4) |
 | `reset()` | Disconnect reset of the per-connection state |
 
@@ -51,9 +51,9 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 
 `isReturners()` / `isGuildless()` prefer a valid `GuildChecker` result (the persisted `/gu stats` cache, 3-day expiry), else read Wynntils' `Models.Guild` live (the name is empty, not null, until Wynntils' character-info scan or a guild-join message fills it). `GuildLifecycle.onEnteredWorld()` then schedules two follow-ups:
 1. a `/gu stats` check about 5 s after world join, while `MORE_RELIABLE_GUILD_CHECK` is on (the default);
-2. when Wynntils reports no guild yet, the recheck poll (`GUILD_RECHECK_*` constants), which calls `onGuildInfoUpdated()` once a guild appears.
+2. when Wynntils reports no guild yet, the recheck poll (`GUILD_RECHECK_*` constants), which re-evaluates guild state once a guild appears.
 
-`GuildLifecycle.onGuildInfoUpdated()` invalidates the `GuildChecker` cache. It runs on Wynntils' `GuildEvent.Joined` / `.Left` and from that recheck poll, where no event fired (bug `guild-recheck-poll-clears-gu-stats-cache`).
+`GuildLifecycle.onGuildInfoUpdated()` invalidates the `GuildChecker` cache. It runs on Wynntils' `GuildEvent.Joined` / `.Left`. The recheck poll, where no event fired, clears it only when it contradicts Wynntils' guild data (`GuildChecker.clearResultIfContradicted`, through `GuildCheckResult.contradicts`), so a `/gu stats` answer that landed before Wynntils' scan survives, and one left from a guild change while disconnected does not.
 
 ## 2. GuildChecker
 
@@ -185,7 +185,7 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 ## 8. Edge cases
 
 - **Returners guild members need to /unlock** under the new system once the server's `unauth` toggle is off. While it is on, unauthenticated sessions are exempt from the tier gate (back-compat); when it is off, their chat frames are rejected. Authenticated sessions can only send the chat types their tier allows. Pre-migration users discover this via the SessionAuthWarning.
-- **`GuildDiagnostics.forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears **neither** cache — it prints diagnostics and re-runs both checks (`refreshStaffStatusIfNeeded(true)` and `GuildChecker.refreshGuildStatus()`). Not clearing is deliberate and commented twice in `GuildDiagnostics`: `GuildChecker` is cleared only by `onGuildInfoUpdated()`, which fires from Wynntils' `GuildEvent.Joined`/`.Left` handlers and from the post-world-join recheck poll once guild info turns up. It also does *not* re-auth; that happens automatically on every inbound WS reconnect.
+- **`GuildDiagnostics.forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears **neither** cache — it prints diagnostics and re-runs both checks (`refreshStaffStatusIfNeeded(true)` and `GuildChecker.refreshGuildStatus()`). Not clearing is deliberate and commented twice in `GuildDiagnostics`: `GuildChecker` is cleared by `onGuildInfoUpdated()`, which fires from Wynntils' `GuildEvent.Joined`/`.Left` handlers, and by the post-world-join recheck poll only when its result contradicts Wynntils. It also does *not* re-auth; that happens automatically on every inbound WS reconnect.
 - **Wynntils `GuildEvent`** is authoritative — when it fires, `GuildChecker` cache is invalidated.
 - **`/gu stats` vs Wynntils** — a valid `/gu stats` result (`GuildChecker`) takes precedence; Wynntils' `Models.Guild` is the live fallback while there is none. Wynntils usually lands first in time. `MORE_RELIABLE_GUILD_CHECK` schedules the `/gu stats` check that refreshes the cache.
 - **Rotating a leaked key:** a staff member runs dazebot's staff-only `/change rotate key <target>` (users cannot self-rotate); the old key fails introspection on the next WS connect (subject to temporary-server's 60 s introspection cache). The mod surfaces the failure via `onAuthFailure()` and the SessionAuthWarning prompts them to `/unlock` again.
