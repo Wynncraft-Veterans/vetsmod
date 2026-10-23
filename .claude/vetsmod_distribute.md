@@ -234,8 +234,10 @@ first of these that applies:
 `DistributionQueue` arms one that moves on to the next recipient while the Members
 menu is still up, and stops the run when it is not (§7). The watchdog
 (`WATCHDOG_TICKS`, counted from `armSearch`) also ends a search through
-`invokeNotFound`, after a yellow "Search for <name> timed out.", and so does a
-server-sent close for the bound id (`onMenuClose`). A client-side close, such as the
+`invokeNotFound`, after a yellow "Search for <name> timed out.". A server-sent close
+for the bound id (`onMenuClose`) stops the run instead (§7): Wynntils posts it before
+vanilla tears the screen down, so a not-found handler run then would still see the
+menu. A client-side close, such as the
 player's Esc, posts no close event: `onScreenClosed` schedules a scan instead, and the
 scan's first step ends the search.
 
@@ -532,7 +534,7 @@ line, by design (`DistributeRuns`), and nothing it armed calls back.
 | `MAX_PAGES` reached | `MembersListSearcher.scanAndPaginate` | yellow "Could not find X (reached page limit)." | yes † |
 | Bound Members menu gone, and no rebind possible (none open, or rebinds exhausted) | `MembersListSearcher.scanAndPaginate` | none from the searcher | yes † |
 | Search stalls with no event arriving | `MembersListSearcher`'s watchdog, 300 ticks | yellow "Search for X timed out." | yes † |
-| Members menu closed by the server mid-search | `MembersListSearcher.onMenuClose` | none from the searcher | yes † |
+| Members menu closed by the server mid-search | `MembersListSearcher.onMenuClose` | yellow "Distribution stopped: the Members menu closed." | no, by design: the run stops |
 | Members menu gone when the next recipient is popped | `DistributionQueue.processNext` | yellow "Distribution stopped: the Members menu is not open." | no, by design: the run stops, and any later `@split` phase never starts |
 | Refresh never observed after a press | `MemberSlotPresser.armRefreshTimeout`, 40 ticks | yellow "Send timed out after N/M…" | yes |
 | Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | none | yes, with whatever was collected |
@@ -545,7 +547,7 @@ line, by design (`DistributeRuns`), and nothing it armed calls back.
 | Walk makes no progress for 200 ticks — for example a Members menu that never opens, or a Next Page click whose reply the walker never sees | `MembersListWalker`'s stall watchdog | yellow "Distribution stopped: the objectives walk timed out." | no, by design: the run stops, and the walker disarms, so a later Members menu cannot bind it |
 | Members screen gone when the next press in a batch fires | `MemberSlotPresser.sendPressAndArm` | yellow "Send stopped after N/M: the Members menu is not open." | yes; for a multi-recipient run the pop that follows then stops the run |
 
-† All five searcher rows end in `MembersListSearcher.invokeNotFound`,
+† All four searcher rows end in `MembersListSearcher.invokeNotFound`,
 which runs whatever `notFoundHandler` was armed. Every selector-run
 search is armed by `DistributionQueue.processNext`, which always passes
 one: it moves on to the next recipient if the Members menu is still up,

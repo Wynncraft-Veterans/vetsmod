@@ -17,6 +17,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.DistributeRuns;
 import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.ContainerScreens;
@@ -163,8 +164,8 @@ public final class MembersListSearcher {
      *  {@link #stop()}; the per-search watchdog task captures it at arm
      *  time and bails at fire time if it has moved on, and the sweep-retry
      *  hop does the same with the value it sees when scheduled. So once a search
-     *  ends by any path &mdash; a match, or a not-found exit, a server-sent
-     *  close ({@link #onMenuClose}) included &mdash; its watchdog is disarmed
+     *  ends by any path &mdash; a match, a not-found exit, or a server-sent
+     *  close ({@link #onMenuClose}) &mdash; its watchdog is disarmed
      *  without needing to know. */
     private static volatile int watchdogToken = 0;
 
@@ -174,8 +175,8 @@ public final class MembersListSearcher {
     /** Optional callback run through {@link #invokeNotFound()} when the
      *  search gives up: both directions and the retry exhausted, the page
      *  cap reached, no screen with the bound id when a scan runs and no
-     *  rebind possible, the watchdog firing, or a server-sent close of the
-     *  bound menu ({@link #onMenuClose}). */
+     *  rebind possible, or the watchdog firing. A server-sent close of the
+     *  bound menu ({@link #onMenuClose}) stops the run instead. */
     private static volatile Runnable notFoundHandler = null;
 
     /** Callback fired by {@link #scanAndPaginate()} when one of the armed
@@ -326,15 +327,17 @@ public final class MembersListSearcher {
         if (event.getContainerId() != membersContainerId) return;
         // A clientbound close for our bound id — Wynntils posts
         // MenuClosedEvent only from its handleContainerClose hook, so this
-        // is the server closing the menu. End the search through the
-        // not-found handler, as a lost menu does. The event fires while the
-        // screen is still up, so a multi-recipient run pops its next
-        // recipient first; that search's scan then finds the menu gone and
-        // the run stops. A client-side close (the player's Esc) sends only a
-        // serverbound close and posts nothing here; onScreenClosed notices it.
+        // is the server closing the menu: stop the run, as the walker does.
+        // Not through the not-found handler: the event fires before vanilla
+        // tears the screen down, so the handler would still see a Members
+        // menu, and would skip to the next recipient, or finish the run green
+        // and send a close back for a menu the server just closed. A
+        // client-side close (the player's Esc) sends only a serverbound close
+        // and posts nothing here; onScreenClosed notices it.
         VetsLogger.debug(
-                "MembersListSearcher: menu closed mid-search, giving up [{}]", displayQuery);
-        invokeNotFound();
+                "MembersListSearcher: menu closed mid-search, stopping [{}]", displayQuery);
+        stop();
+        DistributeRuns.stop("the Members menu closed");
     }
 
     /**
