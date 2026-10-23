@@ -3,6 +3,7 @@ package org.wynnvets.distribute.walker;
 import com.wynntils.core.WynntilsMod;
 import com.wynntils.core.components.Models;
 import com.wynntils.core.text.StyledText;
+import com.wynntils.handlers.wrappedscreen.WrappedScreen;
 import com.wynntils.mc.event.ContainerSetSlotEvent;
 import com.wynntils.mc.event.MenuEvent;
 import com.wynntils.mc.event.TickEvent;
@@ -12,9 +13,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
+import org.wynnvets.distribute.DistributeRuns;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.ContainerScreens;
 
 /**
  * Walks the in-game {@code "<guild>'s Log: <category>"} GUI and
@@ -46,9 +50,8 @@ import org.wynnvets.logging.VetsLogger;
  * setting, which it compares against a shift flag that only a click made
  * through the game's own container-click path updates &mdash; the tile
  * click {@code GuildManageOpener} sends is a raw packet and does not.
- * When the log is not wrapped nothing auto-paginates, the walk ends on
- * whatever has arrived, and {@link #finishWalk}'s {@code setScreen(null)}
- * sends no close packet for the log. See
+ * When the log is not wrapped nothing auto-paginates and the walk ends on
+ * whatever has arrived. See
  * {@code graids-log-walk-depends-on-wynntils-log-screen-feature}.</p>
  *
  * <h2>Completion detection</h2>
@@ -61,13 +64,14 @@ import org.wynnvets.logging.VetsLogger;
  * {@link #SETTLE_TICKS} ticks, the walk is considered complete.</p>
  *
  * <p>When the settle timer, or once bound the overall timeout, ends the
- * walk, the walker calls
- * {@code setScreen(null)} on whatever screen is open
- * ({@code guild-log-walker-closes-whatever-screen-is-open}) &mdash; if
- * that is still Wynntils' wrap of the log, Wynntils' wrapped-screen
- * teardown sends the close packet; if it is the unwrapped log, no close
- * packet is sent &mdash; and invokes the {@link Completion} callback with
- * a copy of the collected items.</p>
+ * walk, the walker closes the log if it is still the screen on top
+ * &mdash; Wynntils' wrap of it through {@code clientSideCloseContainer()},
+ * whose wrapped-screen teardown sends the close packet, and the unwrapped
+ * log through {@code closeContainer()} &mdash; and invokes the
+ * {@link Completion} callback with a copy of the collected items. If the
+ * log is no longer on top by then (the player's Esc, a respawn), it closes
+ * nothing and stops the run instead, through
+ * {@link org.wynnvets.distribute.DistributeRuns#stop(String) DistributeRuns.stop}.</p>
  */
 public final class GuildLogWalker {
 
@@ -86,8 +90,9 @@ public final class GuildLogWalker {
 
     /** Completion callback, fired once when the walk ends &mdash; on
      *  settle, on a server-sent close of the log, or on the overall
-     *  timeout &mdash; with whatever was collected. A later
-     *  {@link #armWalk} replaces it without firing it. */
+     *  timeout &mdash; with whatever was collected. Not fired when the log
+     *  is gone by the time the walk settles or times out: that stops the
+     *  run. A later {@link #armWalk} replaces it without firing it. */
     @FunctionalInterface
     public interface Completion {
         void onComplete(List<GuildLogItem> entries);
@@ -233,17 +238,41 @@ public final class GuildLogWalker {
     private static void finishWalk(boolean closeScreen) {
         Completion cb = completion;
         List<GuildLogItem> snapshot = new ArrayList<>(collected);
+        int boundId = containerId;
         stop();
-        if (closeScreen && McUtils.screen() != null) {
-            // If the open screen is Wynntils' wrap of the log, closing it
-            // runs WrappedScreenHandler.onScreenClose, which sends the
-            // ServerboundContainerClosePacket — no double-close needed. If
-            // it is the unwrapped log, setScreen(null) is a client-side
-            // dismiss and sends no close packet. Either way this closes
-            // whichever screen is open, not specifically the log
-            // (guild-log-walker-closes-whatever-screen-is-open).
-            McUtils.setScreen(null);
+        if (closeScreen && !closeLogIfOnTop(boundId)) {
+            // The log is no longer the screen on top — the player closed
+            // it, or a respawn did — so whatever is there now is not ours to
+            // close, and the walk may have missed pages: stop the run.
+            VetsLogger.debug(
+                    "GuildLogWalker: log id={} gone at the end of the walk ({} entries)",
+                    boundId,
+                    snapshot.size());
+            DistributeRuns.stop("the guild log closed");
+            return;
         }
         if (cb != null) cb.onComplete(snapshot);
+    }
+
+    /**
+     * Closes the log bound as {@code boundId} if it is still the screen on top, and returns
+     * whether it was. Wynntils' wrap of the log goes through {@code clientSideCloseContainer()}:
+     * the wrapped-screen teardown sends the one close packet, and the call also resets
+     * {@code containerMenu}. The unwrapped log goes through {@code closeContainer()}, which sends
+     * the close itself.
+     */
+    private static boolean closeLogIfOnTop(int boundId) {
+        LocalPlayer player = McUtils.player();
+        if (player == null) return false;
+        if (McUtils.screen() instanceof WrappedScreen wrapped
+                && wrapped.getWrappedScreenInfo().containerId() == boundId) {
+            player.clientSideCloseContainer();
+            return true;
+        }
+        if (ContainerScreens.currentWithId(boundId) != null) {
+            player.closeContainer();
+            return true;
+        }
+        return false;
     }
 }

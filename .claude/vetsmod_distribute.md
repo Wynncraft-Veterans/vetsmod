@@ -441,9 +441,8 @@ observed Wynncraft behaviour first, then the code shape it forces.
    gated by its shift-behaviour setting, which it compares against a
    shift flag that only a click through the game's own container-click
    path updates; `GuildManageOpener`'s tile click is a raw packet and
-   does not. Unwrapped, nothing auto-paginates, the walk ends on whatever
-   has arrived, and `GuildLogWalker.finishWalk`'s `setScreen(null)` sends
-   no close packet for the log. Filed as
+   does not. Unwrapped, nothing auto-paginates and the walk ends on whatever
+   has arrived. Filed as
    `graids-log-walk-depends-on-wynntils-log-screen-feature`.
 5. **The guild log caps at roughly 100 most-recent entries.** Aspect
    sends write log entries of their own, so distributing anything before
@@ -522,6 +521,7 @@ line, by design (`DistributeRuns`), and nothing it armed calls back.
 | Refresh never observed after a press | `MemberSlotPresser.armRefreshTimeout`, 40 ticks | yellow "Send timed out after N/M…" | yes |
 | Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | none | yes, with whatever was collected |
 | Log walk exceeds 200 ticks | `GuildLogWalker.onTick` | none | yes, possibly with an empty list |
+| Guild log no longer on top when the walk settles or times out — the player's Esc, a respawn | `GuildLogWalker.finishWalk` | yellow "Distribution stopped: the guild log closed." | no, by design: the run stops, and nothing is closed |
 | Log screen never reached — for example no Guild Log tile, `/guild manage` unanswered, or the tile click going nowhere (a case of the row above) | `GuildLogWalker.onTick`'s overall timeout | none from the walker; the empty list then reaches `GraidsDistributor.onLogReady`'s yellow "No graid completions found…", which reads as an empty log (`graids-log-never-reached-reported-as-empty-log`) | yes, with an empty list; a Manage menu may stay open |
 | Members menu closed by the server mid-walk | `MembersListWalker.onMenuClose` | yellow "Distribution stopped: the Members menu closed." | no, by design: the run stops |
 | Bound Members menu gone when the walker's scan runs | `MembersListWalker.scanAndPaginate` | yellow "Distribution stopped: the Members menu is not open." (a Members menu still on top is closed first) | no, by design: the run stops |
