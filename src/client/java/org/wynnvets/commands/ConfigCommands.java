@@ -3,6 +3,7 @@ package org.wynnvets.commands;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -58,19 +59,18 @@ final class ConfigCommands {
                     if (VetsConfigSchema.isStringKey(key)) {
                         // Always suggest "reset" for string keys
                         if ("reset".startsWith(partial)) builder.suggest("reset");
+                        String[] fixed = VetsConfigSchema.fixedValuesOf(key);
                         if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)) {
                             for (String s : VetsConfigSchema.VALID_SPRITES) {
                                 if (s.startsWith(partial)) builder.suggest(s);
                             }
-                        } else if (key.equals(VetsConfigKeys.VETS_ANNI_ROLE_STYLE)) {
-                            for (String s : VetsConfigSchema.VALID_ROLE_STYLES) {
+                        } else if (fixed != null) {
+                            // Role style and flash intensity
+                            for (String s : fixed) {
                                 if (s.startsWith(partial)) builder.suggest(s);
                             }
                         } else {
-                            // Colour name keys (gradient top/bottom, foreground color);
-                            // today vetsAnniFlashIntensity, which has no arm of its
-                            // own, lands here too
-                            // (config-set-rejects-role-style-and-flash-intensity).
+                            // Colour name keys (gradient top/bottom, foreground color)
                             for (String name : LegacyItemStyle.getColorNames()) {
                                 if (name.startsWith(partial)) builder.suggest(name);
                             }
@@ -225,12 +225,11 @@ final class ConfigCommands {
     // ── String-config helpers ───────────────────────────────────────────
 
     private static Component formatStringConfigValue(String key, String value) {
-        if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)) {
+        if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)
+                || VetsConfigSchema.fixedValuesOf(key) != null) {
             return Component.literal(value).withStyle(ChatFormatting.AQUA);
         }
-        // All other string keys are treated as colour names; today that
-        // wrongly includes vetsAnniRoleStyle and vetsAnniFlashIntensity
-        // (config-set-rejects-role-style-and-flash-intensity).
+        // The other string keys are colour names, shown in their own colour.
         int rgb = LegacyItemStyle.getColorRgb(value);
         return Component.literal(value).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(rgb)));
     }
@@ -267,15 +266,31 @@ final class ConfigCommands {
             return 1;
         }
 
-        // Colour name keys (gradient top/bottom, foreground color); today
-        // this arm also wrongly matches vetsAnniRoleStyle and
-        // vetsAnniFlashIntensity (config-set-rejects-role-style-and-flash-intensity).
-        String lower = rawValue.toLowerCase();
-        if (!LegacyItemStyle.isValidColor(lower)) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Unknown colour name. Tab-complete to see options.")
-                            .withStyle(ChatFormatting.RED));
-            return 0;
+        String[] fixed = VetsConfigSchema.fixedValuesOf(key);
+        String lower;
+        if (fixed != null) {
+            // Role style and flash intensity. Locale.ROOT, so a Turkish locale still folds
+            // DESCRIPTIVE to descriptive.
+            lower = rawValue.toLowerCase(Locale.ROOT);
+            if (!VetsConfigSchema.isFixedValue(key, lower)) {
+                ChatUtils.sendLocalMessage(
+                        Component.literal(
+                                        "Unknown value for "
+                                                + key
+                                                + ". Valid options: "
+                                                + String.join(", ", fixed))
+                                .withStyle(ChatFormatting.RED));
+                return 0;
+            }
+        } else {
+            // Colour name keys (gradient top/bottom, foreground color)
+            lower = rawValue.toLowerCase();
+            if (!LegacyItemStyle.isValidColor(lower)) {
+                ChatUtils.sendLocalMessage(
+                        Component.literal("Unknown colour name. Tab-complete to see options.")
+                                .withStyle(ChatFormatting.RED));
+                return 0;
+            }
         }
         VetsConfig.setString(key, lower);
         ChatUtils.sendLocalMessage(

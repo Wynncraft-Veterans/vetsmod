@@ -191,13 +191,15 @@ rsvp`".
 |---|---|---|---|---|---|---|
 | `/wv config` | none | none | `ConfigCommands.configList` | Prints every key in `VetsConfigSchema.USER_CONFIG_KEYS`, in order, with its value | chat only | none |
 | `/wv config <key>` | none | none | `ConfigCommands.configGet` | Prints one key's value; "Unknown config key: <key>" for a key outside `USER_CONFIG_KEYS` | chat only | none |
-| `/wv config <key> <value>` | none | none | `ConfigCommands.configSet` | Sets the key; string and int keys also take `reset`. Refuses an unknown key, and a value of the wrong type | persists the config | `config-set-rejects-role-style-and-flash-intensity` |
+| `/wv config <key> <value>` | none | none | `ConfigCommands.configSet` | Sets the key; string and int keys also take `reset`. Refuses an unknown key, a value of the wrong type, and a role-style or flash-intensity value outside its list | persists the config | none |
 
 Every `key = value` line the three forms print, and the `/wv debug set` prints, is built by
 `util/ConfigValueText`. `ConfigCommands.Kind.of(key)` picks which of `VetsConfig`'s typed accessors a key
 uses, and the same enum drives both the read paths and the write dispatch, so the type ladder is
 written once. A colour or sprite value is validated with `LegacyItemStyle.isValidColor()` and
-`isValidSprite()`. [vetsmod_config.md](vetsmod_config.md) owns the keys themselves. Its suggestion
+`isValidSprite()`, and a `vetsAnniRoleStyle` or `vetsAnniFlashIntensity` value with
+`VetsConfigSchema.isFixedValue()` against that key's list, folded with `Locale.ROOT`.
+[vetsmod_config.md](vetsmod_config.md) owns the keys themselves. Its suggestion
 providers, `ConfigCommands.SUGGEST_CONFIG_KEYS` and `SUGGEST_CONFIG_VALUES`, are in §3.
 
 ### `/wv line`
@@ -508,9 +510,8 @@ The anni rows are under `/wv debug tree anni`.
 Int keys (opacity) suggest
 `reset|0|25|50|69|75|100`. String keys suggest `reset` plus the colour names from
 `LegacyItemStyle.getColorNames()`, the sprite names (`VetsConfigSchema.VALID_SPRITES`), or, for
-`vetsAnniRoleStyle`, the role styles; `vetsAnniFlashIntensity` has no arm of its own and gets the colour
-names. Today setting `vetsAnniRoleStyle` or `vetsAnniFlashIntensity` validates the value as a colour
-name, so the suggested role styles are refused too (bug `config-set-rejects-role-style-and-flash-intensity`).
+`vetsAnniRoleStyle` and `vetsAnniFlashIntensity`, the key's own list from
+`VetsConfigSchema.fixedValuesOf(key)`.
 A key `/wv config` does not accept, such as a hand-typed `vetsAnniMode`, falls through to `true|false`.
 
 ## 4. Things to know when adding commands

@@ -12,16 +12,15 @@ import java.util.Map;
 public final class VetsConfigSchema {
     /** Valid values for {@link VetsConfigKeys#VETS_ANNI_ROLE_STYLE}; the first is the
      *  default. Brigadier sorts suggestions alphabetically, so
-     *  tab-completion does not show this order. Today {@code /wv config}
-     *  suggests these values but refuses to set any of them
-     *  ({@code config-set-rejects-role-style-and-flash-intensity}). */
+     *  tab-completion does not show this order. {@code /wv config} sets
+     *  only these values, through {@link #fixedValuesOf}. */
     public static final String[] VALID_ROLE_STYLES = {
         "descriptive", "short", "formal",
     };
 
-    /** Valid values for {@link VetsConfigKeys#VETS_ANNI_FLASH_INTENSITY}. Today nothing in
-     *  the mod reads this array, and {@code /wv config} refuses to set any of these values
-     *  ({@code config-set-rejects-role-style-and-flash-intensity}). */
+    /** Valid values for {@link VetsConfigKeys#VETS_ANNI_FLASH_INTENSITY}; the default is
+     *  {@code normal}. {@code /wv config} sets only these values, through
+     *  {@link #fixedValuesOf}. */
     public static final String[] VALID_FLASH_INTENSITIES = {
         "subtle", "normal", "strong",
     };
@@ -145,6 +144,32 @@ public final class VetsConfigSchema {
      */
     public static String getStringDefault(String key) {
         return STRING_DEFAULTS.get(key);
+    }
+
+    /**
+     * The fixed value list of a string key that takes neither a colour nor a sprite name:
+     * {@link #VALID_ROLE_STYLES} for {@link VetsConfigKeys#VETS_ANNI_ROLE_STYLE},
+     * {@link #VALID_FLASH_INTENSITIES} for {@link VetsConfigKeys#VETS_ANNI_FLASH_INTENSITY}, and
+     * {@code null} for every other key. {@code /wv config} validates, suggests and colours these
+     * keys' values from it.
+     */
+    public static String[] fixedValuesOf(String key) {
+        if (VetsConfigKeys.VETS_ANNI_ROLE_STYLE.equals(key)) return VALID_ROLE_STYLES;
+        if (VetsConfigKeys.VETS_ANNI_FLASH_INTENSITY.equals(key)) return VALID_FLASH_INTENSITIES;
+        return null;
+    }
+
+    /**
+     * Whether {@code value} is one of {@code key}'s {@link #fixedValuesOf fixed values}. The
+     * match is exact, so the caller lower-cases first; {@code false} for a key with no list.
+     */
+    public static boolean isFixedValue(String key, String value) {
+        String[] fixed = fixedValuesOf(key);
+        if (fixed == null) return false;
+        for (String v : fixed) {
+            if (v.equals(value)) return true;
+        }
+        return false;
     }
 
     public static boolean isUserConfigKey(String key) {

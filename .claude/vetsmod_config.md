@@ -68,8 +68,6 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `vetsAnniRoleStyle` | `descriptive` | `descriptive` (TANK/HEALER/SUNKILL/MOBKILL/BOSSKILL/FILL — action-flavoured), `short` (TANK/HEAL/SUNK/MOBK/PRIM/FILL — 4-char compact), `formal` (TANK/HEALER/SECONDARY/TERTIARY/PRIMARY/FILL — spec-canonical) |
 | `vetsAnniFlashIntensity` | `normal` | `subtle` (5s flash window), `normal` (10s), `strong` (20s). Controls the per-field on-change flash duration; the bold↔underline pulse half-period (250ms) is fixed. |
 
-Today `/wv config` validates `vetsAnniRoleStyle` and `vetsAnniFlashIntensity` as colour names, so it refuses every value listed for them and accepts colour names instead, which `AnniHoverBuilder.displayRole` and `FlashTracker.flashDurationMs` treat as the default (bug `config-set-rejects-role-style-and-flash-intensity`).
-
 ### Integers (0–100 opacity)
 | Key | Default |
 |-----|---------|
@@ -87,7 +85,7 @@ Default 69 for top opacity approximates the old `0xB0` alpha byte.
 
 ## 3. API (static methods, all public except `save()`)
 
-The first column names the class that declares each method. `VetsConfigKeys` holds only the key-name constants, and the colour and sprite rows are `LegacyItemStyle`'s, which `/wv config` calls directly. Every method in the table takes a key except `load()`, `save()` and `getColorNames()`, which take nothing, and `isValidColor(name)` / `isValidSprite(name)`, which take a value. The setters return false when the key is not registered in their map; none validates the value.
+The first column names the class that declares each method. `VetsConfigKeys` holds only the key-name constants, and the colour and sprite rows are `LegacyItemStyle`'s, which `/wv config` calls directly. Every method in the table takes a key except `load()`, `save()` and `getColorNames()`, which take nothing, and `isValidColor(name)` / `isValidSprite(name)`, which take a value; `isFixedValue(key,value)` takes both. The setters return false when the key is not registered in their map; none validates the value.
 
 | Class | Method | Notes |
 |-------|--------|-------|
@@ -98,6 +96,7 @@ The first column names the class that declares each method. `VetsConfigKeys` hol
 | `VetsConfigSchema` | `isUserConfigKey(key)` | scans `USER_CONFIG_KEYS` |
 | `VetsConfigSchema` | `isTriStateKey(key)` / `isStringKey(key)` / `isIntKey(key)` | scan `TRISTATE_KEYS` / `STRING_CONFIG_KEYS` / `INT_CONFIG_KEYS` |
 | `VetsConfigSchema` | `getIntDefault(key)` / `getStringDefault(key)` | from INT_DEFAULTS/STRING_DEFAULTS maps |
+| `VetsConfigSchema` | `fixedValuesOf(key)` / `isFixedValue(key,value)` | `VALID_ROLE_STYLES` for `vetsAnniRoleStyle`, `VALID_FLASH_INTENSITIES` for `vetsAnniFlashIntensity`; `null` / false for every other key |
 | `VetsConfig` | `registerDefault(key, defaultValue)` | for subsystems; boolean keys only, must run before `load()` |
 | `VetsConfig` | `load()` | creates the file from defaults when absent; a file that can't be parsed is moved aside and the defaults are used (§6) |
 | `VetsConfig` | `save()` | **private**; called by every setter and by `load()` |
@@ -184,4 +183,4 @@ Must call `DebugConfigManager.init()` before `VetsConfig.load()`: `load()` reads
 - **No migration:** Adding new keys requires shipping with a sensible default; old configs just gain the new key on next save.
 - **Tri-state `handleSpoilers`:** null/default means "on", and the user can explicitly set false to disable.
 - **Integer opacity 0-100:** stored as long in JSON; multiplied by 2.55 and packed into ARGB alpha byte.
-- **String validation:** `isValidColor()` / `isValidSprite()` accept lowercase names; keys should match exactly (case-sensitive in JSON).
+- **String validation:** `isValidColor()` / `isValidSprite()` and `VetsConfigSchema.isFixedValue()` accept lowercase names; keys should match exactly (case-sensitive in JSON).
