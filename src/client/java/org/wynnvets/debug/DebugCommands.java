@@ -61,7 +61,8 @@ import org.wynnvets.util.ConfigValueText.Verb;
  *   <li>{@code /wv debug trigger bossBarsDump} — dump current {@code BossHealthOverlay#events} state (iteration order, per-bar UUID/name/color/overlay/progress, ours marker)</li>
  *   <li>{@code /wv debug trigger nametagsDump} — dump per-player nametag diagnostics (reads
  *       {@link org.wynnvets.mwe.anni.outline.AnniOutlineRegistry AnniOutlineRegistry} directly;
- *       reports the gate, registry hit, tier and role, and the colour
+ *       reports the gate, registry hit, tier and role, the display name with section signs
+ *       shown as {@code &}, and the colour
  *       {@link org.wynnvets.mixin.client.NametagMixin NametagMixin}'s anni override would
  *       resolve to, or that it would not override)</li>
  *   <li>{@code /wv debug trigger ghostsPromptDump} — log (not chat) the ghosts-prompt gate
@@ -342,6 +343,9 @@ public final class DebugCommands {
      *   <li>their gameProfile username;</li>
      *   <li>whether {@link org.wynnvets.mwe.anni.outline.AnniOutlineRegistry} has
      *       an entry for them and the resolved tier / nametag {@link net.minecraft.ChatFormatting};</li>
+     *   <li>their display name as {@code original=}: {@code getDisplayName()}, the component
+     *       vanilla copies into {@code state.nameTag}, with each section sign shown as
+     *       {@code &} so Wynncraft's embedded team-colour prefix stays visible;</li>
      *   <li>what colour the {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} TAIL-of-{@code extractRenderState}
      *       branch <em>would</em> resolve to for them right now.</li>
      * </ul>
@@ -386,6 +390,8 @@ public final class DebugCommands {
                     org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.getEntry(username);
             String tier = (entry != null) ? entry.tier().name() : "-";
             String role = (entry != null && entry.role() != null) ? entry.role() : "-";
+            // Escaped, or the font would parse the very codes this column exists to show.
+            String original = p.getDisplayName().getString().replace('\u00A7', '&');
             net.minecraft.ChatFormatting fmt;
             String fmtSource;
             if (gate && nametagsEnabled) {
@@ -417,7 +423,10 @@ public final class DebugCommands {
                                             .withStyle(ChatFormatting.GRAY))
                             .append(
                                     Component.literal("  role=" + role)
-                                            .withStyle(ChatFormatting.GRAY));
+                                            .withStyle(ChatFormatting.GRAY))
+                            .append(
+                                    Component.literal("  original=" + original)
+                                            .withStyle(ChatFormatting.DARK_GRAY));
             if (fmt != null) {
                 line.append(Component.literal("  → ").withStyle(ChatFormatting.DARK_GRAY))
                         .append(Component.literal(username).withStyle(fmt))

@@ -209,12 +209,9 @@ public class NametagMixin {
             // text renderer to parse it at draw time, silently
             // overriding our .withStyle(...) colour. Stripping § codes
             // first guarantees our Style is what actually paints.
-            // /wv debug trigger nametagsDump reports the registry hit/miss
-            // and the colour this branch would pick, but it reads
-            // AnniOutlineRegistry, not render state, and prints no
-            // original= column, so it cannot show the §-prefixed string
-            // (bug nametags-dump-missing-original-column). The §-prefix
-            // observation itself is attested, not reproducible from the dump.
+            // /wv debug trigger nametagsDump shows that prefix: its
+            // original= column prints getDisplayName(), the component
+            // vanilla copies into state.nameTag, with § shown as &.
             String stripped = ChatFormatting.stripFormatting(original);
             if (stripped == null || stripped.isEmpty()) stripped = original;
             state.nameTag = Component.literal(stripped).withStyle(fmt);

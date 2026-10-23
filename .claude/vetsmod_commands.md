@@ -227,7 +227,7 @@ there.
 | `/wv debug <true\|false>` | none | none | `DiagnosticsHandler.execute` | Turns `VetsLogger`'s debug flag on or off. Case-insensitive; any other word prints a usage line and changes nothing | writes `vetsDebugEnabledAt` | none |
 | `/wv debug set` | none | none | `DebugCommands.debugConfigList` | Lists the debug config keys (`itemDump` is the only one) | chat only | none |
 | `/wv debug set <key> [<value>]` | none | none | `DebugCommands.debugConfigGet`, `debugConfigSet` | Prints or sets a debug key. Refuses an unknown key, and a value other than `true` or `false` | the set form persists the config | none |
-| `/wv debug trigger <name>` | none | none | `DebugCommands` (see below) | One of the diagnostic dumps below | chat or log; `forceChecks` also queues `/gu rank` and `/gu stats` and, when Wynntils reports a guild, can send a WebSocket `register` frame and re-run the stamp print, which can send an `anni_query` and GET `VetsApi.STAMP` (below) | `help-debug-trigger-documents-three-of-eight-leaves`, `nametags-dump-missing-original-column` |
+| `/wv debug trigger <name>` | none | none | `DebugCommands` (see below) | One of the diagnostic dumps below | chat or log; `forceChecks` also queues `/gu rank` and `/gu stats` and, when Wynntils reports a guild, can send a WebSocket `register` frame and re-run the stamp print, which can send an `anni_query` and GET `VetsApi.STAMP` (below) | `help-debug-trigger-documents-three-of-eight-leaves` |
 | `/wv debug tree anni …` | none | `requireDebug` on every leaf; `requireStaffOrOrganiser` on the `scrollspot` leaves | `AnniDebugCommands`, `AnniSnapshotDebugCommands`, `AnniHighlightDebugCommands` | The anni debug harness (below) | see below | `anni-poller-erases-injected-debug-state`, `anni-scrollspot-clear-frame-omits-scroll-spot-key` |
 
 `/wv debug true` records the time in `vetsDebugEnabledAt`, and `false` clears it. `VetsmodClient` reads that
@@ -249,8 +249,10 @@ The trigger leaves:
   and the raw name component.
 - `nametagsDump` — a header of `outlineSuppressionActive` / `vetsAnniNametagsEnabled` /
   `vetsAnniOutlinesEnabled` and a player count, then one line per player in `level.players()`:
-  `AnniOutlineRegistry` hit/miss, tier, role, and the colour `NametagMixin`'s anni branch would resolve
-  right now. It reads the registry directly; it does not observe the mixin or `state.nameTag`.
+  `AnniOutlineRegistry` hit/miss, tier, role, the display name as `original=` (each `§` shown as `&`, so
+  Wynncraft's embedded team-colour code is visible), and the colour `NametagMixin`'s anni branch would
+  resolve right now. It reads the registry and `getDisplayName()` directly; it does not observe the mixin
+  or `state.nameTag`.
 - `ghostsPromptDump` — `GhostsPromptHandler.debugDump()`: the aggressive gate, toggle, zone, stamp and
   per-player ghost state, plus whether the prompt would fire. Writes to the log, not chat.
 - `zoneLinesDump` — the aggressive gate, the `vetsAnniZoneLines` toggle, the cold-cache flag, and every
