@@ -101,8 +101,11 @@ public final class GraidsDistributor {
      * exits &mdash; no roster, no graids, nothing to send, and the send loop
      * draining &mdash; so multi-phase chains like {@link SplitDistributor}
      * advance even when this phase finds no graids or fails to read the
-     * roster. The shared send loop ends a run without it only when the run
-     * stops (the Members menu lost mid-run, by design).
+     * roster. Its one exit without it is the refusal when Wynntils' Custom
+     * Guild Log Screen is off, which ends the run itself. The log walk and
+     * the shared send loop end a run without it too, by design, when they
+     * stop it (a lost or unopened log, a lost Members menu) or the walk
+     * refuses it (a log Wynntils did not wrap).
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {

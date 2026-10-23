@@ -482,8 +482,9 @@ or, for two, by the comment it leans on: `COUNT_MAX` shares `COUNT_MIN`'s
 "Bounds on `<count>`" Javadoc, and `MAX_REBIND_ATTEMPTS`' reason is on the
 `rebindAttempts` field and in `scanAndPaginate`. None is an extrapolation
 from behaviour observed elsewhere, except the walker's `SCAN_DELAY_TICKS`,
-copied from the searcher's, and two, `STALL_TICKS` and `ARM_TTL_MS`, were
-chosen rather than observed, as their comments say. Values are current.
+copied from the searcher's, and `QUEUE_GAP_TICKS`, copied from
+`PHASE_DELAY_TICKS`; and two, `STALL_TICKS` and `ARM_TTL_MS`, were chosen
+rather than observed, as their comments say. Values are current.
 
 | Constant | Class | Value | Why |
 |---|---|---|---|
@@ -522,8 +523,10 @@ another package from scheduling.
 ## 7. Failure and stall matrix
 
 Not every failure path advances the chain. A row whose callback column says
-**no** is a stop: the run ends with one yellow "Distribution stopped: …"
-line, by design (`DistributeRuns`), and nothing it armed calls back.
+**no** ends the run instead, by design (`DistributeRuns`), and nothing it
+armed calls back. A stop prints one yellow "Distribution stopped: …" line
+and cancels the queue; a refusal (a precondition unmet) prints a red line
+and lets the queue go on.
 
 | Trigger | Detected by | Chat output | Callback fires? |
 |---|---|---|---|
@@ -752,9 +755,11 @@ Two edits, both local:
    to call it), firing that callback on every exit
    the head itself owns. The three pool distributors all carry both
    overloads; `SplitDistributor` itself carries only the two-argument
-   form, because nothing chains it. A path of the head's own that returns
-   without invoking the callback stalls the whole chain. Code the head
-   does not own still ends some runs without it — a stopped run, by
+   form, because nothing chains it. An exit the head owns may skip the
+   callback only if it ends the run itself, through `DistributeRuns.stop`
+   or `refuse`, as `@graids`' Wynntils-feature refusal does; a path of the
+   head's own that does neither stalls the whole chain. Code the head does
+   not own still ends some runs without it — a stopped or refused run, by
    design (§7).
 
 If the new head visits more than one recipient it does not write a drive

@@ -72,8 +72,8 @@ public final class GuildManageOpener {
 
     /** An arm older than this is cleared, unused, when the next menu opens: its
      *  {@code /guild manage} went unanswered. 10 s, below the searcher's 15 s watchdog, so an
-     *  arm a run has given up on cannot catch a much later Manage menu. Checked lazily, so no
-     *  timer runs. */
+     *  arm a run has given up on cannot catch a much later Manage menu. Chosen, not observed.
+     *  Checked lazily, so no timer runs. */
     private static final long ARM_TTL_MS = 10_000;
 
     private enum Target {

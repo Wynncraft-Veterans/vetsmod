@@ -449,9 +449,12 @@ public final class MembersListSearcher {
                 return;
             }
             // No Members menu open at all, or we've exhausted rebinds.
-            // Invoke not-found: a chained caller (DistributionQueue) then
-            // finds no Members menu and stops the run, rather than search
-            // for each remaining recipient in turn.
+            // Invoke not-found. With no Members menu open, a chained caller
+            // (DistributionQueue, or the literal head) finds none and stops
+            // the run, rather than search for each remaining recipient in
+            // turn. With rebinds exhausted a Members menu is still up, so the
+            // caller skips this recipient and goes on (the literal head
+            // closes the menu and ends).
             VetsLogger.debug(
                     "MembersListSearcher: lost Members menu mid-search for [{}], giving up",
                     displayQuery);

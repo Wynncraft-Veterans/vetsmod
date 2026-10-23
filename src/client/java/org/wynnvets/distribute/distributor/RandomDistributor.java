@@ -59,7 +59,7 @@ import org.wynnvets.guild.GuildStateManager;
  * Same for {@link MemberSlotPresser}'s refresh-timeout path. If the
  * Members menu itself is gone, the next pick stops the run instead. Most of
  * those failures print a chat line; the silent ones, and the paths that
- * stall the queue instead of advancing it, appear among the rows of
+ * end the run instead of advancing it (a stop or a refusal), appear among the rows of
  * {@code vetsmod_distribute.md} §7.</p>
  */
 public final class RandomDistributor {
