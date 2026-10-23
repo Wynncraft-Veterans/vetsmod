@@ -22,6 +22,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.fetcher.polling.AnniSnapshotPoller;
 import org.wynnvets.mwe.anni.network.AnniQueryClient;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
@@ -36,8 +37,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * {@code anni_query} through {@link AnniQueryClient#query()}, whose response handler writes the
  * cache when the reply carries a snapshot. {@code snapshot dump} writes the cached snapshot under
  * the game directory, where {@code inject file} reads it back. Whatever these commands put in the
- * cache lasts only until the next pull that returns a snapshot, and inside the boss-bar window the
- * snapshot poller pulls on a schedule ({@code anni-poller-erases-injected-debug-state}).</p>
+ * cache lasts until the next pull that returns a snapshot. Inject and {@code time} hold the
+ * snapshot poller's scheduled pull ({@code AnniSnapshotPoller.setDebugHold}) until
+ * {@code snapshot clear}, {@code snapshot refresh}, {@code guess} or debug mode off releases it;
+ * other pulls, such as the post-connect re-pull, still replace an injected snapshot.</p>
  *
  * <p>{@code external} and a successful {@code snapshot inject preset} write
  * {@code AnniCommandRenderer}'s external override.</p>
@@ -253,6 +256,7 @@ final class AnniSnapshotDebugCommands {
             return 0;
         }
         AnniSnapshotCache.update(snapshot);
+        AnniSnapshotPoller.setDebugHold(true);
         ChatUtils.sendLocalMessage(
                 Component.literal(
                                 "anni snapshot injected from "
@@ -383,6 +387,7 @@ final class AnniSnapshotDebugCommands {
         int gate = AnniDebugCommands.requireDebug(ctx);
         if (gate == 0) return 0;
         AnniSnapshotCache.update(null);
+        AnniSnapshotPoller.setDebugHold(false);
         ChatUtils.sendLocalMessage(
                 Component.literal(
                                 "anni snapshot cleared (cache is null; "
@@ -421,6 +426,7 @@ final class AnniSnapshotDebugCommands {
                 Component.literal("anni snapshot refreshing… (anni_query in flight)")
                         .withStyle(ChatFormatting.GRAY));
 
+        AnniSnapshotPoller.setDebugHold(false);
         AnniQueryClient.query()
                 .thenAccept(
                         snapshot -> {
@@ -485,6 +491,7 @@ final class AnniSnapshotDebugCommands {
                 Component.literal("anni guess: querying fishbot prediction…")
                         .withStyle(ChatFormatting.GRAY));
 
+        AnniSnapshotPoller.setDebugHold(false);
         AnniQueryClient.query()
                 .thenAccept(
                         snapshot -> {
@@ -704,6 +711,7 @@ final class AnniSnapshotDebugCommands {
             return 0;
         }
         AnniSnapshotCache.update(updated);
+        AnniSnapshotPoller.setDebugHold(true);
         String summary =
                 secondsFromNow > 0
                         ? ("stamp_epoch=NOW+"

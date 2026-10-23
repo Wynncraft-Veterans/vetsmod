@@ -16,6 +16,7 @@ import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
+import org.wynnvets.fetcher.polling.AnniSnapshotPoller;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
@@ -65,6 +66,7 @@ public final class DiagnosticsHandler {
                                             .withStyle(ChatFormatting.YELLOW)));
         } else if (arg.equalsIgnoreCase("false")) {
             VetsLogger.setDebugEnabled(false);
+            AnniSnapshotPoller.setDebugHold(false);
             VetsConfig.setLong(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, 0L);
             ChatUtils.sendLocalMessage(
                     Component.literal("Debug logging ")

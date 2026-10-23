@@ -67,9 +67,11 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * snapshot cache while that is fresh, and from a live vets-anni fetch otherwise
  * (v1_protocol.md §1.11).</p>
  *
- * <p>Because its gate reads the cached stamp, a debug-injected in-window snapshot arms
- * this poller, and today a reply that carries a snapshot then overwrites it
- * ({@code anni-poller-erases-injected-debug-state}).</p>
+ * <p>Because its gate reads the cached stamp, a debug-injected in-window snapshot would arm
+ * this poller, and the next reply carrying a snapshot would overwrite it. So the debug harness
+ * holds the scheduled pull while its injected snapshot stands ({@link #setDebugHold}). Other
+ * pulls, such as the post-connect re-pull or the refresh after an RSVP, still replace it, and
+ * leave the hold standing.</p>
  */
 public final class AnniSnapshotPoller {
 
@@ -84,7 +86,19 @@ public final class AnniSnapshotPoller {
                     POLL_INTERVAL_SECONDS,
                     TimeUnit.SECONDS);
 
+    /** Set after the debug harness writes the cache by hand, and cleared by its
+     *  {@code snapshot clear}, {@code snapshot refresh} and {@code guess}, and by
+     *  {@code /wv debug false}, so turning debug mode back on doesn't bring a hold back.
+     *  {@link #tick()} also ignores it while debug mode is off. */
+    private static volatile boolean debugHold = false;
+
     private AnniSnapshotPoller() {}
+
+    /** Holds or releases the scheduled pull for a debug-injected snapshot; see
+     *  {@link #debugHold}. For the debug harness and {@code /wv debug false} only. */
+    public static void setDebugHold(boolean hold) {
+        debugHold = hold;
+    }
 
     /** Starts the poll. Idempotent. */
     public static void start() {
@@ -95,6 +109,9 @@ public final class AnniSnapshotPoller {
 
     private static void tick() {
         try {
+            if (debugHold && VetsLogger.isDebugEnabled()) {
+                return;
+            }
             if (!inAnniWindow()) {
                 return;
             }
