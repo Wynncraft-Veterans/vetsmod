@@ -104,7 +104,11 @@ class HelpCommandsTest {
      * the production order so that regrouping the table by gate fails here.
      */
     private static List<String> expectedRows(
-            boolean unlocked, boolean featuresEnabled, boolean confirmedStaff) {
+            boolean unlocked,
+            boolean staff,
+            boolean staffOfAnyGuild,
+            boolean featuresEnabled,
+            boolean confirmedStaff) {
         List<String> rows = new ArrayList<>();
         rows.add("/wv help");
         rows.add("/wv anni");
@@ -112,7 +116,15 @@ class HelpCommandsTest {
         rows.add("/wv motd");
         if (unlocked) {
             rows.add("/wv list");
+        }
+        if (staff) {
+            rows.add("/wv list world");
+        }
+        if (unlocked) {
             rows.add("/wv staff");
+        }
+        if (staffOfAnyGuild) {
+            rows.add("/wv distribute <name|@selector> <type> <count>");
         }
         if (featuresEnabled) {
             rows.add("/wv return");
@@ -125,23 +137,39 @@ class HelpCommandsTest {
         return rows;
     }
 
-    private static String describe(
-            boolean unlocked, boolean featuresEnabled, boolean confirmedStaff) {
-        return "unlocked="
-                + unlocked
+    private static String describe(int mask) {
+        return "anniTools="
+                + ((mask & 1) != 0)
+                + " unlocked="
+                + ((mask & 2) != 0)
+                + " staff="
+                + ((mask & 4) != 0)
+                + " staffOfAnyGuild="
+                + ((mask & 8) != 0)
                 + " featuresEnabled="
-                + featuresEnabled
+                + ((mask & 16) != 0)
                 + " confirmedStaff="
-                + confirmedStaff;
+                + ((mask & 32) != 0);
     }
 
-    // ----- help(): the index page and its three gates -----
+    /** {@code buildHelp} with bit {@code 1 << i} of {@code mask} as its {@code i}th gate. */
+    private static MutableComponent helpFor(int mask) {
+        return HelpCommands.buildHelp(
+                (mask & 1) != 0,
+                (mask & 2) != 0,
+                (mask & 4) != 0,
+                (mask & 8) != 0,
+                (mask & 16) != 0,
+                (mask & 32) != 0);
+    }
+
+    // ----- help(): the index page and its six gates -----
 
     /** Every gate true — the widest the page ever gets. */
     @Test
-    void helpPage_withEveryGateTrue_pinsItsTwentyFiveSiblings() {
+    void helpPage_withEveryGateTrue_pinsItsThirtySiblings() {
         assertPage(
-                HelpCommands.buildHelp(true, true, true),
+                HelpCommands.buildHelp(true, true, true, true, true, true),
                 boldSib(ChatFormatting.GOLD, "Commands\n"),
                 sib(
                         ChatFormatting.GRAY,
@@ -149,7 +177,7 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "/wv help"),
                 sib(ChatFormatting.GRAY, " - Show this help message\n"),
                 sib(ChatFormatting.YELLOW, "/wv anni"),
-                sib(ChatFormatting.GRAY, " - Show annihilation timer\n"),
+                sib(ChatFormatting.GRAY, " - Show anni timer; /wv help anni for modes & RSVP\n"),
                 sib(ChatFormatting.YELLOW, "/wv config "),
                 sib(ChatFormatting.GOLD, "[<key> [<value>]]"),
                 sib(ChatFormatting.GRAY, " - View or change mod settings\n"),
@@ -157,8 +185,13 @@ class HelpCommandsTest {
                 sib(ChatFormatting.GRAY, " - Show the message of the day\n"),
                 sib(ChatFormatting.YELLOW, "/wv list"),
                 sib(ChatFormatting.GRAY, " - Show online guild members\n"),
+                sib(ChatFormatting.YELLOW, "/wv list world"),
+                sib(ChatFormatting.GRAY, " - Show online members by world\n"),
                 sib(ChatFormatting.YELLOW, "/wv staff"),
                 sib(ChatFormatting.GRAY, " - Show online stewards\n"),
+                sib(ChatFormatting.YELLOW, "/wv distribute "),
+                sib(ChatFormatting.GOLD, "<name|@selector> <type> <count>"),
+                sib(ChatFormatting.GRAY, " - Send guild rewards (Chief/Owner)\n"),
                 sib(ChatFormatting.YELLOW, "/wv return"),
                 sib(ChatFormatting.GRAY, " - Show info about this week's event\n"),
                 sib(ChatFormatting.YELLOW, "/wv line "),
@@ -175,7 +208,7 @@ class HelpCommandsTest {
     @Test
     void helpPage_withNoGate_pinsItsThirteenSiblings() {
         assertPage(
-                HelpCommands.buildHelp(false, false, false),
+                HelpCommands.buildHelp(false, false, false, false, false, false),
                 boldSib(ChatFormatting.GOLD, "Commands\n"),
                 sib(
                         ChatFormatting.GRAY,
@@ -183,7 +216,7 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "/wv help"),
                 sib(ChatFormatting.GRAY, " - Show this help message\n"),
                 sib(ChatFormatting.YELLOW, "/wv anni"),
-                sib(ChatFormatting.GRAY, " - Show annihilation timer\n"),
+                sib(ChatFormatting.GRAY, " - Show anni timer\n"),
                 sib(ChatFormatting.YELLOW, "/wv config "),
                 sib(ChatFormatting.GOLD, "[<key> [<value>]]"),
                 sib(ChatFormatting.GRAY, " - View or change mod settings\n"),
@@ -194,46 +227,71 @@ class HelpCommandsTest {
     }
 
     /**
-     * All eight gate combinations, each against its exact ordered row set. Row
-     * order is gate-interleaved — four unconditional rows, then the gated ones,
-     * then {@code /wv debug} — so grouping a table by gate would reorder the page
-     * and fail here rather than in review.
+     * All sixty-four gate combinations, each against its exact ordered row set.
+     * Row order is gate-interleaved — four unconditional rows, then the gated
+     * ones, then {@code /wv debug}; {@code /wv list world} sits between the two
+     * unlocked rows — so grouping a table by gate would reorder the page and fail
+     * here rather than in review. {@code anniTools} changes only a row's text,
+     * which {@link #anniRowPointsAtTheAnniPageOnlyWithAnniTools} pins.
      */
     @Test
-    void gateMatrix_allEightCombinationsProduceTheirExactRowSet() {
-        for (int mask = 0; mask < 8; mask++) {
-            boolean unlocked = (mask & 1) != 0;
-            boolean featuresEnabled = (mask & 2) != 0;
-            boolean confirmedStaff = (mask & 4) != 0;
+    void gateMatrix_allSixtyFourCombinationsProduceTheirExactRowSet() {
+        for (int mask = 0; mask < 64; mask++) {
             assertEquals(
-                    expectedRows(unlocked, featuresEnabled, confirmedStaff),
-                    rowsOf(HelpCommands.buildHelp(unlocked, featuresEnabled, confirmedStaff)),
-                    describe(unlocked, featuresEnabled, confirmedStaff));
+                    expectedRows(
+                            (mask & 2) != 0,
+                            (mask & 4) != 0,
+                            (mask & 8) != 0,
+                            (mask & 16) != 0,
+                            (mask & 32) != 0),
+                    rowsOf(helpFor(mask)),
+                    describe(mask));
+        }
+    }
+
+    /** The {@code /wv anni} row's description, the sibling after its head. */
+    private static String anniRowText(MutableComponent page) {
+        List<Component> siblings = page.getSiblings();
+        for (int i = 0; i < siblings.size() - 1; i++) {
+            if (siblings.get(i).getString().equals("/wv anni")) {
+                return siblings.get(i + 1).getString();
+            }
+        }
+        throw new AssertionError("no /wv anni row");
+    }
+
+    /**
+     * A vet or an authenticated player is pointed at the modes and RSVP; an
+     * unauthenticated non-member keeps the plain timer row (the 2026-10-22
+     * ruling), whatever the other gates say.
+     */
+    @Test
+    void anniRowPointsAtTheAnniPageOnlyWithAnniTools() {
+        for (int mask = 0; mask < 64; mask++) {
+            assertEquals(
+                    (mask & 1) != 0
+                            ? " - Show anni timer; /wv help anni for modes & RSVP\n"
+                            : " - Show anni timer\n",
+                    anniRowText(helpFor(mask)),
+                    describe(mask));
         }
     }
 
     /**
      * Commit {@code be482b1} is the fix this protects: {@code /wv list} was
      * printed twice, and advertised on the vet predicate rather than on
-     * {@code isUnlocked()}. Across all eight combinations it must appear exactly
-     * once when unlocked and never otherwise.
+     * {@code isUnlocked()}. Across all sixty-four combinations it must appear
+     * exactly once when unlocked and never otherwise; the {@code /wv list world}
+     * row is a different row and is not counted.
      */
     @Test
     void wvListIsAdvertisedExactlyOnceWhenUnlockedAndNeverOtherwise() {
-        for (int mask = 0; mask < 8; mask++) {
-            boolean unlocked = (mask & 1) != 0;
-            boolean featuresEnabled = (mask & 2) != 0;
-            boolean confirmedStaff = (mask & 4) != 0;
-            long advertised =
-                    rowsOf(HelpCommands.buildHelp(unlocked, featuresEnabled, confirmedStaff))
-                            .stream()
-                            .filter("/wv list"::equals)
-                            .count();
+        for (int mask = 0; mask < 64; mask++) {
+            long advertised = rowsOf(helpFor(mask)).stream().filter("/wv list"::equals).count();
             assertEquals(
-                    unlocked ? 1L : 0L,
+                    (mask & 2) != 0 ? 1L : 0L,
                     advertised,
-                    "/wv list advert count for "
-                            + describe(unlocked, featuresEnabled, confirmedStaff));
+                    "/wv list advert count for " + describe(mask));
         }
     }
 
@@ -352,15 +410,49 @@ class HelpCommandsTest {
                 sib(ChatFormatting.WHITE, "None (public)"));
     }
 
+    /** Unauthenticated: the timer and the modes, with no rsvp row. */
     @Test
-    void helpAnniPage_pinsItsFourSiblings() {
+    void helpAnniPage_unauthenticated_pinsItsSevenSiblings() {
         assertPage(
-                HelpCommands.buildHelpAnni(),
+                HelpCommands.buildHelpAnni(false),
                 sib(ChatFormatting.YELLOW, "/wv anni\n"),
                 sib(
                         ChatFormatting.GRAY,
                         "Show how long until the next annihilation event, "
                                 + "if one has been announced.\n"),
+                sib(ChatFormatting.YELLOW, "/wv anni "),
+                sib(ChatFormatting.GOLD, "<silent|passive|aggressive>\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Set your anni mode: silent turns anni features off, passive suits folks"
+                                + " experienced at attending vets-annis, and aggressive suits"
+                                + " folks attending their first.\n"),
+                sib(ChatFormatting.GRAY, "Requires: "),
+                sib(ChatFormatting.WHITE, "None (public)"));
+    }
+
+    /** Authenticated: the rsvp row follows the modes, and the footer stays public. */
+    @Test
+    void helpAnniPage_authenticated_pinsItsTenSiblings() {
+        assertPage(
+                HelpCommands.buildHelpAnni(true),
+                sib(ChatFormatting.YELLOW, "/wv anni\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Show how long until the next annihilation event, "
+                                + "if one has been announced.\n"),
+                sib(ChatFormatting.YELLOW, "/wv anni "),
+                sib(ChatFormatting.GOLD, "<silent|passive|aggressive>\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Set your anni mode: silent turns anni features off, passive suits folks"
+                                + " experienced at attending vets-annis, and aggressive suits"
+                                + " folks attending their first.\n"),
+                sib(ChatFormatting.YELLOW, "/wv anni rsvp "),
+                sib(ChatFormatting.GOLD, "<hard|soft|revoke>\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Send a hard or soft RSVP for the next anni, or revoke yours.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.WHITE, "None (public)"));
     }
@@ -571,7 +663,12 @@ class HelpCommandsTest {
         assertRequirement(
                 HelpCommands.buildHelpMotd(), ChatFormatting.WHITE, "None (public)", "motd");
         assertRequirement(
-                HelpCommands.buildHelpAnni(), ChatFormatting.WHITE, "None (public)", "anni");
+                HelpCommands.buildHelpAnni(false), ChatFormatting.WHITE, "None (public)", "anni");
+        assertRequirement(
+                HelpCommands.buildHelpAnni(true),
+                ChatFormatting.WHITE,
+                "None (public)",
+                "anni, authenticated");
         assertRequirement(
                 HelpCommands.buildHelpDebug(), ChatFormatting.WHITE, "None (public)", "debug");
         assertRequirement(

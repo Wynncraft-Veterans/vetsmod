@@ -48,9 +48,10 @@ Two gates, reading two different confirmed-side signals:
 | Visibility (`.requires`) | `GuildStateManager.isStaffOfAnyGuild()` | `isConfirmedStaff()`, a boolean | `Models.Guild.getGuildRank()` ordinal ≥ `CAPTAIN` |
 | Execution (`DistributeCommands.ensureChief`) | `GuildStateManager.isChiefOfAnyGuild()` | `confirmedStaffRank()`, a string matched against `"chief"`/`"owner"` | rank is `CHIEF` or `OWNER` |
 
-As of this writing each predicate has exactly one call site, both in
-`DistributeCommands` — nothing enforces that, so re-grep before relying
-on it. A strategist sees the command in autocomplete and gets a red error
+As of this writing `isChiefOfAnyGuild` has one call site, in
+`DistributeCommands`, and `isStaffOfAnyGuild` two: the `.requires` there
+and `HelpCommands.help`, which shows the `/wv distribute` index row on
+the same gate. Nothing enforces that, so re-grep before relying on it. A strategist sees the command in autocomplete and gets a red error
 on execute; a Returners captain is visible only through the Wynntils
 fallback, because captain is no longer confirmed staff at all —
 the server retired it in the 2026-07 permission restructure and simply

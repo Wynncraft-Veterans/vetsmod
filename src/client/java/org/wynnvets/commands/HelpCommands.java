@@ -185,7 +185,11 @@ final class HelpCommands {
     static int help(CommandContext<FabricClientCommandSource> ctx) {
         ChatUtils.sendLocalMessageNewBlock(
                 buildHelp(
+                        GuildStateManager.isEligibleForEnrichment()
+                                || GuildStateManager.isAuthenticatedThisSession(),
                         GuildStateManager.isUnlocked(),
+                        GuildStateManager.isStaff(),
+                        GuildStateManager.isStaffOfAnyGuild(),
                         GuildStateManager.areFeaturesEnabled(),
                         GuildStateManager.isConfirmedStaff()));
         return 1;
@@ -194,14 +198,28 @@ final class HelpCommands {
     /**
      * Builds the bare {@code /wv help} index page.
      *
-     * <p>The three gates arrive as parameters rather than being read from
+     * <p>The six gates arrive as parameters rather than being read from
      * {@link GuildStateManager} here: the rows they guard are interleaved with
      * the unconditional ones, so the page is only enumerable when the gates are
      * inputs.  Reading them once, together, at the call site also stops the
      * page straddling a {@code GuildChecker} cache expiry mid-build.</p>
+     *
+     * <p>Each staff row takes the gate its command checks: {@code /wv list world}
+     * refuses unless {@code isStaff()}, {@code /wv distribute}'s node requires
+     * {@code isStaffOfAnyGuild()} (running it also needs Chief or Owner, which the
+     * row says), and {@code /wv check} needs {@code isConfirmedStaff()}.
+     * {@code anniTools} — a vet, or authenticated — only changes the
+     * {@code /wv anni} row's text, pointing at the modes and RSVP on
+     * {@code /wv help anni}; an unauthenticated non-member keeps the plain row.
+     * {@code /wv invite-force} is deliberately never listed.</p>
      */
     static MutableComponent buildHelp(
-            boolean unlocked, boolean featuresEnabled, boolean confirmedStaff) {
+            boolean anniTools,
+            boolean unlocked,
+            boolean staff,
+            boolean staffOfAnyGuild,
+            boolean featuresEnabled,
+            boolean confirmedStaff) {
         MutableComponent msg = Component.empty();
         title(msg, "Commands\n");
         line(
@@ -209,12 +227,29 @@ final class HelpCommands {
                 ChatFormatting.GRAY,
                 "Use /wv help <command> for details on a specific command.\n\n");
         row(msg, "/wv help", gray(" - Show this help message\n"));
-        row(msg, "/wv anni", gray(" - Show annihilation timer\n"));
+        row(
+                msg,
+                "/wv anni",
+                gray(
+                        anniTools
+                                ? " - Show anni timer; /wv help anni for modes & RSVP\n"
+                                : " - Show anni timer\n"));
         row(msg, "/wv config [<key> [<value>]]", gray(" - View or change mod settings\n"));
         row(msg, "/wv motd", gray(" - Show the message of the day\n"));
         if (unlocked) {
             row(msg, "/wv list", gray(" - Show online guild members\n"));
+        }
+        if (staff) {
+            row(msg, "/wv list world", gray(" - Show online members by world\n"));
+        }
+        if (unlocked) {
             row(msg, "/wv staff", gray(" - Show online stewards\n"));
+        }
+        if (staffOfAnyGuild) {
+            row(
+                    msg,
+                    "/wv distribute <name|@selector> <type> <count>",
+                    gray(" - Send guild rewards (Chief/Owner)\n"));
         }
         if (featuresEnabled) {
             row(msg, "/wv return", gray(" - Show info about this week's event\n"));
@@ -287,7 +322,7 @@ final class HelpCommands {
     }
 
     /**
-     * The shape shared by the seven {@code /wv help <command>} detail pages: a
+     * The shape shared by the six {@code /wv help <command>} detail pages: a
      * usage line, a line of prose, and the {@code Requires:} footer.
      *
      * <p>The trailing newlines stay in {@code usage} and {@code prose} rather
@@ -379,17 +414,40 @@ final class HelpCommands {
     }
 
     static int helpAnni(CommandContext<FabricClientCommandSource> ctx) {
-        ChatUtils.sendLocalMessageNewBlock(buildHelpAnni());
+        ChatUtils.sendLocalMessageNewBlock(
+                buildHelpAnni(GuildStateManager.isAuthenticatedThisSession()));
         return 1;
     }
 
-    static MutableComponent buildHelpAnni() {
-        return detailPage(
+    /**
+     * The {@code /wv anni} page: the timer, the three modes, and {@code rsvp} when
+     * the session is authenticated, the only gate {@code AnniRsvpCommand} checks.
+     * The modes have no gate, so the footer stays public. The mode prose is the
+     * audience wording of {@code AnniCommandRenderer}'s mode buttons.
+     */
+    static MutableComponent buildHelpAnni(boolean authenticated) {
+        MutableComponent msg = Component.empty();
+        row(
+                msg,
                 "/wv anni\n",
-                "Show how long until the next annihilation event, "
-                        + "if one has been announced.\n",
-                Access.PUBLIC,
-                "None (public)");
+                gray(
+                        "Show how long until the next annihilation event, "
+                                + "if one has been announced.\n"));
+        row(
+                msg,
+                "/wv anni <silent|passive|aggressive>\n",
+                gray(
+                        "Set your anni mode: silent turns anni features off, passive suits folks"
+                                + " experienced at attending vets-annis, and aggressive suits"
+                                + " folks attending their first.\n"));
+        if (authenticated) {
+            row(
+                    msg,
+                    "/wv anni rsvp <hard|soft|revoke>\n",
+                    gray("Send a hard or soft RSVP for the next anni, or revoke yours.\n"));
+        }
+        requires(msg, Access.PUBLIC, "None (public)");
+        return msg;
     }
 
     static int helpLine(CommandContext<FabricClientCommandSource> ctx) {

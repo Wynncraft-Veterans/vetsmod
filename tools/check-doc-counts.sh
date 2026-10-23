@@ -93,7 +93,7 @@ DebugCommands.buildCommandTree|1|DebugCommands class doc: CommandRegistry is the
 AnniDebugCommands.buildCommandTree|1|AnniDebugCommands#buildCommandTree: caller is DebugCommands
 DebugConfigManager.isDebugConfigKey|2|DebugConfigManager#isDebugConfigKey: the two /wv debug set handlers
 AnimatedGradientSequence.beginAnimation|1|vetsmod_rendering.md: the one real caller, LocalChatDispatch.dispatchAnimatedChat
-GuildStateManager.isStaffOfAnyGuild|1|vetsmod_distribute.md sec 1: each gate predicate has exactly one call site
+GuildStateManager.isStaffOfAnyGuild|2|vetsmod_distribute.md sec 1: the .requires in DistributeCommands and the /wv distribute row in HelpCommands.help
 GuildStateManager.isChiefOfAnyGuild|1|vetsmod_distribute.md sec 1; isChiefOfAnyGuild names ensureChief as its call site
 V1ApiManager.confirmedStaffRank|1|V1ApiManager#confirmedStaffRank: One consumer, via the GuildStateManager delegate
 OutboundCommand.queueFront|2|vetsmod_distribute.md sec 8: Two call sites, both in GuildManageOpener

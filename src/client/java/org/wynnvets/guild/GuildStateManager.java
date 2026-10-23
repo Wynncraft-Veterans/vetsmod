@@ -98,7 +98,8 @@ public final class GuildStateManager {
      *
      * <p>Used by {@code /wv distribute}'s {@code .requires(...)} predicate
      * so brigadier surfaces it in autocomplete reliably for staff without
-     * leaking it to non-staff.</p>
+     * leaking it to non-staff, and by {@code /wv help} to show the
+     * {@code /wv distribute} row to the same players.</p>
      */
     public static boolean isStaffOfAnyGuild() {
         if (isConfirmedStaff()) return true;
@@ -223,7 +224,9 @@ public final class GuildStateManager {
      * {@link org.wynnvets.mwe.anni.render.AnniCommandRenderer AnniCommandRenderer}'s "external vs
      * vets" test (enriched printout vs the legacy stamp-only fallback), and it drives the
      * eligibility-based default anni mode (PASSIVE if eligible, SILENT otherwise) in
-     * {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}.</p>
+     * {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}. {@code /wv help} also
+     * reads it, with {@link #isAuthenticatedThisSession()}, to pick its {@code /wv anni} row's
+     * text.</p>
      *
      * @return true if eligible for enrichment, false otherwise
      */
