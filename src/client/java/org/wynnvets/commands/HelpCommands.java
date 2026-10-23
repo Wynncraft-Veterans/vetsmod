@@ -163,8 +163,9 @@ final class HelpCommands {
      * <p>Five of the six gated pages are this shape. Their requirement — vet,
      * unlocked, Returners — is decided locally from a cache the mod fills on world
      * join, and the only thing the server independently vouches for is that this
-     * session presented a key and was acked. {@code /wv check} is the exception
-     * and resolves its own pair.</p>
+     * session presented a key and was acked. {@code /wv check} is the exception:
+     * its gate is the server's staff roster itself, which it passes as both
+     * signals.</p>
      */
     private static Access sessionBacked(boolean met) {
         return access(met, met && GuildStateManager.isAuthenticatedThisSession());
@@ -187,7 +188,7 @@ final class HelpCommands {
                         GuildStateManager.isEligibleForEnrichment(),
                         GuildStateManager.isUnlocked(),
                         GuildStateManager.areFeaturesEnabled(),
-                        GuildStateManager.isStaff()));
+                        GuildStateManager.isConfirmedStaff()));
         return 1;
     }
 
@@ -201,7 +202,7 @@ final class HelpCommands {
      * page straddling a {@code GuildChecker} cache expiry mid-build.</p>
      */
     static MutableComponent buildHelp(
-            boolean vet, boolean unlocked, boolean featuresEnabled, boolean staff) {
+            boolean vet, boolean unlocked, boolean featuresEnabled, boolean confirmedStaff) {
         MutableComponent msg = Component.empty();
         title(msg, "Commands\n");
         line(
@@ -225,7 +226,7 @@ final class HelpCommands {
                     "/wv line <church|scrap|bat|hegea|lighthouse>",
                     gray(" - Toggle gxp boundary lines\n"));
         }
-        if (staff) {
+        if (confirmedStaff) {
             row(msg, "/wv check <player>", gray(" - Look up a potential recruit's info\n"));
         }
         row(msg, "/wv debug", gray(" - Diagnostics & debug tools"));
@@ -307,22 +308,19 @@ final class HelpCommands {
     }
 
     static int helpCheck(CommandContext<FabricClientCommandSource> ctx) {
-        ChatUtils.sendLocalMessageNewBlock(
-                buildHelpCheck(
-                        access(GuildStateManager.isStaff(), GuildStateManager.isConfirmedStaff())));
+        boolean confirmed = GuildStateManager.isConfirmedStaff();
+        ChatUtils.sendLocalMessageNewBlock(buildHelpCheck(access(confirmed, confirmed)));
         return 1;
     }
 
     /**
-     * The one page whose CONFIRMED signal is a permission of its own rather than
-     * the session's: {@code isStaff()} is the cached {@code /gu rank} answer and
-     * {@code isConfirmedStaff()} is the roster answer the server returned on the
-     * auth ack. Both entry points gate on the latter, so a GRANTED footer here
-     * means the rank looks right and the command will still refuse.
-     *
-     * <p>That gap is filed as {@code help-advertises-wv-check-on-a-weaker-gate}
-     * and is not fixed here — the index row still advertises on {@code isStaff()}.
-     * This footer only reports both signals where it used to report neither.</p>
+     * The one page whose gate is a permission of its own rather than the
+     * session's: {@code isConfirmedStaff()}, the roster answer the server returned
+     * on the auth ack, which both entry points gate on. {@link #helpCheck} passes
+     * it as both signals, so the footer is AQUA or RED, never GREEN: the cached
+     * {@code /gu rank} answer ({@code isStaff()}) can say Captain+ while the
+     * command still refuses, and neither this footer nor the index row reads
+     * it.
      */
     static MutableComponent buildHelpCheck(Access access) {
         return detailPage(

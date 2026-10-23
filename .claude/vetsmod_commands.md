@@ -83,7 +83,7 @@ What each gate checks:
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
-| `/wv help` | none | none | `HelpCommands.help` → `buildHelp` | The index page. `/wv help`, `/wv anni`, `/wv config` and `/wv debug` always; `/wv motd` when `isEligibleForEnrichment()`; `/wv list` and `/wv staff` when `isUnlocked()`; `/wv return` and `/wv line` when `areFeaturesEnabled()`; `/wv check` when `isStaff()` | chat only | `help-advertises-wv-check-on-a-weaker-gate`, `help-footers-name-gates-return-and-motd-lack`, `wv-help-omits-five-registered-paths` |
+| `/wv help` | none | none | `HelpCommands.help` → `buildHelp` | The index page. `/wv help`, `/wv anni`, `/wv config` and `/wv debug` always; `/wv motd` when `isEligibleForEnrichment()`; `/wv list` and `/wv staff` when `isUnlocked()`; `/wv return` and `/wv line` when `areFeaturesEnabled()`; `/wv check` when `isConfirmedStaff()` | chat only | `help-footers-name-gates-return-and-motd-lack`, `wv-help-omits-five-registered-paths` |
 | `/wv help config`, `check`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger` | none | none | `HelpCommands.helpX` → `buildHelpX` | One detail page each. Most are a usage line, a line of prose and a `Requires:` footer; the config page lists its keys with no footer, and the debug pages list their subcommands, keys or actions above the footer | chat only | none |
 
 Every page is a `buildX` returning the page plus a `helpX` that sends it, so a page is a value a
@@ -111,10 +111,9 @@ site that wrote it:
   debug set and debug trigger pages pass it as a constant. GREEN means *this should work*; AQUA means
   *the server agrees*. Five of the six gated pages take `sessionBacked(met)`, whose confirmation is
   `met && isAuthenticatedThisSession()` (so an authenticated viewer who fails the local gate still sees
-  DENIED). `/wv check` is the exception and pairs `isStaff()` with `isConfirmedStaff()`, which is why it
-  can render GREEN on a command that will still refuse: the footer reports both signals by design, and
-  the index row still advertises `/wv check` on `isStaff()` alone (bug
-  `help-advertises-wv-check-on-a-weaker-gate`). The return and motd footers colour gates their commands
+  DENIED). `/wv check` is the exception: its gate is `isConfirmedStaff()`, the server's roster answer,
+  which it passes as both signals, so its footer is AQUA or RED and never GREEN, and the index row
+  advertises it on the same gate. The return and motd footers colour gates their commands
   do not have, so their RED does not mean the command will refuse (bug
   `help-footers-name-gates-return-and-motd-lack`). The detail builders take an `Access` rather than
   reading `GuildStateManager`, for the same reason `buildHelp` takes its gates as parameters.
@@ -123,13 +122,13 @@ site that wrote it:
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
-| `/wv check <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.check` | `UserInfoFetcher.checkUser`: name → UUID through the `PlayerLookup` cascade, then the Wynncraft profile, dazebot's membership snapshot and, once there is a profile, guild-roster cross-checks. Then `CautionCommands.runCheckCautions` for the caution history | HTTP: the name lookup cascade, the Wynncraft profile and guild rosters. WebSocket: `check_membership` and `caution_check` frames | `help-advertises-wv-check-on-a-weaker-gate`; the `wv-check-*` files; `check-membership-ack-drops-last-seen-observed`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect` |
+| `/wv check <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.check` | `UserInfoFetcher.checkUser`: name → UUID through the `PlayerLookup` cascade, then the Wynncraft profile, dazebot's membership snapshot and, once there is a profile, guild-roster cross-checks. Then `CautionCommands.runCheckCautions` for the caution history | HTTP: the name lookup cascade, the Wynncraft profile and guild rosters. WebSocket: `check_membership` and `caution_check` frames | `wv-check-head-inject-order-unsettled`; the `wv-check-*` files; `check-membership-ack-drops-last-seen-observed`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect` |
 | `/wv invite-force <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.inviteForce` → `InviteGate.forceDispatch` | Sends `/gu invite <playerName>` with every `InviteGate` check skipped, and prints "Dispatching /gu invite <name> (vetsmod gate bypassed)." in gold, with the command itself in yellow. `InviteGate`'s `[Invite anyway]` button runs it | in-game `/gu invite`, sent through `GuildChatDispatcher.sendCommandBypassed` | none |
 
 `/wv check <playerName>` and `/wv invite-force <playerName>` read the name with
 `StringArgumentType.string()`, so a name is one unquoted token or a quoted string. Which hook handles a
 typed `/wv check` first, Fabric's or `GuildChatDispatcher`'s, is not settled; see
-`help-advertises-wv-check-on-a-weaker-gate`.
+`wv-check-head-inject-order-unsettled`.
 
 ### `/wv return`, `/wv list`, `/wv staff` and `/wv motd`
 
@@ -398,7 +397,7 @@ server as typed. "Passes through" below means the same.
 | `/v <message>` | `isUnlocked()`, then `isStaff()`; a non-staff command passes through, and a staff-rank refresh starts | `handleStaffChat` | Refused in red during `/stream` and above 234 characters. Otherwise, once the staff-presence check passes, echoed locally and sent to each other online staff member as `/msg <name> 🔐<message>`, with the banned hard set removed from both | `dispatcher-notices-misattribute-cause`, `find-phase-does-not-yield-to-queued-msg` |
 | `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | `dispatcher-notices-misattribute-cause` |
 | `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | `dispatcher-notices-misattribute-cause`, `raw-rank-pills-bypass-display-remap` |
-| `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | `help-advertises-wv-check-on-a-weaker-gate`, and §1's `/wv check` row |
+| `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | `wv-check-head-inject-order-unsettled`, and §1's `/wv check` row |
 | `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `vets-snapshot-provider-skips-confirmed-staff-check`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
 | `/guild invite <name>` | as `/gu invite` | `InviteGate.checkInvite` | As `/gu invite`; an allowed invite is sent as `gu invite` | as `/gu invite` |
 | `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `caution-confirm-click-bypasses-intercept`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `outbound-socket-never-authenticated` |
@@ -421,7 +420,7 @@ handler with no arguments and prints its usage line; `/eject <name>` with no mes
 
 The chat-path `/wv check` and Fabric's §1 node both hook a typed `/wv check`, and whichever runs first and
 acts on it cancels the send, so the other never sees it. Which runs first is a question of injection order
-that source has not settled; bug `help-advertises-wv-check-on-a-weaker-gate`
+that source has not settled; bug `wv-check-head-inject-order-unsettled`
 holds the reading and the in-game check that would settle it.
 
 `/msg` is not intercepted. vetsmod emits it: the `/v` fan-out queues one per recipient, and the names in
