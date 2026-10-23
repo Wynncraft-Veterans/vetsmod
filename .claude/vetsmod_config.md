@@ -99,7 +99,7 @@ The first column names the class that declares each method. `VetsConfigKeys` hol
 | `VetsConfigSchema` | `isTriStateKey(key)` / `isStringKey(key)` / `isIntKey(key)` | scan `TRISTATE_KEYS` / `STRING_CONFIG_KEYS` / `INT_CONFIG_KEYS` |
 | `VetsConfigSchema` | `getIntDefault(key)` / `getStringDefault(key)` | from INT_DEFAULTS/STRING_DEFAULTS maps |
 | `VetsConfig` | `registerDefault(key, defaultValue)` | for subsystems; boolean keys only, must run before `load()` |
-| `VetsConfig` | `load()` | creates the file from defaults when absent |
+| `VetsConfig` | `load()` | creates the file from defaults when absent; a file that can't be parsed is moved aside and the defaults are used (§6) |
 | `VetsConfig` | `save()` | **private**; called by every setter and by `load()` |
 | `LegacyItemStyle` | `isValidColor(name)` | delegates to `NamedColor.isValid`, which reads `NamedColor`'s private `COLORS` map |
 | `LegacyItemStyle` | `isValidSprite(name)` | matches against the `VetsConfigSchema.VALID_SPRITES` array — there is no sprite enum |
@@ -155,6 +155,8 @@ The two copies agree; nothing checks that they keep agreeing.
 ## 6. Persistence
 
 JSON pretty-printed via GSON. Parent dir created if missing. Missing keys use in-memory defaults. IO exceptions logged as `warn`.
+
+**A file that can't be parsed** (malformed JSON, a number out of range, bytes that aren't UTF-8) no longer stops the game from starting. `load()` logs it at `warn`, moves it aside as `config.json.bad-<epoch>` before any setter's `save()` can overwrite it, and runs on the defaults, keeping any keys it had already applied. The player loses their settings and stored `/unlock` key until that file is repaired and moved back. `save()` is still neither atomic nor serialised.
 
 **Type strictness on load:** Only correctly-typed JSON values are accepted — a string where a boolean is expected is ignored.
 

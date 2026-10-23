@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.io.IOException;
+import java.nio.charset.CharacterCodingException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -222,6 +223,11 @@ public final class VetsConfig {
     /**
      * Load configuration from file
      * Should be called during mod initialization
+     *
+     * <p>A file that can't be parsed (malformed JSON, an out-of-range number, bytes that aren't
+     * UTF-8) never stops the game from starting: it is logged at warn, moved aside as
+     * {@code config.json.bad-<epoch>}, and the defaults are used. So the player's settings and
+     * stored {@code /unlock} key are lost until that file is repaired and moved back.</p>
      */
     public static void load() {
         if (!Files.exists(CONFIG_FILE)) {
@@ -289,8 +295,27 @@ public final class VetsConfig {
 
                 VetsLogger.debug("Configuration loaded");
             }
+        } catch (RuntimeException | CharacterCodingException e) {
+            // The file doesn't parse (a hand edit's typo, a number out of range, bytes that
+            // aren't UTF-8). Move it aside before any setter's save() can overwrite it, and run
+            // on the defaults, keeping any keys already applied.
+            VetsLogger.warn(
+                    "Config file {} could not be read ({}); using defaults",
+                    CONFIG_FILE,
+                    e.toString());
+            quarantineBadConfig();
         } catch (IOException e) {
             VetsLogger.warn("Failed to load config: {}", e.getMessage());
+        }
+    }
+
+    private static void quarantineBadConfig() {
+        Path aside = CONFIG_FILE.resolveSibling("config.json.bad-" + System.currentTimeMillis());
+        try {
+            Files.move(CONFIG_FILE, aside);
+            VetsLogger.warn("Moved the unreadable config file to {}", aside);
+        } catch (IOException | RuntimeException e) {
+            VetsLogger.warn("Could not move the unreadable config file aside: {}", e.toString());
         }
     }
 
