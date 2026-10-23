@@ -223,10 +223,9 @@ public final class VetsConfigKeys {
      *  {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker} (mode not silent,
      *  at least one of this and {@link #VETS_ANNI_NAMETAGS_ENABLED} on, T-2h..T+30m, in the anni
      *  zone), which reads it right after the mode check, whether or not the rest of the gate then
-     *  holds. Past the gate, today it gates only the outsider-outline suppression: the
-     *  registry-tier glow is applied whenever the gate holds, so with this off and nametags on,
-     *  registry members still glow and the nametags-only half can't be had
-     *  ({@code outlines-toggle-does-not-gate-registry-glow}). Default {@code true}.</p> */
+     *  holds. Past the gate, it gates both halves of the outline overlay: the registry-tier glow,
+     *  which the ticker applies only while this is on, and the outsider-outline suppression.
+     *  Default {@code true}.</p> */
     public static final String VETS_ANNI_OUTLINES_ENABLED = "vetsAnniOutlinesEnabled";
 
     /** S4 — Master toggle for the per-player nametag overlay (role colour
