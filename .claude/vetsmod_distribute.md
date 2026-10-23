@@ -277,10 +277,10 @@ Guards on `GuildStateManager.isWynntilsReady()`, then combines
 aspects), filters, hops
 to the tick thread, and `beginPicks` shuffles and takes
 `min(count, roster.size())`. `<count>` means **recipients**: one of the
-resource per pick, picks being distinct roster entries — though two
-members sharing a tile name can make one tile the target twice, giving
-one member two and the other none
-(`random-distributor-can-target-one-tile-twice`).
+resource per pick, picks being distinct tile names
+(`RandomDistributor.distinctIgnoringCase`, folded with `Locale.ROOT`): two
+members whose tile names coincide are one tile in the Members GUI, so only
+the first stays in the pool.
 
 Picks come from the wapi legacy-name roster rather than
 `Models.Guild.getGuildMembers()` on purpose: the former is already in

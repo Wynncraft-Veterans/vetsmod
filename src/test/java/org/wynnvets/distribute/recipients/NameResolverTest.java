@@ -99,7 +99,7 @@ class NameResolverTest {
     @Test
     void extractAllLegacyNames_canProduceDuplicates() {
         // Two distinct members both display as "Dana". The list is not
-        // deduplicated, so a random pick weights that tile twice.
+        // deduplicated here; RandomDistributor dedupes it before picking.
         List<String> names = NameResolver.extractAllLegacyNames(ROSTER);
         assertEquals(2, names.stream().filter("Dana"::equals).count());
     }

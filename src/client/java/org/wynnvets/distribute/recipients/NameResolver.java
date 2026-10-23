@@ -74,8 +74,8 @@ public final class NameResolver {
      * <p>The list is not deduplicated: members whose tile names coincide
      * &mdash; for example one member's {@code legacyName} equal to the current
      * name of another who has none &mdash; each contribute an entry
-     * ({@code NameResolverTest} pins this; see
-     * {@code random-distributor-can-target-one-tile-twice}).</p>
+     * ({@code NameResolverTest} pins this). {@code RandomDistributor}, its
+     * one caller, dedupes the list before picking.</p>
      *
      * <p>Returns an empty list on any failure (no guild, no network,
      * unexpected payload).</p>

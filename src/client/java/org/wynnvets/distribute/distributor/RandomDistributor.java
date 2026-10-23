@@ -5,7 +5,9 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 import java.util.Set;
 import net.minecraft.ChatFormatting;
@@ -26,9 +28,9 @@ import org.wynnvets.guild.GuildStateManager;
  *
  * <h2>Count semantics</h2>
  * <p>For {@code @random}, {@code <count>} is the <em>number of
- * recipients to pick</em>, capped at the pool size &mdash; distinct roster
- * entries, though two members sharing a tile name can make one tile the
- * target twice ({@code random-distributor-can-target-one-tile-twice}); each
+ * recipients to pick</em>, capped at the pool size &mdash; distinct tile
+ * names ({@link #distinctIgnoringCase}), since two members whose tile names
+ * coincide are one tile in the Members GUI; each
  * pick is sent one of the resource. This differs
  * from the single-user form where {@code <count>} is "presses sent to
  * that one user", but matches what a raffle-style giveaway needs.</p>
@@ -131,6 +133,20 @@ public final class RandomDistributor {
         return out;
     }
 
+    /** Keeps each name once, ignoring case (folded with {@link Locale#ROOT}), in its first
+     *  spelling and position. Two members whose tile names coincide are one tile: the searcher
+     *  stops at the first that matches, so picking both would send that tile two and the other
+     *  member none. */
+    // Package-private for unit tests. See RandomDistributorTest.
+    static List<String> distinctIgnoringCase(List<String> names) {
+        Set<String> seen = new HashSet<>();
+        List<String> out = new ArrayList<>(names.size());
+        for (String name : names) {
+            if (seen.add(name.toLowerCase(Locale.ROOT))) out.add(name);
+        }
+        return out;
+    }
+
     private static void beginPicks(
             List<String> legacyNames,
             int count,
@@ -144,7 +160,7 @@ public final class RandomDistributor {
             return;
         }
 
-        List<String> shuffled = new ArrayList<>(legacyNames);
+        List<String> shuffled = distinctIgnoringCase(legacyNames);
         Collections.shuffle(shuffled, RNG);
         int picks = Math.min(count, shuffled.size());
         // <count> is recipients here, not presses, so every entry carries a

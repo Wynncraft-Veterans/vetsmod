@@ -6,13 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link RandomDistributor}'s one pure half, {@code filterNames} — the
+ * Tests for {@link RandomDistributor}'s two pure helpers: {@code filterNames} — the
  * NoAspects opt-out applied to the wapi legacy-name roster before any picking
- * happens.
+ * happens — and {@code distinctIgnoringCase}, which keeps each tile name once.
  *
  * <p>Everything else in the class is Wynntils- or menu-bound: {@code dispatch}
  * guards on {@code GuildStateManager.isWynntilsReady()} and fans out two
@@ -93,5 +94,30 @@ class RandomDistributorTest {
         // beginPicks' own isEmpty() check is what turns this into the
         // "Could not read guild roster from wapi" chat line.
         assertTrue(RandomDistributor.filterNames(List.of(), Set.of("Alpha")).isEmpty());
+    }
+
+    // ----- distinctIgnoringCase -----
+
+    @Test
+    void distinctIgnoringCase_keepsTheFirstSpellingOfEachTileName() {
+        assertEquals(
+                List.of("Dana", "Alpha", "Bravo"),
+                RandomDistributor.distinctIgnoringCase(
+                        List.of("Dana", "Alpha", "dana", "Bravo", "DANA")));
+    }
+
+    @Test
+    void distinctIgnoringCase_foldsAnIUnderATurkishDefaultLocale() {
+        // With the JVM's default locale a Turkish default would fold "Iris" to a
+        // dotless i, and the two spellings would both stay in the pool.
+        Locale original = Locale.getDefault();
+        Locale.setDefault(Locale.forLanguageTag("tr"));
+        try {
+            assertEquals(
+                    List.of("Iris"),
+                    RandomDistributor.distinctIgnoringCase(List.of("Iris", "iris")));
+        } finally {
+            Locale.setDefault(original);
+        }
     }
 }
