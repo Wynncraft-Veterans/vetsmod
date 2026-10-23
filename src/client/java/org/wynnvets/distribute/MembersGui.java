@@ -4,7 +4,7 @@ import com.wynntils.core.text.StyledText;
 import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.regex.Pattern;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
@@ -130,15 +130,19 @@ public final class MembersGui {
     }
 
     /**
-     * Whether a Next or Previous click has landed: {@code now}, the tile names on the page as
-     * scanned, is non-empty and shares no name with {@code before}, the names on the page the
-     * click was made from. Each member appears on one page only, so a shared name means the old
-     * page, or one only partly updated, is still showing.
+     * Whether a Next or Previous click has landed: {@code now}, the page as scanned (tile slot to
+     * name), is non-empty and no slot in it still holds the name it held in {@code before}, the
+     * page the click was made from. A slot keeping its name means the old page, or one only partly
+     * updated, is still showing.
+     *
+     * <p>Slot by slot rather than by name set, because tile names are not unique: one member's
+     * legacy name can be another's current name, and the two tiles can sit on consecutive pages.
+     * Only the same name in the same slot on consecutive pages still reads as not turned.</p>
      */
-    public static boolean pageTurned(Set<String> before, Set<String> now) {
+    public static boolean pageTurned(Map<Integer, String> before, Map<Integer, String> now) {
         if (now.isEmpty()) return false;
-        for (String name : now) {
-            if (before.contains(name)) return false;
+        for (Map.Entry<Integer, String> tile : now.entrySet()) {
+            if (tile.getValue().equals(before.get(tile.getKey()))) return false;
         }
         return true;
     }

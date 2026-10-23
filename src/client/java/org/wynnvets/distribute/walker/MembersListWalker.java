@@ -8,9 +8,9 @@ import com.wynntils.mc.event.ContainerSetSlotEvent;
 import com.wynntils.mc.event.MenuEvent;
 import com.wynntils.mc.event.ScreenClosedEvent;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -94,9 +94,9 @@ public final class MembersListWalker {
     private static volatile Completion completion = null;
     private static final List<MemberEntry> collected = new ArrayList<>();
 
-    /** The tile names on the page the last Next click was made from, or {@code null} before
+    /** The page the last Next click was made from, tile slot to name, or {@code null} before
      *  the first click; see {@link #advanceOrFinish}. */
-    private static volatile Set<String> namesAtLastClick = null;
+    private static volatile Map<Integer, String> tilesAtLastClick = null;
 
     /** Bumped by every {@link #armStallWatchdog()} and every {@link #stop()}, so only the
      *  latest watchdog of a live walk can fire. */
@@ -125,7 +125,7 @@ public final class MembersListWalker {
         pagesClicked = 0;
         scanToken++;
         collected.clear();
-        namesAtLastClick = null;
+        tilesAtLastClick = null;
         // Bind only on the next MenuOpenedEvent.Pre: the caller opens a fresh
         // menu right after arming, so one already open is about to be replaced.
         membersContainerId = -1;
@@ -139,7 +139,7 @@ public final class MembersListWalker {
         pagesClicked = 0;
         scanToken++;
         collected.clear();
-        namesAtLastClick = null;
+        tilesAtLastClick = null;
         stallToken++;
     }
 
@@ -241,19 +241,19 @@ public final class MembersListWalker {
 
         List<ItemStack> items = screen.getMenu().getItems();
 
-        Set<String> pageNames = collectVisiblePage(items);
-        advanceOrFinish(items, pageNames);
+        Map<Integer, String> pageTiles = collectVisiblePage(items);
+        advanceOrFinish(items, pageTiles);
     }
 
     /**
      * Appends every {@linkplain MembersGui#isTileSlot(int) player-head tile}
-     * on the current page to {@link #collected}, and returns the page's tile names. Names are
+     * on the current page to {@link #collected}, and returns the page, tile slot to name. Names are
      * deduped by legacyName so re-scans of the same page (rare, but possible if a trigger for
      * the page arrives after its scan has run) don't double-count, and a re-scan of the page a
      * Next click was made from does not click again (see {@link #advanceOrFinish}).
      */
-    private static Set<String> collectVisiblePage(List<ItemStack> items) {
-        Set<String> pageNames = new HashSet<>();
+    private static Map<Integer, String> collectVisiblePage(List<ItemStack> items) {
+        Map<Integer, String> pageTiles = new HashMap<>();
         for (int slot = 0; slot < items.size(); slot++) {
             if (!MembersGui.isTileSlot(slot)) continue;
 
@@ -262,12 +262,12 @@ public final class MembersListWalker {
 
             String name =
                     StyledText.fromComponent(stack.getHoverName()).getStringWithoutFormatting();
-            pageNames.add(name);
+            pageTiles.put(slot, name);
             if (anyMatchesName(name)) continue;
 
             collected.add(new MemberEntry(name, readLore(stack)));
         }
-        return pageNames;
+        return pageTiles;
     }
 
     /**
@@ -287,8 +287,8 @@ public final class MembersListWalker {
      * scan instead of clicking Next again. A click that never lands ends the walk through the
      * stall watchdog.</p>
      */
-    private static void advanceOrFinish(List<ItemStack> items, Set<String> pageNames) {
-        if (namesAtLastClick != null && !MembersGui.pageTurned(namesAtLastClick, pageNames)) {
+    private static void advanceOrFinish(List<ItemStack> items, Map<Integer, String> pageTiles) {
+        if (tilesAtLastClick != null && !MembersGui.pageTurned(tilesAtLastClick, pageTiles)) {
             VetsLogger.debug("MembersListWalker: page not turned yet, not clicking again");
             return;
         }
@@ -308,7 +308,7 @@ public final class MembersListWalker {
             return;
         }
         pagesClicked++;
-        namesAtLastClick = pageNames;
+        tilesAtLastClick = pageTiles;
         armStallWatchdog();
     }
 

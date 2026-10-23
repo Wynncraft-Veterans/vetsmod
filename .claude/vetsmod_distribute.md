@@ -431,8 +431,10 @@ observed Wynncraft behaviour first, then the code shape it forces.
    `onSetSlot` triggers on the Next Page slot and any tile, and its
    `scheduleScan` is the same token debounce, with its own copy of
    `SCAN_DELAY_TICKS`. After a Next click it also waits until a scan shows
-   a page with no name from the old one (`MembersGui.pageTurned`) before
-   clicking again, so a re-scan of the old page cannot click twice.
+   no tile slot still holding the name it held before the click
+   (`MembersGui.pageTurned`) before clicking again, so a re-scan of the old
+   page cannot click twice. It compares slot by slot because tile names are
+   not unique (§5, `@random`).
 4. **Wynntils' `GuildLogHolder` gives no completion signal we can
    subscribe to.** It auto-paginates the log and accumulates the items,
    but the state driving its stop decision is private and no `Models`

@@ -949,7 +949,7 @@ Test: [`AnniDebugCommandsTest.java`](../src/test/java/org/wynnvets/debug/anni/An
 
 Test: [`MembersGuiTest.java`](../src/test/java/org/wynnvets/distribute/MembersGuiTest.java) · Subject: [`MembersGui`](../src/client/java/org/wynnvets/distribute/MembersGui.java)
 
-`MembersGui` describes the layout of Wynncraft's `<guild>: Members` menu: its title pattern, its two page-button slots and patterns, and which slots hold player-head tiles. The suite pins `isTileSlot` with a boundary sweep around the rows 0-4 by columns 2-8 tile area, including the two page-button slots, which sit one column outside it. It also pins the title, page-button patterns and page-button slot numbers as change-detectors for the claim that they mirror Wynntils' `GuildMemberListContainer`. It also pins `pageTurned`, the check the walker waits on after a Next or Previous click: true only when the new scan is non-empty and shares no name with the old page (checked with Metrafish, Holidaze, Wenweia and Nazzae). The tests call static members directly, with a small `assertTile` / `assertNotTile` helper that reports row and column in the failure message.
+`MembersGui` describes the layout of Wynncraft's `<guild>: Members` menu: its title pattern, its two page-button slots and patterns, and which slots hold player-head tiles. The suite pins `isTileSlot` with a boundary sweep around the rows 0-4 by columns 2-8 tile area, including the two page-button slots, which sit one column outside it. It also pins the title, page-button patterns and page-button slot numbers as change-detectors for the claim that they mirror Wynntils' `GuildMemberListContainer`. It also pins `pageTurned`, the check the walker waits on after a Next or Previous click: true only when the new scan is non-empty and no tile slot still holds the name it held on the old page, so a name recurring in another slot still counts as turned (checked with Metrafish, Holidaze, Wenweia and Nazzae in slots 2 and 3). The tests call static members directly, with a small `assertTile` / `assertNotTile` helper that reports row and column in the failure message.
 
 Asserting helpers:
 
@@ -985,14 +985,16 @@ Tests:
 - **`pageButtonSlotsMirrorUpstream`**: `NEXT_PAGE_SLOT` is 28 and `PREVIOUS_PAGE_SLOT` is 10, matching Wynntils' `getNextItemSlot()` and `getPreviousItemSlot()`.
   - `MembersGui.NEXT_PAGE_SLOT` equals `28`.
   - `MembersGui.PREVIOUS_PAGE_SLOT` equals `10`.
-- **`pageTurned_falseWhileTheOldPageIsStillShowing`**: When the new scan is the same names as the old page (Metrafish, Holidaze), `pageTurned` is false.
-  - `MembersGui.pageTurned(Set.of("Metrafish", "Holidaze"), Set.of("Metrafish", "Holidaze"))` is false (the new scan is identical to the old page).
-- **`pageTurned_trueOnceEveryNameIsNew`**: When the old page is Metrafish, Holidaze and the new scan is Wenweia, Nazzae, `pageTurned` is true.
-  - `MembersGui.pageTurned(Set.of("Metrafish", "Holidaze"), Set.of("Wenweia", "Nazzae"))` is true (no name is shared).
-- **`pageTurned_falseOnAPartlyUpdatedPage`**: When one old name (Holidaze) is still present in the new scan (Wenweia, Holidaze), `pageTurned` is false because the page has not finished turning.
-  - `MembersGui.pageTurned(Set.of("Metrafish", "Holidaze"), Set.of("Wenweia", "Holidaze"))` is false: `Holidaze` is left over from the old page, so it has not finished turning.
-- **`pageTurned_falseOnAnEmptyPage`**: An empty new scan against an old page of Metrafish is false, since an empty scan proves nothing while the tiles may be mid-update.
-  - `MembersGui.pageTurned(Set.of("Metrafish"), Set.of())` is false: an empty scan proves nothing, as the tiles may be mid-update.
+- **`pageTurned_falseWhileTheOldPageIsStillShowing`**: When the new scan is the old page itself (Metrafish in slot 2, Holidaze in slot 3), `pageTurned` is false.
+  - `MembersGui.pageTurned(OLD_PAGE, OLD_PAGE)` is false, where `OLD_PAGE` is `Map.of(2, "Metrafish", 3, "Holidaze")`.
+- **`pageTurned_trueOnceEveryTileIsNew`**: When both slots hold new names (Wenweia, Nazzae), `pageTurned` is true.
+  - `MembersGui.pageTurned(OLD_PAGE, Map.of(2, "Wenweia", 3, "Nazzae"))` is true.
+- **`pageTurned_falseOnAPartlyUpdatedPage`**: When slot 3 still holds Holidaze, `pageTurned` is false because the page has not finished turning.
+  - `MembersGui.pageTurned(OLD_PAGE, Map.of(2, "Wenweia", 3, "Holidaze"))` is false.
+- **`pageTurned_trueWhenATileNameRecursInAnotherSlot`**: When the old page's Metrafish reappears in a different slot (another member with the same tile name), `pageTurned` is still true.
+  - `MembersGui.pageTurned(OLD_PAGE, Map.of(2, "Wenweia", 3, "Metrafish"))` is true.
+- **`pageTurned_falseOnAnEmptyPage`**: An empty new scan is false, since an empty scan proves nothing while the tiles may be mid-update.
+  - `MembersGui.pageTurned(OLD_PAGE, Map.of())` is false.
 
 ## `org.wynnvets.distribute.command`
 
