@@ -25,7 +25,8 @@ import org.wynnvets.mwe.anni.state.AnniSnapshots;
  * the additional "flash indefinitely until the user is on that world"
  * — that's modelled as a live mismatch predicate, not a one-shot
  * timed flash window. The ping is {@code SoundEvents.NOTE_BLOCK_PLING},
- * the sound Wynntils' ChatMentionFeature plays for a mention.</p>
+ * the sound Wynntils' ChatMentionFeature plays for a mention, but at full
+ * volume ({@link #PING_VOLUME}) where Wynntils plays it at a quarter.</p>
  *
  * <p>Two ping/flash models:</p>
  * <ul>
@@ -72,8 +73,15 @@ public final class FlashTracker {
      *  to a single 2-ping burst rather than 4+ sounds. */
     private static final int SOUNDS_CAP = 2;
 
-    /** Delay between the two sound plays so the second isn't masked. */
-    private static final long SOUND_INTER_DELAY_MS = 110L;
+    /** Minimum gap between the two plays. The queue drains on the 50 ms client tick, so the
+     *  second ping starts 300 to 350 ms after the first; at 110 ms the two fused into one. */
+    private static final long SOUND_INTER_DELAY_MS = 300L;
+
+    /** Volume of each ping: the most a sound instance can ask for, since {@code SoundEngine}
+     *  clamps it to 0 to 1 before the UI and Master sliders scale it. {@code forUI}'s
+     *  two-argument form, which Wynntils' mention ding uses, plays at 0.25, which was too quiet
+     *  in game. */
+    private static final float PING_VOLUME = 1.0f;
 
     // Per-field timed flashes for role/party/rsvp.
     private static volatile long flashRoleUntil = 0L;
@@ -330,7 +338,9 @@ public final class FlashTracker {
         if (mc == null || mc.getSoundManager() == null) return;
         try {
             mc.getSoundManager()
-                    .play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f));
+                    .play(
+                            SimpleSoundInstance.forUI(
+                                    SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, PING_VOLUME));
         } catch (Exception e) {
             VetsLogger.debug("FlashTracker.playPingSound failed: {}", e.getMessage());
         }
