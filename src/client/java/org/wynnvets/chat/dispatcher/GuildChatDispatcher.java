@@ -107,28 +107,31 @@ public final class GuildChatDispatcher {
         // /v, /a and /encourage are gated on the local rank cache: passthrough
         // silently when it doesn't show staff, opportunistically refreshing
         // so the next attempt has a chance to succeed.
-        if (command.regionMatches(true, 0, "v ", 0, 2)) {
+        // The staff commands below match their bare word too (argsAfter): typed
+        // chat arrives trimmed, so a bare /v must reach its handler's usage line.
+        String args;
+        if ((args = argsAfter(command, "v")) != null) {
             if (!staffOrRefresh()) return false;
-            return handleStaffChat(command.substring(2).trim());
+            return handleStaffChat(args.trim());
         }
-        if (command.regionMatches(true, 0, "a ", 0, 2)) {
+        if ((args = argsAfter(command, "a")) != null) {
             if (!staffOrRefresh()) return false;
-            return handleAnnounce(command.substring(2).trim());
+            return handleAnnounce(args.trim());
         }
-        if (command.regionMatches(true, 0, "encourage ", 0, 10)) {
+        if ((args = argsAfter(command, "encourage")) != null) {
             if (!staffOrRefresh()) return false;
-            return handleEncourage(command.substring(10).trim());
+            return handleEncourage(args.trim());
         }
         // The chat-path /wv check is gated on isConfirmedStaff() instead, and
         // refuses with a message rather than passing through.
-        if (command.regionMatches(true, 0, "wv check ", 0, 9)) {
+        if ((args = argsAfter(command, "wv check")) != null) {
             if (!GuildStateManager.isConfirmedStaff()) {
                 ChatUtils.sendLocalMessage(
                         Component.literal("/wv check is restricted to authenticated stewards.")
                                 .withStyle(ChatFormatting.RED));
                 return true;
             }
-            return handleWvCheck(command.substring(9).trim());
+            return handleWvCheck(args.trim());
         }
 
         // /gu invite + /guild invite gate. Only Returners members can
@@ -165,27 +168,45 @@ public final class GuildChatDispatcher {
         // WS-auth-derived
         // isConfirmedStaff() is the only signal that gates them.
         // Passthrough silently when not confirmed staff.
-        if (command.regionMatches(true, 0, "caution-go ", 0, 11)) {
+        if ((args = argsAfter(command, "caution-go")) != null) {
             if (!GuildStateManager.isConfirmedStaff()) return false;
-            CautionCommands.runCautionGo(command.substring(11));
+            CautionCommands.runCautionGo(args);
             return true;
         }
-        if (command.regionMatches(true, 0, "caution ", 0, 8)) {
+        if ((args = argsAfter(command, "caution")) != null) {
             if (!GuildStateManager.isConfirmedStaff()) return false;
-            CautionCommands.runCaution(command.substring(8));
+            CautionCommands.runCaution(args);
             return true;
         }
-        if (command.regionMatches(true, 0, "warn ", 0, 5)) {
+        if ((args = argsAfter(command, "warn")) != null) {
             if (!GuildStateManager.isConfirmedStaff()) return false;
-            CautionCommands.runWarn(command.substring(5));
+            CautionCommands.runWarn(args);
             return true;
         }
-        if (command.regionMatches(true, 0, "eject ", 0, 6)) {
+        if ((args = argsAfter(command, "eject")) != null) {
             if (!GuildStateManager.isConfirmedStaff()) return false;
-            CautionCommands.runEject(command.substring(6));
+            CautionCommands.runEject(args);
             return true;
         }
         return false;
+    }
+
+    /**
+     * The arguments after {@code word} in a typed command, ignoring case: {@code ""} when the
+     * command is the bare word, the rest after {@code word + " "}, or {@code null} when it is
+     * some other command. {@code "caution-go x"} is therefore not {@code "caution"}, and
+     * {@code "vote"} is not {@code "v"}.
+     */
+    // Package-private for unit tests. See GuildChatDispatcherTest.
+    static String argsAfter(String command, String word) {
+        if (command.equalsIgnoreCase(word)) return "";
+        int n = word.length();
+        if (command.length() > n
+                && command.charAt(n) == ' '
+                && command.regionMatches(true, 0, word, 0, n)) {
+            return command.substring(n + 1);
+        }
+        return null;
     }
 
     private static boolean staffOrRefresh() {

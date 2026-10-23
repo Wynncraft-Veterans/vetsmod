@@ -383,8 +383,10 @@ Bugs: `legacy-unlock-markers-still-grant-client-unlock`,
 
 ### The intercepted prefixes
 
-`GuildChatDispatcher.intercept` matches twelve prefixes, each with `regionMatches(true, …)`: case-insensitive,
-and with a trailing space that is part of the prefix. Off Wynncraft (another server, or singleplayer),
+`GuildChatDispatcher.intercept` matches twelve prefixes, case-insensitively. The eight staff commands also
+match their bare word, through `argsAfter` (the word alone, or the word and a space), since typed chat arrives
+trimmed. `/g`, `/wg`, `/gu invite` and `/guild invite` keep a trailing space that is part of the prefix.
+Off Wynncraft (another server, or singleplayer),
 none of them is intercepted: every command passes through to that server. On Wynncraft, `/g` is checked
 first; for every other prefix, a player who fails `isUnlocked()` has the command passed through to the
 server as typed. "Passes through" below means the same.
@@ -393,15 +395,15 @@ server as typed. "Passes through" below means the same.
 |---|---|---|---|---|
 | `/g <message>` | none | `handleGuildChat` | A guildless waitlist-unlocked player's line goes to the bridge as `waitlist`, and a Returners player's line goes as `queue` while they sit in a world queue; both are cancelled and echoed locally, with the banned characters removed ([vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §4), or refused with a red "Not sent" line while the inbound socket is down. A Returners line with a `\|\|` spoiler is re-sent spoiler-encoded, or refused in red if that passes 253 characters. Anything else passes through. The relays and the encoding honour `handleSpoilers` | `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock`, `url-repair-merges-following-non-lowercase-token`, `raw-rank-pills-bypass-display-remap` |
 | `/wg <message>` | `isUnlocked()` | `handleHonouraryChat` | Always cancelled. An honourary-unlocked player's line goes to the bridge as `honourary` and is echoed locally, with the banned characters removed, or is refused like `/g`'s relays while the inbound socket is down; anyone else gets a red "This feature is restricted to honourary users. If you think you should have /wg, follow ~vetsmod in #bot-commands to fix your perms." | `ws-client-send-ignores-send-pending-failure`, `v1-check-then-send-npe-on-concurrent-disconnect`, `legacy-unlock-markers-still-grant-client-unlock` |
-| `/v <message>` | `isUnlocked()`, then `isStaff()`; a non-staff command passes through, and a staff-rank refresh starts | `handleStaffChat` | Refused in red during `/stream` and above 234 characters. Otherwise, once the staff-presence check passes, echoed locally and sent to each other online staff member as `/msg <name> 🔐<message>`, with the banned hard set removed from both | `dispatcher-notices-misattribute-cause`, `find-phase-does-not-yield-to-queued-msg`, `staff-ranks-poll-swap-not-atomic`, `intercept-usage-arms-unreachable-from-typed-chat` |
-| `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | `dispatcher-notices-misattribute-cause`, `intercept-usage-arms-unreachable-from-typed-chat` |
-| `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | `dispatcher-notices-misattribute-cause`, `raw-rank-pills-bypass-display-remap`, `staff-ranks-poll-swap-not-atomic`, `intercept-usage-arms-unreachable-from-typed-chat` |
-| `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | `help-advertises-wv-check-on-a-weaker-gate`, `intercept-usage-arms-unreachable-from-typed-chat`, and §1's `/wv check` row |
+| `/v <message>` | `isUnlocked()`, then `isStaff()`; a non-staff command passes through, and a staff-rank refresh starts | `handleStaffChat` | Refused in red during `/stream` and above 234 characters. Otherwise, once the staff-presence check passes, echoed locally and sent to each other online staff member as `/msg <name> 🔐<message>`, with the banned hard set removed from both | `dispatcher-notices-misattribute-cause`, `find-phase-does-not-yield-to-queued-msg`, `staff-ranks-poll-swap-not-atomic` |
+| `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | `dispatcher-notices-misattribute-cause` |
+| `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | `dispatcher-notices-misattribute-cause`, `raw-rank-pills-bypass-display-remap`, `staff-ranks-poll-swap-not-atomic` |
+| `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | `help-advertises-wv-check-on-a-weaker-gate`, and §1's `/wv check` row |
 | `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `vets-snapshot-provider-skips-confirmed-staff-check`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
 | `/guild invite <name>` | as `/gu invite` | `InviteGate.checkInvite` | As `/gu invite`; an allowed invite is sent as `gu invite` | as `/gu invite` |
-| `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `caution-confirm-click-bypasses-intercept`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `intercept-usage-arms-unreachable-from-typed-chat`, `outbound-socket-never-authenticated` |
+| `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `caution-confirm-click-bypasses-intercept`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `outbound-socket-never-authenticated` |
 | `/caution <name> [message]` | as `/caution-go` | `CautionCommands.runCaution` | Asks for a preflight (`caution_add`); commits at once if the caution crosses no threshold | as `/caution-go` |
-| `/warn <name> [message]` | as `/caution-go` | `CautionCommands.runWarn` | Commits a formal warning (`warn_add`) | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `intercept-usage-arms-unreachable-from-typed-chat`, `outbound-socket-never-authenticated` |
+| `/warn <name> [message]` | as `/caution-go` | `CautionCommands.runWarn` | Commits a formal warning (`warn_add`) | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `outbound-socket-never-authenticated` |
 | `/eject <name> <message>` | as `/caution-go` | `CautionCommands.runEject` | Commits an eject (`eject_add`); refuses a missing message | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `outbound-socket-never-authenticated` |
 
 `/v`, `/a` and `/encourage` share `DispatchCoordinator`'s staff-presence check, and a player it cannot confirm
@@ -412,10 +414,8 @@ down they echo nothing and print a red "Not sent: vetsmod is not connected to th
 a few seconds.", since `V1ApiManager.sendInbound` would drop the line silently. The check is of the socket only: a
 line the server then rejects is still echoed.
 
-Because every prefix ends in a space and typed input arrives trimmed, a bare `/v`, `/a`, `/encourage`,
-`/caution`, `/caution-go`, `/warn` or `/wv check` matches nothing here, and the usage lines those handlers
-hold never print from typed chat (bug `intercept-usage-arms-unreachable-from-typed-chat`). `/eject <name>`
-with no message does print its usage line.
+A bare `/v`, `/a`, `/encourage`, `/caution`, `/caution-go`, `/warn`, `/eject` or `/wv check` reaches its
+handler with no arguments and prints its usage line; `/eject <name>` with no message prints it too.
 
 The chat-path `/wv check` and Fabric's §1 node both hook a typed `/wv check`, and whichever runs first and
 acts on it cancels the send, so the other never sees it. Which runs first is a question of injection order

@@ -16,7 +16,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets`](#orgwynnvets) — [`LocaleFoldTripwireTest`](#localefoldtripwiretest)
 - [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest)
 - [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest)
-- [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`FindDispatcherTest`](#finddispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
+- [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
 - [`org.wynnvets.chat.spoiler`](#orgwynnvetschatspoiler) — [`SpoilerCodecTest`](#spoilercodectest)
 - [`org.wynnvets.commands`](#orgwynnvetscommands) — [`HelpCommandsTest`](#helpcommandstest)
 - [`org.wynnvets.config`](#orgwynnvetsconfig) — [`NamedColorTest`](#namedcolortest), [`ShippedConfigTest`](#shippedconfigtest), [`VetsConfigDefaultsTest`](#vetsconfigdefaultstest), [`VetsConfigKeysTest`](#vetsconfigkeystest), [`VetsConfigSchemaTest`](#vetsconfigschematest)
@@ -540,6 +540,21 @@ Test: [`FindDispatcherTest.java`](../src/test/java/org/wynnvets/chat/dispatcher/
   - `stripFormattingAndPua("a" + U+0378 + "b")` equals `"ab"`, where U+0378 is unassigned and in the BMP.
   - `stripFormattingAndPua("a" + U+200B + "b")` equals `"ab"`, where U+200B is a FORMAT character.
   - `stripFormattingAndPua("a" + U+D800 + "b")` equals `"ab"`, where U+D800 is an unpaired surrogate.
+
+### `GuildChatDispatcherTest`
+
+Test: [`GuildChatDispatcherTest.java`](../src/test/java/org/wynnvets/chat/dispatcher/GuildChatDispatcherTest.java) · Subject: [`GuildChatDispatcher`](../src/client/java/org/wynnvets/chat/dispatcher/GuildChatDispatcher.java)
+
+`GuildChatDispatcher.argsAfter` is the word match the staff intercepts (`/v`, `/a`, `/encourage`, `/wv check`, `/caution`, `/caution-go`, `/warn`, `/eject`) use, so a bare command, which typed chat delivers trimmed, still reaches its handler's usage line. The suite pins the bare word, the rest after one space, case-insensitivity, and that a longer word or a different command does not match. Only the pure helper runs; `intercept` itself reaches Wynntils' connection state.
+
+- **`theBareWordHasNoArguments`**: The bare word gives the empty string.
+  - `argsAfter("v", "v")` equals `""`; `argsAfter("wv check", "wv check")` equals `""`.
+- **`theRestFollowsOneSpace`**: The arguments are everything after the word and one space.
+  - `argsAfter("v hello there", "v")` equals `"hello there"`; `argsAfter("wv check Metrafish", "wv check")` equals `"Metrafish"`.
+- **`matchingIgnoresCase`**: The word matches in any case.
+  - `argsAfter("WARN Holidaze late", "warn")` equals `"Holidaze late"`; `argsAfter("Caution", "caution")` equals `""`.
+- **`aLongerWordIsAnotherCommand`**: A word followed by anything but a space, or a different command, is null.
+  - `argsAfter("caution-go Nazzae", "caution")`, `argsAfter("vote", "v")` and `argsAfter("g hello", "v")` are all null.
 
 ### `MessageFanoutDispatcherTest`
 
