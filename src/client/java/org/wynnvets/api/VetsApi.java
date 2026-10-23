@@ -50,11 +50,10 @@ public final class VetsApi {
     public static final URI ALIASES = URI.create("https://api.wynnvets.org/v1/outbound/aliases");
 
     /**
-     * GET the NoAspects opt-out list. Today {@code /wv distribute}
-     * withholds every resource from these members &mdash; the selectors skip
-     * them and a literal-name send is refused &mdash; though the list is
-     * meant to gate aspects only
-     * ({@code no-aspects-opt-out-withholds-every-resource}). Each entry is a JSON object of
+     * GET the NoAspects opt-out list. On an aspects run {@code /wv distribute}
+     * withholds aspects from these members &mdash; the selectors skip them and a
+     * literal-name send is refused &mdash; and tomes and emeralds runs never
+     * read the list. Each entry is a JSON object of
      * shape {@code {"uuid", "username"}}; consumers filter against the
      * UUID set (translated to legacy/tile names via the wapi guild
      * response) before dispatching. See

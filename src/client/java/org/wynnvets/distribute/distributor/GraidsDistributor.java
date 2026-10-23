@@ -102,16 +102,18 @@ public final class GraidsDistributor {
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
-        // Fetch the name index and the NoAspects opt-out list in
-        // parallel; strip excluded legacy names from the index so they
+        // Fetch the name index and, on an aspects run, the NoAspects opt-out
+        // list in parallel; strip excluded legacy names from the index so they
         // never match a graid-log username token. Per-command refresh,
         // fail-open via NoAspectsFilter on any HTTP error. The trailing
         // scheduleLater(..., 0) is a hop back to the tick thread — the
-        // combined future completes on a background thread, not the tick
-        // thread — not a delay.
+        // combined future usually completes on a background thread, or
+        // inline on the calling thread when both were already complete —
+        // not a delay.
         NameResolver.fetchNameIndex()
                 .thenCombine(
-                        NoAspectsFilter.fetchExcludedLegacyNames(), GraidsDistributor::filterIndex)
+                        NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects()),
+                        GraidsDistributor::filterIndex)
                 .thenAccept(
                         index ->
                                 Managers.TickScheduler.scheduleLater(

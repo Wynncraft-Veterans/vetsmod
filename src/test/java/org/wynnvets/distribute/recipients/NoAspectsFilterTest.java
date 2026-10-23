@@ -8,16 +8,19 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link NoAspectsFilter}'s two pure halves — the opt-out payload
- * parse and the UUID-to-legacy-name translation.
+ * parse and the UUID-to-legacy-name translation — and for the ungated arm of
+ * {@code fetchExcludedLegacyNames}, which makes no request.
  *
  * <p>A wrong answer here defeats the opt-out list: either an aspect is
  * dispatched to someone who already owns every one available to them, or a
  * member is wrongly withheld from — skipped by every selector, refused on the
- * literal path. The class has <b>zero</b>
+ * literal path — on an aspects run, or on a tomes or emeralds run the list was
+ * never meant to gate. The class has <b>zero</b>
  * Wynntils imports and one {@code HttpClient} as its only static state, taken
  * from {@link org.wynnvets.util.HttpClients HttpClients}; it parses through the
  * shared {@link org.wynnvets.util.Json Json#GSON} rather than a {@code Gson} of
@@ -34,6 +37,17 @@ class NoAspectsFilterTest {
 
     private static final String DASHED = "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE";
     private static final String NORMALISED = "aaaaaaaabbbbccccddddeeeeeeeeeeee";
+
+    // ----- fetchExcludedLegacyNames -----
+
+    @Test
+    void fetchExcludedLegacyNames_ungated_isAnEmptySetAlreadyComplete() {
+        // A tomes or emeralds run. Only the false arm is called: the true arm
+        // makes two network requests.
+        CompletableFuture<Set<String>> excluded = NoAspectsFilter.fetchExcludedLegacyNames(false);
+        assertTrue(excluded.isDone());
+        assertEquals(Set.of(), excluded.join());
+    }
 
     // ----- parseUuids -----
 

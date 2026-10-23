@@ -235,13 +235,17 @@ A token starting with `@` that matches no `SELECTORS` row never gets here: a Min
 username can't contain `@`, so it is refused as a mistyped selector, with no request
 and no menu. For a real name, `DistributeCommands.distribute` fans out two lookups in parallel —
 `NameResolver.resolveLegacyName` and
-`NoAspectsFilter.fetchExcludedLegacyNames`, up to three requests (§9) —
-and `thenCombine`s them.
-The combined callback runs on a background HTTP-completion thread, so it
-marshals back onto the tick thread with a `scheduleLater(..., 0)` hop before
-touching any menu or bus state. `dispatchSingleTarget` then rejects the
-send with a red chat line if *either* the literal input or the resolved
-name is on the opt-out list, arms the searcher with the literal input,
+`NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects())`, up to
+three requests on an aspects run (§9) — and `thenCombine`s them. On a tomes or
+emeralds run the opt-out set is empty and already complete, and no opt-out
+request is made.
+The combined callback usually runs on a background HTTP-completion thread, so
+it marshals back onto the tick thread with a `scheduleLater(..., 0)` hop before
+touching any menu or bus state. (When both futures are already complete, as on
+a tomes or emeralds run whose wapi read short-circuited, it runs inline on the
+command's thread and the hop is a same-thread deferral.) `dispatchSingleTarget`
+then rejects the send with a red chat line if *either* the literal input or the
+resolved name is on the opt-out list, arms the searcher with the literal input,
 adds the resolved name via `MembersListSearcher.addAlternative` when a
 rename is detected, and opens the menu.
 
@@ -257,7 +261,8 @@ worse UX than the delay.
 ### `@random` — `RandomDistributor`
 
 Guards on `GuildStateManager.isWynntilsReady()`, then combines
-`NameResolver.fetchAllLegacyNames` with the opt-out set, filters, hops
+`NameResolver.fetchAllLegacyNames` with the opt-out set (empty unless the run is
+aspects), filters, hops
 to the tick thread, and `beginPicks` shuffles and takes
 `min(count, roster.size())`. `<count>` means **recipients**: one of the
 resource per pick, picks being distinct roster entries — though two
@@ -281,7 +286,8 @@ pagination lets a pick on an earlier page be reached without reopening.
 
 ### `@objectives` — `ObjectivesDistributor`
 
-Fires the opt-out fetch, arms `MembersListWalker` for a full forward
+Fires the opt-out fetch (aspects only; any other run gets an empty set at
+once), arms `MembersListWalker` for a full forward
 sweep, and opens the menu. The walker collects one `MemberEntry`
 (legacy name + de-formatted lore lines) per bounded tile per page,
 deduping by name, and calls back when the Next Page button is gone or
@@ -310,8 +316,8 @@ the *entry* into the chain.
 
 ### `@graids` — `GraidsDistributor`
 
-Combines `NameResolver.fetchNameIndex` with the opt-out set (excluded
-members are stripped from *both* index keys so their username token can
+Combines `NameResolver.fetchNameIndex` with the opt-out set (empty unless the
+run is aspects; excluded members are stripped from *both* index keys so their username token can
 never match), then arms `GuildLogWalker` and calls
 `GuildManageOpener.openGuildLog()` — the Manage route, not `/guild log`
 (§6).
@@ -469,10 +475,12 @@ from behaviour observed elsewhere. Values are current.
 calls, across 8 of its 16 files, and calls the scheduler directly. The twelfth
 is in `util.TickDelays`, the mod-wide helper for delayed work on the client
 thread. Four of the 11 are delay-0 marshalling
-hops back onto the tick thread, not delays — three always off a
+hops back onto the tick thread, not delays — three off a
 background HTTP-completion thread, and `ObjectivesDistributor.dispatch`'s whenever its
 opt-out fetch outlasts the walk (when it does not, that call is a
-same-thread deferral through the scheduler instead). Treat
+same-thread deferral through the scheduler instead). A tomes or emeralds run
+makes no opt-out fetch, so its `@objectives` hop is always that deferral, and the
+other three are too when their wapi read short-circuited (§9). Treat
 the counts as a snapshot rather than a design invariant; nothing stops
 another package from scheduling.
 
@@ -485,7 +493,7 @@ they are real, and a matrix claiming otherwise would be false.
 |---|---|---|---|
 | Executor run by non-chief | `DistributeCommands.ensureChief` | red "You must be a guild Chief or Owner…" | n/a — nothing armed |
 | `@` token matching no selector | `DistributeCommands.distribute` | red "Unknown selector @x. Choose from @graids, @objectives, @random, @split." | n/a — nothing armed |
-| Target on the opt-out list | `DistributeCommands.dispatchSingleTarget` | red "… has opted out of receiving aspects…" | n/a — nothing armed |
+| Target on the opt-out list (aspects only) | `DistributeCommands.dispatchSingleTarget` | red "… has opted out of receiving aspects…" | n/a — nothing armed |
 | Wynntils not ready (`@random`) | `RandomDistributor.dispatch` | red "Wynntils isn't ready yet…" | yes |
 | Empty wapi roster / name index | `RandomDistributor.beginPicks`, `GraidsDistributor.beginWalk` | yellow "Could not read guild roster from wapi…" | yes |
 | No objective completers | `ObjectivesDistributor.onWalkComplete` | yellow "No members have completed…" | yes |
@@ -616,8 +624,10 @@ own code (`src/client`, `src/main`); `VetsConfigKeysTest` reads
 
 ## 9. HTTP surface
 
-Two endpoints, both read fresh on every command, with no caching layer
-of any kind:
+Two endpoints, with no caching layer of any kind, each read fresh whenever a
+run needs it: the wapi guild API by every run except a tomes or emeralds
+`@objectives`, which makes no request at all, and the opt-out list by every
+aspects run and never by a tomes or emeralds one:
 
 | Endpoint | Builder | Reader |
 |---|---|---|
@@ -659,15 +669,17 @@ Request counts are **up to**, not exact: `NameResolver` short-circuits to
 an already-completed future when Wynntils isn't ready or the guild name
 is empty (that short-circuit now lives in `fetchGuildJson`, so one place
 covers all four entry points; the counts themselves are unchanged), and
-`@split` elides zero-count pools entirely. A single-target send costs up
-to three requests (two wapi, one vets); `@random` and
+`@split` elides zero-count pools entirely. On an aspects run a single-target
+send costs up to three requests (two wapi, one vets); `@random` and
 `@graids` up to three each; `@objectives` up to two; `@split` up to the
-sum of the phases it actually runs.
+sum of the phases it actually runs. A tomes or emeralds run skips the opt-out
+lookup (one vets request and its wapi read): a single-target send costs up to
+one request, `@random` and `@graids` up to one each, and `@objectives` none.
 
 **`NameResolver`, written out.** Each entry point makes its own `fetchGuildJson` call, a
 fresh `GET /v3/guild/<the player's guild>` that completes with the body or with the
-`null` described above, so a single-target send's two wapi requests are two of these
-calls. `forEachGuildMember` walks
+`null` described above, so an aspects single-target send's two wapi requests are two of
+these calls. `forEachGuildMember` walks
 `members.<rank>.<currentName>`, skipping the `total` key and any rank bucket that is
 not an object. It hands each member's current name and JSON object (`null` when the
 value is missing or not an object) to a callback that can stop the walk, and a parse

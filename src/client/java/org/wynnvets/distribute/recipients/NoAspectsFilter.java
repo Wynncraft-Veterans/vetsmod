@@ -22,12 +22,10 @@ import org.wynnvets.util.Uuids;
  * Fetches the NoAspects opt-out list from
  * {@link VetsApi#NO_ASPECTS} and translates the UUID payload into a
  * set of legacy (= Members GUI tile) names that {@code /wv distribute}
- * checks on every path: the selectors drop them from their pools
- * ({@code @split} through its three phases), and the literal-name path
- * refuses a send to one. The set is
- * applied whatever the resource, tomes and emeralds included, though the
- * list is meant to gate aspects only
- * ({@code no-aspects-opt-out-withholds-every-resource}).
+ * checks on every path of an aspects run: the selectors drop them from their
+ * pools ({@code @split} through its three phases), and the literal-name path
+ * refuses a send to one. Tomes and emeralds are not gated: for those runs the
+ * set is empty and nothing is fetched.
  *
  * <p>The endpoint is server-curated by staff via {@code !noaspects} in
  * nazbot. The primary use case is members who already own every aspect
@@ -63,9 +61,18 @@ public final class NoAspectsFilter {
      * exclude. The no-aspects HTTP call and the wapi guild fetch run in
      * parallel (independent futures combined via {@code thenCombine}).
      *
+     * <p>{@code gated} is the run's {@code MemberSlotPresser.Resource#gatedByNoAspects()}.
+     * When it is {@code false} this makes no request and returns an
+     * already-completed empty set, so a caller's {@code thenCombine} on it
+     * completes with the other future, on that future's thread.</p>
+     *
      * <p>Returns an empty set on any failure path (see class javadoc).</p>
      */
-    public static CompletableFuture<Set<String>> fetchExcludedLegacyNames() {
+    public static CompletableFuture<Set<String>> fetchExcludedLegacyNames(boolean gated) {
+        if (!gated) {
+            VetsLogger.debug("NoAspectsFilter: resource is not gated, skipping the opt-out fetch");
+            return CompletableFuture.completedFuture(Set.of());
+        }
         CompletableFuture<Set<String>> uuidsF = fetchExcludedUuids();
         CompletableFuture<Map<String, String>> uuidToLegacyF = NameResolver.fetchUuidToLegacyName();
         return uuidsF.thenCombine(uuidToLegacyF, NoAspectsFilter::buildExcludedNames);

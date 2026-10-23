@@ -91,8 +91,10 @@ public final class ObjectivesDistributor {
         // background thread completes the fetch if it finishes after the
         // walk, and inline on the walker's tick-thread callback if it
         // finished first. Either way the 0 is there for the thread, not as
-        // a settle delay.
-        CompletableFuture<Set<String>> excludeF = NoAspectsFilter.fetchExcludedLegacyNames();
+        // a settle delay. A run other than aspects makes no fetch: its set is
+        // empty and already complete, so it always takes the inline arm.
+        CompletableFuture<Set<String>> excludeF =
+                NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects());
         MembersListWalker.armWalk(
                 members ->
                         excludeF.thenAccept(

@@ -68,9 +68,9 @@ public final class RandomDistributor {
      * Fetches the guild's legacy-name roster from wapi, picks
      * {@code count} random members, and sends one of {@code resource} to
      * each. No-op (with a chat hint) if Wynntils isn't ready, or if no
-     * member is left after the wapi fetch and the NoAspects filter &mdash;
-     * which, when everyone is opted out, prints the roster-read-failure
-     * line ({@code all-opted-out-reported-as-roster-read-failure}).
+     * member is left after the wapi fetch and, on an aspects run, the
+     * NoAspects filter &mdash; which, when everyone is opted out, prints the
+     * roster-read-failure line ({@code all-opted-out-reported-as-roster-read-failure}).
      */
     public static void dispatch(int count, MemberSlotPresser.Resource resource) {
         dispatch(count, resource, null);
@@ -95,18 +95,20 @@ public final class RandomDistributor {
             return;
         }
 
-        // Fetch the guild roster and the NoAspects opt-out list in
-        // parallel; combine into a filtered legacy-name pool before
-        // dispatching. Per-command refresh keeps the list responsive to
+        // Fetch the guild roster and, on an aspects run, the NoAspects
+        // opt-out list in parallel; combine into a filtered legacy-name pool
+        // before dispatching. Per-command refresh keeps the list responsive to
         // staff mutations (see NoAspectsFilter for fail-open semantics).
         NameResolver.fetchAllLegacyNames()
                 .thenCombine(
-                        NoAspectsFilter.fetchExcludedLegacyNames(), RandomDistributor::filterNames)
+                        NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects()),
+                        RandomDistributor::filterNames)
                 .thenAccept(
                         legacyNames ->
                                 // Hop back to the Minecraft tick thread before touching the
-                                // menu / event-bus state. The HTTP completion callback runs
-                                // on a background thread, not the tick thread.
+                                // menu / event-bus state. The HTTP completion callback
+                                // usually runs on a background thread; when both futures
+                                // were already complete it runs inline on the command's.
                                 Managers.TickScheduler.scheduleLater(
                                         () -> beginPicks(legacyNames, count, resource, onComplete),
                                         0));

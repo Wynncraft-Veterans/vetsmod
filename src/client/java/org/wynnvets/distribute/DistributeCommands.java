@@ -50,10 +50,10 @@ import org.wynnvets.guild.GuildStateManager;
  * translates current&rarr;legacy via the Wynncraft API so renamed players
  * are locatable by either form.</p>
  *
- * <p>Members on the NoAspects opt-out list (see {@link NoAspectsFilter})
- * are refused with a red chat line on the literal-name path and skipped
- * by every selector &mdash; today for every resource, though the list is
- * meant to gate aspects only ({@code no-aspects-opt-out-withholds-every-resource}).</p>
+ * <p>On an aspects run, members on the NoAspects opt-out list (see
+ * {@link org.wynnvets.distribute.recipients.NoAspectsFilter NoAspectsFilter}) are refused with a
+ * red chat line on the literal-name path and skipped by every selector. Tomes and emeralds go
+ * to them as to anyone.</p>
  *
  * <h2>{@code @-selectors}</h2>
  * <ul>
@@ -205,14 +205,16 @@ public final class DistributeCommands {
         // Fan out two lookups in parallel: legacy-name resolution (so we
         // know the canonical tile name for renamed targets) and the
         // NoAspects opt-out list (so we can reject before opening the menu).
-        // That is up to three requests, not two: the opt-out lookup makes
-        // its own wapi roster read to translate its UUIDs.
+        // On an aspects run that is up to three requests, not two: the opt-out
+        // lookup makes its own wapi roster read to translate its UUIDs. On any
+        // other run the opt-out set is empty and already complete.
         // We deliberately wait on both before arming the searcher — even
         // though it costs ~200-500ms upfront, rejecting after the menu has
         // already opened would be a confusing UX. Per-command refresh and
         // fail-open semantics (see NoAspectsFilter) keep this safe.
         CompletableFuture<String> resolveF = NameResolver.resolveLegacyName(name);
-        CompletableFuture<Set<String>> excludeF = NoAspectsFilter.fetchExcludedLegacyNames();
+        CompletableFuture<Set<String>> excludeF =
+                NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects());
         resolveF.thenCombine(
                 excludeF,
                 (resolved, excludeNames) -> {
@@ -229,7 +231,8 @@ public final class DistributeCommands {
     /**
      * Runs on the Minecraft tick thread. Rejects the dispatch with a chat
      * line if either the literal input or the wapi-resolved name is on
-     * the NoAspects opt-out list; otherwise arms the searcher (with both
+     * the NoAspects opt-out list, which is empty unless the resource is
+     * aspects; otherwise arms the searcher (with both
      * forms when a rename is detected) and opens the Members menu.
      */
     private static void dispatchSingleTarget(

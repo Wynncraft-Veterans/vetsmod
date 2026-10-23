@@ -43,7 +43,8 @@ import org.wynnvets.logging.VetsLogger;
 public final class MemberSlotPresser {
 
     /** Maps a resource label to the hotbar button index used by the
-     *  {@code ClickType.SWAP} click. */
+     *  {@code ClickType.SWAP} click, and says whether the NoAspects opt-out
+     *  list gates it ({@link #gatedByNoAspects()}). */
     public enum Resource {
         ASPECTS(0, "Aspect"),
         TOMES(1, "Tome"),
@@ -63,6 +64,12 @@ public final class MemberSlotPresser {
 
         public String displayName() {
             return displayName;
+        }
+
+        /** Whether the NoAspects opt-out list applies to this resource: {@code true} for
+         *  {@link #ASPECTS} only. Opted-out members still get tomes and emeralds. */
+        public boolean gatedByNoAspects() {
+            return this == ASPECTS;
         }
     }
 

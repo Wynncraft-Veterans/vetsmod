@@ -16,7 +16,8 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Everything else in the class is Wynntils- or menu-bound: {@code dispatch}
  * guards on {@code GuildStateManager.isWynntilsReady()} and fans out two
- * lookups (up to three requests), {@code beginPicks} shuffles and sends chat,
+ * lookups (up to three requests on an aspects run), {@code beginPicks}
+ * shuffles and sends chat,
  * and the send loop lives in {@link DistributionQueue}. What is left is a
  * list, a set, and a predicate.</p>
  *
