@@ -456,8 +456,10 @@ observed Wynncraft behaviour first, then the code shape it forces.
    on whatever had arrived. So `GraidsDistributor.dispatch` refuses in red,
    before opening anything, when `GuildLogWalker.wynntilsLogScreenEnabled()`
    says the feature is off, and the walker checks `WRAP_CHECK_TICKS` after
-   binding that the screen on top is Wynntils' wrap of the bound log; if it
-   is not (the shift case), it closes the log and refuses in red.
+   binding (or at the overall cap, if that comes first) that the screen on top
+   is Wynntils' wrap of the bound log. If the unwrapped log is on top (the
+   shift case), it closes it and refuses in red; if no log is on top any more
+   (the player's Esc), it stops the run as "the guild log closed".
 5. **The guild log caps at roughly 100 most-recent entries.** Aspect
    sends write log entries of their own, so distributing anything before
    reading the log pushes graid records off the back of the window.
@@ -539,9 +541,9 @@ line, by design (`DistributeRuns`), and nothing it armed calls back.
 | Members menu gone when the next recipient is popped | `DistributionQueue.processNext` | yellow "Distribution stopped: the Members menu is not open." | no, by design: the run stops, and any later `@split` phase never starts |
 | Refresh never observed after a press | `MemberSlotPresser.armRefreshTimeout`, 40 ticks | yellow "Send timed out after N/M…" | yes |
 | Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | yellow "Distribution stopped: the guild log closed." | no, by design: the run stops; nothing is sent from the partial log |
-| Guild log opened but not wrapped by Wynntils, `WRAP_CHECK_TICKS` after the bind | `GuildLogWalker.onTick` | red "Graid-based distribution requires a Wynntils feature that did not open the guild log (Custom Guild Log Screen)." | no: the log is closed and the run ends |
+| Guild log opened but not wrapped by Wynntils, `WRAP_CHECK_TICKS` after the bind or at the cap | `GuildLogWalker.checkWrapped` | red "Graid-based distribution requires a Wynntils feature that did not open the guild log (Custom Guild Log Screen)." | no: the log is closed and the run ends |
 | Bound log walk exceeds 200 ticks | `GuildLogWalker.onTick` | none | yes, with whatever was collected; the log is closed first |
-| Guild log no longer on top when the walk settles or times out — the player's Esc, a respawn | `GuildLogWalker.finishWalk` | yellow "Distribution stopped: the guild log closed." | no, by design: the run stops, and nothing is closed |
+| Guild log no longer on top at the wrap check, or when the walk settles or times out — the player's Esc, a respawn | `GuildLogWalker.checkWrapped`, `GuildLogWalker.finishWalk` | yellow "Distribution stopped: the guild log closed." | no, by design: the run stops, and nothing is closed |
 | Log screen never reached — for example no Guild Log tile (the opener then closes that Manage menu), `/guild manage` unanswered, or the tile click going nowhere | `GuildLogWalker.onTick`'s overall timeout, 200 ticks | yellow "Distribution stopped: the guild log did not open." | no, by design: the run stops |
 | Members menu closed by the server mid-walk | `MembersListWalker.onMenuClose` | yellow "Distribution stopped: the Members menu closed." | no, by design: the run stops |
 | Bound Members menu gone when the walker's scan runs | `MembersListWalker.scanAndPaginate` | yellow "Distribution stopped: the Members menu is not open." (a Members menu still on top is closed first) | no, by design: the run stops |

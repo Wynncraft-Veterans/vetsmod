@@ -55,9 +55,10 @@ import org.wynnvets.util.ContainerScreens;
  * When the log is not wrapped nothing auto-paginates, and the walk would
  * end on whatever had arrived. So {@code @graids} refuses up front when
  * the feature is off ({@link #wynntilsLogScreenEnabled()}), and the walk
- * checks {@link #WRAP_CHECK_TICKS} after binding that Wynntils did wrap the
- * log; if it did not, the walk closes the log and refuses in red rather
- * than count only the first page.</p>
+ * checks {@link #WRAP_CHECK_TICKS} after binding (or at the overall cap, if
+ * that comes first) that Wynntils did wrap the log; if the unwrapped log is
+ * on top, the walk closes it and refuses in red rather than count only the
+ * first page, and if no log is on top any more it stops the run as closed.</p>
  *
  * <h2>Completion detection</h2>
  * <p>Wynncraft caps the log at roughly 100 most-recent entries (about
@@ -229,8 +230,16 @@ public final class GuildLogWalker {
     public void onTick(TickEvent event) {
         if (!active) return;
         int now = ++ticks;
-        // Overall-timeout check is first and outside the containerId
-        // guard so a walk that's armed but never sees a menu open
+        // The wrap check runs first, and at the cap if that comes sooner, so a
+        // log bound just before the cap is checked before the cap delivers it.
+        if (containerId != -1
+                && bindTick >= 0
+                && (now - bindTick >= WRAP_CHECK_TICKS || now > OVERALL_TIMEOUT_TICKS)) {
+            bindTick = -1;
+            if (!checkWrapped()) return;
+        }
+        // The overall-timeout check is outside the containerId guard
+        // so a walk that's armed but never sees a menu open
         // (e.g. the open command was silently dropped server-side)
         // still ends after the deadline. That one stops the run, since an
         // empty list would read as a log with no graids in it, and it
@@ -250,22 +259,6 @@ public final class GuildLogWalker {
             return;
         }
         if (containerId == -1) return;
-        if (bindTick >= 0 && now - bindTick >= WRAP_CHECK_TICKS) {
-            bindTick = -1;
-            if (!isWrapped(containerId)) {
-                // Nothing will page the log: refuse rather than count only the
-                // entries that arrived without a page turn.
-                VetsLogger.debug("GuildLogWalker: log id={} not wrapped by Wynntils", containerId);
-                int boundId = containerId;
-                stop();
-                LocalPlayer player = McUtils.player();
-                if (player != null && ContainerScreens.currentWithId(boundId) != null) {
-                    player.closeContainer();
-                }
-                DistributeRuns.refuse(NOT_WRAPPED);
-                return;
-            }
-        }
         if (lastItemTick >= 0 && now - lastItemTick > SETTLE_TICKS) {
             VetsLogger.debug("GuildLogWalker: settled after {} entries", collected.size());
             finishWalk();
@@ -313,6 +306,28 @@ public final class GuildLogWalker {
             VetsLogger.debug("GuildLogWalker: could not read CustomGuildLogScreenFeature: {}", e);
             return false;
         }
+    }
+
+    /**
+     * The wrap backstop; {@code true} to carry on. A log Wynntils wrapped passes. An unwrapped
+     * log still on top would never be paged, so it is closed and the run refused rather than
+     * counting only the entries that arrived without a page turn. A log no longer on top at all
+     * (the player's Esc) is a lost menu, not a Wynntils problem, so the run stops.
+     */
+    private static boolean checkWrapped() {
+        int boundId = containerId;
+        if (isWrapped(boundId)) return true;
+        stop();
+        if (ContainerScreens.currentWithId(boundId) == null) {
+            VetsLogger.debug("GuildLogWalker: log id={} gone before the wrap check", boundId);
+            DistributeRuns.stop("the guild log closed");
+            return false;
+        }
+        VetsLogger.debug("GuildLogWalker: log id={} not wrapped by Wynntils", boundId);
+        LocalPlayer player = McUtils.player();
+        if (player != null) player.closeContainer();
+        DistributeRuns.refuse(NOT_WRAPPED);
+        return false;
     }
 
     /** Whether the screen on top is Wynntils' wrap of the log bound as {@code boundId}. */
