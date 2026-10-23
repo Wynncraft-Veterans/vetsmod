@@ -82,11 +82,11 @@ import org.wynnvets.rendering.nametag.NametagAnimator;
  * Wynncraft Rank ON: {@code (rankPUALogo)(glinted)(rankColour)Username},
  * matching the pre-Stage-4 behaviour. When wynnmod is absent there is no
  * outer wrap and vetsmod's wrap runs on its own extractRenderState TAIL
- * output. The anni branch rebuilds an equal literal there, but the
- * supporter branch is not a no-op: {@link NametagAnimator#tryAnimate}
- * takes the gradient's base colour from the username's first character,
- * which the TAIL pass has already recoloured, so the second pass
- * re-bases the glint rather than reproducing it.</p>
+ * output. The anni branch rebuilds an equal literal there, and the
+ * supporter branch is skipped at the wrap: the TAIL pass has already
+ * glinted the name, and {@link NametagAnimator#tryAnimate} would take the
+ * gradient's base colour from the recoloured first character and re-base
+ * the glint rather than reproduce it.</p>
  */
 @Mixin(value = AvatarRenderer.class, priority = 900)
 public class NametagMixin {
@@ -178,9 +178,11 @@ public class NametagMixin {
      * be {@code null} from the wrap path if the render-state extension was
      * never populated.
      *
-     * <p>{@code fromWrap} gates the supporter branch only: when wynnmod
-     * is present we must <em>not</em> pre-glint at TAIL, or wynnmod's
-     * {@code badgeNameCache} key thrashes (see {@link #WYNNMOD_PRESENT}).
+     * <p>{@code fromWrap} gates the supporter branch only, so it runs once
+     * per frame: when wynnmod is present we must <em>not</em> pre-glint at
+     * TAIL, or wynnmod's {@code badgeNameCache} key thrashes (see
+     * {@link #WYNNMOD_PRESENT}), and when it is absent the wrap skips it,
+     * since TAIL has already glinted the name.
      * The anni branch is unconditional — anni overrides wynnmod by design,
      * and writing the anni literal at TAIL gives wynnmod a stable key
      * for the duration of the highlight gate.</p>
@@ -226,6 +228,9 @@ public class NametagMixin {
         // wynnmod sees the stable vanilla Component, always badges, and
         // our wrap re-glints inside the badge.
         if (!fromWrap && WYNNMOD_PRESENT) return;
+        // Without wynnmod the TAIL pass has already glinted the name, so the
+        // wrap leaves it: a second pass would re-base the glint.
+        if (fromWrap && !WYNNMOD_PRESENT) return;
 
         if (!SupportersPoller.isSupporter(username)) return;
         if (!VetsConfig.get(VetsConfigKeys.SHOW_SUPPORTER_GLINTS)) return;

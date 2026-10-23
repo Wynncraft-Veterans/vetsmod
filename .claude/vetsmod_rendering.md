@@ -49,7 +49,7 @@ Features:
 - Case-insensitive username location (searches from END for last occurrence)
 - Handles Wynncraft nametag format: `[colour1][symbol] [colour2][prefix] username` with PUA chars
 - Segment boundary handling for split username parts
-- Called every render frame from `NametagMixin` — no external tick — through `applyOverride`'s supporter branch, which the anni nametag branch pre-empts while it fires (highlight gate open and `vetsAnniNametagsEnabled` on). With wynnmod loaded the `extractRenderState` TAIL path returns before the supporter branch (`WYNNMOD_PRESENT`) and only the `submitNameTag` `@WrapOperation` animates, re-glinting inside wynnmod's badge. Without wynnmod both injectors reach it; the second pass is meant to leave the glint as the first drew it, but today it re-animates the already-glinted name, so the glint is animated twice per frame (bug `nametag-supporter-glint-reanimated-without-wynnmod`)
+- Called every render frame from `NametagMixin` — no external tick — through `applyOverride`'s supporter branch, which the anni nametag branch pre-empts while it fires (highlight gate open and `vetsAnniNametagsEnabled` on). With wynnmod loaded the `extractRenderState` TAIL path returns before the supporter branch (`WYNNMOD_PRESENT`) and only the `submitNameTag` `@WrapOperation` animates, re-glinting inside wynnmod's badge. Without wynnmod the `extractRenderState` TAIL path animates and the `@WrapOperation` returns before the supporter branch, so the glint is drawn once per frame either way
 
 ## 3. Colors subpackage
 
