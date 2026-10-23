@@ -80,6 +80,10 @@ import org.wynnvets.guild.GuildStateManager;
  * <p>Any other token starting with {@code @} is refused in red as an unknown
  * selector, before any lookup: a Minecraft username can't contain one.</p>
  *
+ * <p>A command that passes these checks becomes a run, handed to
+ * {@link DistributeRuns#submit}: it starts at once, or queues behind a run already in
+ * progress.</p>
+ *
  * <h2>Gating</h2>
  * <p>Visibility ({@code .requires}) uses
  * {@link GuildStateManager#isStaffOfAnyGuild()} so the command surfaces in
@@ -190,7 +194,7 @@ public final class DistributeCommands {
         // business. See SELECTORS.
         for (Selector selector : SELECTORS) {
             if (selector.token().equalsIgnoreCase(name)) {
-                selector.head().dispatch(count, resource);
+                DistributeRuns.submit(() -> selector.head().dispatch(count, resource));
                 return 1;
             }
         }
@@ -201,7 +205,13 @@ public final class DistributeCommands {
                     Component.literal(unknownSelectorMessage(name)).withStyle(ChatFormatting.RED));
             return 0;
         }
+        DistributeRuns.submit(() -> startSingleTarget(name, resource, count));
+        return 1;
+    }
 
+    /** The literal-name run: its lookups, then {@link #dispatchSingleTarget}. */
+    private static void startSingleTarget(
+            String name, MemberSlotPresser.Resource resource, int count) {
         // Fan out two lookups in parallel: legacy-name resolution (so we
         // know the canonical tile name for renamed targets) and the
         // NoAspects opt-out list (so we can reject before opening the menu).
@@ -225,7 +235,6 @@ public final class DistributeCommands {
                             0);
                     return null;
                 });
-        return 1;
     }
 
     /**
@@ -252,13 +261,11 @@ public final class DistributeCommands {
         if (excludeNames.contains(name)) optedOutForm = name;
         else if (resolved != null && excludeNames.contains(resolved)) optedOutForm = resolved;
         if (optedOutForm != null) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal(
-                                    optedOutForm
-                                            + " has opted out of receiving aspects. !noaspects remove "
-                                            + optedOutForm
-                                            + " can fix that if it is an error.")
-                            .withStyle(ChatFormatting.RED));
+            DistributeRuns.refuse(
+                    optedOutForm
+                            + " has opted out of receiving aspects. !noaspects remove "
+                            + optedOutForm
+                            + " can fix that if it is an error.");
             return;
         }
         // Arm with the literal input — covers the case where the user
@@ -267,12 +274,33 @@ public final class DistributeCommands {
         // A search that gives up closes the Members menu it was searching.
         MembersListSearcher.armSearch(
                 name,
-                slot -> MemberSlotPresser.fire(slot, resource, count, name),
-                MembersGui::closeIfOpen);
+                slot ->
+                        MemberSlotPresser.fire(
+                                slot, resource, count, name, DistributeCommands::endSingleTarget),
+                DistributeCommands::endSingleTargetSearch);
         if (resolved != null && !resolved.equalsIgnoreCase(name)) {
             MembersListSearcher.addAlternative(resolved);
         }
         GuildManageOpener.openManageMembers();
+    }
+
+    /** The single-target send's completion: close the Members menu, end the run. */
+    private static void endSingleTarget() {
+        MembersGui.closeIfOpen();
+        DistributeRuns.finished();
+    }
+
+    /**
+     * The single-target search's not-found handler. A search that gave up with the Members menu
+     * still up closes it and ends the run; one that lost the menu stops the run, as the
+     * multi-recipient send loop does.
+     */
+    private static void endSingleTargetSearch() {
+        if (MembersGui.currentByTitle() == null) {
+            DistributeRuns.stop("the Members menu is not open");
+            return;
+        }
+        endSingleTarget();
     }
 
     /**

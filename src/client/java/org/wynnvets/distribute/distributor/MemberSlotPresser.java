@@ -117,30 +117,19 @@ public final class MemberSlotPresser {
     /**
      * Fires {@code count} consecutive {@code pressKeyOnSlot} packets
      * against {@code slot} in the currently-open Members container, each
-     * one gated by the menu-refresh observed after the previous press.
-     * Can stop early. If no Members screen is open when a press
-     * is due &mdash; checked by title, so a Members menu reopened under a
-     * new id still counts &mdash; or a press's refresh is not observed
-     * within {@link #REFRESH_TIMEOUT_TICKS}, a yellow chat line says how
-     * many presses went out and the callback runs.
+     * one gated by the menu-refresh observed after the previous press,
+     * and invokes {@code onComplete} {@link #PRESS_DELAY_TICKS} after the
+     * last press is confirmed by a refresh event. Can stop early: if no
+     * Members screen is open when a press is due &mdash; checked by title,
+     * so a Members menu reopened under a new id still counts &mdash; or a
+     * press's refresh is not observed within {@link #REFRESH_TIMEOUT_TICKS},
+     * a yellow chat line says how many presses went out and the callback
+     * runs then. A {@code count} that is not positive runs it at once.
      *
-     * <p>Equivalent to
-     * {@link #fire(int, Resource, int, String, Runnable) fire(..., MembersGui::closeIfOpen)}
-     * &mdash; the single-user command closes the GUI when done.</p>
-     */
-    public static void fire(int slot, Resource resource, int count, String recipientName) {
-        fire(slot, resource, count, recipientName, MembersGui::closeIfOpen);
-    }
-
-    /**
-     * Variant with a completion callback invoked {@link #PRESS_DELAY_TICKS}
-     * after the last press is confirmed by a refresh event, OR when the
-     * refresh wait times out, OR when no Members screen is open for a
-     * press, OR at once when {@code count} is not positive. The screen is intentionally
-     * left open so the callback can chain the next recipient &mdash; used
-     * by {@link DistributionQueue} to visit multiple recipients in one
-     * menu session. For the single-user "close when done" behaviour, the
-     * four-argument overload passes {@link MembersGui#closeIfOpen()}.
+     * <p>The screen is intentionally left open so the callback can chain the
+     * next recipient &mdash; used by {@link DistributionQueue} to visit
+     * multiple recipients in one menu session. The single-target command
+     * passes one that closes the menu instead.</p>
      */
     public static void fire(
             int slot, Resource resource, int count, String recipientName, Runnable onComplete) {

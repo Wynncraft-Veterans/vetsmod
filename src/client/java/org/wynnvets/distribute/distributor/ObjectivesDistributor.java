@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.DistributeRuns;
 import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.recipients.NoAspectsFilter;
@@ -65,10 +66,13 @@ public final class ObjectivesDistributor {
     /**
      * Opens the Members menu, walks it to collect everyone who's
      * completed their guild objective, computes the per-recipient
-     * counts, and dispatches each in sequence.
+     * counts, and dispatches each in sequence. The command's entry point:
+     * the run ends
+     * ({@link org.wynnvets.distribute.DistributeRuns#finished() DistributeRuns.finished()})
+     * when this head does.
      */
     public static void dispatch(int count, MemberSlotPresser.Resource resource) {
-        dispatch(count, resource, null);
+        dispatch(count, resource, DistributeRuns::finished);
     }
 
     /**

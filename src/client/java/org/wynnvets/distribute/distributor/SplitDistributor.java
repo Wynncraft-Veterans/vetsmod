@@ -8,6 +8,7 @@ import java.util.Random;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.DistributeRuns;
 
 /**
  * Implements {@code /wv distribute @split <resource> <count>}: divides
@@ -89,10 +90,12 @@ public final class SplitDistributor {
         // in a settle delay (see PHASE_DELAY_TICKS), even when an empty
         // graids pool makes it the first to run; the graids phase is not.
         final Runnable terminal =
-                () ->
-                        ChatUtils.sendLocalMessage(
-                                Component.literal("Split distribution complete.")
-                                        .withStyle(ChatFormatting.GREEN));
+                () -> {
+                    ChatUtils.sendLocalMessage(
+                            Component.literal("Split distribution complete.")
+                                    .withStyle(ChatFormatting.GREEN));
+                    DistributeRuns.finished();
+                };
 
         final Runnable randomPhase =
                 pools[2] > 0

@@ -11,6 +11,7 @@ import java.util.Set;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.DistributeRuns;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.recipients.NameResolver;
 import org.wynnvets.distribute.recipients.NoAspectsFilter;
@@ -72,9 +73,12 @@ public final class RandomDistributor {
      * member is left after the wapi fetch and, on an aspects run, the
      * NoAspects filter &mdash; which, when everyone is opted out, prints the
      * roster-read-failure line ({@code all-opted-out-reported-as-roster-read-failure}).
+     * The command's entry point: the run ends
+     * ({@link org.wynnvets.distribute.DistributeRuns#finished() DistributeRuns.finished()})
+     * when this head does.
      */
     public static void dispatch(int count, MemberSlotPresser.Resource resource) {
-        dispatch(count, resource, null);
+        dispatch(count, resource, DistributeRuns::finished);
     }
 
     /**

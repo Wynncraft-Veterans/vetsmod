@@ -87,10 +87,13 @@ public final class GraidsDistributor {
 
     /**
      * Kicks off the full @graids flow: fetch the name index, open the
-     * log, walk it, compute per-user shares, then dispatch.
+     * log, walk it, compute per-user shares, then dispatch. The command's
+     * entry point: the run ends
+     * ({@link org.wynnvets.distribute.DistributeRuns#finished() DistributeRuns.finished()})
+     * when this head does.
      */
     public static void dispatch(int count, MemberSlotPresser.Resource resource) {
-        dispatch(count, resource, null);
+        dispatch(count, resource, DistributeRuns::finished);
     }
 
     /**

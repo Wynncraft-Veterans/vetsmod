@@ -198,8 +198,8 @@ public final class MembersListSearcher {
      * for {@code name} and invoke {@code handler} once it's located, or
      * {@code onNotFound} once the search gives up.
      * Overwrites any previous armed query, discarding its handlers without
-     * running them and superseding its watchdog
-     * ({@code distribute-concurrent-runs-clobber-shared-state}).
+     * running them and superseding its watchdog; only one run arms it at a
+     * time ({@link org.wynnvets.distribute.DistributeRuns DistributeRuns}).
      *
      * @param handler invoked on match; must be non-null. Passing null
      *                will NPE when a match is found.

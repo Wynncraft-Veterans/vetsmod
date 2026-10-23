@@ -148,12 +148,10 @@ public final class MembersGui {
      * hears the menu close and a later inventory click is not refused as one in a mismatching
      * container.
      *
-     * <p>Called at the end of a single-target send (the four-argument
-     * {@link org.wynnvets.distribute.distributor.MemberSlotPresser#fire(int,
-     * org.wynnvets.distribute.distributor.MemberSlotPresser.Resource, int, String)
-     * MemberSlotPresser.fire}), when a single-target search gives up, when the
-     * multi-recipient send loop runs dry, and on {@code @objectives}' two early-outs, where its
-     * walk has left the menu open.</p>
+     * <p>Called when a single-target send ends or its search gives up
+     * ({@link DistributeCommands}), when the multi-recipient send loop runs dry, on
+     * {@code @objectives}' two early-outs, where its walk has left the menu open, and when an
+     * {@code @objectives} walk stops the run with its menu still up.</p>
      */
     public static void closeIfOpen() {
         AbstractContainerScreen<?> screen = currentByTitle();

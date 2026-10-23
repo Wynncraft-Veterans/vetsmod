@@ -66,7 +66,7 @@ across 5 sub-packages:
 ```
 distribute/
 ├── DistributeCommands.java           — brigadier tree, both gates, selector dispatch
-├── DistributeRuns.java               — how a run stops: the one yellow stop line (§7)
+├── DistributeRuns.java               — one run at a time: start, queue, finish, stop, refuse (§7)
 ├── MembersGui.java                   — the Members menu's shape: title, page buttons, tiles
 ├── command/
 │   ├── NameOrSelectorArgument.java   — one-token argument type so `@x` parses
@@ -92,8 +92,8 @@ distribute/
 `MembersGui` sits at the package root rather than in `walker/` because
 both Members-menu classes in `walker/` (`MembersListSearcher`,
 `MembersListWalker`) and
-`distributor/`'s `MemberSlotPresser` read from it, and three `distributor/` classes close the menu
-through its `closeIfOpen()`; a distributor should not import from the walker package to
+`distributor/`'s `MemberSlotPresser` read from it, and `DistributeCommands`, two `distributor/`
+classes and `MembersListWalker` close the menu through its `closeIfOpen()`; a distributor should not import from the walker package to
 learn the GUI's shape. (`opener/` does not — `GuildManageOpener` drives
 the *Manage* menu and reads only `ContainerScreens`.) It describes the *layout* (mirroring
 Wynntils' `GuildMemberListContainer`), not the subset ≥2 callers share,
@@ -135,7 +135,8 @@ requirement (`WynntilsMod.registerEventListener` needs the event bus that
 `WynntilsMod.init` creates) — a requirement all five share, since each
 makes that same call.
 
-The remaining twelve files need no bus registration. Eleven are static-only
+The remaining twelve files need no Wynntils bus registration. (`DistributeRuns` is reset from
+`ServerConnectionListener`'s Fabric disconnect callback.) Eleven are static-only
 with private constructors; `NameOrSelectorArgument` is the exception — a
 private-constructor singleton with instance methods, because Brigadier's
 `ArgumentType` is an interface.
@@ -193,8 +194,9 @@ is what the searcher matches). Each step names the class that owns it:
    token-guarded `REFRESH_TIMEOUT_TICKS` timeout backs it.
 10. **`MemberSlotPresser.onRefreshObserved`** waits `PRESS_DELAY_TICKS`,
     then either fires the next press or completes.
-11. On completion `pendingOnComplete` runs — for the literal head that
-    is `MembersGui.closeIfOpen`, which sends the close packet; for the three pool heads
+11. On completion `pendingOnComplete` runs — for the literal head it
+    closes the menu (`MembersGui.closeIfOpen`, which sends the close packet)
+    and ends the run (`DistributeRuns.finished`); for the three pool heads
     it is `DistributionQueue.processNext`, which all three share and
     none of them declares. `SplitDistributor` has none either: it chains
     whole phases, so under `@split` the callback is still that same
@@ -258,9 +260,10 @@ resolved name is on the opt-out list, arms the searcher with the literal input,
 adds the resolved name via `MembersListSearcher.addAlternative` when a
 rename is detected, and opens the menu.
 
-`<count>` here means **presses to that one player**. This head arms with
-`MembersGui.closeIfOpen` as the not-found handler, so a search that gives
-up prints its chat line, if any, and closes the Members menu.
+`<count>` here means **presses to that one player**. This head's not-found
+handler closes the Members menu and ends the run when the search gave up
+with the menu still up, after printing its chat line, if any, and stops
+the run when the menu is gone (§7).
 
 The wait-before-arming is deliberate and costs a round trip up front —
 rejecting an opted-out target after the menu has already opened would be
@@ -488,12 +491,13 @@ were chosen rather than observed, as their comments say. Values are current.
 | `SETTLE_TICKS` | `GuildLogWalker` | 40 | No new log item for this long ⇒ done. The comment attributes the sizing to Wynntils' own `REQUEST_TIMEOUT = 5` plus `FORCED_LOAD_DELAY = 20` |
 | `OVERALL_TIMEOUT_TICKS` | `GuildLogWalker` | 200 | ~10 s hard cap on the whole log walk |
 | `WRAP_CHECK_TICKS` | `GuildLogWalker` | 2 | Wynntils wraps the log on the same `MenuOpenedEvent.Post` the walk binds on, in no defined order, so the wrap check waits until that event has certainly finished |
+| `QUEUE_GAP_TICKS` | `DistributeRuns` | 10 | Gap between one run finishing and the next queued run starting; the same 10 ticks, for the same reason, as `PHASE_DELAY_TICKS` |
 | `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Belt-and-braces settle gap before each objectives or random phase starts, on top of `queueCommand`'s 7-tick spacing. A phase that ends on the Members menu closes it through `MembersGui.closeIfOpen`, whose close packet the gap also gives time to land |
 
-`distribute/` makes 12 of the repo's 13 `Managers.TickScheduler.scheduleLater`
-calls, across 8 of its 17 files, and calls the scheduler directly. The thirteenth
+`distribute/` makes 13 of the repo's 14 `Managers.TickScheduler.scheduleLater`
+calls, across 9 of its 17 files, and calls the scheduler directly. The fourteenth
 is in `util.TickDelays`, the mod-wide helper for delayed work on the client
-thread. Four of the 12 are delay-0 marshalling
+thread. Four of the 13 are delay-0 marshalling
 hops back onto the tick thread, not delays — three off a
 background HTTP-completion thread, and `ObjectivesDistributor.dispatch`'s whenever its
 opt-out fetch outlasts the walk (when it does not, that call is a
@@ -541,9 +545,9 @@ which runs whatever `notFoundHandler` was armed. Every selector-run
 search is armed by `DistributionQueue.processNext`, which always passes
 one: it moves on to the next recipient if the Members menu is still up,
 and otherwise stops the run (the `DistributionQueue.processNext` row). The
-**literal-name head** passes `MembersGui.closeIfOpen` instead, so on those
-rows it prints the row's chat line, if any, and closes a Members menu that
-is still open.
+**literal-name head** passes its own: on those rows it prints the row's chat
+line, if any, and closes a Members menu that is still open, or stops the
+run as `DistributionQueue` does if none is.
 
 **"Closed by the server" is literal.** Wynntils posts `MenuClosedEvent`
 only from its `handleContainerClose` hook — a *clientbound* close — so
@@ -584,13 +588,16 @@ matching event arrives:
   each page click — and so ends a walk whose menu never opens or whose
   click is never answered, then disarms it.
 
-**One run at a time.** All of this machine's state is static, and
-nothing refuses a second `/wv distribute` while a run is in flight. The
-second run overwrites whatever shared state its path uses (searcher,
-walkers, presser, opener); callbacks of the first run stored there are
-dropped unrun, an `@split` chain included. One it leaves in place can
-still fire later, into the second run
-(`distribute-concurrent-runs-clobber-shared-state`).
+**One run at a time.** All of this machine's state is static, so
+`DistributeRuns` lets one run hold it at a time. A `/wv distribute` that
+passes its checks while another run holds it is queued, with a gray
+"Queued: starts when the current distribution finishes.", and starts
+`QUEUE_GAP_TICKS` after that run finishes or is refused. A run that stops
+cancels everything queued behind it, with "Cancelled N queued
+distributions." (or "distribution." for one). Every run ends in exactly one
+of `DistributeRuns.finished`, `stop` or `refuse`; a disconnect drops the
+queue and frees the gate silently, so a run that somehow never ended
+cannot hold it past a relog.
 
 ## 8. `OutboundCommand` — the mod's only reflection
 
@@ -711,7 +718,8 @@ or @selector", is not a chat call; the chat screen's command hint shows it.
 Two edits, both local:
 
 1. A row in `DistributeCommands.SELECTORS`: the token, and a method
-   reference to the head's `dispatch(int, Resource)`. Dispatch,
+   reference to the head's `dispatch(int, Resource)`, which the executor
+   submits as a run (`DistributeRuns.submit`). Dispatch,
    tab-completion and the unknown-selector refusal's token list all read
    that one table, so the row covers all three. Row position carries no
    meaning — the refusal sorts its list, and dispatch matches a whole token
@@ -721,7 +729,8 @@ Two edits, both local:
    offered regardless of Wynntils readiness (prefix-filtered only) — none
    of the dispatchers reads `Models.Guild.getGuildMembers()`, so they
    don't depend on the member cache the name suggestions need.
-2. A distributor exposing `dispatch(int, Resource)` — plus the
+2. A distributor exposing `dispatch(int, Resource)`, which must end the run
+   (`DistributeRuns.finished`, `stop` or `refuse`) on every path — plus the
    `dispatch(int, Resource, Runnable)` overload **if the new selector is
    to be chainable from `@split`** (plus a phase in `SplitDistributor`
    to call it), firing that callback on every exit

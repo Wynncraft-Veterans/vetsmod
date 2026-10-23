@@ -5,6 +5,7 @@ import com.wynntils.core.mod.ConnectionManager;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.OutboundDisplayHandler;
+import org.wynnvets.distribute.DistributeRuns;
 import org.wynnvets.guild.GuildLifecycle;
 import org.wynnvets.items.LegacyItemHandler;
 import org.wynnvets.logging.VetsLogger;
@@ -17,7 +18,8 @@ import org.wynnvets.logging.VetsLogger;
  * sends no frame (its HTTP pollers still run, as they do from launch). On disconnect, it closes
  * the sockets and clears the per-connection guild, auth and world-join state through
  * {@link org.wynnvets.guild.GuildLifecycle#reset() GuildLifecycle.reset()}, so that it is
- * re-evaluated when the player reconnects to a server.</p>
+ * re-evaluated when the player reconnects to a server, and frees {@code /wv distribute}'s run
+ * gate ({@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()}).</p>
  */
 public final class ServerConnectionListener {
 
@@ -59,6 +61,7 @@ public final class ServerConnectionListener {
                     V1ApiManager.disconnect();
                     OutboundDisplayHandler.unregister();
                     OutboundDisplayHandler.clearCaches();
+                    DistributeRuns.reset();
                     VetsLogger.debug("Disconnected from server, guild state reset");
                 });
     }
