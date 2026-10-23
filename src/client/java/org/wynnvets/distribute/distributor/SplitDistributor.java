@@ -41,10 +41,9 @@ import org.wynnvets.chat.ChatUtils;
  * {@link #PHASE_DELAY_TICKS} after the previous reports done. A phase
  * that stops (it lost the Members menu, {@code vetsmod_distribute.md} §7)
  * does not report by design, and the whole chain ends with it. A phase can
- * also end without reporting by accident &mdash;
- * {@code members-list-walker-drops-completion},
- * {@code member-slot-presser-drops-completion} &mdash; and the chain then
- * stalls behind it.</p>
+ * also end without reporting by accident
+ * ({@code members-list-walker-drops-completion}), and the chain then stalls
+ * behind it.</p>
  *
  * <h2>Skipping zero-count phases</h2>
  * <p>For very small {@code count} values (e.g. {@code 1} or {@code 2}),

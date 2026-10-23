@@ -83,10 +83,7 @@ public final class RandomDistributor {
      * the send loop draining &mdash; so multi-phase chains like
      * {@link SplitDistributor} can advance to the next phase without
      * stalling on a partial failure. The shared send loop ends a run without
-     * it when the run stops (the Members menu lost mid-run, by design), and
-     * when a send ends without calling back
-     * ({@code member-slot-presser-drops-completion}, the presser's {@code no}
-     * row of {@code vetsmod_distribute.md} §7).
+     * it only when the run stops (the Members menu lost mid-run, by design).
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {

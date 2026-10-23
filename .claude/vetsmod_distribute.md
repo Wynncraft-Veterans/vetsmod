@@ -519,7 +519,7 @@ they are real, and a matrix claiming otherwise would be false.
 | **Members menu closed by the server mid-walk** | `MembersListWalker.onMenuClose` | none | **no** |
 | **Bound Members menu gone when the walker's scan runs** | `MembersListWalker.scanAndPaginate` | none | **no** |
 | **Walker waits on an event that never arrives** — for example a Members menu that never opens, a Next Page click whose reply the walker never sees, or a player's Esc with nothing further for the bound id | nothing: `MembersListWalker` has no watchdog | none | **not while it waits** — the walker stays armed, and a later Members menu can bind a stale unbound arm and run its callback then (`distribute-concurrent-runs-clobber-shared-state`) |
-| **Members screen gone when the next press in a batch fires** | `MemberSlotPresser.sendPressAndArm` | none | **no** |
+| Members screen gone when the next press in a batch fires | `MemberSlotPresser.sendPressAndArm` | yellow "Send stopped after N/M: the Members menu is not open." | yes; for a multi-recipient run the pop that follows then stops the run |
 
 † All five searcher rows end in `MembersListSearcher.invokeNotFound`,
 which runs whatever `notFoundHandler` was armed. Every selector-run
@@ -530,8 +530,7 @@ two-argument `armSearch` — so on those rows it prints the row's chat line,
 if any, clears state, and stops there without closing anything; a Members
 menu that is still open stays open.
 
-The three walker rows are `members-list-walker-drops-completion`; the
-presser row is `member-slot-presser-drops-completion`.
+The three walker rows are `members-list-walker-drops-completion`.
 
 **"Closed by the server" is literal.** Wynntils posts `MenuClosedEvent`
 only from its `handleContainerClose` hook — a *clientbound* close — so
@@ -545,7 +544,8 @@ run stops at its next pop. Nothing else in the package subscribes to
 either. Where an Esc ends a walk or a press batch depends first on what
 the client already has pending: a walker scan already scheduled finds no
 screen (the walker's scan-time row), and a press already scheduled finds
-no screen and drops the callback (the presser's `no` row). Otherwise it
+no screen, says so and runs the callback, so the run stops at its next
+pop (the presser's screen-gone row). Otherwise it
 depends on what the server sends for that menu afterwards — a close of
 its own, a reopen, slot updates answering a click already in flight — and
 none of that is verifiable from any repo.
@@ -573,13 +573,6 @@ The `no` rows are not one shape, and none is rescued by design:
   arm stays live after the run stalls — see
   `distribute-concurrent-runs-clobber-shared-state` for what a later
   Members menu does with it.
-- **`MemberSlotPresser.sendPressAndArm` is a third shape.** Finding no
-  Members screen, it calls `clearPending()`, which nulls
-  `pendingOnComplete` without running it, and returns before arming a
-  timeout. With the field nulled, no later timeout or refresh can run the
-  callback. Contrast `MemberSlotPresser.armRefreshTimeout`,
-  which captures the callback into a local **before** `clearPending()`
-  and then runs it. Same class, two paths, one contract.
 
 **One run at a time.** All of this machine's state is static, and
 nothing refuses a second `/wv distribute` while a run is in flight. The
@@ -726,9 +719,9 @@ Two edits, both local:
    overloads; `SplitDistributor` itself carries only the two-argument
    form, because nothing chains it. A path of the head's own that returns
    without invoking the callback stalls the whole chain. Code the head
-   does not own still ends some runs without it — §7's `no` rows, among
-   them `member-slot-presser-drops-completion` and, for a head that walks,
-   `members-list-walker-drops-completion`.
+   does not own still ends some runs without it — a stopped run, by
+   design, and for a head that walks, §7's `no` rows
+   (`members-list-walker-drops-completion`).
 
 If the new head visits more than one recipient it does not write a drive
 loop: it builds a `Deque<DistributionQueue.Distribution>` and hands it to

@@ -78,10 +78,8 @@ public final class ObjectivesDistributor {
      * can advance past an empty pool. It only gets that far if the walk
      * calls back, and {@link MembersListWalker} can abandon or stall a walk without
      * doing so ({@code members-list-walker-drops-completion}); the shared send loop
-     * ends a run without it when the run stops (the Members menu lost mid-run, by
-     * design), and when a send ends without calling back
-     * ({@code member-slot-presser-drops-completion}). {@code vetsmod_distribute.md}
-     * §7 has the rows.
+     * ends a run without it only when the run stops (the Members menu lost mid-run,
+     * by design). {@code vetsmod_distribute.md} §7 has the rows.
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {

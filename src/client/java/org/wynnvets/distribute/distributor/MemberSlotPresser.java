@@ -99,12 +99,12 @@ public final class MemberSlotPresser {
     /** Monotonic token so a stale scheduled timeout doesn't trip a later run. */
     private static volatile int timeoutToken;
 
-    /** Callback invoked when the full press batch finishes — on success
-     *  (last press confirmed) or on timeout. Lets {@link DistributionQueue}
-     *  chain the next recipient instead of closing the Members menu
-     *  between sends. Not invoked when {@code sendPressAndArm} finds no
-     *  Members screen open: {@code clearPending()} nulls it without running
-     *  it ({@code member-slot-presser-drops-completion}). */
+    /** Callback invoked when the press batch ends — on success (last press
+     *  confirmed), on timeout, or when the Members screen is gone for the
+     *  next press. Lets {@link DistributionQueue} chain the next recipient
+     *  instead of closing the Members menu between sends. Every exit takes
+     *  it through {@link #takePendingOnComplete()}, so none can clear it
+     *  unrun. */
     private static volatile Runnable pendingOnComplete;
 
     private MemberSlotPresser() {}
@@ -120,10 +120,9 @@ public final class MemberSlotPresser {
      * one gated by the menu-refresh observed after the previous press.
      * Can stop early. If no Members screen is open when a press
      * is due &mdash; checked by title, so a Members menu reopened under a
-     * new id still counts &mdash; the batch ends silently and the callback
-     * does not run ({@code member-slot-presser-drops-completion}). If a press's
-     * refresh is not observed within {@link #REFRESH_TIMEOUT_TICKS}, a
-     * yellow chat line prints and the callback runs.
+     * new id still counts &mdash; or a press's refresh is not observed
+     * within {@link #REFRESH_TIMEOUT_TICKS}, a yellow chat line says how
+     * many presses went out and the callback runs.
      *
      * <p>Equivalent to
      * {@link #fire(int, Resource, int, String, Runnable) fire(..., MembersGui::closeIfOpen)}
@@ -136,10 +135,8 @@ public final class MemberSlotPresser {
     /**
      * Variant with a completion callback invoked {@link #PRESS_DELAY_TICKS}
      * after the last press is confirmed by a refresh event, OR when the
-     * refresh wait times out,
-     * OR at once when {@code count} is not positive. It is not invoked
-     * when the batch ends because no Members screen is open for a press
-     * &mdash; see the four-argument overload. The screen is intentionally
+     * refresh wait times out, OR when no Members screen is open for a
+     * press, OR at once when {@code count} is not positive. The screen is intentionally
      * left open so the callback can chain the next recipient &mdash; used
      * by {@link DistributionQueue} to visit multiple recipients in one
      * menu session. For the single-user "close when done" behaviour, the
@@ -170,7 +167,18 @@ public final class MemberSlotPresser {
         if (screen == null) {
             VetsLogger.debug(
                     "MemberSlotPresser: members screen gone after {}/{} presses", sent, total);
-            clearPending();
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    "Send stopped after "
+                                            + sent
+                                            + "/"
+                                            + total
+                                            + ": the Members menu is not open.")
+                            .withStyle(ChatFormatting.YELLOW));
+            // Run the callback, as the timeout does: a chained caller
+            // (DistributionQueue) then finds the menu gone and stops the run.
+            Runnable cb = takePendingOnComplete();
+            if (cb != null) cb.run();
             return;
         }
 
@@ -211,11 +219,10 @@ public final class MemberSlotPresser {
                                                     + total
                                                     + " (server didn't refresh the menu).")
                                     .withStyle(ChatFormatting.YELLOW));
-                    // Capture and invoke onComplete so chained callers (e.g.
+                    // Invoke onComplete so chained callers (e.g.
                     // DistributionQueue) advance past the timed-out recipient
                     // rather than stalling.
-                    Runnable cb = pendingOnComplete;
-                    clearPending();
+                    Runnable cb = takePendingOnComplete();
                     if (cb != null) cb.run();
                 },
                 REFRESH_TIMEOUT_TICKS);
@@ -266,14 +273,21 @@ public final class MemberSlotPresser {
                     if (sent >= total) {
                         VetsLogger.debug(
                                 "MemberSlotPresser: completed {} presses on slot {}", total, slot);
-                        Runnable cb = pendingOnComplete;
-                        clearPending();
+                        Runnable cb = takePendingOnComplete();
                         if (cb != null) cb.run();
                     } else {
                         sendPressAndArm(slot, resource, total, sent);
                     }
                 },
                 PRESS_DELAY_TICKS);
+    }
+
+    /** Captures the batch's callback, then tears the batch down; the caller runs what this
+     *  returns. Every exit goes through here, so the teardown can never drop the callback. */
+    private static Runnable takePendingOnComplete() {
+        Runnable cb = pendingOnComplete;
+        clearPending();
+        return cb;
     }
 
     private static void clearPending() {
