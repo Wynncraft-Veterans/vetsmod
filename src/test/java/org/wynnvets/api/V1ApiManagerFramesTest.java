@@ -51,6 +51,14 @@ class V1ApiManagerFramesTest {
         /** What each send reports: true as if handed to the socket, false as if it failed. */
         volatile boolean sends = true;
 
+        /** The socket number {@link #generation()} reports. */
+        volatile long generation = 1;
+
+        @Override
+        public long generation() {
+            return generation;
+        }
+
         RecordingWsClient() {
             super(URI.create("wss://wynnvets.org/v1/inbound"), "test", json -> {});
         }
@@ -334,6 +342,75 @@ class V1ApiManagerFramesTest {
         assertEquals(
                 List.of("{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"),
                 acks);
+        assertTrue(V1ApiManager.pendingAcks.isEmpty());
+    }
+
+    // ----- a lost socket and a deadline -----
+
+    private static final String LOST_ACK =
+            "{\"status\":\"error\",\"detail\":\"Connection lost before reply.\","
+                    + "\"outcome_unknown\":\"connection lost\"}";
+    private static final String TIMEOUT_ACK =
+            "{\"status\":\"error\",\"detail\":\"No reply from the vets server.\","
+                    + "\"outcome_unknown\":\"no reply\"}";
+
+    /** Sends a staff-action frame whose callback records its acks into {@code acks}; returns the
+     *  frame's req. */
+    private String sendRecorded(List<String> acks) {
+        V1ApiManager.sendStaffActionFrame(
+                "caution_add", new JsonObject(), ack -> acks.add(Json.GSON.toJson(ack)));
+        String last = socket.wire.get(socket.wire.size() - 1);
+        return Json.GSON.fromJson(last, JsonObject.class).get("req").getAsString();
+    }
+
+    @Test
+    void aCallbackWhoseSocketIsLostIsAnsweredOnceWithOutcomeUnknown() {
+        // The bug: a written frame whose socket then died was answered by nothing until the next
+        // disconnect(), so its caller hung.
+        connect();
+        List<String> acks = new ArrayList<>();
+        sendRecorded(acks);
+        assertTrue(acks.isEmpty());
+        V1ApiManager.onInboundSocketLost(1);
+        V1ApiManager.onInboundSocketLost(1);
+        assertEquals(List.of(LOST_ACK), acks);
+        assertTrue(V1ApiManager.pendingAcks.isEmpty());
+    }
+
+    @Test
+    void aCallbackSentOnTheNextSocketSurvivesTheOldOnesLoss() {
+        connect();
+        socket.generation = 2;
+        List<String> acks = new ArrayList<>();
+        sendRecorded(acks);
+        V1ApiManager.onInboundSocketLost(1);
+        assertTrue(acks.isEmpty());
+        assertEquals(1, V1ApiManager.pendingAcks.size());
+    }
+
+    @Test
+    void aLostSocketClearsTheEchoedAckFlagAndTheAwaitedAuthButNotTheHelloFlag() {
+        V1ApiManager.helloEchoesReq = true;
+        V1ApiManager.ackEchoedReq = true;
+        SessionAuthState.expectingAuthAck = true;
+        V1ApiManager.onInboundSocketLost(1);
+        assertTrue(V1ApiManager.helloEchoesReq, "the next outbound hello rewrites it");
+        assertFalse(V1ApiManager.ackEchoedReq);
+        assertFalse(SessionAuthState.expectingAuthAck);
+    }
+
+    @Test
+    void aDeadlineIsEnforcedOnlyOnceTheServerEchoesIds() {
+        connect();
+        List<String> acks = new ArrayList<>();
+        String req = sendRecorded(acks);
+        V1ApiManager.expire(req);
+        assertTrue(acks.isEmpty(), "without ids a late ack would answer the next caller instead");
+        assertEquals(1, V1ApiManager.pendingAcks.size());
+        V1ApiManager.helloEchoesReq = true;
+        V1ApiManager.expire(req);
+        V1ApiManager.expire(req);
+        assertEquals(List.of(TIMEOUT_ACK), acks);
         assertTrue(V1ApiManager.pendingAcks.isEmpty());
     }
 

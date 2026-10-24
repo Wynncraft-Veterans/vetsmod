@@ -15,14 +15,33 @@ import java.util.function.Consumer;
  * the echoed id. Against a server that does not echo, the router falls back to answering the
  * eldest entry ({@link #pollEldest()}), the strict-order queue the protocol had before ids.
  *
+ * <p>Each entry also records the inbound socket it was sent on (the {@link WsClient#generation()}
+ * read at send time), so a lost socket fails exactly its own entries ({@link #failGeneration}),
+ * and its {@link Kind}, which sets how long {@link V1ApiManager} waits for the ack.</p>
+ *
  * <p>Each callback is answered exactly once: every path that answers one first removes its entry
  * here, under this object's lock, and only the path whose removal returned the entry calls it,
  * outside the lock ({@link V1ApiManager#answer}).</p>
  */
 final class PendingAcks {
 
+    /** What a frame asks for, which sets how long its ack is waited for. */
+    enum Kind {
+        /** {@code caution_check}, {@code check_membership}: one dazebot read. */
+        READ(15_000L),
+        /** {@code caution_add}, {@code warn_add}, {@code eject_add}: a preflight and a commit,
+         *  each a dazebot call, behind any frame the server is still answering on the socket. */
+        COMMIT(45_000L);
+
+        final long timeoutMs;
+
+        Kind(long timeoutMs) {
+            this.timeoutMs = timeoutMs;
+        }
+    }
+
     /** One callback awaiting its ack. */
-    record Entry(String req, Consumer<JsonObject> callback) {}
+    record Entry(String req, Consumer<JsonObject> callback, long generation, Kind kind) {}
 
     /** The characters of a request id: eight of them give 62^8 ids, so a clash is never seen. */
     private static final String REQ_CHARS =
@@ -42,13 +61,22 @@ final class PendingAcks {
         return req.toString();
     }
 
-    /** Registers {@code callback} under a fresh request id, which it returns. */
-    synchronized String register(Consumer<JsonObject> callback) {
+    /** The kind of a staff-action frame type: a read for {@code caution_check} and
+     *  {@code check_membership}, a commit for the rest. */
+    static Kind kindFor(String frameType) {
+        return "caution_check".equals(frameType) || "check_membership".equals(frameType)
+                ? Kind.READ
+                : Kind.COMMIT;
+    }
+
+    /** Registers {@code callback} under a fresh request id, which it returns, for a frame sent on
+     *  the inbound socket of {@code generation}. */
+    synchronized String register(Consumer<JsonObject> callback, long generation, Kind kind) {
         String req;
         do {
             req = newReq();
         } while (byReq.containsKey(req));
-        byReq.put(req, new Entry(req, callback));
+        byReq.put(req, new Entry(req, callback, generation, kind));
         return req;
     }
 
@@ -68,6 +96,23 @@ final class PendingAcks {
         Entry eldest = it.next();
         it.remove();
         return eldest;
+    }
+
+    /** Removes and returns, eldest first, every entry sent on the socket of {@code lostGeneration}
+     *  or an earlier one: every socket up to the lost one is dead, so none of their acks can come.
+     *  An entry tagged with an older socket than it was really sent on is failed early, which
+     *  costs only a needless "outcome unknown", never a misattributed ack. */
+    synchronized List<Entry> failGeneration(long lostGeneration) {
+        List<Entry> failed = new ArrayList<>();
+        Iterator<Entry> it = byReq.values().iterator();
+        while (it.hasNext()) {
+            Entry entry = it.next();
+            if (entry.generation() <= lostGeneration) {
+                failed.add(entry);
+                it.remove();
+            }
+        }
+        return failed;
     }
 
     synchronized boolean isEmpty() {

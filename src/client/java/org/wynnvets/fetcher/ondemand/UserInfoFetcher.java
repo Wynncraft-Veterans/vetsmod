@@ -65,10 +65,9 @@ public final class UserInfoFetcher {
      *
      * <p>Failures are surfaced as a single error line; partial results
      * (e.g. Wynn fetch succeeds but the snapshot doesn't) still render the
-     * portions that resolved. Today, while a snapshot request's callback goes
-     * unanswered, the whole block stays unrendered, with no error line, since
-     * nothing bounds that wait (see
-     * {@code staff-action-queue-not-drained-on-socket-reconnect}).</p>
+     * portions that resolved. A snapshot request always completes: a lost socket, or no
+     * reply within its deadline, completes it empty, and the block renders with
+     * "(snapshot unavailable)".</p>
      */
     public static void checkUser(String playerName) {
         PlayerLookup.resolve(playerName)

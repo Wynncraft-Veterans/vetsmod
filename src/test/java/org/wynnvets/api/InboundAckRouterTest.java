@@ -52,7 +52,7 @@ class InboundAckRouterTest {
 
     /** Registers a recording callback named {@code name}; returns its request id. */
     private String pending(String name) {
-        return V1ApiManager.pendingAcks.register(callback(name));
+        return V1ApiManager.pendingAcks.register(callback(name), 1, PendingAcks.Kind.READ);
     }
 
     private static JsonObject ack(String json) {

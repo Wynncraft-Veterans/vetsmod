@@ -46,7 +46,8 @@ public final class VetsSnapshotProvider implements LookupProvider {
      * session with the full snapshot and an authenticated non-staff Returners member with the
      * invite verdict only ({@code may_invite} and {@code waitlist_count}; see
      * {@link MembershipSnapshot#getMayInvite()}). Any other session gets an error ack, which
-     * completes the future with {@code null}.
+     * completes the future with {@code null}. So does a lost socket or a reply that does not come
+     * in time ({@link V1ApiManager#sendStaffActionFrame}), so the future always completes.
      */
     public static CompletableFuture<MembershipSnapshot> requestSnapshot(String target) {
         CompletableFuture<MembershipSnapshot> cf = new CompletableFuture<>();

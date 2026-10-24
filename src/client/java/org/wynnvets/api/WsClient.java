@@ -16,8 +16,11 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.LongConsumer;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.Json;
 
@@ -59,6 +62,22 @@ public class WsClient implements WebSocket.Listener {
 
     private final ScheduledExecutorService scheduler;
     private volatile Runnable onConnectCallback;
+    private volatile LongConsumer onLostCallback;
+
+    /** Counts the sockets this client has installed; the current socket's number is
+     *  {@link #generation()}. Read with {@link #wsRef} under {@link #installLock}, so a lost
+     *  socket is reported with its own number. */
+    private final AtomicLong generation = new AtomicLong();
+
+    private final Object installLock = new Object();
+
+    /** How many reconnects this client has scheduled. */
+    private final AtomicInteger reconnectsScheduled = new AtomicInteger();
+
+    /** The last socket whose close or error arrived while it was not the current socket: one
+     *  {@link #installSocket} has yet to install, or a stale one (harmless, never installed
+     *  again). Read and written under {@link #installLock}. */
+    private WebSocket lostBeforeInstall;
 
     /** A socket and the sender that serialises its writes. */
     private record SocketSender(WebSocket ws, SerializedSender sender) {}
@@ -94,6 +113,30 @@ public class WsClient implements WebSocket.Listener {
         this.onConnectCallback = callback;
     }
 
+    /**
+     * Sets a callback invoked with a socket's {@link #generation()} when that socket is lost:
+     * it closed or failed while it was the current socket, or a newer socket replaced it. Not
+     * invoked by {@link #close()}. Runs on the thread that reports the loss, before the
+     * reconnect is scheduled. Used by {@link V1ApiManager} to fail the acks still waiting on
+     * that socket, which can never arrive on another.
+     */
+    public void setOnLostCallback(LongConsumer callback) {
+        this.onLostCallback = callback;
+    }
+
+    /** How many reconnects this client has scheduled, for tests: a lost socket must schedule
+     *  exactly one, and a stale socket's late close none. */
+    // Package-private for unit tests. See WsClientLossTest.
+    int reconnectsScheduled() {
+        return reconnectsScheduled.get();
+    }
+
+    /** The number of the current socket: 1 for the first this client installed, one more for
+     *  each after. 0 before the first. */
+    public long generation() {
+        return generation.get();
+    }
+
     /** Opens the WebSocket connection. Safe to call multiple times. */
     public void connect() {
         if (closed.get()) return;
@@ -113,47 +156,84 @@ public class WsClient implements WebSocket.Listener {
                                         ex.getMessage());
                                 scheduleReconnect();
                             } else {
-                                WebSocket old = wsRef.getAndSet(ws);
-                                if (old != null) {
-                                    VetsLogger.warn(
-                                            "[{}] Replacing existing WebSocket connection (possible dual-connection)",
-                                            label);
-                                    try {
-                                        old.abort();
-                                    } catch (Exception e) {
-                                        VetsLogger.debug(
-                                                "[{}] Old connection abort failed: {}",
-                                                label,
-                                                e.getMessage());
-                                    }
-                                }
-                                // close() may have run while the handshake was in flight. It
-                                // sets closed before it clears wsRef, so once this socket is
-                                // installed either close() takes it or this check sees closed.
-                                if (closed.get()) {
-                                    abandonLateSocket(ws);
-                                    return;
-                                }
-                                VetsLogger.debug("[{}] WebSocket connected", label);
-                                if (!schedulePing()) {
-                                    // close() ran after the check above, so this client is
-                                    // closed: no callback either.
-                                    abandonLateSocket(ws);
-                                    return;
-                                }
-                                Runnable cb = onConnectCallback;
-                                if (cb != null) {
-                                    try {
-                                        cb.run();
-                                    } catch (Exception e) {
-                                        VetsLogger.debug(
-                                                "[{}] onConnect callback error: {}",
-                                                label,
-                                                e.getMessage());
-                                    }
-                                }
+                                installSocket(ws);
                             }
                         });
+    }
+
+    /**
+     * Makes {@code ws}, whose handshake just completed, the current socket, then starts the ping
+     * and runs the on-connect callback. A socket it replaces is aborted and reported lost. A
+     * socket that already closed or failed is not installed: the JDK can deliver its
+     * {@code onClose} or {@code onError} before the handshake's future completes, when no
+     * reconnect was scheduled for it, so it is aborted and a reconnect is scheduled here. Frames
+     * it delivered before dying (an outbound hello, say) were still handled, so when no other
+     * socket is current the loss hook runs too, with the current generation: nothing can have
+     * been sent on the dead socket, and the hook clears what that server's frames set.
+     */
+    // Package-private for unit tests. See WsClientLossTest.
+    void installSocket(WebSocket ws) {
+        long installed = 0;
+        WebSocket old = null;
+        boolean deadOnArrival;
+        boolean noneCurrent = false;
+        synchronized (installLock) {
+            deadOnArrival = lostBeforeInstall == ws || ws.isInputClosed();
+            lostBeforeInstall = null;
+            if (deadOnArrival) {
+                noneCurrent = wsRef.get() == null;
+                installed = generation.get();
+            } else {
+                installed = generation.incrementAndGet();
+                old = wsRef.getAndSet(ws);
+            }
+        }
+        if (deadOnArrival) {
+            VetsLogger.debug("[{}] WebSocket closed before it was installed; reconnecting", label);
+            try {
+                ws.abort();
+            } catch (Exception e) {
+                VetsLogger.debug("[{}] Dead socket abort failed: {}", label, e.getMessage());
+            }
+            if (noneCurrent) {
+                fireLost(installed);
+            }
+            scheduleReconnect();
+            return;
+        }
+        if (old != null) {
+            VetsLogger.warn(
+                    "[{}] Replacing existing WebSocket connection (possible dual-connection)",
+                    label);
+            try {
+                old.abort();
+            } catch (Exception e) {
+                VetsLogger.debug("[{}] Old connection abort failed: {}", label, e.getMessage());
+            }
+            fireLost(installed - 1);
+        }
+        // close() may have run while the handshake was in flight. It
+        // sets closed before it clears wsRef, so once this socket is
+        // installed either close() takes it or this check sees closed.
+        if (closed.get()) {
+            abandonLateSocket(ws);
+            return;
+        }
+        VetsLogger.debug("[{}] WebSocket connected", label);
+        if (!schedulePing()) {
+            // close() ran after the check above, so this client is
+            // closed: no callback either.
+            abandonLateSocket(ws);
+            return;
+        }
+        Runnable cb = onConnectCallback;
+        if (cb != null) {
+            try {
+                cb.run();
+            } catch (Exception e) {
+                VetsLogger.debug("[{}] onConnect callback error: {}", label, e.getMessage());
+            }
+        }
     }
 
     /** Sends a JSON text frame without waiting for it: {@link #sendAsync} with the result
@@ -250,21 +330,24 @@ public class WsClient implements WebSocket.Listener {
     @Override
     public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
         VetsLogger.debug("[{}] WebSocket closed: {} {}", label, statusCode, reason);
-        wsRef.compareAndSet(webSocket, null);
-        scheduleReconnect();
+        if (uninstall(webSocket)) {
+            scheduleReconnect();
+        }
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public void onError(WebSocket webSocket, Throwable error) {
         VetsLogger.debug("[{}] WebSocket error: {}", label, error.getMessage());
-        wsRef.compareAndSet(webSocket, null);
+        boolean wasCurrent = uninstall(webSocket);
         try {
             webSocket.abort();
         } catch (Exception e) {
             VetsLogger.debug("[{}] WebSocket abort on error failed: {}", label, e.getMessage());
         }
-        scheduleReconnect();
+        if (wasCurrent) {
+            scheduleReconnect();
+        }
     }
 
     // ── Internal ──────────────────────────────────────────────────────
@@ -280,9 +363,45 @@ public class WsClient implements WebSocket.Listener {
         }
     }
 
+    /**
+     * Uninstalls {@code ws} and reports it lost if it is still the current socket, returning
+     * whether it was. A stale socket's late close or error (one already replaced, or already
+     * taken by {@link #close()}) changes nothing: before, it scheduled a second connection, whose
+     * install aborted the healthy socket. A socket not installed yet is remembered, so
+     * {@link #installSocket} does not install it.
+     */
+    private boolean uninstall(WebSocket ws) {
+        long lost;
+        synchronized (installLock) {
+            if (wsRef.get() != ws) {
+                lostBeforeInstall = ws;
+                return false;
+            }
+            wsRef.set(null);
+            lost = generation.get();
+        }
+        fireLost(lost);
+        return true;
+    }
+
+    private void fireLost(long lostGeneration) {
+        LongConsumer cb = onLostCallback;
+        if (cb == null) return;
+        try {
+            cb.accept(lostGeneration);
+        } catch (Exception e) {
+            VetsLogger.warn("[{}] onLost callback error: {}", label, e.getMessage());
+        }
+    }
+
     private void scheduleReconnect() {
         if (closed.get()) return;
-        scheduler.schedule(this::connect, RECONNECT_DELAY_MS, TimeUnit.MILLISECONDS);
+        try {
+            scheduler.schedule(this::connect, RECONNECT_DELAY_MS, TimeUnit.MILLISECONDS);
+            reconnectsScheduled.incrementAndGet();
+        } catch (RejectedExecutionException e) {
+            // close() shut the scheduler down after the check above: no reconnect is wanted.
+        }
     }
 
     /** Uninstalls and aborts a socket whose handshake finished on a closed client. */

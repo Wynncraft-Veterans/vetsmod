@@ -120,7 +120,7 @@ site that wrote it:
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
-| `/wv check <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.check` | `UserInfoFetcher.checkUser`: name → UUID through the `PlayerLookup` cascade, then the Wynncraft profile, dazebot's membership snapshot and, once there is a profile, guild-roster cross-checks. Then `CautionCommands.runCheckCautions` for the caution history | HTTP: the name lookup cascade, the Wynncraft profile and guild rosters. WebSocket: `check_membership` and `caution_check` frames | `staff-action-queue-not-drained-on-socket-reconnect` |
+| `/wv check <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.check` | `UserInfoFetcher.checkUser`: name → UUID through the `PlayerLookup` cascade, then the Wynncraft profile, dazebot's membership snapshot and, once there is a profile, guild-roster cross-checks. Then `CautionCommands.runCheckCautions` for the caution history | HTTP: the name lookup cascade, the Wynncraft profile and guild rosters. WebSocket: `check_membership` and `caution_check` frames | none |
 | `/wv invite-force <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.inviteForce` → `InviteGate.forceDispatch` | Sends `/gu invite <playerName>` with every `InviteGate` check skipped, and prints "Dispatching /gu invite <name> (vetsmod gate bypassed)." in gold, with the command itself in yellow. `InviteGate`'s `[Invite anyway]` button runs it | in-game `/gu invite`, sent through `GuildChatDispatcher.sendCommandBypassed` | none |
 
 `/wv check <playerName>` and `/wv invite-force <playerName>` read the name with
@@ -133,7 +133,7 @@ typed `/wv check` before `GuildChatDispatcher`'s (§2, after the table).
 |---|---|---|---|---|---|---|
 | `/wv return` | none | `areFeaturesEnabled()`: "/wv return is restricted to vets members." | `CommandRegistry.returnInfo` → `ReturnFetcher.fetchReturn` | Prints the latest return-channel post, with its Discord timestamps rewritten and a link footer (below) | GETs `VetsApi.RETURN` | none |
 | `/wv list` | ungated | `isUnlocked()`: "/wv list is restricted to vets members." | `CommandRegistry.list` → `ListFetcher.fetchList` | Prints "Looking up online members...", then the online members grouped by tier and VetsMod status: staff underlined, supporters with a glint | GETs `VetsApi.LIST`; Wynntils' Wynncraft API lookup of the Returners guild (`Models.Guild.getGuild`); for a Returners caller, a WebSocket `tablist` frame of the tab list's guild entries | `stale-registration-survives-eligibility-loss` |
-| `/wv list world` | ungated | `isStaff()` and `isReturners()`, after a `refreshStaffStatusIfNeeded` forced for a non-steward unless a staff check finished in the last minute: "We are still checking your permissions, please retry in a moment." while a refresh starts or runs, then "/wv list world is restricted to stewards." (the cached staff flag outlives leaving the guild, so it alone does not pass) | `CommandRegistry.listWorld` → `WorldListFetcher.fetchWorldList` | For staff: finds each online member with `/find` and groups them by server region (the GeoIP2 continent codes AF, AS, EU, NA, OC and SA, then Other and Private) | in-game `/gu rank` (forced for a non-staff caller unless a staff check finished in the last minute), `/find` per member; GETs `VetsApi.LIST` and `VetsApi.STAFF`; Wynntils' Wynncraft API lookup of the Returners guild; a `PlayerLookup` name lookup for each member `/find` did not place; for a Returners caller, a WebSocket `tablist` frame | `staff-action-queue-not-drained-on-socket-reconnect` |
+| `/wv list world` | ungated | `isStaff()` and `isReturners()`, after a `refreshStaffStatusIfNeeded` forced for a non-steward unless a staff check finished in the last minute: "We are still checking your permissions, please retry in a moment." while a refresh starts or runs, then "/wv list world is restricted to stewards." (the cached staff flag outlives leaving the guild, so it alone does not pass) | `CommandRegistry.listWorld` → `WorldListFetcher.fetchWorldList` | For staff: finds each online member with `/find` and groups them by server region (the GeoIP2 continent codes AF, AS, EU, NA, OC and SA, then Other and Private) | in-game `/gu rank` (forced for a non-staff caller unless a staff check finished in the last minute), `/find` per member; GETs `VetsApi.LIST` and `VetsApi.STAFF`; Wynntils' Wynncraft API lookup of the Returners guild; a `PlayerLookup` name lookup for each member `/find` did not place; for a Returners caller, a WebSocket `tablist` frame | none |
 | `/wv staff` | ungated | `isUnlocked()`: "/wv staff is restricted to vets members." | `CommandRegistry.staff` → `StaffFetcher.fetchOnlineStaff` | Prints online staff, sorted by rank, then by name | GETs `VetsApi.STAFF` | none |
 | `/wv motd` | none | none | `CommandRegistry.motd` | As the root `/motd` | as `/motd` | none |
 
@@ -392,12 +392,21 @@ server as typed. "Passes through" below means the same.
 | `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | none |
 | `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | none |
 | `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | §1's `/wv check` row |
-| `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `staff-action-queue-not-drained-on-socket-reconnect` |
+| `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | none |
 | `/guild invite <name>` | as `/gu invite` | `InviteGate.checkInvite` | As `/gu invite`; an allowed invite is sent as `gu invite` | as `/gu invite` |
-| `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `staff-action-queue-not-drained-on-socket-reconnect` |
+| `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | none |
 | `/caution <name> [message]` | as `/caution-go` | `CautionCommands.runCaution` | Asks for a preflight (`caution_add`); commits at once if the caution crosses no threshold | as `/caution-go` |
-| `/warn <name> [message]` | as `/caution-go` | `CautionCommands.runWarn` | Commits a formal warning (`warn_add`) | `staff-action-queue-not-drained-on-socket-reconnect` |
-| `/eject <name> <message>` | as `/caution-go` | `CautionCommands.runEject` | Commits an eject (`eject_add`); refuses a missing message | `staff-action-queue-not-drained-on-socket-reconnect` |
+| `/warn <name> [message]` | as `/caution-go` | `CautionCommands.runWarn` | Commits a formal warning (`warn_add`) | none |
+| `/eject <name> <message>` | as `/caution-go` | `CautionCommands.runEject` | Commits an eject (`eject_add`); refuses a missing message | none |
+
+The commit commands and `/wv check` wait for the server's ack. If the inbound socket is lost before it
+arrives, or, against a server that echoes request ids, none comes within 45 s (15 s for `/wv check`'s two
+reads), a commit prints a red "[<kind>] Outcome unknown (connection lost) - run /wv check <name> before
+retrying", with "(no reply)" for the deadline, since the server may have recorded it and a retry would add
+points and send another DM. An eject's line ends "; if it went through, kick or demote them yourself" instead,
+and nothing is dispatched in game. `/wv check` then shows "(snapshot unavailable)" and a gray "Caution history
+lookup failed: Connection lost before reply." (or "No reply from the vets server."). A disconnect, or a frame
+that was never written, still gets "[<kind>] failed: Connection closed before reply.".
 
 `/v`, `/a` and `/encourage` share `DispatchCoordinator`'s staff-presence check, and a player it cannot confirm
 as staff gets a yellow notice naming why, and nothing is sent: "Message not deliverable (permission verification

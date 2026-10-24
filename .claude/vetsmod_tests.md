@@ -14,11 +14,11 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 ## Packages
 
 - [`org.wynnvets`](#orgwynnvets) — [`LocaleFoldTripwireTest`](#localefoldtripwiretest)
-- [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`PendingAcksTest`](#pendingackstest), [`SerializedSenderTest`](#serializedsendertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest), [`V1ApiManagerOutboundAuthTest`](#v1apimanageroutboundauthtest)
+- [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`PendingAcksTest`](#pendingackstest), [`SerializedSenderTest`](#serializedsendertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest), [`V1ApiManagerOutboundAuthTest`](#v1apimanageroutboundauthtest), [`WsClientLossTest`](#wsclientlosstest)
 - [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`OutboundDisplayHandlerTest`](#outbounddisplayhandlertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
 - [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`DispatchCoordinatorTest`](#dispatchcoordinatortest), [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
 - [`org.wynnvets.chat.spoiler`](#orgwynnvetschatspoiler) — [`SpoilerCodecTest`](#spoilercodectest)
-- [`org.wynnvets.commands`](#orgwynnvetscommands) — [`HelpCommandsTest`](#helpcommandstest), [`InviteGateTest`](#invitegatetest)
+- [`org.wynnvets.commands`](#orgwynnvetscommands) — [`CautionCommandsTest`](#cautioncommandstest), [`HelpCommandsTest`](#helpcommandstest), [`InviteGateTest`](#invitegatetest)
 - [`org.wynnvets.config`](#orgwynnvetsconfig) — [`NamedColorTest`](#namedcolortest), [`ShippedConfigTest`](#shippedconfigtest), [`VetsConfigDefaultsTest`](#vetsconfigdefaultstest), [`VetsConfigKeysTest`](#vetsconfigkeystest), [`VetsConfigSchemaTest`](#vetsconfigschematest)
 - [`org.wynnvets.datamodels`](#orgwynnvetsdatamodels) — [`UserTest`](#usertest)
 - [`org.wynnvets.debug.anni`](#orgwynnvetsdebuganni) — [`AnniDebugCommandsTest`](#annidebugcommandstest)
@@ -112,18 +112,22 @@ Test: [`InboundAckRouterTest.java`](../src/test/java/org/wynnvets/api/InboundAck
 
 Test: [`PendingAcksTest.java`](../src/test/java/org/wynnvets/api/PendingAcksTest.java) · Subject: [`PendingAcks`](../src/client/java/org/wynnvets/api/PendingAcks.java)
 
-`PendingAcks` holds the staff-action callbacks keyed by the request id their frame carried, in send order. Each callback must be handed out by exactly one removal, since the path that removes an entry is the only one that answers it. The suite drives a fresh instance with no-op callbacks.
+`PendingAcks` holds the staff-action callbacks keyed by the request id their frame carried, in send order, each with the socket generation it was sent on and its kind. Each callback must be handed out by exactly one removal, since the path that removes an entry is the only one that answers it. The suite drives a fresh instance with no-op callbacks, registered as reads on generation 1 unless a test says otherwise.
 
 - **`aRequestIdIsEightAlphanumericCharactersAndIdsDiffer`**: A thousand registrations each return an id matching `[A-Za-z0-9]{8}`, all different.
   - Every id matches the pattern and none repeats; `size()` equals 1000.
-- **`completeHandsAnEntryOutExactlyOnce`**: `complete(req)` returns the entry with the registered callback and id once, then `null`.
-  - The entry's `callback()` is the registered one and its `req()` the returned id; a second `complete` returns `null` and the map is empty.
+- **`completeHandsAnEntryOutExactlyOnce`**: `complete(req)` returns the entry with the registered callback, id, generation and kind once, then `null`.
+  - For a commit registered on generation 3: the entry's `callback()` is the registered one, its `req()` the returned id, its `generation()` 3 and its `kind()` `COMMIT`; a second `complete` returns `null` and the map is empty.
 - **`anUnknownIdCompletesNothing`**: `complete("zzzzzzzz")` returns `null` and leaves the registered entry.
   - `size()` equals 1.
 - **`pollEldestFollowsSendOrderAndSkipsWhatWasCompleted`**: With three registered and the second completed, `pollEldest()` returns the first, then the third, then `null`.
 - **`anEntryTakenByPollEldestCannotBeCompleted`**: After `pollEldest()` takes the only entry, `complete` of its id returns `null`.
 - **`drainAllEmptiesInSendOrder`**: `drainAll()` returns both entries in registration order and leaves nothing to complete.
   - The drained ids equal `[first, second]`; the map is empty and `complete(first)` returns `null`.
+- **`aLostSocketFailsItsOwnAndOlderEntriesOnly`**: With entries sent on generations 1, 2 and 3, `failGeneration(2)` returns the first two in order and leaves the third.
+  - The failed ids equal `[older, lost]`; `size()` is 1 and `complete(newer)` returns it.
+- **`anEntryFailedByALostSocketCannotBeCompleted`**: After `failGeneration(1)` took it, `complete` returns `null` and a second `failGeneration(1)` returns an empty list.
+- **`readsWaitFifteenSecondsAndCommitsFortyFive`**: `kindFor` maps `caution_check` and `check_membership` to `READ`, and `caution_add`, `warn_add` and `eject_add` to `COMMIT`; `READ.timeoutMs` is 15000 and `COMMIT.timeoutMs` 45000.
 
 ### `SerializedSenderTest`
 
@@ -152,7 +156,7 @@ Test: [`SerializedSenderTest.java`](../src/test/java/org/wynnvets/api/Serialized
 
 Test: [`V1ApiManagerFramesTest.java`](../src/test/java/org/wynnvets/api/V1ApiManagerFramesTest.java) · Subject: [`V1ApiManager`](../src/client/java/org/wynnvets/api/V1ApiManager.java), `AnniWsSender`, `AnniQueryClient`, `AnniRsvpClient`, `AnniScrollspotClient`
 
-`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (`WsClient.toWire`, which keeps null members) and complete with its settable `sends` flag (`true` unless a test sets it), and has a settable connected flag. For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally; a `reqMasked` helper does the same for a staff-action frame's random `req`. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
+`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (`WsClient.toWire`, which keeps null members) and complete with its settable `sends` flag (`true` unless a test sets it), has a settable connected flag, and reports a settable socket `generation` (1 unless a test sets it). For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally; a `reqMasked` helper does the same for a staff-action frame's random `req`. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
 
 Asserting helpers:
 
@@ -209,6 +213,14 @@ Tests:
 - **`aStaffActionCaughtByADisconnectIsAnsweredOnceWithTheDrainError`**: A staff-action callback that joins the queue after the drain is taken back and answered once.
   - With a racing socket installed, `sendStaffActionFrame("caution_check", new JsonObject(), cb)` leaves `acks` equal to `["{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"]`.
   - `pendingAcks` is empty.
+- **`aCallbackWhoseSocketIsLostIsAnsweredOnceWithOutcomeUnknown`**: A staff-action callback whose socket (generation 1) is then lost is answered once with the lost ack. Before, nothing answered it until the next `disconnect()`.
+  - After a `caution_add` send, `acks` is empty; after `onInboundSocketLost(1)` twice, `acks` equals `["{\"status\":\"error\",\"detail\":\"Connection lost before reply.\",\"outcome_unknown\":\"connection lost\"}"]` and `pendingAcks` is empty.
+- **`aCallbackSentOnTheNextSocketSurvivesTheOldOnesLoss`**: Sent with the socket reporting generation 2, the callback is untouched by `onInboundSocketLost(1)`.
+  - `acks` is empty and `pendingAcks.size()` equals 1.
+- **`aLostSocketClearsTheEchoedAckFlagAndTheAwaitedAuthButNotTheHelloFlag`**: With all three set, `onInboundSocketLost(1)` leaves `helloEchoesReq` true and clears `ackEchoedReq` and `SessionAuthState.expectingAuthAck`.
+- **`aDeadlineIsEnforcedOnlyOnceTheServerEchoesIds`**: `expire(req)` leaves the callback waiting while neither echo flag is set, then, with `helloEchoesReq` set, answers it once with the timeout ack.
+  - After the first `expire`, `acks` is empty and `pendingAcks.size()` is 1.
+  - After two more with the flag set, `acks` equals `["{\"status\":\"error\",\"detail\":\"No reply from the vets server.\",\"outcome_unknown\":\"no reply\"}"]` and `pendingAcks` is empty.
 
 ### `V1ApiManagerOutboundAuthTest`
 
@@ -273,6 +285,29 @@ The outbound socket authenticates only after a `server_info` offering the all-ti
   - False for `"auth rejected: revoked"` and for `null`.
 - **`theRetryIsDroppedAfterAReset`**: A body fenced at the current generation runs; one fenced before a `reset()` does not.
   - After running a body fenced at `generation()`, then fencing a second at `generation()`, calling `reset()` and running it, the counter equals 1.
+
+### `WsClientLossTest`
+
+Test: [`WsClientLossTest.java`](../src/test/java/org/wynnvets/api/WsClientLossTest.java) · Subject: [`WsClient`](../src/client/java/org/wynnvets/api/WsClient.java)
+
+`WsClient` reports a lost socket, with that socket's generation, to the loss hook `V1ApiManager` uses to fail the acks still waiting on it. The suite installs `StubSocket`s, a `java.net.http.WebSocket` that does nothing, records `abort()` and reports its input closed only when a test sets `inputClosed`, through `installSocket`, the success branch of a real handshake, and calls the listener methods directly. The client points at `ws://127.0.0.1:1/` and is closed after each test, which cancels any reconnect a test scheduled. A recording hook collects the reported generations, a counting on-connect callback counts the callbacks, and `reconnectsScheduled()` counts the reconnects the client scheduled.
+
+- **`eachInstalledSocketGetsTheNextGeneration`**: `generation()` is 0 before any socket and 1 after the first install, and the client then reports connected.
+- **`theCurrentSocketClosingIsReportedOnceWithItsGeneration`**: Two `onClose` calls for the installed socket report generation 1 once, and the client is no longer connected.
+  - The hook heard `[1]`, and `reconnectsScheduled()` is 1.
+- **`theCurrentSocketFailingIsReportedWithItsGeneration`**: `onError` for the installed socket reports generation 1 and aborts it.
+  - The hook heard `[1]`; the stub was aborted.
+- **`aReplacedSocketIsAbortedAndReportedAndItsLateCloseIsNot`**: Installing a second socket aborts the first and reports generation 1; the first one's late `onClose` and `onError` report nothing and leave the second installed. Before, that late close scheduled a reconnect whose install aborted the healthy socket.
+  - After both installs: the first stub was aborted and the hook heard `[1]`.
+  - After the late events: the hook still heard only `[1]`, the client is connected, `generation()` is 2 and no reconnect was scheduled.
+- **`aSocketThatClosesBeforeItIsInstalledIsNotInstalled`**: An `onClose` (1012) delivered before `installSocket` for the same stub leaves it uninstalled: the JDK can deliver the close first, when it schedules no reconnect, and the dead socket used to stay installed for the session.
+  - No reconnect after the close alone; after the install the client is not connected, the stub was aborted, `generation()` is still 0, the hook heard `[0]` (no socket was current, so what the dead socket's frames set is cleared), exactly one reconnect was scheduled and the on-connect callback did not run.
+- **`aDeadSocketBesideALiveOneLeavesTheLiveOneAlone`**: With a live socket installed, installing a stub whose input is closed leaves the live one installed and reports nothing.
+  - The client is connected, the hook heard nothing and `generation()` is 1.
+- **`aSocketWhoseInputAlreadyClosedIsNotInstalled`**: A stub whose input reports closed is not installed by `installSocket`.
+  - The client is not connected, the stub was aborted, one reconnect was scheduled and the on-connect callback did not run.
+- **`closingTheClientReportsNothing`**: After `close()`, an `onClose` for the socket it took reports nothing.
+  - The hook heard nothing.
 
 ## `org.wynnvets.chat`
 
@@ -915,6 +950,18 @@ Test: [`SpoilerCodecTest.java`](../src/test/java/org/wynnvets/chat/spoiler/Spoil
   - `decodeToDiscord(encodeSpoilers("||" + U+4E2D + "||"))` equals `"||" + U+4E2D + "||"` (CJK character U+4E2D, multi-digit base-254 escape path).
 
 ## `org.wynnvets.commands`
+
+### `CautionCommandsTest`
+
+Test: [`CautionCommandsTest.java`](../src/test/java/org/wynnvets/commands/CautionCommandsTest.java) · Subject: [`CautionCommands`](../src/client/java/org/wynnvets/commands/CautionCommands.java)
+
+A staff commit whose socket was lost, or that got no reply in time, may still have landed, so its line says to check before retrying rather than "failed". The suite pins `unknownOutcomeLine`, the pure text of that line.
+
+- **`aCautionOrWarningWithAnUnknownOutcomeSaysToCheckBeforeRetrying`**: The cause is bracketed and the line ends "before retrying".
+  - `unknownOutcomeLine("warning", "Steve", "connection lost")` equals `[warning] Outcome unknown (connection lost) - run /wv check Steve before retrying`.
+  - `unknownOutcomeLine("caution", "Steve", "no reply")` equals `[caution] Outcome unknown (no reply) - run /wv check Steve before retrying`.
+- **`anEjectWithAnUnknownOutcomeSaysToActByHand`**: For an eject the line ends with the instruction to act by hand, since nothing is dispatched.
+  - `unknownOutcomeLine("eject", "Steve", "no reply")` equals `[eject] Outcome unknown (no reply) - run /wv check Steve; if it went through, kick or demote them yourself`.
 
 ### `HelpCommandsTest`
 

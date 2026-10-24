@@ -196,7 +196,8 @@ public final class InviteGate {
                 (wynn != null && wynn.getUsername() != null) ? wynn.getUsername() : canonicalName;
 
         // Snapshot null = internal WS infrastructure failure (temporary-server
-        // unreachable, ack drained on disconnect, etc.). Distinct from the
+        // unreachable, socket lost or no reply in time, ack drained on
+        // disconnect, etc.). Distinct from the
         // upstream-UUID-source failure that triggered the failOpenInvite path
         // above. Keep the existing safety-block here. A staff snapshot must
         // carry the Discord blob; a member's invite verdict never does.

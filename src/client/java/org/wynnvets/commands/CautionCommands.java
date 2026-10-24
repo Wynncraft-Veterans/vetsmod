@@ -296,6 +296,15 @@ public final class CautionCommands {
 
     private static void renderCommitResult(
             String requestedKind, String target, String requestedMessage, JsonObject ack) {
+        // The socket was lost or no reply came: the commit may have landed, and a retry would
+        // add points and send another DM, so say to check rather than "failed".
+        String unknownCause = Json.stringOrNull(ack, "outcome_unknown");
+        if (unknownCause != null) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal(unknownOutcomeLine(requestedKind, target, unknownCause))
+                            .withStyle(ChatFormatting.RED));
+            return;
+        }
         String status = Json.optString(ack, "status", "error");
         if (!"ok".equals(status)) {
             String detail = Json.optString(ack, "detail", "unknown error");
@@ -357,6 +366,19 @@ public final class CautionCommands {
         if ("eject".equals(triggered) && !suggested.isEmpty()) {
             dispatchEjectAction(suggested, resolved);
         }
+    }
+
+    /**
+     * The line for a commit whose outcome is unknown (its socket was lost, or no reply came in
+     * time), with {@code cause} as the ack's {@code outcome_unknown} gives it. Nothing is
+     * dispatched in game: an eject that went through has to be acted on by hand.
+     */
+    // Package-private for unit tests. See CautionCommandsTest.
+    static String unknownOutcomeLine(String kind, String target, String cause) {
+        String line = "[" + kind + "] Outcome unknown (" + cause + ") - run /wv check " + target;
+        return "eject".equals(kind)
+                ? line + "; if it went through, kick or demote them yourself"
+                : line + " before retrying";
     }
 
     private static void renderCautionHistory(String requestedUsername, JsonObject ack) {

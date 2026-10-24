@@ -6,6 +6,9 @@ import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import net.fabricmc.loader.api.FabricLoader;
 import org.wynnvets.Vetsmod;
@@ -96,7 +99,9 @@ public final class V1ApiManager {
      *  forwarded guild line refused while inbound processing is disabled, say) can no longer
      *  reach a staff command. Against a server that does not echo ({@link #serverEchoesReq()}
      *  false) the router answers the eldest callback instead, the strict-order pairing the
-     *  protocol had before ids, and {@link #disconnect()} drains whatever is left. */
+     *  protocol had before ids. Every callback is answered in the end: by its ack, by
+     *  {@link #onInboundSocketLost} when its socket dies, by its deadline ({@link #expire}), or
+     *  by {@link #disconnect()}. */
     // Package-private for InboundAckRouter, which answers it.
     static final PendingAcks pendingAcks = new PendingAcks();
 
@@ -115,6 +120,16 @@ public final class V1ApiManager {
      *  the registration order is the order the frames go out, which the eldest-first pairing
      *  against a server that does not echo ids relies on. */
     private static final Object SEND_LOCK = new Object();
+
+    /** Runs each pending ack's deadline ({@link #expire}). One daemon thread for the session,
+     *  never shut down, like {@code WsClient}'s shared HTTP client. */
+    private static final ScheduledExecutorService ACK_DEADLINES =
+            Executors.newSingleThreadScheduledExecutor(
+                    r -> {
+                        Thread t = new Thread(r, "VetsMod-AckDeadline");
+                        t.setDaemon(true);
+                        return t;
+                    });
 
     private V1ApiManager() {}
 
@@ -206,6 +221,10 @@ public final class V1ApiManager {
                     }
                 });
 
+        // A socket that dies takes its unanswered acks with it: fail them now rather than leave
+        // their callers waiting for the next disconnect().
+        inbound.setOnLostCallback(V1ApiManager::onInboundSocketLost);
+
         outboundClient = new WsClient(OUTBOUND_URI, "outbound", V1ApiManager::handleOutboundFrame);
 
         inboundClient = inbound;
@@ -248,9 +267,47 @@ public final class V1ApiManager {
 
     /** Whether the server echoes request ids: its outbound hello said so, or an inbound ack on
      *  the current socket carried one. While false, {@link InboundAckRouter} pairs staff-action
-     *  acks with callbacks eldest first. */
+     *  acks with callbacks eldest first, and no deadline is enforced ({@link #expire}). */
     static boolean serverEchoesReq() {
         return helloEchoesReq || ackEchoedReq;
+    }
+
+    /**
+     * Called by the inbound {@link WsClient} when the socket of {@code generation} is lost (it
+     * closed or failed, or a newer socket replaced it). No ack to a frame sent on it can arrive on
+     * another socket, so every callback still waiting on it, or on an older one, is answered now
+     * with {@link #lostAck()}. Safe against a server that does not echo ids too. The next
+     * socket may reach a different server, so {@link #ackEchoedReq} is cleared ({@link
+     * #helloEchoesReq} stays: the next outbound hello rewrites it), and so is the
+     * awaited-auth-ack flag, whose ack cannot come either.
+     */
+    // Package-private for unit tests. See V1ApiManagerFramesTest.
+    static void onInboundSocketLost(long generation) {
+        ackEchoedReq = false;
+        SessionAuthState.expectingAuthAck = false;
+        List<PendingAcks.Entry> lost = pendingAcks.failGeneration(generation);
+        if (!lost.isEmpty()) {
+            VetsLogger.debug(
+                    "Inbound socket {} lost with {} ack(s) unanswered", generation, lost.size());
+        }
+        for (PendingAcks.Entry entry : lost) {
+            answer(entry, lostAck());
+        }
+    }
+
+    /**
+     * The deadline of the callback registered under {@code req}, run {@link PendingAcks.Kind}'s
+     * timeout after its frame was sent: if it is still waiting, it is answered with
+     * {@link #timeoutAck()}, and an ack that arrives later finds nothing and is dropped. Not
+     * enforced against a server that does not echo ids, where the late ack would be paired with
+     * the next caller's callback instead.
+     */
+    // Package-private for unit tests. See V1ApiManagerFramesTest.
+    static void expire(String req) {
+        if (!serverEchoesReq()) {
+            return;
+        }
+        answer(pendingAcks.complete(req), timeoutAck());
     }
 
     /** Answers {@code entry}'s callback with {@code ack}. Call it only with an entry just removed
@@ -694,20 +751,24 @@ public final class V1ApiManager {
      * {@code check_membership}, which answers an authenticated non-staff Returners member with
      * an invite verdict ({@code MembershipSnapshot.getMayInvite}). The {@code fields} map
      * is merged into the outgoing JSON after {@code "type"} is set, so do NOT include
-     * {@code "type"} -- it would replace the frame type. The callback is single-use. It
-     * normally runs on the thread that delivers inbound frames, but runs on the caller's
-     * thread when the socket is down, on the thread that completed the write when the frame
-     * could not be sent, and on the disconnecting thread when {@link #disconnect()} drains it --
-     * bounce to the main thread for game-state work.</p>
+     * {@code "type"} -- it would replace the frame type. The callback is single-use and always
+     * runs: if the socket that carried the frame is lost first, it gets {@link #lostAck()}, and
+     * against a server that echoes ids it gets {@link #timeoutAck()} when no reply comes within
+     * {@link PendingAcks.Kind}'s timeout (15 s for a read, 45 s for a commit). Both carry
+     * {@code outcome_unknown}, since the server may have acted. It normally runs on the thread
+     * that delivers inbound frames, but runs on the caller's thread when the socket is down, on
+     * the thread that completed the write when the frame could not be sent, on the thread that
+     * reports a lost socket, on the deadline thread, and on the disconnecting thread when
+     * {@link #disconnect()} drains it -- bounce to the main thread for game-state work.</p>
      *
      * @param type     the staff-action frame type (e.g. "caution_check", "eject_add",
      *                 "check_membership")
      * @param fields   frame-specific fields (e.g. target_username, message, confirm)
      * @param callback invoked once, normally with the server's ack JSON and otherwise
-     *                 with a client-built error ack (socket down, or drained by
-     *                 {@link #disconnect()}). May be a {"status":"ok",...} (success),
-     *                 {"status":"would_trigger",...} (caution preflight), or
-     *                 {"status":"error","detail":...}.
+     *                 with a client-built error ack (socket down, socket lost, no reply in
+     *                 time, or drained by {@link #disconnect()}). May be a
+     *                 {"status":"ok",...} (success), {"status":"would_trigger",...} (caution
+     *                 preflight), or {"status":"error","detail":...}.
      */
     public static void sendStaffActionFrame(
             String type, JsonObject fields, Consumer<JsonObject> callback) {
@@ -721,16 +782,21 @@ public final class V1ApiManager {
         }
         // Every staff frame carries a req, even one with no callback, so its ack is dropped as
         // unknown instead of being paired with another caller's callback.
+        PendingAcks.Kind kind = PendingAcks.kindFor(type);
         String req;
         CompletableFuture<Boolean> sent;
         synchronized (SEND_LOCK) {
-            req = callback != null ? pendingAcks.register(callback) : PendingAcks.newReq();
+            req =
+                    callback != null
+                            ? pendingAcks.register(callback, client.generation(), kind)
+                            : PendingAcks.newReq();
             sent = client.sendAsync(V1Frames.withReq(V1Frames.staffAction(type, fields), req));
         }
         VetsLogger.debug("Sent staff-action frame: {} (req {})", type, req);
         if (callback == null) {
             return;
         }
+        ACK_DEADLINES.schedule(() -> expire(req), kind.timeoutMs, TimeUnit.MILLISECONDS);
         // A frame that never went out gets no ack: take its callback back and answer it now. If an
         // ack or a drain took it first, complete() returns null and it has already been answered.
         sent.thenAccept(
@@ -777,11 +843,34 @@ public final class V1ApiManager {
         return connectedInbound() != null;
     }
 
-    /** The synthetic error ack a staff-action callback gets when its socket closed first. */
+    /** The synthetic error ack a staff-action callback gets when {@link #disconnect()} closed the
+     *  connection first, or its frame was never written: either way the server never acted on
+     *  it, or the player has left. */
     private static JsonObject drainError() {
         JsonObject err = new JsonObject();
         err.addProperty("status", "error");
         err.addProperty("detail", "Connection closed before reply.");
+        return err;
+    }
+
+    /** The synthetic error ack for a frame whose socket was lost after it was written
+     *  ({@link #onInboundSocketLost}). The server may have acted on it, so it carries
+     *  {@code outcome_unknown}, whose value is the cause a staff line shows. */
+    static JsonObject lostAck() {
+        return unknownOutcomeAck("Connection lost before reply.", "connection lost");
+    }
+
+    /** The synthetic error ack for a frame whose deadline passed with no reply
+     *  ({@link #expire}). Like {@link #lostAck()}, it carries {@code outcome_unknown}. */
+    static JsonObject timeoutAck() {
+        return unknownOutcomeAck("No reply from the vets server.", "no reply");
+    }
+
+    private static JsonObject unknownOutcomeAck(String detail, String cause) {
+        JsonObject err = new JsonObject();
+        err.addProperty("status", "error");
+        err.addProperty("detail", detail);
+        err.addProperty("outcome_unknown", cause);
         return err;
     }
 }

@@ -27,8 +27,9 @@ final class SessionAuthState {
      *  staff-action callback is pending and the server does not echo request ids: that callback
      *  takes it). A staff-action-shaped error goes to the eldest callback, or is dropped when none
      *  is pending, whatever the flag says. None of this applies to an ack that echoes a request
-     *  id, which goes to its own callback. Neither {@link V1ApiManager#disconnect()} nor a socket
-     *  drop resets it. */
+     *  id, which goes to its own callback. A lost inbound socket clears it, since its ack cannot
+     *  come ({@link V1ApiManager#onInboundSocketLost}); {@link V1ApiManager#disconnect()} does
+     *  not. */
     static volatile boolean expectingAuthAck = false;
 
     /** Server-confirmed staff status from the most recent successful auth.
