@@ -1000,12 +1000,10 @@ One is server-side, and it lands here:
   `getattr(request.app.state, "fishbot", None)`. It is genuinely `None`
   whenever `FISHBOT_TOKEN` is unset — `start_fishbot` returns `(None, None)`
   and the web app runs on regardless — so **every** caller must guard it.
-  ⚠️ Two things that were previously claimed here are false. `_post_public`
-  does **not** no-op on a missing bot: it guards a falsy channel id and a
-  `None` channel, never `bot is None`, so the guard that actually protects it
-  lives one level up in `execute_uuid_rsvp` — see
-  [`vets-anni-post-public-missing-bot-guard`](ephemeral/bugs-found-via-mellow-rain/vets-anni-post-public-missing-bot-guard.md).
-  And `anni_ping_poller.py` does **not** use this reach-out at all: the
+  `_post_public` guards it itself: it returns early on `bot is None` (and on an
+  unset channel id or a `None` channel) since vets-anni `3e1aed4`, and
+  `execute_uuid_rsvp` no longer guards it one level up.
+  ⚠️ `anni_ping_poller.py` does **not** use this reach-out at all: the
   lifespan passes the bot to it positionally, as
   `anni_ping_poller.run(state, settings, bot)`. Two different patterns in one
   process — reach-out for request handlers, closure-passed for pollers.
