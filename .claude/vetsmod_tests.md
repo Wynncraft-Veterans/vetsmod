@@ -14,8 +14,8 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 ## Packages
 
 - [`org.wynnvets`](#orgwynnvets) — [`LocaleFoldTripwireTest`](#localefoldtripwiretest)
-- [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest)
-- [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
+- [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest), [`V1ApiManagerOutboundAuthTest`](#v1apimanageroutboundauthtest)
+- [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`OutboundDisplayHandlerTest`](#outbounddisplayhandlertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
 - [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
 - [`org.wynnvets.chat.spoiler`](#orgwynnvetschatspoiler) — [`SpoilerCodecTest`](#spoilercodectest)
 - [`org.wynnvets.commands`](#orgwynnvetscommands) — [`HelpCommandsTest`](#helpcommandstest)
@@ -139,6 +139,50 @@ Tests:
   - With `V1ApiManager.inboundClient` null, `assertNothingSentWhileDown()` passes (see HELPER).
 - **`socketNotConnected_sendsNothing`**: With a socket that reports not connected, the same set of sends and results holds and nothing is recorded on the wire.
   - With the recording socket installed but `isConnected()` false, `assertNothingSentWhileDown()` passes (see HELPER).
+
+### `V1ApiManagerOutboundAuthTest`
+
+Test: [`V1ApiManagerOutboundAuthTest.java`](../src/test/java/org/wynnvets/api/V1ApiManagerOutboundAuthTest.java) · Subject: [`V1ApiManager`](../src/client/java/org/wynnvets/api/V1ApiManager.java), [`OutboundAckRouter`](../src/client/java/org/wynnvets/api/OutboundAckRouter.java)
+
+The outbound socket authenticates only after a `server_info` offering the all-tiers receive map (`chat_tiers: "all"`) and an inbound ack confirming a member tier, never with `expectingAuthAck` set, and its untyped ack goes to `OutboundAckRouter` without reaching the outbound listeners or `SessionAuthState`. A `RecordingWsClient` stands in for the outbound socket as in `V1ApiManagerFramesTest`. No test reads the stored key: sends go through `sendOutboundAuth(key)`, and every frame routed through `handleOutboundFrame` leaves one of the two flags unset. No test routes a transient error ack, whose retry needs the Wynntils tick scheduler. `reset` calls `V1ApiManager.disconnect()` and clears `expectingAuthAck` and `confirmedStaff`.
+
+- **`sendsTheAuthFrameWhenOfferedAndAMemberTier`**: With both flags set, `sendOutboundAuth` writes the auth frame on the outbound socket and does not mark an inbound auth ack as awaited.
+  - `socket.wire` equals the single frame `{"type":"auth","key":"kkk…"}` (43 `k`s).
+  - `SessionAuthState.expectingAuthAck` is false.
+- **`sendsNothingWithoutTheAllTiersOffer`**: With `outboundAuthOffered` false, `sendOutboundAuth(KEY)` writes nothing.
+  - `socket.wire` is empty.
+- **`sendsNothingForANonMemberTier`**: With `inboundMemberTier` false, `sendOutboundAuth(KEY)` writes nothing.
+  - `socket.wire` is empty.
+- **`sendsNothingWithoutAKeyOrASocket`**: An empty key, a null key, or a socket reporting not connected writes nothing.
+  - After `sendOutboundAuth("")`, `sendOutboundAuth(null)` and, with `socket.connected` false, `sendOutboundAuth(KEY)`, `socket.wire` is empty.
+- **`memberTiersAreMemberWaitlistAndHonourary`**: `isMemberTier` is true for the three tiers with a chat channel only.
+  - `isMemberTier` is true for `"member"`, `"waitlist"` and `"honourary"`.
+  - It is false for `"other"`, `"guild"` (a `ws_tier`, not a tier), `""` and `null`.
+- **`anInboundAuthOkRecordsTheTierAndAFailureClearsIt`**: `onInboundAuthOk` records whether the tier is a member tier, and `onInboundAuthFailed` clears it.
+  - After `onInboundAuthOk("waitlist")`, `inboundMemberTier` is true.
+  - After `onInboundAuthOk("other")`, it is false.
+  - After `onInboundAuthOk("member")` then `onInboundAuthFailed()`, it is false.
+  - `socket.wire` is empty (never offered, so nothing is sent).
+- **`connectStateIsClearedByDisconnect`**: `disconnect()` clears both flags.
+  - `outboundAuthOffered` and `inboundMemberTier` are both false after it.
+- **`serverInfoOffersTheMapOnlyForChatTiersAll`**: `offersAllChatTiers` is true only for `chat_tiers` equal to `"all"`.
+  - True for `{"type":"server_info","chat_tiers":"all"}`.
+  - False for a `server_info` without the key, for `"chat_tiers":"tiered"` and for `"chat_tiers":null`.
+- **`aServerInfoHelloRecordsTheOffer`**: `handleOutboundFrame` records the offer from each hello, so an older server's hello withdraws it.
+  - After `{"type":"server_info","unauth_enabled":true,"chat_tiers":"all"}`, `outboundAuthOffered` is true.
+  - After `{"type":"server_info","unauth_enabled":true}`, it is false.
+  - `socket.wire` is empty (no member tier, so nothing is sent).
+- **`anUntypedAckGoesToTheOutboundRouterNotTheListenersOrTheInboundState`**: An ok and an error status frame on the outbound socket reach no outbound listener and change no inbound auth state, and a verdict on the key spends no retry.
+  - After routing `{"status":"ok","tier":"member","ws_tier":"guild","is_staff":true,"staff_rank":"chief"}` and `{"status":"error","detail":"auth rejected: revoked"}`, the counting listener heard 0 frames.
+  - `SessionAuthState.confirmedStaff` and `expectingAuthAck` are false.
+  - `OutboundAckRouter.retryUsed()` is false.
+- **`aChatFrameStillReachesTheListeners`**: A typed chat frame still fans out to the outbound listeners.
+  - After `{"type":"waitlist","username":"A","message":"hi"}`, the counting listener heard 1 frame.
+- **`onlyAnIntrospectionFailureIsTransient`**: `OutboundAckRouter.isTransient` matches only the introspection prefix.
+  - True for `"auth rejected: introspection unavailable: timed out"`.
+  - False for `"auth rejected: revoked"` and for `null`.
+- **`theRetryIsDroppedAfterAReset`**: A body fenced at the current generation runs; one fenced before a `reset()` does not.
+  - After running a body fenced at `generation()`, then fencing a second at `generation()`, calling `reset()` and running it, the counter equals 1.
 
 ## `org.wynnvets.chat`
 
@@ -387,6 +431,18 @@ Test: [`NickResolverTest.java`](../src/test/java/org/wynnvets/chat/NickResolverT
   - `parts.size()` equals 1, where `parts` comes from flattening an aqua empty literal root with one child `Nickname` styled italic, with no font anywhere.
   - `resolved`, which is `parts.get(0).style().getFont()`, is not null.
   - `resolved` does not equal `PILL_FONT`.
+
+### `OutboundDisplayHandlerTest`
+
+Test: [`OutboundDisplayHandlerTest.java`](../src/test/java/org/wynnvets/chat/OutboundDisplayHandlerTest.java) · Subject: [`OutboundDisplayHandler`](../src/client/java/org/wynnvets/chat/OutboundDisplayHandler.java)
+
+`seenNatively` is the one display gate that tests a relayed line's `type`. Under temporary-server's all-tiers receive map every member gets every chat type, and the only line a viewer already sees in the game's own channel is a `guild` line while that viewer is a Returner in a world.
+
+- **`onlyAGuildLineIsSeenNativelyAndOnlyByAReturnerInAWorld`**: For each of `guild`, `queue`, `waitlist`, `honourary` and `bridge`, the predicate is true only for `guild` with a Returner who is not queued.
+  - `seenNatively(type, true, false)` equals `"guild".equals(type)`.
+  - `seenNatively(type, true, true)`, `seenNatively(type, false, false)` and `seenNatively(type, false, true)` are false.
+- **`anUntypedOrUnknownLineIsNeverSeenNatively`**: An empty or unknown type is never treated as seen.
+  - `seenNatively("", true, false)` and `seenNatively("warning", true, false)` are false.
 
 ### `PillCodecTest`
 

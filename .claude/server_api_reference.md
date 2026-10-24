@@ -65,8 +65,9 @@ Server-initiated frames on `/v1/outbound`: broadcast chat and `bridge`,
 `anni_state` (§1.15), `staff_online` / `staff_offline` (§2.6), the targeted
 `warning` frame, and `server_info`. Of these, a socket that has not sent its own
 `auth` frame receives only `server_info` and the broadcast chat (the chat only while
-`unauth` is on). vetsmod never authenticates its outbound socket, so it is always
-such a socket (bug `outbound-socket-never-authenticated`).
+`unauth` is on). vetsmod authenticates its outbound socket only for a member tier and
+only against a server whose `server_info` carries `chat_tiers: "all"`
+([vetsmod_networking.md](vetsmod_networking.md) §1); otherwise it stays such a socket.
 
 `rank_change` acks `ok` even when the handler silently drops the frame on a
 validation failure, so a client cannot tell accepted from discarded.
@@ -200,32 +201,36 @@ staff ranks all map there. Old clients ignore the key and keep reading
 
 Authenticated chat is tier-gated: `guild` may send `guild`+`queue`, `waitlist`
 only `waitlist`, `honourary` only `honourary`. There is no `queue` tier — it is
-a guild-tier privilege. The same `auth` frame is accepted on `/v1/outbound`,
-where the resulting tier filters what the client receives. vetsmod does not send it
-there, so no tier filter applies to what vetsmod receives
-(`outbound-socket-never-authenticated`).
+a guild-tier privilege. The same `auth` frame is accepted on `/v1/outbound`, with
+the same staff resolution and ack (temporary-server `app/chat/auth_session.py`, since
+`880baad`), where the resulting tier filters what the client receives: every member
+tier gets every chat type, and a null `ws_tier` gets none. vetsmod sends it there
+only for a member tier (see "`server_info` hello" below).
 
 ### `server_info` hello
 
-Undocumented in the spec. Pushed once on `/v1/outbound` connect, before the
+Documented in `v1_protocol.md` §2.1 since temporary-server `880baad` (undocumented before). Pushed once on `/v1/outbound` connect, before the
 receive loop:
 
 ```json
-{"type": "server_info", "unauth_enabled": true}
+{"type": "server_info", "unauth_enabled": true, "chat_tiers": "all"}
 ```
 
 `unauth_enabled` is true when `unauth` is *not* in `disabled_components`.
 vetsmod uses it to phrase its session-start warning correctly
 (allowed-but-unauthenticated vs blocked-and-unauthenticated) and routes it
 straight to `SessionAuthWarning.onServerInfo()` ahead of the outbound
-listeners. Old clients see a frame with no `username`/`message` and ignore it.
+listeners. `chat_tiers` (from temporary-server `880baad`) advertises the
+all-tiers receive map; vetsmod authenticates its outbound socket only when it
+is `"all"`. Old clients see a frame with no `username`/`message` and ignore it.
 
 ### `/v1/outbound` broadcast
 
 Clients register in the outbound manager's connection set and receive processed
 messages from the FIFO `state.outbound_queue`, filtered per socket: an authenticated
-socket gets its tier's chat types plus `bridge`, and an unauthenticated one gets
-everything while `unauth` is on and nothing while it is off. Client `auth` frames are
+socket of a member tier gets every chat type (`guild`, `queue`, `waitlist`,
+`honourary`, `bridge`) and one with a null `ws_tier` gets none, and an
+unauthenticated one gets everything while `unauth` is on and nothing while it is off. Client `auth` frames are
 honoured (see "Auth frame and ack"); every other client frame is read and silently
 dropped. Dead
 connections are pruned. The broadcaster loop dequeues, records traffic, checks

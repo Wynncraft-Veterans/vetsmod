@@ -175,8 +175,10 @@ public final class Json {
      * {@link #optString} with {@code null} as the fallback.
      *
      * <p>Exists so the call sites that never supplied a fallback did not grow an argument
-     * &mdash; twelve when this was written, <b>seventeen</b> once {@code NameResolver}'s five
-     * member-field reads joined them. {@code null} <i>is</i> a fallback; this is not a fourth policy.</p>
+     * &mdash; twelve when this was written, seventeen once {@code NameResolver}'s five
+     * member-field reads joined them, <b>nineteen</b> with the outbound auth's two (the
+     * {@code server_info} {@code chat_tiers} and the ack's {@code ws_tier}). {@code null}
+     * <i>is</i> a fallback; this is not a fourth policy.</p>
      *
      * @param obj the object to read; a {@code null} is tolerated and warns
      * @param key the field name
@@ -191,9 +193,9 @@ public final class Json {
      *
      * <p>Note what this collapses: "absent", "present but JSON-null", "wrongly typed" and
      * "present and empty" all read as {@code ""}, and the caller cannot tell them apart. Most
-     * of its eleven call sites gate on {@code isEmpty()} on the next line and do not care; the
-     * ones that do not ({@code type}, {@code tier}) feed an {@code equals} comparison or a
-     * display field where {@code ""} is already the neutral value.</p>
+     * of its twelve call sites gate on {@code isEmpty()} on the next line and do not care; the
+     * ones that do not ({@code type}, {@code tier}, {@code status}) feed an {@code equals}
+     * comparison or a display field where {@code ""} is already the neutral value.</p>
      *
      * @param obj the object to read; a {@code null} is tolerated and warns
      * @param key the field name

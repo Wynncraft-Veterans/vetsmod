@@ -122,6 +122,8 @@ final class InboundAckRouter {
             // receiver-side staff cache on every successful auth ack.
             StaffRanksPoller.refreshNow();
             GuildStateManager.onAuthSuccess(tier);
+            // A member tier also authenticates the outbound socket (V1ApiManager's class doc).
+            V1ApiManager.onInboundAuthOk(tier);
             return;
         }
         if (!"ok".equals(status)) {
@@ -136,6 +138,7 @@ final class InboundAckRouter {
                 if (wasStaff) {
                     DispatchCoordinator.resetStaffChatEligibilityCache();
                 }
+                V1ApiManager.onInboundAuthFailed();
                 GuildStateManager.onAuthFailure(detail);
             } else {
                 VetsLogger.warn("Inbound API error: {}", detail);

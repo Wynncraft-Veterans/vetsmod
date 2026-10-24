@@ -34,15 +34,15 @@ import org.wynnvets.util.Json;
  *   <li>honourary-unlocked users</li>
  * </ul>
  *
- * <p>Apart from that Returners exception, these gates test this client's own
- * settings and state, not the frame's {@code type}; which types arrive is
- * meant to be temporary-server's tier filter's call. Today that filter does
- * not apply, because vetsmod never authenticates this socket
- * ({@code outbound-socket-never-authenticated}): no {@code warning} frame
- * arrives, and every chat type does while the server's {@code unauth} toggle
- * is on (none with it off). So a Returner also renders {@code waitlist} and
- * {@code honourary} relays, and the other viewers above also render
- * {@code guild} and {@code queue} chat.</p>
+ * <p>Apart from that Returners exception ({@link #seenNatively}), these gates
+ * test this client's own settings and state, not the frame's {@code type};
+ * which types arrive is temporary-server's call. Once this socket is
+ * authenticated (a member tier, see {@code V1ApiManager}), the server sends
+ * every member tier every chat type, so each of the viewers above renders
+ * guild, queue, waitlist, honourary and bridge lines, each once. A socket that
+ * is not authenticated (no key, or tier {@code other}) gets the same chat
+ * while the server's {@code unauth} toggle is on and none with it off, and
+ * never gets a {@code warning} frame.</p>
  *
  * <p>Self-message suppression prevents echo of messages the player just sent.
  * Server-side dedup handles guild message fingerprinting.</p>
@@ -141,10 +141,9 @@ public final class OutboundDisplayHandler {
         // their own warning even if PRINT_BRIDGE_MESSAGES is off or they
         // aren't a tier that normally renders outbound chat. Targeting is
         // enforced server-side by mc_uuid match before the frame is
-        // pushed, so receiving the frame here implies it's for us.
-        // Today this branch never runs: the server pushes warning frames only to an
-        // authenticated outbound socket, and vetsmod never authenticates that socket
-        // (outbound-socket-never-authenticated).
+        // pushed, so receiving the frame here implies it's for us. The
+        // server pushes it only to an authenticated outbound socket, which
+        // needs a member tier (V1ApiManager.sendOutboundAuth).
         if ("warning".equals(Json.stringOrEmpty(json, "type"))) {
             WarningFrameRenderer.render(json);
             return;
@@ -213,9 +212,7 @@ public final class OutboundDisplayHandler {
         // suppress outbound guild echoes to avoid double-display.  While
         // queued, however, the game-server channel is silent, so we must
         // render WS-delivered guild chat ourselves.
-        if (GuildStateManager.isReturners()
-                && "guild".equals(type)
-                && !QueueStateManager.isInQueue()) {
+        if (seenNatively(type, GuildStateManager.isReturners(), QueueStateManager.isInQueue())) {
             return;
         }
 
@@ -244,6 +241,18 @@ public final class OutboundDisplayHandler {
         } else {
             ChatUtils.sendGuildChatMessage(rank, username, message);
         }
+    }
+
+    /**
+     * Whether the player already sees this relayed line in the game's own channel, so showing
+     * the relay would show it twice: a {@code guild} line for a Returner who is in a world. A
+     * queued Returner's guild channel is silent, so the relay shows; every other type
+     * ({@code queue}, {@code waitlist}, {@code honourary}, {@code bridge}) reaches no player
+     * natively and always shows.
+     */
+    // Package-private for unit tests. See OutboundDisplayHandlerTest.
+    static boolean seenNatively(String type, boolean returners, boolean inQueue) {
+        return returners && "guild".equals(type) && !inQueue;
     }
 
     private static boolean shouldDisplayMessages() {

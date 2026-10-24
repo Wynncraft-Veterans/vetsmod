@@ -11,6 +11,7 @@ import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Central manager for the v1 WebSocket API connections (inbound and outbound).
@@ -21,21 +22,39 @@ import org.wynnvets.logging.VetsLogger;
  * authenticated socket ({@code staff_online} / {@code staff_offline}, {@code anni_state},
  * and the targeted {@code warning} frame).</p>
  *
- * <p>temporary-server keeps its authenticated session per socket, and {@link #connect()}
- * sends the {@code auth} frame on the inbound socket only. So today the outbound socket is
- * never authenticated: none of those authenticated-only frames arrives, and relayed chat
- * arrives without the server's tier filter while its {@code unauth} toggle is on (and not
- * at all with it off). See {@code outbound-socket-never-authenticated}; the mechanism is in
- * {@code vetsmod_networking.md} §1.</p>
+ * <p>temporary-server keeps its authenticated session per socket, so the outbound socket
+ * sends its own {@code auth} frame ({@link #sendOutboundAuthIfReady()}), but only once the
+ * inbound ack has confirmed a member tier (member, waitlist or honourary) and only against a
+ * server whose {@code server_info} carries {@code chat_tiers: "all"}. Such a server gives every
+ * member tier every chat type; an older one would hide chat from an authenticated socket that
+ * an unauthenticated one receives. A keyholder of tier {@code other} stays unauthenticated on
+ * this socket, like a player with no key: relayed chat while the server's {@code unauth}
+ * toggle is on, none with it off. The outbound ack goes to {@link OutboundAckRouter}, never
+ * through the inbound ack's side effects. The mechanism is in {@code vetsmod_networking.md}
+ * §1.</p>
  */
 public final class V1ApiManager {
 
     private static final String INBOUND_BASE = "wss://api.wynnvets.org/v1/inbound";
     private static final URI OUTBOUND_URI = URI.create("wss://api.wynnvets.org/v1/outbound");
 
-    // Package-private for unit tests. See V1ApiManagerFramesTest.
+    // Package-private for unit tests. See V1ApiManagerFramesTest and
+    // V1ApiManagerOutboundAuthTest.
     static volatile WsClient inboundClient;
-    private static volatile WsClient outboundClient;
+    static volatile WsClient outboundClient;
+
+    /** Whether this connection's outbound {@code server_info} advertised {@code chat_tiers:
+     *  "all"}, the receive map that gives every member tier every chat type. Reset by
+     *  {@link #connect()} and {@link #disconnect()}. */
+    static volatile boolean outboundAuthOffered = false;
+
+    /** Whether the latest inbound auth ack this connection confirmed a member tier (member,
+     *  waitlist or honourary). Set by {@link #onInboundAuthOk(String)}, cleared by
+     *  {@link #onInboundAuthFailed()}, {@link #connect()} and {@link #disconnect()}. Clearing it
+     *  does not end the outbound session: the server keeps that until the socket closes or a
+     *  new outbound auth replaces it. */
+    static volatile boolean inboundMemberTier = false;
+
     private static volatile JsonObject pendingRegistration;
 
     private static final CopyOnWriteArrayList<Consumer<JsonObject>> outboundListeners =
@@ -92,6 +111,9 @@ public final class V1ApiManager {
      *  by {@link org.wynnvets.listeners.ServerConnectionListener ServerConnectionListener}. */
     public static void connect() {
         if (inboundClient != null) return;
+        outboundAuthOffered = false;
+        inboundMemberTier = false;
+        OutboundAckRouter.reset();
 
         URI inboundUri = URI.create(INBOUND_BASE + "?version=" + getModVersion());
         inboundClient =
@@ -156,41 +178,7 @@ public final class V1ApiManager {
                     }
                 });
 
-        outboundClient =
-                new WsClient(
-                        OUTBOUND_URI,
-                        "outbound",
-                        json -> {
-                            // Server pushes a `server_info` hello frame on connect to tell
-                            // us the current `unauth` toggle state. Routed straight to
-                            // SessionAuthWarning so its session-start warning can pick the
-                            // right copy. staff_online / staff_offline go to StaffRanksPoller
-                            // below; everything else (chat, and the typed pushes the listeners
-                            // pick out by type) fans out to the listeners.
-                            if (json.has("type")) {
-                                String frameType = json.get("type").getAsString();
-                                if ("server_info".equals(frameType)) {
-                                    boolean unauthEnabled =
-                                            json.has("unauth_enabled")
-                                                    && json.get("unauth_enabled").getAsBoolean();
-                                    org.wynnvets.guild.SessionAuthWarning.onServerInfo(
-                                            unauthEnabled);
-                                    return;
-                                }
-                                if ("staff_online".equals(frameType)
-                                        || "staff_offline".equals(frameType)) {
-                                    handleStaffPresenceFrame(frameType, json);
-                                    return;
-                                }
-                            }
-                            for (Consumer<JsonObject> listener : outboundListeners) {
-                                try {
-                                    listener.accept(json);
-                                } catch (Exception e) {
-                                    VetsLogger.warn("Outbound listener error: {}", e.getMessage());
-                                }
-                            }
-                        });
+        outboundClient = new WsClient(OUTBOUND_URI, "outbound", V1ApiManager::handleOutboundFrame);
 
         inboundClient.connect();
         outboundClient.connect();
@@ -202,6 +190,9 @@ public final class V1ApiManager {
      *  handshake still in flight is aborted when it completes ({@link WsClient#close()}).
      *  Also clears the confirmed-staff state and fails any pending staff-action callbacks. */
     public static void disconnect() {
+        outboundAuthOffered = false;
+        inboundMemberTier = false;
+        OutboundAckRouter.reset();
         if (inboundClient != null) {
             inboundClient.close();
             inboundClient = null;
@@ -227,6 +218,111 @@ public final class V1ApiManager {
             }
         }
         VetsLogger.debug("V1 API connections closed");
+    }
+
+    /**
+     * Handles one frame from the outbound socket.
+     *
+     * <ul>
+     *   <li>An untyped {@code {"status":...}} frame is the reply to this socket's own
+     *       {@code auth} frame and goes to {@link OutboundAckRouter}, never to the listeners or
+     *       the inbound ack logic. Chat frames never carry {@code status}.</li>
+     *   <li>{@code server_info}: its {@code unauth_enabled} goes to
+     *       {@code SessionAuthWarning.onServerInfo} so the session-start warning picks the right
+     *       copy, and its {@code chat_tiers} decides whether this socket may authenticate
+     *       ({@link #sendOutboundAuthIfReady()}, called here because the hello opens every
+     *       outbound (re)connect).</li>
+     *   <li>{@code staff_online} / {@code staff_offline} go to {@link StaffRanksPoller}.</li>
+     *   <li>Everything else (chat, and the typed pushes the listeners pick out by type) fans out
+     *       to the outbound listeners.</li>
+     * </ul>
+     */
+    // Package-private for unit tests. See V1ApiManagerOutboundAuthTest.
+    static void handleOutboundFrame(JsonObject json) {
+        if (!json.has("type") && json.has("status")) {
+            OutboundAckRouter.route(json);
+            return;
+        }
+        if (json.has("type")) {
+            String frameType = json.get("type").getAsString();
+            if ("server_info".equals(frameType)) {
+                boolean unauthEnabled =
+                        json.has("unauth_enabled") && json.get("unauth_enabled").getAsBoolean();
+                org.wynnvets.guild.SessionAuthWarning.onServerInfo(unauthEnabled);
+                outboundAuthOffered = offersAllChatTiers(json);
+                sendOutboundAuthIfReady();
+                return;
+            }
+            if ("staff_online".equals(frameType) || "staff_offline".equals(frameType)) {
+                handleStaffPresenceFrame(frameType, json);
+                return;
+            }
+        }
+        for (Consumer<JsonObject> listener : outboundListeners) {
+            try {
+                listener.accept(json);
+            } catch (Exception e) {
+                VetsLogger.warn("Outbound listener error: {}", e.getMessage());
+            }
+        }
+    }
+
+    /** Whether a {@code server_info} hello advertises the all-tiers receive map
+     *  ({@code chat_tiers: "all"}). A server without the key runs the old per-tier map. */
+    static boolean offersAllChatTiers(JsonObject serverInfo) {
+        return "all".equals(Json.stringOrNull(serverInfo, "chat_tiers"));
+    }
+
+    /** Whether an auth ack's {@code tier} is a member tier, one the server gives a chat
+     *  channel: {@code member}, {@code waitlist} or {@code honourary} (not {@code other}). */
+    static boolean isMemberTier(String tier) {
+        return "member".equals(tier) || "waitlist".equals(tier) || "honourary".equals(tier);
+    }
+
+    /**
+     * Called by {@link InboundAckRouter} on every ok inbound auth ack: records whether the tier
+     * is a member tier and, if it is, authenticates the outbound socket too. Covers the
+     * connect-time auth, {@code /unlock} and the mid-session Returners re-auth, since each of
+     * them ends in an inbound ack.
+     */
+    static void onInboundAuthOk(String tier) {
+        inboundMemberTier = isMemberTier(tier);
+        sendOutboundAuthIfReady();
+    }
+
+    /** Called by {@link InboundAckRouter} on an inbound auth failure. */
+    static void onInboundAuthFailed() {
+        inboundMemberTier = false;
+    }
+
+    /** Sends the stored key on the outbound socket when {@link #sendOutboundAuth(String)}'s
+     *  conditions hold. Called on every {@code server_info} hello, on every ok inbound auth ack
+     *  and by {@link OutboundAckRouter}'s retry. */
+    static void sendOutboundAuthIfReady() {
+        // The flags first: most calls stop here, and only then is the stored key read.
+        if (!outboundAuthOffered || !inboundMemberTier) {
+            return;
+        }
+        sendOutboundAuth(VetsConfig.getString(VetsConfigKeys.VETS_AUTH_KEY));
+    }
+
+    /**
+     * Sends {@code {type:"auth", key}} on the outbound socket if the server offered the
+     * all-tiers map, the inbound ack confirmed a member tier, there is a key and the outbound
+     * socket is up. Unlike {@link #sendAuth(String)} it never sets {@code expectingAuthAck}:
+     * the reply arrives on the outbound socket and goes to {@link OutboundAckRouter}.
+     */
+    // Package-private for unit tests. See V1ApiManagerOutboundAuthTest.
+    static void sendOutboundAuth(String key) {
+        if (!outboundAuthOffered || !inboundMemberTier || key == null || key.isEmpty()) {
+            return;
+        }
+        WsClient client = outboundClient;
+        if (client == null || !client.isConnected()) {
+            return;
+        }
+        client.send(V1Frames.auth(key));
+        VetsLogger.debug("Sent auth frame on outbound");
     }
 
     /**
