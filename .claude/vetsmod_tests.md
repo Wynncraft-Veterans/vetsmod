@@ -16,7 +16,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets`](#orgwynnvets) — [`LocaleFoldTripwireTest`](#localefoldtripwiretest)
 - [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`SerializedSenderTest`](#serializedsendertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest), [`V1ApiManagerOutboundAuthTest`](#v1apimanageroutboundauthtest)
 - [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`OutboundDisplayHandlerTest`](#outbounddisplayhandlertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
-- [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
+- [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`DispatchCoordinatorTest`](#dispatchcoordinatortest), [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
 - [`org.wynnvets.chat.spoiler`](#orgwynnvetschatspoiler) — [`SpoilerCodecTest`](#spoilercodectest)
 - [`org.wynnvets.commands`](#orgwynnvetscommands) — [`HelpCommandsTest`](#helpcommandstest)
 - [`org.wynnvets.config`](#orgwynnvetsconfig) — [`NamedColorTest`](#namedcolortest), [`ShippedConfigTest`](#shippedconfigtest), [`VetsConfigDefaultsTest`](#vetsconfigdefaultstest), [`VetsConfigKeysTest`](#vetsconfigkeystest), [`VetsConfigSchemaTest`](#vetsconfigschematest)
@@ -621,6 +621,28 @@ Test: [`RankDisplayMapTest.java`](../src/test/java/org/wynnvets/chat/RankDisplay
   - `displayFor("Moderator")` is `Moderator`, `displayFor("")` is the empty string, and `displayFor(null)` is null.
 
 ## `org.wynnvets.chat.dispatcher`
+
+### `DispatchCoordinatorTest`
+
+Test: [`DispatchCoordinatorTest.java`](../src/test/java/org/wynnvets/chat/dispatcher/DispatchCoordinatorTest.java) · Subject: [`DispatchCoordinator`](../src/client/java/org/wynnvets/chat/dispatcher/DispatchCoordinator.java)
+
+`DispatchCoordinator` prints two yellow notices, each naming its cause: why a `/v` reached nobody (`NoRecipientsCause`) and why a gated staff command was dropped (`StaffWaitCause`). The suite pins the text `message()` gives for each cause. Which cause each code path picks, and the staff feed readers' throw on a non-200 or malformed body, are not covered: they run on the shared HTTP client and the render thread.
+
+- **`noRecipientsCause_messages_areTheWordedLines`**: Each no-recipients cause has its worded line.
+  - `NoRecipientsCause.NOBODY_HERE.message()` equals `"Nobody saw your message (nobody here)"`.
+  - `NoRecipientsCause.API_UNREACHABLE.message()` equals `"Nobody saw your message (API unreachable)"`.
+- **`staffWaitCause_messages_areTheWordedLines`**: Each staff-wait cause has its worded line.
+  - `StaffWaitCause.IN_PROGRESS.message()` equals `"Message not deliverable (permission verification in progress)"`.
+  - `StaffWaitCause.UNSUCCESSFUL.message()` equals `"Message not deliverable (permission verification unsuccessful)"`.
+- **`messages_areDistinct_nonBlank_andEndWithoutAPeriod`**: The four lines differ, are non-blank and carry no trailing period.
+  - The messages of both enums together number 4.
+  - They form a set of size 4.
+  - Each is non-blank.
+  - Each does not end with `"."`.
+- **`onlyTheTransportCauseBlamesTheApi`**: Only `API_UNREACHABLE` mentions the API.
+  - For each `NoRecipientsCause`, whether `message()` contains `"API"` equals whether the cause is `API_UNREACHABLE`.
+  - For each `StaffWaitCause`, `message()` does not contain `"API"`.
+  - For each `StaffWaitCause`, `message()` starts with `"Message not deliverable ("`.
 
 ### `FindDispatcherTest`
 

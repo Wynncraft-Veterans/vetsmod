@@ -237,6 +237,8 @@ Solves, for the three executor-backed classes below: serialize command dispatch 
 
 Gates `/v`, `/a` and `/encourage` on staff eligibility, and owns the single-threaded `DISPATCH_EXECUTOR` that serializes the `/v` fan-out (sent as `/msg`) and the `/find` batches (those are enqueued on `FindDispatcher` directly, not here). `/msg` takes priority: each pass handles queued `/msg` first, then every queued `/find` batch, including ones queued during that phase. A `/msg` arriving mid-`/find` waits for the next pass, by design: `/wv list world` queues one `/find` batch for every name, so a yield between batches would not shorten the wait. Provides `shouldSuppressFeedback()` and `shouldSuppressFindResponse()` used by ChatLogMixin.
 
+A call that cannot be confirmed as staff is dropped with a yellow notice from the package-private `StaffWaitCause` enum, in both gates alike: `IN_PROGRESS` ("Message not deliverable (permission verification in progress)") when another check is already running or the feed does not list the player yet, `UNSUCCESSFUL` ("Message not deliverable (permission verification unsuccessful)") when the check threw. A `/v` that reached nobody prints a yellow notice from `NoRecipientsCause`: `NOBODY_HERE` ("Nobody saw your message (nobody here)") or `API_UNREACHABLE` ("Nobody saw your message (API unreachable)"). Both staff-feed readers (`fetchOnlineStaffUsernames` and `isSelfListedInOnlineStaffFeed`, through `fetchStaffFeed`) throw `IOException` on a non-200 reply or a body that is not a JSON array, so a transport failure reaches the callers' exception arms instead of reading as an empty or unlisted feed.
+
 ### MessageFanoutDispatcher
 [MessageFanoutDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/MessageFanoutDispatcher.java)
 
@@ -254,6 +256,8 @@ Multi-strategy feedback matching in `MessageFanoutDispatcher.shouldSuppressFeedb
 4. Offline-recipient error for the pending recipient (reports offline, opens the guidance window)
 
 Steps 2–4 are tried against each pending send in turn, oldest first; the first match wins.
+
+When a batch reaches nobody it prints a `NoRecipientsCause` notice: `NOBODY_HERE` when the feed lists no one besides yourself, every recipient was offline, or no `/msg` got a reply; `API_UNREACHABLE` from the batch's exception arm, which the feed readers' throws on a non-200 or malformed body now reach.
 
 ### FindDispatcher
 [FindDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/FindDispatcher.java)

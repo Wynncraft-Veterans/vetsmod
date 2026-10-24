@@ -75,7 +75,8 @@ public final class MessageFanoutDispatcher {
                 while (DispatchCoordinator.MESSAGE_QUEUE.poll() != null) {
                     // drained
                 }
-                DispatchCoordinator.showNoRecipientsWarning();
+                DispatchCoordinator.showNoRecipientsWarning(
+                        DispatchCoordinator.NoRecipientsCause.NOBODY_HERE);
                 return;
             }
 
@@ -124,7 +125,9 @@ public final class MessageFanoutDispatcher {
             }
 
             if (!deliveredAnyMessageToAnyone) {
-                DispatchCoordinator.showNoRecipientsWarning();
+                // Every recipient was offline or never replied.
+                DispatchCoordinator.showNoRecipientsWarning(
+                        DispatchCoordinator.NoRecipientsCause.NOBODY_HERE);
             }
         } catch (Exception e) {
             VetsLogger.warn("Failed to dispatch staff /v broadcast batch: {}", e.getMessage());
@@ -132,7 +135,10 @@ public final class MessageFanoutDispatcher {
             while (DispatchCoordinator.MESSAGE_QUEUE.poll() != null) {
                 // drained
             }
-            DispatchCoordinator.showNoRecipientsWarning();
+            // The staff feed could not be read (fetchOnlineStaffUsernames throws on any
+            // transport failure).
+            DispatchCoordinator.showNoRecipientsWarning(
+                    DispatchCoordinator.NoRecipientsCause.API_UNREACHABLE);
         }
     }
 
