@@ -840,8 +840,9 @@ the client needs to react to.**
 
 **AnniWsSender send template** — four clones (`sendAnniQuery`,
 `sendAnniScrollspotSet`, `sendAnniRsvp`, `sendAnniPartyObservation`).
-Check `V1ApiManager.isInboundConnected()`, build `{"type":"...",...}`
-JSON, call `V1ApiManager.sendInboundUnchecked(payload)`, return bool.
+Build `{"type":"...",...}` JSON, hand it to
+`V1ApiManager.sendInboundIfConnected(payload)` (one read of the socket for
+the check and the send), return its bool.
 Mirror.
 
 **`AnniWsHandler.onInbound` demux** — four routes; add a fifth if a

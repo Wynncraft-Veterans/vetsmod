@@ -116,7 +116,9 @@ public final class V1ApiManager {
         OutboundAckRouter.reset();
 
         URI inboundUri = URI.create(INBOUND_BASE + "?version=" + getModVersion());
-        inboundClient =
+        // Built into a local, which the on-connect callback below uses, so a disconnect() that
+        // nulls the field while the callback runs cannot make it dereference null.
+        WsClient inbound =
                 new WsClient(
                         inboundUri,
                         "inbound",
@@ -146,18 +148,18 @@ public final class V1ApiManager {
 
         // Re-send registration AND re-authenticate on every reconnect so the
         // server's presence + auth state stays accurate across network hiccups.
-        inboundClient.setOnConnectCallback(
+        inbound.setOnConnectCallback(
                 () -> {
                     String storedKey = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_KEY);
-                    if (storedKey != null && !storedKey.isEmpty() && inboundClient != null) {
+                    if (storedKey != null && !storedKey.isEmpty()) {
                         SessionAuthState.expectingAuthAck = true;
                         JsonObject auth = V1Frames.auth(storedKey);
-                        inboundClient.send(auth);
+                        inbound.send(auth);
                         VetsLogger.debug("Re-sent auth frame on inbound (re)connect");
                     }
                     JsonObject reg = pendingRegistration;
-                    if (reg != null && inboundClient != null) {
-                        inboundClient.send(reg);
+                    if (reg != null) {
+                        inbound.send(reg);
                         VetsLogger.debug("Re-sent pending registration on inbound reconnect");
                     }
                     // Notify post-connect listeners after any auth and registration
@@ -180,7 +182,8 @@ public final class V1ApiManager {
 
         outboundClient = new WsClient(OUTBOUND_URI, "outbound", V1ApiManager::handleOutboundFrame);
 
-        inboundClient.connect();
+        inboundClient = inbound;
+        inbound.connect();
         outboundClient.connect();
         VetsLogger.debug("V1 API connections initiated");
     }
@@ -194,9 +197,10 @@ public final class V1ApiManager {
         inboundMemberTier = false;
         OutboundAckRouter.reset();
         StaffRanksPoller.clearLiveOverlay();
-        if (inboundClient != null) {
-            inboundClient.close();
+        WsClient inbound = inboundClient;
+        if (inbound != null) {
             inboundClient = null;
+            inbound.close();
         }
         if (outboundClient != null) {
             outboundClient.close();
@@ -209,11 +213,8 @@ public final class V1ApiManager {
         // never arrive.
         Consumer<JsonObject> pending;
         while ((pending = staffActionCallbacks.pollFirst()) != null) {
-            JsonObject err = new JsonObject();
-            err.addProperty("status", "error");
-            err.addProperty("detail", "Connection closed before reply.");
             try {
-                pending.accept(err);
+                pending.accept(drainError());
             } catch (Exception e) {
                 VetsLogger.warn("Staff-action drain callback error: {}", e.getMessage());
             }
@@ -341,8 +342,9 @@ public final class V1ApiManager {
         JsonObject payload = V1Frames.register(uuid, username, tier);
         pendingRegistration = payload;
 
-        if (inboundClient != null && inboundClient.isConnected()) {
-            inboundClient.send(payload);
+        WsClient client = connectedInbound();
+        if (client != null) {
+            client.send(payload);
             VetsLogger.debug(
                     "Sent registration: {} ({}…, tier={})",
                     username,
@@ -383,13 +385,14 @@ public final class V1ApiManager {
         if (key == null || key.isEmpty()) {
             return;
         }
-        if (inboundClient == null || !inboundClient.isConnected()) {
+        WsClient client = connectedInbound();
+        if (client == null) {
             VetsLogger.debug("sendAuth: inbound not connected; key will be sent on reconnect");
             return;
         }
         SessionAuthState.expectingAuthAck = true;
         JsonObject payload = V1Frames.auth(key);
-        inboundClient.send(payload);
+        client.send(payload);
         VetsLogger.debug("Sent auth frame ({}…)", key.length() >= 6 ? key.substring(0, 6) : key);
     }
 
@@ -401,11 +404,12 @@ public final class V1ApiManager {
      * @param world  the target world name (e.g. "NA30"), or empty
      */
     public static void sendQueueStatus(boolean queued, String world) {
-        if (inboundClient == null || !inboundClient.isConnected()) {
+        WsClient client = connectedInbound();
+        if (client == null) {
             return;
         }
         JsonObject payload = V1Frames.queueStatus(queued, world);
-        inboundClient.send(payload);
+        client.send(payload);
         VetsLogger.debug("Sent queue_status: queued={}, world={}", queued, world);
     }
 
@@ -422,14 +426,15 @@ public final class V1ApiManager {
      * @param message  the message content
      */
     public static void sendInbound(String type, String rank, String username, String message) {
-        if (inboundClient == null || !inboundClient.isConnected()) {
+        WsClient client = connectedInbound();
+        if (client == null) {
             VetsLogger.debug("Inbound WebSocket not connected, dropping message");
             return;
         }
 
         JsonObject payload = V1Frames.inbound(type, rank, username, message);
 
-        inboundClient.send(payload);
+        client.send(payload);
     }
 
     /**
@@ -446,12 +451,13 @@ public final class V1ApiManager {
      */
     public static void sendRankChange(
             String actor, String target, String fromRank, String toRank, String classification) {
-        if (inboundClient == null || !inboundClient.isConnected()) {
+        WsClient client = connectedInbound();
+        if (client == null) {
             VetsLogger.debug("Inbound WebSocket not connected, dropping rank_change");
             return;
         }
         JsonObject payload = V1Frames.rankChange(actor, target, fromRank, toRank, classification);
-        inboundClient.send(payload);
+        client.send(payload);
         VetsLogger.debug(
                 "Sent rank_change: {} set {} {} -> {} ({})",
                 actor,
@@ -469,12 +475,13 @@ public final class V1ApiManager {
      * @param entries list of {@code {server, username}} pairs parsed from the tab list
      */
     public static void sendTabList(List<TabListEntry> entries) {
-        if (inboundClient == null || !inboundClient.isConnected()) {
+        WsClient client = connectedInbound();
+        if (client == null) {
             return;
         }
 
         JsonObject payload = V1Frames.tabList(entries);
-        inboundClient.send(payload);
+        client.send(payload);
         VetsLogger.debug("Sent tablist with {} guild entries", entries.size());
     }
 
@@ -482,16 +489,30 @@ public final class V1ApiManager {
     public record TabListEntry(String server, String username) {}
 
     /**
-     * Hands {@code frame} to the inbound socket's {@link WsClient#send(JsonObject)} with no check
-     * of its own. The caller must have just checked {@link #isInboundConnected()}. It does none of
-     * the bookkeeping some other senders do around their sends: it caches no registration, enqueues
-     * no staff-action callback and sets no {@code expectingAuthAck}, so it is not for register,
-     * auth or staff-action frames. Today a disconnect between the caller's check and this call
-     * throws {@link NullPointerException}
-     * ({@code v1-check-then-send-npe-on-concurrent-disconnect}).
+     * Hands {@code frame} to the inbound socket if it is connected, reading the socket once, so a
+     * disconnect on another thread cannot land between the check and the send. It does none of
+     * the bookkeeping some other senders do around their sends: it caches no registration,
+     * enqueues no staff-action callback and sets no {@code expectingAuthAck}, so it is not for
+     * register, auth or staff-action frames.
+     *
+     * @return {@code true} if the socket was up and took the frame (which still does not confirm
+     *     delivery), {@code false} if it was down and nothing was sent
      */
-    public static void sendInboundUnchecked(JsonObject frame) {
-        inboundClient.send(frame);
+    public static boolean sendInboundIfConnected(JsonObject frame) {
+        WsClient client = connectedInbound();
+        if (client == null) {
+            return false;
+        }
+        client.send(frame);
+        return true;
+    }
+
+    /** The inbound client if it is installed and connected, else {@code null}. Every sender reads
+     *  the static field through this, once, and then uses the local: {@link #disconnect()} on
+     *  another thread may null the field between a check and a send. */
+    private static WsClient connectedInbound() {
+        WsClient client = inboundClient;
+        return client != null && client.isConnected() ? client : null;
     }
 
     /**
@@ -584,9 +605,9 @@ public final class V1ApiManager {
      * is merged into the outgoing JSON after {@code "type"} is set, so do NOT include
      * {@code "type"} -- it would replace the frame type. The callback is single-use. It
      * normally runs on the thread that delivers inbound frames, but runs on the caller's
-     * thread when the socket is down and on the disconnecting thread when
-     * {@link #disconnect()} drains it -- bounce to the main thread for game-state
-     * work.</p>
+     * thread when the socket is down, on the thread that completed the write when the frame
+     * could not be sent, and on the disconnecting thread when {@link #disconnect()} drains it --
+     * bounce to the main thread for game-state work.</p>
      *
      * @param type     the staff-action frame type (e.g. "caution_check", "eject_add",
      *                 "check_membership")
@@ -599,7 +620,8 @@ public final class V1ApiManager {
      */
     public static void sendStaffActionFrame(
             String type, JsonObject fields, Consumer<JsonObject> callback) {
-        if (inboundClient == null || !inboundClient.isConnected()) {
+        WsClient client = connectedInbound();
+        if (client == null) {
             JsonObject err = new JsonObject();
             err.addProperty("status", "error");
             err.addProperty("detail", "Inbound WebSocket not connected.");
@@ -610,8 +632,28 @@ public final class V1ApiManager {
         if (callback != null) {
             staffActionCallbacks.addLast(callback);
         }
-        inboundClient.send(payload);
+        client.sendAsync(payload)
+                .thenAccept(
+                        sent -> {
+                            // A frame that never went out gets no ack: take its callback back and
+                            // answer it now. Exactly once: an ack or a drain that took it first
+                            // makes the removal fail.
+                            if (!sent
+                                    && callback != null
+                                    && staffActionCallbacks.removeLastOccurrence(callback)) {
+                                callback.accept(drainError());
+                            }
+                        });
         VetsLogger.debug("Sent staff-action frame: {}", type);
+        // A disconnect() that ran after the check drained the queue before this callback joined
+        // it, so nothing would ever answer it. If the socket changed, take the callback back and
+        // answer it with the drain's error; if the drain got it first, removal fails and it has
+        // already been answered.
+        if (callback != null
+                && inboundClient != client
+                && staffActionCallbacks.removeLastOccurrence(callback)) {
+            callback.accept(drainError());
+        }
     }
 
     /** @return whether the most recent successful auth ack reported the
@@ -641,6 +683,14 @@ public final class V1ApiManager {
 
     /** Returns true if the inbound connection is active. */
     public static boolean isInboundConnected() {
-        return inboundClient != null && inboundClient.isConnected();
+        return connectedInbound() != null;
+    }
+
+    /** The synthetic error ack a staff-action callback gets when its socket closed first. */
+    private static JsonObject drainError() {
+        JsonObject err = new JsonObject();
+        err.addProperty("status", "error");
+        err.addProperty("detail", "Connection closed before reply.");
+        return err;
     }
 }

@@ -121,7 +121,7 @@ Test: [`SerializedSenderTest.java`](../src/test/java/org/wynnvets/api/Serialized
 
 Test: [`V1ApiManagerFramesTest.java`](../src/test/java/org/wynnvets/api/V1ApiManagerFramesTest.java) · Subject: [`V1ApiManager`](../src/client/java/org/wynnvets/api/V1ApiManager.java), `AnniWsSender`, `AnniQueryClient`, `AnniRsvpClient`, `AnniScrollspotClient`
 
-`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (`WsClient.toWire`, which keeps null members) and complete `true`, and has a settable connected flag. For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
+`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (`WsClient.toWire`, which keeps null members) and complete with its settable `sends` flag (`true` unless a test sets it), and has a settable connected flag. For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
 
 Asserting helpers:
 
@@ -165,6 +165,14 @@ Tests:
   - With `V1ApiManager.inboundClient` null, `assertNothingSentWhileDown()` passes (see HELPER).
 - **`socketNotConnected_sendsNothing`**: With a socket that reports not connected, the same set of sends and results holds and nothing is recorded on the wire.
   - With the recording socket installed but `isConnected()` false, `assertNothingSentWhileDown()` passes (see HELPER).
+- **`aDisconnectBetweenCheckAndSendThrowsNothing`**: Each socket-checking send survives a `disconnect()` that lands between its check and its send, and writes on the client it checked. A `DisconnectingWsClient` runs `V1ApiManager.disconnect()` inside `isConnected()` and returns true.
+  - For each of `sendRegistration`, `sendAuth`, `sendQueueStatus`, `sendInbound`, `sendRankChange`, `sendTabList` and `AnniWsSender.sendAnniQuery()` (which also returns true), with a fresh racing socket installed: the send does not throw, the racing socket recorded 1 frame, and `V1ApiManager.inboundClient` is null afterwards.
+- **`aStaffActionWhoseFrameIsNotSentIsAnsweredOnceWithTheDrainError`**: A staff-action frame whose write fails has its callback taken back and answered once.
+  - With `socket.sends` false, `sendStaffActionFrame("caution_check", new JsonObject(), cb)` leaves `acks` equal to `["{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"]`.
+  - `staffActionCallbacks` is empty.
+- **`aStaffActionCaughtByADisconnectIsAnsweredOnceWithTheDrainError`**: A staff-action callback that joins the queue after the drain is taken back and answered once.
+  - With a racing socket installed, `sendStaffActionFrame("caution_check", new JsonObject(), cb)` leaves `acks` equal to `["{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"]`.
+  - `staffActionCallbacks` is empty.
 
 ### `V1ApiManagerOutboundAuthTest`
 

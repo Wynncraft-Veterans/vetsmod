@@ -7,10 +7,10 @@ import org.wynnvets.logging.VetsLogger;
 
 /**
  * Sends the anni frames on the v1 inbound socket: {@code anni_query}, {@code anni_scrollspot_set},
- * {@code anni_rsvp} and {@code anni_party_observation}. Each checks
- * {@link V1ApiManager#isInboundConnected()}, builds its frame, sends it through
- * {@link V1ApiManager#sendInboundUnchecked(JsonObject)} and reports whether the socket was up. The
- * replies come back as typed inbound frames, which {@link AnniWsHandler} routes.
+ * {@code anni_rsvp} and {@code anni_party_observation}. Each builds its frame, sends it through
+ * {@link V1ApiManager#sendInboundIfConnected(JsonObject)}, which checks the socket and sends in
+ * one read, and reports whether the socket was up. The replies come back as typed inbound frames,
+ * which {@link AnniWsHandler} routes.
  */
 public final class AnniWsSender {
 
@@ -44,13 +44,12 @@ public final class AnniWsSender {
      *         snapshot.
      */
     public static boolean sendAnniQuery() {
-        if (!V1ApiManager.isInboundConnected()) {
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "anni_query");
+        if (!V1ApiManager.sendInboundIfConnected(payload)) {
             VetsLogger.debug("sendAnniQuery: inbound not connected");
             return false;
         }
-        JsonObject payload = new JsonObject();
-        payload.addProperty("type", "anni_query");
-        V1ApiManager.sendInboundUnchecked(payload);
         VetsLogger.debug("Sent anni_query");
         return true;
     }
@@ -79,24 +78,27 @@ public final class AnniWsSender {
      *         delivery; false when it was down.
      */
     public static boolean sendAnniScrollspotSet(Integer x, Integer y, Integer z) {
-        if (!V1ApiManager.isInboundConnected()) {
-            VetsLogger.debug("sendAnniScrollspotSet: inbound not connected");
-            return false;
-        }
         JsonObject payload = new JsonObject();
         payload.addProperty("type", "anni_scrollspot_set");
-        if (x == null || y == null || z == null) {
+        boolean clear = x == null || y == null || z == null;
+        if (clear) {
             payload.add("scroll_spot", com.google.gson.JsonNull.INSTANCE);
-            VetsLogger.debug("Sent anni_scrollspot_set: clear");
         } else {
             JsonObject spot = new JsonObject();
             spot.addProperty("x", x);
             spot.addProperty("y", y);
             spot.addProperty("z", z);
             payload.add("scroll_spot", spot);
+        }
+        if (!V1ApiManager.sendInboundIfConnected(payload)) {
+            VetsLogger.debug("sendAnniScrollspotSet: inbound not connected");
+            return false;
+        }
+        if (clear) {
+            VetsLogger.debug("Sent anni_scrollspot_set: clear");
+        } else {
             VetsLogger.debug("Sent anni_scrollspot_set: {} {} {}", x, y, z);
         }
-        V1ApiManager.sendInboundUnchecked(payload);
         return true;
     }
 
@@ -125,14 +127,13 @@ public final class AnniWsSender {
      *         delivery; false when it was down.
      */
     public static boolean sendAnniRsvp(String notice) {
-        if (!V1ApiManager.isInboundConnected()) {
-            VetsLogger.debug("sendAnniRsvp: inbound not connected");
-            return false;
-        }
         JsonObject payload = new JsonObject();
         payload.addProperty("type", "anni_rsvp");
         payload.addProperty("notice", notice);
-        V1ApiManager.sendInboundUnchecked(payload);
+        if (!V1ApiManager.sendInboundIfConnected(payload)) {
+            VetsLogger.debug("sendAnniRsvp: inbound not connected");
+            return false;
+        }
         VetsLogger.debug("Sent anni_rsvp: {}", notice);
         return true;
     }
@@ -170,10 +171,6 @@ public final class AnniWsSender {
      */
     public static boolean sendAnniPartyObservation(
             List<String> memberUsernames, String leaderUsername, String world) {
-        if (!V1ApiManager.isInboundConnected()) {
-            VetsLogger.debug("sendAnniPartyObservation: inbound not connected");
-            return false;
-        }
         JsonObject payload = new JsonObject();
         payload.addProperty("type", "anni_party_observation");
         com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
@@ -187,7 +184,10 @@ public final class AnniWsSender {
         payload.add("party_member_usernames", arr);
         payload.addProperty("leader_username", leaderUsername != null ? leaderUsername : "");
         payload.addProperty("world", world != null ? world : "");
-        V1ApiManager.sendInboundUnchecked(payload);
+        if (!V1ApiManager.sendInboundIfConnected(payload)) {
+            VetsLogger.debug("sendAnniPartyObservation: inbound not connected");
+            return false;
+        }
         VetsLogger.debug(
                 "Sent anni_party_observation: leader={}, members={}, world={}",
                 leaderUsername,

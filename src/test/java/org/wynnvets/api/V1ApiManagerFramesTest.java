@@ -24,17 +24,18 @@ import org.wynnvets.util.Json;
 /**
  * Pins the JSON of the frame each send method writes on the v1 inbound socket, byte for byte as the
  * socket would serialise it, and what each send that checks the socket does when it is down. The
- * on-connect auth re-send is not reached: only {@code connect()} installs it.
- * {@link V1ApiManager#sendInboundUnchecked(JsonObject)} checks nothing, and the tests reach it only
- * through sends that check first, so what it does while the socket is down is not pinned.
- * {@code sendAuth} is also pinned to mark an auth ack as awaited when it sends, and not when the
+ * on-connect auth re-send is not reached: only {@code connect()} installs it. The anni senders
+ * reach {@link V1ApiManager#sendInboundIfConnected(JsonObject)}, so its down case is pinned
+ * through them. Each send is also pinned not to throw when a disconnect lands between its check
+ * and its send, and a staff-action callback caught by one to be answered once. {@code sendAuth}
+ * is also pinned to mark an auth ack as awaited when it sends, and not when the
  * socket is down.
  *
  * <p>A recording socket stands in for the inbound connection: it never connects, records each
  * frame as {@link WsClient#sendAsync(JsonObject)} would write it ({@link WsClient#toWire}), and
- * reports a settable connection state. The expected strings are literals. The frames that carry a random {@code uuid} and a clock
- * {@code timestamp} (inbound chat and {@code rank_change}) have both values checked and then
- * masked in place, so key order is still pinned. Every test ends with no inbound socket installed,
+ * reports a settable connection state. The expected strings are literals. The frames that carry
+ * a random {@code uuid} and a clock {@code timestamp} (inbound chat and {@code rank_change}) have
+ * both values checked and then masked in place, so key order is still pinned. Every test ends with no inbound socket installed,
  * no auth ack awaited, the callback queue drained and the cached registration cleared. No test
  * registers a listener or routes an ack.</p>
  */
@@ -45,6 +46,9 @@ class V1ApiManagerFramesTest {
         final List<String> wire = new ArrayList<>();
         volatile boolean connected = true;
 
+        /** What each send reports: true as if handed to the socket, false as if it failed. */
+        volatile boolean sends = true;
+
         RecordingWsClient() {
             super(URI.create("wss://wynnvets.org/v1/inbound"), "test", json -> {});
         }
@@ -52,7 +56,7 @@ class V1ApiManagerFramesTest {
         @Override
         public CompletableFuture<Boolean> sendAsync(JsonObject json) {
             wire.add(WsClient.toWire(json));
-            return CompletableFuture.completedFuture(true);
+            return CompletableFuture.completedFuture(sends);
         }
 
         @Override
@@ -236,6 +240,79 @@ class V1ApiManagerFramesTest {
         socket.connected = false;
         connect();
         assertNothingSentWhileDown();
+    }
+
+    // ----- a disconnect between a send's check and its send -----
+
+    /** A socket whose connection check runs {@link V1ApiManager#disconnect()} first, so the static
+     *  field is null by the time a sender would read it again. */
+    private static final class DisconnectingWsClient extends WsClient {
+        final List<String> wire = new ArrayList<>();
+
+        DisconnectingWsClient() {
+            super(URI.create("wss://wynnvets.org/v1/inbound"), "test", json -> {});
+        }
+
+        @Override
+        public boolean isConnected() {
+            V1ApiManager.disconnect();
+            return true;
+        }
+
+        @Override
+        public CompletableFuture<Boolean> sendAsync(JsonObject json) {
+            wire.add(WsClient.toWire(json));
+            return CompletableFuture.completedFuture(true);
+        }
+    }
+
+    @Test
+    void aDisconnectBetweenCheckAndSendThrowsNothing() {
+        List<Runnable> sends =
+                List.of(
+                        () ->
+                                V1ApiManager.sendRegistration(
+                                        "bb171c68-7080-4d02-be7b-cc2d5dcbcd82",
+                                        "Metrafish",
+                                        "guild"),
+                        () -> V1ApiManager.sendAuth("k3y-Value_123"),
+                        () -> V1ApiManager.sendQueueStatus(true, "NA30"),
+                        () -> V1ApiManager.sendInbound("guild", "Chief", "Metrafish", "hi"),
+                        () -> V1ApiManager.sendRankChange("A", "B", "Recruit", "Captain", "mote"),
+                        () -> V1ApiManager.sendTabList(List.of()),
+                        () -> assertTrue(AnniWsSender.sendAnniQuery()));
+        for (Runnable send : sends) {
+            DisconnectingWsClient racing = new DisconnectingWsClient();
+            V1ApiManager.inboundClient = racing;
+            assertDoesNotThrow(send::run);
+            assertEquals(1, racing.wire.size(), "the send used the client it checked");
+            assertNull(V1ApiManager.inboundClient);
+        }
+    }
+
+    @Test
+    void aStaffActionWhoseFrameIsNotSentIsAnsweredOnceWithTheDrainError() {
+        connect();
+        socket.sends = false;
+        List<String> acks = new ArrayList<>();
+        V1ApiManager.sendStaffActionFrame(
+                "caution_check", new JsonObject(), ack -> acks.add(Json.GSON.toJson(ack)));
+        assertEquals(
+                List.of("{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"),
+                acks);
+        assertTrue(V1ApiManager.staffActionCallbacks.isEmpty());
+    }
+
+    @Test
+    void aStaffActionCaughtByADisconnectIsAnsweredOnceWithTheDrainError() {
+        V1ApiManager.inboundClient = new DisconnectingWsClient();
+        List<String> acks = new ArrayList<>();
+        V1ApiManager.sendStaffActionFrame(
+                "caution_check", new JsonObject(), ack -> acks.add(Json.GSON.toJson(ack)));
+        assertEquals(
+                List.of("{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"),
+                acks);
+        assertTrue(V1ApiManager.staffActionCallbacks.isEmpty());
     }
 
     private void assertNothingSentWhileDown() {
