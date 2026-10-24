@@ -2286,7 +2286,7 @@ Test: [`ScreenshotLatchTest.java`](../src/test/java/org/wynnvets/items/Screensho
 
 Test: [`PartyRosterListenerTest.java`](../src/test/java/org/wynnvets/listeners/PartyRosterListenerTest.java) · Subject: [`PartyRosterListener`](../src/client/java/org/wynnvets/listeners/PartyRosterListener.java)
 
-`PartyRosterListener` captures the player's Wynncraft party and reports it to the anni backend as an `anni_party_observation` frame. The suite covers its pure, package-private gate `shouldSend(Snapshot, AnniSnapshot, stamp, now)`: a frame is sent only if the anni stamp is within a window of plus or minus two hours of `now` (inclusive), which is the public `inActiveWindow(stamp, now)` that `AnniPartyReporter` also reads, and the snapshot's `organiser_usernames` share a name, ignoring case, with the party's leader or members. Time is injected as `now`; the anni snapshot is built through `AnniSnapshot.fromJson` with only `organiser_usernames` set, and `Snapshot` is the package-private party record with an `EMPTY` constant.
+`PartyRosterListener` captures the player's Wynncraft party and reports it to the anni backend as an `anni_party_observation` frame. The suite covers its pure, package-private gate `shouldSend(Snapshot, AnniSnapshot, stamp, now)`: a frame is sent only if the anni stamp is within a window of plus or minus two hours of `now` (inclusive), which is the public `inActiveWindow(stamp, now)` that `AnniPartyReporter` also reads, and the snapshot's `organiser_usernames` share a name, ignoring case, with the party's leader or members. Time is injected as `now`; the anni snapshot is built through `AnniSnapshot.fromJson` with only `organiser_usernames` set, and `Snapshot` is the package-private party record with an `EMPTY` constant. It also pins the pure heartbeat delay `heartbeatDelayMs`; the scheduling itself has no seam and is verified in game.
 
 - **`stampZeroSuppresses`**: A stamp of 0 (no anni announced) returns false even with a matching organiser.
   - `shouldSend(snap("Organiser", "M1"), anni, 0L, NOW)` is false, where `snap(...)` is a party led by `Organiser` with member `M1`, `anni` lists `Organiser` as its organiser, and `NOW` = `1_700_000_000L`; the stamp `0L` is far outside the window.
@@ -2323,6 +2323,8 @@ Test: [`PartyRosterListenerTest.java`](../src/test/java/org/wynnvets/listeners/P
   - `shouldSend(snap("", "", ""), anni, NOW + 1h, NOW)` is false, where `anni` lists `""` and `Organiser`.
 - **`emptySnapshotPartyWithOrganisersSuppresses`**: `Snapshot.EMPTY` (no party) returns false even with an in-window stamp and a non-empty organiser list.
   - `shouldSend(Snapshot.EMPTY, anni, NOW + 1h, NOW)` is false, where `anni` lists `Organiser`.
+- **`heartbeatDelay_isThirtySecondsWhenTheGatePassedAndNoneWhenSuppressed`**: The heartbeat re-arms 30 s after a flush that passed the gate and not at all after a suppressed one, which is how heartbeats stop by themselves.
+  - `heartbeatDelayMs(true)` equals 30000 and `HEARTBEAT_MS`; `heartbeatDelayMs(false)` equals -1.
 - **`emptySnapshotOutsideWindowSuppressed`**: `Snapshot.EMPTY` with a stamp 4 hours out returns false.
   - `shouldSend(Snapshot.EMPTY, anni, NOW + 4h, NOW)` is false, where `anni` lists `Organiser`.
 

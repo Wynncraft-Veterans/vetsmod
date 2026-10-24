@@ -705,6 +705,9 @@ party members by username — see `Wynntils PartyModel.getPartyMembers()`.
    `AnniWsSender.sendAnniPartyObservation(members, leader, world)`.
    Pure predicate `shouldSend(snap, anniSnapshot, stamp, now)` is the
    testable core; legacy `vetsConnected` / `tier` parameters are gone.
+   A flush that passed the gate also re-arms a 30 s heartbeat
+   (`heartbeatDelayMs`), so a static party keeps being observed; see
+   [vetsmod_networking.md](vetsmod_networking.md) §7.1.
 
 2. **Mid-window snapshot trigger** —
    [`AnniPartyReporter`](../src/client/java/org/wynnvets/mwe/anni/AnniPartyReporter.java)

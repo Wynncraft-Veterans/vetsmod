@@ -39,12 +39,17 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * {@code PartyEvent.Listed}, which {@link #onListed} catches. The capture that follows is empty,
  * and {@link #shouldSend}'s organiser-overlap rule suppresses an empty capture, so no "not in a
  * party" frame is sent; per vets-anni, its receiver also returns early on an empty leader. Today
- * vetsmod therefore reports no leave, and vets-anni keeps a departed member's pairing only until
- * the next observation of that party whose names all resolve: its receiver replaces the
- * leader's roster on such an observation (from any client) and clears the whole map at the
- * grace-wipe. A quiet static party
- * sends nothing between events, so its corroboration lapses with vets-anni's single 60 s
- * freshness stamp; see {@code party-observation-lapses-within-vets-anni-freshness}.</p>
+ * vetsmod therefore reports no leave. vets-anni keeps a departed member's pairing only until
+ * the next observation of that party whose names all resolve (its receiver replaces the
+ * leader's roster on such an observation, from any client) or until the member's own entry
+ * expires: it stamps every member each observation lists and ages entries out per member after
+ * its TTL (90 s), and clears the whole map at the grace-wipe.</p>
+ *
+ * <p>So that a quiet static party stays fresh, a flush that passed {@link #shouldSend} re-arms a
+ * heartbeat: {@link #HEARTBEAT_MS} later it recaptures and, while the gate still holds, sends
+ * again, so vetsmod re-sends every 30 s while in an organiser's party. A real event cancels the
+ * pending heartbeat by capturing afresh, and a suppressed flush (left the party, window over, no
+ * organiser) does not re-arm, so heartbeats stop by themselves.</p>
  *
  * <p>S7 gate: send iff the anni stamp is within {@link
  * #ACTIVE_WINDOW_SEC} of {@code now} AND the snapshot's
@@ -74,6 +79,12 @@ public final class PartyRosterListener {
 
     private static final long DEBOUNCE_MS = 300L;
 
+    /** How long after a flush that passed {@link #shouldSend} the next observation is re-sent
+     *  if no event comes first. vets-anni expires a member 90 s after the last observation that
+     *  listed them, so this outlasts one lost beat; beats land a little over 30 s apart (the
+     *  debounce and the render-thread hop), so a second lost one can let the pairing lapse. */
+    static final long HEARTBEAT_MS = 30_000L;
+
     /** Send {@code anni_party_observation} only when the announced anni
      *  is within this many seconds of {@code now} on either side. Outside
      *  this window no anni board is being actively used. */
@@ -89,6 +100,11 @@ public final class PartyRosterListener {
 
     private static final Object scheduleLock = new Object();
     private static ScheduledFuture<?> pending;
+
+    /** Bumped by each {@link #captureAndSchedule}, under {@link #scheduleLock}, so a flush can
+     *  tell that a newer capture owns {@link #pending} before it re-arms the heartbeat. */
+    private static long scheduleGeneration;
+
     private static volatile Snapshot latest = Snapshot.EMPTY;
 
     private static final PartyRosterListener INSTANCE = new PartyRosterListener();
@@ -179,18 +195,19 @@ public final class PartyRosterListener {
             if (pending != null && !pending.isDone()) {
                 pending.cancel(false);
             }
+            long generation = ++scheduleGeneration;
             pending =
-                    SCHEDULER.schedule(
-                            PartyRosterListener::flush, DEBOUNCE_MS, TimeUnit.MILLISECONDS);
+                    SCHEDULER.schedule(() -> flush(generation), DEBOUNCE_MS, TimeUnit.MILLISECONDS);
         }
     }
 
-    private static void flush() {
+    private static void flush(long generation) {
         Snapshot toSend = latest;
         AnniSnapshot snapshot = AnniSnapshotCache.latest();
         long stamp = snapshotStamp(snapshot);
         long now = System.currentTimeMillis() / 1000L;
-        if (!shouldSend(toSend, snapshot, stamp, now)) {
+        boolean gatePassed = shouldSend(toSend, snapshot, stamp, now);
+        if (!gatePassed) {
             VetsLogger.debug(
                     "anni_party_observation suppressed (no organiser in party / out of window)");
             return;
@@ -201,6 +218,35 @@ public final class PartyRosterListener {
         } catch (Exception e) {
             VetsLogger.debug("anni_party_observation send failed: {}", e.getMessage());
         }
+        // Re-armed on the gate, not on the send's success, so heartbeats survive a socket
+        // reconnect (a send while the socket is down is simply lost).
+        armHeartbeat(generation, heartbeatDelayMs(gatePassed));
+    }
+
+    /**
+     * Schedules the heartbeat into {@link #pending}, unless a real event's capture has taken the
+     * slot since the flush that is re-arming it was scheduled ({@code generation} is stale). The
+     * heartbeat is {@link #requestRecapture()}, which re-reads {@code Models.Party} on the render
+     * thread and so goes through {@link #captureAndSchedule} like any event: that cancels
+     * whatever is pending and flushes again, which re-arms if the gate still holds.
+     */
+    private static void armHeartbeat(long generation, long delayMs) {
+        if (delayMs < 0) return;
+        synchronized (scheduleLock) {
+            if (generation != scheduleGeneration) return;
+            pending =
+                    SCHEDULER.schedule(
+                            PartyRosterListener::requestRecapture, delayMs, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /**
+     * Pure: how long after a flush the heartbeat recapture runs. {@link #HEARTBEAT_MS} when the
+     * flush passed {@link #shouldSend}, {@code -1} (no heartbeat) when it was suppressed.
+     */
+    // Package-private for unit tests. See PartyRosterListenerTest.
+    static long heartbeatDelayMs(boolean gatePassed) {
+        return gatePassed ? HEARTBEAT_MS : -1L;
     }
 
     /**

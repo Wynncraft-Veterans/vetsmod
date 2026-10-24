@@ -1,5 +1,6 @@
 package org.wynnvets.listeners;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -168,6 +169,15 @@ class PartyRosterListenerTest {
         AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW + 60 * 60;
         assertFalse(PartyRosterListener.shouldSend(Snapshot.EMPTY, anni, stamp, NOW));
+    }
+
+    // ── Heartbeat ─────────────────────────────────────────────────────
+
+    @Test
+    void heartbeatDelay_isThirtySecondsWhenTheGatePassedAndNoneWhenSuppressed() {
+        assertEquals(30_000L, PartyRosterListener.heartbeatDelayMs(true));
+        assertEquals(PartyRosterListener.HEARTBEAT_MS, PartyRosterListener.heartbeatDelayMs(true));
+        assertEquals(-1L, PartyRosterListener.heartbeatDelayMs(false));
     }
 
     @Test

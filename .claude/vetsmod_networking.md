@@ -336,6 +336,7 @@ Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.networ
 2. Debounces 300 ms (coalesces the `/party list` burst).
 3. Gates on `stamp ± 2 h` AND any party member's username appears in `AnniSnapshotCache.latest().organiserUsernames()` (case-insensitive).
 4. Fires `AnniWsSender.sendAnniPartyObservation(members, leader, world)` if the gate passes.
+5. Heartbeat: after a flush that passed the gate (whether or not the send went out), schedules `requestRecapture` `HEARTBEAT_MS` = 30 s later into the same pending slot (`heartbeatDelayMs`), skipped if a newer capture has taken the slot since. The recapture re-reads `Models.Party` and flushes like any event, so it re-sends and re-arms while the gate holds. Any real event's capture cancels the pending heartbeat; a suppressed flush (left the party, window over, no organiser in the party) does not re-arm, so heartbeats stop by themselves.
 
 vets-anni resolves names → UUIDs server-side and writes
 `state.party_leader_by_uuid[member_uuid] = leader_uuid` for the presence
@@ -344,17 +345,17 @@ classifier's `ONLINE_WORLD → ONLINE_PARTY` upgrade. Per vets-anni (since its
 roster**: entries already pointing at the same leader whose member the new
 roster does not list are dropped, and entries for other leaders are untouched.
 An observation with a name vets-anni cannot resolve only adds, since that name
-may be a member paired by their own report. The whole map still
-shares one freshness stamp (`state.party_observation_fetched_at`, stale
-`_PARTY_LEADER_TTL_SECONDS` = 60 s after it), which any client's observation
-refreshes, and vets-anni's grace-wipe clears the map and the stamp. vetsmod
-reports no leave (an empty capture never passes the gate), so a member who
-leaves the host's party keeps their pairing only until the next observation of
-that party, from any client (a party event or an organiser-set change on a
-remaining member's client), or until the leaver's own report pairs them with
-another leader. Entries do not expire one by one, and a quiet static party
-sends nothing between events, so its corroboration lapses once the 60 s stamp
-does; that remaining gap is bug `party-observation-lapses-within-vets-anni-freshness`.
+may be a member paired by their own report. Freshness is per member: vets-anni
+stamps every member an observation lists (`state.party_seen_at_by_uuid`) and an
+entry is stale `_PARTY_LEADER_TTL_SECONDS` = 90 s after its own member's stamp,
+so another party's reports cannot keep it alive; its grace-wipe clears the map
+and the stamps. vetsmod reports no leave (an empty capture never passes the
+gate), so a member who leaves the host's party keeps their pairing only until
+the next fully resolved observation of that party, from any client, or until
+their entry expires 90 s after the last observation that listed them, or until
+the leaver's own report pairs them with another leader. A quiet static party
+stays fresh because vetsmod heartbeats (step 5): it re-sends every 30 s while in
+an organiser's party, so 90 s outlasts one lost beat (beats land a little over 30 s apart, so a second lost one can let the pairing lapse until the next).
 
 ## 8. Auth
 
