@@ -109,9 +109,10 @@ import org.wynnvets.util.Json;
  *   <li>At most one command awaiting its reply at a time (single-threaded executor
  *       plus {@link MessageFanoutDispatcher}'s and {@link FindDispatcher}'s bounded waits).</li>
  *   <li>/msg broadcasts take priority over /find batches: each dispatch pass handles
- *       queued /msg broadcasts before it starts on queued /find batches. Today a /msg
- *       that arrives while a pass is working through /find batches waits for that pass
- *       to finish ({@code find-phase-does-not-yield-to-queued-msg}).</li>
+ *       queued /msg broadcasts before it starts on queued /find batches. A /msg that
+ *       arrives while a pass is working through /find batches waits for that pass to
+ *       finish, by design: {@code /wv list world} queues one batch for every name, so a
+ *       yield between batches would not shorten the wait.</li>
  *   <li>Echo matching pairs signals: the payload with either the recipient named in
  *       the line's header or the 🔐 lock prefix, or the prefix with the recipient. The
  *       prefix alone is not enough, but a plain payload match always carries it, since

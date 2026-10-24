@@ -235,7 +235,7 @@ Solves, for the three executor-backed classes below: serialize command dispatch 
 ### DispatchCoordinator
 [DispatchCoordinator](../src/client/java/org/wynnvets/chat/dispatcher/DispatchCoordinator.java)
 
-Gates `/v`, `/a` and `/encourage` on staff eligibility, and owns the single-threaded `DISPATCH_EXECUTOR` that serializes the `/v` fan-out (sent as `/msg`) and the `/find` batches (those are enqueued on `FindDispatcher` directly, not here). `/msg` takes priority: each pass handles queued `/msg` first, then every queued `/find` batch, including ones queued during that phase. Today a `/msg` arriving mid-`/find` waits for the next pass (bug `find-phase-does-not-yield-to-queued-msg`). Provides `shouldSuppressFeedback()` and `shouldSuppressFindResponse()` used by ChatLogMixin.
+Gates `/v`, `/a` and `/encourage` on staff eligibility, and owns the single-threaded `DISPATCH_EXECUTOR` that serializes the `/v` fan-out (sent as `/msg`) and the `/find` batches (those are enqueued on `FindDispatcher` directly, not here). `/msg` takes priority: each pass handles queued `/msg` first, then every queued `/find` batch, including ones queued during that phase. A `/msg` arriving mid-`/find` waits for the next pass, by design: `/wv list world` queues one `/find` batch for every name, so a yield between batches would not shorten the wait. Provides `shouldSuppressFeedback()` and `shouldSuppressFindResponse()` used by ChatLogMixin.
 
 ### MessageFanoutDispatcher
 [MessageFanoutDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/MessageFanoutDispatcher.java)
