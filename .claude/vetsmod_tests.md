@@ -27,7 +27,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.distribute.distributor`](#orgwynnvetsdistributedistributor) — [`GraidsDistributorTest`](#graidsdistributortest), [`MemberSlotPresserTest`](#memberslotpressertest), [`ObjectivesDistributorTest`](#objectivesdistributortest), [`RandomDistributorTest`](#randomdistributortest), [`SplitDistributorTest`](#splitdistributortest)
 - [`org.wynnvets.distribute.recipients`](#orgwynnvetsdistributerecipients) — [`NameResolverTest`](#nameresolvertest), [`NoAspectsFilterTest`](#noaspectsfiltertest)
 - [`org.wynnvets.fetcher.lookup`](#orgwynnvetsfetcherlookup) — [`MojangCooldownTest`](#mojangcooldowntest)
-- [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
+- [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`CheckReportRendererTest`](#checkreportrenderertest), [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
 - [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
 - [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`ScreenshotLatchTest`](#screenshotlatchtest)
@@ -1494,11 +1494,51 @@ Test: [`MojangCooldownTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/M
 
 ## `org.wynnvets.fetcher.ondemand`
 
+### `CheckReportRendererTest`
+
+Test: [`CheckReportRendererTest.java`](../src/test/java/org/wynnvets/fetcher/ondemand/CheckReportRendererTest.java) · Subject: [`CheckReportRenderer`](../src/client/java/org/wynnvets/fetcher/ondemand/CheckReportRenderer.java)
+
+`CheckReportRenderer` renders the `/wv check` block; the suite pins its pure line builders through `Component.getString()`, so far the Guild line's decision table (`guildLine`) over the payload's guild and a `GuildEvidence` (the Returners roster verdict, the payload guild's roster verdict, the tab-list flag). The send wrappers and the tab-list, clock and chat reads in `renderCheck` are not covered. Users and snapshots are hand-written JSON parsed through the shared `Json.GSON`; the Returners guild uuid is `VetsApi.GUILD_UUID`.
+
+- **`returnersIn_showsReturnersAndRosterRank`**: A roster that lists the target gives `Returners` and the roster's rank.
+  - `guildLine(...).getString()` equals `"Guild: Returners  -  Chief"`, for a payload naming Returners and a Returners roster `IN_ROSTER` with rank `Chief`.
+- **`returnersIn_ignoresThePayloadRank`**: The payload's rank is never shown, even when the roster gives none.
+  - The line equals `"Guild: Returners"`, for a payload naming Returners with rank `RECRUIT` and a roster `IN_ROSTER` with a null rank.
+- **`returnersAbsent_payloadSaysReturners_showsCatchingUp`**: A roster that answered "not a member" overrides the payload.
+  - The line equals `"Guild: guildless  -  Wynncraft profile still catching up"`, for a payload naming Returners and a roster `NOT_IN_ROSTER`.
+- **`returnersUnknown_payloadSaysReturners_showsCachedTail_noRank`**: A failed Returners roster call leaves the payload's guild with a yellow `(cached)` tail and no rank.
+  - The line equals `"Guild: Returners  (cached)"`, for a payload naming Returners and a roster `UNKNOWN`.
+  - The last sibling's text equals `"  (cached)"`.
+  - That sibling's colour equals yellow.
+- **`tabListOnly_showsReturners`**: The tab list alone confirms Returners, over a payload naming another guild and a failed roster.
+  - The line equals `"Guild: Returners"`, for a payload naming `Other Guild`, a roster `UNKNOWN` and the tab-list flag set.
+- **`otherGuildIn_withRank`**: A payload guild whose roster lists the target shows name, prefix and the roster's rank.
+  - The line equals `"Guild: Other Guild  [OTH]  -  Captain"`, for a payload naming `Other Guild` (rank `RECRUIT`) and an other-guild roster `IN_ROSTER` with rank `Captain`.
+- **`otherGuildIn_rankUnreadable_showsGuildNoRank`**: A listed target with no readable rank shows the guild with no rank, not the payload's.
+  - The line equals `"Guild: Other Guild  [OTH]"`, for an other-guild roster `IN_ROSTER` with a null rank.
+  - The line does not contain `"RECRUIT"`.
+- **`otherGuildAbsent_showsCatchingUp`**: An other-guild roster that answered "not a member" gives the catching-up line.
+  - The line equals `"Guild: guildless  -  Wynncraft profile still catching up"`, for an other-guild roster `NOT_IN_ROSTER`.
+- **`otherGuildUnknown_showsCachedTail_noRank`**: A failed other-guild roster call leaves the payload's guild and prefix with the `(cached)` tail, no rank.
+  - The line equals `"Guild: Other Guild  [OTH]  (cached)"`, for an other-guild roster `UNKNOWN`.
+  - The line does not contain `"RECRUIT"`.
+- **`guildlessPayload_unchanged`**: A payload naming no guild reads `guildless` whatever the roster verdicts.
+  - The line equals `"Guild: guildless"`, for a Returners roster `NOT_IN_ROSTER`.
+  - The line equals `"Guild: guildless"`, for a Returners roster `UNKNOWN`.
+- **`guildlessPayload_discordTierAnnotationUnchanged`**: A guildless payload with a `member`-tier Discord snapshot keeps the cached roster annotation.
+  - The line equals `"Guild: guildless  -  appears in vets roster (cached)"`.
+- **`noProfile_showsNoWynncraftProfile`**: No Wynncraft profile reads as such.
+  - `guildLine(null, ...)` equals `"Guild: (no Wynncraft profile)"`.
+- **`evidence_nullReturners_readsAsUnknown`**: A null Returners result reads as `UNKNOWN` and confirms nothing, but the tab list still can.
+  - `evidence.returners().verdict()` equals `UNKNOWN`, where `evidence` = `new GuildEvidence(null, null, false)`.
+  - `evidence.confirmsReturners()` is false.
+  - `new GuildEvidence(null, null, true).confirmsReturners()` is true.
+
 ### `ReturnersRosterProbeTest`
 
 Test: [`ReturnersRosterProbeTest.java`](../src/test/java/org/wynnvets/fetcher/ondemand/ReturnersRosterProbeTest.java) · Subject: [`ReturnersRosterProbe`](../src/client/java/org/wynnvets/fetcher/ondemand/ReturnersRosterProbe.java)
 
-`ReturnersRosterProbe` checks whether a UUID is in a guild's wapi roster, and returns membership plus a best-effort rank and legacy name. The suite pins `analyzeRoster`: membership comes from a shape-agnostic walk of the whole payload, while rank (capitalised) and legacy name come only from the `members.<rank>.<name>` shape. The HTTP methods are not covered. Payloads are hand-written JSON parsed through the shared `Json.GSON`, some deliberately departing from wapi's real shape.
+`ReturnersRosterProbe` checks whether a UUID is in a guild's wapi roster, and returns membership plus a best-effort rank and legacy name. The suite pins `analyzeRoster`: membership comes from a shape-agnostic walk of the whole payload, while rank (capitalised) and legacy name come only from the `members.<rank>.<name>` shape. It also pins `membershipFromResponse`, the pure step both HTTP methods share after the call: a status other than 200, or a body that is not a JSON object, is `UNKNOWN`, never absence. The HTTP calls themselves are not covered. Payloads are hand-written JSON parsed through the shared `Json.GSON`, some deliberately departing from wapi's real shape.
 
 - **`member_rankIsCapitalisedAndLegacyNameRead`**: A member under `owner` with a `legacyName` is in the guild, with rank `Owner` and that legacy name.
   - `m.inGuild()` is true, where `m` = `analyzeRoster` of a payload with `members.owner` holding `Metrafish` (uuid `METRAFISH`, `legacyName` `OldMetrafish`) and `members.chief` holding `Holidaze`, looked up with `METRAFISH_KEY` (undashed Metrafish uuid).
@@ -1528,6 +1568,28 @@ Test: [`ReturnersRosterProbeTest.java`](../src/test/java/org/wynnvets/fetcher/on
   - `m.rank()` equals `"Owner"`.
 - **`nullPayload_isNotInGuild`**: A null payload gives not-in-guild.
   - `ReturnersRosterProbe.analyzeRoster(null, METRAFISH_KEY).inGuild()` is false.
+
+- **`membershipFromResponse_non200_isUnknown`**: A failed status is `UNKNOWN`, whatever the body says.
+  - `m.verdict()` equals `RosterVerdict.UNKNOWN` for each of status 404, 429 and 500, where `m` = `membershipFromResponse(status, body, METRAFISH_KEY)` and `body` is a roster that lists Metrafish under `members.chief`.
+  - `m.inGuild()` is false for each.
+  - `m.rank()` is null for each.
+- **`membershipFromResponse_unparseableBody_isUnknown`**: A 200 whose body is not JSON is `UNKNOWN`.
+  - `membershipFromResponse(200, "<html>", METRAFISH_KEY).verdict()` equals `UNKNOWN`.
+- **`membershipFromResponse_emptyBody_isUnknown`**: A 200 with an empty body (Gson reads it as a null payload) is `UNKNOWN`.
+  - `membershipFromResponse(200, "", METRAFISH_KEY).verdict()` equals `UNKNOWN`.
+- **`membershipFromResponse_nonObjectPayload_isUnknown`**: A 200 whose JSON is an array is `UNKNOWN`.
+  - `membershipFromResponse(200, "[1, 2]", METRAFISH_KEY).verdict()` equals `UNKNOWN`.
+- **`membershipFromResponse_absent_isNotInRoster`**: A 200 roster that does not list the UUID is `NOT_IN_ROSTER`.
+  - `membershipFromResponse(200, json, METRAFISH_KEY).verdict()` equals `NOT_IN_ROSTER`, where `json` lists only `Holidaze` under `members.chief`.
+- **`membershipFromResponse_present_isInRosterWithRank`**: A 200 roster that lists the UUID is `IN_ROSTER` with its rank.
+  - `m.verdict()` equals `IN_ROSTER`, where `m` = `membershipFromResponse(200, ROSTER_WITH_METRAFISH, METRAFISH_KEY)`.
+  - `m.rank()` equals `"Chief"`.
+- **`membershipFromResponse_presentButRankless_isInRosterWithNullRank`**: A UUID found outside `members.<rank>` is `IN_ROSTER` with a null rank.
+  - `m.verdict()` equals `IN_ROSTER`, where `m` = `membershipFromResponse(200, {"elsewhere": {METRAFISH: 1}}, METRAFISH_KEY)`.
+  - `m.rank()` is null.
+- **`unknown_isNotInGuild_butDistinguishableFromAbsence`**: `unknown()` is not a member but is a different verdict from `notInGuild()`.
+  - `ReturnersMembership.unknown().inGuild()` is false.
+  - `ReturnersMembership.notInGuild().verdict()` is not equal to `ReturnersMembership.unknown().verdict()`.
 
 ### `TimeLabelsTest`
 

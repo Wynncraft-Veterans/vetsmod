@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Locale;
-import java.util.Optional;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -50,17 +49,10 @@ final class CheckReportRenderer {
             UserUUID uuid,
             User user,
             ReturnersRosterProbe.ReturnersMembership returners,
-            MembershipSnapshot snapshot,
-            // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-            // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
-            // Remove: when Wynncraft invalidates the player endpoint on
-            //   officer-write events, or exposes a webhook, or an offline-player
-            //   spot-check shows <10min staleness.
-            // Imports used only by this workaround: java.util.Optional and
-            // org.wynnvets.guild.GuildStateManager.
-            Optional<String> confirmedNonReturnersRank
-            // <<< PATCH END: WYNN-STALE-WORKAROUND
-            ) {
+            // The roster answer for the guild the payload names when that is not Returners;
+            // null when none was asked.
+            ReturnersRosterProbe.ReturnersMembership otherGuild,
+            MembershipSnapshot snapshot) {
         // Mark the start of a new render block so the first line re-extends
         // the badge — this is what gives staff a visual divider between two
         // back-to-back /wv check responses (and between this snapshot block
@@ -129,15 +121,11 @@ final class CheckReportRenderer {
             renderWynnLines(user, snapshot, tabListServer, isSelf);
         }
 
-        renderGuildLine(
-                user,
-                returners,
-                snapshot,
-                // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-                confirmedNonReturnersRank,
-                tabListConfirmsReturners
-                // <<< PATCH END: WYNN-STALE-WORKAROUND
-                );
+        ChatUtils.sendLocalMessage(
+                guildLine(
+                        user,
+                        new GuildEvidence(returners, otherGuild, tabListConfirmsReturners),
+                        snapshot));
         renderVeteranLine(user);
         renderBlocklistLine(snapshot);
         renderDiscordLinkLine(snapshot, currentlyOnline);
@@ -383,26 +371,26 @@ final class CheckReportRenderer {
         return String.format(Locale.ROOT, "%,.1f", hours);
     }
 
-    private static void renderGuildLine(
-            User user,
-            ReturnersRosterProbe.ReturnersMembership returners,
-            MembershipSnapshot snapshot,
-            // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-            // Reason/Remove: see the first workaround block in this class.
-            Optional<String> confirmedNonReturnersRank,
-            boolean tabListConfirmsReturners
-            // <<< PATCH END: WYNN-STALE-WORKAROUND
-            ) {
+    /**
+     * The Guild line. A guild named by Wynncraft's payload is shown only as far as a roster
+     * backs it: a roster that lists the target gives the rank (the roster's, never the payload's,
+     * which can lag); one that answered "not a member" gives "guildless" with a catching-up note;
+     * one that could not be read leaves the payload's guild with a yellow "(cached)" tail and no
+     * rank. The tab list also vouches for Returners. See {@link GuildEvidence}.
+     */
+    // Package-private for unit tests. See CheckReportRendererTest.
+    static MutableComponent guildLine(
+            User user, GuildEvidence evidence, MembershipSnapshot snapshot) {
         MutableComponent line = label("Guild: ");
 
         if (user == null) {
-            line.append(Component.literal("(no Wynncraft profile)").setStyle(HIDDEN_STYLE));
-            ChatUtils.sendLocalMessage(line);
-            return;
+            return line.append(Component.literal("(no Wynncraft profile)").setStyle(HIDDEN_STYLE));
         }
 
         Guild guild = user.getGuild();
-        boolean inVets = user.isInVets() && (returners == null || returners.inGuild());
+        ReturnersRosterProbe.ReturnersMembership returners = evidence.returners();
+        ReturnersRosterProbe.ReturnersMembership otherGuild = evidence.otherGuild();
+
         // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
         // Reason/Remove: see the first workaround block in this class.
         // Any single fresh signal is enough to render Returners: the roster
@@ -410,61 +398,40 @@ final class CheckReportRenderer {
         // client state, same-tick). Catches the rejoin case where the payload
         // briefly names a non-Returners guild but the target is provably back
         // in Returners.
-        boolean rosterConfirmsReturners = returners != null && returners.inGuild();
-        boolean confirmedReturners = rosterConfirmsReturners || tabListConfirmsReturners;
-        // <<< PATCH END: WYNN-STALE-WORKAROUND
-
-        if (inVets
-                // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-                || confirmedReturners
-        // <<< PATCH END: WYNN-STALE-WORKAROUND
-        ) {
+        if (evidence.confirmsReturners()) {
             line.append(Component.literal("Returners").setStyle(VALUE_STYLE));
-            String rank = returners != null ? returners.rank() : null;
-            // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-            // Reason/Remove: see the first workaround block in this class.
+            String rank = returners.rank();
             // Suppressed original fallback: `if (rank == null && guild != null) rank =
             // guild.getRank();`
             // — guild.getRank() from the stale payload can silently re-introduce
             // staleness (payload can claim RECRUITER for a former member who was
             // already kicked). Roster-only until upstream fixes invalidation.
-            // <<< PATCH END: WYNN-STALE-WORKAROUND
             if (rank != null && !rank.isEmpty()) {
-                line.append(Component.literal("  -  ").setStyle(LABEL_STYLE))
-                        .append(
-                                Component.literal(rank)
-                                        .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
+                line.append(rankTail(rank));
             }
-            ChatUtils.sendLocalMessage(line);
-            return;
+            return line;
         }
 
-        // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-        // Reason/Remove: see the first workaround block in this class.
-        // Cross-signal mismatch: either (a) Wynncraft's payload says Returners
-        // but the roster disagrees (falls out of the inVets branch above with
-        // guild.name == "Returners"), or (b) Wynncraft names some non-Returners
-        // guild but that guild's own roster doesn't list the UUID. Both mean
-        // the payload is behind — render "guildless" + a hint rather than the
-        // misleading stale value.
-        boolean returnersMismatch = user.isInVets() && returners != null && !returners.inGuild();
-        boolean otherGuildMismatch =
-                guild != null
-                        && guild.getName() != null
-                        && !"Returners".equals(guild.getName())
-                        && confirmedNonReturnersRank.isEmpty();
-        if (returnersMismatch || otherGuildMismatch) {
-            line.append(Component.literal("guildless").setStyle(HIDDEN_STYLE))
-                    .append(
-                            Component.literal("  -  Wynncraft profile still catching up")
-                                    .setStyle(HIDDEN_STYLE));
-            ChatUtils.sendLocalMessage(line);
-            return;
+        // The payload names a guild and nothing above confirmed Returners. Every branch is
+        // roster-rank-only: a roster that lists the target supplies the rank; one that answered
+        // "not a member" means the payload is behind, so "guildless" plus a hint rather than the
+        // misleading stale value; one that failed to answer leaves the payload's guild as the
+        // best available fact, marked "(cached)", with no rank.
+        if (user.isInVets()) {
+            if (returners.verdict() == ReturnersRosterProbe.RosterVerdict.NOT_IN_ROSTER) {
+                return line.append(catchingUpTail());
+            }
+            return line.append(Component.literal("Returners").setStyle(VALUE_STYLE))
+                    .append(cachedTail());
         }
-        // <<< PATCH END: WYNN-STALE-WORKAROUND
 
         if (guild != null && guild.getName() != null) {
-            // Player is in a non-Returners guild.
+            // A non-Returners guild. otherGuild is null only for a payload guild named
+            // Returners without Returners' UUID, which no roster was asked about.
+            if (otherGuild != null
+                    && otherGuild.verdict() == ReturnersRosterProbe.RosterVerdict.NOT_IN_ROSTER) {
+                return line.append(catchingUpTail());
+            }
             line.append(Component.literal(guild.getName()).setStyle(VALUE_STYLE));
             if (guild.getPrefix() != null && !guild.getPrefix().isEmpty()) {
                 line.append(Component.literal("  [").setStyle(LABEL_STYLE))
@@ -473,26 +440,19 @@ final class CheckReportRenderer {
                                         .setStyle(Style.EMPTY.withColor(ChatFormatting.GOLD)))
                         .append(Component.literal("]").setStyle(LABEL_STYLE));
             }
-            // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-            // Reason/Remove: see the first workaround block in this class.
-            // Original block used guild.getRank() directly; now prefer the
-            // confirming roster's rank when present (the payload rank can lag
-            // even for a still-in-guild member after a promotion/demotion).
-            // Today the payload fallback is effectively unreachable: for any
-            // guild not named Returners, the mismatch block above has already
-            // returned when that rank is absent (see
-            // wv-check-guild-line-conflates-roster-failure-with-absence).
-            String rankText = confirmedNonReturnersRank.orElse(guild.getRank());
-            if (rankText != null && !rankText.isEmpty()) {
-                line.append(Component.literal("  -  ").setStyle(LABEL_STYLE))
-                        .append(
-                                Component.literal(rankText)
-                                        .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
+            if (otherGuild != null) {
+                if (otherGuild.verdict() == ReturnersRosterProbe.RosterVerdict.IN_ROSTER) {
+                    String rank = otherGuild.rank();
+                    if (rank != null && !rank.isEmpty()) {
+                        line.append(rankTail(rank));
+                    }
+                } else {
+                    line.append(cachedTail());
+                }
             }
-            // <<< PATCH END: WYNN-STALE-WORKAROUND
-            ChatUtils.sendLocalMessage(line);
-            return;
+            return line;
         }
+        // <<< PATCH END: WYNN-STALE-WORKAROUND
 
         // Player is guildless according to Wynn — annotate with dazebot's
         // membership state so we surface "guildless but on the vets roster".
@@ -520,7 +480,28 @@ final class CheckReportRenderer {
         } else {
             line.append(Component.literal("guildless").setStyle(LABEL_STYLE));
         }
-        ChatUtils.sendLocalMessage(line);
+        return line;
+    }
+
+    private static MutableComponent rankTail(String rank) {
+        return Component.literal("  -  ")
+                .setStyle(LABEL_STYLE)
+                .append(
+                        Component.literal(rank)
+                                .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
+    }
+
+    private static MutableComponent catchingUpTail() {
+        return Component.literal("guildless")
+                .setStyle(HIDDEN_STYLE)
+                .append(
+                        Component.literal("  -  Wynncraft profile still catching up")
+                                .setStyle(HIDDEN_STYLE));
+    }
+
+    /** The roster call failed, so the payload's guild stands unverified. */
+    private static MutableComponent cachedTail() {
+        return Component.literal("  (cached)").setStyle(HIDDEN_STYLE);
     }
 
     private static void renderVeteranLine(User user) {

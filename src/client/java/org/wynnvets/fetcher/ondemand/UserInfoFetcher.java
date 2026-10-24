@@ -7,7 +7,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.wynnvets.api.WynnCraftApi;
@@ -124,8 +123,7 @@ public final class UserInfoFetcher {
                     // Remove: when Wynncraft invalidates the player endpoint on
                     //   officer-write events, or exposes a webhook, or an offline-player
                     //   spot-check shows <10min staleness.
-                    // Imports used only by this workaround: java.util.Optional and
-                    // org.wynnvets.datamodels.Guild.
+                    // Imports used only by this workaround: org.wynnvets.datamodels.Guild.
                     // Original gated on `user.isInVets()` (payload claims Returners).
                     // Drop the isInVets() gate so we crosscheck the Returners roster
                     // whenever there is a Wynncraft profile -- needed to catch the
@@ -137,44 +135,39 @@ public final class UserInfoFetcher {
                             (user != null)
                                     ? ReturnersRosterProbe.returnersMembership(synthUuid.id)
                                     : CompletableFuture.completedFuture(
-                                            ReturnersRosterProbe.ReturnersMembership.notInGuild());
+                                            ReturnersRosterProbe.ReturnersMembership.unknown());
                     // <<< PATCH END: WYNN-STALE-WORKAROUND
                     // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
                     // Reason/Remove: see the first workaround block in this class.
                     // Fire the roster crosscheck alongside returners + snapshot only when
                     // the payload names a non-Returners guild (Returners is already
-                    // crosschecked via returnersFuture above).
+                    // crosschecked via returnersFuture above). A null answer means none
+                    // was asked.
                     Guild payloadGuild = user != null ? user.getGuild() : null;
-                    CompletableFuture<Optional<String>> confirmedNonReturnersRankFuture =
+                    CompletableFuture<ReturnersRosterProbe.ReturnersMembership> otherGuildFuture =
                             (payloadGuild != null
                                             && payloadGuild.getName() != null
                                             && !"Returners".equals(payloadGuild.getName()))
-                                    ? ReturnersRosterProbe.confirmArbitraryGuildRank(
+                                    ? ReturnersRosterProbe.otherGuildMembership(
                                             payloadGuild.getName(), synthUuid.id)
-                                    : CompletableFuture.completedFuture(Optional.<String>empty());
+                                    : CompletableFuture.completedFuture(null);
                     // <<< PATCH END: WYNN-STALE-WORKAROUND
                     // Render once all three have completed, so the joins below never block
                     // whichever thread completed the last of them, such as the one that
                     // delivers inbound WebSocket frames. An exceptional input skips the
                     // render, as before.
-                    return CompletableFuture.allOf(
-                                    returnersFuture, snapFuture, confirmedNonReturnersRankFuture)
+                    return CompletableFuture.allOf(returnersFuture, snapFuture, otherGuildFuture)
                             .thenApply(
                                     ignored -> {
+                                        // The roster helpers' 5s request timeout bounds the wait
+                                        // for response headers (in JDK 21's implementation, not
+                                        // the body read), and they report a failure as an
+                                        // UNKNOWN verdict, never as absence.
                                         ReturnersRosterProbe.ReturnersMembership returners =
                                                 returnersFuture.join();
+                                        ReturnersRosterProbe.ReturnersMembership otherGuild =
+                                                otherGuildFuture.join();
                                         MembershipSnapshot snapshot = snapFuture.join();
-                                        // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-                                        // Reason/Remove: see the first workaround block in this
-                                        // class.
-                                        // The roster crosscheck, already complete. The helper's 5s
-                                        // request timeout bounds the wait for response headers (in
-                                        // JDK
-                                        // 21's implementation, not the body read), and it returns
-                                        // Optional.empty() on failure.
-                                        Optional<String> confirmedNonReturnersRank =
-                                                confirmedNonReturnersRankFuture.join();
-                                        // <<< PATCH END: WYNN-STALE-WORKAROUND
                                         McUtils.mc()
                                                 .execute(
                                                         () ->
@@ -183,8 +176,8 @@ public final class UserInfoFetcher {
                                                                         synthUuid,
                                                                         user,
                                                                         returners,
-                                                                        snapshot,
-                                                                        confirmedNonReturnersRank));
+                                                                        otherGuild,
+                                                                        snapshot));
                                         return null;
                                     });
                 });
