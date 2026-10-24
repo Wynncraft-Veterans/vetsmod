@@ -167,17 +167,29 @@ public final class AnniCommandRenderer {
                     Component.literal("The next annihilation has not yet been announced!")
                             .withStyle(ChatFormatting.RED));
         } else {
-            // Vets users keep the linked header so they can click through
-            // to the dashboard to manage RSVP / registration.
+            // Vets users: the headline alone, so it fits one chat line, then the
+            // dashboard link (to manage RSVP / registration) with the player's
+            // roles beside it when they have any.
+            out.append(line(ChatFormatting.WHITE, "Next annihilation not yet announced."));
+            out.append(Component.literal("\n"));
             out.append(
-                    header(
+                    AnniHoverBuilder.linkBadge(
                             "anni.wynnvets.org",
-                            ChatFormatting.DARK_AQUA,
-                            "Next annihilation not yet announced."));
+                            "https://anni.wynnvets.org",
+                            "Open anni.wynnvets.org",
+                            ChatFormatting.DARK_AQUA));
+            MutableComponent roles = AnniOnboardingBlocks.vetsNotAnnouncedRoles(snapshot);
+            if (roles != null) {
+                out.append(Component.literal(" "));
+                out.append(
+                        Component.literal("|")
+                                .withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD));
+                out.append(Component.literal(" "));
+                out.append(roles);
+            }
         }
 
         // Prediction line (gated by vetsAnniShowPrediction).
-        boolean appendedPrediction = false;
         if (VetsConfig.get(VetsConfigKeys.VETS_ANNI_SHOW_PREDICTION)) {
             AnniSnapshot.Prediction prediction = event == null ? null : event.prediction();
             if (prediction != null
@@ -186,25 +198,26 @@ public final class AnniCommandRenderer {
                     && prediction.latestEpoch() != null) {
                 out.append(Component.literal("\n"));
                 out.append(predictionLine(prediction));
-                appendedPrediction = true;
             } else {
                 out.append(Component.literal("\n"));
                 out.append(
                         line(
                                 ChatFormatting.GRAY,
                                 "Prediction window unavailable (probably a vetsmod API error)."));
-                appendedPrediction = true;
             }
         }
 
         if (!external) {
-            // Vets users see prediction + a registration block whose
-            // shape depends on whether they're registered, fill-only,
-            // or have specific role capabilities. We deliberately do
-            // NOT surface the board state here: with no announced anni
-            // there's no placement to talk about.
-            if (appendedPrediction) out.append(Component.literal("\n"));
-            out.append(AnniOnboardingBlocks.vetsNotAnnouncedRegistrationBlock(snapshot));
+            // A vets user with no roles also gets a registration block under
+            // the prediction: the nudge to register, or the fill-only
+            // explainer. We deliberately do NOT surface the board state
+            // here: with no announced anni there's no placement to talk about.
+            MutableComponent block =
+                    AnniOnboardingBlocks.vetsNotAnnouncedRegistrationBlock(snapshot);
+            if (block != null) {
+                out.append(Component.literal("\n"));
+                out.append(block);
+            }
         }
         return out;
     }

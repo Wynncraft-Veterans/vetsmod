@@ -42,8 +42,8 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
  * <p>Not covered here, because each reaches {@code VetsConfig}: the far-out and within-two-hours
  * bodies ({@code renderFarOut} builds its header link through {@code AnniHoverBuilder.linkBadge},
  * which asks whether hover details are on), and the not-announced body ({@code renderNotAnnounced}
- * reads whether to show the prediction, and its vets form's {@code header} also builds its link
- * through {@code linkBadge}). The bytecode proof and the in-game pass cover them.</p>
+ * reads whether to show the prediction, and its vets form builds its dashboard link through
+ * {@code linkBadge} too). The bytecode proof and the in-game pass cover them.</p>
  */
 class AnniCommandRendererTest {
 

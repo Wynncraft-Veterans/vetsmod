@@ -148,9 +148,10 @@ public final class AnniHoverBuilder {
     // ── Component widgets ───────────────────────────────────────────────
 
     /** The {@code Eligible Roles} label followed by one {@link #roleChip(AnniSnapshot.RoleEntry)
-     *  role chip} per entry, joined by dark-gray middle dots. The not-announced registration block
-     *  ({@link AnniOnboardingBlocks}) and the announced registration section
-     *  ({@link AnniStatusSections}) render the same line, so it lives here once. */
+     *  role chip} per entry, joined by dark-gray middle dots. The not-announced render (beside its
+     *  dashboard link, through {@link AnniOnboardingBlocks#vetsNotAnnouncedRoles}) and the
+     *  announced registration section ({@link AnniStatusSections}) render the same line, so it
+     *  lives here once. */
     static MutableComponent eligibleRolesLine(List<AnniSnapshot.RoleEntry> roles) {
         MutableComponent line = label("Eligible Roles", ChatFormatting.GRAY);
         boolean first = true;
