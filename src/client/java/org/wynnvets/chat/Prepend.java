@@ -18,6 +18,10 @@ import net.minecraft.resources.Identifier;
  *
  * <p>{@link #get()} advances that dedup state, so it is only for a badge that is drawn;
  * {@link #blockIndicatorStyle()} reads a badge's style without touching it.</p>
+ *
+ * <p>The dedup state is plain static state, so it is for the render thread only: senders pass the
+ * {@code Prepend} to {@link LocalChatDispatch#dispatchBadged}, which chooses the badge inside its
+ * {@code minecraft.execute} task. See {@link LocalChatDispatch}.</p>
  */
 public enum Prepend {
     DEFAULT(

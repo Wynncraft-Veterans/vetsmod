@@ -14,7 +14,6 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.Prepend;
 import org.wynnvets.chat.dispatcher.GuildChatDispatcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
@@ -384,7 +383,7 @@ public final class CautionCommands {
     private static void renderCautionHistory(String requestedUsername, JsonObject ack) {
         // Mark the start of a new render block so the first line re-extends
         // the badge (compact-indicator dedup resumes from line 2).
-        Prepend.resetDedup();
+        ChatUtils.beginNewBlock();
 
         String status = Json.optString(ack, "status", "error");
         if (!"ok".equals(status)) {

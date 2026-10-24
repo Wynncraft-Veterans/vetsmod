@@ -1,5 +1,6 @@
 package org.wynnvets.chat;
 
+import com.wynntils.utils.mc.McUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -72,8 +73,17 @@ public final class ChatUtils {
      * indicator as usual.
      */
     public static void sendLocalMessageNewBlock(Component message) {
-        Prepend.resetDedup();
-        sendLocalMessage(message, Prepend.DEFAULT);
+        LocalChatDispatch.dispatchBadged(Prepend.DEFAULT, message, false, true);
+    }
+
+    /**
+     * Marks the start of a new render block for a run of {@link #sendLocalMessage} lines that
+     * follows: the next badge is the full one ({@link Prepend#resetDedup()}). The reset is queued
+     * on the render thread, so it stays in order with the dispatches that follow it, which a
+     * direct {@code Prepend.resetDedup()} from a worker thread would not.
+     */
+    public static void beginNewBlock() {
+        McUtils.mc().execute(Prepend::resetDedup);
     }
 
     /**
@@ -83,10 +93,7 @@ public final class ChatUtils {
      * @param prepend the badge to prepend
      */
     public static void sendLocalMessage(Component message, Prepend prepend) {
-        MutableComponent badge = prepend.get();
-        MutableComponent full = Component.empty().append(badge).append(message);
-
-        LocalChatDispatch.dispatchToChat(full, badge.getStyle());
+        LocalChatDispatch.dispatchBadged(prepend, message, false, false);
     }
 
     // ── Guild-style messages (<badge> <pill> <username>: <message>) ───
@@ -100,7 +107,6 @@ public final class ChatUtils {
      * @param message     the chat message body
      */
     public static void sendGuildChatMessage(String rank, String displayName, String message) {
-        MutableComponent badge = Prepend.GUILD.get();
         String normalizedRank = rank == null ? "" : rank.trim();
 
         // Convert an ASCII rank label (e.g. "Returner", as OutboundDisplayHandler passes it) to PUA
@@ -120,14 +126,7 @@ public final class ChatUtils {
                 .append(Component.literal(": ").setStyle(RANK_STYLE))
                 .append(MessageBodyFormatter.formatMessageBody(message, RANK_STYLE));
 
-        MutableComponent full = Component.empty().append(badge).append(body);
-
-        Style badgeStyle = badge.getStyle();
-        if (isSupporter) {
-            LocalChatDispatch.dispatchAnimatedChat(full, badgeStyle);
-        } else {
-            LocalChatDispatch.dispatchToChat(full, badgeStyle);
-        }
+        LocalChatDispatch.dispatchBadged(Prepend.GUILD, body, isSupporter, false);
     }
 
     /**
@@ -153,7 +152,6 @@ public final class ChatUtils {
      * so honourary chat is distinguishable from Returners guild chat.</p>
      */
     public static void sendHonouraryChatMessage(String rank, String displayName, String message) {
-        MutableComponent badge = Prepend.GUILD_HONOURARY.get();
         String normalizedRank = rank == null ? "" : rank.trim();
 
         String pillText = normalizedRank.isEmpty() ? "" : encodePillIfAscii(normalizedRank);
@@ -173,14 +171,7 @@ public final class ChatUtils {
                 .append(Component.literal(": ").setStyle(HONOURARY_RANK_STYLE))
                 .append(MessageBodyFormatter.formatMessageBody(message, HONOURARY_RANK_STYLE));
 
-        MutableComponent full = Component.empty().append(badge).append(body);
-
-        Style badgeStyle = badge.getStyle();
-        if (isSupporter) {
-            LocalChatDispatch.dispatchAnimatedChat(full, badgeStyle);
-        } else {
-            LocalChatDispatch.dispatchToChat(full, badgeStyle);
-        }
+        LocalChatDispatch.dispatchBadged(Prepend.GUILD_HONOURARY, body, isSupporter, false);
     }
 
     /**
@@ -190,8 +181,6 @@ public final class ChatUtils {
      */
     public static void sendGuildChatMessageRed(
             Component rankComponent, String displayName, String message) {
-        MutableComponent badge = Prepend.STAFF_CHANNEL.get();
-
         MutableComponent body = Component.empty();
 
         if (rankComponent != null && !rankComponent.getString().trim().isEmpty()) {
@@ -202,9 +191,7 @@ public final class ChatUtils {
                 .append(Component.literal(": ").setStyle(ADMIN_RANK_STYLE))
                 .append(MessageBodyFormatter.formatMessageBody(message, ADMIN_RANK_STYLE));
 
-        MutableComponent full = Component.empty().append(badge).append(body);
-
-        LocalChatDispatch.dispatchToChat(full, badge.getStyle());
+        LocalChatDispatch.dispatchBadged(Prepend.STAFF_CHANNEL, body, false, false);
     }
 
     /**
@@ -218,7 +205,6 @@ public final class ChatUtils {
      */
     public static void sendGuildChatMessageWithBody(
             String rank, String displayName, Component bodyComponent) {
-        MutableComponent badge = Prepend.GUILD.get();
         String normalizedRank = rank == null ? "" : rank.trim();
 
         String pillText = normalizedRank.isEmpty() ? "" : encodePillIfAscii(normalizedRank);
@@ -235,9 +221,7 @@ public final class ChatUtils {
                 .append(Component.literal(": ").setStyle(RANK_STYLE))
                 .append(bodyComponent);
 
-        MutableComponent full = Component.empty().append(badge).append(body);
-
-        LocalChatDispatch.dispatchToChat(full, badge.getStyle());
+        LocalChatDispatch.dispatchBadged(Prepend.GUILD, body, false, false);
     }
 
     /**

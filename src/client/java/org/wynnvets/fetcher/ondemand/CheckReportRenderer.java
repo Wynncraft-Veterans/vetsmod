@@ -58,7 +58,7 @@ final class CheckReportRenderer {
         // back-to-back /wv check responses (and between this snapshot block
         // and the preceding caution-history block, which arrive on separate
         // WS frames).
-        Prepend.resetDedup();
+        ChatUtils.beginNewBlock();
 
         String displayName =
                 (user != null && user.getUsername() != null) ? user.getUsername() : requestedName;

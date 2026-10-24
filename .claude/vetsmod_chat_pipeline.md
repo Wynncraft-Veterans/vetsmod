@@ -176,6 +176,8 @@ Flow: a `warning` frame → `WarningFrameRenderer.render`, skipping every step a
 [ChatUtils](../src/client/java/org/wynnvets/chat/ChatUtils.java)
 
 Key methods:
+- `sendLocalMessage(Component)` / `sendLocalMessage(Component, Prepend)` / `sendLocalMessageNewBlock(Component)` — a badged line; this and every guild-style sender below pass their `Prepend` to `LocalChatDispatch.dispatchBadged()`, which chooses the badge on the render thread
+- `beginNewBlock()` — queues `Prepend.resetDedup()` on the render thread (`McUtils.mc().execute`), so the next badge is the full one and the reset stays in order with the dispatches queued after it; `CheckReportRenderer` and `CautionCommands` call it at the start of a response
 - `sendGuildChatMessage()` — `<badge> <pill> <username>: <body>`
 - `sendGuildChatMessageRed()` — red guild-chat styling with the `Prepend.STAFF_CHANNEL` badge; reached only through `sendStaffChannelMessage()` (the `/v` staff-channel look)
 - `sendStaffChannelMessage()` — staff-style with special pill
@@ -205,9 +207,10 @@ URL regex (`URL_PATTERN`, case-insensitive): `(?<!§)(https?://\S+|[A-Za-z0-9][A
 
 [LocalChatDispatch](../src/client/java/org/wynnvets/chat/LocalChatDispatch.java) puts a built line on the chat HUD: `ChatUtils`' senders hand their lines to it, and the rewriters that rebuild a whole line call it directly.
 
-Key methods (`wrapBlockMessage` is a private helper, not an entry point):
+Key methods (`wrapBlockMessage`, `countRenderedLines` and `displayInternal` are private helpers, not entry points):
 - `wrapBlockMessage()` — word-wrap with continuation block markers
-- `dispatchToChat()` — thread-safe dispatch
+- `dispatchBadged(Prepend, Component body, boolean animated, boolean newBlock)` — the entry point for every badged line (`ChatUtils`' senders, `ServerGuildChatRewriter`). One `minecraft.execute` task, in order: `Prepend.resetDedup()` if `newBlock`, `prepend.get()`, `badge + body`, `wrapBlockMessage`, `countRenderedLines`, then the display (animated or not). With no player the line is dropped before the task, leaving the dedup state alone
+- `dispatchToChat()` — thread-safe dispatch of a line the caller has already badged, or that carries no badge
 - `dispatchAnimatedChat()` — dispatch with gradient animation context
 
 `INTERNAL_CHAT_DISPATCH` ThreadLocal marks mod-generated messages (skip re-logging + rewriter chain).
@@ -225,7 +228,7 @@ Formats rank "pill" (badge) component from the caller's supporter determination.
 
 [Prepend](../src/client/java/org/wynnvets/chat/Prepend.java)
 
-Enum, five constants: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge, compact block marker for consecutive messages within 18 lines), `GUILD_HONOURARY`, `STAFF_CHANNEL` (`GUILD`'s glyphs in red for `/v` lines, deduplicated apart from `GUILD`), `EMPTY`. Mirrors native Wynncraft behaviour. `get()` advances the dedup state, so it is called only for a badge that is drawn; `blockIndicatorStyle()` reads a badge's style without touching it, which is how `SpoilerRewriter` picks its dispatch style.
+Enum, five constants: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge, compact block marker for consecutive messages within 18 lines), `GUILD_HONOURARY`, `STAFF_CHANNEL` (`GUILD`'s glyphs in red for `/v` lines, deduplicated apart from `GUILD`), `EMPTY`. Mirrors native Wynncraft behaviour. The dedup state (`lastPrepend`, `linesSinceBadge`) is plain static state confined to the render thread: callers pass the `Prepend` to `LocalChatDispatch.dispatchBadged`, which chooses the badge inside its `minecraft.execute` task, so the decision, the reset and the line count run in task order. `get()` advances the dedup state, so it is called only for a badge that is drawn; `blockIndicatorStyle()` reads a badge's style without touching it, which is how `SpoilerRewriter` picks its dispatch style.
 
 ## 9. Dispatcher system (staff chat + /find)
 
@@ -298,7 +301,7 @@ Rank-letter glyphs aren't `chat/prefix`: vetsmod's own pills render in the defau
 
 ## 13. Thread safety
 
-`ChatLogMixin` and its rewriter chain run on the render thread. `WarningFrameRenderer.render` and `StaffGuildAlertRewriter.tryRewriteOutbound` do not: `OutboundDisplayHandler` calls them on the thread that delivers the outbound socket's frames, and their output reaches chat only through `LocalChatDispatch`'s own `Minecraft.execute` bounce to the render thread. `DispatchCoordinator` serializes the `/v` fan-out and the `/find` lookups on a single-threaded executor; each command itself is queued from the render thread. Suppression state protected by `Object` locks (`SUPPRESSION_ACK_LOCK`, `FIND_RESPONSE_LOCK`). Dedup caches are plain collections read and written inside `synchronized` blocks (`OutboundDisplayHandler`'s three each have their own lock object).
+`ChatLogMixin` and its rewriter chain run on the render thread. `WarningFrameRenderer.render` and `StaffGuildAlertRewriter.tryRewriteOutbound` do not: `OutboundDisplayHandler` calls them on the thread that delivers the outbound socket's frames, and their output reaches chat only through `LocalChatDispatch`'s own `Minecraft.execute` bounce to the render thread. `DispatchCoordinator` serializes the `/v` fan-out and the `/find` lookups on a single-threaded executor; each command itself is queued from the render thread. Suppression state protected by `Object` locks (`SUPPRESSION_ACK_LOCK`, `FIND_RESPONSE_LOCK`). Dedup caches are plain collections read and written inside `synchronized` blocks (`OutboundDisplayHandler`'s three each have their own lock object). `Prepend`'s badge dedup state is not locked: it is confined to the render thread, because senders pass the `Prepend` and `LocalChatDispatch.dispatchBadged` chooses the badge, resets and counts inside its `minecraft.execute` task. `Minecraft.execute` runs a task inline only when called on the render thread outside any running task (packet handling is a running task, so a call from it queues), and queues it otherwise, in FIFO order.
 
 ## 14. Feature gates
 

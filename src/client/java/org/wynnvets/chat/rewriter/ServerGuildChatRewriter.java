@@ -149,8 +149,6 @@ public final class ServerGuildChatRewriter {
             pill = buildGradientPill(pillFragments);
         }
 
-        MutableComponent badge = Prepend.GUILD.get();
-
         MutableComponent messageBody =
                 extractBodyComponent(component, parsed.bodyCharStart(), ChatUtils.RANK_STYLE);
 
@@ -160,18 +158,13 @@ public final class ServerGuildChatRewriter {
 
         MutableComponent body =
                 Component.empty()
-                        .append(badge)
                         .append(pill)
                         .append(" ")
                         .append(Component.literal(parsed.username()).setStyle(nameStyle))
                         .append(Component.literal(": ").setStyle(ChatUtils.RANK_STYLE))
                         .append(messageBody);
 
-        if (isSupporter) {
-            LocalChatDispatch.dispatchAnimatedChat(body, badge.getStyle());
-        } else {
-            LocalChatDispatch.dispatchToChat(body, badge.getStyle());
-        }
+        LocalChatDispatch.dispatchBadged(Prepend.GUILD, body, isSupporter, false);
         return true;
     }
 

@@ -29,6 +29,13 @@ import org.wynnvets.rendering.colors.AnimatedGradientSequence;
  * <p>The animated dispatch also sets the animated gradient context around the display and ends it
  * in the same {@code finally} block, but that context is not what animates the line; see
  * {@link #dispatchAnimatedChat}.</p>
+ *
+ * <p>{@link Prepend}'s badge dedup state is confined to the render thread by
+ * {@link #dispatchBadged}: the badge is chosen, the new-block reset applied and the rendered lines
+ * counted inside one {@code minecraft.execute} task, so decisions and counts keep the order of
+ * the tasks. {@code Minecraft.execute} runs a task inline when it is called on the render thread
+ * outside any running task, and queues it otherwise (from any other thread, or from inside a
+ * running task such as packet handling).</p>
  */
 public final class LocalChatDispatch {
 
@@ -146,18 +153,7 @@ public final class LocalChatDispatch {
                     if (minecraft.player != null) {
                         Component wrapped = wrapBlockMessage(message, prependStyle);
                         countRenderedLines(wrapped);
-                        boolean previous = INTERNAL_CHAT_DISPATCH.get();
-                        INTERNAL_CHAT_DISPATCH.set(true);
-                        AnimatedGradientSequence.beginAnimation(
-                                AnimatedGradientSequence.effectiveDefaultStart(),
-                                AnimatedGradientSequence.effectiveDefaultEnd(),
-                                AnimatedGradientSequence.DEFAULT_CYCLE_TIME_MS);
-                        try {
-                            minecraft.player.displayClientMessage(wrapped, false);
-                        } finally {
-                            AnimatedGradientSequence.endAnimation();
-                            INTERNAL_CHAT_DISPATCH.set(previous);
-                        }
+                        displayInternal(minecraft, wrapped, true);
                     }
                 });
     }
@@ -183,14 +179,70 @@ public final class LocalChatDispatch {
                     if (minecraft.player != null) {
                         Component wrapped = wrapBlockMessage(message, prependStyle);
                         countRenderedLines(wrapped);
-                        boolean previous = INTERNAL_CHAT_DISPATCH.get();
-                        INTERNAL_CHAT_DISPATCH.set(true);
-                        try {
-                            minecraft.player.displayClientMessage(wrapped, false);
-                        } finally {
-                            INTERNAL_CHAT_DISPATCH.set(previous);
-                        }
+                        displayInternal(minecraft, wrapped, false);
                     }
                 });
+    }
+
+    /**
+     * Dispatches a line that opens with {@code prepend}'s badge, choosing the badge on the render
+     * thread. The single {@code minecraft.execute} task resets the dedup first when
+     * {@code newBlock} is set, then takes {@link Prepend#get()}, builds {@code badge + body},
+     * wraps it, counts its rendered lines and displays it, so the dedup decision, the count and
+     * the display are one step in task order and {@link Prepend}'s static state is only touched on
+     * the render thread. If there is no player the line is dropped without touching the dedup
+     * state.
+     *
+     * @param prepend  the badge to open the line with
+     * @param body     the line after the badge
+     * @param animated whether to display it with the animated gradient context set
+     *                 (see {@link #dispatchAnimatedChat})
+     * @param newBlock whether to {@link Prepend#resetDedup()} first, so this line gets the full
+     *                 badge
+     */
+    public static void dispatchBadged(
+            Prepend prepend, Component body, boolean animated, boolean newBlock) {
+        Minecraft minecraft = McUtils.mc();
+        if (minecraft.player == null) {
+            return;
+        }
+
+        minecraft.execute(
+                () -> {
+                    if (minecraft.player != null) {
+                        if (newBlock) {
+                            Prepend.resetDedup();
+                        }
+                        MutableComponent badge = prepend.get();
+                        Component full = Component.empty().append(badge).append(body);
+                        Component wrapped = wrapBlockMessage(full, badge.getStyle());
+                        countRenderedLines(wrapped);
+                        displayInternal(minecraft, wrapped, animated);
+                    }
+                });
+    }
+
+    /**
+     * Displays {@code wrapped} with the internal-dispatch flag set, and, when {@code animated},
+     * the animated gradient context. Both are restored in the {@code finally} block. Render
+     * thread only, with a non-null player.
+     */
+    private static void displayInternal(Minecraft minecraft, Component wrapped, boolean animated) {
+        boolean previous = INTERNAL_CHAT_DISPATCH.get();
+        INTERNAL_CHAT_DISPATCH.set(true);
+        if (animated) {
+            AnimatedGradientSequence.beginAnimation(
+                    AnimatedGradientSequence.effectiveDefaultStart(),
+                    AnimatedGradientSequence.effectiveDefaultEnd(),
+                    AnimatedGradientSequence.DEFAULT_CYCLE_TIME_MS);
+        }
+        try {
+            minecraft.player.displayClientMessage(wrapped, false);
+        } finally {
+            if (animated) {
+                AnimatedGradientSequence.endAnimation();
+            }
+            INTERNAL_CHAT_DISPATCH.set(previous);
+        }
     }
 }
