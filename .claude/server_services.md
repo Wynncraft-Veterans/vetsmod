@@ -190,9 +190,13 @@ Triggered by Discord admin command `!record`. Single recording at a time.
 
 **`sanitize_inbound(payload)`**:
 - Strip C0 control chars: `[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]` (allows \t, \n, \r)
+- Strip the soft banned set (`strip_soft`, `SOFT_BANNED_RE` in `app/parsers/banned_chars.py`): `§`, the rank icons, the banner pieces, the negative-width spaces and the pill letters, the same set a non-admin Discord post loses ([vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §4). Before the whitespace collapse, so a glyph between two spaces leaves no double space. Since temporary-server `0276c59`; older servers relayed game lines with the soft set intact
 - Collapse whitespace: `" ".join(message.split())`
+- Repair URLs that Wynncraft's soft-wrap split with spaces (the same repair the client does; see [server_dedup_engine.md](server_dedup_engine.md))
 - Truncate to 256 chars
-- Username: strip controls + PUA glyphs, strip() whitespace
+- `strip_banned`: remove the hard set (U+00C1, U+E07E, U+E080, U+E086), including any spoiler block that would decode to one. Runs last, on the final text
+- Username: strip controls + PUA glyphs, then the hard set and the soft set (`§` and U+2064 are outside the PUA range, so the soft strip is what removes them), strip() whitespace
+- `rank` is never stripped: rank pills legitimately use soft-set glyphs
 
 **`transform_inbound(payload)`**:
 - Split `username/nickname` form on `/`
