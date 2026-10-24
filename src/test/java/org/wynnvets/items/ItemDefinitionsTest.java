@@ -19,21 +19,19 @@ import org.yaml.snakeyaml.error.YAMLException;
  *
  * <p>The file is the contract, not a stub: {@code src/client/resources} is on
  * the test runtime classpath, so {@code load()} reads exactly what production
- * reads. Four behaviours here are invisible from the Java side and would be
- * silently normalised by a table-driven rewrite, which is why they are pinned:
- * per-pattern case-sensitivity via inline {@code (?i)}, the empty-guard
- * asymmetry between the five guarded sections and the four unguarded ones,
- * {@code isUnenchanted}'s {@code isLegacy} veto, and which YAML quoting keeps a
- * regex backslash. The file is standard YAML, parsed by SnakeYAML, so comments,
- * quoting and the {@code ---} document breaks follow YAML's rules.</p>
+ * reads. The suite pins per-pattern case-sensitivity via inline {@code (?i)},
+ * {@code isUnenchanted}'s {@code isLegacy} veto, which YAML quoting keeps a regex
+ * backslash, and the parser's handling of empty entries, null and repeated
+ * sections. The file is standard YAML, parsed by SnakeYAML, so comments,
+ * quoting and {@code ---} document breaks follow YAML's rules.</p>
  *
  * <p>{@code isEnchantExcludedItem(ItemStack)} is not covered — it resolves
  * {@code BuiltInRegistries.ITEM}, which needs {@code Bootstrap.bootStrap()}.
  * It is the tenth public query and the only untestable one.</p>
  *
  * <p>NOTE: {@link ItemDefinitions} imports {@code BuiltInRegistries} and
- * {@code ItemStack}, but its static state is ten empty collections, so nothing
- * loads during class-init. If a future contributor adds a static initializer
+ * {@code ItemStack}, but its static state is empty collections and the section
+ * table, so nothing loads during class-init. If a future contributor adds a static initializer
  * that touches the registries, this test starts failing at class-init time.</p>
  */
 class ItemDefinitionsTest {
@@ -87,8 +85,8 @@ class ItemDefinitionsTest {
 
     @Test
     void predicatesRequireAFullMatchNotASubstring() throws IOException {
-        // Every loop uses matcher.matches(). Against the real file that choice
-        // is almost invisible — all 169 patterns are anchored with ^ and the few
+        // matchesAny uses matcher.matches(). Against the real file that choice
+        // is almost invisible — every pattern is anchored with ^ and the few
         // without a trailing $ end in a greedy .* — so an anchored fixture would
         // behave identically under find() and pin nothing. The discriminating
         // input is an UNANCHORED pattern, which the file happens not to contain
@@ -117,9 +115,8 @@ class ItemDefinitionsTest {
 
     @Test
     void isUnenchanted_isVetoedByIsLegacy() throws IOException {
-        // The only place one category consults another. A name in both lists is
-        // legacy, not unenchanted — collapsing the nine predicates into one
-        // table-driven lookup drops this edge unless it is carried explicitly.
+        // The only place one section consults another: a name in both lists is
+        // legacy, not unenchanted.
         parseFixture(
                 """
                 definitions:
@@ -138,57 +135,54 @@ class ItemDefinitionsTest {
                 "the same list still answers for a name that is not legacy");
     }
 
-    // ----- The empty-guard asymmetry -----
+    // ----- Empty entries -----
 
     @Test
-    void unguardedSectionsAcceptAnEmptyPatternAndGuardedOnesDropIt() throws IOException {
-        // definitions, no_lore_legacy, misc_definitions and unenchanted have no
-        // isEmpty() check; not_pedestal, notjunk, new_format_override,
-        // enchant_excluded_items, blocked_screen_titles and inventory_suppressors do. Almost
-        // certainly
-        // unintentional — pinned so a later pass has to choose a direction
-        // rather than normalise it by accident.
-        assertFalse(ItemDefinitions.isLegacy(""), "precondition: no empty pattern is loaded yet");
-        assertFalse(ItemDefinitions.isNotPedestal(""));
-
+    void everySectionDropsAnEmptyEntry() throws IOException {
+        // Under matches() an empty pattern matches only the empty name, so an empty
+        // entry could only make a nameless item count as listed. Every section drops it.
         parseFixture(
                 """
                 definitions:
+                  - ""
+                misc_definitions:
+                  - ""
+                no_lore_legacy:
+                  - ""
+                new_format_override:
+                  - ""
+                unenchanted:
+                  - ""
+                notjunk:
                   - ""
                 not_pedestal:
                   - ""
-                """);
-
-        assertTrue(
-                ItemDefinitions.isLegacy(""),
-                "the unguarded section compiled the empty pattern, which matches the empty"
-                        + " name");
-        assertFalse(
-                ItemDefinitions.isNotPedestal(""),
-                "the guarded section dropped it before Pattern.compile");
-    }
-
-    @Test
-    void anEmptyPatternMatchesOnlyTheEmptyName() throws IOException {
-        // Worth stating because "an empty regex" reads like "matches
-        // everything". Under matches() it is the opposite: it matches nothing
-        // but the empty string.
-        parseFixture(
-                """
-                definitions:
+                blocked_screen_titles:
                   - ""
+                inventory_suppressors:
+                  - ""
+                  - "^SuppressorProbe$"
                 """);
 
-        assertTrue(ItemDefinitions.isLegacy(""));
-        assertFalse(ItemDefinitions.isLegacy("x"));
+        assertFalse(ItemDefinitions.isLegacy(""));
+        assertFalse(ItemDefinitions.isMiscLegacy(""));
+        assertFalse(ItemDefinitions.isNoLoreLegacy(""));
+        assertFalse(ItemDefinitions.isNewFormatOverride(""));
+        assertFalse(ItemDefinitions.isUnenchanted(""));
+        assertFalse(ItemDefinitions.isNotJunk(""));
+        assertFalse(ItemDefinitions.isNotPedestal(""));
+        assertFalse(ItemDefinitions.isBlockedScreenTitle(""));
+        assertFalse(ItemDefinitions.isInventorySuppressor(""));
+        assertTrue(
+                ItemDefinitions.isInventorySuppressor("SuppressorProbe"),
+                "the section's other entries still load");
     }
 
     // ----- Comments and quoting follow YAML -----
 
     @Test
     void trailingCommentsAreStrippedFromQuotedAndPlainEntriesAlike() throws IOException {
-        // The hand-written parser kept an unquoted entry's comment and compiled it
-        // into the pattern. YAML drops a comment after either form.
+        // YAML drops a trailing comment after a quoted or a bare entry.
         parseFixture(
                 """
                 definitions:
@@ -218,7 +212,7 @@ class ItemDefinitionsTest {
     @Test
     void theRealFileParsesWithoutError() throws IOException {
         // load() logs a parse error rather than failing client init, so a broken
-        // definitions.yml would only thin out the categories. Parsing it here, with
+        // definitions.yml would load only part of it, or none. Parsing it here, with
         // nothing catching, is what turns a bad edit into a failed build.
         try (var in = ItemDefinitionsTest.class.getResourceAsStream("/definitions.yml")) {
             ItemDefinitions.parse(in);
@@ -237,6 +231,24 @@ class ItemDefinitionsTest {
                                 definitions:
                                   - "^Q\\?$"
                                 """));
+    }
+
+    @Test
+    void aRepeatedSectionFailsTheParse() {
+        // In one mapping a repeated key would otherwise silently replace the earlier
+        // section's list.
+        assertThrows(
+                YAMLException.class,
+                () ->
+                        parseFixture(
+                                """
+                                definitions:
+                                  - "^FirstProbe$"
+                                definitions:
+                                  - "^SecondProbe$"
+                                """));
+        assertFalse(ItemDefinitions.isLegacy("FirstProbe"), "nothing from the document loads");
+        assertFalse(ItemDefinitions.isLegacy("SecondProbe"));
     }
 
     @Test
@@ -261,8 +273,7 @@ class ItemDefinitionsTest {
 
     @Test
     void wholeLineCommentsAreSkippedByTheParserItself() throws IOException {
-        // A leading '#' is handled, including the commented-out list entries the
-        // real file uses to park disabled patterns.
+        // A leading '#' is handled, including on a commented-out list entry.
         parseFixture(
                 """
                 definitions:
@@ -306,29 +317,20 @@ class ItemDefinitionsTest {
         assertFalse(ItemDefinitions.isLegacy("TypoProbe"));
     }
 
-    // ----- Null handling is inconsistent -----
+    // ----- Null -----
 
     @Test
-    void onlyIsBlockedScreenTitleGuardsNull() {
-        // The screen-title predicate takes a nullable title from the screen
-        // handler; the eight name predicates do not guard, and Matcher rejects
-        // a null CharSequence.
-        //
-        // Note what this depends on: the NPE comes from inside the loop, so it
-        // only fires while the list is non-empty. not_pedestal has exactly one
-        // pattern in the real file — delete that line and isNotPedestal(null)
-        // silently becomes false, breaking a test whose subject is null
-        // handling rather than data.
+    void noPredicateMatchesNull() {
+        // A null name or title is on no list; no predicate throws for it.
+        assertFalse(ItemDefinitions.isLegacy(null));
+        assertFalse(ItemDefinitions.isMiscLegacy(null));
+        assertFalse(ItemDefinitions.isNoLoreLegacy(null));
+        assertFalse(ItemDefinitions.isNewFormatOverride(null));
+        assertFalse(ItemDefinitions.isUnenchanted(null));
+        assertFalse(ItemDefinitions.isNotJunk(null));
+        assertFalse(ItemDefinitions.isNotPedestal(null));
         assertFalse(ItemDefinitions.isBlockedScreenTitle(null));
-
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isLegacy(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isNoLoreLegacy(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isMiscLegacy(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isUnenchanted(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isNotPedestal(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isNotJunk(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isNewFormatOverride(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isInventorySuppressor(null));
+        assertFalse(ItemDefinitions.isInventorySuppressor(null));
     }
 
     // ----- The real file answers for each remaining category -----
@@ -355,12 +357,12 @@ class ItemDefinitionsTest {
         assertFalse(ItemDefinitions.isNotJunk("Corrupted Treasure"));
     }
 
-    // ----- Misc Bucket false negatives -----
+    // ----- Misc Bucket items -----
 
     @Test
     void miscBucketNamesAreMiscLegacyAndOnlyMiscLegacy() {
-        // Reported as unhighlighted: each needs the Misc. Item rarity line (the
-        // misc_definitions gate), so none may also sit in the unconditional list.
+        // Each needs the Misc. Item rarity line (the misc_definitions gate), so none
+        // may also sit in the unconditional list.
         for (String name :
                 new String[] {
                     "Stitched Flesh",
@@ -419,7 +421,7 @@ class ItemDefinitionsTest {
         assertTrue(ItemDefinitions.isLegacy("Warped Mount"));
         assertTrue(ItemDefinitions.isLegacy("warped mount"), "(?i)");
         assertFalse(ItemDefinitions.isLegacy("Warped Mount of Wynn"), "full match only");
-        // The two non-broken mount dumps the report supplied.
+        // Working mounts have names of their own.
         assertFalse(ItemDefinitions.isLegacy("Horse Saddle"));
         assertFalse(ItemDefinitions.isLegacy("Meteor's Saddle"));
         assertFalse(ItemDefinitions.isMiscLegacy("Horse Saddle"));
@@ -460,7 +462,7 @@ class ItemDefinitionsTest {
         assertTrue(ItemDefinitions.isLegacy("Galleon's Graveyard Pass"), "a real pass");
         assertTrue(ItemDefinitions.isLegacy("galleon's graveyard pass"), "(?i)");
         // The menu element's normalised name: the cost is a number plus a coin glyph
-        // (U+00B2 in the dump).
+        // (U+00B2).
         assertFalse(ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 16\u00B2"));
         assertFalse(ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 16"));
         assertFalse(ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 4"));
@@ -468,7 +470,7 @@ class ItemDefinitionsTest {
 
     @Test
     void otherBoatPassesStayLegacy() {
-        assertTrue(ItemDefinitions.isLegacy("Selchar Boat Pass"), "the real pass from the dump");
+        assertTrue(ItemDefinitions.isLegacy("Selchar Boat Pass"), "a real pass");
         assertTrue(ItemDefinitions.isLegacy("Some Island Boat Pass"));
         assertFalse(
                 ItemDefinitions.isLegacy("Selchar Boat Pass for 16\u00B2"),
@@ -496,19 +498,6 @@ class ItemDefinitionsTest {
         assertFalse(ItemDefinitions.isMiscLegacy("Block Bank"));
         assertFalse(ItemDefinitions.isNoLoreLegacy("Block Bank"));
         assertFalse(ItemDefinitions.isInventorySuppressor("Skeleton Key"));
-    }
-
-    @Test
-    void inventorySuppressorDropsAnEmptyPattern() throws IOException {
-        assertFalse(ItemDefinitions.isInventorySuppressor(""));
-        parseFixture(
-                """
-                inventory_suppressors:
-                  - ""
-                  - "^SuppressorProbe$"
-                """);
-        assertFalse(ItemDefinitions.isInventorySuppressor(""), "the empty entry was dropped");
-        assertTrue(ItemDefinitions.isInventorySuppressor("SuppressorProbe"));
     }
 
     // ----- load() is the reset -----

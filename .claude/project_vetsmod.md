@@ -59,7 +59,7 @@ The root `org.wynnvets` package has no bullet; it is covered under **Entry point
 
 **Config:** JSON at `~/.minecraft/vetsmod/storage/config.json`. User-facing keys via `/wv config`. Debug flag opt-in via `/wv debug true`; restored at client init only if it was switched on less than three days earlier (checked only at init, so a running session keeps it on). It is not logging-only: it also gates the `/wv debug tree anni` harness (`requireDebug`).
 
-**Item definitions:** YAML at `src/client/resources/definitions.yml`. 9 categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `not_pedestal`, `notjunk`, `new_format_override`, `blocked_screen_titles` — all compiled to `Pattern` — plus `enchant_excluded_items`, a literal-string set of Minecraft item IDs matched by exact equality.
+**Item definitions:** YAML at `src/client/resources/definitions.yml`. 10 sections: `definitions`, `misc_definitions`, `no_lore_legacy`, `new_format_override`, `unenchanted`, `notjunk`, `not_pedestal`, `blocked_screen_titles`, `inventory_suppressors` — all compiled to `Pattern` — plus `enchant_excluded_items`, a literal-string set of Minecraft item IDs matched by exact equality.
 
 **Tests:** a JUnit 5 harness under `src/test/java/`. Tests may *compile* against Minecraft and Wynntils types, but only Minecraft's are usable at runtime — Wynntils is `modCompileOnly` and absent from the test classpath entirely, so any exercised path reaching it fails. See the harness bullet in [CLAUDE.md](CLAUDE.md), which owns the rules including the `<clinit>` caveat and the seam convention.
 

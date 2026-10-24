@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,61 +19,50 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
- * Loads and evaluates item name patterns from {@code definitions.yml}.
+ * Loads the item lists in {@code definitions.yml} and answers which list a name is on.
  *
- * <p>Patterns are grouped into categories that control how items are highlighted
- * or filtered in tooltips.  Each category's regex patterns are loaded once at
- * startup and matched against item display names at runtime.</p>
- *
- * <p>The file is standard YAML, read with SnakeYAML's safe loader: a stream of
- * documents separated by {@code ---}, each a mapping from category name to a
- * list of entries. A pattern holding a regex backslash goes in single quotes,
- * where YAML keeps the backslash; inside double quotes only YAML's own escapes
- * are legal.</p>
- *
- * <h2>Pattern categories</h2>
- * <ul>
- *   <li><b>definitions</b> — exact legacy item name patterns (matched regardless of lore).</li>
- *   <li><b>no_lore_legacy</b> — items that are legacy ONLY when they also have
- *       no lore lines (e.g. old keys, vanilla materials, holiday items).</li>
- *   <li><b>misc_definitions</b> — items requiring a "Misc. Item" rarity line.</li>
- *   <li><b>unenchanted</b> — items excluded from enchanted/foil detection.</li>
- *   <li><b>not_pedestal</b> — names excluded from the pedestal-wiped branch
- *       (NPCs that render as coloured-name armour shells with no lore).</li>
- *   <li><b>notjunk</b> — modern junk-tier items that should NOT be highlighted.</li>
- *   <li><b>new_format_override</b> — names that collide between old and new formats.</li>
- *   <li><b>enchant_excluded_items</b> — Minecraft item IDs excluded from foil detection.</li>
- *   <li><b>blocked_screen_titles</b> — screen titles (not item names) where legacy
- *       processing is skipped entirely.</li>
- *   <li><b>inventory_suppressors</b> — names of items (the Block Bank) whose presence in
- *       the player's inventory skips legacy processing entirely.</li>
- * </ul>
+ * <p>The file is standard YAML, read with SnakeYAML's safe loader: a mapping from section
+ * name to a list of entries, in which a repeated section is a parse error (several
+ * {@code ---}-separated documents are also accepted, and add up). Every section except
+ * {@code enchant_excluded_items} holds regular expressions that must match the whole name.
+ * The file's header describes the format and each section; an empty entry and an unknown
+ * section name are ignored.</p>
  */
 public final class ItemDefinitions {
     private static final List<Pattern> legacyPatterns = new ArrayList<>();
-    private static final List<Pattern> noLoreLegacyPatterns = new ArrayList<>();
     private static final List<Pattern> miscPatterns = new ArrayList<>();
-    private static final List<Pattern> unenchantedPatterns = new ArrayList<>();
-    private static final List<Pattern> notPedestalPatterns = new ArrayList<>();
-    private static final List<Pattern> notjunkPatterns = new ArrayList<>();
+    private static final List<Pattern> noLoreLegacyPatterns = new ArrayList<>();
     private static final List<Pattern> newFormatOverridePatterns = new ArrayList<>();
-    private static final Set<String> enchantExcludedItems = new HashSet<>();
+    private static final List<Pattern> unenchantedPatterns = new ArrayList<>();
+    private static final List<Pattern> notjunkPatterns = new ArrayList<>();
+    private static final List<Pattern> notPedestalPatterns = new ArrayList<>();
     private static final List<Pattern> blockedScreenTitlePatterns = new ArrayList<>();
     private static final List<Pattern> inventorySuppressorPatterns = new ArrayList<>();
 
+    /** {@code enchant_excluded_items}: plain item ids such as {@code minecraft:enchanted_book}. */
+    private static final Set<String> enchantExcludedItems = new HashSet<>();
+
+    /** The pattern sections, by their name in the file. */
+    private static final Map<String, List<Pattern>> patternSections = new LinkedHashMap<>();
+
+    static {
+        patternSections.put("definitions", legacyPatterns);
+        patternSections.put("misc_definitions", miscPatterns);
+        patternSections.put("no_lore_legacy", noLoreLegacyPatterns);
+        patternSections.put("new_format_override", newFormatOverridePatterns);
+        patternSections.put("unenchanted", unenchantedPatterns);
+        patternSections.put("notjunk", notjunkPatterns);
+        patternSections.put("not_pedestal", notPedestalPatterns);
+        patternSections.put("blocked_screen_titles", blockedScreenTitlePatterns);
+        patternSections.put("inventory_suppressors", inventorySuppressorPatterns);
+    }
+
     private ItemDefinitions() {}
 
+    /** Replaces every list with the contents of the bundled {@code definitions.yml}. */
     public static void load() {
-        legacyPatterns.clear();
-        noLoreLegacyPatterns.clear();
-        miscPatterns.clear();
-        unenchantedPatterns.clear();
-        notPedestalPatterns.clear();
-        notjunkPatterns.clear();
-        newFormatOverridePatterns.clear();
+        patternSections.values().forEach(List::clear);
         enchantExcludedItems.clear();
-        blockedScreenTitlePatterns.clear();
-        inventorySuppressorPatterns.clear();
 
         try (InputStream is = ItemDefinitions.class.getResourceAsStream("/definitions.yml")) {
             if (is == null) {
@@ -80,35 +70,31 @@ public final class ItemDefinitions {
                 return;
             }
             parse(is);
-            VetsLogger.debug(
-                    "Loaded {} legacy, {} no-lore-legacy, {} misc, {} unenchanted, {} not-pedestal, {} notjunk, {} new-format-override, {} enchant-excluded, {} blocked-screen-title, and {} inventory-suppressor definition(s)",
-                    legacyPatterns.size(),
-                    noLoreLegacyPatterns.size(),
-                    miscPatterns.size(),
-                    unenchantedPatterns.size(),
-                    notPedestalPatterns.size(),
-                    notjunkPatterns.size(),
-                    newFormatOverridePatterns.size(),
-                    enchantExcludedItems.size(),
-                    blockedScreenTitlePatterns.size(),
-                    inventorySuppressorPatterns.size());
+            Map<String, Integer> counts = new LinkedHashMap<>();
+            patternSections.forEach((section, patterns) -> counts.put(section, patterns.size()));
+            counts.put("enchant_excluded_items", enchantExcludedItems.size());
+            VetsLogger.debug("Loaded definitions.yml: {}", counts);
         } catch (IOException | RuntimeException e) {
             // A YAML or regex syntax error is a RuntimeException; log it rather than fail
-            // client init. The categories keep whatever loaded before the error.
+            // client init. The sections keep whatever loaded before the error.
             VetsLogger.error("Failed to load definitions.yml", e);
         }
     }
 
+    /** Adds the file's entries to the lists, without clearing them first. */
     // Package-private for unit tests. See ItemDefinitionsTest.
     static void parse(InputStream input) throws IOException {
-        Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
+        LoaderOptions options = new LoaderOptions();
+        // In one mapping a repeated key would silently replace the earlier section's list.
+        options.setAllowDuplicateKeys(false);
+        Yaml yaml = new Yaml(new SafeConstructor(options));
         for (Object document : yaml.loadAll(new InputStreamReader(input, StandardCharsets.UTF_8))) {
-            // A document that is not a mapping (a bare list after "---", say) holds no
-            // category, so its entries are dropped.
-            if (!(document instanceof Map<?, ?> categories)) continue;
-            for (Map.Entry<?, ?> category : categories.entrySet()) {
-                if (!(category.getKey() instanceof String name)
-                        || !(category.getValue() instanceof List<?> entries)) {
+            // A document that is not a mapping (a bare list after "---", say) names no
+            // section, so its entries are dropped.
+            if (!(document instanceof Map<?, ?> sections)) continue;
+            for (Map.Entry<?, ?> section : sections.entrySet()) {
+                if (!(section.getKey() instanceof String name)
+                        || !(section.getValue() instanceof List<?> entries)) {
                     continue;
                 }
                 for (Object entry : entries) {
@@ -118,146 +104,84 @@ public final class ItemDefinitions {
         }
     }
 
-    /** Adds one entry to its category. An unknown category is ignored. */
-    private static void add(String category, String value) {
-        switch (category) {
-            case "definitions" -> legacyPatterns.add(Pattern.compile(value));
-            case "no_lore_legacy" -> noLoreLegacyPatterns.add(Pattern.compile(value));
-            case "misc_definitions" -> miscPatterns.add(Pattern.compile(value));
-            case "unenchanted" -> unenchantedPatterns.add(Pattern.compile(value));
-            // The other six drop an empty entry, which the four above compile;
-            // ItemDefinitionsTest pins the asymmetry.
-            case "not_pedestal" -> {
-                if (!value.isEmpty()) notPedestalPatterns.add(Pattern.compile(value));
-            }
-            case "notjunk" -> {
-                if (!value.isEmpty()) notjunkPatterns.add(Pattern.compile(value));
-            }
-            case "new_format_override" -> {
-                if (!value.isEmpty()) newFormatOverridePatterns.add(Pattern.compile(value));
-            }
-            case "enchant_excluded_items" -> {
-                if (!value.isEmpty()) enchantExcludedItems.add(value);
-            }
-            case "blocked_screen_titles" -> {
-                if (!value.isEmpty()) blockedScreenTitlePatterns.add(Pattern.compile(value));
-            }
-            case "inventory_suppressors" -> {
-                if (!value.isEmpty()) inventorySuppressorPatterns.add(Pattern.compile(value));
-            }
-            default -> {}
+    private static void add(String section, String entry) {
+        if (entry.isEmpty()) return;
+        if (section.equals("enchant_excluded_items")) {
+            enchantExcludedItems.add(entry);
+            return;
         }
+        List<Pattern> patterns = patternSections.get(section);
+        if (patterns != null) patterns.add(Pattern.compile(entry));
     }
 
+    /** {@code definitions}: legacy by name alone. */
     public static boolean isLegacy(String itemName) {
-        for (Pattern pattern : legacyPatterns) {
-            if (pattern.matcher(itemName).matches()) {
-                return true;
-            }
-        }
-        return false;
+        return matchesAny(legacyPatterns, itemName);
     }
 
-    public static boolean isNoLoreLegacy(String itemName) {
-        for (Pattern pattern : noLoreLegacyPatterns) {
-            if (pattern.matcher(itemName).matches()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
+    /** {@code misc_definitions}: legacy when the lore also has a "Misc. Item" rarity line. */
     public static boolean isMiscLegacy(String itemName) {
-        for (Pattern pattern : miscPatterns) {
-            if (pattern.matcher(itemName).matches()) {
-                return true;
-            }
-        }
-        return false;
+        return matchesAny(miscPatterns, itemName);
     }
 
+    /** {@code no_lore_legacy}: legacy when the item has no lore. */
+    public static boolean isNoLoreLegacy(String itemName) {
+        return matchesAny(noLoreLegacyPatterns, itemName);
+    }
+
+    /**
+     * {@code new_format_override}: on a new-format item (see
+     * {@link LegacyItemHandler#isNewFormatItem}) such a name skips the {@code definitions} and
+     * {@code misc_definitions} matches; the other checks still apply.
+     */
+    public static boolean isNewFormatOverride(String itemName) {
+        return matchesAny(newFormatOverridePatterns, itemName);
+    }
+
+    /**
+     * {@code unenchanted}: a current item whose glint does not make it legacy. A name in
+     * {@code definitions} is never unenchanted.
+     */
     public static boolean isUnenchanted(String itemName) {
-        if (isLegacy(itemName)) return false;
-        for (Pattern pattern : unenchantedPatterns) {
-            if (pattern.matcher(itemName).matches()) {
-                return true;
-            }
-        }
-        return false;
+        return !isLegacy(itemName) && matchesAny(unenchantedPatterns, itemName);
     }
 
+    /** {@code enchant_excluded_items}: an item id whose glint is vanilla. */
     public static boolean isEnchantExcludedItem(ItemStack stack) {
         if (enchantExcludedItems.isEmpty()) return false;
         String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
         return enchantExcludedItems.contains(id);
     }
 
-    /**
-     * Returns {@code true} if the given name matches a not-pedestal blacklist
-     * pattern.  Items matching these patterns must never be routed through the
-     * pedestal-wiped detection branch (typically NPCs that render as bare
-     * coloured-name armour shells).
-     */
-    public static boolean isNotPedestal(String itemName) {
-        for (Pattern pattern : notPedestalPatterns) {
-            if (pattern.matcher(itemName).matches()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
+    /** {@code notjunk}: a current item whose "Junk Item" rarity line does not make it legacy. */
     public static boolean isNotJunk(String itemName) {
-        for (Pattern pattern : notjunkPatterns) {
-            if (pattern.matcher(itemName).matches()) {
-                return true;
-            }
-        }
-        return false;
+        return matchesAny(notjunkPatterns, itemName);
     }
 
-    /**
-     * Returns {@code true} if the given name matches a new-format override pattern.
-     * On a new-format item (see {@link LegacyItemHandler#isNewFormatItem}), such a
-     * name skips the {@code definitions} and {@code misc_definitions} name matches;
-     * the other legacy checks, {@code no_lore_legacy} included, still apply.
-     */
-    public static boolean isNewFormatOverride(String itemName) {
-        for (Pattern pattern : newFormatOverridePatterns) {
-            if (pattern.matcher(itemName).matches()) {
-                return true;
-            }
-        }
-        return false;
+    /** {@code not_pedestal}: never treated as a pedestal-wiped item (merchants, NPC icons). */
+    public static boolean isNotPedestal(String itemName) {
+        return matchesAny(notPedestalPatterns, itemName);
     }
 
-    /**
-     * Returns {@code true} if the given screen title matches a blocked-screen
-     * pattern.  Items inside these screens (housing UI panels, song pickers,
-     * permission editors, etc.) reuse glints and armour shells as UI affordances
-     * and must never be routed through any legacy-detection branch.
-     */
+    /** {@code blocked_screen_titles}: a screen in which no item is treated as legacy. */
     public static boolean isBlockedScreenTitle(String screenTitle) {
-        if (screenTitle == null) return false;
-        for (Pattern pattern : blockedScreenTitlePatterns) {
-            if (pattern.matcher(screenTitle).matches()) {
-                return true;
-            }
-        }
-        return false;
+        return matchesAny(blockedScreenTitlePatterns, screenTitle);
     }
 
     /**
-     * Returns {@code true} if the given item name matches an inventory-suppressor
-     * pattern. While an item with such a name is anywhere in the player's inventory,
-     * nothing is treated as a legacy item (see
+     * {@code inventory_suppressors}: while an item with such a name is anywhere in the player's
+     * inventory, no item is treated as legacy (see
      * {@link LegacyItemHandler#isDetectionSuppressed}).
      */
     public static boolean isInventorySuppressor(String itemName) {
-        for (Pattern pattern : inventorySuppressorPatterns) {
-            if (pattern.matcher(itemName).matches()) {
-                return true;
-            }
+        return matchesAny(inventorySuppressorPatterns, itemName);
+    }
+
+    /** Whether any pattern matches the whole of {@code text}; never for {@code null}. */
+    private static boolean matchesAny(List<Pattern> patterns, String text) {
+        if (text == null) return false;
+        for (Pattern pattern : patterns) {
+            if (pattern.matcher(text).matches()) return true;
         }
         return false;
     }

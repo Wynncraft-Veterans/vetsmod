@@ -159,7 +159,7 @@ Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **f
 
 ## Item definitions
 
-`src/client/resources/definitions.yml` — 9 categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `not_pedestal`, `notjunk`, `new_format_override`, `blocked_screen_titles` (all compiled to regex) plus `enchant_excluded_items`, which is a literal-string set of Minecraft item IDs matched by exact equality. Edit this file to add/change item patterns without touching Java. It is standard YAML, read with SnakeYAML: put a pattern that holds a regex backslash in single quotes, because inside double quotes only YAML's own escapes are legal (the build's tests load the real file, so a bad escape fails them).
+`src/client/resources/definitions.yml` — 10 sections: `definitions`, `misc_definitions`, `no_lore_legacy`, `new_format_override`, `unenchanted`, `notjunk`, `not_pedestal`, `blocked_screen_titles`, `inventory_suppressors` (all compiled to regex) plus `enchant_excluded_items`, which is a literal-string set of Minecraft item IDs matched by exact equality. Edit this file to add/change item patterns without touching Java; its header comment describes the format and each section. It is standard YAML, read with SnakeYAML: put a pattern that holds a regex backslash in single quotes, because inside double quotes only YAML's own escapes are legal (the build's tests load the real file, so a bad escape fails them).
 
 ## Building
 

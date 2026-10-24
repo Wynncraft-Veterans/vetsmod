@@ -2240,7 +2240,7 @@ Test: [`StaffRankCheckerTest.java`](../src/test/java/org/wynnvets/guild/StaffRan
 
 Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefinitionsTest.java) · Subject: [`ItemDefinitions`](../src/client/java/org/wynnvets/items/ItemDefinitions.java), [`definitions.yml`](../src/client/resources/definitions.yml)
 
-`ItemDefinitions` loads per-category lists of item-name regexes (legacy, no-lore legacy, misc legacy, unenchanted, not-pedestal, not-junk, new-format override, blocked screen titles, inventory suppressors) from `definitions.yml` and answers name-matching queries against them. The suite pins behaviour that is invisible from the Java side: per-pattern case sensitivity, full-match semantics, the empty-pattern guard that applies to only some sections, the `isLegacy` veto in `isUnenchanted`, the inconsistent null handling, and how YAML quoting and comments reach the regex. It loads the real `definitions.yml` from the classpath in a static initialiser, appends small YAML fixtures through the package-private `parse(InputStream)`, and reloads the real file after every test, since `load()` clears all collections.
+`ItemDefinitions` loads per-category lists of item-name regexes (legacy, no-lore legacy, misc legacy, unenchanted, not-pedestal, not-junk, new-format override, blocked screen titles, inventory suppressors) from `definitions.yml` and answers name-matching queries against them. The suite pins per-pattern case sensitivity, full-match semantics, every section dropping an empty entry, the `isLegacy` veto in `isUnenchanted`, every name and title predicate answering false for null, a repeated section failing the parse, and how YAML quoting and comments reach the regex. It loads the real `definitions.yml` from the classpath in a static initialiser, appends small YAML fixtures through the package-private `parse(InputStream)`, and reloads the real file after every test, since `load()` clears all collections.
 
 - **`isLegacy_caseSensitivityIsPerPatternNotPerCategory`**: "SANTA HAT" and "santa hat" match the `(?i)` Santa entry, while "Wolf Fang" and "Corrupted Treasure" match only in their exact case.
   - `ItemDefinitions.isLegacy("SANTA HAT")` is true (the real file's `(?i)^Santa.*$` entry folds case)
@@ -2266,14 +2266,9 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - After parsing a fixture with `^VetoProbe$` in `definitions` and `unenchanted`, and `^VetoOnly$` in `unenchanted` only, `ItemDefinitions.isLegacy("VetoProbe")` is true
   - `ItemDefinitions.isUnenchanted("VetoProbe")` is false (a name that is legacy is not unenchanted, though it is in the unenchanted list)
   - `ItemDefinitions.isUnenchanted("VetoOnly")` is true (in the unenchanted list and not legacy)
-- **`unguardedSectionsAcceptAnEmptyPatternAndGuardedOnesDropIt`**: An empty pattern added to `definitions` makes `isLegacy("")` true, but the same empty pattern in `not_pedestal` is dropped and `isNotPedestal("")` stays false.
-  - Before any fixture is parsed, `ItemDefinitions.isLegacy("")` is false (the real file loads no empty pattern)
-  - Before any fixture is parsed, `ItemDefinitions.isNotPedestal("")` is false
-  - After parsing a fixture with an empty pattern `""` under both `definitions` and `not_pedestal`, `ItemDefinitions.isLegacy("")` is true (the `definitions` section compiles the empty pattern, which matches the empty name)
-  - With that same fixture, `ItemDefinitions.isNotPedestal("")` is false (the `not_pedestal` section drops the empty pattern before compiling)
-- **`anEmptyPatternMatchesOnlyTheEmptyName`**: After adding an empty `definitions` pattern, `isLegacy("")` is true and `isLegacy("x")` is false.
-  - After parsing a fixture with an empty pattern `""` under `definitions`, `ItemDefinitions.isLegacy("")` is true
-  - With that same fixture, `ItemDefinitions.isLegacy("x")` is false
+- **`everySectionDropsAnEmptyEntry`**: An empty entry in any of the nine pattern sections is dropped, so no predicate answers true for the empty name, and the section's other entries still load.
+  - After parsing a fixture with `""` under every pattern section (and `"^SuppressorProbe$"` under `inventory_suppressors`), `ItemDefinitions.isLegacy("")`, `isMiscLegacy("")`, `isNoLoreLegacy("")`, `isNewFormatOverride("")`, `isUnenchanted("")`, `isNotJunk("")`, `isNotPedestal("")`, `isBlockedScreenTitle("")` and `isInventorySuppressor("")` are each false (9 assertions)
+  - With that same fixture, `ItemDefinitions.isInventorySuppressor("SuppressorProbe")` is true
 - **`trailingCommentsAreStrippedFromQuotedAndPlainEntriesAlike`**: Entries with a trailing `#` comment, whether double-quoted or bare, compile without the comment and match "QuotedProbe" and "BareProbe".
   - After parsing a fixture with `"^QuotedProbe$" # this comment is discarded` and `^BareProbe$ # and so is this one` under `definitions`, `ItemDefinitions.isLegacy("QuotedProbe")` is true
   - With that same fixture, `ItemDefinitions.isLegacy("BareProbe")` is true (the unquoted entry's trailing comment is not compiled into the pattern)
@@ -2285,6 +2280,9 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - Passes as long as `ItemDefinitions.parse` of the classpath resource `/definitions.yml` completes without throwing
 - **`aDoubleQuotedBackslashThatIsNotAYamlEscapeFailsTheParse`**: A double-quoted `"^Q\?$"` makes `parse` throw `YAMLException`, since `\?` is not a YAML escape.
   - Parsing a fixture with the double-quoted entry `"^Q\?$"` under `definitions` throws `YAMLException` (`\?` is not a YAML escape)
+- **`aRepeatedSectionFailsTheParse`**: A section named twice in one mapping makes `parse` throw `YAMLException` instead of letting the second list replace the first, and nothing from that document loads.
+  - Parsing a fixture with `definitions: - "^FirstProbe$"` followed by a second `definitions: - "^SecondProbe$"` throws `YAMLException`
+  - Afterwards `ItemDefinitions.isLegacy("FirstProbe")` and `ItemDefinitions.isLegacy("SecondProbe")` are both false
 - **`aYamlEscapeInDoubleQuotesIsDecodedBeforeTheRegexSeesIt`**: A double-quoted `\_` is decoded by YAML to a no-break space (matches "A" plus U+00A0 plus "B", not "A_B"), and the real file's Fierté entry matches both "Fierté" and "fierté".
   - After parsing a fixture with the double-quoted entry `"^A\_B$"` under `definitions`, `ItemDefinitions.isLegacy("A" + U+00A0 + "B")` is true (YAML decodes `\_` to U+00A0)
   - With that same fixture, `ItemDefinitions.isLegacy("A_B")` is false (the regex never saw `\_` as a plain underscore)
@@ -2298,16 +2296,8 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - With that same fixture, `ItemDefinitions.isLegacy("AfterSeparator")` is false (the bare-list document names no category and is dropped)
 - **`anUnknownSectionNameIsSilentlyIgnored`**: A misspelled section header ("defnitions") loses every pattern under it without an error, so the probe name does not match.
   - After parsing a fixture whose section is misspelled `defnitions:` and holds `"^TypoProbe$"`, `ItemDefinitions.isLegacy("TypoProbe")` is false
-- **`onlyIsBlockedScreenTitleGuardsNull`**: `isBlockedScreenTitle(null)` returns false, while the eight name predicates throw `NullPointerException` on null (relying on each real-file list being non-empty).
-  - `ItemDefinitions.isBlockedScreenTitle(null)` is false
-  - `ItemDefinitions.isLegacy(null)` throws `NullPointerException`
-  - `ItemDefinitions.isNoLoreLegacy(null)` throws `NullPointerException`
-  - `ItemDefinitions.isMiscLegacy(null)` throws `NullPointerException`
-  - `ItemDefinitions.isUnenchanted(null)` throws `NullPointerException`
-  - `ItemDefinitions.isNotPedestal(null)` throws `NullPointerException`
-  - `ItemDefinitions.isNotJunk(null)` throws `NullPointerException`
-  - `ItemDefinitions.isNewFormatOverride(null)` throws `NullPointerException`
-  - `ItemDefinitions.isInventorySuppressor(null)` throws `NullPointerException`
+- **`noPredicateMatchesNull`**: Every predicate answers false for a null name or title rather than throwing.
+  - `ItemDefinitions.isLegacy(null)`, `isMiscLegacy(null)`, `isNoLoreLegacy(null)`, `isNewFormatOverride(null)`, `isUnenchanted(null)`, `isNotJunk(null)`, `isNotPedestal(null)`, `isBlockedScreenTitle(null)` and `isInventorySuppressor(null)` are each false (9 assertions)
 - **`eachCategoryIsPopulatedAndAnswersFromTheRealFile`**: One known name per remaining category from the real file, such as "Rotten Flesh", "Gunpowder", "Cycle" and "Permissions for Bob", returns true from its predicate.
   - `ItemDefinitions.isNoLoreLegacy("Rotten Flesh")` is true
   - `ItemDefinitions.isMiscLegacy("Gunpowder")` is true
@@ -2322,7 +2312,7 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - `ItemDefinitions.isNoLoreLegacy("Corrupted Treasure")` is false
   - `ItemDefinitions.isMiscLegacy("Corrupted Treasure")` is false
   - `ItemDefinitions.isNotJunk("Corrupted Treasure")` is false
-- **`miscBucketNamesAreMiscLegacyAndOnlyMiscLegacy`**: Each of the eleven Misc Bucket names reported as unhighlighted is in `misc_definitions` and not in `definitions`.
+- **`miscBucketNamesAreMiscLegacyAndOnlyMiscLegacy`**: Each of the eleven Misc Bucket names is in `misc_definitions` and not in `definitions`.
   - for each of "Stitched Flesh", "Aqua Dust", "Flamingo Feather", "Uncraftable Potion", "Cralozide Crystal", "Sunflower Seeds", "Pigman Meat", "Broken Amulet", "Shattered Crystal", "Cobblestone" and "Lava Essence", `ItemDefinitions.isMiscLegacy(name)` is true (11 assertions)
   - for the same eleven names, `ItemDefinitions.isLegacy(name)` is false (a name match alone must not flag them; the Misc. Item rarity line is required) (11 assertions)
 - **`miscBucketNamesAreExactAndCaseFolded`**: The new entries fold case but need a full match, so lookalike and prefix names do not match.
@@ -2344,7 +2334,7 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - `ItemDefinitions.isLegacy("Vibrant Augments")` is false
   - `ItemDefinitions.isLegacy("Vibrant")` is false
   - `ItemDefinitions.isLegacy("Augment")` is false
-- **`warpedMountIsLegacyButWorkingMountNamesAreNot`**: The broken "Warped Mount" is legacy by name, while the working mounts from the report (Horse Saddle, Meteor's Saddle) are in no list.
+- **`warpedMountIsLegacyButWorkingMountNamesAreNot`**: The broken "Warped Mount" is legacy by name, while working mounts, which have names of their own (Horse Saddle, Meteor's Saddle), are in no list.
   - `ItemDefinitions.isLegacy("Warped Mount")` is true
   - `ItemDefinitions.isLegacy("warped mount")` is true (the entry has `(?i)`)
   - `ItemDefinitions.isLegacy("Warped Mount of Wynn")` is false
@@ -2363,11 +2353,11 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
 - **`galleonsGraveyardPassIsLegacyButTheSeaskipperTicketElementIsNot`**: A real "Galleon's Graveyard Pass" is legacy, the Seaskipper menu's "Galleon's Graveyard Pass for 16" ticket element (cost suffix) is not.
   - `ItemDefinitions.isLegacy("Galleon's Graveyard Pass")` is true
   - `ItemDefinitions.isLegacy("galleon's graveyard pass")` is true (the entry has `(?i)`)
-  - `ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 16" + U+00B2)` is false (the UI element's normalised name from the dump)
+  - `ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 16" + U+00B2)` is false (the UI element's normalised name; U+00B2 is the coin glyph)
   - `ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 16")` is false
   - `ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 4")` is false
 - **`otherBoatPassesStayLegacy`**: Other boat passes still match the `Boat Pass$` entry, and a cost-suffixed one never matched it.
-  - `ItemDefinitions.isLegacy("Selchar Boat Pass")` is true (the real pass from the dump)
+  - `ItemDefinitions.isLegacy("Selchar Boat Pass")` is true (a real pass)
   - `ItemDefinitions.isLegacy("Some Island Boat Pass")` is true
   - `ItemDefinitions.isLegacy("Selchar Boat Pass for 16" + U+00B2)` is false
 - **`blockBankIsAnInventorySuppressor`**: "Block Bank" is an inventory suppressor; case variants, longer names and near names are not.
@@ -2382,10 +2372,6 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - `ItemDefinitions.isMiscLegacy("Block Bank")` is false
   - `ItemDefinitions.isNoLoreLegacy("Block Bank")` is false
   - `ItemDefinitions.isInventorySuppressor("Skeleton Key")` is false
-- **`inventorySuppressorDropsAnEmptyPattern`**: The `inventory_suppressors` section drops an empty entry and still loads the next one.
-  - before any fixture, `ItemDefinitions.isInventorySuppressor("")` is false
-  - after parsing a fixture with `""` and `"^SuppressorProbe$"` under `inventory_suppressors`, `ItemDefinitions.isInventorySuppressor("")` is false (the empty entry was dropped before compiling)
-  - with that same fixture, `ItemDefinitions.isInventorySuppressor("SuppressorProbe")` is true
 - **`load_isIdempotentAndDiscardsParsedInFixtures`**: After parsing a "ReloadProbe" fixture and calling `load()`, the probe no longer matches, "Wolf Fang" matches, and a second `load()` leaves that unchanged.
   - After parsing a fixture with `^ReloadProbe$` under `definitions`, `ItemDefinitions.isLegacy("ReloadProbe")` is true
   - After `ItemDefinitions.load()`, `ItemDefinitions.isLegacy("ReloadProbe")` is false (`load()` clears before refilling)

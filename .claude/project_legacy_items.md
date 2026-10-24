@@ -69,20 +69,22 @@ the `// 1.` … `// 9.` comments in the method body:
 
 ## 3. definitions.yml — the 10 sections
 
-File: [definitions.yml](../src/client/resources/definitions.yml). Parsed by `ItemDefinitions.parse()` with SnakeYAML's safe loader: a stream of YAML documents separated by `---`, each a mapping from section name to a list of patterns. A pattern holding a regex backslash goes in single quotes (`'^\?\?\?$'`), since inside double quotes only YAML's own escapes are legal; an unknown section, or a document that is not a mapping, is ignored. All patterns are pre-compiled to `java.util.regex.Pattern` once at startup. **No runtime reload** — requires restart to pick up edits.
+File: [definitions.yml](../src/client/resources/definitions.yml). Its header comment describes the format and each section, so it can be edited without reading the code. Parsed by `ItemDefinitions.parse()` with SnakeYAML's safe loader: one mapping from section name to a list of entries, in the order of the table below (`---`-separated documents also load, and add up). Every entry but `enchant_excluded_items`' is a regex that must match the whole name; a pattern holding a regex backslash goes in single quotes (`'^\?\?\?$'`), since inside double quotes only YAML's own escapes are legal. A section repeated within one mapping is a parse error (so the build's real-file test fails); an empty entry, an unknown section, or a document that is not a mapping is ignored, and every name and title predicate (all but `isEnchantExcludedItem`) answers false for `null`. All patterns are pre-compiled to `java.util.regex.Pattern` once at startup. **No runtime reload** — requires restart to pick up edits.
 
 | Section | Purpose | Gate logic |
 |---------|---------|-----------|
-| `unenchanted` | Items that legitimately have foil in modern Wynncraft (e.g. ???, Ability Shard, Breathing Helmet, Mythic Everlasting Pufferfish, Liquid Emerald, Shiny, Transcriber) | exclusion in branch 6 |
 | `definitions` | Primary legacy name list — old armor tiers, keys, holiday items, autographs, potions, and modern-format items Wynncraft has since removed (Vibrant Augment, the broken Warped Mount saddles) | branch 1 |
-| `no_lore_legacy` | Legacy items that lost their lore (old keys, vanilla materials, Grian's Ocean Map, the loreless Wolf's Fang) — only legacy when lore is empty | branch 3 |
 | `misc_definitions` | Items requiring "Misc. Item" rarity (Carved Quartz Block, Firefly Wing, Mushrooms, and the exact-name Misc Bucket items Stitched Flesh, Aqua Dust, Flamingo Feather, Uncraftable Potion, Cralozide Crystal, Sunflower Seeds, Pigman Meat, Broken Amulet, Shattered Crystal, Cobblestone, Lava Essence) — collides with modern misc | branch 2 |
-| `not_pedestal` | Names that must never be treated as a pedestal-wiped shell (merchant items) | exclusion in branch 4 |
-| `notjunk` | Modern junk-tier items (e.g. Leather, Tanned Sunfish, Ghostly, Roasted Flesh, Vines, Rubble) | exclusion in branch 7 |
-| `enchant_excluded_items` | Minecraft namespaced IDs (`minecraft:experience_bottle`, `minecraft:enchanted_book`) — always have vanilla foil | exclusion in branch 6 |
+| `no_lore_legacy` | Legacy items that lost their lore (old keys, vanilla materials, Grian's Ocean Map, the loreless Wolf's Fang) — only legacy when lore is empty | branch 3 |
 | `new_format_override` | Names that exist in both old & new formats (e.g. Skeleton Key) — when item is new-format, its `definitions` / `misc_definitions` name match is suppressed (`no_lore_legacy` still applies) | gate on branches 1 & 2 |
+| `unenchanted` | Items that legitimately have foil in modern Wynncraft (e.g. ???, Ability Shard, Breathing Helmet, Mythic Everlasting Pufferfish, Liquid Emerald, Shiny, Transcriber) | exclusion in branch 6 |
+| `enchant_excluded_items` | Minecraft namespaced IDs (`minecraft:experience_bottle`, `minecraft:enchanted_book`) — always have vanilla foil | exclusion in branch 6 |
+| `notjunk` | Modern junk-tier items (e.g. Leather, Tanned Sunfish, Ghostly, Roasted Flesh, Vines, Rubble) | exclusion in branch 7 |
+| `not_pedestal` | Names that must never be treated as a pedestal-wiped shell (merchant items) | exclusion in branch 4 |
 | `blocked_screen_titles` | Screen titles where the whole system bails (housing/island menus that abuse enchant glint as a UI selector) | `isBlockedScreen()` guard |
 | `inventory_suppressors` | Names of items (the housing `Block Bank`) whose presence anywhere in the player's inventory makes the whole system bail, in the inventory and in any open container | `isDetectionSuppressed()` guard |
+
+**Deliberately not listed** (checked and kept out; re-check before adding one): The Juggernaut, Sacred and Quicksand Crossers; the Replica Hallowynn Mask, a current item (so the Hallowynn Mask's entry has no optional `Replica ` prefix); Ghostly armour (Boots, Cap, Pants, Tunic), until dye colours can be told apart; Foehn Wind (sold by a Nesaak merchant); Short Cutter and Silver Short Spear (found in the Regular Island cave). Unconfirmed: Raw Cod is left out of `misc_definitions` as possibly still obtainable, and Firefly Wing is in it although it may be too.
 
 `ItemDefinitions` responsibilities: YAML parsing, regex pre-compilation into 9 static `List<Pattern>` fields plus one `Set<String>` (`enchantExcludedItems`), and 10 lookup predicates (`isLegacy`, `isMiscLegacy`, `isNoLoreLegacy`, `isUnenchanted`, `isEnchantExcludedItem`, `isNotPedestal`, `isNotJunk`, `isNewFormatOverride`, `isBlockedScreenTitle`, `isInventorySuppressor`). Loaded from `VetsmodClient.onInitializeClient()` after `VetsConfig.load()`.
 
