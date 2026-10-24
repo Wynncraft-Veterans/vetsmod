@@ -1925,10 +1925,10 @@ Test: [`VetsBossBarContentBuilderTest.java`](../src/test/java/org/wynnvets/mwe/a
   - `{"attendance":{"notice_effective":"walk_in"}}` gives `"anni.wynnvets.org (80mins) | WALK_IN for FILL"` with a gray chip.
 - **`anUnassignedWalkInStillSeesTheChip`**: A player on the `unassigned` board state (which is also how vets-anni sends a volunteer to sit out) still sees the chip.
   - `{"board":{"state":"unassigned"},"attendance":{"notice_effective":"attend_early"}}` gives `"anni.wynnvets.org (80mins) | NotRSVP for FILL"` with a yellow chip.
-- **`aSittingOutPlayerGetsTheReasonAndNoChip`**: On `wont_assign` with a reason, the bar shows the reason and no chip, even with a hard RSVP.
-  - `{"board":{"state":"wont_assign","wont_reason":"Sitting out"},"rsvp":{"notice":"hard"}}` gives `"anni.wynnvets.org: You won't be assigned - Sitting out"`.
-- **`wontAssignWithNoReasonSaysThisAnni`**: On `wont_assign` with no reason, the line ends "to this anni".
-  - `{"board":{"state":"wont_assign"}}` gives `"anni.wynnvets.org: You won't be assigned to this anni"`.
+- **`aWontAssignPlayerGetsTheShortLineWithNoReasonAndNoChip`**: On `wont_assign` with a reason, the bar shows the short line, with no reason and no chip, even with a hard RSVP.
+  - `{"board":{"state":"wont_assign","wont_reason":"Sitting out"},"rsvp":{"notice":"hard"}}` gives `"anni.wynnvets.org: You won't be assigned"`.
+- **`wontAssignWithNoReasonReadsTheSame`**: On `wont_assign` with no reason, the line is the same.
+  - `{"board":{"state":"wont_assign"}}` gives `"anni.wynnvets.org: You won't be assigned"`.
 - **`aSpecificRoleNotYetPlacedShowsTheAssignedVariantAllTbd`**: A TANK registration with an empty board takes the assigned variant and shows TBD for all three chips.
   - `{"registration":{"roles":[{"role":"TANK"}]},"rsvp":{"notice":"hard"}}` gives `"anni.wynnvets.org: Role: TBD | Party TBD | World: TBD"`.
   - that text does not contain `"HrdRSVP"`: no seeking line, so no chip.

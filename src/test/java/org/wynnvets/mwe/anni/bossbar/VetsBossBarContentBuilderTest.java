@@ -125,19 +125,20 @@ class VetsBossBarContentBuilderTest {
 
     // ----- Won't be assigned -----
 
+    /** The bar has no room for the reason, so it is left off; there is no chip either. */
     @Test
-    void aSittingOutPlayerGetsTheReasonAndNoChip() {
+    void aWontAssignPlayerGetsTheShortLineWithNoReasonAndNoChip() {
         assertEquals(
-                "anni.wynnvets.org: You won't be assigned - Sitting out",
+                "anni.wynnvets.org: You won't be assigned",
                 bar("{\"board\":{\"state\":\"wont_assign\",\"wont_reason\":\"Sitting out\"},"
                                 + "\"rsvp\":{\"notice\":\"hard\"}}")
                         .getString());
     }
 
     @Test
-    void wontAssignWithNoReasonSaysThisAnni() {
+    void wontAssignWithNoReasonReadsTheSame() {
         assertEquals(
-                "anni.wynnvets.org: You won't be assigned to this anni",
+                "anni.wynnvets.org: You won't be assigned",
                 bar("{\"board\":{\"state\":\"wont_assign\"}}").getString());
     }
 

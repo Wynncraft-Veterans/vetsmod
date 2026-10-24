@@ -56,8 +56,9 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  *       ({@code min} for one minute),
  *       reworded from spec §3.1.1.1's {@code Seeking a <RSVP> <SLOT> for …}. A player the board
  *       will not assign ({@code board.state} {@code wont_assign}) gets
- *       {@code &3anni.wynnvets.org&8: &7You won't be assigned - <wont_reason>} instead, with no
- *       chip; the bar is already red ({@link #colorFor}).</li>
+ *       {@code &3anni.wynnvets.org&8: &7You won't be assigned} instead, with no chip and no
+ *       {@code wont_reason}, which the bar has no room for (chat shows it); the bar is already red
+ *       ({@link #colorFor}).</li>
  * </ul>
  *
  * <p>The flash decoration (an {@code &n} underline toggled on and off) is applied per-field via
@@ -320,7 +321,7 @@ public final class VetsBossBarContentBuilder {
     private static MutableComponent buildSeeking(AnniSnapshot snapshot, long secondsUntilAnni) {
         AnniSnapshot.Board board = snapshot.board();
         if (board != null && "wont_assign".equalsIgnoreCase(board.state())) {
-            return buildWontAssign(board.wontReason());
+            return buildWontAssign();
         }
         MutableComponent out = Component.empty();
 
@@ -357,18 +358,14 @@ public final class VetsBossBarContentBuilder {
         return minutes == 1 ? "min" : "mins";
     }
 
-    /** "anni.wynnvets.org: You won't be assigned - {reason}", or "... to this anni" with no
-     *  reason, worded as the world-join MOTD words it. */
-    private static MutableComponent buildWontAssign(String reason) {
+    /** "anni.wynnvets.org: You won't be assigned". The board's {@code wont_reason} is left off:
+     *  the bar has no room for it, and the world-join MOTD and {@code /wv anni} show it. */
+    private static MutableComponent buildWontAssign() {
         MutableComponent out =
                 Component.literal("anni.wynnvets.org")
                         .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA));
         out.append(Component.literal(": ").withStyle(ChatFormatting.DARK_GRAY));
-        String text =
-                (reason == null || reason.isBlank())
-                        ? "You won't be assigned to this anni"
-                        : "You won't be assigned - " + reason;
-        out.append(Component.literal(text).withStyle(ChatFormatting.GRAY));
+        out.append(Component.literal("You won't be assigned").withStyle(ChatFormatting.GRAY));
         return out;
     }
 
