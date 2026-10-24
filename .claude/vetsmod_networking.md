@@ -61,6 +61,7 @@ Constants:
 
 State:
 - `wsRef` AtomicReference<WebSocket>
+- `socketSender` the current socket and its `SerializedSender`, made the first time a send meets a new socket
 - `closed`, `connecting`, `pingScheduled` atomic flags
 - `textBuffer` accumulates multi-frame text messages (WS fragmentation)
 - `scheduler` single-threaded executor for reconnect/ping
@@ -70,7 +71,7 @@ Listener methods: `onOpen`, `onText` (buffers fragments until last), `onPong`, `
 
 On close/error → schedule reconnect 3s later. `schedulePing()` starts the ping task once, on the first successful connect; it reads the live socket on each run, so a reconnect adds no task. A handshake that completes after `close()`, including one that finds the scheduler already shut down, has its socket uninstalled and aborted at once, without the ping or the on-connect callback.
 
-Silent drop if `send()` called while not connected (no queuing), and also while another text send on the socket is still pending (bug `ws-client-send-ignores-send-pending-failure`).
+**Sends are serialised per socket.** The JDK `WebSocket` allows one outstanding `sendText`, and vetsmod sends from several threads (the render thread, the party-roster scheduler, the socket's own threads), so `sendAsync(json)` queues each frame on the socket's [SerializedSender](../src/client/java/org/wynnvets/api/SerializedSender.java): a write starts only once the previous one has completed, succeeded or failed, so frames go out in submit order. The returned `CompletableFuture<Boolean>` completes `true` once the frame was handed to the socket (not a delivery receipt) and `false` when there is no socket, the write failed, or 64 writes are already queued (`MAX_IN_FLIGHT`, a warning, rather than a backlog behind a stalled socket). `send(json)` is `sendAsync` with the result ignored. A sender belongs to one socket, so writes still queued for a dead socket fail instead of replaying on its replacement. While not connected, a send is dropped (no queuing).
 
 ## 3. HTTP endpoint constants
 

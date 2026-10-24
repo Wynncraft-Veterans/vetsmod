@@ -31,7 +31,7 @@ import org.wynnvets.util.Json;
  * socket is down.
  *
  * <p>A recording socket stands in for the inbound connection: it never connects, records each
- * frame as {@link WsClient#send(JsonObject)} would write it, and reports a settable connection
+ * frame as {@link WsClient#sendAsync(JsonObject)} would write it, and reports a settable connection
  * state. The expected strings are literals. The frames that carry a random {@code uuid} and a clock
  * {@code timestamp} (inbound chat and {@code rank_change}) have both values checked and then
  * masked in place, so key order is still pinned. Every test ends with no inbound socket installed,
@@ -50,8 +50,9 @@ class V1ApiManagerFramesTest {
         }
 
         @Override
-        public void send(JsonObject json) {
+        public CompletableFuture<Boolean> sendAsync(JsonObject json) {
             wire.add(Json.GSON.toJson(json));
+            return CompletableFuture.completedFuture(true);
         }
 
         @Override

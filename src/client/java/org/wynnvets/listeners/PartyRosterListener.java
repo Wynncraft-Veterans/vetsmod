@@ -64,9 +64,8 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * debug injection), so it hands the capture to the render thread with {@code Minecraft.execute},
  * which queues it for the next task drain, a command typed on the render thread included. The send
  * then runs on a daemon single-thread scheduler. The scheduler thread sends through
- * {@link AnniWsSender#sendAnniPartyObservation}, which is not serialised against other
- * senders: a send that overlaps another frame on the same socket is dropped
- * ({@code ws-client-send-ignores-send-pending-failure}).</p>
+ * {@link AnniWsSender#sendAnniPartyObservation}; {@code WsClient} queues that write behind any
+ * other frame on the same socket, so a concurrent send no longer drops it.</p>
  */
 public final class PartyRosterListener {
 

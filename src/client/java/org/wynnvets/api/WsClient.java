@@ -51,6 +51,13 @@ public class WsClient implements WebSocket.Listener {
     private final ScheduledExecutorService scheduler;
     private volatile Runnable onConnectCallback;
 
+    /** A socket and the sender that serialises its writes. */
+    private record SocketSender(WebSocket ws, SerializedSender sender) {}
+
+    /** The current socket's sender, replaced the first time a send meets a new socket (see
+     *  {@link #senderFor}). */
+    private volatile SocketSender socketSender;
+
     /**
      * @param uri            the WebSocket endpoint URI
      * @param label          a human-readable label for logging
@@ -140,16 +147,41 @@ public class WsClient implements WebSocket.Listener {
                         });
     }
 
-    /** Sends a JSON text frame, fire-and-forget: silently dropped if not connected, and,
-     *  because the returned send future is ignored, also lost if another send on this
-     *  socket is still pending ({@code ws-client-send-ignores-send-pending-failure}). */
+    /** Sends a JSON text frame without waiting for it: {@link #sendAsync} with the result
+     *  ignored. Dropped silently if not connected. */
     public void send(JsonObject json) {
+        sendAsync(json);
+    }
+
+    /**
+     * Queues a JSON text frame on the current socket. Writes on one socket go out one at a
+     * time in submit order ({@link SerializedSender}), so frames from different threads no
+     * longer collide in the JDK socket's one-outstanding-send rule.
+     *
+     * @return completes {@code true} once the frame was handed to the socket (not a delivery
+     *     receipt), and {@code false} when there is no socket, the write failed, or the socket's
+     *     send queue was full
+     */
+    public CompletableFuture<Boolean> sendAsync(JsonObject json) {
         WebSocket ws = wsRef.get();
-        if (ws == null) return;
-        try {
-            ws.sendText(Json.GSON.toJson(json), true);
-        } catch (Exception e) {
-            VetsLogger.debug("[{}] WebSocket send failed: {}", label, e.getMessage());
+        if (ws == null) return CompletableFuture.completedFuture(false);
+        return senderFor(ws).submit(Json.GSON.toJson(json));
+    }
+
+    /** The sender for {@code ws}, made the first time a send meets it. A new socket gets a new
+     *  sender, so the writes still queued for a dead one fail rather than replay on it. */
+    private SerializedSender senderFor(WebSocket ws) {
+        SocketSender current = socketSender;
+        if (current != null && current.ws() == ws) return current.sender();
+        synchronized (this) {
+            current = socketSender;
+            if (current == null || current.ws() != ws) {
+                current =
+                        new SocketSender(
+                                ws, new SerializedSender(label, text -> ws.sendText(text, true)));
+                socketSender = current;
+            }
+            return current.sender();
         }
     }
 

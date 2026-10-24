@@ -14,7 +14,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 ## Packages
 
 - [`org.wynnvets`](#orgwynnvets) — [`LocaleFoldTripwireTest`](#localefoldtripwiretest)
-- [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest), [`V1ApiManagerOutboundAuthTest`](#v1apimanageroutboundauthtest)
+- [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`SerializedSenderTest`](#serializedsendertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest), [`V1ApiManagerOutboundAuthTest`](#v1apimanageroutboundauthtest)
 - [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`OutboundDisplayHandlerTest`](#outbounddisplayhandlertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
 - [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
 - [`org.wynnvets.chat.spoiler`](#orgwynnvetschatspoiler) — [`SpoilerCodecTest`](#spoilercodectest)
@@ -91,11 +91,34 @@ Test: [`InboundAckRouterTest.java`](../src/test/java/org/wynnvets/api/InboundAck
   - After routing `{"status":"ok"}` with one `head` callback queued, `calls` is empty.
   - `V1ApiManager.staffActionCallbacks.size()` equals 1.
 
+### `SerializedSenderTest`
+
+Test: [`SerializedSenderTest.java`](../src/test/java/org/wynnvets/api/SerializedSenderTest.java) · Subject: [`SerializedSender`](../src/client/java/org/wynnvets/api/SerializedSender.java)
+
+`SerializedSender` serialises one WebSocket's text writes in submit order, because the JDK socket allows one outstanding `sendText`. The suite pins one write at a time in submit order, a failed write that does not block the next, and the in-flight bound. A `FakeWriter` records each text it is asked to write and returns a future the test completes by hand, standing in for `sendText`.
+
+- **`framesGoOutInSubmitOrderOneAtATime`**: Three submits are written one at a time, each after the previous write completes.
+  - After submitting `a`, `b`, `c`, `writer.written` equals `["a"]`.
+  - After completing `a`'s write, it equals `["a", "b"]`, `a` completes `true`, and `b` is not done.
+  - After completing the next two, it equals `["a", "b", "c"]`, and `b` and `c` complete `true`.
+- **`aFailedWriteDoesNotBlockTheNextOne`**: A write that fails completes `false` and the next is still written.
+  - After `a`'s write fails with `IllegalStateException("Send pending")`, `a` completes `false` and `writer.written` equals `["a", "b"]`.
+  - After completing `b`'s write, `b` completes `true`.
+- **`aWriterThatThrowsAtOnceCompletesFalseAndTheQueueGoesOn`**: A writer that throws instead of returning a future fails that submit only.
+  - With a writer that throws for `"a"` and completes otherwise, `submit("a").join()` is false, `submit("b").join()` is true, and the writer saw `["a", "b"]`.
+- **`aSubmitBeyondTheBoundCompletesFalseWithoutWriting`**: With a bound of 2, a third submit while two are queued completes `false` at once and is never written; once the queue drains there is room again.
+  - `c` is done and `c.join()` is false.
+  - After completing `a` and `b`, both are `true` and `writer.written` equals `["a", "b"]`.
+  - A later `submit("d")` completes `true` once its write completes.
+- **`aSubmitFromAResultsDependentStillWaitsItsTurn`**: A submit made from inside a completed write's result dependent still queues in order. With a writer that completes `"a"` at once and leaves the rest pending, the dependent of `submit("a")` submits `"b"`, then `"c"` is submitted.
+  - The writer saw `["a", "b"]` (`"c"` waits for `"b"`); after completing `"b"`'s write it saw `["a", "b", "c"]`; `"b"` and `"c"` complete `true`.
+- **`theBoundIsSixtyFourByDefault`**: `SerializedSender.MAX_IN_FLIGHT` equals 64.
+
 ### `V1ApiManagerFramesTest`
 
 Test: [`V1ApiManagerFramesTest.java`](../src/test/java/org/wynnvets/api/V1ApiManagerFramesTest.java) · Subject: [`V1ApiManager`](../src/client/java/org/wynnvets/api/V1ApiManager.java), `AnniWsSender`, `AnniQueryClient`, `AnniRsvpClient`, `AnniScrollspotClient`
 
-`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, records each frame as the real send would serialise it, and has a settable connected flag. For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
+`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (and complete `true`), and has a settable connected flag. For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
 
 Asserting helpers:
 

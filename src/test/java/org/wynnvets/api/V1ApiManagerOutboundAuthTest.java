@@ -9,6 +9,7 @@ import com.google.gson.JsonParser;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
@@ -44,8 +45,9 @@ class V1ApiManagerOutboundAuthTest {
         }
 
         @Override
-        public void send(JsonObject json) {
+        public CompletableFuture<Boolean> sendAsync(JsonObject json) {
             wire.add(Json.GSON.toJson(json));
+            return CompletableFuture.completedFuture(true);
         }
 
         @Override

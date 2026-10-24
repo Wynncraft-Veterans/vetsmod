@@ -161,10 +161,10 @@ public final class V1ApiManager {
                         VetsLogger.debug("Re-sent pending registration on inbound reconnect");
                     }
                     // Notify post-connect listeners after any auth and registration
-                    // frames have been handed to the socket. The server handles frames
-                    // in send order on the single inbound socket, so a frame a listener
-                    // emits here is handled after the auth frame, provided that one was
-                    // sent and not dropped (ws-client-send-ignores-send-pending-failure).
+                    // frames have been handed to the socket. WsClient writes one socket's
+                    // frames in submit order and the server handles them in that order, so a
+                    // frame a listener emits here is handled after the auth frame, provided
+                    // that one was sent (a key is stored) and its write did not fail.
                     // Used by AnniWsHandler to re-pull a fresh snapshot on every
                     // reconnect — without this the cache silently goes stale across a
                     // socket drop.
