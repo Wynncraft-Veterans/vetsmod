@@ -135,6 +135,7 @@ public final class Json {
     /**
      * The shared parser/serialiser. {@code new Gson()} with no builder, so HTML-escaping and
      * null-suppression are both at their defaults, exactly as all twenty-one copies had them.
+     * Outgoing WebSocket frames use {@code WsClient}'s own serialiser instead, which keeps nulls.
      */
     public static final Gson GSON = new Gson();
 

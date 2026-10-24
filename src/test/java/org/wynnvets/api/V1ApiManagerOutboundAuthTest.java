@@ -16,7 +16,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
-import org.wynnvets.util.Json;
 
 /**
  * Pins when the outbound socket authenticates and where its ack goes: only after a
@@ -46,7 +45,7 @@ class V1ApiManagerOutboundAuthTest {
 
         @Override
         public CompletableFuture<Boolean> sendAsync(JsonObject json) {
-            wire.add(Json.GSON.toJson(json));
+            wire.add(WsClient.toWire(json));
             return CompletableFuture.completedFuture(true);
         }
 

@@ -56,10 +56,10 @@ subsection), §7 and §7.1.
 | `anni_rsvp` | `_handle_anni_rsvp` | `anni_rsvp_response` | §1.13 |
 | `anni_party_observation` | `_handle_anni_party_observation` | `anni_party_observation_response` | §1.14 |
 
-⚠️ **Clearing the scroll spot sends no `scroll_spot` key.** vetsmod builds the clear with a JSON null,
-and the shared `Gson` drops null members, so the frame is `{"type":"anni_scrollspot_set"}`. §1.12
-says a missing key is rejected as malformed, but `_handle_anni_scrollspot_set` reads it with
-`data.get`, as null, and clears (bug `anni-scrollspot-clear-frame-omits-scroll-spot-key`).
+**Clearing the scroll spot sends `"scroll_spot": null`.** `AnniWsSender` builds the clear with a
+JSON null, and `WsClient` serialises frames with null members kept (`WsClient.toWire`), as §1.12 asks.
+Clients before that change sent `{"type":"anni_scrollspot_set"}` with no key; `_handle_anni_scrollspot_set`
+reads it with `data.get`, as null, and clears, and the server keeps accepting it for them.
 
 Server-initiated frames on `/v1/outbound`: broadcast chat and `bridge`,
 `anni_state` (§1.15), `staff_online` / `staff_offline` (§2.6), the targeted

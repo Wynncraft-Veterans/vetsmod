@@ -31,8 +31,8 @@ import org.wynnvets.util.Json;
  * socket is down.
  *
  * <p>A recording socket stands in for the inbound connection: it never connects, records each
- * frame as {@link WsClient#sendAsync(JsonObject)} would write it, and reports a settable connection
- * state. The expected strings are literals. The frames that carry a random {@code uuid} and a clock
+ * frame as {@link WsClient#sendAsync(JsonObject)} would write it ({@link WsClient#toWire}), and
+ * reports a settable connection state. The expected strings are literals. The frames that carry a random {@code uuid} and a clock
  * {@code timestamp} (inbound chat and {@code rank_change}) have both values checked and then
  * masked in place, so key order is still pinned. Every test ends with no inbound socket installed,
  * no auth ack awaited, the callback queue drained and the cached registration cleared. No test
@@ -51,7 +51,7 @@ class V1ApiManagerFramesTest {
 
         @Override
         public CompletableFuture<Boolean> sendAsync(JsonObject json) {
-            wire.add(Json.GSON.toJson(json));
+            wire.add(WsClient.toWire(json));
             return CompletableFuture.completedFuture(true);
         }
 
@@ -188,15 +188,14 @@ class V1ApiManagerFramesTest {
         connect();
         assertTrue(AnniWsSender.sendAnniScrollspotSet(12, 64, -300));
         assertTrue(AnniWsSender.sendAnniScrollspotSet(null, null, null));
-        // The clear frame's scroll_spot is a JsonNull, and Json.GSON drops null members when it
-        // serialises, so the key never reaches the wire. temporary-server (at 4d47cba) reads a
-        // missing scroll_spot as null, which clears the spot, though its v1_protocol.md §1.12
-        // says a missing key is rejected (anni-scrollspot-clear-frame-omits-scroll-spot-key).
+        // The clear frame's scroll_spot is a JsonNull, and WsClient's frame serialiser keeps null
+        // members, so the key reaches the wire as null, as temporary-server's protocol §1.12
+        // asks. (Json.GSON would drop it.)
         assertEquals(
                 List.of(
                         "{\"type\":\"anni_scrollspot_set\","
                                 + "\"scroll_spot\":{\"x\":12,\"y\":64,\"z\":-300}}",
-                        "{\"type\":\"anni_scrollspot_set\"}"),
+                        "{\"type\":\"anni_scrollspot_set\",\"scroll_spot\":null}"),
                 socket.wire);
     }
 

@@ -1,5 +1,7 @@
 package org.wynnvets.api;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import java.net.URI;
@@ -38,6 +40,13 @@ public class WsClient implements WebSocket.Listener {
      *  {@code WsClient} connects through it. */
     private static final HttpClient HTTP_CLIENT =
             HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+
+    /** Serialises outgoing frames. Unlike {@link Json#GSON} it keeps null members, so a
+     *  frame can send an explicit JSON null, as the scroll-spot clear's {@code scroll_spot}
+     *  does (temporary-server protocol §1.12). HTML-escaping stays at its default, so every
+     *  frame without a null is byte-identical to before. A builder's
+     *  {@code addProperty(key, (String) null)} now reaches the wire as {@code null}. */
+    private static final Gson FRAME_GSON = new GsonBuilder().serializeNulls().create();
 
     private final URI uri;
     private final String label;
@@ -165,7 +174,13 @@ public class WsClient implements WebSocket.Listener {
     public CompletableFuture<Boolean> sendAsync(JsonObject json) {
         WebSocket ws = wsRef.get();
         if (ws == null) return CompletableFuture.completedFuture(false);
-        return senderFor(ws).submit(Json.GSON.toJson(json));
+        return senderFor(ws).submit(toWire(json));
+    }
+
+    /** The text a frame is sent as ({@link #FRAME_GSON}). */
+    // Package-private for unit tests. See V1ApiManagerFramesTest.
+    static String toWire(JsonObject json) {
+        return FRAME_GSON.toJson(json);
     }
 
     /** The sender for {@code ws}, made the first time a send meets it. A new socket gets a new

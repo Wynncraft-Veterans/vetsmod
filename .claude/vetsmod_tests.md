@@ -118,7 +118,7 @@ Test: [`SerializedSenderTest.java`](../src/test/java/org/wynnvets/api/Serialized
 
 Test: [`V1ApiManagerFramesTest.java`](../src/test/java/org/wynnvets/api/V1ApiManagerFramesTest.java) · Subject: [`V1ApiManager`](../src/client/java/org/wynnvets/api/V1ApiManager.java), `AnniWsSender`, `AnniQueryClient`, `AnniRsvpClient`, `AnniScrollspotClient`
 
-`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (and complete `true`), and has a settable connected flag. For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
+`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (`WsClient.toWire`, which keeps null members) and complete `true`, and has a settable connected flag. For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
 
 Asserting helpers:
 
@@ -147,10 +147,10 @@ Tests:
 - **`anniQuery`**: `AnniWsSender.sendAnniQuery()` returns true and writes `{"type":"anni_query"}`.
   - `AnniWsSender.sendAnniQuery()` returns true.
   - `socket.wire` equals the single frame `{"type":"anni_query"}`.
-- **`anniScrollspotSet_setAndClear`**: Setting a spot writes `scroll_spot` with `x`, `y`, `z`; clearing (all null) writes only the type, because the null member is dropped on serialisation, a gap against the server protocol doc noted in the test comment.
+- **`anniScrollspotSet_setAndClear`**: Setting a spot writes `scroll_spot` with `x`, `y`, `z`; clearing (all null) writes `scroll_spot` as an explicit null, because `WsClient`'s frame serialiser keeps null members.
   - `AnniWsSender.sendAnniScrollspotSet(12, 64, -300)` returns true.
   - `AnniWsSender.sendAnniScrollspotSet(null, null, null)` returns true.
-  - `socket.wire` equals `{"type":"anni_scrollspot_set","scroll_spot":{"x":12,"y":64,"z":-300}}` then `{"type":"anni_scrollspot_set"}` (clear frame has no `scroll_spot` key because the null member is dropped by Gson).
+  - `socket.wire` equals `{"type":"anni_scrollspot_set","scroll_spot":{"x":12,"y":64,"z":-300}}` then `{"type":"anni_scrollspot_set","scroll_spot":null}`.
 - **`anniRsvp`**: `sendAnniRsvp("hard")` returns true and writes `{"type":"anni_rsvp","notice":"hard"}`.
   - `AnniWsSender.sendAnniRsvp("hard")` returns true.
   - `socket.wire` equals the single frame `{"type":"anni_rsvp","notice":"hard"}`.
