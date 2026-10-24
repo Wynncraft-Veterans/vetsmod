@@ -45,13 +45,12 @@ definitions:
   - "(?i)^Pure Iron Boots.*$"
   - "(?i)^Pure Iron Helmet.*$"
   - "(?i)^Pure Iron Leggings.*$"
-  - "(?i)^Quicksand Crossers.*$"
   - "(?i)^Refined Chainmail Helmet.*$"
   - "(?i)^Refined Iron Boots.*$"
   - "(?i)^Refined Iron Chainmail.*$"
   - "(?i)^Refined Iron Leggings.*$"
-  - "(?i)^Sacred$"
-  - "(?i)^The Juggernaut.*$"
+  # Confirmed NOT legacy, so deliberately absent: The Juggernaut, Sacred and
+  # Quicksand Crossers.
   - "(?i)^Factory Helmet.*$"
   - "(?i)^Female Pirate Wig.*$"
   - "(?i)^Gert Mask.*$"
@@ -82,7 +81,9 @@ definitions:
   - "(?i)^Treat.*$"
   - "(?i)^Trick$"
   - "(?i)^Wynnter Fair.*$"
-  - "(?i)^(Replica )?Hallowynn Mask.*$"
+  # The mask is legacy; its "Replica Hallowynn Mask" is a current item, hence no
+  # optional "Replica " prefix here.
+  - "(?i)^Hallowynn Mask.*$"
   - "(?i)^Seeker's Aid.*$"
   - "(?i)^Drawing of the Spirits.*$"
   - "(?i)^Hide N' Seek Helmet.*$"

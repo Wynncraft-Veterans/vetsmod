@@ -88,7 +88,7 @@ class ItemDefinitionsTest {
     @Test
     void predicatesRequireAFullMatchNotASubstring() throws IOException {
         // Every loop uses matcher.matches(). Against the real file that choice
-        // is almost invisible — all 172 patterns are anchored with ^ and the few
+        // is almost invisible — all 169 patterns are anchored with ^ and the few
         // without a trailing $ end in a greedy .* — so an anchored fixture would
         // behave identically under find() and pin nothing. The discriminating
         // input is an UNANCHORED pattern, which the file happens not to contain
@@ -421,6 +421,33 @@ class ItemDefinitionsTest {
         assertFalse(ItemDefinitions.isLegacy("Meteor's Saddle"));
         assertFalse(ItemDefinitions.isMiscLegacy("Horse Saddle"));
         assertFalse(ItemDefinitions.isNoLoreLegacy("Meteor's Saddle"));
+    }
+
+    // ----- Confirmed not legacy -----
+
+    @Test
+    void itemsConfirmedNotLegacyAreInNoNameList() {
+        for (String name :
+                new String[] {
+                    "The Juggernaut",
+                    "Sacred",
+                    "Quicksand Crossers",
+                    "Quicksand Crossers [30.0%]",
+                    "Replica Hallowynn Mask"
+                }) {
+            assertFalse(ItemDefinitions.isLegacy(name), name + " is not legacy");
+            assertFalse(ItemDefinitions.isMiscLegacy(name), name);
+            assertFalse(ItemDefinitions.isNoLoreLegacy(name), name);
+        }
+    }
+
+    @Test
+    void theHallowynnMaskItselfStaysLegacy() {
+        assertTrue(ItemDefinitions.isLegacy("Hallowynn Mask"));
+        assertTrue(ItemDefinitions.isLegacy("hallowynn mask"), "(?i)");
+        assertFalse(
+                ItemDefinitions.isLegacy("Replica Hallowynn Mask"),
+                "the replica is a current item and must not ride on the original's entry");
     }
 
     // ----- load() is the reset -----

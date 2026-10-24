@@ -2350,6 +2350,14 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - `ItemDefinitions.isLegacy("Meteor's Saddle")` is false
   - `ItemDefinitions.isMiscLegacy("Horse Saddle")` is false
   - `ItemDefinitions.isNoLoreLegacy("Meteor's Saddle")` is false
+- **`itemsConfirmedNotLegacyAreInNoNameList`**: The Juggernaut, Sacred, Quicksand Crossers (with and without a Wynntils percentage suffix) and Replica Hallowynn Mask are in none of the three legacy-name lists.
+  - for each of "The Juggernaut", "Sacred", "Quicksand Crossers", "Quicksand Crossers [30.0%]" and "Replica Hallowynn Mask", `ItemDefinitions.isLegacy(name)` is false (5 assertions)
+  - for the same five names, `ItemDefinitions.isMiscLegacy(name)` is false (5 assertions)
+  - for the same five names, `ItemDefinitions.isNoLoreLegacy(name)` is false (5 assertions)
+- **`theHallowynnMaskItselfStaysLegacy`**: "Hallowynn Mask" is legacy in any case, but its replica is not.
+  - `ItemDefinitions.isLegacy("Hallowynn Mask")` is true
+  - `ItemDefinitions.isLegacy("hallowynn mask")` is true (the entry has `(?i)`)
+  - `ItemDefinitions.isLegacy("Replica Hallowynn Mask")` is false
 - **`load_isIdempotentAndDiscardsParsedInFixtures`**: After parsing a "ReloadProbe" fixture and calling `load()`, the probe no longer matches, "Wolf Fang" matches, and a second `load()` leaves that unchanged.
   - After parsing a fixture with `^ReloadProbe$` under `definitions`, `ItemDefinitions.isLegacy("ReloadProbe")` is true
   - After `ItemDefinitions.load()`, `ItemDefinitions.isLegacy("ReloadProbe")` is false (`load()` clears before refilling)
