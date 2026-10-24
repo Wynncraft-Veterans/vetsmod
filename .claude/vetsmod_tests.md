@@ -1851,7 +1851,7 @@ Test: [`CheckReportRendererTest.java`](../src/test/java/org/wynnvets/fetcher/ond
 
 Test: [`OnlineMemberServiceTest.java`](../src/test/java/org/wynnvets/fetcher/ondemand/OnlineMemberServiceTest.java) · Subject: [`OnlineMemberService`](../src/client/java/org/wynnvets/fetcher/ondemand/OnlineMemberService.java)
 
-`OnlineMemberService.merge` combines the tab list, the connected-user list and the Wynntils guild data; the suite pins `overlayRoster`, the step that lays the server's polled roster (UUID to current username) over the Wynntils-derived maps, whose keys are dashed lowercase `UUID.toString()` text, `trustedTabEntries`, the gate that reads the tab list's guild column only for a Returners member, and `supplementConnected`, which adds the server's connected vetsmod users to the name maps (every tier gets a display name, only guild tier can be resolved from a tab name). The rest of `merge` reads Wynntils models and the tab list and is not covered. Each map test starts from two empty maps and, where it says Wynntils knows a player, seeds both with `OldName` under the dashed lowercase uuid `DASHED`.
+`OnlineMemberService.merge` combines the tab list, the connected-user list and the Wynntils guild data; the suite pins `overlayRoster`, the step that lays the server's polled roster (UUID to current username) over the Wynntils-derived maps, whose keys are dashed lowercase `UUID.toString()` text, `trustedTabEntries`, the gate that reads the tab list's guild column only for a Returners member, `supplementConnected`, which adds the server's connected vetsmod users to the name maps (every tier gets a display name, only guild tier can be resolved from a tab name), and `graceCandidates`, which picks the names the grace cache may remember (guild tier only). The rest of `merge` reads Wynntils models and the tab list and is not covered. Each map test starts from two empty maps and, where it says Wynntils knows a player, seeds both with `OldName` under the dashed lowercase uuid `DASHED`.
 
 - **`overlayRoster_sameSpelling_replacesWynntilsName`**: A roster key spelled like the Wynntils key replaces the name.
   - `uuidToUsername` equals `{DASHED: "NewName"}` after `overlayRoster` with roster `{DASHED: "NewName"}`.
@@ -1882,6 +1882,14 @@ Test: [`OnlineMemberServiceTest.java`](../src/test/java/org/wynnvets/fetcher/ond
 - **`supplementConnected_alreadyKnown_keepsExistingEntries`**: A uuid the maps already know keeps its name.
   - `uuidToUsername` equals `{DASHED: "RosterName"}` after `supplementConnected` with a guild-tier user of that uuid named `ClientName`.
   - `usernameToUuid` equals `{"rostername": DASHED, "clientname": DASHED}`: the client's own name also resolves, to the same uuid.
+- **`graceCandidates_onlyGuildTier_withOrWithoutUuid`**: Only guild-tier players are candidates, whether or not they carry a UUID.
+  - The result equals `{"WithUuid", "TabOnly"}` for a list of two guild-tier players (one with a uuid, one tab-only with `""`), one honourary and one waitlist player.
+- **`graceCandidates_noPlayers_empty`**: No players give no candidates.
+  - The result equals the empty set for `List.of()`.
+- **`graceReadds_aReturnersViewerGetsTheOfflineNamesBack`**: For a Returners viewer, the grace names not online now are listed again.
+  - `graceReadds(true, ["Gone", "Here"], {"Here"})` equals `["Gone"]`.
+- **`graceReadds_aViewerOutsideReturnersGetsNone`**: For a viewer outside Returners nothing comes back, so a name remembered while the viewer was wrongly taken for a member stays out.
+  - `graceReadds(false, ["Gone"], {})` is empty.
 
 ### `ReturnersRosterProbeTest`
 

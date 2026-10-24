@@ -180,7 +180,7 @@ Package: [org.wynnvets.fetcher.ondemand](../src/client/java/org/wynnvets/fetcher
 | `UserInfoFetcher` | `/wv check <name>` | `PlayerLookup` cascade; WynnCraft `/v3/player`; `check_membership` over the WebSocket | What `CheckReportRenderer` renders |
 | `OnlineMemberService` | internal | Tab, `/list`, Wynntils | Merged roster |
 | `TabListGuildParser` | internal; `/wv debug trigger tabDump` | The tab list's guild column (no request) | `GuildEntry` list, truncated past ~19 online |
-| `OnlineGuildCache` | internal | None (in memory) | Names kept listed for a 30 s grace period |
+| `OnlineGuildCache` | internal | None (in memory) | Guild-tier names kept listed for a 30 s grace period |
 | `TimeLabels` | internal | None (formats only) | Relative date and age labels for `/wv check` |
 | `ReturnersRosterProbe` | internal (`/wv check`) | WynnCraft `/v3/guild` rosters | Returners membership, rank and legacy name; another guild's rank only. A roster call has three outcomes: lists the UUID, answered without it, or no usable answer (non-200, failure, unreadable body), which `CheckReportRenderer` shows as the payload's guild with a yellow `(cached)` tail, never as absence |
 | `CheckReportRenderer` | internal (`/wv check`) | The tab list's guild column, through `OnlineMemberService` (no request) | Chat lines, sent one per `sendLocalMessage` |
@@ -215,7 +215,7 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 4. Merged guild online = Wynntils online ∪ VetsMod guild UUIDs ∪ tab list (`TabListGuildParser`, read only when `GuildStateManager.isReturners()`: `trustedTabEntries` returns an empty list otherwise, because the guild column is the viewer's own guild's)
 5. Honourary + waitlist from VetsMod `/list`
 6. Tab-only usernames (no UUID match, including no `PolledJsonMap.WYNN_ALIASES` hit) added as guild tier
-7. Apply grace-period cache (`OnlineGuildCache`: recently-seen players)
+7. Apply grace-period cache (`OnlineGuildCache`: recently-seen guild-tier players; `graceCandidates` keeps honourary and waitlist names out, since a grace name is re-added as guild tier with no UUID; `graceReadds` re-adds them only for a Returners viewer, since the cache lives for the whole game and a name remembered while the viewer was wrongly taken for a member must not come back)
 
 ## 5. Polling services
 

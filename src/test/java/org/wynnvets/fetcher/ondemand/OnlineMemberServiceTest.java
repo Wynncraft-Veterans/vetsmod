@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -14,8 +15,9 @@ import org.junit.jupiter.api.Test;
  * lays the server's polled roster (UUID to current username) over the Wynntils names, and for
  * {@link OnlineMemberService#trustedTabEntries}, the gate on the tab list's guild column, and
  * {@link OnlineMemberService#supplementConnected}, which decides which connected users a tab name
- * can resolve to. The rest of {@code merge()} is not covered: it reads Wynntils models and the tab
- * list.
+ * can resolve to, and {@link OnlineMemberService#graceCandidates}, which picks the names the grace
+ * cache may re-list as guild members. The rest of {@code merge()} is not covered: it reads
+ * Wynntils models and the tab list.
  */
 class OnlineMemberServiceTest {
 
@@ -140,6 +142,40 @@ class OnlineMemberServiceTest {
 
         assertEquals(Map.of(DASHED, "RosterName"), uuidToUsername);
         assertEquals(Map.of("rostername", DASHED, "clientname", DASHED), usernameToUuid);
+    }
+
+    @Test
+    void graceCandidates_onlyGuildTier_withOrWithoutUuid() {
+        List<OnlineMemberService.OnlinePlayer> players =
+                List.of(
+                        new OnlineMemberService.OnlinePlayer(
+                                "WithUuid", DASHED, OnlineMemberService.TIER_GUILD),
+                        new OnlineMemberService.OnlinePlayer(
+                                "TabOnly", "", OnlineMemberService.TIER_GUILD),
+                        new OnlineMemberService.OnlinePlayer(
+                                "Honour", "h-uuid", OnlineMemberService.TIER_HONOURARY),
+                        new OnlineMemberService.OnlinePlayer(
+                                "Waiter", "w-uuid", OnlineMemberService.TIER_WAITLIST));
+
+        assertEquals(Set.of("WithUuid", "TabOnly"), OnlineMemberService.graceCandidates(players));
+    }
+
+    @Test
+    void graceCandidates_noPlayers_empty() {
+        assertEquals(Set.of(), OnlineMemberService.graceCandidates(List.of()));
+    }
+
+    @Test
+    void graceReadds_aReturnersViewerGetsTheOfflineNamesBack() {
+        assertEquals(
+                List.of("Gone"),
+                OnlineMemberService.graceReadds(true, List.of("Gone", "Here"), Set.of("Here")));
+    }
+
+    @Test
+    void graceReadds_aViewerOutsideReturnersGetsNone() {
+        // A name remembered while the viewer was wrongly taken for a member must not come back.
+        assertEquals(List.of(), OnlineMemberService.graceReadds(false, List.of("Gone"), Set.of()));
     }
 
     private static OnlineMemberService.ConnectedUser connected(

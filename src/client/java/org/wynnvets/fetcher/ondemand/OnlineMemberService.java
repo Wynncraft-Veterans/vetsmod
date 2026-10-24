@@ -12,6 +12,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -116,7 +117,8 @@ final class OnlineMemberService {
 
         // 4. Combine all three results.
         return serverFuture.thenCombine(
-                guildFuture, (connected, guildInfo) -> merge(connected, guildInfo, tabEntries));
+                guildFuture,
+                (connected, guildInfo) -> merge(connected, guildInfo, tabEntries, returners));
     }
 
     /**
@@ -250,10 +252,49 @@ final class OnlineMemberService {
         }
     }
 
+    /**
+     * The names {@link OnlineGuildCache} may keep listed as guild members after they vanish: the
+     * guild-tier players, with or without a UUID. Honourary and waitlist players are left out,
+     * because the cache re-lists a name as guild tier and would show one who has logged off
+     * under "Guild".
+     */
+    // Package-private for unit tests. See OnlineMemberServiceTest.
+    static Set<String> graceCandidates(List<OnlinePlayer> players) {
+        Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (OnlinePlayer p : players) {
+            if (TIER_GUILD.equals(p.tier())) {
+                names.add(p.username());
+            }
+        }
+        return names;
+    }
+
+    /**
+     * The grace names to list again as guild members: those not online now, and none at all for
+     * a viewer outside Returners. The cache is static for the whole game, so a name remembered
+     * while the viewer was wrongly taken for a Returners member (a stale guild check) must not
+     * come back once the viewer is known not to be one.
+     */
+    // Package-private for unit tests. See OnlineMemberServiceTest.
+    static List<String> graceReadds(
+            boolean returners, Collection<String> graceNames, Set<String> online) {
+        if (!returners) {
+            return List.of();
+        }
+        List<String> readds = new ArrayList<>();
+        for (String name : graceNames) {
+            if (!online.contains(name)) {
+                readds.add(name);
+            }
+        }
+        return readds;
+    }
+
     private static GatherResult merge(
             List<ConnectedUser> connected,
             GuildInfo guildInfo,
-            List<TabListGuildParser.GuildEntry> tabEntries) {
+            List<TabListGuildParser.GuildEntry> tabEntries,
+            boolean returners) {
 
         // Index connected users by UUID.
         Map<String, ConnectedUser> modByUuid = new LinkedHashMap<>();
@@ -353,17 +394,22 @@ final class OnlineMemberService {
             }
         }
 
-        // Record all currently-known online names, then pull in grace-period names.
+        // Record the guild-tier names as seen, then pull in grace-period names. Every listed
+        // name still excludes a grace re-add, but only guild-tier names are remembered: the
+        // cache stores no tier and re-lists a name as a guild member, so an honourary or
+        // waitlister who logged off would otherwise reappear under "Guild".
         Set<String> allCurrentlyOnline = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         for (OnlinePlayer p : result) {
             allCurrentlyOnline.add(p.username());
         }
-        OnlineGuildCache.markSeen(allCurrentlyOnline);
+        OnlineGuildCache.markSeen(graceCandidates(result));
 
-        for (String graceName : OnlineGuildCache.getGracePeriodNames(allCurrentlyOnline)) {
-            if (!allCurrentlyOnline.contains(graceName)) {
-                result.add(new OnlinePlayer(graceName, "", TIER_GUILD));
-            }
+        for (String graceName :
+                graceReadds(
+                        returners,
+                        OnlineGuildCache.getGracePeriodNames(allCurrentlyOnline),
+                        allCurrentlyOnline)) {
+            result.add(new OnlinePlayer(graceName, "", TIER_GUILD));
         }
 
         return new GatherResult(result, modGuildUuids, queuedUuids, guildInfo != null);
