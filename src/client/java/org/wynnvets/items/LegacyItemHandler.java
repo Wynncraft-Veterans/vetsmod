@@ -91,6 +91,16 @@ public final class LegacyItemHandler {
     private LegacyItemHandler() {}
 
     /**
+     * Records {@code stack} as the hovered item: sets {@link #currentItemStack}, and
+     * {@link #currentItemHasFoil} to whether it has foil and is not an
+     * {@code enchant_excluded_items} item.
+     */
+    public static void setHoveredItem(ItemStack stack) {
+        currentItemStack = stack;
+        currentItemHasFoil = stack.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(stack);
+    }
+
+    /**
      * Returns {@code true} if the current screen title matches a known menu that
      * should never be treated as containing legacy items, or if the player is in
      * housing edit mode (where items are furniture, not real inventory items).

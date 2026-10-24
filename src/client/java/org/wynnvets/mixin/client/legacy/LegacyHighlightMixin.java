@@ -10,7 +10,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.wynnvets.items.ItemDefinitions;
 import org.wynnvets.items.LegacyItemHandler;
 
 /**
@@ -52,10 +51,7 @@ public class LegacyHighlightMixin {
     private void vetsmod$captureHoveredItemFoil(
             GuiGraphics guiGraphics, int mouseX, int mouseY, CallbackInfo ci) {
         if (hoveredSlot != null && hoveredSlot.hasItem()) {
-            ItemStack hovered = hoveredSlot.getItem();
-            LegacyItemHandler.currentItemHasFoil =
-                    hovered.hasFoil() && !ItemDefinitions.isEnchantExcludedItem(hovered);
-            LegacyItemHandler.currentItemStack = hovered;
+            LegacyItemHandler.setHoveredItem(hoveredSlot.getItem());
             LegacyItemHandler.currentHoveredSlot = hoveredSlot;
         } else {
             LegacyItemHandler.currentItemHasFoil = false;

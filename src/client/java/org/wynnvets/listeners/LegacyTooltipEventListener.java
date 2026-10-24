@@ -35,17 +35,10 @@ public final class LegacyTooltipEventListener {
 
     @SubscribeEvent(priority = EventPriority.NORMAL)
     public void onItemTooltipRender(ItemTooltipRenderEvent.Pre event) {
-        // Ensure currentItemStack is set for the tooltip processing pipeline.
-        // LegacyHighlightMixin normally sets this, but only inside
-        // AbstractContainerScreen.renderTooltip — the event may fire from
-        // other call sites (e.g. creative inventory, recipe book).
+        // LegacyHighlightMixin sets the hovered item only for AbstractContainerScreen tooltips;
+        // this event also fires elsewhere (e.g. the creative inventory, the recipe book).
         ItemStack stack = event.getItemStack();
-        if (stack != null && !stack.isEmpty()) {
-            LegacyItemHandler.currentItemStack = stack;
-            LegacyItemHandler.currentItemHasFoil =
-                    stack.hasFoil()
-                            && !org.wynnvets.items.ItemDefinitions.isEnchantExcludedItem(stack);
-        }
+        if (stack != null && !stack.isEmpty()) LegacyItemHandler.setHoveredItem(stack);
     }
 
     /**
