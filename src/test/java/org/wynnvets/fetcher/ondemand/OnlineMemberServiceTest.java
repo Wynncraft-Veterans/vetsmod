@@ -12,8 +12,10 @@ import org.junit.jupiter.api.Test;
 /**
  * Tests for {@link OnlineMemberService#overlayRoster}, the step of the online-member merge that
  * lays the server's polled roster (UUID to current username) over the Wynntils names, and for
- * {@link OnlineMemberService#trustedTabEntries}, the gate on the tab list's guild column. The rest
- * of {@code merge()} is not covered: it reads Wynntils models and the tab list.
+ * {@link OnlineMemberService#trustedTabEntries}, the gate on the tab list's guild column, and
+ * {@link OnlineMemberService#supplementConnected}, which decides which connected users a tab name
+ * can resolve to. The rest of {@code merge()} is not covered: it reads Wynntils models and the tab
+ * list.
  */
 class OnlineMemberServiceTest {
 
@@ -101,5 +103,47 @@ class OnlineMemberServiceTest {
                 OnlineMemberService.trustedTabEntries(true, () -> List.of("Alpha", "Bravo"));
 
         assertEquals(List.of("Alpha", "Bravo"), entries);
+    }
+
+    @Test
+    void supplementConnected_guildUser_resolvableByNameAndDisplayed() {
+        OnlineMemberService.supplementConnected(
+                uuidToUsername,
+                usernameToUuid,
+                List.of(connected("g-uuid", "GuildVet", OnlineMemberService.TIER_GUILD)));
+
+        assertEquals(Map.of("g-uuid", "GuildVet"), uuidToUsername);
+        assertEquals(Map.of("guildvet", "g-uuid"), usernameToUuid);
+    }
+
+    @Test
+    void supplementConnected_honouraryAndWaitlist_displayedButNotResolvableByName() {
+        OnlineMemberService.supplementConnected(
+                uuidToUsername,
+                usernameToUuid,
+                List.of(
+                        connected("h-uuid", "Honour", OnlineMemberService.TIER_HONOURARY),
+                        connected("w-uuid", "Waiter", OnlineMemberService.TIER_WAITLIST)));
+
+        assertEquals(Map.of("h-uuid", "Honour", "w-uuid", "Waiter"), uuidToUsername);
+        assertEquals(Map.of(), usernameToUuid);
+    }
+
+    @Test
+    void supplementConnected_alreadyKnown_keepsExistingEntries() {
+        wynntilsKnows(DASHED, "RosterName");
+
+        OnlineMemberService.supplementConnected(
+                uuidToUsername,
+                usernameToUuid,
+                List.of(connected(DASHED, "ClientName", OnlineMemberService.TIER_GUILD)));
+
+        assertEquals(Map.of(DASHED, "RosterName"), uuidToUsername);
+        assertEquals(Map.of("rostername", DASHED, "clientname", DASHED), usernameToUuid);
+    }
+
+    private static OnlineMemberService.ConnectedUser connected(
+            String uuid, String name, String tier) {
+        return new OnlineMemberService.ConnectedUser(uuid, name, tier, false);
     }
 }

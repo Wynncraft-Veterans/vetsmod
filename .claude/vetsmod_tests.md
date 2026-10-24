@@ -1851,7 +1851,7 @@ Test: [`CheckReportRendererTest.java`](../src/test/java/org/wynnvets/fetcher/ond
 
 Test: [`OnlineMemberServiceTest.java`](../src/test/java/org/wynnvets/fetcher/ondemand/OnlineMemberServiceTest.java) · Subject: [`OnlineMemberService`](../src/client/java/org/wynnvets/fetcher/ondemand/OnlineMemberService.java)
 
-`OnlineMemberService.merge` combines the tab list, the connected-user list and the Wynntils guild data; the suite pins `overlayRoster`, the step that lays the server's polled roster (UUID to current username) over the Wynntils-derived maps, whose keys are dashed lowercase `UUID.toString()` text, and `trustedTabEntries`, the gate that reads the tab list's guild column only for a Returners member. The rest of `merge` reads Wynntils models and the tab list and is not covered. Each `overlayRoster` test starts from two empty maps and, where it says Wynntils knows a player, seeds both with `OldName` under the dashed lowercase uuid `DASHED`.
+`OnlineMemberService.merge` combines the tab list, the connected-user list and the Wynntils guild data; the suite pins `overlayRoster`, the step that lays the server's polled roster (UUID to current username) over the Wynntils-derived maps, whose keys are dashed lowercase `UUID.toString()` text, `trustedTabEntries`, the gate that reads the tab list's guild column only for a Returners member, and `supplementConnected`, which adds the server's connected vetsmod users to the name maps (every tier gets a display name, only guild tier can be resolved from a tab name). The rest of `merge` reads Wynntils models and the tab list and is not covered. Each map test starts from two empty maps and, where it says Wynntils knows a player, seeds both with `OldName` under the dashed lowercase uuid `DASHED`.
 
 - **`overlayRoster_sameSpelling_replacesWynntilsName`**: A roster key spelled like the Wynntils key replaces the name.
   - `uuidToUsername` equals `{DASHED: "NewName"}` after `overlayRoster` with roster `{DASHED: "NewName"}`.
@@ -1873,6 +1873,15 @@ Test: [`OnlineMemberServiceTest.java`](../src/test/java/org/wynnvets/fetcher/ond
   - The returned list equals `List.of()` for `returners` false.
 - **`trustedTabEntries_returners_passesParsedListThrough`**: A Returners member gets the parsed entries unchanged.
   - The returned list equals `["Alpha", "Bravo"]` for `returners` true and a supplier returning those two names.
+- **`supplementConnected_guildUser_resolvableByNameAndDisplayed`**: A connected guild-tier user is both displayed and resolvable by name.
+  - `uuidToUsername` equals `{"g-uuid": "GuildVet"}` after `supplementConnected` with that one guild-tier user.
+  - `usernameToUuid` equals `{"guildvet": "g-uuid"}`.
+- **`supplementConnected_honouraryAndWaitlist_displayedButNotResolvableByName`**: A connected honourary or waitlist user gets a display name but cannot be resolved from a tab name.
+  - `uuidToUsername` equals `{"h-uuid": "Honour", "w-uuid": "Waiter"}` after `supplementConnected` with one honourary and one waitlist user.
+  - `usernameToUuid` equals `{}`.
+- **`supplementConnected_alreadyKnown_keepsExistingEntries`**: A uuid the maps already know keeps its name.
+  - `uuidToUsername` equals `{DASHED: "RosterName"}` after `supplementConnected` with a guild-tier user of that uuid named `ClientName`.
+  - `usernameToUuid` equals `{"rostername": DASHED, "clientname": DASHED}`: the client's own name also resolves, to the same uuid.
 
 ### `ReturnersRosterProbeTest`
 

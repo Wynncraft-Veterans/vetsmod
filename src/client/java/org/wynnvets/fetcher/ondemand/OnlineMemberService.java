@@ -229,6 +229,27 @@ final class OnlineMemberService {
         }
     }
 
+    /**
+     * Adds the server's connected vetsmod users to the name maps for UUIDs the Wynntils and roster
+     * data does not know. {@code uuidToUsername}, which supplies display names, takes every tier.
+     * {@code usernameToUuid}, which resolves a tab-list name to a Returners member, takes only
+     * guild-tier users: a connected honourary or waitlist user is not a guild member, so a tab
+     * name equal to theirs (another guild's honourary, or the viewer) must stay unresolved and
+     * not be listed under the guild.
+     */
+    // Package-private for unit tests. See OnlineMemberServiceTest.
+    static void supplementConnected(
+            Map<String, String> uuidToUsername,
+            Map<String, String> usernameToUuid,
+            List<ConnectedUser> connected) {
+        for (ConnectedUser cu : connected) {
+            uuidToUsername.putIfAbsent(cu.uuid(), cu.username());
+            if (TIER_GUILD.equals(cu.tier())) {
+                usernameToUuid.putIfAbsent(cu.username().toLowerCase(Locale.ROOT), cu.uuid());
+            }
+        }
+    }
+
     private static GatherResult merge(
             List<ConnectedUser> connected,
             GuildInfo guildInfo,
@@ -266,10 +287,7 @@ final class OnlineMemberService {
         // These are authoritative and override potentially stale Wynncraft API names.
         overlayRoster(uuidToUsername, usernameToUuid, PolledJsonMap.GUILD_ROSTER.snapshot());
         // Supplement with vetsmod usernames for UUIDs the API doesn't know.
-        for (ConnectedUser cu : connected) {
-            uuidToUsername.putIfAbsent(cu.uuid(), cu.username());
-            usernameToUuid.putIfAbsent(cu.username().toLowerCase(Locale.ROOT), cu.uuid());
-        }
+        supplementConnected(uuidToUsername, usernameToUuid, connected);
 
         // Renamed players: the server's GuildRosterPoller reads legacyName from the
         // v3.8 guild payload and populates /v1/outbound/aliases; PolledJsonMap.WYNN_ALIASES
