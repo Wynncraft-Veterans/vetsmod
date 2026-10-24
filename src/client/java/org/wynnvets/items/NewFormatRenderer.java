@@ -18,15 +18,20 @@ import org.wynnvets.logging.VetsLogger;
  * LEGACY box insertion, name line recoloring, enchanted name rewriting,
  * and font-based tree traversal. Orchestration and old-format fallback
  * remain in {@link LegacyTooltipRenderer}.</p>
+ *
+ * <p>A new-format tooltip is recognised by its fonts rather than by line
+ * position: the name line is drawn in {@code tooltip/emblem/frame}, and the
+ * rarity and type chips ({@code [RARE][WAND]}) in {@code banner/box}, a font
+ * whose labels are PUA glyph runs (see {@link #LEGACY_BOX_BACKGROUND}).</p>
  */
 final class NewFormatRenderer {
 
-    /** Font used by Wynncraft's new-format emblem/frame line (lore[0] — the duplicate item name). */
+    /** Font of Wynncraft's new-format emblem/frame line (lore[0], the duplicate item name). */
     private static final FontDescription EMBLEM_FRAME_FONT =
             new FontDescription.Resource(Identifier.parse("tooltip/emblem/frame"));
 
-    /** Font used by Wynncraft's new-format banner/box rarity line (lore[1] — RARE / WAND boxes). */
-    private static final FontDescription BANNER_BOX_FONT =
+    /** Font of Wynncraft's boxed labels: the rarity line's chips and the page headers. */
+    static final FontDescription BANNER_BOX_FONT =
             new FontDescription.Resource(Identifier.parse("banner/box"));
 
     /** Font used by Wynncraft's banner/symbol tier indicators (e.g. ★★★ on ingredients). */
@@ -47,7 +52,7 @@ final class NewFormatRenderer {
      * <pre>
      *   LEGACY_BOX_BACKGROUND
      *   E060                  — box_start (opens the coloured box frame)
-     *   [DAFF DFFF  E03B]     — neg_space + bg 'L'  (E030 + 11)
+     *   [DAFF DFFF  E03B]     — neg_space (U+CFFFF, 1 px left) + bg 'L'  (E030 + 11)
      *   [DAFF DFFF  E034]     — neg_space + bg 'E'  (E030 + 4)
      *   [DAFF DFFF  E036]     — neg_space + bg 'G'  (E030 + 6)
      *   [DAFF DFFF  E030]     — neg_space + bg 'A'  (E030 + 0)
@@ -60,7 +65,7 @@ final class NewFormatRenderer {
      *   LEGACY_BOX_FOREGROUND
      *   E00B E004 E006        — fg 'L' 'E' 'G'      (E000 + letter offset)
      *   E000 E002 E018        — fg 'A' 'C' 'Y'      (E000 + letter offset)
-     *   DB00 DC02             — terminator (surrogate pair)
+     *   DB00 DC02             — terminator (U+D0002)
      * </pre>
      *
      * <p>Letter mapping: background = {@code U+E030 + (letter - 'A')},
@@ -79,15 +84,17 @@ final class NewFormatRenderer {
             "\uE00B\uE004\uE006\uE000\uE002\uE018\uDB00\uDC02";
 
     /**
-     * Shadow colour Wynncraft puts on its own rarity chips (white at zero alpha),
-     * mirrored so the chip's style matches theirs.
+     * Shadow colour Wynncraft puts on its own boxed labels (white at zero alpha),
+     * mirrored so the boxes vetsmod draws match theirs.
      *
      * <p>For visible output this matches {@link Style#withoutShadow()}
      * ({@code withShadowColor(0)}) in vanilla: a shadow colour of exactly 0
      * skips the shadow pass, and vanilla's text shader discards this colour's
      * zero-alpha pass.</p>
      */
-    private static final int BOX_SHADOW = 0xFFFFFF;
+    static final int BOX_SHADOW = 0xFFFFFF;
+
+    private static final TextColor GOLD = TextColor.fromLegacyFormat(ChatFormatting.GOLD);
 
     /**
      * Builds the gold LEGACY chip as two nodes, mirroring how Wynncraft emits its
@@ -141,21 +148,36 @@ final class NewFormatRenderer {
     }
 
     /**
-     * Recolors the new-format emblem/wynncraft-font name line to gold,
-     * targeting the literal node containing the item name. Scans from line 0
-     * so wynnmod-decorated layouts (which promote the emblem/frame line to
-     * index 0) are handled identically to the Wynntils-default layout (which
-     * keeps a customName placeholder at index 0 and the emblem/frame line at
-     * index 1).
+     * Returns the index of the name line, the first line drawn in the
+     * emblem/frame font, or {@code -1} if there is none. Scans from line 0
+     * because the layouts differ: wynnmod puts the emblem/frame line at index
+     * 0, while Wynntils keeps a customName placeholder there and the
+     * emblem/frame line at index 1.
+     */
+    private static int findNameLine(List<Component> lines) {
+        for (int i = 0; i < lines.size(); i++) {
+            if (containsFont(lines.get(i), EMBLEM_FRAME_FONT)) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * Returns {@code true} if this node's own content is a literal reading
+     * exactly {@code itemName} ({@code LiteralContents.toString()} is
+     * {@code literal{text}}).
+     */
+    private static boolean isNameLiteral(Component component, String itemName) {
+        return component.getContents().toString().equals("literal{" + itemName + "}");
+    }
+
+    /**
+     * Recolors the new-format name line (see {@link #findNameLine}) to gold,
+     * targeting the literal node containing the item name.
      */
     static void recolorNewFormatNameLine(List<Component> lines, String itemName) {
-        TextColor gold = TextColor.fromLegacyFormat(ChatFormatting.GOLD);
-        for (int i = 0; i < lines.size(); i++) {
-            if (containsFont(lines.get(i), EMBLEM_FRAME_FONT)) {
-                lines.set(i, deepRecolorName(lines.get(i), itemName, gold));
-                return;
-            }
-        }
+        int i = findNameLine(lines);
+        if (i < 0) return;
+        lines.set(i, deepRecolorName(lines.get(i), itemName, GOLD));
     }
 
     /**
@@ -165,11 +187,10 @@ final class NewFormatRenderer {
      */
     private static MutableComponent deepRecolorName(
             Component component, String itemName, TextColor targetColor) {
-        String contentStr = component.getContents().toString();
         MutableComponent copy = component.plainCopy();
         Style style = component.getStyle();
 
-        if (contentStr.equals("literal{" + itemName + "}")) {
+        if (isNameLiteral(component, itemName)) {
             style = style.withColor(targetColor);
         }
 
@@ -181,32 +202,27 @@ final class NewFormatRenderer {
     }
 
     /**
-     * Modifies the new-format emblem/frame name line to show
+     * Modifies the new-format name line (see {@link #findNameLine}) to show
      * "Enchanted [name]" in gold, preserving font structure and PUA spacing.
-     * Scans from line 0 so wynnmod-decorated layouts (which promote the
-     * emblem/frame line to index 0) are handled identically to the
-     * Wynntils-default layout (which keeps a customName placeholder at
-     * index 0 and the emblem/frame line at index 1).
      */
     static void applyEnchantedToNewFormatNameLine(List<Component> lines, String itemName) {
-        TextColor gold = TextColor.fromLegacyFormat(ChatFormatting.GOLD);
-        for (int i = 0; i < lines.size(); i++) {
-            if (containsFont(lines.get(i), EMBLEM_FRAME_FONT)) {
-                VetsLogger.debug(
-                        "applyEnchantedToNewFormatNameLine: found emblem/frame at line {}, itemName='{}'",
-                        i,
-                        itemName);
-                Component before = lines.get(i);
-                lines.set(i, deepEnchantName(lines.get(i), itemName, gold));
-                VetsLogger.debug(
-                        "applyEnchantedToNewFormatNameLine: before='{}' after='{}'",
-                        before.getString(),
-                        lines.get(i).getString());
-                return;
-            }
+        int i = findNameLine(lines);
+        if (i < 0) {
+            VetsLogger.debug(
+                    "applyEnchantedToNewFormatNameLine: NO emblem/frame line found for '{}'",
+                    itemName);
+            return;
         }
         VetsLogger.debug(
-                "applyEnchantedToNewFormatNameLine: NO emblem/frame line found for '{}'", itemName);
+                "applyEnchantedToNewFormatNameLine: found emblem/frame at line {}, itemName='{}'",
+                i,
+                itemName);
+        Component before = lines.get(i);
+        lines.set(i, deepEnchantName(before, itemName, GOLD));
+        VetsLogger.debug(
+                "applyEnchantedToNewFormatNameLine: before='{}' after='{}'",
+                before.getString(),
+                lines.get(i).getString());
     }
 
     /**
@@ -216,27 +232,15 @@ final class NewFormatRenderer {
      */
     static MutableComponent deepEnchantName(
             Component component, String originalName, TextColor targetColor) {
-        String contentStr = component.getContents().toString();
         MutableComponent copy;
         Style style = component.getStyle();
 
-        if (contentStr.equals("literal{" + originalName + "}")) {
+        if (isNameLiteral(component, originalName)) {
             VetsLogger.debug(
                     "deepEnchantName MATCH: '{}' -> 'Enchanted {}'", originalName, originalName);
             copy = Component.literal("Enchanted " + originalName);
             style = style.withColor(targetColor);
         } else {
-            if (contentStr.contains(originalName)) {
-                VetsLogger.debug(
-                        "deepEnchantName NEAR-MISS: contentStr='{}' (len={}), looking for='literal{{}}'",
-                        contentStr,
-                        contentStr.length(),
-                        originalName);
-                StringBuilder hexC = new StringBuilder();
-                for (int ci = 0; ci < contentStr.length(); ci++)
-                    hexC.append(String.format("%04x ", (int) contentStr.charAt(ci)));
-                VetsLogger.debug("deepEnchantName NEAR-MISS hex: {}", hexC.toString().trim());
-            }
             copy = component.plainCopy();
         }
 
@@ -274,7 +278,7 @@ final class NewFormatRenderer {
      * Returns {@code true} if the given Component tree contains any node whose
      * resolved font matches {@code target}.
      */
-    private static boolean containsFont(Component root, FontDescription target) {
+    static boolean containsFont(Component root, FontDescription target) {
         boolean[] found = {false};
         root.visit(
                 (Style style, String text) -> {
@@ -303,34 +307,30 @@ final class NewFormatRenderer {
 
     /**
      * Walks a mutable-deep-copied MutableComponent tree and inserts a gold LEGACY box
-     * (with inter-box delimiter) at the correct box layout level. Mutates the tree in place.
+     * (with inter-box delimiter) at the box layout level. Mutates the tree in place.
      *
-     * <p>The "box layout level" is detected in two ways:
+     * <p>The box layout level is the node whose children are the chips. It is found in
+     * three phases:
      * <ol>
-     *   <li>A direct child has {@code banner/box} font — insert before it (e.g. Harmstick).</li>
-     *   <li>A sibling has {@code banner/symbol} font (tier stars), indicating this level
-     *       contains box elements even if {@code banner/box} is wrapped in a color node —
-     *       insert before the first child that <em>contains</em> {@code banner/box}
-     *       (e.g. Pigman Meat's INGREDIENT wrapper).</li>
+     *   <li>A direct child has {@code banner/box} font: insert before it.</li>
+     *   <li>A child has {@code banner/symbol} font (an ingredient's tier stars), which marks
+     *       this level even when the {@code banner/box} node is wrapped in a colour node:
+     *       insert before the first child that <em>contains</em> {@code banner/box}.</li>
+     *   <li>Otherwise, recurse into each child that contains {@code banner/box}.</li>
      * </ol></p>
      */
     private static boolean insertLegacyIntoTree(MutableComponent node) {
         List<Component> siblings = node.getSiblings();
 
-        // Phase 1: Direct banner/box child — insert before it.
+        // Phase 1: a direct banner/box child.
         for (int i = 0; i < siblings.size(); i++) {
             if (BANNER_BOX_FONT.equals(siblings.get(i).getStyle().getFont())) {
-                siblings.add(
-                        i,
-                        Component.literal("\uDB00\uDC01")
-                                .setStyle(Style.EMPTY.withFont(BANNER_BOX_FONT)));
-                siblings.add(i, legacyBox());
+                insertLegacyBoxAt(siblings, i);
                 return true;
             }
         }
 
-        // Phase 2: banner/symbol sibling indicates this is the box layout level.
-        // Insert before the first child wrapping banner/box (color wrapper node).
+        // Phase 2: a banner/symbol child marks the box level; the box sits in a wrapper.
         boolean hasSymbolSibling = false;
         for (Component child : siblings) {
             if (BANNER_SYMBOL_FONT.equals(child.getStyle().getFont())) {
@@ -341,22 +341,30 @@ final class NewFormatRenderer {
         if (hasSymbolSibling) {
             for (int i = 0; i < siblings.size(); i++) {
                 if (containsFont(siblings.get(i), BANNER_BOX_FONT)) {
-                    siblings.add(
-                            i,
-                            Component.literal("\uDB00\uDC01")
-                                    .setStyle(Style.EMPTY.withFont(BANNER_BOX_FONT)));
-                    siblings.add(i, legacyBox());
+                    insertLegacyBoxAt(siblings, i);
                     return true;
                 }
             }
         }
 
-        // Phase 3: Recurse into children that contain the banner/box font.
+        // Phase 3: recurse into children that contain the banner/box font.
         for (Component sibling : siblings) {
             if (sibling instanceof MutableComponent mc && containsFont(mc, BANNER_BOX_FONT)) {
                 if (insertLegacyIntoTree(mc)) return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Leaves the LEGACY chip at {@code index}, followed by the delimiter Wynncraft puts between
+     * chips (U+D0001), ahead of the node that was at {@code index}. The delimiter is added
+     * first because both go in at the same index.
+     */
+    private static void insertLegacyBoxAt(List<Component> siblings, int index) {
+        siblings.add(
+                index,
+                Component.literal("\uDB00\uDC01").setStyle(Style.EMPTY.withFont(BANNER_BOX_FONT)));
+        siblings.add(index, legacyBox());
     }
 }
