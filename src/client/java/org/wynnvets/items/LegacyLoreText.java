@@ -7,29 +7,31 @@ import java.util.regex.Pattern;
  * {@link LegacyItemHandler} and {@link LegacyEnchantmentRenderer} because both of those load
  * {@code ItemStack} in their static initialisers, which the unit-test runtime cannot do.
  * Nothing here touches Minecraft, so {@code LegacyLoreTextTest} drives it directly.
+ *
+ * <p>Wynncraft's banner fonts spell their labels with a 26-glyph letter alphabet: the glyph for
+ * a letter is the alphabet's origin plus {@code (letter - 'A')}. The end caps, fill glyphs and
+ * space-font kerns around a label's letters fall outside that font's letter range, so decoding
+ * keeps the in-range glyphs and drops everything else. The same code points are different
+ * glyphs in different fonts, so callers check the font too: ribbon text is decoded on its own,
+ * and a boxed line only once it is known to contain {@code banner/box}.</p>
  */
 final class LegacyLoreText {
 
     /**
-     * The beta-era level line. Case-insensitive because the beta items disagree on the
-     * capital: most read {@code Lv. min: 26}, Dental Floss reads {@code Lv. Min: 26}.
-     * Anchored at {@code Lv}, so the modern {@code Combat Lv. Min: 65} never matches.
+     * The beta-era level line. Case-insensitive because beta items capitalise {@code min}
+     * either way. Anchored at {@code Lv}, so the modern {@code Combat Lv. Min: 65} never matches.
      */
     private static final Pattern LV_MIN_PATTERN =
             Pattern.compile("^Lv\\.? min: \\d+$", Pattern.CASE_INSENSITIVE);
 
-    /** First foreground glyph of a {@code banner/box} label: U+E000 is 'A', U+E019 is 'Z'. */
+    /** Origin of the {@code banner/box} lettering alphabet: U+E000 is 'A', U+E019 is 'Z'. */
     private static final int BOX_FOREGROUND_A = 0xE000;
-
-    private static final int BOX_FOREGROUND_Z = 0xE019;
 
     /** What Wynncraft's POWDER SOCKETS header decodes to once its spaces are dropped. */
     private static final String POWDER_SOCKETS_LABEL = "POWDERSOCKETS";
 
-    /** Letter glyph of a {@code banner/ribbon} label: U+E030 is 'A', U+E049 is 'Z'. */
+    /** Origin of the {@code banner/ribbon} letter alphabet: U+E030 is 'A', U+E049 is 'Z'. */
     private static final int RIBBON_A = 0xE030;
-
-    private static final int RIBBON_Z = 0xE049;
 
     /** What the ribbon Wynncraft puts at the top of a legacy item's lore spells. */
     private static final String VINTAGE_LABEL = "VINTAGE";
@@ -44,15 +46,7 @@ final class LegacyLoreText {
      * holds, so callers check the font as well.
      */
     static String decodeBoxLabel(String lineText) {
-        if (lineText == null) return "";
-        StringBuilder label = new StringBuilder();
-        for (int i = 0; i < lineText.length(); i++) {
-            char c = lineText.charAt(i);
-            if (c >= BOX_FOREGROUND_A && c <= BOX_FOREGROUND_Z) {
-                label.append((char) ('A' + (c - BOX_FOREGROUND_A)));
-            }
-        }
-        return label.toString();
+        return decodeLetters(lineText, BOX_FOREGROUND_A);
     }
 
     /**
@@ -72,12 +66,20 @@ final class LegacyLoreText {
      * fill run uses them too), so callers pass only the text drawn in {@code banner/ribbon}.
      */
     static String decodeRibbonLabel(String ribbonText) {
-        if (ribbonText == null) return "";
+        return decodeLetters(ribbonText, RIBBON_A);
+    }
+
+    /**
+     * Keeps the characters that fall in the 26-glyph alphabet starting at {@code origin}, mapped
+     * back to A-Z, and drops the rest. A {@code null} text decodes to the empty string.
+     */
+    private static String decodeLetters(String text, int origin) {
+        if (text == null) return "";
         StringBuilder label = new StringBuilder();
-        for (int i = 0; i < ribbonText.length(); i++) {
-            char c = ribbonText.charAt(i);
-            if (c >= RIBBON_A && c <= RIBBON_Z) {
-                label.append((char) ('A' + (c - RIBBON_A)));
+        for (int i = 0; i < text.length(); i++) {
+            int offset = text.charAt(i) - origin;
+            if (offset >= 0 && offset < 26) {
+                label.append((char) ('A' + offset));
             }
         }
         return label.toString();
@@ -85,7 +87,7 @@ final class LegacyLoreText {
 
     /**
      * Returns {@code true} if the {@code banner/ribbon} text reads VINTAGE: the ribbon Wynncraft
-     * shows at the top of a legacy item's lore (seen on the Llevigar Pinot).
+     * shows at the top of a legacy item's lore.
      */
     static boolean isVintageRibbon(String ribbonText) {
         return VINTAGE_LABEL.equals(decodeRibbonLabel(ribbonText));
