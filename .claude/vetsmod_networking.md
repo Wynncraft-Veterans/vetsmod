@@ -327,9 +327,11 @@ Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.networ
 vets-anni resolves names → UUIDs server-side and writes
 `state.party_leader_by_uuid[member_uuid] = leader_uuid` for the presence
 classifier's `ONLINE_WORLD → ONLINE_PARTY` upgrade. Per vets-anni (since its
-`121fd80`), each observation **replaces that leader's roster**: entries already
-pointing at the same leader whose member the new roster does not list are
-dropped, and entries for other leaders are untouched. The whole map still
+`121fd80`), each observation whose names all resolve **replaces that leader's
+roster**: entries already pointing at the same leader whose member the new
+roster does not list are dropped, and entries for other leaders are untouched.
+An observation with a name vets-anni cannot resolve only adds, since that name
+may be a member paired by their own report. The whole map still
 shares one freshness stamp (`state.party_observation_fetched_at`, stale
 `_PARTY_LEADER_TTL_SECONDS` = 60 s after it), which any client's observation
 refreshes, and vets-anni's grace-wipe clears the map and the stamp. vetsmod
