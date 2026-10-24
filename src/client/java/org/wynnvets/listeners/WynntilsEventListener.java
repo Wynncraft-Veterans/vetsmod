@@ -174,6 +174,18 @@ public final class WynntilsEventListener {
 
         StyledText styledMessage = event.getMessage();
 
+        // Diagnostic for url-repair-merges-following-non-lowercase-token: the line as it
+        // arrives, before unwrap folds hard breaks inside a URL and typed spaces together, so
+        // a debug log shows what a hard break looks like (the newline, the wrap indent, any
+        // space around them). Only for lines with a URL, to keep the log quiet.
+        String rawPlain = styledMessage.getStringWithoutFormatting();
+        if (rawPlain.contains("://")) {
+            VetsLogger.debug(
+                    "onGuildChat raw [{}] codepoints [{}]",
+                    rawPlain.replace("\n", "\\n"),
+                    toCodepoints(rawPlain));
+        }
+
         // Unwrap soft-wrapped lines from Wynncraft
         StyledText unwrapped = StyledTextUtils.unwrap(styledMessage).stripAlignment();
         String plain = unwrapped.getStringWithoutFormatting();
