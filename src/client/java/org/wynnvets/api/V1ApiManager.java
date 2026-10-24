@@ -66,6 +66,14 @@ public final class V1ApiManager {
      *  session that exists. Reset by {@link #connect()} and {@link #disconnect()}. */
     static volatile boolean outboundAuthenticated = false;
 
+    /** Whether this connection's outbound {@code server_info} carried {@code unregister: true},
+     *  the capability to retract a registration ({@link #sendUnregistration(String)}). Reset by
+     *  {@link #connect()} and {@link #disconnect()}. */
+    static volatile boolean serverSupportsUnregister = false;
+
+    /** The register frame that is re-sent on every inbound (re)connect, or {@code null} when the
+     *  player is not registered: set by {@link #sendRegistration}, cleared by
+     *  {@link #clearRegistration()} and by {@link #sendUnregistration(String)}. */
     private static volatile JsonObject pendingRegistration;
 
     private static final CopyOnWriteArrayList<Consumer<JsonObject>> outboundListeners =
@@ -147,6 +155,7 @@ public final class V1ApiManager {
     public static void connect() {
         if (inboundClient != null) return;
         outboundAuthOffered = false;
+        serverSupportsUnregister = false;
         inboundMemberTier = false;
         outboundAuthenticated = false;
         helloEchoesReq = false;
@@ -241,6 +250,7 @@ public final class V1ApiManager {
      *  Also clears the confirmed-staff state and fails any pending staff-action callbacks. */
     public static void disconnect() {
         outboundAuthOffered = false;
+        serverSupportsUnregister = false;
         inboundMemberTier = false;
         outboundAuthenticated = false;
         helloEchoesReq = false;
@@ -359,6 +369,7 @@ public final class V1ApiManager {
                 org.wynnvets.guild.SessionAuthWarning.onServerInfo(unauthEnabled);
                 helloEchoesReq = hasTrueFlag(json, "req_echo");
                 outboundAuthOffered = offersAllChatTiers(json);
+                serverSupportsUnregister = offersUnregister(json);
                 sendOutboundAuthIfReady();
                 return;
             }
@@ -390,6 +401,12 @@ public final class V1ApiManager {
                 && value.isJsonPrimitive()
                 && value.getAsJsonPrimitive().isBoolean()
                 && value.getAsBoolean();
+    }
+
+    /** Whether a {@code server_info} hello carries {@code unregister: true}: the server knows the
+     *  {@code unregister} frame. A server without the key does not. */
+    static boolean offersUnregister(JsonObject serverInfo) {
+        return hasTrueFlag(serverInfo, "unregister");
     }
 
     /** Whether an auth ack's {@code tier} is a member tier, one the server gives a chat
@@ -503,9 +520,56 @@ public final class V1ApiManager {
         }
     }
 
-    /** Clears cached registration (e.g. on disconnect / reset). */
+    /** Clears cached registration (e.g. on disconnect / reset). Sends nothing: the server drops
+     *  the entry itself when the socket closes. */
     public static void clearRegistration() {
         pendingRegistration = null;
+    }
+
+    /** @return the tier of the cached registration ({@code guild}, {@code waitlist} or
+     *  {@code honourary}), or {@code null} when none is cached */
+    public static String registeredTier() {
+        JsonObject reg = pendingRegistration;
+        return reg == null ? null : tierOf(reg);
+    }
+
+    private static String tierOf(JsonObject registration) {
+        com.google.gson.JsonElement tier = registration.get("tier");
+        return tier != null && tier.isJsonPrimitive() ? tier.getAsString() : null;
+    }
+
+    /**
+     * Retracts this client's presence registration, for a player who is no longer eligible to be
+     * registered (left the guild, joined another, lost the waitlist or honourary auth tier).
+     *
+     * <p>The cached registration is cleared first, whatever else happens, so a later inbound
+     * reconnect does not re-send it. The {@code unregister} frame itself goes out only when the
+     * inbound socket is connected <b>and</b> {@link #serverSupportsUnregister} says the server
+     * knows it. It is deliberately not sent to an older server: that server answers an unknown
+     * frame type with a {@code Missing required fields} error that carries no {@code req}, which
+     * can be taken for the reply to a pending staff-action callback or read as an auth failure.
+     * Against such a server (or with the socket down) the entry disappears when the socket next
+     * reconnects, since the cache no longer re-registers.</p>
+     *
+     * @param reason why, for the debug log ({@code left}, {@code joined} or {@code auth})
+     */
+    public static void sendUnregistration(String reason) {
+        JsonObject cached = pendingRegistration;
+        if (cached == null) {
+            return;
+        }
+        pendingRegistration = null;
+        boolean sent = false;
+        WsClient client = connectedInbound();
+        if (client != null && serverSupportsUnregister) {
+            client.send(V1Frames.unregister());
+            sent = true;
+        }
+        VetsLogger.debug(
+                "Retracted presence registration (tier={}, reason={}, sent={})",
+                tierOf(cached),
+                reason,
+                sent);
     }
 
     /**

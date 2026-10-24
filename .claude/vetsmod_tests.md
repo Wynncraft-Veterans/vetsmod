@@ -30,7 +30,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.fetcher.lookup.providers`](#orgwynnvetsfetcherlookupproviders) — [`VetsSnapshotProviderTest`](#vetssnapshotprovidertest)
 - [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`CheckReportRendererTest`](#checkreportrenderertest), [`OnlineMemberServiceTest`](#onlinememberservicetest), [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
 - [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
-- [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
+- [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`RegistrationTierTest`](#registrationtiertest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`ScreenshotLatchTest`](#screenshotlatchtest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest)
 - [`org.wynnvets.logging`](#orgwynnvetslogging) — [`VetsLoggerTest`](#vetsloggertest)
@@ -161,7 +161,7 @@ Test: [`SerializedSenderTest.java`](../src/test/java/org/wynnvets/api/Serialized
 
 Test: [`V1ApiManagerFramesTest.java`](../src/test/java/org/wynnvets/api/V1ApiManagerFramesTest.java) · Subject: [`V1ApiManager`](../src/client/java/org/wynnvets/api/V1ApiManager.java), `AnniWsSender`, `AnniQueryClient`, `AnniRsvpClient`, `AnniScrollspotClient`
 
-`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (`WsClient.toWire`, which keeps null members) and complete with its settable `sends` flag (`true` unless a test sets it), has a settable connected flag, and reports a settable socket `generation` (1 unless a test sets it). For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally; a `reqMasked` helper does the same for a staff-action frame's random `req`. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
+`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included; the `unregister` retraction included, with its server-capability gate) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (`WsClient.toWire`, which keeps null members) and complete with its settable `sends` flag (`true` unless a test sets it), has a settable connected flag, and reports a settable socket `generation` (1 unless a test sets it). For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally; a `reqMasked` helper does the same for a staff-action frame's random `req`. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
 
 Asserting helpers:
 
@@ -234,6 +234,21 @@ Tests:
 - **`aRelayWithTheSocketDownIsAnsweredAtOnce`**: With no inbound client, the relay's callback gets `{"status":"error","detail":"Inbound WebSocket not connected."}` at once.
 - **`aRelayWhoseWriteFailsIsAnsweredOnceAndADisconnectLeavesARelayQuiet`**: In echo mode a failed write answers the relay once with the drain error and leaves nothing pending; a relay still pending at `disconnect()` gets the outcome-unknown lost ack, not the drain error.
   - First callback: `["{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"]`; second, after `disconnect()`: the lost ack (`Connection lost before reply.`, `outcome_unknown` `connection lost`).
+- **`unregister_withTheCapabilityAndAConnectionWritesTheFrameAndClearsTheCache`**: With a cached registration, a connected socket and `serverSupportsUnregister`, the retraction writes the frame and drops the cache.
+  - After `sendRegistration(uuid, "Metrafish", "waitlist")` (its frame forgotten), `registeredTier()` equals `"waitlist"`.
+  - After `sendUnregistration("left")`, `socket.wire` equals the single frame `{"type":"unregister"}` and `registeredTier()` is null.
+- **`unregister_withoutTheCapabilityWritesNothingButClearsTheCache`**: Against a server that did not advertise `unregister`, no frame is sent (an old server would answer an unknown type with a request-less error), but the cache is cleared so a reconnect does not re-register.
+  - With `serverSupportsUnregister` false, `sendUnregistration("left")` leaves `socket.wire` empty and `registeredTier()` null.
+- **`unregister_withNoCachedRegistrationWritesNothing`**: Nothing cached, nothing sent.
+  - With the capability and a connection but no registration, `sendUnregistration("left")` leaves `socket.wire` empty.
+- **`unregister_withTheSocketDownClearsTheCache`**: With the socket down the cache is still cleared.
+  - With `socket.connected` false, `sendUnregistration("auth")` leaves `socket.wire` empty and `registeredTier()` null.
+- **`unregister_aSecondCallAfterTheCacheIsClearedWritesNothing`**: The cache is cleared first, so a repeated retraction is a no-op.
+  - After one `sendUnregistration("left")`, a second `sendUnregistration("joined")` writes nothing.
+- **`serverInfoAdvertisesUnregisterOnlyWithTheKeyTrue`**: `offersUnregister` is true only for a boolean `true`.
+  - `offersUnregister({"type":"server_info","unregister":true})` is true; a hello without the key, with `false`, with JSON null and with the string `"true"` is false.
+- **`aServerInfoHelloRecordsTheUnregisterCapabilityAndDisconnectClearsIt`**: The outbound hello sets `serverSupportsUnregister`, a hello without the key clears it, and `disconnect()` resets it.
+  - `handleOutboundFrame` of a hello with `unregister: true` sets it; of a hello without the key, clears it; `disconnect()` after setting it clears it.
 
 ### `V1ApiManagerOutboundAuthTest`
 
@@ -2054,6 +2069,29 @@ Test: [`GuildCheckResultTest.java`](../src/test/java/org/wynnvets/guild/GuildChe
   - `contradicts` is true for `RETURNERS` with `(false, "")` and `(true, "Some Other Guild")`, `OTHER_GUILD` with `(false, "")` and `(true, "Returners")`, and `GUILDLESS` with `(true, "Returners")`.
 - **`contradicts_unknownDisagreesWithNothing`**: An unchecked result is never cleared as a contradiction.
   - `contradicts` is false for `UNKNOWN` with `(true, "Returners")` and with `(false, "")`.
+
+### `RegistrationTierTest`
+
+Test: [`RegistrationTierTest.java`](../src/test/java/org/wynnvets/guild/RegistrationTierTest.java) · Subject: [`GuildStateManager`](../src/client/java/org/wynnvets/guild/GuildStateManager.java)
+
+The pure parts of the presence registration: which tier a player registers under (`registrationTier`) and when a cached registration is retracted (`shouldRetract`, the rule that an unknown guild state is not ineligibility). `sendRegistrationIfReady` and `reconcileRegistration` read the player, Wynntils and `UnlockManager`, and are not exercised.
+
+- **`returnersRegistersAsGuildWhateverElseHolds`**: Returners wins over every other eligibility.
+  - `registrationTier(true, false, false, false)` and `registrationTier(true, true, true, true)` both equal `"guild"`.
+- **`honouraryBeatsWaitlist`**: An unlocked honourary registers as `honourary` even when also a guildless waitlister.
+  - `registrationTier(false, true, false, false)` and `registrationTier(false, true, true, true)` both equal `"honourary"`.
+- **`waitlistNeedsBothGuildlessAndTheUnlock`**: The waitlist tier needs guildless and the waitlist unlock.
+  - `registrationTier(false, false, true, true)` equals `"waitlist"`; with guildless false, or with the unlock false, it is null.
+- **`anIneligiblePlayerHasNoTier`**: No eligibility gives null.
+  - `registrationTier(false, false, false, false)` is null.
+- **`aStillEligiblePlayerIsNeverRetracted`**: A player with a tier now keeps the registration (a tier change is an overwrite by `sendRegistrationIfReady`).
+  - `shouldRetract("guild", "guild", true)`, `("waitlist", "waitlist", false)` and `("guild", "waitlist", true)` are all false.
+- **`nothingCachedMeansNothingToRetract`**: No cached tier means nothing to retract.
+  - `shouldRetract(null, null, true)` and `(null, null, false)` are false.
+- **`aCachedGuildRegistrationIsRetractedOnlyWhenTheGuildStateIsDefinitive`**: An unknown guild state is not ineligibility.
+  - `shouldRetract(null, "guild", true)` is true; `shouldRetract(null, "guild", false)` is false.
+- **`aCachedWaitlistOrHonouraryRegistrationIsRetractedEitherWay`**: These depend on the auth tier alone.
+  - `shouldRetract(null, "waitlist", ...)` and `(null, "honourary", ...)` are true for both values of `definitive`.
 
 ### `ReturnersReauthTest`
 

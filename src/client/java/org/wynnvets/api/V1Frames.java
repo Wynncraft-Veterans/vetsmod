@@ -5,8 +5,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Builders for the register, auth, queue-status, chat, rank-change, tab-list and staff-action
- * frames the client sends on the v1 inbound socket. Each returns a new
+ * Builders for the register, auth, queue-status, chat, rank-change, tab-list, staff-action and
+ * unregister frames the client sends on the v1 inbound socket. Each returns a new
  * {@link JsonObject} with its keys in wire order; none sends it, logs, or reads or writes
  * connection state. {@link #inbound} and {@link #rankChange} stamp a random {@code uuid} and the
  * current time. {@link #withReq} adds a request id to a frame already built.
@@ -94,5 +94,11 @@ final class V1Frames {
     static JsonObject withReq(JsonObject frame, String req) {
         frame.addProperty("req", req);
         return frame;
+    }
+
+    static JsonObject unregister() {
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "unregister");
+        return payload;
     }
 }

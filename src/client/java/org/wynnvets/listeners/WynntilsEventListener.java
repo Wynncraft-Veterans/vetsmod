@@ -125,15 +125,16 @@ public final class WynntilsEventListener {
     /**
      * Handles the player leaving a guild.
      *
-     * <p>Delegates to {@link GuildLifecycle#onGuildInfoUpdated()} to
-     * re-evaluate guild membership and feature gates.
+     * <p>Delegates to {@link GuildLifecycle#onGuildLeft()}, which re-evaluates guild
+     * membership and feature gates one tick later (Wynntils clears its guild name after posting
+     * this event) and retracts the presence registration.
      *
      * @param event the guild left event
      */
     @SubscribeEvent
     public void onGuildLeft(GuildEvent.Left event) {
         VetsLogger.debug("GuildEvent.Left: {}", event.getGuildName());
-        GuildLifecycle.onGuildInfoUpdated();
+        GuildLifecycle.onGuildLeft();
     }
 
     /**

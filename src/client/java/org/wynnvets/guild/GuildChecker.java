@@ -175,8 +175,9 @@ public final class GuildChecker {
 
     /**
      * Clears the in-memory and persisted result. Reached through
-     * {@link GuildLifecycle#onGuildInfoUpdated()} on Wynntils' guild join/leave events: a guild
-     * change makes the cached check stale, and the real-time data is treated as authoritative.
+     * {@link GuildLifecycle#onGuildInfoUpdated()} on Wynntils' guild join event and
+     * {@link GuildLifecycle#onGuildLeft()} on its leave event: a guild change makes the cached
+     * check stale, and the real-time data is treated as authoritative.
      */
     static void clearResult() {
         forgetResult();

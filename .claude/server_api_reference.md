@@ -55,6 +55,7 @@ subsection), §7 and §7.1.
 |---|---|---|---|
 | chat (`guild`/`queue`/`waitlist`/`honourary`) | chat pipeline | generic ack | §1.2 (shape), §1.4 (pipeline) |
 | `register` | `_handle_register` | `{"status":"ok"}` (sent even when an invalid registration is silently ignored) | §1.7 |
+| `unregister` | `_handle_unregister` | `{"status":"ok"}`, also for a socket that never registered (temporary-server `618a408`; the outbound `server_info` advertises it as `unregister: true`, and an older server answers the unknown type with a `Missing required fields` error) | §1.7 |
 | `tablist` | `_handle_tablist` | `{"status":"ok"}` | **not specified** — named in passing only |
 | `queue_status` | `_handle_queue_status` | `{"status":"ok"}` | **not specified** — named in passing only |
 | `auth` | `_handle_auth` | auth ack (below) | §1.8 |

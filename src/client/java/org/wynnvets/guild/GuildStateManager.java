@@ -538,6 +538,11 @@ public final class GuildStateManager {
      * &mdash; five callers. {@link #tryUnlock} is <b>not</b> one of them; it is a
      * pure delegate to {@link UnlockManager#tryUnlock(String)} and calls nothing
      * else here.</p>
+     *
+     * <p>A player who is not eligible is a no-op here: this cannot tell "not eligible" from
+     * "guild state not known yet" (a world join before Wynntils' scan lands), so it never
+     * retracts. Retraction is {@link #reconcileRegistration}'s, called only from events that
+     * mark a loss.</p>
      */
     public static void sendRegistrationIfReady() {
         LocalPlayer player = McUtils.player();
@@ -546,17 +551,66 @@ public final class GuildStateManager {
         String uuid = player.getUUID().toString();
         String username = player.getName().getString();
 
-        String tier;
-        if (isReturners()) {
-            tier = "guild";
-        } else if (isHonouraryUnlocked()) {
-            tier = "honourary";
-        } else if (isGuildless() && isWaitlistUnlocked()) {
-            tier = "waitlist";
-        } else {
+        String tier =
+                registrationTier(
+                        isReturners(), isHonouraryUnlocked(), isGuildless(), isWaitlistUnlocked());
+        if (tier == null) {
             return; // not eligible for registration
         }
 
         V1ApiManager.sendRegistration(uuid, username, tier);
+    }
+
+    /**
+     * The presence-registration tier for the given eligibility, in priority order: Returners is
+     * {@code guild}, an unlocked honourary is {@code honourary}, a guildless waitlist unlock is
+     * {@code waitlist}, and anything else is {@code null} (no registration).
+     */
+    // Package-private for unit tests. See RegistrationTierTest.
+    static String registrationTier(
+            boolean returners,
+            boolean honouraryUnlocked,
+            boolean guildless,
+            boolean waitlistUnlocked) {
+        if (returners) return "guild";
+        if (honouraryUnlocked) return "honourary";
+        if (guildless && waitlistUnlocked) return "waitlist";
+        return null;
+    }
+
+    /**
+     * Whether a cached registration should be retracted: the player is no longer eligible
+     * ({@code tierNow} is {@code null}) and a registration is cached. An unknown guild state is
+     * not ineligibility, so a cached {@code guild} registration is retracted only when
+     * {@code definitive} (the caller knows the guild state has changed, as a left or joined
+     * event does); a waitlist or honourary one depends on the auth tier alone, so it is
+     * retracted whatever {@code definitive} says.
+     */
+    // Package-private for unit tests. See RegistrationTierTest.
+    static boolean shouldRetract(String tierNow, String cachedTier, boolean definitive) {
+        return tierNow == null && cachedTier != null && (definitive || !"guild".equals(cachedTier));
+    }
+
+    /**
+     * Retracts the cached presence registration if the player is no longer eligible for it
+     * ({@link #shouldRetract}), through {@link V1ApiManager#sendUnregistration}. Called on the
+     * client thread by {@link GuildLifecycle#onGuildLeft()} and
+     * {@link GuildLifecycle#onGuildJoined()} (guild state changed, so {@code definitive}) and by
+     * {@link UnlockManager} after an auth ack or failure (not definitive: only a waitlist or
+     * honourary registration can go).
+     * A player who qualifies again re-registers through {@link #sendRegistrationIfReady()}.
+     *
+     * @param definitive whether the guild state is known to have changed
+     * @param reason for the debug log: {@code left}, {@code joined} or {@code auth}
+     */
+    public static void reconcileRegistration(boolean definitive, String reason) {
+        String cached = V1ApiManager.registeredTier();
+        if (cached == null) return;
+        String tierNow =
+                registrationTier(
+                        isReturners(), isHonouraryUnlocked(), isGuildless(), isWaitlistUnlocked());
+        if (shouldRetract(tierNow, cached, definitive)) {
+            V1ApiManager.sendUnregistration(reason);
+        }
     }
 }

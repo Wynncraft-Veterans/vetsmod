@@ -40,7 +40,7 @@ The root `org.wynnvets` package has no bullet; it is covered under **Entry point
 - Inbound WS: `wss://api.wynnvets.org/v1/inbound` — client sends guild/waitlist/honourary messages
 - Outbound WS: `wss://api.wynnvets.org/v1/outbound` — server pushes chat to all clients (to an unauthenticated one only while `unauth` is on); its authenticated-only frames reach vetsmod only on an authenticated socket, which it opens just for a confirmed member tier ([vetsmod_networking.md](vetsmod_networking.md) §1)
 - Both auto-reconnect (3s delay), 30s ping keepalive
-- Registration frame (`type="register"`) AND `auth` frame (`type="auth", key="<43-char base64url>"`) re-sent on every inbound reconnect
+- Registration frame (`type="register"`) AND `auth` frame (`type="auth", key="<43-char base64url>"`) re-sent on every inbound reconnect; the registration cache is cleared, and an `unregister` frame sent to a server that advertises it, when the player stops qualifying (guild left or joined elsewhere, waitlist/honourary auth tier lost)
 - Outbound server pushes a `{type:"server_info", unauth_enabled: bool}` frame on connect so the mod knows which session-warning copy to use
 
 **WebSocket message fields:** `uuid`, `type`, `timestamp`, `rank`, `username`, `message`. Inbound `type` ∈ `{guild, queue, waitlist, honourary}`. Outbound `type` adds `bridge` (Discord relay).

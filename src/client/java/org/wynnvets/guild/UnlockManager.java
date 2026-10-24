@@ -297,6 +297,10 @@ final class UnlockManager {
         // list reflects our (server-confirmed) tier rather than whatever
         // we inferred locally.
         GuildStateManager.sendRegistrationIfReady();
+        // An ok ack with tier other (or any tier the player does not qualify for) leaves a cached
+        // waitlist or honourary registration stale; retract it. Not definitive: a guild
+        // registration stays.
+        GuildStateManager.reconcileRegistration(false, "auth");
         // The ack may have changed the tier, and with it enrichment eligibility:
         // re-derive the default anni mode for a still-unset user, as a world join does.
         AnniModeManager.applyStartupDefaultIfNeeded();
@@ -316,6 +320,11 @@ final class UnlockManager {
         quietReauth = false;
         currentTier = "";
         authVerifiedThisSession = false;
+        // The server session is gone and the tier is now cleared, so a cached waitlist or
+        // honourary registration no longer holds, quiet failure or not. The ack arrives on the
+        // WebSocket thread; the registration check belongs on the client thread. It is queued
+        // only after the clear, so it reads the cleared tier.
+        McUtils.mc().execute(() -> GuildStateManager.reconcileRegistration(false, "auth"));
         lastAuthFailureReason = detail == null ? "unknown" : detail;
         // temporary-server's auth handler answers a bad key with "auth rejected: <reason>";
         // any other detail is not a verdict on the key, and nor is a quiet re-auth's

@@ -497,6 +497,99 @@ class V1ApiManagerFramesTest {
         assertEquals(List.of(LOST_ACK), drained, "an echoed line may have been delivered");
     }
 
+    // ----- unregister -----
+
+    private static final String UUID_1 = "bb171c68-7080-4d02-be7b-cc2d5dcbcd82";
+    private static final String UNREGISTER = "{\"type\":\"unregister\"}";
+
+    /** Registers on the connected socket, then forgets that frame, so a test sees only the
+     *  frames after it. */
+    private void registeredAndConnected(boolean serverKnowsUnregister) {
+        connect();
+        V1ApiManager.serverSupportsUnregister = serverKnowsUnregister;
+        V1ApiManager.sendRegistration(UUID_1, "Metrafish", "waitlist");
+        socket.wire.clear();
+    }
+
+    @Test
+    void unregister_withTheCapabilityAndAConnectionWritesTheFrameAndClearsTheCache() {
+        registeredAndConnected(true);
+        assertEquals("waitlist", V1ApiManager.registeredTier());
+        V1ApiManager.sendUnregistration("left");
+        assertEquals(List.of(UNREGISTER), socket.wire);
+        assertNull(V1ApiManager.registeredTier());
+    }
+
+    @Test
+    void unregister_withoutTheCapabilityWritesNothingButClearsTheCache() {
+        registeredAndConnected(false);
+        V1ApiManager.sendUnregistration("left");
+        assertEquals(List.of(), socket.wire, "an old server would answer an unknown type");
+        assertNull(V1ApiManager.registeredTier(), "so a reconnect does not re-register");
+    }
+
+    @Test
+    void unregister_withNoCachedRegistrationWritesNothing() {
+        connect();
+        V1ApiManager.serverSupportsUnregister = true;
+        V1ApiManager.sendUnregistration("left");
+        assertEquals(List.of(), socket.wire);
+        assertNull(V1ApiManager.registeredTier());
+    }
+
+    @Test
+    void unregister_withTheSocketDownClearsTheCache() {
+        registeredAndConnected(true);
+        socket.connected = false;
+        V1ApiManager.sendUnregistration("auth");
+        assertEquals(List.of(), socket.wire);
+        assertNull(V1ApiManager.registeredTier());
+    }
+
+    @Test
+    void unregister_aSecondCallAfterTheCacheIsClearedWritesNothing() {
+        registeredAndConnected(true);
+        V1ApiManager.sendUnregistration("left");
+        socket.wire.clear();
+        V1ApiManager.sendUnregistration("joined");
+        assertEquals(List.of(), socket.wire);
+    }
+
+    @Test
+    void serverInfoAdvertisesUnregisterOnlyWithTheKeyTrue() {
+        assertTrue(
+                V1ApiManager.offersUnregister(
+                        Json.GSON.fromJson(
+                                "{\"type\":\"server_info\",\"unregister\":true}",
+                                JsonObject.class)));
+        for (String hello :
+                List.of(
+                        "{\"type\":\"server_info\"}",
+                        "{\"unregister\":false}",
+                        "{\"unregister\":null}",
+                        "{\"unregister\":\"true\"}")) {
+            assertFalse(
+                    V1ApiManager.offersUnregister(Json.GSON.fromJson(hello, JsonObject.class)),
+                    hello);
+        }
+    }
+
+    @Test
+    void aServerInfoHelloRecordsTheUnregisterCapabilityAndDisconnectClearsIt() {
+        V1ApiManager.handleOutboundFrame(
+                Json.GSON.fromJson(
+                        "{\"type\":\"server_info\",\"unauth_enabled\":true,\"unregister\":true}",
+                        JsonObject.class));
+        assertTrue(V1ApiManager.serverSupportsUnregister);
+        V1ApiManager.handleOutboundFrame(
+                Json.GSON.fromJson(
+                        "{\"type\":\"server_info\",\"unauth_enabled\":true}", JsonObject.class));
+        assertFalse(V1ApiManager.serverSupportsUnregister, "an older server withdraws it");
+        V1ApiManager.serverSupportsUnregister = true;
+        V1ApiManager.disconnect();
+        assertFalse(V1ApiManager.serverSupportsUnregister);
+    }
+
     private void assertNothingSentWhileDown() {
         V1ApiManager.sendRegistration("bb171c68-7080-4d02-be7b-cc2d5dcbcd82", "Metrafish", "guild");
         SessionAuthState.expectingAuthAck = false;

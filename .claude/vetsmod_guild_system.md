@@ -31,7 +31,8 @@ Key public methods (all package-level or client-facing):
 | `selfStaffRank()` | "captain"/"strategist"/"chief"/"owner" |
 | `loadPersistedState()` | Restore from `VetsConfig` on startup |
 | `refreshStaffStatusIfNeeded(forceRefresh)` | Staff rank refresh |
-| `sendRegistrationIfReady()` | Push presence frame on inbound WS |
+| `sendRegistrationIfReady()` | Push presence frame on inbound WS; a no-op for an ineligible player (it cannot tell "not eligible" from "guild state not known yet"), see `reconcileRegistration` |
+| `reconcileRegistration(definitive, reason)` | Retract the cached presence registration when the player no longer qualifies (below) |
 
 The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` and `isChiefOfAnyGuild()`;
 [vetsmod_commands.md](vetsmod_commands.md) §1's gate table describes them with the other command gates.
@@ -41,11 +42,24 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 | Method | Purpose |
 |--------|---------|
 | `onEnteredWorld()` | World-join trigger; schedules SessionAuthWarning |
-| `onGuildInfoUpdated()` | Wynntils `GuildEvent.Left` callback and the first half of `onGuildJoined()`: clears the `GuildChecker` cache, then re-evaluates guild state (the post-world-join recheck poll re-evaluates without the unconditional clear) |
-| `onGuildJoined()` | Wynntils `GuildEvent.Joined` callback: `onGuildInfoUpdated()`, then, if the guild is Returners, `ReturnersReauth.onJoinedReturners()` (§4) |
+| `onGuildInfoUpdated()` | The first half of `onGuildJoined()`: clears the `GuildChecker` cache, then re-evaluates guild state (the post-world-join recheck poll re-evaluates without the unconditional clear) |
+| `onGuildJoined()` | Wynntils `GuildEvent.Joined` callback: `onGuildInfoUpdated()`, then, if the guild is Returners, `ReturnersReauth.onJoinedReturners()` (§4), then `reconcileRegistration(true, "joined")` |
+| `onGuildLeft()` | Wynntils `GuildEvent.Left` callback: clears the `GuildChecker` cache at once, then on the next tick (`TickDelays.runAfter(0, ...)`) re-evaluates guild state and calls `reconcileRegistration(true, "left")` |
 | `reset()` | Disconnect reset of the per-connection state |
 
 `/wv debug trigger forceChecks`'s readout is [GuildDiagnostics](../src/client/java/org/wynnvets/debug/diagnostics/GuildDiagnostics.java)`.forceGuildRecheck()`, in `org.wynnvets.debug.diagnostics`.
+
+### Presence registration and its retraction
+
+`sendRegistrationIfReady()` registers the player with the server for presence (`!list`, `/v1/outbound/list`, staff visibility) under `GuildStateManager.registrationTier(...)`: `guild` for Returners, else `honourary` for an unlocked honourary, else `waitlist` for a guildless waitlist unlock, else none. It is called from the five places its Javadoc lists; for an ineligible player it does nothing, because it cannot tell ineligible from "guild state not known yet" (a world join before Wynntils' scan lands), so it never retracts.
+
+Retraction is `reconcileRegistration(definitive, reason)`, called on the client thread from events that mark a loss, and only when a registration is cached: if the tier now is none (`shouldRetract`) it calls `V1ApiManager.sendUnregistration(reason)`, which clears the cache and, against a server that advertises `unregister`, sends the frame ([vetsmod_networking.md](vetsmod_networking.md) §1). A cached `guild` registration is retracted only when `definitive` is true (unknown is not ineligible); a `waitlist` or `honourary` one depends on the auth tier alone, so it goes either way. The triggers:
+
+- **Left** (`GuildLifecycle.onGuildLeft()`, `definitive`, reason `left`): Wynntils posts `GuildEvent.Left` before it clears its guild name, in the same call, so the handler defers the re-evaluation and the reconcile one tick (`TickDelays.runAfter(0, ...)`). Re-evaluating at once would still read Returners and even re-send a `guild` registration.
+- **Joined** (end of `onGuildJoined()`, `definitive`, reason `joined`): retracts a waitlist registration when the player joins another guild.
+- **Auth** (`UnlockManager.onAuthFailure`, and `showAuthSuccess` after `sendRegistrationIfReady()`; not definitive, reason `auth`): a failure ends the server session and clears the tier, and an ok ack with tier `other` is not a waitlist or honourary tier, so a cached waitlist or honourary registration goes. A guild registration stays. The failure's reconcile hops to the client thread and runs before any quiet return.
+
+A player who qualifies again re-registers through `sendRegistrationIfReady()`, which overwrites. A register that an inbound reconnect re-sends could cross a retraction on the wire; the window is tiny and the next reconnect corrects it.
 
 ### Guild membership flow on world join
 
@@ -55,7 +69,7 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 
 Each kind is numbered when scheduled, and a task that finds a newer number stops, so a quick world hop runs only the latest join's check and poll.
 
-`GuildLifecycle.onGuildInfoUpdated()` invalidates the `GuildChecker` cache. It runs on Wynntils' `GuildEvent.Joined` / `.Left`. The recheck poll, where no event fired, clears it only when it contradicts Wynntils' guild data (`GuildChecker.clearResultIfContradicted`, through `GuildCheckResult.contradicts`), so a `/gu stats` answer that landed before Wynntils' scan survives, and one left from a guild change while disconnected does not.
+`GuildLifecycle.onGuildInfoUpdated()` invalidates the `GuildChecker` cache. It runs on Wynntils' `GuildEvent.Joined`; `onGuildLeft()` clears the cache the same way on `.Left`. The recheck poll, where no event fired, clears it only when it contradicts Wynntils' guild data (`GuildChecker.clearResultIfContradicted`, through `GuildCheckResult.contradicts`), so a `/gu stats` answer that landed before Wynntils' scan survives, and one left from a guild change while disconnected does not.
 
 ## 2. GuildChecker
 
@@ -192,7 +206,7 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 ## 8. Edge cases
 
 - **Returners guild members need to /unlock** under the new system once the server's `unauth` toggle is off. While it is on, unauthenticated sessions are exempt from the tier gate (back-compat); when it is off, their chat frames are rejected. Authenticated sessions can only send the chat types their tier allows. Pre-migration users discover this via the SessionAuthWarning.
-- **`GuildDiagnostics.forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears **neither** cache — it prints diagnostics and re-runs both checks (`refreshStaffStatusIfNeeded(true)` and `GuildChecker.refreshGuildStatus()`). Not clearing is deliberate and commented twice in `GuildDiagnostics`: `GuildChecker` is cleared by `onGuildInfoUpdated()`, which fires from Wynntils' `GuildEvent.Joined`/`.Left` handlers, and by the post-world-join recheck poll only when its result contradicts Wynntils. It also does *not* re-auth; that happens automatically on every inbound WS reconnect.
+- **`GuildDiagnostics.forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears **neither** cache — it prints diagnostics and re-runs both checks (`refreshStaffStatusIfNeeded(true)` and `GuildChecker.refreshGuildStatus()`). Not clearing is deliberate and commented twice in `GuildDiagnostics`: `GuildChecker` is cleared by `onGuildInfoUpdated()` (from Wynntils' `GuildEvent.Joined` handler) and by `onGuildLeft()` (its `.Left` handler), and by the post-world-join recheck poll only when its result contradicts Wynntils. It also does *not* re-auth; that happens automatically on every inbound WS reconnect.
 - **Wynntils `GuildEvent`** is authoritative — when it fires, `GuildChecker` cache is invalidated.
 - **`/gu stats` vs Wynntils** — a valid `/gu stats` result (`GuildChecker`) takes precedence; Wynntils' `Models.Guild` is the live fallback while there is none. Wynntils usually lands first in time. `MORE_RELIABLE_GUILD_CHECK` schedules the `/gu stats` check that refreshes the cache.
 - **Rotating a leaked key:** a staff member runs dazebot's staff-only `/change rotate key <target>` (users cannot self-rotate); the old key fails introspection on the next WS connect (subject to temporary-server's 60 s introspection cache). The mod surfaces the failure via `onAuthFailure()` and the SessionAuthWarning prompts them to `/unlock` again.

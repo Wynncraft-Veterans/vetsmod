@@ -129,9 +129,8 @@ public final class GuildLifecycle {
     }
 
     /**
-     * Called by {@link org.wynnvets.listeners.WynntilsEventListener} when a
-     * {@code GuildEvent.Left} event fires, and by {@link #onGuildJoined()} for
-     * {@code GuildEvent.Joined}, both on the client thread.
+     * Called by {@link #onGuildJoined()} for {@code GuildEvent.Joined}, on the client thread
+     * ({@link #onGuildLeft()} does the same work one tick late).
      *
      * <p>A guild change makes the mod's own guild check result stale, so it is cleared, with
      * Wynntils' guild data treated as authoritative; then guild-dependent state is
@@ -185,13 +184,40 @@ public final class GuildLifecycle {
      * Wynntils posts {@code GuildEvent.Joined}, which it does only for the "You have joined"
      * chat line, after recording the new guild. Re-evaluates guild state as
      * {@link #onGuildInfoUpdated()} does, then, if the guild is Returners, starts
-     * {@link ReturnersReauth}'s re-auth.
+     * {@link ReturnersReauth}'s re-auth. Last, it retracts a registration the player no longer
+     * qualifies for ({@link GuildStateManager#reconcileRegistration}): a waitlister who joined
+     * another guild.
      */
     public static void onGuildJoined() {
         onGuildInfoUpdated();
         if (GuildStateManager.isReturners()) {
             ReturnersReauth.onJoinedReturners();
         }
+        GuildStateManager.reconcileRegistration(true, "joined");
+    }
+
+    /**
+     * Called by {@link org.wynnvets.listeners.WynntilsEventListener} on the client thread when
+     * Wynntils posts {@code GuildEvent.Left} (a leave, or a kick seen while online).
+     *
+     * <p>Wynntils posts the event <i>before</i> it clears its guild name, in the same call, so
+     * re-reading the guild now would still see Returners (and even re-send a {@code guild}
+     * registration). The mod's cached state is dropped at once, and the re-evaluation waits one
+     * tick ({@code TickDelays.runAfter(0, ...)} runs on the next tick pass), by which time the
+     * name is gone. It is followed by {@link GuildStateManager#reconcileRegistration}, which
+     * retracts the presence registration. A disconnect in between leaves the cache empty, so
+     * that does nothing.</p>
+     */
+    public static void onGuildLeft() {
+        GuildChecker.clearResult();
+        // Per-guild cached state that must not outlive the membership is dropped here.
+        TickDelays.runAfter(
+                0,
+                "Guild left",
+                () -> {
+                    reevaluateGuildState();
+                    GuildStateManager.reconcileRegistration(true, "left");
+                });
     }
 
     /**
