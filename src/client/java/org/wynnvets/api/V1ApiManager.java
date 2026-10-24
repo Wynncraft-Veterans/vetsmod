@@ -193,6 +193,7 @@ public final class V1ApiManager {
         outboundAuthOffered = false;
         inboundMemberTier = false;
         OutboundAckRouter.reset();
+        StaffRanksPoller.clearLiveOverlay();
         if (inboundClient != null) {
             inboundClient.close();
             inboundClient = null;
@@ -500,26 +501,19 @@ public final class V1ApiManager {
      * rewriters recognise a newly-online staff member's whispers
      * within milliseconds rather than waiting up to two minutes.
      *
-     * <p>Never reached today: the server sends these frames only to an authenticated
-     * outbound socket, and vetsmod never authenticates that socket
-     * ({@code outbound-socket-never-authenticated}).</p>
+     * <p>The server sends these frames only to an authenticated outbound socket
+     * ({@link #sendOutboundAuthIfReady()}). A {@code staff_offline} may carry a null
+     * {@code username}; its {@code uuid} is passed along so the poller can resolve it.</p>
      */
-    private static void handleStaffPresenceFrame(String type, JsonObject json) {
-        String username =
-                json.has("username") && !json.get("username").isJsonNull()
-                        ? json.get("username").getAsString()
-                        : "";
-        if (username.isEmpty()) {
-            return;
-        }
+    // Package-private for unit tests. See V1ApiManagerOutboundAuthTest.
+    static void handleStaffPresenceFrame(String type, JsonObject json) {
+        String username = Json.stringOrEmpty(json, "username");
+        String uuid = Json.stringOrNull(json, "uuid");
         if ("staff_online".equals(type)) {
-            String rank =
-                    json.has("rank") && !json.get("rank").isJsonNull()
-                            ? json.get("rank").getAsString()
-                            : "";
-            StaffRanksPoller.applyLiveStaffEvent(username, rank, true);
+            StaffRanksPoller.applyLiveStaffEvent(
+                    username, uuid, Json.stringOrEmpty(json, "rank"), true);
         } else {
-            StaffRanksPoller.applyLiveStaffEvent(username, null, false);
+            StaffRanksPoller.applyLiveStaffEvent(username, uuid, null, false);
         }
     }
 

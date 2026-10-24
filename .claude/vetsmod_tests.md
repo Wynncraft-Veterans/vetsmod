@@ -144,7 +144,7 @@ Tests:
 
 Test: [`V1ApiManagerOutboundAuthTest.java`](../src/test/java/org/wynnvets/api/V1ApiManagerOutboundAuthTest.java) · Subject: [`V1ApiManager`](../src/client/java/org/wynnvets/api/V1ApiManager.java), [`OutboundAckRouter`](../src/client/java/org/wynnvets/api/OutboundAckRouter.java)
 
-The outbound socket authenticates only after a `server_info` offering the all-tiers receive map (`chat_tiers: "all"`) and an inbound ack confirming a member tier, never with `expectingAuthAck` set, and its untyped ack goes to `OutboundAckRouter` without reaching the outbound listeners or `SessionAuthState`. A `RecordingWsClient` stands in for the outbound socket as in `V1ApiManagerFramesTest`. No test reads the stored key: sends go through `sendOutboundAuth(key)`, and every frame routed through `handleOutboundFrame` leaves one of the two flags unset. No test routes a transient error ack, whose retry needs the Wynntils tick scheduler. `reset` calls `V1ApiManager.disconnect()` and clears `expectingAuthAck` and `confirmedStaff`.
+The outbound socket authenticates only after a `server_info` offering the all-tiers receive map (`chat_tiers: "all"`) and an inbound ack confirming a member tier, never with `expectingAuthAck` set, and its untyped ack goes to `OutboundAckRouter` without reaching the outbound listeners or `SessionAuthState`. A `RecordingWsClient` stands in for the outbound socket as in `V1ApiManagerFramesTest`. No test reads the stored key: sends go through `sendOutboundAuth(key)`, and every frame routed through `handleOutboundFrame` leaves one of the two flags unset. No test routes a transient error ack, whose retry needs the Wynntils tick scheduler. A `@BeforeEach` replaces `OutboundAckRouter.onAuthenticated` (which clears the staff overlay and starts an HTTP fetch) with a counter, and `reset` restores it, calls `V1ApiManager.disconnect()` and clears `expectingAuthAck` and `confirmedStaff`.
 
 - **`sendsTheAuthFrameWhenOfferedAndAMemberTier`**: With both flags set, `sendOutboundAuth` writes the auth frame on the outbound socket and does not mark an inbound auth ack as awaited.
   - `socket.wire` equals the single frame `{"type":"auth","key":"kkk…"}` (43 `k`s).
@@ -176,6 +176,12 @@ The outbound socket authenticates only after a `server_info` offering the all-ti
   - After routing `{"status":"ok","tier":"member","ws_tier":"guild","is_staff":true,"staff_rank":"chief"}` and `{"status":"error","detail":"auth rejected: revoked"}`, the counting listener heard 0 frames.
   - `SessionAuthState.confirmedStaff` and `expectingAuthAck` are false.
   - `OutboundAckRouter.retryUsed()` is false.
+  - The stubbed `onAuthenticated` ran once (the ok ack, not the error).
+- **`aNamelessStaffOfflineReachesThePollerByUuid`**: A `staff_online` frame feeds the overlay, and a `staff_offline` with a null username clears it through its uuid.
+  - After `{"type":"staff_online","uuid":"bb171c68-…","username":"Metrafish","rank":"chief"}`, `StaffRanksPoller.confirmedRankFor("Metrafish")` equals `Optional.of("chief")`.
+  - After `{"type":"staff_offline","uuid":"bb171c68-…","username":null}`, it equals `Optional.empty()`.
+- **`disconnectClearsTheStaffOverlay`**: `disconnect()` empties the overlay.
+  - After `applyLiveStaffEvent("Metrafish", null, "chief", true)` and `disconnect()`, `confirmedRankFor("Metrafish")` equals `Optional.empty()`.
 - **`aChatFrameStillReachesTheListeners`**: A typed chat frame still fans out to the outbound listeners.
   - After `{"type":"waitlist","username":"A","message":"hi"}`, the counting listener heard 1 frame.
 - **`onlyAnIntrospectionFailureIsTransient`**: `OutboundAckRouter.isTransient` matches only the introspection prefix.
@@ -1618,7 +1624,7 @@ Test: [`PollingServiceTest.java`](../src/test/java/org/wynnvets/fetcher/polling/
 
 Test: [`StaffRanksPollerTest.java`](../src/test/java/org/wynnvets/fetcher/polling/StaffRanksPollerTest.java) · Subject: [`StaffRanksPoller`](../src/client/java/org/wynnvets/fetcher/polling/StaffRanksPoller.java)
 
-`StaffRanksPoller` caches the staff the server reports online, keyed by lower-cased username, from a periodic `/v1/outbound/staff` fetch. The suite pins what one parsed response leaves in that poll cache, through the package-private `parseStaffRanks` and the public `confirmedRankFor`: a name the next response lacks is dropped, a repeated name is kept, an unparseable body changes nothing, and a retired captain is not kept. The swap's atomicity is not pinned. An `@AfterEach` parses `[]` to empty the cache.
+`StaffRanksPoller` caches the staff the server reports online, keyed by lower-cased username, from a periodic `/v1/outbound/staff` fetch, with a push overlay from `staff_online` / `staff_offline` frames on top. The suite pins what one parsed response leaves in that poll cache, through the package-private `parseStaffRanks` and the public `confirmedRankFor`: a name the next response lacks is dropped, a repeated name is kept, an unparseable body changes nothing, and a retired captain is not kept. It also pins the overlay through `applyLiveStaffEvent`, `parseStaffRanks(json, fetchStartedNanos)` and `clearLiveOverlay`: a pushed rank wins over the poll, a poll that started after a push drops it only when the response lacks the name, a nameless offline resolves by uuid, and clearing the overlay leaves the poll map. The swap's atomicity is not pinned. An `@AfterEach` parses `[]` and clears the overlay.
 
 - **`aNameTheNextResponseLacksIsDroppedAndARepeatedOneKept`**: After a response listing Metrafish and Holidaze, a response listing only Metrafish keeps Metrafish and drops Holidaze.
   - `confirmedRankFor("holidaze")` equals `Optional.of("strategist")` after parsing `[{"username": "Metrafish", "rank": "Chief"}, {"username": "Holidaze", "rank": "strategist"}]`.
@@ -1628,6 +1634,20 @@ Test: [`StaffRanksPollerTest.java`](../src/test/java/org/wynnvets/fetcher/pollin
   - `confirmedRankFor("Metrafish")` equals `Optional.of("owner")` after parsing `[{"username": "Metrafish", "rank": "owner"}]` and then `not json at all`.
 - **`aRetiredCaptainIsNotKept`**: A captain entry is dropped by the allowed-ranks check.
   - `confirmedRankFor("Wenweia")` equals `Optional.empty()` after parsing `[{"username": "Wenweia", "rank": "captain"}]`.
+- **`anOnlineFrameStillWinsOverAStalePollEntry`**: A pushed rank answers ahead of the poll's.
+  - After parsing `[{"username": "Metrafish", "rank": "strategist"}]` and `applyLiveStaffEvent("Metrafish", UUID, "chief", true)`, `confirmedRankFor("metrafish")` equals `Optional.of("chief")`.
+- **`aLiveEntryAppliedBeforeTheFetchAndAbsentFromItIsDropped`**: A poll that started after the push and lacks the name drops it.
+  - After the push, then `parseStaffRanks("[]", started)` with `started` read after it, `confirmedRankFor("Metrafish")` equals `Optional.empty()`.
+- **`aLiveEntryAppliedAfterTheFetchStartedSurvivesIt`**: A push that lands while a poll is in flight survives that poll.
+  - With `started` read before the push, after `parseStaffRanks("[]", started)`, `confirmedRankFor("Metrafish")` equals `Optional.of("chief")`.
+- **`aLiveEntryTheResponseStillListsSurvives`**: A later poll that still lists the name keeps the pushed rank.
+  - After the push and `parseStaffRanks(...)` of `[{"username": "Metrafish", "rank": "strategist"}]` with `started`, `confirmedRankFor("Metrafish")` equals `Optional.of("chief")`.
+- **`aNamelessOfflineRemovesTheEntryByUuid`**: A `staff_offline` with no username finds the entry by the uuid its `staff_online` carried, in any case, and clears both caches.
+  - After a poll listing Metrafish, the push, and `applyLiveStaffEvent(null, UUID upper-cased, null, false)`, `confirmedRankFor("Metrafish")` equals `Optional.empty()`.
+- **`aNamelessOfflineWithAnUnknownUuidChangesNothing`**: A nameless offline whose uuid no push carried leaves the overlay alone.
+  - After the push and `applyLiveStaffEvent("", "00000000-0000-0000-0000-000000000000", null, false)`, `confirmedRankFor("Metrafish")` equals `Optional.of("chief")`.
+- **`clearLiveOverlayEmptiesOnlyTheOverlay`**: Clearing the overlay leaves the poll map.
+  - After a poll listing Holidaze (strategist), a push for Metrafish (chief) and `clearLiveOverlay()`, `confirmedRankFor("Metrafish")` equals `Optional.empty()` and `confirmedRankFor("Holidaze")` equals `Optional.of("strategist")`.
 
 ## `org.wynnvets.guild`
 

@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.util.Json;
 
 /**
@@ -53,12 +55,21 @@ class V1ApiManagerOutboundAuthTest {
     }
 
     private final RecordingWsClient socket = new RecordingWsClient();
+    private final AtomicInteger authenticated = new AtomicInteger();
+    private final Runnable realOnAuthenticated = OutboundAckRouter.onAuthenticated;
+
+    @BeforeEach
+    void stubTheStaffRefresh() {
+        // The real hook clears the staff overlay and starts an HTTP fetch.
+        OutboundAckRouter.onAuthenticated = authenticated::incrementAndGet;
+    }
 
     @AfterEach
     void reset() {
         V1ApiManager.disconnect();
         SessionAuthState.expectingAuthAck = false;
         SessionAuthState.confirmedStaff = false;
+        OutboundAckRouter.onAuthenticated = realOnAuthenticated;
     }
 
     private void ready(boolean offered, boolean memberTier) {
@@ -183,6 +194,31 @@ class V1ApiManagerOutboundAuthTest {
         assertFalse(SessionAuthState.confirmedStaff, "only the inbound ack confirms staff");
         assertFalse(SessionAuthState.expectingAuthAck);
         assertFalse(OutboundAckRouter.retryUsed(), "a verdict on the key is not retried");
+        assertEquals(1, authenticated.get(), "the ok ack, not the error, resets the overlay");
+    }
+
+    // ----- staff presence -----
+
+    @Test
+    void aNamelessStaffOfflineReachesThePollerByUuid() {
+        String uuid = "bb171c68-7080-4d02-be7b-cc2d5dcbcd82";
+        V1ApiManager.handleOutboundFrame(
+                frame(
+                        "{\"type\":\"staff_online\",\"uuid\":\""
+                                + uuid
+                                + "\",\"username\":\"Metrafish\",\"rank\":\"chief\"}"));
+        assertEquals(
+                java.util.Optional.of("chief"), StaffRanksPoller.confirmedRankFor("Metrafish"));
+        V1ApiManager.handleOutboundFrame(
+                frame("{\"type\":\"staff_offline\",\"uuid\":\"" + uuid + "\",\"username\":null}"));
+        assertEquals(java.util.Optional.empty(), StaffRanksPoller.confirmedRankFor("Metrafish"));
+    }
+
+    @Test
+    void disconnectClearsTheStaffOverlay() {
+        StaffRanksPoller.applyLiveStaffEvent("Metrafish", null, "chief", true);
+        V1ApiManager.disconnect();
+        assertEquals(java.util.Optional.empty(), StaffRanksPoller.confirmedRankFor("Metrafish"));
     }
 
     @Test

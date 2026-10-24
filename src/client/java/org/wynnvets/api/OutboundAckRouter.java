@@ -2,6 +2,7 @@ package org.wynnvets.api;
 
 import com.google.gson.JsonObject;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.Json;
 import org.wynnvets.util.TickDelays;
@@ -14,10 +15,11 @@ import org.wynnvets.util.TickDelays;
  * <p>Deliberately separate from {@link InboundAckRouter}: the inbound auth ack drives
  * {@link SessionAuthState} ({@code expectingAuthAck}, {@code confirmedStaff}), the unlock tier,
  * the staff-chat eligibility cache, {@code StaffRanksPoller.refreshNow} and the MWE auto-enable.
- * The outbound leg only changes what the server pushes to this socket, so its ack only logs, and
- * a failure here is never shown to the player: the inbound leg has already reported the key's
- * verdict. A transient failure (temporary-server could not reach dazebot) gets one retry about
- * 30 s later, fenced by a generation {@link #reset()} bumps on every {@code connect()} and
+ * The outbound leg only changes what the server pushes to this socket, so its ack only logs and,
+ * when ok, resets the staff presence overlay ({@code StaffRanksPoller.onOutboundAuthenticated}),
+ * and a failure here is never shown to the player: the inbound leg has already reported the
+ * key's verdict. A transient failure (temporary-server could not reach dazebot) gets one retry
+ * about 30 s later, fenced by a generation {@link #reset()} bumps on every {@code connect()} and
  * {@code disconnect()}.</p>
  */
 final class OutboundAckRouter {
@@ -26,6 +28,10 @@ final class OutboundAckRouter {
     static final long RETRY_DELAY_MS = 30_000L;
 
     private static final AtomicInteger generation = new AtomicInteger();
+
+    /** Run on every ok ack: the server replays no presence to a newly authenticated socket, so
+     *  the staff overlay is reset and refetched. Package-private so a test can stub the fetch. */
+    static Runnable onAuthenticated = StaffRanksPoller::onOutboundAuthenticated;
 
     /** Whether this connection's one transient retry has been spent; cleared by an ok ack. */
     private static volatile boolean retryUsed = false;
@@ -38,6 +44,7 @@ final class OutboundAckRouter {
         String status = Json.stringOrEmpty(json, "status");
         if ("ok".equals(status)) {
             retryUsed = false;
+            onAuthenticated.run();
             String wsTier = Json.stringOrNull(json, "ws_tier");
             if (wsTier == null || wsTier.isBlank()) {
                 // The inbound ack confirmed a member tier before this frame was sent, so a null

@@ -157,7 +157,7 @@ class JsonTest {
     @Test
     void theThreeStringEntryPointsDifferOnlyOnWhatTheMissAnswers() {
         // The whole justification for having three names for one function: the
-        // conveniences exist so that 31 of the 58 call sites do not grow an
+        // conveniences exist so that 34 of the 61 call sites do not grow an
         // argument. If they ever diverge on anything but the fallback, that
         // justification is gone — so pin it.
         JsonObject present = withString("value");
