@@ -3,7 +3,6 @@ package org.wynnvets.items;
 import com.wynntils.utils.mc.McUtils;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.core.Holder;
@@ -74,8 +73,7 @@ import org.wynnvets.logging.VetsLogger;
  */
 final class LegacyEnchantmentRenderer {
 
-    private static final FontDescription BANNER_BOX_FONT =
-            new FontDescription.Resource(Identifier.parse("banner/box"));
+    private static final FontDescription BANNER_BOX_FONT = NewFormatRenderer.BANNER_BOX_FONT;
     private static final FontDescription SPACE_FONT =
             new FontDescription.Resource(Identifier.parse("space"));
     private static final FontDescription SOCKET_FONT =
@@ -91,22 +89,22 @@ final class LegacyEnchantmentRenderer {
     private static final int SPACE_BASE = 0xD0000;
 
     /** Opening edge of a box in the {@code banner/box} font. */
-    private static final char BOX_START = '';
+    private static final char BOX_START = (char) 0xE060;
 
     /** Box-fill segment drawn behind a space, or behind any character outside A-Z. */
-    private static final char BOX_SPACE = '';
+    private static final char BOX_SPACE = (char) 0xE061;
 
     /** Closing edge of a box in the {@code banner/box} font. */
-    private static final char BOX_END = '';
+    private static final char BOX_END = (char) 0xE062;
 
     /** Background (box fill) alphabet origin — {@code U+E030} is 'A'. */
-    private static final char BOX_BG_A = '';
+    private static final char BOX_BG_A = (char) 0xE030;
 
     /** Foreground (text) alphabet origin — {@code U+E000} is 'A'. */
-    private static final char BOX_FG_A = '';
+    private static final char BOX_FG_A = (char) 0xE000;
 
-    /** Trailing terminator Wynncraft appends after a boxed label. */
-    private static final String BOX_TERMINATOR = "󐀂";
+    /** Trailing terminator Wynncraft appends after a boxed label's lettering. */
+    private static final String BOX_TERMINATOR = new String(Character.toChars(0xD0002));
 
     /**
      * Header label. Uppercase only: {@link #boxGlyph} encodes A-Z and turns anything
@@ -123,27 +121,20 @@ final class LegacyEnchantmentRenderer {
     /** Colour of the leading bullet on Wynntils' item-guess lines. */
     private static final ChatFormatting BULLET_COLOR = ChatFormatting.GREEN;
 
-    /**
-     * Shadow colour Wynncraft puts on its boxed headers (white at zero alpha),
-     * mirrored so this header's style matches theirs.
-     *
-     * <p>For visible output this matches {@link Style#withoutShadow()}
-     * ({@code withShadowColor(0)}) in vanilla: a shadow colour of exactly 0
-     * skips the shadow pass, and vanilla's text shader discards this colour's
-     * zero-alpha pass.</p>
-     */
-    private static final int BOX_SHADOW = 0xFFFFFF;
+    /** Shadow colour of Wynncraft's boxed labels; see {@link NewFormatRenderer#BOX_SHADOW}. */
+    private static final int BOX_SHADOW = NewFormatRenderer.BOX_SHADOW;
 
     /**
-     * The powder element whose sprite and colour a given enchantment borrows.
+     * The powder element whose sprite and colour a given enchantment borrows. The sprite is
+     * the element's socket glyph in the {@code tooltip/socket} font.
      * Wynncraft's skill-to-element mapping is the bridge: strength is Earth,
      * intelligence is Water, defence is Fire — so an enchantment described as
      * "the strength colour" renders with the Earth socket sprite.
      */
     private enum Element {
-        EARTH('', ChatFormatting.DARK_GREEN),
-        WATER('', ChatFormatting.AQUA),
-        FIRE('', ChatFormatting.RED);
+        EARTH((char) 0xE001, ChatFormatting.DARK_GREEN),
+        WATER((char) 0xE003, ChatFormatting.AQUA),
+        FIRE((char) 0xE004, ChatFormatting.RED);
 
         final char sprite;
         final ChatFormatting color;
@@ -190,12 +181,15 @@ final class LegacyEnchantmentRenderer {
      * the boxed header off.  Those get a plain text pair instead, matching the
      * shape of Wynntils' item-guess block above it.</p>
      *
-     * @return {@code true} if the tooltip was changed
+     * @return {@code true} if the tooltip was changed; {@code false} also when the stack
+     *     carries no enchantment
      */
     static boolean showEnchantment(List<Component> lines, ItemStack stack) {
-        if (insertEnchantmentBlock(lines, stack)) return true;
-        if (addLevelToVanillaLine(lines, stack)) return true;
-        return appendTextEntry(lines, stack);
+        Holder<Enchantment> enchantment = firstEnchantment(stack);
+        if (enchantment == null) return false;
+        if (insertEnchantmentBlock(lines, stack, enchantment)) return true;
+        if (addLevelToVanillaLine(lines, stack, enchantment)) return true;
+        return appendTextEntry(lines, stack, enchantment);
     }
 
     /**
@@ -224,18 +218,13 @@ final class LegacyEnchantmentRenderer {
      *
      * @return {@code true} if the entry was appended
      */
-    private static boolean appendTextEntry(List<Component> lines, ItemStack stack) {
-        Holder<Enchantment> holder = firstEnchantment(stack);
-        if (holder == null) return false;
-
+    private static boolean appendTextEntry(
+            List<Component> lines, ItemStack stack, Holder<Enchantment> holder) {
         for (Component line : lines) {
-            if (containsFont(line, PAGE_FONT)) return false;
+            if (NewFormatRenderer.containsFont(line, PAGE_FONT)) return false;
         }
 
-        int level =
-                stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY)
-                        .getLevel(holder);
-        String name = enchantmentLabel(holder, level);
+        String name = enchantmentLabel(stack, holder);
         Element element = elementFor(holder);
 
         int at = LegacyTooltipRenderer.debugLinesStart(lines);
@@ -273,15 +262,10 @@ final class LegacyEnchantmentRenderer {
      *
      * @return {@code true} if a matching line was found and replaced
      */
-    private static boolean addLevelToVanillaLine(List<Component> lines, ItemStack stack) {
-        Holder<Enchantment> holder = firstEnchantment(stack);
-        if (holder == null) return false;
-
-        int level =
-                stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY)
-                        .getLevel(holder);
+    private static boolean addLevelToVanillaLine(
+            List<Component> lines, ItemStack stack, Holder<Enchantment> holder) {
         String bare = holder.value().description().getString().strip();
-        String full = enchantmentLabel(holder, level);
+        String full = enchantmentLabel(stack, holder);
         if (bare.equals(full)) return false;
 
         for (int i = 0; i < lines.size(); i++) {
@@ -300,7 +284,7 @@ final class LegacyEnchantmentRenderer {
 
     /**
      * Inserts the LEGACY ENCHANTMENTS block after the powder block, if this
-     * tooltip is page 2 and the stack carries an enchantment.
+     * tooltip is page 2.
      *
      * <p>An item with sockets (0/3, say) is recognised by its socket sprites. An item with
      * none (0/0) draws no sprite, only the line "This item has no available Powder
@@ -310,17 +294,15 @@ final class LegacyEnchantmentRenderer {
      *
      * @return {@code true} if the block was inserted
      */
-    private static boolean insertEnchantmentBlock(List<Component> lines, ItemStack stack) {
-        Holder<Enchantment> enchantment = firstEnchantment(stack);
-        if (enchantment == null) return false;
-
+    private static boolean insertEnchantmentBlock(
+            List<Component> lines, ItemStack stack, Holder<Enchantment> enchantment) {
         // Page 2 is identified by the powder socket sprites; pages 1 and 3 have
         // none.  The banner/box line above them is the POWDER SOCKETS header,
         // whose rendered width is the alignment reference for our own header.
         int firstSocket = -1;
         int lastSocket = -1;
         for (int i = 0; i < lines.size(); i++) {
-            if (containsFont(lines.get(i), SOCKET_FONT)) {
+            if (NewFormatRenderer.containsFont(lines.get(i), SOCKET_FONT)) {
                 if (firstSocket < 0) firstSocket = i;
                 lastSocket = i;
             }
@@ -330,7 +312,7 @@ final class LegacyEnchantmentRenderer {
         int insertAt;
         if (firstSocket >= 0) {
             for (int i = firstSocket - 1; i >= 0; i--) {
-                if (containsFont(lines.get(i), BANNER_BOX_FONT)) {
+                if (NewFormatRenderer.containsFont(lines.get(i), BANNER_BOX_FONT)) {
                     header = i;
                     break;
                 }
@@ -345,10 +327,7 @@ final class LegacyEnchantmentRenderer {
         Font font = McUtils.mc().font;
         if (font == null) return false;
 
-        int level =
-                stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY)
-                        .getLevel(enchantment);
-        String name = enchantmentLabel(enchantment, level);
+        String name = enchantmentLabel(stack, enchantment);
         Element element = elementFor(enchantment);
 
         int targetWidth = font.width(lines.get(header));
@@ -376,7 +355,7 @@ final class LegacyEnchantmentRenderer {
     private static int findPowderHeader(List<Component> lines) {
         for (int i = 0; i < lines.size(); i++) {
             Component line = lines.get(i);
-            if (containsFont(line, BANNER_BOX_FONT)
+            if (NewFormatRenderer.containsFont(line, BANNER_BOX_FONT)
                     && LegacyLoreText.isPowderSocketsHeader(line.getString())) {
                 return i;
             }
@@ -393,7 +372,7 @@ final class LegacyEnchantmentRenderer {
     private static int endOfPowderContent(List<Component> lines, int header) {
         int end = Math.min(lines.size(), LegacyTooltipRenderer.debugLinesStart(lines));
         for (int i = header + 1; i < end; i++) {
-            if (containsFont(lines.get(i), PAGE_FONT)) {
+            if (NewFormatRenderer.containsFont(lines.get(i), PAGE_FONT)) {
                 end = i;
                 break;
             }
@@ -434,14 +413,11 @@ final class LegacyEnchantmentRenderer {
     static String enchantmentLabel(ItemStack stack) {
         Holder<Enchantment> holder = firstEnchantment(stack);
         if (holder == null) return null;
-        int level =
-                stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY)
-                        .getLevel(holder);
-        return enchantmentLabel(holder, level);
+        return enchantmentLabel(stack, holder);
     }
 
     /**
-     * Formats an enchantment as "Sharpness I".
+     * Formats the stack's level of {@code holder} as "Sharpness I".
      *
      * <p>Deliberately not {@link Enchantment#getFullname} — that appends the
      * level via the {@code enchantment.level.N} translation keys, which
@@ -449,7 +425,10 @@ final class LegacyEnchantmentRenderer {
      * comes back as {@code "Sharpness "}: trailing space, no numeral.  The
      * numeral is built here instead so it survives the pack.</p>
      */
-    private static String enchantmentLabel(Holder<Enchantment> holder, int level) {
+    private static String enchantmentLabel(ItemStack stack, Holder<Enchantment> holder) {
+        int level =
+                stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY)
+                        .getLevel(holder);
         return holder.value().description().getString().strip() + " " + roman(level);
     }
 
@@ -501,32 +480,21 @@ final class LegacyEnchantmentRenderer {
         int backKern = -(backgroundWidth + 1);
         int boxAdvance = startWidth + backgroundWidth + backKern + foregroundWidth;
 
+        // No font of its own: the lettering inherits banner/box from the run it is appended
+        // to, which is where the letter alphabet lives (see boxForeground).
+        MutableComponent lettering =
+                Component.literal(foreground)
+                        .setStyle(
+                                Style.EMPTY
+                                        .withColor(ChatFormatting.BLACK)
+                                        .withShadowColor(BOX_SHADOW));
         MutableComponent box =
                 Component.empty()
                         .setStyle(Style.EMPTY.withColor(BOX_FILL).withShadowColor(BOX_SHADOW))
                         .append(
                                 Component.literal(BOX_START + background + spacer(backKern))
                                         .setStyle(Style.EMPTY.withFont(BANNER_BOX_FONT))
-                                        // Inherits banner/box from the run above, which is where
-                                        // the letter
-                                        // alphabet lives. minecraft:default was tried and its
-                                        // U+E000 block
-                                        // is something else entirely — ~3.5px glyphs rather than
-                                        // the 6px
-                                        // letters, drawing as unmapped fragments. Wynncraft's own
-                                        // back-kern
-                                        // (-84 over 14 characters) confirms 6px, so their headers
-                                        // use this
-                                        // alphabet too.
-                                        .append(
-                                                Component.literal(foreground)
-                                                        .setStyle(
-                                                                Style.EMPTY
-                                                                        .withColor(
-                                                                                ChatFormatting
-                                                                                        .BLACK)
-                                                                        .withShadowColor(
-                                                                                BOX_SHADOW))));
+                                        .append(lettering));
 
         MutableComponent count =
                 Component.literal("1/1")
@@ -630,20 +598,5 @@ final class LegacyEnchantmentRenderer {
      */
     private static String spacer(int advance) {
         return new String(Character.toChars(SPACE_BASE + advance));
-    }
-
-    /** Returns {@code true} if any node in the tree resolves to {@code target}. */
-    private static boolean containsFont(Component root, FontDescription target) {
-        boolean[] found = {false};
-        root.visit(
-                (Style style, String text) -> {
-                    if (target.equals(style.getFont())) {
-                        found[0] = true;
-                        return Optional.of(Boolean.TRUE);
-                    }
-                    return Optional.empty();
-                },
-                Style.EMPTY);
-        return found[0];
     }
 }
