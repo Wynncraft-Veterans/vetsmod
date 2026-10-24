@@ -18,7 +18,43 @@ final class LegacyLoreText {
     private static final Pattern LV_MIN_PATTERN =
             Pattern.compile("^Lv\\.? min: \\d+$", Pattern.CASE_INSENSITIVE);
 
+    /** First foreground glyph of a {@code banner/box} label: U+E000 is 'A', U+E019 is 'Z'. */
+    private static final int BOX_FOREGROUND_A = 0xE000;
+
+    private static final int BOX_FOREGROUND_Z = 0xE019;
+
+    /** What Wynncraft's POWDER SOCKETS header decodes to once its spaces are dropped. */
+    private static final String POWDER_SOCKETS_LABEL = "POWDERSOCKETS";
+
     private LegacyLoreText() {}
+
+    /**
+     * Reads the text a boxed {@code banner/box} header spells out. The label's letters are
+     * foreground glyphs at {@code U+E000 + (c - 'A')}; the box fill (U+E030 and up), the
+     * space-font kerns (U+D0000 and up) and everything else are dropped, and so are the
+     * label's spaces. A line that is not a boxed header decodes to whatever stray glyphs it
+     * holds, so callers check the font as well.
+     */
+    static String decodeBoxLabel(String lineText) {
+        if (lineText == null) return "";
+        StringBuilder label = new StringBuilder();
+        for (int i = 0; i < lineText.length(); i++) {
+            char c = lineText.charAt(i);
+            if (c >= BOX_FOREGROUND_A && c <= BOX_FOREGROUND_Z) {
+                label.append((char) ('A' + (c - BOX_FOREGROUND_A)));
+            }
+        }
+        return label.toString();
+    }
+
+    /**
+     * Returns {@code true} if the line's boxed label reads POWDER SOCKETS: the header of a
+     * new-format tooltip's powder page, which an item with no sockets at all (0/0) shows
+     * without any socket sprite under it.
+     */
+    static boolean isPowderSocketsHeader(String lineText) {
+        return decodeBoxLabel(lineText).contains(POWDER_SOCKETS_LABEL);
+    }
 
     /** Returns {@code true} if the formatting-stripped line is a beta-era "Lv. min: N" line. */
     static boolean isBetaLevelLine(String plain) {

@@ -302,6 +302,12 @@ final class LegacyEnchantmentRenderer {
      * Inserts the LEGACY ENCHANTMENTS block after the powder block, if this
      * tooltip is page 2 and the stack carries an enchantment.
      *
+     * <p>An item with sockets (0/3, say) is recognised by its socket sprites. An item with
+     * none (0/0) draws no sprite, only the line "This item has no available Powder
+     * Sockets", so there it is the POWDER SOCKETS header itself, read back from its glyphs
+     * ({@link LegacyLoreText#isPowderSocketsHeader}), and the block goes after the last
+     * content line before the page indicator.</p>
+     *
      * @return {@code true} if the block was inserted
      */
     private static boolean insertEnchantmentBlock(List<Component> lines, ItemStack stack) {
@@ -319,14 +325,20 @@ final class LegacyEnchantmentRenderer {
                 lastSocket = i;
             }
         }
-        if (firstSocket < 0) return false;
 
         int header = -1;
-        for (int i = firstSocket - 1; i >= 0; i--) {
-            if (containsFont(lines.get(i), BANNER_BOX_FONT)) {
-                header = i;
-                break;
+        int insertAt;
+        if (firstSocket >= 0) {
+            for (int i = firstSocket - 1; i >= 0; i--) {
+                if (containsFont(lines.get(i), BANNER_BOX_FONT)) {
+                    header = i;
+                    break;
+                }
             }
+            insertAt = lastSocket + 1;
+        } else {
+            header = findPowderHeader(lines);
+            insertAt = header < 0 ? -1 : endOfPowderContent(lines, header);
         }
         if (header < 0) return false;
 
@@ -347,14 +359,55 @@ final class LegacyEnchantmentRenderer {
                         Component.empty(),
                         buildEntryLine(name, element));
 
-        lines.addAll(lastSocket + 1, block);
+        lines.addAll(insertAt, block);
         VetsLogger.debug(
-                "insertEnchantmentBlock: inserted '{}' after line {} (header at {}, targetWidth={})",
+                "insertEnchantmentBlock: inserted '{}' at line {} (header at {}, targetWidth={})",
                 name,
-                lastSocket,
+                insertAt,
                 header,
                 targetWidth);
         return true;
+    }
+
+    /**
+     * Returns the index of the POWDER SOCKETS header line, or {@code -1} when no boxed line
+     * spells it. Only reached when the tooltip has no socket sprite at all.
+     */
+    private static int findPowderHeader(List<Component> lines) {
+        for (int i = 0; i < lines.size(); i++) {
+            Component line = lines.get(i);
+            if (containsFont(line, BANNER_BOX_FONT)
+                    && LegacyLoreText.isPowderSocketsHeader(line.getString())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Returns where the block goes on a socketless powder page: just after the last
+     * non-blank line below the header and above the page indicator and any F3+H debug lines.
+     * The block opens with its own blank line, so it sits one line below that content, as
+     * it does under the empty sockets of a 0/3 item.
+     */
+    private static int endOfPowderContent(List<Component> lines, int header) {
+        int end = Math.min(lines.size(), LegacyTooltipRenderer.debugLinesStart(lines));
+        for (int i = header + 1; i < end; i++) {
+            if (containsFont(lines.get(i), PAGE_FONT)) {
+                end = i;
+                break;
+            }
+        }
+        int last = end - 1;
+        while (last > header && isBlankLine(lines.get(last))) last--;
+        return last + 1;
+    }
+
+    /** A line with no visible text once formatting, spacing glyphs and kerns are stripped. */
+    private static boolean isBlankLine(Component line) {
+        String plain =
+                LegacyItemHandler.normalizeName(ChatFormatting.stripFormatting(line.getString()));
+        return plain == null || plain.isBlank();
     }
 
     // ── Enchantment lookup ─────────────────────────────────────────────

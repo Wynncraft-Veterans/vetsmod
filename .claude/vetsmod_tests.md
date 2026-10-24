@@ -2396,12 +2396,27 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
 
 Test: [`LegacyLoreTextTest.java`](../src/test/java/org/wynnvets/items/LegacyLoreTextTest.java) · Subject: [`LegacyLoreText`](../src/client/java/org/wynnvets/items/LegacyLoreText.java)
 
-`LegacyLoreText` holds the string-level rules the legacy-item code applies to tooltip and lore text. They live outside `LegacyItemHandler` and `LegacyEnchantmentRenderer` because those two initialise `ItemStack` in their static initialisers, which the unit-test runtime (no Minecraft bootstrap) cannot do. Every test passes plain strings.
+`LegacyLoreText` holds the string-level rules the legacy-item code applies to tooltip and lore text. They live outside `LegacyItemHandler` and `LegacyEnchantmentRenderer` because those two initialise `ItemStack` in their static initialisers, which the unit-test runtime (no Minecraft bootstrap) cannot do. Every test passes plain strings; the boxed-header tests build their input with a small `boxedHeader` helper that mimics Wynncraft's fill run, back-kern and foreground letters.
 
 - **`betaLevelLine_acceptsBothCapitalisationsOfMin`**: "Lv. min: 26", Dental Floss's "Lv. Min: 26" and the dotless "Lv min: 5" are beta level lines.
   - `LegacyLoreText.isBetaLevelLine("Lv. min: 26")` is true
   - `LegacyLoreText.isBetaLevelLine("Lv. Min: 26")` is true (Dental Floss's spelling)
   - `LegacyLoreText.isBetaLevelLine("Lv min: 5")` is true (the dot is optional)
+- **`decodeBoxLabel_readsTheForegroundLettersAndDropsTheRest`**: The foreground glyphs U+E000 to U+E019 decode to A to Z; the fill glyphs, kerns, spaces and null decode to nothing.
+  - `LegacyLoreText.decodeBoxLabel(boxedHeader("POWDER SOCKETS"))` equals "POWDERSOCKETS" (`boxedHeader` builds a fill run, back-kern and foreground letters as Wynncraft does)
+  - `LegacyLoreText.decodeBoxLabel(boxedHeader("LEGACY RARE"))` equals "LEGACYRARE"
+  - `LegacyLoreText.decodeBoxLabel("This item has no available")` equals ""
+  - `LegacyLoreText.decodeBoxLabel(null)` equals ""
+  - `LegacyLoreText.decodeBoxLabel("U+E000 x U+E019")` equals "AZ" (the two ends of the range)
+  - `LegacyLoreText.decodeBoxLabel("U+E01A")` equals "" (one past Z is not a letter)
+- **`powderSocketsHeader_isRecognisedAndNothingElseIs`**: Wynncraft's POWDER SOCKETS header (with a 0/0 or 0/3 count) is recognised; vetsmod's own LEGACY ENCHANTMENTS header, the rarity box, plain text and null are not.
+  - `LegacyLoreText.isPowderSocketsHeader(boxedHeader("POWDER SOCKETS") + "0/0")` is true
+  - `LegacyLoreText.isPowderSocketsHeader(boxedHeader("POWDER SOCKETS") + "0/3")` is true
+  - `LegacyLoreText.isPowderSocketsHeader(boxedHeader("LEGACY ENCHANTMENTS") + "1/1")` is false
+  - `LegacyLoreText.isPowderSocketsHeader(boxedHeader("LEGACY RARE CHESTPLATE"))` is false
+  - `LegacyLoreText.isPowderSocketsHeader("This item has no available")` is false
+  - `LegacyLoreText.isPowderSocketsHeader("Powder Sockets")` is false (plain text is not a box)
+  - `LegacyLoreText.isPowderSocketsHeader(null)` is false
 - **`betaLevelLine_stillRequiresTheAnchorAndANumber`**: The modern "Combat Lv. Min: 65", a non-numeric level, trailing text and null are not beta level lines.
   - `LegacyLoreText.isBetaLevelLine("Combat Lv. Min: 65")` is false (the pattern is anchored at `Lv`)
   - `LegacyLoreText.isBetaLevelLine("Lv. Min: high")` is false

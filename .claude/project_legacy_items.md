@@ -120,7 +120,7 @@ Only the §3 lists come from YAML; the remaining detection rules (e.g. lore line
 
 [LegacyEnchantmentRenderer](../src/client/java/org/wynnvets/items/LegacyEnchantmentRenderer.java) names the specific vanilla enchantment a legacy item carries, read from the stack's `minecraft:enchantments` component. Wynncraft hides that component from new-format tooltips through `tooltip_display`, but it stays on the stack, and modern items carry it with an empty map, so a non-empty map is itself a legacy signal. `showEnchantment` tries these forms, in order:
 
-1. **A paged new-format item:** a `LEGACY ENCHANTMENTS` block on the powder page, under Wynncraft's POWDER SOCKETS block and drawn like it: a boxed header with a right-aligned `1/1` count, a blank line, then one socket-sprite entry such as `◈ Knockback I`.
+1. **A paged new-format item:** a `LEGACY ENCHANTMENTS` block on the powder page (found by its socket sprites, or, for an item with no sockets at all (0/0), which draws none, by reading the POWDER SOCKETS header's glyphs back; the block then goes after the last content line above the page indicator), under Wynncraft's POWDER SOCKETS block and drawn like it: a boxed header with a right-aligned `1/1` count, a blank line, then one socket-sprite entry such as `◈ Knockback I`.
 2. **A V2-era item**, which has no pages and leaves `minecraft:enchantments` visible: Minecraft already draws an enchantment line without its numeral, and the level is added to that line in place.
 3. **An unidentified item**, new-format but pageless: a plain `- Legacy:` / `- Enchantment: …` pair at the end of the tooltip's content, shaped like Wynntils' item-guess block.
 
