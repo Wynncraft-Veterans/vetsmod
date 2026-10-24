@@ -450,6 +450,29 @@ class ItemDefinitionsTest {
                 "the replica is a current item and must not ride on the original's entry");
     }
 
+    // ----- Boat passes versus the Seaskipper menu's ticket UI element -----
+
+    @Test
+    void galleonsGraveyardPassIsLegacyButTheSeaskipperTicketElementIsNot() {
+        assertTrue(ItemDefinitions.isLegacy("Galleon's Graveyard Pass"), "a real pass");
+        assertTrue(ItemDefinitions.isLegacy("galleon's graveyard pass"), "(?i)");
+        // The menu element's normalised name: the cost is a number plus a coin glyph
+        // (U+00B2 in the dump).
+        assertFalse(ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 16\u00B2"));
+        assertFalse(ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 16"));
+        assertFalse(ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 4"));
+    }
+
+    @Test
+    void otherBoatPassesStayLegacy() {
+        assertTrue(ItemDefinitions.isLegacy("Selchar Boat Pass"), "the real pass from the dump");
+        assertTrue(ItemDefinitions.isLegacy("Some Island Boat Pass"));
+        assertFalse(
+                ItemDefinitions.isLegacy("Selchar Boat Pass for 16\u00B2"),
+                "a cost suffix ends the name past 'Boat Pass', so the suffix-anchored entry "
+                        + "never matched a ticket element either");
+    }
+
     // ----- load() is the reset -----
 
     @Test

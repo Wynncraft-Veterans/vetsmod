@@ -99,7 +99,11 @@ definitions:
   - "(?i)^Block Of Red Wool.*$"
   - "(?i)^Feather$"
   - "(?i)^Cow Pass.*$"
-  - "(?i)^Galleon's Graveyard Pass.*$" # Apparently this boat pass is a "Pass" instead of a boat pass. Inconsistent.
+  # Apparently this boat pass is a "Pass" instead of a boat pass. Inconsistent. The
+  # lookahead excludes the V.S.S. Seaskipper menu's ticket UI element, a name_tag
+  # named "Galleon's Graveyard Pass for 16<coin>" (cost suffix); a real pass has no
+  # " for N" in its name.
+  - '(?i)^Galleon''s Graveyard Pass(?! for \d).*$'
   - "(?i)^Faded.*.Teleportation Scroll$"
   - "(?i)^Skill Reset Scroll.*$"
   - "(?i)^(Tutorial )?Unprocessed.*$"

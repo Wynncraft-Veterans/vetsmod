@@ -2358,6 +2358,16 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - `ItemDefinitions.isLegacy("Hallowynn Mask")` is true
   - `ItemDefinitions.isLegacy("hallowynn mask")` is true (the entry has `(?i)`)
   - `ItemDefinitions.isLegacy("Replica Hallowynn Mask")` is false
+- **`galleonsGraveyardPassIsLegacyButTheSeaskipperTicketElementIsNot`**: A real "Galleon's Graveyard Pass" is legacy, the Seaskipper menu's "Galleon's Graveyard Pass for 16" ticket element (cost suffix) is not.
+  - `ItemDefinitions.isLegacy("Galleon's Graveyard Pass")` is true
+  - `ItemDefinitions.isLegacy("galleon's graveyard pass")` is true (the entry has `(?i)`)
+  - `ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 16" + U+00B2)` is false (the UI element's normalised name from the dump)
+  - `ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 16")` is false
+  - `ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 4")` is false
+- **`otherBoatPassesStayLegacy`**: Other boat passes still match the `Boat Pass$` entry, and a cost-suffixed one never matched it.
+  - `ItemDefinitions.isLegacy("Selchar Boat Pass")` is true (the real pass from the dump)
+  - `ItemDefinitions.isLegacy("Some Island Boat Pass")` is true
+  - `ItemDefinitions.isLegacy("Selchar Boat Pass for 16" + U+00B2)` is false
 - **`load_isIdempotentAndDiscardsParsedInFixtures`**: After parsing a "ReloadProbe" fixture and calling `load()`, the probe no longer matches, "Wolf Fang" matches, and a second `load()` leaves that unchanged.
   - After parsing a fixture with `^ReloadProbe$` under `definitions`, `ItemDefinitions.isLegacy("ReloadProbe")` is true
   - After `ItemDefinitions.load()`, `ItemDefinitions.isLegacy("ReloadProbe")` is false (`load()` clears before refilling)
