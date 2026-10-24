@@ -324,13 +324,20 @@ Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.networ
 
 vets-anni resolves names → UUIDs server-side and writes
 `state.party_leader_by_uuid[member_uuid] = leader_uuid` for the presence
-classifier's `ONLINE_WORLD → ONLINE_PARTY` upgrade. Per vets-anni, the whole
-map shares one freshness stamp (`state.party_observation_fetched_at`, stale
+classifier's `ONLINE_WORLD → ONLINE_PARTY` upgrade. Per vets-anni (since its
+`121fd80`), each observation **replaces that leader's roster**: entries already
+pointing at the same leader whose member the new roster does not list are
+dropped, and entries for other leaders are untouched. The whole map still
+shares one freshness stamp (`state.party_observation_fetched_at`, stale
 `_PARTY_LEADER_TTL_SECONDS` = 60 s after it), which any client's observation
-refreshes, and its receiver only adds or overwrites entries. vetsmod reports
-no leave (an empty capture never passes the gate), so a member who leaves the
-host's party keeps their pairing to the host until an observation maps them to
-another leader, and it counts as fresh while any client keeps reporting. See bug `party-observation-lapses-within-vets-anni-freshness`.
+refreshes, and vets-anni's grace-wipe clears the map and the stamp. vetsmod
+reports no leave (an empty capture never passes the gate), so a member who
+leaves the host's party keeps their pairing only until the next observation of
+that party, from any client (a party event or an organiser-set change on a
+remaining member's client), or until the leaver's own report pairs them with
+another leader. Entries do not expire one by one, and a quiet static party
+sends nothing between events, so its corroboration lapses once the 60 s stamp
+does; that remaining gap is bug `party-observation-lapses-within-vets-anni-freshness`.
 
 ## 8. Auth
 

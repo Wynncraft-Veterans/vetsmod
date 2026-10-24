@@ -28,12 +28,13 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * on this update and was not on the previous one, or on none before it. A snapshot with no stamp
  * counts as outside the window. The edge fires once per opening, not on every update inside the
  * window, so a client whose organiser set stays the same sends one recapture when the window
- * opens and none for the rest of it; keeping vets-anni's 60 s freshness fed is
- * {@code party-observation-lapses-within-vets-anni-freshness}. The window is read only when a
- * snapshot arrives, and {@code AnniSnapshotPoller} polls only from T-90m, so unless a pull lands
- * between T-2h and T-90m the edge fires at about T-90m rather than at T-2h. The listener's
- * debounce coalesces a recapture with any near-simultaneous Wynntils events so we never
- * double-send.</p>
+ * opens and none for the rest of it. vets-anni treats its whole party map as stale 60 s after the
+ * last observation from any client, so a party that stays quiet lapses to a world-only status;
+ * keeping that freshness fed is {@code party-observation-lapses-within-vets-anni-freshness}.
+ * The window is read only when a snapshot arrives, and {@code AnniSnapshotPoller} polls only from
+ * T-90m, so unless a pull lands between T-2h and T-90m the edge fires at about T-90m rather than
+ * at T-2h. The listener's debounce coalesces a recapture with any near-simultaneous Wynntils
+ * events so we never double-send.</p>
  *
  * <p>Init order: {@link #register()} is called from
  * {@link org.wynnvets.VetsmodClient#onClientStarted() VetsmodClient.onClientStarted()}, the

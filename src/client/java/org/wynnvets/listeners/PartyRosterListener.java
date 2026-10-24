@@ -39,9 +39,11 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * {@code PartyEvent.Listed}, which {@link #onListed} catches. The capture that follows is empty,
  * and {@link #shouldSend}'s organiser-overlap rule suppresses an empty capture, so no "not in a
  * party" frame is sent; per vets-anni, its receiver also returns early on an empty leader. Today
- * vetsmod therefore reports no leave, and vets-anni keeps the departed member's pairing, counting
- * it fresh while any client keeps reporting; see
- * {@code party-observation-lapses-within-vets-anni-freshness}.</p>
+ * vetsmod therefore reports no leave, and vets-anni keeps a departed member's pairing only until
+ * the next observation of that party: its receiver replaces the leader's roster on each
+ * observation (from any client) and clears the whole map at the grace-wipe. A quiet static party
+ * sends nothing between events, so its corroboration lapses with vets-anni's single 60 s
+ * freshness stamp; see {@code party-observation-lapses-within-vets-anni-freshness}.</p>
  *
  * <p>S7 gate: send iff the anni stamp is within {@link
  * #ACTIVE_WINDOW_SEC} of {@code now} AND the snapshot's
