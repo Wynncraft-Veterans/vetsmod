@@ -1498,7 +1498,7 @@ Test: [`MojangCooldownTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/M
 
 Test: [`CheckReportRendererTest.java`](../src/test/java/org/wynnvets/fetcher/ondemand/CheckReportRendererTest.java) · Subject: [`CheckReportRenderer`](../src/client/java/org/wynnvets/fetcher/ondemand/CheckReportRenderer.java)
 
-`CheckReportRenderer` renders the `/wv check` block; the suite pins its pure line builders through `Component.getString()`, so far the Guild line's decision table (`guildLine`) over the payload's guild and a `GuildEvidence` (the Returners roster verdict, the payload guild's roster verdict, the tab-list flag). The send wrappers and the tab-list, clock and chat reads in `renderCheck` are not covered. Users and snapshots are hand-written JSON parsed through the shared `Json.GSON`; the Returners guild uuid is `VetsApi.GUILD_UUID`.
+`CheckReportRenderer` renders the `/wv check` block; the suite pins its pure line builders through `Component.getString()`, so far the Guild line's decision table (`guildLine`) and the Discord link line's `(hiatus)` annotation (`discordLinkLine`), both over the payload's guild and a `GuildEvidence` (the Returners roster verdict, the payload guild's roster verdict, the tab-list flag). The send wrappers and the tab-list, clock and chat reads in `renderCheck` are not covered. Users and snapshots are hand-written JSON parsed through the shared `Json.GSON`; the Returners guild uuid is `VetsApi.GUILD_UUID`.
 
 - **`returnersIn_showsReturnersAndRosterRank`**: A roster that lists the target gives `Returners` and the roster's rank.
   - `guildLine(...).getString()` equals `"Guild: Returners  -  Chief"`, for a payload naming Returners and a Returners roster `IN_ROSTER` with rank `Chief`.
@@ -1533,6 +1533,23 @@ Test: [`CheckReportRendererTest.java`](../src/test/java/org/wynnvets/fetcher/ond
   - `evidence.returners().verdict()` equals `UNKNOWN`, where `evidence` = `new GuildEvidence(null, null, false)`.
   - `evidence.confirmsReturners()` is false.
   - `new GuildEvidence(null, null, true).confirmsReturners()` is true.
+- **`hiatus_guildlessOnline_noStaleHint`**: A hiatus role on a guildless target gets no stale hint, even when the payload says they are online.
+  - `discordLinkLine(...).getString()` equals `"Discord link: @meta  (42)  -  registered  (hiatus)"`, for a hiatus snapshot, a payload with `online` true and no guild, and evidence of a Returners roster `NOT_IN_ROSTER` with no other-guild roster and no tab-list hit.
+- **`hiatus_rosterConfirmsReturners_showsNowInReturnersStale`**: A Returners roster that lists the target puts them back in Returners, so the hiatus role may be stale.
+  - The line equals `"Discord link: @meta  (42)  -  registered  (hiatus - now in Returners; role may be stale)"`, for a Returners roster `IN_ROSTER`.
+- **`hiatus_tabListConfirmsReturners_showsStale`**: The tab list alone gives the same hint.
+  - The line equals the same text, for a Returners roster `UNKNOWN` and the tab-list flag set, over a payload naming `Other Guild`.
+- **`hiatus_otherGuildRosterIn_showsNowInGuildStale`**: The payload guild's own roster listing the target names that guild.
+  - The line equals `"Discord link: @meta  (42)  -  registered  (hiatus - now in Other Guild; role may be stale)"`, for an other-guild roster `IN_ROSTER`.
+- **`hiatus_rosterUnknown_noHint`**: A roster that did not answer gives no hint.
+  - The line equals `"Discord link: @meta  (42)  -  registered  (hiatus)"`, for a Returners roster `UNKNOWN` over a payload naming Returners.
+  - The line equals the same text, for an other-guild roster `UNKNOWN`.
+- **`notHiatus_neverShowsHint`**: A `member` tier gets no annotation whatever the evidence.
+  - The line equals `"Discord link: @meta  (42)  -  member"`, for a Returners roster `IN_ROSTER` and the tab-list flag set.
+- **`discordLine_snapshotUnavailableAndNotLinked_unchanged`**: The unavailable and not-linked lines are as before.
+  - The line equals `"Discord link: (snapshot unavailable)"` for a null snapshot.
+  - The line equals `"Discord link: (snapshot unavailable)"` for a snapshot with no `discord`.
+  - The line equals `"Discord link: not linked"` for `{"linked": false}`.
 
 ### `ReturnersRosterProbeTest`
 

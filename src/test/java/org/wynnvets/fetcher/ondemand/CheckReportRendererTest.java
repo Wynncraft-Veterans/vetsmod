@@ -19,7 +19,8 @@ import org.wynnvets.util.Json;
 /**
  * Tests for the pure line builders behind {@link CheckReportRenderer}'s {@code /wv check} block,
  * read through {@link Component#getString()}: the Guild line's decision table over the payload's
- * guild and the roster evidence.
+ * guild and the roster evidence, and the Discord link line's {@code (hiatus)} annotation over the
+ * same evidence.
  *
  * <p>The send wrappers and the tab-list, clock and chat reads in {@code renderCheck} are not
  * covered.</p>
@@ -159,5 +160,104 @@ class CheckReportRendererTest {
         assertEquals(RosterVerdict.UNKNOWN, evidence.returners().verdict());
         assertFalse(evidence.confirmsReturners());
         assertTrue(new GuildEvidence(null, null, true).confirmsReturners());
+    }
+
+    // ── Discord link line ─────────────────────────────────────────────────
+
+    private static MembershipSnapshot snapshotWith(String discordJson) {
+        return Json.GSON.fromJson("{\"discord\": " + discordJson + "}", MembershipSnapshot.class);
+    }
+
+    private static MembershipSnapshot hiatusSnapshot() {
+        return snapshotWith(
+                "{\"linked\": true, \"disc_uuid\": \"42\", \"disc_display\": \"meta\","
+                        + " \"in_guild\": true, \"hiatus\": true}");
+    }
+
+    private static String discord(MembershipSnapshot snapshot, User user, GuildEvidence evidence) {
+        return CheckReportRenderer.discordLinkLine(snapshot, user, evidence).getString();
+    }
+
+    private static final String HIATUS_BASE = "Discord link: @meta  (42)  -  registered  (hiatus";
+
+    @Test
+    void hiatus_guildlessOnline_noStaleHint() {
+        // Online or not, a guildless target gives the roster nothing to contradict the role.
+        assertEquals(
+                HIATUS_BASE + ")",
+                discord(
+                        hiatusSnapshot(),
+                        Json.GSON.fromJson(
+                                "{\"username\": \"Metrafish\", \"online\": true}", User.class),
+                        new GuildEvidence(ABSENT, null, false)));
+    }
+
+    @Test
+    void hiatus_rosterConfirmsReturners_showsNowInReturnersStale() {
+        assertEquals(
+                HIATUS_BASE + " - now in Returners; role may be stale)",
+                discord(
+                        hiatusSnapshot(),
+                        returnersUser(),
+                        new GuildEvidence(in("Chief"), null, false)));
+    }
+
+    @Test
+    void hiatus_tabListConfirmsReturners_showsStale() {
+        assertEquals(
+                HIATUS_BASE + " - now in Returners; role may be stale)",
+                discord(
+                        hiatusSnapshot(),
+                        otherGuildUser(),
+                        new GuildEvidence(UNKNOWN, null, true)));
+    }
+
+    @Test
+    void hiatus_otherGuildRosterIn_showsNowInGuildStale() {
+        assertEquals(
+                HIATUS_BASE + " - now in Other Guild; role may be stale)",
+                discord(
+                        hiatusSnapshot(),
+                        otherGuildUser(),
+                        new GuildEvidence(ABSENT, in("Captain"), false)));
+    }
+
+    @Test
+    void hiatus_rosterUnknown_noHint() {
+        assertEquals(
+                HIATUS_BASE + ")",
+                discord(
+                        hiatusSnapshot(),
+                        returnersUser(),
+                        new GuildEvidence(UNKNOWN, null, false)));
+        assertEquals(
+                HIATUS_BASE + ")",
+                discord(
+                        hiatusSnapshot(),
+                        otherGuildUser(),
+                        new GuildEvidence(ABSENT, UNKNOWN, false)));
+    }
+
+    @Test
+    void notHiatus_neverShowsHint() {
+        MembershipSnapshot member =
+                snapshotWith(
+                        "{\"linked\": true, \"disc_uuid\": \"42\", \"disc_display\": \"meta\","
+                                + " \"in_guild\": true, \"tier\": \"member\"}");
+        assertEquals(
+                "Discord link: @meta  (42)  -  member",
+                discord(member, returnersUser(), new GuildEvidence(in("Chief"), null, true)));
+    }
+
+    @Test
+    void discordLine_snapshotUnavailableAndNotLinked_unchanged() {
+        GuildEvidence none = new GuildEvidence(ABSENT, null, false);
+        assertEquals("Discord link: (snapshot unavailable)", discord(null, null, none));
+        assertEquals(
+                "Discord link: (snapshot unavailable)",
+                discord(Json.GSON.fromJson("{}", MembershipSnapshot.class), null, none));
+        assertEquals(
+                "Discord link: not linked",
+                discord(snapshotWith("{\"linked\": false}"), null, none));
     }
 }

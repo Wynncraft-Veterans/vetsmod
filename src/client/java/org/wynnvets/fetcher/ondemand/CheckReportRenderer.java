@@ -83,13 +83,10 @@ final class CheckReportRenderer {
 
         // Self-check: the local player is treated as online, since they are
         // the one running /wv check (normally from Wynncraft; the command does
-        // not check which server the client is on). Skips the whole
-        // signal-aggregation dance below and avoids the "Wynn's cached
+        // not check which server the client is on). Avoids the "Wynn's cached
         // online=false for the local player" trap.
         String localName = (McUtils.player() != null) ? McUtils.playerName() : null;
         boolean isSelf = localName != null && localName.equalsIgnoreCase(displayName);
-
-        boolean currentlyOnline = isCurrentlyOnline(user, snapshot, tabListServer, isSelf);
 
         // Item 0: username + UUID
         ChatUtils.sendLocalMessage(
@@ -121,53 +118,13 @@ final class CheckReportRenderer {
             renderWynnLines(user, snapshot, tabListServer, isSelf);
         }
 
-        ChatUtils.sendLocalMessage(
-                guildLine(
-                        user,
-                        new GuildEvidence(returners, otherGuild, tabListConfirmsReturners),
-                        snapshot));
+        GuildEvidence evidence = new GuildEvidence(returners, otherGuild, tabListConfirmsReturners);
+        ChatUtils.sendLocalMessage(guildLine(user, evidence, snapshot));
         renderVeteranLine(user);
         renderBlocklistLine(snapshot);
-        renderDiscordLinkLine(snapshot, currentlyOnline);
+        ChatUtils.sendLocalMessage(discordLinkLine(snapshot, user, evidence));
         renderStage2Line(snapshot);
         renderCultLine(snapshot);
-    }
-
-    /**
-     * Aggregates "is this player on Wynncraft right now?" across four
-     * signals, in order of authoritativeness: true for self (the local
-     * player is treated as online), then local tab list (live), then Wynn's
-     * {@code online} field (2-min CDN cache, can lag), then a recent
-     * ({@literal <}10 min) {@code last_seen_observed.ts}: dazebot's
-     * best-guess last-online time, which several dazebot paths keep
-     * current, its {@code server_watcher} among them. Today this fourth
-     * signal cannot fire, because temporary-server's ack does not carry
-     * {@code last_seen_observed} (see
-     * {@code check-membership-ack-drops-last-seen-observed}). Used to
-     * qualify the {@code (hiatus)} discord-line annotation: a positive
-     * signal is meant to tell staff the role state may be stale. Today
-     * being online is not evidence of that, since dazebot's HIATUS means a
-     * guildless ex-member (see
-     * {@code wv-check-hiatus-stale-hint-keys-off-online}).
-     */
-    private static boolean isCurrentlyOnline(
-            User user, MembershipSnapshot snapshot, String tabListServer, boolean isSelf) {
-        if (isSelf) {
-            return true;
-        }
-        if (tabListServer != null) {
-            return true;
-        }
-        if (user != null && Boolean.TRUE.equals(user.getOnline())) {
-            return true;
-        }
-        MembershipSnapshot.LastSeenObserved obs =
-                snapshot != null ? snapshot.getLastSeenObserved() : null;
-        if (obs != null && obs.getTs() > 0) {
-            long ageSec = Instant.now().getEpochSecond() - obs.getTs();
-            return ageSec >= 0 && ageSec < 600;
-        }
-        return false;
     }
 
     private static void renderWynnLines(
@@ -241,12 +198,7 @@ final class CheckReportRenderer {
         }
 
         // Item 3b: currently online. Surfaced between playtime and guild because
-        // it's the most actionable signal for a staff vetting decision. The
-        // Discord line's `(hiatus)` qualifier asks a related question through
-        // isCurrentlyOnline, which differs only in letting a recent
-        // last_seen_observed outrank Wynncraft's online=false. Today that field
-        // never arrives, so that case cannot occur (see
-        // check-membership-ack-drops-last-seen-observed).
+        // it's the most actionable signal for a staff vetting decision.
         renderOnlineLine(user, snapshot, tabListServer, isSelf);
     }
 
@@ -554,19 +506,22 @@ final class CheckReportRenderer {
         ChatUtils.sendLocalMessage(line);
     }
 
-    private static void renderDiscordLinkLine(
-            MembershipSnapshot snapshot, boolean currentlyOnline) {
+    /**
+     * The Discord link line. A {@code (hiatus)} role is annotated "role may be stale" only when
+     * the guild evidence puts the target back in a guild: Returners (roster or tab list) or, by
+     * its own roster, the guild the payload names. dazebot's HIATUS means a guildless ex-member,
+     * so being online says nothing about the role, and a roster that did not answer gives no hint.
+     */
+    // Package-private for unit tests. See CheckReportRendererTest.
+    static MutableComponent discordLinkLine(
+            MembershipSnapshot snapshot, User user, GuildEvidence evidence) {
         MutableComponent line = label("Discord link: ");
         MembershipSnapshot.Discord disc = snapshot != null ? snapshot.getDiscord() : null;
         if (disc == null) {
-            line.append(Component.literal("(snapshot unavailable)").setStyle(MUTED_STYLE));
-            ChatUtils.sendLocalMessage(line);
-            return;
+            return line.append(Component.literal("(snapshot unavailable)").setStyle(MUTED_STYLE));
         }
         if (!disc.isLinked()) {
-            line.append(Component.literal("not linked").setStyle(LABEL_STYLE));
-            ChatUtils.sendLocalMessage(line);
-            return;
+            return line.append(Component.literal("not linked").setStyle(LABEL_STYLE));
         }
 
         String display = disc.getDiscDisplay();
@@ -618,20 +573,38 @@ final class CheckReportRenderer {
         if (disc.isHiatus()) {
             // dazebot attempts (best-effort) a guild re-read and role
             // reconciliation during the snapshot fetch, before it reports
-            // HIATUS. The qualifier below is meant to flag a HIATUS role that
-            // is stale; today it keys off being online, which dazebot's HIATUS
-            // (a guildless ex-member) does not rule out, so it can flag a correct
-            // role and miss a stale one (see wv-check-hiatus-stale-hint-keys-off-online).
+            // HIATUS, so a stale HIATUS role is one the target has since
+            // outgrown by rejoining a guild; the evidence is what says so.
             Style hiatusStyle = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
             line.append(Component.literal("  (hiatus").setStyle(hiatusStyle));
-            if (currentlyOnline) {
+            String nowIn = guildNowIn(user, evidence);
+            if (nowIn != null) {
                 line.append(
-                        Component.literal(" - currently online; may be stale")
+                        Component.literal(" - now in " + nowIn + "; role may be stale")
                                 .setStyle(Style.EMPTY.withColor(ChatFormatting.AQUA)));
             }
             line.append(Component.literal(")").setStyle(hiatusStyle));
         }
-        ChatUtils.sendLocalMessage(line);
+        return line;
+    }
+
+    /**
+     * The guild the evidence puts the target in, or {@code null} when it puts them in none:
+     * {@code "Returners"} when the roster or the tab list confirms it, else the payload's guild
+     * name when that guild's own roster lists the target.
+     */
+    private static String guildNowIn(User user, GuildEvidence evidence) {
+        if (evidence.confirmsReturners()) {
+            return "Returners";
+        }
+        Guild guild = user != null ? user.getGuild() : null;
+        if (guild != null
+                && guild.getName() != null
+                && evidence.otherGuild() != null
+                && evidence.otherGuild().inGuild()) {
+            return guild.getName();
+        }
+        return null;
     }
 
     private static void renderStage2Line(MembershipSnapshot snapshot) {
