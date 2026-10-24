@@ -25,8 +25,10 @@ final class SessionAuthState {
      *  callbacks in {@link V1ApiManager#pendingAcks} (an error whose detail starts with an
      *  auth-failure prefix counts as one whatever the flag says, unless the flag is clear, a
      *  staff-action callback is pending and the server does not echo request ids: that callback
-     *  takes it). A staff-action-shaped error goes to the eldest callback, or is dropped when none
-     *  is pending, whatever the flag says. None of this applies to an ack that echoes a request
+     *  takes it). A staff-action-shaped error without a request id goes to the eldest callback,
+     *  or is dropped when none is pending, whatever the flag says (if the client believed the
+     *  server echoes ids, such an ack proves it does not). None of this applies to an ack that
+     *  echoes a request
      *  id, which goes to its own callback. A lost inbound socket clears it, since its ack cannot
      *  come ({@link V1ApiManager#onInboundSocketLost}); {@link V1ApiManager#disconnect()} does
      *  not. */
