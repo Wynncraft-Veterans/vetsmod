@@ -239,7 +239,7 @@ All bridge-channel traffic — chat relay and staff alerts alike — goes throug
 
 ## 10. Admin-only sanitization
 
-Normal users lose the soft set, `SOFT_BANNED_RE` / `strip_soft` in `app/parsers/banned_chars.py` (bot.py imports it): `§` (Minecraft formatting codes), the rank icons U+E014–E025, the banner pieces U+E00E–E011, E070, E07A and E085, the negative-width spaces and the pill letters U+E040–E06F. The same strip also runs on game-originated inbound lines (`sanitize_inbound`, message and username, never `rank`; temporary-server `0276c59`, see [server_services.md](server_services.md) §6), so Discord admins are the only senders who can put the soft set on the wire.
+Normal users lose the soft set, `SOFT_BANNED_RE` / `strip_soft` in `app/parsers/banned_chars.py` (bot.py imports it): `§` (Minecraft formatting codes), the rank icons U+E014–E025, the banner pieces U+E00E–E011, E070, E07A and E085, the negative-width spaces and the pill letters U+E040–E06F. The same strip also runs on game-originated inbound lines (`sanitize_inbound`, message and username, never `rank`; temporary-server `d17643f`, see [server_services.md](server_services.md) §6), so Discord admins are the only senders who can put the soft set on the wire.
 Every role, admins (Administrator permission) included, loses the hard set U+00C1, U+E07E, U+E080 and U+E086, literal or spoiler-encoded, through `app.parsers.banned_chars.strip_banned`. So admins can still send soft-set formatting or PUA content through the bridge on purpose, and vetsmod keeps it in the plain text of bridge lines; decoded spoiler text loses both sets ([vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §4).
 
 ## 11. Traffic recording

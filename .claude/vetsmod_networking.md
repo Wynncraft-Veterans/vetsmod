@@ -43,7 +43,7 @@ Key methods:
 **Register frame fields:** `type`, `uuid`, `username`, `tier`.
 **Auth frame fields:** `type:"auth"`, `key:"<43-char base64url>"`. Server replies `{status:"ok", tier, ws_tier, mc_uuid, mc_username, is_staff, staff_rank, staff_rank_display}` or `{status:"error", detail:"auth rejected: <reason>"}`. `is_staff` and `staff_rank` are read by `InboundAckRouter` into `SessionAuthState`'s `confirmedStaff` / `confirmedStaffRank`, which `isConfirmedStaff()` / `confirmedStaffRank()` return. `staff_rank_display` is the additive 2026-07 label — the server still sends it, and it is `null` exactly when `staff_rank` is, but the client does not read it; display labels come from `RankDisplayMap.displayFor` at each render site. Auth-success replies are told apart from chat-success acks by the presence of the `tier` field, so a success is recognised whether or not `expectingAuthAck` is set.
 **Message fields:** `uuid`, `type`, `timestamp`, `rank`, `username`, `message`.
-**Server → client unsolicited:** `{type:"server_info", unauth_enabled: bool, chat_tiers: "all"}` is pushed once on outbound connect: `unauth_enabled` picks the session-warning copy, and `chat_tiers` (absent on servers older than temporary-server `880baad`) gates the outbound auth.
+**Server → client unsolicited:** `{type:"server_info", unauth_enabled: bool, chat_tiers: "all"}` is pushed once on outbound connect: `unauth_enabled` picks the session-warning copy, and `chat_tiers` (absent on servers older than temporary-server `eacb4da`) gates the outbound auth.
 
 ### V1Frames — the frame builders
 
@@ -327,7 +327,7 @@ Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.networ
 vets-anni resolves names → UUIDs server-side and writes
 `state.party_leader_by_uuid[member_uuid] = leader_uuid` for the presence
 classifier's `ONLINE_WORLD → ONLINE_PARTY` upgrade. Per vets-anni (since its
-`121fd80`), each observation whose names all resolve **replaces that leader's
+`6a228c2`), each observation whose names all resolve **replaces that leader's
 roster**: entries already pointing at the same leader whose member the new
 roster does not list are dropped, and entries for other leaders are untouched.
 An observation with a name vets-anni cannot resolve only adds, since that name

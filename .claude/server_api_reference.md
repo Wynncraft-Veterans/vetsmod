@@ -19,7 +19,7 @@ Duplicating the spec is what let this doc drift.
 ⚠️ Some things the spec does **not** cover, so they are documented here rather
 than deferred: `tablist` / `queue_status`, which the spec names in passing but never gives a section.
 Deferring those would produce a pointer to nothing. `check_membership` and the `server_info` hello
-used to be on this list; the spec covers them since temporary-server `2139fee` (§1.10) and `880baad`
+used to be on this list; the spec covers them since temporary-server `e540a01` (§1.10) and `eacb4da`
 (§2.1), and this doc keeps their vetsmod-side detail.
 
 ## 1. WebSocket endpoints
@@ -160,7 +160,7 @@ exactly like a `caution_check` ack:
 player, not necessarily a server change. An older temporary-server omits the key; vetsmod reads
 that as `null`.
 
-**The invite verdict.** A non-staff session of tier `member` (temporary-server `9a411ce`) gets only
+**The invite verdict.** A non-staff session of tier `member` (temporary-server `49d12e2`) gets only
 what the `/gu invite` gate needs, so a Returners member can invite without seeing the blocklist:
 
 ```json
@@ -228,13 +228,13 @@ Authenticated chat is tier-gated: `guild` may send `guild`+`queue`, `waitlist`
 only `waitlist`, `honourary` only `honourary`. There is no `queue` tier — it is
 a guild-tier privilege. The same `auth` frame is accepted on `/v1/outbound`, with
 the same staff resolution and ack (temporary-server `app/chat/auth_session.py`, since
-`880baad`), where the resulting tier filters what the client receives: every member
+`eacb4da`), where the resulting tier filters what the client receives: every member
 tier gets every chat type, and a null `ws_tier` gets none. vetsmod sends it there
 only for a member tier (see "`server_info` hello" below).
 
 ### `server_info` hello
 
-Documented in `v1_protocol.md` §2.1 since temporary-server `880baad` (undocumented before). Pushed once on `/v1/outbound` connect, before the
+Documented in `v1_protocol.md` §2.1 since temporary-server `eacb4da` (undocumented before). Pushed once on `/v1/outbound` connect, before the
 receive loop:
 
 ```json
@@ -245,7 +245,7 @@ receive loop:
 vetsmod uses it to phrase its session-start warning correctly
 (allowed-but-unauthenticated vs blocked-and-unauthenticated) and routes it
 straight to `SessionAuthWarning.onServerInfo()` ahead of the outbound
-listeners. `chat_tiers` (from temporary-server `880baad`) advertises the
+listeners. `chat_tiers` (from temporary-server `eacb4da`) advertises the
 all-tiers receive map; vetsmod authenticates its outbound socket only when it
 is `"all"`. Old clients see a frame with no `username`/`message` and ignore it.
 
