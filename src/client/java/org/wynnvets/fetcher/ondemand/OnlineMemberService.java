@@ -18,6 +18,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.wynnvets.api.V1ApiManager;
@@ -27,6 +28,7 @@ import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
+import org.wynnvets.util.Uuids;
 
 /**
  * Shared service for fetching and merging online guild member data.
@@ -189,6 +191,32 @@ final class OnlineMemberService {
 
     // ── Merge ───────────────────────────────────────────────────────
 
+    /**
+     * Lays the server's polled roster (UUID to current username) over the Wynntils-derived maps.
+     * The roster is authoritative: its names override Wynncraft's possibly stale ones. Its keys
+     * are canonicalised through {@link Uuids#parse} to the dashed lowercase spelling
+     * {@code UUID.toString()} gives, which is how the Wynntils entries are keyed, so the server's
+     * spelling (undashed, upper case) cannot add a second entry for the same player. A key that
+     * does not parse as a UUID is kept as it is, so it can still never collide with one that
+     * does. An entry with a null or blank name is skipped.
+     */
+    // Package-private for unit tests. See OnlineMemberServiceTest.
+    static void overlayRoster(
+            Map<String, String> uuidToUsername,
+            Map<String, String> usernameToUuid,
+            Map<String, String> roster) {
+        for (Map.Entry<String, String> entry : roster.entrySet()) {
+            String name = entry.getValue();
+            if (name == null || name.isBlank()) {
+                continue;
+            }
+            UUID parsed = Uuids.parse(entry.getKey());
+            String uuid = parsed != null ? parsed.toString() : entry.getKey();
+            uuidToUsername.put(uuid, name);
+            usernameToUuid.put(name.toLowerCase(Locale.ROOT), uuid);
+        }
+    }
+
     private static GatherResult merge(
             List<ConnectedUser> connected,
             GuildInfo guildInfo,
@@ -224,11 +252,7 @@ final class OnlineMemberService {
         }
         // Overlay resolved roster names (from Minecraft Services API via tempserver).
         // These are authoritative and override potentially stale Wynncraft API names.
-        Map<String, String> resolvedRoster = PolledJsonMap.GUILD_ROSTER.snapshot();
-        for (Map.Entry<String, String> entry : resolvedRoster.entrySet()) {
-            uuidToUsername.put(entry.getKey(), entry.getValue());
-            usernameToUuid.put(entry.getValue().toLowerCase(Locale.ROOT), entry.getKey());
-        }
+        overlayRoster(uuidToUsername, usernameToUuid, PolledJsonMap.GUILD_ROSTER.snapshot());
         // Supplement with vetsmod usernames for UUIDs the API doesn't know.
         for (ConnectedUser cu : connected) {
             uuidToUsername.putIfAbsent(cu.uuid(), cu.username());

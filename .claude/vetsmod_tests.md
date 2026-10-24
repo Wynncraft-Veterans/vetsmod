@@ -27,7 +27,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.distribute.distributor`](#orgwynnvetsdistributedistributor) — [`GraidsDistributorTest`](#graidsdistributortest), [`MemberSlotPresserTest`](#memberslotpressertest), [`ObjectivesDistributorTest`](#objectivesdistributortest), [`RandomDistributorTest`](#randomdistributortest), [`SplitDistributorTest`](#splitdistributortest)
 - [`org.wynnvets.distribute.recipients`](#orgwynnvetsdistributerecipients) — [`NameResolverTest`](#nameresolvertest), [`NoAspectsFilterTest`](#noaspectsfiltertest)
 - [`org.wynnvets.fetcher.lookup`](#orgwynnvetsfetcherlookup) — [`MojangCooldownTest`](#mojangcooldowntest)
-- [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`CheckReportRendererTest`](#checkreportrenderertest), [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
+- [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`CheckReportRendererTest`](#checkreportrenderertest), [`OnlineMemberServiceTest`](#onlinememberservicetest), [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
 - [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
 - [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`ScreenshotLatchTest`](#screenshotlatchtest)
@@ -1565,6 +1565,28 @@ Test: [`CheckReportRendererTest.java`](../src/test/java/org/wynnvets/fetcher/ond
 - **`lastSeenFallback_selfAndTabList_unchanged`**: Self and a tab-list hit read as now, ahead of any observation.
   - The line equals `"Last seen on Wynncraft: now  (self)"`, for self with tab-list server `WC7`.
   - The line equals `"Last seen on Wynncraft: now  (tab-list: WC7)"`, for a non-self target with tab-list server `WC7`.
+
+### `OnlineMemberServiceTest`
+
+Test: [`OnlineMemberServiceTest.java`](../src/test/java/org/wynnvets/fetcher/ondemand/OnlineMemberServiceTest.java) · Subject: [`OnlineMemberService`](../src/client/java/org/wynnvets/fetcher/ondemand/OnlineMemberService.java)
+
+`OnlineMemberService.merge` combines the tab list, the connected-user list and the Wynntils guild data; the suite pins only `overlayRoster`, the step that lays the server's polled roster (UUID to current username) over the Wynntils-derived maps, whose keys are dashed lowercase `UUID.toString()` text. The rest of `merge` reads Wynntils models and the tab list and is not covered. Each test starts from two empty maps and, where it says Wynntils knows a player, seeds both with `OldName` under the dashed lowercase uuid `DASHED`.
+
+- **`overlayRoster_sameSpelling_replacesWynntilsName`**: A roster key spelled like the Wynntils key replaces the name.
+  - `uuidToUsername` equals `{DASHED: "NewName"}` after `overlayRoster` with roster `{DASHED: "NewName"}`.
+  - `usernameToUuid.get("newname")` equals `DASHED`.
+- **`overlayRoster_undashedUppercaseKey_replacesInsteadOfAdding`**: The same player's roster key spelled undashed and upper case still replaces the entry, rather than adding a second one.
+  - `uuidToUsername` equals `{DASHED: "NewName"}` after `overlayRoster` with roster `{UNDASHED_UPPER: "NewName"}`.
+  - `usernameToUuid.get("newname")` equals `DASHED` (the canonical key, not the roster's spelling).
+- **`overlayRoster_unparseableKey_keptRaw`**: A key that is not a UUID is kept as it is.
+  - `uuidToUsername` equals `{"not-a-uuid": "Somebody"}` after `overlayRoster` with roster `{"not-a-uuid": "Somebody"}` on empty maps.
+  - `usernameToUuid.get("somebody")` equals `"not-a-uuid"`.
+- **`overlayRoster_nullOrBlankValue_skipped`**: Roster entries with a null or blank name change nothing.
+  - `uuidToUsername` equals `{DASHED: "OldName"}` after `overlayRoster` with a roster holding a null name for `DASHED` and a blank name for another uuid.
+  - `usernameToUuid` has size 1.
+- **`overlayRoster_emptyRoster_noChange`**: An empty roster leaves both maps as they were.
+  - `uuidToUsername` equals `{DASHED: "OldName"}`.
+  - `usernameToUuid` equals `{"oldname": DASHED}`.
 
 ### `ReturnersRosterProbeTest`
 

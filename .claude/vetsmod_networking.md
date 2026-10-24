@@ -195,7 +195,7 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 ### OnlineMemberService merge strategy
 [OnlineMemberService.merge()](../src/client/java/org/wynnvets/fetcher/ondemand/OnlineMemberService.java)
 1. Build UUID→username from Wynntils (authoritative)
-2. Overlay `PolledJsonMap.GUILD_ROSTER.snapshot()` (Mojang-resolved, takes precedence over stale API)
+2. Overlay `PolledJsonMap.GUILD_ROSTER.snapshot()` (Mojang-resolved, takes precedence over stale API; `overlayRoster` canonicalises its keys through `Uuids.parse`, keeping a key that does not parse as it is)
 3. Supplement with VetsMod usernames for unresolved UUIDs
 4. Merged guild online = Wynntils online ∪ VetsMod guild UUIDs ∪ tab list (`TabListGuildParser`)
 5. Honourary + waitlist from VetsMod `/list`
@@ -236,7 +236,7 @@ Another scheduled fetcher, `mwe/anni/zone/AnniZone` (60s, Wynncraft world-events
 
 [PolledJsonMap](../src/client/java/org/wynnvets/fetcher/polling/PolledJsonMap.java) polls one flat `string → string` JSON endpoint and publishes it as an immutable snapshot behind a volatile field. Two instances:
 
-- `GUILD_ROSTER` — `VetsApi.ROSTER` (server-side Mojang-resolved), UUID → current username. Overrides stale Wynncraft API usernames. Used by `OnlineMemberService.merge()` via `snapshot()`. Keys are stored exactly as the server spells them.
+- `GUILD_ROSTER` — `VetsApi.ROSTER` (server-side Mojang-resolved), UUID → current username. Overrides stale Wynncraft API usernames. Used by `OnlineMemberService.merge()` via `snapshot()`. Keys are stored exactly as the server spells them; `merge()` canonicalises them to the dashed lowercase spelling when it overlays them, so the server's spelling does not matter there.
 - `WYNN_ALIASES` — `VetsApi.ALIASES`, stale tab-list username → UUID. Used by `OnlineMemberService.merge()` via `get()` to resolve tab entries no current username matches. Keys are folded to `Locale.ROOT`.
 
 The key normalizer is one field applied at **both** ingest and lookup. That is the invariant the class exists to hold: applying it on one side only breaks alias resolution with no failed fetch and no log line. `PolledJsonMapTest` pins it for both instances, along with the cold-cache contract — empty map from `snapshot()`, `null` from `get()` — which `merge()` depends on and has no branch for.
