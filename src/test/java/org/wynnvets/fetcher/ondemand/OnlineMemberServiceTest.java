@@ -1,16 +1,19 @@
 package org.wynnvets.fetcher.ondemand;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link OnlineMemberService#overlayRoster}, the step of the online-member merge that
- * lays the server's polled roster (UUID to current username) over the Wynntils names. The rest of
- * {@code merge()} is not covered: it reads Wynntils models and the tab list.
+ * lays the server's polled roster (UUID to current username) over the Wynntils names, and for
+ * {@link OnlineMemberService#trustedTabEntries}, the gate on the tab list's guild column. The rest
+ * of {@code merge()} is not covered: it reads Wynntils models and the tab list.
  */
 class OnlineMemberServiceTest {
 
@@ -77,5 +80,26 @@ class OnlineMemberServiceTest {
 
         assertEquals(Map.of(DASHED, "OldName"), uuidToUsername);
         assertEquals(Map.of("oldname", DASHED), usernameToUuid);
+    }
+
+    @Test
+    void trustedTabEntries_notReturners_emptyAndNeverParsed() {
+        List<String> entries =
+                OnlineMemberService.trustedTabEntries(
+                        false,
+                        () -> {
+                            fail("the tab list must not be parsed for a non-Returners player");
+                            return List.of("OtherGuildMate");
+                        });
+
+        assertEquals(List.of(), entries);
+    }
+
+    @Test
+    void trustedTabEntries_returners_passesParsedListThrough() {
+        List<String> entries =
+                OnlineMemberService.trustedTabEntries(true, () -> List.of("Alpha", "Bravo"));
+
+        assertEquals(List.of("Alpha", "Bravo"), entries);
     }
 }

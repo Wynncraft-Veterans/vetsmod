@@ -212,7 +212,7 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 1. Build UUID→username from Wynntils (authoritative)
 2. Overlay `PolledJsonMap.GUILD_ROSTER.snapshot()` (Mojang-resolved, takes precedence over stale API; `overlayRoster` canonicalises its keys through `Uuids.parse`, keeping a key that does not parse as it is)
 3. Supplement with VetsMod usernames for unresolved UUIDs
-4. Merged guild online = Wynntils online ∪ VetsMod guild UUIDs ∪ tab list (`TabListGuildParser`)
+4. Merged guild online = Wynntils online ∪ VetsMod guild UUIDs ∪ tab list (`TabListGuildParser`, read only when `GuildStateManager.isReturners()`: `trustedTabEntries` returns an empty list otherwise, because the guild column is the viewer's own guild's)
 5. Honourary + waitlist from VetsMod `/list`
 6. Tab-only usernames (no UUID match, including no `PolledJsonMap.WYNN_ALIASES` hit) added as guild tier
 7. Apply grace-period cache (`OnlineGuildCache`: recently-seen players)

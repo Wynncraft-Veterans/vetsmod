@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
@@ -71,16 +72,17 @@ final class OnlineMemberService {
      */
     static CompletableFuture<GatherResult> gatherOnlinePlayers() {
         // 1. Read tab list immediately (synchronous, local state).
+        // The tab list's guild column belongs to whichever guild the local player is in, so
+        // honourary or waitlist users who happen to be in some other guild would otherwise
+        // list that guild's online players as Returners members. Only a Returners member's
+        // column is read: both the forward to the server and the merge below use this list.
+        boolean returners = GuildStateManager.isReturners();
         List<TabListGuildParser.GuildEntry> tabEntries =
-                TabListGuildParser.parseOnlineGuildMembers();
+                trustedTabEntries(returners, TabListGuildParser::parseOnlineGuildMembers);
         VetsLogger.debug("Tab list returned {} guild entries", tabEntries.size());
 
         // Forward tab list to the server so !list can use it too.
-        // Only Returners members are safe to forward from: the tab list
-        // reflects whichever guild the local player is in, so honourary or
-        // waitlist users who happen to be in some other guild would
-        // otherwise leak that guild's roster into the vets dataset.
-        if (!tabEntries.isEmpty() && GuildStateManager.isReturners()) {
+        if (!tabEntries.isEmpty()) {
             V1ApiManager.sendTabList(
                     tabEntries.stream()
                             .map(e -> new V1ApiManager.TabListEntry(e.server(), e.username()))
@@ -115,6 +117,16 @@ final class OnlineMemberService {
         // 4. Combine all three results.
         return serverFuture.thenCombine(
                 guildFuture, (connected, guildInfo) -> merge(connected, guildInfo, tabEntries));
+    }
+
+    /**
+     * The tab list's guild entries when the local player is a Returners member, else an empty
+     * list without reading the tab list at all: the guild column shows the viewer's own guild,
+     * whichever it is, so for anyone else it is another guild's online players.
+     */
+    // Package-private for unit tests. See OnlineMemberServiceTest.
+    static <T> List<T> trustedTabEntries(boolean returners, Supplier<List<T>> parse) {
+        return returners ? parse.get() : List.of();
     }
 
     /**

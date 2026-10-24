@@ -95,7 +95,9 @@ as its snapshot for `!list`, after dropping an entry whose `server` or
 `username` is empty or whose `username` is not 3 to 16 characters of
 `[A-Za-z0-9_]`. A frame whose `entries` is not a list is dropped whole. vetsmod
 sends it only for a Returners member, and only when the tab list yielded
-entries.
+entries. The same gate covers the client's own use of the column: a viewer who
+is not a Returners member never reads it, since it holds their own guild's
+online players.
 
 `{"type":"queue_status","queued":true,"world":"NA30"}` reports the sender entering
 (`queued` true) or leaving (`queued` false) a world queue; `queued` is a

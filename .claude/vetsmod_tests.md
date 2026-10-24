@@ -1851,7 +1851,7 @@ Test: [`CheckReportRendererTest.java`](../src/test/java/org/wynnvets/fetcher/ond
 
 Test: [`OnlineMemberServiceTest.java`](../src/test/java/org/wynnvets/fetcher/ondemand/OnlineMemberServiceTest.java) · Subject: [`OnlineMemberService`](../src/client/java/org/wynnvets/fetcher/ondemand/OnlineMemberService.java)
 
-`OnlineMemberService.merge` combines the tab list, the connected-user list and the Wynntils guild data; the suite pins only `overlayRoster`, the step that lays the server's polled roster (UUID to current username) over the Wynntils-derived maps, whose keys are dashed lowercase `UUID.toString()` text. The rest of `merge` reads Wynntils models and the tab list and is not covered. Each test starts from two empty maps and, where it says Wynntils knows a player, seeds both with `OldName` under the dashed lowercase uuid `DASHED`.
+`OnlineMemberService.merge` combines the tab list, the connected-user list and the Wynntils guild data; the suite pins `overlayRoster`, the step that lays the server's polled roster (UUID to current username) over the Wynntils-derived maps, whose keys are dashed lowercase `UUID.toString()` text, and `trustedTabEntries`, the gate that reads the tab list's guild column only for a Returners member. The rest of `merge` reads Wynntils models and the tab list and is not covered. Each `overlayRoster` test starts from two empty maps and, where it says Wynntils knows a player, seeds both with `OldName` under the dashed lowercase uuid `DASHED`.
 
 - **`overlayRoster_sameSpelling_replacesWynntilsName`**: A roster key spelled like the Wynntils key replaces the name.
   - `uuidToUsername` equals `{DASHED: "NewName"}` after `overlayRoster` with roster `{DASHED: "NewName"}`.
@@ -1868,6 +1868,11 @@ Test: [`OnlineMemberServiceTest.java`](../src/test/java/org/wynnvets/fetcher/ond
 - **`overlayRoster_emptyRoster_noChange`**: An empty roster leaves both maps as they were.
   - `uuidToUsername` equals `{DASHED: "OldName"}`.
   - `usernameToUuid` equals `{"oldname": DASHED}`.
+- **`trustedTabEntries_notReturners_emptyAndNeverParsed`**: A player who is not a Returners member gets no tab entries, and the tab list is not even parsed, because its guild column is their own guild's, not Returners'.
+  - The supplier is never called: its body is a `fail(...)` that would fail the test.
+  - The returned list equals `List.of()` for `returners` false.
+- **`trustedTabEntries_returners_passesParsedListThrough`**: A Returners member gets the parsed entries unchanged.
+  - The returned list equals `["Alpha", "Bravo"]` for `returners` true and a supplier returning those two names.
 
 ### `ReturnersRosterProbeTest`
 
