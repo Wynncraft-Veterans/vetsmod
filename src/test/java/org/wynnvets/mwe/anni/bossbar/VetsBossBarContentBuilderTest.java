@@ -27,7 +27,10 @@ class VetsBossBarContentBuilderTest {
     /** 80 minutes before the anni: inside the boss-bar window, outside the countdown. */
     private static final long SECONDS = 4800;
 
-    private static final String SEEKING_TAIL = "; seeking FILL for anni.wynnvets.org in 80min";
+    /** The seeking line, 80 minutes out, for a FILL slot and the given RSVP chip. */
+    private static String seeking(String chip) {
+        return "anni.wynnvets.org (80mins) | " + chip + " for FILL";
+    }
 
     private static AnniSnapshot snapshot(String json) {
         return AnniSnapshot.fromJson(JsonParser.parseString(json).getAsJsonObject());
@@ -37,26 +40,33 @@ class VetsBossBarContentBuilderTest {
         return VetsBossBarContentBuilder.build(snapshot(json), SECONDS, 0, 0);
     }
 
-    /** The RSVP chip is the seeking line's first sibling. */
-    private static TextColor chipColor(Component bar) {
-        return bar.getSiblings().get(0).getStyle().getColor();
+    /** The seeking line's sibling that reads {@code label}: the RSVP chip. */
+    private static Component chip(Component bar, String label) {
+        for (Component sibling : bar.getSiblings()) {
+            if (sibling.getString().equals(label)) {
+                return sibling;
+            }
+        }
+        throw new AssertionError("no " + label + " chip in " + bar.getString());
     }
 
     private static void assertChip(String json, String label, ChatFormatting color) {
         Component bar = bar(json);
-        assertEquals(label + SEEKING_TAIL, bar.getString());
-        assertEquals(TextColor.fromLegacyFormat(color), chipColor(bar), label);
+        assertEquals(seeking(label), bar.getString());
+        Component chip = chip(bar, label);
+        assertEquals(TextColor.fromLegacyFormat(color), chip.getStyle().getColor(), label);
+        assertTrue(chip.getStyle().isBold(), label + " chip is bold");
     }
 
     // ----- The four notice states, in both spellings -----
 
     @Test
-    void aHardRsvpIsBlueInBothSpellings() {
-        assertChip("{\"rsvp\":{\"notice\":\"hard\"}}", "HrdRSVP", ChatFormatting.BLUE);
+    void aHardRsvpIsAquaInBothSpellings() {
+        assertChip("{\"rsvp\":{\"notice\":\"hard\"}}", "HrdRSVP", ChatFormatting.AQUA);
         assertChip(
                 "{\"attendance\":{\"notice_effective\":\"rsvp_hard\"}}",
                 "HrdRSVP",
-                ChatFormatting.BLUE);
+                ChatFormatting.AQUA);
     }
 
     @Test
@@ -140,14 +150,22 @@ class VetsBossBarContentBuilderTest {
                                 + "\"rsvp\":{\"notice\":\"hard\"}}")
                         .getString();
         assertEquals("anni.wynnvets.org: Role: TBD | Party TBD | World: TBD", text);
-        assertFalse(text.contains("seeking"), "a committed slot never shows the seeking line");
+        assertFalse(text.contains("HrdRSVP"), "a committed slot never shows the seeking line");
     }
 
     @Test
     void aFillRegistrationStaysOnTheSeekingLine() {
-        assertTrue(
-                bar("{\"registration\":{\"roles\":[{\"role\":\"FILL\"}]}}")
-                        .getString()
-                        .endsWith(SEEKING_TAIL));
+        assertEquals(
+                seeking("NotRSVP"),
+                bar("{\"registration\":{\"roles\":[{\"role\":\"FILL\"}]}}").getString());
+    }
+
+    // ----- The minutes unit -----
+
+    @Test
+    void oneMinuteIsSingularAndAnyOtherCountPlural() {
+        assertEquals("min", VetsBossBarContentBuilder.minutesUnit(1));
+        assertEquals("mins", VetsBossBarContentBuilder.minutesUnit(2));
+        assertEquals("mins", VetsBossBarContentBuilder.minutesUnit(80));
     }
 }

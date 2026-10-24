@@ -345,9 +345,9 @@ implements it exactly.
 | Notice key | Emitted by | `noticeColor` (chat) | `rsvpChip` (bar) | |
 |--|--|--|--|--|
 | `null` | either block, no fact held | `GRAY` | `GRAY`, labelled `NotRSVP` | ✓ |
-| `hard` | `rsvp.notice` | `AQUA` | `BLUE`, labelled `HrdRSVP` | ✗ (kept) |
+| `hard` | `rsvp.notice` | `AQUA` | `AQUA`, labelled `HrdRSVP` | ✓ |
 | `soft` | `rsvp.notice` | `GREEN` | `GREEN`, labelled `SftRSVP` | ✓ |
-| `rsvp_hard` | `attendance.notice_effective` | `AQUA` | `BLUE`, labelled `HrdRSVP` | ✗ (kept) |
+| `rsvp_hard` | `attendance.notice_effective` | `AQUA` | `AQUA`, labelled `HrdRSVP` | ✓ |
 | `rsvp_soft` | `attendance.notice_effective` | `GREEN` | `GREEN`, labelled `SftRSVP` | ✓ |
 | `attend_early` | `attendance.notice_effective` | `YELLOW` | `YELLOW`, labelled `NotRSVP` | ✓ |
 | `attend_late` | `attendance.notice_effective` | `RED` | `RED`, labelled `NotRSVP` | ✓ |
@@ -356,8 +356,8 @@ implements it exactly.
 | `late` | — **nothing** | `RED` | `GRAY`, labelled `LATE` | ✗ |
 | anything else | — | `GRAY` | `GRAY`, upper-cased passthrough | ✓ |
 
-Eleven rows. On the eight that can actually arrive, the bar disagrees with chat
-only on the two spellings of the hard RSVP, the blue it keeps. The three dead
+Eleven rows. On the eight that can actually arrive, the bar agrees with chat
+(the hard RSVP moved from blue to aqua on 2026-10-23). The three dead
 aliases fall to the bar's upper-cased gray passthrough; nothing sends them.
 
 `rsvpChip` prefers `rsvp.notice` (`hard` / `soft`) and falls back to
@@ -427,8 +427,8 @@ Let vanilla and Wynntils track bars normally (no `update()` cancellation, no `ev
 - Returns `null` at `≤20s` (`T_MINUS_20_GATE_SECONDS` — manager deactivates).
 - In-zone (`AnniZone.isInZone`) and inside `COUNTDOWN_THRESHOLD_SECONDS`, which is **5 min**, not the spec's 2 ("spec called for 2 min, user-iterated to 5 min on 2026-06-16") → the countdown variant, `anni.wynnvets.org: ANNI IN <NNN>s | …` (spec §3.1.1.3). The trailing half has two branches: `scrollSecs = max(0, anniSecs - 20)`, and the literal `SCROLLS IN <NNN>s!` is emitted only while `scrollSecs ≤ SCROLL_COUNTDOWN_START_SECONDS` (70); above that it renders an italic light-purple `Get ready for scrolls!` instead. So `ANNI IN 099s | SCROLLS IN 079s` — the string the old spec sample showed — is unproducible: 99 s implies `scrollSecs = 79 > 70`.
 - Assigned (party OR committed slot) → `anni.wynnvets.org: Role: <SHORT> | Party <n> | World: <w>` (spec §3.1.1.2). `buildAssigned` deliberately drops the `/me` path the spec writes — on a ~40-char bar every glyph counts. Role colours: TANK=blue, HEAL=green, PRIM=red, SUNK=yellow, MOBK=light-purple, FILL=dark-aqua. `isAssigned` is also satisfied by a non-FILL entry in `registration.roles` alone, while `resolveRoleCode` reads only `board.role()`, so a player registered for a specific role but not yet placed sees a gray `Role: TBD | Party TBD | World: TBD`. That is intended: they have committed to a slot the board has not filled yet.
-- Seeking (no party + no committed slot) → `<HrdRSVP|SftRSVP|NotRSVP>; seeking <CORE|FILL> for anni.wynnvets.org in <X>min`, reworded from spec §3.1.1.1's `Seeking a <RSVP> <SLOT> …` (the bar has no room for ` SLOT`). Slot type derived from `registration.roles` (specific role = CORE, which is unreachable in practice: a specific role takes the Assigned variant). A player the board will not assign (`board.state` `wont_assign`) sees `anni.wynnvets.org: You won't be assigned - <wont_reason>` instead (`… to this anni` with no reason), with no chip; the bar is already red. vets-anni sends a player volunteering to sit out as plain `unassigned`, so they still see the chip.
-- **Four** chips wrap via `FlashTracker.styleFor(fieldKey, base)` — `role` / `party` / `world` in the assigned variant and `rsvp` in the seeking variant — so the bold↔underline pulse applies per-field. The slot chip, the link badge, the minutes chip and the whole countdown variant are unwrapped and never pulse.
+- Seeking (no party + no committed slot) → `anni.wynnvets.org (<X>mins) | <HrdRSVP|SftRSVP|NotRSVP> for <CORE|FILL>`, reworded from spec §3.1.1.1's `Seeking a <RSVP> <SLOT> …`: the link, the minutes in dark-gray brackets (white bold number, gray `mins`, or `min` for one), a gray ` | `, the bold RSVP chip (its `&n` pulses while it flashes), a gray ` for ` and the slot chip. Slot type derived from `registration.roles` (specific role = CORE, which is unreachable in practice: a specific role takes the Assigned variant). A player the board will not assign (`board.state` `wont_assign`) sees `anni.wynnvets.org: You won't be assigned - <wont_reason>` instead (`… to this anni` with no reason), with no chip; the bar is already red. vets-anni sends a player volunteering to sit out as plain `unassigned`, so they still see the chip.
+- **Four** chips wrap via `FlashTracker.styleFor(fieldKey, base)` — `role` / `party` / `world` in the assigned variant and `rsvp` in the seeking variant — so the underline pulse (`styleFor` adds `&n` to the bold chip in the on phase) applies per-field. The slot chip, the link badge, the minutes chip and the whole countdown variant are unwrapped and never pulse.
 
 **Bar colour: never PINK.** The signature is `colorFor(AnniSnapshot)`, not `colorFor(String)`: it returns `PURPLE` when `board.state()` is `party` — not PINK as the original spec suggested — `RED` for `wont_assign`, and otherwise quantises `attendance.band()` through `bandToBarColor` (≤2 RED, ≤4 YELLOW, else GREEN), falling back to `PURPLE` with no snapshot or no band. Wynncraft's forced resource pack overrides `boss_bar/pink_background.png` (and its progress sprite) to be fully transparent so they can repurpose pink-bar slots as text-only HUD strips (the Lv.92 Returners XP line, territory/region names like "Corrupted Road", "ROOTS OF CORRUPTION"). Reproducible on bare vanilla MC 1.21.11 with the Wynncraft pack loaded (empirically confirmed against Wynncraft's forced resource pack). Confirmed via `/wv debug trigger bossBarsDump` — every Wynncraft text-only bar shipped `color=PINK overlay=PROGRESS`. **Future colour additions: pick from `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` only.**
 

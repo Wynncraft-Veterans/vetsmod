@@ -52,14 +52,15 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  *       have committed to a slot the board has not filled yet. Spec §3.1.1.2:
  *       {@code &3anni.wynnvets.org/me&8: &7Role: <ROLE>&8 | &7Party <N>&8 | &7World: <W>}</li>
  *   <li><b>Seeking</b> — otherwise:
- *       {@code <RSVP>&7; seeking <FILL|CORE> &7for &3&nanni.wynnvets.org&7 in &f&l<XX>&fmin},
+ *       {@code &3&nanni.wynnvets.org &8(&f&l<XX>&7mins&8) &7| <RSVP> &7for <FILL|CORE>}
+ *       ({@code min} for one minute),
  *       reworded from spec §3.1.1.1's {@code Seeking a <RSVP> <SLOT> for …}. A player the board
  *       will not assign ({@code board.state} {@code wont_assign}) gets
  *       {@code &3anni.wynnvets.org&8: &7You won't be assigned - <wont_reason>} instead, with no
  *       chip; the bar is already red ({@link #colorFor}).</li>
  * </ul>
  *
- * <p>The flash decoration ({@code &l ↔ &n&l}) is applied per-field via
+ * <p>The flash decoration (an {@code &n} underline toggled on and off) is applied per-field via
  * {@link FlashTracker#styleFor} to four chips: role, party and world in
  * the assigned variant, rsvp in the seeking one.</p>
  *
@@ -313,8 +314,8 @@ public final class VetsBossBarContentBuilder {
 
     // ── Variant: seeking ────────────────────────────────────────────────
 
-    /** "{RSVP}; seeking {FILL|CORE} for anni.wynnvets.org in {MIN}min", reworded from spec
-     *  §3.1.1.1; or the won't-be-assigned line. Reached only when {@link #isAssigned} is false,
+    /** "anni.wynnvets.org ({MIN}mins) | {RSVP} for {FILL|CORE}", reworded from spec §3.1.1.1;
+     *  or the won't-be-assigned line. Reached only when {@link #isAssigned} is false,
      *  so a registered player who is sitting out keeps the assigned variant's TBD bar. */
     private static MutableComponent buildSeeking(AnniSnapshot snapshot, long secondsUntilAnni) {
         AnniSnapshot.Board board = snapshot.board();
@@ -323,14 +324,6 @@ public final class VetsBossBarContentBuilder {
         }
         MutableComponent out = Component.empty();
 
-        // HrdRSVP / SftRSVP / NotRSVP chip
-        out.append(rsvpChip(snapshot));
-        out.append(Component.literal("; seeking ").withStyle(ChatFormatting.GRAY));
-
-        // CORE / FILL slot chip
-        out.append(slotChip(snapshot));
-        out.append(Component.literal(" for ").withStyle(ChatFormatting.GRAY));
-
         // Link badge
         out.append(
                 Component.literal("anni.wynnvets.org")
@@ -338,14 +331,30 @@ public final class VetsBossBarContentBuilder {
                                 Style.EMPTY
                                         .withColor(ChatFormatting.DARK_AQUA)
                                         .withUnderlined(true)));
-        out.append(Component.literal(" in ").withStyle(ChatFormatting.GRAY));
 
-        // Minutes remaining (ceil)
+        // Minutes remaining (ceil), in brackets
         long minutes = Math.max(1, (secondsUntilAnni + 59) / 60);
-        Style minStyle = Style.EMPTY.withColor(ChatFormatting.WHITE).withBold(true);
-        out.append(Component.literal(Long.toString(minutes)).withStyle(minStyle));
-        out.append(Component.literal("min").withStyle(ChatFormatting.WHITE));
+        out.append(Component.literal(" (").withStyle(ChatFormatting.DARK_GRAY));
+        out.append(
+                Component.literal(Long.toString(minutes))
+                        .withStyle(Style.EMPTY.withColor(ChatFormatting.WHITE).withBold(true)));
+        out.append(Component.literal(minutesUnit(minutes)).withStyle(ChatFormatting.GRAY));
+        out.append(Component.literal(")").withStyle(ChatFormatting.DARK_GRAY));
+        out.append(Component.literal(" | ").withStyle(ChatFormatting.GRAY));
+
+        // HrdRSVP / SftRSVP / NotRSVP chip
+        out.append(rsvpChip(snapshot));
+        out.append(Component.literal(" for ").withStyle(ChatFormatting.GRAY));
+
+        // CORE / FILL slot chip
+        out.append(slotChip(snapshot));
         return out;
+    }
+
+    /** {@code "min"} for one minute, {@code "mins"} otherwise. */
+    // Package-private for unit tests. See VetsBossBarContentBuilderTest.
+    static String minutesUnit(long minutes) {
+        return minutes == 1 ? "min" : "mins";
     }
 
     /** "anni.wynnvets.org: You won't be assigned - {reason}", or "... to this anni" with no
@@ -373,7 +382,8 @@ public final class VetsBossBarContentBuilder {
         // has no RSVP either, so it shares NotRSVP with "no notice from either
         // block" (a tier that can't be tracked without one); the colour tells
         // the three apart. The labels are the bar's own short forms; chat
-        // spells them out (AnniHoverBuilder).
+        // spells them out (AnniHoverBuilder). The colours are chat's
+        // (AnniHoverBuilder.noticeColor).
         AnniSnapshot.Rsvp rsvp = snapshot.rsvp();
         String notice = (rsvp != null && !rsvp.revoked()) ? rsvp.notice() : null;
         if (notice == null) {
@@ -390,7 +400,7 @@ public final class VetsBossBarContentBuilder {
             switch (notice.toLowerCase(Locale.ROOT)) {
                 case "hard", "rsvp_hard":
                     label = "HrdRSVP";
-                    color = ChatFormatting.BLUE;
+                    color = ChatFormatting.AQUA;
                     break;
                 case "soft", "rsvp_soft":
                     label = "SftRSVP";

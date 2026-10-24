@@ -1908,32 +1908,34 @@ Test: [`GhostsPromptHandlerTest.java`](../src/test/java/org/wynnvets/mwe/anni/ag
 
 Test: [`VetsBossBarContentBuilderTest.java`](../src/test/java/org/wynnvets/mwe/anni/bossbar/VetsBossBarContentBuilderTest.java) · Subject: [`VetsBossBarContentBuilder`](../src/client/java/org/wynnvets/mwe/anni/bossbar/VetsBossBarContentBuilder.java)
 
-`VetsBossBarContentBuilder` builds the synthetic anni boss bar's text. The suite pins the seeking variant's RSVP chip for each notice the server can send, in both of its spellings (`rsvp.notice`'s bare `hard` / `soft` and `attendance.notice_effective`'s raw enum value), with its colour; the won't-be-assigned line that replaces the chip; and the assigned variant's all-TBD bar for a player registered for a specific role but not yet placed. Every test calls the public `build(snapshot, 4800, 0, 0)`: 80 minutes out, so the countdown gate short-circuits before `AnniZone.isInZone` and that class never loads. Snapshots are parsed from inline JSON with `AnniSnapshot.fromJson`; a chip's colour is read from the seeking line's first sibling.
+`VetsBossBarContentBuilder` builds the synthetic anni boss bar's text. The suite pins the seeking variant's RSVP chip for each notice the server can send, in both of its spellings (`rsvp.notice`'s bare `hard` / `soft` and `attendance.notice_effective`'s raw enum value), with its colour; the won't-be-assigned line that replaces the chip; and the assigned variant's all-TBD bar for a player registered for a specific role but not yet placed. Every test calls the public `build(snapshot, 4800, 0, 0)`: 80 minutes out, so the countdown gate short-circuits before `AnniZone.isInZone` and that class never loads. Snapshots are parsed from inline JSON with `AnniSnapshot.fromJson`; a chip's colour is read from the seeking line's sibling that reads the chip's label, and every chip is checked to be bold.
 
-- **`aHardRsvpIsBlueInBothSpellings`**: A hard RSVP shows `HrdRSVP` in blue whether it arrives as `rsvp.notice` `hard` or as `attendance.notice_effective` `rsvp_hard`.
-  - for each of `{"rsvp":{"notice":"hard"}}` and `{"attendance":{"notice_effective":"rsvp_hard"}}`: `build(...).getString()` equals `"HrdRSVP; seeking FILL for anni.wynnvets.org in 80min"`, and the first sibling's colour is `TextColor.fromLegacyFormat(BLUE)`.
+- **`aHardRsvpIsAquaInBothSpellings`**: A hard RSVP shows `HrdRSVP` in aqua whether it arrives as `rsvp.notice` `hard` or as `attendance.notice_effective` `rsvp_hard`.
+  - for each of `{"rsvp":{"notice":"hard"}}` and `{"attendance":{"notice_effective":"rsvp_hard"}}`: `build(...).getString()` equals `"anni.wynnvets.org (80mins) | HrdRSVP for FILL"`, and the `HrdRSVP` sibling's colour is `TextColor.fromLegacyFormat(AQUA)`.
 - **`aSoftRsvpIsGreenInBothSpellings`**: A soft RSVP shows `SftRSVP` in green in both spellings.
-  - for each of `{"rsvp":{"notice":"soft"}}` and `{"attendance":{"notice_effective":"rsvp_soft"}}`: the text equals `"SftRSVP; seeking FILL for anni.wynnvets.org in 80min"`, and the chip is green.
+  - for each of `{"rsvp":{"notice":"soft"}}` and `{"attendance":{"notice_effective":"rsvp_soft"}}`: the text equals `"anni.wynnvets.org (80mins) | SftRSVP for FILL"`, and the chip is green.
 - **`walkInsAreYellowOnTimeAndRedLate`**: `attend_early` shows `NotRSVP` in yellow and `attend_late` shows `NotRSVP` in red.
-  - `{"attendance":{"notice_effective":"attend_early"}}` gives `"NotRSVP; seeking FILL for anni.wynnvets.org in 80min"` with a yellow chip.
-  - `{"attendance":{"notice_effective":"attend_late"}}` gives `"NotRSVP; seeking FILL for anni.wynnvets.org in 80min"` with a red chip.
+  - `{"attendance":{"notice_effective":"attend_early"}}` gives `"anni.wynnvets.org (80mins) | NotRSVP for FILL"` with a yellow chip.
+  - `{"attendance":{"notice_effective":"attend_late"}}` gives `"anni.wynnvets.org (80mins) | NotRSVP for FILL"` with a red chip.
 - **`noNoticeFromEitherBlockReadsAsNoRsvp`**: An empty snapshot shows `NotRSVP` in gray.
-  - `{}` gives `"NotRSVP; seeking FILL for anni.wynnvets.org in 80min"` with a gray chip.
+  - `{}` gives `"anni.wynnvets.org (80mins) | NotRSVP for FILL"` with a gray chip.
 - **`aRevokedRsvpFallsBackToTheAttendanceNotice`**: A revoked hard RSVP is ignored in favour of the attendance notice.
-  - `{"rsvp":{"notice":"hard","revoked":true},"attendance":{"notice_effective":"attend_late"}}` gives `"NotRSVP; seeking FILL for anni.wynnvets.org in 80min"` with a red chip.
+  - `{"rsvp":{"notice":"hard","revoked":true},"attendance":{"notice_effective":"attend_late"}}` gives `"anni.wynnvets.org (80mins) | NotRSVP for FILL"` with a red chip.
 - **`anUnknownNoticePassesThroughUpperCasedInGray`**: A notice no arm knows is shown upper-cased in gray.
-  - `{"attendance":{"notice_effective":"walk_in"}}` gives `"WALK_IN; seeking FILL for anni.wynnvets.org in 80min"` with a gray chip.
+  - `{"attendance":{"notice_effective":"walk_in"}}` gives `"anni.wynnvets.org (80mins) | WALK_IN for FILL"` with a gray chip.
 - **`anUnassignedWalkInStillSeesTheChip`**: A player on the `unassigned` board state (which is also how vets-anni sends a volunteer to sit out) still sees the chip.
-  - `{"board":{"state":"unassigned"},"attendance":{"notice_effective":"attend_early"}}` gives `"NotRSVP; seeking FILL for anni.wynnvets.org in 80min"` with a yellow chip.
+  - `{"board":{"state":"unassigned"},"attendance":{"notice_effective":"attend_early"}}` gives `"anni.wynnvets.org (80mins) | NotRSVP for FILL"` with a yellow chip.
 - **`aSittingOutPlayerGetsTheReasonAndNoChip`**: On `wont_assign` with a reason, the bar shows the reason and no chip, even with a hard RSVP.
   - `{"board":{"state":"wont_assign","wont_reason":"Sitting out"},"rsvp":{"notice":"hard"}}` gives `"anni.wynnvets.org: You won't be assigned - Sitting out"`.
 - **`wontAssignWithNoReasonSaysThisAnni`**: On `wont_assign` with no reason, the line ends "to this anni".
   - `{"board":{"state":"wont_assign"}}` gives `"anni.wynnvets.org: You won't be assigned to this anni"`.
 - **`aSpecificRoleNotYetPlacedShowsTheAssignedVariantAllTbd`**: A TANK registration with an empty board takes the assigned variant and shows TBD for all three chips.
   - `{"registration":{"roles":[{"role":"TANK"}]},"rsvp":{"notice":"hard"}}` gives `"anni.wynnvets.org: Role: TBD | Party TBD | World: TBD"`.
-  - that text does not contain `"seeking"`.
+  - that text does not contain `"HrdRSVP"`: no seeking line, so no chip.
 - **`aFillRegistrationStaysOnTheSeekingLine`**: A FILL registration does not count as a committed slot, so the seeking line shows.
-  - `{"registration":{"roles":[{"role":"FILL"}]}}` gives text ending in `"; seeking FILL for anni.wynnvets.org in 80min"`.
+  - `{"registration":{"roles":[{"role":"FILL"}]}}` gives `"anni.wynnvets.org (80mins) | NotRSVP for FILL"`.
+- **`oneMinuteIsSingularAndAnyOtherCountPlural`**: The minutes unit reads `min` for one minute and `mins` otherwise.
+  - `minutesUnit(1)` equals `"min"`; `minutesUnit(2)` and `minutesUnit(80)` equal `"mins"`.
 
 ## `org.wynnvets.mwe.anni.mode`
 

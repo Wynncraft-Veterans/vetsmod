@@ -99,9 +99,8 @@ public final class AnniHoverBuilder {
      *  apart, and renders an unrecognised key as the raw string
      *  upper-cased, in the same gray. The boss
      *  bar's {@code VetsBossBarContentBuilder.rsvpChip} agrees on every
-     *  notice the server sends but the hard RSVP, which it keeps blue by
-     *  design; it has no arms for the three defensive aliases, which it
-     *  shows upper-cased in gray.</p> */
+     *  notice the server sends; it has no arms for the three defensive
+     *  aliases, which it shows upper-cased in gray.</p> */
     public static ChatFormatting noticeColor(String noticeEffective) {
         if (noticeEffective == null) return ChatFormatting.GRAY;
         switch (noticeEffective.toLowerCase(Locale.ROOT)) {
