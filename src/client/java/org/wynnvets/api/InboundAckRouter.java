@@ -12,9 +12,10 @@ import org.wynnvets.util.Json;
 /**
  * Routes the inbound socket's untyped {@code {"status":...}} acks. An ack that echoes a request id
  * ({@code req}) goes to the callback registered under it in {@link V1ApiManager#pendingAcks}, or
- * is dropped when none is (answered already, or a frame sent without a callback). Against a
- * server that does not echo ids, a staff-action-shaped ack, and an error ack while a callback is
- * pending and no auth ack is awaited, go to the eldest pending callback instead (a
+ * is dropped when none is (answered already, or a frame sent without a callback); a chat
+ * relay's auth-failure error also runs the auth-failure handling. Against a server that does not
+ * echo ids, a staff-action-shaped ack, and an error ack while a staff-action callback is pending
+ * and no auth ack is awaited, go to the eldest pending staff-action callback instead (a
  * staff-action-shaped ack with nothing pending, or any once the server echoes, is dropped). Auth
  * acks go to {@link SessionAuthState} and {@link GuildStateManager}, and any other ack whose
  * status is not ok to the log. Any other ok ack is dropped.
@@ -53,6 +54,15 @@ final class InboundAckRouter {
                 return;
             }
             V1ApiManager.answer(entry, json);
+            // A relay refused because the session's auth is gone says so about the session, not
+            // just the line, as it did before relays had callbacks. A staff-action callback keeps
+            // its error to itself.
+            if (entry.kind() == PendingAcks.Kind.RELAY && !"ok".equals(status)) {
+                String detail = Json.optString(json, "detail", "unknown");
+                if (isAuthFailureDetail(detail)) {
+                    onAuthFailureAck(detail);
+                }
+            }
             return;
         }
 
@@ -90,9 +100,9 @@ final class InboundAckRouter {
                 legacy
                         && "error".equals(status)
                         && !wasAuthAck
-                        && !V1ApiManager.pendingAcks.isEmpty();
+                        && V1ApiManager.pendingAcks.hasStaff();
         if (staffShaped || staffOrphanError) {
-            PendingAcks.Entry entry = legacy ? V1ApiManager.pendingAcks.pollEldest() : null;
+            PendingAcks.Entry entry = legacy ? V1ApiManager.pendingAcks.pollEldestStaff() : null;
             if (entry != null) {
                 V1ApiManager.answer(entry, json);
                 return;
@@ -149,21 +159,31 @@ final class InboundAckRouter {
         }
         if (!"ok".equals(status)) {
             String detail = json.has("detail") ? json.get("detail").getAsString() : "unknown";
-            if (wasAuthAck
-                    || detail.startsWith("auth rejected")
-                    || detail.startsWith("Authentication required")) {
-                SessionAuthState.expectingAuthAck = false;
-                boolean wasStaff = SessionAuthState.confirmedStaff;
-                SessionAuthState.confirmedStaff = false;
-                SessionAuthState.confirmedStaffRank = "";
-                if (wasStaff) {
-                    DispatchCoordinator.resetStaffChatEligibilityCache();
-                }
-                V1ApiManager.onInboundAuthFailed(detail);
-                GuildStateManager.onAuthFailure(detail);
+            if (wasAuthAck || isAuthFailureDetail(detail)) {
+                onAuthFailureAck(detail);
             } else {
                 VetsLogger.warn("Inbound API error: {}", detail);
             }
         }
+    }
+
+    /** Whether an error detail is one of the auth-failure replies: a refused key, or a frame
+     *  refused because the session holds no auth. */
+    private static boolean isAuthFailureDetail(String detail) {
+        return detail.startsWith("auth rejected") || detail.startsWith("Authentication required");
+    }
+
+    /** Clears the confirmed-staff state and reports an auth failure to {@link V1ApiManager} and
+     *  {@link GuildStateManager}. */
+    private static void onAuthFailureAck(String detail) {
+        SessionAuthState.expectingAuthAck = false;
+        boolean wasStaff = SessionAuthState.confirmedStaff;
+        SessionAuthState.confirmedStaff = false;
+        SessionAuthState.confirmedStaffRank = "";
+        if (wasStaff) {
+            DispatchCoordinator.resetStaffChatEligibilityCache();
+        }
+        V1ApiManager.onInboundAuthFailed(detail);
+        GuildStateManager.onAuthFailure(detail);
     }
 }

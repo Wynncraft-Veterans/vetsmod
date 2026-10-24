@@ -92,8 +92,10 @@ public final class V1ApiManager {
     private static final CopyOnWriteArrayList<Runnable> inboundPostConnectListeners =
             new CopyOnWriteArrayList<>();
 
-    /** The callbacks awaiting a staff-action ack. {@link #sendStaffActionFrame} sends every
-     *  frame with a fresh request id ({@code req}) and registers its callback under it.
+    /** The callbacks awaiting a staff-action ack, and, against a server that echoes ids, a chat
+     *  relay's ack ({@link #sendInbound(String, String, String, String, Consumer)}).
+     *  {@link #sendStaffActionFrame} sends every frame with a fresh request id ({@code req}) and
+     *  registers its callback under it.
      *  temporary-server echoes the id in its reply, so {@link InboundAckRouter} answers exactly
      *  the callback whose frame the ack belongs to, and an error ack to some other frame (a
      *  forwarded guild line refused while inbound processing is disabled, say) can no longer
@@ -259,8 +261,10 @@ public final class V1ApiManager {
         // Drain any in-flight staff-action callbacks with synthetic
         // errors so callers don't hang waiting on responses that will
         // never arrive.
+        // A relay's line was already echoed and may have been delivered, so it gets the
+        // outcome-unknown ack, which its callback keeps quiet about.
         for (PendingAcks.Entry entry : pendingAcks.drainAll()) {
-            answer(entry, drainError());
+            answer(entry, entry.kind() == PendingAcks.Kind.RELAY ? lostAck() : drainError());
         }
         VetsLogger.debug("V1 API connections closed");
     }
@@ -584,6 +588,39 @@ public final class V1ApiManager {
     }
 
     /**
+     * Sends a chat relay ({@code waitlist}, {@code queue} or {@code honourary}) like
+     * {@link #sendInbound(String, String, String, String)}, and reports the server's verdict to
+     * {@code onAck}. Against a server that echoes request ids the frame carries one and
+     * {@code onAck} gets the server's ack, or a {@code outcome_unknown} ack when the socket is
+     * lost or no reply comes within 15 s. Against one that does not, the frame carries no
+     * {@code req} (such a server would broadcast the key to every outbound client) and
+     * {@code onAck} hears only a frame that could not be written. A socket that is down answers
+     * at once with the {@code Inbound WebSocket not connected.} error. Not for {@code guild}
+     * forwards, which have no one to tell.
+     */
+    public static void sendInbound(
+            String type, String rank, String username, String message, Consumer<JsonObject> onAck) {
+        WsClient client = connectedInbound();
+        if (client == null) {
+            VetsLogger.debug("Inbound WebSocket not connected, dropping message");
+            answerQuietly(onAck, notConnectedError());
+            return;
+        }
+        JsonObject payload = V1Frames.inbound(type, rank, username, message);
+        if (serverEchoesReq()) {
+            sendTracked(client, payload, onAck, PendingAcks.Kind.RELAY);
+            return;
+        }
+        client.sendAsync(payload)
+                .thenAccept(
+                        written -> {
+                            if (!written) {
+                                answerQuietly(onAck, drainError());
+                            }
+                        });
+    }
+
+    /**
      * Sends a {@code rank_change} control frame describing a guild rank-change
      * broadcast observed in chat. The server deduplicates across reporting
      * clients and dispatches the alert (BAN/KICK to dazebot, MOTE to the
@@ -774,15 +811,27 @@ public final class V1ApiManager {
             String type, JsonObject fields, Consumer<JsonObject> callback) {
         WsClient client = connectedInbound();
         if (client == null) {
-            JsonObject err = new JsonObject();
-            err.addProperty("status", "error");
-            err.addProperty("detail", "Inbound WebSocket not connected.");
-            if (callback != null) callback.accept(err);
+            if (callback != null) callback.accept(notConnectedError());
             return;
         }
         // Every staff frame carries a req, even one with no callback, so its ack is dropped as
         // unknown instead of being paired with another caller's callback.
-        PendingAcks.Kind kind = PendingAcks.kindFor(type);
+        sendTracked(
+                client, V1Frames.staffAction(type, fields), callback, PendingAcks.kindFor(type));
+    }
+
+    /**
+     * Sends {@code frame} on {@code client} with a fresh request id, registering {@code callback}
+     * under it as {@code kind} (or nothing for a {@code null} callback) and scheduling its
+     * deadline. The callback is taken back and answered with {@link #drainError()} when the frame
+     * is never written, or when a {@link #disconnect()} raced the send and drained the callbacks
+     * before this one was registered.
+     */
+    private static void sendTracked(
+            WsClient client,
+            JsonObject frame,
+            Consumer<JsonObject> callback,
+            PendingAcks.Kind kind) {
         String req;
         CompletableFuture<Boolean> sent;
         synchronized (SEND_LOCK) {
@@ -790,9 +839,9 @@ public final class V1ApiManager {
                     callback != null
                             ? pendingAcks.register(callback, client.generation(), kind)
                             : PendingAcks.newReq();
-            sent = client.sendAsync(V1Frames.withReq(V1Frames.staffAction(type, fields), req));
+            sent = client.sendAsync(V1Frames.withReq(frame, req));
         }
-        VetsLogger.debug("Sent staff-action frame: {} (req {})", type, req);
+        VetsLogger.debug("Sent {} frame (req {})", frame.get("type").getAsString(), req);
         if (callback == null) {
             return;
         }
@@ -841,6 +890,24 @@ public final class V1ApiManager {
     /** Returns true if the inbound connection is active. */
     public static boolean isInboundConnected() {
         return connectedInbound() != null;
+    }
+
+    /** The synthetic error ack a callback gets at once when the inbound socket is down. */
+    private static JsonObject notConnectedError() {
+        JsonObject err = new JsonObject();
+        err.addProperty("status", "error");
+        err.addProperty("detail", "Inbound WebSocket not connected.");
+        return err;
+    }
+
+    /** Answers a callback that was never registered in {@link #pendingAcks}, so no other path
+     *  can answer it, with the same guard as {@link #answer}. */
+    private static void answerQuietly(Consumer<JsonObject> callback, JsonObject ack) {
+        try {
+            callback.accept(ack);
+        } catch (Exception e) {
+            VetsLogger.warn("Ack callback error: {}", e.getMessage());
+        }
     }
 
     /** The synthetic error ack a staff-action callback gets when {@link #disconnect()} closed the

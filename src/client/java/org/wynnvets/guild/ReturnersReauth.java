@@ -12,8 +12,8 @@ import org.wynnvets.util.TickDelays;
  * <p>temporary-server fixes a session's tier when it handles the auth frame, and vetsmod sends
  * that frame only when the inbound socket (re)connects. A waitlister who joins Returners
  * mid-session therefore keeps the waitlist tier server-side until the next connection, and the
- * server refuses their world-queue {@code /g}, which goes out as a {@code queue} frame
- * ({@code relay-echo-shows-server-refused-frames}). dazebot re-resolves the tier from Discord
+ * server refuses their world-queue {@code /g}, which goes out as a {@code queue} frame (the relay
+ * then follows its echo with a red "Not delivered" line). dazebot re-resolves the tier from Discord
  * roles on every auth and grants the member role within its 2 to 5 minute role-sync loops, so
  * {@link #onJoinedReturners()} makes one attempt at the join and one {@link #RETRY_DELAY_MS}
  * later. Each sends only while {@link #shouldReauth} holds, which it stops doing once the tier

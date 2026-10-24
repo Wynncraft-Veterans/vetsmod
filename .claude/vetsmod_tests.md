@@ -105,6 +105,10 @@ Test: [`InboundAckRouterTest.java`](../src/test/java/org/wynnvets/api/InboundAck
   - Routing does not throw; `calls` is empty and `pendingAcks.size()` equals 1.
 - **`aReqlessStaffShapedAckIsDroppedOnceTheServerEchoesIds`**: With the hello flag set, `{"status":"ok","total_points":3}` with no id answers nobody.
   - `calls` is empty and `pendingAcks.size()` equals 1.
+- **`aRelaysAckReachesItsOwnCallback`**: With a staff callback and a relay pending, an error carrying the relay's id goes to the relay only.
+  - `calls` equals `["relay " + {"status":"error","detail":"Inbound processing is disabled","req":"<relay>"}]` and `pendingAcks.size()` is 1.
+- **`theLegacyPairingNeverAnswersARelay`** (legacy mode): A staff-shaped ack skips an older pending relay and goes to the staff callback; an error with only the relay pending answers nobody.
+  - After `{"status":"ok","total_points":3}`, `calls` equals `["staff " + that ack]`; after `{"status":"error","detail":"no such player"}`, `calls` is empty and `pendingAcks.size()` is 1.
 - **`anEchoedAckIsAnsweredOnce`**: Routing the same echoed ack twice answers its callback once.
   - `calls` equals the single entry `["head " + {"status":"ok","total_points":3,"req":"<head>"}]`.
 
@@ -120,14 +124,15 @@ Test: [`PendingAcksTest.java`](../src/test/java/org/wynnvets/api/PendingAcksTest
   - For a commit registered on generation 3: the entry's `callback()` is the registered one, its `req()` the returned id, its `generation()` 3 and its `kind()` `COMMIT`; a second `complete` returns `null` and the map is empty.
 - **`anUnknownIdCompletesNothing`**: `complete("zzzzzzzz")` returns `null` and leaves the registered entry.
   - `size()` equals 1.
-- **`pollEldestFollowsSendOrderAndSkipsWhatWasCompleted`**: With three registered and the second completed, `pollEldest()` returns the first, then the third, then `null`.
-- **`anEntryTakenByPollEldestCannotBeCompleted`**: After `pollEldest()` takes the only entry, `complete` of its id returns `null`.
+- **`theLegacyPairingFollowsSendOrderAndSkipsWhatWasCompleted`**: With three registered and the second completed, `pollEldestStaff()` returns the first, then the third, then `null`.
+- **`anEntryTakenByTheLegacyPairingCannotBeCompleted`**: After `pollEldestStaff()` takes the only entry, `complete` of its id returns `null`.
 - **`drainAllEmptiesInSendOrder`**: `drainAll()` returns both entries in registration order and leaves nothing to complete.
   - The drained ids equal `[first, second]`; the map is empty and `complete(first)` returns `null`.
 - **`aLostSocketFailsItsOwnAndOlderEntriesOnly`**: With entries sent on generations 1, 2 and 3, `failGeneration(2)` returns the first two in order and leaves the third.
   - The failed ids equal `[older, lost]`; `size()` is 1 and `complete(newer)` returns it.
 - **`anEntryFailedByALostSocketCannotBeCompleted`**: After `failGeneration(1)` took it, `complete` returns `null` and a second `failGeneration(1)` returns an empty list.
-- **`readsWaitFifteenSecondsAndCommitsFortyFive`**: `kindFor` maps `caution_check` and `check_membership` to `READ`, and `caution_add`, `warn_add` and `eject_add` to `COMMIT`; `READ.timeoutMs` is 15000 and `COMMIT.timeoutMs` 45000.
+- **`readsWaitFifteenSecondsAndCommitsFortyFive`**: `kindFor` maps `caution_check` and `check_membership` to `READ`, and `caution_add`, `warn_add` and `eject_add` to `COMMIT`; `READ.timeoutMs` is 15000, `COMMIT.timeoutMs` 45000 and `RELAY.timeoutMs` 15000.
+- **`theLegacyPairingSkipsRelays`**: With only a relay pending, `hasStaff()` is false and `pollEldestStaff()` returns `null`; once a read is registered, `hasStaff()` is true, `pollEldestStaff()` returns the read, and the relay can still be completed by its id.
 
 ### `SerializedSenderTest`
 
@@ -221,6 +226,14 @@ Tests:
 - **`aDeadlineIsEnforcedOnlyOnceTheServerEchoesIds`**: `expire(req)` leaves the callback waiting while neither echo flag is set, then, with `helloEchoesReq` set, answers it once with the timeout ack.
   - After the first `expire`, `acks` is empty and `pendingAcks.size()` is 1.
   - After two more with the flag set, `acks` equals `["{\"status\":\"error\",\"detail\":\"No reply from the vets server.\",\"outcome_unknown\":\"no reply\"}"]` and `pendingAcks` is empty.
+- **`aRelayCarriesAReqAndRegistersItsCallbackOnlyOnceTheServerEchoesIds`**: With `helloEchoesReq` set, `sendInbound("waitlist", "Waitlist", "Holidaze", "hi", cb)` writes the chat frame with a trailing `req` and registers a relay entry under it.
+  - The `req` matches `[A-Za-z0-9]{8}`; `pendingAcks.complete(req)` returns an entry of kind `RELAY`; with the req replaced by `R`, `masked(t0, t1)` equals `{"uuid":"U","type":"waitlist","timestamp":0,"rank":"Waitlist","username":"Holidaze","message":"hi","req":"R"}`.
+- **`againstAServerThatDoesNotEchoARelayCarriesNoReqAndHearsOnlyAFailedWrite`**: Without echo the frame has no `req`, nothing is registered and the callback is not called; a failed write answers it once with the drain error.
+  - The frame contains no `"req"`, `acks` is empty and `pendingAcks` is empty; with `socket.sends` false, a second relay's callback got `["{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"]`.
+- **`aForwardWithoutACallbackNeverCarriesAReq`**: Even with `helloEchoesReq` set, the 4-argument `sendInbound` (guild forwards) writes no `req`.
+- **`aRelayWithTheSocketDownIsAnsweredAtOnce`**: With no inbound client, the relay's callback gets `{"status":"error","detail":"Inbound WebSocket not connected."}` at once.
+- **`aRelayWhoseWriteFailsIsAnsweredOnceAndADisconnectLeavesARelayQuiet`**: In echo mode a failed write answers the relay once with the drain error and leaves nothing pending; a relay still pending at `disconnect()` gets the outcome-unknown lost ack, not the drain error.
+  - First callback: `["{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"]`; second, after `disconnect()`: the lost ack (`Connection lost before reply.`, `outcome_unknown` `connection lost`).
 
 ### `V1ApiManagerOutboundAuthTest`
 
@@ -568,6 +581,8 @@ Test: [`OutboundDisplayHandlerTest.java`](../src/test/java/org/wynnvets/chat/Out
   - `seenNatively(type, true, true)`, `seenNatively(type, false, false)` and `seenNatively(type, false, true)` are false.
 - **`anUntypedOrUnknownLineIsNeverSeenNatively`**: An empty or unknown type is never treated as seen.
   - `seenNatively("", true, false)` and `seenNatively("warning", true, false)` are false.
+- **`droppingARefusedSelfMessageRemovesExactlyThatEntry`**: `dropPendingSelfMessage` removes one matching entry per call, matches the username in any case, and leaves another user's entry. The caches are cleared before and after.
+  - With `Holidaze`/`hi` queued twice and `Metrafish`/`hi` once: dropping `holidaze`/`hi` and then `Holidaze`/`hi` both return true, a third drop returns false, `Metrafish`/`hi there` returns false, and `Metrafish`/`hi` returns true.
 
 ### `PillCodecTest`
 
@@ -774,7 +789,7 @@ Test: [`FindDispatcherTest.java`](../src/test/java/org/wynnvets/chat/dispatcher/
 
 Test: [`GuildChatDispatcherTest.java`](../src/test/java/org/wynnvets/chat/dispatcher/GuildChatDispatcherTest.java) · Subject: [`GuildChatDispatcher`](../src/client/java/org/wynnvets/chat/dispatcher/GuildChatDispatcher.java)
 
-`GuildChatDispatcher.argsAfter` is the word match the staff intercepts (`/v`, `/a`, `/encourage`, `/wv check`, `/caution`, `/caution-go`, `/warn`, `/eject`) use, so a bare command, which typed chat delivers trimmed, still reaches its handler's usage line. The suite pins the bare word, the rest after one space, case-insensitivity, and that a longer word or a different command does not match. Only the pure helper runs; `intercept` itself reaches Wynntils' connection state.
+The suite pins two pure helpers. `GuildChatDispatcher.relayRefusalLine` is the red line a waitlist, queue or honourary relay gets when the server refuses it after its echo. `GuildChatDispatcher.argsAfter` is the word match the staff intercepts (`/v`, `/a`, `/encourage`, `/wv check`, `/caution`, `/caution-go`, `/warn`, `/eject`) use, so a bare command, which typed chat delivers trimmed, still reaches its handler's usage line. The suite pins the bare word, the rest after one space, case-insensitivity, and that a longer word or a different command does not match. Only the pure helper runs; `intercept` itself reaches Wynntils' connection state.
 
 - **`theBareWordHasNoArguments`**: The bare word gives the empty string.
   - `argsAfter("v", "v")` equals `""`; `argsAfter("wv check", "wv check")` equals `""`.
@@ -784,6 +799,11 @@ Test: [`GuildChatDispatcherTest.java`](../src/test/java/org/wynnvets/chat/dispat
   - `argsAfter("WARN Holidaze late", "warn")` equals `"Holidaze late"`; `argsAfter("Caution", "caution")` equals `""`.
 - **`aLongerWordIsAnotherCommand`**: A word followed by anything but a space, or a different command, is null.
   - `argsAfter("caution-go Nazzae", "caution")`, `argsAfter("vote", "v")` and `argsAfter("g hello", "v")` are all null.
+- **`anOkOrOutcomeUnknownAckPrintsNothing`**: `relayRefusalLine` is null for an ok ack and for an error carrying `outcome_unknown`.
+- **`theKnownRefusalsGetShortReasons`**: Each known detail maps to its short reason in `Not delivered (<reason>)`.
+  - `Inbound processing is disabled` gives `relay paused`; an `Authentication required…` detail `not authenticated`; a `Your tier (…)` detail `not allowed for your tier`; `Server busy` `server busy`; `Connection closed before reply.` and `Inbound WebSocket not connected.` `connection closed`.
+- **`anyOtherDetailIsShownWithoutItsPeriodAndCut`**: Another detail is shown as sent without its trailing period, a long one is cut to 79 characters and an ellipsis, and an empty one reads `refused`.
+  - `Message content is empty after sanitization.` gives `Not delivered (Message content is empty after sanitization)`; 100 `x` give `Not delivered (` + 79 `x` + `…)`; `""` gives `Not delivered (refused)`.
 
 ### `MessageFanoutDispatcherTest`
 

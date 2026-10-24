@@ -1,6 +1,7 @@
 package org.wynnvets.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -70,20 +71,20 @@ class PendingAcksTest {
     }
 
     @Test
-    void pollEldestFollowsSendOrderAndSkipsWhatWasCompleted() {
+    void theLegacyPairingFollowsSendOrderAndSkipsWhatWasCompleted() {
         String first = reg();
         String second = reg();
         String third = reg();
         pending.complete(second);
-        assertEquals(first, pending.pollEldest().req());
-        assertEquals(third, pending.pollEldest().req());
-        assertNull(pending.pollEldest());
+        assertEquals(first, pending.pollEldestStaff().req());
+        assertEquals(third, pending.pollEldestStaff().req());
+        assertNull(pending.pollEldestStaff());
     }
 
     @Test
-    void anEntryTakenByPollEldestCannotBeCompleted() {
+    void anEntryTakenByTheLegacyPairingCannotBeCompleted() {
         String req = reg();
-        pending.pollEldest();
+        pending.pollEldestStaff();
         assertNull(pending.complete(req));
     }
 
@@ -127,5 +128,17 @@ class PendingAcksTest {
         assertEquals(PendingAcks.Kind.COMMIT, PendingAcks.kindFor("eject_add"));
         assertEquals(15_000L, PendingAcks.Kind.READ.timeoutMs);
         assertEquals(45_000L, PendingAcks.Kind.COMMIT.timeoutMs);
+        assertEquals(15_000L, PendingAcks.Kind.RELAY.timeoutMs);
+    }
+
+    @Test
+    void theLegacyPairingSkipsRelays() {
+        String relay = pending.register(noop(), 1, PendingAcks.Kind.RELAY);
+        assertFalse(pending.hasStaff());
+        assertNull(pending.pollEldestStaff(), "a relay is never answered eldest-first");
+        String staff = reg();
+        assertTrue(pending.hasStaff());
+        assertEquals(staff, pending.pollEldestStaff().req());
+        assertEquals(relay, pending.complete(relay).req(), "the relay is still waiting by id");
     }
 }

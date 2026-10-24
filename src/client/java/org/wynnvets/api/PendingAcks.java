@@ -13,7 +13,8 @@ import java.util.function.Consumer;
  * order. temporary-server echoes a frame's {@code req} as the last key of its reply (its
  * {@code v1_protocol.md} §1.3), so {@link InboundAckRouter} answers the callback registered under
  * the echoed id. Against a server that does not echo, the router falls back to answering the
- * eldest entry ({@link #pollEldest()}), the strict-order queue the protocol had before ids.
+ * eldest staff-action entry ({@link #pollEldestStaff()}), the strict-order queue the protocol had
+ * before ids.
  *
  * <p>Each entry also records the inbound socket it was sent on (the {@link WsClient#generation()}
  * read at send time), so a lost socket fails exactly its own entries ({@link #failGeneration}),
@@ -31,7 +32,10 @@ final class PendingAcks {
         READ(15_000L),
         /** {@code caution_add}, {@code warn_add}, {@code eject_add}: a preflight and a commit,
          *  each a dazebot call, behind any frame the server is still answering on the socket. */
-        COMMIT(45_000L);
+        COMMIT(45_000L),
+        /** A waitlist, queue or honourary chat relay ({@code GuildChatDispatcher}). Never answered
+         *  by the eldest-first pairing, which is for staff-action acks only. */
+        RELAY(15_000L);
 
         final long timeoutMs;
 
@@ -86,16 +90,28 @@ final class PendingAcks {
         return byReq.remove(req);
     }
 
-    /** Removes and returns the eldest entry, or {@code null} if there is none. Only for a server
-     *  that does not echo {@code req}. */
-    synchronized Entry pollEldest() {
+    /** Removes and returns the eldest entry that is not a {@link Kind#RELAY relay}, or
+     *  {@code null} if there is none. Only for a server that does not echo {@code req}. */
+    synchronized Entry pollEldestStaff() {
         Iterator<Entry> it = byReq.values().iterator();
-        if (!it.hasNext()) {
-            return null;
+        while (it.hasNext()) {
+            Entry entry = it.next();
+            if (entry.kind() != Kind.RELAY) {
+                it.remove();
+                return entry;
+            }
         }
-        Entry eldest = it.next();
-        it.remove();
-        return eldest;
+        return null;
+    }
+
+    /** Whether a staff-action entry, one that is not a {@link Kind#RELAY relay}, is waiting. */
+    synchronized boolean hasStaff() {
+        for (Entry entry : byReq.values()) {
+            if (entry.kind() != Kind.RELAY) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Removes and returns, eldest first, every entry sent on the socket of {@code lostGeneration}

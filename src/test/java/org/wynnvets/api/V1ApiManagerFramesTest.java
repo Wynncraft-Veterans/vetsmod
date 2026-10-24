@@ -414,6 +414,89 @@ class V1ApiManagerFramesTest {
         assertTrue(V1ApiManager.pendingAcks.isEmpty());
     }
 
+    // ----- a relay with an ack callback -----
+
+    private static final String DRAIN_ACK =
+            "{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}";
+
+    @Test
+    void aRelayCarriesAReqAndRegistersItsCallbackOnlyOnceTheServerEchoesIds() {
+        connect();
+        V1ApiManager.helloEchoesReq = true;
+        long t0 = System.currentTimeMillis();
+        V1ApiManager.sendInbound("waitlist", "Waitlist", "Holidaze", "hi", ack -> {});
+        long t1 = System.currentTimeMillis();
+        JsonObject frame = Json.GSON.fromJson(socket.wire.get(0), JsonObject.class);
+        assertTrue(frame.get("req").getAsString().matches("[A-Za-z0-9]{8}"));
+        PendingAcks.Entry entry = V1ApiManager.pendingAcks.complete(frame.get("req").getAsString());
+        assertEquals(PendingAcks.Kind.RELAY, entry.kind());
+        socket.wire.set(0, socket.wire.get(0).replace(frame.get("req").getAsString(), "R"));
+        assertEquals(
+                List.of(
+                        "{\"uuid\":\"U\",\"type\":\"waitlist\",\"timestamp\":0,"
+                                + "\"rank\":\"Waitlist\",\"username\":\"Holidaze\","
+                                + "\"message\":\"hi\",\"req\":\"R\"}"),
+                masked(t0, t1));
+    }
+
+    @Test
+    void againstAServerThatDoesNotEchoARelayCarriesNoReqAndHearsOnlyAFailedWrite() {
+        // Such a server would broadcast an unknown key to every outbound client.
+        connect();
+        List<String> acks = new ArrayList<>();
+        V1ApiManager.sendInbound("queue", "Chief", "Holidaze", "hi", ack -> acks.add("ok"));
+        assertFalse(socket.wire.get(0).contains("\"req\""));
+        assertTrue(acks.isEmpty());
+        assertTrue(V1ApiManager.pendingAcks.isEmpty());
+        socket.sends = false;
+        List<String> failed = new ArrayList<>();
+        V1ApiManager.sendInbound(
+                "queue", "Chief", "Holidaze", "hi", ack -> failed.add(Json.GSON.toJson(ack)));
+        assertEquals(List.of(DRAIN_ACK), failed);
+    }
+
+    @Test
+    void aForwardWithoutACallbackNeverCarriesAReq() {
+        connect();
+        V1ApiManager.helloEchoesReq = true;
+        V1ApiManager.sendInbound("guild", "Chief", "Metrafish", "hello there");
+        assertFalse(socket.wire.get(0).contains("\"req\""));
+    }
+
+    @Test
+    void aRelayWithTheSocketDownIsAnsweredAtOnce() {
+        V1ApiManager.inboundClient = null;
+        List<String> acks = new ArrayList<>();
+        V1ApiManager.sendInbound(
+                "honourary", "Honourary", "Holidaze", "hi", ack -> acks.add(Json.GSON.toJson(ack)));
+        assertEquals(
+                List.of("{\"status\":\"error\",\"detail\":\"Inbound WebSocket not connected.\"}"),
+                acks);
+    }
+
+    @Test
+    void aRelayWhoseWriteFailsIsAnsweredOnceAndADisconnectLeavesARelayQuiet() {
+        connect();
+        V1ApiManager.helloEchoesReq = true;
+        socket.sends = false;
+        List<String> failed = new ArrayList<>();
+        V1ApiManager.sendInbound(
+                "waitlist", "Waitlist", "Holidaze", "hi", ack -> failed.add(Json.GSON.toJson(ack)));
+        assertEquals(List.of(DRAIN_ACK), failed);
+        assertTrue(V1ApiManager.pendingAcks.isEmpty());
+
+        socket.sends = true;
+        List<String> drained = new ArrayList<>();
+        V1ApiManager.sendInbound(
+                "waitlist",
+                "Waitlist",
+                "Holidaze",
+                "hi",
+                ack -> drained.add(Json.GSON.toJson(ack)));
+        V1ApiManager.disconnect();
+        assertEquals(List.of(LOST_ACK), drained, "an echoed line may have been delivered");
+    }
+
     private void assertNothingSentWhileDown() {
         V1ApiManager.sendRegistration("bb171c68-7080-4d02-be7b-cc2d5dcbcd82", "Metrafish", "guild");
         SessionAuthState.expectingAuthAck = false;

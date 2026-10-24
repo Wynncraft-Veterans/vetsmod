@@ -1,5 +1,6 @@
 package org.wynnvets.chat.dispatcher;
 
+import com.google.gson.JsonObject;
 import com.wynntils.core.components.Models;
 import com.wynntils.models.guild.type.GuildRank;
 import com.wynntils.utils.mc.McUtils;
@@ -22,6 +23,7 @@ import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.queue.QueueStateManager;
+import org.wynnvets.util.Json;
 
 /**
  * Handles outbound chat-command interception for guild chat ({@code /g}),
@@ -417,7 +419,9 @@ public final class GuildChatDispatcher {
      * sent. {@link org.wynnvets.api.V1ApiManager#sendInbound V1ApiManager#sendInbound} drops a
      * frame silently then, so without this check the local echo would show a line nobody
      * received. The check is of the socket only. The queue relay also refuses while the guild rank
-     * is unknown, but a frame the server rejects for the sender's tier still echoes.
+     * is unknown. A frame the server refuses after the echo (for the sender's tier, say) is
+     * followed by a red "Not delivered" line ({@link #onRelayAck}), against a server that echoes
+     * request ids.
      *
      * @return {@code true} when the relay may go ahead
      */
@@ -441,7 +445,63 @@ public final class GuildChatDispatcher {
         String username = resolveUsername(minecraft);
         OutboundDisplayHandler.queuePendingSelfMessage(username, text);
         ChatUtils.sendGuildChatMessage(GUILDLESS_SELF_RANK, username, text);
-        V1ApiManager.sendInbound("waitlist", "Waitlist", username, text);
+        V1ApiManager.sendInbound(
+                "waitlist", "Waitlist", username, text, ack -> onRelayAck(username, text, ack));
+    }
+
+    /**
+     * Reports a refused relay: the line was echoed at once, so a server refusal is followed by a
+     * red line, and the queued self-message is dropped so it cannot swallow a later identical
+     * line. Silent on ok and on an outcome-unknown ack (a lost socket or no reply: the line may
+     * well have been delivered). Runs on whichever thread answered the ack, so it hops to the
+     * client thread.
+     */
+    private static void onRelayAck(String username, String text, JsonObject ack) {
+        String refusal = relayRefusalLine(ack);
+        if (refusal == null) return;
+        VetsLogger.debug("Relay refused by the server: {}", ack);
+        McUtils.mc()
+                .execute(
+                        () -> {
+                            OutboundDisplayHandler.dropPendingSelfMessage(username, text);
+                            ChatUtils.sendLocalMessage(
+                                    Component.literal(refusal).withStyle(ChatFormatting.RED));
+                        });
+    }
+
+    /**
+     * The red line for a relay's ack: {@code Not delivered (<reason>)} for a refusal, or
+     * {@code null} for an ok ack or one whose outcome is unknown. The reason names the known
+     * server and client details briefly; any other detail is shown as sent, without a trailing
+     * period and cut to 80 characters.
+     */
+    // Package-private for unit tests. See GuildChatDispatcherTest.
+    static String relayRefusalLine(JsonObject ack) {
+        if ("ok".equals(Json.optString(ack, "status", "error"))
+                || Json.optString(ack, "outcome_unknown", null) != null) {
+            return null;
+        }
+        return "Not delivered (" + refusalReason(Json.optString(ack, "detail", "")) + ")";
+    }
+
+    private static final int REFUSAL_DETAIL_MAX = 80;
+
+    private static String refusalReason(String detail) {
+        if (detail.equals("Inbound processing is disabled")) return "relay paused";
+        if (detail.startsWith("Authentication required") || detail.startsWith("auth rejected")) {
+            return "not authenticated";
+        }
+        if (detail.startsWith("Your tier (")) return "not allowed for your tier";
+        if (detail.equals("Server busy")) return "server busy";
+        if (detail.equals("Connection closed before reply.")
+                || detail.equals("Inbound WebSocket not connected.")) {
+            return "connection closed";
+        }
+        String reason = detail.endsWith(".") ? detail.substring(0, detail.length() - 1) : detail;
+        if (reason.isBlank()) return "refused";
+        return reason.length() > REFUSAL_DETAIL_MAX
+                ? reason.substring(0, REFUSAL_DETAIL_MAX - 1) + "\u2026"
+                : reason;
     }
 
     /**
@@ -506,7 +566,8 @@ public final class GuildChatDispatcher {
         // The echo's pill shows the display label; the frame keeps the raw rank, which
         // older clients whitelist and receivers remap (RankDisplayMap).
         ChatUtils.sendGuildChatMessage(RankDisplayMap.displayFor(rank), username, text);
-        V1ApiManager.sendInbound("queue", rank, username, text);
+        V1ApiManager.sendInbound(
+                "queue", rank, username, text, ack -> onRelayAck(username, text, ack));
     }
 
     /**
@@ -532,7 +593,8 @@ public final class GuildChatDispatcher {
         String username = resolveUsername(minecraft);
         OutboundDisplayHandler.queuePendingSelfMessage(username, text);
         ChatUtils.sendHonouraryChatMessage(HONOURARY_SELF_RANK, username, text);
-        V1ApiManager.sendInbound("honourary", "Honourary", username, text);
+        V1ApiManager.sendInbound(
+                "honourary", "Honourary", username, text, ack -> onRelayAck(username, text, ack));
     }
 
     private static void dispatchStaffChat(String typed) {

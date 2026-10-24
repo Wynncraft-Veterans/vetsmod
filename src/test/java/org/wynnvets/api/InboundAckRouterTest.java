@@ -227,6 +227,36 @@ class InboundAckRouterTest {
     }
 
     @Test
+    void aRelaysAckReachesItsOwnCallback() {
+        V1ApiManager.helloEchoesReq = true;
+        pending("staff");
+        String relay =
+                V1ApiManager.pendingAcks.register(callback("relay"), 1, PendingAcks.Kind.RELAY);
+        String refusal =
+                "{\"status\":\"error\",\"detail\":\"Inbound processing is disabled\",\"req\":\""
+                        + relay
+                        + "\"}";
+        InboundAckRouter.route(ack(refusal));
+        assertEquals(List.of("relay " + refusal), calls);
+        assertEquals(1, V1ApiManager.pendingAcks.size(), "the staff callback is still waiting");
+    }
+
+    @Test
+    void theLegacyPairingNeverAnswersARelay() {
+        // A relay registered while the server echoed ids must not take a staff-action ack if the
+        // client falls back to eldest-first pairing.
+        V1ApiManager.pendingAcks.register(callback("relay"), 1, PendingAcks.Kind.RELAY);
+        pending("staff");
+        String reply = "{\"status\":\"ok\",\"total_points\":3}";
+        InboundAckRouter.route(ack(reply));
+        assertEquals(List.of("staff " + reply), calls);
+        calls.clear();
+        InboundAckRouter.route(ack("{\"status\":\"error\",\"detail\":\"no such player\"}"));
+        assertTrue(calls.isEmpty(), "with only a relay pending, the orphan rule does not fire");
+        assertEquals(1, V1ApiManager.pendingAcks.size());
+    }
+
+    @Test
     void anEchoedAckIsAnsweredOnce() {
         String head = pending("head");
         String reply = "{\"status\":\"ok\",\"total_points\":3,\"req\":\"" + head + "\"}";

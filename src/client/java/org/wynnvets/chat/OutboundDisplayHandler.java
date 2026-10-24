@@ -120,6 +120,28 @@ public final class OutboundDisplayHandler {
     }
 
     /**
+     * Removes the oldest queued self-message from {@code username} with exactly
+     * {@code message}, if any. Called when the server refused that relay, so the entry cannot
+     * swallow a later identical line the player sends.
+     *
+     * @return whether an entry was removed
+     */
+    public static boolean dropPendingSelfMessage(String username, String message) {
+        synchronized (pendingSelfLock) {
+            Iterator<PendingSelfMessage> it = pendingSelfMessages.iterator();
+            while (it.hasNext()) {
+                PendingSelfMessage pending = it.next();
+                if (pending.username.equalsIgnoreCase(username)
+                        && pending.message.equals(message)) {
+                    it.remove();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Clears all dedup caches. Called on server disconnect.
      */
     public static void clearCaches() {

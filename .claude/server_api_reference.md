@@ -40,8 +40,9 @@ reply sent after parsing, typed responses included, echoes it as its last key
 (§1.3). A `req` that is not such a string is ignored. The outbound
 `server_info` advertises the feature as `req_echo: true`. An older server does
 not pop it and broadcasts a chat frame's unknown keys to every outbound client,
-so vetsmod sends `req` only on the staff-action frames, which read named keys
-only; see [vetsmod_networking.md](vetsmod_networking.md) §1.
+so vetsmod always sends `req` on the staff-action frames, which read named keys
+only, and on its waitlist, queue and honourary relays only once the server
+echoes; see [vetsmod_networking.md](vetsmod_networking.md) §1.
 
 ### Frame inventory
 

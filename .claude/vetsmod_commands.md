@@ -386,8 +386,8 @@ server as typed. "Passes through" below means the same.
 
 | Typed | Gate | Handler | What happens | Bugs |
 |---|---|---|---|---|
-| `/g <message>` | none | `handleGuildChat` | A guildless waitlist-unlocked player's line goes to the bridge as `waitlist`, and a Returners player's line goes as `queue` while they sit in a world queue; both are cancelled and echoed locally, with the banned characters removed ([vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §4), or refused with a red "Not sent" line while the inbound socket is down (a `queue` line also while Wynntils doesn't know the guild rank). A Returners line with a `\|\|` spoiler is re-sent spoiler-encoded, or refused in red if that passes 253 characters. Anything else passes through. The relays and the encoding honour `handleSpoilers` | `relay-echo-shows-server-refused-frames`, `url-repair-merges-following-non-lowercase-token` |
-| `/wg <message>` | `isUnlocked()` | `handleHonouraryChat` | Always cancelled. An honourary-unlocked player's line goes to the bridge as `honourary` and is echoed locally, with the banned characters removed, or is refused like `/g`'s relays while the inbound socket is down; anyone else gets a red "This feature is restricted to honourary users. If you think you should have /wg, follow ~vetsmod in #bot-commands to fix your perms." | `relay-echo-shows-server-refused-frames` |
+| `/g <message>` | none | `handleGuildChat` | A guildless waitlist-unlocked player's line goes to the bridge as `waitlist`, and a Returners player's line goes as `queue` while they sit in a world queue; both are cancelled and echoed locally, with the banned characters removed ([vetsmod_chat_pipeline.md](vetsmod_chat_pipeline.md) §4), or refused with a red "Not sent" line while the inbound socket is down (a `queue` line also while Wynntils doesn't know the guild rank). A Returners line with a `\|\|` spoiler is re-sent spoiler-encoded, or refused in red if that passes 253 characters. Anything else passes through. The relays and the encoding honour `handleSpoilers` | `url-repair-merges-following-non-lowercase-token` |
+| `/wg <message>` | `isUnlocked()` | `handleHonouraryChat` | Always cancelled. An honourary-unlocked player's line goes to the bridge as `honourary` and is echoed locally, with the banned characters removed, or is refused like `/g`'s relays while the inbound socket is down; anyone else gets a red "This feature is restricted to honourary users. If you think you should have /wg, follow ~vetsmod in #bot-commands to fix your perms." | none |
 | `/v <message>` | `isUnlocked()`, then `isStaff()`; a non-staff command passes through, and a staff-rank refresh starts | `handleStaffChat` | Refused in red during `/stream` and above 234 characters. Otherwise, once the staff-presence check passes, echoed locally and sent to each other online staff member as `/msg <name> 🔐<message>`, with the banned hard set removed from both | none |
 | `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | none |
 | `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | none |
@@ -416,8 +416,12 @@ The waitlist, queue and honourary relays check `V1ApiManager.isInboundConnected(
 down they echo nothing and print a red "Not sent: vetsmod is not connected to the vets API right now. Try again in
 a few seconds.", since `V1ApiManager.sendInbound` would drop the line silently. The queue relay also refuses, with
 a red "Not sent: your guild rank isn't known yet. Try again in a few seconds.", while Wynntils doesn't know the
-player's guild rank, since the server rejects a queue frame without one. A line the server rejects for the sender's
-tier is still echoed. A waitlister who joins Returners mid-session re-authenticates, so the
+player's guild rank, since the server rejects a queue frame without one. A line the server refuses after the echo
+(inbound processing disabled, the tier gate, a validation error, a lost session) is followed by a red "Not delivered
+(<reason>)" line, with the reason "relay paused", "not authenticated", "not allowed for your tier", "server busy",
+"connection closed" or the server's own detail; this needs a server that echoes request ids, and an older server's
+refusal goes unreported. A lost socket or no reply within 15 s prints nothing, since the line may well have been
+delivered. A waitlister who joins Returners mid-session re-authenticates, so the
 server's tier follows within a few minutes ([vetsmod_guild_system.md](vetsmod_guild_system.md) §4).
 
 A bare `/v`, `/a`, `/encourage`, `/caution`, `/caution-go`, `/warn`, `/eject` or `/wv check` reaches its
