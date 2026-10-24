@@ -259,22 +259,26 @@ final class UnlockManager {
      *  registration refresh and the anni-mode default
      *  ({@code AnniModeManager.applyStartupDefaultIfNeeded}). {@link #pendingUnlockNotify} is
      *  consumed only when the line is
-     *  shown, so an ack that lands before there is a player leaves it for the next one. */
+     *  shown, so an ack that lands before there is a player leaves it for the next one. A line
+     *  that answers {@code /unlock} always goes to chat; a config-driven one goes to the action
+     *  bar unless a screen is open. */
     private static void showAuthSuccess() {
         boolean configWantsPrint = VetsConfig.get(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH);
         LocalPlayer player = McUtils.player();
         if (player != null && (pendingUnlockNotify || configWantsPrint)) {
+            boolean answersUnlock = pendingUnlockNotify;
             pendingUnlockNotify = false;
             Component msg =
                     Component.literal("Authentication verified - tier: " + currentTier)
                             .withStyle(ChatFormatting.GREEN);
-            if (McUtils.screen() != null) {
-                // The action-bar overlay is suppressed while a Screen is
-                // open (e.g. Wynncraft's class-selection screen shown on
-                // login), but chat scrollback still renders through the
-                // screen — fall back to chat so the player sees the
-                // confirmation in the one moment per login it really
-                // matters.
+            if (answersUnlock || McUtils.screen() != null) {
+                // An /unlock answer goes to chat, beside the "Saved your key" line it
+                // answers and like the failure line: on Wynncraft the action bar is
+                // redrawn with the health and mana bar at once, so a toast there is
+                // gone before it can be read. The action-bar overlay is also
+                // suppressed while a Screen is open (e.g. Wynncraft's class-selection
+                // screen shown on login), but chat scrollback still renders through
+                // the screen, so a config-driven line falls back to chat then too.
                 ChatUtils.sendLocalMessage(msg);
             } else {
                 player.displayClientMessage(msg, true);
