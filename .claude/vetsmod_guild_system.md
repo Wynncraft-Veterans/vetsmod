@@ -57,6 +57,7 @@ Retraction is `reconcileRegistration(definitive, reason)`, called on the client 
 
 - **Left** (`GuildLifecycle.onGuildLeft()`, `definitive`, reason `left`): Wynntils posts `GuildEvent.Left` before it clears its guild name, in the same call, so the handler defers the re-evaluation and the reconcile one tick (`TickDelays.runAfter(0, ...)`). Re-evaluating at once would still read Returners and even re-send a `guild` registration.
 - **Joined** (end of `onGuildJoined()`, `definitive`, reason `joined`): retracts a waitlist registration when the player joins another guild.
+- **Guild check** (end of `GuildLifecycle.onGuildCheckCompleted()`, after `sendRegistrationIfReady()`; `definitive` is `GuildCheckResult.isDefinitive()` of the stored result, reason `guild-check`): a finished `/gu stats` check that found the player in another guild or none (`OTHER_GUILD`, `GUILDLESS`) retracts a `guild` registration. This is the path for an ex-member kicked while offline, whose persisted RETURNERS result (3-day TTL) registered them as `guild` at world join and for which no `Left` event fired. `RETURNERS` and `UNKNOWN` (a parse miss) are not definitive, and a timeout stores nothing, so none of them retracts. An honourary is not retracted: `sendRegistrationIfReady()` has just re-registered them as `honourary`, so the tier now is not none.
 - **Auth** (`UnlockManager.onAuthFailure`, and `showAuthSuccess` after `sendRegistrationIfReady()`; not definitive, reason `auth`): a failure ends the server session and clears the tier, and an ok ack with tier `other` is not a waitlist or honourary tier, so a cached waitlist or honourary registration goes. A guild registration stays. The failure's reconcile hops to the client thread and runs before any quiet return.
 
 A player who qualifies again re-registers through `sendRegistrationIfReady()`, which overwrites. A register that an inbound reconnect re-sends could cross a retraction on the wire; the window is tiny and the next reconnect corrects it.
@@ -84,6 +85,8 @@ Each kind is numbered when scheduled, and a task that finds a newer number stops
 | RETURNERS | 1 |
 | OTHER_GUILD | 2 |
 | GUILDLESS | 3 |
+
+`isDefinitive()` is true for `OTHER_GUILD` and `GUILDLESS`: a result that says the player is not in Returners, and so may retract a `guild` registration (see Presence registration and its retraction). `contradicts(inGuild, guildName)` is the separate test against Wynntils' live data.
 
 **Parsing approach:**
 - Sends `/gu stats` via `Handlers.Command.queueCommand()`

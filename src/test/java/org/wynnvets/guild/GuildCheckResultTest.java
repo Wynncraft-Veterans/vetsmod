@@ -94,4 +94,20 @@ class GuildCheckResultTest {
         assertFalse(GuildCheckResult.UNKNOWN.contradicts(true, "Returners"));
         assertFalse(GuildCheckResult.UNKNOWN.contradicts(false, ""));
     }
+
+    // ── isDefinitive ──────────────────────────────────────────────────
+
+    /** What lets a finished check retract a guild registration: it says the player is not ours. */
+    @Test
+    void isDefinitive_isTrueForOtherGuildAndGuildless() {
+        assertTrue(GuildCheckResult.OTHER_GUILD.isDefinitive());
+        assertTrue(GuildCheckResult.GUILDLESS.isDefinitive());
+    }
+
+    /** What never retracts: a Returners answer, and no answer (a timeout or a parse miss). */
+    @Test
+    void isDefinitive_isFalseForReturnersAndUnknown() {
+        assertFalse(GuildCheckResult.RETURNERS.isDefinitive());
+        assertFalse(GuildCheckResult.UNKNOWN.isDefinitive());
+    }
 }

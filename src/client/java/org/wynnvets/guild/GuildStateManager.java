@@ -606,11 +606,14 @@ public final class GuildStateManager {
      * client thread by {@link GuildLifecycle#onGuildLeft()} and
      * {@link GuildLifecycle#onGuildJoined()} (guild state changed, so {@code definitive}) and by
      * {@link UnlockManager} after an auth ack or failure (not definitive: only a waitlist or
-     * honourary registration can go).
+     * honourary registration can go), and by {@link GuildLifecycle#onGuildCheckCompleted()}
+     * after a {@code /gu stats} check (definitive only when the check found the player in
+     * another guild or none: {@link GuildChecker.GuildCheckResult#isDefinitive()}).
      * A player who qualifies again re-registers through {@link #sendRegistrationIfReady()}.
      *
      * @param definitive whether the guild state is known to have changed
-     * @param reason for the debug log: {@code left}, {@code joined} or {@code auth}
+     * @param reason for the debug log: {@code left}, {@code joined}, {@code auth} or
+     *     {@code guild-check}
      */
     public static void reconcileRegistration(boolean definitive, String reason) {
         String cached = V1ApiManager.registeredTier();

@@ -2097,7 +2097,7 @@ Test: [`StaffRanksPollerTest.java`](../src/test/java/org/wynnvets/fetcher/pollin
 
 Test: [`GuildCheckResultTest.java`](../src/test/java/org/wynnvets/guild/GuildCheckResultTest.java) · Subject: [`GuildChecker.GuildCheckResult`](../src/client/java/org/wynnvets/guild/GuildChecker.java)
 
-`GuildCheckResult` is the nested enum that records the outcome of the guild check (unknown, Returners, other guild, guildless) and is stored in the player's config as a raw long. The suite pins that storage mapping: each constant's `persistedValue` is compared against a literal, never against `ordinal()`, and `fromPersistedValue` must invert it and degrade to `UNKNOWN` for anything unrecognised. It also pins `contradicts`, the test the recheck poll clears the cached result on. Only the nested enum is exercised, so the enclosing `GuildChecker` (which reaches `VetsConfig` and Wynntils) is never initialised.
+`GuildCheckResult` is the nested enum that records the outcome of the guild check (unknown, Returners, other guild, guildless) and is stored in the player's config as a raw long. The suite pins that storage mapping: each constant's `persistedValue` is compared against a literal, never against `ordinal()`, and `fromPersistedValue` must invert it and degrade to `UNKNOWN` for anything unrecognised. It also pins `contradicts`, the test the recheck poll clears the cached result on, and `isDefinitive`, the flag a finished guild check passes to `reconcileRegistration`. Only the nested enum is exercised, so the enclosing `GuildChecker` (which reaches `VetsConfig` and Wynntils) is never initialised.
 
 - **`persistedValues_areTheFourStorageLiterals`**: `UNKNOWN`, `RETURNERS`, `OTHER_GUILD` and `GUILDLESS` carry `persistedValue` 0, 1, 2 and 3 respectively.
   - `persistedValue` equals `0L` for `UNKNOWN`, `1L` for `RETURNERS`, `2L` for `OTHER_GUILD`, `3L` for `GUILDLESS`.
@@ -2111,6 +2111,12 @@ Test: [`GuildCheckResultTest.java`](../src/test/java/org/wynnvets/guild/GuildChe
   - `contradicts` is true for `RETURNERS` with `(false, "")` and `(true, "Some Other Guild")`, `OTHER_GUILD` with `(false, "")` and `(true, "Returners")`, and `GUILDLESS` with `(true, "Returners")`.
 - **`contradicts_unknownDisagreesWithNothing`**: An unchecked result is never cleared as a contradiction.
   - `contradicts` is false for `UNKNOWN` with `(true, "Returners")` and with `(false, "")`.
+- **`isDefinitive_isTrueForOtherGuildAndGuildless`**: A result that says the player is outside Returners may retract a guild registration.
+  - `isDefinitive()` is true for `OTHER_GUILD`.
+  - `isDefinitive()` is true for `GUILDLESS`.
+- **`isDefinitive_isFalseForReturnersAndUnknown`**: A Returners answer, and no answer, never retract.
+  - `isDefinitive()` is false for `RETURNERS`.
+  - `isDefinitive()` is false for `UNKNOWN`.
 
 ### `RegistrationTierTest`
 

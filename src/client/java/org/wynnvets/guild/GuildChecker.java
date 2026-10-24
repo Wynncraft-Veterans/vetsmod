@@ -67,6 +67,18 @@ public final class GuildChecker {
                 case GUILDLESS -> inGuild;
             };
         }
+
+        /**
+         * Whether this result says the player is not in Returners: {@code OTHER_GUILD} or
+         * {@code GUILDLESS}. {@code RETURNERS} is not, and {@code UNKNOWN} (what a parse miss
+         * stores; a timeout stores nothing, so the previous result stays) says nothing.
+         * {@link GuildLifecycle#onGuildCheckCompleted()} passes it as the {@code definitive}
+         * flag of {@link GuildStateManager#reconcileRegistration}, so only a check that found
+         * the player outside Returners can retract a {@code guild} registration.
+         */
+        boolean isDefinitive() {
+            return this == OTHER_GUILD || this == GUILDLESS;
+        }
     }
 
     // ── Constants ──────────────────────────────────────────────────────

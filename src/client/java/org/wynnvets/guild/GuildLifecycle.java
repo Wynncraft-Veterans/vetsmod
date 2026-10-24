@@ -310,13 +310,19 @@ public final class GuildLifecycle {
 
     /**
      * Called by {@link GuildChecker} when its {@code /gu stats} check completes.
-     * Re-evaluates guild-dependent state and updates registration.
+     * Re-evaluates guild-dependent state and updates registration: it registers a player who
+     * qualifies and retracts a {@code guild} registration the check shows the player no longer
+     * qualifies for ({@link GuildStateManager#reconcileRegistration}), such as an ex-member
+     * kicked while offline whose cached result still said Returners. Only a result of
+     * {@link GuildChecker.GuildCheckResult#isDefinitive() OTHER_GUILD or GUILDLESS} retracts, so
+     * a timeout or an unreadable answer never does; an honourary stays registered as one.
      */
     static void onGuildCheckCompleted() {
         GuildChecker.GuildCheckResult result = GuildChecker.getResult();
         VetsLogger.debug("onGuildCheckCompleted: result={}", result);
 
         GuildStateManager.sendRegistrationIfReady();
+        GuildStateManager.reconcileRegistration(result.isDefinitive(), "guild-check");
 
         if (result == GuildChecker.GuildCheckResult.RETURNERS
                 && !WorldJoinAnnouncer.stampDisplayedThisSession) {
