@@ -377,9 +377,8 @@ final class AnniSnapshotDebugCommands {
      *  the local cache does NOT trigger a re-push. The cache stays empty
      *  until something refills it, such as a {@code refresh} or any other
      *  client-side {@code anni_query} that returns a snapshot (a cold-cache
-     *  {@code /wv anni} can issue one). A server-side change was meant to
-     *  refill it too, but today no {@code anni_state} push reaches vetsmod
-     *  ({@code outbound-socket-never-authenticated}).
+     *  {@code /wv anni} can issue one), or a server-side change pushed as
+     *  {@code anni_state} to an authenticated outbound socket.
      *  Use this command to test the no-snapshot rendering branch; use
      *  {@code refresh} to undo synthetic injects and re-pull real data —
      *  it replaces the cache only when the query returns a snapshot.</p> */
@@ -415,9 +414,8 @@ final class AnniSnapshotDebugCommands {
      *  state from the server. Only a non-null snapshot replaces the cache:
      *  if the query times out, the WS is down, or the response carries no
      *  parseable snapshot, the synthetic one stays until a later pull
-     *  replaces it (an {@code anni_state} push would too, but today none
-     *  reaches vetsmod: {@code outbound-socket-never-authenticated}), and
-     *  the failure line does not say so.</p> */
+     *  replaces it (an {@code anni_state} push would too, when the outbound socket is
+     *  authenticated), and the failure line does not say so.</p> */
     static int snapshotRefresh(CommandContext<FabricClientCommandSource> ctx) {
         int gate = AnniDebugCommands.requireDebug(ctx);
         if (gate == 0) return 0;

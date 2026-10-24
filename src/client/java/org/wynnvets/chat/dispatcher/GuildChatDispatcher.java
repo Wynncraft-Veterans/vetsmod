@@ -462,12 +462,13 @@ public final class GuildChatDispatcher {
      * wherever they render relayed guild chat at all (see
      * {@link OutboundDisplayHandler}'s display gates). Per
      * temporary-server's outbound tier filter ({@code app/chat/outbound.py};
-     * v1_protocol.md §2.4 agrees) an authenticated waitlist or honourary socket
-     * would get no queue frames; today, because vetsmod never authenticates its
-     * outbound socket ({@code outbound-socket-never-authenticated}), that gate
-     * does not apply: while the server's {@code unauth} toggle is on, a waitlist
-     * or honourary viewer receives and renders them too (with it off, no chat
-     * arrives).</p>
+     * v1_protocol.md §2.4 agrees) a server before {@code chat_tiers: "all"} would
+     * withhold queue frames from an authenticated waitlist or honourary socket.
+     * vetsmod authenticates the outbound socket only against a server that
+     * advertises {@code chat_tiers: "all"}, which gives every member tier every chat
+     * type, so a waitlist or honourary viewer receives and renders them too. A viewer
+     * with no key, or tier {@code other}, is unauthenticated and receives chat only
+     * while the server's {@code unauth} toggle is on.</p>
      *
      * <p>Receivers:</p>
      * <ul>

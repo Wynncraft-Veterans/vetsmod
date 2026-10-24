@@ -46,12 +46,11 @@ import org.wynnvets.logging.VetsLogger;
  * </ul>
  *
  * <p>Single-player by design: snapshots received here are meant to be for the
- * local player (the server routes pushes per UUID). Today no
- * {@code anni_state} push reaches vetsmod
- * ({@code outbound-socket-never-authenticated}), so snapshots arrive as pull
- * replies: the {@code anni_query} frame names no UUID, and temporary-server
- * (at ffd8c17) answers for the UUID its authenticated session carries, which
- * is the {@code /unlock} key's account, not necessarily the one logged in. A
+ * local player (the server routes pushes per UUID). An {@code anni_state} push reaches
+ * only an authenticated outbound socket (a confirmed member tier), so a player without
+ * one gets snapshots as pull replies alone: the {@code anni_query} frame names no UUID,
+ * and temporary-server (at ffd8c17) answers for the UUID its authenticated session
+ * carries, which is the {@code /unlock} key's account, not necessarily the one logged in. A
  * future fan-out that delivers snapshots for other players would live on a
  * separate cache, not here.</p>
  *

@@ -17,8 +17,8 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *
  * <ul>
  *   <li>{@code anni_state} (outbound channel): server-initiated push, sent only to an
- *       authenticated outbound socket, so today it never arrives
- *       ({@code outbound-socket-never-authenticated}). Snapshot is dropped into
+ *       authenticated outbound socket, so it arrives for a confirmed member tier and never
+ *       for a player with no key or tier {@code other}. Snapshot is dropped into
  *       {@link AnniSnapshotCache#update(AnniSnapshot)} so all subscribed
  *       surfaces re-render.</li>
  *   <li>{@code anni_query_response} (inbound channel): ack for an
@@ -63,12 +63,12 @@ public final class AnniWsHandler {
         V1ApiManager.addInboundListener(AnniWsHandler::onInbound);
         V1ApiManager.addOutboundListener(AnniWsHandler::onOutbound);
         // Re-pull a fresh snapshot on every inbound (re)connect — the
-        // server pushes anni_state only on certain events (and today not to
-        // vetsmod at all: outbound-socket-never-authenticated), so a socket drop
+        // server pushes anni_state only on certain events (and not at all to an
+        // unauthenticated outbound socket), so a socket drop
         // would otherwise leave the cache frozen on whatever was current at the
         // previous connect until another pull refreshes it (AnniSnapshotPoller only
         // runs inside the anni window; a push may never come for the user's own
-        // RSVP/role edits, and today none arrives). Cheap on cold start: one small
+        // RSVP/role edits, and none comes without outbound auth). Cheap on cold start: one small
         // frame, possibly alongside StampFetcher's world-join pull (queries are
         // queued FIFO, not coalesced). Correct on reconnect.
         V1ApiManager.addInboundPostConnectListener(AnniQueryClient::query);

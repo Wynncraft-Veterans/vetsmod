@@ -32,9 +32,9 @@ import org.wynnvets.mwe.anni.state.AnniSnapshots;
  * <ul>
  *   <li><b>Role / party / RSVP</b> — diff on snapshot push, latch a
  *       timed flash window sized by {@code vetsAnniFlashIntensity}, ping
- *       2× per change while the bar is up. Today no {@code anni_state} push reaches vetsmod
- *       ({@code outbound-socket-never-authenticated}), so the diff runs on
- *       each non-null snapshot a pull or a debug command stores. First
+ *       2× per change while the bar is up. The diff runs on each non-null snapshot an
+ *       {@code anni_state} push (authenticated outbound socket only), a pull or a debug
+ *       command stores. First
  *       observation is skipped (login-with-existing-state shouldn't bing
  *       on every reconnect). ⚠️ That
  *       config value is a <em>name</em>, not a millisecond count:

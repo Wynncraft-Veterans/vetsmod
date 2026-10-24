@@ -12,7 +12,7 @@ This workspace is a Wynncraft (Minecraft MMO) guild ecosystem for the "Returners
 | **temporary-server** | FastAPI backend at `wss://api.wynnvets.org/`. Owns the v1 inbound/outbound WebSockets, Discord bridge, dedup engine, and tier/auth gating. Validates `/unlock` keys via HTTP introspection against dazebot. | Python 3.12, FastAPI, discord.py, httpx |
 | **dazebot** | In-house Discord bot. Owns the `VerifyKey` table, the `/vetsmod` slash command (issues 43-char base64url keys via DM), and the `POST /api/auth/introspect` endpoint temporary-server calls. Also handles guild waitlists, vanity roles, supporter detection, and the picolimbo link-code consumption flow. | Python 3.13, discord.py, tortoise-orm, FastAPI |
 | **auth-stack** | Fork of [PicoLimbo](https://github.com/Quozul/PicoLimbo) running at `verify.wynnvets.org:25565`. Forwards every chat line a player types to dazebot's `/api/auth/{uuid}/{msg}` so dazebot can scan for link codes (Discord ↔ Minecraft account *linking*, separate from vetsmod *unlock*). | Rust, Pterodactyl egg + Docker |
-| **vets-anni** | Annihilation-event app at `anni.wynnvets.org` — FastAPI web board plus **fishbot** (Discord, `\` prefix). Owns RSVP, party/role assignment and the MWE snapshots temporary-server polls and pushes to vetsmod (today vetsmod only pulls them: bug `outbound-socket-never-authenticated`). | Python, FastAPI, discord.py, tortoise-orm |
+| **vets-anni** | Annihilation-event app at `anni.wynnvets.org` — FastAPI web board plus **fishbot** (Discord, `\` prefix). Owns RSVP, party/role assignment and the MWE snapshots temporary-server polls and pushes to vetsmod (vetsmod pulls them, and gets the `anni_state` push on an authenticated outbound socket). | Python, FastAPI, discord.py, tortoise-orm |
 | **vets-deploy** | Source-of-truth Docker stacks + ops docs for the `timasca.wynnvets.org` VPS. Where every other repo runs in production. | Bash + docker compose + Traefik |
 | **Wynntils** | Read-only sibling clone. Public Wynntils source — vetsmod compiles against it. Do not edit. | — |
 
@@ -39,7 +39,7 @@ All six (plus the `Wynntils` reference clone) are sibling directories under what
 2. Dazebot DMs them the modrinth link + a `/unlock <43-char-key>` command.
 3. User pastes `/unlock <key>` in Minecraft. The mod intercepts it, persists the key, and sends an `auth` frame on the inbound WS, or, while that socket is down, on its next connect.
 4. Temporary-server validates the key via dazebot's `POST /api/auth/introspect` (60s LRU cache), stores `(disc_uuid, mc_uuid, mc_username, tier, ws_tier, is_staff, staff_rank)` on the connection, and replies with the resolved tier.
-5. Subsequent chat is gated: `member`-tier may send/receive `guild`+`queue`, `waitlist` only `waitlist`, etc. Today the receive half never applies to vetsmod, which never authenticates its outbound socket (bug `outbound-socket-never-authenticated`).
+5. Subsequent chat is gated: `member`-tier may send `guild`+`queue`, `waitlist` only `waitlist`, etc.; on the receive side every authenticated member tier receives every chat type and tier `other` none. The receive side applies to vetsmod through its outbound socket's own `auth`, sent only for a confirmed member tier against a server advertising `chat_tiers: "all"` (which gives every member tier every chat type); a player with no key, or tier `other`, stays unauthenticated there.
 6. Connections without a valid auth are accepted *only* while the server's `unauth` admin toggle is enabled (default during alpha).
 
 ## Mod version + dependency

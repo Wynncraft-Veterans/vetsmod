@@ -294,7 +294,7 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 **Outbound (WebSocket → user sees it):**
 1. Server pushes JSON via outbound WS
 2. `WsClient.handleText()` → `V1ApiManager` → `OutboundDisplayHandler.onOutboundMessage()`
-3. A `warning` frame goes to `WarningFrameRenderer` and skips the rest (none arrives today: bug `outbound-socket-never-authenticated`, §1). Any other frame: display gates, UUID dedup (10s TTL), self-suppression (30s TTL); Returners' `guild` frames drop unless queued, and `bridge` frames are recorded (10s TTL) for `WynntilsEventListener`'s echo check, which runs there, not in this flow
+3. A `warning` frame goes to `WarningFrameRenderer` and skips the rest (it arrives only on an authenticated outbound socket, §1). Any other frame: display gates, UUID dedup (10s TTL), self-suppression (30s TTL); Returners' `guild` frames drop unless queued, and `bridge` frames are recorded (10s TTL) for `WynntilsEventListener`'s echo check, which runs there, not in this flow
 4. A staff `‼` alert on a `guild` or `queue` frame goes to `StaffGuildAlertRewriter`; otherwise `ChatUtils.sendHonouraryChatMessage()` (honourary-unlocked viewer) or `sendGuildChatMessage()` formats + displays
 
 ## 7.1 MWE/anni frames
@@ -309,7 +309,7 @@ The key normalizer is one field applied at **both** ingest and lookup. That is t
 | Inbound (S6) | `anni_rsvp_response` | temp-server | `AnniRsvpClient.onResponse` | Ack for `anni_rsvp`. `{status: ok|error, detail, result}`, where `result` is `recorded`, `withdrawn` or `nothing_to_withdraw` on success and absent or null from an older server; FIFO queue. |
 | Inbound (S7) | `anni_party_observation` | `AnniWsSender.sendAnniPartyObservation` | temp-server `_handle_anni_party_observation` | Vetsmod reports its local Wynncraft party roster when an organiser username is in the party. **Authenticated only**; observer UUID stamped from session. Names go over the wire (Wynncraft only exposes party members by username); vets-anni resolves via its roster + alias caches. |
 | Inbound (S7) | `anni_party_observation_response` | temp-server | `AnniWsHandler` (debug log only) | Ack for `anni_party_observation`. No client-side queue — observation is fire-and-forget; debug-logged only. |
-| Outbound | `anni_state` | temp-server `anni_snapshot_poller` | `AnniWsHandler.onOutbound` → `AnniSnapshotCache.update` | Server-initiated snapshot push (per-uuid gated on the eligibility set). Sent only to an authenticated outbound socket, so **never received today** (§1). |
+| Outbound | `anni_state` | temp-server `anni_snapshot_poller` | `AnniWsHandler.onOutbound` → `AnniSnapshotCache.update` | Server-initiated snapshot push (per-uuid gated on the subscription set, filled at inbound auth). Sent only to an authenticated outbound socket, so received by a confirmed member tier and never by a player with no key or tier `other` (§1). |
 
 Response futures (query, scrollspot, rsvp) live in `org.wynnvets.mwe.anni.network` and time out at 8 s. `AnniWsHandler` is the single demux for all types — its `onInbound`/`onOutbound` branches route to the right consumer.
 
@@ -343,7 +343,7 @@ does; that remaining gap is bug `party-observation-lapses-within-vets-anni-fresh
 
 One layer, an **application-level bearer key** — `auth` frame sent after inbound WS connect. Nothing is attached to the WebSocket upgrade itself: `WsClient.connect()` builds the socket with a connect timeout and no headers. The key is a 43-char URL-safe base64 token issued by dazebot's `/vetsmod` Discord command and stored in `vetsAuthKey`. Re-sent automatically by the inbound client's `onConnect` callback (set in `V1ApiManager.connect`) on every inbound reconnect; also sent immediately when the user runs `/unlock <key>`, if the inbound socket is up, so feedback lands in the same session rather than only after the next reconnect.
 
-The server validates each key by HTTP introspection against dazebot (`POST /api/auth/introspect`, 60s LRU cache, serve-stale-on-error during dazebot outages). The resolved tier (`member`/`waitlist`/`honourary`/`other`) drives a per-connection chat-type gate: see `../../temporary-server/v1_protocol.md` §1.8 and §2.5.
+The server validates each key by HTTP introspection against dazebot (`POST /api/auth/introspect`, 60s LRU cache, serve-stale-on-error during dazebot outages). The resolved tier (`member`/`waitlist`/`honourary`/`other`) drives a per-connection chat-type gate: see `../../temporary-server/v1_protocol.md` §1.8 and §2.4. The outbound socket authenticates separately with the same key, only for a member tier (§1).
 
 ## 9. Error handling
 

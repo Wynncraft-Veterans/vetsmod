@@ -12,11 +12,12 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * Belt-and-braces snapshot refresher for the anni window.
  *
  * <p>The {@code anni_state} server push is meant to be the primary delivery
- * channel for snapshot updates. Today it never reaches vetsmod: the server sends it
- * only to an authenticated outbound socket, and vetsmod never authenticates that
- * socket ({@code outbound-socket-never-authenticated}). That is the likelier reason it
- * was seen to go silent for board edits. Outside this poller's ticks (and the
- * {@code /wv debug tree anni} simulation commands) the cache changes only on a pull: the
+ * channel for snapshot updates. The server sends it only to an authenticated outbound
+ * socket, which vetsmod now opens only for a confirmed member tier against a server
+ * advertising {@code chat_tiers: "all"}; before that it never arrived, the likelier
+ * reason it was seen to go silent for board edits. A player with no key, or tier
+ * {@code other}, still gets no push. Outside the push, this poller's ticks and the
+ * {@code /wv debug tree anni} simulation commands, the cache changes only on a pull: the
  * post-connect re-pull, {@code StampFetcher}'s pull while the cache is empty, and the
  * refresh after an in-game RSVP. This poller fires an
  * {@link AnniQueryClient#query()} every

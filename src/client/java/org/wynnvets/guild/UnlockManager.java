@@ -17,8 +17,8 @@ import org.wynnvets.mwe.anni.mode.AnniModeManager;
  * <p>Replaces the legacy SHA-256 password unlock with a per-user bearer key
  * issued by dazebot via the Discord {@code /vetsmod} command. The key is
  * persisted in {@link VetsConfig} and sent in an {@code auth} frame each time the
- * inbound WebSocket (re)connects; the outbound socket never gets one
- * ({@code outbound-socket-never-authenticated}).</p>
+ * inbound WebSocket (re)connects; the outbound socket gets its own only once the inbound
+ * ack confirms a member tier ({@code V1ApiManager#sendOutboundAuthIfReady}).</p>
  *
  * <p>Tier values follow the canonical vetsmod tier vocabulary:
  * {@code member}, {@code waitlist}, {@code honourary}, {@code other}. A tier unlocks only

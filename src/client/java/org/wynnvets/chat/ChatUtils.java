@@ -141,12 +141,13 @@ public final class ChatUtils {
      * {@link OutboundDisplayHandler} renders as ordinary chat &mdash; a choice
      * keyed on the viewer's own unlock state, not on the frame's
      * {@code type}. An honourary socket would get only {@code honourary} and
-     * {@code bridge} chat from temporary-server's tier filter. Today no filter
-     * applies, because vetsmod never authenticates its outbound socket
-     * ({@code outbound-socket-never-authenticated}): while the server's
-     * {@code unauth} toggle is on, an honourary-unlocked client can render any
-     * relayed chat type here, and an {@code honourary} frame that another
-     * viewer displays goes through {@link #sendGuildChatMessage} instead. The
+     * {@code bridge} chat from an older temporary-server's tier filter, but the outbound
+     * socket authenticates only against a server whose {@code server_info} carries
+     * {@code chat_tiers: "all"}, which gives every member tier every chat type, so an
+     * honourary-unlocked client can render any relayed chat type here. (A client with no
+     * key, or tier {@code other}, is unauthenticated on that socket and receives chat only
+     * while the server's {@code unauth} toggle is on.) An {@code honourary} frame that
+     * another viewer displays goes through {@link #sendGuildChatMessage} instead. The
      * badge uses the {@code U+E013} glyph instead of the regular
      * {@code U+E006}, and the colour scheme inverts the rank/name relationship
      * so honourary chat is distinguishable from Returners guild chat.</p>

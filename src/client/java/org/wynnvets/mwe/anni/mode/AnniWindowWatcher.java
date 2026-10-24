@@ -25,11 +25,11 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * reset was meant to land on whichever push arrives first, typically within ~10 s. The
  * bar window has closed by then; this is the slower safety net.</p>
  *
- * <p>Today no push arrives: the server sends {@code anni_state} only to an authenticated
- * outbound socket, and vetsmod never authenticates that socket
- * ({@code outbound-socket-never-authenticated}). {@code AnniSnapshotPoller} stops once the
- * announced stamp passes, so the reset waits for the next snapshot pull, in practice the
- * next inbound (re)connect.</p>
+ * <p>The server sends {@code anni_state} only to an authenticated outbound socket, which
+ * vetsmod opens only for a confirmed member tier. A player with no key, or tier
+ * {@code other}, gets no push: {@code AnniSnapshotPoller} stops once the announced stamp
+ * passes, so their reset waits for the next snapshot pull, in practice the next inbound
+ * (re)connect.</p>
  *
  * <p>Delegates the target selection to
  * {@link AnniModeManager#preferredMode()} rather than hard-coding
