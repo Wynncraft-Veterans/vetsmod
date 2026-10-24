@@ -29,7 +29,7 @@ Key public methods (all package-level or client-facing):
 | `canExecuteCommands()` | World entered at least once |
 | `playerName()` | Local player username |
 | `selfStaffRank()` | "captain"/"strategist"/"chief"/"owner" |
-| `loadPersistedState()` | Restore from `VetsConfig` on startup |
+| `loadPersistedState()` | Restore from `VetsConfig` on startup and on each disconnect reset, then forget a result another account made (the logged-in account, `getUser().getName()`), since the hub and class selection read `isReturners()` before any world join |
 | `refreshStaffStatusIfNeeded(forceRefresh)` | Staff rank refresh |
 | `sendRegistrationIfReady()` | Push presence frame on inbound WS; a no-op for an ineligible player (it cannot tell "not eligible" from "guild state not known yet"), see `reconcileRegistration` |
 | `reconcileRegistration(definitive, reason)` | Retract the cached presence registration when the player no longer qualifies (below) |
@@ -41,7 +41,7 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 
 | Method | Purpose |
 |--------|---------|
-| `onEnteredWorld()` | World-join trigger; schedules SessionAuthWarning |
+| `onEnteredWorld()` | World-join trigger. First forgets a stored `GuildChecker` result that another account made (`clearResultIfOwnedByOtherAccount`) or a `RETURNERS` result for which Wynntils names another guild (`worldJoinShouldClear`, then `clearResultIfContradicted`; a `GUILDLESS` or `OTHER_GUILD` result is left to `/gu stats`, since Wynntils' name can be left from an earlier scan); then schedules SessionAuthWarning, registration and the follow-up checks, and after a contradicted clear retracts the `guild` registration it caused |
 | `onGuildInfoUpdated()` | The first half of `onGuildJoined()`: clears the `GuildChecker` cache, then re-evaluates guild state (the post-world-join recheck poll re-evaluates without the unconditional clear) |
 | `onGuildJoined()` | Wynntils `GuildEvent.Joined` callback: `onGuildInfoUpdated()`, then, if the guild is Returners, `ReturnersReauth.onJoinedReturners()` (§4), then `reconcileRegistration(true, "joined")` |
 | `onGuildLeft()` | Wynntils `GuildEvent.Left` callback: clears the `GuildChecker` cache and a cached staff flag (`StaffRankChecker.clearForGuildChange`) at once, then on the next tick (`TickDelays.runAfter(0, ...)`) re-evaluates guild state and calls `reconcileRegistration(true, "left")` |
@@ -57,14 +57,19 @@ Retraction is `reconcileRegistration(definitive, reason)`, called on the client 
 
 - **Left** (`GuildLifecycle.onGuildLeft()`, `definitive`, reason `left`): Wynntils posts `GuildEvent.Left` before it clears its guild name, in the same call, so the handler defers the re-evaluation and the reconcile one tick (`TickDelays.runAfter(0, ...)`). Re-evaluating at once would still read Returners and even re-send a `guild` registration.
 - **Joined** (end of `onGuildJoined()`, `definitive`, reason `joined`): retracts a waitlist registration when the player joins another guild.
-- **Guild check** (end of `GuildLifecycle.onGuildCheckCompleted()`, after `sendRegistrationIfReady()`; `definitive` is `GuildCheckResult.isDefinitive()` of the stored result, reason `guild-check`): a finished `/gu stats` check that found the player in another guild or none (`OTHER_GUILD`, `GUILDLESS`) retracts a `guild` registration. This is the path for an ex-member kicked while offline, whose persisted RETURNERS result (3-day TTL) registered them as `guild` at world join and for which no `Left` event fired. `RETURNERS` and `UNKNOWN` (a parse miss) are not definitive, and a timeout stores nothing, so none of them retracts. An honourary is not retracted: `sendRegistrationIfReady()` has just re-registered them as `honourary`, so the tier now is not none.
+- **Guild check** (end of `GuildLifecycle.onGuildCheckCompleted()`, after `sendRegistrationIfReady()`; `definitive` is `GuildCheckResult.isDefinitive()` of the stored result, reason `guild-check`): a finished `/gu stats` check that found the player in another guild or none (`OTHER_GUILD`, `GUILDLESS`) retracts a `guild` registration. This is the path for an ex-member kicked while offline, whose persisted RETURNERS result (3-day TTL) registered them as `guild` at world join and for which no `Left` event fired. `RETURNERS` and `UNKNOWN` (a parse miss) are not definitive. A timeout stores nothing and re-reports the previous result, so it retracts only if an earlier check already found the player outside Returners. An honourary is not retracted: `sendRegistrationIfReady()` has just re-registered them as `honourary`, so the tier now is not none.
+- **Contradicted** (`GuildLifecycle.onEnteredWorld` and the recheck poll, `definitive`, reason `contradicted`): when a stored `RETURNERS` result is cleared because Wynntils names another guild, `sendRegistrationIfReady()` re-registers the player for what they are now (an honourary as one) and the reconcile retracts the `guild` registration the stale result caused.
 - **Auth** (`UnlockManager.onAuthFailure`, and `showAuthSuccess` after `sendRegistrationIfReady()`; not definitive, reason `auth`): a failure ends the server session and clears the tier, and an ok ack with tier `other` is not a waitlist or honourary tier, so a cached waitlist or honourary registration goes. A guild registration stays. The failure's reconcile hops to the client thread and runs before any quiet return.
 
 A player who qualifies again re-registers through `sendRegistrationIfReady()`, which overwrites. A register that an inbound reconnect re-sends could cross a retraction on the wire; the window is tiny and the next reconnect corrects it.
 
 ### Guild membership flow on world join
 
-`isReturners()` / `isGuildless()` prefer a valid `GuildChecker` result (the persisted `/gu stats` cache, 3-day expiry), else read Wynntils' `Models.Guild` live (the name is empty, not null, until Wynntils' character-info scan or a guild-join message fills it). `GuildLifecycle.onEnteredWorld()` then schedules two follow-ups:
+`isReturners()` / `isGuildless()` prefer a valid `GuildChecker` result (the persisted `/gu stats` cache, 3-day expiry), else read Wynntils' `Models.Guild` live (the name is empty, not null, until Wynntils' character-info scan or a guild-join message fills it). The cached result is per install, not per account, so `GuildLifecycle.onEnteredWorld()` first stops trusting one that cannot be this player's, before it registers or reads `isReturners()`:
+- the result's owner (`vetsGuildCheckOwner`, the username of the account whose `/gu stats` made it, written by `GuildChecker.setResult`) is another account: `GuildChecker.ownedByOtherAccount(owner, current)` is `!owner.isEmpty() && !owner.equalsIgnoreCase(current)`, and the result is forgotten, so an alt in another guild does not inherit the main's `RETURNERS` (and its `guild` registration). An empty owner, a result stored before the key existed, is adopted by the account that joins, so a Returners member upgrading sees no change;
+- Wynntils is ready and reports a guild, and the result contradicts it (`clearResultIfContradicted(true, name)`, the same test the recheck poll uses): forgotten. Wynntils' guild data may not have landed yet at world join, so the owner check is the one that does not wait for it.
+
+Forgetting a result clears the owner too. It then schedules two follow-ups:
 1. a `/gu stats` check about 5 s after world join, while `MORE_RELIABLE_GUILD_CHECK` is on (the default);
 2. when Wynntils reports no guild yet, the recheck poll (`GUILD_RECHECK_*` constants), which re-evaluates guild state once a guild appears.
 
@@ -98,7 +103,7 @@ Each kind is numbered when scheduled, and a task that finds a newer number stops
 
 **Caching:**
 - `GUILD_CHECK_EXPIRY_DAYS = 3`
-- Persisted: `VETS_GUILD_CHECK_RESULT` (long) and `VETS_LAST_GUILD_CHECK` (long timestamp)
+- Persisted: `VETS_GUILD_CHECK_RESULT` (long), `VETS_LAST_GUILD_CHECK` (long timestamp) and `VETS_GUILD_CHECK_OWNER` (string, the account's username, written with the result by `setResult` and cleared with it)
 - `GUILD_CHECK_TIMEOUT_MS = 10_000L`
 - Suppression grace: 2 seconds after completion; a new check started inside it ends it, so the old grace's pending clear can't end the new check's suppression
 
@@ -202,6 +207,7 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 |-----|------|------------|
 | `vetsGuildCheckResult` | long (enum) | GuildChecker |
 | `vetsLastGuildCheck` | long (ts) | GuildChecker |
+| `vetsGuildCheckOwner` | string | GuildChecker |
 | `vetsIsStaff` | bool | StaffRankChecker |
 | `vetsLastStaffCheck` | long (ts) | StaffRankChecker |
 | `vetsAuthKey` | string | UnlockManager |

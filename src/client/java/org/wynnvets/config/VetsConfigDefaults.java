@@ -31,6 +31,7 @@ public final class VetsConfigDefaults {
         longConfig.put(VetsConfigKeys.VETS_LAST_STAFF_CHECK, 0L);
         longConfig.put(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, 0L);
         longConfig.put(VetsConfigKeys.VETS_LAST_GUILD_CHECK, 0L);
+        stringConfig.put(VetsConfigKeys.VETS_GUILD_CHECK_OWNER, "");
         longConfig.put(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, 0L);
         config.put(VetsConfigKeys.VETS_ANNI_MODE_USER_SET, false);
 

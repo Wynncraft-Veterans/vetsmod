@@ -29,6 +29,13 @@ public final class VetsConfigKeys {
     public static final String VETS_LAST_STAFF_CHECK = "vetsLastStaffCheck";
     public static final String VETS_GUILD_CHECK_RESULT = "vetsGuildCheckResult";
     public static final String VETS_LAST_GUILD_CHECK = "vetsLastGuildCheck";
+
+    /** Username of the Minecraft account that made the stored guild check result, written
+     *  with it. Empty for a result stored before the key existed, or none. The result is kept
+     *  per install, so this lets a world join by a different account discard it
+     *  ({@link org.wynnvets.guild.GuildChecker GuildChecker}). */
+    public static final String VETS_GUILD_CHECK_OWNER = "vetsGuildCheckOwner";
+
     public static final String VETS_DEBUG_ENABLED_AT = "vetsDebugEnabledAt";
 
     // ── Vetsmod /unlock <key> auth state ─────────────────────────────────

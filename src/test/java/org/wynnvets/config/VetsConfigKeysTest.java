@@ -36,6 +36,7 @@ class VetsConfigKeysTest {
         EXPECTED.put("VETS_LAST_STAFF_CHECK", "vetsLastStaffCheck");
         EXPECTED.put("VETS_GUILD_CHECK_RESULT", "vetsGuildCheckResult");
         EXPECTED.put("VETS_LAST_GUILD_CHECK", "vetsLastGuildCheck");
+        EXPECTED.put("VETS_GUILD_CHECK_OWNER", "vetsGuildCheckOwner");
         EXPECTED.put("VETS_DEBUG_ENABLED_AT", "vetsDebugEnabledAt");
         EXPECTED.put("VETS_AUTH_KEY", "vetsAuthKey");
         EXPECTED.put("VETS_AUTH_TIER", "vetsAuthTier");

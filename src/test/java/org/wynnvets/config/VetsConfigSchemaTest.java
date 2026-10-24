@@ -34,6 +34,7 @@ class VetsConfigSchemaTest {
                     "vetsLastStaffCheck",
                     "vetsGuildCheckResult",
                     "vetsLastGuildCheck",
+                    "vetsGuildCheckOwner",
                     "vetsDebugEnabledAt",
                     "vetsAuthKey",
                     "vetsAuthTier",

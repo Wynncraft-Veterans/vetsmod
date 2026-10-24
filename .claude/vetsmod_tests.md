@@ -30,7 +30,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.fetcher.lookup.providers`](#orgwynnvetsfetcherlookupproviders) — [`VetsSnapshotProviderTest`](#vetssnapshotprovidertest)
 - [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`CheckReportRendererTest`](#checkreportrenderertest), [`OnlineMemberServiceTest`](#onlinememberservicetest), [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
 - [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
-- [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`RegistrationTierTest`](#registrationtiertest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
+- [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`GuildCheckerOwnerTest`](#guildcheckerownertest), [`RegistrationTierTest`](#registrationtiertest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`ScreenshotLatchTest`](#screenshotlatchtest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest), [`UrlWrapJoinerTest`](#urlwrapjoinertest)
 - [`org.wynnvets.logging`](#orgwynnvetslogging) — [`VetsLoggerTest`](#vetsloggertest)
@@ -1236,7 +1236,7 @@ Test: [`VetsConfigKeysTest.java`](../src/test/java/org/wynnvets/config/VetsConfi
 `VetsConfigKeys` is the list of string constants naming each setting as stored in `config.json`. Those names are the file format: renaming one makes existing values unreadable and they are dropped at the next save. The suite compares the constants against a frozen constant-to-name table, read by reflection over all public static final `String` fields, so an added, removed or renamed key fails, and it checks the on-disk names are distinct.
 
 - **`everyKeyConstant_hasItsOnDiskName`**: The reflected map of constant name to string value equals the frozen expected table, in both content and key set.
-  - `keyConstants()`, the sorted map of every public static final `String` field of `VetsConfigKeys` (constant name to value), equals `new TreeMap<>(EXPECTED)`: the 42 frozen pairs from `VETS_AUTOMESSAGE` to `vetsAutomessage` through `LEGACY_ITEM_FOREGROUND_COLOR` to `legacyItemForegroundColor`.
+  - `keyConstants()`, the sorted map of every public static final `String` field of `VetsConfigKeys` (constant name to value), equals `new TreeMap<>(EXPECTED)`: the 43 frozen pairs from `VETS_AUTOMESSAGE` to `vetsAutomessage` through `LEGACY_ITEM_FOREGROUND_COLOR` to `legacyItemForegroundColor`.
 - **`onDiskNames_areDistinct`**: No two constants share the same on-disk name.
   - For each `name` in the values of `keyConstants()`: `seen.add(name)` is true, meaning no earlier constant has the same on-disk name.
 
@@ -1257,7 +1257,7 @@ Test: [`VetsConfigSchemaTest.java`](../src/test/java/org/wynnvets/config/VetsCon
   - `VALID_FLASH_INTENSITIES` equals, in order, `subtle`, `normal`, `strong`.
   - `VALID_SPRITES` equals, in order, the 10 names from `wynn` (first) to `box_gradient_2` (last).
 - **`fixedValuesOf_mapsOnlyRoleStyleAndFlashIntensity`**: For every known name, `fixedValuesOf` returns the role-style or flash-intensity list for those two keys and `null` for all others.
-  - For `name` = `vetsAnniRoleStyle` in `ALL_NAMES` (44 names, `vetsAutomessage` first, `noSuchKey` last): `fixedValuesOf(name)` equals `descriptive`, `short`, `formal`.
+  - For `name` = `vetsAnniRoleStyle` in `ALL_NAMES` (45 names, `vetsAutomessage` first, `noSuchKey` last): `fixedValuesOf(name)` equals `descriptive`, `short`, `formal`.
   - For `name` = `vetsAnniFlashIntensity`: `fixedValuesOf(name)` equals `subtle`, `normal`, `strong`.
   - For every other name in `ALL_NAMES`: `fixedValuesOf(name)` is null.
 - **`isFixedValue_acceptsTheListedLowercaseValuesOnly`**: Listed lowercase values pass for their key; wrong-list values, upper case `SHORT`, empty, `null`, colour keys and unknown keys fail.
@@ -2117,6 +2117,26 @@ Test: [`GuildCheckResultTest.java`](../src/test/java/org/wynnvets/guild/GuildChe
 - **`isDefinitive_isFalseForReturnersAndUnknown`**: A Returners answer, and no answer, never retract.
   - `isDefinitive()` is false for `RETURNERS`.
   - `isDefinitive()` is false for `UNKNOWN`.
+
+### `GuildCheckerOwnerTest`
+
+Test: [`GuildCheckerOwnerTest.java`](../src/test/java/org/wynnvets/guild/GuildCheckerOwnerTest.java) · Subject: [`GuildChecker`](../src/client/java/org/wynnvets/guild/GuildChecker.java)
+
+The stored `/gu stats` result and the username of the account that made it (`vetsGuildCheckOwner`) are kept per install, so a world join by a different account must not inherit the result. The suite pins `ownedByOtherAccount(owner, current)`, the pure rule that decides it: an empty owner (a legacy result) is adopted, names compare ignoring case, any other difference is another account. The rest of `GuildChecker` reaches `VetsConfig` and the player and is not covered; calling the static method initializes the class, whose static state has no Minecraft or Fabric dependency.
+
+- **`ownedByOtherAccount_emptyOwner_isALegacyResultAndIsAdopted`**: A result with no recorded owner is never doubted.
+  - `ownedByOtherAccount("", "Wenweia")` is false.
+  - `ownedByOtherAccount("", "")` is false.
+- **`worldJoinShouldClear_onlyAReturnersResultThatWynntilsNamesAnotherGuildFor`**: At world join only a `RETURNERS` result is cleared on Wynntils' word, and only when Wynntils names another guild; Wynntils' name can be left from an earlier scan, so a `GUILDLESS` or `OTHER_GUILD` result is left to `/gu stats`.
+  - True for `(RETURNERS, true, "Other Guild")`; false for `(RETURNERS, true, "Returners")`, `(RETURNERS, false, "")`, `(GUILDLESS, true, "Returners")`, `(OTHER_GUILD, true, "Returners")` and `(UNKNOWN, true, "Other Guild")`.
+- **`ownedByOtherAccount_sameName_ignoringCase_isNotAnotherAccount`**: The same username in any letter case is the same account.
+  - `ownedByOtherAccount("Wenweia", "Wenweia")` is false.
+  - `ownedByOtherAccount("Wenweia", "wenweia")` is false.
+  - `ownedByOtherAccount("WENWEIA", "wenWEia")` is false.
+- **`ownedByOtherAccount_differentName_isAnotherAccount`**: Any other name, including an empty current name, is another account.
+  - `ownedByOtherAccount("Wenweia", "Holidaze")` is true.
+  - `ownedByOtherAccount("Wenweia", "Wenweia2")` is true.
+  - `ownedByOtherAccount("Wenweia", "")` is true.
 
 ### `RegistrationTierTest`
 

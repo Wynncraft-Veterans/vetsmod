@@ -18,9 +18,10 @@ import org.wynnvets.util.TickDelays;
  * when Wynntils or vetsmod's own {@code /gu stats} check reports the player's guild afterwards, and
  * when the player leaves the server.
  *
- * <p>It reads the player's guild through {@link GuildStateManager}'s predicates, except in the
- * world-join recheck gate and the recheck poll, which read Wynntils' {@code Models.Guild} directly
- * because they wait on Wynntils' own scan, and in {@link #onGuildCheckCompleted()}, which reads
+ * <p>It reads the player's guild through {@link GuildStateManager}'s predicates, except at the top
+ * of {@link #onEnteredWorld()}, in the world-join recheck gate and in the recheck poll, which read
+ * Wynntils' {@code Models.Guild} directly because they check or wait on Wynntils' own scan, and in
+ * {@link #onGuildCheckCompleted()}, which reads
  * {@link GuildChecker}'s stored result when a {@code /gu stats} check ends; its debug lines log
  * {@code Models.Guild}'s guild name. It calls {@link GuildChecker}, {@link StaffRankChecker} and
  * {@link UnlockManager} directly. A world join can start the guild recheck poll and the delayed
@@ -60,7 +61,9 @@ public final class GuildLifecycle {
      * {@code newState == WORLD}).
      *
      * <p>Replaces the old "Welcome to Wynncraft!" chat-message detection. Starts
-     * vetsmod's world-join work: the MOTD and (for Returners) the anni stamp, a staff-rank
+     * vetsmod's world-join work: first, forgetting a stored guild check result that another
+     * account made or that Wynntils' guild data contradicts ({@link GuildChecker}); then the MOTD
+     * and (for Returners) the anni stamp, a staff-rank
      * refresh when due, presence registration, the follow-up guild checks, the
      * session-auth warning and the default anni mode. The body is the authority on
      * order.</p>
@@ -69,8 +72,25 @@ public final class GuildLifecycle {
         enteredWorld = true;
         DispatchCoordinator.resetStaffChatEligibilityCache();
 
-        // Capture player name
         LocalPlayer player = McUtils.player();
+
+        // Stop trusting a stored guild check result that cannot be this player's, before
+        // anything below reads isReturners(): one that another account made (the result is kept
+        // per install), or a Returners one that Wynntils' guild data, if it has landed,
+        // contradicts. Otherwise an alt in another guild registers as Returners.
+        if (player != null) {
+            GuildChecker.clearResultIfOwnedByOtherAccount(player.getName().getString());
+        }
+        boolean contradictedAtJoin =
+                GuildStateManager.wynntilsReady
+                        && GuildChecker.worldJoinShouldClear(
+                                GuildChecker.getResult(),
+                                Models.Guild.isInGuild(),
+                                Models.Guild.getGuildName())
+                        && GuildChecker.clearResultIfContradicted(
+                                true, Models.Guild.getGuildName());
+
+        // Capture player name
         if (player != null && GuildStateManager.playerName.equals(StringUtils.EMPTY)) {
             GuildStateManager.playerName = player.getName().getString();
         }
@@ -97,6 +117,11 @@ public final class GuildLifecycle {
 
         // Send presence registration to the server.
         GuildStateManager.sendRegistrationIfReady();
+        if (contradictedAtJoin) {
+            // The cleared Returners result may have registered this player as guild in an
+            // earlier world of this session.
+            GuildStateManager.reconcileRegistration(true, "contradicted");
+        }
 
         VetsLogger.debug(
                 "onEnteredWorld: guild={}, guildless={}, returners={}",
@@ -273,8 +298,11 @@ public final class GuildLifecycle {
 
         if (inGuild) {
             VetsLogger.info("Guild info now available after recheck: {}", name);
-            GuildChecker.clearResultIfContradicted(true, name);
+            boolean cleared = GuildChecker.clearResultIfContradicted(true, name);
             reevaluateGuildState();
+            if (cleared) {
+                withdrawContradictedRegistration();
+            }
             return;
         }
 
@@ -314,9 +342,22 @@ public final class GuildLifecycle {
      * qualifies and retracts a {@code guild} registration the check shows the player no longer
      * qualifies for ({@link GuildStateManager#reconcileRegistration}), such as an ex-member
      * kicked while offline whose cached result still said Returners. Only a result of
-     * {@link GuildChecker.GuildCheckResult#isDefinitive() OTHER_GUILD or GUILDLESS} retracts, so
-     * a timeout or an unreadable answer never does; an honourary stays registered as one.
+     * {@link GuildChecker.GuildCheckResult#isDefinitive() OTHER_GUILD or GUILDLESS} retracts. A
+     * timeout stores nothing and re-reports the previous result, so it retracts only if an earlier
+     * check already found the player outside Returners; an unreadable answer never does. An
+     * honourary stays registered as one.
      */
+    /**
+     * After a stored guild check result was cleared because Wynntils contradicts it: registers the
+     * player for what they are now (an honourary as one) and retracts a {@code guild}
+     * registration the cleared result caused. The clear only comes from Wynntils naming a guild,
+     * so the loss is definitive.
+     */
+    private static void withdrawContradictedRegistration() {
+        GuildStateManager.sendRegistrationIfReady();
+        GuildStateManager.reconcileRegistration(true, "contradicted");
+    }
+
     static void onGuildCheckCompleted() {
         GuildChecker.GuildCheckResult result = GuildChecker.getResult();
         VetsLogger.debug("onGuildCheckCompleted: result={}", result);
