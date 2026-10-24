@@ -96,7 +96,9 @@ public final class AnniRsvpCommand {
                         return;
                     }
                     if (ack.ok()) {
-                        ChatUtils.sendLocalMessage(successComponent(notice));
+                        ChatUtils.sendLocalMessage(successComponent(notice, ack));
+                        // A revoke of nothing still pulls: it usually means the cached snapshot
+                        // shows an RSVP the server no longer has (withdrawn on Discord).
                         // Outside the T-2h hot window the push poller runs at 5-min
                         // cadence, so without a fire-and-forget refresh here the
                         // cached snapshot would still report the pre-RSVP state
@@ -120,7 +122,10 @@ public final class AnniRsvpCommand {
     /**
      * Build the success line.
      *
-     * <p>Two shapes, not one. {@code hard} and {@code soft} render
+     * <p>Three shapes, not one. A {@code revoke} whose ack says
+     * {@code nothing_to_withdraw} renders a flat gray "You had no active RSVP to withdraw."
+     * (the Discord cog's own wording); an older server sends no {@code result}, so its
+     * revoke keeps the line below. {@code hard} and {@code soft} render
      * "You have &lt;TOKEN&gt; RSVP'd for the next anni.", with the token coloured
      * via {@link AnniHoverBuilder#noticeColor(String)} and the rest of the line
      * gray. {@code revoke} returns early with a flat gray
@@ -129,7 +134,12 @@ public final class AnniRsvpCommand {
      * correct, because {@code revoke} is a verb this command sends and not a
      * notice state any snapshot reports.</p>
      */
-    private static MutableComponent successComponent(String notice) {
+    // Package-private for unit tests. See AnniRsvpCommandTest.
+    static MutableComponent successComponent(String notice, AnniRsvpClient.Ack ack) {
+        if (isNothingToWithdraw(notice, ack)) {
+            return Component.literal("You had no active RSVP to withdraw.")
+                    .withStyle(ChatFormatting.GRAY);
+        }
         if ("revoke".equals(notice)) {
             return Component.literal("Your RSVP has been withdrawn.")
                     .withStyle(ChatFormatting.GRAY);
@@ -142,6 +152,11 @@ public final class AnniRsvpCommand {
                 .append(
                         Component.literal(" RSVP'd for the next anni.")
                                 .withStyle(ChatFormatting.GRAY));
+    }
+
+    /** A revoke the server answered with {@code result == "nothing_to_withdraw"}. */
+    private static boolean isNothingToWithdraw(String notice, AnniRsvpClient.Ack ack) {
+        return "revoke".equals(notice) && ack != null && "nothing_to_withdraw".equals(ack.result());
     }
 
     private static String label(String notice) {

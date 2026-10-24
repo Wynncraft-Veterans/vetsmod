@@ -21,8 +21,9 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * that risk.</p>
  *
  * <p>The future resolves to an immutable {@link Ack} record with
- * {@code (ok, detail)}, or to {@code null} at the deadline; callers render
- * the detail on failure. The deadline is 8 s, the same as
+ * {@code (ok, detail, result)}, or to {@code null} at the deadline; callers render
+ * the detail on failure and use {@code result} to tell a revoke that withdrew an RSVP from
+ * one that found none. The deadline is 8 s, the same as
  * {@link AnniQueryClient}'s. temp-server forwards {@code set_rsvp} and
  * {@code set_scroll_spot} to vets-anni on the anni snapshot poller's httpx
  * client, whose {@code ANNI_SNAPSHOT_REQUEST_TIMEOUT_SECONDS = 5.0} bounds
@@ -103,23 +104,47 @@ public final class AnniRsvpClient {
             VetsLogger.debug("anni_rsvp_response with empty queue: {}", json);
             return;
         }
-        String status =
-                json.has("status") && !json.get("status").isJsonNull()
-                        ? json.get("status").getAsString()
-                        : "error";
-        String detail =
-                json.has("detail") && !json.get("detail").isJsonNull()
-                        ? json.get("detail").getAsString()
-                        : null;
-        Ack ack = new Ack("ok".equals(status), detail);
+        Ack ack = parseAck(json);
         lastAck = ack;
         head.complete(ack);
     }
 
-    /** Server ack — {@code ok} flag + optional human-readable {@code detail}
-     *  surfaced from vets-anni on failure (e.g. "RSVP is closed (within 90
-     *  min of anni)"). */
-    public record Ack(boolean ok, String detail) {}
+    /**
+     * Reads an {@code anni_rsvp_response} frame: {@code status} ({@code ok} or anything else,
+     * a missing one counting as an error), the optional {@code detail} and the optional string
+     * {@code result}. Each optional field reads as {@code null} when absent, JSON null or not
+     * a string, which is what an older server sends for {@code result}.
+     */
+    // Package-private for unit tests. See AnniRsvpClientTest.
+    static Ack parseAck(JsonObject json) {
+        String status = optionalString(json, "status");
+        return new Ack(
+                "ok".equals(status),
+                optionalString(json, "detail"),
+                optionalString(json, "result"));
+    }
+
+    private static String optionalString(JsonObject json, String key) {
+        return json.has(key)
+                        && json.get(key).isJsonPrimitive()
+                        && json.get(key).getAsJsonPrimitive().isString()
+                ? json.get(key).getAsString()
+                : null;
+    }
+
+    /**
+     * Server ack: the {@code ok} flag, an optional human-readable {@code detail} surfaced from
+     * vets-anni on failure (e.g. "RSVP is closed (within 90 min of anni)"), and an optional
+     * {@code result} on success: {@code "recorded"}, {@code "withdrawn"} or
+     * {@code "nothing_to_withdraw"} (a revoke with no active RSVP). {@code result} is
+     * {@code null} from a server that predates the field.
+     */
+    public record Ack(boolean ok, String detail, String result) {
+        /** An ack with no {@code result}, as an older server or a local failure gives. */
+        public Ack(boolean ok, String detail) {
+            this(ok, detail, null);
+        }
+    }
 
     /** Debug entry — dump current auth state, in-flight queue depth, last
      *  attempt + last ack, and the snapshot's current rsvp block. Mirrors

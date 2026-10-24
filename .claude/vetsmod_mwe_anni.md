@@ -613,7 +613,7 @@ Wire pieces on the network layer:
 - `AnniWsSender.sendAnniRsvp(String notice)` (mirror of `sendAnniScrollspotSet`).
 - `AnniWsHandler.onInbound` routes `anni_rsvp_response` to `AnniRsvpClient.onResponse`.
 
-`AnniRsvpClient` is a single-flight ack future (clone of `AnniScrollspotClient`). Its `/wv debug trigger rsvpDump` diagnostic goes through `debugDump()`, which reads the private statics (`pending`, `lastAttemptedNotice`, `lastAck`) directly. It once also declared public accessors wrapping those three; they had no callers and were removed in an earlier cleanup pass.
+`AnniRsvpClient` is a single-flight ack future (clone of `AnniScrollspotClient`) whose `Ack` is `(ok, detail, result)`; `result` tells a revoke that withdrew an RSVP from one that found none (`nothing_to_withdraw`, which prints "You had no active RSVP to withdraw."; the follow-up snapshot pull still runs, since a revoke of nothing usually means the cached snapshot shows an RSVP the server no longer has) and is null from an older server, which keeps the "Your RSVP has been withdrawn." line. Its `/wv debug trigger rsvpDump` diagnostic goes through `debugDump()`, which reads the private statics (`pending`, `lastAttemptedNotice`, `lastAck`) directly. It once also declared public accessors wrapping those three; they had no callers and were removed in an earlier cleanup pass.
 
 ### Auth chain
 
@@ -625,9 +625,11 @@ Wire pieces on the network layer:
   → temp-server _handle_anni_rsvp (stamps actor_mc_uuid from session)
   → POST vets-anni /api/internal/anni-rsvp-by-uuid   ← server side; see
                                                        snapshot_integration.md
-  → 200 {"status":"ok"} or 4xx {"status":"error","detail":"…"}
-  → temp-server forwards as {"type":"anni_rsvp_response","status":…,"detail":…}
-  → AnniRsvpClient.onResponse pops the head future
+  → 200 {"status":"ok","result":"recorded"|"withdrawn"|"nothing_to_withdraw"} or
+    4xx {"status":"error","detail":"…"}
+  → temp-server forwards as {"type":"anni_rsvp_response","status":…,"detail":…,"result":…}
+    (result is null from an older vets-anni)
+  → AnniRsvpClient.onResponse pops the head future (parseAck reads status, detail, result)
   → AnniRsvpCommand.renderAck (main thread) prints "You have HARD RSVP'd…"
     with the HARD token coloured via AnniHoverBuilder.noticeColor("hard")
     (AQUA per the noticeColor map).

@@ -162,7 +162,7 @@ blank (nothing cached upstream).
 |---|---|---|---|---|---|---|
 | `/wv anni` | none | none | `CommandRegistry.anni` → `StampFetcher.fetchStampAndCreateAnniCommandMessage` | The anni status: the snapshot render (`AnniCommandRenderer`) when a snapshot is cached or, for a vet, an on-demand pull brings one, else, or when the renderer declines, the legacy stamp countdown | WebSocket `anni_query` on a cold cache, for a vet (`isEligibleForEnrichment()`) only; GETs `VetsApi.STAMP` on the legacy path | none |
 | `/wv anni silent`, `passive`, `aggressive` | none | the `/stream` mutex, for passive and aggressive: "You have /stream, which is incompatible with vetsmod anni features, active. We would strongly prefer you use /toggle ghosts NONE instead, which does the same thing without hiding you from organisers!" | `CommandRegistry.anniMode` → `AnniModeManager.transitionTo(mode, USER_COMMAND)` | Sets the anni mode and prints it; a refusal changes nothing | writes `vetsAnniMode`, `vetsAnniModeUserSet` and `vetsAnniUserMode` | none |
-| `/wv anni rsvp hard`, `soft`, `revoke` | none | `isAuthenticatedThisSession()`: "You aren't authenticated (~vetsmod on vetscord). For now, use the discord \rsvp on discord (or use ~vetsmod)." | `AnniRsvpCommand.hard`, `soft`, `revoke` | Sends the RSVP and prints the result; on success, pulls a fresh snapshot | WebSocket `anni_rsvp`, then `anni_query` on success | `in-game-rsvp-revoke-of-nothing-says-withdrawn` |
+| `/wv anni rsvp hard`, `soft`, `revoke` | none | `isAuthenticatedThisSession()`: "You aren't authenticated (~vetsmod on vetscord). For now, use the discord \rsvp on discord (or use ~vetsmod)." | `AnniRsvpCommand.hard`, `soft`, `revoke` | Sends the RSVP and prints the result; on success, pulls a fresh snapshot (not after a revoke that found no RSVP to withdraw) | WebSocket `anni_rsvp`, then `anni_query` on success | none |
 
 [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md) owns all three: §"`/wv anni` render dispatch" has the branch
 list and the not-announced, far-out and imminent forms; §Mode state has the mode keys, the mutex and
@@ -173,9 +173,10 @@ line's `[Hard]` / `[Soft]` buttons suggest `/wv anni rsvp hard` and `soft`.
 **RSVP, server side.** An RSVP goes through temporary-server, which stamps the session's `mc_uuid`, to
 vets-anni, which reuses its Discord cog's helpers: the RSVP row and the auto-placement come from the same
 code as a Discord `\rsvp`'s, and the public confirmation line, built in the cog's format, goes out through
-the same `_post_public`. vetsmod never sees the private reply: a revoke with
-no active RSVP still prints "Your RSVP has been withdrawn." (bug
-`in-game-rsvp-revoke-of-nothing-says-withdrawn`). vets-anni closes RSVP 90 minutes before an anni,
+the same `_post_public`. vetsmod never sees the private reply, but the ack carries a `result`
+(`recorded`, `withdrawn` or `nothing_to_withdraw`): a revoke with no active RSVP prints a gray "You had no
+active RSVP to withdraw." and still pulls the snapshot, and a server that predates the field sends none, so
+its revoke still prints "Your RSVP has been withdrawn.". vets-anni closes RSVP 90 minutes before an anni,
 server-side: vets-anni refuses a hard or soft RSVP inside that cutoff with "RSVP is closed (within 90 min
 of anni)", and never refuses a revoke for it. The server-side detail, including the placeholder name a first-time player
 gets, is in vets-anni's `.claude/snapshot_integration.md`, linked from vetsmod_mwe_anni.md §"`/wv anni

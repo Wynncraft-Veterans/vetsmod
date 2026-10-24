@@ -37,7 +37,9 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.mwe.anni`](#orgwynnvetsmweanni) — [`AnniPartyReporterTest`](#annipartyreportertest)
 - [`org.wynnvets.mwe.anni.aggressive`](#orgwynnvetsmweanniaggressive) — [`GhostsPromptHandlerTest`](#ghostsprompthandlertest)
 - [`org.wynnvets.mwe.anni.bossbar`](#orgwynnvetsmweannibossbar) — [`VetsBossBarContentBuilderTest`](#vetsbossbarcontentbuildertest)
+- [`org.wynnvets.mwe.anni.command`](#orgwynnvetsmweannicommand) — [`AnniRsvpCommandTest`](#annirsvpcommandtest)
 - [`org.wynnvets.mwe.anni.mode`](#orgwynnvetsmweannimode) — [`AnniModeTest`](#annimodetest)
+- [`org.wynnvets.mwe.anni.network`](#orgwynnvetsmweanninetwork) — [`AnniRsvpClientTest`](#annirsvpclienttest)
 - [`org.wynnvets.mwe.anni.outline`](#orgwynnvetsmweannioutline) — [`AnniOutlinePaletteTest`](#annioutlinepalettetest)
 - [`org.wynnvets.mwe.anni.render`](#orgwynnvetsmweannirender) — [`AnniCommandRendererTest`](#annicommandrenderertest), [`AnniHoverBuilderTest`](#annihoverbuildertest), [`AnniOnboardingBlocksTest`](#annionboardingblockstest), [`AnniStatusSectionsTest`](#annistatussectionstest)
 - [`org.wynnvets.mwe.anni.state`](#orgwynnvetsmweannistate) — [`AnniSnapshotsTest`](#annisnapshotstest), [`AnniWindowsTest`](#anniwindowstest)
@@ -2232,6 +2234,30 @@ Test: [`VetsBossBarContentBuilderTest.java`](../src/test/java/org/wynnvets/mwe/a
 - **`oneMinuteIsSingularAndAnyOtherCountPlural`**: The minutes unit reads `min` for one minute and `mins` otherwise.
   - `minutesUnit(1)` equals `"min"`; `minutesUnit(2)` and `minutesUnit(80)` equal `"mins"`.
 
+## `org.wynnvets.mwe.anni.command`
+
+### `AnniRsvpCommandTest`
+
+Test: [`AnniRsvpCommandTest.java`](../src/test/java/org/wynnvets/mwe/anni/command/AnniRsvpCommandTest.java) · Subject: [`AnniRsvpCommand`](../src/client/java/org/wynnvets/mwe/anni/command/AnniRsvpCommand.java)
+
+`AnniRsvpCommand.successComponent(notice, ack)` builds the line `/wv anni rsvp` prints on an ok ack. The suite pins it through `getString()` and, for the revoke lines, the colour: a revoke whose ack says `nothing_to_withdraw`, a revoke that withdrew one or whose server sent no `result`, and the hard and soft lines. The dispatch, the authentication guard and the follow-up snapshot pull are not covered.
+
+- **`successComponent_revoke_nothingToWithdraw_saysNoActiveRsvp`**: A revoke with `result` `nothing_to_withdraw` prints the no-RSVP line in gray.
+  - The text equals `"You had no active RSVP to withdraw."`.
+  - The style colour equals gray.
+- **`successComponent_revoke_withdrawn_saysWithdrawn`**: A revoke with `result` `withdrawn` prints the withdrawn line in gray.
+  - The text equals `"Your RSVP has been withdrawn."`.
+  - The style colour equals gray.
+- **`successComponent_revoke_nullResult_saysWithdrawn`**: A revoke whose server sent no `result` keeps the old line.
+  - The text equals `"Your RSVP has been withdrawn."`, for a two-argument `Ack(true, null)`.
+  - The style colour equals gray.
+- **`successComponent_hard_unchanged`**: A hard RSVP reads as before.
+  - The text equals `"You have HARD RSVP'd for the next anni."`, for `result` `recorded`.
+- **`successComponent_soft_unchanged`**: A soft RSVP reads as before.
+  - The text equals `"You have SOFT RSVP'd for the next anni."`, for an ack with no `result`.
+- **`successComponent_nothingToWithdrawOnAHardRsvp_isIgnored`**: `nothing_to_withdraw` changes only a revoke's line.
+  - The text equals `"You have HARD RSVP'd for the next anni."`, for a `hard` notice with `result` `nothing_to_withdraw`.
+
 ## `org.wynnvets.mwe.anni.mode`
 
 ### `AnniModeTest`
@@ -2252,6 +2278,35 @@ Test: [`AnniModeTest.java`](../src/test/java/org/wynnvets/mwe/anni/mode/AnniMode
 - **`fromString_nullAndUnknownAreSilent`**: `null` and the unknown string "loud" both return `SILENT`.
   - `fromString(null)` is `SILENT`.
   - `fromString("loud")` is `SILENT`.
+
+## `org.wynnvets.mwe.anni.network`
+
+### `AnniRsvpClientTest`
+
+Test: [`AnniRsvpClientTest.java`](../src/test/java/org/wynnvets/mwe/anni/network/AnniRsvpClientTest.java) · Subject: [`AnniRsvpClient`](../src/client/java/org/wynnvets/mwe/anni/network/AnniRsvpClient.java)
+
+`AnniRsvpClient.parseAck` reads an `anni_rsvp_response` frame into an `Ack(ok, detail, result)`. The suite pins the three fields, including that each optional one reads as null when absent, JSON null or not a string. The FIFO queue, the 8 s deadline and the frame send are not covered. Frames are parsed from JSON text.
+
+- **`parseAck_okWithResult`**: An ok frame carrying `result` keeps it.
+  - `ack.ok()` is true, for `{"status": "ok", "detail": null, "result": "nothing_to_withdraw"}`.
+  - `ack.detail()` is null.
+  - `ack.result()` equals `"nothing_to_withdraw"`.
+- **`parseAck_okWithoutResult_resultNull`**: An ok frame with no `result` (an older server) has a null one.
+  - `ack.ok()` is true, for `{"status": "ok"}`.
+  - `ack.result()` is null.
+  - `ack` equals `new Ack(true, null)`.
+- **`parseAck_errorWithDetail`**: An error frame keeps its detail and has no result.
+  - `ack.ok()` is false, for `{"status": "error", "detail": "RSVP is closed (within 90 min)"}`.
+  - `ack.detail()` equals `"RSVP is closed (within 90 min)"`.
+  - `ack.result()` is null.
+- **`parseAck_nullStatus_isError`**: A null or missing status is an error.
+  - `ack.ok()` is false, for `{"status": null}`.
+  - `ack.ok()` is false, for `{}`.
+- **`parseAck_nonStringResult_readsAsNull`**: A `result` that is not a string reads as null.
+  - `result()` is null, for `{"status": "ok", "result": 3}`.
+  - `result()` is null, for `{"status": "ok", "result": null}`.
+- **`ack_twoArgConstructor_hasNoResult`**: The two-argument constructor leaves `result` null.
+  - `ack.ok()` is false, `ack.detail()` equals `"not connected"` and `ack.result()` is null, for `new Ack(false, "not connected")`.
 
 ## `org.wynnvets.mwe.anni.outline`
 
