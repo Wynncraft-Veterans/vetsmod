@@ -7,11 +7,13 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
@@ -96,6 +98,51 @@ public final class LegacyItemHandler {
         return ItemDefinitions.isBlockedScreenTitle(title);
     }
 
+    /** How long a scan of the player's inventory for a suppressor item is trusted. */
+    private static final long SUPPRESSOR_SCAN_INTERVAL_MS = 250;
+
+    private static long lastSuppressorScanMs = 0;
+    private static boolean inventoryHoldsSuppressor = false;
+
+    /**
+     * Returns {@code true} if legacy detection and tooltip rewriting must bail out for
+     * every item: a blocked screen ({@link #isBlockedScreen}), or an item from
+     * {@code definitions.yml > inventory_suppressors} (the Block Bank) in the player's
+     * inventory.
+     *
+     * <p>The Block Bank is carried while in housing edit mode, where nothing can be
+     * legacy. It is the more reliable signal than {@code Models.Housing.isInEditMode()},
+     * which Wynntils sets from a chat line and so misses an edit mode entered without
+     * one. The inventory is rescanned at most every {@value #SUPPRESSOR_SCAN_INTERVAL_MS}
+     * ms because this is asked for every slot of every frame; the scan needs live
+     * {@code ItemStack}s and cannot run under test, the name match it ends in
+     * ({@link ItemDefinitions#isInventorySuppressor}) is tested.</p>
+     */
+    public static boolean isDetectionSuppressed() {
+        if (isBlockedScreen()) return true;
+        long now = System.currentTimeMillis();
+        if (now - lastSuppressorScanMs >= SUPPRESSOR_SCAN_INTERVAL_MS
+                || now < lastSuppressorScanMs) {
+            lastSuppressorScanMs = now;
+            inventoryHoldsSuppressor = scanInventoryForSuppressor();
+        }
+        return inventoryHoldsSuppressor;
+    }
+
+    private static boolean scanInventoryForSuppressor() {
+        LocalPlayer player = McUtils.player();
+        if (player == null) return false;
+        Inventory inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack held = inventory.getItem(i);
+            if (held.isEmpty()) continue;
+            String name =
+                    normalizeName(ChatFormatting.stripFormatting(held.getHoverName().getString()));
+            if (name != null && ItemDefinitions.isInventorySuppressor(name)) return true;
+        }
+        return false;
+    }
+
     /**
      * Returns {@code true} if the item uses Wynncraft's new display format,
      * identified by any supplementary Unicode code point (U+10000+) in the
@@ -134,7 +181,7 @@ public final class LegacyItemHandler {
         if (!org.wynnvets.config.VetsConfig.get(
                 org.wynnvets.config.VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING)) return false;
         if (stack.isEmpty()) return false;
-        if (isBlockedScreen()) return false;
+        if (isDetectionSuppressed()) return false;
 
         String rawHover = stack.getHoverName().getString();
         String stripped = ChatFormatting.stripFormatting(rawHover);

@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.error.YAMLException;
 
 /**
- * Tests for {@link ItemDefinitions}' eight testable query methods — seven that
+ * Tests for {@link ItemDefinitions}' nine testable query methods — eight that
  * take an item name plus {@code isBlockedScreenTitle}, which takes a screen
  * title — driven against the real {@code definitions.yml} plus small parsed-in
  * fixtures.
@@ -29,10 +29,10 @@ import org.yaml.snakeyaml.error.YAMLException;
  *
  * <p>{@code isEnchantExcludedItem(ItemStack)} is not covered — it resolves
  * {@code BuiltInRegistries.ITEM}, which needs {@code Bootstrap.bootStrap()}.
- * It is the ninth public query and the only untestable one.</p>
+ * It is the tenth public query and the only untestable one.</p>
  *
  * <p>NOTE: {@link ItemDefinitions} imports {@code BuiltInRegistries} and
- * {@code ItemStack}, but its static state is nine empty collections, so nothing
+ * {@code ItemStack}, but its static state is ten empty collections, so nothing
  * loads during class-init. If a future contributor adds a static initializer
  * that touches the registries, this test starts failing at class-init time.</p>
  */
@@ -44,7 +44,7 @@ class ItemDefinitionsTest {
         ItemDefinitions.load();
     }
 
-    // Test-only: load() clears all nine collections before refilling, so it
+    // Test-only: load() clears all ten collections before refilling, so it
     // doubles as the reset that undoes any fixture a test parsed in.
     @AfterEach
     void reloadRealDefinitions() {
@@ -118,7 +118,7 @@ class ItemDefinitionsTest {
     @Test
     void isUnenchanted_isVetoedByIsLegacy() throws IOException {
         // The only place one category consults another. A name in both lists is
-        // legacy, not unenchanted — collapsing the eight predicates into one
+        // legacy, not unenchanted — collapsing the nine predicates into one
         // table-driven lookup drops this edge unless it is carried explicitly.
         parseFixture(
                 """
@@ -144,7 +144,8 @@ class ItemDefinitionsTest {
     void unguardedSectionsAcceptAnEmptyPatternAndGuardedOnesDropIt() throws IOException {
         // definitions, no_lore_legacy, misc_definitions and unenchanted have no
         // isEmpty() check; not_pedestal, notjunk, new_format_override,
-        // enchant_excluded_items and blocked_screen_titles do. Almost certainly
+        // enchant_excluded_items, blocked_screen_titles and inventory_suppressors do. Almost
+        // certainly
         // unintentional — pinned so a later pass has to choose a direction
         // rather than normalise it by accident.
         assertFalse(ItemDefinitions.isLegacy(""), "precondition: no empty pattern is loaded yet");
@@ -310,7 +311,7 @@ class ItemDefinitionsTest {
     @Test
     void onlyIsBlockedScreenTitleGuardsNull() {
         // The screen-title predicate takes a nullable title from the screen
-        // handler; the seven name predicates do not guard, and Matcher rejects
+        // handler; the eight name predicates do not guard, and Matcher rejects
         // a null CharSequence.
         //
         // Note what this depends on: the NPE comes from inside the loop, so it
@@ -327,6 +328,7 @@ class ItemDefinitionsTest {
         assertThrows(NullPointerException.class, () -> ItemDefinitions.isNotPedestal(null));
         assertThrows(NullPointerException.class, () -> ItemDefinitions.isNotJunk(null));
         assertThrows(NullPointerException.class, () -> ItemDefinitions.isNewFormatOverride(null));
+        assertThrows(NullPointerException.class, () -> ItemDefinitions.isInventorySuppressor(null));
     }
 
     // ----- The real file answers for each remaining category -----
@@ -340,6 +342,7 @@ class ItemDefinitionsTest {
         assertTrue(ItemDefinitions.isNotJunk("Rubble"));
         assertTrue(ItemDefinitions.isNewFormatOverride("Skeleton Key"));
         assertTrue(ItemDefinitions.isBlockedScreenTitle("Permissions for Bob"));
+        assertTrue(ItemDefinitions.isInventorySuppressor("Block Bank"));
     }
 
     @Test
@@ -471,6 +474,41 @@ class ItemDefinitionsTest {
                 ItemDefinitions.isLegacy("Selchar Boat Pass for 16\u00B2"),
                 "a cost suffix ends the name past 'Boat Pass', so the suffix-anchored entry "
                         + "never matched a ticket element either");
+    }
+
+    // ----- Inventory suppressors (Block Bank) -----
+
+    @Test
+    void blockBankIsAnInventorySuppressor() {
+        assertTrue(ItemDefinitions.isInventorySuppressor("Block Bank"));
+        assertFalse(ItemDefinitions.isInventorySuppressor("block bank"), "case-sensitive entry");
+        assertFalse(ItemDefinitions.isInventorySuppressor("Block Banker"), "full match only");
+        assertFalse(ItemDefinitions.isInventorySuppressor("Block of Quartz"));
+        assertFalse(ItemDefinitions.isInventorySuppressor("Bank"));
+        assertFalse(ItemDefinitions.isInventorySuppressor("Account Bank"));
+    }
+
+    @Test
+    void inventorySuppressorsAreAnIndependentCategory() {
+        // The housing item is not itself legacy in any list, and the suppressor list does
+        // not leak into the legacy lists.
+        assertFalse(ItemDefinitions.isLegacy("Block Bank"));
+        assertFalse(ItemDefinitions.isMiscLegacy("Block Bank"));
+        assertFalse(ItemDefinitions.isNoLoreLegacy("Block Bank"));
+        assertFalse(ItemDefinitions.isInventorySuppressor("Skeleton Key"));
+    }
+
+    @Test
+    void inventorySuppressorDropsAnEmptyPattern() throws IOException {
+        assertFalse(ItemDefinitions.isInventorySuppressor(""));
+        parseFixture(
+                """
+                inventory_suppressors:
+                  - ""
+                  - "^SuppressorProbe$"
+                """);
+        assertFalse(ItemDefinitions.isInventorySuppressor(""), "the empty entry was dropped");
+        assertTrue(ItemDefinitions.isInventorySuppressor("SuppressorProbe"));
     }
 
     // ----- load() is the reset -----

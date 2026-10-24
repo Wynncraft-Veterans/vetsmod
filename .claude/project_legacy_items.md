@@ -21,7 +21,7 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 - [LegacyScreenshotHandler](../src/client/java/org/wynnvets/items/LegacyScreenshotHandler.java) — re-renders the modified tooltip to the clipboard (§4)
 
 **Data:**
-- [definitions.yml](../src/client/resources/definitions.yml) — 9 sections
+- [definitions.yml](../src/client/resources/definitions.yml) — 10 sections
 
 **Config:**
 - [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java)
@@ -48,7 +48,7 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 Guard conditions (return `false` early):
 - `VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING` disabled
 - `stack.isEmpty()`
-- `isBlockedScreen()` — true whenever Wynntils reports `Models.Housing.isInEditMode()`, and otherwise when the screen title matches one of the 9 `blocked_screen_titles` patterns in `definitions.yml` (housing/island menus that abuse enchant glint as a UI selector)
+- `isDetectionSuppressed()` — true when `isBlockedScreen()` is (whenever Wynntils reports `Models.Housing.isInEditMode()`, and otherwise when the screen title matches one of the 9 `blocked_screen_titles` patterns in `definitions.yml`: housing/island menus that abuse enchant glint as a UI selector), or when an item named in `inventory_suppressors` (the `Block Bank`) is anywhere in the player's inventory (scanned at most every 250 ms). `processTooltip` opens with the same guard
 
 Name is normalized via `ChatFormatting.stripFormatting()` then `normalizeName()` (`stripSupplementaryPua()` plus the trade-market trailing `À` strip) before matching. The `newFormatOverridden` flag suppresses the `definitions` and `misc_definitions` name matches (branches 1 & 2) when the item is new-format AND its name is in `new_format_override`; branch 3's `no_lore_legacy` match and the other branches still apply.
 
@@ -66,7 +66,7 @@ the `// 1.` … `// 8.` comments in the method body:
 | 7 | `hasJunkRarity(lore)` | lore | name not in `notjunk` |
 | 8 | `hasCraftingRarity(lore)` | lore | — |
 
-## 3. definitions.yml — the 9 sections
+## 3. definitions.yml — the 10 sections
 
 File: [definitions.yml](../src/client/resources/definitions.yml). Parsed by `ItemDefinitions.parse()` with SnakeYAML's safe loader: a stream of YAML documents separated by `---`, each a mapping from section name to a list of patterns. A pattern holding a regex backslash goes in single quotes (`'^\?\?\?$'`), since inside double quotes only YAML's own escapes are legal; an unknown section, or a document that is not a mapping, is ignored. All patterns are pre-compiled to `java.util.regex.Pattern` once at startup. **No runtime reload** — requires restart to pick up edits.
 
@@ -81,8 +81,9 @@ File: [definitions.yml](../src/client/resources/definitions.yml). Parsed by `Ite
 | `enchant_excluded_items` | Minecraft namespaced IDs (`minecraft:experience_bottle`, `minecraft:enchanted_book`) — always have vanilla foil | exclusion in branch 6 |
 | `new_format_override` | Names that exist in both old & new formats (e.g. Skeleton Key) — when item is new-format, its `definitions` / `misc_definitions` name match is suppressed (`no_lore_legacy` still applies) | gate on branches 1 & 2 |
 | `blocked_screen_titles` | Screen titles where the whole system bails (housing/island menus that abuse enchant glint as a UI selector) | `isBlockedScreen()` guard |
+| `inventory_suppressors` | Names of items (the housing `Block Bank`) whose presence anywhere in the player's inventory makes the whole system bail, in the inventory and in any open container | `isDetectionSuppressed()` guard |
 
-`ItemDefinitions` responsibilities: YAML parsing, regex pre-compilation into 8 static `List<Pattern>` fields plus one `Set<String>` (`enchantExcludedItems`), and 9 lookup predicates (`isLegacy`, `isMiscLegacy`, `isNoLoreLegacy`, `isUnenchanted`, `isEnchantExcludedItem`, `isNotPedestal`, `isNotJunk`, `isNewFormatOverride`, `isBlockedScreenTitle`). Loaded from `VetsmodClient.onInitializeClient()` after `VetsConfig.load()`.
+`ItemDefinitions` responsibilities: YAML parsing, regex pre-compilation into 9 static `List<Pattern>` fields plus one `Set<String>` (`enchantExcludedItems`), and 10 lookup predicates (`isLegacy`, `isMiscLegacy`, `isNoLoreLegacy`, `isUnenchanted`, `isEnchantExcludedItem`, `isNotPedestal`, `isNotJunk`, `isNewFormatOverride`, `isBlockedScreenTitle`, `isInventorySuppressor`). Loaded from `VetsmodClient.onInitializeClient()` after `VetsConfig.load()`.
 
 ## 4. Tooltip rewriting — `LegacyTooltipRenderer.processTooltip()`
 
@@ -194,6 +195,7 @@ Registered in `VetsConfigSchema.USER_CONFIG_KEYS`. Validation goes through `Lega
 - **Unidentified gear**: name contains BMP PUA lock icon; `stripSupplementaryPua()` normalises it before name matching. No separate identified-vs-unidentified branching.
 - **"Crafted" items (player-made with durability)**: never legacy — early bail in branch 0 of tooltip renderer.
 - **Wynntils `ItemStatInfoFeature` rebuild**: can blank out line 0. Branch 1 of tooltip renderer recovers the name from `currentItemStack.getHoverName()` and attempts new-format LEGACY-box insertion.
+- **Block Bank (housing edit mode)**: the `Block Bank` (an `ender_chest` named "Block Bank", lore "A portable version of the block bank") is the housing editing tool and is carried in the inventory while in edit mode. If one is in the player's inventory, nothing is legacy, in the inventory or in any open container: `isDetectionSuppressed()` returns true for every item. This is the dependable signal for housing edit mode because Wynntils' `isInEditMode()` is set from a chat line ("You are now in housing edit mode") and stays false when edit mode was entered without that line reaching it (the likeliest reason a Block of Quartz was highlighted in a reported edit-mode screenshot, whose inventory shows a Block Bank). The inventory scan needs live `ItemStack`s and cannot run under test; the name match (`ItemDefinitions.isInventorySuppressor`) is tested.
 - **Blocked screens**: housing edit mode (`Models.Housing.isInEditMode()`) is checked first, then the screen title against `definitions.yml`'s `blocked_screen_titles` (9 patterns — Island Settings/Rules/Weather, Background Song, Select a Song, Permission Groups, `Permissions for …`, `Available … Locations`, `Move here!`). These menus abuse enchant glint as UI selectors, so the whole system bails on them.
 - **Old-server compat**: `newTooltipStylesAvailable` starts false; set true as soon as any item with `tooltip_style` or new-format font is seen. Gold tooltip border is suppressed until then to avoid garish fallback colours on pre-update servers. Reset on disconnect.
 - **Wynntils percentage suffix** (`[61.7%]`): detected via `\s*(\[\d+\.?\d*%\])$`, extracted before rewriting, re-appended after.

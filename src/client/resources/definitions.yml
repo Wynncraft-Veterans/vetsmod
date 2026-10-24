@@ -231,3 +231,12 @@ blocked_screen_titles:
   - "^Permissions for .*$"
   - "^Available .* Locations$"
   - "^Move here!$"
+---
+# Names of items whose presence anywhere in the player's inventory (hotbar, main
+# inventory, armour and offhand slots) switches legacy detection off for every item,
+# in the inventory and in any container being viewed. The Block Bank is the housing
+# editing tool, carried while in housing edit mode, where nothing can be legacy;
+# Wynntils' own edit-mode flag is chat-driven and misses some entries into edit mode.
+# Matched against the normalised hover name.
+inventory_suppressors:
+  - "^Block Bank$"

@@ -116,7 +116,7 @@ final class LegacyTooltipRenderer {
         if (!org.wynnvets.config.VetsConfig.get(
                 org.wynnvets.config.VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING)) return tooltipLines;
         if (tooltipLines.isEmpty()) return tooltipLines;
-        if (LegacyItemHandler.isBlockedScreen()) return tooltipLines;
+        if (LegacyItemHandler.isDetectionSuppressed()) return tooltipLines;
 
         // Crafted items (player-made gear with durability) are never legacy.
         if (isCraftedItem(tooltipLines)) return tooltipLines;

@@ -44,6 +44,8 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  *   <li><b>enchant_excluded_items</b> — Minecraft item IDs excluded from foil detection.</li>
  *   <li><b>blocked_screen_titles</b> — screen titles (not item names) where legacy
  *       processing is skipped entirely.</li>
+ *   <li><b>inventory_suppressors</b> — names of items (the Block Bank) whose presence in
+ *       the player's inventory skips legacy processing entirely.</li>
  * </ul>
  */
 public final class ItemDefinitions {
@@ -56,6 +58,7 @@ public final class ItemDefinitions {
     private static final List<Pattern> newFormatOverridePatterns = new ArrayList<>();
     private static final Set<String> enchantExcludedItems = new HashSet<>();
     private static final List<Pattern> blockedScreenTitlePatterns = new ArrayList<>();
+    private static final List<Pattern> inventorySuppressorPatterns = new ArrayList<>();
 
     private ItemDefinitions() {}
 
@@ -69,6 +72,7 @@ public final class ItemDefinitions {
         newFormatOverridePatterns.clear();
         enchantExcludedItems.clear();
         blockedScreenTitlePatterns.clear();
+        inventorySuppressorPatterns.clear();
 
         try (InputStream is = ItemDefinitions.class.getResourceAsStream("/definitions.yml")) {
             if (is == null) {
@@ -77,7 +81,7 @@ public final class ItemDefinitions {
             }
             parse(is);
             VetsLogger.debug(
-                    "Loaded {} legacy, {} no-lore-legacy, {} misc, {} unenchanted, {} not-pedestal, {} notjunk, {} new-format-override, {} enchant-excluded, and {} blocked-screen-title definition(s)",
+                    "Loaded {} legacy, {} no-lore-legacy, {} misc, {} unenchanted, {} not-pedestal, {} notjunk, {} new-format-override, {} enchant-excluded, {} blocked-screen-title, and {} inventory-suppressor definition(s)",
                     legacyPatterns.size(),
                     noLoreLegacyPatterns.size(),
                     miscPatterns.size(),
@@ -86,7 +90,8 @@ public final class ItemDefinitions {
                     notjunkPatterns.size(),
                     newFormatOverridePatterns.size(),
                     enchantExcludedItems.size(),
-                    blockedScreenTitlePatterns.size());
+                    blockedScreenTitlePatterns.size(),
+                    inventorySuppressorPatterns.size());
         } catch (IOException | RuntimeException e) {
             // A YAML or regex syntax error is a RuntimeException; log it rather than fail
             // client init. The categories keep whatever loaded before the error.
@@ -120,7 +125,7 @@ public final class ItemDefinitions {
             case "no_lore_legacy" -> noLoreLegacyPatterns.add(Pattern.compile(value));
             case "misc_definitions" -> miscPatterns.add(Pattern.compile(value));
             case "unenchanted" -> unenchantedPatterns.add(Pattern.compile(value));
-            // The other five drop an empty entry, which the four above compile;
+            // The other six drop an empty entry, which the four above compile;
             // ItemDefinitionsTest pins the asymmetry.
             case "not_pedestal" -> {
                 if (!value.isEmpty()) notPedestalPatterns.add(Pattern.compile(value));
@@ -136,6 +141,9 @@ public final class ItemDefinitions {
             }
             case "blocked_screen_titles" -> {
                 if (!value.isEmpty()) blockedScreenTitlePatterns.add(Pattern.compile(value));
+            }
+            case "inventory_suppressors" -> {
+                if (!value.isEmpty()) inventorySuppressorPatterns.add(Pattern.compile(value));
             }
             default -> {}
         }
@@ -233,6 +241,21 @@ public final class ItemDefinitions {
         if (screenTitle == null) return false;
         for (Pattern pattern : blockedScreenTitlePatterns) {
             if (pattern.matcher(screenTitle).matches()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns {@code true} if the given item name matches an inventory-suppressor
+     * pattern. While an item with such a name is anywhere in the player's inventory,
+     * nothing is treated as a legacy item (see
+     * {@link LegacyItemHandler#isDetectionSuppressed}).
+     */
+    public static boolean isInventorySuppressor(String itemName) {
+        for (Pattern pattern : inventorySuppressorPatterns) {
+            if (pattern.matcher(itemName).matches()) {
                 return true;
             }
         }
