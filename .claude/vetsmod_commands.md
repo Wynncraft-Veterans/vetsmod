@@ -120,13 +120,12 @@ site that wrote it:
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
-| `/wv check <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.check` | `UserInfoFetcher.checkUser`: name → UUID through the `PlayerLookup` cascade, then the Wynncraft profile, dazebot's membership snapshot and, once there is a profile, guild-roster cross-checks. Then `CautionCommands.runCheckCautions` for the caution history | HTTP: the name lookup cascade, the Wynncraft profile and guild rosters. WebSocket: `check_membership` and `caution_check` frames | `wv-check-head-inject-order-unsettled`; the `wv-check-*` files; `check-membership-ack-drops-last-seen-observed`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect` |
+| `/wv check <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.check` | `UserInfoFetcher.checkUser`: name → UUID through the `PlayerLookup` cascade, then the Wynncraft profile, dazebot's membership snapshot and, once there is a profile, guild-roster cross-checks. Then `CautionCommands.runCheckCautions` for the caution history | HTTP: the name lookup cascade, the Wynncraft profile and guild rosters. WebSocket: `check_membership` and `caution_check` frames | the `wv-check-*` files; `check-membership-ack-drops-last-seen-observed`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect` |
 | `/wv invite-force <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.inviteForce` → `InviteGate.forceDispatch` | Sends `/gu invite <playerName>` with every `InviteGate` check skipped, and prints "Dispatching /gu invite <name> (vetsmod gate bypassed)." in gold, with the command itself in yellow. `InviteGate`'s `[Invite anyway]` button runs it | in-game `/gu invite`, sent through `GuildChatDispatcher.sendCommandBypassed` | none |
 
 `/wv check <playerName>` and `/wv invite-force <playerName>` read the name with
-`StringArgumentType.string()`, so a name is one unquoted token or a quoted string. Which hook handles a
-typed `/wv check` first, Fabric's or `GuildChatDispatcher`'s, is not settled; see
-`wv-check-head-inject-order-unsettled`.
+`StringArgumentType.string()`, so a name is one unquoted token or a quoted string. Fabric's hook handles a
+typed `/wv check` before `GuildChatDispatcher`'s (§2, after the table).
 
 ### `/wv return`, `/wv list`, `/wv staff` and `/wv motd`
 
@@ -392,7 +391,7 @@ server as typed. "Passes through" below means the same.
 | `/v <message>` | `isUnlocked()`, then `isStaff()`; a non-staff command passes through, and a staff-rank refresh starts | `handleStaffChat` | Refused in red during `/stream` and above 234 characters. Otherwise, once the staff-presence check passes, echoed locally and sent to each other online staff member as `/msg <name> 🔐<message>`, with the banned hard set removed from both | `dispatcher-notices-misattribute-cause` |
 | `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | `dispatcher-notices-misattribute-cause` |
 | `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | `dispatcher-notices-misattribute-cause` |
-| `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | `wv-check-head-inject-order-unsettled`, and §1's `/wv check` row |
+| `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | §1's `/wv check` row |
 | `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `vets-snapshot-provider-skips-confirmed-staff-check`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
 | `/guild invite <name>` | as `/gu invite` | `InviteGate.checkInvite` | As `/gu invite`; an allowed invite is sent as `gu invite` | as `/gu invite` |
 | `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `outbound-socket-never-authenticated` |
@@ -415,9 +414,12 @@ A bare `/v`, `/a`, `/encourage`, `/caution`, `/caution-go`, `/warn`, `/eject` or
 handler with no arguments and prints its usage line; `/eject <name>` with no message prints it too.
 
 The chat-path `/wv check` and Fabric's §1 node both hook a typed `/wv check`, and whichever runs first and
-acts on it cancels the send, so the other never sees it. Which runs first is a question of injection order
-that source has not settled; bug `wv-check-head-inject-order-unsettled`
-holds the reading and the in-game check that would settle it.
+acts on it cancels the send, so the other never sees it. Fabric's runs first: both `HEAD` injects are at the
+default priority, and Fabric's config is applied first, which an in-game check confirmed on 2026-10-23
+([vetsmod_mixins.md](vetsmod_mixins.md) §"Injection priorities"). So a correctly spelled `/wv check` always
+goes to the §1 node: a confirmed steward gets the lookup, and an unlocked player who is not confirmed staff
+gets Fabric's red "Incorrect argument for command", never this row's refusal. The chat branch is reached
+only by a spelling Fabric rejects at the root, such as `/WV check X`.
 
 `/msg` is not intercepted. vetsmod emits it: the `/v` fan-out queues one per recipient, and the names in
 `/wv list` and `/wv list world` are buttons that fill the chat box with `/msg <name> `.
