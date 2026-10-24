@@ -90,7 +90,7 @@ Both have the shape `{resolved_username}\x00{content}`.
   control characters.
 - The full fingerprint's content is the message with every supplementary PUA
   codepoint (`ord >= 0xF0000`) and every whitespace character removed (from
-  temporary-server `c2e2ada`). **If that leaves an empty string it falls back
+  temporary-server `1d257b5`). **If that leaves an empty string it falls back
   to the raw message** — a pure-PUA item share would otherwise collapse to
   `{username}\x00` and dedup every distinct item a player posted. Removing
   whitespace makes copies of one line collide however their spaces fell: an

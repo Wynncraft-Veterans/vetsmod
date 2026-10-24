@@ -34,7 +34,7 @@ frame family defines its own typed response below. An optional `?version=`
 query param is logged for client-version tracking and never enforced.
 
 **Request ids.** Any inbound frame may carry `req`, a string of 1 to 64
-characters (temporary-server `a1ee659`, spec §1.2). The server pops it as soon
+characters (temporary-server `e93fda9`, spec §1.2). The server pops it as soon
 as the frame parses, so it is never recorded, bridged or broadcast, and every
 reply sent after parsing, typed responses included, echoes it as its last key
 (§1.3). A `req` that is not such a string is ignored. The outbound
@@ -55,7 +55,7 @@ subsection), §7 and §7.1.
 |---|---|---|---|
 | chat (`guild`/`queue`/`waitlist`/`honourary`) | chat pipeline | generic ack | §1.2 (shape), §1.4 (pipeline) |
 | `register` | `_handle_register` | `{"status":"ok"}` (sent even when an invalid registration is silently ignored) | §1.7 |
-| `unregister` | `_handle_unregister` | `{"status":"ok"}`, also for a socket that never registered (temporary-server `618a408`; the outbound `server_info` advertises it as `unregister: true`, and an older server answers the unknown type with a `Missing required fields` error) | §1.7 |
+| `unregister` | `_handle_unregister` | `{"status":"ok"}`, also for a socket that never registered (temporary-server `0f097cf`; the outbound `server_info` advertises it as `unregister: true`, and an older server answers the unknown type with a `Missing required fields` error) | §1.7 |
 | `tablist` | `_handle_tablist` | `{"status":"ok"}` | **not specified** — named in passing only |
 | `queue_status` | `_handle_queue_status` | `{"status":"ok"}` | **not specified** — named in passing only |
 | `auth` | `_handle_auth` | auth ack (below) | §1.8 |
