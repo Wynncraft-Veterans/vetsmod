@@ -88,7 +88,7 @@ class ItemDefinitionsTest {
     @Test
     void predicatesRequireAFullMatchNotASubstring() throws IOException {
         // Every loop uses matcher.matches(). Against the real file that choice
-        // is almost invisible — all 158 patterns are anchored with ^ and the few
+        // is almost invisible — all 170 patterns are anchored with ^ and the few
         // without a trailing $ end in a greedy .* — so an anchored fixture would
         // behave identically under find() and pin nothing. The discriminating
         // input is an UNANCHORED pattern, which the file happens not to contain
@@ -350,6 +350,54 @@ class ItemDefinitionsTest {
         assertFalse(ItemDefinitions.isNoLoreLegacy("Corrupted Treasure"));
         assertFalse(ItemDefinitions.isMiscLegacy("Corrupted Treasure"));
         assertFalse(ItemDefinitions.isNotJunk("Corrupted Treasure"));
+    }
+
+    // ----- Misc Bucket false negatives -----
+
+    @Test
+    void miscBucketNamesAreMiscLegacyAndOnlyMiscLegacy() {
+        // Reported as unhighlighted: each needs the Misc. Item rarity line (the
+        // misc_definitions gate), so none may also sit in the unconditional list.
+        for (String name :
+                new String[] {
+                    "Stitched Flesh",
+                    "Aqua Dust",
+                    "Flamingo Feather",
+                    "Uncraftable Potion",
+                    "Cralozide Crystal",
+                    "Sunflower Seeds",
+                    "Pigman Meat",
+                    "Broken Amulet",
+                    "Shattered Crystal",
+                    "Cobblestone",
+                    "Lava Essence"
+                }) {
+            assertTrue(ItemDefinitions.isMiscLegacy(name), name + " is misc legacy");
+            assertFalse(ItemDefinitions.isLegacy(name), name + " is not matched by name alone");
+        }
+    }
+
+    @Test
+    void miscBucketNamesAreExactAndCaseFolded() {
+        assertTrue(ItemDefinitions.isMiscLegacy("aqua dust"), "(?i)");
+        assertFalse(ItemDefinitions.isMiscLegacy("Aqua Dust Shard"), "full match only");
+        assertFalse(ItemDefinitions.isMiscLegacy("Cobblestone Slab"));
+        assertFalse(ItemDefinitions.isMiscLegacy("Mossy Cobblestone"));
+        assertFalse(ItemDefinitions.isMiscLegacy("Flamingo"), "a prefix is not the item");
+        assertFalse(ItemDefinitions.isMiscLegacy("Lava"));
+    }
+
+    @Test
+    void wolfsFangIsNoLoreLegacyInBothApostropheForms() {
+        assertTrue(ItemDefinitions.isNoLoreLegacy("Wolf's Fang"));
+        assertTrue(ItemDefinitions.isNoLoreLegacy("Wolf\u2019s Fang"), "typographic apostrophe");
+        assertFalse(
+                ItemDefinitions.isLegacy("Wolf's Fang"),
+                "only legacy when loreless, never by name alone");
+        assertFalse(
+                ItemDefinitions.isNoLoreLegacy("Wolf Fang"),
+                "the existing definitions entry is a different name and stays name-only");
+        assertFalse(ItemDefinitions.isNoLoreLegacy("Wolf's Fangs"));
     }
 
     // ----- load() is the reset -----

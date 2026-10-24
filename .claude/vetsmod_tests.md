@@ -2320,6 +2320,22 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - `ItemDefinitions.isNoLoreLegacy("Corrupted Treasure")` is false
   - `ItemDefinitions.isMiscLegacy("Corrupted Treasure")` is false
   - `ItemDefinitions.isNotJunk("Corrupted Treasure")` is false
+- **`miscBucketNamesAreMiscLegacyAndOnlyMiscLegacy`**: Each of the eleven Misc Bucket names reported as unhighlighted is in `misc_definitions` and not in `definitions`.
+  - for each of "Stitched Flesh", "Aqua Dust", "Flamingo Feather", "Uncraftable Potion", "Cralozide Crystal", "Sunflower Seeds", "Pigman Meat", "Broken Amulet", "Shattered Crystal", "Cobblestone" and "Lava Essence", `ItemDefinitions.isMiscLegacy(name)` is true (11 assertions)
+  - for the same eleven names, `ItemDefinitions.isLegacy(name)` is false (a name match alone must not flag them; the Misc. Item rarity line is required) (11 assertions)
+- **`miscBucketNamesAreExactAndCaseFolded`**: The new entries fold case but need a full match, so lookalike and prefix names do not match.
+  - `ItemDefinitions.isMiscLegacy("aqua dust")` is true (the entry has `(?i)`)
+  - `ItemDefinitions.isMiscLegacy("Aqua Dust Shard")` is false
+  - `ItemDefinitions.isMiscLegacy("Cobblestone Slab")` is false
+  - `ItemDefinitions.isMiscLegacy("Mossy Cobblestone")` is false
+  - `ItemDefinitions.isMiscLegacy("Flamingo")` is false
+  - `ItemDefinitions.isMiscLegacy("Lava")` is false
+- **`wolfsFangIsNoLoreLegacyInBothApostropheForms`**: The loreless "Wolf's Fang" is no-lore legacy with a straight or typographic apostrophe, but not legacy by name alone and not the existing "Wolf Fang" entry.
+  - `ItemDefinitions.isNoLoreLegacy("Wolf's Fang")` is true
+  - `ItemDefinitions.isNoLoreLegacy("Wolf" + U+2019 + "s Fang")` is true
+  - `ItemDefinitions.isLegacy("Wolf's Fang")` is false
+  - `ItemDefinitions.isNoLoreLegacy("Wolf Fang")` is false
+  - `ItemDefinitions.isNoLoreLegacy("Wolf's Fangs")` is false
 - **`load_isIdempotentAndDiscardsParsedInFixtures`**: After parsing a "ReloadProbe" fixture and calling `load()`, the probe no longer matches, "Wolf Fang" matches, and a second `load()` leaves that unchanged.
   - After parsing a fixture with `^ReloadProbe$` under `definitions`, `ItemDefinitions.isLegacy("ReloadProbe")` is true
   - After `ItemDefinitions.load()`, `ItemDefinitions.isLegacy("ReloadProbe")` is false (`load()` clears before refilling)

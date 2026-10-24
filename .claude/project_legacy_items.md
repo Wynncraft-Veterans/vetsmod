@@ -74,8 +74,8 @@ File: [definitions.yml](../src/client/resources/definitions.yml). Parsed by `Ite
 |---------|---------|-----------|
 | `unenchanted` | Items that legitimately have foil in modern Wynncraft (e.g. ???, Ability Shard, Breathing Helmet, Mythic Everlasting Pufferfish, Liquid Emerald, Shiny, Transcriber) | exclusion in branch 6 |
 | `definitions` | Primary legacy name list — old armor tiers, keys, holiday items, autographs, potions | branch 1 |
-| `no_lore_legacy` | Legacy items that lost their lore (old keys, vanilla materials, Grian's Ocean Map) — only legacy when lore is empty | branch 3 |
-| `misc_definitions` | Items requiring "Misc. Item" rarity (Carved Quartz Block, Firefly Wing, Mushrooms) — collides with modern misc | branch 2 |
+| `no_lore_legacy` | Legacy items that lost their lore (old keys, vanilla materials, Grian's Ocean Map, the loreless Wolf's Fang) — only legacy when lore is empty | branch 3 |
+| `misc_definitions` | Items requiring "Misc. Item" rarity (Carved Quartz Block, Firefly Wing, Mushrooms, and the exact-name Misc Bucket items Stitched Flesh, Aqua Dust, Flamingo Feather, Uncraftable Potion, Cralozide Crystal, Sunflower Seeds, Pigman Meat, Broken Amulet, Shattered Crystal, Cobblestone, Lava Essence) — collides with modern misc | branch 2 |
 | `not_pedestal` | Names that must never be treated as a pedestal-wiped shell (merchant items) | exclusion in branch 4 |
 | `notjunk` | Modern junk-tier items (e.g. Leather, Tanned Sunfish, Ghostly, Roasted Flesh, Vines, Rubble) | exclusion in branch 7 |
 | `enchant_excluded_items` | Minecraft namespaced IDs (`minecraft:experience_bottle`, `minecraft:enchanted_book`) — always have vanilla foil | exclusion in branch 6 |

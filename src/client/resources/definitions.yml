@@ -136,6 +136,7 @@ no_lore_legacy:
   - "(?i)^Skeleton Key$"
   - "(?i)^Spider Key$"
   - "(?i)^Wheat$"
+  - "(?i)^Wolf['\u2019]s Fang$"
   - "(?i)^Zombie Key$"
 ---
 misc_definitions:
@@ -161,6 +162,20 @@ misc_definitions:
   - "(?i)^Strange Mushroom.*$"
   - "(?i)^Warm Blood.*$"
   - "(?i)^Wheat$"
+  # Misc Bucket contents reported as unhighlighted (exact names; the Misc. Item
+  # rarity line is still required, which is what separates a legacy item from a
+  # modern misc twin that shares a name).
+  - "(?i)^Stitched Flesh$"
+  - "(?i)^Aqua Dust$"
+  - "(?i)^Flamingo Feather$"
+  - "(?i)^Uncraftable Potion$"
+  - "(?i)^Cralozide Crystal$"
+  - "(?i)^Sunflower Seeds$"
+  - "(?i)^Pigman Meat$"
+  - "(?i)^Broken Amulet$"
+  - "(?i)^Shattered Crystal$"
+  - "(?i)^Cobblestone$"
+  - "(?i)^Lava Essence$"
 ---
 # Items whose names match these patterns are never routed through the
 # pedestal-wiped detection branch. Useful for preventing loreless GUI
