@@ -101,6 +101,9 @@ Each kind is numbered when scheduled, and a task that finds a newer number stops
 - `STAFF_CHECK_COOLDOWN_MS = 24 * 60 * 60 * 1000` (24 hours)
 - Persisted: `VETS_IS_STAFF` (boolean), `VETS_LAST_STAFF_CHECK` (long)
 - Grace: 500ms after check to suppress trailing output
+- A check that times out keeps the cached flag and still stamps `VETS_LAST_STAFF_CHECK`, so a slow command queue does not demote a real staff member and a reply nothing recognises is not re-requested at every world join
+- The flag is not cleared on leaving the guild or on another guild's `OTHER_GUILD` result, so it can be true for a former member; `/wv list world` therefore also requires `GuildStateManager.isReturners()`
+- Debug line: while a check waits, `processMessage` logs each chat line it sees (`Staff rank check saw reply line: [...]`). A player not in a guild gets a reply that neither predicate matches, so a debug log of such a check records the wording
 
 On disconnect, `reset()` reloads persisted state from config (not in-memory clear).
 

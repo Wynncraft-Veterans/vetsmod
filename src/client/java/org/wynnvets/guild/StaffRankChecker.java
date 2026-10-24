@@ -13,7 +13,12 @@ import org.wynnvets.logging.VetsLogger;
  * <p>Staff status is persisted across sessions via {@link VetsConfig} and
  * refreshed once per day (controlled by {@link #STAFF_CHECK_COOLDOWN_MS}).
  * The check queues {@code /gu rank} through Wynntils' command queue and completes when
- * {@link #processMessage(String)} sees the reply in chat, or times out.</p>
+ * {@link #processMessage(String)} sees the reply in chat, or times out. A timed-out check
+ * keeps the cached flag and still stamps the daily check, so a slow command queue does not
+ * demote a real staff member, and a reply nothing recognises (as a guildless player's is)
+ * is not re-requested at every world join. The flag is not cleared on leaving the guild:
+ * consumers that must not trust it for a former member also test the guild, as
+ * {@code /wv list world} does.</p>
  *
  * <p>This class is package-private. Outside the package it is reached through
  * {@link GuildStateManager}'s facade methods; {@link GuildLifecycle} also calls
@@ -156,6 +161,11 @@ final class StaffRankChecker {
         if (!waitingForStaffRankCheck) {
             return;
         }
+
+        // Diagnostic: the raw text of every line seen while a check waits, so a debug log
+        // captures the reply Wynncraft gives a player who is not in a guild, whose wording
+        // is not recognised below (a check for such a player ends by timeout).
+        VetsLogger.debug("Staff rank check saw reply line: [{}]", safeMessage);
 
         if (isStaffRankUnauthorizedResponse(safeMessage)) {
             setStaffStatus(false);

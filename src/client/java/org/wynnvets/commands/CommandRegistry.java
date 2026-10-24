@@ -395,7 +395,9 @@ public final class CommandRegistry {
             return 0;
         }
 
-        if (!GuildStateManager.isStaff()) {
+        // The cached staff flag outlives leaving the guild (see StaffRankChecker), so staff
+        // also has to be in Returners: the flag alone is not enough.
+        if (!GuildStateManager.isStaff() || !GuildStateManager.isReturners()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("/wv list world is restricted to stewards.")
                             .withStyle(ChatFormatting.RED));
