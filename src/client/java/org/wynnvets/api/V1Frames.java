@@ -21,6 +21,9 @@ final class V1Frames {
         payload.addProperty("uuid", uuid);
         payload.addProperty("username", username);
         payload.addProperty("tier", tier);
+        // Tells temporary-server this client sends exact chat text, so it skips its own
+        // wrapped-URL guess for the socket (WynntilsEventListener joins URLs from the raw lines).
+        payload.addProperty("exact_text", true);
         return payload;
     }
 

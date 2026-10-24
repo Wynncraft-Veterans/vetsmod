@@ -93,7 +93,7 @@ Both connections open only on a Wynncraft join ([vetsmod_networking.md](vetsmod_
 - **Outbound** `wss://api.wynnvets.org/v1/outbound` — server pushes: relayed chat to every client (to an unauthenticated one only while `unauth` is on), the `server_info` hello to every socket on connect, and the rest only to authenticated sockets
 
 **Control frames** (sent by client) — the four below are the presence/identity set; `/v1/inbound` accepts fourteen in all, adding `rank_change`, the five staff-action frames and the four MWE anni frames. Full inventory in [server_api_reference.md](server_api_reference.md).
-- `register` — presence (uuid, username, tier)
+- `register` — presence (uuid, username, tier, and `exact_text: true` from clients that send exact chat text)
 - `tablist` — guild tab snapshot for `!list`
 - `queue_status` — `{queued, world}`: the sender entering (`true`) or leaving (`false`) a Wynncraft world queue (presence side-channel; orthogonal to the `queue` chat type)
 - `auth` — `{type:"auth", key:"<43-char base64url>"}` proves identity. Server replies `{status:"ok", tier, ws_tier, ...}` or `{status:"error", detail:"auth rejected: ..."}`.

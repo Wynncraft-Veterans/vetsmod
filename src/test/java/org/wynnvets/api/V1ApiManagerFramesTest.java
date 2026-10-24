@@ -97,7 +97,8 @@ class V1ApiManagerFramesTest {
         assertEquals(
                 List.of(
                         "{\"type\":\"register\",\"uuid\":\"bb171c68-7080-4d02-be7b-cc2d5dcbcd82\","
-                                + "\"username\":\"Metrafish\",\"tier\":\"guild\"}"),
+                                + "\"username\":\"Metrafish\",\"tier\":\"guild\","
+                                + "\"exact_text\":true}"),
                 socket.wire);
     }
 

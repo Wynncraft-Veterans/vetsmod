@@ -83,7 +83,7 @@ app/
 Naming is inconsistent in source and is not normalised here: `no-aspects` and `anni-snapshot` are hyphenated while `donor_pool` and `guild_motd` are underscored.
 
 **Deduplication (`app/services/dedup.py`):**
-- Fingerprint: `username_lower\x00message_stripped` (strips PUA glyphs)
+- Fingerprint: `username_lower\x00message` with PUA glyphs and every whitespace character removed, so copies whose spaces fell differently collide; the length gates count the text as sent
 - 35-second sliding window for exact matches (`DEDUP_WINDOW_SECONDS`)
 - Also handles: prefix match (item-encoded dual events), truncation match (soft-wrap), cross-user alias (nickname vs real name)
 - Alias TTL: 30s. Cleanup every 60s, amortized onto the next `is_duplicate()` call rather than scheduled — on an idle bridge it simply does not run.

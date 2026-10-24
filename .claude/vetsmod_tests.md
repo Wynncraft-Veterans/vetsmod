@@ -32,7 +32,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
 - [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`RegistrationTierTest`](#registrationtiertest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`ScreenshotLatchTest`](#screenshotlatchtest)
-- [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest)
+- [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest), [`UrlWrapJoinerTest`](#urlwrapjoinertest)
 - [`org.wynnvets.logging`](#orgwynnvetslogging) — [`VetsLoggerTest`](#vetsloggertest)
 - [`org.wynnvets.mwe.anni`](#orgwynnvetsmweanni) — [`AnniPartyReporterTest`](#annipartyreportertest)
 - [`org.wynnvets.mwe.anni.aggressive`](#orgwynnvetsmweanniaggressive) — [`GhostsPromptHandlerTest`](#ghostsprompthandlertest)
@@ -171,8 +171,8 @@ Asserting helpers:
 
 Tests:
 
-- **`registration`**: `sendRegistration(uuid, "Metrafish", "guild")` writes `{"type":"register","uuid":...,"username":"Metrafish","tier":"guild"}` in that key order.
-  - After `sendRegistration("bb171c68-7080-4d02-be7b-cc2d5dcbcd82", "Metrafish", "guild")`, `socket.wire` equals the single frame `{"type":"register","uuid":"bb171c68-7080-4d02-be7b-cc2d5dcbcd82","username":"Metrafish","tier":"guild"}`.
+- **`registration`**: `sendRegistration(uuid, "Metrafish", "guild")` writes `{"type":"register","uuid":...,"username":"Metrafish","tier":"guild","exact_text":true}` in that key order; `exact_text` marks a client that sends exact chat text, so temporary-server skips its wrapped-URL guess for the socket.
+  - After `sendRegistration("bb171c68-7080-4d02-be7b-cc2d5dcbcd82", "Metrafish", "guild")`, `socket.wire` equals the single frame `{"type":"register","uuid":"bb171c68-7080-4d02-be7b-cc2d5dcbcd82","username":"Metrafish","tier":"guild","exact_text":true}`.
 - **`auth`**: `sendAuth` writes `{"type":"auth","key":...}` and marks an auth ack as awaited.
   - After `sendAuth("k3y-Value_123")`, `socket.wire` equals the single frame `{"type":"auth","key":"k3y-Value_123"}`.
   - `SessionAuthState.expectingAuthAck` is true after sending.
@@ -2373,6 +2373,46 @@ Test: [`RankChangeListenerTest.java`](../src/test/java/org/wynnvets/listeners/Ra
   - `wasRecent("a0", "t", "Captain", "Captain")` is false after a 51st `recordRecent("a50", "t", "Captain", "Captain")` (the oldest entry is evicted).
   - `wasRecent("a50", "t", "Captain", "Captain")` is true after that 51st record.
   - `wasRecent("a25", "t", "Captain", "Captain")` is true after that 51st record (a mid-deque entry is kept).
+
+### `UrlWrapJoinerTest`
+
+Test: [`UrlWrapJoinerTest.java`](../src/test/java/org/wynnvets/listeners/UrlWrapJoinerTest.java) · Subject: [`UrlWrapJoiner`](../src/client/java/org/wynnvets/listeners/UrlWrapJoiner.java)
+
+`UrlWrapJoiner.join(rawPlain, messageContent)` joins a URL that Wynncraft hard-broke across chat lines, reading the raw line (before Wynntils' unwrap folds each newline and its prefix into one space) and gluing the fragments in the unwrapped message. The suite replays the three captures from an in-game session (a URL broken in place across three lines; a word wrap that kept its trailing space; a word wrap that dropped it), then pins the rules on synthetic lines: a break is hard only with no space before the newline and a non-space start on the next line, a chain continues only while a fragment fills its line, only the first occurrence is joined, and a chain the unwrapped text does not hold changes nothing. Every glyph-art code point is a unicode escape (surrogate pairs for supplementary ones). `HEAD_FIRST` and `HEAD_CONT` are the first-line and continuation-line headers, `WRAP` the continuation prefix (U+CFFFC, U+E001, U+D0006, then a space), `URL` is `https://anni.wynnvets.org/`, and `a(n)` is `n` letters `a`.
+
+- **`aUrlBrokenInPlaceAcrossThreeLinesIsJoined`**: The capture where Wynncraft broke the URL mid-token, with no space at either break, comes back as one URL followed by the word.
+  - `join(raw, unwrapped)` equals `"a " + URL + a(74) + " Then"`, where `raw` is `HEAD_FIRST + "Wenweia: a " + URL + a(12)`, a newline, `WRAP + a(51)`, a newline, `WRAP + a(11) + " Then"`, and `unwrapped` is `"a " + URL + a(12) + " " + a(51) + " " + a(11) + " Then"` (74 is 12 + 51 + 11).
+- **`aWordWrapThatKeptItsTrailingSpaceLeavesTheUrlAndTheWordAfterItAlone`**: A line that ends in `padding ` before the newline and whose next line holds the whole URL and `Then more` is not a hard break, so `Then` stays apart from the URL.
+  - `join(raw, unwrapped)` equals `unwrapped`, where `unwrapped` is `"padding padding padding padding  " + URL + "me Then more"` (two spaces: the kept one and the unwrap's).
+- **`aWordWrapThatDroppedItsTrailingSpaceLeavesTheUrlAndTheWordAfterItAlone`**: The same text wrapped without trailing spaces (the URL mid-line, `Then` ending a line) is left alone.
+  - `join(raw, unwrapped)` equals `unwrapped`, where `unwrapped` is `"padding "` eight times, then `URL + "me Then more"`.
+- **`theCapturedUnwrappedTextsAreTheOnesTheFixturesRebuild`**: The unwrapped texts the three fixtures build equal the `plain` lines the log recorded.
+  - Each of the three literal texts from the log equals the corresponding text the other tests build with `URL`, `a(n)` and `"padding "`.
+- **`noUrlIsUntouched`**: A line with a newline but no URL returns the same instance.
+  - `join(raw, "hello there world")` is the same instance as its second argument.
+- **`noNewlineIsUntouched`**: A line with a URL but no newline returns the same instance.
+  - `join(raw, "see " + URL + "path Then more")` is the same instance as its second argument.
+- **`aUrlThatEndsTheMessageIsJoined`**: A URL whose last fragment ends the message is joined.
+  - `join(raw, "go " + URL + "aaaa bbbb")` equals `"go " + URL + "aaaabbbb"`, where `raw` breaks `aaaa` from `bbbb` with a newline and `WRAP`.
+- **`aUrlGluedToPunctuationIsJoined`**: A URL glued to a parenthesis, so the token does not start with the scheme, is still joined.
+  - `join(raw, "see (" + URL + "aaaa bbbb)")` equals `"see (" + URL + "aaaabbbb)"`, where `raw` breaks `(` + `URL` + `aaaa` from `bbbb)` with a newline and `WRAP`.
+- **`aBracketedUrlThatClosesOnItsLineIsComplete`**: A `(URL)` that ends a line before a word wrap that dropped its space is not a chain start, so the next word stays apart.
+  - `join(raw, "see (" + URL + "me) Then more")` returns its second argument (same instance).
+- **`twoBrokenUrlsAreEachJoined`**: Two URLs each broken in place are both joined, and the text between them is kept.
+  - `join(raw, URL + "xx yy and https://b.org/zz ww")` equals `URL + "xxyy and https://b.org/zzww"`.
+- **`aChainStopsAtAFragmentThatDoesNotFillItsLine`**: A fragment that shares its line with a word ends the chain, so the next break is a word wrap.
+  - `join(raw, URL + "x y z w")` equals `URL + "xy z w"`, where `raw` breaks after `x` and after `y z`.
+- **`aFragmentThatFillsItsLineContinuesTheChain`**: A fragment that is the whole of its line lets the chain continue across the next break.
+  - `join(raw, URL + "x yy zz")` equals `URL + "xyyzz"`.
+- **`aNextLineThatStartsWithASpaceIsNotAHardBreak`**: A newline after a URL, followed by a continuation line that starts with an extra space, is not a hard break.
+  - `join(raw, URL + "x  y")` equals `URL + "x  y"`.
+- **`aChainTheUnwrappedTextDoesNotHoldLeavesItAlone`**: If the unwrapped text does not contain the chain's spaced form, the text comes back unchanged.
+  - `join(raw, "something else entirely")` is the same instance as its second argument.
+- **`onlyTheFirstOccurrenceOfAChainIsJoined`**: When the spaced form occurs twice, only the first is glued.
+  - `join(raw, URL + "x y " + URL + "x y")` equals `URL + "xy " + URL + "x y"`.
+- **`nullInputsPassThrough`**: A null raw line returns the message; a null message returns null.
+  - `join(null, "text")` equals `"text"`.
+  - `join(raw, null)` is null.
 
 ## `org.wynnvets.logging`
 
