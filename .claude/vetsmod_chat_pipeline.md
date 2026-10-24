@@ -37,6 +37,7 @@ The vetsmod chat system is a multi-stage pipeline that intercepts each chat mess
    3. `StaffChannelMessageRewriter.tryRewrite()`
    4. `ServerGuildChatRewriter.tryRewrite()`
    5. `SpoilerRewriter.tryRewrite()`
+10. A line no step cancelled reaches the end of the pass and is counted toward the `Prepend` badge dedup: `LocalChatDispatch.countServerLine(message)` (§8). It skips a line seen while `isInternalDispatch()` is set (that one was counted by its dispatch), and a line that was cancelled and re-displayed is counted once, by the re-display
 
 Each rewriter returns `true` to cancel the vanilla event (consumed).
 
@@ -210,6 +211,7 @@ URL regex (`URL_PATTERN`, case-insensitive): `(?<!§)(https?://\S+|[A-Za-z0-9][A
 Key methods (`wrapBlockMessage`, `countRenderedLines` and `displayInternal` are private helpers, not entry points):
 - `wrapBlockMessage()` — word-wrap with continuation block markers
 - `dispatchBadged(Prepend, Component body, boolean animated, boolean newBlock)` — the entry point for every badged line (`ChatUtils`' senders, `ServerGuildChatRewriter`). One `minecraft.execute` task, in order: `Prepend.resetDedup()` if `newBlock`, `prepend.get()`, `badge + body`, `wrapBlockMessage`, `countRenderedLines`, then the display (animated or not). With no player the line is dropped before the task, leaving the dedup state alone
+- `countServerLine()` — counts a server line's rendered lines toward the `Prepend` dedup; called once by `ChatLogMixin` at the end of the primary pass for a line the chain did not cancel, on the render thread (a call from another thread is queued there), and not while `isInternalDispatch()` is set
 - `dispatchToChat()` — thread-safe dispatch of a line the caller has already badged, or that carries no badge
 - `dispatchAnimatedChat()` — dispatch with gradient animation context
 
@@ -228,7 +230,7 @@ Formats rank "pill" (badge) component from the caller's supporter determination.
 
 [Prepend](../src/client/java/org/wynnvets/chat/Prepend.java)
 
-Enum, five constants: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge, compact block marker for consecutive messages within 18 lines), `GUILD_HONOURARY`, `STAFF_CHANNEL` (`GUILD`'s glyphs in red for `/v` lines, deduplicated apart from `GUILD`), `EMPTY`. Mirrors native Wynncraft behaviour. The dedup state (`lastPrepend`, `linesSinceBadge`) is plain static state confined to the render thread: callers pass the `Prepend` to `LocalChatDispatch.dispatchBadged`, which chooses the badge inside its `minecraft.execute` task, so the decision, the reset and the line count run in task order. `get()` advances the dedup state, so it is called only for a badge that is drawn; `blockIndicatorStyle()` reads a badge's style without touching it, which is how `SpoilerRewriter` picks its dispatch style.
+Enum, five constants: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge, compact block marker for consecutive messages within 18 lines), `GUILD_HONOURARY`, `STAFF_CHANNEL` (`GUILD`'s glyphs in red for `/v` lines, deduplicated apart from `GUILD`), `EMPTY`. Mirrors native Wynncraft behaviour. The dedup state (`lastPrepend`, `linesSinceBadge`) is plain static state confined to the render thread: callers pass the `Prepend` to `LocalChatDispatch.dispatchBadged`, which chooses the badge inside its `minecraft.execute` task, so the decision, the reset and the line count run in task order. Server lines count too: `ChatLogMixin` calls `LocalChatDispatch.countServerLine` for each line it leaves on screen, so the full badge returns once 18 lines of any kind have scrolled the last one away, as in native guild chat. `get()` advances the dedup state, so it is called only for a badge that is drawn; `blockIndicatorStyle()` reads a badge's style without touching it, which is how `SpoilerRewriter` picks its dispatch style.
 
 ## 9. Dispatcher system (staff chat + /find)
 

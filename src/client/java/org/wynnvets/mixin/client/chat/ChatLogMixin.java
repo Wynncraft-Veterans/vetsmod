@@ -154,7 +154,11 @@ public class ChatLogMixin {
         // (rank remaps, and supporters while glints are shown) never reach this point.
         if (SpoilerRewriter.tryRewrite(message, messageString)) {
             ci.cancel();
+            return;
         }
+
+        // The line stays on screen: count it toward the Prepend badge dedup.
+        LocalChatDispatch.countServerLine(message);
     }
 
     /**

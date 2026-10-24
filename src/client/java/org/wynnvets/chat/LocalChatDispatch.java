@@ -30,6 +30,8 @@ import org.wynnvets.rendering.colors.AnimatedGradientSequence;
  * in the same {@code finally} block, but that context is not what animates the line; see
  * {@link #dispatchAnimatedChat}.</p>
  *
+ * <p>Server lines count toward that dedup too: see {@link #countServerLine}.</p>
+ *
  * <p>{@link Prepend}'s badge dedup state is confined to the render thread by
  * {@link #dispatchBadged}: the badge is chosen, the new-block reset applied and the rendered lines
  * counted inside one {@code minecraft.execute} task, so decisions and counts keep the order of
@@ -124,6 +126,28 @@ public final class LocalChatDispatch {
         int lineCount =
                 ComponentRenderUtils.wrapComponents(message, chatWidth, minecraft.font).size();
         Prepend.addRenderedLines(lineCount);
+    }
+
+    /**
+     * Counts a server chat line's rendered lines toward {@link Prepend}'s badge deduplication, so
+     * the full badge returns after enough server lines have scrolled the last one away. Called by
+     * {@code ChatLogMixin} once per line that reaches the end of its primary pass, that is, a line
+     * the chain left on screen. Skipped while this thread is dispatching a mod-built line: that
+     * line was already counted by its dispatch. The count is made on the render thread, at the
+     * moment the line is displayed; a call from another thread is queued there.
+     *
+     * @param message the server line, as the chat HUD is about to display it
+     */
+    public static void countServerLine(Component message) {
+        if (isInternalDispatch()) {
+            return;
+        }
+        Minecraft minecraft = McUtils.mc();
+        if (minecraft.isSameThread()) {
+            countRenderedLines(message);
+        } else {
+            minecraft.execute(() -> countRenderedLines(message));
+        }
     }
 
     // ── Dispatch ───────────────────────────────────────────────────────
