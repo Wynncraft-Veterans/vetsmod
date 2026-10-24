@@ -2342,6 +2342,14 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - `ItemDefinitions.isLegacy("Vibrant Augments")` is false
   - `ItemDefinitions.isLegacy("Vibrant")` is false
   - `ItemDefinitions.isLegacy("Augment")` is false
+- **`warpedMountIsLegacyButWorkingMountNamesAreNot`**: The broken "Warped Mount" is legacy by name, while the working mounts from the report (Horse Saddle, Meteor's Saddle) are in no list.
+  - `ItemDefinitions.isLegacy("Warped Mount")` is true
+  - `ItemDefinitions.isLegacy("warped mount")` is true (the entry has `(?i)`)
+  - `ItemDefinitions.isLegacy("Warped Mount of Wynn")` is false
+  - `ItemDefinitions.isLegacy("Horse Saddle")` is false
+  - `ItemDefinitions.isLegacy("Meteor's Saddle")` is false
+  - `ItemDefinitions.isMiscLegacy("Horse Saddle")` is false
+  - `ItemDefinitions.isNoLoreLegacy("Meteor's Saddle")` is false
 - **`load_isIdempotentAndDiscardsParsedInFixtures`**: After parsing a "ReloadProbe" fixture and calling `load()`, the probe no longer matches, "Wolf Fang" matches, and a second `load()` leaves that unchanged.
   - After parsing a fixture with `^ReloadProbe$` under `definitions`, `ItemDefinitions.isLegacy("ReloadProbe")` is true
   - After `ItemDefinitions.load()`, `ItemDefinitions.isLegacy("ReloadProbe")` is false (`load()` clears before refilling)

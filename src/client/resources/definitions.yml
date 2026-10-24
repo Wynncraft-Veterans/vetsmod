@@ -110,6 +110,9 @@ definitions:
   - "(?i)^Poinsettia.*$"
   # Modern-format ingredient that Wynncraft has since removed from the game.
   - "(?i)^Vibrant Augment$"
+  # Broken mounts: a saddle item described as "twisted beyond recovery". Working
+  # mounts are potions with their own names (Horse Saddle, Meteor's Saddle).
+  - "(?i)^Warped Mount$"
   #- "(?i)^Short Cutter.*$" // These are obtainable in the Regular Island cave
   #- "(?i)^Silver Short Spear.*$" // These are obtainable in the Regular Island cave
 ---

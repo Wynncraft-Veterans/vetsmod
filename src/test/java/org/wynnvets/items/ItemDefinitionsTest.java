@@ -88,7 +88,7 @@ class ItemDefinitionsTest {
     @Test
     void predicatesRequireAFullMatchNotASubstring() throws IOException {
         // Every loop uses matcher.matches(). Against the real file that choice
-        // is almost invisible — all 171 patterns are anchored with ^ and the few
+        // is almost invisible — all 172 patterns are anchored with ^ and the few
         // without a trailing $ end in a greedy .* — so an anchored fixture would
         // behave identically under find() and pin nothing. The discriminating
         // input is an UNANCHORED pattern, which the file happens not to contain
@@ -409,6 +409,18 @@ class ItemDefinitionsTest {
         assertFalse(ItemDefinitions.isLegacy("Vibrant Augments"), "full match only");
         assertFalse(ItemDefinitions.isLegacy("Vibrant"), "a prefix is not the item");
         assertFalse(ItemDefinitions.isLegacy("Augment"), "the stem alone is not the removed item");
+    }
+
+    @Test
+    void warpedMountIsLegacyButWorkingMountNamesAreNot() {
+        assertTrue(ItemDefinitions.isLegacy("Warped Mount"));
+        assertTrue(ItemDefinitions.isLegacy("warped mount"), "(?i)");
+        assertFalse(ItemDefinitions.isLegacy("Warped Mount of Wynn"), "full match only");
+        // The two non-broken mount dumps the report supplied.
+        assertFalse(ItemDefinitions.isLegacy("Horse Saddle"));
+        assertFalse(ItemDefinitions.isLegacy("Meteor's Saddle"));
+        assertFalse(ItemDefinitions.isMiscLegacy("Horse Saddle"));
+        assertFalse(ItemDefinitions.isNoLoreLegacy("Meteor's Saddle"));
     }
 
     // ----- load() is the reset -----
