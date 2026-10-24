@@ -13,10 +13,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *
  * <p>{@link AnniWsHandler} routes every {@code anni_query_response} frame
  * to {@link #onResponse(JsonObject)}, which pops the head of a FIFO
- * callback queue — same strict-order pattern as
- * {@link org.wynnvets.api.V1ApiManager#staffActionCallbacks
- * V1ApiManager#staffActionCallbacks}. The protocol has no
- * per-frame correlation ID. temporary-server answers an inbound socket's frames in send
+ * callback queue — the strict-order pattern the staff-action callbacks used before they
+ * gained request ids. The frame carries no {@code req} (the protocol's optional request id,
+ * which vetsmod sends only on staff-action frames), so nothing correlates a reply with its
+ * query. temporary-server answers an inbound socket's frames in send
  * order, so the FIFO pairs correctly while each query gets its reply before its deadline.
  * A query that gets no reply (its frame or its reply lost), a reply that arrives after
  * its future was dropped at the deadline, or two concurrent calls whose frames go out in
@@ -24,8 +24,8 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * a neighbouring query's future (two concurrent calls swap theirs) until the queue drains
  * or a deadline drops the future left over.
  * Nothing coalesces concurrent calls: each {@link #query()} queues its own future and
- * sends its own frame. Correlation IDs were judged not worth the wire-protocol churn for
- * the current scale — same call-out the staff-action queue makes.</p>
+ * sends its own frame. Sending a {@code req} here was judged not worth it for a read-only
+ * pull at the current scale.</p>
  *
  * <p>Query responses are also bounced through
  * {@link AnniSnapshotCache#update(AnniSnapshot)} so the on-demand pull

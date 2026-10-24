@@ -14,7 +14,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *
  * <p>Clone of {@link AnniScrollspotClient}: FIFO callback queue, the next
  * incoming {@code anni_rsvp_response} frame resolves the head future. The
- * V1 protocol has no per-frame correlation IDs, and temporary-server answers in
+ * frame carries no {@code req} request id, and temporary-server answers in
  * send order, so the FIFO mis-pairs only on a lost or late reply or when two concurrent
  * calls send in the opposite order to their enqueues. Nothing waits for the previous
  * call: {@code /wv anni rsvp} sends at once, so two RSVPs sent close together carry

@@ -177,10 +177,10 @@ public final class Json {
      *
      * <p>Exists so the call sites that never supplied a fallback did not grow an argument
      * &mdash; twelve when this was written, seventeen once {@code NameResolver}'s five
-     * member-field reads joined them, <b>twenty</b> with the outbound socket's three
+     * member-field reads joined them, twenty with the outbound socket's three
      * ({@code server_info}'s {@code chat_tiers}, the auth ack's {@code ws_tier} and a staff
-     * presence frame's {@code uuid}). {@code null} <i>is</i> a fallback; this is not a fourth
-     * policy.</p>
+     * presence frame's {@code uuid}), <b>twenty-one</b> with an inbound ack's echoed
+     * {@code req}. {@code null} <i>is</i> a fallback; this is not a fourth policy.</p>
      *
      * @param obj the object to read; a {@code null} is tolerated and warns
      * @param key the field name

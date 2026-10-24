@@ -3,6 +3,7 @@ package org.wynnvets.api;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,9 +36,10 @@ import org.wynnvets.util.Json;
  * frame as {@link WsClient#sendAsync(JsonObject)} would write it ({@link WsClient#toWire}), and
  * reports a settable connection state. The expected strings are literals. The frames that carry
  * a random {@code uuid} and a clock {@code timestamp} (inbound chat and {@code rank_change}) have
- * both values checked and then masked in place, so key order is still pinned. Every test ends with no inbound socket installed,
- * no auth ack awaited, the callback queue drained and the cached registration cleared. No test
- * registers a listener or routes an ack.</p>
+ * both values checked and then masked in place, so key order is still pinned, and a staff-action
+ * frame's random {@code req} is checked and masked the same way. Every test ends with no inbound
+ * socket installed, no auth ack awaited, the pending staff-action callbacks drained and the cached
+ * registration cleared. No test registers a listener or routes an ack.</p>
  */
 class V1ApiManagerFramesTest {
 
@@ -170,14 +172,34 @@ class V1ApiManagerFramesTest {
         assertEquals(
                 List.of(
                         "{\"type\":\"caution_check\","
-                                + "\"target_username\":\"Holidaze\",\"confirm\":true}"),
-                socket.wire);
+                                + "\"target_username\":\"Holidaze\",\"confirm\":true,"
+                                + "\"req\":\"R\"}"),
+                reqMasked());
         assertTrue(acks.isEmpty());
-        // The callback waits in the queue: disconnecting drains it with the synthetic ack.
+        // The callback waits under the frame's req: disconnecting drains it with the synthetic ack.
         V1ApiManager.disconnect();
         assertEquals(
                 List.of("{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"),
                 acks);
+    }
+
+    @Test
+    void aStaffActionCallbackIsRegisteredUnderTheReqItsFrameCarries() {
+        connect();
+        V1ApiManager.sendStaffActionFrame("caution_check", new JsonObject(), ack -> {});
+        String req =
+                Json.GSON.fromJson(socket.wire.get(0), JsonObject.class).get("req").getAsString();
+        assertEquals(1, V1ApiManager.pendingAcks.size());
+        assertNotNull(V1ApiManager.pendingAcks.complete(req));
+    }
+
+    @Test
+    void aStaffActionFrameWithoutACallbackStillCarriesAReqAndRegistersNothing() {
+        // So its ack is dropped as unknown instead of answering some other caller.
+        connect();
+        V1ApiManager.sendStaffActionFrame("caution_check", new JsonObject(), null);
+        assertEquals(List.of("{\"type\":\"caution_check\",\"req\":\"R\"}"), reqMasked());
+        assertTrue(V1ApiManager.pendingAcks.isEmpty());
     }
 
     @Test
@@ -300,7 +322,7 @@ class V1ApiManagerFramesTest {
         assertEquals(
                 List.of("{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"),
                 acks);
-        assertTrue(V1ApiManager.staffActionCallbacks.isEmpty());
+        assertTrue(V1ApiManager.pendingAcks.isEmpty());
     }
 
     @Test
@@ -312,7 +334,7 @@ class V1ApiManagerFramesTest {
         assertEquals(
                 List.of("{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"),
                 acks);
-        assertTrue(V1ApiManager.staffActionCallbacks.isEmpty());
+        assertTrue(V1ApiManager.pendingAcks.isEmpty());
     }
 
     private void assertNothingSentWhileDown() {
@@ -359,6 +381,21 @@ class V1ApiManagerFramesTest {
         V1ApiManager.disconnect();
         assertEquals(1, acks.size());
         assertTrue(socket.wire.isEmpty());
+    }
+
+    /**
+     * The recorded frames with {@code req} replaced, in place, by {@code "R"}, after checking that
+     * each is a request id: eight characters from {@code [A-Za-z0-9]}.
+     */
+    private List<String> reqMasked() {
+        List<String> out = new ArrayList<>();
+        for (String frame : socket.wire) {
+            JsonObject json = Json.GSON.fromJson(frame, JsonObject.class);
+            assertTrue(json.get("req").getAsString().matches("[A-Za-z0-9]{8}"), frame);
+            json.addProperty("req", "R");
+            out.add(Json.GSON.toJson(json));
+        }
+        return out;
     }
 
     /**

@@ -26,7 +26,7 @@ mwe/anni/
 ├── network/
 │   ├── AnniWsSender.java          — the four anni sends on the v1 inbound socket (anni_query, anni_scrollspot_set, anni_rsvp, anni_party_observation)
 │   ├── AnniWsHandler.java         — V1 outbound/inbound listener; one outbound + four inbound frame types (§Snapshot pipeline)
-│   ├── AnniQueryClient.java       — FIFO-queued pull (anni_query), no correlation IDs; 8s deadline
+│   ├── AnniQueryClient.java       — FIFO-queued pull (anni_query), sent without a req id; 8s deadline
 │   ├── AnniRsvpClient.java        — ack client for anni_rsvp (§`/wv anni rsvp`)
 │   └── AnniScrollspotClient.java  — ack client for anni_scrollspot_set (§Aggressive mode)
 ├── mode/

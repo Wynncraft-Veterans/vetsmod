@@ -14,7 +14,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 ## Packages
 
 - [`org.wynnvets`](#orgwynnvets) — [`LocaleFoldTripwireTest`](#localefoldtripwiretest)
-- [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`SerializedSenderTest`](#serializedsendertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest), [`V1ApiManagerOutboundAuthTest`](#v1apimanageroutboundauthtest)
+- [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`PendingAcksTest`](#pendingackstest), [`SerializedSenderTest`](#serializedsendertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest), [`V1ApiManagerOutboundAuthTest`](#v1apimanageroutboundauthtest)
 - [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`OutboundDisplayHandlerTest`](#outbounddisplayhandlertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
 - [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`DispatchCoordinatorTest`](#dispatchcoordinatortest), [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
 - [`org.wynnvets.chat.spoiler`](#orgwynnvetschatspoiler) — [`SpoilerCodecTest`](#spoilercodectest)
@@ -64,17 +64,17 @@ This is a build tripwire, not a unit test of one class. Under a Turkish or Azeri
 
 Test: [`InboundAckRouterTest.java`](../src/test/java/org/wynnvets/api/InboundAckRouterTest.java) · Subject: [`InboundAckRouter`](../src/client/java/org/wynnvets/api/InboundAckRouter.java)
 
-`InboundAckRouter.route` handles the untyped `{"status": ...}` acks that arrive on the v1 inbound socket and decides whether each one resolves a pending staff-action callback, is an auth ack, or is only logged. This suite pins the non-auth routing: which acks pop the head of `V1ApiManager.staffActionCallbacks`, in what order, and which leave the queue alone. The auth-ok and auth-failure branches are not driven because they reach `VetsConfig`, which cannot initialise outside a game launch, so two tests rely on `assertDoesNotThrow` to show an ack stayed out of those branches. A recording callback stands in for the staff-action callbacks, and `reset` (run before and after each test) clears the static auth state and the callback queue.
+`InboundAckRouter.route` handles the untyped `{"status": ...}` acks that arrive on the v1 inbound socket and decides whether each one resolves a pending staff-action callback, is an auth ack, or is only logged. This suite pins the non-auth routing: which acks answer a callback pending in `V1ApiManager.pendingAcks`, which one, and which leave the pending callbacks alone. An ack that echoes a request id (`req`) goes to that id's callback only; the tests that leave both echo flags (`helloEchoesReq`, `ackEchoedReq`) false pin the eldest-first pairing used against a server that does not echo ids (legacy mode). The auth-ok and auth-failure branches are not driven because they reach `VetsConfig`, which cannot initialise outside a game launch, so two tests rely on `assertDoesNotThrow` to show an ack stayed out of those branches. A recording callback stands in for the staff-action callbacks, registered through a `pending(name)` helper that returns its request id, and `reset` (run before and after each test) clears the static auth state, drains `pendingAcks` and clears both echo flags.
 
-- **`eachStaffActionShapeRoutesToTheHeadCallback`**: Acks carrying `kind`, `triggered`, `total_points`, `target_uuid`, or status `would_trigger` each hand the full ack to the single queued callback and empty the queue.
+- **`eachStaffActionShapeRoutesToTheHeadCallback`** (legacy mode): Acks carrying `kind`, `triggered`, `total_points`, `target_uuid`, or status `would_trigger` each hand the full ack to the single queued callback and empty the queue.
   - For each `shape` in the five JSON ack strings (`{"status":"ok","kind":"caution"}`, `{"status":"ok","triggered":false}`, `{"status":"ok","total_points":3}`, `{"status":"ok","target_uuid":"<TARGET>"}` with `TARGET` = `0a1b2c3d-1111-2222-3333-444455556666`, `{"status":"would_trigger"}`): after `InboundAckRouter.route` of that ack with one `head` callback queued, `calls` equals `List.of("head " + shape)`, i.e. the head callback received exactly that ack re-serialised.
-  - For the same five shapes: `V1ApiManager.staffActionCallbacks` is empty after routing, i.e. the head callback was popped.
-- **`twoPendingCallbacksResolveInSendOrder`**: Two queued callbacks receive two successive `total_points` acks first-in, first-out, each getting its own ack.
+  - For the same five shapes: `V1ApiManager.pendingAcks` is empty after routing, i.e. the head callback was taken.
+- **`twoPendingCallbacksResolveInSendOrder`** (legacy mode): Two queued callbacks receive two successive `total_points` acks first-in, first-out, each getting its own ack.
   - After queueing callbacks `first` then `second` and routing acks `{"status":"ok","total_points":1}` then `{"status":"ok","total_points":2}`, `calls` equals `["first {\"status\":\"ok\",\"total_points\":1}", "second {\"status\":\"ok\",\"total_points\":2}"]`: first ack went to `first`, second to `second`.
-- **`anOrphanErrorPopsThePendingCallback`**: A `status:"error"` ack with no auth ack awaited and a callback pending is delivered to that callback, and the queue empties.
+- **`anOrphanErrorPopsThePendingCallback`** (legacy mode): A `status:"error"` ack with no auth ack awaited and a callback pending is delivered to that callback, and the queue empties.
   - After routing `{"status":"error","detail":"no such player"}` with one `head` callback queued, `calls` equals `["head {\"status\":\"error\",\"detail\":\"no such player\"}"]`.
-  - `V1ApiManager.staffActionCallbacks` is empty after that route.
-- **`anAuthRejectedErrorGoesToAPendingCallbackWhenNoAuthAckIsAwaited`**: An `"auth rejected: x"` error goes to the pending callback when no auth ack is awaited, and the confirmed-staff flag and rank (`"chief"`) stay unchanged.
+  - `V1ApiManager.pendingAcks` is empty after that route.
+- **`anAuthRejectedErrorGoesToAPendingCallbackWhenNoAuthAckIsAwaited`** (legacy mode): An `"auth rejected: x"` error goes to the pending callback when no auth ack is awaited, and the confirmed-staff flag and rank (`"chief"`) stay unchanged.
   - With `confirmedStaff` true, rank `"chief"`, no auth ack awaited and one `head` callback queued, routing `{"status":"error","detail":"auth rejected: x"}` leaves `calls` equal to `["head {\"status\":\"error\",\"detail\":\"auth rejected: x\"}"]`.
   - `SessionAuthState.confirmedStaff` is still true after that route.
   - `SessionAuthState.confirmedStaffRank` still equals `"chief"` after that route.
@@ -86,13 +86,44 @@ Test: [`InboundAckRouterTest.java`](../src/test/java/org/wynnvets/api/InboundAck
   - `SessionAuthState.confirmedStaffRank` still equals `"chief"` after that route.
 - **`aTierKeyKeepsAWouldTriggerAckOutOfTheQueue`**: A `would_trigger` ack that also carries `tier` is treated as auth-shaped: the pending callback is not called and stays queued.
   - After routing `{"status":"would_trigger","tier":"member"}` with one `head` callback queued, `calls` is empty (callback not invoked).
-  - `V1ApiManager.staffActionCallbacks.size()` equals 1 (callback still queued).
+  - `V1ApiManager.pendingAcks.size()` equals 1 (callback still pending).
 - **`aFrameWithoutStatusIsIgnored`**: A frame with no `status` key does not invoke or remove the pending callback.
   - After routing `{"kind":"caution"}` (no `status`) with one `head` callback queued, `calls` is empty.
-  - `V1ApiManager.staffActionCallbacks.size()` equals 1.
+  - `V1ApiManager.pendingAcks.size()` equals 1.
 - **`aPlainOkAckLeavesAPendingCallbackQueued`**: A bare `{"status":"ok"}` ack matches no staff-action shape, so the pending callback is not called and stays queued.
   - After routing `{"status":"ok"}` with one `head` callback queued, `calls` is empty.
-  - `V1ApiManager.staffActionCallbacks.size()` equals 1.
+  - `V1ApiManager.pendingAcks.size()` equals 1.
+- **`anErrorCarryingAReqAnswersOnlyThatCallback`**: With the hello flag set and callbacks `first` then `second` pending, an error ack carrying `second`'s id goes to `second` only. Before ids the eldest callback took it.
+  - After routing `{"status":"error","detail":"no such player","req":"<second>"}`, `calls` equals `["second " + that ack]`.
+  - `pendingAcks.size()` equals 1 (`first` still waiting).
+- **`anAckCarryingAReqIsMatchedByIdEvenWithoutTheHelloFlag`**: An echoed id is matched with both flags false, and it sets `ackEchoedReq`.
+  - `calls` equals `["head " + {"status":"ok","total_points":3,"req":"<head>"}]`.
+  - `V1ApiManager.ackEchoedReq` and `V1ApiManager.serverEchoesReq()` are true.
+- **`anAckForAnUnknownReqIsDroppedWithoutTouchingThePendingCallback`**: An ok and an error ack carrying an id with no callback (`zzzzzzzz`) answer nobody.
+  - `calls` is empty and `pendingAcks.size()` equals 1.
+- **`aReqlessErrorPopsNothingOnceTheServerEchoesIds`**: With the hello flag set, an error with no id (`Inbound processing is disabled`, as a refused guild forward gets) leaves the pending callback alone.
+  - Routing does not throw; `calls` is empty and `pendingAcks.size()` equals 1.
+- **`aReqlessStaffShapedAckIsDroppedOnceTheServerEchoesIds`**: With the hello flag set, `{"status":"ok","total_points":3}` with no id answers nobody.
+  - `calls` is empty and `pendingAcks.size()` equals 1.
+- **`anEchoedAckIsAnsweredOnce`**: Routing the same echoed ack twice answers its callback once.
+  - `calls` equals the single entry `["head " + {"status":"ok","total_points":3,"req":"<head>"}]`.
+
+### `PendingAcksTest`
+
+Test: [`PendingAcksTest.java`](../src/test/java/org/wynnvets/api/PendingAcksTest.java) · Subject: [`PendingAcks`](../src/client/java/org/wynnvets/api/PendingAcks.java)
+
+`PendingAcks` holds the staff-action callbacks keyed by the request id their frame carried, in send order. Each callback must be handed out by exactly one removal, since the path that removes an entry is the only one that answers it. The suite drives a fresh instance with no-op callbacks.
+
+- **`aRequestIdIsEightAlphanumericCharactersAndIdsDiffer`**: A thousand registrations each return an id matching `[A-Za-z0-9]{8}`, all different.
+  - Every id matches the pattern and none repeats; `size()` equals 1000.
+- **`completeHandsAnEntryOutExactlyOnce`**: `complete(req)` returns the entry with the registered callback and id once, then `null`.
+  - The entry's `callback()` is the registered one and its `req()` the returned id; a second `complete` returns `null` and the map is empty.
+- **`anUnknownIdCompletesNothing`**: `complete("zzzzzzzz")` returns `null` and leaves the registered entry.
+  - `size()` equals 1.
+- **`pollEldestFollowsSendOrderAndSkipsWhatWasCompleted`**: With three registered and the second completed, `pollEldest()` returns the first, then the third, then `null`.
+- **`anEntryTakenByPollEldestCannotBeCompleted`**: After `pollEldest()` takes the only entry, `complete` of its id returns `null`.
+- **`drainAllEmptiesInSendOrder`**: `drainAll()` returns both entries in registration order and leaves nothing to complete.
+  - The drained ids equal `[first, second]`; the map is empty and `complete(first)` returns `null`.
 
 ### `SerializedSenderTest`
 
@@ -121,11 +152,12 @@ Test: [`SerializedSenderTest.java`](../src/test/java/org/wynnvets/api/Serialized
 
 Test: [`V1ApiManagerFramesTest.java`](../src/test/java/org/wynnvets/api/V1ApiManagerFramesTest.java) · Subject: [`V1ApiManager`](../src/client/java/org/wynnvets/api/V1ApiManager.java), `AnniWsSender`, `AnniQueryClient`, `AnniRsvpClient`, `AnniScrollspotClient`
 
-`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (`WsClient.toWire`, which keeps null members) and complete with its settable `sends` flag (`true` unless a test sets it), and has a settable connected flag. For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
+`V1ApiManager` and the anni senders write JSON frames on the v1 inbound WebSocket. This suite pins the exact serialised text of each frame (key order included) and what each socket-checking send does when the socket is missing or disconnected: nothing is written, and the staff-action and anni clients report a not-connected outcome instead of waiting. A `RecordingWsClient` subclass of `WsClient` replaces the real socket: it never connects, overrides `sendAsync` to record each frame as the real send would serialise it (`WsClient.toWire`, which keeps null members) and complete with its settable `sends` flag (`true` unless a test sets it), and has a settable connected flag. For the frames with a random `uuid` and a clock `timestamp` (inbound chat and `rank_change`), a `masked` helper first checks the uuid is canonical and the timestamp is a fractional-seconds double between two sampled clock readings, then replaces both so the rest of the string is compared literally; a `reqMasked` helper does the same for a staff-action frame's random `req`. `reset` removes the injected socket, clears the registration and the awaited-auth flag after each test.
 
 Asserting helpers:
 
 - **`assertNothingSentWhileDown`**: Run with the inbound socket down (null client, or `socket.connected` false): calls `sendRegistration`, `sendAuth` (after setting `expectingAuthAck` false), `sendQueueStatus`, `sendInbound`, `sendRankChange`, `sendTabList`, then asserts: `SessionAuthState.expectingAuthAck` is false after `sendAuth("k3y-Value_123")`; `AnniWsSender.sendAnniQuery()`, `sendAnniScrollspotSet(12, 64, -300)`, `sendAnniScrollspotSet(null, null, null)`, `sendAnniRsvp("hard")` and `sendAnniPartyObservation(List.of("Metrafish"), "Metrafish", "WC1")` each return false; `sendStaffActionFrame("caution_check", new JsonObject(), cb)` calls `cb` at once so `acks` equals `["{\"status\":\"error\",\"detail\":\"Inbound WebSocket not connected.\"}"]`; `sendStaffActionFrame("caution_check", null, null)` does not throw; `AnniQueryClient.query()` future `isDone()` is true and `join()` is null; `AnniRsvpClient.send("revoke").join()`, `AnniScrollspotClient.set(12, 64, -300).join()` and `AnniScrollspotClient.clear().join()` each equal `new Ack(false, "not connected")` (of their own client's `Ack` type); after `V1ApiManager.disconnect()`, `acks.size()` equals 1 (nothing queued) and `socket.wire` is empty.
+- **`reqMasked`**: For each recorded frame in `socket.wire`: its `req` matches `[A-Za-z0-9]{8}`, and is then replaced in place by `"R"`, so key order is still compared.
 - **`masked`**: For each recorded frame in `socket.wire`: its `uuid` string equals `UUID.fromString(uuid).toString()` (canonical UUID); `timestamp` is a JSON number; `timestamp` seconds (double) is between `t0/1000.0` and `t1/1000.0` inclusive; `Double.toString(seconds)` equals the timestamp's raw string (written as a double, not a whole number). Then replaces `uuid` with `"U"` and `timestamp` with 0 and returns the re-serialised frames.
 
 Tests:
@@ -143,10 +175,14 @@ Tests:
   - After `sendRankChange("Metrafish", "Holidaze", "Captain", "Recruit", "mote")`, `masked(t0, t1)` equals the single frame `{"type":"rank_change","uuid":"U","timestamp":0,"actor":"Metrafish","target":"Holidaze","from_rank":"Captain","to_rank":"Recruit","classification":"mote"}`.
 - **`tabList`**: `sendTabList` with two `TabListEntry` values writes a `tablist` frame whose `entries` array holds `{server, username}` objects in order.
   - After `sendTabList` with entries (`WC1`,`Metrafish`) and (`EU4`,`Holidaze`), `socket.wire` equals the single frame `{"type":"tablist","entries":[{"server":"WC1","username":"Metrafish"},{"server":"EU4","username":"Holidaze"}]}`.
-- **`staffActionFrame_isSentAndItsCallbackQueued`**: `sendStaffActionFrame("caution_check", fields, cb)` writes the type followed by the fields and does not call the callback yet. Disconnecting then drains it with the ack `{"status":"error","detail":"Connection closed before reply."}`.
-  - After `sendStaffActionFrame("caution_check", fields, cb)` with `fields` = `{target_username:"Holidaze", confirm:true}`, `socket.wire` equals the single frame `{"type":"caution_check","target_username":"Holidaze","confirm":true}`.
+- **`staffActionFrame_isSentAndItsCallbackQueued`**: `sendStaffActionFrame("caution_check", fields, cb)` writes the type followed by the fields and a request id, and does not call the callback yet. Disconnecting then drains it with the ack `{"status":"error","detail":"Connection closed before reply."}`.
+  - After `sendStaffActionFrame("caution_check", fields, cb)` with `fields` = `{target_username:"Holidaze", confirm:true}`, `reqMasked()` equals the single frame `{"type":"caution_check","target_username":"Holidaze","confirm":true,"req":"R"}`.
   - `acks` (callback results) is empty right after sending, i.e. the callback has not run.
   - After `V1ApiManager.disconnect()`, `acks` equals `["{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"]`, i.e. the queued callback is drained with the synthetic error ack.
+- **`aStaffActionCallbackIsRegisteredUnderTheReqItsFrameCarries`**: The id on the wire is the key the callback waits under.
+  - `pendingAcks.size()` equals 1, and `pendingAcks.complete(<the frame's req>)` returns the entry.
+- **`aStaffActionFrameWithoutACallbackStillCarriesAReqAndRegistersNothing`**: A staff frame sent with a `null` callback still carries an id, so its ack is dropped as unknown instead of answering another caller.
+  - `reqMasked()` equals the single frame `{"type":"caution_check","req":"R"}`, and `pendingAcks` is empty.
 - **`anniQuery`**: `AnniWsSender.sendAnniQuery()` returns true and writes `{"type":"anni_query"}`.
   - `AnniWsSender.sendAnniQuery()` returns true.
   - `socket.wire` equals the single frame `{"type":"anni_query"}`.
@@ -169,10 +205,10 @@ Tests:
   - For each of `sendRegistration`, `sendAuth`, `sendQueueStatus`, `sendInbound`, `sendRankChange`, `sendTabList` and `AnniWsSender.sendAnniQuery()` (which also returns true), with a fresh racing socket installed: the send does not throw, the racing socket recorded 1 frame, and `V1ApiManager.inboundClient` is null afterwards.
 - **`aStaffActionWhoseFrameIsNotSentIsAnsweredOnceWithTheDrainError`**: A staff-action frame whose write fails has its callback taken back and answered once.
   - With `socket.sends` false, `sendStaffActionFrame("caution_check", new JsonObject(), cb)` leaves `acks` equal to `["{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"]`.
-  - `staffActionCallbacks` is empty.
+  - `pendingAcks` is empty.
 - **`aStaffActionCaughtByADisconnectIsAnsweredOnceWithTheDrainError`**: A staff-action callback that joins the queue after the drain is taken back and answered once.
   - With a racing socket installed, `sendStaffActionFrame("caution_check", new JsonObject(), cb)` leaves `acks` equal to `["{\"status\":\"error\",\"detail\":\"Connection closed before reply.\"}"]`.
-  - `staffActionCallbacks` is empty.
+  - `pendingAcks` is empty.
 
 ### `V1ApiManagerOutboundAuthTest`
 
@@ -217,6 +253,9 @@ The outbound socket authenticates only after a `server_info` offering the all-ti
   - After `{"type":"server_info","unauth_enabled":true,"chat_tiers":"all"}`, `outboundAuthOffered` is true.
   - After `{"type":"server_info","unauth_enabled":true}`, it is false.
   - `socket.wire` is empty (no member tier, so nothing is sent).
+- **`aServerInfoHelloRecordsWhetherTheServerEchoesRequestIds`**: `helloEchoesReq` follows each hello's `req_echo`, which counts only as the JSON boolean `true`.
+  - True after `{"type":"server_info","req_echo":true}`; false after `"req_echo":"yes"`; false after a hello without the key that follows a `true` one.
+- **`theEchoFlagsAreClearedByDisconnect`**: With both echo flags set, `disconnect()` leaves `serverEchoesReq()` false.
 - **`anUntypedAckGoesToTheOutboundRouterNotTheListenersOrTheInboundState`**: An ok and an error status frame on the outbound socket reach no outbound listener and change no inbound auth state, and a verdict on the key spends no retry.
   - After routing `{"status":"ok","tier":"member","ws_tier":"guild","is_staff":true,"staff_rank":"chief"}` and `{"status":"error","detail":"auth rejected: revoked"}`, the counting listener heard 0 frames.
   - `SessionAuthState.confirmedStaff` and `expectingAuthAck` are false.

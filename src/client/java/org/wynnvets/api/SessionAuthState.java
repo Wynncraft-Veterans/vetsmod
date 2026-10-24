@@ -21,12 +21,14 @@ final class SessionAuthState {
      *  one; cleared when an ack is read as the auth reply. Auth-success acks are
      *  recognised by their {@code tier} key alone, so this flag matters only for
      *  acks that are neither ok nor shaped like a staff-action ack: such an ack that arrives while
-     *  it is set is treated as an auth failure and is kept out of
-     *  {@link V1ApiManager#staffActionCallbacks} (an error whose detail starts with an
-     *  auth-failure prefix counts as one whatever the flag says, unless the flag is clear and a
-     *  staff-action callback is pending: that callback takes it). A staff-action-shaped error goes
-     *  to the head callback, or is dropped when none is pending, whatever the flag says. Neither
-     *  {@link V1ApiManager#disconnect()} nor a socket drop resets it. */
+     *  it is set is treated as an auth failure and is kept away from the pending staff-action
+     *  callbacks in {@link V1ApiManager#pendingAcks} (an error whose detail starts with an
+     *  auth-failure prefix counts as one whatever the flag says, unless the flag is clear, a
+     *  staff-action callback is pending and the server does not echo request ids: that callback
+     *  takes it). A staff-action-shaped error goes to the eldest callback, or is dropped when none
+     *  is pending, whatever the flag says. None of this applies to an ack that echoes a request
+     *  id, which goes to its own callback. Neither {@link V1ApiManager#disconnect()} nor a socket
+     *  drop resets it. */
     static volatile boolean expectingAuthAck = false;
 
     /** Server-confirmed staff status from the most recent successful auth.

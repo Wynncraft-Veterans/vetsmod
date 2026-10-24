@@ -392,12 +392,12 @@ server as typed. "Passes through" below means the same.
 | `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | none |
 | `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | none |
 | `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | §1's `/wv check` row |
-| `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
+| `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `staff-action-queue-not-drained-on-socket-reconnect` |
 | `/guild invite <name>` | as `/gu invite` | `InviteGate.checkInvite` | As `/gu invite`; an allowed invite is sent as `gu invite` | as `/gu invite` |
-| `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
+| `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `staff-action-queue-not-drained-on-socket-reconnect` |
 | `/caution <name> [message]` | as `/caution-go` | `CautionCommands.runCaution` | Asks for a preflight (`caution_add`); commits at once if the caution crosses no threshold | as `/caution-go` |
-| `/warn <name> [message]` | as `/caution-go` | `CautionCommands.runWarn` | Commits a formal warning (`warn_add`) | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
-| `/eject <name> <message>` | as `/caution-go` | `CautionCommands.runEject` | Commits an eject (`eject_add`); refuses a missing message | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
+| `/warn <name> [message]` | as `/caution-go` | `CautionCommands.runWarn` | Commits a formal warning (`warn_add`) | `staff-action-queue-not-drained-on-socket-reconnect` |
+| `/eject <name> <message>` | as `/caution-go` | `CautionCommands.runEject` | Commits an eject (`eject_add`); refuses a missing message | `staff-action-queue-not-drained-on-socket-reconnect` |
 
 `/v`, `/a` and `/encourage` share `DispatchCoordinator`'s staff-presence check, and a player it cannot confirm
 as staff gets a yellow notice naming why, and nothing is sent: "Message not deliverable (permission verification

@@ -9,7 +9,7 @@ import java.util.UUID;
  * frames the client sends on the v1 inbound socket. Each returns a new
  * {@link JsonObject} with its keys in wire order; none sends it, logs, or reads or writes
  * connection state. {@link #inbound} and {@link #rankChange} stamp a random {@code uuid} and the
- * current time.
+ * current time. {@link #withReq} adds a request id to a frame already built.
  */
 final class V1Frames {
 
@@ -87,5 +87,12 @@ final class V1Frames {
             }
         }
         return payload;
+    }
+
+    /** Adds the request id {@code req} to {@code frame} as its last key and returns the frame.
+     *  temporary-server echoes it in its reply (its {@code v1_protocol.md} §1.2 and §1.3). */
+    static JsonObject withReq(JsonObject frame, String req) {
+        frame.addProperty("req", req);
+        return frame;
     }
 }

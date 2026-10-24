@@ -227,6 +227,25 @@ class V1ApiManagerOutboundAuthTest {
         assertEquals(List.of(), socket.wire, "no member tier yet, so nothing is sent");
     }
 
+    @Test
+    void aServerInfoHelloRecordsWhetherTheServerEchoesRequestIds() {
+        V1ApiManager.handleOutboundFrame(frame("{\"type\":\"server_info\",\"req_echo\":true}"));
+        assertTrue(V1ApiManager.helloEchoesReq);
+        V1ApiManager.handleOutboundFrame(frame("{\"type\":\"server_info\",\"req_echo\":\"yes\"}"));
+        assertFalse(V1ApiManager.helloEchoesReq, "only a JSON true counts");
+        V1ApiManager.handleOutboundFrame(frame("{\"type\":\"server_info\",\"req_echo\":true}"));
+        V1ApiManager.handleOutboundFrame(frame("{\"type\":\"server_info\"}"));
+        assertFalse(V1ApiManager.helloEchoesReq, "an older server withdraws it");
+    }
+
+    @Test
+    void theEchoFlagsAreClearedByDisconnect() {
+        V1ApiManager.helloEchoesReq = true;
+        V1ApiManager.ackEchoedReq = true;
+        V1ApiManager.disconnect();
+        assertFalse(V1ApiManager.serverEchoesReq());
+    }
+
     // ----- the outbound ack -----
 
     @Test

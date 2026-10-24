@@ -33,6 +33,16 @@ string, so it caps characters, not bytes. Inbound acks are
 frame family defines its own typed response below. An optional `?version=`
 query param is logged for client-version tracking and never enforced.
 
+**Request ids.** Any inbound frame may carry `req`, a string of 1 to 64
+characters (temporary-server `a1ee659`, spec §1.2). The server pops it as soon
+as the frame parses, so it is never recorded, bridged or broadcast, and every
+reply sent after parsing, typed responses included, echoes it as its last key
+(§1.3). A `req` that is not such a string is ignored. The outbound
+`server_info` advertises the feature as `req_echo: true`. An older server does
+not pop it and broadcasts a chat frame's unknown keys to every outbound client,
+so vetsmod sends `req` only on the staff-action frames, which read named keys
+only; see [vetsmod_networking.md](vetsmod_networking.md) §1.
+
 ### Frame inventory
 
 Everything `/v1/inbound` accepts, with the handler that serves it and where the
@@ -341,7 +351,7 @@ exactly it.
 Errors are `{"status": "error", "detail": "..."}` and the connection stays
 open. Detail strings, verbatim:
 
-- `"Payload too large"`, `"Invalid JSON"`
+- `"Payload too large"`, `"Invalid JSON"` (also for a body that parses but is not a JSON object)
 - `"Missing required fields: <names>"` — validation errors surface `str(exc)` verbatim
 - `"Invalid message type '<x>'. Expected one of: guild, queue, waitlist, honourary"`
 - `"<Type> message rejected: invalid rank '<r>'. Expected one of: <sorted set>"`

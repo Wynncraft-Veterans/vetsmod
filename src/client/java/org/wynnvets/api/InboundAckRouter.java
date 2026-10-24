@@ -1,7 +1,6 @@
 package org.wynnvets.api;
 
 import com.google.gson.JsonObject;
-import java.util.function.Consumer;
 import org.wynnvets.chat.dispatcher.DispatchCoordinator;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
@@ -11,10 +10,13 @@ import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.Json;
 
 /**
- * Routes the inbound socket's untyped {@code {"status":...}} acks: staff-action acks, and an error
- * ack while a staff-action callback is pending and no auth ack is awaited, to the head of
- * {@link V1ApiManager}'s callback queue (a staff-action ack with nothing pending is dropped);
- * auth acks to {@link SessionAuthState} and {@link GuildStateManager}; and any other ack whose
+ * Routes the inbound socket's untyped {@code {"status":...}} acks. An ack that echoes a request id
+ * ({@code req}) goes to the callback registered under it in {@link V1ApiManager#pendingAcks}, or
+ * is dropped when none is (answered already, or a frame sent without a callback). Against a
+ * server that does not echo ids, a staff-action-shaped ack, and an error ack while a callback is
+ * pending and no auth ack is awaited, go to the eldest pending callback instead (a
+ * staff-action-shaped ack with nothing pending, or any once the server echoes, is dropped). Auth
+ * acks go to {@link SessionAuthState} and {@link GuildStateManager}, and any other ack whose
  * status is not ok to the log. Any other ok ack is dropped.
  */
 final class InboundAckRouter {
@@ -38,21 +40,43 @@ final class InboundAckRouter {
         String status = json.get("status").getAsString();
         boolean wasAuthAck = SessionAuthState.expectingAuthAck;
 
+        // An echoed request id names the frame this ack answers, so it goes to that frame's
+        // callback and nowhere else. vetsmod sends no req on auth frames, so this is never an
+        // auth ack. An id with no callback (already answered, or a frame sent without one) is
+        // dropped rather than handed to anyone else.
+        String req = Json.stringOrNull(json, "req");
+        if (req != null) {
+            V1ApiManager.ackEchoedReq = true;
+            PendingAcks.Entry entry = V1ApiManager.pendingAcks.complete(req);
+            if (entry == null) {
+                VetsLogger.debug("Ack for an unknown or answered request {}: {}", req, json);
+                return;
+            }
+            V1ApiManager.answer(entry, json);
+            return;
+        }
+
+        // From here the ack carries no id. A server that echoes ids gives every staff-action ack
+        // one, so the eldest-first pairing below runs only against one that does not.
+        boolean legacy = !V1ApiManager.serverEchoesReq();
+
         // Staff-action ack shape: commits carry `kind`+`triggered`,
         // checks carry `total_points`, preflight carries
         // `status:"would_trigger"`, and membership-check acks match only
         // on `target_uuid` (which every successful staff-action ack
-        // carries). We pop ONE pending callback per
-        // matching ack so multiple in-flight staff actions resolve
-        // in send order. Errors (status=="error") are also routed to
-        // the callback queue when one is pending and we aren't
+        // carries). Without ids we answer ONE pending callback per
+        // matching ack, eldest first, so multiple in-flight staff actions
+        // resolve in send order. Errors (status=="error") are also routed
+        // to the eldest callback when one is pending and we aren't
         // currently waiting on an auth ack -- the alternative would
         // strand the caller's UI in "loading" forever on a
-        // server-side validation failure.
+        // server-side validation failure. That rule also lets an error
+        // ack to some other frame claim a staff command's callback, which
+        // is why it is off once the server echoes ids.
         //
         // Auth-success responses are explicitly excluded by the `tier` key
         // (only they carry it) so a future `total_points` collision can't
-        // misroute auth into the staff queue; auth errors are kept out by
+        // misroute auth into the staff path; auth errors are kept out by
         // the expectingAuthAck test in staffOrphanError.
         boolean isAuthShaped = json.has("tier");
         boolean staffShaped =
@@ -63,20 +87,17 @@ final class InboundAckRouter {
                                 || json.has("target_uuid")
                                 || "would_trigger".equals(status));
         boolean staffOrphanError =
-                "error".equals(status)
+                legacy
+                        && "error".equals(status)
                         && !wasAuthAck
-                        && !V1ApiManager.staffActionCallbacks.isEmpty();
+                        && !V1ApiManager.pendingAcks.isEmpty();
         if (staffShaped || staffOrphanError) {
-            Consumer<JsonObject> cb = V1ApiManager.staffActionCallbacks.pollFirst();
-            if (cb != null) {
-                try {
-                    cb.accept(json);
-                } catch (Exception e) {
-                    VetsLogger.warn("Staff-action callback error: {}", e.getMessage());
-                }
+            PendingAcks.Entry entry = legacy ? V1ApiManager.pendingAcks.pollEldest() : null;
+            if (entry != null) {
+                V1ApiManager.answer(entry, json);
                 return;
             }
-            VetsLogger.debug("Staff-action ack with empty callback queue: {}", json);
+            VetsLogger.debug("Staff-action ack with no callback to answer: {}", json);
             // Without a callback the response is unactionable; swallow it
             // so it doesn't leak into the auth/chat error path below.
             return;

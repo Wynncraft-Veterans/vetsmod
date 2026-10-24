@@ -1,8 +1,10 @@
 package org.wynnvets.api;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.net.URI;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import net.fabricmc.loader.api.FabricLoader;
@@ -87,22 +89,32 @@ public final class V1ApiManager {
     private static final CopyOnWriteArrayList<Runnable> inboundPostConnectListeners =
             new CopyOnWriteArrayList<>();
 
-    /** FIFO queue of callbacks awaiting a staff-action ack frame. Each frame sent
-     *  through {@link #sendStaffActionFrame} with a callback enqueues one callback (the
-     *  caution/warn/eject family, and {@code check_membership}). Each incoming ack that
-     *  {@link InboundAckRouter} classifies as staff-action-shaped (see the
-     *  {@code staffShaped} test in {@link InboundAckRouter#route}), or an error ack while
-     *  a callback is pending and no auth ack is outstanding, pops the head callback and
-     *  invokes it. The protocol has no
-     *  per-frame correlation ID, so this is a strict-order queue: it stays aligned only
-     *  while each enqueued frame's ack, and no other ack, reaches it in enqueue order.
-     *  An ack that never arrives shifts every later ack onto the previous caller's
-     *  callback until {@link #disconnect()} drains the queue
-     *  ({@code staff-action-queue-not-drained-on-socket-reconnect}). Correlation IDs were
-     *  judged not worth the wire-protocol churn for the current scale. */
-    // Package-private for InboundAckRouter, which pops it.
-    static final java.util.concurrent.ConcurrentLinkedDeque<Consumer<JsonObject>>
-            staffActionCallbacks = new java.util.concurrent.ConcurrentLinkedDeque<>();
+    /** The callbacks awaiting a staff-action ack. {@link #sendStaffActionFrame} sends every
+     *  frame with a fresh request id ({@code req}) and registers its callback under it.
+     *  temporary-server echoes the id in its reply, so {@link InboundAckRouter} answers exactly
+     *  the callback whose frame the ack belongs to, and an error ack to some other frame (a
+     *  forwarded guild line refused while inbound processing is disabled, say) can no longer
+     *  reach a staff command. Against a server that does not echo ({@link #serverEchoesReq()}
+     *  false) the router answers the eldest callback instead, the strict-order pairing the
+     *  protocol had before ids, and {@link #disconnect()} drains whatever is left. */
+    // Package-private for InboundAckRouter, which answers it.
+    static final PendingAcks pendingAcks = new PendingAcks();
+
+    /** Whether this connection's outbound {@code server_info} advertised {@code req_echo}: the
+     *  server echoes a frame's {@code req} in its reply. Reset by {@link #connect()} and
+     *  {@link #disconnect()}. */
+    static volatile boolean helloEchoesReq = false;
+
+    /** Whether an inbound ack on the current inbound socket has carried a {@code req}, which
+     *  proves the server echoes ids even if its hello was missed. Set by
+     *  {@link InboundAckRouter}; cleared by each inbound (re)connect, {@link #connect()} and
+     *  {@link #disconnect()}. */
+    static volatile boolean ackEchoedReq = false;
+
+    /** Held while a staff-action callback is registered and its frame handed to the socket, so
+     *  the registration order is the order the frames go out, which the eldest-first pairing
+     *  against a server that does not echo ids relies on. */
+    private static final Object SEND_LOCK = new Object();
 
     private V1ApiManager() {}
 
@@ -120,6 +132,8 @@ public final class V1ApiManager {
         outboundAuthOffered = false;
         inboundMemberTier = false;
         outboundAuthenticated = false;
+        helloEchoesReq = false;
+        ackEchoedReq = false;
         OutboundAckRouter.reset();
 
         URI inboundUri = URI.create(INBOUND_BASE + "?version=" + getModVersion());
@@ -158,8 +172,10 @@ public final class V1ApiManager {
         inbound.setOnConnectCallback(
                 () -> {
                     // A reconnect is a new server session: the previous ack's tier no longer
-                    // holds, so the outbound socket waits for this socket's fresh ack.
+                    // holds, so the outbound socket waits for this socket's fresh ack, and the
+                    // server may not be the one that echoed request ids.
                     inboundMemberTier = false;
+                    ackEchoedReq = false;
                     String storedKey = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_KEY);
                     if (storedKey != null && !storedKey.isEmpty()) {
                         SessionAuthState.expectingAuthAck = true;
@@ -206,6 +222,8 @@ public final class V1ApiManager {
         outboundAuthOffered = false;
         inboundMemberTier = false;
         outboundAuthenticated = false;
+        helloEchoesReq = false;
+        ackEchoedReq = false;
         OutboundAckRouter.reset();
         StaffRanksPoller.clearLiveOverlay();
         WsClient inbound = inboundClient;
@@ -222,15 +240,31 @@ public final class V1ApiManager {
         // Drain any in-flight staff-action callbacks with synthetic
         // errors so callers don't hang waiting on responses that will
         // never arrive.
-        Consumer<JsonObject> pending;
-        while ((pending = staffActionCallbacks.pollFirst()) != null) {
-            try {
-                pending.accept(drainError());
-            } catch (Exception e) {
-                VetsLogger.warn("Staff-action drain callback error: {}", e.getMessage());
-            }
+        for (PendingAcks.Entry entry : pendingAcks.drainAll()) {
+            answer(entry, drainError());
         }
         VetsLogger.debug("V1 API connections closed");
+    }
+
+    /** Whether the server echoes request ids: its outbound hello said so, or an inbound ack on
+     *  the current socket carried one. While false, {@link InboundAckRouter} pairs staff-action
+     *  acks with callbacks eldest first. */
+    static boolean serverEchoesReq() {
+        return helloEchoesReq || ackEchoedReq;
+    }
+
+    /** Answers {@code entry}'s callback with {@code ack}. Call it only with an entry just removed
+     *  from {@link #pendingAcks}, which makes the removing path the only one that answers; a
+     *  {@code null} entry, which another path took first, is ignored. */
+    static void answer(PendingAcks.Entry entry, JsonObject ack) {
+        if (entry == null) {
+            return;
+        }
+        try {
+            entry.callback().accept(ack);
+        } catch (Exception e) {
+            VetsLogger.warn("Staff-action callback error: {}", e.getMessage());
+        }
     }
 
     /**
@@ -262,6 +296,7 @@ public final class V1ApiManager {
                 boolean unauthEnabled =
                         json.has("unauth_enabled") && json.get("unauth_enabled").getAsBoolean();
                 org.wynnvets.guild.SessionAuthWarning.onServerInfo(unauthEnabled);
+                helloEchoesReq = hasTrueFlag(json, "req_echo");
                 outboundAuthOffered = offersAllChatTiers(json);
                 sendOutboundAuthIfReady();
                 return;
@@ -284,6 +319,16 @@ public final class V1ApiManager {
      *  ({@code chat_tiers: "all"}). A server without the key runs the old per-tier map. */
     static boolean offersAllChatTiers(JsonObject serverInfo) {
         return "all".equals(Json.stringOrNull(serverInfo, "chat_tiers"));
+    }
+
+    /** Whether {@code frame}'s {@code key} is the JSON boolean {@code true}: the form of a
+     *  {@code server_info} capability flag. A server without the key lacks the capability. */
+    static boolean hasTrueFlag(JsonObject frame, String key) {
+        JsonElement value = frame.get(key);
+        return value != null
+                && value.isJsonPrimitive()
+                && value.getAsJsonPrimitive().isBoolean()
+                && value.getAsBoolean();
     }
 
     /** Whether an auth ack's {@code tier} is a member tier, one the server gives a chat
@@ -638,7 +683,10 @@ public final class V1ApiManager {
     /**
      * Sends a staff-action control frame (the caution/warn/eject family --
      * caution_check / caution_add / warn_add / eject_add -- or check_membership) and
-     * registers a callback for the matching server ack.
+     * registers a callback for the matching server ack. The frame carries a fresh request id
+     * ({@code req}), which the server echoes, so the ack reaches this callback and no other; a
+     * server that does not echo has its staff-action acks paired with callbacks eldest first
+     * ({@link #pendingAcks}).
      *
      * <p>A session the server does not treat as staff gets an error ack, which normally
      * resolves this frame's callback like any other ack; callers that want to spare
@@ -671,31 +719,31 @@ public final class V1ApiManager {
             if (callback != null) callback.accept(err);
             return;
         }
-        JsonObject payload = V1Frames.staffAction(type, fields);
-        if (callback != null) {
-            staffActionCallbacks.addLast(callback);
+        // Every staff frame carries a req, even one with no callback, so its ack is dropped as
+        // unknown instead of being paired with another caller's callback.
+        String req;
+        CompletableFuture<Boolean> sent;
+        synchronized (SEND_LOCK) {
+            req = callback != null ? pendingAcks.register(callback) : PendingAcks.newReq();
+            sent = client.sendAsync(V1Frames.withReq(V1Frames.staffAction(type, fields), req));
         }
-        client.sendAsync(payload)
-                .thenAccept(
-                        sent -> {
-                            // A frame that never went out gets no ack: take its callback back and
-                            // answer it now. Exactly once: an ack or a drain that took it first
-                            // makes the removal fail.
-                            if (!sent
-                                    && callback != null
-                                    && staffActionCallbacks.removeLastOccurrence(callback)) {
-                                callback.accept(drainError());
-                            }
-                        });
-        VetsLogger.debug("Sent staff-action frame: {}", type);
-        // A disconnect() that ran after the check drained the queue before this callback joined
-        // it, so nothing would ever answer it. If the socket changed, take the callback back and
-        // answer it with the drain's error; if the drain got it first, removal fails and it has
-        // already been answered.
-        if (callback != null
-                && inboundClient != client
-                && staffActionCallbacks.removeLastOccurrence(callback)) {
-            callback.accept(drainError());
+        VetsLogger.debug("Sent staff-action frame: {} (req {})", type, req);
+        if (callback == null) {
+            return;
+        }
+        // A frame that never went out gets no ack: take its callback back and answer it now. If an
+        // ack or a drain took it first, complete() returns null and it has already been answered.
+        sent.thenAccept(
+                written -> {
+                    if (!written) {
+                        answer(pendingAcks.complete(req), drainError());
+                    }
+                });
+        // A disconnect() that ran after the check drained the callbacks before this one was
+        // registered, so nothing would ever answer it. If the socket changed, take it back and
+        // answer it with the drain's error.
+        if (inboundClient != client) {
+            answer(pendingAcks.complete(req), drainError());
         }
     }
 
