@@ -88,7 +88,7 @@ class ItemDefinitionsTest {
     @Test
     void predicatesRequireAFullMatchNotASubstring() throws IOException {
         // Every loop uses matcher.matches(). Against the real file that choice
-        // is almost invisible — all 170 patterns are anchored with ^ and the few
+        // is almost invisible — all 171 patterns are anchored with ^ and the few
         // without a trailing $ end in a greedy .* — so an anchored fixture would
         // behave identically under find() and pin nothing. The discriminating
         // input is an UNANCHORED pattern, which the file happens not to contain
@@ -398,6 +398,17 @@ class ItemDefinitionsTest {
                 ItemDefinitions.isNoLoreLegacy("Wolf Fang"),
                 "the existing definitions entry is a different name and stays name-only");
         assertFalse(ItemDefinitions.isNoLoreLegacy("Wolf's Fangs"));
+    }
+
+    // ----- Removed modern items -----
+
+    @Test
+    void vibrantAugmentIsLegacyByNameAlone() {
+        assertTrue(ItemDefinitions.isLegacy("Vibrant Augment"));
+        assertTrue(ItemDefinitions.isLegacy("vibrant augment"), "(?i)");
+        assertFalse(ItemDefinitions.isLegacy("Vibrant Augments"), "full match only");
+        assertFalse(ItemDefinitions.isLegacy("Vibrant"), "a prefix is not the item");
+        assertFalse(ItemDefinitions.isLegacy("Augment"), "the stem alone is not the removed item");
     }
 
     // ----- load() is the reset -----

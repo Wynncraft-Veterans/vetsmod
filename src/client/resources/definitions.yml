@@ -108,6 +108,8 @@ definitions:
   - "(?i)^Harmstick.*$"
   - "(?i)^Hotline.*$"
   - "(?i)^Poinsettia.*$"
+  # Modern-format ingredient that Wynncraft has since removed from the game.
+  - "(?i)^Vibrant Augment$"
   #- "(?i)^Short Cutter.*$" // These are obtainable in the Regular Island cave
   #- "(?i)^Silver Short Spear.*$" // These are obtainable in the Regular Island cave
 ---

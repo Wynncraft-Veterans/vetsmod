@@ -2336,6 +2336,12 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - `ItemDefinitions.isLegacy("Wolf's Fang")` is false
   - `ItemDefinitions.isNoLoreLegacy("Wolf Fang")` is false
   - `ItemDefinitions.isNoLoreLegacy("Wolf's Fangs")` is false
+- **`vibrantAugmentIsLegacyByNameAlone`**: "Vibrant Augment" (a removed modern ingredient) is legacy by name in any case, and near names are not.
+  - `ItemDefinitions.isLegacy("Vibrant Augment")` is true
+  - `ItemDefinitions.isLegacy("vibrant augment")` is true (the entry has `(?i)`)
+  - `ItemDefinitions.isLegacy("Vibrant Augments")` is false
+  - `ItemDefinitions.isLegacy("Vibrant")` is false
+  - `ItemDefinitions.isLegacy("Augment")` is false
 - **`load_isIdempotentAndDiscardsParsedInFixtures`**: After parsing a "ReloadProbe" fixture and calling `load()`, the probe no longer matches, "Wolf Fang" matches, and a second `load()` leaves that unchanged.
   - After parsing a fixture with `^ReloadProbe$` under `definitions`, `ItemDefinitions.isLegacy("ReloadProbe")` is true
   - After `ItemDefinitions.load()`, `ItemDefinitions.isLegacy("ReloadProbe")` is false (`load()` clears before refilling)
