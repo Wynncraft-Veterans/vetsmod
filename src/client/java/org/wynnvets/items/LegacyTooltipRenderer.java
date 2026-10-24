@@ -8,80 +8,56 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
-import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 
 /**
- * Tooltip rewriting orchestration for legacy items.
+ * Rewrites a legacy item's tooltip: the tooltip-side counterpart of
+ * {@link LegacyItemHandler#isLegacyItem}, which decides the slot highlight.
  *
- * <p>This class is the visual counterpart to {@link LegacyItemHandler#isLegacyItem}.
- * While {@code isLegacyItem} answers "should this item glow gold?",
- * this class answers "what should the tooltip look like?"</p>
- *
- * <h2>Detection cascade (order matters!)</h2>
- * <p>{@link #processTooltip} checks items against a priority-ordered chain of
- * detection branches. The FIRST matching branch wins and rewrites the tooltip.
- * The branches, in order, are:</p>
- * <ol>
- *   <li><b>Crafted items</b> — skip entirely (player-made, never legacy).</li>
- *   <li><b>Blank first-line fallback</b> — Wynntils' ItemStatInfoFeature can
- *       blank out line 0; recover the name from the hover component and try
- *       to insert the LEGACY box into the PUA rarity line.</li>
- *   <li><b>Exact legacy match</b> — name is in {@code definitions.yml}'s
- *       {@code definitions} section.</li>
- *   <li><b>Misc legacy</b> — name is in {@code misc_definitions} AND the
- *       item has a "Misc. Item" rarity line.</li>
- *   <li><b>No-lore legacy whitelist</b> — name matches the
- *       {@code no_lore_legacy} section in {@code definitions.yml} AND the
- *       item has no lore lines.  This is an explicit whitelist of confirmed
- *       loreless legacy items (old keys, vanilla materials, holiday items).
- *       Rarity is inferred from the {@code tooltip_style} data component or
- *       the §-colour code prefix of the custom name.</li>
- *   <li><b>Pedestal-wiped shell</b> — a vanilla armour or weapon-proxy item
- *       with no lore and an §a/§b/§d/§e custom-name prefix, i.e. what the
- *       pedestal item-wipe leaves behind, and whose name is not matched by
- *       {@code definitions.yml}'s {@code not_pedestal} section. Labelled
- *       "Legacy Item (Pedestal-Wiped)". Named {@code Branch 4b} in the
- *       method body.</li>
- *   <li><b>Beta/alpha legacy marker</b> — lore contains a gold "Lv. min"
- *       line (the old Wynncraft stat format). Alpha vs beta is decided by
- *       whether a standard rarity line exists.</li>
- *   <li><b>Enchanted (foil)</b> — item has the glint effect and is not in
- *       the unenchanted exclusion list. Displayed as "Enchanted Name", with a
- *       leading ⬡ when the tooltip is rewritten in the old format.</li>
- *   <li><b>Junk rarity</b> — lore contains "Junk Item" and the name is
- *       not in the notjunk exclusion list.</li>
- *   <li><b>Crafting rarity</b> — lore contains "Crafting Item".</li>
- * </ol>
- *
- * <h2>Old format vs new format</h2>
- * <p>Wynncraft has two item display formats:</p>
+ * <h2>The cascade</h2>
+ * <p>{@link #processTooltip} tries these branches in order and the first match rewrites the
+ * tooltip. The numbers are the {@code Branch N} comments in the method body.</p>
  * <ul>
- *   <li><b>Old format:</b> Plain text names with §-colour codes, rarity shown
- *       as a lore line (e.g. "Legendary Item"). Tooltip is rewritten by
- *       replacing line 0 with a gold name and swapping the rarity line for
- *       a "Legacy Item (Legendary)" label.</li>
- *   <li><b>New format:</b> Names wrapped in PUA (Private Use Area) Unicode
- *       for custom fonts/spacing, rarity encoded in the {@code tooltip_style}
- *       data component instead of lore. Tooltip is rewritten by delegating
- *       to {@link NewFormatRenderer}, which recolours the PUA emblem/frame name
- *       line gold and inserts a LEGACY box into the banner/box rarity line.</li>
+ *   <li><b>0</b> — highlighting off, an empty tooltip, detection suppressed
+ *       ({@link LegacyItemHandler#isDetectionSuppressed}) or a player-crafted item: no
+ *       rewrite.</li>
+ *   <li><b>1</b> — line 0 is blank (Wynntils' {@code ItemStatInfoFeature} layout) and a stack
+ *       is hovered: the name comes from that stack, the item is legacy if
+ *       {@link LegacyItemHandler#isLegacyItem} says so, and only the new-format rewrite is
+ *       tried. The cascade ends here either way.</li>
+ *   <li><b>2</b> — the name is in {@code definitions}.</li>
+ *   <li><b>3</b> — the name is in {@code misc_definitions} and the item is a "Misc. Item".</li>
+ *   <li><b>4</b> — the name is in {@code no_lore_legacy} and the item has no lore.</li>
+ *   <li><b>4b</b> — a pedestal-wiped shell ({@link LegacyItemHandler#isPedestalWipedItem}).</li>
+ *   <li><b>5</b> — a gold "Lv. min" lore line: "Alpha Legacy Item" without a rarity line,
+ *       "Beta Legacy Item" with one.</li>
+ *   <li><b>6</b> — foil ({@link #isEnchanted}): the name gains an "Enchanted" prefix.</li>
+ *   <li><b>7</b> — a "Junk Item" whose name is not in {@code notjunk}.</li>
+ *   <li><b>8</b> — a "Crafting Item".</li>
+ *   <li><b>9</b> — Wynncraft's VINTAGE lore ribbon.</li>
  * </ul>
- * <p>Some branches try the new-format path first (PUA box insertion) and fall
- * back to old-format rewriting (gold name + rarity line swap) when the item is
- * old-format or the PUA insertion fails; the blank-first-line fallback tries
- * only the new-format path, the crafted-item skip rewrites nothing, and the
- * rest rewrite in the old format only.  See {@link #processTooltip} for which
- * is which.</p>
  *
- * <p>Coordinates detection state from {@link LegacyItemHandler}, delegates
- * new-format PUA-encoded operations to {@link NewFormatRenderer} and
- * enchantment naming to {@link LegacyEnchantmentRenderer}, and handles
- * old-format rarity line replacement and text helpers locally.</p>
+ * <h2>Old format and new format</h2>
+ * <ul>
+ *   <li><b>Old format:</b> a plain-text name and a rarity lore line ("Legendary Item"). The
+ *       rewrite puts a gold name on line 0 and swaps the rarity line for a gold
+ *       "Legacy Item (Legendary)" label ({@link #rewriteOldFormat}).</li>
+ *   <li><b>New format:</b> resource-pack fonts and PUA glyphs, with the rarity in the
+ *       {@code tooltip_style} component. {@link NewFormatRenderer} recolours the name line gold
+ *       and inserts the LEGACY box before the rarity box ({@link #rewriteNewFormat}).</li>
+ * </ul>
+ * <p>Branches 2, 3, 6 and 9 try the new format first and fall back to the old
+ * ({@link #rewriteLegacy}); branch 1 tries only the new format; the others rewrite in the old
+ * format only. An enchanted item rewritten by branches 1, 2, 3, 5 or 6 also gets its
+ * enchantment named while {@code legacyItemShowEnchantments} is on
+ * ({@link LegacyEnchantmentRenderer}).</p>
  */
 final class LegacyTooltipRenderer {
 
-    /** Matches Minecraft's F3+H debug line showing the item's registry ID (e.g. "minecraft:paper"). */
+    /** Matches the F3+H debug line showing the item's registry id (e.g. "minecraft:paper"). */
     private static final Pattern DEBUG_ID_PATTERN = Pattern.compile("^\\w+:\\w[\\w/.-]*$");
 
     /** Matches Minecraft's F3+H debug line showing component count (e.g. "12 component(s)"). */
@@ -92,7 +68,7 @@ final class LegacyTooltipRenderer {
     private static final Pattern PERCENT_SUFFIX_PATTERN =
             Pattern.compile("\\s*(\\[\\d+\\.?\\d*%\\])$");
 
-    /** Matches Wynncraft crafted items (e.g. "Crafted Helmet [30/30 Durability]") which are never legacy. */
+    /** Matches a player-crafted item's line ("Crafted Helmet [30/30 Durability]"): never legacy. */
     private static final Pattern CRAFTED_PATTERN =
             Pattern.compile(
                     "^Crafted (?:Helmet|Chestplate|Pants|Boots|Ring|Potion|Scroll|Food|Wand|Spear|Relik|Bow|Dagger|by .+) \\[\\d+/\\d+ Durability\\]$");
@@ -100,313 +76,175 @@ final class LegacyTooltipRenderer {
     private LegacyTooltipRenderer() {}
 
     /**
-     * Processes and rewrites tooltip lines for legacy/enchanted/junk/crafting items.
-     * Returns the unmodified list when
-     * {@link org.wynnvets.config.VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING
-     * VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING} is disabled.
-     *
-     * @param tooltipLines the original tooltip lines
-     * @return the (possibly modified) tooltip lines
+     * Returns the tooltip rewritten for a legacy item, or {@code tooltipLines} itself (the same
+     * instance) when no branch matches. Sets {@link LegacyItemHandler#lastProcessedWasLegacy}
+     * to whether it rewrote. The hovered item is read from
+     * {@link LegacyItemHandler#currentItemStack} and {@link LegacyItemHandler#currentItemHasFoil},
+     * which the hover hooks set before the tooltip is drawn.
      */
     static List<Component> processTooltip(List<Component> tooltipLines) {
-        // ── Guard clauses ──────────────────────────────────────────────────
-        // Reset the flag that tells the mixin whether to apply the gold border.
         LegacyItemHandler.lastProcessedWasLegacy = false;
 
-        if (!org.wynnvets.config.VetsConfig.get(
-                org.wynnvets.config.VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING)) return tooltipLines;
+        // Branch 0: no rewrite.
+        if (!VetsConfig.get(VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING)) return tooltipLines;
         if (tooltipLines.isEmpty()) return tooltipLines;
         if (LegacyItemHandler.isDetectionSuppressed()) return tooltipLines;
-
-        // Crafted items (player-made gear with durability) are never legacy.
         if (isCraftedItem(tooltipLines)) return tooltipLines;
 
-        // ── Name extraction ────────────────────────────────────────────────
-        // Get the first tooltip line (the item name), strip formatting codes
-        // and PUA characters to get a clean name for pattern matching.
+        ItemStack stack = LegacyItemHandler.currentItemStack;
         Component firstLine = tooltipLines.get(0);
-        String rawText = firstLine.getString();
-        String plainText = LegacyItemHandler.normalizeName(ChatFormatting.stripFormatting(rawText));
-
-        // Extract Wynntils rarity suffix (e.g. "[61.7%]") preserving its original color
+        String plainText =
+                LegacyItemHandler.normalizeName(
+                        ChatFormatting.stripFormatting(firstLine.getString()));
+        // Wynntils' percentage suffix ("[61.7%]") is kept for the rewritten name but not matched.
         Component raritySuffix = extractColoredSuffix(firstLine, plainText);
+        if (plainText != null) plainText = stripPercentSuffix(plainText);
 
-        // Strip the Wynntils percentage suffix for clean name matching.
-        if (plainText != null) {
-            plainText = stripPercentSuffix(plainText);
-        }
-
-        // Suppress the definitions and misc_definitions name matches (Branches 2
-        // and 3) for new-format items whose names also appear in the override list
-        // (items that exist in both old and new formats; seen in new format, a name
-        // match alone does not mark them legacy, but Branch 4's no_lore_legacy match
-        // and the later branches still apply).
+        // A new_format_override name also belongs to a modern item, so on a new-format stack
+        // its definitions / misc_definitions match (branches 2 and 3) does not count.
         boolean newFormatOverridden =
-                !LegacyItemHandler.currentItemStack.isEmpty()
-                        && LegacyItemHandler.isNewFormatItem(LegacyItemHandler.currentItemStack)
+                !stack.isEmpty()
+                        && LegacyItemHandler.isNewFormatItem(stack)
                         && plainText != null
                         && ItemDefinitions.isNewFormatOverride(plainText);
 
-        // ── Branch 1: Blank first-line fallback (Wynntils ItemStatInfoFeature) ──
-        // Wynntils' ItemStatInfoFeature (when enabled) rebuilds identified-gear
-        // tooltips from scratch.  The rebuilt layout starts with an empty spacer
-        // line, so line 0 is blank and the item name is no longer there.
-        // Detect this and insert the LEGACY box into the rebuilt PUA rarity line.
-        boolean firstLineBlank = plainText == null || plainText.isBlank();
-        if (firstLineBlank && !LegacyItemHandler.currentItemStack.isEmpty()) {
-            String hover = LegacyItemHandler.currentItemStack.getHoverName().getString();
-            String fallbackName =
-                    LegacyItemHandler.normalizeName(ChatFormatting.stripFormatting(hover));
-            if (fallbackName != null) {
-                fallbackName = stripPercentSuffix(fallbackName);
-            }
-            if (fallbackName != null && !fallbackName.isBlank()) {
-                plainText = fallbackName;
-            }
+        // Branch 1: Wynntils' ItemStatInfoFeature rebuilds identified gear with a blank spacer
+        // as line 0, so the name is taken from the hovered stack instead.
+        if ((plainText == null || plainText.isBlank()) && !stack.isEmpty()) {
+            String hoverName =
+                    LegacyItemHandler.normalizeName(
+                            ChatFormatting.stripFormatting(stack.getHoverName().getString()));
+            if (hoverName != null) hoverName = stripPercentSuffix(hoverName);
+            if (hoverName != null && !hoverName.isBlank()) plainText = hoverName;
             List<Component> modified = new ArrayList<>(tooltipLines);
-            boolean isNew = NewFormatRenderer.isNewFormatItem(modified);
-            boolean isLeg = LegacyItemHandler.isLegacyItem(LegacyItemHandler.currentItemStack);
-            if (isNew && isLeg) {
-                boolean enchanted =
-                        LegacyItemHandler.currentItemHasFoil
-                                && plainText != null
-                                && !ItemDefinitions.isUnenchanted(plainText);
-                if (plainText != null) {
-                    if (enchanted) {
-                        NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
-                    } else {
-                        NewFormatRenderer.recolorNewFormatNameLine(modified, plainText);
-                    }
-                }
-                if (NewFormatRenderer.insertLegacyBoxLine(modified)) {
-                    if (enchanted) appendEnchantmentBlock(modified);
-                    LegacyItemHandler.lastProcessedWasLegacy = true;
-                    return modified;
-                }
+            boolean newFormat = NewFormatRenderer.isNewFormatItem(modified);
+            boolean legacy = LegacyItemHandler.isLegacyItem(stack);
+            if (newFormat && legacy && rewriteNewFormat(modified, plainText)) {
+                return markLegacy(modified);
             }
             return tooltipLines;
         }
 
-        // ── Branch 2: Exact legacy name match (definitions section) ─────────
-        // The item's normalized name matches a pattern in definitions.yml's
-        // "definitions" section.  These are known legacy items by name.
+        // Branch 2: definitions.
         if (!newFormatOverridden && plainText != null && ItemDefinitions.isLegacy(plainText)) {
-            List<Component> modified = new ArrayList<>(tooltipLines);
-            if (tryNewFormatRewrite(modified, plainText)) {
-                LegacyItemHandler.lastProcessedWasLegacy = true;
-                return modified;
-            }
-            boolean enchanted =
-                    LegacyItemHandler.currentItemHasFoil
-                            && !ItemDefinitions.isUnenchanted(plainText);
-            modified.set(0, buildGoldName(plainText, enchanted, raritySuffix));
-            replaceRarityLines(modified, null);
-            if (enchanted) appendEnchantmentBlock(modified);
-            LegacyItemHandler.lastProcessedWasLegacy = true;
-            return modified;
+            return rewriteLegacy(tooltipLines, plainText, raritySuffix);
         }
 
-        // ── Branch 3: Misc legacy (misc_definitions + "Misc. Item" rarity) ──
-        // The item's name matches misc_definitions AND the tooltip contains a
-        // "Misc. Item" rarity line.  Both conditions are required because misc
-        // items can also exist as modern server items.
+        // Branch 3: misc_definitions, only on a Misc. Item (modern items share these names).
         if (!newFormatOverridden
                 && plainText != null
                 && ItemDefinitions.isMiscLegacy(plainText)
                 && LegacyItemHandler.hasMiscRarity(tooltipLines)) {
-            List<Component> modified = new ArrayList<>(tooltipLines);
-            if (tryNewFormatRewrite(modified, plainText)) {
-                LegacyItemHandler.lastProcessedWasLegacy = true;
-                return modified;
-            }
-            boolean enchanted =
-                    LegacyItemHandler.currentItemHasFoil
-                            && !ItemDefinitions.isUnenchanted(plainText);
-            modified.set(0, buildGoldName(plainText, enchanted, raritySuffix));
-            replaceRarityLines(modified, null);
-            if (enchanted) appendEnchantmentBlock(modified);
-            LegacyItemHandler.lastProcessedWasLegacy = true;
-            return modified;
+            return rewriteLegacy(tooltipLines, plainText, raritySuffix);
         }
 
-        // ── Branch 4: No-lore legacy whitelist ────────────────────────────────
-        // Items whose names match the "no_lore_legacy" whitelist in
-        // definitions.yml AND have no lore lines.  This is an explicit list of
-        // confirmed loreless legacy items (old keys, vanilla materials, holiday
-        // items, etc.) — unlike the old auto-detection system that treated ANY
-        // custom-named loreless item as legacy, which produced false positives.
-        // Rarity is inferred first from the tooltip_style data component, then
-        // from the §-colour code prefix of the custom name when available.
+        // Branch 4: no_lore_legacy, only with no lore. The rarity comes from tooltip_style,
+        // else from the custom name's colour code.
         if (plainText != null
                 && !plainText.isBlank()
                 && ItemDefinitions.isNoLoreLegacy(plainText)
-                && LegacyItemHandler.currentItemStack
-                        .getOrDefault(DataComponents.LORE, ItemLore.EMPTY)
-                        .lines()
-                        .isEmpty()) {
-            List<Component> modified = new ArrayList<>(tooltipLines);
-            modified.set(0, buildGoldName(plainText, false, raritySuffix));
-            String rarity =
-                    LegacyItemHandler.getTooltipStyleRarity(LegacyItemHandler.currentItemStack);
-            if (rarity == null) {
-                rarity =
-                        LegacyItemHandler.getRarityFromNameColor(
-                                LegacyItemHandler.currentItemStack);
-            }
+                && stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines().isEmpty()) {
+            String rarity = LegacyItemHandler.getTooltipStyleRarity(stack);
+            if (rarity == null) rarity = LegacyItemHandler.getRarityFromNameColor(stack);
             String label = rarity != null ? "Legacy Item (" + rarity + ")" : "Legacy Item";
-            modified.add(
-                    debugLinesStart(modified),
-                    Component.literal(label).withStyle(ChatFormatting.GOLD));
-            LegacyItemHandler.lastProcessedWasLegacy = true;
-            return modified;
+            return rewriteWithLabel(tooltipLines, plainText, raritySuffix, label);
         }
 
-        // ── Branch 4b: Pedestal-wiped vanilla armour/weapon shells ──────────
-        // The item is a vanilla armour piece (helmet/chestplate/leggings/boots)
-        // or weapon-class proxy (shears/iron_shovel/bow/stick/cocoa_beans/paper), has
-        // no lore, and its custom name carries a §a/§b/§d/§e colour-code prefix (the
-        // codes getRarityFromNameColor reads as set, legendary, rare and unique).  The
-        // pedestal item-wipe strips lore while preserving the coloured name and
-        // vanilla item ID, so these bare shells get
-        // a dedicated "Legacy Item (Pedestal-Wiped)" label instead of falling through
-        // to the foil/beta-marker branches below.
-        if (LegacyItemHandler.isPedestalWipedItem(LegacyItemHandler.currentItemStack)) {
-            List<Component> modified = new ArrayList<>(tooltipLines);
-            modified.set(0, buildGoldName(plainText, false, raritySuffix));
-            modified.add(
-                    debugLinesStart(modified),
-                    Component.literal("Legacy Item (Pedestal-Wiped)")
-                            .withStyle(ChatFormatting.GOLD));
-            LegacyItemHandler.lastProcessedWasLegacy = true;
-            return modified;
+        // Branch 4b: a pedestal-wiped shell.
+        if (LegacyItemHandler.isPedestalWipedItem(stack)) {
+            return rewriteWithLabel(
+                    tooltipLines, plainText, raritySuffix, "Legacy Item (Pedestal-Wiped)");
         }
 
-        // ── Branch 5: Beta/alpha legacy marker (gold "Lv. min" in lore) ─────
-        // Old Wynncraft beta/alpha items have a gold-coloured "Lv. min: X" line
-        // in lore instead of the modern format.  If a standard rarity line also
-        // exists, it's beta; if not, it's alpha (predates rarity lines).
+        // Branch 5: a gold "Lv. min" line. Alpha items predate rarity lines; beta items have one.
         if (LegacyItemHandler.hasBetaLegacyMarker(tooltipLines)) {
             boolean alpha = !LegacyItemHandler.hasRarityLine(tooltipLines);
-            List<Component> modified = new ArrayList<>(tooltipLines);
-            boolean enchanted =
-                    plainText != null
-                            && LegacyItemHandler.currentItemHasFoil
-                            && !ItemDefinitions.isUnenchanted(plainText);
-            if (plainText != null) {
-                modified.set(0, buildGoldName(plainText, enchanted, raritySuffix));
-            }
-            replaceRarityLines(modified, alpha ? "Alpha" : "Beta");
-            if (enchanted) appendEnchantmentBlock(modified);
-            LegacyItemHandler.lastProcessedWasLegacy = true;
-            return modified;
-        }
-
-        // ── Branch 6: Enchanted items (foil/glint detection) ────────────────
-        // Items with the enchantment glint that aren't in the unenchanted
-        // exclusion list.  Foil is treated as a legacy signal; the unenchanted and
-        // enchant_excluded_items lists exist because some modern items carry it too.
-        // Displayed as "Enchanted <name>", with a leading ⬡ when the tooltip is
-        // rewritten in the old format.
-        if (LegacyItemHandler.currentItemHasFoil
-                && plainText != null
-                && !ItemDefinitions.isUnenchanted(plainText)) {
-            VetsLogger.debug(
-                    "processTooltip: foil branch entered, plainText='{}' (len={}), hasFoil={}",
+            return rewriteOldFormat(
+                    new ArrayList<>(tooltipLines),
                     plainText,
-                    plainText.length(),
-                    LegacyItemHandler.currentItemHasFoil);
-            StringBuilder hexDump = new StringBuilder();
-            for (int ci = 0; ci < plainText.length(); ci++) {
-                hexDump.append(String.format("%04x ", (int) plainText.charAt(ci)));
-            }
-            VetsLogger.debug("processTooltip: plainText hex: {}", hexDump.toString().trim());
-            List<Component> modified = new ArrayList<>(tooltipLines);
-            boolean newFormat = NewFormatRenderer.isNewFormatItem(modified);
-            VetsLogger.debug(
-                    "processTooltip: foil branch newFormat={}, tooltipSize={}",
-                    newFormat,
-                    modified.size());
-            if (tryNewFormatRewrite(modified, plainText)) {
-                LegacyItemHandler.lastProcessedWasLegacy = true;
-                return modified;
-            }
-            modified.set(0, buildGoldName(plainText, true, raritySuffix));
-            replaceRarityLines(modified, null);
-            appendEnchantmentBlock(modified);
-            LegacyItemHandler.lastProcessedWasLegacy = true;
-            return modified;
+                    raritySuffix,
+                    alpha ? "Alpha" : "Beta",
+                    isEnchanted(plainText));
         }
 
-        // ── Branch 7: Junk rarity ──────────────────────────────────────────
-        // Items whose lore contains a "Junk Item" rarity line, unless the
-        // name is in the notjunk exclusion list (modern junk-tier items).
+        // Branch 6: foil.
+        if (isEnchanted(plainText)) {
+            return rewriteLegacy(tooltipLines, plainText, raritySuffix);
+        }
+
+        // Branch 7: a Junk Item, unless the name is in notjunk.
         if (LegacyItemHandler.hasJunkRarity(tooltipLines)
                 && plainText != null
                 && !ItemDefinitions.isNotJunk(plainText)) {
-            List<Component> modified = new ArrayList<>(tooltipLines);
-            modified.set(0, buildGoldName(plainText, false, raritySuffix));
-            replaceRarityLines(modified, null);
-            LegacyItemHandler.lastProcessedWasLegacy = true;
-            return modified;
+            return rewriteOldFormat(
+                    new ArrayList<>(tooltipLines), plainText, raritySuffix, null, false);
         }
 
-        // ── Branch 8: Crafting rarity ──────────────────────────────────────
-        // Items whose lore contains a "Crafting Item" rarity line.
-        // All crafting-rarity items are legacy (modern crafting uses a
-        // different system).
+        // Branch 8: a Crafting Item.
         if (LegacyItemHandler.hasCraftingRarity(tooltipLines) && plainText != null) {
-            List<Component> modified = new ArrayList<>(tooltipLines);
-            modified.set(0, buildGoldName(plainText, false, raritySuffix));
-            replaceRarityLines(modified, null);
-            LegacyItemHandler.lastProcessedWasLegacy = true;
-            return modified;
+            return rewriteOldFormat(
+                    new ArrayList<>(tooltipLines), plainText, raritySuffix, null, false);
         }
 
-        // ── Branch 9: VINTAGE banner ───────────────────────────────────────
-        // Wynncraft's own VINTAGE ribbon at the top of the lore marks a legacy
-        // item, so one no name list covers is still caught.  Rewritten like
-        // Branch 2; an enchanted item has already been taken by Branch 6.
+        // Branch 9: the VINTAGE ribbon, for an item no name list covers.
         if (LegacyItemHandler.hasVintageBanner(tooltipLines) && plainText != null) {
-            List<Component> modified = new ArrayList<>(tooltipLines);
-            if (tryNewFormatRewrite(modified, plainText)) {
-                LegacyItemHandler.lastProcessedWasLegacy = true;
-                return modified;
-            }
-            modified.set(0, buildGoldName(plainText, false, raritySuffix));
-            replaceRarityLines(modified, null);
-            LegacyItemHandler.lastProcessedWasLegacy = true;
-            return modified;
+            return rewriteLegacy(tooltipLines, plainText, raritySuffix);
         }
 
-        // No detection branch matched — return the tooltip unmodified.
         return tooltipLines;
     }
 
+    /** Sets {@link LegacyItemHandler#lastProcessedWasLegacy} and returns {@code modified}. */
+    private static List<Component> markLegacy(List<Component> modified) {
+        LegacyItemHandler.lastProcessedWasLegacy = true;
+        return modified;
+    }
+
     /**
-     * Attempts new-format (PUA) tooltip rewriting: recolours the emblem/frame
-     * name line gold (with optional "Enchanted" prefix), and inserts the
-     * LEGACY box into the banner/box rarity line.
-     *
-     * <p>Does <em>not</em> mutate line 0 by index. The Wynntils-default tooltip
-     * layout uses a customName placeholder at line 0 with the structured PUA
-     * name line at line 1; some third-party processors (e.g. wynnmod's
-     * {@code DecorateTooltipFeature}) regenerate the tooltip with the PUA name
-     * line promoted to line 0 and no placeholder. Both layouts are handled
-     * because {@code recolorNewFormatNameLine}, {@code applyEnchantedToNewFormatNameLine},
-     * and {@code insertLegacyBoxLine} all locate their target lines by font
-     * marker rather than by position.</p>
-     *
-     * @return {@code true} if the LEGACY box was inserted (the visible signal
-     *         that the new-format rewrite succeeded)
+     * Returns {@code true} if the hovered item counts as enchanted: it has foil, its item id is
+     * not in {@code enchant_excluded_items} (both folded into
+     * {@link LegacyItemHandler#currentItemHasFoil}), and its name is not unenchanted
+     * ({@link ItemDefinitions#isUnenchanted}; a {@code definitions} name never is). Modern items
+     * that also carry foil are what the two lists are for.
      */
-    private static boolean tryNewFormatRewrite(List<Component> modified, String plainText) {
-        if (!NewFormatRenderer.isNewFormatItem(modified)) return false;
-        boolean enchanted =
-                LegacyItemHandler.currentItemHasFoil && !ItemDefinitions.isUnenchanted(plainText);
-        if (enchanted) {
-            NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
-        } else {
-            NewFormatRenderer.recolorNewFormatNameLine(modified, plainText);
+    private static boolean isEnchanted(String plainText) {
+        return LegacyItemHandler.currentItemHasFoil
+                && plainText != null
+                && !ItemDefinitions.isUnenchanted(plainText);
+    }
+
+    /**
+     * The rewrite of branches 2, 3, 6 and 9: the new-format rewrite on a new-format tooltip,
+     * else (or if the LEGACY box could not be placed) the old-format one.
+     */
+    private static List<Component> rewriteLegacy(
+            List<Component> tooltipLines, String plainText, Component raritySuffix) {
+        List<Component> modified = new ArrayList<>(tooltipLines);
+        if (NewFormatRenderer.isNewFormatItem(modified) && rewriteNewFormat(modified, plainText)) {
+            return markLegacy(modified);
+        }
+        return rewriteOldFormat(modified, plainText, raritySuffix, null, isEnchanted(plainText));
+    }
+
+    /**
+     * Rewrites a new-format tooltip in place: the name line goes gold (with an "Enchanted"
+     * prefix for an enchanted item), the LEGACY box goes before the rarity box, and an enchanted
+     * item gets its enchantment named.
+     *
+     * <p>The target lines are found by font, not by index: Wynntils' layout keeps a custom-name
+     * placeholder at line 0 and the name line at line 1, while other tooltip processors (such
+     * as wynnmod's {@code DecorateTooltipFeature}) put the name line at line 0.</p>
+     *
+     * @return {@code true} if the LEGACY box was inserted
+     */
+    private static boolean rewriteNewFormat(List<Component> modified, String plainText) {
+        boolean enchanted = isEnchanted(plainText);
+        if (plainText != null) {
+            if (enchanted) {
+                NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
+            } else {
+                NewFormatRenderer.recolorNewFormatNameLine(modified, plainText);
+            }
         }
         if (!NewFormatRenderer.insertLegacyBoxLine(modified)) return false;
         if (enchanted) appendEnchantmentBlock(modified);
@@ -414,27 +252,51 @@ final class LegacyTooltipRenderer {
     }
 
     /**
-     * Names the specific enchantment: the LEGACY ENCHANTMENTS block on new-format
-     * items' powder page, or, on items that have no pages, the level added to
-     * Minecraft's own enchantment line or else a plain text entry;
-     * {@link LegacyEnchantmentRenderer#showEnchantment} tries them in that order.
-     * Gated on the caller having already
-     * decided the item is glinted-and-legacy, so the enchant branch's
-     * false-positive escape hatches ({@code isEnchantExcludedItem},
-     * {@code isUnenchanted}) govern this display too rather than it keying off the
-     * raw enchantments component.
+     * Rewrites an old-format tooltip in place and returns it marked legacy: a gold name on
+     * line 0, the rarity line swapped for a gold label ({@link #replaceRarityLines}), and, for
+     * an enchanted item, the enchantment named.
+     *
+     * @param prefix the label's era prefix ("Alpha" or "Beta"), or {@code null}
+     */
+    private static List<Component> rewriteOldFormat(
+            List<Component> modified,
+            String plainText,
+            Component raritySuffix,
+            String prefix,
+            boolean enchanted) {
+        if (plainText != null) modified.set(0, buildGoldName(plainText, enchanted, raritySuffix));
+        replaceRarityLines(modified, prefix);
+        if (enchanted) appendEnchantmentBlock(modified);
+        return markLegacy(modified);
+    }
+
+    /**
+     * Copies the tooltip, puts a gold name on line 0 and adds a gold {@code label} line at the
+     * end of its content, and returns the copy marked legacy. For items with no rarity line.
+     */
+    private static List<Component> rewriteWithLabel(
+            List<Component> tooltipLines, String plainText, Component raritySuffix, String label) {
+        List<Component> modified = new ArrayList<>(tooltipLines);
+        modified.set(0, buildGoldName(plainText, false, raritySuffix));
+        modified.add(
+                debugLinesStart(modified), Component.literal(label).withStyle(ChatFormatting.GOLD));
+        return markLegacy(modified);
+    }
+
+    /**
+     * Names the item's enchantment, unless {@code legacyItemShowEnchantments} is off; see
+     * {@link LegacyEnchantmentRenderer#showEnchantment}. Called only once a branch has decided
+     * the item is legacy and {@link #isEnchanted}, so the {@code unenchanted} and
+     * {@code enchant_excluded_items} lists govern this display too.
      */
     private static void appendEnchantmentBlock(List<Component> modified) {
-        if (!org.wynnvets.config.VetsConfig.get(
-                org.wynnvets.config.VetsConfigKeys.LEGACY_ITEM_SHOW_ENCHANTMENTS)) {
-            return;
-        }
+        if (!VetsConfig.get(VetsConfigKeys.LEGACY_ITEM_SHOW_ENCHANTMENTS)) return;
         LegacyEnchantmentRenderer.showEnchantment(modified, LegacyItemHandler.currentItemStack);
     }
 
     /**
-     * Builds the gold-coloured name component for old-format legacy items.
-     * When {@code enchanted} is true, prefixes with "⬡ Enchanted".
+     * Builds the gold name for an old-format rewrite, prefixed with a white ⬡ and a gold
+     * "Enchanted " when {@code enchanted}.
      */
     private static MutableComponent buildGoldName(
             String plainText, boolean enchanted, Component raritySuffix) {
