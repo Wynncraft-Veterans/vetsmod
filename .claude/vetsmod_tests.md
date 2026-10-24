@@ -31,7 +31,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`CheckReportRendererTest`](#checkreportrenderertest), [`OnlineMemberServiceTest`](#onlinememberservicetest), [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
 - [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
 - [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`GuildCheckerOwnerTest`](#guildcheckerownertest), [`RegistrationTierTest`](#registrationtiertest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
-- [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`ScreenshotLatchTest`](#screenshotlatchtest)
+- [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`LegacyLoreTextTest`](#legacyloretexttest), [`ScreenshotLatchTest`](#screenshotlatchtest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest), [`UrlWrapJoinerTest`](#urlwrapjoinertest)
 - [`org.wynnvets.logging`](#orgwynnvetslogging) — [`VetsLoggerTest`](#vetsloggertest)
 - [`org.wynnvets.mwe.anni`](#orgwynnvetsmweanni) — [`AnniPartyReporterTest`](#annipartyreportertest)
@@ -2325,6 +2325,22 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - After `ItemDefinitions.load()`, `ItemDefinitions.isLegacy("ReloadProbe")` is false (`load()` clears before refilling)
   - After that `load()`, `ItemDefinitions.isLegacy("Wolf Fang")` is true (the real file is back)
   - After a second `ItemDefinitions.load()`, `ItemDefinitions.isLegacy("Wolf Fang")` is true
+
+### `LegacyLoreTextTest`
+
+Test: [`LegacyLoreTextTest.java`](../src/test/java/org/wynnvets/items/LegacyLoreTextTest.java) · Subject: [`LegacyLoreText`](../src/client/java/org/wynnvets/items/LegacyLoreText.java)
+
+`LegacyLoreText` holds the string-level rules the legacy-item code applies to tooltip and lore text. They live outside `LegacyItemHandler` and `LegacyEnchantmentRenderer` because those two initialise `ItemStack` in their static initialisers, which the unit-test runtime (no Minecraft bootstrap) cannot do. Every test passes plain strings.
+
+- **`betaLevelLine_acceptsBothCapitalisationsOfMin`**: "Lv. min: 26", Dental Floss's "Lv. Min: 26" and the dotless "Lv min: 5" are beta level lines.
+  - `LegacyLoreText.isBetaLevelLine("Lv. min: 26")` is true
+  - `LegacyLoreText.isBetaLevelLine("Lv. Min: 26")` is true (Dental Floss's spelling)
+  - `LegacyLoreText.isBetaLevelLine("Lv min: 5")` is true (the dot is optional)
+- **`betaLevelLine_stillRequiresTheAnchorAndANumber`**: The modern "Combat Lv. Min: 65", a non-numeric level, trailing text and null are not beta level lines.
+  - `LegacyLoreText.isBetaLevelLine("Combat Lv. Min: 65")` is false (the pattern is anchored at `Lv`)
+  - `LegacyLoreText.isBetaLevelLine("Lv. Min: high")` is false
+  - `LegacyLoreText.isBetaLevelLine("Lv. Min: 26 extra")` is false
+  - `LegacyLoreText.isBetaLevelLine(null)` is false
 
 ### `ScreenshotLatchTest`
 

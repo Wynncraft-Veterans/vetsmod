@@ -17,6 +17,7 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 - [NewFormatRenderer](../src/client/java/org/wynnvets/items/NewFormatRenderer.java) — PUA / new-format component-tree manipulation
 - [LegacyHighlightPainter](../src/client/java/org/wynnvets/items/LegacyHighlightPainter.java) — `paintIfLegacy()`, the guard-and-paint both highlight sites call (§5)
 - [LegacyEnchantmentRenderer](../src/client/java/org/wynnvets/items/LegacyEnchantmentRenderer.java) — names the specific enchantment a legacy item carries (§4)
+- [LegacyLoreText](../src/client/java/org/wynnvets/items/LegacyLoreText.java) — string-level tooltip/lore rules split out of the two classes above so the unit tests can reach them (neither can be class-loaded under test: both initialise `ItemStack`)
 - [LegacyScreenshotHandler](../src/client/java/org/wynnvets/items/LegacyScreenshotHandler.java) — re-renders the modified tooltip to the clipboard (§4)
 
 **Data:**
@@ -60,7 +61,7 @@ the `// 1.` … `// 8.` comments in the method body:
 | 2 | `isMiscLegacy(name)` + `hasMiscRarity(lore)` | `misc_definitions` | not newFormatOverridden, lore contains "Misc. Item" |
 | 3 | `isNoLoreLegacy(name)` | `no_lore_legacy` | `lore.isEmpty()` |
 | 4 | `isPedestalWipedItem(stack)` | item ID + custom name | vanilla armour/weapon shell, no lore, `§a`/`§b`/`§d`/`§e` name prefix, name not in `not_pedestal` |
-| 5 | `hasBetaLegacyMarker(lore)` | lore | gold "Lv. min: N" line |
+| 5 | `hasBetaLegacyMarker(lore)` | lore | gold "Lv. min: N" line, either capitalisation of `min` |
 | 6 | `stack.hasFoil()` | NBT | not in `enchant_excluded_items`, name not in `unenchanted` |
 | 7 | `hasJunkRarity(lore)` | lore | name not in `notjunk` |
 | 8 | `hasCraftingRarity(lore)` | lore | — |
@@ -188,7 +189,7 @@ Registered in `VetsConfigSchema.USER_CONFIG_KEYS`. Validation goes through `Lega
 - **`enchant_excluded_items`**: `minecraft:experience_bottle` / `minecraft:enchanted_book` always have vanilla foil — excluded by Minecraft registry ID, not name.
 - **`notjunk`**: modern junk-tier farming materials (e.g. Leather, Tanned Sunfish, Roasted Flesh, Vines, Rubble, Ghostly*, Dusty Rum Bottle, Golden Teeth) — excluded from branch 7.
 - **`unenchanted`**: items that legitimately have foil in modern Wynncraft — e.g. `???`, Ability Shard, `Breathing Helmet *`, `*Liquid Emerald*`, `*Mythic Everlasting Pufferfish*`, `Shiny *`, `*Transcriber` (a `*` marks where the pattern's wildcard sits) — bypass branch 6.
-- **Alpha vs Beta legacy**: both triggered by gold "Lv. min: N" lore line. Alpha = no standard rarity line present; Beta = has one. Label differs accordingly.
+- **Alpha vs Beta legacy**: both triggered by gold "Lv. min: N" lore line (the `min` is matched case-insensitively: Dental Floss reads "Lv. Min: 26"; the modern "Combat Lv. Min: N" never matches, the pattern being anchored at `Lv`). Alpha = no standard rarity line present; Beta = has one. Label differs accordingly.
 - **Unidentified gear**: name contains BMP PUA lock icon; `stripSupplementaryPua()` normalises it before name matching. No separate identified-vs-unidentified branching.
 - **"Crafted" items (player-made with durability)**: never legacy — early bail in branch 0 of tooltip renderer.
 - **Wynntils `ItemStatInfoFeature` rebuild**: can blank out line 0. Branch 1 of tooltip renderer recovers the name from `currentItemStack.getHoverName()` and attempts new-format LEGACY-box insertion.

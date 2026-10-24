@@ -261,8 +261,6 @@ public final class LegacyItemHandler {
             Pattern.compile(
                     "^(Mythic|Fabled|Set|Legendary|Rare|Unique|Normal|Junk|Misc\\.|Crafting) [Ii]tem(?: (\\[\\d+\\]))?$");
 
-    private static final Pattern LV_MIN_PATTERN = Pattern.compile("^Lv\\.? min: \\d+$");
-
     /**
      * Processes and rewrites tooltip lines for legacy/enchanted/junk/crafting items.
      * Returns the unmodified list when
@@ -393,7 +391,7 @@ public final class LegacyItemHandler {
         for (Component line : lines) {
             String raw = line.getString();
             String plain = ChatFormatting.stripFormatting(raw);
-            if (plain == null || !LV_MIN_PATTERN.matcher(plain).matches()) continue;
+            if (!LegacyLoreText.isBetaLevelLine(plain)) continue;
             if (isExclusivelyGold(line)) return true;
         }
         return false;
