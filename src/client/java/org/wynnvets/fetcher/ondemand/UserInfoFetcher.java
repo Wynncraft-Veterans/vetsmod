@@ -40,16 +40,18 @@ public final class UserInfoFetcher {
 
     private UserInfoFetcher() {}
 
-    private static MembershipSnapshot snapshotUnavailable(String detail) {
+    private static MembershipSnapshot snapshotUnavailable() {
         // GSON-deserialise from a synthetic JSON object so optional fields
         // default cleanly. The renderer keys off `discord == null` to decide
-        // whether the snapshot succeeded.
+        // whether the snapshot succeeded. No blocklist_reason: the renderer
+        // would print it after "(snapshot unavailable", and the real failure
+        // detail is dropped before it gets here (see
+        // vets-snapshot-provider-makes-player-not-found-unreachable).
         JsonObject stub = new JsonObject();
         stub.addProperty("target_uuid", "");
         stub.addProperty("target_username", "");
         stub.addProperty("stage_2_active", false);
         stub.addProperty("blocklisted", false);
-        stub.addProperty("blocklist_reason", detail == null ? "snapshot unavailable" : detail);
         stub.addProperty("in_returners_guild", false);
         // discord intentionally omitted -> null
         return Json.GSON.fromJson(stub, MembershipSnapshot.class);
@@ -103,8 +105,7 @@ public final class UserInfoFetcher {
         // one is requested afresh through VetsSnapshotProvider.requestSnapshot, a
         // new check_membership frame. A null result becomes the
         // snapshotUnavailable sentinel, which the renderer shows as "(snapshot
-        // unavailable)"; today the Blocklist line doubles that phrase (see
-        // wv-check-blocklist-line-doubles-snapshot-unavailable).
+        // unavailable)".
         CompletableFuture<User> wynnFuture =
                 lookup.wynnProfile() != null
                         ? CompletableFuture.completedFuture(lookup.wynnProfile())
@@ -114,12 +115,7 @@ public final class UserInfoFetcher {
                 lookup.vetsSnapshot() != null
                         ? CompletableFuture.completedFuture(lookup.vetsSnapshot())
                         : VetsSnapshotProvider.requestSnapshot(canonical)
-                                .thenApply(
-                                        s ->
-                                                s != null
-                                                        ? s
-                                                        : snapshotUnavailable(
-                                                                "snapshot unavailable"));
+                                .thenApply(s -> s != null ? s : snapshotUnavailable());
 
         wynnFuture.thenCompose(
                 user -> {
