@@ -43,10 +43,10 @@ final class LegacyScreenshotHandler {
 
     /**
      * Draws the tooltip 10 units in, where Wynntils' own capture draws it. Wynntils 4.2.13 and
-     * later (#4332) forces that position onto every tooltip drawn until its capture's readback
+     * later forces that position onto every tooltip drawn until its capture's readback
      * completes, a frame or more after the press, and this capture always runs in that window, so
-     * any other position here would be overridden. (At 4, 4 the override pushed the text 6 units
-     * past the margin, cutting off the right edge and the last line.)
+     * any other position here would be overridden anyway; the capture size computed in
+     * {@code takeScreenshot} assumes this position.
      */
     private static final ClientTooltipPositioner SCREENSHOT_POSITIONER =
             (screenWidth, screenHeight, mouseX, mouseY, tooltipWidth, tooltipHeight) ->
@@ -56,16 +56,14 @@ final class LegacyScreenshotHandler {
     private static final Executor DELAYED_EXECUTOR =
             CompletableFuture.delayedExecutor(250, TimeUnit.MILLISECONDS);
 
-    private LegacyScreenshotHandler() {}
-
     /**
-     * Armed by {@link #notifyKeyPressed()}, which the {@link
-     * org.wynnvets.listeners.LegacyTooltipEventListener LegacyTooltipEventListener} calls when
-     * Wynntils' {@code InventoryKeyPressEvent} fires with the screenshot keybind over a legacy
-     * item.  Consumed by the next call to {@link #isScreenshotRequested()}, or dropped if no
-     * tooltip pass consumes it within {@link ScreenshotLatch#LIFETIME_MS}.
+     * Armed by {@link #notifyKeyPressed()} when Wynntils' screenshot keybind is pressed over a
+     * legacy item. Consumed by the next call to {@link #isScreenshotRequested()}, or dropped if
+     * no tooltip pass consumes it within {@link ScreenshotLatch#LIFETIME_MS}.
      */
     private static final ScreenshotLatch LATCH = new ScreenshotLatch();
+
+    private LegacyScreenshotHandler() {}
 
     /** Arms the latch for one screenshot, valid for about a second. */
     static void notifyKeyPressed() {
