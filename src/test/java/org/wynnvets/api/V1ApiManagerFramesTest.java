@@ -415,6 +415,18 @@ class V1ApiManagerFramesTest {
         assertTrue(V1ApiManager.pendingAcks.isEmpty());
     }
 
+    @Test
+    void aCallbackSentInEchoModeKeepsItsDeadlineAfterTheFlagsDrop() {
+        // A server rollback: the stale hello flag routed the frame, then dropped.
+        connect();
+        V1ApiManager.helloEchoesReq = true;
+        List<String> acks = new ArrayList<>();
+        String req = sendRecorded(acks);
+        V1ApiManager.helloEchoesReq = false;
+        V1ApiManager.expire(req);
+        assertEquals(List.of(TIMEOUT_ACK), acks);
+    }
+
     // ----- a relay with an ack callback -----
 
     private static final String DRAIN_ACK =

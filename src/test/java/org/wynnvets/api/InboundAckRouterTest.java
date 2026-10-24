@@ -2,6 +2,7 @@ package org.wynnvets.api;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonObject;
@@ -218,15 +219,6 @@ class InboundAckRouterTest {
     }
 
     @Test
-    void aReqlessStaffShapedAckIsDroppedOnceTheServerEchoesIds() {
-        V1ApiManager.helloEchoesReq = true;
-        pending("head");
-        InboundAckRouter.route(ack("{\"status\":\"ok\",\"total_points\":3}"));
-        assertTrue(calls.isEmpty());
-        assertEquals(1, V1ApiManager.pendingAcks.size());
-    }
-
-    @Test
     void aRelaysAckReachesItsOwnCallback() {
         V1ApiManager.helloEchoesReq = true;
         pending("staff");
@@ -254,6 +246,18 @@ class InboundAckRouterTest {
         InboundAckRouter.route(ack("{\"status\":\"error\",\"detail\":\"no such player\"}"));
         assertTrue(calls.isEmpty(), "with only a relay pending, the orphan rule does not fire");
         assertEquals(1, V1ApiManager.pendingAcks.size());
+    }
+
+    @Test
+    void anIdlessStaffShapedAckProvesTheServerDoesNotEchoIds() {
+        // A rollback to an older server before its hello arrived: the hello flag is stale.
+        V1ApiManager.helloEchoesReq = true;
+        V1ApiManager.ackEchoedReq = true;
+        pending("head");
+        String preflight = "{\"status\":\"would_trigger\",\"trigger\":\"warning\"}";
+        InboundAckRouter.route(ack(preflight));
+        assertEquals(List.of("head " + preflight), calls, "paired eldest first, not dropped");
+        assertFalse(V1ApiManager.serverEchoesReq());
     }
 
     @Test

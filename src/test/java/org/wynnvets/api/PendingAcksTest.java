@@ -132,6 +132,17 @@ class PendingAcksTest {
     }
 
     @Test
+    void anEntrySentInEchoModeExpiresWhateverTheFlagsSayLater() {
+        String echoed = pending.register(noop(), 1, PendingAcks.Kind.READ, true);
+        String legacy = reg();
+        assertEquals(echoed, pending.expire(echoed, false).req());
+        assertNull(pending.expire(legacy, false), "without ids a late ack would mispair");
+        assertEquals(1, pending.size());
+        assertEquals(legacy, pending.expire(legacy, true).req(), "once the server echoes it may");
+        assertNull(pending.expire(legacy, true), "and only once");
+    }
+
+    @Test
     void theLegacyPairingSkipsRelays() {
         String relay = pending.register(noop(), 1, PendingAcks.Kind.RELAY);
         assertFalse(pending.hasStaff());

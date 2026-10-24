@@ -117,7 +117,8 @@ public final class V1ApiManager {
 
     /** Whether this connection's outbound {@code server_info} advertised {@code req_echo}: the
      *  server echoes a frame's {@code req} in its reply. Reset by {@link #connect()} and
-     *  {@link #disconnect()}. */
+     *  {@link #disconnect()}, and by {@link InboundAckRouter} when an id-less staff-action ack
+     *  proves the server no longer echoes (a rollback before the next hello). */
     static volatile boolean helloEchoesReq = false;
 
     /** Whether an inbound ack on the current inbound socket has carried a {@code req}, which
@@ -281,7 +282,8 @@ public final class V1ApiManager {
 
     /** Whether the server echoes request ids: its outbound hello said so, or an inbound ack on
      *  the current socket carried one. While false, {@link InboundAckRouter} pairs staff-action
-     *  acks with callbacks eldest first, and no deadline is enforced ({@link #expire}). */
+     *  acks with callbacks eldest first, and only callbacks registered while it was true have
+     *  their deadline enforced ({@link #expire}). */
     static boolean serverEchoesReq() {
         return helloEchoesReq || ackEchoedReq;
     }
@@ -312,16 +314,14 @@ public final class V1ApiManager {
     /**
      * The deadline of the callback registered under {@code req}, run {@link PendingAcks.Kind}'s
      * timeout after its frame was sent: if it is still waiting, it is answered with
-     * {@link #timeoutAck()}, and an ack that arrives later finds nothing and is dropped. Not
-     * enforced against a server that does not echo ids, where the late ack would be paired with
-     * the next caller's callback instead.
+     * {@link #timeoutAck()}, and an ack that arrives later finds nothing and is dropped. It
+     * applies to a callback registered while {@link #serverEchoesReq()} held, or to any callback
+     * if it holds when the deadline runs (checked once). A callback sent to a server that does
+     * not echo ids is left to its ack, which would otherwise be paired with the next caller's.
      */
     // Package-private for unit tests. See V1ApiManagerFramesTest.
     static void expire(String req) {
-        if (!serverEchoesReq()) {
-            return;
-        }
-        answer(pendingAcks.complete(req), timeoutAck());
+        answer(pendingAcks.expire(req, serverEchoesReq()), timeoutAck());
     }
 
     /** Answers {@code entry}'s callback with {@code ack}. Call it only with an entry just removed
@@ -901,7 +901,8 @@ public final class V1ApiManager {
         synchronized (SEND_LOCK) {
             req =
                     callback != null
-                            ? pendingAcks.register(callback, client.generation(), kind)
+                            ? pendingAcks.register(
+                                    callback, client.generation(), kind, serverEchoesReq())
                             : PendingAcks.newReq();
             sent = client.sendAsync(V1Frames.withReq(frame, req));
         }

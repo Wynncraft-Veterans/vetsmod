@@ -16,7 +16,8 @@ import org.wynnvets.util.Json;
  * relay's auth-failure error also runs the auth-failure handling. Against a server that does not
  * echo ids, a staff-action-shaped ack, and an error ack while a staff-action callback is pending
  * and no auth ack is awaited, go to the eldest pending staff-action callback instead (a
- * staff-action-shaped ack with nothing pending, or any once the server echoes, is dropped). Auth
+ * staff-action-shaped ack with nothing pending is dropped). An id-less staff-action-shaped ack
+ * while the client believes the server echoes proves it does not, and switches it back. Auth
  * acks go to {@link SessionAuthState} and {@link GuildStateManager}, and any other ack whose
  * status is not ok to the log. Any other ok ack is dropped.
  */
@@ -96,6 +97,16 @@ final class InboundAckRouter {
                                 || json.has("total_points")
                                 || json.has("target_uuid")
                                 || "would_trigger".equals(status));
+        if (staffShaped && !legacy) {
+            // An echoing server puts req on every staff-action reply, and vetsmod sends one on
+            // every staff-action frame, so an id-less staff-action ack proves this server does
+            // not echo: the flags are stale (a rollback to an older server before its hello
+            // arrived). Believe the ack and pair it eldest first, as against any older server.
+            VetsLogger.info("Staff-action ack without a request id: the server does not echo ids");
+            V1ApiManager.helloEchoesReq = false;
+            V1ApiManager.ackEchoedReq = false;
+            legacy = true;
+        }
         boolean staffOrphanError =
                 legacy
                         && "error".equals(status)

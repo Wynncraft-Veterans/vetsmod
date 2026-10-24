@@ -103,12 +103,12 @@ Test: [`InboundAckRouterTest.java`](../src/test/java/org/wynnvets/api/InboundAck
   - `calls` is empty and `pendingAcks.size()` equals 1.
 - **`aReqlessErrorPopsNothingOnceTheServerEchoesIds`**: With the hello flag set, an error with no id (`Inbound processing is disabled`, as a refused guild forward gets) leaves the pending callback alone.
   - Routing does not throw; `calls` is empty and `pendingAcks.size()` equals 1.
-- **`aReqlessStaffShapedAckIsDroppedOnceTheServerEchoesIds`**: With the hello flag set, `{"status":"ok","total_points":3}` with no id answers nobody.
-  - `calls` is empty and `pendingAcks.size()` equals 1.
 - **`aRelaysAckReachesItsOwnCallback`**: With a staff callback and a relay pending, an error carrying the relay's id goes to the relay only.
   - `calls` equals `["relay " + {"status":"error","detail":"Inbound processing is disabled","req":"<relay>"}]` and `pendingAcks.size()` is 1.
 - **`theLegacyPairingNeverAnswersARelay`** (legacy mode): A staff-shaped ack skips an older pending relay and goes to the staff callback; an error with only the relay pending answers nobody.
   - After `{"status":"ok","total_points":3}`, `calls` equals `["staff " + that ack]`; after `{"status":"error","detail":"no such player"}`, `calls` is empty and `pendingAcks.size()` is 1.
+- **`anIdlessStaffShapedAckProvesTheServerDoesNotEchoIds`**: With both echo flags set (stale, as after a rollback before the next hello), an id-less `would_trigger` ack goes to the pending callback eldest first and clears the flags.
+  - `calls` equals `["head " + {"status":"would_trigger","trigger":"warning"}]`; `serverEchoesReq()` is false.
 - **`anEchoedAckIsAnsweredOnce`**: Routing the same echoed ack twice answers its callback once.
   - `calls` equals the single entry `["head " + {"status":"ok","total_points":3,"req":"<head>"}]`.
 
@@ -132,6 +132,8 @@ Test: [`PendingAcksTest.java`](../src/test/java/org/wynnvets/api/PendingAcksTest
   - The failed ids equal `[older, lost]`; `size()` is 1 and `complete(newer)` returns it.
 - **`anEntryFailedByALostSocketCannotBeCompleted`**: After `failGeneration(1)` took it, `complete` returns `null` and a second `failGeneration(1)` returns an empty list.
 - **`readsWaitFifteenSecondsAndCommitsFortyFive`**: `kindFor` maps `caution_check` and `check_membership` to `READ`, and `caution_add`, `warn_add` and `eject_add` to `COMMIT`; `READ.timeoutMs` is 15000, `COMMIT.timeoutMs` 45000 and `RELAY.timeoutMs` 15000.
+- **`anEntrySentInEchoModeExpiresWhateverTheFlagsSayLater`**: `expire(req, echoNow)` takes an entry registered with `echoed` true even when `echoNow` is false, takes a legacy entry only when `echoNow` is true, and takes each once.
+  - The echoed entry is returned with `echoNow` false; the legacy one is not (`null`, size still 1), then is with `echoNow` true, and a second `expire` returns `null`.
 - **`theLegacyPairingSkipsRelays`**: With only a relay pending, `hasStaff()` is false and `pollEldestStaff()` returns `null`; once a read is registered, `hasStaff()` is true, `pollEldestStaff()` returns the read, and the relay can still be completed by its id.
 
 ### `SerializedSenderTest`
@@ -226,6 +228,8 @@ Tests:
 - **`aDeadlineIsEnforcedOnlyOnceTheServerEchoesIds`**: `expire(req)` leaves the callback waiting while neither echo flag is set, then, with `helloEchoesReq` set, answers it once with the timeout ack.
   - After the first `expire`, `acks` is empty and `pendingAcks.size()` is 1.
   - After two more with the flag set, `acks` equals `["{\"status\":\"error\",\"detail\":\"No reply from the vets server.\",\"outcome_unknown\":\"no reply\"}"]` and `pendingAcks` is empty.
+- **`aCallbackSentInEchoModeKeepsItsDeadlineAfterTheFlagsDrop`**: Sent with `helloEchoesReq` set, the callback is still answered by `expire(req)` after the flag drops (a server rollback).
+  - `acks` equals the single timeout ack.
 - **`aRelayCarriesAReqAndRegistersItsCallbackOnlyOnceTheServerEchoesIds`**: With `helloEchoesReq` set, `sendInbound("waitlist", "Waitlist", "Holidaze", "hi", cb)` writes the chat frame with a trailing `req` and registers a relay entry under it.
   - The `req` matches `[A-Za-z0-9]{8}`; `pendingAcks.complete(req)` returns an entry of kind `RELAY`; with the req replaced by `R`, `masked(t0, t1)` equals `{"uuid":"U","type":"waitlist","timestamp":0,"rank":"Waitlist","username":"Holidaze","message":"hi","req":"R"}`.
 - **`againstAServerThatDoesNotEchoARelayCarriesNoReqAndHearsOnlyAFailedWrite`**: Without echo the frame has no `req`, nothing is registered and the callback is not called; a failed write answers it once with the drain error.

@@ -44,8 +44,14 @@ final class PendingAcks {
         }
     }
 
-    /** One callback awaiting its ack. */
-    record Entry(String req, Consumer<JsonObject> callback, long generation, Kind kind) {}
+    /** One callback awaiting its ack. {@code echoed}: registered while the server echoed request
+     *  ids, so its deadline holds even if the client later stops believing it does. */
+    record Entry(
+            String req,
+            Consumer<JsonObject> callback,
+            long generation,
+            Kind kind,
+            boolean echoed) {}
 
     /** The characters of a request id: eight of them give 62^8 ids, so a clash is never seen. */
     private static final String REQ_CHARS =
@@ -74,14 +80,36 @@ final class PendingAcks {
     }
 
     /** Registers {@code callback} under a fresh request id, which it returns, for a frame sent on
-     *  the inbound socket of {@code generation}. */
+     *  the inbound socket of {@code generation} while the server did not echo ids. */
     synchronized String register(Consumer<JsonObject> callback, long generation, Kind kind) {
+        return register(callback, generation, kind, false);
+    }
+
+    /** Registers {@code callback} under a fresh request id, which it returns, for a frame sent on
+     *  the inbound socket of {@code generation}; {@code echoed} says whether the server echoed
+     *  ids when it was sent. */
+    synchronized String register(
+            Consumer<JsonObject> callback, long generation, Kind kind, boolean echoed) {
         String req;
         do {
             req = newReq();
         } while (byReq.containsKey(req));
-        byReq.put(req, new Entry(req, callback, generation, kind));
+        byReq.put(req, new Entry(req, callback, generation, kind, echoed));
         return req;
+    }
+
+    /**
+     * Removes and returns the entry under {@code req} when its deadline may be enforced: it was
+     * registered while the server echoed ids, or {@code echoNow} says it echoes them now. Else, or
+     * when another path took it, {@code null}, and the entry stays. Without ids a late ack would
+     * be paired with the next caller instead, so an entry sent then is left to its ack.
+     */
+    synchronized Entry expire(String req, boolean echoNow) {
+        Entry entry = byReq.get(req);
+        if (entry == null || !(entry.echoed() || echoNow)) {
+            return null;
+        }
+        return byReq.remove(req);
     }
 
     /** Removes and returns the entry registered under {@code req}, or {@code null} if it was
