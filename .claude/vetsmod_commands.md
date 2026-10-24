@@ -120,7 +120,7 @@ site that wrote it:
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
-| `/wv check <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.check` | `UserInfoFetcher.checkUser`: name → UUID through the `PlayerLookup` cascade, then the Wynncraft profile, dazebot's membership snapshot and, once there is a profile, guild-roster cross-checks. Then `CautionCommands.runCheckCautions` for the caution history | HTTP: the name lookup cascade, the Wynncraft profile and guild rosters. WebSocket: `check_membership` and `caution_check` frames | the `wv-check-*` files; `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect` |
+| `/wv check <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.check` | `UserInfoFetcher.checkUser`: name → UUID through the `PlayerLookup` cascade, then the Wynncraft profile, dazebot's membership snapshot and, once there is a profile, guild-roster cross-checks. Then `CautionCommands.runCheckCautions` for the caution history | HTTP: the name lookup cascade, the Wynncraft profile and guild rosters. WebSocket: `check_membership` and `caution_check` frames | `staff-action-queue-not-drained-on-socket-reconnect` |
 | `/wv invite-force <playerName>` | `isConfirmedStaff()` | the same, so its refusal fires only if the state changes between parse and run | `CommandRegistry.inviteForce` → `InviteGate.forceDispatch` | Sends `/gu invite <playerName>` with every `InviteGate` check skipped, and prints "Dispatching /gu invite <name> (vetsmod gate bypassed)." in gold, with the command itself in yellow. `InviteGate`'s `[Invite anyway]` button runs it | in-game `/gu invite`, sent through `GuildChatDispatcher.sendCommandBypassed` | none |
 
 `/wv check <playerName>` and `/wv invite-force <playerName>` read the name with
@@ -391,7 +391,7 @@ server as typed. "Passes through" below means the same.
 | `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | `dispatcher-notices-misattribute-cause` |
 | `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | `dispatcher-notices-misattribute-cause` |
 | `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | §1's `/wv check` row |
-| `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `vets-snapshot-provider-skips-confirmed-staff-check`, `vets-snapshot-provider-makes-player-not-found-unreachable`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
+| `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `vets-snapshot-provider-skips-confirmed-staff-check`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
 | `/guild invite <name>` | as `/gu invite` | `InviteGate.checkInvite` | As `/gu invite`; an allowed invite is sent as `gu invite` | as `/gu invite` |
 | `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack`, `outbound-socket-never-authenticated` |
 | `/caution <name> [message]` | as `/caution-go` | `CautionCommands.runCaution` | Asks for a preflight (`caution_add`); commits at once if the caution crosses no threshold | as `/caution-go` |
@@ -441,8 +441,9 @@ For a player who is not confirmed staff, the four commands pass through to Wynnc
 and handed to [`InviteGate.checkInvite`](../src/client/java/org/wynnvets/commands/InviteGate.java), which
 checks the target and then sends `/gu invite` itself, through `sendCommandBypassed`. Only the first word
 after `invite` is kept. It first resolves the name. If no lookup source can be reached, it prints a yellow
-notice and sends the invite; a name no source knows should be refused, and today goes the same way (bug
-`vets-snapshot-provider-makes-player-not-found-unreachable`). Otherwise it gathers the target's Wynncraft
+notice and sends the invite; a name that no source knows is refused, in red, with "Unable to find a player
+named '<name>', check spelling?" (the Vets snapshot step abstains rather than miss transiently, so the
+other sources decide that). Otherwise it gathers the target's Wynncraft
 profile, dazebot's membership snapshot and, for a player who is not confirmed staff, the Returners guild's
 size and level, and decides, in this order:
 

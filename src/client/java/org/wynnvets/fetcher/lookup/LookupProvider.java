@@ -10,7 +10,9 @@ import java.util.concurrent.CompletableFuture;
  * orchestrator can carry on. A provider that legitimately determines the
  * name doesn't exist returns {@link ProviderOutcome#notFound()}; one that
  * was unable to determine anything (429, 5xx, IO, timeout) returns
- * {@link ProviderOutcome#transientMiss()}.</p>
+ * {@link ProviderOutcome#transientMiss()}; one that cannot be asked at all, or
+ * cannot speak to whether the name exists, returns
+ * {@link ProviderOutcome#abstain()}.</p>
  */
 @FunctionalInterface
 public interface LookupProvider {

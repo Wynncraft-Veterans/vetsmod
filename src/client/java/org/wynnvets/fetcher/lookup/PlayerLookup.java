@@ -33,13 +33,14 @@ import org.wynnvets.util.HttpClients;
  * </ol>
  *
  * <p>If every provider misses, the result distinguishes
- * {@link FailureReason#PLAYER_NOT_FOUND} (every miss was definite) from
- * {@link FailureReason#ALL_PROVIDERS_TRANSIENT} (at least one was
- * transient, {@link org.wynnvets.commands.InviteGate InviteGate}'s
- * fail-open case). Today every exhausted cascade ends in
- * {@code ALL_PROVIDERS_TRANSIENT}, because {@link VetsSnapshotProvider}
- * never reports a definite miss (see
- * {@code vets-snapshot-provider-makes-player-not-found-unreachable}).</p>
+ * {@link FailureReason#PLAYER_NOT_FOUND} (every miss was definite, or an
+ * {@linkplain ProviderOutcome#abstain() abstention}, and at least one was
+ * definite) from {@link FailureReason#ALL_PROVIDERS_TRANSIENT} (at least one
+ * was transient, or every provider abstained, {@link
+ * org.wynnvets.commands.InviteGate InviteGate}'s fail-open case).
+ * {@link VetsSnapshotProvider} abstains rather than miss transiently when it
+ * cannot speak to existence, since the independent providers around it
+ * decide that.</p>
  *
  * <p>Single-flight: concurrent {@link #resolve(String)} calls for the
  * same lowercased name share one underlying cascade.</p>
@@ -86,7 +87,12 @@ public final class PlayerLookup {
     }
 
     private static CompletableFuture<LookupResult> runCascade(String name) {
-        return runCascadeStep(name, PROVIDERS.iterator(), false)
+        return runCascade(PROVIDERS, name);
+    }
+
+    // Package-private for unit tests. See PlayerLookupTest.
+    static CompletableFuture<LookupResult> runCascade(List<LookupProvider> providers, String name) {
+        return runCascadeStep(name, providers.iterator(), false, false)
                 .orTimeout(OVERALL_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
                 .exceptionally(
                         e -> {
@@ -97,12 +103,14 @@ public final class PlayerLookup {
     }
 
     private static CompletableFuture<LookupResult> runCascadeStep(
-            String name, Iterator<LookupProvider> it, boolean anyTransient) {
+            String name, Iterator<LookupProvider> it, boolean anyTransient, boolean anyDefinite) {
         if (!it.hasNext()) {
+            // PLAYER_NOT_FOUND needs evidence: at least one definite miss and no transient one.
+            // A cascade where every provider abstained learned nothing.
             FailureReason reason =
-                    anyTransient
-                            ? FailureReason.ALL_PROVIDERS_TRANSIENT
-                            : FailureReason.PLAYER_NOT_FOUND;
+                    !anyTransient && anyDefinite
+                            ? FailureReason.PLAYER_NOT_FOUND
+                            : FailureReason.ALL_PROVIDERS_TRANSIENT;
             return CompletableFuture.completedFuture(LookupResult.exhausted(reason));
         }
         LookupProvider provider = it.next();
@@ -123,8 +131,11 @@ public final class PlayerLookup {
                                         "Lookup '{}' resolved via {}", name, provider.id());
                                 return CompletableFuture.completedFuture(outcome.hit());
                             }
-                            boolean nextTransient = anyTransient || !outcome.isDefiniteMiss();
-                            return runCascadeStep(name, it, nextTransient);
+                            boolean nextTransient =
+                                    anyTransient
+                                            || (!outcome.isDefiniteMiss() && !outcome.isAbstain());
+                            boolean nextDefinite = anyDefinite || outcome.isDefiniteMiss();
+                            return runCascadeStep(name, it, nextTransient, nextDefinite);
                         });
     }
 }

@@ -44,8 +44,7 @@ public final class UserInfoFetcher {
         // default cleanly. The renderer keys off `discord == null` to decide
         // whether the snapshot succeeded. No blocklist_reason: the renderer
         // would print it after "(snapshot unavailable", and the real failure
-        // detail is dropped before it gets here (see
-        // vets-snapshot-provider-makes-player-not-found-unreachable).
+        // detail is dropped before it gets here.
         JsonObject stub = new JsonObject();
         stub.addProperty("target_uuid", "");
         stub.addProperty("target_username", "");

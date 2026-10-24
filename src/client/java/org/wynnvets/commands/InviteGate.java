@@ -59,12 +59,11 @@ import org.wynnvets.util.Json;
  *
  * <p>Name → UUID resolution runs through {@link PlayerLookup}, which
  * tries Wynncraft / temporary-server / PlayerDB / Ashcon / Mojang
- * Services / Mojang legacy in that order. If every source fails
- * transiently the gate fails open (dispatches the invite anyway with a
- * warning); if every source returns a definite 404 the gate blocks with
- * a "no such player" message. Today no lookup ends that second way, so a
- * name that no source knows also fails open (see
- * {@code vets-snapshot-provider-makes-player-not-found-unreachable}).</p>
+ * Services / Mojang legacy in that order. If no source hits and one
+ * fails transiently (or none gives any answer) the gate fails open
+ * (dispatches the invite anyway with a warning); if none fails
+ * transiently and at least one returns a definite 404 the gate blocks
+ * with a "no such player" message.</p>
  */
 public final class InviteGate {
 
@@ -107,9 +106,7 @@ public final class InviteGate {
                             // ALL_PROVIDERS_TRANSIENT / INPUT_INVALID — fail open: every UUID
                             // source we tried was either down or rate-limited, so we can't
                             // verify the cutoff but the player almost certainly exists. Let
-                            // the server make the final call. Today a name that no source
-                            // knows lands here too (see
-                            // vets-snapshot-provider-makes-player-not-found-unreachable).
+                            // the server make the final call.
                             failOpenInvite(target);
                         });
     }
@@ -271,9 +268,7 @@ public final class InviteGate {
      * the invite anyway with a yellow warning so staff know to verify
      * manually once sources recover. Per the cascade design, this should be
      * rare — Wynncraft alone has historically been resilient even when
-     * Mojang isn't. Today it is also where every name that no provider
-     * knows ends up (see
-     * {@code vets-snapshot-provider-makes-player-not-found-unreachable}).
+     * Mojang isn't.
      */
     private static void failOpenInvite(String target) {
         McUtils.mc()

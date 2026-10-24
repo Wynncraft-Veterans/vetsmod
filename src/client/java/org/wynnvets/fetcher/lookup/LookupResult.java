@@ -19,9 +19,7 @@ import org.wynnvets.datamodels.User;
  * {@link FailureReason#ALL_PROVIDERS_TRANSIENT} as its fail-open case and
  * {@link FailureReason#PLAYER_NOT_FOUND} as its clean-block case;
  * {@link org.wynnvets.fetcher.ondemand.UserInfoFetcher UserInfoFetcher}
- * reports a distinct error for each. Today no cascade ends in
- * {@code PLAYER_NOT_FOUND} (see
- * {@code vets-snapshot-provider-makes-player-not-found-unreachable}).</p>
+ * reports a distinct error for each.</p>
  */
 public record LookupResult(
         String source,

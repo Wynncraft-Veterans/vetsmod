@@ -9,17 +9,16 @@ package org.wynnvets.fetcher.lookup;
  * {@code ALL_PROVIDERS_TRANSIENT} (dispatches the invite anyway with a
  * warning) and blocks on {@code PLAYER_NOT_FOUND};
  * {@link org.wynnvets.fetcher.ondemand.UserInfoFetcher UserInfoFetcher}
- * reports a distinct error for each. Today no cascade ends in
- * {@code PLAYER_NOT_FOUND} (see
- * {@code vets-snapshot-provider-makes-player-not-found-unreachable}).</p>
+ * reports a distinct error for each.</p>
  */
 public enum FailureReason {
     /** Input was blank/empty. */
     INPUT_INVALID,
-    /** Every provider returned a definite 404 (or equivalent "no such name").
-     *  The player almost certainly doesn't exist. */
+    /** No provider failed transiently and at least one returned a definite 404 (or equivalent
+     *  "no such name"); providers that abstained said nothing either way. The player almost
+     *  certainly doesn't exist. */
     PLAYER_NOT_FOUND,
-    /** At least one provider failed transiently (429/5xx/timeout/IO) and no
-     *  provider returned a hit. We can't tell whether the player exists. */
+    /** At least one provider failed transiently (429/5xx/timeout/IO), or every provider
+     *  abstained, and no provider returned a hit. We can't tell whether the player exists. */
     ALL_PROVIDERS_TRANSIENT
 }

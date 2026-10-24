@@ -28,9 +28,13 @@ import org.wynnvets.util.Json;
  * count, etc.) — so a Vets hit lets a caller that needs the snapshot skip
  * its own snapshot fetch.</p>
  *
- * <p>Skipped when the inbound WebSocket isn't connected: the frame would
- * synthesise a connection-closed error ack and we'd treat that as
- * transient anyway, but short-circuiting saves the WS round-trip cost.</p>
+ * <p>This provider is not an independent existence check: dazebot resolves the name
+ * through the same Wynncraft and Mojang/PlayerDB sources the cascade asks directly. Its job is
+ * to supply a snapshot on a hit, so on any non-hit it
+ * {@linkplain ProviderOutcome#abstain() abstains} and leaves PLAYER_NOT_FOUND to the other
+ * providers. It abstains without sending when the inbound WebSocket isn't connected, saving
+ * the round trip the connection-closed ack would cost; a malformed answer or a thrown error
+ * stays a transient miss, since the server did speak.</p>
  */
 public final class VetsSnapshotProvider implements LookupProvider {
 
@@ -78,10 +82,10 @@ public final class VetsSnapshotProvider implements LookupProvider {
     @Override
     public CompletableFuture<ProviderOutcome> lookup(String name) {
         if (!V1ApiManager.isInboundConnected()) {
-            return CompletableFuture.completedFuture(ProviderOutcome.transientMiss());
+            return CompletableFuture.completedFuture(ProviderOutcome.abstain());
         }
         return requestSnapshot(name)
-                .thenApply(this::translate)
+                .thenApply(VetsSnapshotProvider::translate)
                 .exceptionally(
                         e -> {
                             VetsLogger.debug(
@@ -90,15 +94,14 @@ public final class VetsSnapshotProvider implements LookupProvider {
                         });
     }
 
-    private ProviderOutcome translate(MembershipSnapshot snap) {
+    // Package-private for unit tests. See VetsSnapshotProviderTest.
+    static ProviderOutcome translate(MembershipSnapshot snap) {
         if (snap == null) {
-            // Could be "no such player" or a transient WS failure; the ack
-            // shape doesn't reliably distinguish, so call it transient and
-            // let later providers settle the question. Today they can settle it
-            // only with a hit: this transient miss keeps the cascade from ever
-            // ending PLAYER_NOT_FOUND (see
-            // vets-snapshot-provider-makes-player-not-found-unreachable).
-            return ProviderOutcome.transientMiss();
+            // Could be "no such player", a rejection, or a WS failure; the ack
+            // shape doesn't reliably distinguish. Abstain rather than miss
+            // transiently, so the independent providers decide whether the
+            // name exists and the cascade can still end PLAYER_NOT_FOUND.
+            return ProviderOutcome.abstain();
         }
         String uuidStr = snap.getTargetUuid();
         if (uuidStr == null || uuidStr.isBlank()) {

@@ -26,7 +26,8 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.distribute.command`](#orgwynnvetsdistributecommand) — [`NameOrSelectorArgumentTest`](#nameorselectorargumenttest)
 - [`org.wynnvets.distribute.distributor`](#orgwynnvetsdistributedistributor) — [`GraidsDistributorTest`](#graidsdistributortest), [`MemberSlotPresserTest`](#memberslotpressertest), [`ObjectivesDistributorTest`](#objectivesdistributortest), [`RandomDistributorTest`](#randomdistributortest), [`SplitDistributorTest`](#splitdistributortest)
 - [`org.wynnvets.distribute.recipients`](#orgwynnvetsdistributerecipients) — [`NameResolverTest`](#nameresolvertest), [`NoAspectsFilterTest`](#noaspectsfiltertest)
-- [`org.wynnvets.fetcher.lookup`](#orgwynnvetsfetcherlookup) — [`MojangCooldownTest`](#mojangcooldowntest)
+- [`org.wynnvets.fetcher.lookup`](#orgwynnvetsfetcherlookup) — [`MojangCooldownTest`](#mojangcooldowntest), [`PlayerLookupTest`](#playerlookuptest)
+- [`org.wynnvets.fetcher.lookup.providers`](#orgwynnvetsfetcherlookupproviders) — [`VetsSnapshotProviderTest`](#vetssnapshotprovidertest)
 - [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`CheckReportRendererTest`](#checkreportrenderertest), [`OnlineMemberServiceTest`](#onlinememberservicetest), [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
 - [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
 - [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
@@ -1491,6 +1492,63 @@ Test: [`MojangCooldownTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/M
 - **`forceCooldown_unset_restoresActualState`**: Setting force on then off returns to not cooling down with 0 remaining.
   - `MojangCooldown.isCoolingDown()` is false after `setForceCooldown(true)` then `setForceCooldown(false)`.
   - `MojangCooldown.remainingMs()` equals `0L` after that pair of calls.
+
+### `PlayerLookupTest`
+
+Test: [`PlayerLookupTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/PlayerLookupTest.java) · Subject: [`PlayerLookup`](../src/client/java/org/wynnvets/fetcher/lookup/PlayerLookup.java)
+
+`PlayerLookup` runs a name through a provider cascade and, when nothing hits, reports why. The suite drives `runCascade(List, String)` with fake providers that return fixed `ProviderOutcome`s, and pins the failure reason for each mix of definite misses (`notFound`), transient misses and abstentions (`abstain`), and that a hit stops the cascade. The real providers' HTTP calls and `resolve`'s single-flight map are not covered. `run(...)` joins the cascade's future.
+
+- **`allDefiniteMisses_endsPlayerNotFound`**: Three definite misses end the cascade `PLAYER_NOT_FOUND`.
+  - `r.isSuccess()` is false.
+  - `r.failureReason()` equals `FailureReason.PLAYER_NOT_FOUND`.
+- **`vetsAbstains_othersDefinite_endsPlayerNotFound`**: One abstention among definite misses does not stop the cascade ending `PLAYER_NOT_FOUND`.
+  - `r.failureReason()` equals `PLAYER_NOT_FOUND`, for providers answering definite, abstain, definite, definite.
+- **`vetsTransient_othersDefinite_endsTransient`**: A transient miss among definite ones ends it `ALL_PROVIDERS_TRANSIENT`.
+  - `r.failureReason()` equals `ALL_PROVIDERS_TRANSIENT`, for providers answering definite, transient, definite.
+- **`anyTransientAmongOthers_endsTransient`**: A late transient miss (the legacy Mojang cooldown case) still ends it transient, whatever abstained before.
+  - `r.failureReason()` equals `ALL_PROVIDERS_TRANSIENT`, for providers answering definite, abstain, definite, transient.
+- **`allAbstain_endsTransient`**: A cascade where every provider abstained learned nothing, so it ends transient, not `PLAYER_NOT_FOUND`.
+  - `r.failureReason()` equals `ALL_PROVIDERS_TRANSIENT`, for two abstaining providers.
+- **`emptyCascade_endsTransient`**: A cascade with no providers ends transient.
+  - `run().failureReason()` equals `ALL_PROVIDERS_TRANSIENT`.
+- **`hitStopsCascade_andSkipsLaterProviders`**: A hit ends the cascade with that result, and later providers are not asked.
+  - `r.isSuccess()` is true.
+  - `r.uuid()` equals the hit's uuid `ID`.
+  - `r.failureReason()` is null.
+  - The providers asked equal `["first", "second"]`, for providers answering definite, hit, definite.
+- **`providerThrowing_countsTransient`**: A provider whose future fails counts as a transient miss.
+  - `r.failureReason()` equals `ALL_PROVIDERS_TRANSIENT`, for providers answering definite, a failed future, definite.
+- **`outcomeFlags_areMutuallyExclusive`**: The three miss outcomes set exactly their own flag.
+  - `notFound()`: `isDefiniteMiss()` is true and `isAbstain()` is false.
+  - `transientMiss()`: both are false.
+  - `abstain()`: `isDefiniteMiss()` is false, `isAbstain()` is true and `isHit()` is false.
+
+## `org.wynnvets.fetcher.lookup.providers`
+
+### `VetsSnapshotProviderTest`
+
+Test: [`VetsSnapshotProviderTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/providers/VetsSnapshotProviderTest.java) · Subject: [`VetsSnapshotProvider`](../src/client/java/org/wynnvets/fetcher/lookup/providers/VetsSnapshotProvider.java)
+
+`VetsSnapshotProvider.translate` turns a `check_membership` snapshot (or none) into a cascade outcome: no snapshot abstains, an unusable `target_uuid` is a transient miss, a good one is a hit carrying the snapshot. `lookup`, which reads the connection state from `V1ApiManager`, and `requestSnapshot`, which sends the frame, are not covered. Snapshots are hand-written JSON parsed through the shared `Json.GSON`.
+
+- **`translate_null_abstains`**: A null snapshot (a failed or rejected ack) abstains.
+  - `translate(null)` is the `ProviderOutcome.abstain()` singleton.
+  - `outcome.isAbstain()` is true.
+  - `outcome.isDefiniteMiss()` is false.
+- **`translate_blankUuid_isTransient`**: A snapshot with a missing or blank `target_uuid` is a transient miss.
+  - `translate(...)` is the `ProviderOutcome.transientMiss()` singleton, for `{}` and for `{"target_uuid": "  "}`.
+- **`translate_nonUuid_isTransient`**: A `target_uuid` that does not parse is a transient miss.
+  - `translate(...)` is the `transientMiss()` singleton, for `{"target_uuid": "not-a-uuid"}`.
+- **`translate_validSnapshot_hitCarriesSnapshotAndCanonicalName`**: A good snapshot is a hit with the uuid, the snapshot's username and the snapshot itself.
+  - `outcome.isHit()` is true.
+  - `outcome.hit().uuid()` equals the parsed `target_uuid`.
+  - `outcome.hit().canonicalName()` equals `"Metrafish"`.
+  - `outcome.hit().source()` equals `"vets"`.
+  - `outcome.hit().vetsSnapshot()` is the same instance as the snapshot passed in.
+- **`translate_missingUsername_fallsBackToUuidString`**: Without a `target_username` the canonical name is the uuid text.
+  - `outcome.isHit()` is true.
+  - `outcome.hit().canonicalName()` equals the `target_uuid` text.
 
 ## `org.wynnvets.fetcher.ondemand`
 
