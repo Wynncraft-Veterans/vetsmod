@@ -15,7 +15,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 
 - [`org.wynnvets`](#orgwynnvets) — [`LocaleFoldTripwireTest`](#localefoldtripwiretest)
 - [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`PendingAcksTest`](#pendingackstest), [`SerializedSenderTest`](#serializedsendertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest), [`V1ApiManagerOutboundAuthTest`](#v1apimanageroutboundauthtest), [`WsClientLossTest`](#wsclientlosstest)
-- [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`OutboundDisplayHandlerTest`](#outbounddisplayhandlertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
+- [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`ChatHookGateTest`](#chathookgatetest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`OutboundDisplayHandlerTest`](#outbounddisplayhandlertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
 - [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`DispatchCoordinatorTest`](#dispatchcoordinatortest), [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
 - [`org.wynnvets.chat.spoiler`](#orgwynnvetschatspoiler) — [`SpoilerCodecTest`](#spoilercodectest)
 - [`org.wynnvets.commands`](#orgwynnvetscommands) — [`CautionCommandsTest`](#cautioncommandstest), [`HelpCommandsTest`](#helpcommandstest), [`InviteGateTest`](#invitegatetest)
@@ -362,6 +362,21 @@ Test: [`BannedCharsTest.java`](../src/test/java/org/wynnvets/chat/BannedCharsTes
   - `stripHard(null)` is null.
   - `stripAll(null)` is null.
   - `stripAll("")` equals `""`.
+
+### `ChatHookGateTest`
+
+Test: [`ChatHookGateTest.java`](../src/test/java/org/wynnvets/chat/ChatHookGateTest.java) · Subject: [`ChatHookGate`](../src/client/java/org/wynnvets/chat/ChatHookGate.java)
+
+`ChatHookGate` lets `ChatLogMixin` run once per chat line instead of once per `ChatComponent` (Wynntils' Chat Tabs re-add each line to every matching tab's own component). The suite pins `isPrimary`, the package-private identity check: the HUD component passes, any other component does not, and a missing HUD component fails open. `shouldRun` reads `McUtils.mc().gui`, which has no client under JUnit, so it and the mixin wiring are verified in game through the `chat hook:` debug lines.
+
+- **`isPrimary_sameInstance_true`**: A component compared with itself is primary.
+  - `ChatHookGate.isPrimary(hud, hud)` is true, where `hud` is a fresh `Object`.
+- **`isPrimary_differentInstance_false`**: A tab component compared with the HUD component is not primary.
+  - `ChatHookGate.isPrimary(tab, hud)` is false, where `tab` and `hud` are two fresh `Object`s.
+- **`isPrimary_equalButDistinctInstances_false`**: Two distinct but `equals` instances are not primary; the check is identity.
+  - `ChatHookGate.isPrimary(tab, hud)` is false, where `tab` and `hud` are two `new String("same")` instances.
+- **`isPrimary_nullPrimary_failsOpen`**: With no HUD component to compare against, every component is primary.
+  - `ChatHookGate.isPrimary(new Object(), null)` is true.
 
 ### `GuildChatLineTest`
 
