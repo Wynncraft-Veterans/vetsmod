@@ -109,7 +109,7 @@ Both connections open only on a Wynncraft join ([vetsmod_networking.md](vetsmod_
 
 vetsmod MUST NOT call dazebot directly. All vets-backend interactions go through **temporary-server** at `https://api.wynnvets.org` or the WebSockets `wss://api.wynnvets.org/v1/{inbound,outbound}`. dazebot's `/api/internal/*` endpoints are network-gated to the private `verify` Docker network and would reject a vetsmod client anyway; on top of that, vetsmod `/unlock` keys are per-user bearer tokens, not credentials for hitting dazebot's internal control plane.
 
-When designing a new vetsmod feature that needs data from dazebot, route it through a temporary-server WS frame (`V1ApiManager.sendStaffActionFrame`, `sendInbound`, etc.) — the existing `check_membership` staff-action frame is the canonical pattern (vetsmod → `wss://api.wynnvets.org/v1/inbound` → temporary-server forwards to dazebot's `/api/internal/check-snapshot` → ack flows back through the same WebSocket).
+When designing a new vetsmod feature that needs data from dazebot, route it through a temporary-server WS frame (`V1ApiManager.sendStaffActionFrame`, `sendInbound`, etc.) — the existing `check_membership` staff-action frame (the full snapshot for confirmed staff, an invite verdict for a non-staff Returners member) is the canonical pattern (vetsmod → `wss://api.wynnvets.org/v1/inbound` → temporary-server forwards to dazebot's `/api/internal/check-snapshot` → ack flows back through the same WebSocket).
 
 In vetsmod-side docs, name the **immediate counterparty** (temporary-server / `api.wynnvets.org`), not the eventual upstream (dazebot). Calling the upstream by name in vetsmod-side docs invites the wrong mental model and the wrong implementation.
 

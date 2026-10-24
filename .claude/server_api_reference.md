@@ -17,10 +17,10 @@ sends, which ack shapes it has to parse, and what the REST surface offers.
 Duplicating the spec is what let this doc drift.
 
 ⚠️ Some things the spec does **not** cover, so they are documented here rather
-than deferred: `check_membership` and the `server_info` hello frame (neither
-string appears in `v1_protocol.md` at all), and `tablist` / `queue_status`,
-which the spec names in passing but never gives a section. Deferring those
-would produce a pointer to nothing.
+than deferred: `tablist` / `queue_status`, which the spec names in passing but never gives a section.
+Deferring those would produce a pointer to nothing. `check_membership` and the `server_info` hello
+used to be on this list; the spec covers them since temporary-server `2139fee` (§1.10) and `880baad`
+(§2.1), and this doc keeps their vetsmod-side detail.
 
 ## 1. WebSocket endpoints
 
@@ -50,7 +50,7 @@ subsection), §7 and §7.1.
 | `rank_change` | `_handle_rank_change` | `{"status":"ok"}` (even when a validation failure drops it); an "Authentication required" error when `unauth` is disabled and the session is unauthenticated | §1.9 |
 | `caution_check` | `_handle_caution_check` | history ack | §1.10 |
 | `caution_add` / `warn_add` / `eject_add` | `_handle_staff_commit` | commit ack, or a `would_trigger` preflight | §1.10 |
-| `check_membership` | `_handle_check_membership` | membership ack | **not in spec** |
+| `check_membership` | `_handle_check_membership` | membership ack, or a member's invite verdict | §1.10 |
 | `anni_query` | `_handle_anni_query` | `anni_query_response` | §1.11 |
 | `anni_scrollspot_set` | `_handle_anni_scrollspot_set` | `anni_scrollspot_response` | §1.12 |
 | `anni_rsvp` | `_handle_anni_rsvp` | `anni_rsvp_response` | §1.13 |
@@ -113,10 +113,12 @@ behaviour are in `v1_protocol.md` §1.9.
 ### The staff-action family
 
 Five frame types, not the four the spec's §1.10 title implies —
-`check_membership` was added later and the spec was never updated. All five
-share one gate, `_staff_session_or_error`, which is the extracted helper the
-family is built around: it returns the session when the connection is both
-authenticated *and* `is_staff`, otherwise the error payload to send back.
+`check_membership` was added later and documented at the end of §1.10. All
+five share one gate, `_staff_session_or_error`, which is the extracted helper
+the family is built around: it returns the session when the connection is both
+authenticated *and* `is_staff`, otherwise the error payload to send back. The
+one exception is `check_membership` from an authenticated non-staff session of
+tier `member`, which skips that gate and gets the invite verdict below.
 
 The gate is the same for all five: **auth always required** regardless of the
 `unauth` toggle, `is_staff` required, the `inbound` disabled-toggle bypassed,
@@ -131,7 +133,7 @@ Two contract details vetsmod has to implement:
 - On the commit ack, `kind` is the *internal* kind, not the frame name:
   `warn_add` returns `"warning"` and `eject_add` returns `"eject"`.
 
-`check_membership`, since the spec omits it, in full. The request mirrors
+`check_membership` in full (the spec's own copy is at the end of §1.10). The request mirrors
 `caution_check` — `{"type": "check_membership", "target_username": "<name or uuid>"}` —
 and the ack returns the snapshot **inline at top level** rather than nested,
 deliberately, so vetsmod's ack classifier can match it on `target_uuid`
@@ -157,6 +159,23 @@ exactly like a `caution_check` ack:
 "observed_at": <int|null>}`: dazebot's best guess of the last activity it recorded for the
 player, not necessarily a server change. An older temporary-server omits the key; vetsmod reads
 that as `null`.
+
+**The invite verdict.** A non-staff session of tier `member` (temporary-server `9a411ce`) gets only
+what the `/gu invite` gate needs, so a Returners member can invite without seeing the blocklist:
+
+```json
+{
+  "status":          "ok",
+  "target_uuid":     "<uuid>",
+  "target_username": "<canonical mc username>",
+  "may_invite":      true,
+  "waitlist_count":  0
+}
+```
+
+`may_invite` is false exactly when the target is blocklisted. vetsmod reads it through
+`MembershipSnapshot.getMayInvite` / `blocksInvite`; the cascade's Vets step does not send for a
+non-staff session (`VetsSnapshotProvider.sendsLookup`), and `InviteGate` fetches the verdict itself.
 
 ### The MWE anni frames
 

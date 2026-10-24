@@ -45,12 +45,12 @@ import org.wynnvets.util.Json;
  * reserved for the waitlist queue. Without a Wynncraft profile it checks
  * only the blocklist, for staff and non-staff alike: a listed target is
  * refused with a vague red line and no bypass button, and anyone else is
- * invited after a yellow warning. Today a non-staff session gets no
- * membership snapshot, because
- * temporary-server accepts {@code check_membership} only from confirmed
- * staff, so the gate cancels the invite with a snapshot-failure message
- * whenever the target resolves (see
- * {@code vets-snapshot-provider-skips-confirmed-staff-check}).</p>
+ * invited after a yellow warning. A non-staff session gets only an invite
+ * verdict from temporary-server ({@link MembershipSnapshot#getMayInvite()}),
+ * never the blocklist itself, and every non-staff refusal prints the same
+ * line, so the refusal does not say which check failed. A non-staff player
+ * with no session authenticated this connection is refused up front, since
+ * temporary-server answers only an authenticated member.</p>
  *
  * <p>For <b>staff</b> (confirmed-staff via the vetsmod token) the gate
  * surfaces the exact reason and, when the target has a Wynncraft profile,
@@ -73,9 +73,23 @@ public final class InviteGate {
      *  under the "vet" criterion (legacy account requirement). */
     private static final LocalDate VET_JOIN_CUTOFF = LocalDate.of(2020, 1, 1);
 
-    private static final String GENERIC_REJECTION =
-            "Please ask staff before inviting this user as they do not qualify "
-                    + "under the usual criteria.";
+    /** Every non-staff refusal, whichever check failed, so it does not reveal the blocklist. */
+    // Package-private for unit tests. See InviteGateTest.
+    static final String GENERIC_REJECTION =
+            "This user is not eligible to join the guild, ask a Steward.";
+
+    /** A non-staff player with no usable key (none stored, or the stored one rejected), whom
+     *  temporary-server will not answer. */
+    // Package-private for unit tests. See InviteGateTest.
+    static final String NEEDS_KEY =
+            "Inviting others from unauthenticated vetsmod is not supported at this time"
+                    + " (/vetsmod on Discord, then /unlock)";
+
+    /** A non-staff player whose stored key has not been confirmed yet (its ack is pending, or the
+     *  last check failed transiently); the same line {@code /wv list world} prints. */
+    // Package-private for unit tests. See InviteGateTest.
+    static final String STILL_CHECKING =
+            "We are still checking your permissions, please retry in a moment.";
 
     private InviteGate() {}
 
@@ -88,6 +102,16 @@ public final class InviteGate {
     public static void checkInvite(String target) {
         if (target == null || target.isBlank()) return;
         boolean isStaff = GuildStateManager.isConfirmedStaff();
+        if (!isStaff && !GuildStateManager.isAuthenticatedThisSession()) {
+            if (keyStillChecking(
+                    GuildStateManager.hasStoredAuthKey(),
+                    GuildStateManager.isStoredKeyRejected())) {
+                renderNotice(STILL_CHECKING);
+            } else {
+                renderError(NEEDS_KEY);
+            }
+            return;
+        }
 
         PlayerLookup.resolve(target)
                 .thenAccept(
@@ -174,11 +198,9 @@ public final class InviteGate {
         // Snapshot null = internal WS infrastructure failure (temporary-server
         // unreachable, ack drained on disconnect, etc.). Distinct from the
         // upstream-UUID-source failure that triggered the failOpenInvite path
-        // above. Keep the existing safety-block here. Today a null snapshot is
-        // also what every non-staff session gets, since temporary-server
-        // accepts check_membership only from confirmed staff (see
-        // vets-snapshot-provider-skips-confirmed-staff-check).
-        if (snap == null || snap.getDiscord() == null) {
+        // above. Keep the existing safety-block here. A staff snapshot must
+        // carry the Discord blob; a member's invite verdict never does.
+        if (!snapshotUsable(snap, isStaff)) {
             renderError(
                     "Could not get enough info on '"
                             + displayName
@@ -194,12 +216,14 @@ public final class InviteGate {
         // can't run.
         if (wynn == null) {
             // Blocklist is still authoritative even without a Wynn profile.
-            if (snap.isBlocklisted()) {
+            if (snap.blocksInvite()) {
                 renderError(
-                        "'"
-                                + displayName
-                                + "' does not appear to meet vets' recruitment criteria."
-                                + " Please ask a steward.");
+                        isStaff
+                                ? "'"
+                                        + displayName
+                                        + "' does not appear to meet vets' recruitment criteria."
+                                        + " Please ask a steward."
+                                : GENERIC_REJECTION);
                 return;
             }
             ChatUtils.sendLocalMessage(
@@ -212,7 +236,7 @@ public final class InviteGate {
             return;
         }
 
-        boolean blocked = snap.isBlocklisted();
+        boolean blocked = snap.blocksInvite();
 
         // firstJoin may be hidden by Wynncraft privacy; treat hidden as a
         // soft "we can't verify they're a vet" -> staff get warn, non-staff
@@ -285,6 +309,28 @@ public final class InviteGate {
     }
 
     // ── Render helpers ──────────────────────────────────────────────────
+
+    /** Whether an unauthenticated player's stored key may still be confirmed: one is stored and
+     *  no auth ack has rejected it. Otherwise the player needs a key. */
+    // Package-private for unit tests. See InviteGateTest.
+    static boolean keyStillChecking(boolean hasStoredKey, boolean keyRejected) {
+        return hasStoredKey && !keyRejected;
+    }
+
+    /** Whether the membership snapshot can drive the gate: present, and for staff carrying the
+     *  Discord blob of a full snapshot. A member's invite verdict has none and is enough. */
+    // Package-private for unit tests. See InviteGateTest.
+    static boolean snapshotUsable(MembershipSnapshot snap, boolean isStaff) {
+        return snap != null && (!isStaff || snap.getDiscord() != null);
+    }
+
+    private static void renderNotice(String msg) {
+        McUtils.mc()
+                .execute(
+                        () ->
+                                ChatUtils.sendLocalMessage(
+                                        Component.literal(msg).withStyle(ChatFormatting.YELLOW)));
+    }
 
     private static void renderError(String msg) {
         McUtils.mc()

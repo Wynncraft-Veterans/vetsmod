@@ -18,7 +18,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`OutboundDisplayHandlerTest`](#outbounddisplayhandlertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
 - [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`DispatchCoordinatorTest`](#dispatchcoordinatortest), [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
 - [`org.wynnvets.chat.spoiler`](#orgwynnvetschatspoiler) — [`SpoilerCodecTest`](#spoilercodectest)
-- [`org.wynnvets.commands`](#orgwynnvetscommands) — [`HelpCommandsTest`](#helpcommandstest)
+- [`org.wynnvets.commands`](#orgwynnvetscommands) — [`HelpCommandsTest`](#helpcommandstest), [`InviteGateTest`](#invitegatetest)
 - [`org.wynnvets.config`](#orgwynnvetsconfig) — [`NamedColorTest`](#namedcolortest), [`ShippedConfigTest`](#shippedconfigtest), [`VetsConfigDefaultsTest`](#vetsconfigdefaultstest), [`VetsConfigKeysTest`](#vetsconfigkeystest), [`VetsConfigSchemaTest`](#vetsconfigschematest)
 - [`org.wynnvets.datamodels`](#orgwynnvetsdatamodels) — [`UserTest`](#usertest)
 - [`org.wynnvets.debug.anni`](#orgwynnvetsdebuganni) — [`AnniDebugCommandsTest`](#annidebugcommandstest)
@@ -932,6 +932,29 @@ Tests:
   - The last sibling of `buildHelpDebugSet()` is `None (public)` in WHITE.
   - The last sibling of `buildHelpDebugTrigger()` is `None (public)` in WHITE.
 
+### `InviteGateTest`
+
+Test: [`InviteGateTest.java`](../src/test/java/org/wynnvets/commands/InviteGateTest.java) · Subject: [`InviteGate`](../src/client/java/org/wynnvets/commands/InviteGate.java), [`MembershipSnapshot`](../src/client/java/org/wynnvets/datamodels/MembershipSnapshot.java)
+
+The `/gu invite` gate decides from temporary-server's `check_membership` reply. The suite pins that a non-staff member's invite verdict (no Discord blob) is usable and a `may_invite: false` verdict blocks, that a staff snapshot still needs its Discord blob and blocks on `blocklisted`, and the two lines a non-staff player sees. Snapshots are parsed from JSON with `Json.GSON`.
+
+- **`aMembersVerdictIsUsableWithoutTheDiscordBlob`**: A verdict with no `discord` drives the gate for a non-staff player.
+  - `snapshotUsable(verdict(may_invite true), false)` is true.
+- **`aStaffSnapshotStillNeedsItsDiscordBlob`**: For staff, only a snapshot carrying `discord` is usable.
+  - `snapshotUsable(verdict, true)` is false; `snapshotUsable({"discord":{"linked":true}}, true)` is true.
+- **`noSnapshotIsNeverUsable`**: A null snapshot is unusable for either audience.
+  - `snapshotUsable(null, false)` and `snapshotUsable(null, true)` are false.
+- **`aFalseVerdictBlocksAndATrueOneDoesNot`**: `blocksInvite` follows `may_invite`, and the verdict's `waitlist_count` is read.
+  - `blocksInvite()` is true for `may_invite: false` and false for `may_invite: true`; `getWaitlistCount()` equals 3.
+- **`aStaffSnapshotBlocksOnTheBlocklist`**: On a staff snapshot `blocksInvite` follows `blocklisted`.
+  - True for `{"blocklisted":true}`, false for `{"blocklisted":false}` and for `{}`.
+- **`onlyAStoredUnrejectedKeyIsStillBeingChecked`**: `keyStillChecking` is true only for a stored key no ack has rejected.
+  - `keyStillChecking(true, false)` is true; `keyStillChecking(true, true)` and `keyStillChecking(false, false)` are false.
+- **`theNonStaffLinesAreTheUsersWording`**: The refusal and the no-key line are the user's text, and the still-checking line is `/wv list world`'s.
+  - `GENERIC_REJECTION` equals `"This user is not eligible to join the guild, ask a Steward."`.
+  - `NEEDS_KEY` equals `"Inviting others from unauthenticated vetsmod is not supported at this time (/vetsmod on Discord, then /unlock)"`.
+  - `STILL_CHECKING` equals `"We are still checking your permissions, please retry in a moment."`.
+
 ## `org.wynnvets.config`
 
 ### `NamedColorTest`
@@ -1564,6 +1587,8 @@ Test: [`VetsSnapshotProviderTest.java`](../src/test/java/org/wynnvets/fetcher/lo
 
 `VetsSnapshotProvider.translate` turns a `check_membership` snapshot (or none) into a cascade outcome: no snapshot abstains, an unusable `target_uuid` is a transient miss, a good one is a hit carrying the snapshot. `lookup`, which reads the connection state from `V1ApiManager`, and `requestSnapshot`, which sends the frame, are not covered. Snapshots are hand-written JSON parsed through the shared `Json.GSON`.
 
+- **`lookup_sendsOnlyForConfirmedStaffOnALiveSocket`**: The cascade's Vets step sends only for confirmed staff on a connected socket; a non-staff member's verdict is fetched by the gate itself.
+  - `sendsLookup(true, true)` is true; `sendsLookup(true, false)`, `sendsLookup(false, true)` and `sendsLookup(false, false)` are false.
 - **`translate_null_abstains`**: A null snapshot (a failed or rejected ack) abstains.
   - `translate(null)` is the `ProviderOutcome.abstain()` singleton.
   - `outcome.isAbstain()` is true.

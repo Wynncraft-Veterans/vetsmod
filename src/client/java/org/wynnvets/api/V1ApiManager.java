@@ -598,10 +598,9 @@ public final class V1ApiManager {
      *
      * <p>A session the server does not treat as staff gets an error ack, which normally
      * resolves this frame's callback like any other ack; callers that want to spare
-     * non-staff the round trip check {@link #isConfirmedStaff()} first
-     * ({@link org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider VetsSnapshotProvider}'s
-     * {@code check_membership} does not:
-     * {@code vets-snapshot-provider-skips-confirmed-staff-check}). The {@code fields} map
+     * non-staff the round trip check {@link #isConfirmedStaff()} first. The one exception is
+     * {@code check_membership}, which answers an authenticated non-staff Returners member with
+     * an invite verdict ({@code MembershipSnapshot.getMayInvite}). The {@code fields} map
      * is merged into the outgoing JSON after {@code "type"} is set, so do NOT include
      * {@code "type"} -- it would replace the frame type. The callback is single-use. It
      * normally runs on the thread that delivers inbound frames, but runs on the caller's

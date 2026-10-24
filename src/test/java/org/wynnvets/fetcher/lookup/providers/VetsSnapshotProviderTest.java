@@ -27,6 +27,15 @@ class VetsSnapshotProviderTest {
     }
 
     @Test
+    void lookup_sendsOnlyForConfirmedStaffOnALiveSocket() {
+        assertTrue(VetsSnapshotProvider.sendsLookup(true, true));
+        assertFalse(
+                VetsSnapshotProvider.sendsLookup(true, false), "a member's verdict is the gate's");
+        assertFalse(VetsSnapshotProvider.sendsLookup(false, true));
+        assertFalse(VetsSnapshotProvider.sendsLookup(false, false));
+    }
+
+    @Test
     void translate_null_abstains() {
         ProviderOutcome outcome = VetsSnapshotProvider.translate(null);
         assertSame(ProviderOutcome.abstain(), outcome);

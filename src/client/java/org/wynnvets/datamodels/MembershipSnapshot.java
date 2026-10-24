@@ -24,6 +24,7 @@ public class MembershipSnapshot {
     private Integer waitlist_count;
     private Cult cult;
     private LastSeenObserved last_seen_observed;
+    private Boolean may_invite;
 
     public String getTargetUuid() {
         return target_uuid;
@@ -47,6 +48,21 @@ public class MembershipSnapshot {
 
     public String getBlocklistReason() {
         return blocklist_reason;
+    }
+
+    /**
+     * The invite verdict a Returners member who is not confirmed staff gets in place of the full
+     * snapshot: {@code false} exactly when the target is blocklisted. {@code null} on a staff
+     * snapshot, which carries {@link #isBlocklisted()} instead.
+     */
+    public Boolean getMayInvite() {
+        return may_invite;
+    }
+
+    /** Whether this snapshot bars an invite: a blocklisted target on a staff snapshot, or a
+     *  {@code may_invite: false} verdict on a member's. */
+    public boolean blocksInvite() {
+        return isBlocklisted() || Boolean.FALSE.equals(may_invite);
     }
 
     /**

@@ -480,6 +480,12 @@ public final class GuildStateManager {
         return UnlockManager.hasStoredKey();
     }
 
+    /** @return {@code true} when an auth ack has rejected the stored key (a verdict on the key,
+     *  not a transient failure); a newly stored {@code /unlock} key clears it */
+    public static boolean isStoredKeyRejected() {
+        return UnlockManager.keyRejectedByAuthAck();
+    }
+
     /** @return the tier from the latest ok auth ack (e.g. {@code "member"},
      *  {@code "waitlist"}, {@code "honourary"}, {@code "other"}), or empty string when
      *  none is standing: not yet authenticated, or cleared by an auth failure, a newly

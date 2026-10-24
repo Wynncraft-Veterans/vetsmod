@@ -133,7 +133,7 @@ typed `/wv check` before `GuildChatDispatcher`'s (§2, after the table).
 |---|---|---|---|---|---|---|
 | `/wv return` | none | `areFeaturesEnabled()`: "/wv return is restricted to vets members." | `CommandRegistry.returnInfo` → `ReturnFetcher.fetchReturn` | Prints the latest return-channel post, with its Discord timestamps rewritten and a link footer (below) | GETs `VetsApi.RETURN` | none |
 | `/wv list` | ungated | `isUnlocked()`: "/wv list is restricted to vets members." | `CommandRegistry.list` → `ListFetcher.fetchList` | Prints "Looking up online members...", then the online members grouped by tier and VetsMod status: staff underlined, supporters with a glint | GETs `VetsApi.LIST`; Wynntils' Wynncraft API lookup of the Returners guild (`Models.Guild.getGuild`); for a Returners caller, a WebSocket `tablist` frame of the tab list's guild entries | `stale-registration-survives-eligibility-loss` |
-| `/wv list world` | ungated | `isStaff()` and `isReturners()`, after a `refreshStaffStatusIfNeeded` forced for a non-steward unless a staff check finished in the last minute: "We are still checking your permissions, please retry in a moment." while a refresh starts or runs, then "/wv list world is restricted to stewards." (the cached staff flag outlives leaving the guild, so it alone does not pass) | `CommandRegistry.listWorld` → `WorldListFetcher.fetchWorldList` | For staff: finds each online member with `/find` and groups them by server region (the GeoIP2 continent codes AF, AS, EU, NA, OC and SA, then Other and Private) | in-game `/gu rank` (forced for a non-staff caller unless a staff check finished in the last minute), `/find` per member; GETs `VetsApi.LIST` and `VetsApi.STAFF`; Wynntils' Wynncraft API lookup of the Returners guild; a `PlayerLookup` name lookup for each member `/find` did not place; for a Returners caller, a WebSocket `tablist` frame | `vets-snapshot-provider-skips-confirmed-staff-check`, `staff-action-queue-not-drained-on-socket-reconnect` |
+| `/wv list world` | ungated | `isStaff()` and `isReturners()`, after a `refreshStaffStatusIfNeeded` forced for a non-steward unless a staff check finished in the last minute: "We are still checking your permissions, please retry in a moment." while a refresh starts or runs, then "/wv list world is restricted to stewards." (the cached staff flag outlives leaving the guild, so it alone does not pass) | `CommandRegistry.listWorld` → `WorldListFetcher.fetchWorldList` | For staff: finds each online member with `/find` and groups them by server region (the GeoIP2 continent codes AF, AS, EU, NA, OC and SA, then Other and Private) | in-game `/gu rank` (forced for a non-staff caller unless a staff check finished in the last minute), `/find` per member; GETs `VetsApi.LIST` and `VetsApi.STAFF`; Wynntils' Wynncraft API lookup of the Returners guild; a `PlayerLookup` name lookup for each member `/find` did not place; for a Returners caller, a WebSocket `tablist` frame | `staff-action-queue-not-drained-on-socket-reconnect` |
 | `/wv staff` | ungated | `isUnlocked()`: "/wv staff is restricted to vets members." | `CommandRegistry.staff` → `StaffFetcher.fetchOnlineStaff` | Prints online staff, sorted by rank, then by name | GETs `VetsApi.STAFF` | none |
 | `/wv motd` | none | none | `CommandRegistry.motd` | As the root `/motd` | as `/motd` | none |
 
@@ -392,7 +392,7 @@ server as typed. "Passes through" below means the same.
 | `/a <message>` | as `/v` | `handleAnnounce` | Once the staff-presence check passes, re-sent as `g ‼<message>` | none |
 | `/encourage <version>` | as `/v` | `handleEncourage` | Once the staff-presence check passes, re-sent as `g ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v<version>) ⚠⚠⚠` | none |
 | `/wv check <playerName>` | `isUnlocked()`, then `isConfirmedStaff()`: "/wv check is restricted to authenticated stewards." | `handleWvCheck` | As §1's `/wv check`, with the whole rest of the line as the name | §1's `/wv check` row |
-| `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `vets-snapshot-provider-skips-confirmed-staff-check`, `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
+| `/gu invite <name>` | `isUnlocked()`, then `isReturners()` and a non-empty name | `InviteGate.checkInvite` | The invite gate, below | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
 | `/guild invite <name>` | as `/gu invite` | `InviteGate.checkInvite` | As `/gu invite`; an allowed invite is sent as `gu invite` | as `/gu invite` |
 | `/caution-go <name> [message]` | `isUnlocked()`, then `isConfirmedStaff()` | `CautionCommands.runCautionGo` | Commits a caution with no preflight (`caution_add` with `confirm`) | `staff-action-queue-not-drained-on-socket-reconnect`, `staff-orphan-error-rule-claims-unrelated-error-ack` |
 | `/caution <name> [message]` | as `/caution-go` | `CautionCommands.runCaution` | Asks for a preflight (`caution_add`); commits at once if the caution crosses no threshold | as `/caution-go` |
@@ -442,7 +442,12 @@ For a player who is not confirmed staff, the four commands pass through to Wynnc
 **The invite gate.** For a Returners player, `/gu invite <name>` and `/guild invite <name>` are cancelled
 and handed to [`InviteGate.checkInvite`](../src/client/java/org/wynnvets/commands/InviteGate.java), which
 checks the target and then sends `/gu invite` itself, through `sendCommandBypassed`. Only the first word
-after `invite` is kept. It first resolves the name. If no lookup source can be reached, it prints a yellow
+after `invite` is kept. A player who is not confirmed staff and has no session authenticated this
+connection is stopped at once, since temporary-server answers only an authenticated member: with no key
+stored, or a stored key an auth ack rejected, in red with "Inviting others from unauthenticated vetsmod is
+not supported at this time (/vetsmod on Discord, then /unlock)"; with a stored key still being checked, in
+yellow with "We are still checking your permissions, please retry in a moment.". It then resolves the
+name. If no lookup source can be reached, it prints a yellow
 notice and sends the invite; a name that no source knows is refused, in red, with "Unable to find a player
 named '<name>', check spelling?" (the Vets snapshot step abstains rather than miss transiently, so the
 other sources decide that). Otherwise it gathers the target's Wynncraft
@@ -450,15 +455,17 @@ profile, dazebot's membership snapshot and, for a player who is not confirmed st
 size and level, and decides, in this order:
 
 - **the snapshot lookup fails:** cancelled, in red, with a pointer to `/wv invite-force` for confirmed
-  staff. Every player who is not confirmed staff lands here today whenever the name resolves, because
-  temporary-server refuses them `check_membership` (bug `vets-snapshot-provider-skips-confirmed-staff-check`);
-- **the profile cannot be fetched:** a blocklist check alone. A blocklisted target is refused in red for
-  everyone, with no button; anyone else gets a yellow notice that the invite is going out anyway, and is
-  invited;
+  staff. Confirmed staff get the full snapshot, which must carry the Discord blob; a member who is not
+  staff gets only temporary-server's invite verdict (`may_invite`, `waitlist_count`), never the blocklist
+  itself;
+- **the profile cannot be fetched:** a blocklist check alone (`blocksInvite`: the staff snapshot's
+  `blocklisted`, or a `may_invite: false` verdict). A blocked target is refused in red with no button:
+  staff see "'<name>' does not appear to meet vets' recruitment criteria. Please ask a steward.", anyone
+  else the line below. Anyone else is invited after a yellow notice that the invite is going out anyway;
 - **the target is blocklisted, joined Wynncraft on or after 2020-01-01, or hides their first join:**
   confirmed staff get a gold warning and an `[Invite anyway]` button that runs `/wv invite-force <name>`;
-  anyone else gets a red "Please ask staff before inviting this user as they do not qualify under the
-  usual criteria.";
+  anyone else gets a red "This user is not eligible to join the guild, ask a Steward." (the user's
+  wording), the same whichever check failed, so it does not reveal the blocklist;
 - **a player who is not confirmed staff, with the guild near capacity against its waitlist:** a yellow
   notice ("The guild has more waitlisted users (N) than open slots. …") asking them to point the target at the waitlist;
 - **otherwise:** the invite is sent.

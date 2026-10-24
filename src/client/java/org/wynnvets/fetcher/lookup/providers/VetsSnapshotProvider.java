@@ -42,12 +42,11 @@ public final class VetsSnapshotProvider implements LookupProvider {
      * Sends a {@code check_membership} frame and adapts the single-use ack
      * callback into a future. Used by this provider AND by InviteGate /
      * UserInfoFetcher for their secondary "snapshot only" fetch path (when
-     * the cascade's hit didn't already provide one). The frame is staff-only:
-     * temporary-server (at ffd8c17) rejects it from any session it has not
-     * confirmed as staff. This sends it without checking
-     * {@code isConfirmedStaff()}; today, for any such session, the rejection
-     * completes the future with {@code null} (see
-     * {@code vets-snapshot-provider-skips-confirmed-staff-check}).
+     * the cascade's hit didn't already provide one). temporary-server answers a confirmed-staff
+     * session with the full snapshot and an authenticated non-staff Returners member with the
+     * invite verdict only ({@code may_invite} and {@code waitlist_count}; see
+     * {@link MembershipSnapshot#getMayInvite()}). Any other session gets an error ack, which
+     * completes the future with {@code null}.
      */
     public static CompletableFuture<MembershipSnapshot> requestSnapshot(String target) {
         CompletableFuture<MembershipSnapshot> cf = new CompletableFuture<>();
@@ -81,7 +80,7 @@ public final class VetsSnapshotProvider implements LookupProvider {
 
     @Override
     public CompletableFuture<ProviderOutcome> lookup(String name) {
-        if (!V1ApiManager.isInboundConnected()) {
+        if (!sendsLookup(V1ApiManager.isInboundConnected(), V1ApiManager.isConfirmedStaff())) {
             return CompletableFuture.completedFuture(ProviderOutcome.abstain());
         }
         return requestSnapshot(name)
@@ -92,6 +91,16 @@ public final class VetsSnapshotProvider implements LookupProvider {
                                     "Vets snapshot lookup '{}' threw: {}", name, e.getMessage());
                             return ProviderOutcome.transientMiss();
                         });
+    }
+
+    /**
+     * Whether the cascade's Vets step sends a frame at all. It needs a connected socket and a
+     * confirmed-staff session: a non-staff session gets at most the invite verdict, which
+     * InviteGate fetches itself, so for the cascade the step abstains without a round trip.
+     */
+    // Package-private for unit tests. See VetsSnapshotProviderTest.
+    static boolean sendsLookup(boolean connected, boolean confirmedStaff) {
+        return connected && confirmedStaff;
     }
 
     // Package-private for unit tests. See VetsSnapshotProviderTest.
