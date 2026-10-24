@@ -33,6 +33,9 @@ final class OutboundAckRouter {
      *  the staff overlay is reset and refetched. Package-private so a test can stub the fetch. */
     static Runnable onAuthenticated = StaffRanksPoller::onOutboundAuthenticated;
 
+    /** Whether the next error ack answers {@code endOutboundSession}'s empty-key logout. */
+    private static volatile boolean loggingOut = false;
+
     /** Whether this connection's one transient retry has been spent; cleared by an ok ack. */
     private static volatile boolean retryUsed = false;
 
@@ -44,8 +47,10 @@ final class OutboundAckRouter {
         String status = Json.stringOrEmpty(json, "status");
         if ("ok".equals(status)) {
             retryUsed = false;
-            onAuthenticated.run();
+            loggingOut = false;
             String wsTier = Json.stringOrNull(json, "ws_tier");
+            V1ApiManager.outboundAuthenticated = wsTier != null && !wsTier.isBlank();
+            onAuthenticated.run();
             if (wsTier == null || wsTier.isBlank()) {
                 // The inbound ack confirmed a member tier before this frame was sent, so a null
                 // ws_tier means dazebot's answer changed in between. The server now sends this
@@ -64,6 +69,12 @@ final class OutboundAckRouter {
             return;
         }
         String detail = Json.optString(json, "detail", "unknown");
+        V1ApiManager.outboundAuthenticated = false;
+        if (loggingOut) {
+            loggingOut = false;
+            VetsLogger.debug("Outbound session ended: {}", detail);
+            return;
+        }
         VetsLogger.warn("Outbound auth rejected: {}", detail);
         if (isTransient(detail) && !retryUsed) {
             retryUsed = true;
@@ -101,11 +112,18 @@ final class OutboundAckRouter {
         };
     }
 
+    /** Marks the next error ack as the answer to a deliberate logout: logged at debug, not
+     *  retried. Called by {@code V1ApiManager.endOutboundSession}. */
+    static void expectLogout() {
+        loggingOut = true;
+    }
+
     /** Drops any scheduled retry and restores the retry allowance. Called by {@code connect()}
      *  and {@code disconnect()}. */
     static void reset() {
         generation.incrementAndGet();
         retryUsed = false;
+        loggingOut = false;
     }
 
     // Package-private for unit tests. See V1ApiManagerOutboundAuthTest.

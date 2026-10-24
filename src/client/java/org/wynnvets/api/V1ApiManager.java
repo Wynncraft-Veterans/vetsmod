@@ -29,8 +29,9 @@ import org.wynnvets.util.Json;
  * member tier every chat type; an older one would hide chat from an authenticated socket that
  * an unauthenticated one receives. A keyholder of tier {@code other} stays unauthenticated on
  * this socket, like a player with no key: relayed chat while the server's {@code unauth}
- * toggle is on, none with it off. The outbound ack goes to {@link OutboundAckRouter}, never
- * through the inbound ack's side effects. The mechanism is in {@code vetsmod_networking.md}
+ * toggle is on, none with it off; a session made under an earlier member tier is logged out
+ * when the inbound ack stops confirming one ({@link #endOutboundSession()}). The outbound ack
+ * goes to {@link OutboundAckRouter}, never through the inbound ack's side effects. The mechanism is in {@code vetsmod_networking.md}
  * §1.</p>
  */
 public final class V1ApiManager {
@@ -48,12 +49,17 @@ public final class V1ApiManager {
      *  {@link #connect()} and {@link #disconnect()}. */
     static volatile boolean outboundAuthOffered = false;
 
-    /** Whether the latest inbound auth ack this connection confirmed a member tier (member,
-     *  waitlist or honourary). Set by {@link #onInboundAuthOk(String)}, cleared by
-     *  {@link #onInboundAuthFailed()}, {@link #connect()} and {@link #disconnect()}. Clearing it
-     *  does not end the outbound session: the server keeps that until the socket closes or a
-     *  new outbound auth replaces it. */
+    /** Whether the latest inbound auth ack on the current inbound socket confirmed a member tier
+     *  (member, waitlist or honourary). Set by {@link #onInboundAuthOk(String)}; cleared by
+     *  {@link #onInboundAuthFailed(String)}, by each inbound (re)connect before it re-sends the
+     *  key (so a server restart waits for the fresh ack), and by {@link #connect()} and
+     *  {@link #disconnect()}. */
     static volatile boolean inboundMemberTier = false;
+
+    /** Whether the outbound socket's latest auth ack was ok with a chat channel, as recorded by
+     *  {@link OutboundAckRouter}. {@link #endOutboundSession()} reads it so it logs out only a
+     *  session that exists. Reset by {@link #connect()} and {@link #disconnect()}. */
+    static volatile boolean outboundAuthenticated = false;
 
     private static volatile JsonObject pendingRegistration;
 
@@ -113,6 +119,7 @@ public final class V1ApiManager {
         if (inboundClient != null) return;
         outboundAuthOffered = false;
         inboundMemberTier = false;
+        outboundAuthenticated = false;
         OutboundAckRouter.reset();
 
         URI inboundUri = URI.create(INBOUND_BASE + "?version=" + getModVersion());
@@ -150,6 +157,9 @@ public final class V1ApiManager {
         // server's presence + auth state stays accurate across network hiccups.
         inbound.setOnConnectCallback(
                 () -> {
+                    // A reconnect is a new server session: the previous ack's tier no longer
+                    // holds, so the outbound socket waits for this socket's fresh ack.
+                    inboundMemberTier = false;
                     String storedKey = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_KEY);
                     if (storedKey != null && !storedKey.isEmpty()) {
                         SessionAuthState.expectingAuthAck = true;
@@ -195,6 +205,7 @@ public final class V1ApiManager {
     public static void disconnect() {
         outboundAuthOffered = false;
         inboundMemberTier = false;
+        outboundAuthenticated = false;
         OutboundAckRouter.reset();
         StaffRanksPoller.clearLiveOverlay();
         WsClient inbound = inboundClient;
@@ -285,16 +296,49 @@ public final class V1ApiManager {
      * Called by {@link InboundAckRouter} on every ok inbound auth ack: records whether the tier
      * is a member tier and, if it is, authenticates the outbound socket too. Covers the
      * connect-time auth, {@code /unlock} and the mid-session Returners re-auth, since each of
-     * them ends in an inbound ack.
+     * them ends in an inbound ack. A non-member tier ends an outbound session made under an
+     * earlier member tier ({@link #endOutboundSession()}).
      */
     static void onInboundAuthOk(String tier) {
         inboundMemberTier = isMemberTier(tier);
-        sendOutboundAuthIfReady();
+        if (inboundMemberTier) {
+            sendOutboundAuthIfReady();
+        } else {
+            endOutboundSession();
+        }
     }
 
-    /** Called by {@link InboundAckRouter} on an inbound auth failure. */
-    static void onInboundAuthFailed() {
+    /**
+     * Called by {@link InboundAckRouter} on an inbound auth failure. A verdict on the key ends the
+     * outbound session too; a transient one (temporary-server could not reach dazebot) leaves it,
+     * since it says nothing about the key.
+     */
+    static void onInboundAuthFailed(String detail) {
         inboundMemberTier = false;
+        if (!OutboundAckRouter.isTransient(detail)) {
+            endOutboundSession();
+        }
+    }
+
+    /**
+     * Logs the outbound socket out by sending an {@code auth} frame with an empty key, which
+     * temporary-server refuses and treats as a logout (protocol §1.8), so the socket falls back to
+     * the unauthenticated feed and the server stops counting it as a staff session. Does nothing
+     * unless the outbound socket holds an authenticated session.
+     */
+    // Package-private for unit tests. See V1ApiManagerOutboundAuthTest.
+    static void endOutboundSession() {
+        if (!outboundAuthenticated) {
+            return;
+        }
+        WsClient client = outboundClient;
+        if (client == null || !client.isConnected()) {
+            return;
+        }
+        outboundAuthenticated = false;
+        OutboundAckRouter.expectLogout();
+        client.send(V1Frames.auth(""));
+        VetsLogger.debug("Logged the outbound socket out: no member tier confirmed");
     }
 
     /** Sends the stored key on the outbound socket when {@link #sendOutboundAuth(String)}'s

@@ -138,7 +138,7 @@ final class InboundAckRouter {
                 if (wasStaff) {
                     DispatchCoordinator.resetStaffChatEligibilityCache();
                 }
-                V1ApiManager.onInboundAuthFailed();
+                V1ApiManager.onInboundAuthFailed(detail);
                 GuildStateManager.onAuthFailure(detail);
             } else {
                 VetsLogger.warn("Inbound API error: {}", detail);

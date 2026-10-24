@@ -195,10 +195,21 @@ The outbound socket authenticates only after a `server_info` offering the all-ti
 - **`anInboundAuthOkRecordsTheTierAndAFailureClearsIt`**: `onInboundAuthOk` records whether the tier is a member tier, and `onInboundAuthFailed` clears it.
   - After `onInboundAuthOk("waitlist")`, `inboundMemberTier` is true.
   - After `onInboundAuthOk("other")`, it is false.
-  - After `onInboundAuthOk("member")` then `onInboundAuthFailed()`, it is false.
+  - After `onInboundAuthOk("member")` then `onInboundAuthFailed("auth rejected: revoked")`, it is false.
   - `socket.wire` is empty (never offered, so nothing is sent).
-- **`connectStateIsClearedByDisconnect`**: `disconnect()` clears both flags.
-  - `outboundAuthOffered` and `inboundMemberTier` are both false after it.
+- **`connectStateIsClearedByDisconnect`**: `disconnect()` clears the three flags.
+  - `outboundAuthOffered`, `inboundMemberTier` and `outboundAuthenticated` are all false after it.
+- **`aNonMemberTierLogsAnAuthenticatedOutboundSocketOut`**: With an outbound session, an ok inbound ack of tier `other` sends the empty-key logout.
+  - `socket.wire` equals the single frame `{"type":"auth","key":""}`, and `outboundAuthenticated` is false.
+- **`aVerdictOnTheKeyLogsItOutButATransientFailureDoesNot`**: A transient inbound failure keeps the outbound session; a verdict on the key ends it.
+  - After `onInboundAuthFailed("auth rejected: introspection unavailable: timed out")`, `socket.wire` is empty.
+  - After `onInboundAuthFailed("auth rejected: revoked")`, it equals the single logout frame.
+- **`nothingIsLoggedOutWithoutAnOutboundSession`**: With no outbound session, neither a non-member ack nor a failure sends anything.
+  - `socket.wire` is empty.
+- **`theLogoutsErrorAckIsNeitherAWarningNorARetry`**: The error ack that answers the logout spends no retry and leaves no session.
+  - After `endOutboundSession()` and `{"status":"error","detail":"auth rejected: empty key"}`, `OutboundAckRouter.retryUsed()` and `outboundAuthenticated` are false.
+- **`anOkAckWithAChatChannelMarksTheSessionAndOneWithoutDoesNot`**: `outboundAuthenticated` follows the ok ack's `ws_tier`.
+  - True after `{"status":"ok","tier":"member","ws_tier":"guild"}`; false after `{"status":"ok","tier":"other","ws_tier":null}`.
 - **`serverInfoOffersTheMapOnlyForChatTiersAll`**: `offersAllChatTiers` is true only for `chat_tiers` equal to `"all"`.
   - True for `{"type":"server_info","chat_tiers":"all"}`.
   - False for a `server_info` without the key, for `"chat_tiers":"tiered"` and for `"chat_tiers":null`.

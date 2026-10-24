@@ -136,7 +136,7 @@ class V1ApiManagerOutboundAuthTest {
         V1ApiManager.onInboundAuthOk("other");
         assertFalse(V1ApiManager.inboundMemberTier);
         V1ApiManager.onInboundAuthOk("member");
-        V1ApiManager.onInboundAuthFailed();
+        V1ApiManager.onInboundAuthFailed("auth rejected: revoked");
         assertFalse(V1ApiManager.inboundMemberTier);
         assertEquals(List.of(), socket.wire, "never offered, so nothing is sent");
     }
@@ -144,9 +144,63 @@ class V1ApiManagerOutboundAuthTest {
     @Test
     void connectStateIsClearedByDisconnect() {
         ready(true, true);
+        V1ApiManager.outboundAuthenticated = true;
         V1ApiManager.disconnect();
         assertFalse(V1ApiManager.outboundAuthOffered);
         assertFalse(V1ApiManager.inboundMemberTier);
+        assertFalse(V1ApiManager.outboundAuthenticated);
+    }
+
+    // ----- ending an outbound session -----
+
+    private static final String LOGOUT = "{\"type\":\"auth\",\"key\":\"\"}";
+
+    @Test
+    void aNonMemberTierLogsAnAuthenticatedOutboundSocketOut() {
+        ready(true, true);
+        V1ApiManager.outboundAuthenticated = true;
+        V1ApiManager.onInboundAuthOk("other");
+        assertEquals(List.of(LOGOUT), socket.wire);
+        assertFalse(V1ApiManager.outboundAuthenticated);
+    }
+
+    @Test
+    void aVerdictOnTheKeyLogsItOutButATransientFailureDoesNot() {
+        ready(true, true);
+        V1ApiManager.outboundAuthenticated = true;
+        V1ApiManager.onInboundAuthFailed("auth rejected: introspection unavailable: timed out");
+        assertEquals(List.of(), socket.wire, "says nothing about the key");
+        V1ApiManager.onInboundAuthFailed("auth rejected: revoked");
+        assertEquals(List.of(LOGOUT), socket.wire);
+    }
+
+    @Test
+    void nothingIsLoggedOutWithoutAnOutboundSession() {
+        ready(true, true);
+        V1ApiManager.onInboundAuthOk("other");
+        V1ApiManager.onInboundAuthFailed("auth rejected: revoked");
+        assertEquals(List.of(), socket.wire);
+    }
+
+    @Test
+    void theLogoutsErrorAckIsNeitherAWarningNorARetry() {
+        ready(true, true);
+        V1ApiManager.outboundAuthenticated = true;
+        V1ApiManager.endOutboundSession();
+        V1ApiManager.handleOutboundFrame(
+                frame("{\"status\":\"error\",\"detail\":\"auth rejected: empty key\"}"));
+        assertFalse(OutboundAckRouter.retryUsed());
+        assertFalse(V1ApiManager.outboundAuthenticated);
+    }
+
+    @Test
+    void anOkAckWithAChatChannelMarksTheSessionAndOneWithoutDoesNot() {
+        V1ApiManager.handleOutboundFrame(
+                frame("{\"status\":\"ok\",\"tier\":\"member\",\"ws_tier\":\"guild\"}"));
+        assertTrue(V1ApiManager.outboundAuthenticated);
+        V1ApiManager.handleOutboundFrame(
+                frame("{\"status\":\"ok\",\"tier\":\"other\",\"ws_tier\":null}"));
+        assertFalse(V1ApiManager.outboundAuthenticated);
     }
 
     // ----- server_info -----
