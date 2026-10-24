@@ -362,6 +362,22 @@ final class LegacyTooltipRenderer {
             return modified;
         }
 
+        // ── Branch 9: VINTAGE banner ───────────────────────────────────────
+        // Wynncraft's own VINTAGE ribbon at the top of the lore marks a legacy
+        // item, so one no name list covers is still caught.  Rewritten like
+        // Branch 2; an enchanted item has already been taken by Branch 6.
+        if (LegacyItemHandler.hasVintageBanner(tooltipLines) && plainText != null) {
+            List<Component> modified = new ArrayList<>(tooltipLines);
+            if (tryNewFormatRewrite(modified, plainText)) {
+                LegacyItemHandler.lastProcessedWasLegacy = true;
+                return modified;
+            }
+            modified.set(0, buildGoldName(plainText, false, raritySuffix));
+            replaceRarityLines(modified, null);
+            LegacyItemHandler.lastProcessedWasLegacy = true;
+            return modified;
+        }
+
         // No detection branch matched — return the tooltip unmodified.
         return tooltipLines;
     }

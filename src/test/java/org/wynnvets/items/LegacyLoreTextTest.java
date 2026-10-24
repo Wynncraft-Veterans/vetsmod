@@ -55,6 +55,48 @@ class LegacyLoreTextTest {
         assertFalse(LegacyLoreText.isPowderSocketsHeader(null));
     }
 
+    /**
+     * The {@code banner/ribbon} run of the old Llevigar Pinot's first lore line, as dumped:
+     * caps U+E060 and U+E062, letters from U+E030, a U+CFFFF kern before each glyph and a
+     * U+CFFD0 kern after.
+     */
+    private static final String CAPTURED_VINTAGE_RIBBON =
+            "\uE060\uDAFF\uDFFF\uE045\uDAFF\uDFFF\uE038\uDAFF\uDFFF\uE03D\uDAFF\uDFFF\uE043"
+                    + "\uDAFF\uDFFF\uE030\uDAFF\uDFFF\uE036\uDAFF\uDFFF\uE034\uDAFF\uDFFF\uE062"
+                    + "\uDAFF\uDFD0";
+
+    /** Builds a ribbon run the way Wynncraft draws one: cap, kerned letter glyphs, cap. */
+    private static String ribbon(String label) {
+        StringBuilder run = new StringBuilder("\uE060");
+        for (char c : label.toCharArray()) {
+            run.appendCodePoint(0xCFFFF).append((char) (0xE030 + c - 'A'));
+        }
+        return run.appendCodePoint(0xCFFFF).append("\uE062").toString();
+    }
+
+    @Test
+    void decodeRibbonLabel_readsTheLetterGlyphsAndDropsTheRest() {
+        assertEquals("VINTAGE", LegacyLoreText.decodeRibbonLabel(CAPTURED_VINTAGE_RIBBON));
+        assertEquals("LEGACY", LegacyLoreText.decodeRibbonLabel(ribbon("LEGACY")));
+        assertEquals("", LegacyLoreText.decodeRibbonLabel("Vintage"));
+        assertEquals("", LegacyLoreText.decodeRibbonLabel(null));
+        assertEquals(
+                "AZ", LegacyLoreText.decodeRibbonLabel("\uE030x\uE049"), "A and Z are the ends");
+        assertEquals(
+                "", LegacyLoreText.decodeRibbonLabel("\uE015\uE008"), "the black overlay letters");
+    }
+
+    @Test
+    void vintageRibbon_isRecognisedAndNothingElseIs() {
+        assertTrue(LegacyLoreText.isVintageRibbon(CAPTURED_VINTAGE_RIBBON));
+        assertTrue(LegacyLoreText.isVintageRibbon(ribbon("VINTAGE")));
+        assertFalse(LegacyLoreText.isVintageRibbon(ribbon("VINTAGES")), "the whole word only");
+        assertFalse(LegacyLoreText.isVintageRibbon(ribbon("LEGACY")));
+        assertFalse(LegacyLoreText.isVintageRibbon("VINTAGE"), "plain text is not a ribbon");
+        assertFalse(LegacyLoreText.isVintageRibbon(""));
+        assertFalse(LegacyLoreText.isVintageRibbon(null));
+    }
+
     @Test
     void betaLevelLine_stillRequiresTheAnchorAndANumber() {
         assertFalse(LegacyLoreText.isBetaLevelLine("Combat Lv. Min: 65"), "modern line");

@@ -4,6 +4,7 @@ import com.wynntils.core.components.Models;
 import com.wynntils.utils.mc.McUtils;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.screens.Screen;
@@ -11,6 +12,8 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
+import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
@@ -80,6 +83,10 @@ public final class LegacyItemHandler {
      * tooltip sprites).
      */
     public static final Identifier LEGACY_BORDER = Identifier.parse("unique");
+
+    /** The font Wynncraft draws an item's lore ribbon (such as VINTAGE) in. */
+    private static final FontDescription BANNER_RIBBON_FONT =
+            new FontDescription.Resource(Identifier.parse("banner/ribbon"));
 
     private LegacyItemHandler() {}
 
@@ -169,7 +176,7 @@ public final class LegacyItemHandler {
      * {@link org.wynnvets.config.VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING
      * VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING} is disabled.
      *
-     * <p>Detection uses a priority cascade of 8 independent checks, each targeting
+     * <p>Detection uses a priority cascade of 9 independent checks, each targeting
      * a different category of legacy item.  The {@code newFormatOverridden} flag
      * prevents false positives on names that exist in both old and new Wynncraft
      * item formats: a new-format stack whose name is in {@code definitions.yml}'s
@@ -224,6 +231,10 @@ public final class LegacyItemHandler {
 
         // 8. Crafting rarity: lore has the pre-removal "Crafting" rarity line
         if (hasCraftingRarity(lore)) return true;
+
+        // 9. Vintage banner: lore carries Wynncraft's own VINTAGE ribbon, so an item no
+        // name list covers is still caught
+        if (hasVintageBanner(lore)) return true;
 
         return false;
     }
@@ -440,6 +451,25 @@ public final class LegacyItemHandler {
             String plain = ChatFormatting.stripFormatting(raw);
             if (!LegacyLoreText.isBetaLevelLine(plain)) continue;
             if (isExclusivelyGold(line)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns {@code true} if a line carries Wynncraft's VINTAGE ribbon, the banner it puts at
+     * the top of a legacy item's lore. Only text drawn in the {@code banner/ribbon} font is
+     * read, so the word in ordinary lore text, or the same glyphs in another font, never count.
+     */
+    public static boolean hasVintageBanner(List<Component> lines) {
+        for (Component line : lines) {
+            StringBuilder ribbon = new StringBuilder();
+            line.visit(
+                    (Style style, String text) -> {
+                        if (BANNER_RIBBON_FONT.equals(style.getFont())) ribbon.append(text);
+                        return Optional.empty();
+                    },
+                    Style.EMPTY);
+            if (LegacyLoreText.isVintageRibbon(ribbon.toString())) return true;
         }
         return false;
     }

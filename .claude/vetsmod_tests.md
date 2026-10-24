@@ -2396,7 +2396,7 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
 
 Test: [`LegacyLoreTextTest.java`](../src/test/java/org/wynnvets/items/LegacyLoreTextTest.java) · Subject: [`LegacyLoreText`](../src/client/java/org/wynnvets/items/LegacyLoreText.java)
 
-`LegacyLoreText` holds the string-level rules the legacy-item code applies to tooltip and lore text. They live outside `LegacyItemHandler` and `LegacyEnchantmentRenderer` because those two initialise `ItemStack` in their static initialisers, which the unit-test runtime (no Minecraft bootstrap) cannot do. Every test passes plain strings; the boxed-header tests build their input with a small `boxedHeader` helper that mimics Wynncraft's fill run, back-kern and foreground letters.
+`LegacyLoreText` holds the string-level rules the legacy-item code applies to tooltip and lore text. They live outside `LegacyItemHandler` and `LegacyEnchantmentRenderer` because those two initialise `ItemStack` in their static initialisers, which the unit-test runtime (no Minecraft bootstrap) cannot do. Every test passes plain strings; the boxed-header tests build their input with a small `boxedHeader` helper that mimics Wynncraft's fill run, back-kern and foreground letters, and the ribbon tests use the old Llevigar Pinot's dumped `banner/ribbon` run (`CAPTURED_VINTAGE_RIBBON`) and a `ribbon` helper that builds one the same way.
 
 - **`betaLevelLine_acceptsBothCapitalisationsOfMin`**: "Lv. min: 26", Dental Floss's "Lv. Min: 26" and the dotless "Lv min: 5" are beta level lines.
   - `LegacyLoreText.isBetaLevelLine("Lv. min: 26")` is true
@@ -2417,6 +2417,21 @@ Test: [`LegacyLoreTextTest.java`](../src/test/java/org/wynnvets/items/LegacyLore
   - `LegacyLoreText.isPowderSocketsHeader("This item has no available")` is false
   - `LegacyLoreText.isPowderSocketsHeader("Powder Sockets")` is false (plain text is not a box)
   - `LegacyLoreText.isPowderSocketsHeader(null)` is false
+- **`decodeRibbonLabel_readsTheLetterGlyphsAndDropsTheRest`**: The ribbon letter glyphs U+E030 to U+E049 decode to A to Z; the caps, kerns, plain text, null and the black overlay letters decode to nothing.
+  - `LegacyLoreText.decodeRibbonLabel(CAPTURED_VINTAGE_RIBBON)` equals "VINTAGE"
+  - `LegacyLoreText.decodeRibbonLabel(ribbon("LEGACY"))` equals "LEGACY"
+  - `LegacyLoreText.decodeRibbonLabel("Vintage")` equals ""
+  - `LegacyLoreText.decodeRibbonLabel(null)` equals ""
+  - `LegacyLoreText.decodeRibbonLabel("U+E030 x U+E049")` equals "AZ" (the two ends of the range)
+  - `LegacyLoreText.decodeRibbonLabel("U+E015 U+E008")` equals "" (the black default-font overlay letters)
+- **`vintageRibbon_isRecognisedAndNothingElseIs`**: The dumped VINTAGE ribbon and a built one are recognised; a longer word, another word, plain text, the empty string and null are not.
+  - `LegacyLoreText.isVintageRibbon(CAPTURED_VINTAGE_RIBBON)` is true
+  - `LegacyLoreText.isVintageRibbon(ribbon("VINTAGE"))` is true
+  - `LegacyLoreText.isVintageRibbon(ribbon("VINTAGES"))` is false (the whole word only)
+  - `LegacyLoreText.isVintageRibbon(ribbon("LEGACY"))` is false
+  - `LegacyLoreText.isVintageRibbon("VINTAGE")` is false (plain text is not a ribbon)
+  - `LegacyLoreText.isVintageRibbon("")` is false
+  - `LegacyLoreText.isVintageRibbon(null)` is false
 - **`betaLevelLine_stillRequiresTheAnchorAndANumber`**: The modern "Combat Lv. Min: 65", a non-numeric level, trailing text and null are not beta level lines.
   - `LegacyLoreText.isBetaLevelLine("Combat Lv. Min: 65")` is false (the pattern is anchored at `Lv`)
   - `LegacyLoreText.isBetaLevelLine("Lv. Min: high")` is false

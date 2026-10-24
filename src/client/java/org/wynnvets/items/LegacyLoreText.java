@@ -26,6 +26,14 @@ final class LegacyLoreText {
     /** What Wynncraft's POWDER SOCKETS header decodes to once its spaces are dropped. */
     private static final String POWDER_SOCKETS_LABEL = "POWDERSOCKETS";
 
+    /** Letter glyph of a {@code banner/ribbon} label: U+E030 is 'A', U+E049 is 'Z'. */
+    private static final int RIBBON_A = 0xE030;
+
+    private static final int RIBBON_Z = 0xE049;
+
+    /** What the ribbon Wynncraft puts at the top of a legacy item's lore spells. */
+    private static final String VINTAGE_LABEL = "VINTAGE";
+
     private LegacyLoreText() {}
 
     /**
@@ -54,6 +62,33 @@ final class LegacyLoreText {
      */
     static boolean isPowderSocketsHeader(String lineText) {
         return decodeBoxLabel(lineText).contains(POWDER_SOCKETS_LABEL);
+    }
+
+    /**
+     * Reads the word a {@code banner/ribbon} run spells out. The ribbon's body is one glyph per
+     * letter at {@code U+E030 + (c - 'A')}, between the end caps U+E060 and U+E062, with a
+     * space-font kern (U+CFFFF) before each; the caps, the kerns and everything else are
+     * dropped. The same code points are other glyphs in other fonts (the {@code banner/box}
+     * fill run uses them too), so callers pass only the text drawn in {@code banner/ribbon}.
+     */
+    static String decodeRibbonLabel(String ribbonText) {
+        if (ribbonText == null) return "";
+        StringBuilder label = new StringBuilder();
+        for (int i = 0; i < ribbonText.length(); i++) {
+            char c = ribbonText.charAt(i);
+            if (c >= RIBBON_A && c <= RIBBON_Z) {
+                label.append((char) ('A' + (c - RIBBON_A)));
+            }
+        }
+        return label.toString();
+    }
+
+    /**
+     * Returns {@code true} if the {@code banner/ribbon} text reads VINTAGE: the ribbon Wynncraft
+     * shows at the top of a legacy item's lore (seen on the Llevigar Pinot).
+     */
+    static boolean isVintageRibbon(String ribbonText) {
+        return VINTAGE_LABEL.equals(decodeRibbonLabel(ribbonText));
     }
 
     /** Returns {@code true} if the formatting-stripped line is a beta-era "Lv. min: N" line. */
