@@ -49,9 +49,10 @@ public final class V1ApiManager {
     static volatile WsClient inboundClient;
     static volatile WsClient outboundClient;
 
-    /** Whether this connection's outbound {@code server_info} advertised {@code chat_tiers:
+    /** Whether the current outbound socket's {@code server_info} advertised {@code chat_tiers:
      *  "all"}, the receive map that gives every member tier every chat type. Reset by
-     *  {@link #connect()} and {@link #disconnect()}. */
+     *  {@link #connect()}, {@link #disconnect()} and a lost outbound socket
+     *  ({@link #onOutboundSocketLost}), so a reconnect waits for its own hello. */
     static volatile boolean outboundAuthOffered = false;
 
     /** Whether the latest inbound auth ack on the current inbound socket confirmed a member tier
@@ -63,7 +64,8 @@ public final class V1ApiManager {
 
     /** Whether the outbound socket's latest auth ack was ok with a chat channel, as recorded by
      *  {@link OutboundAckRouter}. {@link #endOutboundSession()} reads it so it logs out only a
-     *  session that exists. Reset by {@link #connect()} and {@link #disconnect()}. */
+     *  session that exists. Reset by {@link #connect()}, {@link #disconnect()} and a lost
+     *  outbound socket ({@link #onOutboundSocketLost}), whose server session died with it. */
     static volatile boolean outboundAuthenticated = false;
 
     /** Whether this connection's outbound {@code server_info} carried {@code unregister: true},
@@ -237,7 +239,14 @@ public final class V1ApiManager {
         // their callers waiting for the next disconnect().
         inbound.setOnLostCallback(V1ApiManager::onInboundSocketLost);
 
-        outboundClient = new WsClient(OUTBOUND_URI, "outbound", V1ApiManager::handleOutboundFrame);
+        WsClient outbound =
+                new WsClient(OUTBOUND_URI, "outbound", V1ApiManager::handleOutboundFrame);
+        // The server sends server_info right after accepting, so the hello usually arrives before
+        // the socket is installed and its own sendOutboundAuthIfReady finds no socket to send on.
+        // Authenticate once the socket is installed too; the flags make the two sends exclusive.
+        outbound.setOnConnectCallback(V1ApiManager::sendOutboundAuthIfReady);
+        outbound.setOnLostCallback(V1ApiManager::onOutboundSocketLost);
+        outboundClient = outbound;
 
         inboundClient = inbound;
         inbound.connect();
@@ -391,6 +400,20 @@ public final class V1ApiManager {
      *  ({@code chat_tiers: "all"}). A server without the key runs the old per-tier map. */
     static boolean offersAllChatTiers(JsonObject serverInfo) {
         return "all".equals(Json.stringOrNull(serverInfo, "chat_tiers"));
+    }
+
+    /**
+     * Called by the outbound {@link WsClient} when its socket is lost. The server's session for
+     * that socket, and the {@code chat_tiers} offer its hello made, die with it: the next socket
+     * starts unauthenticated, and authenticates once its own hello offers the map again (from
+     * that hello, or from the on-connect callback if the hello came first). The request-id and
+     * unregister capabilities are left alone: they gate inbound behaviour, and an outbound-only
+     * drop says nothing about the server the inbound socket talks to.
+     */
+    // Package-private for unit tests. See V1ApiManagerOutboundAuthTest.
+    static void onOutboundSocketLost(long generation) {
+        outboundAuthOffered = false;
+        outboundAuthenticated = false;
     }
 
     /** Whether {@code frame}'s {@code key} is the JSON boolean {@code true}: the form of a

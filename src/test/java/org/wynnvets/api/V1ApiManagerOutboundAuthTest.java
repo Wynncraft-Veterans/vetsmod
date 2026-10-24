@@ -203,6 +203,22 @@ class V1ApiManagerOutboundAuthTest {
         assertFalse(V1ApiManager.outboundAuthenticated);
     }
 
+    // ----- a reconnected outbound socket -----
+
+    @Test
+    void aLostOutboundSocketDropsTheOfferAndTheSessionButNotTheInboundCapabilities() {
+        ready(true, true);
+        V1ApiManager.outboundAuthenticated = true;
+        V1ApiManager.helloEchoesReq = true;
+        V1ApiManager.serverSupportsUnregister = true;
+        V1ApiManager.onOutboundSocketLost(1);
+        assertFalse(V1ApiManager.outboundAuthOffered, "the next socket waits for its own hello");
+        assertFalse(V1ApiManager.outboundAuthenticated, "its server session died with it");
+        assertTrue(V1ApiManager.inboundMemberTier);
+        assertTrue(V1ApiManager.helloEchoesReq);
+        assertTrue(V1ApiManager.serverSupportsUnregister);
+    }
+
     // ----- server_info -----
 
     @Test

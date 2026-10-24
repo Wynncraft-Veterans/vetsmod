@@ -290,6 +290,7 @@ The outbound socket authenticates only after a `server_info` offering the all-ti
   - After `endOutboundSession()` and `{"status":"error","detail":"auth rejected: empty key"}`, `OutboundAckRouter.retryUsed()` and `outboundAuthenticated` are false.
 - **`anOkAckWithAChatChannelMarksTheSessionAndOneWithoutDoesNot`**: `outboundAuthenticated` follows the ok ack's `ws_tier`.
   - True after `{"status":"ok","tier":"member","ws_tier":"guild"}`; false after `{"status":"ok","tier":"other","ws_tier":null}`.
+- **`aLostOutboundSocketDropsTheOfferAndTheSessionButNotTheInboundCapabilities`**: `onOutboundSocketLost(1)` clears `outboundAuthOffered` and `outboundAuthenticated`, so a reconnected socket authenticates once its own hello offers the map, and leaves `inboundMemberTier`, `helloEchoesReq` and `serverSupportsUnregister` set.
 - **`serverInfoOffersTheMapOnlyForChatTiersAll`**: `offersAllChatTiers` is true only for `chat_tiers` equal to `"all"`.
   - True for `{"type":"server_info","chat_tiers":"all"}`.
   - False for a `server_info` without the key, for `"chat_tiers":"tiered"` and for `"chat_tiers":null`.
