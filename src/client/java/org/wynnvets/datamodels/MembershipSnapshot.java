@@ -9,9 +9,9 @@ package org.wynnvets.datamodels;
  * {@code /wv check} renderer and the {@code /gu invite} gate use. The
  * fields are modelled on dazebot's JSON shape; temporary-server forwards
  * an explicit subset of it, so a field added at dazebot reaches this class
- * only once temporary-server forwards it too. Today
- * {@code last_seen_observed} is one it does not forward (see
- * {@code check-membership-ack-drops-last-seen-observed}).</p>
+ * only once temporary-server forwards it too. A field an older temporary-server
+ * does not forward, {@code last_seen_observed} among them, reads as
+ * {@code null}.</p>
  */
 public class MembershipSnapshot {
     private String target_uuid;
@@ -73,10 +73,9 @@ public class MembershipSnapshot {
      * which several dazebot paths keep current, its {@code server_watcher}
      * among them. Used as a fallback when the Wynncraft API hides
      * {@code lastJoin} / {@code online} due to player privacy settings.
-     * {@code null} or {@code ts == 0} is meant to mean "no observation on
-     * record"; today it is always {@code null}, because temporary-server's
-     * ack does not carry the field (see
-     * {@code check-membership-ack-drops-last-seen-observed}).
+     * {@code null} or {@code ts == 0} means "no observation on record"; it is
+     * also {@code null} when an older temporary-server's ack does not carry the
+     * field.
      */
     public LastSeenObserved getLastSeenObserved() {
         return last_seen_observed;

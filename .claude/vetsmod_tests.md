@@ -1498,7 +1498,7 @@ Test: [`MojangCooldownTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/M
 
 Test: [`CheckReportRendererTest.java`](../src/test/java/org/wynnvets/fetcher/ondemand/CheckReportRendererTest.java) · Subject: [`CheckReportRenderer`](../src/client/java/org/wynnvets/fetcher/ondemand/CheckReportRenderer.java)
 
-`CheckReportRenderer` renders the `/wv check` block; the suite pins its pure line builders through `Component.getString()`, so far the Guild line's decision table (`guildLine`) and the Discord link line's `(hiatus)` annotation (`discordLinkLine`), both over the payload's guild and a `GuildEvidence` (the Returners roster verdict, the payload guild's roster verdict, the tab-list flag). The send wrappers and the tab-list, clock and chat reads in `renderCheck` are not covered. Users and snapshots are hand-written JSON parsed through the shared `Json.GSON`; the Returners guild uuid is `VetsApi.GUILD_UUID`.
+`CheckReportRenderer` renders the `/wv check` block; the suite pins its pure line builders through `Component.getString()`, so far the Guild line's decision table (`guildLine`) the Discord link line's `(hiatus)` annotation (`discordLinkLine`), both over the payload's guild and a `GuildEvidence` (the Returners roster verdict, the payload guild's roster verdict, the tab-list flag), and the "Last seen" fallback line (`lastSeenFallbackLine`) read from a parsed `last_seen_observed`. The send wrappers and the tab-list, clock and chat reads in `renderCheck` are not covered. Users and snapshots are hand-written JSON parsed through the shared `Json.GSON`; the Returners guild uuid is `VetsApi.GUILD_UUID`.
 
 - **`returnersIn_showsReturnersAndRosterRank`**: A roster that lists the target gives `Returners` and the roster's rank.
   - `guildLine(...).getString()` equals `"Guild: Returners  -  Chief"`, for a payload naming Returners and a Returners roster `IN_ROSTER` with rank `Chief`.
@@ -1550,6 +1550,21 @@ Test: [`CheckReportRendererTest.java`](../src/test/java/org/wynnvets/fetcher/ond
   - The line equals `"Discord link: (snapshot unavailable)"` for a null snapshot.
   - The line equals `"Discord link: (snapshot unavailable)"` for a snapshot with no `discord`.
   - The line equals `"Discord link: not linked"` for `{"linked": false}`.
+- **`lastSeenFallback_withObservation_isLabelledBestGuessOnly`**: An observation five minutes old reads as an age with the bare `(best guess)` label, naming no server and no server change.
+  - The line, for a snapshot parsed from `last_seen_observed` with `ts` five minutes ago and `server_at_observation` `NA35`, starts with `"Last seen on Wynncraft: "`.
+  - The line ends with `" ago  (best guess)"`.
+  - The line does not contain `"NA35"`.
+  - The line does not contain `"server-change"`.
+- **`lastSeenFallback_withoutServer_isTheSameLabel`**: A null `server_at_observation` gives the same label.
+  - The line ends with `"  (best guess)"`, for an observation five minutes ago with a null server.
+- **`lastSeenFallback_tsZero_isHidden`**: A `ts` of 0 reads as no observation.
+  - The line equals `"Last seen on Wynncraft: (hidden)"`, for `ts` 0 with server `NA35`.
+- **`lastSeenFallback_noObservation_isHidden`**: A null snapshot, or one without `last_seen_observed` (an older server), is hidden.
+  - The line equals `"Last seen on Wynncraft: (hidden)"` for a null snapshot.
+  - The line equals the same text for a snapshot parsed from `{}`.
+- **`lastSeenFallback_selfAndTabList_unchanged`**: Self and a tab-list hit read as now, ahead of any observation.
+  - The line equals `"Last seen on Wynncraft: now  (self)"`, for self with tab-list server `WC7`.
+  - The line equals `"Last seen on Wynncraft: now  (tab-list: WC7)"`, for a non-self target with tab-list server `WC7`.
 
 ### `ReturnersRosterProbeTest`
 

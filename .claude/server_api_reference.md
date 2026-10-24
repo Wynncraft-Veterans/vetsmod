@@ -148,9 +148,15 @@ exactly like a `caution_check` ack:
   "blocklist_reason":   null,
   "in_returners_guild": false,
   "waitlist_count":     0,
-  "cult":               null
+  "cult":               null,
+  "last_seen_observed": null
 }
 ```
+
+`last_seen_observed` is `null` or `{"ts": <unix seconds>, "server_at_observation": <str|null>,
+"observed_at": <int|null>}`: dazebot's best guess of the last activity it recorded for the
+player, not necessarily a server change. An older temporary-server omits the key; vetsmod reads
+that as `null`.
 
 ### The MWE anni frames
 

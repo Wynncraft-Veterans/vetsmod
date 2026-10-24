@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Instant;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -19,8 +20,8 @@ import org.wynnvets.util.Json;
 /**
  * Tests for the pure line builders behind {@link CheckReportRenderer}'s {@code /wv check} block,
  * read through {@link Component#getString()}: the Guild line's decision table over the payload's
- * guild and the roster evidence, and the Discord link line's {@code (hiatus)} annotation over the
- * same evidence.
+ * guild and the roster evidence, the Discord link line's {@code (hiatus)} annotation over the
+ * same evidence, and the "Last seen" fallback line read from a parsed {@code last_seen_observed}.
  *
  * <p>The send wrappers and the tab-list, clock and chat reads in {@code renderCheck} are not
  * covered.</p>
@@ -259,5 +260,58 @@ class CheckReportRendererTest {
         assertEquals(
                 "Discord link: not linked",
                 discord(snapshotWith("{\"linked\": false}"), null, none));
+    }
+
+    // ── Last-seen fallback line ───────────────────────────────────────────
+
+    private static MembershipSnapshot snapshotSeen(long ts, String server) {
+        String serverJson = server == null ? "null" : "\"" + server + "\"";
+        return Json.GSON.fromJson(
+                "{\"last_seen_observed\": {\"ts\": %d, \"server_at_observation\": %s}}"
+                        .formatted(ts, serverJson),
+                MembershipSnapshot.class);
+    }
+
+    private static String lastSeen(MembershipSnapshot snapshot, String tabList, boolean self) {
+        return CheckReportRenderer.lastSeenFallbackLine(snapshot, tabList, self).getString();
+    }
+
+    @Test
+    void lastSeenFallback_withObservation_isLabelledBestGuessOnly() {
+        long fiveMinutesAgo = Instant.now().getEpochSecond() - 300;
+        String text = lastSeen(snapshotSeen(fiveMinutesAgo, "NA35"), null, false);
+        assertTrue(text.startsWith("Last seen on Wynncraft: "), text);
+        assertTrue(text.endsWith(" ago  (best guess)"), text);
+        assertFalse(text.contains("NA35"));
+        assertFalse(text.contains("server-change"));
+    }
+
+    @Test
+    void lastSeenFallback_withoutServer_isTheSameLabel() {
+        long fiveMinutesAgo = Instant.now().getEpochSecond() - 300;
+        assertTrue(
+                lastSeen(snapshotSeen(fiveMinutesAgo, null), null, false)
+                        .endsWith("  (best guess)"));
+    }
+
+    @Test
+    void lastSeenFallback_tsZero_isHidden() {
+        assertEquals(
+                "Last seen on Wynncraft: (hidden)", lastSeen(snapshotSeen(0, "NA35"), null, false));
+    }
+
+    @Test
+    void lastSeenFallback_noObservation_isHidden() {
+        String hidden = "Last seen on Wynncraft: (hidden)";
+        assertEquals(hidden, lastSeen(null, null, false));
+        assertEquals(
+                hidden, lastSeen(Json.GSON.fromJson("{}", MembershipSnapshot.class), null, false));
+    }
+
+    @Test
+    void lastSeenFallback_selfAndTabList_unchanged() {
+        MembershipSnapshot seen = snapshotSeen(Instant.now().getEpochSecond() - 300, "NA35");
+        assertEquals("Last seen on Wynncraft: now  (self)", lastSeen(seen, "WC7", true));
+        assertEquals("Last seen on Wynncraft: now  (tab-list: WC7)", lastSeen(seen, "WC7", false));
     }
 }

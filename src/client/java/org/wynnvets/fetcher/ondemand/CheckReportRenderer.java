@@ -162,9 +162,7 @@ final class CheckReportRenderer {
         // Item 2: last seen. When the Wynn API hides lastJoin (privacy on), fall
         // back to self, then the tab list, then dazebot's last_seen_observed
         // best guess (several dazebot paths keep it current); `(hidden)` only
-        // when we have nothing at all. Today the dazebot fallback never fires
-        // because temporary-server drops last_seen_observed (see
-        // check-membership-ack-drops-last-seen-observed).
+        // when we have nothing at all.
         String lastJoin = user.getLastJoinDate();
         if (lastJoin != null) {
             Instant lastInstant = user.getLastJoinInstant();
@@ -182,7 +180,7 @@ final class CheckReportRenderer {
                                     Component.literal("  (" + lastShown + ")")
                                             .setStyle(MUTED_STYLE)));
         } else {
-            renderLastSeenFallback(snapshot, tabListServer, isSelf);
+            ChatUtils.sendLocalMessage(lastSeenFallbackLine(snapshot, tabListServer, isSelf));
         }
 
         // Item 3: playtime
@@ -202,44 +200,37 @@ final class CheckReportRenderer {
         renderOnlineLine(user, snapshot, tabListServer, isSelf);
     }
 
-    private static void renderLastSeenFallback(
+    /**
+     * The "Last seen" line for a target whose Wynncraft {@code lastJoin} is hidden: now for self
+     * and for a tab-list hit, else dazebot's {@code last_seen_observed} as "N ago (best guess)",
+     * else "(hidden)". The observation's {@code ts} is dazebot's last recorded activity of any
+     * kind, not necessarily a server change, so the label claims nothing more than a guess.
+     */
+    // Package-private for unit tests. See CheckReportRendererTest.
+    static MutableComponent lastSeenFallbackLine(
             MembershipSnapshot snapshot, String tabListServer, boolean isSelf) {
         MutableComponent line = label("Last seen on Wynncraft: ");
         if (isSelf) {
-            line.append(Component.literal("now").setStyle(HIDDEN_STYLE))
+            return line.append(Component.literal("now").setStyle(HIDDEN_STYLE))
                     .append(Component.literal("  (self)").setStyle(MUTED_STYLE));
-            ChatUtils.sendLocalMessage(line);
-            return;
         }
         if (tabListServer != null) {
             // Tab list is "right now" by construction.
-            line.append(Component.literal("now").setStyle(HIDDEN_STYLE))
+            return line.append(Component.literal("now").setStyle(HIDDEN_STYLE))
                     .append(
                             Component.literal("  (tab-list: " + tabListServer + ")")
                                     .setStyle(MUTED_STYLE));
-            ChatUtils.sendLocalMessage(line);
-            return;
         }
         MembershipSnapshot.LastSeenObserved obs =
                 snapshot != null ? snapshot.getLastSeenObserved() : null;
         if (obs != null && obs.getTs() > 0) {
             long ageSec = Instant.now().getEpochSecond() - obs.getTs();
-            line.append(
+            return line.append(
                             Component.literal(TimeLabels.humanizeAge(ageSec) + " ago")
                                     .setStyle(HIDDEN_STYLE))
-                    .append(
-                            Component.literal("  (best guess - server-change observed")
-                                    .setStyle(MUTED_STYLE));
-            if (obs.getServerAtObservation() != null && !obs.getServerAtObservation().isEmpty()) {
-                line.append(
-                        Component.literal(" on " + obs.getServerAtObservation())
-                                .setStyle(MUTED_STYLE));
-            }
-            line.append(Component.literal(")").setStyle(MUTED_STYLE));
-        } else {
-            line.append(hidden());
+                    .append(Component.literal("  (best guess)").setStyle(MUTED_STYLE));
         }
-        ChatUtils.sendLocalMessage(line);
+        return line.append(hidden());
     }
 
     private static void renderOnlineLine(
@@ -293,8 +284,7 @@ final class CheckReportRenderer {
             return;
         }
 
-        // Wynn hidden — try the last_seen_observed best guess (today never
-        // present; see check-membership-ack-drops-last-seen-observed).
+        // Wynn hidden — try the last_seen_observed best guess.
         MembershipSnapshot.LastSeenObserved obs =
                 snapshot != null ? snapshot.getLastSeenObserved() : null;
         if (obs != null && obs.getTs() > 0) {
@@ -303,13 +293,9 @@ final class CheckReportRenderer {
                 line.append(
                         Component.literal("~" + TimeLabels.humanizeAge(ageSec) + " ago")
                                 .setStyle(HIDDEN_STYLE));
-                if (obs.getServerAtObservation() != null
-                        && !obs.getServerAtObservation().isEmpty()) {
-                    line.append(
-                            Component.literal(
-                                            "  (" + obs.getServerAtObservation() + ", best guess)")
-                                    .setStyle(MUTED_STYLE));
-                }
+                // The same bare hedge as the Last seen line (the user's wording): the recorded
+                // world can be older than the time, so it is not named.
+                line.append(Component.literal("  (best guess)").setStyle(MUTED_STYLE));
                 ChatUtils.sendLocalMessage(line);
                 return;
             }
