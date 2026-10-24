@@ -24,10 +24,14 @@ import org.wynnvets.util.TickDelays;
  * reports any failure through {@link UnlockManager#onAuthFailure}'s usual line, so a session
  * the re-auth lost does not go unnoticed.</p>
  *
+ * <p>A join also opens an in-progress window ({@link #isInProgress()}), which the invite gate
+ * reads: it lasts until {@link #ACK_GRACE_MS} after the retry, re-armed when the retry actually
+ * runs, since a client that drops ticks runs it late.</p>
+ *
  * <p>Everything here runs on the client thread. {@link #reset()}, from
  * {@link GuildLifecycle#reset()}, bumps a generation that drops a retry scheduled before a
- * disconnect, as {@code DistributeRuns.fenced} does. The predicates and the fence touch no
- * Minecraft or Wynntils class, for {@code ReturnersReauthTest}.</p>
+ * disconnect, as {@code DistributeRuns.fenced} does, and closes the window. The predicates, the
+ * window and the fence touch no Minecraft or Wynntils class, for {@code ReturnersReauthTest}.</p>
  */
 final class ReturnersReauth {
 
@@ -35,7 +39,16 @@ final class ReturnersReauth {
      *  role-sync loops. */
     static final long RETRY_DELAY_MS = 330_000L;
 
+    /** How long after the retry the join's re-auth still counts as in progress: time for the
+     *  retry's ack to come back. */
+    static final long ACK_GRACE_MS = 30_000L;
+
     private static final AtomicInteger generation = new AtomicInteger();
+
+    /** When the latest Returners join's re-auth stops counting as in progress
+     *  ({@link #isInProgress()}): {@link #RETRY_DELAY_MS} plus {@link #ACK_GRACE_MS} after the
+     *  join. 0 when no join has opened one since the last {@link #reset()}. */
+    private static volatile long inProgressUntilMs = 0L;
 
     private ReturnersReauth() {}
 
@@ -76,19 +89,55 @@ final class ReturnersReauth {
         };
     }
 
-    /** Drops any scheduled retry. Called from {@link GuildLifecycle#reset()} on disconnect. */
+    /** Drops any scheduled retry and closes the in-progress window. Called from
+     *  {@link GuildLifecycle#reset()} on disconnect. */
     static void reset() {
         generation.incrementAndGet();
+        inProgressUntilMs = 0L;
+    }
+
+    /**
+     * Whether a Returners join's re-auth is still in progress: the join came less than
+     * {@link #RETRY_DELAY_MS} plus {@link #ACK_GRACE_MS} ago, so its retry, or the retry's ack, may
+     * still raise the tier to {@code member}. A player who was in Returners at login, or whose
+     * retry has come and gone, is not waiting for anything.
+     */
+    static boolean isInProgress() {
+        return inProgressAt(System.currentTimeMillis(), inProgressUntilMs);
+    }
+
+    /** {@link #isInProgress()}'s test, pure: whether {@code nowMs} falls before the end of the
+     *  window, {@code untilMs} (0 for none). */
+    static boolean inProgressAt(long nowMs, long untilMs) {
+        return nowMs < untilMs;
+    }
+
+    /** The end of the window a Returners join at {@code joinedAtMs} opens. */
+    static long windowEnd(long joinedAtMs) {
+        return joinedAtMs + RETRY_DELAY_MS + ACK_GRACE_MS;
+    }
+
+    /** Opens, or moves, the in-progress window so it ends at {@code untilMs}. */
+    // Package-private for unit tests. See ReturnersReauthTest.
+    static void openWindowUntil(long untilMs) {
+        inProgressUntilMs = untilMs;
     }
 
     /** Called on the client thread by {@link GuildLifecycle#onGuildJoined()} when the guild
      *  joined is Returners: an attempt now, and the retry {@link #RETRY_DELAY_MS} later. */
     static void onJoinedReturners() {
+        openWindowUntil(windowEnd(System.currentTimeMillis()));
         attempt(false);
         TickDelays.runAfter(
                 RETRY_DELAY_MS,
                 "Returners re-auth retry",
-                fenced(generation(), () -> attempt(true)));
+                fenced(
+                        generation(),
+                        () -> {
+                            // Ticks can run late: end the window a grace after the retry itself.
+                            openWindowUntil(System.currentTimeMillis() + ACK_GRACE_MS);
+                            attempt(true);
+                        }));
     }
 
     private static void attempt(boolean retry) {

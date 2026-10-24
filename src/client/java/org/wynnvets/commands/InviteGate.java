@@ -27,6 +27,7 @@ import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.PlayerLookup;
 import org.wynnvets.fetcher.lookup.providers.VetsSnapshotProvider;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.guild.SessionAuthWarning;
 import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
@@ -37,20 +38,22 @@ import org.wynnvets.util.Json;
  * (waitlist, honourary, etc.) get pass-through behaviour because they
  * have no guild-invite permission server-side.</p>
  *
- * <p>For <b>non-staff</b> Returners members the gate is meant to block with
- * a deliberately vague "please ask staff" message when the target is
- * dazebot-blocklisted, joined Wynncraft on or after 2020, or has no
- * readable first-join date, and to ask them to route the target through
- * the waitlist instead when the guild is so full that the next slot is
- * reserved for the waitlist queue. Without a Wynncraft profile it checks
- * only the blocklist, for staff and non-staff alike: a listed target is
- * refused with a vague red line and no bypass button, and anyone else is
- * invited after a yellow warning. A non-staff session gets only an invite
- * verdict from temporary-server ({@link MembershipSnapshot#getMayInvite()}),
- * never the blocklist itself, and every non-staff refusal prints the same
- * line, so the refusal does not say which check failed. A non-staff player
- * with no session authenticated this connection is refused up front, since
- * temporary-server answers only an authenticated member.</p>
+ * <p>For <b>non-staff</b> Returners members the gate blocks with the one
+ * {@link #GENERIC_REJECTION} line when the target is dazebot-blocklisted,
+ * joined Wynncraft on or after 2020, or has no readable first-join date,
+ * and asks them to route the target through the waitlist instead when the
+ * guild is so full that the next slot is reserved for the waitlist queue.
+ * Without a Wynncraft profile it checks only the blocklist, for staff and
+ * non-staff alike: a listed target is refused in red with no bypass button,
+ * and anyone else is invited after a yellow warning. A non-staff session gets
+ * only an invite verdict from temporary-server
+ * ({@link MembershipSnapshot#getMayInvite()}), never the blocklist itself,
+ * and every non-staff refusal prints the same line, so the refusal does not
+ * say which check failed. temporary-server answers that verdict only to an
+ * authenticated session of tier {@code member}, so {@link #entryVerdict} stops
+ * anyone else up front: {@link #STILL_CHECKING} while a key, or the member tier after a
+ * Returners join, may still be on its way, otherwise {@link #UNAUTHENTICATED}, with a link to
+ * the Discord invite.</p>
  *
  * <p>For <b>staff</b> (confirmed-staff via the vetsmod token) the gate
  * surfaces the exact reason and, when the target has a Wynncraft profile,
@@ -78,18 +81,28 @@ public final class InviteGate {
     static final String GENERIC_REJECTION =
             "This user is not eligible to join the guild, ask a Steward.";
 
-    /** A non-staff player with no usable key (none stored, or the stored one rejected), whom
-     *  temporary-server will not answer. */
+    /** A non-staff player temporary-server will not answer and who is not about to be (no key
+     *  stored, the stored one rejected, or authenticated without the member tier). Printed in red
+     *  with {@link SessionAuthWarning#withDiscordLink}'s link after it. */
     // Package-private for unit tests. See InviteGateTest.
-    static final String NEEDS_KEY =
-            "Inviting others from unauthenticated vetsmod is not supported at this time"
-                    + " (/vetsmod on Discord, then /unlock)";
+    static final String UNAUTHENTICATED =
+            "Unable to handle /gu invite: vetsmod is running unauthenticated."
+                    + " For more details, use ~vetsmod in #bot-commands on vetscord.";
 
     /** A non-staff player whose stored key has not been confirmed yet (its ack is pending, or the
-     *  last check failed transiently); the same line {@code /wv list world} prints. */
+     *  last check failed transiently), or an authenticated non-member while a Returners join's
+     *  re-auth is in progress; the same line {@code /wv list world} prints. */
     // Package-private for unit tests. See InviteGateTest.
     static final String STILL_CHECKING =
             "We are still checking your permissions, please retry in a moment.";
+
+    /** What {@link #entryVerdict} decides before any lookup. */
+    // Package-private for unit tests. See InviteGateTest.
+    enum EntryVerdict {
+        PROCEED,
+        STILL_CHECKING,
+        UNAUTHENTICATED
+    }
 
     private InviteGate() {}
 
@@ -102,15 +115,22 @@ public final class InviteGate {
     public static void checkInvite(String target) {
         if (target == null || target.isBlank()) return;
         boolean isStaff = GuildStateManager.isConfirmedStaff();
-        if (!isStaff && !GuildStateManager.isAuthenticatedThisSession()) {
-            if (keyStillChecking(
-                    GuildStateManager.hasStoredAuthKey(),
-                    GuildStateManager.isStoredKeyRejected())) {
+        switch (entryVerdict(
+                isStaff,
+                GuildStateManager.isAuthenticatedThisSession(),
+                GuildStateManager.hasStoredAuthKey(),
+                GuildStateManager.isStoredKeyRejected(),
+                GuildStateManager.isAuthTierMember(),
+                GuildStateManager.isReturnersReauthDue())) {
+            case STILL_CHECKING -> {
                 renderNotice(STILL_CHECKING);
-            } else {
-                renderError(NEEDS_KEY);
+                return;
             }
-            return;
+            case UNAUTHENTICATED -> {
+                renderUnauthenticated();
+                return;
+            }
+            case PROCEED -> {}
         }
 
         PlayerLookup.resolve(target)
@@ -311,6 +331,34 @@ public final class InviteGate {
 
     // ── Render helpers ──────────────────────────────────────────────────
 
+    /**
+     * Whether a Returners player's invite may go to the lookup, and if not, which line they get.
+     * Confirmed staff always proceed. Otherwise temporary-server answers only an authenticated
+     * session of tier {@code member}: an unauthenticated player with a stored, unrejected key is
+     * still being checked ({@link #STILL_CHECKING}), one with no key or a rejected key is
+     * {@link EntryVerdict#UNAUTHENTICATED}, and an authenticated player of another tier (waitlist,
+     * honourary, other) is still being checked while {@code reauthDue} says a Returners join's
+     * re-auth is in progress ({@link GuildStateManager#isReturnersReauthDue()}), else
+     * unauthenticated.
+     */
+    // Package-private for unit tests. See InviteGateTest.
+    static EntryVerdict entryVerdict(
+            boolean confirmedStaff,
+            boolean authenticated,
+            boolean hasStoredKey,
+            boolean keyRejected,
+            boolean memberTier,
+            boolean reauthDue) {
+        if (confirmedStaff) return EntryVerdict.PROCEED;
+        if (!authenticated) {
+            return keyStillChecking(hasStoredKey, keyRejected)
+                    ? EntryVerdict.STILL_CHECKING
+                    : EntryVerdict.UNAUTHENTICATED;
+        }
+        if (memberTier) return EntryVerdict.PROCEED;
+        return reauthDue ? EntryVerdict.STILL_CHECKING : EntryVerdict.UNAUTHENTICATED;
+    }
+
     /** Whether an unauthenticated player's stored key may still be confirmed: one is stored and
      *  no auth ack has rejected it. Otherwise the player needs a key. */
     // Package-private for unit tests. See InviteGateTest.
@@ -331,6 +379,15 @@ public final class InviteGate {
                         () ->
                                 ChatUtils.sendLocalMessage(
                                         Component.literal(msg).withStyle(ChatFormatting.YELLOW)));
+    }
+
+    private static void renderUnauthenticated() {
+        McUtils.mc()
+                .execute(
+                        () ->
+                                ChatUtils.sendLocalMessage(
+                                        SessionAuthWarning.withDiscordLink(
+                                                UNAUTHENTICATED, ChatFormatting.RED)));
     }
 
     private static void renderError(String msg) {

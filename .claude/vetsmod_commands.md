@@ -454,12 +454,20 @@ For a player who is not confirmed staff, the four commands pass through to Wynnc
 
 **The invite gate.** For a Returners player, `/gu invite <name>` and `/guild invite <name>` are cancelled
 and handed to [`InviteGate.checkInvite`](../src/client/java/org/wynnvets/commands/InviteGate.java), which
-checks the target and then sends `/gu invite` itself, through `sendCommandBypassed`. Only the first word
-after `invite` is kept. A player who is not confirmed staff and has no session authenticated this
-connection is stopped at once, since temporary-server answers only an authenticated member: with no key
-stored, or a stored key an auth ack rejected, in red with "Inviting others from unauthenticated vetsmod is
-not supported at this time (/vetsmod on Discord, then /unlock)"; with a stored key still being checked, in
-yellow with "We are still checking your permissions, please retry in a moment.". It then resolves the
+checks the target and then sends `/gu invite` itself, through `sendCommandBypassed`. Only Returners
+players reach the gate: everyone else (waitlist, honourary, other guilds, guildless) is passed through to
+Wynncraft untouched, with no vetsmod output. Only the first word after `invite` is kept. A player who is
+not confirmed staff is stopped at once unless they have an authenticated session of tier `member`, since
+temporary-server answers the invite verdict only to such a session (`InviteGate.entryVerdict`): with no key
+stored, or a stored key an auth ack rejected, in red with "Unable to handle /gu invite: vetsmod is running
+unauthenticated. For more details, use ~vetsmod in #bot-commands on vetscord." followed by the clickable
+aqua `[https://wynnvets.org/discord]` link (`SessionAuthWarning.withDiscordLink`); with a stored key still
+being checked, in yellow with "We are still checking your permissions, please retry in a moment."; an
+authenticated session of another tier (waitlist, honourary, other) gets the yellow line while a Returners
+join's re-auth is still in progress (`GuildStateManager.isReturnersReauthDue`: until 30 s after the join's
+330 s retry runs, and while `ReturnersReauth.shouldReauth` still holds, so a fresh Returners member waits
+for the member tier), else the red one, so a player who was in Returners at login, or whose retry and its
+30 s have passed, is not told to retry. The typed command stays cancelled and nothing is sent. It then resolves the
 name. If no lookup source can be reached, it prints a yellow
 notice and sends the invite; a name that no source knows is refused, in red, with "Unable to find a player
 named '<name>', check spelling?" (the Vets snapshot step abstains rather than miss transiently, so the

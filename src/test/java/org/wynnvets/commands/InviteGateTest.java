@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import org.wynnvets.commands.InviteGate.EntryVerdict;
 import org.wynnvets.datamodels.MembershipSnapshot;
 import org.wynnvets.util.Json;
 
@@ -65,15 +66,68 @@ class InviteGateTest {
         assertFalse(InviteGate.keyStillChecking(false, false), "no key at all");
     }
 
+    // entryVerdict(confirmedStaff, authenticated, hasStoredKey, keyRejected, memberTier, reauthDue)
+
+    @Test
+    void entryVerdict_staffAlwaysProceeds() {
+        assertEquals(
+                EntryVerdict.PROCEED,
+                InviteGate.entryVerdict(true, false, false, false, false, false));
+        assertEquals(
+                EntryVerdict.PROCEED, InviteGate.entryVerdict(true, true, true, true, false, true));
+    }
+
+    @Test
+    void entryVerdict_authenticatedMemberProceeds() {
+        assertEquals(
+                EntryVerdict.PROCEED,
+                InviteGate.entryVerdict(false, true, true, false, true, false));
+    }
+
+    @Test
+    void entryVerdict_storedUnrejectedKeyIsStillChecking() {
+        assertEquals(
+                EntryVerdict.STILL_CHECKING,
+                InviteGate.entryVerdict(false, false, true, false, false, false));
+    }
+
+    @Test
+    void entryVerdict_noKeyIsUnauthenticated() {
+        assertEquals(
+                EntryVerdict.UNAUTHENTICATED,
+                InviteGate.entryVerdict(false, false, false, false, false, false));
+    }
+
+    @Test
+    void entryVerdict_rejectedKeyIsUnauthenticated() {
+        assertEquals(
+                EntryVerdict.UNAUTHENTICATED,
+                InviteGate.entryVerdict(false, false, true, true, false, false));
+    }
+
+    @Test
+    void entryVerdict_authenticatedNonMemberIsStillCheckingWhileReauthIsDue() {
+        assertEquals(
+                EntryVerdict.STILL_CHECKING,
+                InviteGate.entryVerdict(false, true, true, false, false, true));
+    }
+
+    @Test
+    void entryVerdict_authenticatedNonMemberIsUnauthenticatedWithoutReauth() {
+        assertEquals(
+                EntryVerdict.UNAUTHENTICATED,
+                InviteGate.entryVerdict(false, true, true, false, false, false));
+    }
+
     @Test
     void theNonStaffLinesAreTheUsersWording() {
         assertEquals(
                 "This user is not eligible to join the guild, ask a Steward.",
                 InviteGate.GENERIC_REJECTION);
         assertEquals(
-                "Inviting others from unauthenticated vetsmod is not supported at this time"
-                        + " (/vetsmod on Discord, then /unlock)",
-                InviteGate.NEEDS_KEY);
+                "Unable to handle /gu invite: vetsmod is running unauthenticated."
+                        + " For more details, use ~vetsmod in #bot-commands on vetscord.",
+                InviteGate.UNAUTHENTICATED);
         assertEquals(
                 "We are still checking your permissions, please retry in a moment.",
                 InviteGate.STILL_CHECKING);

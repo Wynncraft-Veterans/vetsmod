@@ -1053,7 +1053,7 @@ Tests:
 
 Test: [`InviteGateTest.java`](../src/test/java/org/wynnvets/commands/InviteGateTest.java) · Subject: [`InviteGate`](../src/client/java/org/wynnvets/commands/InviteGate.java), [`MembershipSnapshot`](../src/client/java/org/wynnvets/datamodels/MembershipSnapshot.java)
 
-The `/gu invite` gate decides from temporary-server's `check_membership` reply. The suite pins that a non-staff member's invite verdict (no Discord blob) is usable and a `may_invite: false` verdict blocks, that a staff snapshot still needs its Discord blob and blocks on `blocklisted`, and the two lines a non-staff player sees. Snapshots are parsed from JSON with `Json.GSON`.
+The `/gu invite` gate decides from temporary-server's `check_membership` reply. The suite pins that a non-staff member's invite verdict (no Discord blob) is usable and a `may_invite: false` verdict blocks, that a staff snapshot still needs its Discord blob and blocks on `blocklisted`, which entry verdict (`entryVerdict`) a staff, member, pending-key, keyless, rejected-key or other-tier session gets, and the lines a non-staff player sees. Snapshots are parsed from JSON with `Json.GSON`.
 
 - **`aMembersVerdictIsUsableWithoutTheDiscordBlob`**: A verdict with no `discord` drives the gate for a non-staff player.
   - `snapshotUsable(verdict(may_invite true), false)` is true.
@@ -1067,9 +1067,23 @@ The `/gu invite` gate decides from temporary-server's `check_membership` reply. 
   - True for `{"blocklisted":true}`, false for `{"blocklisted":false}` and for `{}`.
 - **`onlyAStoredUnrejectedKeyIsStillBeingChecked`**: `keyStillChecking` is true only for a stored key no ack has rejected.
   - `keyStillChecking(true, false)` is true; `keyStillChecking(true, true)` and `keyStillChecking(false, false)` are false.
-- **`theNonStaffLinesAreTheUsersWording`**: The refusal and the no-key line are the user's text, and the still-checking line is `/wv list world`'s.
+- **`entryVerdict_staffAlwaysProceeds`**: Confirmed staff go on to the lookup whatever the session state.
+  - `entryVerdict(true, ...)` is `PROCEED` with no session and with every other flag set.
+- **`entryVerdict_authenticatedMemberProceeds`**: An authenticated session of tier `member` goes on.
+  - `entryVerdict(false, true, true, false, true, false)` is `PROCEED`.
+- **`entryVerdict_storedUnrejectedKeyIsStillChecking`**: A stored key not yet confirmed keeps the yellow retry line.
+  - `entryVerdict(false, false, true, false, false, false)` is `STILL_CHECKING`.
+- **`entryVerdict_noKeyIsUnauthenticated`**: No key at all gets the unauthenticated complaint.
+  - `entryVerdict(false, false, false, false, false, false)` is `UNAUTHENTICATED`.
+- **`entryVerdict_rejectedKeyIsUnauthenticated`**: A key an auth ack rejected gets it too.
+  - `entryVerdict(false, false, true, true, false, false)` is `UNAUTHENTICATED`.
+- **`entryVerdict_authenticatedNonMemberIsStillCheckingWhileReauthIsDue`**: An authenticated waitlist, honourary or other session waits for the member tier while a Returners re-auth is due.
+  - `entryVerdict(false, true, true, false, false, true)` is `STILL_CHECKING`.
+- **`entryVerdict_authenticatedNonMemberIsUnauthenticatedWithoutReauth`**: With no re-auth due, the same session gets the complaint.
+  - `entryVerdict(false, true, true, false, false, false)` is `UNAUTHENTICATED`.
+- **`theNonStaffLinesAreTheUsersWording`**: The refusal and the unauthenticated line are the user's text, and the still-checking line is `/wv list world`'s.
   - `GENERIC_REJECTION` equals `"This user is not eligible to join the guild, ask a Steward."`.
-  - `NEEDS_KEY` equals `"Inviting others from unauthenticated vetsmod is not supported at this time (/vetsmod on Discord, then /unlock)"`.
+  - `UNAUTHENTICATED` equals `"Unable to handle /gu invite: vetsmod is running unauthenticated. For more details, use ~vetsmod in #bot-commands on vetscord."`.
   - `STILL_CHECKING` equals `"We are still checking your permissions, please retry in a moment."`.
 
 ## `org.wynnvets.config`
@@ -2045,7 +2059,7 @@ Test: [`GuildCheckResultTest.java`](../src/test/java/org/wynnvets/guild/GuildChe
 
 Test: [`ReturnersReauthTest.java`](../src/test/java/org/wynnvets/guild/ReturnersReauthTest.java) · Subject: [`ReturnersReauth`](../src/client/java/org/wynnvets/guild/ReturnersReauth.java)
 
-`ReturnersReauth` re-sends the auth frame when the player joins Returners mid-session. The suite pins its three pure parts: `shouldReauth`, the condition each attempt sends on; `isTransient`, which failure details count as temporary-server failing to reach dazebot's introspection rather than a verdict on the key; and the disconnect fence. `onJoinedReturners` and its attempts read `UnlockManager`, `V1ApiManager` and Wynntils' tick scheduler and are not exercised; `UnlockManager.TIER_MEMBER` is a compile-time constant, so `shouldReauth` does not load `UnlockManager`.
+`ReturnersReauth` re-sends the auth frame when the player joins Returners mid-session. The suite pins its pure parts: `shouldReauth`, the condition each attempt sends on; `isTransient`, which failure details count as temporary-server failing to reach dazebot's introspection rather than a verdict on the key; the in-progress window a join opens (`windowEnd`, `inProgressAt`), which the invite gate reads; and the disconnect fence. `onJoinedReturners` and its attempts read `UnlockManager`, `V1ApiManager` and Wynntils' tick scheduler and are not exercised; `UnlockManager.TIER_MEMBER` is a compile-time constant, so `shouldReauth` does not load `UnlockManager`.
 
 - **`shouldReauth_sendsForAStoredUnrejectedKeyOnALiveSocketBelowMember`**: With a stored, unrejected key and the socket up, every tier but `member` re-sends, including no tier at all.
   - `shouldReauth(true, true, tier, false)` is true for `tier` = `waitlist`, `honourary`, `other` and the empty string.
@@ -2057,6 +2071,10 @@ Test: [`ReturnersReauthTest.java`](../src/test/java/org/wynnvets/guild/Returners
   - `isTransient` is false for `auth rejected: revoked`, `auth rejected: unknown key`, `auth rejected: empty key`, `Authentication required` and `null`.
 - **`fenced_runsWhenNoResetCameBetween`**: A fenced body runs when no reset came after its generation was read.
   - after `fenced(generation(), …).run()`, the counter equals 1.
+- **`aJoinsReauthIsInProgressUntilItsRetryAndTheAckGraceHavePassed`**: A join at `t` opens a window ending at `t` + 330 s + 30 s.
+  - `windowEnd(t)` equals `t + 360000`; `inProgressAt` is true at `t` and at `t + RETRY_DELAY_MS`, false at the end, and false at `t` with no window (`0`).
+- **`aResetClosesTheWindow`**: A window opened a minute ahead (`openWindowUntil`) is in progress, and `reset()` closes it.
+  - `isInProgress()` is true after `openWindowUntil(now + 60000)` and false after `reset()`.
 - **`fenced_dropsTheRetryAfterAReset`**: A body fenced before a `reset()` does nothing after it.
   - after `fenced(generation(), …)`, `reset()`, then `run()`, the counter equals 0.
 

@@ -9,7 +9,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link ReturnersReauth}'s pure parts: when an attempt sends the auth frame, which
- * failure details count as transient, and the disconnect fence.
+ * failure details count as transient, the in-progress window a join opens, and the disconnect
+ * fence, which also closes the window.
  *
  * <p>{@code onJoinedReturners} and the attempt it schedules read {@code UnlockManager} (and so
  * {@code VetsConfig}), {@code V1ApiManager} and Wynntils' tick scheduler, and are not exercised.
@@ -67,6 +68,25 @@ class ReturnersReauthTest {
                 ReturnersReauth.fenced(ReturnersReauth.generation(), runs::incrementAndGet);
         retry.run();
         assertEquals(1, runs.get());
+    }
+
+    @Test
+    void aJoinsReauthIsInProgressUntilItsRetryAndTheAckGraceHavePassed() {
+        long joined = 1_000_000L;
+        long end = ReturnersReauth.windowEnd(joined);
+        assertEquals(joined + 330_000L + 30_000L, end);
+        assertTrue(ReturnersReauth.inProgressAt(joined, end));
+        assertTrue(ReturnersReauth.inProgressAt(joined + ReturnersReauth.RETRY_DELAY_MS, end));
+        assertFalse(ReturnersReauth.inProgressAt(end, end));
+        assertFalse(ReturnersReauth.inProgressAt(joined, 0L), "no join opened a window");
+    }
+
+    @Test
+    void aResetClosesTheWindow() {
+        ReturnersReauth.openWindowUntil(System.currentTimeMillis() + 60_000L);
+        assertTrue(ReturnersReauth.isInProgress());
+        ReturnersReauth.reset();
+        assertFalse(ReturnersReauth.isInProgress());
     }
 
     @Test

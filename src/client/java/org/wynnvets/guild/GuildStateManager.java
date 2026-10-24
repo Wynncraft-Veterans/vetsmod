@@ -494,6 +494,27 @@ public final class GuildStateManager {
         return UnlockManager.currentTier();
     }
 
+    /** @return {@code true} when the standing auth tier is {@code member} (see
+     *  {@link #currentAuthTier()}) */
+    public static boolean isAuthTierMember() {
+        return UnlockManager.TIER_MEMBER.equals(UnlockManager.currentTier());
+    }
+
+    /** @return {@code true} while a Returners join's re-auth is still in progress
+     *  ({@link ReturnersReauth#isInProgress()}: within its retry and the retry's ack of the join)
+     *  and {@link ReturnersReauth} would still re-send the auth frame (a stored, unrejected key,
+     *  the inbound socket up and a tier other than {@code member}). For a Returners player it means
+     *  the member tier may still be on its way; once the retry has come and gone, or for a player
+     *  who was in Returners at login, it is not. */
+    public static boolean isReturnersReauthDue() {
+        return ReturnersReauth.isInProgress()
+                && ReturnersReauth.shouldReauth(
+                        UnlockManager.hasStoredKey(),
+                        V1ApiManager.isInboundConnected(),
+                        UnlockManager.currentTier(),
+                        UnlockManager.keyRejectedByAuthAck());
+    }
+
     /** @return the standing auth-failure reason from the server, or empty string when
      *  none is standing (a later successful auth, a newly stored {@code /unlock} key or a
      *  disconnect clears it). It can also be an "Authentication required" refusal of a non-auth

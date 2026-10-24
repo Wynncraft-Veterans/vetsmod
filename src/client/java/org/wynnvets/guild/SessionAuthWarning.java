@@ -53,7 +53,7 @@ public final class SessionAuthWarning {
     private static final AtomicInteger generation = new AtomicInteger();
 
     /** Discord URL used in warning copy — same one used elsewhere in the mod. */
-    private static final String DISCORD_INVITE_URL = "https://wynnvets.org/discord";
+    public static final String DISCORD_INVITE_URL = "https://wynnvets.org/discord";
 
     /** How long after world join we wait before showing the warning, giving
      *  the auth round-trip + server_info frame a chance to land. */
@@ -119,7 +119,7 @@ public final class SessionAuthWarning {
                 String reason = UnlockManager.lastAuthFailureReason();
                 String reasonSuffix = reason.isEmpty() ? "" : " (" + reason + ")";
                 ChatUtils.sendLocalMessage(
-                        makeWarning(
+                        withDiscordLink(
                                 "Your stored vetsmod key was rejected"
                                         + reasonSuffix
                                         + ". Run ~vetsmod in #bot-commands to issue a new one.",
@@ -139,14 +139,14 @@ public final class SessionAuthWarning {
         if (inReturners) {
             if (unauthEnabled) {
                 ChatUtils.sendLocalMessage(
-                        makeWarning(
+                        withDiscordLink(
                                 "vetsmod is running unauthenticated. Vets chat still works "
                                         + "for now, but authentication will become mandatory soon. "
                                         + "Run ~vetsmod in #bot-commands to /unlock.",
                                 ChatFormatting.YELLOW));
             } else {
                 ChatUtils.sendLocalMessage(
-                        makeWarning(
+                        withDiscordLink(
                                 "You aren't authenticated. Vetsmod cannot send or receive "
                                         + "VETS chat or use guild-specific features until you "
                                         + "/unlock. Run ~vetsmod in #bot-commands to get a key.",
@@ -158,8 +158,11 @@ public final class SessionAuthWarning {
         // Case 4: not a VETS user. Stay quiet — the warning would be noise.
     }
 
-    private static MutableComponent makeWarning(String text, ChatFormatting color) {
-        // Make the discord URL clickable so users don't have to copy-paste.
+    /**
+     * {@code text} in {@code color}, followed by the clickable aqua {@link #DISCORD_INVITE_URL},
+     * so users don't have to copy-paste it. Also used by {@code InviteGate}.
+     */
+    public static MutableComponent withDiscordLink(String text, ChatFormatting color) {
         MutableComponent body = Component.literal(text).withStyle(color);
         MutableComponent link =
                 Component.literal(" [" + DISCORD_INVITE_URL + "]")
