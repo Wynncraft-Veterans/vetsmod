@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
@@ -20,45 +21,39 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
+import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
+import org.wynnvets.logging.VetsLogger;
 
 /**
- * Detects and re-styles legacy, enchanted, junk, and crafting items in
- * Wynncraft item tooltips.
+ * Legacy-item detection, and the state the legacy-item hooks share.
  *
- * <p>Works in concert with the mixin hooks ({@link
- * org.wynnvets.mixin.client.legacy.LegacyItemTooltipMixin LegacyItemTooltipMixin},
- * {@link org.wynnvets.mixin.client.legacy.LegacyHotbarMixin LegacyHotbarMixin},
- * {@link org.wynnvets.mixin.client.legacy.LegacyHighlightMixin LegacyHighlightMixin}) to identify
- * special items by name pattern and rarity line, then rewrites their tooltip display names and
- * rarity labels accordingly.</p>
+ * <p>{@link #isLegacyItem} decides the slot highlight ({@link LegacyHighlightPainter}) and
+ * {@link #processTooltip} rewrites the tooltip ({@link LegacyTooltipRenderer}). The name lists
+ * both consult come from {@code definitions.yml} through {@link ItemDefinitions}; the lore,
+ * foil and item-id checks are the static predicates here.</p>
+ *
+ * <p>The hover hooks
+ * ({@link org.wynnvets.mixin.client.legacy.LegacyHighlightMixin LegacyHighlightMixin},
+ * {@link org.wynnvets.listeners.LegacyTooltipEventListener LegacyTooltipEventListener}) set
+ * the hovered item before its tooltip is drawn; the tooltip rewrite reads it and sets
+ * {@link #lastProcessedWasLegacy} for
+ * {@link org.wynnvets.mixin.client.legacy.LegacyItemTooltipMixin LegacyItemTooltipMixin}.</p>
  */
 public final class LegacyItemHandler {
 
-    /**
-     * Set before tooltip processing by
-     * {@link org.wynnvets.mixin.client.legacy.LegacyHighlightMixin LegacyHighlightMixin}
-     * and {@link org.wynnvets.listeners.LegacyTooltipEventListener
-     * LegacyTooltipEventListener}: the hovered item has foil and is not an
-     * enchant-excluded item.
-     */
+    /** Whether {@link #currentItemStack} has foil that counts (see {@link #setHoveredItem}). */
     public static boolean currentItemHasFoil = false;
 
-    /**
-     * Set before tooltip processing by
-     * {@link org.wynnvets.mixin.client.legacy.LegacyHighlightMixin LegacyHighlightMixin}
-     * and {@link org.wynnvets.listeners.LegacyTooltipEventListener
-     * LegacyTooltipEventListener}: provides item context for tooltip_style access.
-     */
+    /** The hovered item whose tooltip is next drawn, or {@link ItemStack#EMPTY}. */
     public static ItemStack currentItemStack = ItemStack.EMPTY;
 
-    /** Set by the highlight mixin alongside {@link #currentItemStack}.  Provides
-     *  slot context (menu index, container index, screen position) used by the
-     *  item-dump debug tool to record which slot was being hovered. */
+    /** The hovered container slot, for the item-dump tool; set by the highlight mixin. */
     public static Slot currentHoveredSlot = null;
 
     /**
-     * Set by {@link #processTooltip} when it modifies a legacy item's tooltip.
-     * The tooltip mixin reads this to override the border colour.
+     * Whether the last {@link #processTooltip} call rewrote the tooltip. The tooltip mixin
+     * reads it to pick the gold border and to decide on the legacy screenshot.
      */
     public static boolean lastProcessedWasLegacy = false;
 
@@ -181,69 +176,58 @@ public final class LegacyItemHandler {
     }
 
     /**
-     * Returns true if the given ItemStack should be treated as a legacy item.
-     * Always returns false when
-     * {@link org.wynnvets.config.VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING
-     * VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING} is disabled.
+     * Returns {@code true} if {@code stack} is a legacy item: never for an empty stack, while
+     * {@code legacyItemHighlighting} is off or while {@link #isDetectionSuppressed}, and
+     * otherwise when any of the nine numbered checks in the body matches.
      *
-     * <p>Detection uses a priority cascade of 9 independent checks, each targeting
-     * a different category of legacy item.  The {@code newFormatOverridden} flag
-     * prevents false positives on names that exist in both old and new Wynncraft
-     * item formats: a new-format stack whose name is in {@code definitions.yml}'s
-     * {@code new_format_override} section skips checks 1 and 2 (the
-     * {@code definitions} and {@code misc_definitions} name lookups); the other
-     * checks still apply.</p>
+     * <p>A new-format stack whose name is in {@code new_format_override} skips checks 1 and 2,
+     * since that name also belongs to a modern item.</p>
      */
     public static boolean isLegacyItem(ItemStack stack) {
-        if (!org.wynnvets.config.VetsConfig.get(
-                org.wynnvets.config.VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING)) return false;
+        if (!VetsConfig.get(VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING)) return false;
         if (stack.isEmpty()) return false;
         if (isDetectionSuppressed()) return false;
 
-        String rawHover = stack.getHoverName().getString();
-        String stripped = ChatFormatting.stripFormatting(rawHover);
-        String name = normalizeName(stripped);
+        String name =
+                normalizeName(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
         boolean newFormatOverridden =
                 name != null && isNewFormatItem(stack) && ItemDefinitions.isNewFormatOverride(name);
 
-        // 1. Direct legacy lookup: item name appears in the primary legacy database
+        // 1. definitions
         if (!newFormatOverridden && name != null && ItemDefinitions.isLegacy(name)) return true;
 
         List<Component> lore = stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines();
 
-        // 2. Misc-legacy with rarity: name in misc-legacy list AND has a misc rarity line
+        // 2. misc_definitions, only on a Misc. Item (modern items share these names)
         if (!newFormatOverridden
                 && name != null
                 && ItemDefinitions.isMiscLegacy(name)
                 && hasMiscRarity(lore)) return true;
 
-        // 3. No-lore legacy: known legacy item that has lost its lore (pre-update relics)
+        // 3. no_lore_legacy, only with no lore
         if (lore.isEmpty()
                 && name != null
                 && !name.isBlank()
                 && ItemDefinitions.isNoLoreLegacy(name)) return true;
 
-        // 4. Pedestal-wiped: vanilla armour/weapon shells with a §a/§b/§d/§e custom
-        // name (the colours getRarityFromNameColor maps to set, legendary, rare and
-        // unique) and no lore
+        // 4. A pedestal-wiped shell
         if (isPedestalWipedItem(stack)) return true;
 
-        // 5. Beta marker: lore contains the explicit beta-legacy indicator line
+        // 5. A gold "Lv. min" line (alpha and beta items)
         if (hasBetaLegacyMarker(lore)) return true;
 
-        // 6. Enchant glint: item has enchant shimmer and isn't in the exclusion list
+        // 6. Foil, unless the item id is in enchant_excluded_items or the name in unenchanted
         if (stack.hasFoil()
                 && !ItemDefinitions.isEnchantExcludedItem(stack)
                 && (name == null || !ItemDefinitions.isUnenchanted(name))) return true;
 
-        // 7. Junk rarity: lore has "Junk" rarity tier (removed in modern Wynncraft)
+        // 7. A Junk Item, unless the name is in notjunk
         if (hasJunkRarity(lore) && (name == null || !ItemDefinitions.isNotJunk(name))) return true;
 
-        // 8. Crafting rarity: lore has the pre-removal "Crafting" rarity line
+        // 8. A Crafting Item, a rarity modern Wynncraft no longer uses
         if (hasCraftingRarity(lore)) return true;
 
-        // 9. Vintage banner: lore carries Wynncraft's own VINTAGE ribbon, so an item no
-        // name list covers is still caught
+        // 9. Wynncraft's VINTAGE ribbon, for an item no name list covers
         if (hasVintageBanner(lore)) return true;
 
         return false;
@@ -325,36 +309,29 @@ public final class LegacyItemHandler {
         return null;
     }
 
+    /** A standard rarity line ("Legendary Item"): group 1 the tier, group 2 a "[N]" count. */
     static final Pattern RARITY_PATTERN =
             Pattern.compile(
                     "^(Mythic|Fabled|Set|Legendary|Rare|Unique|Normal|Junk|Misc\\.|Crafting) [Ii]tem(?: (\\[\\d+\\]))?$");
 
     /**
-     * Processes and rewrites tooltip lines for legacy/enchanted/junk/crafting items.
-     * Returns the unmodified list when
-     * {@link org.wynnvets.config.VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING
-     * VetsConfigKeys#LEGACY_ITEM_HIGHLIGHTING} is disabled.
-     *
-     * @param tooltipLines the original tooltip lines
-     * @return the (possibly modified) tooltip lines
+     * Returns the tooltip rewritten for a legacy item, or {@code tooltipLines} itself when it
+     * is not one; see {@link LegacyTooltipRenderer#processTooltip}.
      */
     public static List<Component> processTooltip(List<Component> tooltipLines) {
         return LegacyTooltipRenderer.processTooltip(tooltipLines);
     }
 
     /**
-     * If the last processed tooltip was legacy AND a press of the Wynntils screenshot
-     * keybind has been latched (by LegacyTooltipEventListener, since the key may
-     * already be released by now, and only for a press over a legacy item; the latch
-     * is consumed by this call either way and expires about a second after the press),
-     * takes a legacy-aware screenshot of the given tooltip and
-     * copies it to the clipboard, overwriting Wynntils' pre-modification screenshot.
+     * Copies a screenshot of {@code tooltip}, as rewritten, to the clipboard over Wynntils'
+     * screenshot of the original, when the last processed tooltip was legacy and a press of
+     * Wynntils' screenshot keybind is latched ({@link #notifyScreenshotKeyPressed}). The latch
+     * is consumed either way; see {@link LegacyScreenshotHandler}.
      */
-    public static void screenshotIfRequested(
-            net.minecraft.client.gui.Font font, List<Component> tooltip) {
+    public static void screenshotIfRequested(Font font, List<Component> tooltip) {
         boolean requested = LegacyScreenshotHandler.isScreenshotRequested();
         if (requested) {
-            org.wynnvets.logging.VetsLogger.info(
+            VetsLogger.info(
                     "Screenshot key detected — lastProcessedWasLegacy={}, tooltipSize={}",
                     lastProcessedWasLegacy,
                     tooltip.size());
@@ -381,12 +358,9 @@ public final class LegacyItemHandler {
      * ({@code iron_shovel}, {@code shears}, {@code bow}, {@code stick},
      * {@code cocoa_beans}, {@code paper}).
      *
-     * <p>The pedestal mechanic strips an item's lore while preserving its
-     * coloured name and vanilla item ID; which rarities it applies to is not
-     * sourced here. This detector gives those bare shells a
-     * "Legacy Item (Pedestal-Wiped)" tooltip, and of the name colour codes it
-     * accepts only the four {@link #getRarityFromNameColor} reads as set,
-     * legendary, rare and unique.</p>
+     * <p>The pedestal wipe strips an item's lore but keeps its coloured name and vanilla item
+     * id. The four accepted colour codes are the ones {@link #getRarityFromNameColor} reads as
+     * set, legendary, rare and unique; a name in {@code not_pedestal} is never a shell.</p>
      */
     public static boolean isPedestalWipedItem(ItemStack stack) {
         if (stack.isEmpty()) return false;
@@ -436,7 +410,7 @@ public final class LegacyItemHandler {
         return false;
     }
 
-    /** Returns {@code true} if any tooltip line reads "Crafting Item" or "Crafting item". */
+    /** Returns {@code true} if any tooltip line reads "Crafting Item", ignoring case. */
     public static boolean hasCraftingRarity(List<Component> lines) {
         for (Component line : lines) {
             String plain = ChatFormatting.stripFormatting(line.getString());
@@ -454,13 +428,11 @@ public final class LegacyItemHandler {
         return false;
     }
 
-    /** Returns {@code true} if a gold-coloured "Lv. min" line is present (beta legacy marker). */
+    /** Returns {@code true} if a line is an all-gold "Lv. min" line (alpha and beta items). */
     public static boolean hasBetaLegacyMarker(List<Component> lines) {
         for (Component line : lines) {
-            String raw = line.getString();
-            String plain = ChatFormatting.stripFormatting(raw);
-            if (!LegacyLoreText.isBetaLevelLine(plain)) continue;
-            if (isExclusivelyGold(line)) return true;
+            String plain = ChatFormatting.stripFormatting(line.getString());
+            if (LegacyLoreText.isBetaLevelLine(plain) && isExclusivelyGold(line)) return true;
         }
         return false;
     }
@@ -484,6 +456,10 @@ public final class LegacyItemHandler {
         return false;
     }
 
+    /**
+     * Returns {@code true} if every colour code in the text is gold, or, when the text has
+     * none, the component's own style colour is gold.
+     */
     private static boolean isExclusivelyGold(Component component) {
         String raw = component.getString();
         boolean foundColorCode = false;
@@ -518,17 +494,13 @@ public final class LegacyItemHandler {
                     "crafted", "Crafted");
 
     /**
-     * Returns a plain "Sharpness I"-style label for the item's legacy
-     * enchantment, or {@code null} when it carries none.
+     * Returns a plain "Sharpness I"-style label for the item's enchantment, or {@code null}
+     * when it carries none, for the item-dump tool.
      *
-     * <p>On new-format items Wynncraft hides the vanilla enchantment lines behind
-     * {@code tooltip_display} (V2-era items leave them visible; see
-     * {@link LegacyEnchantmentRenderer#showEnchantment}), but that is a
-     * render-time instruction only — the {@code minecraft:enchantments}
-     * component itself is still on the stack the client holds.  Modern items
-     * ship the component with an empty map, so a non-empty map is a legacy
-     * signal in its own right, unlike {@link ItemStack#hasFoil()} which is also
-     * true for {@code enchantment_glint_override}.</p>
+     * <p>It reads the {@code minecraft:enchantments} component, which stays on the stack even
+     * when Wynncraft hides it from the tooltip with {@code tooltip_display}. Modern items carry
+     * it with an empty map, so a non-empty map marks a legacy item, unlike
+     * {@link ItemStack#hasFoil()}, which {@code enchantment_glint_override} also sets.</p>
      */
     public static String getEnchantmentLabel(ItemStack stack) {
         return LegacyEnchantmentRenderer.enchantmentLabel(stack);

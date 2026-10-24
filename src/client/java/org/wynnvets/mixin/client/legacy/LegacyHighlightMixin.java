@@ -35,7 +35,7 @@ public class LegacyHighlightMixin {
     @Shadow protected Slot hoveredSlot;
 
     @Inject(method = "renderSlot", at = @At("HEAD"))
-    private void vetsmod$renderLegacyHighlight(
+    private void vetsmod$detectNewTooltipStyles(
             GuiGraphics guiGraphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
         ItemStack stack = slot.getItem();
         if (stack.isEmpty()) return;
@@ -48,7 +48,7 @@ public class LegacyHighlightMixin {
     }
 
     @Inject(method = "renderTooltip(Lnet/minecraft/client/gui/GuiGraphics;II)V", at = @At("HEAD"))
-    private void vetsmod$captureHoveredItemFoil(
+    private void vetsmod$captureHoveredItem(
             GuiGraphics guiGraphics, int mouseX, int mouseY, CallbackInfo ci) {
         if (hoveredSlot != null && hoveredSlot.hasItem()) {
             LegacyItemHandler.setHoveredItem(hoveredSlot.getItem());

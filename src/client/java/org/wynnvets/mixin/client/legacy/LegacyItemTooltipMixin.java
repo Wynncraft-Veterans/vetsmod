@@ -27,9 +27,10 @@ import org.wynnvets.items.LegacyItemHandler;
  * at LOWEST priority that may replace the tooltip list), so VetsMod's
  * modifications cannot be overwritten by downstream event handlers.</p>
  *
- * <p>Uses {@code @Inject} with cancellation to replace the (potentially
- * unmodifiable) list with a new mutable copy containing our gold name,
- * then re-invokes the method.  A reentry guard prevents infinite recursion.</p>
+ * <p>When {@link LegacyItemHandler#processTooltip} rewrites the tooltip, the call is
+ * cancelled and re-invoked with the rewritten copy (and the gold border, once the server's
+ * new tooltip styles have been seen); a reentry guard lets that second call through. Every
+ * pass is also recorded for the item-dump tool ({@link TooltipCapture}).</p>
  */
 @Mixin(GuiGraphics.class)
 public class LegacyItemTooltipMixin {
@@ -92,11 +93,6 @@ public class LegacyItemTooltipMixin {
                         LegacyItemHandler.lastProcessedWasLegacy);
                 ((GuiGraphics) (Object) this)
                         .setTooltipForNextFrame(font, modified, image, mouseX, mouseY, border);
-                // If a press of Wynntils' screenshot keybind over a legacy item has been
-                // latched (by LegacyTooltipEventListener, since the key may already be
-                // released by now; the latch expires after about a second), take our own
-                // screenshot with the fully-modified legacy tooltip and overwrite the
-                // clipboard.
                 LegacyItemHandler.screenshotIfRequested(font, modified);
             } finally {
                 vetsmod$processing = false;
