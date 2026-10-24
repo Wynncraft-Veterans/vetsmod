@@ -46,7 +46,7 @@ final class AnniStatusSections {
         AnniSnapshot.Registration reg = snapshot.registration();
         if (reg == null || !reg.registered()) {
             return AnniHoverBuilder.label("Eligible Roles", ChatFormatting.GRAY)
-                    .append(Component.literal("not registered  ").withStyle(ChatFormatting.YELLOW))
+                    .append(Component.literal("no roles chosen  ").withStyle(ChatFormatting.YELLOW))
                     .append(
                             AnniHoverBuilder.linkBadge(
                                     "[register]",

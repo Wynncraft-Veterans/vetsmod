@@ -32,7 +32,7 @@ class AnniOnboardingBlocksTest {
     }
 
     private static final String UNREGISTERED_NUDGE =
-            "literal{You have not yet opened }[style={color=red,bold}, "
+            "literal{You have not yet chosen your roles on }[style={color=red,bold}, "
                     + "siblings=[literal{anni.wynnvets.org/me}[style={color=yellow,bold,"
                     + "underlined,clickEvent=OpenUrl[uri=https://anni.wynnvets.org/me]}], "
                     + "literal{!}[style={color=red,!bold}], literal{\n}, "

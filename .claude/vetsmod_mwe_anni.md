@@ -241,7 +241,7 @@ Three branches:
 ### Not-announced registration block
 
 Under the prediction, for a vets user without roles; a player with roles gets none (their roles sit on the link line). Two sub-shapes:
-- **Unregistered** → `unregisteredNudgeBlock` — red bold "You have not yet opened anni.wynnvets.org/me!" + dark-red italic followup.
+- **Unregistered** → `unregisteredNudgeBlock` — red bold "You have not yet chosen your roles on anni.wynnvets.org/me!" + dark-red italic followup. It reads true for every roleless player, since vets-anni marks a registration registered only when it holds a role. The announced body's Eligible Roles label for the same case is "no roles chosen".
 - **Registered, no specific roles** → `fillOnlyExplainerBlock` — four lines (yellow bold italic / gold italic / 0x7E7E7E italic / white bold italic) with clickable "fill slot" and "here" links.
 - **Registered with roles** → no block. `AnniOnboardingBlocks.vetsNotAnnouncedRoles` returns the `Eligible Roles:` gray label and role chips joined by a dark-gray ` · `, which the render puts beside the link. The label is always `Eligible Roles` here — the `Assigned Role` swap belongs to `renderFarOut`, and the not-announced path never consults `snapshot.board()`.
 
