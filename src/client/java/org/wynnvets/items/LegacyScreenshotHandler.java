@@ -41,9 +41,16 @@ import org.wynnvets.logging.VetsLogger;
  */
 final class LegacyScreenshotHandler {
 
+    /**
+     * Draws the tooltip 10 units in, where Wynntils' own capture draws it. Wynntils 4.2.13 and
+     * later (#4332) forces that position onto every tooltip drawn until its capture's readback
+     * completes, a frame or more after the press, and this capture always runs in that window, so
+     * any other position here would be overridden. (At 4, 4 the override pushed the text 6 units
+     * past the margin, cutting off the right edge and the last line.)
+     */
     private static final ClientTooltipPositioner SCREENSHOT_POSITIONER =
             (screenWidth, screenHeight, mouseX, mouseY, tooltipWidth, tooltipHeight) ->
-                    new Vector2i(4, 4);
+                    new Vector2i(10, 10);
 
     /** Delay before clipboard write so we overwrite Wynntils' async copy. */
     private static final Executor DELAYED_EXECUTOR =
@@ -98,8 +105,12 @@ final class LegacyScreenshotHandler {
             height += 2 + (tooltip.size() - 1) * 10;
         }
 
-        // Diagnosis for legacy-item-screenshot-key-crops-tooltip: compare these against
-        // the cropped image's pixel size.
+        // The background sprite reaches 12 units past the text on each side (3 padding plus a
+        // 9 margin, TooltipRenderUtil), so pad both axes by 12, as Wynntils' capture does.
+        width += 12;
+        height += 12;
+
+        // The framebuffer is twice this size; the screen is what the render is scaled from.
         VetsLogger.debug(
                 "Legacy screenshot: captured {}x{}, screen {}x{}, window {}x{}, gui scale {}",
                 width,
