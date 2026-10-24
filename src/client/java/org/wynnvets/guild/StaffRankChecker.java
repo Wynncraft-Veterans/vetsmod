@@ -15,10 +15,13 @@ import org.wynnvets.logging.VetsLogger;
  * The check queues {@code /gu rank} through Wynntils' command queue and completes when
  * {@link #processMessage(String)} sees the reply in chat, or times out. A timed-out check
  * keeps the cached flag and still stamps the daily check, so a slow command queue does not
- * demote a real staff member, and a reply nothing recognises (as a guildless player's is)
- * is not re-requested at every world join. The flag is not cleared on leaving the guild:
- * consumers that must not trust it for a former member also test the guild, as
- * {@code /wv list world} does.</p>
+ * demote a real staff member, and a reply nothing recognises is not re-requested at every
+ * world join. A guildless player's reply ({@code You must be in a guild to use this.}) is
+ * recognised and clears the flag like the unauthorized one. The flag is also dropped, and the
+ * daily stamp reset so the next refresh rechecks, when the player leaves the guild or a guild
+ * check finds them guildless ({@link #clearForGuildChange()}). It is not tracked per guild: a
+ * player now in another guild keeps it until a check answers, so consumers that must not trust
+ * it for a non-Returner also test the guild, as {@code /wv list world} does.</p>
  *
  * <p>This class is package-private. Outside the package it is reached through
  * {@link GuildStateManager}'s facade methods; {@link GuildLifecycle} also calls
@@ -162,20 +165,51 @@ final class StaffRankChecker {
             return;
         }
 
-        // Diagnostic: the raw text of every line seen while a check waits, so a debug log
-        // captures the reply Wynncraft gives a player who is not in a guild, whose wording
-        // is not recognised below (a check for such a player ends by timeout).
-        VetsLogger.debug("Staff rank check saw reply line: [{}]", safeMessage);
-
         if (isStaffRankUnauthorizedResponse(safeMessage)) {
             setStaffStatus(false);
             completeCheck();
             VetsLogger.debug("Staff rank check result: not staff");
+        } else if (isNotInGuildResponse(safeMessage)) {
+            setStaffStatus(false);
+            completeCheck();
+            VetsLogger.debug("Staff rank check result: not in a guild, so not staff");
         } else if (isStaffRankAuthorizedResponse(safeMessage)) {
             setStaffStatus(true);
             completeCheck();
             VetsLogger.debug("Staff rank check result: is staff");
         }
+    }
+
+    // ── Guild change ───────────────────────────────────────────────────
+
+    /**
+     * Drops a cached staff flag that cannot hold any more because the player left their guild or a
+     * guild check found them guildless: the flag goes false (through {@link #setStaffStatus} so it
+     * persists) and the last-check stamp resets to 0, field and {@code VETS_LAST_STAFF_CHECK},
+     * so the next {@link #refreshStaffStatusIfNeeded} rechecks instead of waiting out the day.
+     * Does nothing for a player not cached as staff. Not for an {@code OTHER_GUILD} result, which
+     * says nothing about the rank. A wrongly dropped steward is recognised again by the next
+     * check, which {@code GuildChatDispatcher} forces when a non-staff player sends {@code /v}.
+     * Called by {@link GuildLifecycle#onGuildLeft()} and {@link GuildChecker} on a
+     * {@code GUILDLESS} result.
+     */
+    static void clearForGuildChange() {
+        if (!shouldClearStaffFlag(isStaff, true)) {
+            return;
+        }
+        setStaffStatus(false);
+        lastStaffCheckTime = 0;
+        VetsConfig.setLong(VetsConfigKeys.VETS_LAST_STAFF_CHECK, 0L);
+        VetsLogger.debug("Staff flag cleared: guild left or guildless; recheck due");
+    }
+
+    /**
+     * Whether {@link #clearForGuildChange} has a flag to drop: the player is cached as staff and
+     * the guild-left or guildless signal fired.
+     */
+    // Package-private for unit tests. See StaffRankCheckerTest.
+    static boolean shouldClearStaffFlag(boolean cachedStaff, boolean guildLeftOrGuildless) {
+        return cachedStaff && guildLeftOrGuildless;
     }
 
     // ── Internals ──────────────────────────────────────────────────────
@@ -225,5 +259,26 @@ final class StaffRankChecker {
         if (message == null) return false;
         String lower = message.toLowerCase(Locale.ROOT);
         return lower.contains("invalid arguments, try:") && lower.contains("rank [name] [rank]");
+    }
+
+    /** What Wynncraft answers {@code /gu rank} from a player in no guild: {@code You must be in a
+     *  guild to use this.} (aqua), captured in game. */
+    // Package-private for unit tests. See StaffRankCheckerTest.
+    static boolean isNotInGuildResponse(String message) {
+        if (message == null) return false;
+        return message.toLowerCase(Locale.ROOT).contains("you must be in a guild");
+    }
+
+    /**
+     * Whether a chat line is any reply to a mod-initiated {@code /gu rank}: the unauthorized one,
+     * the authorized one or the not-in-a-guild one. The one test {@link #processMessage} and
+     * {@code ChatLogMixin}'s hiding of the reply share, through
+     * {@link GuildStateManager#isStaffRankReply}.
+     */
+    // Package-private for unit tests. See StaffRankCheckerTest.
+    static boolean isStaffRankReply(String message) {
+        return isStaffRankUnauthorizedResponse(message)
+                || isStaffRankAuthorizedResponse(message)
+                || isNotInGuildResponse(message);
     }
 }

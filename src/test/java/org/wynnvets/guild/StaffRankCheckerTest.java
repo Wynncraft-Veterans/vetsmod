@@ -8,12 +8,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link StaffRankChecker}'s two response predicates — the pure half
- * of the {@code /gu rank} handshake.
+ * Tests for {@link StaffRankChecker}'s three response predicates and its flag-clearing decision —
+ * the pure half of the {@code /gu rank} handshake.
  *
- * <p>Both are unordered substring tests, not a parse: three fragments for the
- * unauthorized reply, two for the authorized one, each checked with
- * {@code contains} against the whole lower-cased line. Nothing constrains
+ * <p>All three are unordered substring tests, not a parse: three fragments for the
+ * unauthorized reply, two for the authorized one, one for the not-in-a-guild one, each checked
+ * with {@code contains} against the whole lower-cased line. Nothing constrains
  * their order or adjacency, so the false-positive surface pinned below is real
  * behaviour rather than a hypothetical.</p>
  *
@@ -39,6 +39,9 @@ class StaffRankCheckerTest {
     /** What it sends a staff player: the argument-usage hint, because
      *  {@code /gu rank} with no arguments is incomplete rather than forbidden. */
     private static final String AUTHORIZED = "Invalid arguments, try: /gu rank [name] [rank]";
+
+    /** What it sends a player in no guild (captured in game, aqua). */
+    private static final String NOT_IN_GUILD = "You must be in a guild to use this.";
 
     private static final Locale TURKISH = Locale.forLanguageTag("tr");
 
@@ -132,7 +135,50 @@ class StaffRankCheckerTest {
         assertFalse(StaffRankChecker.isStaffRankAuthorizedResponse(""));
     }
 
-    // ----- The two are disjoint on real input -----
+    // ----- isNotInGuildResponse -----
+
+    @Test
+    void notInGuild_matchesTheCapturedLine() {
+        assertTrue(StaffRankChecker.isNotInGuildResponse(NOT_IN_GUILD));
+    }
+
+    @Test
+    void notInGuild_foldsCase() {
+        assertTrue(StaffRankChecker.isNotInGuildResponse("YOU MUST BE IN A GUILD TO USE THIS."));
+    }
+
+    @Test
+    void notInGuild_rejectsTheOtherTwoRepliesAndNoise() {
+        assertFalse(StaffRankChecker.isNotInGuildResponse(UNAUTHORIZED));
+        assertFalse(StaffRankChecker.isNotInGuildResponse(AUTHORIZED));
+        assertFalse(StaffRankChecker.isNotInGuildResponse("You must be a member to use this."));
+        assertFalse(StaffRankChecker.isNotInGuildResponse(null));
+        assertFalse(StaffRankChecker.isNotInGuildResponse(""));
+    }
+
+    // ----- isStaffRankReply -----
+
+    @Test
+    void staffRankReply_coversAllThreeRepliesAndNothingElse() {
+        assertTrue(StaffRankChecker.isStaffRankReply(UNAUTHORIZED));
+        assertTrue(StaffRankChecker.isStaffRankReply(AUTHORIZED));
+        assertTrue(StaffRankChecker.isStaffRankReply(NOT_IN_GUILD));
+        assertFalse(StaffRankChecker.isStaffRankReply("Guild Since: 2020-01-01"));
+        assertFalse(StaffRankChecker.isStaffRankReply(null));
+        assertFalse(StaffRankChecker.isStaffRankReply(""));
+    }
+
+    // ----- shouldClearStaffFlag -----
+
+    @Test
+    void clearsTheFlagOnlyForACachedStaffMemberAndTheSignal() {
+        assertTrue(StaffRankChecker.shouldClearStaffFlag(true, true));
+        assertFalse(StaffRankChecker.shouldClearStaffFlag(true, false), "no signal");
+        assertFalse(StaffRankChecker.shouldClearStaffFlag(false, true), "nothing cached to clear");
+        assertFalse(StaffRankChecker.shouldClearStaffFlag(false, false));
+    }
+
+    // ----- The three are disjoint on real input -----
 
     @Test
     void theTwoPredicatesDoNotBothFireOnEitherRealLine() {
@@ -140,6 +186,8 @@ class StaffRankCheckerTest {
         // else-branch, so an overlap would silently resolve to "not staff".
         assertFalse(StaffRankChecker.isStaffRankAuthorizedResponse(UNAUTHORIZED));
         assertFalse(StaffRankChecker.isStaffRankUnauthorizedResponse(AUTHORIZED));
+        assertFalse(StaffRankChecker.isStaffRankUnauthorizedResponse(NOT_IN_GUILD));
+        assertFalse(StaffRankChecker.isStaffRankAuthorizedResponse(NOT_IN_GUILD));
     }
 
     // ----- Default-locale case folding -----

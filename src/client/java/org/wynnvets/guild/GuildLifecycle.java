@@ -202,7 +202,9 @@ public final class GuildLifecycle {
      *
      * <p>Wynntils posts the event <i>before</i> it clears its guild name, in the same call, so
      * re-reading the guild now would still see Returners (and even re-send a {@code guild}
-     * registration). The mod's cached state is dropped at once, and the re-evaluation waits one
+     * registration). The mod's cached state is dropped at once (the guild check result, and a
+     * cached staff flag through {@link StaffRankChecker#clearForGuildChange()}), and the
+     * re-evaluation waits one
      * tick ({@code TickDelays.runAfter(0, ...)} runs on the next tick pass), by which time the
      * name is gone. It is followed by {@link GuildStateManager#reconcileRegistration}, which
      * retracts the presence registration. A disconnect in between leaves the cache empty, so
@@ -211,6 +213,7 @@ public final class GuildLifecycle {
     public static void onGuildLeft() {
         GuildChecker.clearResult();
         // Per-guild cached state that must not outlive the membership is dropped here.
+        StaffRankChecker.clearForGuildChange();
         TickDelays.runAfter(
                 0,
                 "Guild left",

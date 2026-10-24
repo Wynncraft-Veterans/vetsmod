@@ -44,7 +44,7 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 | `onEnteredWorld()` | World-join trigger; schedules SessionAuthWarning |
 | `onGuildInfoUpdated()` | The first half of `onGuildJoined()`: clears the `GuildChecker` cache, then re-evaluates guild state (the post-world-join recheck poll re-evaluates without the unconditional clear) |
 | `onGuildJoined()` | Wynntils `GuildEvent.Joined` callback: `onGuildInfoUpdated()`, then, if the guild is Returners, `ReturnersReauth.onJoinedReturners()` (§4), then `reconcileRegistration(true, "joined")` |
-| `onGuildLeft()` | Wynntils `GuildEvent.Left` callback: clears the `GuildChecker` cache at once, then on the next tick (`TickDelays.runAfter(0, ...)`) re-evaluates guild state and calls `reconcileRegistration(true, "left")` |
+| `onGuildLeft()` | Wynntils `GuildEvent.Left` callback: clears the `GuildChecker` cache and a cached staff flag (`StaffRankChecker.clearForGuildChange`) at once, then on the next tick (`TickDelays.runAfter(0, ...)`) re-evaluates guild state and calls `reconcileRegistration(true, "left")` |
 | `reset()` | Disconnect reset of the per-connection state |
 
 `/wv debug trigger forceChecks`'s readout is [GuildDiagnostics](../src/client/java/org/wynnvets/debug/diagnostics/GuildDiagnostics.java)`.forceGuildRecheck()`, in `org.wynnvets.debug.diagnostics`.
@@ -109,6 +109,8 @@ Each kind is numbered when scheduled, and a task that finds a newer number stops
 - Sends `/gu rank` (no args) via `Handlers.Command.queueCommand()`
 - Unauthorized response: "you must be a captain to use this command" → NOT staff
 - Authorized response: "invalid arguments, try: rank [name] [rank]" → IS staff
+- Not-in-a-guild response: "You must be in a guild to use this." (aqua, captured in game) → NOT staff, like the unauthorized one
+- `isStaffRankReply(message)` is true for any of the three; `GuildStateManager.isStaffRankReply` hands it to `ChatLogMixin`, which hides the reply of a mod-initiated check with it
 - `STAFF_RANK_TIMEOUT_MS = 10_000L`
 
 **Caching:**
@@ -116,8 +118,8 @@ Each kind is numbered when scheduled, and a task that finds a newer number stops
 - Persisted: `VETS_IS_STAFF` (boolean), `VETS_LAST_STAFF_CHECK` (long)
 - Grace: 500ms after check to suppress trailing output
 - A check that times out keeps the cached flag and still stamps `VETS_LAST_STAFF_CHECK`, so a slow command queue does not demote a real staff member and a reply nothing recognises is not re-requested at every world join
-- The flag is not cleared on leaving the guild or on another guild's `OTHER_GUILD` result, so it can be true for a former member; `/wv list world` therefore also requires `GuildStateManager.isReturners()`
-- Debug line: while a check waits, `processMessage` logs each chat line it sees (`Staff rank check saw reply line: [...]`). A player not in a guild gets a reply that neither predicate matches, so a debug log of such a check records the wording
+- `clearForGuildChange()` sets the flag false (persisted) and resets the last-check stamp, field and `VETS_LAST_STAFF_CHECK`, to 0 so the next `refreshStaffStatusIfNeeded` rechecks. It acts only on a cached staff flag (`shouldClearStaffFlag`). Called from `GuildLifecycle.onGuildLeft()` (a leave or a kick seen online) and from `GuildChecker.setResult` when the result becomes `GUILDLESS` (which covers a kick while offline); not on `OTHER_GUILD`. A wrongly cleared steward is recognised again by the next check, which `GuildChatDispatcher.staffOrRefresh` forces on the next `/v`
+- The flag is not tracked per guild: an `OTHER_GUILD` result leaves it, so it can still be true for a player now in another guild; `/wv list world` therefore also requires `GuildStateManager.isReturners()`
 
 On disconnect, `reset()` reloads persisted state from config (not in-memory clear).
 

@@ -2120,7 +2120,7 @@ Test: [`ReturnersReauthTest.java`](../src/test/java/org/wynnvets/guild/Returners
 
 Test: [`StaffRankCheckerTest.java`](../src/test/java/org/wynnvets/guild/StaffRankCheckerTest.java) · Subject: [`StaffRankChecker`](../src/client/java/org/wynnvets/guild/StaffRankChecker.java)
 
-`StaffRankChecker` decides whether the player is guild staff by running `/gu rank` and classifying Wynncraft's reply. The suite covers its two package-private response predicates, `isStaffRankUnauthorizedResponse` (three required fragments) and `isStaffRankAuthorizedResponse` (two required fragments). It pins that both are unordered, case-insensitive substring tests that return false for null or empty input, that the two never both fire on the real server lines, and that case folding uses `Locale.ROOT` so a Turkish default locale does not break recognition. The locale tests set `Locale.setDefault` and an `@AfterEach` restores it.
+`StaffRankChecker` decides whether the player is guild staff by running `/gu rank` and classifying Wynncraft's reply. The suite covers its three package-private response predicates, `isStaffRankUnauthorizedResponse` (three required fragments), `isStaffRankAuthorizedResponse` (two required fragments) and `isNotInGuildResponse` (one, the captured guildless reply), the combined `isStaffRankReply` that `ChatLogMixin` hides replies with, and the pure `shouldClearStaffFlag` decision. It pins that all three predicates are unordered, case-insensitive substring tests that return false for null or empty input, that they never fire on each other's real server lines, and that case folding uses `Locale.ROOT` so a Turkish default locale does not break recognition. The locale tests set `Locale.setDefault` and an `@AfterEach` restores it.
 
 - **`unauthorized_matchesTheRealServerLine`**: "You must be a Captain or higher to use this command!" is recognised as the unauthorized response.
   - `StaffRankChecker.isStaffRankUnauthorizedResponse(UNAUTHORIZED)` is true, where `UNAUTHORIZED` = `"You must be a Captain or higher to use this command!"`.
@@ -2146,9 +2146,20 @@ Test: [`StaffRankCheckerTest.java`](../src/test/java/org/wynnvets/guild/StaffRan
 - **`authorized_nullAndEmpty`**: `null` and the empty string return false.
   - `isStaffRankAuthorizedResponse(null)` is false.
   - `isStaffRankAuthorizedResponse("")` is false.
-- **`theTwoPredicatesDoNotBothFireOnEitherRealLine`**: The authorized predicate is false on the unauthorized line and the unauthorized predicate is false on the authorized line, so the else-branch in message processing cannot be shadowed.
+- **`notInGuild_matchesTheCapturedLine`**: The guildless reply captured in game is recognised.
+  - `StaffRankChecker.isNotInGuildResponse(NOT_IN_GUILD)` is true, where `NOT_IN_GUILD` = `"You must be in a guild to use this."`.
+- **`notInGuild_foldsCase`**: The predicate does its own lower-casing.
+  - `isNotInGuildResponse("YOU MUST BE IN A GUILD TO USE THIS.")` is true.
+- **`notInGuild_rejectsTheOtherTwoRepliesAndNoise`**: The other two replies, a similar refusal, null and the empty string do not match.
+  - `isNotInGuildResponse(UNAUTHORIZED)`, `isNotInGuildResponse(AUTHORIZED)`, `isNotInGuildResponse("You must be a member to use this.")`, `isNotInGuildResponse(null)` and `isNotInGuildResponse("")` are all false.
+- **`staffRankReply_coversAllThreeRepliesAndNothingElse`**: `isStaffRankReply` is any of the three predicates.
+  - True for `UNAUTHORIZED`, `AUTHORIZED` and `NOT_IN_GUILD`; false for `"Guild Since: 2020-01-01"`, null and the empty string.
+- **`clearsTheFlagOnlyForACachedStaffMemberAndTheSignal`**: A flag is dropped only when one is cached and the guild-left or guildless signal fired.
+  - `shouldClearStaffFlag(true, true)` is true; `(true, false)`, `(false, true)` and `(false, false)` are false.
+- **`theTwoPredicatesDoNotBothFireOnEitherRealLine`**: Neither of the unauthorized, authorized and not-in-a-guild predicates fires on another's real line, so the else-branches in message processing cannot be shadowed.
   - `isStaffRankAuthorizedResponse(UNAUTHORIZED)` is false.
   - `isStaffRankUnauthorizedResponse(AUTHORIZED)` is false.
+  - `isStaffRankUnauthorizedResponse(NOT_IN_GUILD)` and `isStaffRankAuthorizedResponse(NOT_IN_GUILD)` are false.
 - **`authorized_survivesATurkishDefaultLocaleOnTheRealServerLine`**: Regression guard: with the default locale set to Turkish, the authorized line (capital I in "Invalid") still matches.
   - with the default locale set to `tr`, `isStaffRankAuthorizedResponse(AUTHORIZED)` is true.
 - **`unauthorized_survivesATurkishDefaultLocaleEvenShouted`**: Under a Turkish default, the unauthorized line matches both as-is and upper-cased with `Locale.ROOT`.

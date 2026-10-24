@@ -1,6 +1,5 @@
 package org.wynnvets.mixin.client.chat;
 
-import java.util.Locale;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
@@ -157,12 +156,6 @@ public class ChatLogMixin {
      * Checks if a message is part of the /gu rank staff-check output.
      */
     private boolean isStaffRankCheckMessage(String message) {
-        String trimmed = message.trim();
-        String normalized = trimmed.toLowerCase(Locale.ROOT);
-        return (normalized.contains("you must be a")
-                        && normalized.contains("captain")
-                        && normalized.contains("to use this command"))
-                || (normalized.contains("invalid arguments, try:")
-                        && normalized.contains("rank [name] [rank]"));
+        return GuildStateManager.isStaffRankReply(message);
     }
 }

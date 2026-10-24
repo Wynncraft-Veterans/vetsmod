@@ -324,6 +324,11 @@ public final class GuildChecker {
         lastGuildCheckTime = System.currentTimeMillis();
         VetsConfig.setLong(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, result.persistedValue);
         VetsConfig.setLong(VetsConfigKeys.VETS_LAST_GUILD_CHECK, lastGuildCheckTime);
+        if (result == GuildCheckResult.GUILDLESS) {
+            // A cached staff flag cannot hold for a player in no guild (a kick while offline
+            // sends no Left event). Not on OTHER_GUILD, which says nothing about the rank.
+            StaffRankChecker.clearForGuildChange();
+        }
     }
 
     private static void completeCheck() {

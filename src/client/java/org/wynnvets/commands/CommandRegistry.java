@@ -395,7 +395,7 @@ public final class CommandRegistry {
             return 0;
         }
 
-        // The cached staff flag outlives leaving the guild (see StaffRankChecker), so staff
+        // The cached staff flag is not tracked per guild (see StaffRankChecker), so staff
         // also has to be in Returners: the flag alone is not enough.
         if (!GuildStateManager.isStaff() || !GuildStateManager.isReturners()) {
             ChatUtils.sendLocalMessage(

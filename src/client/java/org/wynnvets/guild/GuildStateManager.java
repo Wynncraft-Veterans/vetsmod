@@ -407,6 +407,15 @@ public final class GuildStateManager {
     }
 
     /**
+     * Whether a chat line is a reply to {@code /gu rank}, whichever of the three
+     * ({@code StaffRankChecker.isStaffRankReply}). {@code ChatLogMixin} hides it with this while
+     * a mod-initiated check runs.
+     */
+    public static boolean isStaffRankReply(String message) {
+        return StaffRankChecker.isStaffRankReply(message);
+    }
+
+    /**
      * Process incoming chat messages for guild check responses.
      * Returns {@code true} when the message should be suppressed from display.
      *
