@@ -5,7 +5,7 @@ type: reference
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 **Repo:** sibling clone at `../Wynntils/` — read-only reference, not edited. Upstream: <https://github.com/Wynntils/Wynntils>.
-**Version used by vetsmod:** v4.1.4-fabric (via Modrinth Maven, `modCompileOnly`)
+**Version used by vetsmod:** v4.1.17-fabric (via Modrinth Maven, `modCompileOnly`). `fabric.mod.json`'s `>=4.1.4` is the runtime floor, a separate and deliberately older number.
 **Platform:** Architectury (Fabric + NeoForge), MC 1.21.11, Java 21, LGPL v3.0
 
 ## Component types (4)
@@ -91,10 +91,10 @@ Base: `GuiGraphics guiGraphics`, `ItemStack itemStack`, `int mouseX`, `int mouse
 ### Handlers.Command
 File: `common/src/main/java/com/wynntils/handlers/command/CommandHandler.java`
 
-- `queueCommand(String command)` — sends with server rate limit (~350ms / 7 ticks between commands). Do NOT include leading `/`.
+- `queueCommand(String command)` — spaced by `TICKS_PER_EXECUTE` = 7 ticks (~350 ms; Wynntils' Javadoc says it respects the server rate limit): sends at once when the spacing has elapsed, otherwise appends to the queue. Do NOT include leading `/`.
 - `sendCommandImmediately(String command)` — bypasses queue; for urgent / user-initiated commands.
 
-Used by vetsmod: `/gu stats`, `/gu rank`, `/find`, `/msg` — all via `queueCommand`.
+Used by vetsmod: `/gu stats`, `/gu rank`, `/find`, `/msg` — all via `queueCommand` — and `guild manage` from `/wv distribute`, which `OutboundCommand.queueFront` puts at the **front** of the same queue by reflection (`addFirst`), with `queueCommand` only as its fallback.
 
 ## Models
 
@@ -112,6 +112,18 @@ File: `common/src/main/java/com/wynntils/models/guild/GuildModel.java`
 - `getGuildProfile(String name): Optional<GuildProfile>`
 
 **GuildRank enum:** `Recruit, Recruiter, Captain, Strategist, Chief, Owner`
+
+### Models.Player — ghost detection
+
+`Models.Player.isPlayerGhost(player)` is the canonical "is this player phased to another world" check. It is backed by `PlayerModel.ghosts`, a `Map<UUID, Integer>` Wynntils populates from `_<TIER><N>` team-assignment events and clears on a `WORLD` state change.
+
+It doubles as a one-way presence detector for the local user's `/toggle ghosts` setting: if any visible player is ghost-flagged, ghosts cannot be off, because the server filters them out otherwise. The converse does not hold — no visible ghost means "ambiguous", not "off". `GhostsPromptHandler` uses it exactly that way.
+
+## Init order between vetsmod and Wynntils
+
+In production, Fabric Loader runs client entrypoints in mod-id order, so `VetsmodClient.onInitializeClient()` runs before Wynntils' entrypoint, while `WynntilsMod.eventBus` is still null. (A dev launch shuffles the mod order unless `-Dfabric.debug.disableModShuffle=true` is set; `build.gradle` sets it for Loom's dev runs.) Two things then fail. `WynntilsMod.registerEventListener` throws a `NullPointerException` at once. And a first touch of `Models.Marker`, or any other `Models.X`, runs `Models.<clinit>`, which constructs `ServerListModel`; its constructor schedules a server-list update at once on a pool thread. That thread runs `Managers.<clinit>`, whose `CrowdSourcedDataManager` registers on the null bus and throws, so `Managers` stays unusable and Wynntils' own init then dies with `NoClassDefFoundError`. It is a race, lost when the pool thread reaches `Managers` before Wynntils' entrypoint creates the bus, and it crashed the client on 2026-06-18. (`WynntilsMod.postEvent` catches `Throwable`, so posting events is not the mechanism.)
+
+**Defer any init-time Wynntils bus registration or `Models.X.something(...)` call into `VetsmodClient.onClientStarted()`, the `ClientLifecycleEvents.CLIENT_STARTED` phase**, which runs after every mod's `onInitializeClient`. Per-tick calls are safe: ticks start after `CLIENT_STARTED`. Snapshot listeners subscribed in `onInitializeClient` are not settled: a snapshot can reach them on a WebSocket thread before Wynntils' entrypoint has run, though no path that then reaches Wynntils on an ordinary cold start has been found (bug `mod-init-snapshot-listeners-can-reach-wynntils-before-its-init`). Saved as the `feedback_vetsmod_wynntils_init_order.md` memory.
 
 ## Utility classes
 
@@ -139,19 +151,36 @@ File: `common/src/main/java/com/wynntils/utils/mc/ComponentUtils.java`
 - `formattedTextToComponent(FormattedText): Component`
 
 ### McUtils
-File: `common/src/main/java/com/wynntils/utils/mc/McUtils.java`
+File: `common/src/main/java/com/wynntils/utils/mc/McUtils.java`. A `final` class with no fields and no static
+initializer. Each helper vetsmod calls is a one-line pass-through, with no caching and no null check;
+`getUserProfileUUID` and `getGameDirectory` alone null-check `mc()`, for Wynntils' tests.
+
+**vetsmod never calls `Minecraft.getInstance()`; it reaches the client through `McUtils`,** except where a Fabric
+callback hands it the instance (`DebugKeyHandler`'s `END_CLIENT_TICK` `client`). Use the exact helper where one
+exists at Wynntils 4.1.4, the floor `fabric.mod.json` declares, and `McUtils.mc()` for everything else (`execute`,
+`font`, `gui`, `level`, and so on). A site that guards the instance against null, passes it on, or also reads a
+member with no helper keeps a `McUtils.mc()` local and reads every field from it. Never call `McUtils` from a
+static initializer or a static field. `tools/check-doc-counts.sh` pins `Minecraft.getInstance` at zero call sites
+in `src/client/java`, outside static declarations, which its counter skips.
+
+The helpers vetsmod calls, unchanged from 4.1.4 through 4.2.16:
 
 - `mc(): Minecraft`
-- `player(): LocalPlayer`
-- `playerName(): String`
+- `player(): LocalPlayer` (`mc().player`)
+- `playerName(): String` (`player().getName().getString()`; throws when there is no player)
+- `screen(): Screen` / `setScreen(Screen): void`
 - `options(): Options`
 - `inventory(): Inventory`
-- `containerMenu(): AbstractContainerMenu`
-- `screen(): Screen` / `setScreen(Screen): void`
-- `window(): Window`
-- `guiScale(): double`
-- `getUserProfileUUID(): UUID`
-- `getGameDirectory(): File`
+
+Also present at 4.1.4 and not called: `containerMenu`, `inventoryMenu`, `window`, `guiScale`,
+`getUserProfileUUID`, `getGameDirectory`, `playSoundUI`, `playSoundMaster`, `playSoundAmbient`,
+`sendMessageToClient`, `sendChat`, `sendPacket`, `sendSequencedPacket`, `openChatScreen`, `removeMessageFromChat`,
+`sendErrorToClient`.
+
+**Absent at the 4.1.4 floor, so never call them:** `displayToast` (from 4.1.9); `getChatWidth`,
+`sendWynntilsPrefixMessage` and `sendWynntilsPillMessage` (from 4.1.10); `getChat` and `toastManager` (from
+4.2.12). vetsmod compiles against 4.1.17, so the compiler accepts the first four. `sendWynntilsMessage` exists
+through 4.1.9 and is gone after it.
 
 ## Event priority system
 

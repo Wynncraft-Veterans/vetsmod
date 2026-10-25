@@ -5,16 +5,15 @@ import com.wynntils.core.text.StyledText;
 import com.wynntils.handlers.chat.event.ChatMessageEvent;
 import com.wynntils.handlers.chat.type.RecipientType;
 import com.wynntils.utils.mc.StyledTextUtils;
-import net.neoforged.bus.api.SubscribeEvent;
-import org.wynnvets.api.V1ApiManager;
-import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.neoforged.bus.api.SubscribeEvent;
+import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Detects in-game guild rank-change broadcasts ({@code "X has set Y guild rank
@@ -23,15 +22,15 @@ import java.util.regex.Pattern;
  *
  * <p>Wynntils' {@code GuildModel.MSG_RANK_CHANGED} regex captures only the
  * target name and new rank, and only updates internal state for the local
- * player — it does not fire any event we could subscribe to. This listener
- * runs against the same unwrapped {@link StyledText} but with a fuller regex
- * that also captures the actor and old rank, then classifies the event:</p>
+ * player — it does not fire any event we could subscribe to. Wynntils
+ * runs that regex against the raw message; this listener runs a fuller regex,
+ * which also captures the actor and old rank, against its own unwrapped,
+ * alignment-stripped copy of the {@code StyledText}, then classifies the event:</p>
  *
  * <ul>
  *   <li><b>ban</b> — {@code from ∈ {Recruiter, Captain, Strategist, Chief, Owner}}
  *       and {@code to = Recruit}. Any non-trivial demotion to recruit is a
- *       ban request: the captain who set this is asking admins to remove
- *       the player.</li>
+ *       ban request: whoever set it is asking admins to remove the player.</li>
  *   <li><b>kick</b> — {@code from = Recruit} and {@code to = Recruit}. Used
  *       in the guild as a "failed onboarding" signal — the only case
  *       where a {@code → Recruit} broadcast is *not* a ban request.</li>
@@ -39,14 +38,16 @@ import java.util.regex.Pattern;
  *       in the guild as a celebratory non-promotion-promotion.</li>
  * </ul>
  *
- * <p>Real promotions across distinct ranks (e.g. {@code Recruit → Recruiter},
- * {@code Captain → Strategist}) are not handled — no guidance from product
- * on what they should do. They are dropped client-side.</p>
+ * <p>Any other change between distinct ranks is not handled: a real promotion
+ * (e.g. {@code Recruit → Recruiter}, {@code Captain → Strategist}) or a demotion
+ * that does not land on Recruit (e.g. {@code Chief → Captain}). There is no
+ * product guidance for these, and they are dropped client-side.</p>
  *
- * <p>Client-side dedup over a 30s window prevents the same Wynntils chat
- * event firing twice (e.g. via {@code .Match} and {@code .Edit}) from
- * generating duplicate WS frames. Server-side dedup at temporary-server
- * is the authoritative cross-client deduplicator.</p>
+ * <p>Client-side dedup drops a rank change (same actor, target and ranks) matching
+ * one of the last {@code MAX_DEDUP_ENTRIES} this listener passed to
+ * {@link V1ApiManager#sendRankChange} within 30s, whatever brought the repeat.
+ * Server-side dedup at temporary-server is the authoritative cross-client
+ * deduplicator.</p>
  */
 public final class RankChangeListener {
 
@@ -70,11 +71,11 @@ public final class RankChangeListener {
      * misclassified as a KICK notice. Wynntils' upstream regex hides this
      * with a {@code $} anchor that forces backtracking; we do not.</p>
      */
-    private static final Pattern PATTERN = Pattern.compile(
-            "§b(?:|) (\\w{1,16}) has set (\\w{1,16}) guild rank "
-                    + "from §3(?: )?(Recruiter|Recruit|Captain|Strategist|Chief|Owner)"
-                    + "§b to §3(?: )?(Recruiter|Recruit|Captain|Strategist|Chief|Owner)"
-    );
+    private static final Pattern PATTERN =
+            Pattern.compile(
+                    "§b(?:|) (\\w{1,16}) has set (\\w{1,16}) guild rank "
+                            + "from §3(?: )?(Recruiter|Recruit|Captain|Strategist|Chief|Owner)"
+                            + "§b to §3(?: )?(Recruiter|Recruit|Captain|Strategist|Chief|Owner)");
 
     private static final long DEDUP_TTL_MS = TimeUnit.SECONDS.toMillis(30);
     private static final int MAX_DEDUP_ENTRIES = 50;
@@ -83,16 +84,11 @@ public final class RankChangeListener {
 
     private static final RankChangeListener INSTANCE = new RankChangeListener();
 
-    private RankChangeListener() {
-    }
+    private RankChangeListener() {}
 
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
         VetsLogger.debug("Registered rank-change listener");
-    }
-
-    public static void unregister() {
-        WynntilsMod.unregisterEventListener(INSTANCE);
     }
 
     @SubscribeEvent
@@ -116,19 +112,32 @@ public final class RankChangeListener {
         String toRank = m.group(4);
         String classification = classify(fromRank, toRank);
         if (classification == null) {
-            VetsLogger.debug("Rank change ignored (no rule match): {} set {} {} -> {}",
-                    actor, target, fromRank, toRank);
+            VetsLogger.debug(
+                    "Rank change ignored (no rule match): {} set {} {} -> {}",
+                    actor,
+                    target,
+                    fromRank,
+                    toRank);
             return;
         }
 
         if (wasRecent(actor, target, fromRank, toRank)) {
-            VetsLogger.debug("Rank change deduped client-side: {} set {} {} -> {}",
-                    actor, target, fromRank, toRank);
+            VetsLogger.debug(
+                    "Rank change deduped client-side: {} set {} {} -> {}",
+                    actor,
+                    target,
+                    fromRank,
+                    toRank);
             return;
         }
 
-        VetsLogger.info("Rank change: {} set {} from {} to {} ({})",
-                actor, target, fromRank, toRank, classification);
+        VetsLogger.info(
+                "Rank change: {} set {} from {} to {} ({})",
+                actor,
+                target,
+                fromRank,
+                toRank,
+                classification);
         V1ApiManager.sendRankChange(actor, target, fromRank, toRank, classification);
         recordRecent(actor, target, fromRank, toRank);
     }
@@ -144,9 +153,11 @@ public final class RankChangeListener {
             // The only "→ Recruit" event that is *not* a ban request is the
             // self-loop Recruit→Recruit (failed-onboarding KICK signal).
             // Every other demotion to recruit — including the routine
-            // Recruiter→Recruit case — is the captain asking admins to
-            // remove the player. WAPI cross-checks the post-fact rank a
-            // few minutes later for confidence.
+            // Recruiter→Recruit case — is a request to admins to remove
+            // the player. Server-side, the alert is re-checked against
+            // WAPI a few minutes later: temporary-server (at ffd8c17)
+            // forwards it to dazebot, whose lib/staff/rank_alerts.py
+            // runs that verification pass.
             return fromRecruit ? "kick" : "ban";
         }
         if (fromRank.equals(toRank)) {

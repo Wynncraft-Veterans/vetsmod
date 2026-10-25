@@ -6,6 +6,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -19,13 +20,6 @@ public final class SpoilerFormatter {
     private SpoilerFormatter() {}
 
     /**
-     * Returns {@code true} if the text contains at least one PUA-encoded spoiler block.
-     */
-    public static boolean containsSpoilers(String text) {
-        return SpoilerCodec.containsEncodedSpoiler(text);
-    }
-
-    /**
      * Appends text to the parent component, replacing PUA-encoded spoiler
      * blocks with hoverable spoiler labels.  Non-spoiler segments are
      * appended as plain literals with the given style.
@@ -35,7 +29,7 @@ public final class SpoilerFormatter {
      * @param textStyle the style applied to non-spoiler text
      */
     public static void appendWithSpoilers(MutableComponent parent, String text, Style textStyle) {
-        if (Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfig.HANDLE_SPOILERS))) {
+        if (Boolean.FALSE.equals(VetsConfig.getTriState(VetsConfigKeys.HANDLE_SPOILERS))) {
             parent.append(Component.literal(text).setStyle(textStyle));
             return;
         }
@@ -45,7 +39,8 @@ public final class SpoilerFormatter {
             return;
         }
 
-        VetsLogger.debug("SpoilerFormatter: processing text with encoded spoiler (len={})", text.length());
+        VetsLogger.debug(
+                "SpoilerFormatter: processing text with encoded spoiler (len={})", text.length());
 
         int cursor = 0;
         while (cursor < text.length()) {
@@ -63,17 +58,21 @@ public final class SpoilerFormatter {
             // Strip [Spoiler: ] wrapper if present around the PUA block.
             int emitEnd = start;
             if (start >= SpoilerCodec.WRAPPER_PREFIX.length()
-                    && text.startsWith(SpoilerCodec.WRAPPER_PREFIX, start - SpoilerCodec.WRAPPER_PREFIX.length())) {
+                    && text.startsWith(
+                            SpoilerCodec.WRAPPER_PREFIX,
+                            start - SpoilerCodec.WRAPPER_PREFIX.length())) {
                 emitEnd = start - SpoilerCodec.WRAPPER_PREFIX.length();
             }
             if (emitEnd > cursor) {
-                parent.append(Component.literal(text.substring(cursor, emitEnd)).setStyle(textStyle));
+                parent.append(
+                        Component.literal(text.substring(cursor, emitEnd)).setStyle(textStyle));
             }
 
             String encoded = text.substring(start + 1, end);
             String decoded = SpoilerCodec.decodeContent(encoded);
-            Style hoverStyle = SPOILER_LABEL_STYLE.withHoverEvent(
-                    new HoverEvent.ShowText(Component.literal(decoded)));
+            Style hoverStyle =
+                    SPOILER_LABEL_STYLE.withHoverEvent(
+                            new HoverEvent.ShowText(Component.literal(decoded)));
             parent.append(Component.literal("[Spoiler]").setStyle(hoverStyle));
 
             cursor = end + 1;

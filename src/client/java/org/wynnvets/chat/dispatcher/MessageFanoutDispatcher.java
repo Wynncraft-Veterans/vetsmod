@@ -1,10 +1,7 @@
 package org.wynnvets.chat.dispatcher;
 
 import com.wynntils.core.components.Handlers;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import org.wynnvets.logging.VetsLogger;
-
+import com.wynntils.utils.mc.McUtils;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -15,14 +12,18 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Handles the actual {@code /msg} fanout dispatch and server-feedback suppression
  * for the staff chat system ({@code /v}).
  *
  * <p>All dispatch is serialized on the shared single-threaded executor owned
- * by {@link CommandDispatcher}.  The suppression ACK system ensures that
- * only one {@code /msg} is ever in-flight at a time.</p>
+ * by {@link DispatchCoordinator}.  The suppression ACK system keeps at most one
+ * {@code /msg} awaiting a reply at a time; one whose wait times out is abandoned,
+ * not cancelled, so its reply can still arrive later.</p>
  */
 public final class MessageFanoutDispatcher {
 
@@ -33,25 +34,31 @@ public final class MessageFanoutDispatcher {
     private static final long SUPPRESSION_WAIT_MS = 5_000L;
     private static final int MAX_DISPATCH_RETRIES = 3;
 
-    // Suppression state — safe because dispatch is single-threaded.
-    private static final ConcurrentLinkedQueue<PendingSuppression> PENDING_SUPPRESSIONS = new ConcurrentLinkedQueue<>();
+    // Suppression state. The pending queue and the offline-guidance window are touched
+    // from the render thread; awaitingSuppression is shared with the dispatch thread
+    // under SUPPRESSION_ACK_LOCK. One awaiting slot suffices because dispatch is
+    // single-threaded.
+    private static final ConcurrentLinkedQueue<PendingSuppression> PENDING_SUPPRESSIONS =
+            new ConcurrentLinkedQueue<>();
     private static final Object SUPPRESSION_ACK_LOCK = new Object();
     private static volatile AwaitingSuppression awaitingSuppression;
     private static volatile long suppressOfflineGuidanceUntilMs;
 
-    private MessageFanoutDispatcher() {
-    }
+    private MessageFanoutDispatcher() {}
 
     // ──────────────────────────── Batch processing ────────────────────────────
 
     /**
-     * Drains all queued /msg broadcasts, sending each to every online staff member in order.
-     * Staff list is fetched once per batch; offline users are tracked and skipped.
+     * Drains all queued /msg broadcasts, sending each to every other online staff member
+     * in the feed, in order. Staff list is fetched once per batch; offline users are
+     * tracked and skipped. Today, with no local player, it returns without draining, so
+     * each pass ends by starting another at once
+     * ({@code fanout-null-player-spins-dispatch-executor}).
      */
     static void processMessageBatch() {
         try {
-            List<String> staffUsernames = CommandDispatcher.fetchOnlineStaffUsernames();
-            Minecraft minecraft = Minecraft.getInstance();
+            List<String> staffUsernames = DispatchCoordinator.fetchOnlineStaffUsernames();
+            Minecraft minecraft = McUtils.mc();
             LocalPlayer selfPlayer = minecraft.player;
 
             if (selfPlayer == null) {
@@ -60,14 +67,14 @@ public final class MessageFanoutDispatcher {
             }
 
             // Remove self from recipients
-            staffUsernames.removeIf(u -> CommandDispatcher.isSelfRecipient(u, selfPlayer));
+            staffUsernames.removeIf(u -> DispatchCoordinator.isSelfRecipient(u, selfPlayer));
 
             if (staffUsernames.isEmpty()) {
-                // Drain the queue and warn for each message
-                while (CommandDispatcher.MESSAGE_QUEUE.poll() != null) {
+                // Drain the queue and warn once
+                while (DispatchCoordinator.MESSAGE_QUEUE.poll() != null) {
                     // drained
                 }
-                CommandDispatcher.showNoRecipientsWarning();
+                DispatchCoordinator.showNoRecipientsWarning();
                 return;
             }
 
@@ -76,8 +83,8 @@ public final class MessageFanoutDispatcher {
             boolean deliveredAnyMessageToAnyone = false;
 
             String message;
-            while ((message = CommandDispatcher.MESSAGE_QUEUE.poll()) != null) {
-                String payload = CommandDispatcher.LOCK_PREFIX + message;
+            while ((message = DispatchCoordinator.MESSAGE_QUEUE.poll()) != null) {
+                String payload = DispatchCoordinator.LOCK_PREFIX + message;
                 boolean deliveredThisMessage = false;
 
                 for (String recipient : staffUsernames) {
@@ -95,10 +102,15 @@ public final class MessageFanoutDispatcher {
                             break;
                         case OFFLINE:
                             offlineUsers.add(recipientLower);
-                            VetsLogger.debug("Staff member {} is offline, skipping for remaining messages", recipient);
+                            VetsLogger.debug(
+                                    "Staff member {} is offline, skipping for remaining messages",
+                                    recipient);
                             break;
                         case FAILED:
-                            VetsLogger.warn("Failed to deliver message to {} after {} retries", recipient, MAX_DISPATCH_RETRIES);
+                            VetsLogger.warn(
+                                    "Failed to deliver message to {} after {} retries",
+                                    recipient,
+                                    MAX_DISPATCH_RETRIES);
                             break;
                     }
 
@@ -111,15 +123,15 @@ public final class MessageFanoutDispatcher {
             }
 
             if (!deliveredAnyMessageToAnyone) {
-                CommandDispatcher.showNoRecipientsWarning();
+                DispatchCoordinator.showNoRecipientsWarning();
             }
         } catch (Exception e) {
             VetsLogger.warn("Failed to dispatch staff /v broadcast batch: {}", e.getMessage());
             // Drain remaining messages to avoid retrying a failed batch indefinitely
-            while (CommandDispatcher.MESSAGE_QUEUE.poll() != null) {
+            while (DispatchCoordinator.MESSAGE_QUEUE.poll() != null) {
                 // drained
             }
-            CommandDispatcher.showNoRecipientsWarning();
+            DispatchCoordinator.showNoRecipientsWarning();
         }
     }
 
@@ -135,7 +147,8 @@ public final class MessageFanoutDispatcher {
      * Attempts to send a single /msg to one recipient with retries.
      * Returns the outcome so the caller can track offline users and delivery status.
      */
-    private static FeedbackResult dispatchWithRetries(Minecraft minecraft, String recipient, String payload) {
+    private static FeedbackResult dispatchWithRetries(
+            Minecraft minecraft, String recipient, String payload) {
         for (int attempt = 1; attempt <= MAX_DISPATCH_RETRIES; attempt++) {
             FeedbackResult result = tryDispatchOnce(minecraft, recipient, payload);
 
@@ -143,10 +156,11 @@ public final class MessageFanoutDispatcher {
                 return result;
             }
 
-            // FAILED (timeout) — retry after a delay
+            // FAILED (no feedback in time, or the send was not confirmed) — retry after a delay
             if (attempt < MAX_DISPATCH_RETRIES) {
-                VetsLogger.debug("No /msg feedback for {} attempt {}. Retrying...", recipient, attempt);
-                CommandDispatcher.sleepQuietly(INTER_SEND_DELAY_MS);
+                VetsLogger.debug(
+                        "No /msg feedback for {} attempt {}. Retrying...", recipient, attempt);
+                DispatchCoordinator.sleepQuietly(INTER_SEND_DELAY_MS);
             }
         }
 
@@ -157,35 +171,37 @@ public final class MessageFanoutDispatcher {
      * Sends a single /msg command and waits for the server's feedback to determine the result.
      * Because dispatch is single-threaded, only one awaiting suppression exists at a time.
      */
-    private static FeedbackResult tryDispatchOnce(Minecraft minecraft, String recipient, String payload) {
+    private static FeedbackResult tryDispatchOnce(
+            Minecraft minecraft, String recipient, String payload) {
         AtomicBoolean commandSent = new AtomicBoolean(false);
         AtomicBoolean skippedSelf = new AtomicBoolean(false);
         CountDownLatch submitted = new CountDownLatch(1);
         String recipientLower = recipient.toLowerCase(Locale.ROOT);
 
-        minecraft.execute(() -> {
-            try {
-                LocalPlayer player = minecraft.player;
-                if (player == null || player.connection == null) {
-                    return;
-                }
+        minecraft.execute(
+                () -> {
+                    try {
+                        LocalPlayer player = minecraft.player;
+                        if (player == null || player.connection == null) {
+                            return;
+                        }
 
-                if (CommandDispatcher.isSelfRecipient(recipient, player)) {
-                    skippedSelf.set(true);
-                    return;
-                }
+                        if (DispatchCoordinator.isSelfRecipient(recipient, player)) {
+                            skippedSelf.set(true);
+                            return;
+                        }
 
-                synchronized (SUPPRESSION_ACK_LOCK) {
-                    queueSuppression(recipient, payload);
-                    awaitingSuppression = new AwaitingSuppression(recipientLower, payload);
-                }
+                        synchronized (SUPPRESSION_ACK_LOCK) {
+                            queueSuppression(recipient, payload);
+                            awaitingSuppression = new AwaitingSuppression(recipientLower, payload);
+                        }
 
-                Handlers.Command.queueCommand("msg " + recipient + " " + payload);
-                commandSent.set(true);
-            } finally {
-                submitted.countDown();
-            }
-        });
+                        Handlers.Command.queueCommand("msg " + recipient + " " + payload);
+                        commandSent.set(true);
+                    } finally {
+                        submitted.countDown();
+                    }
+                });
 
         try {
             if (!submitted.await(2, TimeUnit.SECONDS)) {
@@ -210,8 +226,9 @@ public final class MessageFanoutDispatcher {
     }
 
     /**
-     * Blocks until the suppression system signals that server feedback was received,
-     * distinguishing between successful delivery and offline-user errors.
+     * Blocks until the suppression system signals that server feedback was received
+     * (delivered or offline), or until {@link #SUPPRESSION_WAIT_MS} passes or the wait is
+     * interrupted (FAILED).
      */
     private static FeedbackResult waitForFeedback(String usernameLower, String lockPayload) {
         long deadlineMs = System.currentTimeMillis() + SUPPRESSION_WAIT_MS;
@@ -219,7 +236,9 @@ public final class MessageFanoutDispatcher {
         synchronized (SUPPRESSION_ACK_LOCK) {
             while (true) {
                 AwaitingSuppression awaiting = awaitingSuppression;
-                if (awaiting != null && awaiting.matches(usernameLower, lockPayload) && awaiting.resultReady) {
+                if (awaiting != null
+                        && awaiting.matches(usernameLower, lockPayload)
+                        && awaiting.resultReady) {
                     awaitingSuppression = null;
                     return awaiting.offline ? FeedbackResult.OFFLINE : FeedbackResult.DELIVERED;
                 }
@@ -250,26 +269,37 @@ public final class MessageFanoutDispatcher {
         }
     }
 
-    // ──────────────────────────── Suppression (called from ChatLogMixin) ────────────────────────────
+    // ──────────────────────────── Suppression (direct caller: DispatchCoordinator)
+    // ────────────────────────────
 
     /**
-     * Called from {@code ChatLogMixin} on the render thread for every incoming chat message.
-     * Matches outbound /msg echo lines and offline-player errors, suppresses them from display,
-     * and signals the dispatch thread so it can proceed strategically.
+     * Reached from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} on the render
+     * thread for incoming chat messages that reach its single-argument
+     * {@code ChatComponent#addMessage(Component)} hook without being cancelled by an earlier
+     * suppression step in that hook. Matches outbound /msg echo lines and
+     * offline-player errors, suppresses them from display, and signals the dispatch thread so it
+     * can proceed strategically.
      *
-     * <p>Matching strategy (in order of attempt):</p>
+     * <p>Checks, in the order the code tries them:</p>
      * <ol>
-     *   <li>Offline guidance suppression — blanket-suppress "be sure to use exact names..."
-     *       messages within a short window after an offline-user error.</li>
-     *   <li>Direct payload echo — the server echoes our /msg back; match by normalized
-     *       payload content AND (recipient name OR 🔐 lock prefix).</li>
-     *   <li>Lock-prefix + recipient fallback — when Wynntils rewrites coordinates in the
-     *       echo Component, payload comparison fails; fall back to prefix + recipient.</li>
-     *   <li>Censored variant — Wynncraft's profanity filter replaces characters with
-     *       {@code *}; match when non-star characters align with the payload.</li>
-     *   <li>Token subsequence — last resort: tokenize both strings and check if the
-     *       payload tokens appear as a subsequence in the message tokens.</li>
+     *   <li>Offline guidance — within a short window after an offline-recipient error,
+     *       the server's follow-up guidance lines ("be sure to use exact names..." and
+     *       similar) are suppressed outright. Nothing is signalled.</li>
+     *   <li>Payload echo — the normalised payload is looked for as a plain substring,
+     *       then as a censored variant (Wynncraft's profanity filter can replace
+     *       characters with {@code *}), then as a token subsequence. Any of the three
+     *       counts only if the line also names the recipient or carries the 🔐 lock
+     *       prefix.</li>
+     *   <li>Lock prefix + recipient with no payload match — e.g. when Wynntils
+     *       rewrites coordinates in the echo Component.</li>
+     *   <li>An offline-recipient error naming the recipient. A line that matches here
+     *       is signalled as offline, whatever else it matched, and opens the
+     *       offline-guidance window.</li>
      * </ol>
+     *
+     * <p>Items 2 to 4 are tried against each pending suppression in turn, oldest
+     * first; the first entry that any of them matches is consumed, with its duplicates,
+     * and signalled.</p>
      */
     public static boolean shouldSuppressFeedback(String message) {
         if (message == null || message.isEmpty()) {
@@ -279,7 +309,7 @@ public final class MessageFanoutDispatcher {
 
         long now = System.currentTimeMillis();
         String lower = message.toLowerCase(Locale.ROOT);
-        String lockPrefixLower = CommandDispatcher.LOCK_PREFIX.toLowerCase(Locale.ROOT);
+        String lockPrefixLower = DispatchCoordinator.LOCK_PREFIX.toLowerCase(Locale.ROOT);
 
         if (now <= suppressOfflineGuidanceUntilMs && isOfflineGuidanceMessage(lower)) {
             return true;
@@ -301,13 +331,16 @@ public final class MessageFanoutDispatcher {
 
             // Fallback: if payload comparison fails (e.g. Wynntils rewrites coordinates
             // in the Component before we see it), still accept when both the lock prefix
-            // and the expected recipient are present. Safe because dispatch is serialized
-            // and only VetsMod uses the 🔐 prefix.
+            // and the expected recipient are present. The 🔐 prefix marks all VetsMod
+            // /v traffic, incoming included, so it does not by itself identify our own
+            // echo; the recipient check (the name after the private-message separator)
+            // is what is meant to.
             if (!isDirectMessageEcho && lockPrefixPresent && recipientMatch) {
                 isDirectMessageEcho = true;
             }
 
-            boolean isOfflineRecipientError = isOfflineRecipientMessage(lower, pending.usernameLower);
+            boolean isOfflineRecipientError =
+                    isOfflineRecipientMessage(lower, pending.usernameLower);
 
             if (!isDirectMessageEcho && !isOfflineRecipientError) {
                 continue;
@@ -320,7 +353,8 @@ public final class MessageFanoutDispatcher {
                 suppressOfflineGuidanceUntilMs = now + OFFLINE_GUIDANCE_SUPPRESSION_WINDOW_MS;
             }
 
-            signalFeedbackReceived(pending.usernameLower, pending.lockPayload, isOfflineRecipientError);
+            signalFeedbackReceived(
+                    pending.usernameLower, pending.lockPayload, isOfflineRecipientError);
             return true;
         }
 
@@ -331,14 +365,17 @@ public final class MessageFanoutDispatcher {
 
     private static void queueSuppression(String username, String payload) {
         cleanupExpired();
-        PENDING_SUPPRESSIONS.add(new PendingSuppression(username.toLowerCase(Locale.ROOT), payload, System.currentTimeMillis()));
+        PENDING_SUPPRESSIONS.add(
+                new PendingSuppression(
+                        username.toLowerCase(Locale.ROOT), payload, System.currentTimeMillis()));
     }
 
     private static void removeDuplicateSuppressions(PendingSuppression matched) {
         Iterator<PendingSuppression> iterator = PENDING_SUPPRESSIONS.iterator();
         while (iterator.hasNext()) {
             PendingSuppression pending = iterator.next();
-            if (pending.usernameLower.equals(matched.usernameLower) && pending.lockPayload.equals(matched.lockPayload)) {
+            if (pending.usernameLower.equals(matched.usernameLower)
+                    && pending.lockPayload.equals(matched.lockPayload)) {
                 iterator.remove();
             }
         }
@@ -348,7 +385,8 @@ public final class MessageFanoutDispatcher {
      * Signals the dispatch thread that feedback was received for a pending message.
      * Distinguishes between delivery confirmation and offline-user detection.
      */
-    private static void signalFeedbackReceived(String usernameLower, String lockPayload, boolean isOffline) {
+    private static void signalFeedbackReceived(
+            String usernameLower, String lockPayload, boolean isOffline) {
         synchronized (SUPPRESSION_ACK_LOCK) {
             AwaitingSuppression awaiting = awaitingSuppression;
             if (awaiting == null) {
@@ -365,7 +403,8 @@ public final class MessageFanoutDispatcher {
 
     // ──────────────────────────── Message matching ────────────────────────────
 
-    private static boolean isOutboundRecipientTarget(String lowerMessage, String usernameLower) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static boolean isOutboundRecipientTarget(String lowerMessage, String usernameLower) {
         int separatorIndex = lowerMessage.indexOf(PRIVATE_SEPARATOR_GLYPH);
         if (separatorIndex < 0) {
             return false;
@@ -380,17 +419,20 @@ public final class MessageFanoutDispatcher {
         return recipientSegment.contains(usernameLower);
     }
 
-    private static boolean isOfflineRecipientMessage(String lowerMessage, String usernameLower) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static boolean isOfflineRecipientMessage(String lowerMessage, String usernameLower) {
         return lowerMessage.contains(usernameLower + " is not online")
-            || lowerMessage.contains(usernameLower + " is not currently online");
+                || lowerMessage.contains(usernameLower + " is not currently online");
     }
 
-    private static boolean isOfflineGuidanceMessage(String lowerMessage) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static boolean isOfflineGuidanceMessage(String lowerMessage) {
         return lowerMessage.contains("be sure to use exact names, prediction does not work if")
-            || lowerMessage.contains("the user is on a separate server");
+                || lowerMessage.contains("the user is on a separate server");
     }
 
-    private static boolean containsNormalizedPayload(String message, String payload) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static boolean containsNormalizedPayload(String message, String payload) {
         if (message == null || message.isEmpty() || payload == null || payload.isEmpty()) {
             return false;
         }
@@ -418,18 +460,21 @@ public final class MessageFanoutDispatcher {
         return containsTokenSubsequence(messageTokens, payloadTokens);
     }
 
-    private static List<String> extractEchoTokens(String input) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static List<String> extractEchoTokens(String input) {
         List<String> tokens = new ArrayList<>();
         StringBuilder current = new StringBuilder();
 
-        input.codePoints().forEach(cp -> {
-            if (Character.isLetterOrDigit(cp)) {
-                current.appendCodePoint(Character.toLowerCase(cp));
-            } else if (!current.isEmpty()) {
-                tokens.add(current.toString());
-                current.setLength(0);
-            }
-        });
+        input.codePoints()
+                .forEach(
+                        cp -> {
+                            if (Character.isLetterOrDigit(cp)) {
+                                current.appendCodePoint(Character.toLowerCase(cp));
+                            } else if (!current.isEmpty()) {
+                                tokens.add(current.toString());
+                                current.setLength(0);
+                            }
+                        });
 
         if (!current.isEmpty()) {
             tokens.add(current.toString());
@@ -438,7 +483,9 @@ public final class MessageFanoutDispatcher {
         return tokens;
     }
 
-    private static boolean containsTokenSubsequence(List<String> messageTokens, List<String> payloadTokens) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static boolean containsTokenSubsequence(
+            List<String> messageTokens, List<String> payloadTokens) {
         int messageIndex = 0;
         int payloadIndex = 0;
 
@@ -458,7 +505,8 @@ public final class MessageFanoutDispatcher {
      * "hello" might echo back as "h***o". This matches when every non-{@code *}
      * character in the candidate region equals the corresponding payload character.
      */
-    private static boolean containsCensoredVariant(String message, String payload) {
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static boolean containsCensoredVariant(String message, String payload) {
         if (payload.isEmpty()) {
             return false;
         }
@@ -480,21 +528,38 @@ public final class MessageFanoutDispatcher {
         return false;
     }
 
-    private static String normalizeForEchoComparison(String input) {
+    /**
+     * Reduces a chat line to the lowercase run of visible characters, so an
+     * outbound {@code /msg} can be compared against the server's echo of it.
+     *
+     * <p><b>Deliberately wider than
+     * {@link org.wynnvets.chat.PillCodec#isCustomGlyph(int)
+     * PillCodec.isCustomGlyph}.</b> On top of {@code PRIVATE_USE} it drops
+     * {@code CONTROL}, {@code FORMAT}, {@code SURROGATE}, unassigned codepoints
+     * with no {@code > 0xFFFF} bound, and all whitespace. The echo comes back
+     * re-wrapped, re-spaced and re-badged, so anything invisible has to go before
+     * the two sides can be compared at all. Pinned by
+     * {@code MessageFanoutDispatcherTest.normalize_stripsUnassignedCodepointsInsideTheBmpToo},
+     * which is the one case that discriminates the bound.</p>
+     */
+    // Package-private for unit tests. See MessageFanoutDispatcherTest.
+    static String normalizeForEchoComparison(String input) {
         StringBuilder normalized = new StringBuilder(input.length());
-        input.codePoints().forEach(cp -> {
-            int type = Character.getType(cp);
-            if (Character.isWhitespace(cp)
-                || type == Character.PRIVATE_USE
-                || type == Character.CONTROL
-                || type == Character.FORMAT
-                || type == Character.SURROGATE
-                || type == Character.UNASSIGNED) {
-                return;
-            }
+        input.codePoints()
+                .forEach(
+                        cp -> {
+                            int type = Character.getType(cp);
+                            if (Character.isWhitespace(cp)
+                                    || type == Character.PRIVATE_USE
+                                    || type == Character.CONTROL
+                                    || type == Character.FORMAT
+                                    || type == Character.SURROGATE
+                                    || type == Character.UNASSIGNED) {
+                                return;
+                            }
 
-            normalized.appendCodePoint(Character.toLowerCase(cp));
-        });
+                            normalized.appendCodePoint(Character.toLowerCase(cp));
+                        });
         return normalized.toString();
     }
 
@@ -511,8 +576,7 @@ public final class MessageFanoutDispatcher {
 
     // ──────────────────────────── Internal records ────────────────────────────
 
-    private record PendingSuppression(String usernameLower, String lockPayload, long createdAtMs) {
-    }
+    private record PendingSuppression(String usernameLower, String lockPayload, long createdAtMs) {}
 
     private static final class AwaitingSuppression {
         private final String usernameLower;
@@ -526,7 +590,8 @@ public final class MessageFanoutDispatcher {
         }
 
         private boolean matches(String otherUsernameLower, String otherLockPayload) {
-            return this.usernameLower.equals(otherUsernameLower) && this.lockPayload.equals(otherLockPayload);
+            return this.usernameLower.equals(otherUsernameLower)
+                    && this.lockPayload.equals(otherLockPayload);
         }
     }
 }

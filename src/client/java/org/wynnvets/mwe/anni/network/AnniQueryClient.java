@@ -1,15 +1,12 @@
 package org.wynnvets.mwe.anni.network;
 
 import com.google.gson.JsonObject;
-
-import org.wynnvets.api.V1ApiManager;
-import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.mwe.anni.state.AnniSnapshot;
-import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
+import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.mwe.anni.state.AnniSnapshot;
+import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 
 /**
  * Single-flight client for the {@code anni_query} on-demand pull.
@@ -17,16 +14,27 @@ import java.util.concurrent.TimeUnit;
  * <p>{@link AnniWsHandler} routes every {@code anni_query_response} frame
  * to {@link #onResponse(JsonObject)}, which pops the head of a FIFO
  * callback queue — same strict-order pattern as
- * {@code V1ApiManager.staffActionCallbacks}. The protocol has no
- * per-frame correlation ID; rapidly-fired queries without an interleaving
- * wait may receive reordered callbacks, but the alternative (correlation
- * IDs) was judged not worth the wire-protocol churn for the current scale
- * — same call-out the staff-action queue makes.</p>
+ * {@link org.wynnvets.api.V1ApiManager#staffActionCallbacks
+ * V1ApiManager#staffActionCallbacks}. The protocol has no
+ * per-frame correlation ID. temporary-server answers an inbound socket's frames in send
+ * order, so the FIFO pairs correctly while each query gets its reply before its deadline.
+ * A query that gets no reply (its frame or its reply lost), a reply that arrives after
+ * its future was dropped at the deadline, or two concurrent calls whose frames go out in
+ * the opposite order to their enqueues, mis-pairs the replies that follow: each lands on
+ * a neighbouring query's future (two concurrent calls swap theirs) until the queue drains
+ * or a deadline drops the future left over.
+ * Nothing coalesces concurrent calls: each {@link #query()} queues its own future and
+ * sends its own frame. Correlation IDs were judged not worth the wire-protocol churn for
+ * the current scale — same call-out the staff-action queue makes.</p>
  *
- * <p>Successful query responses are also bounced through
+ * <p>Query responses are also bounced through
  * {@link AnniSnapshotCache#update(AnniSnapshot)} so the on-demand pull
  * still drives the listener bus (lets S2's renderer hook fire whether
- * the snapshot arrives via push or pull).</p>
+ * the snapshot arrives via push or pull). <b>Only when the parsed snapshot is
+ * non-null</b>: a response the server considers successful but whose
+ * {@code snapshot} is {@code null} resolves the caller's future with
+ * {@code null} and leaves the cache exactly as it was. The cache is never
+ * cleared from this path.</p>
  */
 public final class AnniQueryClient {
 
@@ -35,11 +43,10 @@ public final class AnniQueryClient {
      *  generous slack for queue jitter + network. */
     private static final long QUERY_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(8);
 
-    private static final ConcurrentLinkedDeque<CompletableFuture<AnniSnapshot>>
-            pendingQueries = new ConcurrentLinkedDeque<>();
+    private static final ConcurrentLinkedDeque<CompletableFuture<AnniSnapshot>> pendingQueries =
+            new ConcurrentLinkedDeque<>();
 
-    private AnniQueryClient() {
-    }
+    private AnniQueryClient() {}
 
     /**
      * Issue an {@code anni_query} frame for the authenticated session's
@@ -56,13 +63,13 @@ public final class AnniQueryClient {
      *
      * <p>Callers MUST handle the null. The "stale" flag from the wire is
      * not surfaced in S1 — vetsmod consumers treat any non-null snapshot
-     * as authoritative; S2 will add a stale indicator to the UI when the
-     * renderer lands.</p>
+     * as authoritative; the renderer has since landed without adding a stale
+     * indicator, and nothing in vetsmod reads the flag.</p>
      */
     public static CompletableFuture<AnniSnapshot> query() {
         CompletableFuture<AnniSnapshot> future = new CompletableFuture<>();
         pendingQueries.addLast(future);
-        boolean dispatched = V1ApiManager.sendAnniQuery();
+        boolean dispatched = AnniWsSender.sendAnniQuery();
         if (!dispatched) {
             // The frame didn't go out — pull this future back off the
             // queue (so the next real response doesn't misroute) and
@@ -74,10 +81,11 @@ public final class AnniQueryClient {
         // Deadline guard. The CompletableFuture API requires we schedule
         // the timeout ourselves; orTimeout(...) suits exactly.
         future.orTimeout(QUERY_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                .exceptionally(ex -> {
-                    pendingQueries.remove(future);
-                    return null;
-                });
+                .exceptionally(
+                        ex -> {
+                            pendingQueries.remove(future);
+                            return null;
+                        });
         return future;
     }
 
@@ -96,8 +104,7 @@ public final class AnniQueryClient {
             try {
                 snapshot = AnniSnapshot.fromJson(json.getAsJsonObject("snapshot"));
             } catch (Exception e) {
-                VetsLogger.warn("anni_query_response parse failed: {}",
-                        e.getMessage());
+                VetsLogger.warn("anni_query_response parse failed: {}", e.getMessage());
                 snapshot = null;
             }
         }
@@ -107,13 +114,5 @@ public final class AnniQueryClient {
             AnniSnapshotCache.update(snapshot);
         }
         head.complete(snapshot);
-    }
-
-    /** Test/debug hook: drain pending futures (e.g. on disconnect). */
-    public static void drainPending() {
-        CompletableFuture<AnniSnapshot> head;
-        while ((head = pendingQueries.pollFirst()) != null) {
-            head.complete(null);
-        }
     }
 }

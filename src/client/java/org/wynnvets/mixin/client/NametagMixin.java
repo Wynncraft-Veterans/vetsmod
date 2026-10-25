@@ -19,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.mwe.anni.outline.AnniOutlineRegistry;
 import org.wynnvets.mwe.anni.outline.AnniOutlineTicker;
@@ -35,11 +36,15 @@ import org.wynnvets.rendering.nametag.NametagAnimator;
  * {@code CustomNametagRendererFeature.onPlayerNameTagRender} (subscribed
  * to {@code PlayerNametagRenderEvent}, dispatched from Wynntils'
  * own HEAD inject on {@code submitNameTag}) reads {@code state.nameTag}
- * directly and then <em>cancels</em> the vanilla submit when it adds
- * gear-hover lines (whenever the player is the hovered raycast target)
- * or when it adds a Wynntils account-type badge. A cancel from any
- * priority-1000 HEAD inject short-circuits every later-priority HEAD
- * inject on the same method via the mixin processor's generated
+ * directly and then <em>cancels</em> the vanilla submit whenever it
+ * draws the nametag itself — when it adds gear-hover lines for the
+ * hovered player, or when the player is a Wynntils user, in both cases
+ * unless Wynntils' own player-viewer screen is open on that player — and
+ * also when its {@code hidePlayerNametags} option is on. A cancel from any
+ * priority-1000 HEAD inject short-circuits every HEAD inject that runs
+ * after it — i.e. every <em>numerically lower</em> priority, since Mixin
+ * applies in ascending order and prepends at HEAD —
+ * on the same method via the mixin processor's generated
  * {@code if (ci.isCancelled()) return;} guard — which is exactly the
  * earlier {@code submitNameTag} HEAD design's failure mode (observed in
  * S4 testing 2026-06-17: party tier outlines applied, nametag colours
@@ -75,9 +80,13 @@ import org.wynnvets.rendering.nametag.NametagAnimator;
  * {@code lastIndexOf} and only rewrites segments inside it, so the rank
  * icon prefix wynnmod added is preserved verbatim. Result with wynnmod's
  * Wynncraft Rank ON: {@code (rankPUALogo)(glinted)(rankColour)Username},
- * matching the pre-Stage-4 behaviour. No-op when wynnmod is absent (no
- * outer wrap → vetsmod's wrap just re-applies idempotently to its own
- * extractRenderState TAIL output).</p>
+ * matching the pre-Stage-4 behaviour. When wynnmod is absent there is no
+ * outer wrap and vetsmod's wrap runs on its own extractRenderState TAIL
+ * output. The anni branch rebuilds an equal literal there, but the
+ * supporter branch is not a no-op: {@link NametagAnimator#tryAnimate}
+ * takes the gradient's base colour from the username's first character,
+ * which the TAIL pass has already recoloured, so the second pass
+ * re-bases the glint rather than reproducing it.</p>
  */
 @Mixin(value = AvatarRenderer.class, priority = 900)
 public class NametagMixin {
@@ -101,35 +110,55 @@ public class NametagMixin {
     private static final boolean WYNNMOD_PRESENT =
             FabricLoader.getInstance().isModLoaded("wynnmod");
 
+    /**
+     * {@code extractRenderState} TAIL: runs {@code applyOverride} with
+     * {@code fromWrap = false} on the state vanilla has just populated.
+     * The anni branch is unaffected by that flag; the supporter branch is
+     * skipped when wynnmod is loaded (see {@code WYNNMOD_PRESENT}). Why
+     * TAIL rather than a {@code submitNameTag} HEAD inject: see the class
+     * doc.
+     */
     @Inject(
-            method = "extractRenderState("
-                    + "Lnet/minecraft/world/entity/Avatar;"
-                    + "Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;"
-                    + "F)V",
+            method =
+                    "extractRenderState("
+                            + "Lnet/minecraft/world/entity/Avatar;"
+                            + "Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;"
+                            + "F)V",
             at = @At("TAIL"))
     private void vetsmod$rewriteNameTag(
-            Avatar entity,
-            AvatarRenderState state,
-            float partialTick,
-            CallbackInfo ci) {
+            Avatar entity, AvatarRenderState state, float partialTick, CallbackInfo ci) {
         applyOverride(state, entity, false);
     }
 
+    /**
+     * Wraps the bridge method's call into the {@code AvatarRenderState}
+     * overload of {@code submitNameTag}: runs {@code applyOverride} with
+     * {@code fromWrap = true} on whatever {@code state.nameTag} holds at
+     * that point, then makes the original call with its arguments
+     * unchanged. The entity is read from Wynntils'
+     * {@code EntityRenderStateExtension}, which Wynntils populates at
+     * {@code EntityRenderer.extractRenderState} RETURN. Why the wrap exists
+     * and why the mixin's priority is 900: see the class doc's
+     * wynnmod-interop paragraph.
+     */
     @WrapOperation(
-            method = "submitNameTag("
-                    + "Lnet/minecraft/client/renderer/entity/state/EntityRenderState;"
-                    + "Lcom/mojang/blaze3d/vertex/PoseStack;"
-                    + "Lnet/minecraft/client/renderer/SubmitNodeCollector;"
-                    + "Lnet/minecraft/client/renderer/state/CameraRenderState;"
-                    + ")V",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;submitNameTag("
-                            + "Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;"
+            method =
+                    "submitNameTag("
+                            + "Lnet/minecraft/client/renderer/entity/state/EntityRenderState;"
                             + "Lcom/mojang/blaze3d/vertex/PoseStack;"
                             + "Lnet/minecraft/client/renderer/SubmitNodeCollector;"
                             + "Lnet/minecraft/client/renderer/state/CameraRenderState;"
-                            + ")V"))
+                            + ")V",
+            at =
+                    @At(
+                            value = "INVOKE",
+                            target =
+                                    "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;submitNameTag("
+                                            + "Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;"
+                                            + "Lcom/mojang/blaze3d/vertex/PoseStack;"
+                                            + "Lnet/minecraft/client/renderer/SubmitNodeCollector;"
+                                            + "Lnet/minecraft/client/renderer/state/CameraRenderState;"
+                                            + ")V"))
     private void vetsmod$reapplyAfterWrap(
             AvatarRenderer<?> instance,
             AvatarRenderState state,
@@ -168,11 +197,10 @@ public class NametagMixin {
         // duration of the highlight gate and the supporter glint
         // resumes afterwards.
         if (AnniOutlineTicker.isOutlineSuppressionActive()
-                && VetsConfig.get(VetsConfig.VETS_ANNI_NAMETAGS_ENABLED)) {
+                && VetsConfig.get(VetsConfigKeys.VETS_ANNI_NAMETAGS_ENABLED)) {
             AnniOutlineRegistry.Entry anni = AnniOutlineRegistry.getEntry(username);
-            ChatFormatting fmt = (anni != null)
-                    ? anni.nametagFormatting()
-                    : ChatFormatting.DARK_GRAY;
+            ChatFormatting fmt =
+                    (anni != null) ? anni.nametagFormatting() : ChatFormatting.DARK_GRAY;
             String original = state.nameTag.getString();
             // Wynncraft embeds the team colour as a legacy `§<code>`
             // prefix INSIDE the string content (e.g. "§awonderkas" for
@@ -181,9 +209,12 @@ public class NametagMixin {
             // text renderer to parse it at draw time, silently
             // overriding our .withStyle(...) colour. Stripping § codes
             // first guarantees our Style is what actually paints.
-            // ({@code /wv debug trigger nametagsDump} confirms the
-            // registry hit; the {@code original=} field on that command
-            // shows the §-prefixed string we're stripping here.)
+            // /wv debug trigger nametagsDump reports the registry hit/miss
+            // and the colour this branch would pick, but it reads
+            // AnniOutlineRegistry, not render state, and prints no
+            // original= column, so it cannot show the §-prefixed string
+            // (bug nametags-dump-missing-original-column). The §-prefix
+            // observation itself is attested, not reproducible from the dump.
             String stripped = ChatFormatting.stripFormatting(original);
             if (stripped == null || stripped.isEmpty()) stripped = original;
             state.nameTag = Component.literal(stripped).withStyle(fmt);
@@ -200,7 +231,7 @@ public class NametagMixin {
         if (!fromWrap && WYNNMOD_PRESENT) return;
 
         if (!SupportersPoller.isSupporter(username)) return;
-        if (!VetsConfig.get(VetsConfig.SHOW_SUPPORTER_GLINTS)) return;
+        if (!VetsConfig.get(VetsConfigKeys.SHOW_SUPPORTER_GLINTS)) return;
 
         Component animated = NametagAnimator.tryAnimate(state.nameTag, username);
         if (animated != null) {

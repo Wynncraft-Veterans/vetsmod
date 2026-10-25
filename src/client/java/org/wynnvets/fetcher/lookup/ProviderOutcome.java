@@ -12,24 +12,24 @@ package org.wynnvets.fetcher.lookup;
  */
 public record ProviderOutcome(LookupResult hit, boolean isDefiniteMiss) {
 
-  private static final ProviderOutcome NOT_FOUND = new ProviderOutcome(null, true);
-  private static final ProviderOutcome TRANSIENT = new ProviderOutcome(null, false);
+    private static final ProviderOutcome NOT_FOUND = new ProviderOutcome(null, true);
+    private static final ProviderOutcome TRANSIENT = new ProviderOutcome(null, false);
 
-  public boolean isHit() {
-    return hit != null;
-  }
+    public boolean isHit() {
+        return hit != null;
+    }
 
-  public static ProviderOutcome hit(LookupResult result) {
-    return new ProviderOutcome(result, false);
-  }
+    public static ProviderOutcome hit(LookupResult result) {
+        return new ProviderOutcome(result, false);
+    }
 
-  /** Upstream definitively said "no such player" (404, {@code success: false}, etc.). */
-  public static ProviderOutcome notFound() {
-    return NOT_FOUND;
-  }
+    /** Upstream definitively said "no such player" (404, {@code success: false}, etc.). */
+    public static ProviderOutcome notFound() {
+        return NOT_FOUND;
+    }
 
-  /** Upstream returned 429, 5xx, timeout, or threw — outcome unknown. */
-  public static ProviderOutcome transientMiss() {
-    return TRANSIENT;
-  }
+    /** Upstream returned 429, 5xx, timeout, or threw — outcome unknown. */
+    public static ProviderOutcome transientMiss() {
+        return TRANSIENT;
+    }
 }

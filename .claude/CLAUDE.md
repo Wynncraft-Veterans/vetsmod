@@ -5,18 +5,24 @@ Fabric client mod for the Wynncraft "Returners" veterans guild community. Requir
 ## Key facts
 
 - **Mod ID:** `vetsmod` | **Version:** see `gradle.properties` (`mod_version`) | **MC:** 1.21.11 | **Java:** 21
-- **Wynntils dependency:** `v4.1.4-fabric` via Modrinth Maven (`modCompileOnly`)
+- **Wynntils dependency:** `v4.1.17-fabric` via Modrinth Maven (`modCompileOnly`). `fabric.mod.json` separately declares a runtime floor of `>=4.1.4` — a different number on purpose; don't sync them.
 - Most client code lives under `src/client/`. `src/main/` holds a tiny server stub plus `org.wynnvets.logging.VetsLogger` (shared by both sides).
-- JUnit 5 harness under `src/test/java/` for pure-logic classes (`VetsLogger`, `SpoilerCodec`, `RankChangeListener.classify`). Run via `./gradlew test` (also runs with `./gradlew build`). Anything importing `net.minecraft.*` or `com.wynntils.*` stays untested — out of scope for the harness.
+- JUnit 5 harness under `src/test/java/`. Run via `./gradlew test` (also runs with `./gradlew build`). This bullet is the single owner of how the harness works — no other doc restates it, and none of them carries a file count. The rules:
+  - **Not gated on imports.** `build.gradle` deliberately puts the client compile classpath on the test source set, so tests build real `Component`/`Style`/`HoverEvent` objects. There is no rule against a subject importing `net.minecraft`.
+  - **Cannot boot Minecraft**, and Wynntils is `modCompileOnly` so it is absent at test runtime. A class is testable exactly as far as its *exercised path* stays out of both.
+  - **Imports are free, static initializers are not.** Java resolves `invokestatic` lazily, so an unexecuted method body referencing Wynntils costs nothing — but touching a class runs its `<clinit>`, and a static field that constructs an MC or Wynntils object fails there. `config/LegacyItemStyle` (a Wynntils `Texture[]`) is untouchable for this reason, as is `mwe/anni/outline/AnniOutlineRegistry` (a `CustomColor`, both in `<clinit>` and in `ownPartyEntry`). Walk a target's static fields before assuming it loads. The converse is worth knowing too: `mwe/anni/outline/AnniOutlinePalette` is perfectly testable because it declares no fields at all — an earlier refactor moved its one constant, a `CustomColor`, into the registry to get that.
+  - **Seams are visibility-only.** Widening `private` to package-private for a test is fine; `public` is not, and neither is a structural change. Mark every one with a comment on the line directly above the declaration, below any Javadoc: `// Package-private for unit tests. See FooTest.`
+  - **Spotless and `-Xdoclint:reference/private` cover `src/test/java` too.** Run `./gradlew spotlessApply` before staging, and fully qualify cross-package `{@link}`s with a label.
 
 ## Related repos (same workspace)
 
-The five repos in this workspace make up one auth/chat ecosystem. Read each repo's own `.claude/CLAUDE.md` for details; this section is just the wiring map.
+The six repos in this workspace make up one auth/chat ecosystem (the seventh sibling, `../Wynntils`, is a read-only reference clone rather than a member). Read each repo's own `.claude/CLAUDE.md` for details; this section is just the wiring map.
 
 - `../temporary-server` — FastAPI Python backend at `wss://api.wynnvets.org/`. Owns the v1 inbound/outbound WebSockets that vetsmod connects to. Validates `/unlock` keys via HTTP introspection against dazebot.
 - `../dazebot` — In-house Discord bot. Issues vetsmod auth keys via the `/vetsmod` slash command (DM with `/unlock <key>` body), exposes `POST /api/auth/introspect` for temporary-server to validate keys, owns the `VerifyKey` ORM table.
 - `../auth-stack` — Fork of [PicoLimbo](https://github.com/Quozul/PicoLimbo) at `verify.wynnvets.org:25565`. Forwards every chat line on its mini-server to dazebot's `/api/auth/{uuid}/{msg}` for the link-code consumption flow (separate from vetsmod auth — handles the Discord↔Minecraft account *link*, not the vetsmod *unlock*).
-- `../vets-deploy` — Docker stack definitions + ops docs for the VPS at `timasca.wynnvets.org`. Where the four above actually run.
+- `../vets-anni` — Annihilation-event app at `anni.wynnvets.org` (FastAPI web board + **fishbot**). Owns RSVP, party/role assignment and the MWE snapshots temporary-server polls and pushes to vetsmod over the `anni_*` frames; today vetsmod gets them only by pulling (`anni_query`), since the `anni_state` push never reaches it (bug `outbound-socket-never-authenticated`). See [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md).
+- `../vets-deploy` — Docker stack definitions + ops docs for the VPS at `timasca.wynnvets.org`. Where the five above actually run.
 - `../Wynntils` — Read-only reference copy of the Wynntils mod source. Do not edit.
 
 ## Discord bots in this workspace — command prefixes
@@ -44,29 +50,50 @@ In any user-facing chat string emitted from vetsmod (i.e. anything sent via `Cha
 VetsmodClient (entry point)
   ├── VetsConfig              JSON config at vetsmod/storage/config.json
   ├── ItemDefinitions         YAML regex patterns (src/client/resources/definitions.yml)
-  ├── GuildStateManager       Facade: GuildChecker, StaffRankChecker, UnlockManager, SessionAuthWarning
+  ├── GuildStateManager       Guild/staff/unlock status; facade over GuildChecker, StaffRankChecker, UnlockManager
+  ├── GuildLifecycle          World join, guild updates, disconnect reset; drives SessionAuthWarning, WorldJoinAnnouncer
   ├── V1ApiManager            Dual WebSocket (inbound + outbound) to api.wynnvets.org
-  │                           Sends `auth` frame after connect using the stored /unlock key
+  │                           Sends `auth` frame after inbound connect using the stored /unlock key
   ├── OutboundDisplayHandler  Receives WS messages, deduplicates, displays in chat
-  ├── QueueStateManager       In-queue state + listeners; fed by QueueDetector (title + world events)
-  ├── Polling services        StaffRanksPoller (2min), SupportersPoller (5min), GuildRosterCache
+  ├── QueueStateManager       In-queue state + listeners; fed by QueueDetector (title/world/disconnect/timeout)
+  │                           also cleared directly by WynntilsEventListener on native guild chat
+  ├── fetcher/polling/ (6)    Six schedules over five classes, one PollingService lifecycle:
+  │                           SupportersPoller 5m, StaffRanksPoller 2m, AnniStampPoller 5m,
+  │                           AnniSnapshotPoller 30s (only inside the anni window), and
+  │                           PolledJsonMap's GUILD_ROSTER + WYNN_ALIASES 5m. AnniZone (60s)
+  │                           is a further scheduled fetcher, but lives under mwe/anni/zone/
   ├── CommandRegistry         /wv command tree
+  ├── items/                  ItemDefinitions plus LegacyItemHandler, LegacyTooltipRenderer,
+  │                           NewFormatRenderer, LegacyEnchantmentRenderer, LegacyScreenshotHandler,
+  │                           LegacyHighlightPainter (the slot highlight both draw sites call)
+  ├── mwe/anni/               MWE/annihilation subsystem — snapshot cache, boss bar, outlines,
+  │                           zone lines, waypoint, RSVP
+  ├── distribute/             /wv distribute — Guild Management GUI automation: sends
+  │                           `/guild manage`, walks Manage Members / Guild Log, presses
+  │                           the send slot. Visible to staff, executable by chief+
+  │                           (16 files, 5 sub-packages)
+  ├── rendering/              Territory lines, nametag animator, gradient/colour helpers
+  ├── datamodels/             Guild, User, UserUUID, MembershipSnapshot DTOs
+  ├── debug/                  /wv debug tree, DebugConfigManager, diagnostics, dumps;
+  │                           debug/anni/, the anni harness (/wv debug tree anni)
   ├── WynntilsEventListener   WorldStateEvent, GuildEvent, ChatMessageEvent
-  └── Mixins (11)             Chat (3), Legacy items (3), Commands (2 — incl. UnlockCommandMixin),
-                               plus NametagMixin, CommandSuggestionsMixin, QueueTitleMixin
+  └── Mixins (14)             Chat (3), Legacy items (3), Command (1 — UnlockCommandMixin),
+                               top-level (6 — NametagMixin, CommandSuggestionsMixin,
+                               QueueTitleMixin, BossHealthOverlayMixin, EntityGlowingMixin,
+                               EntityOutlineColorMixin), accessors (1)
 ```
 
 ## WebSocket protocol
 
-Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `auth` frame re-sent on reconnect.
+Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `auth` frame re-sent on each inbound reconnect. The outbound socket sends neither, ever, so the server never authenticates it: `staff_online`/`staff_offline`, `anni_state` and the targeted `warning` frame never reach vetsmod, and relayed chat arrives without the server's tier filter while its `unauth` toggle is on (bug `outbound-socket-never-authenticated`; [vetsmod_networking.md](vetsmod_networking.md) §1).
 
-- **Inbound** `wss://api.wynnvets.org/v1/inbound` — client sends messages
-- **Outbound** `wss://api.wynnvets.org/v1/outbound` — server pushes to all clients
+- **Inbound** `wss://api.wynnvets.org/v1/inbound` — client sends messages; the server's replies come back on it
+- **Outbound** `wss://api.wynnvets.org/v1/outbound` — server pushes: relayed chat to every client (to an unauthenticated one only while `unauth` is on), the `server_info` hello to every socket on connect, and the rest only to authenticated sockets
 
-**Control frames** (sent by client):
+**Control frames** (sent by client) — the four below are the presence/identity set; `/v1/inbound` accepts fourteen in all, adding `rank_change`, the five staff-action frames and the four MWE anni frames. Full inventory in [server_api_reference.md](server_api_reference.md).
 - `register` — presence (uuid, username, tier)
 - `tablist` — guild tab snapshot for `!list`
-- `queue_status` — sender is currently in a Wynncraft world queue (presence side-channel; orthogonal to the `queue` chat type)
+- `queue_status` — `{queued, world}`: the sender entering (`true`) or leaving (`false`) a Wynncraft world queue (presence side-channel; orthogonal to the `queue` chat type)
 - `auth` — `{type:"auth", key:"<43-char base64url>"}` proves identity. Server replies `{status:"ok", tier, ws_tier, ...}` or `{status:"error", detail:"auth rejected: ..."}`.
 
 **Server → client unsolicited frames:**
@@ -74,7 +101,7 @@ Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `a
 
 **Chat message fields:** `uuid`, `type` (`guild`|`queue`|`waitlist`|`honourary`|`bridge`), `timestamp`, `rank`, `username`, `message`. `queue` carries guild chat originated by a sender stuck in a world queue (the game server drops `/g` while queued); semantically a guild message but routed via the WS so it still reaches the rest of the guild. Inbound dedup is skipped for `queue` since only the queued sender originates it.
 
-**Tier gating:** when authenticated, the mod can only send/receive chat types its tier permits — `guild`-tier covers `guild`+`queue`, `waitlist`/`honourary` cover only their own type. `bridge` is visible to every authenticated tier. Unauthenticated sessions get unrestricted access *only* while the server's `unauth` toggle is enabled (see `../temporary-server/v1_protocol.md` §3).
+**Tier gating:** when authenticated, the mod can only send/receive chat types its tier permits — `guild`-tier covers `guild`+`queue`, `waitlist`/`honourary` cover only their own type. `bridge` is visible to every authenticated tier. Unauthenticated sessions get unrestricted access *only* while the server's `unauth` toggle is enabled (see `../../temporary-server/v1_protocol.md` §3). Today only the send half applies to vetsmod: temporary-server filters what a socket receives by that socket's own `auth`, and vetsmod never authenticates its outbound socket, so it receives every chat type while `unauth` is on and none with it off (bug `outbound-socket-never-authenticated`).
 
 ### API boundary — vetsmod talks to temporary-server, NOT to dazebot
 
@@ -88,7 +115,7 @@ Allowed-from-vetsmod surface: anything fronted by `api.wynnvets.org` or `wss://a
 
 ## User tiers (brief)
 
-`member` / `waitlist` / `honourary` / `other`. Tier is **resolved server-side** from Discord roles + linked MC account; the mod gets it back in the `auth` frame ack and uses it for client-side display + warning copy. Staff (captain+) is orthogonal to tier — detected via `/gu rank`, cached 24h.
+`member` / `waitlist` / `honourary` / `other`. Tier is **resolved server-side** from Discord roles + linked MC account; the mod gets it back in the `auth` frame ack and uses it for the client-side unlock predicates (`GuildStateManager.isUnlocked` and the waitlist/honourary checks that route chat and gate commands) as well as display and warning copy; the server's own tier gate decides what the session may send. Staff status is orthogonal to tier and comes from two signals: `GuildStateManager.isStaff()` — Captain+ by an in-game `/gu rank` probe, in whatever guild last answered it, cached 24 h (a cached `true` may outlive leaving the guild: bug `staff-rank-cache-survives-leaving-guild`), a client-side UX gate — and `isConfirmedStaff()`, the server's `is_staff` on the auth ack, which the server does not grant to captains since the 2026-07 restructure and which is the signal that gates `/caution`, `/warn` and `/eject`.
 
 Auth detail (the `/unlock <key>` flow, key persistence, ack routing, `SessionAuthWarning`) is in [vetsmod_guild_system.md](vetsmod_guild_system.md). Wire-level tier gating is in [vetsmod_networking.md §8](vetsmod_networking.md).
 
@@ -98,21 +125,22 @@ Auth detail (the `/unlock <key>` flow, key persistence, ack routing, `SessionAut
 WynntilsMod.registerEventListener(this);   // register @SubscribeEvent methods
 Models.Guild.getGuildName()
 Models.Guild.isInGuild()
-Handlers.Command                           // rate-limited queue for /gu stats, /gu rank, /find
-ChatMessageEvent.Match / .Edit             // chat interception
+Handlers.Command                           // rate-limited queue for /gu stats, /gu rank, /find, /msg; guild manage goes to its front (OutboundCommand)
+ChatMessageEvent.Match                     // chat interception (.Edit is unused)
 WorldStateEvent                            // world join trigger
 StyledText, ComponentUtils, McUtils
+McUtils.mc() / .player() / .screen()       // client access; see project_wynntils.md, McUtils
 ```
 
 ## Config keys
 
-**User-facing (via `/wv config`):** `legacyItemHighlighting`, `printMOTD`, `printANNI`, `printBridgeMessages`, `showSupporterGlints`, `handleSpoilers`, `moreReliableGuildCheck`, legacy item gradient colours/opacity/sprite.
+**User-facing (via `/wv config`):** 30 keys. `VetsConfigSchema.USER_CONFIG_KEYS` order — which is also the order `/wv config` prints them in; tab-completion is alphabetical — is: the eight `legacyItem*` keys (highlighting, enchantment naming, gradient colours/opacity, sprite), `printMOTD`, `printANNI`, the 14 `vetsAnni*` keys, `printBridgeMessages`, `printSuccessfulAuth`, `showSupporterGlints`, `colorBlindMode`, `handleSpoilers`, `moreReliableGuildCheck`. Full table in [vetsmod_config.md](vetsmod_config.md).
 
-**Internal — vetsmod auth state:** `vetsAuthKey` (string), `vetsAuthTier` (string), `vetsAuthVerifiedAt` (long). Old `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` longs survive only as a "legacy unlock marker" for the session-start warning.
+**Internal — vetsmod auth state:** `vetsAuthKey` (string), `vetsAuthTier` (string), `vetsAuthVerifiedAt` (long). Old `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` longs are meant to survive only as a "legacy unlock marker" for the session-start warning; today they also still unlock client-side (bug `legacy-unlock-markers-still-grant-client-unlock`).
 
 ## Chat pipeline
 
-Wynntils fires `ChatMessageEvent.Match` → rewriters (`SpoilerRewriter`, `StaffGuildAlertRewriter`, `StaffChannelMessageRewriter`, `ServerGuildChatRewriter`) → `ChatMessageEvent.Edit` → display.
+`ChatLogMixin` (HEAD of vanilla `ChatComponent.addMessage`) runs the rewriter chain in this order: `EncourageUpdateRewriter` → `StaffGuildAlertRewriter` → `StaffChannelMessageRewriter` → `ServerGuildChatRewriter` → `SpoilerRewriter`. First match wins and cancels the vanilla call. Spoiler runs **last** on purpose — lines `ServerGuildChatRewriter` consumes above it (rank remaps, and supporters while glints are shown) are already spoiler-processed there, through `MessageBodyFormatter.formatMessageBody`. `WarningFrameRenderer` (in `chat/`) is not part of this chain: `OutboundDisplayHandler` calls it for server-pushed `warning` frames.
 
 Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **frame-scoped** — `U+E003` is the private-message separator despite sitting in the same `U+E000` block that spells lowercase letters inside a pill — so decode from the frame inward and never map a bare codepoint to a character. Encode and decode through [`PillCodec`](../src/client/java/org/wynnvets/chat/PillCodec.java); the blocks, the four sequences, and the captured-log evidence are in [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
 
@@ -120,15 +148,22 @@ Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **f
 
 [`RankChangeListener`](../src/client/java/org/wynnvets/listeners/RankChangeListener.java) subscribes to `ChatMessageEvent.Match`, detects Wynncraft's `"X has set Y guild rank from A to B"` broadcast (regex widens Wynntils' `GuildModel.MSG_RANK_CHANGED` to also capture actor + old rank), classifies it as `ban` / `kick` / `mote`, and emits a `rank_change` control frame on `/v1/inbound`. Server-side dispatch and the trust model are documented in [server_api_reference.md](server_api_reference.md) and authoritatively in [`temporary-server/v1_protocol.md` §1.9](../../temporary-server/v1_protocol.md).
 
+## Guild resource distribution
+
+`/wv distribute <name|@selector> <aspects|tomes|emeralds> <count>` automates the Wynncraft Guild Management GUI: from its entry point [`DistributeCommands`](../src/client/java/org/wynnvets/distribute/DistributeCommands.java), the package sends `/guild manage`, navigates to Manage Members or Guild Log, paginates to a player's tile and synthesises the hotbar presses that hand over the resource. Visible to staff (`isStaffOfAnyGuild`), executable by chief+ (`isChiefOfAnyGuild`). Four `@`-selectors — `@random`, `@objectives`, `@graids`, `@split` — pick the recipient set; a `NoAspects` opt-out list filters all of them and refuses a literal-name send to an opted-out member — today for every resource, though it is meant to gate aspects only.
+
+**Don't retune the tick constants or reroute the menu navigation from the code alone.** Each was chosen against observed server behaviour — `/guild log` being dropped after a menu close, the Members menu refreshing after every send (the presser accepts either a new-container-id reopen or a same-id in-place refresh as proof it landed), a page's `SetSlot` packets crossing a tick boundary, the guild log capping at ~100 entries — and the failure mode when one is wrong is silent. The behaviour-to-code-shape record is [vetsmod_distribute.md §6](vetsmod_distribute.md).
+
 ## Item definitions
 
-`src/client/resources/definitions.yml` — regex categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `notjunk`, `new_format_override`, `enchant_excluded_items`. Edit this file to add/change item patterns without touching Java.
+`src/client/resources/definitions.yml` — 9 categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `not_pedestal`, `notjunk`, `new_format_override`, `blocked_screen_titles` (all compiled to regex) plus `enchant_excluded_items`, which is a literal-string set of Minecraft item IDs matched by exact equality. Edit this file to add/change item patterns without touching Java.
 
 ## Building
 
 ```bash
 ./gradlew build          # produces jar in build/libs/
 ./gradlew runClient      # launches Minecraft with the mod loaded
+./gradlew spotlessApply  # reformat — run before committing any Java change
 ```
 
 If a gitignored `local.gradle` is present (see `local.gradle.example`), `./gradlew build` is wired via `build.finalizedBy 'deployToPrism'` to also drop `vetsmod-dev.jar` into the developer's PrismLauncher mods folder, scrubbing prior `vetsmod-*.jar` to avoid duplicate-mod-ID load failures. Restart Minecraft to pick up changes — Fabric mods can't hot-reload mixins or registries.
@@ -140,6 +175,22 @@ If a gitignored `local.gradle` is present (see `local.gradle.example`), `./gradl
 - `./gradlew test` — tests are unaffected by the deploy hook
 
 Only use the deploying form (`./gradlew build`) when the user has explicitly asked for an end-to-end build-and-deploy, or is mid-iteration on the mod.
+
+### Mechanical gates
+
+Two gates run on the Java side, both enforced in CI before the build step.
+
+**Format — google-java-format AOSP** (4-space block indent, 8-space continuation, 100 columns) via Spotless, configured in `build.gradle`'s `spotless { }` block and pinned in `gradle.properties`. `./gradlew spotlessApply` rewrites; `spotlessCheck` is wired into `check` and so into `build`, so an unformatted file fails the build. Javadoc *prose* is deliberately exempt (`formatJavadoc(false)`) — blocks re-indent with their declaration but wording, `<p>` placement and hand-built `<pre>`/`<table>` diagrams are left alone. Imports are re-sorted into one ASCII-sorted block with statics first, and unused imports are removed unconditionally.
+
+**Javadoc references — `-Xdoclint:reference/private`.** An unresolvable `{@link}`, `@see`, `{@value}` or `@throws` target, or an `@param` naming a parameter that isn't there, is a compile **error**. Deliberately only the `reference` group: `html` would reject `PillCodec`'s hand-built `<table border="1">` and `missing` would light up most of the repo.
+
+Consequences worth knowing before you edit:
+
+- **No import exists only for a Javadoc `{@link}`.** The next rule is why: a cross-package reference is written fully qualified, so an IDE "optimize imports" strips nothing a Javadoc needs. An import that only a `{@link}` uses is a defect to convert: an optimizer that does not read Javadoc strips it, and the reference gate then fails the build.
+- **Cross-package Javadoc references are fully qualified with a label** — `{@link org.wynnvets.p.Foo Foo}` — rather than resolved by adding an import. A doc-only import would assert a dependency edge that no code has. Renders identically.
+- **Moving or renaming a class breaks every Javadoc reference to it, loudly.** Fix the references as part of the move; there is no sweep afterwards.
+- **Changing `org.gradle.jvmargs` needs `./gradlew --stop`** or you are testing the old daemon's flags.
+- **`git blame` over the reformat.** `.git-blame-ignore-revs` holds the reformat commit, but git only honours it once per clone: `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 
 ## External name-resolution providers
 

@@ -1,15 +1,6 @@
 package org.wynnvets.distribute.distributor;
 
 import com.wynntils.core.components.Managers;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.distribute.opener.GuildManageOpener;
-import org.wynnvets.distribute.utils.NoAspectsFilter;
-import org.wynnvets.distribute.walker.MembersListSearcher;
-import org.wynnvets.distribute.walker.MembersListWalker;
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,6 +11,13 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.opener.GuildManageOpener;
+import org.wynnvets.distribute.recipients.NoAspectsFilter;
+import org.wynnvets.distribute.walker.MembersListWalker;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Implements {@code /wv distribute @objectives <resource> <count>}:
@@ -37,9 +35,10 @@ import java.util.regex.Pattern;
  * - Streak: N
  * </pre>
  * <p>A completed objective is one where {@code current >= total} on the
- * line immediately following the {@code Guild Objective:} header. If
- * the lore doesn't contain the header (e.g. a freshly-joined recruit),
- * the member is treated as not-completed and skipped.</p>
+ * first non-blank line following the {@code Guild Objective:} header
+ * (blank separator lines are skipped, not treated as a miss). If the
+ * lore doesn't contain the header (e.g. a freshly-joined recruit), the
+ * member is treated as not-completed and skipped.</p>
  *
  * <h2>Distribution algorithm</h2>
  * <p>Given {@code N} rewards and {@code K} completers, each completer
@@ -56,13 +55,9 @@ public final class ObjectivesDistributor {
     /** Pattern for the objective progress line, e.g.
      *  {@code "- Gather Ores: 200/200"}. The streak line ("- Streak: 76")
      *  has no slash and is correctly excluded by this pattern. */
-    private static final Pattern OBJECTIVE_PROGRESS =
-            Pattern.compile("^- .+?: (\\d+)/(\\d+)$");
+    private static final Pattern OBJECTIVE_PROGRESS = Pattern.compile("^- .+?: (\\d+)/(\\d+)$");
 
     private static final Random RNG = new Random();
-
-    /** One queued recipient and the per-user count we owe them. */
-    private record Distribution(String legacyName, int count) {}
 
     private ObjectivesDistributor() {}
 
@@ -76,31 +71,50 @@ public final class ObjectivesDistributor {
     }
 
     /**
-     * Variant with a completion callback. Fires on every exit path
-     * (success, no completers, count drop-out) so multi-phase chains
-     * like {@link SplitDistributor} can advance without stalling.
+     * Variant with a completion callback. Fires on each of this head's own
+     * exits &mdash; no completers, nothing to send, and the send loop
+     * draining &mdash; so multi-phase chains like {@link SplitDistributor}
+     * can advance past an empty pool. It only gets that far if the walk
+     * calls back, and {@link MembersListWalker} can abandon or stall a walk without
+     * doing so ({@code members-list-walker-drops-completion}); the shared send loop
+     * can end a run without it too ({@code member-slot-presser-drops-completion}).
+     * {@code vetsmod_distribute.md} §7 has the rows.
      */
-    public static void dispatch(int count, MemberSlotPresser.Resource resource,
-                                Runnable onComplete) {
+    public static void dispatch(
+            int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
         // Fire the NoAspects fetch in parallel with the GUI walk so the
         // HTTP round-trip overlaps the (much slower) menu pagination.
         // The walk callback waits on the fetch before filtering — by
         // the time the walker completes, the HTTP is almost always
-        // already resolved.
-        CompletableFuture<Set<String>> excludeF =
-                NoAspectsFilter.fetchExcludedLegacyNames();
-        MembersListWalker.armWalk(members ->
-                excludeF.thenAccept(excludeNames ->
-                        Managers.TickScheduler.scheduleLater(
-                                () -> onWalkComplete(members, count, resource,
-                                        onComplete, excludeNames), 0)));
+        // already resolved. The scheduleLater(..., 0) keeps onWalkComplete
+        // on the tick thread either way: thenAccept runs on whichever
+        // background thread completes the fetch if it finishes after the
+        // walk, and inline on the walker's tick-thread callback if it
+        // finished first. Either way the 0 is there for the thread, not as
+        // a settle delay.
+        CompletableFuture<Set<String>> excludeF = NoAspectsFilter.fetchExcludedLegacyNames();
+        MembersListWalker.armWalk(
+                members ->
+                        excludeF.thenAccept(
+                                excludeNames ->
+                                        Managers.TickScheduler.scheduleLater(
+                                                () ->
+                                                        onWalkComplete(
+                                                                members,
+                                                                count,
+                                                                resource,
+                                                                onComplete,
+                                                                excludeNames),
+                                                0)));
         GuildManageOpener.openManageMembers();
     }
 
-    private static void onWalkComplete(List<MembersListWalker.MemberEntry> members,
-                                       int count, MemberSlotPresser.Resource resource,
-                                       Runnable onComplete,
-                                       Set<String> excludeNames) {
+    private static void onWalkComplete(
+            List<MembersListWalker.MemberEntry> members,
+            int count,
+            MemberSlotPresser.Resource resource,
+            Runnable onComplete,
+            Set<String> excludeNames) {
         List<String> completers = new ArrayList<>();
         int skippedOptOut = 0;
         for (MembersListWalker.MemberEntry m : members) {
@@ -113,11 +127,12 @@ public final class ObjectivesDistributor {
             }
         }
         if (skippedOptOut > 0) {
-            VetsLogger.debug("ObjectivesDistributor: skipped {} opted-out members",
-                    skippedOptOut);
+            VetsLogger.debug("ObjectivesDistributor: skipped {} opted-out members", skippedOptOut);
         }
-        VetsLogger.debug("ObjectivesDistributor: {} / {} members completed their objective",
-                completers.size(), members.size());
+        VetsLogger.debug(
+                "ObjectivesDistributor: {} / {} members completed their objective",
+                completers.size(),
+                members.size());
 
         if (completers.isEmpty()) {
             ChatUtils.sendLocalMessage(
@@ -128,7 +143,7 @@ public final class ObjectivesDistributor {
             return;
         }
 
-        Deque<Distribution> queue = buildDistribution(completers, count);
+        Deque<DistributionQueue.Distribution> queue = buildDistribution(completers, count);
         if (queue.isEmpty()) {
             // Can happen if count == 0 (excluded by brigadier bounds, but
             // defensive); nothing to send.
@@ -138,11 +153,17 @@ public final class ObjectivesDistributor {
         }
 
         ChatUtils.sendLocalMessage(
-                Component.literal("Distributing " + count + "x " + resource.displayName()
-                        + " across " + completers.size() + " objective-completers…")
+                Component.literal(
+                                "Distributing "
+                                        + count
+                                        + "x "
+                                        + resource.displayName()
+                                        + " across "
+                                        + completers.size()
+                                        + " objective-completers…")
                         .withStyle(ChatFormatting.AQUA));
 
-        processNext(queue, resource, onComplete);
+        DistributionQueue.processNext(queue, resource, onComplete, "ObjectivesDistributor");
     }
 
     /**
@@ -150,7 +171,9 @@ public final class ObjectivesDistributor {
      * the modulo leftover. Recipients ending up with zero (when N &lt; K
      * and they didn't draw the bonus) are dropped.
      */
-    private static Deque<Distribution> buildDistribution(List<String> completers, int total) {
+    // Package-private for unit tests. See ObjectivesDistributorTest.
+    static Deque<DistributionQueue.Distribution> buildDistribution(
+            List<String> completers, int total) {
         int k = completers.size();
         int base = total / k;
         int remainder = total % k;
@@ -159,47 +182,24 @@ public final class ObjectivesDistributor {
         List<String> shuffled = new ArrayList<>(completers);
         Collections.shuffle(shuffled, RNG);
 
-        Deque<Distribution> queue = new ArrayDeque<>();
+        Deque<DistributionQueue.Distribution> queue = new ArrayDeque<>();
         for (int i = 0; i < shuffled.size(); i++) {
             int perUser = base + (i < remainder ? 1 : 0);
             if (perUser <= 0) continue;
-            queue.add(new Distribution(shuffled.get(i), perUser));
+            queue.add(new DistributionQueue.Distribution(shuffled.get(i), perUser));
         }
         return queue;
     }
 
-    private static void processNext(Deque<Distribution> queue,
-                                    MemberSlotPresser.Resource resource,
-                                    Runnable onComplete) {
-        if (queue.isEmpty()) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Distribution complete.")
-                            .withStyle(ChatFormatting.GREEN));
-            MemberSlotPresser.closeMembersScreen();
-            if (onComplete != null) onComplete.run();
-            return;
-        }
-        Distribution d = queue.poll();
-        VetsLogger.debug("ObjectivesDistributor: queue popped [{}] (count={}), {} left",
-                d.legacyName(), d.count(), queue.size());
-
-        // Names are already legacy (walker reads tile hover names), so
-        // the literal-input arm matches the menu directly. No per-pick
-        // NameResolver needed.
-        MembersListSearcher.armSearch(
-                d.legacyName(),
-                slot -> MemberSlotPresser.fire(slot, resource, d.count(), d.legacyName(),
-                        () -> processNext(queue, resource, onComplete)),
-                () -> processNext(queue, resource, onComplete));
-    }
-
     /**
-     * Returns {@code true} if the member's lore shows {@code current >= total}
-     * on the line immediately following the {@code Guild Objective:}
-     * header. Returns {@code false} if the header is missing or the
-     * progress line is malformed.
+     * Returns {@code true} if the member's lore shows
+     * {@code current >= total} on the first non-blank line following the
+     * {@code Guild Objective:} header. Returns {@code false} if the
+     * header is missing, if nothing non-blank follows it, or if the
+     * first non-blank line fails {@link #OBJECTIVE_PROGRESS}.
      */
-    private static boolean hasCompletedObjective(List<String> loreLines) {
+    // Package-private for unit tests. See ObjectivesDistributorTest.
+    static boolean hasCompletedObjective(List<String> loreLines) {
         boolean afterHeader = false;
         for (String line : loreLines) {
             if (afterHeader) {
@@ -213,8 +213,10 @@ public final class ObjectivesDistributor {
                         return false;
                     }
                 }
-                // Anything else right after the header (blank, or a
-                // surprise non-objective line) — bail out.
+                // A surprise non-objective line after the header — bail
+                // out. Blank lines fall through this guard and the scan
+                // continues, so a blank separator between the header and
+                // the progress line does not read as not-completed.
                 if (!line.isBlank()) return false;
             }
             if (line.equals(OBJECTIVE_HEADER)) {

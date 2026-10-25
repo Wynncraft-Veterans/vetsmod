@@ -1,14 +1,13 @@
 package org.wynnvets.mwe.anni.outline;
 
 import com.wynntils.utils.colors.CustomColor;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.ChatFormatting;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
-import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Username → tiered colour mapping for the S4 highlight overlay.
@@ -25,21 +24,26 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Everyone NOT in the registry is treated as an "outsider" by the
  * consumers (no outline, dark-grey nametag while the activation gate
- * holds) — that's a default applied by the ticker / nametag mixin, NOT
+ * holds and the matching toggle is on) — that's a default applied by the
+ * outline / nametag mixins, NOT
  * a registry entry. Keeps the table small (~50 entries max during an
  * anni) and the consumer side stateless.</p>
  *
- * <p>Username-keyed per outlines.md §2.4 ("All three models key by
- * username, not UUID"). vetsmod's existing {@code GameProfile.name()}
- * resolution path in {@code NametagMixin} matches this; {@code level.players()}
+ * <p>Username-keyed per outlines.md §2.4 ("All three models key by username, not UUID"). vetsmod's
+ * existing {@code GameProfile.name()} resolution path in
+ * {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} matches this; {@code level.players()}
  * iteration in the ticker matches this too.</p>
  *
- * <p>Thread-safety: rebuilds run on the WS reader thread (via
- * {@link AnniSnapshotCache} listener). Reads run on the main client
- * thread (ticker + nametag mixin) and on the render thread (team-colour
- * mixin). {@link ConcurrentHashMap} gives both sides lock-free O(1)
- * access; a stale read during a rebuild is harmless because both old and
- * new states are valid registry views.</p>
+ * <p>Thread-safety: after the one in {@link #register()}, rebuilds run on whichever thread
+ * calls {@link AnniSnapshotCache#update} (this class is one of its listeners) — the one
+ * delivering WebSocket frames, or the render thread (which runs client commands) for a debug
+ * injection. Reads come from
+ * the client tick ({@link AnniOutlineTicker}) and from the
+ * render path ({@link org.wynnvets.mixin.client.NametagMixin NametagMixin},
+ * {@link org.wynnvets.mixin.client.EntityOutlineColorMixin EntityOutlineColorMixin}, both injecting
+ * into {@code extractRenderState}). {@link ConcurrentHashMap} gives both sides lock-free O(1)
+ * access; a stale read during a rebuild is harmless because both old and new states are valid
+ * registry views.</p>
  */
 public final class AnniOutlineRegistry {
 
@@ -82,8 +86,8 @@ public final class AnniOutlineRegistry {
         }
 
         /** {@link ChatFormatting} the nametag branch in
-         *  {@code NametagMixin} should recolour with. Matches the outline
-         *  family for the same tier. */
+         *  {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} should recolour with.
+         *  Matches the outline family for the same tier. */
         public ChatFormatting nametagFormatting() {
             return nametagFormatting;
         }
@@ -95,11 +99,10 @@ public final class AnniOutlineRegistry {
 
     private static volatile boolean registered = false;
 
-    private AnniOutlineRegistry() {
-    }
+    private AnniOutlineRegistry() {}
 
     /** Idempotent registration. Subscribes the rebuild listener to the
-     *  shared snapshot cache. Call from {@code VetsmodClient}
+     *  shared snapshot cache. Call from {@link org.wynnvets.VetsmodClient VetsmodClient}
      *  {@code onInitializeClient}. */
     public static void register() {
         if (registered) return;
@@ -117,19 +120,18 @@ public final class AnniOutlineRegistry {
         return entries.get(username.toLowerCase(Locale.ROOT));
     }
 
-    /** Quick "do we have any active overrides" check. Lets consumers
-     *  short-circuit the per-tick walk when there's nothing to do. */
-    public static boolean isAnyActive() {
-        return !entries.isEmpty();
-    }
-
     /** Number of entries currently registered. Diagnostic only. */
     public static int size() {
         return entries.size();
     }
 
-    /** Drop every entry. Called when the snapshot collapses to {@code null}
-     *  or when the activation gate closes. */
+    /** Drop every entry. Part of the debug API below in everything but
+     *  placement: its only caller is
+     *  {@link org.wynnvets.debug.anni.AnniHighlightDebugCommands#registryClearAll
+     *  AnniHighlightDebugCommands#registryClearAll}
+     *  ({@code /wv debug tree anni registry clearall}). Neither
+     *  a null snapshot nor the activation gate closing reaches it — {@code rebuildFrom} does its
+     *  own inline clear-and-swap, and the gate is the ticker's business, not the registry's. */
     public static void clearAll() {
         entries.clear();
     }
@@ -184,11 +186,37 @@ public final class AnniOutlineRegistry {
         return new Entry(Tier.OWN_PARTY, role, outline, fmt);
     }
 
-    private static final Entry OTHER_PARTY_ENTRY = new Entry(
-            Tier.OTHER_VETS_PARTY,
-            null,
-            AnniOutlinePalette.OTHER_VETS_PARTY,
-            ChatFormatting.GRAY);
+    /** Outline colour for players in any other vets-anni party (schema v2
+     *  {@code event.all_parties} members who aren't on the local player's own
+     *  party). Light grey, {@code §7}, per spec §"FOR PLAYERS IN OTHER VETS
+     *  PARTIES".
+     *
+     *  <p>Declared here rather than in {@link AnniOutlinePalette} so it sits
+     *  beside the {@link ChatFormatting#GRAY} that {@link #OTHER_PARTY_ENTRY}
+     *  pairs it with. This tier's two halves — outline colour and nametag
+     *  formatting — agree by convention rather than by construction, unlike
+     *  {@link #ownPartyEntry}, which derives both from one
+     *  {@link AnniOutlinePalette#chatFormattingForRole} call. A convention is
+     *  only checkable when both halves are in view; a file apart, they were
+     *  not.</p>
+     *
+     *  <p>The move also leaves {@link AnniOutlinePalette} with no fields at
+     *  all, hence an empty {@code <clinit>}, which is what lets a test load
+     *  that class — Wynntils is absent at test runtime. It does <em>not</em>
+     *  make this class loadable: {@link #ownPartyEntry} constructs a
+     *  {@link CustomColor} too.</p>
+     *
+     *  <p>⚠️ {@code OTHER_VETS_PARTY} names <b>two different symbols in
+     *  this one file</b> — this {@link CustomColor} and the
+     *  {@link Tier#OTHER_VETS_PARTY} enum constant — and
+     *  {@link #OTHER_PARTY_ENTRY} uses both in a single expression. A
+     *  grep for the identifier returns both; read which one a hit means
+     *  before acting on it.</p> */
+    private static final CustomColor OTHER_VETS_PARTY =
+            CustomColor.fromChatFormatting(ChatFormatting.GRAY);
+
+    private static final Entry OTHER_PARTY_ENTRY =
+            new Entry(Tier.OTHER_VETS_PARTY, null, OTHER_VETS_PARTY, ChatFormatting.GRAY);
 
     // ── Debug API ───────────────────────────────────────────────────────
     //
@@ -204,8 +232,11 @@ public final class AnniOutlineRegistry {
     public static void debugSet(String username, Entry entry) {
         if (username == null || username.isEmpty() || entry == null) return;
         entries.put(username.toLowerCase(Locale.ROOT), entry);
-        VetsLogger.debug("AnniOutlineRegistry debug set: {} -> tier={} role={}",
-                username, entry.tier(), entry.role());
+        VetsLogger.debug(
+                "AnniOutlineRegistry debug set: {} -> tier={} role={}",
+                username,
+                entry.tier(),
+                entry.role());
     }
 
     /** Test-only: remove a username's entry (no-op if none). */

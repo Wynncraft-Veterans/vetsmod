@@ -9,28 +9,60 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.zone.AnniZone;
 
 /**
- * Pure-function content builder for the synthetic vets-anni boss bar.
+ * Content builder for the synthetic vets-anni boss bar.
+ *
+ * <p>Does no I/O, so it is safe for the per-tick loop — but it is not a
+ * pure function of its arguments: {@code build} reads {@link AnniZone}'s
+ * volatile disc cache and, through {@link FlashTracker#styleFor}, both a
+ * time-bounded flash window and a 250 ms pulse bit. The same arguments
+ * yield different Components at different instants.</p>
  *
  * <p>Maps {@code (AnniSnapshot, secondsUntilAnni, playerPos)} to one of
- * the four spec text variants (or {@code null} for "deactivate"):</p>
+ * <b>three</b> text variants — countdown, assigned, seeking — or to
+ * {@code null} for "deactivate". {@code build} has five branches, not
+ * three: the two {@code null} returns are a null {@code snapshot} and
+ * the T-20s gate, and only the first of those is absent from the list
+ * below, whose leading bullet <em>is</em> the T-20s branch. So the list
+ * has four bullets over three variants, which is why "four variants" is
+ * the wrong way to read it. {@link #isAssigned}'s reference to "the
+ * five" is a spec-side enumeration of a different population again, and
+ * this repo holds no copy of that spec; none of these three numbers is
+ * in conflict with the others, they count different things.</p>
  *
  * <ul>
- *   <li><b>T-20s gate</b> (Gate 1 of 3 per parent plan §"Risks") —
- *       returns {@code null} when {@code secondsUntilAnni <= 20}.
+ *   <li><b>T-20s gate</b> (one of the two T-20s gates per parent plan
+ *       §"Risks"; the other is {@link VetsBossBarManager}'s wall-clock
+ *       watchdog) — returns {@code null} when
+ *       {@code secondsUntilAnni <= T_MINUS_20_GATE_SECONDS}.
  *       Caller deactivates.</li>
- *   <li><b>T-2m countdown</b> — when {@code secondsUntilAnni <= 120}
+ *   <li><b>Countdown</b> — when
+ *       {@code secondsUntilAnni <= COUNTDOWN_THRESHOLD_SECONDS} (5 min,
+ *       user-iterated up from the spec's 2 on 2026-06-16)
  *       AND the player is inside the anni zone
  *       (per {@link AnniZone#isInZone}). Spec §3.1.1.3:
  *       {@code &3anni.wynnvets.org&8: &cANNI IN &f&lAAs&8 | &d&l&nSCROLLS IN BBs&d!}</li>
- *   <li><b>Assigned</b> — when the snapshot's board carries a party
- *       OR a committed slot (specific role / FILL). Spec §3.1.1.2:
+ *   <li><b>Assigned</b> — when {@link #isAssigned} holds: the board
+ *       carries a party or a role, <em>or</em> {@code registration.roles}
+ *       carries any non-FILL entry. ⚠️ That last arm reads
+ *       {@code registration}, not {@code board}, while all three chips
+ *       below read {@code board} only — so a registered-but-unplaced
+ *       player selects this variant and renders
+ *       {@code Role: TBD | Party TBD | World: TBD}. Filed, not fixed:
+ *       {@code boss-bar-assigned-variant-renders-all-tbd}. Spec §3.1.1.2:
  *       {@code &3anni.wynnvets.org/me&8: &7Role: <ROLE>&8 | &7Party <N>&8 | &7World: <W>}</li>
  *   <li><b>Seeking</b> — otherwise. Spec §3.1.1.1:
  *       {@code &7Seeking a <RSVP> <SLOT> &7for &3&nanni.wynnvets.org&7 in &f&l<XX>&fmin}</li>
  * </ul>
  *
  * <p>The flash decoration ({@code &l ↔ &n&l}) is applied per-field via
- * {@link FlashTracker#styleFor}. No I/O — safe for the per-tick loop.</p>
+ * {@link FlashTracker#styleFor} to four chips: role, party and world in
+ * the assigned variant, rsvp in the seeking one.</p>
+ *
+ * <p>{@code colorFor(AnniSnapshot)} lives here too. The manager calls it
+ * alongside the text, on the ticks that get that far — not every tick:
+ * {@link VetsBossBarManager}'s {@code tickInner} reaches it only after
+ * the whole activation gate holds <em>and</em> {@code build} has
+ * returned non-null.</p>
  */
 public final class VetsBossBarContentBuilder {
 
@@ -53,8 +85,7 @@ public final class VetsBossBarContentBuilder {
      *  reads "Get ready for scrolls!" instead. */
     private static final long SCROLL_COUNTDOWN_START_SECONDS = 70L;
 
-    private VetsBossBarContentBuilder() {
-    }
+    private VetsBossBarContentBuilder() {}
 
     /**
      * Recommend a {@link BossEvent.BossBarColor} that mirrors the
@@ -64,11 +95,13 @@ public final class VetsBossBarContentBuilder {
      *       (NOT pink — Wynncraft's resource pack overrides
      *       {@code boss_bar/pink_background.png} to be fully transparent,
      *       so any pink bar renders as text-only; reproducible on bare
-     *       vanilla MC with Wynncraft connected. Confirmed empirically
-     *       in {@code .claude/ephemeral/BossBarExploration/} — every
-     *       Wynncraft text-only bar (Returners XP, Corrupted Road, etc.)
-     *       carries {@code color=PINK overlay=PROGRESS}; mob health bars
-     *       use non-pink colours and render normally. Purple is the
+     *       vanilla MC with Wynncraft connected. Confirmed via
+     *       {@code /wv debug trigger bossBarsDump} — every Wynncraft
+     *       text-only bar (Returners XP, Corrupted Road, etc.) carries
+     *       {@code color=PINK overlay=PROGRESS}; mob health bars use
+     *       non-pink colours and render normally. The full write-up is
+     *       {@code vetsmod_mwe_anni.md} §"Bar colour: never PINK", which
+     *       also fixes the permitted-colour set. Purple is the
      *       nearest visual neighbour that isn't suppressed.)</li>
      *   <li>board state {@code wont_assign} (COULD NOT ASSIGN) → RED</li>
      *   <li>otherwise → quantised from {@link AnniSnapshot.Attendance#band()}
@@ -82,8 +115,8 @@ public final class VetsBossBarContentBuilder {
     public static BossEvent.BossBarColor colorFor(AnniSnapshot snapshot) {
         if (snapshot == null) return BossEvent.BossBarColor.PURPLE;
         AnniSnapshot.Board board = snapshot.board();
-        String state = (board != null && board.state() != null)
-                ? board.state().toLowerCase() : null;
+        String state =
+                (board != null && board.state() != null) ? board.state().toLowerCase() : null;
         // PURPLE rather than PINK — pink is suppressed by Wynncraft's
         // resource pack; see the class-level javadoc for the empirical
         // evidence.
@@ -97,9 +130,9 @@ public final class VetsBossBarContentBuilder {
     }
 
     private static BossEvent.BossBarColor bandToBarColor(int band) {
-        if (band <= 2) return BossEvent.BossBarColor.RED;     // dark_red / red
-        if (band <= 4) return BossEvent.BossBarColor.YELLOW;  // gold / yellow
-        return BossEvent.BossBarColor.GREEN;                  // dark_green / green
+        if (band <= 2) return BossEvent.BossBarColor.RED; // dark_red / red
+        if (band <= 4) return BossEvent.BossBarColor.YELLOW; // gold / yellow
+        return BossEvent.BossBarColor.GREEN; // dark_green / green
     }
 
     /**
@@ -117,7 +150,7 @@ public final class VetsBossBarContentBuilder {
             AnniSnapshot snapshot, long secondsUntilAnni, double playerX, double playerZ) {
         if (snapshot == null) return null;
 
-        // Gate 1 of 3: hard T-20s cut-off — non-negotiable.
+        // Gate 1 of 2: hard T-20s cut-off — non-negotiable.
         if (secondsUntilAnni <= T_MINUS_20_GATE_SECONDS) {
             return null;
         }
@@ -158,7 +191,7 @@ public final class VetsBossBarContentBuilder {
         return false;
     }
 
-    // ── Variant: countdown (T-2m → T-20s) ───────────────────────────────
+    // ── Variant: countdown (T-5m → T-20s) ───────────────────────────────
 
     /** Countdown variant (spec §3.1.1.3, with user-iterated 5 min /
      *  70 s scroll threshold):
@@ -173,27 +206,30 @@ public final class VetsBossBarContentBuilder {
         long anniSecs = Math.max(0, secondsUntilAnni);
         long scrollSecs = Math.max(0, anniSecs - T_MINUS_20_GATE_SECONDS);
 
-        MutableComponent out = Component.literal("anni.wynnvets.org")
-                .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA));
+        MutableComponent out =
+                Component.literal("anni.wynnvets.org")
+                        .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA));
         out.append(Component.literal(": ").withStyle(ChatFormatting.DARK_GRAY));
         out.append(Component.literal("ANNI IN ").withStyle(ChatFormatting.RED));
-        out.append(Component.literal(format3(anniSecs) + "s")
-                .withStyle(Style.EMPTY.withColor(ChatFormatting.WHITE).withBold(true)));
+        out.append(
+                Component.literal(format3(anniSecs) + "s")
+                        .withStyle(Style.EMPTY.withColor(ChatFormatting.WHITE).withBold(true)));
         out.append(Component.literal(" | ").withStyle(ChatFormatting.DARK_GRAY));
 
         if (scrollSecs <= SCROLL_COUNTDOWN_START_SECONDS) {
-            Style scrollStyle = Style.EMPTY
-                    .withColor(ChatFormatting.LIGHT_PURPLE)
-                    .withBold(true)
-                    .withUnderlined(true);
-            out.append(Component.literal("SCROLLS IN " + format3(scrollSecs) + "s")
-                    .withStyle(scrollStyle));
-            out.append(Component.literal("!")
-                    .withStyle(Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE)));
+            Style scrollStyle =
+                    Style.EMPTY
+                            .withColor(ChatFormatting.LIGHT_PURPLE)
+                            .withBold(true)
+                            .withUnderlined(true);
+            out.append(
+                    Component.literal("SCROLLS IN " + format3(scrollSecs) + "s")
+                            .withStyle(scrollStyle));
+            out.append(
+                    Component.literal("!")
+                            .withStyle(Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE)));
         } else {
-            Style readyStyle = Style.EMPTY
-                    .withColor(ChatFormatting.LIGHT_PURPLE)
-                    .withItalic(true);
+            Style readyStyle = Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE).withItalic(true);
             out.append(Component.literal("Get ready for scrolls!").withStyle(readyStyle));
         }
         return out;
@@ -208,8 +244,9 @@ public final class VetsBossBarContentBuilder {
      *  (the spec writes it as {@code anni.wynnvets.org/me} but on a
      *  ~40-char boss bar every glyph counts). */
     private static MutableComponent buildAssigned(AnniSnapshot snapshot) {
-        MutableComponent out = Component.literal("anni.wynnvets.org")
-                .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA));
+        MutableComponent out =
+                Component.literal("anni.wynnvets.org")
+                        .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA));
         out.append(Component.literal(": ").withStyle(ChatFormatting.DARK_GRAY));
 
         // Role
@@ -265,8 +302,7 @@ public final class VetsBossBarContentBuilder {
 
     /** Spec §3.1.1.1 — "Seeking a {RSVP} {SLOT} for anni.wynnvets.org in {MIN}min". */
     private static MutableComponent buildSeeking(AnniSnapshot snapshot, long secondsUntilAnni) {
-        MutableComponent out = Component.literal("Seeking a ")
-                .withStyle(ChatFormatting.GRAY);
+        MutableComponent out = Component.literal("Seeking a ").withStyle(ChatFormatting.GRAY);
 
         // RSVP / WALKIN / LATE chip
         out.append(rsvpChip(snapshot));
@@ -277,8 +313,12 @@ public final class VetsBossBarContentBuilder {
         out.append(Component.literal(" for ").withStyle(ChatFormatting.GRAY));
 
         // Link badge
-        out.append(Component.literal("anni.wynnvets.org").withStyle(
-                Style.EMPTY.withColor(ChatFormatting.DARK_AQUA).withUnderlined(true)));
+        out.append(
+                Component.literal("anni.wynnvets.org")
+                        .withStyle(
+                                Style.EMPTY
+                                        .withColor(ChatFormatting.DARK_AQUA)
+                                        .withUnderlined(true)));
         out.append(Component.literal(" in ").withStyle(ChatFormatting.GRAY));
 
         // Minutes remaining (ceil)
@@ -290,8 +330,18 @@ public final class VetsBossBarContentBuilder {
     }
 
     private static MutableComponent rsvpChip(AnniSnapshot snapshot) {
-        // Prefer explicit rsvp notice; fall back to attendance band as
-        // implied notice ("walkin"/"late" come from there).
+        // Prefer explicit rsvp notice; fall back to the attendance
+        // block's effective notice. The two carry different spellings of
+        // the same four states: rsvp.notice is normalised server-side to
+        // a bare "hard"/"soft", while attendance.notice_effective is the
+        // raw AttendanceNotice value -- attend_early, rsvp_hard,
+        // rsvp_soft, attend_late. Only the first of those two spellings
+        // matches an arm below, which is why a walk-in renders as a grey
+        // ATTEND_EARLY/ATTEND_LATE passthrough. Filed, not fixed:
+        // boss-bar-rsvp-chip-recognises-four-of-nine-notices -- whose slug
+        // preserves the "nine wire keys" count that this comment refutes.
+        // The id is a stable identifier, not a claim; the file itself
+        // carries the corrected four-states-two-spellings reading.
         AnniSnapshot.Rsvp rsvp = snapshot.rsvp();
         String notice = (rsvp != null && !rsvp.revoked()) ? rsvp.notice() : null;
         if (notice == null) {
@@ -306,11 +356,25 @@ public final class VetsBossBarContentBuilder {
             color = ChatFormatting.YELLOW;
         } else {
             switch (notice.toLowerCase()) {
-                case "hard":   label = "HRSVP";  color = ChatFormatting.BLUE;   break;
-                case "soft":   label = "SRSVP";  color = ChatFormatting.GREEN;  break;
-                case "walkin": label = "WALKIN"; color = ChatFormatting.YELLOW; break;
-                case "late":   label = "LATE";   color = ChatFormatting.RED;    break;
-                default:       label = notice.toUpperCase(); color = ChatFormatting.GRAY;
+                case "hard":
+                    label = "HRSVP";
+                    color = ChatFormatting.BLUE;
+                    break;
+                case "soft":
+                    label = "SRSVP";
+                    color = ChatFormatting.GREEN;
+                    break;
+                case "walkin":
+                    label = "WALKIN";
+                    color = ChatFormatting.YELLOW;
+                    break;
+                case "late":
+                    label = "LATE";
+                    color = ChatFormatting.RED;
+                    break;
+                default:
+                    label = notice.toUpperCase();
+                    color = ChatFormatting.GRAY;
             }
         }
         Style style = Style.EMPTY.withColor(color).withBold(true);
@@ -333,11 +397,11 @@ public final class VetsBossBarContentBuilder {
             }
         }
         if (core) {
-            return Component.literal("CORE SLOT").withStyle(
-                    Style.EMPTY.withColor(ChatFormatting.GREEN));
+            return Component.literal("CORE SLOT")
+                    .withStyle(Style.EMPTY.withColor(ChatFormatting.GREEN));
         }
-        return Component.literal("FILL SLOT").withStyle(
-                Style.EMPTY.withColor(ChatFormatting.YELLOW));
+        return Component.literal("FILL SLOT")
+                .withStyle(Style.EMPTY.withColor(ChatFormatting.YELLOW));
     }
 
     // ── Role label / colour helpers ─────────────────────────────────────
@@ -362,20 +426,27 @@ public final class VetsBossBarContentBuilder {
      *  the boss-bar abbreviations. */
     private static String toShortLabel(String roleCode) {
         switch (roleCode.toUpperCase()) {
-            case "TANK":      return "TANK";
+            case "TANK":
+                return "TANK";
             case "HEAL":
-            case "HEALER":    return "HEAL";
+            case "HEALER":
+                return "HEAL";
             case "PRIMARY":
             case "BOSSKILL":
-            case "PRIM":      return "PRIM";
+            case "PRIM":
+                return "PRIM";
             case "SECONDARY":
             case "SUNKILL":
-            case "SUNK":      return "SUNK";
+            case "SUNK":
+                return "SUNK";
             case "TERTIARY":
             case "MOBKILL":
-            case "MOBK":      return "MOBK";
-            case "FILL":      return "FILL";
-            default:          return roleCode.toUpperCase();
+            case "MOBK":
+                return "MOBK";
+            case "FILL":
+                return "FILL";
+            default:
+                return roleCode.toUpperCase();
         }
     }
 
@@ -383,13 +454,27 @@ public final class VetsBossBarContentBuilder {
      *  MOBK=&d, FILL=&3. Distinct from S4's outline colours. */
     private static ChatFormatting roleColor(String roleCode) {
         switch (roleCode.toUpperCase()) {
-            case "TANK":                                  return ChatFormatting.BLUE;          // &9
-            case "HEAL": case "HEALER":                   return ChatFormatting.GREEN;         // &a
-            case "PRIMARY": case "BOSSKILL": case "PRIM": return ChatFormatting.RED;           // &c
-            case "SECONDARY": case "SUNKILL": case "SUNK":return ChatFormatting.YELLOW;        // &e
-            case "TERTIARY": case "MOBKILL": case "MOBK": return ChatFormatting.LIGHT_PURPLE;  // &d
-            case "FILL":                                  return ChatFormatting.DARK_AQUA;     // &3
-            default:                                      return ChatFormatting.GRAY;
+            case "TANK":
+                return ChatFormatting.BLUE; // &9
+            case "HEAL":
+            case "HEALER":
+                return ChatFormatting.GREEN; // &a
+            case "PRIMARY":
+            case "BOSSKILL":
+            case "PRIM":
+                return ChatFormatting.RED; // &c
+            case "SECONDARY":
+            case "SUNKILL":
+            case "SUNK":
+                return ChatFormatting.YELLOW; // &e
+            case "TERTIARY":
+            case "MOBKILL":
+            case "MOBK":
+                return ChatFormatting.LIGHT_PURPLE; // &d
+            case "FILL":
+                return ChatFormatting.DARK_AQUA; // &3
+            default:
+                return ChatFormatting.GRAY;
         }
     }
 

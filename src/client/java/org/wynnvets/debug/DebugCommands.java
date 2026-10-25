@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.wynntils.utils.mc.McUtils;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
@@ -14,17 +15,27 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
+import org.wynnvets.debug.anni.AnniDebugCommands;
 import org.wynnvets.debug.diagnostics.DiagnosticsHandler;
+import org.wynnvets.debug.diagnostics.GuildDiagnostics;
 import org.wynnvets.debug.dump.TabDumpHandler;
-import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.mwe.anni.debug.AnniDebugCommands;
+import org.wynnvets.util.ConfigValueText;
+import org.wynnvets.util.ConfigValueText.Form;
+import org.wynnvets.util.ConfigValueText.Verb;
 
 /**
  * Builds the entire {@code /wv debug} command subtree.
  *
- * <p>This class owns all debug-related subcommands so that production code
- * in {@link org.wynnvets.VetsmodClient} only needs a single integration
- * point: {@link #buildCommandTree()}.</p>
+ * <p>This class assembles the whole {@code /wv debug} node so that the
+ * {@code /wv} registration in
+ * {@link org.wynnvets.commands.CommandRegistry CommandRegistry} needs a
+ * single integration point: {@link #buildCommandTree()}. It does not
+ * build every node itself: the {@code anni} subtree under {@code tree}
+ * comes from
+ * {@link org.wynnvets.debug.anni.AnniDebugCommands AnniDebugCommands},
+ * and several handlers delegate to other classes (for example, the
+ * diagnostics dump and the debug toggle go to {@link DiagnosticsHandler}).</p>
  *
  * <h3>Top-level shape</h3>
  * The top level is intentionally generic — only the universally-applicable
@@ -36,15 +47,34 @@ import org.wynnvets.mwe.anni.debug.AnniDebugCommands;
  * <h3>Subcommands</h3>
  * <ul>
  *   <li>{@code /wv debug} — diagnostics dump (delegated to {@link DiagnosticsHandler})</li>
- *   <li>{@code /wv debug true|false} — toggle debug logging</li>
+ *   <li>{@code /wv debug true|false} — set the debug flag (not logging-only: it also
+ *       gates the {@code /wv debug tree anni} harness), delegated to
+ *       {@link DiagnosticsHandler}</li>
  *   <li>{@code /wv debug set} — list debug config keys</li>
  *   <li>{@code /wv debug set <key>} — get value of a debug config key</li>
  *   <li>{@code /wv debug set <key> <value>} — set a debug config key</li>
  *   <li>{@code /wv debug trigger charDump} — render PUA icon characters</li>
  *   <li>{@code /wv debug trigger forceChecks} — force re-check guild membership, rank, and staff status</li>
+ *   <li>{@code /wv debug trigger tabDump} — print the sorted tab list to chat in labelled
+ *       columns of 20 (entries past index 79 in a separate overflow block), then the online
+ *       guild members re-parsed from the tab list (delegated to {@link TabDumpHandler})</li>
  *   <li>{@code /wv debug trigger bossBarsDump} — dump current {@code BossHealthOverlay#events} state (iteration order, per-bar UUID/name/color/overlay/progress, ours marker)</li>
- *   <li>{@code /wv debug trigger nametagsDump} — dump per-player render-state (forces a re-extract; logs gate, registry hit, and the resulting {@code state.nameTag} component as built by {@code NametagMixin})</li>
- *   <li>{@code /wv debug trigger rsvpDump} — dump auth state + in-flight RSVP queue depth + last attempt/ack + the snapshot's current rsvp block</li>
+ *   <li>{@code /wv debug trigger nametagsDump} — dump per-player nametag diagnostics (reads
+ *       {@link org.wynnvets.mwe.anni.outline.AnniOutlineRegistry AnniOutlineRegistry} directly;
+ *       reports the gate, registry hit, tier and role, and the colour
+ *       {@link org.wynnvets.mixin.client.NametagMixin NametagMixin}'s anni override would
+ *       resolve to, or that it would not override)</li>
+ *   <li>{@code /wv debug trigger ghostsPromptDump} — log (not chat) the ghosts-prompt gate
+ *       inputs, each other loaded player's ghost flag, and whether the prompt would fire
+ *       (delegated to {@link org.wynnvets.mwe.anni.aggressive.GhostsPromptHandler#debugDump()
+ *       GhostsPromptHandler#debugDump})</li>
+ *   <li>{@code /wv debug trigger zoneLinesDump} — dump the zone-line renderer's inputs to chat
+ *       (aggressive gate, toggle, cold-cache flag, then every cached zone disc with its
+ *       horizontal squared distance from the player)</li>
+ *   <li>{@code /wv debug trigger rsvpDump} — log (not chat) auth state + in-flight RSVP queue
+ *       depth + last attempt/ack + the snapshot's current rsvp block (delegated to
+ *       {@link org.wynnvets.mwe.anni.network.AnniRsvpClient#debugDump()
+ *       AnniRsvpClient#debugDump})</li>
  *   <li>{@code /wv debug tree anni …} — MWE/anni subsystem debug tree</li>
  * </ul>
  */
@@ -54,24 +84,24 @@ public final class DebugCommands {
 
     /** Tab-completion provider that suggests debug-configurable key names. */
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_DEBUG_CONFIG_KEYS =
-        (ctx, builder) -> {
-            String partial = builder.getRemaining().toLowerCase();
-            for (String key : DebugConfigManager.DEBUG_CONFIG_KEYS) {
-                if (key.toLowerCase().startsWith(partial)) {
-                    builder.suggest(key);
+            (ctx, builder) -> {
+                String partial = builder.getRemaining().toLowerCase();
+                for (String key : DebugConfigManager.DEBUG_CONFIG_KEYS) {
+                    if (key.toLowerCase().startsWith(partial)) {
+                        builder.suggest(key);
+                    }
                 }
-            }
-            return builder.buildFuture();
-        };
+                return builder.buildFuture();
+            };
 
     /** Tab-completion provider that suggests "true" / "false". */
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_BOOLEAN_VALUES =
-        (ctx, builder) -> {
-            String partial = builder.getRemaining().toLowerCase();
-            if ("true".startsWith(partial)) builder.suggest("true");
-            if ("false".startsWith(partial)) builder.suggest("false");
-            return builder.buildFuture();
-        };
+            (ctx, builder) -> {
+                String partial = builder.getRemaining().toLowerCase();
+                if ("true".startsWith(partial)) builder.suggest("true");
+                if ("false".startsWith(partial)) builder.suggest("false");
+                return builder.buildFuture();
+            };
 
     /**
      * Builds and returns the {@code debug} literal node that should be
@@ -80,65 +110,86 @@ public final class DebugCommands {
      */
     public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommandTree() {
         return ClientCommandManager.literal("debug")
-            .executes(ctx -> { DiagnosticsHandler.execute(null); return 1; })
-            .then(ClientCommandManager.argument("enabled", StringArgumentType.word())
-                .executes(ctx -> {
-                    DiagnosticsHandler.execute(StringArgumentType.getString(ctx, "enabled"));
-                    return 1;
-                })
-            )
-            .then(ClientCommandManager.literal("set")
-                .executes(DebugCommands::debugConfigList)
-                .then(ClientCommandManager.argument("key", StringArgumentType.word())
-                    .suggests(SUGGEST_DEBUG_CONFIG_KEYS)
-                    .executes(DebugCommands::debugConfigGet)
-                    .then(ClientCommandManager.argument("value", StringArgumentType.word())
-                        .suggests(SUGGEST_BOOLEAN_VALUES)
-                        .executes(DebugCommands::debugConfigSet)
-                    )
-                )
-            )
-            .then(ClientCommandManager.literal("trigger")
-                .then(ClientCommandManager.literal("charDump")
-                    .executes(DebugCommands::triggerCharDump)
-                )
-                .then(ClientCommandManager.literal("forceChecks")
-                    .executes(DebugCommands::triggerForceChecks)
-                )
-                .then(ClientCommandManager.literal("tabDump")
-                    .executes(ctx -> { TabDumpHandler.execute(); return 1; })
-                )
-                .then(ClientCommandManager.literal("bossBarsDump")
-                    .executes(DebugCommands::triggerBossBarsDump)
-                )
-                .then(ClientCommandManager.literal("nametagsDump")
-                    .executes(DebugCommands::triggerNametagsDump)
-                )
-                .then(ClientCommandManager.literal("ghostsPromptDump")
-                    .executes(ctx -> {
-                        org.wynnvets.mwe.anni.aggressive.GhostsPromptHandler.debugDump();
-                        return 1;
-                    })
-                )
-                .then(ClientCommandManager.literal("zoneLinesDump")
-                    .executes(ctx -> {
-                        DebugCommands.triggerZoneLinesDump();
-                        return 1;
-                    })
-                )
-                .then(ClientCommandManager.literal("rsvpDump")
-                    .executes(ctx -> {
-                        org.wynnvets.mwe.anni.network.AnniRsvpClient.debugDump();
-                        return 1;
-                    })
-                )
-            )
-            // Subsystem trees nest under `tree` — they're neither toggles
-            // nor triggers, so they don't belong at the top level alongside
-            // `set` / `trigger`.
-            .then(ClientCommandManager.literal("tree")
-                .then(AnniDebugCommands.buildCommandTree())
-            );
+                .executes(
+                        ctx -> {
+                            DiagnosticsHandler.execute(null);
+                            return 1;
+                        })
+                .then(
+                        ClientCommandManager.argument("enabled", StringArgumentType.word())
+                                .executes(
+                                        ctx -> {
+                                            DiagnosticsHandler.execute(
+                                                    StringArgumentType.getString(ctx, "enabled"));
+                                            return 1;
+                                        }))
+                .then(
+                        ClientCommandManager.literal("set")
+                                .executes(DebugCommands::debugConfigList)
+                                .then(
+                                        ClientCommandManager.argument(
+                                                        "key", StringArgumentType.word())
+                                                .suggests(SUGGEST_DEBUG_CONFIG_KEYS)
+                                                .executes(DebugCommands::debugConfigGet)
+                                                .then(
+                                                        ClientCommandManager.argument(
+                                                                        "value",
+                                                                        StringArgumentType.word())
+                                                                .suggests(SUGGEST_BOOLEAN_VALUES)
+                                                                .executes(
+                                                                        DebugCommands
+                                                                                ::debugConfigSet))))
+                .then(
+                        ClientCommandManager.literal("trigger")
+                                .then(
+                                        ClientCommandManager.literal("charDump")
+                                                .executes(DebugCommands::triggerCharDump))
+                                .then(
+                                        ClientCommandManager.literal("forceChecks")
+                                                .executes(DebugCommands::triggerForceChecks))
+                                .then(
+                                        ClientCommandManager.literal("tabDump")
+                                                .executes(
+                                                        ctx -> {
+                                                            TabDumpHandler.execute();
+                                                            return 1;
+                                                        }))
+                                .then(
+                                        ClientCommandManager.literal("bossBarsDump")
+                                                .executes(DebugCommands::triggerBossBarsDump))
+                                .then(
+                                        ClientCommandManager.literal("nametagsDump")
+                                                .executes(DebugCommands::triggerNametagsDump))
+                                .then(
+                                        ClientCommandManager.literal("ghostsPromptDump")
+                                                .executes(
+                                                        ctx -> {
+                                                            org.wynnvets.mwe.anni.aggressive
+                                                                    .GhostsPromptHandler
+                                                                    .debugDump();
+                                                            return 1;
+                                                        }))
+                                .then(
+                                        ClientCommandManager.literal("zoneLinesDump")
+                                                .executes(
+                                                        ctx -> {
+                                                            DebugCommands.triggerZoneLinesDump();
+                                                            return 1;
+                                                        }))
+                                .then(
+                                        ClientCommandManager.literal("rsvpDump")
+                                                .executes(
+                                                        ctx -> {
+                                                            org.wynnvets.mwe.anni.network
+                                                                    .AnniRsvpClient.debugDump();
+                                                            return 1;
+                                                        })))
+                // Subsystem trees nest under `tree` — they're neither toggles
+                // nor triggers, so they don't belong at the top level alongside
+                // `set` / `trigger`.
+                .then(
+                        ClientCommandManager.literal("tree")
+                                .then(AnniDebugCommands.buildCommandTree()));
     }
 
     // ── /wv debug set handlers ──────────────────────────────────────
@@ -147,18 +198,14 @@ public final class DebugCommands {
      * {@code /wv debug set} — lists all debug config keys and their current values.
      */
     private static int debugConfigList(CommandContext<FabricClientCommandSource> ctx) {
-        MutableComponent header = Component.literal("Debug Configuration:")
-            .withStyle(ChatFormatting.GOLD);
+        MutableComponent header =
+                Component.literal("Debug Configuration:").withStyle(ChatFormatting.GOLD);
         ChatUtils.sendLocalMessageNewBlock(header);
 
         for (String key : DebugConfigManager.DEBUG_CONFIG_KEYS) {
             boolean value = VetsConfig.get(key);
             ChatUtils.sendLocalMessage(
-                Component.literal("  " + key + " = ")
-                    .withStyle(ChatFormatting.GRAY)
-                    .append(Component.literal(String.valueOf(value))
-                        .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED))
-            );
+                    ConfigValueText.booleanLine(Form.LIST, key, Verb.EQUALS, value));
         }
         return 1;
     }
@@ -171,19 +218,14 @@ public final class DebugCommands {
 
         if (!DebugConfigManager.isDebugConfigKey(key)) {
             ChatUtils.sendLocalMessage(
-                Component.literal("Unknown debug config key: " + key)
-                    .withStyle(ChatFormatting.RED)
-            );
+                    Component.literal("Unknown debug config key: " + key)
+                            .withStyle(ChatFormatting.RED));
             return 0;
         }
 
         boolean value = VetsConfig.get(key);
         ChatUtils.sendLocalMessage(
-            Component.literal(key + " = ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(String.valueOf(value))
-                    .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED))
-        );
+                ConfigValueText.booleanLine(Form.SINGLE, key, Verb.EQUALS, value));
         return 1;
     }
 
@@ -196,17 +238,15 @@ public final class DebugCommands {
 
         if (!DebugConfigManager.isDebugConfigKey(key)) {
             ChatUtils.sendLocalMessage(
-                Component.literal("Unknown debug config key: " + key)
-                    .withStyle(ChatFormatting.RED)
-            );
+                    Component.literal("Unknown debug config key: " + key)
+                            .withStyle(ChatFormatting.RED));
             return 0;
         }
 
         if (!"true".equalsIgnoreCase(rawValue) && !"false".equalsIgnoreCase(rawValue)) {
             ChatUtils.sendLocalMessage(
-                Component.literal("Value must be 'true' or 'false'.")
-                    .withStyle(ChatFormatting.RED)
-            );
+                    Component.literal("Value must be 'true' or 'false'.")
+                            .withStyle(ChatFormatting.RED));
             return 0;
         }
 
@@ -214,11 +254,7 @@ public final class DebugCommands {
         VetsConfig.set(key, value);
 
         ChatUtils.sendLocalMessage(
-            Component.literal(key + " set to ")
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(String.valueOf(value))
-                    .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED))
-        );
+                ConfigValueText.booleanLine(Form.SINGLE, key, Verb.SET_TO, value));
         return 1;
     }
 
@@ -229,11 +265,19 @@ public final class DebugCommands {
      * PUA icon characters in the {@code chat/prefix} font.
      */
     private static final String PREFIX = "\uDAFF\uDFFC";
+
+    /**
+     * Tail appended after the icon character, so {@code PREFIX + icon + SUFFIX}
+     * spells a full badge sequence: {@link org.wynnvets.chat.Prepend Prepend}'s
+     * full {@code GUILD} badge is {@code PREFIX}, then {@code U+E006}, then this
+     * tail.
+     */
     private static final String SUFFIX = "\uDAFF\uDFFF\uE002\uDAFF\uDFFE";
 
-    private static final Style CHAT_PREFIX_FONT = Style.EMPTY
-            .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
-            .withoutShadow();
+    private static final Style CHAT_PREFIX_FONT =
+            Style.EMPTY
+                    .withFont(new FontDescription.Resource(Identifier.parse("chat/prefix")))
+                    .withoutShadow();
 
     /**
      * {@code /wv debug trigger charDump} — renders PUA characters U+E001
@@ -242,9 +286,8 @@ public final class DebugCommands {
      */
     private static int triggerCharDump(CommandContext<FabricClientCommandSource> ctx) {
         ChatUtils.sendLocalMessage(
-            Component.literal("PUA Icon Character Dump (U+E001 – U+E040)")
-                .withStyle(ChatFormatting.GOLD)
-        );
+                Component.literal("PUA Icon Character Dump (U+E001 – U+E040)")
+                        .withStyle(ChatFormatting.GOLD));
 
         // Print 8 characters per line
         for (int row = 0xE001; row <= 0xE040; row += 8) {
@@ -258,46 +301,48 @@ public final class DebugCommands {
 
                 // Label: "E001" etc.
                 String label = String.format("E%03X", cp & 0xFFF);
-                line.append(Component.literal(label + " ")
-                    .withStyle(ChatFormatting.GRAY));
+                line.append(Component.literal(label + " ").withStyle(ChatFormatting.GRAY));
 
                 // Render the icon in the resource pack font using the
                 // full badge sequence: PREFIX + icon char + SUFFIX
                 String iconSeq = PREFIX + (char) cp + SUFFIX;
-                line.append(Component.literal(iconSeq)
-                    .setStyle(CHAT_PREFIX_FONT));
+                line.append(Component.literal(iconSeq).setStyle(CHAT_PREFIX_FONT));
             }
 
             ChatUtils.sendLocalMessage(line);
         }
 
         ChatUtils.sendLocalMessage(
-            Component.literal("End of dump. Characters without glyphs will appear blank.")
-                .withStyle(ChatFormatting.GRAY)
-        );
+                Component.literal("End of dump. Characters without glyphs will appear blank.")
+                        .withStyle(ChatFormatting.GRAY));
         return 1;
     }
 
     /**
-     * {@code /wv debug trigger forceChecks} — forces a re-read of guild
-     * membership, rank, and staff status from the Wynntils API, reporting
-     * all current values to chat.
+     * {@code /wv debug trigger forceChecks} — reads guild membership and
+     * rank from Wynntils' {@code Models.Guild} and reports them to chat
+     * alongside vetsmod's own guild and staff state, then forces a
+     * staff-rank refresh and starts vetsmod's own {@code /gu stats} guild
+     * check (each skipped if one is already in flight). Delegates to
+     * {@link GuildDiagnostics#forceGuildRecheck()}.
      */
     private static int triggerForceChecks(CommandContext<FabricClientCommandSource> ctx) {
-        GuildStateManager.forceGuildRecheck();
+        GuildDiagnostics.forceGuildRecheck();
         return 1;
     }
 
     /**
      * {@code /wv debug trigger nametagsDump} — per-player diagnostic for the
-     * S4 nametag pipeline. For each nearby {@code AbstractClientPlayer},
-     * reports:
+     * S4 nametag pipeline. A header line reports the live
+     * {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker#isOutlineSuppressionActive()
+     * AnniOutlineTicker#isOutlineSuppressionActive()} flag and the anni nametag
+     * and outline toggles. Then, for each nearby {@code AbstractClientPlayer},
+     * it reports:
      * <ul>
      *   <li>their gameProfile username;</li>
-     *   <li>the live {@code AnniOutlineTicker.isOutlineSuppressionActive()} flag;</li>
      *   <li>whether {@link org.wynnvets.mwe.anni.outline.AnniOutlineRegistry} has
      *       an entry for them and the resolved tier / nametag {@link net.minecraft.ChatFormatting};</li>
-     *   <li>what colour the {@code NametagMixin} TAIL-of-{@code extractRenderState}
+     *   <li>what colour the {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} TAIL-of-{@code extractRenderState}
      *       branch <em>would</em> resolve to for them right now.</li>
      * </ul>
      * Used to verify whether the registry rebuild has actually picked up the
@@ -305,29 +350,33 @@ public final class DebugCommands {
      * {@code registry=miss}, the snapshot didn't land them in the active party.
      */
     private static int triggerNametagsDump(CommandContext<FabricClientCommandSource> ctx) {
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        net.minecraft.client.Minecraft mc = McUtils.mc();
         if (mc == null || mc.level == null) {
-            ChatUtils.sendLocalMessage(Component.literal(
-                    "nametagsDump: no client level (not in-game?)")
-                    .withStyle(ChatFormatting.RED));
+            ChatUtils.sendLocalMessage(
+                    Component.literal("nametagsDump: no client level (not in-game?)")
+                            .withStyle(ChatFormatting.RED));
             return 0;
         }
 
         boolean gate = org.wynnvets.mwe.anni.outline.AnniOutlineTicker.isOutlineSuppressionActive();
-        boolean nametagsEnabled = VetsConfig.get(VetsConfig.VETS_ANNI_NAMETAGS_ENABLED);
-        boolean outlinesEnabled = VetsConfig.get(VetsConfig.VETS_ANNI_OUTLINES_ENABLED);
+        boolean nametagsEnabled = VetsConfig.get(VetsConfigKeys.VETS_ANNI_NAMETAGS_ENABLED);
+        boolean outlinesEnabled = VetsConfig.get(VetsConfigKeys.VETS_ANNI_OUTLINES_ENABLED);
 
-        ChatUtils.sendLocalMessageNewBlock(Component.literal(
-                "S4 nametag dump — outlineSuppressionActive=" + gate
-                        + ", vetsAnniNametagsEnabled=" + nametagsEnabled
-                        + ", vetsAnniOutlinesEnabled=" + outlinesEnabled)
-                .withStyle(ChatFormatting.GOLD));
+        ChatUtils.sendLocalMessageNewBlock(
+                Component.literal(
+                                "S4 nametag dump — outlineSuppressionActive="
+                                        + gate
+                                        + ", vetsAnniNametagsEnabled="
+                                        + nametagsEnabled
+                                        + ", vetsAnniOutlinesEnabled="
+                                        + outlinesEnabled)
+                        .withStyle(ChatFormatting.GOLD));
 
         java.util.List<? extends net.minecraft.client.player.AbstractClientPlayer> players =
                 mc.level.players();
-        ChatUtils.sendLocalMessage(Component.literal(
-                "  " + players.size() + " player(s) in level:")
-                .withStyle(ChatFormatting.DARK_GRAY));
+        ChatUtils.sendLocalMessage(
+                Component.literal("  " + players.size() + " player(s) in level:")
+                        .withStyle(ChatFormatting.DARK_GRAY));
 
         for (net.minecraft.client.player.AbstractClientPlayer p : players) {
             String username = p.getGameProfile().name();
@@ -352,17 +401,29 @@ public final class DebugCommands {
                 fmtSource = "(gate off — no override)";
             }
 
-            MutableComponent line = Component.literal("  ")
-                    .append(Component.literal(username).withStyle(ChatFormatting.WHITE))
-                    .append(Component.literal("  registry=" + (entry != null ? "hit" : "miss"))
-                            .withStyle(entry != null ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY))
-                    .append(Component.literal("  tier=" + tier).withStyle(ChatFormatting.GRAY))
-                    .append(Component.literal("  role=" + role).withStyle(ChatFormatting.GRAY));
+            MutableComponent line =
+                    Component.literal("  ")
+                            .append(Component.literal(username).withStyle(ChatFormatting.WHITE))
+                            .append(
+                                    Component.literal(
+                                                    "  registry="
+                                                            + (entry != null ? "hit" : "miss"))
+                                            .withStyle(
+                                                    entry != null
+                                                            ? ChatFormatting.GREEN
+                                                            : ChatFormatting.DARK_GRAY))
+                            .append(
+                                    Component.literal("  tier=" + tier)
+                                            .withStyle(ChatFormatting.GRAY))
+                            .append(
+                                    Component.literal("  role=" + role)
+                                            .withStyle(ChatFormatting.GRAY));
             if (fmt != null) {
                 line.append(Component.literal("  → ").withStyle(ChatFormatting.DARK_GRAY))
                         .append(Component.literal(username).withStyle(fmt))
-                        .append(Component.literal("  (" + fmt.getName() + " via " + fmtSource + ")")
-                                .withStyle(ChatFormatting.DARK_GRAY));
+                        .append(
+                                Component.literal("  (" + fmt.getName() + " via " + fmtSource + ")")
+                                        .withStyle(ChatFormatting.DARK_GRAY));
             } else {
                 line.append(Component.literal("  → ").withStyle(ChatFormatting.DARK_GRAY))
                         .append(Component.literal(fmtSource).withStyle(ChatFormatting.DARK_GRAY));
@@ -376,14 +437,15 @@ public final class DebugCommands {
      * {@code /wv debug trigger bossBarsDump} — snapshot of vanilla's
      * {@code BossHealthOverlay#events} map.
      *
-     * <p>Reaches into the private map via
+     * <p>Reaches into the package-private map via
      * {@link org.wynnvets.mixin.client.accessors.BossHealthOverlayAccessor}
-     * (the same accessor the synthetic anni bar uses) and renders one chat
-     * line per entry plus a header summarising our own state. Each line
-     * shows the iteration index, a truncated UUID, the bar's {@code color}
-     * and {@code overlay}, its current lerped {@code progress}, the
-     * darken/music/fog flags, the raw name component (so PUA glyphs are
-     * visible), and an {@code ← OURS} marker on the synthetic anni bar.
+     * (the same accessor the synthetic anni bar uses) and renders a header
+     * giving the entry count and our own bar's active flag, then three
+     * chat lines per entry: the iteration index (tagged {@code [SLOT-1]} at
+     * index 0), a truncated UUID and an {@code ← OURS} marker on the
+     * synthetic anni bar; the bar's {@code color} and {@code overlay}, its
+     * current lerped {@code progress} and the darken/music/fog flags; and
+     * the raw name component (so PUA glyphs are visible).
      *
      * <p>Goal: diagnose the "first-slot bar visual disappears" Wynncraft
      * quirk. The dump shows whether ours is at iteration index 0
@@ -394,43 +456,53 @@ public final class DebugCommands {
         java.util.UUID ourUuid = org.wynnvets.mwe.anni.bossbar.VetsBossBarManager.barUuid();
         boolean ourActive = org.wynnvets.mwe.anni.bossbar.VetsBossBarManager.isActive();
 
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        net.minecraft.client.Minecraft mc = McUtils.mc();
         net.minecraft.client.gui.components.BossHealthOverlay overlay =
                 (mc != null && mc.gui != null) ? mc.gui.getBossOverlay() : null;
         if (overlay == null) {
-            ChatUtils.sendLocalMessage(Component.literal(
-                    "bossBarsDump: no BossHealthOverlay (mc.gui not initialised)")
-                    .withStyle(ChatFormatting.RED));
+            ChatUtils.sendLocalMessage(
+                    Component.literal("bossBarsDump: no BossHealthOverlay (mc.gui not initialised)")
+                            .withStyle(ChatFormatting.RED));
             return 0;
         }
 
         java.util.Map<java.util.UUID, net.minecraft.client.gui.components.LerpingBossEvent> events;
         try {
-            events = ((org.wynnvets.mixin.client.accessors.BossHealthOverlayAccessor)
-                    (Object) overlay).getEvents();
+            events =
+                    ((org.wynnvets.mixin.client.accessors.BossHealthOverlayAccessor)
+                                    (Object) overlay)
+                            .getEvents();
         } catch (ClassCastException e) {
-            ChatUtils.sendLocalMessage(Component.literal(
-                    "bossBarsDump: BossHealthOverlayAccessor mixin not applied (" + e.getMessage() + ")")
-                    .withStyle(ChatFormatting.RED));
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    "bossBarsDump: BossHealthOverlayAccessor mixin not applied ("
+                                            + e.getMessage()
+                                            + ")")
+                            .withStyle(ChatFormatting.RED));
             return 0;
         }
 
-        ChatUtils.sendLocalMessageNewBlock(Component.literal(
-                "BossHealthOverlay events dump — " + events.size() + " entr"
-                        + (events.size() == 1 ? "y" : "ies")
-                        + ", VetsBossBarManager.isActive=" + ourActive)
-                .withStyle(ChatFormatting.GOLD));
+        ChatUtils.sendLocalMessageNewBlock(
+                Component.literal(
+                                "BossHealthOverlay events dump — "
+                                        + events.size()
+                                        + " entr"
+                                        + (events.size() == 1 ? "y" : "ies")
+                                        + ", VetsBossBarManager.isActive="
+                                        + ourActive)
+                        .withStyle(ChatFormatting.GOLD));
 
         if (events.isEmpty()) {
-            ChatUtils.sendLocalMessage(Component.literal(
-                    "  (no boss bars currently tracked)")
-                    .withStyle(ChatFormatting.DARK_GRAY));
+            ChatUtils.sendLocalMessage(
+                    Component.literal("  (no boss bars currently tracked)")
+                            .withStyle(ChatFormatting.DARK_GRAY));
             return 1;
         }
 
         int idx = 0;
-        for (java.util.Map.Entry<java.util.UUID, net.minecraft.client.gui.components.LerpingBossEvent> entry
-                : events.entrySet()) {
+        for (java.util.Map.Entry<
+                        java.util.UUID, net.minecraft.client.gui.components.LerpingBossEvent>
+                entry : events.entrySet()) {
             net.minecraft.client.gui.components.LerpingBossEvent ev = entry.getValue();
             java.util.UUID uuid = entry.getKey();
             String uuidShort = uuid.toString().substring(0, 8);
@@ -439,29 +511,41 @@ public final class DebugCommands {
             String oursMark = isOurs ? "  ← OURS" : "";
 
             // Header line: index + UUID + flags
-            MutableComponent header = Component.literal("#" + idx + slotMark)
-                    .withStyle(isOurs ? ChatFormatting.AQUA : ChatFormatting.WHITE)
-                    .append(Component.literal(" uuid=" + uuidShort)
-                            .withStyle(ChatFormatting.DARK_GRAY))
-                    .append(Component.literal(oursMark)
-                            .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
+            MutableComponent header =
+                    Component.literal("#" + idx + slotMark)
+                            .withStyle(isOurs ? ChatFormatting.AQUA : ChatFormatting.WHITE)
+                            .append(
+                                    Component.literal(" uuid=" + uuidShort)
+                                            .withStyle(ChatFormatting.DARK_GRAY))
+                            .append(
+                                    Component.literal(oursMark)
+                                            .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
             ChatUtils.sendLocalMessage(header);
 
             // Properties line: color, overlay, progress, flags
             ChatUtils.sendLocalMessage(
-                    Component.literal("    color=" + ev.getColor().name()
-                            + "  overlay=" + ev.getOverlay().name()
-                            + "  progress=" + String.format(java.util.Locale.ROOT, "%.4f", ev.getProgress())
-                            + "  darken=" + ev.shouldDarkenScreen()
-                            + "  music=" + ev.shouldPlayBossMusic()
-                            + "  fog=" + ev.shouldCreateWorldFog())
+                    Component.literal(
+                                    "    color="
+                                            + ev.getColor().name()
+                                            + "  overlay="
+                                            + ev.getOverlay().name()
+                                            + "  progress="
+                                            + String.format(
+                                                    java.util.Locale.ROOT, "%.4f", ev.getProgress())
+                                            + "  darken="
+                                            + ev.shouldDarkenScreen()
+                                            + "  music="
+                                            + ev.shouldPlayBossMusic()
+                                            + "  fog="
+                                            + ev.shouldCreateWorldFog())
                             .withStyle(ChatFormatting.GRAY));
 
             // Name as raw component (so PUA / negative-width glyphs render
             // verbatim — if Wynncraft is using bar-suppressing glyphs in
             // the name, they show up here).
             ChatUtils.sendLocalMessage(
-                    Component.literal("    name= ").withStyle(ChatFormatting.DARK_GRAY)
+                    Component.literal("    name= ")
+                            .withStyle(ChatFormatting.DARK_GRAY)
                             .append(ev.getName().copy()));
 
             idx++;
@@ -478,28 +562,35 @@ public final class DebugCommands {
      */
     private static void triggerZoneLinesDump() {
         boolean aggro = org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker.isAggressiveActive();
-        boolean toggle = org.wynnvets.config.VetsConfig.get(
-                org.wynnvets.config.VetsConfig.VETS_ANNI_ZONE_LINES);
+        boolean toggle =
+                org.wynnvets.config.VetsConfig.get(
+                        org.wynnvets.config.VetsConfigKeys.VETS_ANNI_ZONE_LINES);
         boolean cold = org.wynnvets.mwe.anni.zone.AnniZone.isCold();
         java.util.List<org.wynnvets.mwe.anni.zone.AnniZone.Disc> discs =
                 org.wynnvets.mwe.anni.zone.AnniZone.getDiscs();
 
-        ChatUtils.sendLocalMessageNewBlock(Component.literal(
-                "AnniZoneLineRenderer dump — aggressive_active=" + aggro
-                        + " toggle_on=" + toggle
-                        + " zone_cold=" + cold
-                        + " discs=" + discs.size())
-                .withStyle(ChatFormatting.GOLD));
+        ChatUtils.sendLocalMessageNewBlock(
+                Component.literal(
+                                "AnniZoneLineRenderer dump — aggressive_active="
+                                        + aggro
+                                        + " toggle_on="
+                                        + toggle
+                                        + " zone_cold="
+                                        + cold
+                                        + " discs="
+                                        + discs.size())
+                        .withStyle(ChatFormatting.GOLD));
 
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        net.minecraft.client.Minecraft mc = McUtils.mc();
         net.minecraft.client.player.LocalPlayer player = mc != null ? mc.player : null;
         double px = player != null ? player.getX() : 0.0;
         double pz = player != null ? player.getZ() : 0.0;
 
         if (discs.isEmpty()) {
-            ChatUtils.sendLocalMessage(Component.literal(
-                    "  (no discs cached — anni event missing from world-events API?)")
-                    .withStyle(ChatFormatting.DARK_GRAY));
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    "  (no discs cached — anni event missing from world-events API?)")
+                            .withStyle(ChatFormatting.DARK_GRAY));
             return;
         }
 
@@ -508,10 +599,12 @@ public final class DebugCommands {
             double dx = px - disc.x();
             double dz = pz - disc.z();
             double distSq = dx * dx + dz * dz;
-            ChatUtils.sendLocalMessage(Component.literal(
-                    String.format("  [%d] centre=(%.0f,%.0f) r=%.0f distSq=%.0f",
-                            i, disc.x(), disc.z(), disc.radius(), distSq))
-                    .withStyle(ChatFormatting.GRAY));
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    String.format(
+                                            "  [%d] centre=(%.0f,%.0f) r=%.0f distSq=%.0f",
+                                            i, disc.x(), disc.z(), disc.radius(), distSq))
+                            .withStyle(ChatFormatting.GRAY));
             i++;
         }
     }

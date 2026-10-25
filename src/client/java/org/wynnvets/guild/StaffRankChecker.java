@@ -2,6 +2,7 @@ package org.wynnvets.guild;
 
 import com.wynntils.core.components.Handlers;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -9,12 +10,13 @@ import org.wynnvets.logging.VetsLogger;
  * to the Wynncraft server and parsing the response.
  *
  * <p>Staff status is persisted across sessions via {@link VetsConfig} and
- * refreshed once per day (controlled by {@link #STAFF_CHECK_COOLDOWN}).
- * The check runs asynchronously on a background thread with render-thread
- * round-trips to send the command and receive the response.</p>
+ * refreshed once per day (controlled by {@link #STAFF_CHECK_COOLDOWN_MS}).
+ * The check queues {@code /gu rank} through Wynntils' command queue and completes when
+ * {@link #processMessage(String)} sees the reply in chat, or times out.</p>
  *
- * <p>This class is package-private and accessed exclusively through
- * {@link GuildStateManager}'s facade methods.</p>
+ * <p>This class is package-private. Outside the package it is reached through
+ * {@link GuildStateManager}'s facade methods; {@link GuildLifecycle} also calls
+ * {@link #reset()} directly.</p>
  */
 final class StaffRankChecker {
 
@@ -68,8 +70,7 @@ final class StaffRankChecker {
      */
     static boolean isProcessingModStaffRankCheck() {
         if (isModInitiatedStaffRankCheck) return true;
-        return staffRankSuppressUntil > 0
-                && System.currentTimeMillis() < staffRankSuppressUntil;
+        return staffRankSuppressUntil > 0 && System.currentTimeMillis() < staffRankSuppressUntil;
     }
 
     // ── Lifecycle ──────────────────────────────────────────────────────
@@ -79,11 +80,11 @@ final class StaffRankChecker {
      * {@link VetsConfig}.
      */
     static void loadPersistedState() {
-        isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
-        long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
+        isStaff = VetsConfig.get(VetsConfigKeys.VETS_IS_STAFF);
+        long persistedCheckTime = VetsConfig.getLong(VetsConfigKeys.VETS_LAST_STAFF_CHECK);
         long now = System.currentTimeMillis();
-        lastStaffCheckTime = (persistedCheckTime >= 0 && persistedCheckTime <= now)
-                ? persistedCheckTime : 0;
+        lastStaffCheckTime =
+                (persistedCheckTime >= 0 && persistedCheckTime <= now) ? persistedCheckTime : 0;
     }
 
     /**
@@ -92,11 +93,11 @@ final class StaffRankChecker {
      */
     static void reset() {
         staffRankSuppressUntil = 0;
-        isStaff = VetsConfig.get(VetsConfig.VETS_IS_STAFF);
-        long persistedCheckTime = VetsConfig.getLong(VetsConfig.VETS_LAST_STAFF_CHECK);
+        isStaff = VetsConfig.get(VetsConfigKeys.VETS_IS_STAFF);
+        long persistedCheckTime = VetsConfig.getLong(VetsConfigKeys.VETS_LAST_STAFF_CHECK);
         long now = System.currentTimeMillis();
-        lastStaffCheckTime = (persistedCheckTime >= 0 && persistedCheckTime <= now)
-                ? persistedCheckTime : 0;
+        lastStaffCheckTime =
+                (persistedCheckTime >= 0 && persistedCheckTime <= now) ? persistedCheckTime : 0;
         waitingForStaffRankCheck = false;
         isModInitiatedStaffRankCheck = false;
         staffRankRequestTime = 0;
@@ -117,8 +118,8 @@ final class StaffRankChecker {
         }
 
         long now = System.currentTimeMillis();
-        boolean hasRecentCheck = lastStaffCheckTime > 0
-                && (now - lastStaffCheckTime) < STAFF_CHECK_COOLDOWN_MS;
+        boolean hasRecentCheck =
+                lastStaffCheckTime > 0 && (now - lastStaffCheckTime) < STAFF_CHECK_COOLDOWN_MS;
         if (!forceRefresh && hasRecentCheck) {
             return false;
         }
@@ -165,12 +166,12 @@ final class StaffRankChecker {
 
     private static void setStaffStatus(boolean value) {
         isStaff = value;
-        VetsConfig.set(VetsConfig.VETS_IS_STAFF, value);
+        VetsConfig.set(VetsConfigKeys.VETS_IS_STAFF, value);
     }
 
     private static void markStaffCheckCompletedNow() {
         lastStaffCheckTime = System.currentTimeMillis();
-        VetsConfig.setLong(VetsConfig.VETS_LAST_STAFF_CHECK, lastStaffCheckTime);
+        VetsConfig.setLong(VetsConfigKeys.VETS_LAST_STAFF_CHECK, lastStaffCheckTime);
     }
 
     private static void completeCheck() {
@@ -194,7 +195,8 @@ final class StaffRankChecker {
         VetsLogger.debug("Staff rank check queued via Wynntils command queue");
     }
 
-    private static boolean isStaffRankUnauthorizedResponse(String message) {
+    // Package-private for unit tests. See StaffRankCheckerTest.
+    static boolean isStaffRankUnauthorizedResponse(String message) {
         if (message == null) return false;
         String lower = message.toLowerCase();
         return lower.contains("you must be a")
@@ -202,10 +204,10 @@ final class StaffRankChecker {
                 && lower.contains("to use this command");
     }
 
-    private static boolean isStaffRankAuthorizedResponse(String message) {
+    // Package-private for unit tests. See StaffRankCheckerTest.
+    static boolean isStaffRankAuthorizedResponse(String message) {
         if (message == null) return false;
         String lower = message.toLowerCase();
-        return lower.contains("invalid arguments, try:")
-                && lower.contains("rank [name] [rank]");
+        return lower.contains("invalid arguments, try:") && lower.contains("rank [name] [rank]");
     }
 }

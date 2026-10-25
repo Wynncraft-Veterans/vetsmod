@@ -1,6 +1,6 @@
 ---
 name: vetsmod PUA Rank Pills
-description: The Private Use Area encodings behind rank pills — Wynncraft's server pill (decode) and vetsmod's two output styles (encode), plus the PillCodec library
+description: The Private Use Area encodings behind rank pills — Wynncraft's server pill (decode), vetsmod's two output styles (encode), the custom-glyph predicate, and the PillCodec library
 type: project
 originSessionId: 5b71a342-5c81-487a-99a2-c1687c7d995d
 ---
@@ -17,13 +17,14 @@ Everything below is implemented there; prefer it over hand-rolling sequences.
 
 ## Codepoint meaning is frame-scoped
 
-There is one glyph page in Wynncraft's resource pack, and **a codepoint in it
-means nothing on its own** — only its position inside a framed sequence gives
-it a meaning. `U+E003` is the private-message separator, `U+E006` and `U+E002`
-are guild badge glyphs, `U+E010`/`U+E011` are frame pieces — and all of them
-sit inside the same `U+E000` block that spells lowercase letters inside a rank
-pill. In the captured logs `U+E003` alone appears 25,432 times, none of them as
-the letter `d`.
+A codepoint in Wynncraft's resource pack **means nothing on its own** — only
+its font and its position inside a framed sequence give it a meaning (these
+glyphs come from more than one font; see "Fonts — a correction" below).
+`U+E003` is the private-message separator, `U+E006` and `U+E002` are guild
+badge glyphs, `U+E010`/`U+E011` are frame pieces — and all of them sit inside
+the same `U+E000` block that spells lowercase letters inside a rank pill. In the
+captured logs `U+E003` alone appears 25,432 times, none of them as the letter
+`d`.
 
 Decode from the frame inward. Never map a bare codepoint to a character.
 
@@ -108,9 +109,13 @@ traffic.
 
 `PillCodec.encodeRemote(label) -> String`
 
-A light label on a dark rounded field. Used for anything that reached the
-player over vetsmod's WebSocket rather than through Wynncraft's guild channel:
-bridge, honourary, and queue messages.
+A light label on a dark rounded field. Used for chat that travels over
+vetsmod's WebSocket rather than through Wynncraft's guild channel: the relayed
+lines `OutboundDisplayHandler` renders as ordinary chat, and the local echo of
+a line a queued Returner sends. Today `EncourageUpdateRewriter` also uses it
+for a line that arrived through the guild channel, and both that rewrite and
+the queued echo put the sender's raw rank in the pill rather than a display
+label (bug `raw-rank-pills-bypass-display-remap`).
 
 ```
 U+E06B                  frame open
@@ -132,7 +137,8 @@ rank that arrived pre-encoded (waitlist and honourary self-messages do).
 A dark label on a light rounded field, matching Wynncraft's own guild pill and
 the `[Vetsmod]` pill in `/wv help`. Used when rewriting chat that genuinely
 arrived through Wynncraft's guild channel, so the rewrite doesn't visually
-announce itself as mod output.
+announce itself as mod output, and for the `/v` staff-channel pill
+(`ChatUtils.buildStaffPillComponent`).
 
 ```
 U+E010 U+2064                        frame open
@@ -150,6 +156,42 @@ pre-encoded input through the way `encodeRemote` does.
 
 `U+E00F` and `U+E012` are frame pieces here while being `p` and `s` inside a
 server rank pill — the frame-scoping rule at the top of this doc, in practice.
+
+## Is this codepoint glyph art? — `PillCodec.isCustomGlyph`
+
+`PillCodec` is also the authority on the narrower question that comes *before*
+decoding: is this codepoint drawn by the resource pack rather than by the font?
+
+```java
+type == PRIVATE_USE || (type == UNASSIGNED && cp > 0xFFFF)
+```
+
+Two classes qualify. The PUA is where the pill and badge glyphs live. The
+**supplementary** unassigned planes are where the width markers, kern markers
+and the pill terminator live — the sequences above show all three.
+
+**The `> 0xFFFF` bound is the load-bearing half.** Unassigned codepoints inside
+the BMP (U+0378, say) turn up in ordinary text; Wynncraft's markers never do.
+Drop the bound and a plain chat line acquires a rank indicator it never had, or
+loses a character to a strip that should have left it alone.
+
+Six callers: `GuildChatLine.rankIndicatorEnd`,
+`EncourageUpdateRewriter.stripWrapArtifacts`,
+`OutboundDisplayHandler.normalizeBridgeDedup`,
+`PillFormatter.containsCustomFontGlyph`,
+`WynntilsEventListener.stripPuaCharacters`, `GradientTextBuilder`.
+
+**Three sites test `PRIVATE_USE` and deliberately do not call it.** Each carries
+the reason at its own declaration; the short version:
+
+| Site | How it differs | Why |
+|---|---|---|
+| `PillCodec.isEncoded` | `PRIVATE_USE` only, no `UNASSIGNED` clause | It gates `encodeRemote`'s passthrough. The width marker and terminator are UNASSIGNED, so widening it makes `encodeRemote` read a label carrying either as already encoded and hand it back raw |
+| `FindDispatcher.stripFormattingAndPua` | adds `SURROGATE`, `FORMAT`; `UNASSIGNED` unbounded | It normalises a `/find` response down to prose before matching. Nothing downstream reads a codepoint, so stripping more is the point |
+| `MessageFanoutDispatcher.normalizeForEchoComparison` | adds `CONTROL`, `FORMAT`, `SURROGATE`, unbounded `UNASSIGNED`, `isWhitespace` | The server's echo comes back re-wrapped, re-spaced and re-badged; anything invisible has to go before the two sides compare at all |
+
+Read as a sweep that missed three sites, this table is the correction — which
+is how an earlier audit came to claim eleven copies of one predicate.
 
 ## Evidence
 
@@ -174,8 +216,10 @@ Both vetsmod styles render in the **default font**, relying on Wynncraft's
 resource pack to supply the PUA glyphs. No font override is applied anywhere on
 the pill path.
 
-`ChatUtils.CHAT_PREFIX_STYLE` (the named `chat/prefix` font) is used only for
-badges and continuation markers. The server's own pill uses `banner/pill`,
+The named `chat/prefix` font draws the badges, in styles of their own (`Prepend`'s,
+and `StaffGuildAlertRewriter`'s for the staff alert), and the inline separator and
+continuation markers, in `MessageBodyFormatter.CHAT_PREFIX_STYLE`. The server's own
+pill uses `banner/pill`,
 which `ServerGuildChatRewriter` does reference when it extracts pill fragments
 from an incoming component tree. Several older docstrings loosely attribute
 *vetsmod's* pills to `chat/prefix`; that isn't what the code does.
@@ -203,11 +247,19 @@ broke, but it would have if Chief and Owner ever got separate display labels.)
 
 ## Testing
 
-`PillCodec` imports `net.minecraft.*` for `encodeLocal`, so per the rule in
-[CLAUDE.md](CLAUDE.md) it stays out of the JUnit harness. `decodeServerPill`
-and `encodeRemote` are pure string logic and were verified against the six real
-sequences out-of-band. If the pure half ever needs harness coverage, split it
-into a Minecraft-free class rather than relaxing that rule.
+`PillCodecTest` covers all five entry points, `encodeLocal` and `isCustomGlyph` included. There is
+no rule against `net.minecraft` imports in the harness — [CLAUDE.md](CLAUDE.md)
+says the opposite, and `build.gradle` deliberately puts the client compile
+classpath on the test source set so tests can build real `Component`/`Style`
+objects. (An earlier version of this paragraph claimed such a rule and
+attributed it to CLAUDE.md; that attribution was never true.) The limit is
+runtime, not imports: a test cannot boot Minecraft, and Wynntils is
+`modCompileOnly` and absent at test runtime.
+
+The test writes every codepoint numerically rather than pasting the glyphs. The
+sequences are invisible in an editor, and reading them back from `PillCodec`'s
+own private fields would make the test pass through any renumbering of a format
+Wynncraft owns.
 
 ## Related
 

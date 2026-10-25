@@ -4,7 +4,7 @@ Drop one-off task notes, hand-off instructions, or short-lived work artifacts he
 
 ## What goes in `ephemeral/`
 
-- Task briefs the user pasted in for a specific piece of work (e.g. [auth_deployment_instructions.md](auth_deployment_instructions.md) — the original rollout runbook for the `/vetsmod` + `/unlock` flow).
+- Task briefs the user pasted in for a specific piece of work — e.g. a one-off rollout runbook for a deploy that has since happened.
 - Step-by-step rollout / migration runbooks tied to a single deploy.
 - Investigation notes that captured something useful at the time but won't be relevant in three months.
 

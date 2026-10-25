@@ -1,30 +1,33 @@
 # Memory Index
 
 ## Project overviews
-- [Project Overview](project_overview.md) — 5-repo Wynncraft Veterans ecosystem: vetsmod, temporary-server, dazebot, auth-stack, vets-deploy
+- [Project Overview](project_overview.md) — 6-repo Wynncraft Veterans ecosystem: vetsmod, temporary-server, dazebot, auth-stack, vets-deploy, vets-anni
 - [User Profile](user_profile.md) — Developer maintaining the full ecosystem
 
 ## vetsmod (Fabric client mod — Java)
 - [vetsmod Architecture](project_vetsmod.md) — Entry points, package map, WebSocket protocol, user tiers, Wynntils integration summary
 - [Chat Pipeline](vetsmod_chat_pipeline.md) — ChatLogMixin hook, rewriter chain (5 rewriters), dispatcher (staff fanout + /find), OutboundDisplayHandler, PillFormatter, SpoilerCodec, state/caches
-- [Commands Reference](vetsmod_commands.md) — Complete /wv command tree, permissions, handlers, chat-command mixins (/unlock <key>, /g/wg/v)
-- [Guild / Unlock / Staff-Rank System](vetsmod_guild_system.md) — GuildStateManager facade, GuildChecker (3-day cache), StaffRankChecker (24h cache), UnlockManager (bearer-key auth, replaces SHA-256), SessionAuthWarning
+- [Commands Reference](vetsmod_commands.md) — Index of the command surface: the /wv tree and root /motd, the intercepted chat commands (/unlock and GuildChatDispatcher's prefixes: /g, /wg, /v, /a, /encourage, /wv check, the caution family, /gu and /guild invite), the dump key and click buttons; gates, handlers, bugs
+- [Guild / Unlock / Staff-Rank System](vetsmod_guild_system.md) — GuildStateManager facade, GuildLifecycle (world join, disconnect reset), GuildChecker (3-day cache), StaffRankChecker (24h cache), UnlockManager (bearer-key auth, replaces SHA-256), SessionAuthWarning
 - [Config Reference](vetsmod_config.md) — All config keys (internal + user-facing) including new vetsAuth* fields, defaults, validation, persistence format
-- [Networking (WebSocket + Fetchers + Polling)](vetsmod_networking.md) — V1ApiManager (incl. sendAuth + auth-ack routing), WsClient reconnection/ping, on-demand HTTP fetchers, polling services
-- [Legacy Items System](project_legacy_items.md) — 7-branch detection cascade, 8-branch tooltip rewriter, YAML definitions, mixins, config, edge cases
-- [Mixins Reference](vetsmod_mixins.md) — All 10 mixins: target class, inject point, purpose, rationale (UnlockCommandMixin intercepts `/unlock <key>`; QueueTitleMixin/CommandSuggestionsMixin handle queue UX)
-- [Queue subsystem](project_vetsmod.md#queue) — `org.wynnvets.queue` package + how the `queue` chat type routes guild messages while the game server drops `/g`
-- [Rendering System](vetsmod_rendering.md) — Territory lines, NametagAnimator, AnimatedGradientSequence, GradientTextBuilder, ShaderColorPalette
+- [Networking (WebSocket + Fetchers + Polling)](vetsmod_networking.md) — V1ApiManager (incl. sendAuth; frame builders in V1Frames; auth-ack routing in InboundAckRouter), WsClient reconnection/ping, on-demand HTTP fetchers, polling services
+- [Legacy Items System](project_legacy_items.md) — 8-branch detection cascade, 9-branch tooltip rewriter, YAML definitions, mixins, config, edge cases
+- [Mixins Reference](vetsmod_mixins.md) — All 14 registered entries (13 mixins + 1 accessor): target class, inject point, purpose, rationale (UnlockCommandMixin intercepts `/unlock <key>`; QueueTitleMixin/CommandSuggestionsMixin handle queue UX)
+- [Queue subsystem](project_vetsmod.md) — `org.wynnvets.queue` package + how the `queue` chat type routes guild messages while the game server drops `/g`. Covered by that doc's `org.wynnvets.queue` bullet; it carries no headings, so there is no anchor to link.
+- [Rendering System](vetsmod_rendering.md) — Territory lines, NametagAnimator, AnimatedGradientSequence, GradientTextBuilder, ShaderColorPalette, and the render-pipeline lessons (sprite overrides, gate flags, Gizmos, MarkerProvider/beacon lifecycle)
+- [MWE / Annihilation](vetsmod_mwe_anni.md) — The whole `mwe/anni/` subsystem: snapshot cache, mode gates, boss bar, outlines and nametags, zone lines, scroll-spot waypoint, RSVP, party back-report, one complete config-key table and one complete `/wv debug tree anni` harness listing
+- [PUA Rank Pills](vetsmod_pua_pills.md) — How invisible PUA rank pills are framed and decoded, why a codepoint's meaning is frame-scoped, and `PillCodec` as the single encode/decode authority
+- [Guild Resource Distribution](vetsmod_distribute.md) — /wv distribute, the Manage-Members GUI automation state machine, the five modes, the NoAspects opt-out, front-of-queue command reflection
 
 ## temporary-server (FastAPI Python backend)
-- [temporary-server Architecture](project_server.md) — Stack, four pillars (incl. dazebot HTTP introspection), file structure, REST endpoints, dedup summary, Discord admin commands
+- [temporary-server Architecture](project_server.md) — Stack, three pillars plus the auxiliary dazebot HTTP introspection client, file structure (every service module), REST endpoints, dedup summary, Discord command surface
 - [API Reference](server_api_reference.md) — /v1/inbound WS (incl. auth frame + tier gate), /v1/outbound WS (incl. server_info hello + tier filter), all REST endpoints, admin toggles, protocol details, TTLs
-- [Deduplication Engine](server_dedup_engine.md) — Fingerprinting, 4 matching strategies (exact/prefix/truncation/cross-user), alias TTL, cleanup, edge cases
+- [Deduplication Engine](server_dedup_engine.md) — Fingerprinting, 4 matching strategies (exact/prefix/truncation/cross-user) plus the no-match fallthrough that records and accepts, the 35s window, alias TTL, cleanup, edge cases
 - [Discord Bot](server_discord_bot.md) — Bridge routing, role→rank mapping, all admin commands incl. `unauth` toggle, !list, staff alert relay, mention resolution, sanitization
-- [Services Layer](server_services.md) — AppState fields (incl. authenticated_sessions), StaffPoller (5min + 10s probe), GuildRosterPoller, username_cache (12h TTL), recorder (120s → DM), config loader
+- [Services Layer](server_services.md) — AppState fields (incl. `authenticated_sessions`), StaffPoller (5min + 10s probe), GuildRosterPoller, username_cache (caller-supplied TTL), recorder (120s → DM), config loader, the nine lifespan tasks, and the poller shape (no shared base class)
 
 ## Wynntils (read-only dependency)
 - [Wynntils API Reference](project_wynntils.md) — Events (with field layouts), Handlers.Command, Models.Guild, StyledText, McUtils, event priority system, import paths
 
 ## Cross-repo / ops
-- [Auth deployment instructions](temporary-ephemeral/auth_deployment_instructions.md) — Step-by-step rollout for the `/vetsmod` + `/unlock` flow on the vets-deploy stack (ephemeral)
+- [Ephemeral notes](ephemeral/README.md) — What belongs in `.claude/ephemeral/` and its age-out policy

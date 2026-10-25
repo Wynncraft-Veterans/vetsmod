@@ -21,8 +21,21 @@ jobs:
           distribution: 'microsoft'
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
+      - name: format and javadoc gates
+        run: ./gradlew spotlessCheck compileJava compileClientJava compileTestJava
       - name: build
         run: ./gradlew build
+      # Only runs on a red build. The `build` step above already fails the
+      # job; this makes a test failure legible without re-running it locally.
+      - name: capture test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Test reports
+          path: |
+            build/reports/tests/
+            build/test-results/
+          if-no-files-found: ignore
       - name: capture build artifacts
         uses: actions/upload-artifact@v4
         with:

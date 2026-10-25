@@ -19,54 +19,54 @@ public final class NamedColor {
         var c = new LinkedHashMap<String, Integer>();
 
         // Minecraft formatting colours (§ codes)
-        c.put("black",        0x000000);
-        c.put("dark_blue",    0x0000AA);
-        c.put("dark_green",   0x00AA00);
-        c.put("dark_aqua",    0x00AAAA);
-        c.put("dark_red",     0xAA0000);
-        c.put("dark_purple",  0xAA00AA);
-        c.put("gold",         0xFFAA00);
-        c.put("gray",         0xAAAAAA);
-        c.put("dark_gray",    0x555555);
-        c.put("blue",         0x5555FF);
-        c.put("green",        0x55FF55);
-        c.put("aqua",         0x55FFFF);
-        c.put("red",          0xFF5555);
+        c.put("black", 0x000000);
+        c.put("dark_blue", 0x0000AA);
+        c.put("dark_green", 0x00AA00);
+        c.put("dark_aqua", 0x00AAAA);
+        c.put("dark_red", 0xAA0000);
+        c.put("dark_purple", 0xAA00AA);
+        c.put("gold", 0xFFAA00);
+        c.put("gray", 0xAAAAAA);
+        c.put("dark_gray", 0x555555);
+        c.put("blue", 0x5555FF);
+        c.put("green", 0x55FF55);
+        c.put("aqua", 0x55FFFF);
+        c.put("red", 0xFF5555);
         c.put("light_purple", 0xFF55FF);
-        c.put("yellow",       0xFFFF55);
-        c.put("white",        0xFFFFFF);
+        c.put("yellow", 0xFFFF55);
+        c.put("white", 0xFFFFFF);
 
         // Wynntils rarity highlights
-        c.put("unique",       0xFFFF00);
-        c.put("rare",         0xFF00FF);
-        c.put("legendary",    0x00FFFF);
-        c.put("fabled",       0xFF5555);
-        c.put("mythic",       0x4C004C);
-        c.put("crafted",      0x008A8A);
+        c.put("unique", 0xFFFF00);
+        c.put("rare", 0xFF00FF);
+        c.put("legendary", 0x00FFFF);
+        c.put("fabled", 0xFF5555);
+        c.put("mythic", 0x4C004C);
+        c.put("crafted", 0x008A8A);
 
         // Common CSS colours
-        c.put("orange",       0xFFA500);
-        c.put("cyan",         0x00FFFF);
-        c.put("magenta",      0xFF00FF);
-        c.put("pink",         0xFFC0CB);
-        c.put("lime",         0x00FF00);
-        c.put("teal",         0x008080);
-        c.put("coral",        0xFF7F50);
-        c.put("salmon",       0xFA8072);
-        c.put("crimson",      0xDC143C);
-        c.put("indigo",       0x4B0082);
-        c.put("violet",       0xEE82EE);
-        c.put("turquoise",    0x40E0D0);
-        c.put("silver",       0xC0C0C0);
-        c.put("maroon",       0x800000);
-        c.put("navy",         0x000080);
-        c.put("olive",        0x808000);
+        c.put("orange", 0xFFA500);
+        c.put("cyan", 0x00FFFF);
+        c.put("magenta", 0xFF00FF);
+        c.put("pink", 0xFFC0CB);
+        c.put("lime", 0x00FF00);
+        c.put("teal", 0x008080);
+        c.put("coral", 0xFF7F50);
+        c.put("salmon", 0xFA8072);
+        c.put("crimson", 0xDC143C);
+        c.put("indigo", 0x4B0082);
+        c.put("violet", 0xEE82EE);
+        c.put("turquoise", 0x40E0D0);
+        c.put("silver", 0xC0C0C0);
+        c.put("maroon", 0x800000);
+        c.put("navy", 0x000080);
+        c.put("olive", 0x808000);
 
         // Custom mod colours
         c.put("legacy_orange", 0xF0501E);
 
         // Special
-        c.put("transparent",  0x000000);
+        c.put("transparent", 0x000000);
 
         COLORS = Collections.unmodifiableMap(c);
     }

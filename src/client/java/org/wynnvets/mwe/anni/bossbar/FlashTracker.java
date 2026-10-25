@@ -1,14 +1,17 @@
 package org.wynnvets.mwe.anni.bossbar;
 
 import com.wynntils.core.components.Models;
+import com.wynntils.utils.mc.McUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Style;
 import net.minecraft.sounds.SoundEvents;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
+import org.wynnvets.mwe.anni.state.AnniSnapshots;
 
 /**
  * Per-field change detection + bold/underline pulse state for the
@@ -21,14 +24,25 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * toggle it between {@code &l} and {@code &n&l}." World changes get
  * the additional "flash indefinitely until the user is on that world"
  * — that's modelled as a live mismatch predicate, not a one-shot
- * timed flash window.</p>
+ * timed flash window. Today the ping is
+ * {@code SoundEvents.EXPERIENCE_ORB_PICKUP}, not the Wynntils mention
+ * sound the quote asks for
+ * ({@code anni-flash-ping-is-not-the-wynntils-mention-sound}).</p>
  *
  * <p>Two ping/flash models:</p>
  * <ul>
  *   <li><b>Role / party / RSVP</b> — diff on snapshot push, latch a
- *       timed flash window for {@code vetsAnniFlashIntensity} ms, ping
- *       2× per change. First observation is skipped (login-with-
- *       existing-state shouldn't bing on every reconnect).</li>
+ *       timed flash window sized by {@code vetsAnniFlashIntensity}, ping
+ *       2× per change. Today no {@code anni_state} push reaches vetsmod
+ *       ({@code outbound-socket-never-authenticated}), so the diff runs on
+ *       each non-null snapshot a pull or a debug command stores. First
+ *       observation is skipped (login-with-existing-state shouldn't bing
+ *       on every reconnect). ⚠️ That
+ *       config value is a <em>name</em>, not a millisecond count:
+ *       {@code subtle} / {@code normal} / {@code strong}, mapped to
+ *       5 000 / 10 000 / 20 000 ms by {@code flashDurationMs()}, which
+ *       also supplies the {@code normal} default for a null or
+ *       unrecognised setting.</li>
  *   <li><b>World</b> — flash is live state ({@code party.world != null
  *       AND user is not on it}); the user walking on/off the right
  *       world toggles it silently. The ping fires on a different
@@ -38,9 +52,12 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * </ul>
  *
  * <p>Singleton listener on {@link AnniSnapshotCache}. Snapshot diffs
- * fire on the WS reader thread; the listener bounces onto the client
- * thread before mutating state. {@link #tick()} runs per client tick
- * via the boss-bar manager's tick loop — no separate tick wiring.</p>
+ * fire on whichever thread calls {@link AnniSnapshotCache#update} — the
+ * one delivering WebSocket frames, or the render thread (which runs
+ * client commands) for a debug injection; the listener bounces onto the
+ * client thread before
+ * mutating state. {@link #tick()} runs per client tick via the
+ * boss-bar manager's tick loop — no separate tick wiring.</p>
  */
 public final class FlashTracker {
 
@@ -50,17 +67,19 @@ public final class FlashTracker {
 
     /** Number of "name-ping"-style sound plays to queue on a change. */
     private static final int SOUNDS_PER_CHANGE = 2;
+
     /** Cap on the in-flight ping queue. Multiple simultaneous triggers
      *  (e.g. snapshot reassignment that also causes mismatch) collapse
      *  to a single 2-ping burst rather than 4+ sounds. */
     private static final int SOUNDS_CAP = 2;
+
     /** Delay between the two sound plays so the second isn't masked. */
     private static final long SOUND_INTER_DELAY_MS = 110L;
 
     // Per-field timed flashes for role/party/rsvp.
-    private static volatile long flashRoleUntil  = 0L;
+    private static volatile long flashRoleUntil = 0L;
     private static volatile long flashPartyUntil = 0L;
-    private static volatile long flashRsvpUntil  = 0L;
+    private static volatile long flashRsvpUntil = 0L;
 
     // Live world-mismatch state, recomputed in tick(). True iff a party
     // world is set on the snapshot AND the player is not currently on
@@ -72,13 +91,13 @@ public final class FlashTracker {
     // the *Observed sentinels track. The first observation in a session
     // is silent; every subsequent transition (including null → set and
     // set → null) flashes and pings.
-    private static volatile String lastRole  = null;
+    private static volatile String lastRole = null;
     private static volatile Integer lastParty = null;
-    private static volatile String lastRsvp  = null;
+    private static volatile String lastRsvp = null;
     private static volatile String lastWorld = null;
-    private static volatile boolean roleObserved  = false;
+    private static volatile boolean roleObserved = false;
     private static volatile boolean partyObserved = false;
-    private static volatile boolean rsvpObserved  = false;
+    private static volatile boolean rsvpObserved = false;
     private static volatile boolean worldObserved = false;
 
     // Phase bit toggles every PHASE_TOGGLE_MS in tick().
@@ -91,8 +110,7 @@ public final class FlashTracker {
 
     private static volatile boolean registered = false;
 
-    private FlashTracker() {
-    }
+    private FlashTracker() {}
 
     /** Idempotent registration — subscribes to {@link AnniSnapshotCache}.
      *  Tick wiring lives in {@link VetsBossBarManager#register()} so
@@ -130,11 +148,16 @@ public final class FlashTracker {
     public static boolean isFlashing(String fieldKey) {
         long now = System.currentTimeMillis();
         switch (fieldKey) {
-            case "role":  return flashRoleUntil > now;
-            case "party": return flashPartyUntil > now;
-            case "world": return worldMismatch;
-            case "rsvp":  return flashRsvpUntil > now;
-            default:      return false;
+            case "role":
+                return flashRoleUntil > now;
+            case "party":
+                return flashPartyUntil > now;
+            case "world":
+                return worldMismatch;
+            case "rsvp":
+                return flashRsvpUntil > now;
+            default:
+                return false;
         }
     }
 
@@ -153,14 +176,20 @@ public final class FlashTracker {
     public static void forceFlash(String fieldKey) {
         long until = System.currentTimeMillis() + flashDurationMs();
         switch (fieldKey) {
-            case "role":  flashRoleUntil  = until; break;
-            case "party": flashPartyUntil = until; break;
+            case "role":
+                flashRoleUntil = until;
+                break;
+            case "party":
+                flashPartyUntil = until;
+                break;
             case "world":
                 // Visible-for-one-tick override; the real worldMismatch
                 // recomputes in tick() next frame.
                 worldMismatch = true;
                 break;
-            case "rsvp":  flashRsvpUntil  = until; break;
+            case "rsvp":
+                flashRsvpUntil = until;
+                break;
             default:
                 VetsLogger.debug("FlashTracker.forceFlash: unknown field {}", fieldKey);
                 return;
@@ -168,12 +197,16 @@ public final class FlashTracker {
         queuePingSounds();
     }
 
-    /** Clear all flash state — called on mode-switch-to-silent and on
-     *  boss-bar deactivation so the next activation starts clean. */
+    /** Clear all flash state, so the next activation starts clean.
+     *  <b>One caller</b>: {@link VetsBossBarManager}'s {@code deactivate}.
+     *  A mode switch to silent reaches this only <em>through</em> that
+     *  — it closes the bar, and closing the bar resets the tracker. The
+     *  two were previously listed as if they were separate entry
+     *  points. */
     public static void reset() {
-        flashRoleUntil  = 0L;
+        flashRoleUntil = 0L;
         flashPartyUntil = 0L;
-        flashRsvpUntil  = 0L;
+        flashRsvpUntil = 0L;
         worldMismatch = false;
         lastRole = null;
         lastParty = null;
@@ -188,11 +221,14 @@ public final class FlashTracker {
 
     // ── Internals ───────────────────────────────────────────────────────
 
-    /** Snapshot listener — invoked on the WS reader thread. Bounces
+    /** Snapshot listener — invoked on whichever thread calls
+     *  {@link AnniSnapshotCache#update}: the one delivering WebSocket
+     *  frames, or the render thread (which runs client commands) for a
+     *  debug injection. Bounces
      *  the diff onto the client thread. */
     private static void onSnapshotChanged(AnniSnapshot snapshot) {
         if (snapshot == null) return;
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         mc.execute(() -> applyDiff(snapshot));
     }
@@ -203,10 +239,10 @@ public final class FlashTracker {
      *  in {@link #updateWorldMismatch()} so position movement toggles
      *  the flash silently. */
     private static void applyDiff(AnniSnapshot snapshot) {
-        String roleCode = extractRoleCode(snapshot);
-        Integer partyOrd = extractPartyOrdinal(snapshot);
-        String rsvpCode = extractRsvp(snapshot);
-        String worldCode = extractPartyWorld(snapshot);
+        String roleCode = AnniSnapshots.role(snapshot);
+        Integer partyOrd = AnniSnapshots.partyOrdinal(snapshot);
+        String rsvpCode = AnniSnapshots.rsvpNotice(snapshot);
+        String worldCode = AnniSnapshots.partyWorld(snapshot);
 
         long now = System.currentTimeMillis();
         long until = now + flashDurationMs();
@@ -252,36 +288,11 @@ public final class FlashTracker {
      *  bings happen on snapshot value changes, handled in
      *  {@link #applyDiff(AnniSnapshot)}). */
     private static void updateWorldMismatch() {
-        String partyWorld = extractPartyWorld(AnniSnapshotCache.latest());
+        String partyWorld = AnniSnapshots.partyWorld(AnniSnapshotCache.latest());
         String currentWorld = Models.WorldState.getCurrentWorldName();
-        worldMismatch = partyWorld != null && (currentWorld == null
-                || !currentWorld.equalsIgnoreCase(partyWorld));
-    }
-
-    private static String extractRoleCode(AnniSnapshot snapshot) {
-        AnniSnapshot.Board board = snapshot.board();
-        if (board != null && board.role() != null) return board.role();
-        return null;
-    }
-
-    private static Integer extractPartyOrdinal(AnniSnapshot snapshot) {
-        AnniSnapshot.Board board = snapshot.board();
-        if (board == null || board.party() == null) return null;
-        int o = board.party().ordinal();
-        return o > 0 ? o : null;
-    }
-
-    private static String extractPartyWorld(AnniSnapshot snapshot) {
-        if (snapshot == null) return null;
-        AnniSnapshot.Board board = snapshot.board();
-        if (board == null || board.party() == null) return null;
-        return board.party().world();
-    }
-
-    private static String extractRsvp(AnniSnapshot snapshot) {
-        AnniSnapshot.Rsvp rsvp = snapshot.rsvp();
-        if (rsvp == null || rsvp.revoked()) return null;
-        return rsvp.notice();
+        worldMismatch =
+                partyWorld != null
+                        && (currentWorld == null || !currentWorld.equalsIgnoreCase(partyWorld));
     }
 
     private static <T> boolean equalsNullable(T a, T b) {
@@ -290,29 +301,32 @@ public final class FlashTracker {
     }
 
     private static long flashDurationMs() {
-        String intensity = VetsConfig.getString(VetsConfig.VETS_ANNI_FLASH_INTENSITY);
+        String intensity = VetsConfig.getString(VetsConfigKeys.VETS_ANNI_FLASH_INTENSITY);
         if (intensity == null) intensity = "normal";
         switch (intensity) {
-            case "subtle": return 5_000L;
-            case "strong": return 20_000L;
+            case "subtle":
+                return 5_000L;
+            case "strong":
+                return 20_000L;
             case "normal":
-            default:       return 10_000L;
+            default:
+                return 10_000L;
         }
     }
 
     private static void queuePingSounds() {
-        if (!VetsConfig.get(VetsConfig.VETS_ANNI_FLASH_SOUND)) return;
+        if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_FLASH_SOUND)) return;
         pendingSounds = Math.min(pendingSounds + SOUNDS_PER_CHANGE, SOUNDS_CAP);
         // Play the next sound immediately if nothing is currently in flight.
         if (nextSoundAt == 0L) nextSoundAt = System.currentTimeMillis();
     }
 
     private static void playPingSound() {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null || mc.getSoundManager() == null) return;
         try {
-            mc.getSoundManager().play(SimpleSoundInstance.forUI(
-                    SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
+            mc.getSoundManager()
+                    .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
         } catch (Exception e) {
             VetsLogger.debug("FlashTracker.playPingSound failed: {}", e.getMessage());
         }

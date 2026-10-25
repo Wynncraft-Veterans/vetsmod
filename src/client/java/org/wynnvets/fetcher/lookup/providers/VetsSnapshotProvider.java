@@ -1,16 +1,15 @@
 package org.wynnvets.fetcher.lookup.providers;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.datamodels.MembershipSnapshot;
 import org.wynnvets.fetcher.lookup.LookupProvider;
 import org.wynnvets.fetcher.lookup.LookupResult;
 import org.wynnvets.fetcher.lookup.ProviderOutcome;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import org.wynnvets.util.Json;
 
 /**
  * Resolver via the {@code check_membership} WebSocket frame sent to
@@ -26,8 +25,8 @@ import java.util.concurrent.CompletableFuture;
  *
  * <p>The ack returns both the UUID and the full
  * {@link MembershipSnapshot} (Discord link, blocklist state, waitlist
- * count, etc.) — so a Vets hit lets the invite gate skip its secondary
- * snapshot fetch.</p>
+ * count, etc.) — so a Vets hit lets a caller that needs the snapshot skip
+ * its own snapshot fetch.</p>
  *
  * <p>Skipped when the inbound WebSocket isn't connected: the frame would
  * synthesise a connection-closed error ack and we'd treat that as
@@ -35,73 +34,86 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class VetsSnapshotProvider implements LookupProvider {
 
-  private static final Gson GSON = new Gson();
+    /**
+     * Sends a {@code check_membership} frame and adapts the single-use ack
+     * callback into a future. Used by this provider AND by InviteGate /
+     * UserInfoFetcher for their secondary "snapshot only" fetch path (when
+     * the cascade's hit didn't already provide one). The frame is staff-only:
+     * temporary-server (at ffd8c17) rejects it from any session it has not
+     * confirmed as staff. This sends it without checking
+     * {@code isConfirmedStaff()}; today, for any such session, the rejection
+     * completes the future with {@code null} (see
+     * {@code vets-snapshot-provider-skips-confirmed-staff-check}).
+     */
+    public static CompletableFuture<MembershipSnapshot> requestSnapshot(String target) {
+        CompletableFuture<MembershipSnapshot> cf = new CompletableFuture<>();
+        JsonObject fields = new JsonObject();
+        fields.addProperty("target_username", target);
+        V1ApiManager.sendStaffActionFrame(
+                "check_membership",
+                fields,
+                ack -> {
+                    try {
+                        String status =
+                                ack.has("status") && !ack.get("status").isJsonNull()
+                                        ? ack.get("status").getAsString()
+                                        : "error";
+                        if ("ok".equals(status)) {
+                            cf.complete(Json.GSON.fromJson(ack, MembershipSnapshot.class));
+                        } else {
+                            cf.complete(null);
+                        }
+                    } catch (Exception e) {
+                        cf.complete(null);
+                    }
+                });
+        return cf;
+    }
 
-  /**
-   * Sends a {@code check_membership} frame and adapts the single-use ack
-   * callback into a future. Used by this provider AND by InviteGate /
-   * UserInfoFetcher for their secondary "snapshot only" fetch path (when
-   * the cascade's hit didn't already provide one).
-   */
-  public static CompletableFuture<MembershipSnapshot> requestSnapshot(String target) {
-    CompletableFuture<MembershipSnapshot> cf = new CompletableFuture<>();
-    JsonObject fields = new JsonObject();
-    fields.addProperty("target_username", target);
-    V1ApiManager.sendStaffActionFrame("check_membership", fields, ack -> {
-      try {
-        String status = ack.has("status") && !ack.get("status").isJsonNull()
-            ? ack.get("status").getAsString()
-            : "error";
-        if ("ok".equals(status)) {
-          cf.complete(GSON.fromJson(ack, MembershipSnapshot.class));
-        } else {
-          cf.complete(null);
+    @Override
+    public String id() {
+        return "vets";
+    }
+
+    @Override
+    public CompletableFuture<ProviderOutcome> lookup(String name) {
+        if (!V1ApiManager.isInboundConnected()) {
+            return CompletableFuture.completedFuture(ProviderOutcome.transientMiss());
         }
-      } catch (Exception e) {
-        cf.complete(null);
-      }
-    });
-    return cf;
-  }
+        return requestSnapshot(name)
+                .thenApply(this::translate)
+                .exceptionally(
+                        e -> {
+                            VetsLogger.debug(
+                                    "Vets snapshot lookup '{}' threw: {}", name, e.getMessage());
+                            return ProviderOutcome.transientMiss();
+                        });
+    }
 
-  @Override
-  public String id() {
-    return "vets";
-  }
-
-  @Override
-  public CompletableFuture<ProviderOutcome> lookup(String name) {
-    if (!V1ApiManager.isInboundConnected()) {
-      return CompletableFuture.completedFuture(ProviderOutcome.transientMiss());
+    private ProviderOutcome translate(MembershipSnapshot snap) {
+        if (snap == null) {
+            // Could be "no such player" or a transient WS failure; the ack
+            // shape doesn't reliably distinguish, so call it transient and
+            // let later providers settle the question. Today they can settle it
+            // only with a hit: this transient miss keeps the cascade from ever
+            // ending PLAYER_NOT_FOUND (see
+            // vets-snapshot-provider-makes-player-not-found-unreachable).
+            return ProviderOutcome.transientMiss();
+        }
+        String uuidStr = snap.getTargetUuid();
+        if (uuidStr == null || uuidStr.isBlank()) {
+            return ProviderOutcome.transientMiss();
+        }
+        try {
+            UUID uuid = UUID.fromString(uuidStr);
+            String canonical =
+                    snap.getTargetUsername() != null && !snap.getTargetUsername().isBlank()
+                            ? snap.getTargetUsername()
+                            : uuidStr;
+            return ProviderOutcome.hit(LookupResult.ofVets(canonical, uuid, snap));
+        } catch (IllegalArgumentException e) {
+            VetsLogger.debug("Vets snapshot returned non-UUID target_uuid: {}", uuidStr);
+            return ProviderOutcome.transientMiss();
+        }
     }
-    return requestSnapshot(name)
-        .thenApply(this::translate)
-        .exceptionally(e -> {
-          VetsLogger.debug("Vets snapshot lookup '{}' threw: {}", name, e.getMessage());
-          return ProviderOutcome.transientMiss();
-        });
-  }
-
-  private ProviderOutcome translate(MembershipSnapshot snap) {
-    if (snap == null) {
-      // Could be "no such player" or a transient WS failure; the ack
-      // shape doesn't reliably distinguish, so call it transient and
-      // let later providers settle the question.
-      return ProviderOutcome.transientMiss();
-    }
-    String uuidStr = snap.getTargetUuid();
-    if (uuidStr == null || uuidStr.isBlank()) {
-      return ProviderOutcome.transientMiss();
-    }
-    try {
-      UUID uuid = UUID.fromString(uuidStr);
-      String canonical = snap.getTargetUsername() != null && !snap.getTargetUsername().isBlank()
-          ? snap.getTargetUsername()
-          : uuidStr;
-      return ProviderOutcome.hit(LookupResult.ofVets(canonical, uuid, snap));
-    } catch (IllegalArgumentException e) {
-      VetsLogger.debug("Vets snapshot returned non-UUID target_uuid: {}", uuidStr);
-      return ProviderOutcome.transientMiss();
-    }
-  }
 }

@@ -4,8 +4,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.wynnvets.logging.VetsLogger;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -17,13 +15,14 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Cached fetcher for the anni zone — the union of 48-block discs
  * centred at the {@code location} of event {@code a63b2c02} on
  * {@code https://api.wynncraft.com/v3/map/world-events}.
  *
- * <p>Spec §3.1.1.3 / §3.1.1.4 gate the T-2m boss-bar countdown variant
+ * <p>Spec §3.1.1.3 / §3.1.1.4 gate the T-5m boss-bar countdown variant
  * on "When in the anni zone", and S4/S5 will gate outline overrides
  * + zone-line rendering on the same predicate. Centralising the disc
  * test here keeps S3..S5 from each rolling their own world-events
@@ -67,10 +66,35 @@ public final class AnniZone {
      *  of 2026-06-16; kept as a spec-anchored constant in case the API
      *  drifts). */
     private static final double DISC_RADIUS = 48.0;
+
     private static final double DISC_RADIUS_SQ = DISC_RADIUS * DISC_RADIUS;
 
     private static final long REFRESH_INTERVAL_SECONDS = 60L;
     private static final long HTTP_TIMEOUT_SECONDS = 10L;
+
+    /**
+     * Built once for the process. {@link #refresh()} used to build one per 60 s
+     * tick &mdash; a fresh connection pool and selector thread every time, with no
+     * keep-alive reuse between ticks.
+     *
+     * <p>The 10 s connect timeout is this fetcher's own, as is the absence of an
+     * HTTP-version pin: the world-events endpoint negotiates HTTP/2 today and
+     * nothing here asks it not to. Both differ deliberately from the 5 s /
+     * {@code HTTP_1_1} chain the mod's other fetchers build.</p>
+     *
+     * <p>Construction now runs in {@code <clinit>}, outside {@link #refresh()}'s
+     * try/catch: a build failure is an {@link ExceptionInInitializerError} rather
+     * than a debug line with the previous centres retained. That is not a new kind
+     * of hazard: every other {@code HttpClient} in the mod is built unguarded too.
+     * {@link org.wynnvets.util.HttpClients HttpClients} builds the shared one in
+     * its own {@code <clinit>}, which is what every other {@code HTTP_CLIENT}
+     * field reaches; {@link org.wynnvets.api.WsClient WsClient} builds its own in a
+     * constructor.</p>
+     */
+    private static final HttpClient HTTP_CLIENT =
+            HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
+                    .build();
 
     private static volatile List<DiscCentre> centres = Collections.emptyList();
     private static volatile boolean cold = true;
@@ -78,21 +102,22 @@ public final class AnniZone {
 
     private static ScheduledExecutorService scheduler;
 
-    private AnniZone() {
-    }
+    private AnniZone() {}
 
     /** Start the periodic fetcher. Idempotent. Runs an initial pull
      *  immediately so cold-start isn't gated on the 60 s interval. */
     public static void start() {
         if (started) return;
         started = true;
-        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "vetsmod-anni-zone");
-            t.setDaemon(true);
-            return t;
-        });
-        scheduler.scheduleAtFixedRate(AnniZone::refresh,
-                0L, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        scheduler =
+                Executors.newSingleThreadScheduledExecutor(
+                        r -> {
+                            Thread t = new Thread(r, "vetsmod-anni-zone");
+                            t.setDaemon(true);
+                            return t;
+                        });
+        scheduler.scheduleAtFixedRate(
+                AnniZone::refresh, 0L, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
         VetsLogger.debug("AnniZone started");
     }
 
@@ -110,10 +135,23 @@ public final class AnniZone {
         return false;
     }
 
-    /** {@code true} until the first successful fetch lands. Exposed so
-     *  S4/S5 consumers can choose to gate their stronger overrides
-     *  (outlines, ghosts prompt) on a warm cache rather than treating
-     *  cold as "never in zone". */
+    /**
+     * {@code true} until the first successful fetch lands.
+     *
+     * <p>⚠️ <b>Nothing gates on this today.</b> The Javadoc used to say it was
+     * "exposed so S4/S5 consumers can choose to gate their stronger overrides
+     * (outlines, ghosts prompt) on a warm cache" — no outline or ghosts-prompt
+     * class calls it, and none ever has. Its one caller is
+     * {@link org.wynnvets.debug.DebugCommands DebugCommands}' zone dump, which
+     * prints it. The affordance is real, reachable and arguably still worth
+     * having; the documented consumer was aspirational. Kept and re-described
+     * rather than deleted, because deleting a method is a code change.</p>
+     *
+     * <p>The reason a consumer <em>might</em> want it is unchanged and still
+     * sound: {@link #isInZone} answers {@code false} while cold, which is
+     * indistinguishable from a genuine "not in the zone", so a surface that
+     * would rather do nothing than guess can ask this first.</p>
+     */
     public static boolean isCold() {
         return cold;
     }
@@ -133,7 +171,8 @@ public final class AnniZone {
     }
 
     /** Immutable public view of a single zone disc — centre (x, z) + radius
-     *  in blocks. Consumed by S5's zone-line renderer. */
+     *  in blocks. Consumed by S5's zone-line renderer and by
+     *  {@link org.wynnvets.debug.DebugCommands DebugCommands}' {@code zoneLinesDump}. */
     public static final class Disc {
         private final double x;
         private final double z;
@@ -145,24 +184,30 @@ public final class AnniZone {
             this.radius = radius;
         }
 
-        public double x() { return x; }
-        public double z() { return z; }
-        public double radius() { return radius; }
+        public double x() {
+            return x;
+        }
+
+        public double z() {
+            return z;
+        }
+
+        public double radius() {
+            return radius;
+        }
     }
 
     // ── Internals ───────────────────────────────────────────────────────
 
     private static void refresh() {
         try {
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-                    .build();
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(API_URL))
-                    .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-                    .GET()
-                    .build();
-            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            HttpRequest req =
+                    HttpRequest.newBuilder()
+                            .uri(URI.create(API_URL))
+                            .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
+                            .GET()
+                            .build();
+            HttpResponse<String> resp = HTTP_CLIENT.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() != 200) {
                 VetsLogger.debug("AnniZone refresh: HTTP {}", resp.statusCode());
                 return;

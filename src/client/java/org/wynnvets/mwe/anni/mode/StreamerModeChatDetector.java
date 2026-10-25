@@ -18,7 +18,7 @@ import org.wynnvets.logging.VetsLogger;
  * so a positive on either refuses passive/aggressive activation.</p>
  *
  * <p>Chat-line patterns (substring matched against
- * {@code Component.getString()} after format stripping):
+ * {@code Component.getString()} after format stripping):</p>
  * <ul>
  *   <li>Stream-on: {@code "Streamer mode was enabled"} —
  *       full template starts with {@code &a&{fr:cp}…&{fr:d}}.</li>
@@ -29,35 +29,38 @@ import org.wynnvets.logging.VetsLogger;
  * <p>On stream-on we additionally call
  * {@link AnniModeManager#transitionTo} to flip out of any active
  * passive/aggressive mode — without this, an existing synthetic boss
- * bar would collide with Wynntils' {@code StreamerModeBar}. On
- * stream-off we auto-restore the user's preferred mode via
- * {@link AnniModeManager#preferredMode()} (their remembered pick, or
- * the eligibility-based default if they never picked). No restore
- * chat line is printed when the restored target is SILENT — nothing
- * user-visible would change.</p>
+ * bar would collide with Wynntils' {@code StreamerModeBar}.</p>
+ *
+ * <p>On stream-off we auto-restore the user's preferred mode via
+ * {@link AnniModeManager#preferredMode()} (their remembered pick, or the
+ * eligibility-based default if they never picked). <b>Four paths through
+ * {@code handleStreamOff} restore nothing at all</b>, and the first three never
+ * reach {@link AnniModeManager#transitionTo} — so those are decisions not to
+ * transition, not decisions to transition quietly:</p>
+ * <ul>
+ *   <li>no stream-on was ever tracked ({@code lastSeenInStream} is false), which
+ *       is the dedupe guard rather than a failed restore — a stream-off line
+ *       arriving cold does nothing;</li>
+ *   <li>the preferred target is already SILENT, so there is nothing to restore
+ *       (stream-on forced SILENT, and that is where the mode still is);</li>
+ *   <li>the config already equals the preferred target;</li>
+ *   <li>{@code transitionTo} refuses, because Wynntils' own
+ *       {@code isInStream()} has not cleared yet even though our chat line
+ *       has. The restore is simply lost in that case — nothing retries it, and
+ *       {@code lastSeenInStream} has already been cleared.</li>
+ * </ul>
  *
  * <p>Hooked into the chat pipeline via a one-line call from
  * {@link org.wynnvets.mixin.client.chat.ChatLogMixin}.</p>
  */
 public final class StreamerModeChatDetector {
 
-    private static final String PATTERN_ON  = "Streamer mode was enabled";
+    private static final String PATTERN_ON = "Streamer mode was enabled";
     private static final String PATTERN_OFF = "Streamer mode disabled";
 
-    private static volatile boolean registered = false;
     private static volatile boolean lastSeenInStream = false;
 
-    private StreamerModeChatDetector() {
-    }
-
-    /** Idempotent registration. No-op today — the {@link ChatUtils}-style
-     *  invocation lives at the call site (ChatLogMixin), so this exists
-     *  only for API symmetry with other {@code mwe.anni} singletons. */
-    public static void register() {
-        if (registered) return;
-        registered = true;
-        VetsLogger.debug("StreamerModeChatDetector registered");
-    }
+    private StreamerModeChatDetector() {}
 
     /** Current best-guess of {@code /stream} state from the chat
      *  pipeline. {@code false} on cold start (no chat lines seen yet);
@@ -71,10 +74,9 @@ public final class StreamerModeChatDetector {
      * pipeline runs on the render thread, but we only touch a volatile
      * flag and call back into singletons that tolerate it).
      *
-     * <p>Called from {@code ChatLogMixin}'s {@code addMessage} HEAD
-     * inject — the same hook used for guild detection. Errors are
-     * swallowed (logged at debug) so a malformed chat line never
-     * propagates into the chat pipeline.</p>
+     * <p>Called from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin}'s {@code
+     * addMessage} HEAD inject — the same hook used for guild detection. Errors are swallowed
+     * (logged at debug) so a malformed chat line never propagates into the chat pipeline.</p>
      */
     public static void observe(Component message) {
         if (message == null) return;
@@ -105,32 +107,34 @@ public final class StreamerModeChatDetector {
             VetsLogger.debug("StreamerModeChatDetector: stream-on detected (already silent)");
             return;
         }
-        boolean flipped = AnniModeManager.transitionTo(
-                AnniMode.SILENT, AnniModeManager.Source.AUTO_STREAM_ACTIVATED);
+        boolean flipped =
+                AnniModeManager.transitionTo(
+                        AnniMode.SILENT, AnniModeManager.Source.AUTO_STREAM_ACTIVATED);
         if (flipped) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Anni mode auto-changed to ")
                             .withStyle(ChatFormatting.GRAY)
-                            .append(Component.literal("silent")
-                                    .withStyle(ChatFormatting.WHITE))
-                            .append(Component.literal(": ")
-                                    .withStyle(ChatFormatting.GRAY))
-                            .append(Component.literal("/stream activated")
-                                    .withStyle(ChatFormatting.RED))
-                            .append(Component.literal(". ")
-                                    .withStyle(ChatFormatting.GRAY))
-                            .append(Component.literal("/stream")
-                                    .withStyle(ChatFormatting.RED))
-                            .append(Component.literal(" does the same thing as ")
-                                    .withStyle(ChatFormatting.GRAY))
-                            .append(Component.literal("/toggle ghosts off")
-                                    .withStyle(ChatFormatting.AQUA))
-                            .append(Component.literal(" but disables anni mode and makes things a nuisance for organisers. Prefer ")
-                                    .withStyle(ChatFormatting.GRAY))
-                            .append(Component.literal("/toggle ghosts off")
-                                    .withStyle(ChatFormatting.AQUA))
-                            .append(Component.literal(".")
-                                    .withStyle(ChatFormatting.GRAY)));
+                            .append(Component.literal("silent").withStyle(ChatFormatting.WHITE))
+                            .append(Component.literal(": ").withStyle(ChatFormatting.GRAY))
+                            .append(
+                                    Component.literal("/stream activated")
+                                            .withStyle(ChatFormatting.RED))
+                            .append(Component.literal(". ").withStyle(ChatFormatting.GRAY))
+                            .append(Component.literal("/stream").withStyle(ChatFormatting.RED))
+                            .append(
+                                    Component.literal(" does the same thing as ")
+                                            .withStyle(ChatFormatting.GRAY))
+                            .append(
+                                    Component.literal("/toggle ghosts off")
+                                            .withStyle(ChatFormatting.AQUA))
+                            .append(
+                                    Component.literal(
+                                                    " but disables anni mode and makes things a nuisance for organisers. Prefer ")
+                                            .withStyle(ChatFormatting.GRAY))
+                            .append(
+                                    Component.literal("/toggle ghosts off")
+                                            .withStyle(ChatFormatting.AQUA))
+                            .append(Component.literal(".").withStyle(ChatFormatting.GRAY)));
         }
     }
 
@@ -139,29 +143,30 @@ public final class StreamerModeChatDetector {
         lastSeenInStream = false;
         AnniMode target = AnniModeManager.preferredMode();
         if (target == AnniMode.SILENT) {
-            VetsLogger.debug("StreamerModeChatDetector: stream-off detected (preferred=silent, nothing to restore)");
+            VetsLogger.debug(
+                    "StreamerModeChatDetector: stream-off detected (preferred=silent, nothing to restore)");
             return;
         }
         if (AnniMode.fromConfig() == target) {
-            VetsLogger.debug("StreamerModeChatDetector: stream-off detected (already at preferred={})",
+            VetsLogger.debug(
+                    "StreamerModeChatDetector: stream-off detected (already at preferred={})",
                     target.toConfigValue());
             return;
         }
-        boolean flipped = AnniModeManager.transitionTo(
-                target, AnniModeManager.Source.AUTO_STREAM_DEACTIVATED);
+        boolean flipped =
+                AnniModeManager.transitionTo(
+                        target, AnniModeManager.Source.AUTO_STREAM_DEACTIVATED);
         if (!flipped) return;
-        ChatFormatting colour = target == AnniMode.AGGRESSIVE
-                ? ChatFormatting.RED : ChatFormatting.GREEN;
+        ChatFormatting colour =
+                target == AnniMode.AGGRESSIVE ? ChatFormatting.RED : ChatFormatting.GREEN;
         ChatUtils.sendLocalMessage(
                 Component.literal("Anni mode auto-restored to ")
                         .withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(target.toConfigValue())
-                                .withStyle(colour))
-                        .append(Component.literal(": ")
-                                .withStyle(ChatFormatting.GRAY))
-                        .append(Component.literal("/stream deactivated")
-                                .withStyle(ChatFormatting.GREEN))
-                        .append(Component.literal(".")
-                                .withStyle(ChatFormatting.GRAY)));
+                        .append(Component.literal(target.toConfigValue()).withStyle(colour))
+                        .append(Component.literal(": ").withStyle(ChatFormatting.GRAY))
+                        .append(
+                                Component.literal("/stream deactivated")
+                                        .withStyle(ChatFormatting.GREEN))
+                        .append(Component.literal(".").withStyle(ChatFormatting.GRAY)));
     }
 }

@@ -7,16 +7,15 @@ import com.wynntils.mc.event.ContainerSetContentEvent;
 import com.wynntils.mc.event.MenuEvent;
 import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
+import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * Drives the "Press N to send X" hand-over interaction in the Wynncraft
@@ -29,13 +28,14 @@ import java.util.regex.Pattern;
  * press as one resource-send action (1 Aspect, 1 Guild Tome, 1024
  * Emeralds respectively).</p>
  *
- * <p>Wynncraft refreshes the Members menu after every send action,
- * assigning a new container id in the process. Sending the next press
- * before that refresh lands means the click goes against a stale
- * container id and the server drops it silently &mdash; symptom: the
+ * <p>Wynncraft refreshes the Members menu after every send action. The
+ * observed shape is the menu reopening under a new container id, and
+ * the code also accepts an in-place refresh under the same id. Sending
+ * the next press before that refresh lands means the click goes against
+ * a stale menu state and the server drops it silently &mdash; symptom: the
  * user asks for {@code count=N} but only one reward chat line appears.
  * To avoid that, each press arms an event listener for the menu
- * refresh ({@link MenuEvent.MenuOpenedEvent.Pre} on close+reopen, or
+ * refresh ({@link MenuEvent.MenuOpenedEvent.Pre} on a reopen under a new id, or
  * {@link ContainerSetContentEvent.Post} on in-place refresh) and the
  * next press is scheduled {@link #PRESS_DELAY_TICKS} ticks after the
  * refresh is observed, not after a fixed wall-clock delay.</p>
@@ -66,12 +66,9 @@ public final class MemberSlotPresser {
         }
     }
 
-    /** Mirrors {@code GuildMemberListContainer.TITLE_PATTERN}. */
-    private static final Pattern MEMBERS_TITLE_PATTERN = Pattern.compile(".+: Members");
-
-    /** Settle buffer applied after a confirmed refresh and before the next
-     *  press &mdash; gives the server a tick of breathing room and keeps
-     *  the cadence humane. */
+    /** Settle buffer applied after every confirmed refresh &mdash; before
+     *  the next press or, after the last, before {@code onComplete}. Gives
+     *  the server some breathing room and keeps the cadence humane. */
     private static final int PRESS_DELAY_TICKS = 4;
 
     /** Safety bound on the refresh wait. If no refresh event lands within
@@ -81,20 +78,27 @@ public final class MemberSlotPresser {
 
     private static final MemberSlotPresser INSTANCE = new MemberSlotPresser();
 
-    // Pending-press state. Non-null/true iff a press has been fired and
-    // we're waiting on the server's menu refresh before firing the next.
+    // The in-flight batch's state. awaitingRefresh is set when a press is
+    // sent and cleared when its refresh is observed or the batch is torn
+    // down (completion, timeout, or screen gone); pendingResource is
+    // nulled only by that teardown. The int fields are never reset, and
+    // pendingContainerId is read only by onMenuOpenPre's debug line.
     private static volatile int pendingSlot;
     private static volatile Resource pendingResource;
     private static volatile int pendingTotal;
     private static volatile int pendingSent;
     private static volatile int pendingContainerId;
     private static volatile boolean awaitingRefresh;
+
     /** Monotonic token so a stale scheduled timeout doesn't trip a later run. */
     private static volatile int timeoutToken;
+
     /** Callback invoked when the full press batch finishes — on success
-     *  (last press confirmed) or on timeout. Lets {@link RandomDistributor}
-     *  chain another {@code fire()} for the next pick instead of closing
-     *  the Members menu between distributions. */
+     *  (last press confirmed) or on timeout. Lets {@link DistributionQueue}
+     *  chain the next recipient instead of closing the Members menu
+     *  between sends. Not invoked when {@code sendPressAndArm} finds no
+     *  Members screen open: {@code clearPending()} nulls it without running
+     *  it ({@code member-slot-presser-drops-completion}). */
     private static volatile Runnable pendingOnComplete;
 
     private MemberSlotPresser() {}
@@ -108,9 +112,12 @@ public final class MemberSlotPresser {
      * Fires {@code count} consecutive {@code pressKeyOnSlot} packets
      * against {@code slot} in the currently-open Members container, each
      * one gated by the menu-refresh observed after the previous press.
-     * Aborts cleanly if the Members screen is closed or replaced
-     * mid-loop, or if the refresh never arrives within
-     * {@link #REFRESH_TIMEOUT_TICKS}.
+     * Can stop early. If no Members screen is open when a press
+     * is due &mdash; checked by title, so a Members menu reopened under a
+     * new id still counts &mdash; the batch ends silently and the callback
+     * does not run ({@code member-slot-presser-drops-completion}). If a press's
+     * refresh is not observed within {@link #REFRESH_TIMEOUT_TICKS}, a
+     * yellow chat line prints and the callback runs.
      *
      * <p>Equivalent to
      * {@link #fire(int, Resource, int, String, Runnable) fire(..., closeMembersScreen)}
@@ -121,33 +128,44 @@ public final class MemberSlotPresser {
     }
 
     /**
-     * Variant with a completion callback invoked when the last press is
-     * confirmed by a refresh event, OR when the refresh wait times out.
-     * The screen is intentionally left open so the callback can chain
-     * another {@code fire()} call &mdash; used by {@link RandomDistributor}
-     * to visit multiple recipients in one menu session. Pass
-     * {@link #closeMembersScreen()} as {@code onComplete} to restore the
-     * single-user "close when done" behavior.
+     * Variant with a completion callback invoked {@link #PRESS_DELAY_TICKS}
+     * after the last press is confirmed by a refresh event, OR when the
+     * refresh wait times out,
+     * OR at once when {@code count} is not positive. It is not invoked
+     * when the batch ends because no Members screen is open for a press
+     * &mdash; see the four-argument overload. The screen is intentionally
+     * left open so the callback can chain the next recipient &mdash; used
+     * by {@link DistributionQueue} to visit multiple recipients in one
+     * menu session. For the single-user "close when done" behaviour, the
+     * four-argument overload passes {@link #closeMembersScreen()}, which
+     * is package-private; outside {@code distributor/}, call that
+     * overload.
      */
-    public static void fire(int slot, Resource resource, int count, String recipientName,
-                            Runnable onComplete) {
+    public static void fire(
+            int slot, Resource resource, int count, String recipientName, Runnable onComplete) {
         if (count <= 0) {
             if (onComplete != null) onComplete.run();
             return;
         }
         pendingOnComplete = onComplete;
         ChatUtils.sendLocalMessage(
-                Component.literal("Sending " + count + "x " + resource.displayName()
-                        + " to " + recipientName + "…")
+                Component.literal(
+                                "Sending "
+                                        + count
+                                        + "x "
+                                        + resource.displayName()
+                                        + " to "
+                                        + recipientName
+                                        + "…")
                         .withStyle(ChatFormatting.AQUA));
         sendPressAndArm(slot, resource, count, 0);
     }
 
     private static void sendPressAndArm(int slot, Resource resource, int total, int sent) {
-        AbstractContainerScreen<?> screen = currentMembersScreen();
+        AbstractContainerScreen<?> screen = MembersGui.currentByTitle();
         if (screen == null) {
-            VetsLogger.debug("MemberSlotPresser: members screen gone after {}/{} presses",
-                    sent, total);
+            VetsLogger.debug(
+                    "MemberSlotPresser: members screen gone after {}/{} presses", sent, total);
             clearPending();
             return;
         }
@@ -155,8 +173,12 @@ public final class MemberSlotPresser {
         int containerId = screen.getMenu().containerId;
         List<ItemStack> items = screen.getMenu().getItems();
         ContainerUtils.pressKeyOnSlot(slot, containerId, resource.hotbarButton(), items);
-        VetsLogger.debug("MemberSlotPresser: sent press {}/{} on slot {} of container {}",
-                sent + 1, total, slot, containerId);
+        VetsLogger.debug(
+                "MemberSlotPresser: sent press {}/{} on slot {} of container {}",
+                sent + 1,
+                total,
+                slot,
+                containerId);
 
         pendingSlot = slot;
         pendingResource = resource;
@@ -169,48 +191,62 @@ public final class MemberSlotPresser {
 
     private static void armRefreshTimeout(int sentSoFar, int total) {
         final int myToken = ++timeoutToken;
-        Managers.TickScheduler.scheduleLater(() -> {
-            if (!awaitingRefresh) return;
-            if (myToken != timeoutToken) return;
-            VetsLogger.debug("MemberSlotPresser: refresh wait timed out after {}/{} presses",
-                    sentSoFar, total);
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Send timed out after " + sentSoFar + "/" + total
-                            + " (server didn't refresh the menu).")
-                            .withStyle(ChatFormatting.YELLOW));
-            // Capture and invoke onComplete so chained callers (e.g.
-            // RandomDistributor) advance past the timed-out recipient
-            // rather than stalling.
-            Runnable cb = pendingOnComplete;
-            clearPending();
-            if (cb != null) cb.run();
-        }, REFRESH_TIMEOUT_TICKS);
+        Managers.TickScheduler.scheduleLater(
+                () -> {
+                    if (!awaitingRefresh) return;
+                    if (myToken != timeoutToken) return;
+                    VetsLogger.debug(
+                            "MemberSlotPresser: refresh wait timed out after {}/{} presses",
+                            sentSoFar,
+                            total);
+                    ChatUtils.sendLocalMessage(
+                            Component.literal(
+                                            "Send timed out after "
+                                                    + sentSoFar
+                                                    + "/"
+                                                    + total
+                                                    + " (server didn't refresh the menu).")
+                                    .withStyle(ChatFormatting.YELLOW));
+                    // Capture and invoke onComplete so chained callers (e.g.
+                    // DistributionQueue) advance past the timed-out recipient
+                    // rather than stalling.
+                    Runnable cb = pendingOnComplete;
+                    clearPending();
+                    if (cb != null) cb.run();
+                },
+                REFRESH_TIMEOUT_TICKS);
     }
 
     /**
-     * Close+reopen refresh path: Wynncraft tears down the old container
-     * and opens a fresh Members menu under a new container id.
+     * Reopen refresh path: a Members menu opening under a new container
+     * id is accepted as the refresh (whether a close for the old id
+     * precedes it is not recorded; vanilla's {@code ServerPlayer.openMenu}
+     * sends one).
      */
     @SubscribeEvent
     public void onMenuOpenPre(MenuEvent.MenuOpenedEvent.Pre event) {
         if (!awaitingRefresh) return;
-        if (!StyledText.fromComponent(event.getTitle()).matches(MEMBERS_TITLE_PATTERN)) return;
-        VetsLogger.debug("MemberSlotPresser: refresh observed via MenuOpened (new id={}, prev={})",
-                event.getContainerId(), pendingContainerId);
+        if (!StyledText.fromComponent(event.getTitle()).matches(MembersGui.TITLE_PATTERN)) return;
+        VetsLogger.debug(
+                "MemberSlotPresser: refresh observed via MenuOpened (new id={}, prev={})",
+                event.getContainerId(),
+                pendingContainerId);
         onRefreshObserved();
     }
 
     /**
-     * In-place refresh path: Wynncraft reuses the same container id and
-     * streams a fresh {@code SetContent} for the updated slots.
+     * In-place refresh path: a full-contents re-send ({@code SetContent})
+     * for the open Members menu's current id is also accepted as the
+     * refresh.
      */
     @SubscribeEvent
     public void onSetContent(ContainerSetContentEvent.Post event) {
         if (!awaitingRefresh) return;
-        AbstractContainerScreen<?> screen = currentMembersScreen();
+        AbstractContainerScreen<?> screen = MembersGui.currentByTitle();
         if (screen == null) return;
         if (event.getContainerId() != screen.getMenu().containerId) return;
-        VetsLogger.debug("MemberSlotPresser: refresh observed via SetContent (id={})",
+        VetsLogger.debug(
+                "MemberSlotPresser: refresh observed via SetContent (id={})",
                 event.getContainerId());
         onRefreshObserved();
     }
@@ -221,17 +257,19 @@ public final class MemberSlotPresser {
         final Resource resource = pendingResource;
         final int total = pendingTotal;
         final int sent = pendingSent;
-        Managers.TickScheduler.scheduleLater(() -> {
-            if (sent >= total) {
-                VetsLogger.debug("MemberSlotPresser: completed {} presses on slot {}",
-                        total, slot);
-                Runnable cb = pendingOnComplete;
-                clearPending();
-                if (cb != null) cb.run();
-            } else {
-                sendPressAndArm(slot, resource, total, sent);
-            }
-        }, PRESS_DELAY_TICKS);
+        Managers.TickScheduler.scheduleLater(
+                () -> {
+                    if (sent >= total) {
+                        VetsLogger.debug(
+                                "MemberSlotPresser: completed {} presses on slot {}", total, slot);
+                        Runnable cb = pendingOnComplete;
+                        clearPending();
+                        if (cb != null) cb.run();
+                    } else {
+                        sendPressAndArm(slot, resource, total, sent);
+                    }
+                },
+                PRESS_DELAY_TICKS);
     }
 
     private static void clearPending() {
@@ -244,32 +282,28 @@ public final class MemberSlotPresser {
     }
 
     /**
-     * Closes the Members GUI client-side. {@code setScreen(null)} triggers
-     * {@code AbstractContainerScreen.removed()}, which calls
-     * {@code player.closeContainer()} &mdash; so both the visual screen
-     * dismiss and the server-side {@code ServerboundContainerClosePacket}
-     * happen in one call. Guarded so it never closes an unrelated screen
-     * the user happens to have open by the time we get here.
+     * Dismisses the Members GUI client-side only. {@code setScreen(null)}
+     * runs {@code AbstractContainerScreen.removed()}, which calls just
+     * {@code menu.removed(player)} &mdash; a no-op for a client player
+     * &mdash; so no {@code ServerboundContainerClosePacket} is sent and
+     * {@code player.containerMenu} is not reset, as
+     * {@code LocalPlayer.closeContainer()} would do. (Wynntils' own
+     * screen-close hook sends a close only for its wrapped screens, which
+     * the Members menu is not.) What the server makes of a container it
+     * was never told is closed has not been observed; see
+     * {@code close-members-screen-sends-no-close-packet}. Guarded so it never
+     * closes an unrelated screen the user happens to have open by the
+     * time we get here.
      *
-     * <p>Package-private so {@link RandomDistributor} can use it as the
-     * final step after the multi-user queue drains.</p>
+     * <p>Package-private so the rest of the package can use it:
+     * {@link DistributionQueue} as the final step when a multi-recipient
+     * queue drains, {@link ObjectivesDistributor} on the two early-outs
+     * where its walk has left the menu open, and this class's own
+     * 4-argument {@link #fire(int, Resource, int, String)}, which passes
+     * it as the single-user command's {@code onComplete}.</p>
      */
     static void closeMembersScreen() {
-        if (currentMembersScreen() == null) return;
-        McUtils.mc().setScreen(null);
-    }
-
-    /**
-     * Returns the currently-open container screen iff its title still
-     * matches the Members pattern. Handles Wynncraft refreshing the menu
-     * under us (fresh container id, same logical screen) and aborts
-     * cleanly if the user navigated away.
-     */
-    private static AbstractContainerScreen<?> currentMembersScreen() {
-        if (McUtils.mc().screen instanceof AbstractContainerScreen<?> screen
-                && StyledText.fromComponent(screen.getTitle()).matches(MEMBERS_TITLE_PATTERN)) {
-            return screen;
-        }
-        return null;
+        if (MembersGui.currentByTitle() == null) return;
+        McUtils.setScreen(null);
     }
 }

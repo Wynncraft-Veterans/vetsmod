@@ -7,3 +7,11 @@
 # These are Windows script files and should use crlf
 *.bat           text eol=crlf
 
+# Java sources are LF in the index and LF in the worktree on every platform.
+# core.autocrlf=true is set at system level on at least one dev box, which
+# checks them out as CRLF; Spotless resolves line endings through git
+# attributes, so without this rule spotlessCheck reports every file as
+# unformatted on Windows and clean on CI. Pinned again as `lineEndings = UNIX`
+# in build.gradle's spotless block.
+*.java          text eol=lf
+

@@ -9,12 +9,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.mwe.anni.outline.AnniOutlineRegistry;
 import org.wynnvets.mwe.anni.outline.AnniOutlineTicker;
 
 /**
  * Zeroes {@link EntityRenderState#outlineColor} for {@link AbstractClientPlayer}
- * outsiders while the S4 highlight gate holds.
+ * outsiders while the S4 highlight gate holds and
+ * {@link VetsConfigKeys#VETS_ANNI_OUTLINES_ENABLED} is on.
  *
  * <p><b>Why not the getTeamColor route.</b> The earlier
  * {@code EntityTeamColorMixin} returned 0 from {@code Entity.getTeamColor()},
@@ -44,25 +46,28 @@ import org.wynnvets.mwe.anni.outline.AnniOutlineTicker;
  * branches are disjoint: registry members get their colour via the glow
  * pipeline (which we don't touch), and outsiders get {@code outlineColor = 0}
  * regardless of which TAIL inject runs first — Wynntils' inject only fires
- * when {@code getGlowColor() != NONE}, which is precisely the registry-member
- * case.</p>
+ * when {@code getGlowColor() != NONE}, and {@link AnniOutlineTicker} (the only
+ * caller of {@code EntityExtension.setGlowColor} in vetsmod or Wynntils) sets a
+ * non-{@code NONE} colour only for registry members. Edges: the ticker re-syncs
+ * once per client tick, so for up to a tick after a player leaves the registry
+ * both injects fire on them (and after one joins, neither does); and the ticker
+ * never enrols the local player, so a local player who is a registry member
+ * gets neither.</p>
  */
 @Mixin(EntityRenderer.class)
 public class EntityOutlineColorMixin {
 
     @Inject(
-            method = "extractRenderState("
-                    + "Lnet/minecraft/world/entity/Entity;"
-                    + "Lnet/minecraft/client/renderer/entity/state/EntityRenderState;"
-                    + "F)V",
+            method =
+                    "extractRenderState("
+                            + "Lnet/minecraft/world/entity/Entity;"
+                            + "Lnet/minecraft/client/renderer/entity/state/EntityRenderState;"
+                            + "F)V",
             at = @At("TAIL"))
     private void vetsmod$suppressOutsiderOutline(
-            Entity entity,
-            EntityRenderState state,
-            float partialTick,
-            CallbackInfo ci) {
+            Entity entity, EntityRenderState state, float partialTick, CallbackInfo ci) {
         if (!AnniOutlineTicker.isOutlineSuppressionActive()) return;
-        if (!VetsConfig.get(VetsConfig.VETS_ANNI_OUTLINES_ENABLED)) return;
+        if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_OUTLINES_ENABLED)) return;
         if (!(entity instanceof AbstractClientPlayer player)) return;
 
         String username = player.getGameProfile().name();

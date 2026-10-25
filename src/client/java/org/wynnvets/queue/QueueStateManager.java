@@ -1,8 +1,7 @@
 package org.wynnvets.queue;
 
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Tracks whether the client is currently sitting in a Wynncraft world queue.
@@ -11,17 +10,19 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * {@code /g} commands and does not relay inbound guild chat to the client.
  * Features that need to work around this (e.g. the WebSocket-backed guild
  * chat relay in {@link org.wynnvets.chat.OutboundDisplayHandler} and
- * {@link org.wynnvets.commands.GuildChatDispatcher}) query this manager to
- * decide whether to take the queue-aware path.</p>
+ * {@link org.wynnvets.chat.dispatcher.GuildChatDispatcher GuildChatDispatcher}) query this
+ * manager to decide whether to take the queue-aware path.</p>
  *
- * <p>State is driven by {@link QueueDetector}, which subscribes to the
- * relevant Wynntils and Fabric events.  This class is a plain state store and
- * does not know about detection signals — detection logic lives in
- * {@code QueueDetector} so the two can evolve independently.</p>
+ * <p>State is driven by {@link QueueDetector}, which subscribes to the relevant Wynntils and
+ * Fabric events, and one exit is raised elsewhere:
+ * {@link org.wynnvets.listeners.WynntilsEventListener WynntilsEventListener} clears the state
+ * when server-native guild chat arrives. This class is a plain state store and does not know
+ * about detection signals &mdash; detection logic lives in {@link QueueDetector} so the two can
+ * evolve independently.</p>
  *
- * <p>The class is thread-safe: all public mutators synchronize on the
- * singleton instance, and the listener list is a {@link CopyOnWriteArrayList}
- * so callbacks can be dispatched without holding the lock.</p>
+ * <p>The mutators are {@code static synchronized} (they lock the class) and invoke listeners
+ * while still holding that lock; the listener list is a {@link CopyOnWriteArrayList} so
+ * {@link #addListener} never races an in-progress dispatch.</p>
  */
 public final class QueueStateManager {
 
@@ -44,14 +45,6 @@ public final class QueueStateManager {
     }
 
     /**
-     * @return the name of the world the client is queued for (e.g.
-     *         {@code "NA30"}), or an empty string if unknown or not queued.
-     */
-    public static String getQueuedWorld() {
-        return queuedWorld;
-    }
-
-    /**
      * @return epoch millis when the current queue state was entered, or
      *         {@code 0} if not queued.
      */
@@ -59,7 +52,7 @@ public final class QueueStateManager {
         return enteredAtMs;
     }
 
-    // ── State transitions (called by QueueDetector) ────────────────────
+    // ── State transitions (QueueDetector; exit also WynntilsEventListener) ──
 
     /**
      * Marks the client as having entered a world queue.  Idempotent: repeated
@@ -119,15 +112,6 @@ public final class QueueStateManager {
     public static void addListener(QueueStateListener listener) {
         if (listener != null) {
             listeners.addIfAbsent(listener);
-        }
-    }
-
-    /**
-     * Removes a previously registered listener.
-     */
-    public static void removeListener(QueueStateListener listener) {
-        if (listener != null) {
-            listeners.remove(listener);
         }
     }
 }

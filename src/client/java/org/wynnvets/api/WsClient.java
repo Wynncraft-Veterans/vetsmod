@@ -1,10 +1,7 @@
 package org.wynnvets.api;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import org.wynnvets.logging.VetsLogger;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
@@ -18,6 +15,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.Json;
 
 /**
  * Manages a single WebSocket connection with automatic reconnection.
@@ -28,7 +27,6 @@ import java.util.function.Consumer;
  */
 public class WsClient implements WebSocket.Listener {
 
-    private static final Gson GSON = new Gson();
     private static final long RECONNECT_DELAY_MS = 3000;
     private static final long PING_INTERVAL_MS = 30000;
 
@@ -53,19 +51,20 @@ public class WsClient implements WebSocket.Listener {
         this.uri = uri;
         this.label = label;
         this.messageHandler = messageHandler;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "VetsMod-WS-" + label);
-            t.setDaemon(true);
-            return t;
-        });
+        this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+        this.scheduler =
+                Executors.newSingleThreadScheduledExecutor(
+                        r -> {
+                            Thread t = new Thread(r, "VetsMod-WS-" + label);
+                            t.setDaemon(true);
+                            return t;
+                        });
     }
 
     /**
      * Sets a callback to be invoked every time the WebSocket (re)connects.
-     * Used by {@link V1ApiManager} to re-send registration after reconnects.
+     * Used by {@link V1ApiManager} to re-send the auth and registration frames, and run
+     * its post-connect listeners, after each (re)connect.
      */
     public void setOnConnectCallback(Runnable callback) {
         this.onConnectCallback = callback;
@@ -76,44 +75,59 @@ public class WsClient implements WebSocket.Listener {
         if (closed.get()) return;
         if (!connecting.compareAndSet(false, true)) return;
 
-        httpClient.newWebSocketBuilder()
+        httpClient
+                .newWebSocketBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .buildAsync(uri, this)
-                .whenComplete((ws, ex) -> {
-                    connecting.set(false);
-                    if (ex != null) {
-                        VetsLogger.debug("[{}] WebSocket connect failed: {}", label, ex.getMessage());
-                        scheduleReconnect();
-                    } else {
-                        WebSocket old = wsRef.getAndSet(ws);
-                        if (old != null) {
-                            VetsLogger.warn("[{}] Replacing existing WebSocket connection (possible dual-connection)", label);
-                            try {
-                                old.abort();
-                            } catch (Exception e) {
-                                VetsLogger.debug("[{}] Old connection abort failed: {}", label, e.getMessage());
+                .whenComplete(
+                        (ws, ex) -> {
+                            connecting.set(false);
+                            if (ex != null) {
+                                VetsLogger.debug(
+                                        "[{}] WebSocket connect failed: {}",
+                                        label,
+                                        ex.getMessage());
+                                scheduleReconnect();
+                            } else {
+                                WebSocket old = wsRef.getAndSet(ws);
+                                if (old != null) {
+                                    VetsLogger.warn(
+                                            "[{}] Replacing existing WebSocket connection (possible dual-connection)",
+                                            label);
+                                    try {
+                                        old.abort();
+                                    } catch (Exception e) {
+                                        VetsLogger.debug(
+                                                "[{}] Old connection abort failed: {}",
+                                                label,
+                                                e.getMessage());
+                                    }
+                                }
+                                VetsLogger.debug("[{}] WebSocket connected", label);
+                                schedulePing();
+                                Runnable cb = onConnectCallback;
+                                if (cb != null) {
+                                    try {
+                                        cb.run();
+                                    } catch (Exception e) {
+                                        VetsLogger.debug(
+                                                "[{}] onConnect callback error: {}",
+                                                label,
+                                                e.getMessage());
+                                    }
+                                }
                             }
-                        }
-                        VetsLogger.debug("[{}] WebSocket connected", label);
-                        schedulePing();
-                        Runnable cb = onConnectCallback;
-                        if (cb != null) {
-                            try {
-                                cb.run();
-                            } catch (Exception e) {
-                                VetsLogger.debug("[{}] onConnect callback error: {}", label, e.getMessage());
-                            }
-                        }
-                    }
-                });
+                        });
     }
 
-    /** Sends a JSON text frame. Silently drops the message if not connected. */
+    /** Sends a JSON text frame, fire-and-forget: silently dropped if not connected, and,
+     *  because the returned send future is ignored, also lost if another send on this
+     *  socket is still pending ({@code ws-client-send-ignores-send-pending-failure}). */
     public void send(JsonObject json) {
         WebSocket ws = wsRef.get();
         if (ws == null) return;
         try {
-            ws.sendText(GSON.toJson(json), true);
+            ws.sendText(Json.GSON.toJson(json), true);
         } catch (Exception e) {
             VetsLogger.debug("[{}] WebSocket send failed: {}", label, e.getMessage());
         }
@@ -125,7 +139,9 @@ public class WsClient implements WebSocket.Listener {
         return ws != null && !ws.isOutputClosed();
     }
 
-    /** Permanently closes the connection and stops the reconnect scheduler. */
+    /** Permanently closes the connection and stops the reconnect scheduler. Today a
+     *  handshake still in flight completes afterwards and its socket stays open
+     *  ({@code ws-client-close-during-handshake-leaves-socket-open}). */
     public void close() {
         closed.set(true);
         scheduler.shutdownNow();
@@ -188,7 +204,7 @@ public class WsClient implements WebSocket.Listener {
 
     private void handleText(String text) {
         try {
-            JsonObject json = GSON.fromJson(text, JsonObject.class);
+            JsonObject json = Json.GSON.fromJson(text, JsonObject.class);
             if (json != null && messageHandler != null) {
                 messageHandler.accept(json);
             }
@@ -204,15 +220,20 @@ public class WsClient implements WebSocket.Listener {
 
     private void schedulePing() {
         if (closed.get()) return;
-        scheduler.scheduleAtFixedRate(() -> {
-            WebSocket ws = wsRef.get();
-            if (ws != null && !ws.isOutputClosed()) {
-                try {
-                    ws.sendPing(ByteBuffer.allocate(0));
-                } catch (Exception e) {
-                    VetsLogger.debug("[{}] WebSocket ping failed: {}", label, e.getMessage());
-                }
-            }
-        }, PING_INTERVAL_MS, PING_INTERVAL_MS, TimeUnit.MILLISECONDS);
+        scheduler.scheduleAtFixedRate(
+                () -> {
+                    WebSocket ws = wsRef.get();
+                    if (ws != null && !ws.isOutputClosed()) {
+                        try {
+                            ws.sendPing(ByteBuffer.allocate(0));
+                        } catch (Exception e) {
+                            VetsLogger.debug(
+                                    "[{}] WebSocket ping failed: {}", label, e.getMessage());
+                        }
+                    }
+                },
+                PING_INTERVAL_MS,
+                PING_INTERVAL_MS,
+                TimeUnit.MILLISECONDS);
     }
 }

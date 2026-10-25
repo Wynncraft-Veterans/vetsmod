@@ -4,13 +4,12 @@ import com.wynntils.core.WynntilsMod;
 import com.wynntils.mc.event.TitleSetTextEvent;
 import com.wynntils.models.worlds.event.WorldStateEvent;
 import com.wynntils.models.worlds.type.WorldState;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.neoforged.bus.api.SubscribeEvent;
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.neoforged.bus.api.SubscribeEvent;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Detects world-queue state from a handful of client-side signals and feeds
@@ -18,8 +17,9 @@ import java.util.regex.Pattern;
  *
  * <p>Signals:</p>
  * <ul>
- *   <li><b>Entry</b> — Wynntils {@link TitleSetTextEvent} matching the
- *       Wynncraft queue title (e.g. {@code Queueing for NA30.}).  The queue
+ *   <li><b>Entry</b> — a title matching the Wynncraft queue title (e.g.
+ *       {@code Queueing for NA30.}), from Wynntils' {@link TitleSetTextEvent}
+ *       or {@link org.wynnvets.mixin.client.QueueTitleMixin QueueTitleMixin}.  The queue
  *       server re-sends this title every few ticks, so only the first match
  *       produces a state change thanks to the idempotent
  *       {@link QueueStateManager#enter(String)}.</li>
@@ -77,10 +77,15 @@ public final class QueueDetector {
     }
 
     /**
-     * Processes a raw title string for queue detection.  Called from both
-     * the Wynntils event handler and the direct mixin fallback so that
-     * queue detection works regardless of whether another mod (e.g.
-     * WynnLimbo) cancels the title packet before Wynntils sees it.
+     * Processes a raw title string for queue detection. Called from the Wynntils
+     * {@code TitleSetTextEvent} handler and from
+     * {@link org.wynnvets.mixin.client.QueueTitleMixin QueueTitleMixin}, which reads the packet
+     * at the head of {@code ClientPacketListener.setTitleText} &mdash; including vanilla's first
+     * entry on the network thread, so this method also runs off the render thread. That second
+     * path means a mod cancelling Wynntils' event does not blind queue detection; a mod
+     * cancelling {@code setTitleText} itself at {@code HEAD} ahead of {@code QueueTitleMixin}
+     * still can ({@code queue-title-mixin-priority-inverts-its-own-goal};
+     * {@code vetsmod_mixins.md} §"Injection priorities").
      *
      * @param text the plain-text title string
      */

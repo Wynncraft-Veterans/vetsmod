@@ -1,21 +1,11 @@
 package org.wynnvets.fetcher.ondemand;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wynntils.core.components.Models;
 import com.wynntils.models.guild.type.GuildInfo;
 import com.wynntils.models.guild.type.GuildMemberInfo;
-import org.wynnvets.api.V1ApiManager;
-import org.wynnvets.api.VetsApi;
-import org.wynnvets.fetcher.polling.GuildRosterCache;
-import org.wynnvets.fetcher.polling.WynnAliasCache;
-import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.guild.OnlineGuildCache;
-import org.wynnvets.guild.TabListGuildParser;
-import org.wynnvets.logging.VetsLogger;
-
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -30,44 +20,47 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.api.VetsApi;
+import org.wynnvets.fetcher.polling.PolledJsonMap;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.HttpClients;
+import org.wynnvets.util.Json;
 
 /**
  * Shared service for fetching and merging online guild member data.
  *
- * <p>Combines three sources — tab list, VetsMod server, Wynntils guild API —
- * into a unified online member list. Used by {@link ListFetcher},
- * {@link WorldListFetcher}, and {@link
- * org.wynnvets.fetcher.ondemand.UserInfoFetcher}.</p>
+ * <p>Combines the tab list, the VetsMod server's connected-user list and
+ * the Wynntils guild API into a unified online member list, corrected by
+ * the server's polled roster and alias maps ({@link PolledJsonMap}) and
+ * topped up with recently seen names from {@link OnlineGuildCache}. Used
+ * by {@link ListFetcher},
+ * {@link WorldListFetcher}, and {@link CheckReportRenderer}.</p>
  */
-public final class OnlineMemberService {
+final class OnlineMemberService {
 
     static final String TIER_GUILD = "guild";
     static final String TIER_WAITLIST = "waitlist";
     static final String TIER_HONOURARY = "honourary";
 
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .connectTimeout(Duration.ofSeconds(5))
-            .build();
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
-    private static final Gson GSON = new Gson();
-
-    private OnlineMemberService() {
-    }
+    private OnlineMemberService() {}
 
     // ── Data holders ────────────────────────────────────────────────
 
-    record ConnectedUser(String uuid, String username, String tier, boolean queued) {
-    }
+    record ConnectedUser(String uuid, String username, String tier, boolean queued) {}
 
-    record OnlinePlayer(String username, String uuid, String tier) {
-    }
+    record OnlinePlayer(String username, String uuid, String tier) {}
 
-    record GatherResult(List<OnlinePlayer> players, Set<String> modGuildUuids,
-                         Set<String> queuedUuids, boolean wynntilsAvailable) {
-    }
+    record GatherResult(
+            List<OnlinePlayer> players,
+            Set<String> modGuildUuids,
+            Set<String> queuedUuids,
+            boolean wynntilsAvailable) {}
 
-    // ── Public API ──────────────────────────────────────────────────
+    // ── Entry points ────────────────────────────────────────────────
 
     /**
      * Gathers online players from all three data sources, merges them,
@@ -76,7 +69,8 @@ public final class OnlineMemberService {
      */
     static CompletableFuture<GatherResult> gatherOnlinePlayers() {
         // 1. Read tab list immediately (synchronous, local state).
-        List<TabListGuildParser.GuildEntry> tabEntries = TabListGuildParser.parseOnlineGuildMembers();
+        List<TabListGuildParser.GuildEntry> tabEntries =
+                TabListGuildParser.parseOnlineGuildMembers();
         VetsLogger.debug("Tab list returned {} guild entries", tabEntries.size());
 
         // Forward tab list to the server so !list can use it too.
@@ -85,45 +79,53 @@ public final class OnlineMemberService {
         // waitlist users who happen to be in some other guild would
         // otherwise leak that guild's roster into the vets dataset.
         if (!tabEntries.isEmpty() && GuildStateManager.isReturners()) {
-            V1ApiManager.sendTabList(tabEntries.stream()
-                    .map(e -> new V1ApiManager.TabListEntry(e.server(), e.username()))
-                    .toList());
+            V1ApiManager.sendTabList(
+                    tabEntries.stream()
+                            .map(e -> new V1ApiManager.TabListEntry(e.server(), e.username()))
+                            .toList());
         }
 
         // 2. Fetch connected vetsmod users from the server.
-        CompletableFuture<List<ConnectedUser>> serverFuture = fetchConnectedUsers()
-                .exceptionally(e -> {
-                    VetsLogger.debug("Failed to fetch connected users: {}", e.getMessage());
-                    return List.of();
-                });
+        CompletableFuture<List<ConnectedUser>> serverFuture =
+                fetchConnectedUsers()
+                        .exceptionally(
+                                e -> {
+                                    VetsLogger.debug(
+                                            "Failed to fetch connected users: {}", e.getMessage());
+                                    return List.of();
+                                });
 
         // 3. Fetch guild info from Wynntils (Wynncraft API).
         CompletableFuture<GuildInfo> guildFuture;
         if (GuildStateManager.isWynntilsReady()) {
-            guildFuture = Models.Guild.getGuild("Returners")
-                    .exceptionally(e -> {
-                        VetsLogger.debug("Failed to fetch guild info: {}", e.getMessage());
-                        return null;
-                    });
+            guildFuture =
+                    Models.Guild.getGuild("Returners")
+                            .exceptionally(
+                                    e -> {
+                                        VetsLogger.debug(
+                                                "Failed to fetch guild info: {}", e.getMessage());
+                                        return null;
+                                    });
         } else {
             guildFuture = CompletableFuture.completedFuture(null);
         }
 
         // 4. Combine all three results.
-        return serverFuture.thenCombine(guildFuture,
-                (connected, guildInfo) -> merge(connected, guildInfo, tabEntries));
+        return serverFuture.thenCombine(
+                guildFuture, (connected, guildInfo) -> merge(connected, guildInfo, tabEntries));
     }
 
     /**
      * Looks up the current server name (e.g. {@code "NA35"}) for
      * {@code username} by scanning the local Minecraft tab list.
-     * Returns {@code null} when the player is not visible — either
-     * offline, in a different guild, or the local player isn't in
-     * any guild.
+     * Returns {@code null} when the player is not visible: for example when
+     * they are offline, in a different guild or past the tab list's
+     * truncated guild-member window (see {@link TabListGuildParser}), or
+     * when the local player isn't in any guild or on a Wynncraft world.
      *
-     * <p>Cheap synchronous call: does not trigger any of the three
-     * async fetches used by {@link #gatherOnlinePlayers()}. Safe to
-     * call inline from per-player commands like {@code /wv check}.
+     * <p>Cheap synchronous call: does not trigger any of the async
+     * fetches {@link #gatherOnlinePlayers()} starts. Safe to
+     * call inline from per-player commands like {@code /wv check}.</p>
      */
     static String getCurrentServer(String username) {
         if (username == null || username.isEmpty()) {
@@ -140,25 +142,28 @@ public final class OnlineMemberService {
     // ── Server fetch ────────────────────────────────────────────────
 
     private static CompletableFuture<List<ConnectedUser>> fetchConnectedUsers() {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(VetsApi.LIST)
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build();
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(VetsApi.LIST)
+                        .timeout(Duration.ofSeconds(5))
+                        .GET()
+                        .build();
 
-        return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-                        VetsLogger.debug("List fetch failed: {}", response.statusCode());
-                        return List.<ConnectedUser>of();
-                    }
-                    return parseConnectedUsers(response.body());
-                });
+        return HTTP_CLIENT
+                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(
+                        response -> {
+                            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+                                VetsLogger.debug("List fetch failed: {}", response.statusCode());
+                                return List.<ConnectedUser>of();
+                            }
+                            return parseConnectedUsers(response.body());
+                        });
     }
 
     private static List<ConnectedUser> parseConnectedUsers(String body) {
         try {
-            JsonObject root = GSON.fromJson(body, JsonObject.class);
+            JsonObject root = Json.GSON.fromJson(body, JsonObject.class);
             if (root == null || !root.has("connected")) {
                 return List.of();
             }
@@ -167,9 +172,9 @@ public final class OnlineMemberService {
             for (JsonElement el : arr) {
                 if (!el.isJsonObject()) continue;
                 JsonObject obj = el.getAsJsonObject();
-                String uuid = stringOrEmpty(obj, "uuid");
-                String username = stringOrEmpty(obj, "username");
-                String tier = stringOrEmpty(obj, "tier");
+                String uuid = Json.stringOrEmpty(obj, "uuid");
+                String username = Json.stringOrEmpty(obj, "username");
+                String tier = Json.stringOrEmpty(obj, "tier");
                 if (!uuid.isEmpty() && !username.isEmpty()) {
                     boolean queued = obj.has("queued") && obj.get("queued").getAsBoolean();
                     result.add(new ConnectedUser(uuid, username, tier, queued));
@@ -185,7 +190,8 @@ public final class OnlineMemberService {
     // ── Merge ───────────────────────────────────────────────────────
 
     private static GatherResult merge(
-            List<ConnectedUser> connected, GuildInfo guildInfo,
+            List<ConnectedUser> connected,
+            GuildInfo guildInfo,
             List<TabListGuildParser.GuildEntry> tabEntries) {
 
         // Index connected users by UUID.
@@ -194,15 +200,17 @@ public final class OnlineMemberService {
             modByUuid.put(cu.uuid(), cu);
         }
 
-        Set<String> modGuildUuids = modByUuid.values().stream()
-                .filter(cu -> TIER_GUILD.equals(cu.tier()))
-                .map(ConnectedUser::uuid)
-                .collect(Collectors.toSet());
+        Set<String> modGuildUuids =
+                modByUuid.values().stream()
+                        .filter(cu -> TIER_GUILD.equals(cu.tier()))
+                        .map(ConnectedUser::uuid)
+                        .collect(Collectors.toSet());
 
-        Set<String> queuedUuids = modByUuid.values().stream()
-                .filter(ConnectedUser::queued)
-                .map(ConnectedUser::uuid)
-                .collect(Collectors.toSet());
+        Set<String> queuedUuids =
+                modByUuid.values().stream()
+                        .filter(ConnectedUser::queued)
+                        .map(ConnectedUser::uuid)
+                        .collect(Collectors.toSet());
 
         // Build the master UUID→username map from Wynntils (authoritative).
         Map<String, String> uuidToUsername = new LinkedHashMap<>();
@@ -216,7 +224,7 @@ public final class OnlineMemberService {
         }
         // Overlay resolved roster names (from Minecraft Services API via tempserver).
         // These are authoritative and override potentially stale Wynncraft API names.
-        Map<String, String> resolvedRoster = GuildRosterCache.getRoster();
+        Map<String, String> resolvedRoster = PolledJsonMap.GUILD_ROSTER.snapshot();
         for (Map.Entry<String, String> entry : resolvedRoster.entrySet()) {
             uuidToUsername.put(entry.getKey(), entry.getValue());
             usernameToUuid.put(entry.getValue().toLowerCase(Locale.ROOT), entry.getKey());
@@ -228,8 +236,8 @@ public final class OnlineMemberService {
         }
 
         // Renamed players: the server's GuildRosterPoller reads legacyName from the
-        // v3.8 guild payload and populates /v1/outbound/aliases; WynnAliasCache polls
-        // that endpoint, so WynnAliasCache.getUuid() below resolves stale tab names.
+        // v3.8 guild payload and populates /v1/outbound/aliases; PolledJsonMap.WYNN_ALIASES
+        // polls that endpoint, so the lookup below resolves stale tab names.
 
         // Collect online guild member UUIDs from the Wynncraft API.
         Set<String> apiOnlineUuids = new TreeSet<>();
@@ -246,14 +254,14 @@ public final class OnlineMemberService {
         mergedOnlineGuild.addAll(modGuildUuids);
 
         // Tab list entries: resolve to UUID by current username, falling back to
-        // the server-learned legacyName alias (v3.8 populates WynnAliasCache via
+        // the server's legacyName alias (v3.8 populates WYNN_ALIASES via
         // /v1/outbound/aliases).  Unresolved names are kept as tab-only entries.
         Set<String> tabOnlyUsernames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         for (TabListGuildParser.GuildEntry entry : tabEntries) {
             String key = entry.username().toLowerCase(Locale.ROOT);
             String uuid = usernameToUuid.get(key);
             if (uuid == null) {
-                uuid = WynnAliasCache.getUuid(entry.username());
+                uuid = PolledJsonMap.WYNN_ALIASES.get(entry.username());
             }
             if (uuid != null) {
                 mergedOnlineGuild.add(uuid);
@@ -305,12 +313,5 @@ public final class OnlineMemberService {
         }
 
         return new GatherResult(result, modGuildUuids, queuedUuids, guildInfo != null);
-    }
-
-    static String stringOrEmpty(JsonObject obj, String key) {
-        if (obj.has(key) && !obj.get(key).isJsonNull()) {
-            return obj.get(key).getAsString();
-        }
-        return "";
     }
 }

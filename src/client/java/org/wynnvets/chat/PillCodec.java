@@ -17,13 +17,13 @@ import net.minecraft.network.chat.Style;
  *
  * <h2>Codepoint meaning is frame-scoped</h2>
  *
- * <p>There is one glyph page in Wynncraft's resource pack, and a codepoint in
- * it means nothing on its own — only its position inside a framed sequence
- * gives it a meaning. U+E003 is the private-message separator, U+E006 and
- * U+E002 are guild badge glyphs, and U+E010/U+E011 are frame pieces, yet all
- * of them sit inside the same U+E000 block that spells lowercase letters
- * inside a rank pill. Decode from the frame inward; never map a bare
- * codepoint to a character.</p>
+ * <p>A codepoint in Wynncraft's resource pack means nothing on its own — only
+ * its font and its position inside a framed sequence give it a meaning (the
+ * glyphs below come from more than one font; see "Fonts"). U+E003 is the
+ * private-message separator, U+E006 and U+E002 are guild badge glyphs, and
+ * U+E010/U+E011 are frame pieces, yet all of them sit inside the same U+E000
+ * block that spells lowercase letters inside a rank pill. Decode from the
+ * frame inward; never map a bare codepoint to a character.</p>
  *
  * <p>Within a frame, three letter blocks are in use:</p>
  *
@@ -66,12 +66,17 @@ import net.minecraft.network.chat.Style;
  * skipped rather than mistaken for a label.</p>
  *
  * <p><b>3. Remote pill (light on dark)</b> — {@link #encodeRemote(String)}.
- * A light label on a dark rounded field. Used for anything that reached the
- * player over vetsmod's WebSocket rather than through Wynncraft's own guild
- * channel: bridge, honourary, and queue messages. Returns a plain
- * {@code String} because the entire sequence is one colour, which lets
- * {@link PillFormatter} decide that colour per message (flat, or the
- * supporter gradient marker).</p>
+ * A light label on a dark rounded field. Used for chat that travels over
+ * vetsmod's WebSocket rather than through Wynncraft's own guild channel: the
+ * relayed lines {@link OutboundDisplayHandler} renders as ordinary chat, and
+ * the local echo of a line a queued Returner sends. Today
+ * {@link org.wynnvets.chat.rewriter.EncourageUpdateRewriter EncourageUpdateRewriter}
+ * also uses it for a line that arrived through the guild channel, and both
+ * that rewrite and the queued echo put the sender's raw rank in the pill
+ * rather than a display label ({@code raw-rank-pills-bypass-display-remap}).
+ * Returns a plain {@code String} because the entire sequence is one colour,
+ * which lets {@link PillFormatter} decide that colour per message (flat, or
+ * the supporter gradient marker).</p>
  * <pre>
  *   U+E06B                  frame open
  *   U+E040 + (c - 'A') ...  the label, uppercase
@@ -82,10 +87,11 @@ import net.minecraft.network.chat.Style;
  * A dark label on a light rounded field, matching Wynncraft's own guild pill
  * and the {@code [Vetsmod]} pill in {@code /wv help}. Used when rewriting
  * chat that genuinely arrived through Wynncraft's guild channel, so the
- * rewrite doesn't visually announce itself as mod output. Returns a
- * {@code Component} rather than a {@code String} because it is inherently
- * two-tone — the frame takes the caller's colour and the letters are always
- * black — so it cannot be expressed as a single styled run.</p>
+ * rewrite doesn't visually announce itself as mod output, and for the
+ * {@code /v} staff-channel pill ({@link ChatUtils#buildStaffPillComponent(String)}).
+ * Returns a {@code Component} rather than a {@code String} because it is
+ * inherently two-tone — the frame takes the caller's colour and the letters
+ * are always black — so it cannot be expressed as a single styled run.</p>
  * <pre>
  *   U+E010 U+2064                        frame open
  *   (U+E00F U+E012, U+E040 + (c-'A'))... one frame segment per letter,
@@ -102,9 +108,12 @@ import net.minecraft.network.chat.Style;
  *
  * <p>Both vetsmod styles render in the <em>default</em> font and rely on
  * Wynncraft's resource pack supplying the PUA glyphs — no font override is
- * applied anywhere on the pill path. The named {@code chat/prefix} font
- * ({@code ChatUtils.CHAT_PREFIX_STYLE}) is used for badges and continuation
- * markers, not for pills, and the server's own pill uses {@code banner/pill}.
+ * applied anywhere on the pill path. The named {@code chat/prefix} font draws
+ * the badges, in styles of their own ({@link Prepend}'s, and the staff alert's
+ * in {@link org.wynnvets.chat.rewriter.StaffGuildAlertRewriter StaffGuildAlertRewriter}),
+ * and the inline separator and continuation markers, in
+ * {@link MessageBodyFormatter#CHAT_PREFIX_STYLE}; it is not used for pills, and
+ * the server's own pill uses {@code banner/pill}.
  * Several older docstrings loosely attribute vetsmod pills to
  * {@code chat/prefix}; that is not what the code does.</p>
  *
@@ -147,8 +156,7 @@ public final class PillCodec {
     private static final String LOCAL_FRAME_SEGMENT = "\uE00F\uE012";
     private static final String LOCAL_FRAME_CLOSE = "\uE011";
 
-    private PillCodec() {
-    }
+    private PillCodec() {}
 
     // ── Encoding ──────────────────────────────────────────────────────
 
@@ -207,9 +215,9 @@ public final class PillCodec {
                 continue;
             }
             component.append(Component.literal(LOCAL_FRAME_SEGMENT).setStyle(frameStyle));
-            component.append(Component
-                    .literal(String.valueOf((char) (UPPER_ALPHABET_BASE + (letter - 'A'))))
-                    .setStyle(letterStyle));
+            component.append(
+                    Component.literal(String.valueOf((char) (UPPER_ALPHABET_BASE + (letter - 'A'))))
+                            .setStyle(letterStyle));
         }
 
         component.append(Component.literal(LOCAL_FRAME_CLOSE).setStyle(frameStyle));
@@ -286,41 +294,47 @@ public final class PillCodec {
         return null; // ran off the end without a terminator
     }
 
-    /**
-     * The rendered width in pixels that the server declared for the first
-     * pill in {@code text}, or {@code -1} if there is no width marker.
-     *
-     * <p>Only meaningful for diagnostics — the marker exists so the badge art
-     * can be sized to the label, and two different labels of equal width
-     * share a marker ({@code captain} and {@code recruit} are both 42).</p>
-     */
-    public static int decodeServerPillWidth(String text) {
-        if (text == null) {
-            return -1;
-        }
-        int i = text.indexOf(SERVER_PILL_OPEN);
-        if (i < 0) {
-            return -1;
-        }
-        i++;
-        while (i < text.length()) {
-            int cp = text.codePointAt(i);
-            i += Character.charCount(cp);
-            if (cp >= SERVER_WIDTH_MIN && cp < SERVER_WIDTH_BASE) {
-                return SERVER_WIDTH_BASE - cp;
-            }
-            if (cp == SERVER_PILL_CLOSE) {
-                return -1;
-            }
-        }
-        return -1;
-    }
-
     // ── Predicates ────────────────────────────────────────────────────
+
+    /**
+     * Whether {@code codePoint} is one of the custom-font glyphs Wynncraft's
+     * resource pack draws as art rather than as text.
+     *
+     * <p>Two codepoint classes qualify: the Private Use Area, which is where
+     * the pill and badge glyphs live, and <b>supplementary</b> unassigned
+     * codepoints, which is where the width markers, kern markers and pill
+     * terminator live.</p>
+     *
+     * <p>The {@code > 0xFFFF} bound on the unassigned half is the load-bearing
+     * part and the one a careless reader drops. Unassigned codepoints inside
+     * the BMP turn up in ordinary text — a chat line carrying one would acquire
+     * a rank indicator it never had, or lose a character to a strip that should
+     * have left it alone. Wynncraft's markers are all above the BMP.</p>
+     *
+     * <p>Not the same question as {@link #isEncoded(String)}, which asks only
+     * about {@code PRIVATE_USE} and deliberately says "no" to the markers this
+     * says "yes" to; see its own docs for why.</p>
+     */
+    public static boolean isCustomGlyph(int codePoint) {
+        int type = Character.getType(codePoint);
+        return type == Character.PRIVATE_USE
+                || (type == Character.UNASSIGNED && codePoint > 0xFFFF);
+    }
 
     /**
      * Whether {@code text} already contains PUA codepoints, i.e. has been
      * encoded as a pill (by either side) and must not be encoded again.
+     *
+     * <p><b>Not {@link #isCustomGlyph(int)}, on purpose.</b> This tests
+     * {@code PRIVATE_USE} and nothing else; {@code isCustomGlyph} adds
+     * supplementary {@code UNASSIGNED}. The server pill's width marker
+     * (U+CFF00–U+CFFFF) and terminator (U+D0002) live in that second class, so
+     * adding the clause here would make {@link #encodeRemote(String)} read a
+     * label carrying either marker as already encoded and hand it straight
+     * back, unpilled. Pinned by
+     * {@code PillCodecTest.isEncoded_ignoresTheServerPillMarkersBecauseTheyAreUnassignedNotPua}
+     * and by the paired case in
+     * {@code PillCodecTest.isCustomGlyph_andIsEncodedDisagreeOnTheServerMarkers}.</p>
      */
     public static boolean isEncoded(String text) {
         if (text == null) {

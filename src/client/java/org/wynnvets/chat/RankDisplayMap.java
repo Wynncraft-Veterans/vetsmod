@@ -21,17 +21,16 @@ import java.util.Map;
  */
 public final class RankDisplayMap {
 
-    private static final Map<String, String> DISPLAY = Map.of(
-            "recruit",    "Recruit",
-            "recruiter",  "Returner",
-            "captain",    "Returner",
-            "strategist", "Steward",
-            "chief",      "Steward",
-            "owner",      "Steward"
-    );
+    private static final Map<String, String> DISPLAY =
+            Map.of(
+                    "recruit", "Recruit",
+                    "recruiter", "Returner",
+                    "captain", "Returner",
+                    "strategist", "Steward",
+                    "chief", "Steward",
+                    "owner", "Steward");
 
-    private RankDisplayMap() {
-    }
+    private RankDisplayMap() {}
 
     /**
      * Return the display label for {@code rawRank}. Case-insensitive.
@@ -47,22 +46,9 @@ public final class RankDisplayMap {
     }
 
     /**
-     * Does {@code rawRank} identify a staff-tier Wynn rank
-     * ({@code strategist} / {@code chief} / {@code owner})? Captains are
-     * NOT staff post-restructure.
-     */
-    public static boolean isStaffDisplay(String rawRank) {
-        if (rawRank == null) {
-            return false;
-        }
-        String key = rawRank.trim().toLowerCase(Locale.ROOT);
-        return "strategist".equals(key) || "chief".equals(key) || "owner".equals(key);
-    }
-
-    /**
-     * The tag string rendered next to a staff member's name in the
-     * {@code /v} menu. Strategists get {@code "staff"}; chiefs and owners
-     * get {@code "owner"}; anything else returns {@code null}.
+     * The label rendered in the pill of a {@code /v} staff-channel line (see
+     * {@link ChatUtils#buildStaffPillComponent(String)}). Strategists get {@code "staff"}; chiefs
+     * and owners get {@code "owner"}; anything else returns {@code null}.
      */
     public static String vTagFor(String rawRank) {
         if (rawRank == null) {

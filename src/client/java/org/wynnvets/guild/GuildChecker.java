@@ -1,32 +1,38 @@
 package org.wynnvets.guild;
 
 import com.wynntils.core.components.Handlers;
-import com.wynntils.core.components.Models;
-import com.wynntils.models.worlds.type.WorldState;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.TickDelays;
 
 /**
  * Determines the player's guild membership by issuing {@code /gu stats}
  * to the Wynncraft server and parsing the multi-line response.
  *
- * <p>Unlike Wynntils' {@code Models.Guild} (which reads scoreboard/compass
- * data and can remain {@code null} for extended periods), this checker
- * queries the server directly and caches the result for
- * {@value #GUILD_CHECK_EXPIRY_DAYS} days.</p>
+ * <p>Unlike Wynntils' {@code Models.Guild} (which learns the guild from its character-menu
+ * scan and from guild chat lines, and whose guild name can stay empty for extended
+ * periods), this checker queries the server directly and caches the result for
+ * {@value #GUILD_CHECK_EXPIRY_DAYS} days. While that result is valid it takes precedence
+ * over Wynntils in {@link GuildStateManager#isReturners()} and
+ * {@link GuildStateManager#isGuildless()}.</p>
  *
- * <p>The command is dispatched through Wynntils' rate-limited command queue
- * ({@code Handlers.Command}) so it never interferes with other mod-initiated
- * commands (staff rank checks, /msg fanout, etc.).</p>
+ * <p>The command is dispatched through Wynntils' command queue ({@code Handlers.Command}),
+ * which spaces it from other mod-initiated commands (staff rank checks, /msg fanout,
+ * etc.). A concurrent {@code /gu rank} reply can still arrive mid-check, which
+ * {@link #isStaffRankCheckResponse(String)} guards against.</p>
  *
- * <p>This class is package-private and accessed exclusively through
- * {@link GuildStateManager}'s facade methods.</p>
+ * <p>The class, its result enum and the members the forced guild check uses are public, for
+ * {@link org.wynnvets.debug.diagnostics.GuildDiagnostics GuildDiagnostics} in another package;
+ * everything else is package-private or private. Within the package,
+ * {@link GuildStateManager}'s facade methods and {@link GuildLifecycle} call it directly.</p>
  */
-final class GuildChecker {
+public final class GuildChecker {
 
     // ── Result enum ────────────────────────────────────────────────────
 
-    enum GuildCheckResult {
+    // Public for GuildDiagnostics, which reports the cached result.
+    public enum GuildCheckResult {
         UNKNOWN(0),
         RETURNERS(1),
         OTHER_GUILD(2),
@@ -55,6 +61,7 @@ final class GuildChecker {
 
     /** How long a check result stays valid before re-checking. */
     private static final int GUILD_CHECK_EXPIRY_DAYS = 3;
+
     private static final long GUILD_CHECK_EXPIRY_MS =
             GUILD_CHECK_EXPIRY_DAYS * 24L * 60L * 60L * 1_000L;
 
@@ -87,22 +94,21 @@ final class GuildChecker {
     /**
      * @return {@code true} when a non-expired check result is available
      */
-    static boolean hasValidResult() {
+    // Public for GuildDiagnostics, which reports whether the result has expired.
+    public static boolean hasValidResult() {
         if (cachedResult == GuildCheckResult.UNKNOWN) return false;
         long elapsed = System.currentTimeMillis() - lastGuildCheckTime;
         return elapsed >= 0 && elapsed < GUILD_CHECK_EXPIRY_MS;
     }
 
-    static GuildCheckResult getResult() {
+    // Public for GuildDiagnostics, which reports the cached result.
+    public static GuildCheckResult getResult() {
         return cachedResult;
     }
 
-    static long getLastCheckTime() {
+    // Public for GuildDiagnostics, which reports the result's age.
+    public static long getLastCheckTime() {
         return lastGuildCheckTime;
-    }
-
-    static boolean isCheckingGuildStatus() {
-        return waitingForGuildCheck;
     }
 
     /**
@@ -111,20 +117,18 @@ final class GuildChecker {
      */
     static boolean isProcessingModGuildCheck() {
         if (isModInitiatedGuildCheck) return true;
-        return guildCheckSuppressUntil > 0
-                && System.currentTimeMillis() < guildCheckSuppressUntil;
+        return guildCheckSuppressUntil > 0 && System.currentTimeMillis() < guildCheckSuppressUntil;
     }
 
     // ── Lifecycle ──────────────────────────────────────────────────────
 
     static void loadPersistedState() {
-        long persistedResult = VetsConfig.getLong(VetsConfig.VETS_GUILD_CHECK_RESULT);
+        long persistedResult = VetsConfig.getLong(VetsConfigKeys.VETS_GUILD_CHECK_RESULT);
         cachedResult = GuildCheckResult.fromPersistedValue(persistedResult);
 
-        long persistedTime = VetsConfig.getLong(VetsConfig.VETS_LAST_GUILD_CHECK);
+        long persistedTime = VetsConfig.getLong(VetsConfigKeys.VETS_LAST_GUILD_CHECK);
         long now = System.currentTimeMillis();
-        lastGuildCheckTime = (persistedTime >= 0 && persistedTime <= now)
-                ? persistedTime : 0;
+        lastGuildCheckTime = (persistedTime >= 0 && persistedTime <= now) ? persistedTime : 0;
 
         // Expire stale results on load
         if (cachedResult != GuildCheckResult.UNKNOWN) {
@@ -135,9 +139,10 @@ final class GuildChecker {
             }
         }
 
-        VetsLogger.debug("GuildChecker loaded: result={}, age={}s",
-                cachedResult, lastGuildCheckTime > 0
-                        ? (now - lastGuildCheckTime) / 1000 : "n/a");
+        VetsLogger.debug(
+                "GuildChecker loaded: result={}, age={}s",
+                cachedResult,
+                lastGuildCheckTime > 0 ? (now - lastGuildCheckTime) / 1000 : "n/a");
     }
 
     static void reset() {
@@ -152,15 +157,17 @@ final class GuildChecker {
     }
 
     /**
-     * Clears the in-memory and persisted result.  Called when Wynntils fires
-     * a {@code GuildEvent} (join/leave), since that real-time data is
-     * authoritative over our cached check.
+     * Clears the in-memory and persisted result. Reached through
+     * {@link GuildLifecycle#onGuildInfoUpdated()}, which runs on Wynntils' guild
+     * join/leave events and also when the post-world-join recheck finds Wynntils' guild
+     * data populated, where no event fired ({@code guild-recheck-poll-clears-gu-stats-cache});
+     * the real-time data is treated as authoritative over our cached check.
      */
     static void clearResult() {
         cachedResult = GuildCheckResult.UNKNOWN;
         lastGuildCheckTime = 0;
-        VetsConfig.setLong(VetsConfig.VETS_GUILD_CHECK_RESULT, 0L);
-        VetsConfig.setLong(VetsConfig.VETS_LAST_GUILD_CHECK, 0L);
+        VetsConfig.setLong(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, 0L);
+        VetsConfig.setLong(VetsConfigKeys.VETS_LAST_GUILD_CHECK, 0L);
         VetsLogger.debug("GuildChecker result cleared (Wynntils guild event)");
     }
 
@@ -172,7 +179,8 @@ final class GuildChecker {
      *
      * @return {@code true} if a check was started
      */
-    static synchronized boolean refreshGuildStatus() {
+    // Public for GuildDiagnostics, which starts a check on demand.
+    public static synchronized boolean refreshGuildStatus() {
         if (waitingForGuildCheck) {
             return false;
         }
@@ -236,8 +244,7 @@ final class GuildChecker {
                     VetsLogger.debug("Guild check result: Returners");
                 } else {
                     setResult(GuildCheckResult.OTHER_GUILD);
-                    VetsLogger.debug("Guild check result: other guild ({})",
-                            lastNonEmptyCandidate);
+                    VetsLogger.debug("Guild check result: other guild ({})", lastNonEmptyCandidate);
                 }
             } else {
                 VetsLogger.warn("Guild check: saw 'Guild Since:' without candidate name");
@@ -260,9 +267,7 @@ final class GuildChecker {
 
         // ── Potential guild name (unrecognised short line) ──────────
         // Guard against staff rank check responses landing here
-        if (!isStaffRankCheckResponse(trimmed)
-                && trimmed.length() < 60
-                && !trimmed.contains(":")) {
+        if (!isStaffRankCheckResponse(trimmed) && trimmed.length() < 60 && !trimmed.contains(":")) {
             lastNonEmptyCandidate = trimmed;
             return isModInitiatedGuildCheck;
         }
@@ -275,8 +280,8 @@ final class GuildChecker {
     private static void setResult(GuildCheckResult result) {
         cachedResult = result;
         lastGuildCheckTime = System.currentTimeMillis();
-        VetsConfig.setLong(VetsConfig.VETS_GUILD_CHECK_RESULT, result.persistedValue);
-        VetsConfig.setLong(VetsConfig.VETS_LAST_GUILD_CHECK, lastGuildCheckTime);
+        VetsConfig.setLong(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, result.persistedValue);
+        VetsConfig.setLong(VetsConfigKeys.VETS_LAST_GUILD_CHECK, lastGuildCheckTime);
     }
 
     private static void completeCheck() {
@@ -286,28 +291,21 @@ final class GuildChecker {
 
         // Schedule clearing the mod-initiated flag after grace period
         long graceEnd = guildCheckSuppressUntil;
-        new Thread(() -> {
-            try {
-                long remaining = graceEnd - System.currentTimeMillis();
-                if (remaining > 0) {
-                    Thread.sleep(remaining);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } finally {
-                if (guildCheckSuppressUntil == graceEnd) {
-                    isModInitiatedGuildCheck = false;
-                }
-            }
-        }, "vetsmod-guild-check-grace").start();
+        TickDelays.runAfter(
+                SUPPRESSION_GRACE_MS,
+                "Guild check grace",
+                () -> {
+                    if (guildCheckSuppressUntil == graceEnd) {
+                        isModInitiatedGuildCheck = false;
+                    }
+                });
 
-        // Notify GuildStateManager that the check completed
-        GuildStateManager.onGuildCheckCompleted();
+        // Notify GuildLifecycle that the check completed
+        GuildLifecycle.onGuildCheckCompleted();
     }
 
     private static boolean isInSuppressionGrace() {
-        return guildCheckSuppressUntil > 0
-                && System.currentTimeMillis() < guildCheckSuppressUntil;
+        return guildCheckSuppressUntil > 0 && System.currentTimeMillis() < guildCheckSuppressUntil;
     }
 
     private static boolean isGuildStatsOutputLine(String message) {
@@ -328,9 +326,9 @@ final class GuildChecker {
     private static boolean isStaffRankCheckResponse(String message) {
         String lower = message.trim().toLowerCase();
         return (lower.contains("you must be a")
-                    && lower.contains("captain")
-                    && lower.contains("to use this command"))
+                        && lower.contains("captain")
+                        && lower.contains("to use this command"))
                 || (lower.contains("invalid arguments, try:")
-                    && lower.contains("rank [name] [rank]"));
+                        && lower.contains("rank [name] [rank]"));
     }
 }

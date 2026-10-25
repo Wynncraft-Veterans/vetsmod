@@ -1,10 +1,7 @@
 package org.wynnvets.chat.dispatcher;
 
 import com.wynntils.core.components.Handlers;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import org.wynnvets.logging.VetsLogger;
-
+import com.wynntils.utils.mc.McUtils;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,19 +12,25 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 
 /**
  * Handles {@code /find} batch lookups, serialized on the shared dispatch executor
  * so they never interleave with {@code /msg} fanout.
  *
- * <p>Called from {@link CommandDispatcher}'s batch coordinator; provides the
- * public suppression hook consumed by {@code ChatLogMixin}.</p>
+ * <p>{@link #enqueueFindBatch} is called directly by callers outside this package (not
+ * through {@link DispatchCoordinator}); {@link DispatchCoordinator}'s dispatch pass then
+ * runs each queued batch. This class's suppression hook,
+ * {@link #shouldSuppressFindResponse}, is reached from
+ * {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} through
+ * {@link DispatchCoordinator#shouldSuppressFindResponse}.</p>
  */
 public final class FindDispatcher {
 
     /**
-     * Sentinel server value returned by {@code /find} when a player is on a
-     * private server (media, dev, staff, etc.).
+     * Sentinel server value this dispatcher records when a {@code /find} reply says the
+     * player is on a private server.
      */
     public static final String PRIVATE_SERVER = "PRIVATE";
 
@@ -37,25 +40,30 @@ public final class FindDispatcher {
     private static volatile AwaitingFindResponse awaitingFindResponse;
     private static final long FIND_RESPONSE_WAIT_MS = 6_000L;
 
-    private FindDispatcher() {
-    }
+    private FindDispatcher() {}
 
     // ──────────────────────────── Public API ────────────────────────────
 
     /**
      * Enqueues a batch of {@code /find} lookups to run on the shared dispatch executor.
-     * The find commands are serialized behind any pending {@code /msg} broadcasts so the
-     * two never interleave. Results are delivered via the returned future as a map of
-     * username → server (or {@code null} value for offline / not-found users).
+     * The lookups are driven from the same single dispatch thread as {@code /msg}
+     * fan-out, so the two never interleave; see {@link DispatchCoordinator} for how a
+     * dispatch pass orders them. Completes the caller-supplied {@code resultFuture} with
+     * a map of username → lower-cased server name, {@link #PRIVATE_SERVER} for a private
+     * server, or {@code null} otherwise (for example, the player is reported offline or
+     * no matching reply arrives in time). A null or empty list, or no local player,
+     * completes it with an empty map; an exception while the batch runs completes it
+     * exceptionally.
      */
-    public static void enqueueFindBatch(List<String> usernames, CompletableFuture<Map<String, String>> resultFuture) {
+    public static void enqueueFindBatch(
+            List<String> usernames, CompletableFuture<Map<String, String>> resultFuture) {
         if (usernames == null || usernames.isEmpty()) {
             resultFuture.complete(Map.of());
             return;
         }
 
         FIND_BATCH_QUEUE.add(new FindBatch(new ArrayList<>(usernames), resultFuture));
-        CommandDispatcher.startBatchIfIdle();
+        DispatchCoordinator.startBatchIfIdle();
     }
 
     // ──────────────────────────── Find-batch dispatch ────────────────────────────
@@ -65,7 +73,7 @@ public final class FindDispatcher {
      * waits for the server response, and collects results into the future.
      */
     static void processFindBatch(FindBatch batch) {
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = McUtils.mc();
         LocalPlayer player = minecraft.player;
 
         if (player == null) {
@@ -86,29 +94,32 @@ public final class FindDispatcher {
 
     /**
      * Sends {@code /find <username>} and waits for the server response.
-     * Returns the server name (e.g. "AS25") or {@code null} if offline/not found.
+     * Returns the server name, lower-cased as matched (e.g. {@code "as25"}),
+     * {@link #PRIVATE_SERVER} for a private server, or {@code null} otherwise (for
+     * example, the player is reported offline or no matching reply arrives in time).
      */
     private static String tryFindUser(Minecraft minecraft, LocalPlayer player, String username) {
         CountDownLatch submitted = new CountDownLatch(1);
         AtomicBoolean commandSent = new AtomicBoolean(false);
         String usernameLower = username.toLowerCase(Locale.ROOT);
 
-        minecraft.execute(() -> {
-            try {
-                if (player.connection == null) {
-                    return;
-                }
+        minecraft.execute(
+                () -> {
+                    try {
+                        if (player.connection == null) {
+                            return;
+                        }
 
-                synchronized (FIND_RESPONSE_LOCK) {
-                    awaitingFindResponse = new AwaitingFindResponse(usernameLower);
-                }
+                        synchronized (FIND_RESPONSE_LOCK) {
+                            awaitingFindResponse = new AwaitingFindResponse(usernameLower);
+                        }
 
-                Handlers.Command.queueCommand("find " + username);
-                commandSent.set(true);
-            } finally {
-                submitted.countDown();
-            }
-        });
+                        Handlers.Command.queueCommand("find " + username);
+                        commandSent.set(true);
+                    } finally {
+                        submitted.countDown();
+                    }
+                });
 
         try {
             if (!submitted.await(2, TimeUnit.SECONDS)) {
@@ -130,8 +141,9 @@ public final class FindDispatcher {
     }
 
     /**
-     * Blocks until the find-response system signals that the server responded
-     * to a {@code /find} command.
+     * Blocks until the find-response system signals that the server responded to a
+     * {@code /find} command, or until {@link #FIND_RESPONSE_WAIT_MS} passes or the wait
+     * is interrupted, in which case it returns {@code null}.
      */
     private static String waitForFindResponse(String usernameLower) {
         long deadline = System.currentTimeMillis() + FIND_RESPONSE_WAIT_MS;
@@ -139,7 +151,9 @@ public final class FindDispatcher {
         synchronized (FIND_RESPONSE_LOCK) {
             while (true) {
                 AwaitingFindResponse awaiting = awaitingFindResponse;
-                if (awaiting != null && awaiting.usernameLower.equals(usernameLower) && awaiting.resultReady) {
+                if (awaiting != null
+                        && awaiting.usernameLower.equals(usernameLower)
+                        && awaiting.resultReady) {
                     awaitingFindResponse = null;
                     return awaiting.server;
                 }
@@ -170,12 +184,15 @@ public final class FindDispatcher {
         }
     }
 
-    // ──────────────────────────── Find-response suppression (ChatLogMixin) ────────────────────────────
+    // ──────────────────────────── Find-response suppression (direct caller: DispatchCoordinator)
+    // ────────────────────────────
 
     /**
-     * Called from {@code ChatLogMixin} on the render thread for every incoming chat message.
-     * Matches {@code /find} response lines, suppresses them from display, and signals the
-     * dispatch thread with the result.
+     * Reached from {@link org.wynnvets.mixin.client.chat.ChatLogMixin ChatLogMixin} on the render
+     * thread for incoming chat messages that reach its single-argument
+     * {@code ChatComponent#addMessage(Component)} hook and are not consumed by one of the
+     * suppression checks it runs before this one. Matches {@code /find} response lines,
+     * suppresses them from display, and signals the dispatch thread with the result.
      *
      * @return {@code true} if the message was consumed (should be suppressed)
      */
@@ -227,8 +244,19 @@ public final class FindDispatcher {
     /**
      * Strips {@code §x} formatting codes and PUA/surrogate characters for reliable
      * text matching against Wynncraft server responses.
+     *
+     * <p><b>Deliberately wider than
+     * {@link org.wynnvets.chat.PillCodec#isCustomGlyph(int)
+     * PillCodec.isCustomGlyph}.</b> It adds {@code SURROGATE} and {@code FORMAT},
+     * and its {@code UNASSIGNED} clause carries no {@code > 0xFFFF} bound — so it
+     * also drops unassigned codepoints inside the BMP, which the canonical
+     * predicate keeps. That is the point: this normalises a {@code /find}
+     * response down to its prose before matching, and nothing downstream reads a
+     * codepoint. Narrowing it to the canonical predicate would change what
+     * {@code /find} recognises. Pinned by {@code FindDispatcherTest}.</p>
      */
-    private static String stripFormattingAndPua(String text) {
+    // Package-private for unit tests. See FindDispatcherTest.
+    static String stripFormattingAndPua(String text) {
         if (text == null) {
             return "";
         }
@@ -244,8 +272,10 @@ public final class FindDispatcher {
             }
 
             int type = Character.getType(cp);
-            if (type == Character.PRIVATE_USE || type == Character.SURROGATE
-                    || type == Character.UNASSIGNED || type == Character.FORMAT) {
+            if (type == Character.PRIVATE_USE
+                    || type == Character.SURROGATE
+                    || type == Character.UNASSIGNED
+                    || type == Character.FORMAT) {
                 i += len;
                 continue;
             }
@@ -258,8 +288,7 @@ public final class FindDispatcher {
 
     // ──────────────────────────── Internal records ────────────────────────────
 
-    record FindBatch(List<String> usernames, CompletableFuture<Map<String, String>> resultFuture) {
-    }
+    record FindBatch(List<String> usernames, CompletableFuture<Map<String, String>> resultFuture) {}
 
     private static final class AwaitingFindResponse {
         private final String usernameLower;

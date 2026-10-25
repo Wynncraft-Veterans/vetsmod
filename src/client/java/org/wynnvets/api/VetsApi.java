@@ -5,9 +5,9 @@ import java.net.URI;
 /**
  * VetsMod API endpoint constants and guild identifiers.
  *
- * <p>Centralises all WynnVets-specific API URIs used for guild chat relay,
- * bridge messaging, staff/supporter lookups, MOTD, return events, and
- * annihilation timer data.</p>
+ * <p>Centralises the WynnVets HTTP endpoint URIs, plus the anni schedule
+ * page link and the VETS guild UUID. The WebSocket URIs that carry guild
+ * chat relay and bridge messaging live in {@code V1ApiManager}.</p>
  */
 public final class VetsApi {
 
@@ -22,7 +22,8 @@ public final class VetsApi {
     public static final URI MOTD = URI.create("https://api.wynnvets.org/v1/outbound/motd");
 
     /** GET the guild-specific message of the day (for members/waitlist/honourary). */
-    public static final URI GUILD_MOTD = URI.create("https://api.wynnvets.org/v1/outbound/guild_motd");
+    public static final URI GUILD_MOTD =
+            URI.create("https://api.wynnvets.org/v1/outbound/guild_motd");
 
     /** GET return event information. */
     public static final URI RETURN = URI.create("https://api.wynnvets.org/v1/outbound/return");
@@ -32,11 +33,12 @@ public final class VetsApi {
 
     // ── Staff & supporter endpoints ───────────────────────────────────
 
-    /** GET confirmed staff members and their ranks. */
+    /** GET the confirmed staff who are online now, with their ranks (per temporary-server). */
     public static final URI STAFF = URI.create("https://api.wynnvets.org/v1/outbound/staff");
 
     /** GET the list of users who receive special supporter styling. */
-    public static final URI SUPPORTERS = URI.create("https://api.wynnvets.org/v1/outbound/supporters");
+    public static final URI SUPPORTERS =
+            URI.create("https://api.wynnvets.org/v1/outbound/supporters");
 
     /** GET the list of currently connected VetsMod users. */
     public static final URI LIST = URI.create("https://api.wynnvets.org/v1/outbound/list");
@@ -48,14 +50,18 @@ public final class VetsApi {
     public static final URI ALIASES = URI.create("https://api.wynnvets.org/v1/outbound/aliases");
 
     /**
-     * GET the list of guild members who have opted out of
-     * {@code /wv distribute} selectors. Each entry is a JSON object of
+     * GET the NoAspects opt-out list. Today {@code /wv distribute}
+     * withholds every resource from these members &mdash; the selectors skip
+     * them and a literal-name send is refused &mdash; though the list is
+     * meant to gate aspects only
+     * ({@code no-aspects-opt-out-withholds-every-resource}). Each entry is a JSON object of
      * shape {@code {"uuid", "username"}}; consumers filter against the
      * UUID set (translated to legacy/tile names via the wapi guild
      * response) before dispatching. See
-     * {@link org.wynnvets.distribute.utils.NoAspectsFilter}.
+     * {@link org.wynnvets.distribute.recipients.NoAspectsFilter NoAspectsFilter}.
      */
-    public static final URI NO_ASPECTS = URI.create("https://api.wynnvets.org/v1/outbound/no-aspects");
+    public static final URI NO_ASPECTS =
+            URI.create("https://api.wynnvets.org/v1/outbound/no-aspects");
 
     // ── External links ────────────────────────────────────────────────
 

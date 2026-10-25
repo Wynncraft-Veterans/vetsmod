@@ -18,11 +18,11 @@ public interface QueueStateListener {
 
     /**
      * Called when the client exits the world queue — whether because the
-     * queued world was reached, the client disconnected, or the state timed
-     * out.
+     * queued world was reached, the client disconnected, the state timed
+     * out, or server-native guild chat arrived while still marked queued.
      *
      * @param reason machine-readable reason tag (e.g. {@code "world"},
-     *               {@code "disconnect"}, {@code "timeout"})
+     *               {@code "disconnect"}, {@code "timeout"}, {@code "guild_message"})
      */
     default void onQueueExited(String reason) {}
 }

@@ -16,9 +16,12 @@ import org.wynnvets.debug.dump.TooltipCapture;
 import org.wynnvets.items.LegacyItemHandler;
 
 /**
- * Hooks the inner {@code setTooltipForNextFrame} overload that every item
- * tooltip funnels through — including lists Wynntils may have already
- * rebuilt and wrapped in {@code Collections.unmodifiableList}.
+ * Hooks the inner {@code setTooltipForNextFrame} overload that container-slot
+ * and item-stack tooltips funnel through — including lists Wynntils may have
+ * already rebuilt and wrapped in {@code Collections.unmodifiableList}. Not every
+ * item tooltip reaches it: one drawn through {@code GuiGraphics#renderTooltip}
+ * directly bypasses it, as Wynntils' hold-to-compare view does, and vanilla's
+ * recipe book uses {@code setComponentTooltipForNextFrame} instead.
  *
  * <p>Runs <em>after</em> the entire Wynntils event chain (including handlers
  * at LOWEST priority that may replace the tooltip list), so VetsMod's
@@ -31,80 +34,82 @@ import org.wynnvets.items.LegacyItemHandler;
 @Mixin(GuiGraphics.class)
 public class LegacyItemTooltipMixin {
 
-  @Unique
-  private boolean vetsmod$processing = false;
+    @Unique private boolean vetsmod$processing = false;
 
-  @Inject(
-      method =
-          "setTooltipForNextFrame("
-              + "Lnet/minecraft/client/gui/Font;"
-              + "Ljava/util/List;"
-              + "Ljava/util/Optional;"
-              + "II"
-              + "Lnet/minecraft/resources/Identifier;"
-              + ")V",
-      at = @At("HEAD"),
-      cancellable = true)
-  private void vetsmod$recolorLegacyTooltip(
-      Font font,
-      List<Component> components,
-      Optional<TooltipComponent> image,
-      int mouseX,
-      int mouseY,
-      Identifier background,
-      CallbackInfo ci) {
-    boolean reentry = vetsmod$processing;
-    if (reentry) {
-      TooltipCapture.record(
-          false,
-          LegacyItemHandler.currentItemStack,
-          components,
-          components,
-          false,
-          true,
-          background,
-          LegacyItemHandler.lastProcessedWasLegacy);
-      return;
-    }
+    @Inject(
+            method =
+                    "setTooltipForNextFrame("
+                            + "Lnet/minecraft/client/gui/Font;"
+                            + "Ljava/util/List;"
+                            + "Ljava/util/Optional;"
+                            + "II"
+                            + "Lnet/minecraft/resources/Identifier;"
+                            + ")V",
+            at = @At("HEAD"),
+            cancellable = true)
+    private void vetsmod$recolorLegacyTooltip(
+            Font font,
+            List<Component> components,
+            Optional<TooltipComponent> image,
+            int mouseX,
+            int mouseY,
+            Identifier background,
+            CallbackInfo ci) {
+        boolean reentry = vetsmod$processing;
+        if (reentry) {
+            TooltipCapture.record(
+                    false,
+                    LegacyItemHandler.currentItemStack,
+                    components,
+                    components,
+                    false,
+                    true,
+                    background,
+                    LegacyItemHandler.lastProcessedWasLegacy);
+            return;
+        }
 
-    List<Component> modified = LegacyItemHandler.processTooltip(components);
-    if (modified != components) {
-      ci.cancel();
-      vetsmod$processing = true;
-      try {
-        // BEGIN PATCH(old-server-compat): Revert to just lastProcessedWasLegacy check.
-        Identifier border = LegacyItemHandler.lastProcessedWasLegacy
-                && LegacyItemHandler.newTooltipStylesAvailable
-            ? LegacyItemHandler.LEGACY_BORDER
-            : background;
-        // END PATCH(old-server-compat)
-        TooltipCapture.record(
-            true,
-            LegacyItemHandler.currentItemStack,
-            components,
-            modified,
-            true,
-            false,
-            border,
-            LegacyItemHandler.lastProcessedWasLegacy);
-        ((GuiGraphics) (Object) this)
-            .setTooltipForNextFrame(font, modified, image, mouseX, mouseY, border);
-        // If Wynntils' screenshot keybind is held, take our own screenshot
-        // with the fully-modified legacy tooltip and overwrite the clipboard.
-        LegacyItemHandler.screenshotIfRequested(font, modified);
-      } finally {
-        vetsmod$processing = false;
-      }
-    } else {
-      TooltipCapture.record(
-          true,
-          LegacyItemHandler.currentItemStack,
-          components,
-          components,
-          false,
-          false,
-          background,
-          LegacyItemHandler.lastProcessedWasLegacy);
+        List<Component> modified = LegacyItemHandler.processTooltip(components);
+        if (modified != components) {
+            ci.cancel();
+            vetsmod$processing = true;
+            try {
+                // BEGIN PATCH(old-server-compat): Revert to just lastProcessedWasLegacy check.
+                Identifier border =
+                        LegacyItemHandler.lastProcessedWasLegacy
+                                        && LegacyItemHandler.newTooltipStylesAvailable
+                                ? LegacyItemHandler.LEGACY_BORDER
+                                : background;
+                // END PATCH(old-server-compat)
+                TooltipCapture.record(
+                        true,
+                        LegacyItemHandler.currentItemStack,
+                        components,
+                        modified,
+                        true,
+                        false,
+                        border,
+                        LegacyItemHandler.lastProcessedWasLegacy);
+                ((GuiGraphics) (Object) this)
+                        .setTooltipForNextFrame(font, modified, image, mouseX, mouseY, border);
+                // If a press of Wynntils' screenshot keybind has been latched (by
+                // LegacyTooltipEventListener, since the key may already be released by
+                // now), take our own screenshot with the fully-modified legacy tooltip
+                // and overwrite the clipboard.
+                LegacyItemHandler.screenshotIfRequested(font, modified);
+            } finally {
+                vetsmod$processing = false;
+            }
+        } else {
+            TooltipCapture.record(
+                    true,
+                    LegacyItemHandler.currentItemStack,
+                    components,
+                    components,
+                    false,
+                    false,
+                    background,
+                    LegacyItemHandler.lastProcessedWasLegacy);
+        }
     }
-  }
 }

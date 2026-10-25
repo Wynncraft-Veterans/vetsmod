@@ -1,14 +1,13 @@
 package org.wynnvets.mwe.anni.render;
 
+import java.time.Instant;
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
-
-import java.time.Instant;
-import java.util.Locale;
 
 /**
  * World-join anni-motd line for vets-anni users.
@@ -38,14 +37,16 @@ import java.util.Locale;
  * legacy path takes over. Spec §"For external users": "keep the wv
  * anni and anni-motd as is."</p>
  *
- * <p>Time format: hours with one decimal ({@code 7.2h}). For very
- * short remaining time (&lt;6 minutes) the format drops to minutes
- * ({@code 5m}) to avoid {@code 0.1h} reading awkwardly.</p>
+ * <p>Time format: hours with one decimal ({@code 7.2h}) down to 0.1h.
+ * Below that (&lt;6 minutes) it drops to minutes and seconds
+ * ({@code 5m 30s}), then to bare seconds under a minute, to avoid
+ * {@code 0.1h} reading awkwardly. Note this is a different ladder from
+ * {@link AnniCommandRenderer#appendCountdown}, which emits
+ * {@code Xh Ym} above an hour; only the sub-6-minute tail coincides.</p>
  */
 public final class AnniMotdRenderer {
 
-    private AnniMotdRenderer() {
-    }
+    private AnniMotdRenderer() {}
 
     /**
      * Build the motd component, or {@code null} when nothing should
@@ -77,38 +78,43 @@ public final class AnniMotdRenderer {
         // through to line 2 — children inherit unspecified style fields
         // from the parent, and line 2's sub-segments only set color.
         MutableComponent root = Component.literal("");
-        root.append(Component.literal(
-                        "Annihilation returns in " + formatHours(secondsUntil) + "!")
-                .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
+        root.append(
+                Component.literal("Annihilation returns in " + formatHours(secondsUntil) + "!")
+                        .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
 
         // vetsAnniPromptRsvp acts as the "show line 2" flag — when off,
         // the user gets only the timing line.
-        if (!VetsConfig.get(VetsConfig.VETS_ANNI_PROMPT_RSVP)) {
+        if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_PROMPT_RSVP)) {
             return root;
         }
         MutableComponent line2 = buildStatusLine(snapshot);
         if (line2 == null) {
             return root;
         }
-        return root
-                .append(Component.literal("\n"))
-                .append(line2);
+        return root.append(Component.literal("\n")).append(line2);
     }
 
     /** Line 2 — describes the player's current placement / RSVP state. */
     private static MutableComponent buildStatusLine(AnniSnapshot snapshot) {
         AnniSnapshot.Board board = snapshot.board();
-        String state = board == null || board.state() == null
-                ? null : board.state().toLowerCase(Locale.ROOT);
+        String state =
+                board == null || board.state() == null
+                        ? null
+                        : board.state().toLowerCase(Locale.ROOT);
         if (state == null) {
             return null;
         }
         switch (state) {
-            case "party":   return assignedToPartyLine(snapshot);
-            case "unassigned": return unassignedLine(snapshot);
-            case "wont_assign":  return wontAssignLine(snapshot);
-            case "unplaced":     return unplacedLine(snapshot);
-            default:             return null;
+            case "party":
+                return assignedToPartyLine(snapshot);
+            case "unassigned":
+                return unassignedLine(snapshot);
+            case "wont_assign":
+                return wontAssignLine(snapshot);
+            case "unplaced":
+                return unplacedLine(snapshot);
+            default:
+                return null;
         }
     }
 
@@ -121,22 +127,26 @@ public final class AnniMotdRenderer {
                     .withStyle(ChatFormatting.GRAY);
         }
         String roleCode = board.role();
-        MutableComponent line = Component.literal("You have been assigned to ")
-                .withStyle(ChatFormatting.GRAY);
+        MutableComponent line =
+                Component.literal("You have been assigned to ").withStyle(ChatFormatting.GRAY);
         if (roleCode != null) {
-            line.append(Component.literal(AnniHoverBuilder.displayRole(roleCode))
-                    .withStyle(AnniHoverBuilder.roleColor(roleCode), ChatFormatting.BOLD));
+            line.append(
+                    Component.literal(AnniHoverBuilder.displayRole(roleCode))
+                            .withStyle(AnniHoverBuilder.roleColor(roleCode), ChatFormatting.BOLD));
         } else {
-            line.append(Component.literal("a role")
-                    .withStyle(ChatFormatting.GRAY, ChatFormatting.BOLD));
+            line.append(
+                    Component.literal("a role")
+                            .withStyle(ChatFormatting.GRAY, ChatFormatting.BOLD));
         }
         line.append(Component.literal(" with ").withStyle(ChatFormatting.GRAY));
-        line.append(Component.literal("Party " + party.ordinal())
-                .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
+        line.append(
+                Component.literal("Party " + party.ordinal())
+                        .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
         if (party.world() != null && !party.world().isEmpty()) {
             line.append(Component.literal(" on ").withStyle(ChatFormatting.GRAY));
-            line.append(Component.literal(party.world())
-                    .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
+            line.append(
+                    Component.literal(party.world())
+                            .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
         }
         return line;
     }
@@ -162,12 +172,17 @@ public final class AnniMotdRenderer {
 
     /** "You're not yet on the placement queue and " + RSVP clause. */
     private static MutableComponent unplacedLine(AnniSnapshot snapshot) {
-        return Component.literal("You're not yet on the placement queue and " + rsvpClause(snapshot) + "!")
+        return Component.literal(
+                        "You're not yet on the placement queue and " + rsvpClause(snapshot) + "!")
                 .withStyle(ChatFormatting.GRAY);
     }
 
-    /** "are hard RSVP'd" / "are soft RSVP'd" / "are walking in early"
-     *  / "are walking in late" / "have not RSVP'd". */
+    /** Six returns, not five: "are hard RSVP'd" / "are soft RSVP'd" /
+     *  "are walking in early" / "are walking in late" / "have not
+     *  RSVP'd" when no notice is held, and "have an unrecognised RSVP"
+     *  for a key this switch does not know. The last is the one the
+     *  old list omitted, and it is the arm a new vets-anni notice value
+     *  would land on. */
     private static String rsvpClause(AnniSnapshot snapshot) {
         AnniSnapshot.Rsvp rsvp = snapshot.rsvp();
         AnniSnapshot.Attendance attendance = snapshot.attendance();
@@ -180,20 +195,28 @@ public final class AnniMotdRenderer {
         if (noticeKey == null) return "have not RSVP'd";
         switch (noticeKey.toLowerCase(Locale.ROOT)) {
             case "hard":
-            case "rsvp_hard":    return "are hard RSVP'd";
+            case "rsvp_hard":
+                return "are hard RSVP'd";
             case "soft":
-            case "rsvp_soft":    return "are soft RSVP'd";
+            case "rsvp_soft":
+                return "are soft RSVP'd";
             case "attend_early":
             case "walkin":
-            case "walk_in":      return "are walking in early";
+            case "walk_in":
+                return "are walking in early";
             case "attend_late":
-            case "late":         return "are walking in late";
-            default:             return "have an unrecognised RSVP";
+            case "late":
+                return "are walking in late";
+            default:
+                return "have an unrecognised RSVP";
         }
     }
 
-    /** "7.2h" / "0.5h" / "5m" — one-decimal hours, minutes when small
-     *  enough that the decimal-hours read would be awkward. */
+    /** "7.2h" / "0.5h" / "5m 30s" / "42s" — one-decimal hours down to
+     *  0.1h, then minutes-and-seconds, then bare seconds, since the
+     *  decimal-hours read goes awkward below 0.1h. Returns "now" at or
+     *  past the stamp, which {@code render} never reaches: it bails on
+     *  {@code stamp <= now} first. */
     private static String formatHours(long seconds) {
         if (seconds <= 0) return "now";
         double hours = seconds / 3600.0;

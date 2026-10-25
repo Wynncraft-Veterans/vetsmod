@@ -1,7 +1,6 @@
 package org.wynnvets;
 
 import net.fabricmc.api.ModInitializer;
-
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -12,10 +11,10 @@ import org.wynnvets.logging.VetsLogger;
  * the codebase.</p>
  */
 public class Vetsmod implements ModInitializer {
-  public static final String MOD_ID = "vetsmod";
+    public static final String MOD_ID = "vetsmod";
 
-  @Override
-  public void onInitialize() {
-    VetsLogger.info("Common initializer loaded");
-  }
+    @Override
+    public void onInitialize() {
+        VetsLogger.info("Common initializer loaded");
+    }
 }

@@ -1,16 +1,16 @@
 ---
 name: vetsmod Guild / Unlock / Staff-Rank System
-description: GuildStateManager facade — GuildChecker (/gu stats, 3-day TTL), StaffRankChecker (/gu rank, 24h TTL), UnlockManager (vetsmod /unlock <key> bearer auth), SessionAuthWarning
+description: GuildStateManager facade and GuildLifecycle (world join, disconnect reset) — GuildChecker (/gu stats, 3-day TTL), StaffRankChecker (/gu rank, 24h TTL), UnlockManager (vetsmod /unlock <key> bearer auth), SessionAuthWarning
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Guild State System
 
-`GuildStateManager` is the central facade. It owns four collaborators: `GuildChecker` (guild membership), `StaffRankChecker` (captain+ detection), `UnlockManager` (bearer-key auth + legacy unlock markers), `SessionAuthWarning` (per-session nag for unauthenticated users).
+`GuildStateManager` is the central facade for the player's guild, staff and unlock status, over three collaborators: `GuildChecker` (guild membership), `StaffRankChecker` (captain+ detection) and `UnlockManager` (bearer-key auth + legacy unlock markers). `GuildLifecycle` runs the world-join flow and the disconnect reset: it calls the three directly, schedules `SessionAuthWarning` (per-session nag for unauthenticated users), and starts `WorldJoinAnnouncer`'s MOTD and anni-stamp prints.
 
 ## 1. GuildStateManager facade
 
-[src/client/java/org/wynnvets/guild/GuildStateManager.java](src/client/java/org/wynnvets/guild/GuildStateManager.java)
+[GuildStateManager](../src/client/java/org/wynnvets/guild/GuildStateManager.java)
 
 Key public methods (all package-level or client-facing):
 
@@ -20,37 +20,46 @@ Key public methods (all package-level or client-facing):
 | `isGuildless()` | Check player not in any guild |
 | `isUnlocked()` | Any unlock (Returners or waitlist/honourary auth) |
 | `isWaitlistUnlocked()` / `isHonouraryUnlocked()` | Delegated to UnlockManager — true when auth-frame succeeded with that tier OR legacy SHA-256 marker still present |
-| `isAuthenticatedThisSession()` | True after the server's auth-frame ack returned ok |
+| `isAuthenticatedThisSession()` | True from an ok auth-frame ack until an auth failure, a newly stored key, or a disconnect clears it |
 | `hasStoredAuthKey()` | True when `vetsAuthKey` is non-empty (regardless of validation) |
 | `hasLegacyPasswordUnlock()` | True if any pre-migration `vets*UnlockTime` marker exists |
 | `tryUnlock(key)` | Store + dispatch auth frame for a `/unlock` key |
-| `onAuthSuccess(tier)` / `onAuthFailure(detail)` | Auth-frame ack callbacks (called by V1ApiManager) |
+| `onAuthSuccess(tier)` / `onAuthFailure(detail)` | Auth-frame ack callbacks (called by InboundAckRouter) |
 | `isStaff()` | Delegated to StaffRankChecker |
 | `areFeaturesEnabled()` | Features gated to Returners only |
 | `canExecuteCommands()` | World entered at least once |
 | `playerName()` | Local player username |
 | `selfStaffRank()` | "captain"/"strategist"/"chief"/"owner" |
 | `loadPersistedState()` | Restore from `VetsConfig` on startup |
-| `onEnteredWorld()` | World-join trigger; schedules SessionAuthWarning |
-| `onGuildInfoUpdated()` | Wynntils `GuildEvent` callback |
-| `forceGuildRecheck()` | Debug forced recheck |
 | `refreshStaffStatusIfNeeded(forceRefresh)` | Staff rank refresh |
 | `sendRegistrationIfReady()` | Push presence frame on inbound WS |
 
+The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` and `isChiefOfAnyGuild()`;
+[vetsmod_commands.md](vetsmod_commands.md) §1's gate table describes them with the other command gates.
+
+[GuildLifecycle](../src/client/java/org/wynnvets/guild/GuildLifecycle.java) holds the world-join flow:
+
+| Method | Purpose |
+|--------|---------|
+| `onEnteredWorld()` | World-join trigger; schedules SessionAuthWarning |
+| `onGuildInfoUpdated()` | Wynntils `GuildEvent` callback; also called by the post-world-join recheck poll |
+| `reset()` | Disconnect reset of the per-connection state |
+
+`/wv debug trigger forceChecks`'s readout is [GuildDiagnostics](../src/client/java/org/wynnvets/debug/diagnostics/GuildDiagnostics.java)`.forceGuildRecheck()`, in `org.wynnvets.debug.diagnostics`.
+
 ### Guild membership flow on world join
 
-`onEnteredWorld()` checks in order:
-1. `GuildChecker.hasValidResult()` — cached `/gu stats` result, valid 3 days
-2. Wynntils `Models.Guild.getGuildName()` — live but may be null
-3. If `MORE_RELIABLE_GUILD_CHECK` config enabled, schedules a `/gu stats` 5s after world join
+`isReturners()` / `isGuildless()` prefer a valid `GuildChecker` result (the persisted `/gu stats` cache, 3-day expiry), else read Wynntils' `Models.Guild` live (the name is empty, not null, until Wynntils' character-info scan or a guild-join message fills it). `GuildLifecycle.onEnteredWorld()` then schedules two follow-ups:
+1. a `/gu stats` check about 5 s after world join, while `MORE_RELIABLE_GUILD_CHECK` is on (the default);
+2. when Wynntils reports no guild yet, the recheck poll (`GUILD_RECHECK_*` constants), which calls `onGuildInfoUpdated()` once a guild appears.
 
-Wynntils `GuildEvent.Joined` / `.Left` invalidates the `GuildChecker` cache (authoritative source).
+`GuildLifecycle.onGuildInfoUpdated()` invalidates the `GuildChecker` cache. It runs on Wynntils' `GuildEvent.Joined` / `.Left` and from that recheck poll, where no event fired (bug `guild-recheck-poll-clears-gu-stats-cache`).
 
 ## 2. GuildChecker
 
-[src/client/java/org/wynnvets/guild/GuildChecker.java](src/client/java/org/wynnvets/guild/GuildChecker.java)
+[GuildChecker](../src/client/java/org/wynnvets/guild/GuildChecker.java)
 
-**Purpose:** Parse multi-line `/gu stats` response to detect guild name when Wynntils data isn't available.
+**Purpose:** Parse the multi-line `/gu stats` response into a cached guild result. While valid (3 days) it takes precedence over Wynntils' `Models.Guild` in `isReturners()` / `isGuildless()`; it runs after world join while `moreReliableGuildCheck` is on (the default).
 
 **Result enum:**
 | Value | persistedValue |
@@ -71,12 +80,12 @@ Wynntils `GuildEvent.Joined` / `.Left` invalidates the `GuildChecker` cache (aut
 **Caching:**
 - `GUILD_CHECK_EXPIRY_DAYS = 3`
 - Persisted: `VETS_GUILD_CHECK_RESULT` (long) and `VETS_LAST_GUILD_CHECK` (long timestamp)
-- `TIMEOUT_MS = 10_000`
+- `GUILD_CHECK_TIMEOUT_MS = 10_000L`
 - Suppression grace: 2 seconds after completion
 
 ## 3. StaffRankChecker
 
-[src/client/java/org/wynnvets/guild/StaffRankChecker.java](src/client/java/org/wynnvets/guild/StaffRankChecker.java)
+[StaffRankChecker](../src/client/java/org/wynnvets/guild/StaffRankChecker.java)
 
 **Purpose:** Detect captain+ rank via `/gu rank` command parsing.
 
@@ -84,7 +93,7 @@ Wynntils `GuildEvent.Joined` / `.Left` invalidates the `GuildChecker` cache (aut
 - Sends `/gu rank` (no args) via `Handlers.Command.queueCommand()`
 - Unauthorized response: "you must be a captain to use this command" → NOT staff
 - Authorized response: "invalid arguments, try: rank [name] [rank]" → IS staff
-- `TIMEOUT_MS = 10_000`
+- `STAFF_RANK_TIMEOUT_MS = 10_000L`
 
 **Caching:**
 - `STAFF_CHECK_COOLDOWN_MS = 24 * 60 * 60 * 1000` (24 hours)
@@ -95,62 +104,56 @@ On disconnect, `reset()` reloads persisted state from config (not in-memory clea
 
 ## 4. UnlockManager (key-based, post-migration)
 
-[src/client/java/org/wynnvets/guild/UnlockManager.java](src/client/java/org/wynnvets/guild/UnlockManager.java)
+[UnlockManager](../src/client/java/org/wynnvets/guild/UnlockManager.java)
 
 **Purpose:** Manage the player's vetsmod auth state. Owns the persisted bearer key and the transient session-auth flags.
 
-The legacy SHA-256 password matching has been removed. The two old hashes (`vetsWaitlistUnlockTime`, `vetsHonouraryUnlockTime`) survive on disk *only* as a "this user used the old system" signal for the session-start warning copy — they no longer grant access.
+The legacy SHA-256 password matching has been removed. The two legacy markers (`vetsWaitlistUnlockTime`, `vetsHonouraryUnlockTime`: long timestamps from the old unlock, not hashes) are meant to survive on disk *only* as a "this user used the old system" signal for the session-start warning copy, and no longer grant access. **Today they still do**: `isWaitlistUnlocked()` / `isHonouraryUnlocked()` each OR their own positive marker in and nothing clears them, so a pre-migration user stays client-side unlocked (bug `legacy-unlock-markers-still-grant-client-unlock`). The §1 table and the bullets below describe the code as it is.
 
 **Constants:**
 - `MIN_KEY_LENGTH = 32`, `MAX_KEY_LENGTH = 200`
-- Canonical tier strings: `member`, `waitlist`, `honourary`, `other` (kept in sync with dazebot's `lib/verify_keys.py`)
+- Canonical tier strings: `member`, `waitlist`, `honourary`, `other` (kept in sync with dazebot's `lib/staff/verify_keys.py`)
 
 **Persisted state (string/long via VetsConfig):**
 - `vetsAuthKey` — the bearer key stored on `/unlock <key>`
-- `vetsAuthTier` — last server-confirmed tier (UX hint only; authoritative value comes from the server each session)
-- `vetsAuthVerifiedAt` — epoch millis of the last successful auth-frame ack
+- `vetsAuthTier` — the tier the last successful auth ack reported. Written by `InboundAckRouter` when it routes an ok auth ack, and never cleared, so after a new key or a rejection it can belong to an earlier key; read only by the diagnostics dump
+- `vetsAuthVerifiedAt` — epoch millis of the last successful auth-frame ack; written by `InboundAckRouter`, display-only (diagnostics)
 
 **Transient session state (volatile):**
 - `currentTier` — populated by the server's auth-frame ack
-- `authVerifiedThisSession` — boolean flipped true on first successful ack
-- `lastAuthFailureReason` — populated on rejection, used by SessionAuthWarning
+- `authVerifiedThisSession` — boolean set true by each ok auth ack; cleared by an auth failure, a newly stored key, or a disconnect
+- `lastAuthFailureReason` — set by `onAuthFailure`: an auth rejection, or another error ack `InboundAckRouter` classes as an auth failure, such as an "Authentication required" refusal of a non-auth frame. Cleared by a later ok auth ack, a newly stored key, or a disconnect. Used by SessionAuthWarning (case 2)
 
 **Public API (package-level):**
-- `tryUnlock(key)` returns `GuildStateManager.UnlockAttemptResult` (`MISSING_KEY` / `MALFORMED` / `STORED_VERIFYING`). Stores the key, clears stale tier state, dispatches an auth frame on the existing inbound WS via `V1ApiManager.sendAuth(key)`.
-- `onAuthSuccess(tier)` / `onAuthFailure(detail)` — called by `V1ApiManager`'s inbound message handler when the auth ack arrives.
-- `isWaitlistUnlocked()` / `isHonouraryUnlocked()` — true when (auth verified + matching tier this session) OR (legacy marker present, for back-compat warning logic).
+- `tryUnlock(key)` returns `GuildStateManager.UnlockAttemptResult` (`MISSING_KEY` / `MALFORMED` / `STORED_VERIFYING`). Stores the key, clears stale tier state, and calls `V1ApiManager.sendAuth(key)`, which sends the auth frame now if the inbound WS is up or otherwise leaves it to go out on the next (re)connect.
+- `onAuthSuccess(tier)` / `onAuthFailure(detail)` — reached from `InboundAckRouter.route`, which `V1ApiManager`'s inbound handler calls for every untyped frame; the direct caller is `GuildStateManager.onAuthSuccess` / `.onAuthFailure`, which delegate here when the auth ack arrives.
+- `isWaitlistUnlocked()` / `isHonouraryUnlocked()` — true when (auth verified + matching tier this session) OR (legacy marker present; see the paragraph above).
 - `legacyWaitlistMarker()` / `legacyHonouraryMarker()` — raw read of the pre-migration timestamps.
 - `loadPersistedState()`, `reset()`.
 
-**Debug override:** `setDebugForceGuildlessUnlocked(boolean)` — forces guildless+unlocked for testing.
+**What the player sees.** `onAuthSuccess` shows `✅ vetsmod authentication verified — tier: <tier>` (green) when there is a local player and either `tryUnlock` has armed its one-shot `pendingUnlockNotify` flag since the last ack or disconnect (`reset` clears it), or `printSuccessfulAuth` is on; it clears the one-shot flag either way. The line goes to chat while a screen is open, through `ChatUtils.sendLocalMessage`, which hands the display to the client thread, and otherwise to the action bar, straight from the thread the ack arrived on (bug `auth-success-toast-rendered-off-render-thread`). [vetsmod_config.md](vetsmod_config.md)'s `printSuccessfulAuth` row has how that setting latches. `onAuthFailure` always prints a red `❌ vetsmod authentication failed: <reason>.` line in chat, which tells the player to run `~vetsmod` in #bot-commands for a new key.
+
+**Debug override:** `setDebugForceGuildlessUnlocked(boolean)` — meant to force guildless+unlocked for testing; nothing calls it today, so the override is never on (bug `unlock-debug-flag-tier-asymmetry`).
 
 ## 5. SessionAuthWarning
 
-[src/client/java/org/wynnvets/guild/SessionAuthWarning.java](src/client/java/org/wynnvets/guild/SessionAuthWarning.java)
+[SessionAuthWarning](../src/client/java/org/wynnvets/guild/SessionAuthWarning.java)
 
 **Purpose:** Once-per-session chat warning when the player's auth state diverges from what they probably expect.
 
 **Cases:**
 1. Authenticated this session → silent.
-2. Stored key but server rejected → "Your stored vetsmod key was rejected (<reason>). Run /vetsmod in #bot-commands to issue a new one." (red)
+2. Stored key but server rejected → "Your stored vetsmod key was rejected (<reason>). Run ~vetsmod in #bot-commands to issue a new one." (red). Today this fires whenever a stored key has no ok ack about 5 s after world join, rejected or not (bug `session-auth-warning-reports-rejection-without-one`).
 3. Plausible VETS user (in Returners or has legacy unlock marker) with no stored key:
-   - if server's `unauth_enabled=true` → "vetsmod is running unauthenticated. Vets chat still works for now, but authentication will become mandatory soon. Run /vetsmod in #bot-commands to /unlock." (yellow)
-   - if server's `unauth_enabled=false` → "You aren't authenticated, so vetsmod cannot send or receive VETS chat or use guild-specific features until you /unlock. Run /vetsmod in #bot-commands to get a key." (red)
+   - if server's `unauth_enabled=true` → "vetsmod is running unauthenticated. Vets chat still works for now, but authentication will become mandatory soon. Run ~vetsmod in #bot-commands to /unlock." (yellow)
+   - if server's `unauth_enabled=false` → "You aren't authenticated, so vetsmod cannot send or receive VETS chat or use guild-specific features until you /unlock. Run ~vetsmod in #bot-commands to get a key." (red)
 4. Plain non-VETS user → silent.
 
-**`unauth_enabled` discovery:** The temporary-server pushes a `{type:"server_info", unauth_enabled: bool}` frame on outbound connect. `V1ApiManager` routes it directly to `SessionAuthWarning.onServerInfo()`. Defaults to `true` if the frame hasn't arrived yet (warning fires 5s after world join).
+**`unauth_enabled` discovery:** The temporary-server pushes a `{type:"server_info", unauth_enabled: bool}` frame on outbound connect. `V1ApiManager` routes it directly to `SessionAuthWarning.onServerInfo()`. Defaults to `true` if the frame hasn't arrived yet (warning fires about 5 s after world join).
 
 **Discord URL** (`https://wynnvets.org/discord`) is rendered as a clickable link via `ClickEvent.OpenUrl`.
 
-## 6. AuthProvider interface
-
-[src/client/java/org/wynnvets/api/auth/AuthProvider.java:19-35](src/client/java/org/wynnvets/api/auth/AuthProvider.java#L19-L35)
-
-Minimal interface: `getHeaders(): Map<String, String>`, `isAuthenticated(): boolean`. The current `NoOpAuthProvider` returns empty headers.
-
-The actual key-based auth path no longer goes through this interface — it lives in `V1ApiManager.sendAuth(key)` and the `auth` frame after WS connect (see [vetsmod_networking.md §1](vetsmod_networking.md)). The `AuthProvider` abstraction is retained in case we later need to attach connection-time headers (e.g. for a CDN or rate-limit bypass token).
-
-## 7. Tier-to-protocol mapping
+## 6. Tier-to-protocol mapping
 
 | Vetsmod tier (`vetsAuthTier`) | WS register `tier` / `ws_tier` | What grants it |
 |-------------------------------|-------------------------------|----------------|
@@ -159,9 +162,9 @@ The actual key-based auth path no longer goes through this interface — it live
 | `honourary` | `honourary` | HONOURARY Discord role |
 | `other` | _(none — chat-channel access denied)_ | Anything else (linked but no role match, or blocklisted) |
 
-The tier is **resolved server-side** by dazebot's `lib/verify_keys.resolve_tier()` on every introspection. Tier changes propagate to active sessions on the next WS reconnect (or whenever temporary-server's 60s LRU cache expires the cached introspection).
+The tier is **resolved server-side**: temporary-server introspects the key against dazebot, whose `resolve_tier()` (`lib/staff/verify_keys.py`) re-derives it from the member's live roles on each introspection, falling back to the tier stored with the key when the member can't be looked up. A tier change reaches a session only at its next `auth` frame (the next inbound WS reconnect, or a new `/unlock`), and only once temporary-server's 60s LRU cache no longer holds the old introspection (it can serve a stale entry longer while dazebot is unreachable); cache expiry by itself changes nothing for a session that is already authenticated.
 
-## 8. Persistence summary
+## 7. Persistence summary
 
 All state persists in `vetsmod/storage/config.json` under the player's Minecraft game directory (resolved at runtime via `FabricLoader.getInstance().getGameDir()`). It's not part of the source tree.
 
@@ -172,16 +175,15 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 | `vetsIsStaff` | bool | StaffRankChecker |
 | `vetsLastStaffCheck` | long (ts) | StaffRankChecker |
 | `vetsAuthKey` | string | UnlockManager |
-| `vetsAuthTier` | string | UnlockManager |
-| `vetsAuthVerifiedAt` | long (ts) | UnlockManager |
-| `vetsWaitlistUnlockTime` | long (ts) | **legacy** — kept only as a "previously unlocked under SHA-256 system" marker for warnings |
-| `vetsHonouraryUnlockTime` | long (ts) | same — legacy marker |
-| `vetsUnlockExpiryWarnings` | long (count) | **legacy** — unused, retained for rollback |
+| `vetsAuthTier` | string | InboundAckRouter |
+| `vetsAuthVerifiedAt` | long (ts) | InboundAckRouter |
+| `vetsWaitlistUnlockTime` | long (ts) | **legacy** — meant only as a "previously unlocked under SHA-256 system" marker for warnings; today it still unlocks (§4) |
+| `vetsHonouraryUnlockTime` | long (ts) | same — legacy marker; same caveat |
 
-## 9. Edge cases
+## 8. Edge cases
 
-- **Returners guild members still need to /unlock** under the new system. Guild detection alone no longer grants chat access — the server's tier gate enforces that authenticated users can only send chat types their tier allows. Pre-migration users discover this via the SessionAuthWarning.
-- **`forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears both GuildChecker and StaffRankChecker caches, then re-runs both checks. It does *not* re-auth; that happens automatically on every WS reconnect.
+- **Returners guild members need to /unlock** under the new system once the server's `unauth` toggle is off. While it is on, unauthenticated sessions are exempt from the tier gate (back-compat); when it is off, their chat frames are rejected. Authenticated sessions can only send the chat types their tier allows. Pre-migration users discover this via the SessionAuthWarning.
+- **`GuildDiagnostics.forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears **neither** cache — it prints diagnostics and re-runs both checks (`refreshStaffStatusIfNeeded(true)` and `GuildChecker.refreshGuildStatus()`). Not clearing is deliberate and commented twice in `GuildDiagnostics`: `GuildChecker` is cleared only by `onGuildInfoUpdated()`, which fires from Wynntils' `GuildEvent.Joined`/`.Left` handlers and from the post-world-join recheck poll once guild info turns up. It also does *not* re-auth; that happens automatically on every inbound WS reconnect.
 - **Wynntils `GuildEvent`** is authoritative — when it fires, `GuildChecker` cache is invalidated.
-- **`/gu stats` vs Wynntils** — Wynntils data is tried first; `/gu stats` is the reliable fallback (hence `MORE_RELIABLE_GUILD_CHECK` config).
-- **Rotating a leaked key:** users run `/vetsmod rotate` in Discord; their old key fails introspection on the next WS connect. The mod surfaces the failure via `onAuthFailure()` and the SessionAuthWarning prompts them to `/unlock` again.
+- **`/gu stats` vs Wynntils** — a valid `/gu stats` result (`GuildChecker`) takes precedence; Wynntils' `Models.Guild` is the live fallback while there is none. Wynntils usually lands first in time. `MORE_RELIABLE_GUILD_CHECK` schedules the `/gu stats` check that refreshes the cache.
+- **Rotating a leaked key:** a staff member runs dazebot's staff-only `/change rotate key <target>` (users cannot self-rotate); the old key fails introspection on the next WS connect (subject to temporary-server's 60 s introspection cache). The mod surfaces the failure via `onAuthFailure()` and the SessionAuthWarning prompts them to `/unlock` again.

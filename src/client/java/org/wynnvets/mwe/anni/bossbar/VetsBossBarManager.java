@@ -1,5 +1,9 @@
 package org.wynnvets.mwe.anni.bossbar;
 
+import com.wynntils.utils.mc.McUtils;
+import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.BossHealthOverlay;
@@ -9,27 +13,37 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.BossEvent;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mixin.client.accessors.BossHealthOverlayAccessor;
 import org.wynnvets.mwe.anni.mode.AnniMode;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
+import org.wynnvets.mwe.anni.state.AnniWindows;
 import org.wynnvets.mwe.anni.zone.AnniZone;
-
-import java.time.Instant;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * Singleton driver for the synthetic vets-anni boss bar.
  *
- * <p>Per-tick this manager decides whether the bar should be on (mode
- * ∈ {PASSIVE, AGGRESSIVE}, snapshot has a future {@code stamp_epoch},
- * we're inside the activation window) and, if so, rebuilds its name
- * component via {@link VetsBossBarContentBuilder}. The synthetic
- * {@link LerpingBossEvent} lives in
- * {@link BossHealthOverlay#events} via {@link BossHealthOverlayAccessor}.</p>
+ * <p>Per-tick this manager decides whether the bar should be on and, if so,
+ * rebuilds its name component via {@link VetsBossBarContentBuilder}.</p>
+ *
+ * <p><b>The gate is seven conjuncts, and summarising it as "inside the
+ * activation window" drops the one that matters.</b> In {@code tickInner}
+ * order: mode != SILENT; {@code vetsAnniBossbarEnabled}; a snapshot with a
+ * non-null {@code event.stampEpoch()}; {@code secondsUntilAnni > 20}; not
+ * past the 2.5 h {@code FAILSAFE_DEACTIVATE_MS}; <b>{@code secondsUntilAnni
+ * <= }{@link AnniWindows#BAR_WINDOW_SECONDS} <em>OR</em> the player is inside
+ * {@link AnniZone}</b>; and a non-null build. That sixth conjunct is a
+ * disjunction — a player who walks into the zone hours early gets the bar —
+ * and the floor under it is the {@code secondsUntilAnni > 20} hard return
+ * thirty lines earlier, not the window expression. So the timer path is
+ * {@code (T-20s, T-90m]} and zone entry widens only its top.
+ * {@code vetsmod_mwe_anni.md} §"Activation gate" is the owning statement.</p>
+ *
+ * <p>The synthetic {@code LerpingBossEvent} lives in
+ * {@code BossHealthOverlay#events} via {@link BossHealthOverlayAccessor}.</p>
  *
  * <p>Coexistence with vanilla / Wynncraft / Wynntils boss bars is
  * handled <b>on the render side</b>:
@@ -51,24 +65,21 @@ import java.util.UUID;
  *       snapshot-clock skew. Also covers kick-into-queue at T-20
  *       since the watchdog re-checks every client tick (~50 ms).</li>
  * </ol>
- * Plus the existing {@code AnniWindowWatcher} which resets the mode to
- * silent at T+30 m — a slower safety net.</p>
+ * Plus the existing {@link org.wynnvets.mwe.anni.mode.AnniWindowWatcher AnniWindowWatcher} which
+ * at T+30 m restores {@link org.wynnvets.mwe.anni.mode.AnniModeManager#preferredMode()
+ * AnniModeManager.preferredMode()} — a slower safety net. That target is not
+ * an unconditional reset to silent: it is silent both in the never-set-a-mode,
+ * not-enrichment-eligible sub-case, and whenever the user's own remembered
+ * pick was silent.</p>
  */
 public final class VetsBossBarManager {
 
-    /** Activation gate — the bar shows when {@code secondsUntilAnni
-     *  ≤ 90 m} OR the player is inside the anni zone. Outside both,
-     *  the bar stays hidden even in passive/aggressive mode so users
-     *  going about their day hours before anni aren't ambushed by a
-     *  perpetual boss bar. */
-    private static final long ANNI_WINDOW_SECONDS = 90L * 60L; // 90 min
-
     /** Progress nominally fills to 100% at T-100m and drains linearly
      *  to 0% at T-20s — a 100-minute progress window. Decoupled from
-     *  {@link #ANNI_WINDOW_SECONDS} (the activation gate) so the
+     *  {@link AnniWindows#BAR_WINDOW_SECONDS} (the activation gate) so the
      *  {@link BossEvent.BossBarOverlay#NOTCHED_10} overlay's ten segment
-     *  dividers land exactly every 10 minutes of wall-clock time. At
-     *  activation (T-90m or zone-entry) the bar already reads
+     *  dividers land exactly every 10 minutes of wall-clock time. When
+     *  the T-90m window is what activates it, the bar already reads
      *  {@code 90% ≈ 9-of-10 sections filled} — the spec-requested
      *  "90 mins = 9 notches" mapping. Each subsequent 10-minute step
      *  drops one section, giving a reliable readout of how much time
@@ -83,30 +94,32 @@ public final class VetsBossBarManager {
 
     /** Deterministic UUID so collisions across mod reloads or
      *  hot-restarts replace cleanly rather than accumulating. */
-    private static final UUID BAR_UUID = UUID.nameUUIDFromBytes(
-            "vetsmod-anni-bossbar".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    private static final UUID BAR_UUID =
+            UUID.nameUUIDFromBytes(
+                    "vetsmod-anni-bossbar".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
     private static volatile boolean registered = false;
     private static volatile boolean active = false;
     private static volatile long activatedAtMs = 0L;
 
+    private static final LerpingBossEvent bossEvent =
+            new LerpingBossEvent(
+                    BAR_UUID,
+                    Component.literal(""),
+                    1.0f,
+                    BossEvent.BossBarColor.PURPLE,
+                    // NOTCHED_10 paired with the 100-minute progress window above:
+                    // 10 segments × 10 minutes each = a notch every 10 minutes of
+                    // real time. At activation (T-90m) the bar reads 90% ≈ 9
+                    // notches filled, matching the user-asked "90 mins = 9 notches"
+                    // readability target. Closest vanilla offers — there is no
+                    // NOTCHED_9.
+                    BossEvent.BossBarOverlay.NOTCHED_10,
+                    false,
+                    false,
+                    false);
 
-    private static final LerpingBossEvent bossEvent = new LerpingBossEvent(
-            BAR_UUID,
-            Component.literal(""),
-            1.0f,
-            BossEvent.BossBarColor.PURPLE,
-            // NOTCHED_10 paired with the 100-minute progress window above:
-            // 10 segments × 10 minutes each = a notch every 10 minutes of
-            // real time. At activation (T-90m) the bar reads 90% ≈ 9
-            // notches filled, matching the user-asked "90 mins = 9 notches"
-            // readability target. Closest vanilla offers — there is no
-            // NOTCHED_9.
-            BossEvent.BossBarOverlay.NOTCHED_10,
-            false, false, false);
-
-    private VetsBossBarManager() {
-    }
+    private VetsBossBarManager() {}
 
     /** Idempotent registration. Wires the per-tick driver +
      *  {@link FlashTracker#register()} (so there's exactly one anni
@@ -119,18 +132,24 @@ public final class VetsBossBarManager {
         VetsLogger.debug("VetsBossBarManager registered");
     }
 
-    /** Whether the synthetic bar is currently rendered. Read by
-     *  {@link org.wynnvets.mixin.client.BossHealthOverlayMixin} to gate
-     *  packet swallowing — when false, vanilla boss bars pass through
-     *  unmolested. */
+    /** Whether the synthetic bar is currently rendered. <b>Two</b>
+     *  readers: {@link org.wynnvets.mixin.client.BossHealthOverlayMixin}
+     *  gates packet swallowing on it — when false, vanilla boss bars
+     *  pass through unmolested — and {@code DebugCommands}' boss-bar
+     *  dump reports it. Only the first is behavioural; change the
+     *  semantics and the dump's line needs re-reading too. */
     public static boolean isActive() {
         return active;
     }
 
-    /** The synthetic bar's UUID — consumed by
-     *  {@link org.wynnvets.mixin.client.BossHealthOverlayMixin} to
-     *  identify which entry in {@code BossHealthOverlay#events} to
-     *  let through the render filter. */
+    /** The synthetic bar's UUID. <b>Two</b> readers:
+     *  {@link org.wynnvets.mixin.client.BossHealthOverlayMixin} uses it
+     *  to identify which entry in {@code BossHealthOverlay#events} to
+     *  let through the render filter, and {@code DebugCommands}' boss-bar
+     *  dump compares each tracked event's key against it to mark one
+     *  {@code ← OURS}. The dump never prints this value itself, so when
+     *  our bar is missing from {@code events} the output simply carries
+     *  no marker. */
     public static UUID barUuid() {
         return BAR_UUID;
     }
@@ -149,7 +168,10 @@ public final class VetsBossBarManager {
     }
 
     private static void tickInner() {
-        // Mode gate. SILENT is a strict no-op (per spec).
+        // Mode gate. SILENT is a strict no-op (per spec). Today this gate stops the bar only:
+        // tick() runs FlashTracker.tick() after tickInner returns, early or not, so pings that
+        // FlashTracker's snapshot listener queued still play
+        // (anni-flash-pings-play-while-bar-is-down).
         AnniMode mode = AnniModeManager.current();
         if (mode == AnniMode.SILENT) {
             if (active) deactivate();
@@ -157,7 +179,7 @@ public final class VetsBossBarManager {
         }
 
         // Master kill-switch — even passive/aggressive respects this.
-        if (!VetsConfig.get(VetsConfig.VETS_ANNI_BOSSBAR_ENABLED)) {
+        if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_BOSSBAR_ENABLED)) {
             if (active) deactivate();
             return;
         }
@@ -175,7 +197,7 @@ public final class VetsBossBarManager {
         }
         long secondsUntilAnni = stampEpoch - Instant.now().getEpochSecond();
 
-        // Gate 2 of 3: hard wall-clock T-20 watchdog, independent of
+        // Gate 2 of 2: hard wall-clock T-20 watchdog, independent of
         // the content builder.
         if (secondsUntilAnni <= DROP_DEAD_SECONDS_BEFORE_ANNI) {
             if (active) deactivate();
@@ -191,27 +213,28 @@ public final class VetsBossBarManager {
         }
 
         double playerX = 0.0, playerZ = 0.0;
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         LocalPlayer player = mc != null ? mc.player : null;
         if (player != null) {
             playerX = player.getX();
             playerZ = player.getZ();
         }
 
-        // Activation gate: show the bar only when we're in the anni
-        // window (≤90m) OR the player has walked into the anni zone.
-        // Outside both, even passive/aggressive stays quiet — no
-        // perpetual bar hours before anni.
-        boolean inWindow = secondsUntilAnni <= ANNI_WINDOW_SECONDS;
+        // Activation gate — the bar shows when secondsUntilAnni <= 90 m OR the
+        // player is inside the anni zone. Outside both, the bar stays hidden even
+        // in passive/aggressive mode so users going about their day hours before
+        // anni aren't ambushed by a perpetual boss bar. The window's real floor is
+        // the DROP_DEAD_SECONDS_BEFORE_ANNI hard return above, not this line.
+        boolean inWindow = secondsUntilAnni <= AnniWindows.BAR_WINDOW_SECONDS;
         boolean inZone = player != null && AnniZone.isInZone(playerX, playerZ);
         if (!inWindow && !inZone) {
             if (active) deactivate();
             return;
         }
-        MutableComponent name = VetsBossBarContentBuilder.build(
-                snapshot, secondsUntilAnni, playerX, playerZ);
+        MutableComponent name =
+                VetsBossBarContentBuilder.build(snapshot, secondsUntilAnni, playerX, playerZ);
 
-        // Gate 1 of 3: builder said null → deactivate.
+        // Gate 1 of 2, observed here: builder said null → deactivate.
         if (name == null) {
             if (active) deactivate();
             return;
@@ -267,7 +290,7 @@ public final class VetsBossBarManager {
     }
 
     private static Map<UUID, LerpingBossEvent> events() {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null || mc.gui == null) return null;
         BossHealthOverlay overlay = mc.gui.getBossOverlay();
         if (overlay == null) return null;
@@ -279,11 +302,22 @@ public final class VetsBossBarManager {
         }
     }
 
-    /** Progress bar tracks the final 90-minute countdown — clamped at
-     *  100% from activation (T-2h) through T-90m, then drains linearly
-     *  to 0% at the T-20s deactivation wall. The two-hour run-up
-     *  doesn't change the bar so the visual settling matches the long
-     *  period during which assignments are stable. */
+    /** One linear ramp across {@link #PROGRESS_FULL_AT_SECONDS} less
+     *  {@link #DROP_DEAD_SECONDS_BEFORE_ANNI} — 100% at T-100m, draining
+     *  linearly to 0% at the T-20s deactivation wall. No plateau, and
+     *  {@link AnniWindows#BAR_WINDOW_SECONDS} plays no part here. Activation is
+     *  gated separately on T-90m <em>or</em> zone entry, so on the timer
+     *  path the bar first appears at {@code 89.97%} and never reads 100%;
+     *  the {@code p > 1f} clamp is reachable only by standing in the zone
+     *  before T-100m, where the bar does appear full.
+     *
+     *  <p>The 89.97% is derived, not observed, so it is re-checkable:
+     *  {@code (5400 - 20) / (6000 - 20) = 0.89967}. It moves if either
+     *  constant does. Note also that {@code usable} is floored with
+     *  {@code Math.max(0L, …)}, so the {@code p < 0f} arm below cannot
+     *  fire — filed as
+     *  {@code vets-boss-bar-unreachable-negative-guard}, dead line, no
+     *  behaviour.</p> */
     private static float progressFor(long secondsUntilAnni) {
         long window = PROGRESS_FULL_AT_SECONDS - DROP_DEAD_SECONDS_BEFORE_ANNI;
         long usable = Math.max(0L, secondsUntilAnni - DROP_DEAD_SECONDS_BEFORE_ANNI);
@@ -293,5 +327,4 @@ public final class VetsBossBarManager {
         if (p > 1f) return 1f;
         return p;
     }
-
 }

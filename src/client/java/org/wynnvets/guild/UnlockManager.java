@@ -1,11 +1,12 @@
 package org.wynnvets.guild;
 
+import com.wynntils.utils.mc.McUtils;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -13,27 +14,36 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>Replaces the legacy SHA-256 password unlock with a per-user bearer key
  * issued by dazebot via the Discord {@code /vetsmod} command. The key is
- * persisted in {@link VetsConfig} and sent in an {@code auth} frame after
- * each WebSocket connection is established.</p>
+ * persisted in {@link VetsConfig} and sent in an {@code auth} frame each time the
+ * inbound WebSocket (re)connects; the outbound socket never gets one
+ * ({@code outbound-socket-never-authenticated}).</p>
  *
- * <p>The legacy {@code VETS_WAITLIST_UNLOCK_TIME} /
- * {@code VETS_HONOURARY_UNLOCK_TIME} fields are retained as a "previously
- * unlocked under the old system" marker so {@link GuildStateManager} can
- * decide whether to show a session-start nag warning encouraging the user
- * to migrate to the new {@code /unlock &lt;key&gt;} flow.</p>
+ * <p>The legacy {@code VETS_WAITLIST_UNLOCK_TIME} / {@code VETS_HONOURARY_UNLOCK_TIME}
+ * timestamps are meant to be kept only as a "previously unlocked under the old system"
+ * marker, so {@link SessionAuthWarning} (through
+ * {@link GuildStateManager#hasLegacyPasswordUnlock()}) can decide whether to show a
+ * session-start nag encouraging the user to migrate to the new
+ * {@code /unlock &lt;key&gt;} flow. Today they also still unlock:
+ * {@link #isWaitlistUnlocked()} and {@link #isHonouraryUnlocked()} each OR their own
+ * positive marker in, and nothing clears them
+ * ({@code legacy-unlock-markers-still-grant-client-unlock}).</p>
  *
  * <p>Tier values follow the canonical vetsmod tier vocabulary:
  * {@code member}, {@code waitlist}, {@code honourary}, {@code other}.
- * The legacy unlock states map to {@code waitlist} / {@code honourary}
- * respectively for back-compat warning logic.</p>
+ * The two legacy markers correspond to {@code waitlist} / {@code honourary}
+ * respectively.</p>
  *
- * <p>This class is package-private and accessed exclusively through
- * {@link GuildStateManager}'s facade methods.</p>
+ * <p>This class is package-private. Callers outside the package reach it through
+ * {@link GuildStateManager}'s facade methods; within the package,
+ * {@link SessionAuthWarning} also reads {@link #lastAuthFailureReason()} directly, and
+ * {@link GuildLifecycle} calls {@link #isDebugForceGuildlessUnlocked()} and {@link #reset()}
+ * directly.</p>
  */
 final class UnlockManager {
 
-    /** Canonical tier strings — kept in sync with dazebot's lib/verify_keys.py. */
+    /** Canonical tier strings — kept in sync with dazebot's lib/staff/verify_keys.py. */
     static final String TIER_MEMBER = "member";
+
     static final String TIER_WAITLIST = "waitlist";
     static final String TIER_HONOURARY = "honourary";
     static final String TIER_OTHER = "other";
@@ -48,21 +58,25 @@ final class UnlockManager {
 
     // ── Transient session state ────────────────────────────────────────
 
-    /** Last successful auth-frame response from the server. Empty when
-     *  the current session has not yet authenticated. */
+    /** Tier from the last successful auth-frame response from the server. Empty
+     *  until the session authenticates, and cleared again by an auth failure, a
+     *  newly stored key, or disconnect/reset. */
     private static volatile String currentTier = "";
 
     /** {@code true} once an {@code auth} frame has come back {@code ok}
-     *  during the current session. Cleared on disconnect/reset. */
+     *  during the current session. Cleared by an auth failure, a newly stored
+     *  key, or disconnect/reset. */
     private static volatile boolean authVerifiedThisSession = false;
 
-    /** Most recent auth failure reason from the server (e.g. "revoked",
-     *  "unknown key"), shown to the user on world join when relevant. */
+    /** Standing auth-failure reason from the server (e.g. "revoked",
+     *  "unknown key"), shown to the user on world join when relevant. Cleared by
+     *  a later ok auth ack, a newly stored key, or disconnect/reset. It can also be
+     *  an "Authentication required" refusal of a non-auth frame. */
     private static volatile String lastAuthFailureReason = "";
 
     /** {@code true} when the user has just run {@code /unlock} and is awaiting
      *  the resulting auth-frame ack. Forces the next success ack to render its
-     *  confirmation message regardless of {@link VetsConfig#PRINT_SUCCESSFUL_AUTH}
+     *  confirmation message regardless of {@link VetsConfigKeys#PRINT_SUCCESSFUL_AUTH}
      *  so the player always sees the result of their attempt. Cleared by both
      *  the success and failure handlers. */
     private static volatile boolean pendingUnlockNotify = false;
@@ -76,22 +90,18 @@ final class UnlockManager {
 
     /** @return {@code true} if a key is stored locally (not necessarily valid) */
     static boolean hasStoredKey() {
-        String key = VetsConfig.getString(VetsConfig.VETS_AUTH_KEY);
+        String key = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_KEY);
         return key != null && !key.isEmpty();
     }
 
-    /** @return the stored key, or empty string if none */
-    static String getStoredKey() {
-        String key = VetsConfig.getString(VetsConfig.VETS_AUTH_KEY);
-        return key == null ? "" : key;
-    }
-
-    /** @return the tier string from the most recent successful auth this session */
+    /** @return the tier from the latest ok auth ack, or empty when none is standing (not
+     *  yet authenticated, or cleared by an auth failure, a newly stored key or a disconnect) */
     static String currentTier() {
         return currentTier;
     }
 
-    /** @return {@code true} once the server has accepted our auth this session */
+    /** @return {@code true} from an ok auth ack until an auth failure, a
+     *  newly stored key, or a disconnect clears it */
     static boolean isAuthenticatedThisSession() {
         return authVerifiedThisSession;
     }
@@ -103,25 +113,27 @@ final class UnlockManager {
     /** @return {@code true} if the player has unlocked as a waitlist member */
     static boolean isWaitlistUnlocked() {
         return debugForceGuildlessUnlocked
-            || (authVerifiedThisSession && TIER_WAITLIST.equals(currentTier))
-            || legacyWaitlistMarker();
+                || (authVerifiedThisSession && TIER_WAITLIST.equals(currentTier))
+                || legacyWaitlistMarker();
     }
 
     /** @return {@code true} if the player has unlocked as an honourary member */
     static boolean isHonouraryUnlocked() {
         return (authVerifiedThisSession && TIER_HONOURARY.equals(currentTier))
-            || legacyHonouraryMarker();
+                || legacyHonouraryMarker();
     }
 
-    /** Whether legacy SHA-256-based waitlist unlock state is still on disk.
-     *  Used only as a "this user used the old system" signal for warning copy. */
+    /** Whether the legacy SHA-256-era waitlist unlock timestamp is still on disk (a
+     *  positive {@code VETS_WAITLIST_UNLOCK_TIME}). Meant only as a "this user used the
+     *  old system" signal for warning copy; today {@link #isWaitlistUnlocked()} also ORs
+     *  it in ({@code legacy-unlock-markers-still-grant-client-unlock}). */
     static boolean legacyWaitlistMarker() {
-        return VetsConfig.getLong(VetsConfig.VETS_WAITLIST_UNLOCK_TIME) > 0L;
+        return VetsConfig.getLong(VetsConfigKeys.VETS_WAITLIST_UNLOCK_TIME) > 0L;
     }
 
     /** See {@link #legacyWaitlistMarker()}. */
     static boolean legacyHonouraryMarker() {
-        return VetsConfig.getLong(VetsConfig.VETS_HONOURARY_UNLOCK_TIME) > 0L;
+        return VetsConfig.getLong(VetsConfigKeys.VETS_HONOURARY_UNLOCK_TIME) > 0L;
     }
 
     /** @return {@code true} when the debug guildless+unlocked override is active */
@@ -133,8 +145,7 @@ final class UnlockManager {
      *  treated as guildless and unlocked. */
     static void setDebugForceGuildlessUnlocked(boolean enabled) {
         debugForceGuildlessUnlocked = enabled;
-        VetsLogger.debug("Debug guildless+unlocked override: {}",
-                enabled ? "enabled" : "disabled");
+        VetsLogger.debug("Debug guildless+unlocked override: {}", enabled ? "enabled" : "disabled");
     }
 
     // ── Lifecycle ──────────────────────────────────────────────────────
@@ -162,15 +173,18 @@ final class UnlockManager {
     /**
      * Store a new authentication key and immediately try to verify it.
      *
-     * <p>Called by {@link org.wynnvets.mixin.client.command.UnlockCommandMixin}
-     * when the user runs {@code /unlock &lt;key&gt;}. The key is persisted to
-     * {@link VetsConfig} and an {@code auth} frame is sent on the existing
-     * inbound WebSocket connection. The result is reported to the user
-     * asynchronously via the auth-frame response handler in
-     * {@link V1ApiManager}.</p>
+     * <p>The direct caller is {@link GuildStateManager#tryUnlock(String)}, which
+     * is what {@link org.wynnvets.mixin.client.command.UnlockCommandMixin} invokes
+     * when the user runs {@code /unlock &lt;key&gt;}; the mixin's code never calls this
+     * class. The key is persisted to
+     * {@link VetsConfig} and passed to {@link V1ApiManager#sendAuth(String)}, which sends
+     * the {@code auth} frame on the inbound WebSocket if it is up and otherwise leaves the
+     * stored key to go out on the next inbound (re)connect. The result is reported to the
+     * user asynchronously when
+     * {@link org.wynnvets.api.InboundAckRouter InboundAckRouter} routes the auth-frame ack.</p>
      *
      * @param key the bearer token typed by the user
-     * @return {@link UnlockAttemptResult} describing what happened locally
+     * @return {@link GuildStateManager.UnlockAttemptResult} describing what happened locally
      *         (the network round-trip is reported separately when it
      *         resolves)
      */
@@ -186,16 +200,17 @@ final class UnlockManager {
         for (int i = 0; i < key.length(); i++) {
             char c = key.charAt(i);
             boolean ok =
-                (c >= 'a' && c <= 'z')
-                || (c >= 'A' && c <= 'Z')
-                || (c >= '0' && c <= '9')
-                || c == '_' || c == '-';
+                    (c >= 'a' && c <= 'z')
+                            || (c >= 'A' && c <= 'Z')
+                            || (c >= '0' && c <= '9')
+                            || c == '_'
+                            || c == '-';
             if (!ok) {
                 return GuildStateManager.UnlockAttemptResult.MALFORMED;
             }
         }
 
-        VetsConfig.setString(VetsConfig.VETS_AUTH_KEY, key);
+        VetsConfig.setString(VetsConfigKeys.VETS_AUTH_KEY, key);
         // Clear stale tier/verified state — the server's response will
         // populate them. Until that lands the session is "key stored,
         // verifying...".
@@ -210,13 +225,14 @@ final class UnlockManager {
         // session rather than only on the next reconnect. V1ApiManager will
         // also re-auth on every reconnect using the persisted key.
         V1ApiManager.sendAuth(key);
-        VetsLogger.debug("Auth key stored ({}…), auth frame dispatched",
-            key.length() >= 6 ? key.substring(0, 6) : key);
+        VetsLogger.debug(
+                "Auth key stored ({}…), auth frame dispatched",
+                key.length() >= 6 ? key.substring(0, 6) : key);
 
         return GuildStateManager.UnlockAttemptResult.STORED_VERIFYING;
     }
 
-    // ── Auth-frame response handlers (called by V1ApiManager) ──────────
+    // ── Auth-frame response handlers (direct caller: GuildStateManager) ──────────
 
     /** Called when the server returns {@code {"status":"ok", "tier":...}}
      *  in response to our auth frame. */
@@ -228,14 +244,13 @@ final class UnlockManager {
 
         boolean fromUnlock = pendingUnlockNotify;
         pendingUnlockNotify = false;
-        boolean configWantsPrint = VetsConfig.get(VetsConfig.PRINT_SUCCESSFUL_AUTH);
+        boolean configWantsPrint = VetsConfig.get(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH);
 
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null && (fromUnlock || configWantsPrint)) {
-            Component msg = Component.literal(
-                    "✅ vetsmod authentication verified — tier: " + currentTier)
-                .withStyle(ChatFormatting.GREEN);
-            if (mc.screen != null) {
+        if (McUtils.player() != null && (fromUnlock || configWantsPrint)) {
+            Component msg =
+                    Component.literal("✅ vetsmod authentication verified — tier: " + currentTier)
+                            .withStyle(ChatFormatting.GREEN);
+            if (McUtils.screen() != null) {
                 // The action-bar overlay is suppressed while a Screen is
                 // open (e.g. Wynncraft's class-selection screen shown on
                 // login), but chat scrollback still renders through the
@@ -244,7 +259,7 @@ final class UnlockManager {
                 // matters.
                 ChatUtils.sendLocalMessage(msg);
             } else {
-                mc.player.displayClientMessage(msg, true);
+                McUtils.player().displayClientMessage(msg, true);
             }
             // Latch off so the message doesn't re-fire on every WS reconnect.
             // onAuthFailure() flips it back on so a transient error→recovery
@@ -252,7 +267,7 @@ final class UnlockManager {
             // what triggered the display — a /unlock-driven render shouldn't
             // overwrite the user's standing preference.
             if (configWantsPrint) {
-                VetsConfig.set(VetsConfig.PRINT_SUCCESSFUL_AUTH, false);
+                VetsConfig.set(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH, false);
             }
         }
 
@@ -262,8 +277,10 @@ final class UnlockManager {
         GuildStateManager.sendRegistrationIfReady();
     }
 
-    /** Called when the server returns
-     *  {@code {"status":"error", "detail":"auth rejected: <reason>"}}. */
+    /** Called (through {@link GuildStateManager#onAuthFailure(String)}) when an error ack that
+     *  is not staff-action-shaped arrives while an auth ack is awaited, or carries an "auth
+     *  rejected" / "Authentication required" detail while no staff-action callback is pending;
+     *  typically {@code {"status":"error", "detail":"auth rejected: <reason>"}}. */
     static void onAuthFailure(String detail) {
         currentTier = "";
         authVerifiedThisSession = false;
@@ -275,13 +292,14 @@ final class UnlockManager {
 
         // Re-arm the success notification so the next error→recovery cycle
         // surfaces a fresh "verified" confirmation rather than staying silent.
-        VetsConfig.set(VetsConfig.PRINT_SUCCESSFUL_AUTH, true);
+        VetsConfig.set(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH, true);
 
         ChatUtils.sendLocalMessage(
-            Component.literal("❌ vetsmod authentication failed: " + lastAuthFailureReason
-                    + ". Run `~vetsmod` in #bot-commands at https://wynnvets.org/discord "
-                    + "to issue a new key.")
-                .withStyle(ChatFormatting.RED)
-        );
+                Component.literal(
+                                "❌ vetsmod authentication failed: "
+                                        + lastAuthFailureReason
+                                        + ". Run `~vetsmod` in #bot-commands at https://wynnvets.org/discord "
+                                        + "to issue a new key.")
+                        .withStyle(ChatFormatting.RED));
     }
 }

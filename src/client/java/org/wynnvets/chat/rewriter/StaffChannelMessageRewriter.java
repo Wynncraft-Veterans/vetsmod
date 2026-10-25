@@ -1,20 +1,19 @@
 package org.wynnvets.chat.rewriter;
 
 import com.wynntils.core.components.Models;
-import net.minecraft.client.Minecraft;
+import com.wynntils.utils.mc.McUtils;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.NickResolver;
-import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import org.wynnvets.guild.GuildStateManager;
 
 /**
  * Rewrites lock-prefixed private messages into staff-channel styled messages.
@@ -25,10 +24,9 @@ public final class StaffChannelMessageRewriter {
     private static final String PRIVATE_SEPARATOR_GLYPH = "\uE003";
     private static final Pattern USERNAME_AT_END = Pattern.compile("([A-Za-z0-9_]{1,16})\\s*$");
     private static final Pattern MSG_COMMAND_PATTERN =
-        Pattern.compile("/msg\\s+([A-Za-z0-9_]{1,16})", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("/msg\\s+([A-Za-z0-9_]{1,16})", Pattern.CASE_INSENSITIVE);
 
-    private StaffChannelMessageRewriter() {
-    }
+    private StaffChannelMessageRewriter() {}
 
     /**
      * Rewrites incoming messages whose content starts with 🔐.
@@ -78,10 +76,16 @@ public final class StaffChannelMessageRewriter {
 
         String selfName = GuildStateManager.playerName();
         String resolvedSender = sender;
-        String knownRank = StaffRanksPoller.confirmedRankFor(resolvedSender)
-            .orElseGet(() -> (selfName != null && !selfName.isEmpty() && resolvedSender.equalsIgnoreCase(selfName))
-                ? GuildStateManager.selfStaffRank()
-                : null);
+        String knownRank =
+                StaffRanksPoller.confirmedRankFor(resolvedSender)
+                        .orElseGet(
+                                () ->
+                                        (selfName != null
+                                                        && !selfName.isEmpty()
+                                                        && resolvedSender.equalsIgnoreCase(
+                                                                selfName))
+                                                ? GuildStateManager.selfStaffRank()
+                                                : null);
 
         ChatUtils.sendStaffChannelMessage(resolvedSender, message, knownRank);
         return true;
@@ -158,8 +162,7 @@ public final class StaffChannelMessageRewriter {
             return false;
         }
 
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
+        LocalPlayer player = McUtils.player();
 
         if (matchesIdentityVariant(normalizedSender, GuildStateManager.playerName())) {
             return true;

@@ -13,21 +13,21 @@ import com.wynntils.models.worlds.type.WorldState;
 import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.mc.StyledTextUtils;
 import com.wynntils.utils.type.Pair;
-import net.minecraft.network.chat.HoverEvent;
-import net.neoforged.bus.api.SubscribeEvent;
-import org.wynnvets.api.V1ApiManager;
-import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.OutboundDisplayHandler;
-import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.queue.QueueStateManager;
-
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
+import net.minecraft.network.chat.HoverEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.chat.LocalChatDispatch;
+import org.wynnvets.chat.OutboundDisplayHandler;
+import org.wynnvets.chat.PillCodec;
+import org.wynnvets.guild.GuildLifecycle;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.queue.QueueStateManager;
 
 /**
  * Subscribes to Wynntils events for world state, guild changes, and guild
@@ -36,36 +36,45 @@ import java.util.regex.Pattern;
 public final class WynntilsEventListener {
 
     /**
-     * Pattern to extract rank and message from a guild chat line.
+     * Pattern to split a guild chat line into its sender (glyphs included) and message.
      * The plain-text form (after stripping formatting) looks like:
      *     &lt;rank-glyph&gt; Username: message text
-     * The rank glyphs have already been stripped by Wynntils so we match the
-     * visible "Username: message" portion.
+     * The rank and badge glyphs are still in the plain text here, because
+     * {@code StyledText.stripAlignment} removes only Wynncraft's positive/negative-space
+     * characters. Group 1 therefore carries them: {@code onGuildChat} strips them from the name
+     * with {@code stripPuaCharacters}, and {@code resolveRank} reads the pill from the plain
+     * text.
      */
-    private static final Pattern GUILD_CHAT_PATTERN =
-            Pattern.compile("^\\s*(.+?):\\s+(.+)$");
+    private static final Pattern GUILD_CHAT_PATTERN = Pattern.compile("^\\s*(.+?):\\s+(.+)$");
 
-    /** Client-side dedup — prevents multiple sends when Wynntils fires the
-     *  same guild message event more than once (e.g. PUA-encoded and decoded
-     *  variants for item links). */
+    /** Client-side dedup: stops a second relay when the same guild line reaches this listener
+     *  twice within the TTL. */
     private static final long SENT_DEDUP_TTL_MS = TimeUnit.SECONDS.toMillis(5);
+
     private static final int MAX_SENT_FINGERPRINTS = 100;
-    /** Max characters of message text used for dedup fingerprints.
-     *  Wynntils line-wrapping can alter trailing chars; truncating
-     *  prevents wrapped variants from escaping dedup. */
+
+    /** Max characters of message text used for dedup fingerprints. Two copies
+     *  of a long line that differ only past this length (for example after
+     *  soft-wrap handling) still collide. */
     private static final int DEDUP_FINGERPRINT_MAX_CHARS = 200;
+
     private static final Deque<SentFingerprint> recentSentFingerprints = new ArrayDeque<>();
     private static final Object sentDedupLock = new Object();
 
     /** Singleton instance registered with the Wynntils event bus. */
     private static final WynntilsEventListener INSTANCE = new WynntilsEventListener();
 
-    private WynntilsEventListener() {
-    }
+    private WynntilsEventListener() {}
 
     /**
-     * Registers this listener with the Wynntils event bus.
-     * Should be called once during client initialization.
+     * Registers this listener, {@link LegacyTooltipEventListener} and
+     * {@link LegacyHighlightEventListener} with the Wynntils event bus, then
+     * marks Wynntils ready ({@link GuildStateManager#setWynntilsReady()
+     * GuildStateManager.setWynntilsReady()}). Call it once, from
+     * {@link org.wynnvets.VetsmodClient#onClientStarted() VetsmodClient.onClientStarted()}, the
+     * {@code CLIENT_STARTED} phase, not from {@code onInitializeClient}'s body:
+     * {@code WynntilsMod.registerEventListener} needs the event bus that
+     * Wynntils' own init creates.
      */
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
@@ -76,19 +85,10 @@ public final class WynntilsEventListener {
     }
 
     /**
-     * Unregisters this listener from the Wynntils event bus.
-     */
-    public static void unregister() {
-        WynntilsMod.unregisterEventListener(INSTANCE);
-        LegacyTooltipEventListener.unregister();
-        LegacyHighlightEventListener.unregister();
-    }
-
-    /**
      * Handles world state transitions from Wynntils.
      *
      * <p>When the player enters a {@link WorldState#WORLD}, triggers
-     * {@link GuildStateManager#onEnteredWorld()} to begin guild and staff
+     * {@link GuildLifecycle#onEnteredWorld()} to begin guild and staff
      * rank resolution.
      *
      * @param event the world state change event
@@ -96,9 +96,11 @@ public final class WynntilsEventListener {
     @SubscribeEvent
     public void onWorldStateChanged(WorldStateEvent event) {
         if (event.getNewState() == WorldState.WORLD) {
-            VetsLogger.debug("WorldStateEvent: entered WORLD (world={}, firstJoin={})",
-                    event.getWorldName(), event.isFirstJoinWorld());
-            GuildStateManager.onEnteredWorld();
+            VetsLogger.debug(
+                    "WorldStateEvent: entered WORLD (world={}, firstJoin={})",
+                    event.getWorldName(),
+                    event.isFirstJoinWorld());
+            GuildLifecycle.onEnteredWorld();
         } else if (event.getOldState() == WorldState.WORLD
                 && event.getNewState() != WorldState.WORLD) {
             VetsLogger.debug("WorldStateEvent: left WORLD → {}", event.getNewState());
@@ -108,7 +110,7 @@ public final class WynntilsEventListener {
     /**
      * Handles the player joining a guild.
      *
-     * <p>Delegates to {@link GuildStateManager#onGuildInfoUpdated()} to
+     * <p>Delegates to {@link GuildLifecycle#onGuildInfoUpdated()} to
      * re-evaluate guild membership and feature gates.
      *
      * @param event the guild joined event
@@ -116,13 +118,13 @@ public final class WynntilsEventListener {
     @SubscribeEvent
     public void onGuildJoined(GuildEvent.Joined event) {
         VetsLogger.debug("GuildEvent.Joined: {}", event.getGuildName());
-        GuildStateManager.onGuildInfoUpdated();
+        GuildLifecycle.onGuildInfoUpdated();
     }
 
     /**
      * Handles the player leaving a guild.
      *
-     * <p>Delegates to {@link GuildStateManager#onGuildInfoUpdated()} to
+     * <p>Delegates to {@link GuildLifecycle#onGuildInfoUpdated()} to
      * re-evaluate guild membership and feature gates.
      *
      * @param event the guild left event
@@ -130,15 +132,18 @@ public final class WynntilsEventListener {
     @SubscribeEvent
     public void onGuildLeft(GuildEvent.Left event) {
         VetsLogger.debug("GuildEvent.Left: {}", event.getGuildName());
-        GuildStateManager.onGuildInfoUpdated();
+        GuildLifecycle.onGuildInfoUpdated();
     }
 
     /**
      * Handles guild chat messages detected by Wynntils and relays them to the
      * v1 inbound WebSocket for bridge distribution.
      *
-     * <p>Only fires for Returners members (guild inbound relay). Guildless
-     * and honourary relay are handled separately by command mixins.</p>
+     * <p>Only fires for Returners members' in-game guild chat. Waitlist and honourary relay, and
+     * a Returners member's {@code /g} while queued, go out from {@link
+     * org.wynnvets.chat.dispatcher.GuildChatDispatcher GuildChatDispatcher} when the command is
+     * sent (reached through {@link org.wynnvets.mixin.client.chat.GuildChatCommandMixin
+     * GuildChatCommandMixin}), not from here.</p>
      *
      * @param event the chat message match event
      */
@@ -155,7 +160,7 @@ public final class WynntilsEventListener {
         // chat, etc.).  displayClientMessage → ChatListener.handleSystemMessage
         // → Wynntils event pipeline, so this guard prevents the feedback loop
         // where bridge messages are re-sent to the server as guild messages.
-        if (ChatUtils.isInternalDispatch()) {
+        if (LocalChatDispatch.isInternalDispatch()) {
             VetsLogger.debug("onGuildChat: skipping internal dispatch");
             return;
         }
@@ -181,7 +186,8 @@ public final class WynntilsEventListener {
         }
 
         String rawName = chatMatcher.group(1);
-        VetsLogger.debug("onGuildChat rawName [{}] codepoints [{}]", rawName, toCodepoints(rawName));
+        VetsLogger.debug(
+                "onGuildChat rawName [{}] codepoints [{}]", rawName, toCodepoints(rawName));
 
         // Strip PUA characters (badge/pill glyphs) from the raw display name.
         // Wynncraft encodes rank badges and guild prepends as Private Use Area
@@ -195,26 +201,34 @@ public final class WynntilsEventListener {
             return;
         }
 
-        // Resolve the true username from hover text — never send nicknames
+        // Prefer the real username from Wynncraft's nickname hover. With no such hover this falls
+        // back to the name shown in chat, which may itself be a nickname.
         String trueUsername = extractTrueUsername(unwrapped, displayName);
-        VetsLogger.debug("onGuildChat trueUsername [{}] (displayName was [{}])", trueUsername, displayName);
+        VetsLogger.debug(
+                "onGuildChat trueUsername [{}] (displayName was [{}])", trueUsername, displayName);
 
         // Bridge echo suppression: if this message was recently displayed by
-        // the outbound handler as a bridge message, skip it.  isInternalDispatch
-        // is unreliable for wrapped multi-line messages, so this catch-all
-        // comparison (whitespace-stripped) handles both the re-fire from the
-        // mod's own display and any Wynncraft server echo.
+        // the outbound handler as a bridge message, skip it. isInternalDispatch
+        // covers only work that runs synchronously inside LocalChatDispatch's own
+        // displayClientMessage call. A Wynntils build that replays a line on a
+        // later tick escapes it (Wynntils 4.0.2's chat page detector did this
+        // for multi-line lines while NPC-dialogue extraction was on). This
+        // catch-all comparison, which strips whitespace and glyph art
+        // (OutboundDisplayHandler.wasBridgeEcho), also covers any Wynncraft
+        // server echo of a bridge message.
         if (OutboundDisplayHandler.wasBridgeEcho(messageContent)) {
-            VetsLogger.debug("onGuildChat: bridge echo suppressed for [{}] [{}]", trueUsername, messageContent);
+            VetsLogger.debug(
+                    "onGuildChat: bridge echo suppressed for [{}] [{}]",
+                    trueUsername,
+                    messageContent);
             return;
         }
 
         // Resolve the sender's rank: try hover text first, then pill glyph
         // decoding, and finally the Wynntils guild model for the current player.
         String rank = resolveRank(unwrapped, plain, trueUsername);
-        // Client-side dedup: normalize message by stripping PUA (item encodings
-        // produce multiple event variants with different PUA content but the same
-        // surrounding text).  Only the first variant within the TTL window is sent.
+        // Client-side dedup: normalise by stripping glyph art, so two copies of a line that differ
+        // only in PUA content collide. Only the first within the TTL is sent.
         boolean hadItemPua = containsSupplementaryPua(messageContent);
         String stripped = stripPuaCharacters(messageContent).replaceAll("  +", " ").trim();
         // A pure-PUA message strips to empty, producing a "{user}\0" fingerprint
@@ -224,31 +238,41 @@ public final class WynntilsEventListener {
         // next plain-text line.  Fall back to the raw payload to avoid both.
         String normalizedMsg = stripped.isEmpty() ? messageContent : stripped;
         if (wasSentRecently(trueUsername, normalizedMsg)) {
-            VetsLogger.debug("onGuildChat: duplicate suppressed for [{}] [{}]", trueUsername, normalizedMsg);
+            VetsLogger.debug(
+                    "onGuildChat: duplicate suppressed for [{}] [{}]", trueUsername, normalizedMsg);
             return;
         }
 
         // Repair URLs broken by Wynncraft line-wrapping (spaces injected at
-        // wrap points within a URL).  Must happen before sending to the server
-        // so that Discord receives intact clickable links.
+        // wrap points within a URL). Today it also glues each following word
+        // onto the URL until one is all-lowercase ASCII
+        // (url-repair-merges-following-non-lowercase-token). temporary-server's
+        // sanitize_inbound repeats the same repair as a safety net for older
+        // clients, so this pass is not the only one that keeps Discord links
+        // clickable.
         String repairedMessage = repairWrappedUrls(messageContent);
 
-        VetsLogger.debug("onGuildChat SENDING rank=[{}] user=[{}] msg=[{}]", rank, trueUsername, repairedMessage);
+        VetsLogger.debug(
+                "onGuildChat SENDING rank=[{}] user=[{}] msg=[{}]",
+                rank,
+                trueUsername,
+                repairedMessage);
 
         V1ApiManager.sendInbound("guild", rank, trueUsername, repairedMessage);
         recordSentFingerprint(trueUsername, normalizedMsg, hadItemPua);
     }
 
     /**
-     * Resolves the true username for a chat sender by inspecting hover events
-     * on the message parts for Wynntils' nickname annotation.
+     * Resolves the true username for a chat sender by inspecting hover events on the message
+     * parts for Wynncraft's nickname hover (parsed by Wynntils'
+     * {@code StyledTextUtils.extractNameAndNick}).
      *
      * <p>If a nickname pattern is found, the real username from the hover text
      * is returned. Otherwise falls back to the display name visible in chat.</p>
      *
      * @param message     the full styled message
      * @param displayName the name shown in chat (may be a nickname)
-     * @return the true Minecraft username
+     * @return the real username from the hover, else the name shown in chat
      */
     private static String extractTrueUsername(StyledText message, String displayName) {
         Pair<String, String> nameAndNick = StyledTextUtils.extractNameAndNick(message);
@@ -315,7 +339,10 @@ public final class WynntilsEventListener {
             HoverEvent.ShowText showText = (HoverEvent.ShowText) hover;
             String hoverPlain = showText.value().getString();
             VetsLogger.debug("extractRankFromHover hoverText [{}]", hoverPlain);
-            for (String rankName : new String[]{"Owner", "Chief", "Strategist", "Captain", "Recruiter", "Recruit"}) {
+            for (String rankName :
+                    new String[] {
+                        "Owner", "Chief", "Strategist", "Captain", "Recruiter", "Recruit"
+                    }) {
                 if (hoverPlain.contains(rankName)) {
                     return rankName;
                 }
@@ -327,21 +354,25 @@ public final class WynntilsEventListener {
     /**
      * Decodes the guild rank from pill PUA glyph characters in the plain text.
      *
-     * <p>Wynncraft renders rank badges as Private Use Area characters in the
-     * {@code banner/pill} font. The "foreground" (dark) characters encode
-     * rank letters at codepoints {@code \uE030} (A) through {@code \uE049} (Z).
-     * This method scans for those codepoints, decodes the letters, and matches
-     * against known rank names.</p>
+     * <p>In guild chat captured with vetsmod's debug logging in 2026-09, Wynncraft draws the rank
+     * pill in the {@code banner/pill} font as two layers: an aqua background layer with one glyph
+     * per letter of the rank, keyed {@code \uE030} (A) through {@code \uE049} (Z), and a dark
+     * foreground layer keyed from {@code \uE000} (a). The glyphs are the server's output, so it
+     * does not matter that the capture ran a different Wynntils version from the one this project
+     * builds against. This method decodes the background layer, falling back to the uppercase
+     * block vetsmod's own pills use, and matches the result against known rank names.</p>
      *
      * @param plainText the plain-text form of the guild message
      * @return the rank name or empty string if decoding fails
      */
     private static String decodePillRank(String plainText) {
-        // Scan for pill foreground letter glyphs in the E030-E049 range
-        // (used by the Wynncraft server) and the E040-E059 range (used by
-        // the mod's own pill builder).  The ranges partially overlap
-        // (E040-E049), so a non-empty decode from one range may be garbage.
-        // Try each range and accept the first that matches a known rank.
+        // Scan for pill background letter glyphs in the E030-E049 range
+        // (Wynncraft's server pill) and, as a fallback, the E040-E059
+        // range (vetsmod's own pill alphabet, though the isInternalDispatch
+        // guard in onGuildChat normally stops vetsmod's own lines before
+        // they get here). The ranges partially overlap (E040-E049), so a
+        // non-empty decode from one range may be garbage. Try each range
+        // and accept the first that matches a known rank.
         String decoded = tryDecodeRange(plainText, '\uE030', '\uE049');
         VetsLogger.debug("decodePillRank E030-E049 decoded [{}]", decoded);
         String matched = matchRankName(decoded);
@@ -367,7 +398,8 @@ public final class WynntilsEventListener {
             return "";
         }
         String upper = decoded.toUpperCase();
-        for (String rankName : new String[]{"OWNER", "CHIEF", "STRATEGIST", "CAPTAIN", "RECRUITER", "RECRUIT"}) {
+        for (String rankName :
+                new String[] {"OWNER", "CHIEF", "STRATEGIST", "CAPTAIN", "RECRUITER", "RECRUIT"}) {
             if (upper.equals(rankName)) {
                 return rankName.charAt(0) + rankName.substring(1).toLowerCase();
             }
@@ -408,8 +440,10 @@ public final class WynntilsEventListener {
     // ── Client-side dedup helpers ──────────────────────────────────────
 
     private static boolean wasSentRecently(String username, String normalizedMsg) {
-        String truncated = normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
-                ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS) : normalizedMsg;
+        String truncated =
+                normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
+                        ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS)
+                        : normalizedMsg;
         String fp = username.toLowerCase() + "\0" + truncated;
         synchronized (sentDedupLock) {
             long now = System.currentTimeMillis();
@@ -418,9 +452,8 @@ public final class WynntilsEventListener {
                 if (recent.fingerprint.equals(fp)) {
                     return true;
                 }
-                // Item-encoded messages fire twice via Wynntils: once with PUA
-                // glyphs (stripped here) and again with the decoded item name.
-                // The decoded variant's fingerprint starts with the stripped one.
+                // Defensive: a copy of this line with a trailing item decoded would have a
+                // fingerprint that starts with this one's.
                 if (recent.hadItemPua && fp.startsWith(recent.fingerprint)) {
                     return true;
                 }
@@ -429,9 +462,12 @@ public final class WynntilsEventListener {
         return false;
     }
 
-    private static void recordSentFingerprint(String username, String normalizedMsg, boolean hadItemPua) {
-        String truncated = normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
-                ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS) : normalizedMsg;
+    private static void recordSentFingerprint(
+            String username, String normalizedMsg, boolean hadItemPua) {
+        String truncated =
+                normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
+                        ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS)
+                        : normalizedMsg;
         String fp = username.toLowerCase() + "\0" + truncated;
         synchronized (sentDedupLock) {
             long now = System.currentTimeMillis();
@@ -541,7 +577,8 @@ public final class WynntilsEventListener {
     }
 
     /**
-     * Strips all Private Use Area codepoints (BMP and supplementary) from a string.
+     * Strips every codepoint {@link org.wynnvets.chat.PillCodec#isCustomGlyph(int)
+     * PillCodec.isCustomGlyph} classifies as resource-pack glyph art.
      */
     private static String stripPuaCharacters(String text) {
         if (text == null) return "";
@@ -550,10 +587,7 @@ public final class WynntilsEventListener {
         while (i < text.length()) {
             int cp = text.codePointAt(i);
             int charCount = Character.charCount(cp);
-            int type = Character.getType(cp);
-            boolean isCustomGlyph = type == Character.PRIVATE_USE
-                    || (type == Character.UNASSIGNED && cp > 0xFFFF);
-            if (!isCustomGlyph) {
+            if (!PillCodec.isCustomGlyph(cp)) {
                 sb.appendCodePoint(cp);
             }
             i += charCount;
@@ -562,10 +596,11 @@ public final class WynntilsEventListener {
     }
 
     /**
-     * Returns {@code true} if the text contains any supplementary Private Use
-     * Area codepoints (U+F0000 and above).  These are used by Wynncraft for
-     * item encoding; Wynntils fires the chat event twice for such messages
-     * (once with the raw PUA glyphs, once with decoded item names).
+     * Returns {@code true} if the text contains any codepoint at U+F0000 or above: the
+     * supplementary private-use planes that Wynntils' chat-item encoding uses (Wynntils'
+     * {@code ItemEncodingModel}). Wynntils posts one {@code ChatMessageEvent.Match} per incoming
+     * line and decodes chat items only afterwards, in {@code ChatMessageEvent.Edit}, so
+     * {@link #onGuildChat} sees the encoded form.
      */
     private static boolean containsSupplementaryPua(String text) {
         if (text == null) return false;

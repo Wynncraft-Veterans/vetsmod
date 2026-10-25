@@ -2,6 +2,9 @@ package org.wynnvets.debug.diagnostics;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.models.worlds.type.WorldState;
+import com.wynntils.utils.mc.McUtils;
+import java.util.Collection;
+import java.util.StringJoiner;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.ChatFormatting;
@@ -12,20 +15,24 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
-
-import java.util.Collection;
-import java.util.StringJoiner;
 
 /**
  * Handles the {@code /wv debug} diagnostics dump and the
  * {@code /wv debug true|false} logging toggle.
  *
  * <p>With no arguments, dumps diagnostic information to chat and a more
- * detailed report to the log file.  With {@code true}/{@code false}, toggles
- * the debug logging level on or off.</p>
+ * detailed report to the log file.  With {@code true}/{@code false}, sets
+ * {@link VetsLogger}'s debug flag and records (or clears)
+ * {@link VetsConfigKeys#VETS_DEBUG_ENABLED_AT}, which
+ * {@link org.wynnvets.VetsmodClient VetsmodClient} reads at startup to
+ * restore the flag if it was set less than three days earlier.  The flag is
+ * not logging-only: it is also what
+ * {@link org.wynnvets.debug.anni.AnniDebugCommands AnniDebugCommands}'
+ * {@code requireDebug} tests.</p>
  *
  * <p>This is a <b>debug-only</b> utility — invoked from the
  * {@link org.wynnvets.debug.DebugCommands} command tree.</p>
@@ -37,43 +44,63 @@ public final class DiagnosticsHandler {
     /**
      * Executes the debug command with the given argument.
      *
-     * @param arg {@code null} for no-arg info dump, or "true"/"false" to toggle
+     * @param arg {@code null} for the no-arg diagnostics dump, or
+     *            {@code "true"}/{@code "false"} (case-insensitive) to toggle;
+     *            any other word, such as a mistyped subcommand, prints a
+     *            usage line and changes nothing
      */
     public static void execute(String arg) {
         if (arg == null) {
             dumpDiagnostics();
         } else if (arg.equalsIgnoreCase("true")) {
             VetsLogger.setDebugEnabled(true);
-            VetsConfig.setLong(VetsConfig.VETS_DEBUG_ENABLED_AT, System.currentTimeMillis());
+            VetsConfig.setLong(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, System.currentTimeMillis());
             ChatUtils.sendLocalMessage(
-                Component.literal("Debug logging ")
-                    .withStyle(ChatFormatting.YELLOW)
-                    .append(Component.literal("enabled")
-                        .withStyle(ChatFormatting.GREEN))
-                    .append(Component.literal(". Verbose output is now being written to your log file. (persists for 3 days)")
-                        .withStyle(ChatFormatting.YELLOW))
-            );
+                    Component.literal("Debug logging ")
+                            .withStyle(ChatFormatting.YELLOW)
+                            .append(Component.literal("enabled").withStyle(ChatFormatting.GREEN))
+                            .append(
+                                    Component.literal(
+                                                    ". Verbose output is now being written to your log file. (persists for 3 days)")
+                                            .withStyle(ChatFormatting.YELLOW)));
         } else if (arg.equalsIgnoreCase("false")) {
             VetsLogger.setDebugEnabled(false);
-            VetsConfig.setLong(VetsConfig.VETS_DEBUG_ENABLED_AT, 0L);
+            VetsConfig.setLong(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, 0L);
             ChatUtils.sendLocalMessage(
-                Component.literal("Debug logging ")
-                    .withStyle(ChatFormatting.YELLOW)
-                    .append(Component.literal("disabled")
-                        .withStyle(ChatFormatting.RED))
-                    .append(Component.literal(".")
-                        .withStyle(ChatFormatting.YELLOW))
-            );
+                    Component.literal("Debug logging ")
+                            .withStyle(ChatFormatting.YELLOW)
+                            .append(Component.literal("disabled").withStyle(ChatFormatting.RED))
+                            .append(Component.literal(".").withStyle(ChatFormatting.YELLOW)));
         } else {
             ChatUtils.sendLocalMessage(
-                Component.literal("Usage: /wv debug [true|false]")
-                    .withStyle(ChatFormatting.RED)
-            );
+                    Component.literal("Usage: /wv debug [true|false]")
+                            .withStyle(ChatFormatting.RED));
         }
     }
 
     // ── Diagnostics dump ─────────────────────────────────────────────
 
+    /**
+     * Gathers a diagnostics snapshot and reports it twice: a concise block to
+     * chat via {@link ChatUtils#sendLocalMessageNewBlock}, and a fuller report
+     * to the log at info level via {@link VetsLogger}.
+     *
+     * <p>Sources: mod versions from Fabric Loader ({@code getModVersion});
+     * guild, staff, unlock and bearer-key auth state from
+     * {@link GuildStateManager}; the automessage setting and the persisted
+     * auth tier and verification time from {@link VetsConfig}; the
+     * debug-logging flag from {@link VetsLogger}; supporter status from
+     * {@link SupportersPoller}; server address and brand from the vanilla
+     * client; world state and name from Wynntils' {@code Models.WorldState},
+     * left as {@code "unknown"} if that throws.</p>
+     *
+     * <p>The log report also carries the player name, the can-execute and
+     * debug-guildless-override flags, the persisted tier and the raw
+     * verification timestamp, none of which reach chat, plus the loaded-mod
+     * count and a line listing every loaded mod's id and version — chat
+     * carries only five of those versions (vetsmod, Minecraft, Fabric
+     * Loader, Fabric API and Wynntils).</p>
+     */
     private static void dumpDiagnostics() {
         String vetsmodVersion = getModVersion("vetsmod");
         String mcVersion = getModVersion("minecraft");
@@ -89,7 +116,7 @@ public final class DiagnosticsHandler {
         String selfRank = GuildStateManager.selfStaffRank();
         boolean canExecute = GuildStateManager.canExecuteCommands();
         boolean debugOverride = GuildStateManager.isDebugForceGuildlessUnlocked();
-        boolean automessageEnabled = VetsConfig.get(VetsConfig.VETS_AUTOMESSAGE);
+        boolean automessageEnabled = VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE);
         boolean debugLogging = VetsLogger.isDebugEnabled();
         String playerName = GuildStateManager.playerName();
         boolean isSupporter = playerName != null && SupportersPoller.isSupporter(playerName);
@@ -100,13 +127,13 @@ public final class DiagnosticsHandler {
         String authTier = GuildStateManager.currentAuthTier();
         String authFailureReason = GuildStateManager.lastAuthFailureReason();
         boolean hasLegacyUnlock = GuildStateManager.hasLegacyPasswordUnlock();
-        long authVerifiedAt = VetsConfig.getLong(VetsConfig.VETS_AUTH_VERIFIED_AT);
-        String persistedTier = VetsConfig.getString(VetsConfig.VETS_AUTH_TIER);
+        long authVerifiedAt = VetsConfig.getLong(VetsConfigKeys.VETS_AUTH_VERIFIED_AT);
+        String persistedTier = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_TIER);
 
         // Server info
         String serverAddress = "unknown";
         String serverBrand = "unknown";
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = McUtils.mc();
         ServerData serverData = minecraft.getCurrentServer();
         if (serverData != null) {
             serverAddress = serverData.ip;
@@ -135,7 +162,9 @@ public final class DiagnosticsHandler {
 
         // ── Chat output (concise) ──────────────────────────────────
         MutableComponent chatMsg = Component.empty();
-        chatMsg.append(Component.literal("Diagnostics\n").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+        chatMsg.append(
+                Component.literal("Diagnostics\n")
+                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
         chatMsg.append(Component.literal("Version: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(Component.literal(vetsmodVersion + "\n").withStyle(ChatFormatting.WHITE));
         chatMsg.append(Component.literal("MC: ").withStyle(ChatFormatting.GRAY));
@@ -152,13 +181,16 @@ public final class DiagnosticsHandler {
         chatMsg.append(Component.literal(serverBrand).withStyle(ChatFormatting.WHITE));
         chatMsg.append(Component.literal(")\n").withStyle(ChatFormatting.GRAY));
         chatMsg.append(Component.literal("World: ").withStyle(ChatFormatting.GRAY));
-        chatMsg.append(Component.literal(worldState + " / " + worldName + "\n").withStyle(ChatFormatting.WHITE));
+        chatMsg.append(
+                Component.literal(worldState + " / " + worldName + "\n")
+                        .withStyle(ChatFormatting.WHITE));
         chatMsg.append(Component.literal("Guild: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(guildSummary(isReturners, isGuildless));
         chatMsg.append(Component.literal(" | Staff: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(boolComponent(isStaff));
         if (!selfRank.isEmpty()) {
-            chatMsg.append(Component.literal(" (" + selfRank + ")").withStyle(ChatFormatting.WHITE));
+            chatMsg.append(
+                    Component.literal(" (" + selfRank + ")").withStyle(ChatFormatting.WHITE));
         }
         chatMsg.append(Component.literal(" | Unlocked: ").withStyle(ChatFormatting.GRAY));
         chatMsg.append(boolComponent(isUnlocked));
@@ -174,13 +206,15 @@ public final class DiagnosticsHandler {
         chatMsg.append(authStatusComponent(hasAuthKey, authVerified, authFailureReason));
         if (authVerified || !authTier.isEmpty()) {
             chatMsg.append(Component.literal(" | Tier: ").withStyle(ChatFormatting.GRAY));
-            chatMsg.append(Component.literal(authTier.isEmpty() ? "?" : authTier)
-                .withStyle(ChatFormatting.WHITE));
+            chatMsg.append(
+                    Component.literal(authTier.isEmpty() ? "?" : authTier)
+                            .withStyle(ChatFormatting.WHITE));
         }
         if (authVerifiedAt > 0L) {
             chatMsg.append(Component.literal(" | Verified: ").withStyle(ChatFormatting.GRAY));
-            chatMsg.append(Component.literal(formatRelative(authVerifiedAt) + " ago")
-                .withStyle(ChatFormatting.WHITE));
+            chatMsg.append(
+                    Component.literal(formatRelative(authVerifiedAt) + " ago")
+                            .withStyle(ChatFormatting.WHITE));
         }
         if (hasLegacyUnlock) {
             chatMsg.append(Component.literal(" | Legacy unlock: ").withStyle(ChatFormatting.GRAY));
@@ -192,35 +226,57 @@ public final class DiagnosticsHandler {
         // ── Detailed log dump ───────────────────────────────────────
         VetsLogger.info("=== VetsMod Diagnostics Dump ===");
         VetsLogger.info("VetsMod version: {}", vetsmodVersion);
-        VetsLogger.info("Minecraft: {} | Fabric Loader: {} | Fabric API: {}", mcVersion, fabricLoaderVersion, fabricApiVersion);
+        VetsLogger.info(
+                "Minecraft: {} | Fabric Loader: {} | Fabric API: {}",
+                mcVersion,
+                fabricLoaderVersion,
+                fabricApiVersion);
         VetsLogger.info("Wynntils: {}", wynntilsVersion);
         VetsLogger.info("Server: {} | Brand: {}", serverAddress, serverBrand);
         VetsLogger.info("World state: {} | World name: {}", worldState, worldName);
         VetsLogger.info("Player: {}", playerName);
-        VetsLogger.info("Guild state: returners={}, guildless={}, unlocked={}, canExecute={}", isReturners, isGuildless, isUnlocked, canExecute);
+        VetsLogger.info(
+                "Guild state: returners={}, guildless={}, unlocked={}, canExecute={}",
+                isReturners,
+                isGuildless,
+                isUnlocked,
+                canExecute);
         VetsLogger.info("Staff: {}, rank={}", isStaff, selfRank.isEmpty() ? "none" : selfRank);
-        VetsLogger.info("Config: automessage={}, debugLogging={}, debugGuildlessOverride={}, supporter={}", automessageEnabled, debugLogging, debugOverride, isSupporter);
-        VetsLogger.info("Auth: hasKey={}, verifiedThisSession={}, tier={}, persistedTier={}, verifiedAt={}, legacyUnlock={}, lastFailure={}",
-            hasAuthKey,
-            authVerified,
-            authTier.isEmpty() ? "none" : authTier,
-            persistedTier == null || persistedTier.isEmpty() ? "none" : persistedTier,
-            authVerifiedAt == 0L ? "never" : Long.toString(authVerifiedAt),
-            hasLegacyUnlock,
-            authFailureReason.isEmpty() ? "none" : authFailureReason);
+        VetsLogger.info(
+                "Config: automessage={}, debugLogging={}, debugGuildlessOverride={}, supporter={}",
+                automessageEnabled,
+                debugLogging,
+                debugOverride,
+                isSupporter);
+        VetsLogger.info(
+                "Auth: hasKey={}, verifiedThisSession={}, tier={}, persistedTier={}, verifiedAt={}, legacyUnlock={}, lastFailure={}",
+                hasAuthKey,
+                authVerified,
+                authTier.isEmpty() ? "none" : authTier,
+                persistedTier == null || persistedTier.isEmpty() ? "none" : persistedTier,
+                authVerifiedAt == 0L ? "never" : Long.toString(authVerifiedAt),
+                hasLegacyUnlock,
+                authFailureReason.isEmpty() ? "none" : authFailureReason);
 
         // Mod list
         Collection<ModContainer> mods = FabricLoader.getInstance().getAllMods();
         VetsLogger.info("Loaded mods ({}):", mods.size());
         StringJoiner modSummary = new StringJoiner(", ");
         for (ModContainer mod : mods) {
-            String entry = mod.getMetadata().getId() + " " + mod.getMetadata().getVersion().getFriendlyString();
+            String entry =
+                    mod.getMetadata().getId()
+                            + " "
+                            + mod.getMetadata().getVersion().getFriendlyString();
             modSummary.add(entry);
         }
         VetsLogger.info("  {}", modSummary.toString());
         VetsLogger.info("=== End Diagnostics Dump ===");
     }
 
+    /**
+     * {@code Returners} (green), else {@code Guildless} (yellow), else
+     * {@code Other} (red); Returners wins if both flags are set.
+     */
     private static MutableComponent guildSummary(boolean isReturners, boolean isGuildless) {
         if (isReturners) {
             return Component.literal("Returners").withStyle(ChatFormatting.GREEN);
@@ -231,28 +287,41 @@ public final class DiagnosticsHandler {
         }
     }
 
+    /** {@code true} in green or {@code false} in red. */
     private static MutableComponent boolComponent(boolean value) {
         return Component.literal(value ? "true" : "false")
-            .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED);
+                .withStyle(value ? ChatFormatting.GREEN : ChatFormatting.RED);
     }
 
+    /**
+     * {@code verified} (green) once the key has been verified this session;
+     * otherwise {@code stored, unverified} (yellow) when a key is stored,
+     * followed by the last failure reason in red when there is one; otherwise
+     * {@code none} (red).
+     */
     private static MutableComponent authStatusComponent(
             boolean hasKey, boolean verified, String failureReason) {
         if (verified) {
             return Component.literal("verified").withStyle(ChatFormatting.GREEN);
         }
         if (hasKey) {
-            MutableComponent c = Component.literal("stored, unverified")
-                .withStyle(ChatFormatting.YELLOW);
+            MutableComponent c =
+                    Component.literal("stored, unverified").withStyle(ChatFormatting.YELLOW);
             if (!failureReason.isEmpty()) {
-                c.append(Component.literal(" (" + failureReason + ")")
-                    .withStyle(ChatFormatting.RED));
+                c.append(
+                        Component.literal(" (" + failureReason + ")")
+                                .withStyle(ChatFormatting.RED));
             }
             return c;
         }
         return Component.literal("none").withStyle(ChatFormatting.RED);
     }
 
+    /**
+     * Time elapsed since {@code epochMillis} in its largest whole unit
+     * (seconds, minutes, hours or days, truncated: 90 seconds is {@code 1m}).
+     * A timestamp in the future reports {@code 0s}.
+     */
     private static String formatRelative(long epochMillis) {
         long delta = System.currentTimeMillis() - epochMillis;
         if (delta < 0L) return "0s";
@@ -266,10 +335,14 @@ public final class DiagnosticsHandler {
         return days + "d";
     }
 
+    /**
+     * The friendly version string of the loaded mod with this id, or
+     * {@code "not found"} if Fabric Loader has no such mod.
+     */
     private static String getModVersion(String modId) {
         return FabricLoader.getInstance()
-            .getModContainer(modId)
-            .map(mod -> mod.getMetadata().getVersion().getFriendlyString())
-            .orElse("not found");
+                .getModContainer(modId)
+                .map(mod -> mod.getMetadata().getVersion().getFriendlyString())
+                .orElse("not found");
     }
 }

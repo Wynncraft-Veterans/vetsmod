@@ -15,7 +15,7 @@ import java.util.Set;
  */
 public final class LegacyItemStyle {
 
-    /** Parallel to {@link VetsConfig#VALID_SPRITES} (same index = same sprite). */
+    /** Parallel to {@link VetsConfigSchema#VALID_SPRITES} (same index = same sprite). */
     private static final Texture[] FOREGROUND_TEXTURES = {
         Texture.HIGHLIGHT_WYNN,
         Texture.HIGHLIGHT_TAG,
@@ -47,12 +47,9 @@ public final class LegacyItemStyle {
         return NamedColor.isValid(value);
     }
 
-    /**
-     * Check whether a value is a valid sprite name.
-     */
     public static boolean isValidSprite(String value) {
         if (value == null) return false;
-        for (String s : VetsConfig.VALID_SPRITES) {
+        for (String s : VetsConfigSchema.VALID_SPRITES) {
             if (s.equalsIgnoreCase(value)) return true;
         }
         return false;
@@ -61,40 +58,48 @@ public final class LegacyItemStyle {
     // ── Resolved rendering values ─────────────────────────────────────
 
     /**
-     * Parse {@link VetsConfig#LEGACY_ITEM_BACKGROUND_GRADIENT_TOP} into an ARGB int,
+     * Parse {@link VetsConfigKeys#LEGACY_ITEM_BACKGROUND_GRADIENT_TOP} into an ARGB int,
      * combining the colour name with the top opacity setting.
      *
-     * @return the computed ARGB colour, or orange at 69% on error
+     * @return the computed ARGB colour; an unknown colour name falls back to
+     *         orange at the configured opacity
      */
     public static int getBackgroundGradientTopColor() {
-        String name = VetsConfig.getString(VetsConfig.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP);
+        String name = VetsConfig.getString(VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP);
         int rgb = NamedColor.getRgbOrDefault(name, 0xFFA500);
-        int opacity = (int) VetsConfig.getLong(VetsConfig.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY);
+        int opacity =
+                (int)
+                        VetsConfig.getLong(
+                                VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY);
         if ("transparent".equalsIgnoreCase(name)) return 0x00000000;
         return NamedColor.withAlpha(rgb, opacity);
     }
 
     /**
-     * Parse {@link VetsConfig#LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM} into an ARGB int,
+     * Parse {@link VetsConfigKeys#LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM} into an ARGB int,
      * combining the colour name with the bottom opacity setting.
      *
-     * @return the computed ARGB colour, or crimson at 100% on error
+     * @return the computed ARGB colour; an unknown colour name falls back to
+     *         crimson at the configured opacity
      */
     public static int getBackgroundGradientBottomColor() {
-        String name = VetsConfig.getString(VetsConfig.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM);
+        String name = VetsConfig.getString(VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM);
         int rgb = NamedColor.getRgbOrDefault(name, 0xDC143C);
-        int opacity = (int) VetsConfig.getLong(VetsConfig.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY);
+        int opacity =
+                (int)
+                        VetsConfig.getLong(
+                                VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY);
         if ("transparent".equalsIgnoreCase(name)) return 0x00000000;
         return NamedColor.withAlpha(rgb, opacity);
     }
 
     /**
-     * Parse {@link VetsConfig#LEGACY_ITEM_FOREGROUND_COLOR} into a fully-opaque ARGB int.
+     * Parse {@link VetsConfigKeys#LEGACY_ITEM_FOREGROUND_COLOR} into a fully-opaque ARGB int.
      *
      * @return the parsed colour, or {@code 0xFFFFA500} (orange) on error
      */
     public static int getForegroundColor() {
-        String name = VetsConfig.getString(VetsConfig.LEGACY_ITEM_FOREGROUND_COLOR);
+        String name = VetsConfig.getString(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_COLOR);
         if (name != null) {
             if ("transparent".equalsIgnoreCase(name)) return 0x00000000;
             Integer rgb = NamedColor.getRgb(name);
@@ -112,17 +117,18 @@ public final class LegacyItemStyle {
     }
 
     /**
-     * Resolve {@link VetsConfig#LEGACY_ITEM_FOREGROUND_SPRITE} to its
+     * Resolve {@link VetsConfigKeys#LEGACY_ITEM_FOREGROUND_SPRITE} to its
      * corresponding Wynntils atlas-backed {@link Texture}.
      *
      * @return the matching highlight {@link Texture}; falls back to
      *         {@link Texture#HIGHLIGHT_WYNN} on unknown values
      */
     public static Texture getForegroundTexture() {
-        String name = VetsConfig.getString(VetsConfig.LEGACY_ITEM_FOREGROUND_SPRITE);
+        String name = VetsConfig.getString(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE);
         if (name != null) {
-            for (int i = 0; i < VetsConfig.VALID_SPRITES.length; i++) {
-                if (VetsConfig.VALID_SPRITES[i].equalsIgnoreCase(name)) return FOREGROUND_TEXTURES[i];
+            for (int i = 0; i < VetsConfigSchema.VALID_SPRITES.length; i++) {
+                if (VetsConfigSchema.VALID_SPRITES[i].equalsIgnoreCase(name))
+                    return FOREGROUND_TEXTURES[i];
             }
         }
         return Texture.HIGHLIGHT_WYNN;

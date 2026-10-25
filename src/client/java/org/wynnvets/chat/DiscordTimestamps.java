@@ -1,11 +1,5 @@
 package org.wynnvets.chat;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
-
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -13,6 +7,11 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 
 /**
  * Expands Discord's {@code <t:EPOCH:STYLE>} timestamp markup into readable
@@ -37,9 +36,10 @@ public final class DiscordTimestamps {
     private static final Pattern TIMESTAMP = Pattern.compile("<t:(\\d{1,12})(?::([tTdDfFR]))?>");
 
     /**
-     * 2100-01-01. Anything past it is an authoring slip rather than a date —
-     * a millisecond epoch pasted where seconds were wanted is the usual one,
-     * and rendering it as the year 318857 is worse than showing the markup.
+     * 2100-01-01. An epoch past it is treated as an authoring slip and the
+     * markup is shown raw. (A present-day millisecond epoch never reaches
+     * this check: at 13 digits it fails {@link #TIMESTAMP}'s 12-digit cap
+     * and stays unexpanded text.)
      */
     private static final long MAX_EPOCH_SECONDS = 4102444800L;
 
@@ -108,18 +108,22 @@ public final class DiscordTimestamps {
         }
         Instant instant = Instant.ofEpochSecond(epoch);
 
-        String shown = switch (style == null ? 'f' : style.charAt(0)) {
-            case 't' -> format(instant, SHORT_TIME);
-            case 'T' -> format(instant, LONG_TIME);
-            case 'd' -> format(instant, SHORT_DATE);
-            case 'D' -> format(instant, LONG_DATE);
-            case 'F' -> format(instant, LONG_DATE_TIME);
-            case 'R' -> relative(instant);
-            default -> format(instant, SHORT_DATE_TIME);
-        };
+        String shown =
+                switch (style == null ? 'f' : style.charAt(0)) {
+                    case 't' -> format(instant, SHORT_TIME);
+                    case 'T' -> format(instant, LONG_TIME);
+                    case 'd' -> format(instant, SHORT_DATE);
+                    case 'D' -> format(instant, LONG_DATE);
+                    case 'F' -> format(instant, LONG_DATE_TIME);
+                    case 'R' -> relative(instant);
+                    default -> format(instant, SHORT_DATE_TIME);
+                };
 
-        MutableComponent hover = Component.literal(format(instant, HOVER))
-                .append(Component.literal("\n" + relative(instant)).withStyle(ChatFormatting.GRAY));
+        MutableComponent hover =
+                Component.literal(format(instant, HOVER))
+                        .append(
+                                Component.literal("\n" + relative(instant))
+                                        .withStyle(ChatFormatting.GRAY));
         return Component.literal(shown)
                 .setStyle(Style.EMPTY.withHoverEvent(new HoverEvent.ShowText(hover)));
     }
@@ -165,10 +169,12 @@ public final class DiscordTimestamps {
     /** This node's own text, excluding siblings. */
     private static String ownText(Component node) {
         StringBuilder sb = new StringBuilder();
-        node.getContents().visit(part -> {
-            sb.append(part);
-            return Optional.empty();
-        });
+        node.getContents()
+                .visit(
+                        part -> {
+                            sb.append(part);
+                            return Optional.empty();
+                        });
         return sb.toString();
     }
 }

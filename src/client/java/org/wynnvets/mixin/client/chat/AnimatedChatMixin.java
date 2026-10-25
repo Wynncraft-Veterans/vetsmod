@@ -15,22 +15,34 @@ import org.wynnvets.rendering.colors.AnimatedGradientSequence;
 /**
  * Intercepts chat message display-queue insertion to replace static
  * {@link FormattedCharSequence}s with {@link AnimatedGradientSequence}
- * wrappers when an animation config has been set via
- * {@link AnimatedGradientSequence#beginAnimation}.
+ * wrappers. Every newly inserted line is wrapped, and each wrapper is built
+ * from {@link AnimatedGradientSequence#effectiveDefaultStart()},
+ * {@link AnimatedGradientSequence#effectiveDefaultEnd()} (both honour
+ * {@code colorBlindMode}) and
+ * {@link AnimatedGradientSequence#DEFAULT_CYCLE_TIME_MS}. The mixin does not
+ * read the config {@link AnimatedGradientSequence#beginAnimation} sets, so
+ * colours passed there never reach these wrappers. A wrapper recolours only
+ * characters carrying a marker colour; everything else passes through
+ * unchanged. The two colours a wrapper is built from are used for
+ * {@link AnimatedGradientSequence#MARKER_COLOR} characters only: a character
+ * marked {@link AnimatedGradientSequence#GREY_MARKER_COLOR} — which
+ * {@code ListFetcher} applies to supporters inside a grey-coloured list — is
+ * recoloured from {@link AnimatedGradientSequence#effectiveGreyStart()} /
+ * {@link AnimatedGradientSequence#effectiveGreyEnd()} instead, whatever the
+ * wrapper was built with.
  *
  * <p>New {@code GuiMessage.Line} entries are created at the beginning of
- * {@code trimmedMessages} (via {@code addFirst}). We record the list size
- * before processing and replace the newly inserted entries afterwards.</p>
+ * {@code trimmedMessages} (via {@code addFirst}). We record the first
+ * pre-existing line before processing, then count forward to it afterwards
+ * to find and replace the newly inserted entries.</p>
  */
 @Mixin(ChatComponent.class)
 public class AnimatedChatMixin {
 
-    @Shadow
-    private List<GuiMessage.Line> trimmedMessages;
+    @Shadow private List<GuiMessage.Line> trimmedMessages;
 
     /** First pre-existing line before current insertion, used as insertion boundary. */
-    @Unique
-    private GuiMessage.Line vetsmod$prevFirstLine = null;
+    @Unique private GuiMessage.Line vetsmod$prevFirstLine = null;
 
     @Inject(method = "addMessageToDisplayQueue", at = @At("HEAD"))
     private void vetsmod$beforeAddLines(GuiMessage message, CallbackInfo ci) {
@@ -43,7 +55,8 @@ public class AnimatedChatMixin {
         if (vetsmod$prevFirstLine == null) {
             added = trimmedMessages.size();
         } else {
-            while (added < trimmedMessages.size() && trimmedMessages.get(added) != vetsmod$prevFirstLine) {
+            while (added < trimmedMessages.size()
+                    && trimmedMessages.get(added) != vetsmod$prevFirstLine) {
                 added++;
             }
         }
@@ -51,13 +64,14 @@ public class AnimatedChatMixin {
         // New lines are inserted at the front of the list (addFirst).
         for (int i = 0; i < added; i++) {
             GuiMessage.Line old = trimmedMessages.get(i);
-            FormattedCharSequence animated = new AnimatedGradientSequence(
-                    old.content(),
-                    AnimatedGradientSequence.effectiveDefaultStart(),
-                    AnimatedGradientSequence.effectiveDefaultEnd(),
-                    AnimatedGradientSequence.DEFAULT_CYCLE_TIME_MS);
-            trimmedMessages.set(i, new GuiMessage.Line(
-                    old.addedTime(), animated, old.tag(), old.endOfEntry()));
+            FormattedCharSequence animated =
+                    new AnimatedGradientSequence(
+                            old.content(),
+                            AnimatedGradientSequence.effectiveDefaultStart(),
+                            AnimatedGradientSequence.effectiveDefaultEnd(),
+                            AnimatedGradientSequence.DEFAULT_CYCLE_TIME_MS);
+            trimmedMessages.set(
+                    i, new GuiMessage.Line(old.addedTime(), animated, old.tag(), old.endOfEntry()));
         }
 
         vetsmod$prevFirstLine = null;

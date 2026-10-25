@@ -1,0 +1,49 @@
+# EditorConfig — https://editorconfig.org
+#
+# The formatter of record is Spotless: `./gradlew spotlessApply`, enforced by
+# spotlessCheck in CI. Spotless does NOT read this file.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# google-java-format AOSP: 4-space block indent, 8-space continuation, 100
+# columns. continuation_indent_size is an editor extension, not core spec.
+[*.java]
+indent_style = space
+indent_size = 4
+continuation_indent_size = 8
+max_line_length = 100
+
+# build.gradle, settings.gradle and local.gradle are tab-indented, as shipped by
+# the Fabric template. Spotless does not format them and neither should an
+# editor's reindent.
+[*.gradle]
+indent_style = tab
+
+[*.properties]
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.json]
+indent_style = space
+indent_size = 2
+
+# Two trailing spaces are a hard line break in Markdown and the .claude/ set
+# relies on them. Never strip.
+[*.md]
+trim_trailing_whitespace = false
+
+# Matches .gitattributes.
+[*.bat]
+end_of_line = crlf

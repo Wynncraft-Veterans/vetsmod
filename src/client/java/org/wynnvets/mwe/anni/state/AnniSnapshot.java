@@ -1,10 +1,9 @@
 package org.wynnvets.mwe.anni.state;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-
 import java.util.Collections;
 import java.util.List;
+import org.wynnvets.util.Json;
 
 /**
  * Immutable Gson-deserialised mirror of the canonical anni snapshot dict.
@@ -26,10 +25,20 @@ import java.util.List;
  * uses plain Java beans for Gson-shaped data (see
  * {@link org.wynnvets.datamodels.MembershipSnapshot}); records would
  * require a custom {@code TypeAdapter} for snake_case wire fields.</p>
+ *
+ * <p><b>That field naming is also what makes the debug round-trip work</b>, which
+ * is the concrete cost of converting. {@code AnniSnapshotDebugCommands.timeSet}
+ * serialises the live snapshot back out with {@code Gson#toJson}, edits the
+ * resulting tree, and re-hydrates it through {@link #fromJson}; the same
+ * snake_case spellings therefore have to survive in <em>both</em> directions.
+ * Record components would serialise as {@code stampEpoch} and fail to match
+ * {@code stamp_epoch} on the way back in, so a {@code TypeAdapter} is not an
+ * optional nicety here — it is load-bearing for a debug command in another
+ * package. Anyone proposing the conversion should price that in; the round-trip
+ * is the part that is easy to miss, because it lives in another package tree
+ * ({@code org.wynnvets.debug.anni}) and nothing there says it relies on the field naming.</p>
  */
 public final class AnniSnapshot {
-
-    private static final Gson GSON = new Gson();
 
     private Integer schema_version;
     private String mc_uuid;
@@ -80,18 +89,19 @@ public final class AnniSnapshot {
 
     /** S7 — usernames of every organiser (lead + party hosts) in the same
      *  parallel order as {@link #organisers()}. Used by
-     *  {@code PartyRosterListener.shouldSend} to gate the
-     *  {@code anni_party_observation} frame on "is any party member an
-     *  organiser?". Names go over the wire (not UUIDs) because Wynncraft
-     *  exposes party members by username only — see
-     *  {@code Wynntils PartyModel.getPartyMembers()}. */
+     *  {@link org.wynnvets.listeners.PartyRosterListener#shouldSend PartyRosterListener#shouldSend}
+     *  to gate the {@code anni_party_observation} frame on "is any party member an organiser?",
+     *  and by {@link org.wynnvets.mwe.anni.AnniPartyReporter AnniPartyReporter}, which
+     *  triggers a party recapture when the case-folded set changes.
+     *  Names go over the wire (not UUIDs) because Wynncraft exposes party members by username only
+     *  — see {@code Wynntils PartyModel.getPartyMembers()}. */
     public List<String> organiserUsernames() {
         return organiser_usernames != null ? organiser_usernames : Collections.emptyList();
     }
 
     /** Hydrate from the JSON shape produced by vets-anni. */
     public static AnniSnapshot fromJson(JsonObject json) {
-        return GSON.fromJson(json, AnniSnapshot.class);
+        return Json.GSON.fromJson(json, AnniSnapshot.class);
     }
 
     public static final class Event {
@@ -113,10 +123,10 @@ public final class AnniSnapshot {
         }
 
         /** Schema v2 — every party for the active event, lightweight
-         *  {@code {ordinal, members:[{uuid,username,role}]}} listing. Empty list
-         *  on v2 when no parties exist; {@code null} on v1 payloads (Gson
-         *  leaves unknown fields null — caller handles both). Used by S4
-         *  {@code AnniOutlineRegistry} to tier nearby players. */
+         *  {@code {ordinal, members:[{uuid,username,role}]}} listing. Empty list on v2 when no
+         *  parties exist; {@code null} on v1 payloads (Gson leaves unknown fields null — caller
+         *  handles both). Used by S4 {@link org.wynnvets.mwe.anni.outline.AnniOutlineRegistry
+         *  AnniOutlineRegistry} to tier nearby players. */
         public List<PartySummary> allParties() {
             return all_parties != null ? all_parties : Collections.emptyList();
         }
@@ -267,7 +277,7 @@ public final class AnniSnapshot {
         }
 
         /** Schema v3 — the in-game scroll-spot the party host has pinned via
-         *  {@code /wv anni scrollspot}. Null until set; cleared automatically
+         *  {@code /wv debug tree anni scrollspot}. Null until set; cleared automatically
          *  by vets-anni at grace-wipe. */
         public ScrollSpot scrollSpot() {
             return scroll_spot;

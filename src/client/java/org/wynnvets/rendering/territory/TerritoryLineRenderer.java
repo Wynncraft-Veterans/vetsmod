@@ -1,7 +1,7 @@
 package org.wynnvets.rendering.territory;
 
+import com.wynntils.utils.mc.McUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
@@ -33,14 +33,13 @@ public final class TerritoryLineRenderer {
     private static void render() {
         if (!TerritoryLineManager.hasAnyActive()) return;
 
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
+        if (McUtils.player() == null) return;
 
-        BlockPos playerPos = mc.player.blockPosition();
+        BlockPos playerPos = McUtils.player().blockPosition();
         int playerX = playerPos.getX();
         int playerY = playerPos.getY();
         int playerZ = playerPos.getZ();
-        Vec3 playerVec = mc.player.position();
+        Vec3 playerVec = McUtils.player().position();
 
         for (var entry : TerritoryLineManager.getAliases().entrySet()) {
             String alias = entry.getKey();
@@ -54,13 +53,15 @@ public final class TerritoryLineRenderer {
             int endX = bounds[2];
             int endZ = bounds[3];
 
-            boolean inTerritory = playerX > startX && playerX < endX
-                    && playerZ > startZ && playerZ < endZ;
+            boolean inTerritory =
+                    playerX > startX && playerX < endX && playerZ > startZ && playerZ < endZ;
 
             // Distance culling — skip territories too far away
-            double dist = Math.min(Math.abs(playerVec.x - startX), Math.abs(playerVec.x - endX))
-                    + Math.min(Math.abs(playerVec.z - startZ), Math.abs(playerVec.z - endZ));
-            int maxDistance = Math.min(mc.options.renderDistance().get(), 16) * 15;
+            double dist =
+                    Math.min(Math.abs(playerVec.x - startX), Math.abs(playerVec.x - endX))
+                            + Math.min(
+                                    Math.abs(playerVec.z - startZ), Math.abs(playerVec.z - endZ));
+            int maxDistance = Math.min(McUtils.options().renderDistance().get(), 16) * 15;
             if (!inTerritory && dist > maxDistance) continue;
 
             int color = inTerritory ? 0xFF00FF00 : 0xFFFF0000;
@@ -70,8 +71,7 @@ public final class TerritoryLineRenderer {
             for (int level = playerY / 4 - 20; level < playerY / 4 + 20; level++) {
                 Gizmos.cuboid(
                         new AABB(startX, 4.0 * level, startZ, endX, 4.0 * level, endZ),
-                        strokeStyle
-                );
+                        strokeStyle);
             }
         }
     }

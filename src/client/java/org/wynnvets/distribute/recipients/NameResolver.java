@@ -1,0 +1,302 @@
+package org.wynnvets.distribute.recipients;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.wynntils.core.components.Models;
+import java.net.HttpURLConnection;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import org.wynnvets.api.WynnCraftApi;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.util.HttpClients;
+import org.wynnvets.util.Json;
+import org.wynnvets.util.Uuids;
+
+/**
+ * Resolves a user-supplied name to the {@code legacyName} that the
+ * Wynncraft Members GUI displays, by querying
+ * {@code wapi /v3/guild/<localPlayerGuild>}.
+ *
+ * <p>The v3 payload's {@code members.<rank>.<currentName>.legacyName} shape (see
+ * {@link org.wynnvets.fetcher.ondemand.ReturnersRosterProbe#analyzeRoster
+ * ReturnersRosterProbe#analyzeRoster}) lets us map a player's <em>current</em> Mojang username to
+ * whatever name the Wynncraft server has frozen onto its in-game tiles. Input matching is
+ * case-insensitive against both the {@code currentName} key and the {@code legacyName} value, so
+ * either form resolves to the correct GUI tile name.</p>
+ *
+ * <p>On any failure (no guild, no network, unexpected payload)
+ * {@link #resolveLegacyName} returns the input unchanged &mdash; the
+ * caller's literal-input arm still matches if the user already typed the
+ * legacyName. The class's three other entry points read the same payload
+ * other ways, and each falls back to an empty list or map when the fetch
+ * fails or the body does not parse.</p>
+ */
+public final class NameResolver {
+
+    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
+
+    private NameResolver() {}
+
+    /**
+     * Async resolve. Never completes exceptionally: for a non-empty input
+     * it completes with the resolved tile name ({@code legacyName}, or the
+     * current name for a member who never renamed), or with the input
+     * itself if no resolution was possible; a null or empty input completes
+     * with itself.
+     */
+    public static CompletableFuture<String> resolveLegacyName(String input) {
+        if (input == null || input.isEmpty()) {
+            return CompletableFuture.completedFuture(input);
+        }
+        return fetchGuildJson("resolveLegacyName [" + input + "]")
+                .thenApply(body -> body == null ? input : findLegacyName(body, input));
+    }
+
+    /**
+     * Fetches the full guild roster from wapi and returns every member's
+     * tile-displayed name &mdash; i.e. {@code legacyName} when present,
+     * else the current Mojang username (for members who never renamed).
+     *
+     * <p>Used by {@link org.wynnvets.distribute.distributor.RandomDistributor RandomDistributor} to
+     * pick recipients from the exact name space the Members GUI uses, avoiding the race where
+     * picking by current name and async-resolving per pick can miss
+     * renamed members on small guilds with fast searches.</p>
+     *
+     * <p>The list is not deduplicated: members whose tile names coincide
+     * &mdash; for example one member's {@code legacyName} equal to the current
+     * name of another who has none &mdash; each contribute an entry
+     * ({@code NameResolverTest} pins this; see
+     * {@code random-distributor-can-target-one-tile-twice}).</p>
+     *
+     * <p>Returns an empty list on any failure (no guild, no network,
+     * unexpected payload).</p>
+     */
+    public static CompletableFuture<List<String>> fetchAllLegacyNames() {
+        return fetchGuildJson("fetchAllLegacyNames")
+                .thenApply(body -> body == null ? List.<String>of() : extractAllLegacyNames(body));
+    }
+
+    // Package-private for unit tests. See NameResolverTest.
+    static List<String> extractAllLegacyNames(String body) {
+        List<String> names = new ArrayList<>();
+        forEachGuildMember(
+                body,
+                (currentName, member) -> {
+                    String legacy = Json.stringOrNull(member, "legacyName");
+                    // Renamed member → tile shows legacy; otherwise → current
+                    // (also covers malformed entries where member is null).
+                    names.add(legacy != null ? legacy : currentName);
+                    return false;
+                });
+        return names;
+    }
+
+    /**
+     * Fetches the guild roster and returns a lowercase-keyed index from
+     * <em>any known name</em> (current or legacy) to the tile-displayed
+     * (legacy) name. Both forms are added so the caller can match a
+     * username encountered in arbitrary text &mdash; e.g. a guild log
+     * entry written before a player renamed &mdash; and recover the
+     * single canonical legacy name that {@link org.wynnvets.distribute.walker.MembersListSearcher
+     * MembersListSearcher} will match against in the Members GUI.
+     *
+     * <p>Returns an empty map on failure.</p>
+     */
+    public static CompletableFuture<Map<String, String>> fetchNameIndex() {
+        return fetchGuildJson("fetchNameIndex")
+                .thenApply(
+                        body -> {
+                            if (body == null) return Map.of();
+                            return extractNameIndex(body);
+                        });
+    }
+
+    /**
+     * Fetches the guild roster and returns a map from each member's
+     * normalized (dashless lowercase) Mojang UUID to the tile-displayed
+     * (legacy) name shown in the Members GUI.
+     *
+     * <p>Used by {@link NoAspectsFilter} to translate an opt-out UUID
+     * set served by {@code /v1/outbound/no-aspects} into the legacy-name
+     * set the distributors filter against. UUID is preferred over name
+     * as the load-bearing key because it survives renames.</p>
+     *
+     * <p>Returns an empty map on failure.</p>
+     */
+    public static CompletableFuture<Map<String, String>> fetchUuidToLegacyName() {
+        return fetchGuildJson("fetchUuidToLegacyName")
+                .thenApply(
+                        body -> {
+                            if (body == null) return Map.of();
+                            return extractUuidToLegacyName(body);
+                        });
+    }
+
+    /**
+     * The single wapi guild read behind all four entry points. Completes with the raw
+     * response body, or with {@code null} for every failure there is &mdash; Wynntils not
+     * ready, no guild name, a non-200 status, a transport exception &mdash; leaving each
+     * caller to map that one {@code null} onto its own fallback. The fallbacks still differ
+     * by entry point; the path to them no longer does.
+     *
+     * @param context the calling entry point, tagged into both log lines. Four reads sharing
+     *     one fetcher would otherwise be indistinguishable in the log, in a subsystem with no
+     *     HTTP test to fall back on.
+     */
+    private static CompletableFuture<String> fetchGuildJson(String context) {
+        if (!GuildStateManager.isWynntilsReady()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        String guildName = Models.Guild.getGuildName();
+        if (guildName == null || guildName.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(WynnCraftApi.guildInfo(guildName))
+                        .timeout(Duration.ofSeconds(5))
+                        .GET()
+                        .build();
+        return HTTP_CLIENT
+                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(
+                        response -> {
+                            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+                                VetsLogger.debug(
+                                        "NameResolver: wapi returned {} for guild [{}] ({})",
+                                        response.statusCode(),
+                                        guildName,
+                                        context);
+                                return null;
+                            }
+                            return response.body();
+                        })
+                .exceptionally(
+                        e -> {
+                            VetsLogger.debug(
+                                    "NameResolver: {} failed: {}", context, e.getMessage());
+                            return null;
+                        });
+    }
+
+    // Package-private for unit tests. See NameResolverTest.
+    static Map<String, String> extractNameIndex(String body) {
+        Map<String, String> index = new HashMap<>();
+        forEachGuildMember(
+                body,
+                (currentName, member) -> {
+                    String legacy = Json.stringOrNull(member, "legacyName");
+                    String legacyName = legacy != null ? legacy : currentName;
+                    // Both forms point at the canonical legacy (= tile) name.
+                    // equalsIgnoreCase-style lookup is achieved by lowercasing
+                    // the key.
+                    index.put(currentName.toLowerCase(Locale.ROOT), legacyName);
+                    index.put(legacyName.toLowerCase(Locale.ROOT), legacyName);
+                    return false;
+                });
+        return index;
+    }
+
+    // Package-private for unit tests. See NameResolverTest.
+    static Map<String, String> extractUuidToLegacyName(String body) {
+        Map<String, String> map = new HashMap<>();
+        forEachGuildMember(
+                body,
+                (currentName, member) -> {
+                    if (member == null) return false;
+                    // Raw form; Uuids.normalizeUndashed below reduces the dashed and
+                    // undashed spellings wapi may emit to one 32-char key.
+                    String uuid = Json.stringOrNull(member, "uuid");
+                    if (uuid == null) return false;
+                    String legacy = Json.stringOrNull(member, "legacyName");
+                    map.put(Uuids.normalizeUndashed(uuid), legacy != null ? legacy : currentName);
+                    return false;
+                });
+        return map;
+    }
+
+    // Package-private for unit tests. See NameResolverTest.
+    static String findLegacyName(String body, String input) {
+        String lowerInput = input.toLowerCase(Locale.ROOT);
+        // One-element box so the lambda can publish its hit; default to
+        // input so the not-found and parse-error paths both fall back
+        // to the literal input the caller supplied.
+        String[] result = {input};
+        forEachGuildMember(
+                body,
+                (currentName, member) -> {
+                    // Original skipped malformed entries entirely — preserve that
+                    // so an input matching a malformed entry's currentName still
+                    // returns the not-found fallback rather than the currentName.
+                    if (member == null) return false;
+                    String legacyName = Json.stringOrNull(member, "legacyName");
+                    if (currentName.toLowerCase(Locale.ROOT).equals(lowerInput)) {
+                        // Input matched a current name — return its legacy
+                        // (or the current name itself if no rename happened).
+                        result[0] = legacyName != null ? legacyName : currentName;
+                        return true;
+                    }
+                    if (legacyName != null
+                            && legacyName.toLowerCase(Locale.ROOT).equals(lowerInput)) {
+                        // Input was already a legacy name — return the
+                        // payload's spelling of it.
+                        result[0] = legacyName;
+                        return true;
+                    }
+                    return false;
+                });
+        return result[0];
+    }
+
+    /** Callback invoked once per guild member by {@link #forEachGuildMember}.
+     *  Return {@code true} to stop traversal early. */
+    @FunctionalInterface
+    private interface MemberHandler {
+        boolean accept(String currentName, /* nullable */ JsonObject member);
+    }
+
+    /**
+     * Walks {@code members.<rank>.<currentName>.<obj>} in a wapi guild
+     * payload, calling {@code handler} once per member with the current
+     * (Mojang) name and the member's JSON object (or {@code null} if the
+     * value is missing or non-object). Skips the {@code "total"} bucket
+     * the same way the upstream payload labels it. Silently swallows
+     * parse / GSON exceptions &mdash; callers should pre-initialise
+     * their accumulator so the empty-on-error case Just Works.
+     */
+    private static void forEachGuildMember(String body, MemberHandler handler) {
+        try {
+            JsonElement root = Json.GSON.fromJson(body, JsonElement.class);
+            if (root == null || !root.isJsonObject()) return;
+            JsonElement membersEl = root.getAsJsonObject().get("members");
+            if (membersEl == null || !membersEl.isJsonObject()) return;
+            for (Map.Entry<String, JsonElement> rankBucket :
+                    membersEl.getAsJsonObject().entrySet()) {
+                if ("total".equals(rankBucket.getKey())) continue;
+                JsonElement bucketEl = rankBucket.getValue();
+                if (bucketEl == null || !bucketEl.isJsonObject()) continue;
+                for (Map.Entry<String, JsonElement> memberEntry :
+                        bucketEl.getAsJsonObject().entrySet()) {
+                    String currentName = memberEntry.getKey();
+                    JsonElement memberEl = memberEntry.getValue();
+                    JsonObject member =
+                            (memberEl != null && memberEl.isJsonObject())
+                                    ? memberEl.getAsJsonObject()
+                                    : null;
+                    if (handler.accept(currentName, member)) return;
+                }
+            }
+        } catch (Exception e) {
+            VetsLogger.debug("NameResolver: parse error: {}", e.getMessage());
+        }
+    }
+}

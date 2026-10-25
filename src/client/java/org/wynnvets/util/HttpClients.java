@@ -1,0 +1,87 @@
+package org.wynnvets.util;
+
+import java.net.http.HttpClient;
+import java.time.Duration;
+
+/**
+ * The mod's shared HTTP transport.
+ *
+ * <p>Eighteen classes each built a character-identical chain &mdash; {@code HTTP_1_1}, a 5 s
+ * connect timeout, no other customisation of any kind &mdash; and each held the result in its
+ * own {@code private static final HttpClient HTTP_CLIENT}. They all call {@link #standard()}
+ * instead; the field stayed where it was, only its initialiser changed and one import was
+ * added, so no call site moved and no existing import was touched. That eighteen counts the
+ * classes of the extraction, and the set has changed since: {@code GuildRosterCache} and
+ * {@code WynnAliasCache} were later merged into a single {@code PolledJsonMap}, and a class
+ * split out since declares a field of its own. So nothing below counts the holders.</p>
+ *
+ * <p><b>Never call {@code close()}, {@code shutdown()} or {@code shutdownNow()} on the client
+ * this hands back, and never use it in a try-with-resources.</b> Java 21 made
+ * {@link java.net.http.HttpClient HttpClient} an {@link AutoCloseable}: {@code close()} refuses
+ * new requests at once, then blocks until every in-flight one finishes, and the client stays
+ * shut for good. One
+ * try-with-resources anywhere would therefore take down the HTTP of every subsystem
+ * that shares it, for the rest of the session, and nothing in the type system objects. No
+ * reviewer will be looking for this.</p>
+ *
+ * <p><b>One failure domain.</b> Every holder depends on this class initialising. If the
+ * default {@code SSLContext} fails to resolve, the first class to touch this one gets an
+ * {@link ExceptionInInitializerError} and every other holder gets
+ * {@code NoClassDefFoundError: Could not initialize class org.wynnvets.util.HttpClients},
+ * whose cause, on JDK 21, is an {@link ExceptionInInitializerError} naming the original
+ * exception and the thread it was thrown on; the first class's
+ * {@link ExceptionInInitializerError} is still the one that holds the original itself.
+ * Vanishingly unlikely &mdash; a default
+ * {@code SSLContext} is part of every JRE this mod can run on &mdash; and accepted.</p>
+ *
+ * <p><b>What can honestly be asserted about sharing, and what cannot.</b>
+ * {@link org.wynnvets.fetcher.lookup.PlayerLookup PlayerLookup} already shares one client
+ * across five of its six providers (the sixth, {@code VetsSnapshotProvider}, goes over the
+ * WebSocket), and its {@code runCascadeStep} uses {@code thenCompose} to launch each
+ * provider's request once the previous provider's future has completed. That proves nothing
+ * about the client's executor: {@code sendAsync} does not block the thread that calls it, and
+ * in the JDK 21 implementation the future it returns completes on {@code CompletableFuture}'s
+ * default async pool, so a caller's continuations run there (or on the thread that attaches
+ * them, if the future is already done) rather than on the client's executor. Nor can anything
+ * be argued from how that executor is built: {@code HttpClient.Builder.executor}'s javadoc
+ * guarantees only that a default executor exists per client and says nothing about its
+ * sizing, so no argument of the form "it is a cached pool, so blocking on it is fine" is
+ * admissible here.</p>
+ *
+ * <p><b>Two deliberate non-residents.</b>
+ * {@link org.wynnvets.mwe.anni.zone.AnniZone AnniZone} and
+ * {@link org.wynnvets.api.WsClient WsClient} keep clients of their own. Both use a 10 s
+ * connect timeout and neither pins an HTTP version, so neither could adopt this chain without
+ * a behaviour change. What they have in common with each other &mdash; those same two
+ * properties &mdash; is coincidence rather than a shared requirement.
+ * {@code WsClient}'s client is a WebSocket factory that
+ * re-declares its 10 s on the WebSocket builder, where it governs the whole handshake;
+ * {@code AnniZone}'s is a synchronous GET client whose 10 s comes from its own
+ * {@code HTTP_TIMEOUT_SECONDS} and also drives its request timeout. Merging the two would put
+ * guild-chat frame delivery and a 60 s world-events poller on one selector thread and one
+ * executor, to save two objects.</p>
+ *
+ * @see Json
+ */
+public final class HttpClients {
+
+    private static final HttpClient STANDARD =
+            HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+
+    /**
+     * The one client, configured exactly as the hand-built chains were:
+     * {@code HTTP_1_1}, a 5 s connect timeout, and no redirect, proxy, executor,
+     * authenticator, cookie-handler or SSL customisation whatsoever.
+     *
+     * <p>Every call returns the same instance, so every field initialised from it holds the
+     * same selector thread, default executor and connection pool.</p>
+     */
+    public static HttpClient standard() {
+        return STANDARD;
+    }
+
+    private HttpClients() {}
+}

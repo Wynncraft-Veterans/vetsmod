@@ -3,16 +3,6 @@ package org.wynnvets.distribute.distributor;
 import com.wynntils.core.components.Managers;
 import com.wynntils.core.text.StyledText;
 import com.wynntils.models.items.items.gui.GuildLogItem;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.distribute.opener.GuildManageOpener;
-import org.wynnvets.distribute.utils.NameResolver;
-import org.wynnvets.distribute.utils.NoAspectsFilter;
-import org.wynnvets.distribute.walker.GuildLogWalker;
-import org.wynnvets.distribute.walker.MembersListSearcher;
-import org.wynnvets.logging.VetsLogger;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,6 +16,14 @@ import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.opener.GuildManageOpener;
+import org.wynnvets.distribute.recipients.NameResolver;
+import org.wynnvets.distribute.recipients.NoAspectsFilter;
+import org.wynnvets.distribute.walker.GuildLogWalker;
+import org.wynnvets.logging.VetsLogger;
 
 /**
  * Implements {@code /wv distribute @graids <resource> <count>}: opens
@@ -35,10 +33,18 @@ import java.util.regex.Pattern;
  * spreads {@code <count>} rewards proportionally to that frequency.
  *
  * <h2>How the log is walked</h2>
- * <p>{@link GuildLogWalker} opens the in-game log GUI via
- * {@code /guild log} and lets Wynntils' own auto-pagination drive the
- * pages; we just collect each {@link GuildLogItem} as it streams in via
- * {@code ContainerSetSlot} and stop on a quiescence timer.</p>
+ * <p>The log GUI is opened by
+ * {@link GuildManageOpener#openGuildLog()} &mdash; {@code /guild manage}
+ * followed by a click on the Guild Log tile, <em>not</em> a direct
+ * {@code /guild log}, which Wynncraft has been observed to drop when
+ * sent shortly after a menu close. {@link GuildLogWalker} then lets
+ * Wynntils' own auto-pagination drive the pages &mdash; which happens
+ * only when Wynntils has wrapped the log screen (see that class) &mdash;
+ * and we just collect each {@link GuildLogItem} as it streams in via
+ * {@code ContainerSetSlot} and stop on a quiescence timer. Without the
+ * wrap nothing auto-paginates, so only the entries that arrive without a
+ * page turn are counted
+ * ({@code graids-log-walk-depends-on-wynntils-log-screen-feature}).</p>
  *
  * <h2>What counts as a graid</h2>
  * <p>Graid-completion entries follow the shape
@@ -63,7 +69,7 @@ import java.util.regex.Pattern;
  * the participants and bumping the first {@code remainder} by +1,
  * matching {@link ObjectivesDistributor}'s "random modulo" convention.
  * Participants ending up at zero are dropped from the visit queue so
- * we don't open and re-paginate just to send nothing.</p>
+ * we don't search and re-paginate just to send nothing.</p>
  */
 public final class GraidsDistributor {
 
@@ -74,9 +80,6 @@ public final class GraidsDistributor {
     private static final Pattern USERNAME_TOKEN = Pattern.compile("[A-Za-z0-9_]{3,16}");
 
     private static final Random RNG = new Random();
-
-    /** One queued recipient and the per-user count we owe them. */
-    private record Distribution(String legacyName, int count) {}
 
     private GraidsDistributor() {}
 
@@ -89,26 +92,37 @@ public final class GraidsDistributor {
     }
 
     /**
-     * Variant with a completion callback. Fires on every exit path so
-     * multi-phase chains like {@link SplitDistributor} advance even
-     * when this phase finds no graids or fails to read the roster.
+     * Variant with a completion callback. Fires on each of this head's own
+     * exits &mdash; no roster, no graids, nothing to send, and the send loop
+     * draining &mdash; so multi-phase chains like {@link SplitDistributor}
+     * advance even when this phase finds no graids or fails to read the
+     * roster. The shared send loop can still end a run without it: see
+     * {@code member-slot-presser-drops-completion} and the searcher and
+     * presser {@code no} rows of {@code vetsmod_distribute.md} §7.
      */
-    public static void dispatch(int count, MemberSlotPresser.Resource resource,
-                                Runnable onComplete) {
+    public static void dispatch(
+            int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
         // Fetch the name index and the NoAspects opt-out list in
         // parallel; strip excluded legacy names from the index so they
         // never match a graid-log username token. Per-command refresh,
-        // fail-open via NoAspectsFilter on any HTTP error.
-        NameResolver.fetchNameIndex().thenCombine(
-                NoAspectsFilter.fetchExcludedLegacyNames(),
-                GraidsDistributor::filterIndex)
-                .thenAccept(index ->
-                        Managers.TickScheduler.scheduleLater(
-                                () -> beginWalk(index, count, resource, onComplete), 0));
+        // fail-open via NoAspectsFilter on any HTTP error. The trailing
+        // scheduleLater(..., 0) is a hop back to the tick thread — the
+        // combined future completes on a background thread, not the tick
+        // thread — not a delay.
+        NameResolver.fetchNameIndex()
+                .thenCombine(
+                        NoAspectsFilter.fetchExcludedLegacyNames(), GraidsDistributor::filterIndex)
+                .thenAccept(
+                        index ->
+                                Managers.TickScheduler.scheduleLater(
+                                        () -> beginWalk(index, count, resource, onComplete), 0));
     }
 
-    private static Map<String, String> filterIndex(Map<String, String> index,
-                                                   Set<String> excludeNames) {
+    /** Drops index entries whose canonical legacy name is opted out. Returns
+     *  {@code index} itself when the exclude set is empty — the result is only
+     *  ever read, so the common case does not pay for a copy. */
+    // Package-private for unit tests. See GraidsDistributorTest.
+    static Map<String, String> filterIndex(Map<String, String> index, Set<String> excludeNames) {
         if (excludeNames.isEmpty()) return index;
         Map<String, String> out = new HashMap<>(index.size());
         for (Map.Entry<String, String> e : index.entrySet()) {
@@ -123,9 +137,11 @@ public final class GraidsDistributor {
         return out;
     }
 
-    private static void beginWalk(Map<String, String> nameIndex, int count,
-                                  MemberSlotPresser.Resource resource,
-                                  Runnable onComplete) {
+    private static void beginWalk(
+            Map<String, String> nameIndex,
+            int count,
+            MemberSlotPresser.Resource resource,
+            Runnable onComplete) {
         if (nameIndex.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Could not read guild roster from wapi — try again.")
@@ -136,24 +152,30 @@ public final class GraidsDistributor {
         ChatUtils.sendLocalMessage(
                 Component.literal("Reading guild log…").withStyle(ChatFormatting.GRAY));
 
-        GuildLogWalker.armWalk(entries ->
-                onLogReady(entries, nameIndex, count, resource, onComplete));
+        GuildLogWalker.armWalk(
+                entries -> onLogReady(entries, nameIndex, count, resource, onComplete));
         // Open via /guild manage → click Log tile rather than direct
         // /guild log. Empirically Wynncraft drops /guild log if it
         // lands while there's any session state left over from a
         // recent menu close — even when typed in chat by the user
         // themselves. /guild manage doesn't have the same constraint,
         // and the Manage GUI's "Guild Log" tile routes to the same
-        // Log container. See GuildManageOpener.openGuildLog javadoc.
+        // Log container. See GuildManageOpener's class Javadoc ("Why not
+        // just /guild log?").
         GuildManageOpener.openGuildLog();
     }
 
-    private static void onLogReady(List<GuildLogItem> entries, Map<String, String> nameIndex,
-                                   int count, MemberSlotPresser.Resource resource,
-                                   Runnable onComplete) {
+    private static void onLogReady(
+            List<GuildLogItem> entries,
+            Map<String, String> nameIndex,
+            int count,
+            MemberSlotPresser.Resource resource,
+            Runnable onComplete) {
         Map<String, Integer> freq = countGraidFrequencies(entries, nameIndex);
-        VetsLogger.debug("GraidsDistributor: scanned {} log entries, {} distinct graid participants",
-                entries.size(), freq.size());
+        VetsLogger.debug(
+                "GraidsDistributor: scanned {} log entries, {} distinct graid participants",
+                entries.size(),
+                freq.size());
 
         if (freq.isEmpty()) {
             ChatUtils.sendLocalMessage(
@@ -163,29 +185,40 @@ public final class GraidsDistributor {
             return;
         }
 
-        Deque<Distribution> queue = buildDistribution(freq, count);
+        Deque<DistributionQueue.Distribution> queue = buildDistribution(freq, count);
         if (queue.isEmpty()) {
-            // count == 0 (excluded by brigadier bounds) or everyone rounded to 0
-            // and no remainder — nothing to send.
+            // Defensive: only reachable when count <= 0, which brigadier's
+            // bounds and SplitDistributor's zero-pool collapse both exclude —
+            // with any participant and count >= 1, the floors plus the
+            // remainder bonus always leave someone a positive share.
             if (onComplete != null) onComplete.run();
             return;
         }
 
         int totalParticipations = freq.values().stream().mapToInt(Integer::intValue).sum();
         ChatUtils.sendLocalMessage(
-                Component.literal("Distributing " + count + "x " + resource.displayName()
-                        + " proportionally to " + freq.size()
-                        + " graid participants (" + totalParticipations + " total participations)…")
+                Component.literal(
+                                "Distributing "
+                                        + count
+                                        + "x "
+                                        + resource.displayName()
+                                        + " proportionally to "
+                                        + freq.size()
+                                        + " graid participants ("
+                                        + totalParticipations
+                                        + " total participations)…")
                         .withStyle(ChatFormatting.AQUA));
 
-        processNext(queue, resource, onComplete);
+        DistributionQueue.processNext(queue, resource, onComplete, "GraidsDistributor");
         GuildManageOpener.openManageMembers();
     }
 
     /**
-     * Counts how many graid entries each member's legacy name appears
-     * in. A member appearing twice in the same entry (shouldn't happen,
-     * but defensive) counts as one participation for that entry.
+     * Counts, per member (keyed by legacy name), the graid entries in
+     * which either of their names appears &mdash; the index maps both the
+     * current and the legacy name to the legacy one. A member appearing
+     * twice in the same entry (shouldn't happen, but defensive) counts as
+     * one participation for that entry.
      */
     private static Map<String, Integer> countGraidFrequencies(
             List<GuildLogItem> entries, Map<String, String> nameIndex) {
@@ -210,22 +243,28 @@ public final class GraidsDistributor {
     }
 
     /**
-     * Largest-base + random-remainder split. Each participant gets a
-     * floored proportional share; the {@code count % totalParticipations}
-     * extras are awarded to a random subset of participants.
+     * Floored-proportional split with a random remainder. Each
+     * participant gets {@code floor(frequency * count /
+     * totalParticipations)}; the {@code count - sum(shares)} left over
+     * by that flooring is awarded {@code +1} at a time to a random
+     * subset of participants, each at most once.
      */
-    private static Deque<Distribution> buildDistribution(Map<String, Integer> freq, int count) {
+    // Package-private for unit tests. See GraidsDistributorTest.
+    static Deque<DistributionQueue.Distribution> buildDistribution(
+            Map<String, Integer> freq, int count) {
         int totalParticipations = 0;
         for (int f : freq.values()) totalParticipations += f;
         if (totalParticipations <= 0) return new ArrayDeque<>();
 
-        // Stable iteration order: lowest-frequency first, alphabetical tiebreaker.
-        // Doesn't affect totals; just keeps the chat output predictable.
+        // Stable iteration order: highest-frequency first, alphabetical
+        // tiebreaker. Doesn't affect totals; just keeps the visit order
+        // (and so the chat output) predictable.
         List<Map.Entry<String, Integer>> participants = new ArrayList<>(freq.entrySet());
-        participants.sort((a, b) -> {
-            int c = Integer.compare(b.getValue(), a.getValue());
-            return c != 0 ? c : a.getKey().compareToIgnoreCase(b.getKey());
-        });
+        participants.sort(
+                (a, b) -> {
+                    int c = Integer.compare(b.getValue(), a.getValue());
+                    return c != 0 ? c : a.getKey().compareToIgnoreCase(b.getKey());
+                });
 
         Map<String, Integer> shares = new HashMap<>();
         int flooredTotal = 0;
@@ -247,10 +286,10 @@ public final class GraidsDistributor {
 
         // Queue in the same stable order as `participants` so the visit
         // sequence is predictable.
-        Deque<Distribution> queue = new ArrayDeque<>();
+        Deque<DistributionQueue.Distribution> queue = new ArrayDeque<>();
         for (Map.Entry<String, Integer> e : participants) {
             int s = shares.getOrDefault(e.getKey(), 0);
-            if (s > 0) queue.add(new Distribution(e.getKey(), s));
+            if (s > 0) queue.add(new DistributionQueue.Distribution(e.getKey(), s));
         }
         return queue;
     }
@@ -262,30 +301,5 @@ public final class GraidsDistributor {
             sb.append(line.getStringWithoutFormatting());
         }
         return sb.toString();
-    }
-
-    private static void processNext(Deque<Distribution> queue,
-                                    MemberSlotPresser.Resource resource,
-                                    Runnable onComplete) {
-        if (queue.isEmpty()) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Distribution complete.")
-                            .withStyle(ChatFormatting.GREEN));
-            MemberSlotPresser.closeMembersScreen();
-            if (onComplete != null) onComplete.run();
-            return;
-        }
-        Distribution d = queue.poll();
-        VetsLogger.debug("GraidsDistributor: queue popped [{}] (count={}), {} left",
-                d.legacyName(), d.count(), queue.size());
-
-        // Names are already canonical legacy (looked up via the wapi
-        // index), so the searcher's literal-input arm matches the
-        // Members GUI tile directly — no per-pick NameResolver call.
-        MembersListSearcher.armSearch(
-                d.legacyName(),
-                slot -> MemberSlotPresser.fire(slot, resource, d.count(), d.legacyName(),
-                        () -> processNext(queue, resource, onComplete)),
-                () -> processNext(queue, resource, onComplete));
     }
 }

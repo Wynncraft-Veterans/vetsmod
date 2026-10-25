@@ -1,14 +1,13 @@
 package org.wynnvets.distribute.distributor;
 
 import com.wynntils.core.components.Managers;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import org.wynnvets.chat.ChatUtils;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import org.wynnvets.chat.ChatUtils;
 
 /**
  * Implements {@code /wv distribute @split <resource> <count>}: divides
@@ -30,15 +29,20 @@ import java.util.Random;
  * run first because it scans the guild log for raid completions, and
  * Wynncraft caps that log at ~100 most-recent entries &mdash;
  * distributing aspects (or anything else that emits log entries) first
- * would push graid records off the back of the window. The choice of
- * which pool gets which third <em>is</em> randomised via the remainder
- * shuffle above, so the operator can't game the split.</p>
+ * would push graid records off the back of the window. Which pools
+ * receive the {@code count % 3} remainder <em>is</em> randomised via the
+ * shuffle above, so the operator can't choose them.</p>
  *
  * <h2>Pool failures</h2>
  * <p>Each underlying dispatcher invokes its {@code onComplete}
- * callback on every exit path, so a pool that finds no recipients
- * (empty graid log, no objective completers) doesn't stall the chain.
- * The next phase starts as soon as the previous reports done.</p>
+ * callback on its own no-recipient and roster-failure exits, so a pool
+ * that finds no recipients (empty graid log, no objective completers)
+ * doesn't stall the chain. The next phase starts about
+ * {@link #PHASE_DELAY_TICKS} after the previous reports done. A phase
+ * can still end without reporting &mdash; {@code members-list-walker-drops-completion},
+ * {@code member-slot-presser-drops-completion}, and the rows of
+ * {@code vetsmod_distribute.md} §7 whose callback column says no
+ * &mdash; and the chain stalls behind it.</p>
  *
  * <h2>Skipping zero-count phases</h2>
  * <p>For very small {@code count} values (e.g. {@code 1} or {@code 2}),
@@ -50,13 +54,14 @@ public final class SplitDistributor {
 
     private static final Random RNG = new Random();
 
-    /** Settle gap between phases. Belt-and-braces on top of
+    /** Settle gap. Belt-and-braces on top of
      *  {@code Handlers.Command.queueCommand}'s built-in 7-tick command
-     *  rate limit: queueCommand paces consecutive commands but doesn't
-     *  account for the {@code ServerboundContainerClosePacket} that
-     *  each phase fires when its menu finishes. A short scheduler
-     *  delay between phases gives the server time to settle the close
-     *  before the next phase's menu-open command flies. */
+     *  spacing: a short scheduler delay before each objectives or random
+     *  phase starts. A phase that ends on the Members menu gives it no
+     *  close packet to wait for: it dismisses the menu client-side through
+     *  {@link MemberSlotPresser#closeMembersScreen()}, which sends no
+     *  {@code ServerboundContainerClosePacket} (see
+     *  {@code close-members-screen-sends-no-close-packet}). */
     private static final int PHASE_DELAY_TICKS = 10;
 
     private SplitDistributor() {}
@@ -65,40 +70,56 @@ public final class SplitDistributor {
         int[] pools = splitCount(count);
 
         ChatUtils.sendLocalMessage(
-                Component.literal("Splitting " + count + "x " + resource.displayName()
-                        + ": " + pools[0] + " @graids, "
-                        + pools[1] + " @objectives, "
-                        + pools[2] + " @random")
+                Component.literal(
+                                "Splitting "
+                                        + count
+                                        + "x "
+                                        + resource.displayName()
+                                        + ": "
+                                        + pools[0]
+                                        + " @graids, "
+                                        + pools[1]
+                                        + " @objectives, "
+                                        + pools[2]
+                                        + " @random")
                         .withStyle(ChatFormatting.AQUA));
 
         // Chain backwards so each phase's onComplete closure already
         // knows the next phase to run. Pools with count == 0 collapse
         // into their successor's runnable directly, avoiding a wasted
-        // menu open. Every phase transition is gated by a settle delay
-        // (see PHASE_DELAY_TICKS) so the previous menu's close packet
-        // has been processed before the next command flies.
-        final Runnable terminal = () -> ChatUtils.sendLocalMessage(
-                Component.literal("Split distribution complete.")
-                        .withStyle(ChatFormatting.GREEN));
+        // menu open. Each non-empty objectives or random phase is wrapped
+        // in a settle delay (see PHASE_DELAY_TICKS), even when an empty
+        // graids pool makes it the first to run; the graids phase is not.
+        final Runnable terminal =
+                () ->
+                        ChatUtils.sendLocalMessage(
+                                Component.literal("Split distribution complete.")
+                                        .withStyle(ChatFormatting.GREEN));
 
-        final Runnable randomPhase = pools[2] > 0
-                ? delayed(() -> RandomDistributor.dispatch(pools[2], resource, terminal))
-                : terminal;
+        final Runnable randomPhase =
+                pools[2] > 0
+                        ? delayed(() -> RandomDistributor.dispatch(pools[2], resource, terminal))
+                        : terminal;
 
-        final Runnable objectivesPhase = pools[1] > 0
-                ? delayed(() -> ObjectivesDistributor.dispatch(pools[1], resource, randomPhase))
-                : randomPhase;
+        final Runnable objectivesPhase =
+                pools[1] > 0
+                        ? delayed(
+                                () ->
+                                        ObjectivesDistributor.dispatch(
+                                                pools[1], resource, randomPhase))
+                        : randomPhase;
 
-        final Runnable graidsPhase = pools[0] > 0
-                ? () -> GraidsDistributor.dispatch(pools[0], resource, objectivesPhase)
-                : objectivesPhase;
+        final Runnable graidsPhase =
+                pools[0] > 0
+                        ? () -> GraidsDistributor.dispatch(pools[0], resource, objectivesPhase)
+                        : objectivesPhase;
 
         graidsPhase.run();
     }
 
     /** Wraps {@code body} in a {@link #PHASE_DELAY_TICKS}-tick scheduler
-     *  call so the previous phase's screen close has time to drain
-     *  before the next phase fires its opening command. */
+     *  call, so the phase starts about that long after it is invoked &mdash;
+     *  normally from the previous phase's {@code onComplete}. */
     private static Runnable delayed(Runnable body) {
         return () -> Managers.TickScheduler.scheduleLater(body, PHASE_DELAY_TICKS);
     }
@@ -108,7 +129,8 @@ public final class SplitDistributor {
      * @random] — each getting {@code count / 3} as a floor and
      * the {@code count % 3} remainder awarded to a random subset.
      */
-    private static int[] splitCount(int count) {
+    // Package-private for unit tests. See SplitDistributorTest.
+    static int[] splitCount(int count) {
         int base = count / 3;
         int remainder = count % 3;
         int[] pools = {base, base, base};

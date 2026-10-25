@@ -5,9 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-
 import java.util.List;
-
 import org.junit.jupiter.api.Test;
 import org.wynnvets.listeners.PartyRosterListener.Snapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
@@ -23,7 +21,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
  */
 class PartyRosterListenerTest {
 
-    private static final long NOW = 1_700_000_000L;  // arbitrary; only deltas matter
+    private static final long NOW = 1_700_000_000L; // arbitrary; only deltas matter
 
     private static Snapshot snap(String leader, String... members) {
         return new Snapshot(leader, List.of(members));
@@ -46,40 +44,35 @@ class PartyRosterListenerTest {
     @Test
     void stampZeroSuppresses() {
         AnniSnapshot anni = anniWithOrganisers("Organiser");
-        assertFalse(PartyRosterListener.shouldSend(
-                snap("Organiser", "M1"), anni, 0L, NOW));
+        assertFalse(PartyRosterListener.shouldSend(snap("Organiser", "M1"), anni, 0L, NOW));
     }
 
     @Test
     void stampThreeHoursInFutureSuppresses() {
         AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW + 3 * 60 * 60;
-        assertFalse(PartyRosterListener.shouldSend(
-                snap("Organiser", "M1"), anni, stamp, NOW));
+        assertFalse(PartyRosterListener.shouldSend(snap("Organiser", "M1"), anni, stamp, NOW));
     }
 
     @Test
     void stampThreeHoursInPastSuppresses() {
         AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW - 3 * 60 * 60;
-        assertFalse(PartyRosterListener.shouldSend(
-                snap("Organiser", "M1"), anni, stamp, NOW));
+        assertFalse(PartyRosterListener.shouldSend(snap("Organiser", "M1"), anni, stamp, NOW));
     }
 
     @Test
     void stampExactlyAtWindowEdgeAllowed() {
         AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW + 2 * 60 * 60;
-        assertTrue(PartyRosterListener.shouldSend(
-                snap("Organiser", "M1"), anni, stamp, NOW));
+        assertTrue(PartyRosterListener.shouldSend(snap("Organiser", "M1"), anni, stamp, NOW));
     }
 
     @Test
     void stampInTrailingWindowAllowed() {
         AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW - 30 * 60;
-        assertTrue(PartyRosterListener.shouldSend(
-                snap("Organiser", "M1"), anni, stamp, NOW));
+        assertTrue(PartyRosterListener.shouldSend(snap("Organiser", "M1"), anni, stamp, NOW));
     }
 
     // ── Snapshot presence ─────────────────────────────────────────────
@@ -87,16 +80,14 @@ class PartyRosterListenerTest {
     @Test
     void nullSnapshotSuppresses() {
         long stamp = NOW + 60 * 60;
-        assertFalse(PartyRosterListener.shouldSend(
-                snap("Organiser", "M1"), null, stamp, NOW));
+        assertFalse(PartyRosterListener.shouldSend(snap("Organiser", "M1"), null, stamp, NOW));
     }
 
     @Test
     void emptyOrganisersSuppresses() {
-        AnniSnapshot anni = anniWithOrganisers();  // empty
+        AnniSnapshot anni = anniWithOrganisers(); // empty
         long stamp = NOW + 60 * 60;
-        assertFalse(PartyRosterListener.shouldSend(
-                snap("Organiser", "M1"), anni, stamp, NOW));
+        assertFalse(PartyRosterListener.shouldSend(snap("Organiser", "M1"), anni, stamp, NOW));
     }
 
     // ── Organiser overlap ─────────────────────────────────────────────
@@ -105,24 +96,24 @@ class PartyRosterListenerTest {
     void leaderMatchSends() {
         AnniSnapshot anni = anniWithOrganisers("Organiser", "OtherLead");
         long stamp = NOW + 60 * 60;
-        assertTrue(PartyRosterListener.shouldSend(
-                snap("Organiser", "M1", "M2"), anni, stamp, NOW));
+        assertTrue(PartyRosterListener.shouldSend(snap("Organiser", "M1", "M2"), anni, stamp, NOW));
     }
 
     @Test
     void memberMatchSends() {
         AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW + 60 * 60;
-        assertTrue(PartyRosterListener.shouldSend(
-                snap("RandomLead", "Organiser", "M2"), anni, stamp, NOW));
+        assertTrue(
+                PartyRosterListener.shouldSend(
+                        snap("RandomLead", "Organiser", "M2"), anni, stamp, NOW));
     }
 
     @Test
     void noOrganiserInPartySuppresses() {
         AnniSnapshot anni = anniWithOrganisers("Organiser", "OtherLead");
         long stamp = NOW + 60 * 60;
-        assertFalse(PartyRosterListener.shouldSend(
-                snap("RandomLead", "M1", "M2"), anni, stamp, NOW));
+        assertFalse(
+                PartyRosterListener.shouldSend(snap("RandomLead", "M1", "M2"), anni, stamp, NOW));
     }
 
     // ── Case insensitivity ────────────────────────────────────────────
@@ -131,16 +122,15 @@ class PartyRosterListenerTest {
     void leaderMatchIsCaseInsensitive() {
         AnniSnapshot anni = anniWithOrganisers("ORGANISER");
         long stamp = NOW + 60 * 60;
-        assertTrue(PartyRosterListener.shouldSend(
-                snap("organiser", "M1"), anni, stamp, NOW));
+        assertTrue(PartyRosterListener.shouldSend(snap("organiser", "M1"), anni, stamp, NOW));
     }
 
     @Test
     void memberMatchIsCaseInsensitive() {
         AnniSnapshot anni = anniWithOrganisers("organiser");
         long stamp = NOW + 60 * 60;
-        assertTrue(PartyRosterListener.shouldSend(
-                snap("RandomLead", "ORGANISER"), anni, stamp, NOW));
+        assertTrue(
+                PartyRosterListener.shouldSend(snap("RandomLead", "ORGANISER"), anni, stamp, NOW));
     }
 
     // ── Edge cases ────────────────────────────────────────────────────
@@ -150,8 +140,7 @@ class PartyRosterListenerTest {
         // Defensive: an empty-string entry on either side must not pair.
         AnniSnapshot anni = anniWithOrganisers("", "Organiser");
         long stamp = NOW + 60 * 60;
-        assertFalse(PartyRosterListener.shouldSend(
-                snap("", "", ""), anni, stamp, NOW));
+        assertFalse(PartyRosterListener.shouldSend(snap("", "", ""), anni, stamp, NOW));
     }
 
     @Test
@@ -161,15 +150,13 @@ class PartyRosterListenerTest {
         // it has no organiser to anchor on, so we silently no-op.
         AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW + 60 * 60;
-        assertFalse(PartyRosterListener.shouldSend(
-                Snapshot.EMPTY, anni, stamp, NOW));
+        assertFalse(PartyRosterListener.shouldSend(Snapshot.EMPTY, anni, stamp, NOW));
     }
 
     @Test
     void emptySnapshotOutsideWindowSuppressed() {
         AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW + 4 * 60 * 60;
-        assertFalse(PartyRosterListener.shouldSend(
-                Snapshot.EMPTY, anni, stamp, NOW));
+        assertFalse(PartyRosterListener.shouldSend(Snapshot.EMPTY, anni, stamp, NOW));
     }
 }

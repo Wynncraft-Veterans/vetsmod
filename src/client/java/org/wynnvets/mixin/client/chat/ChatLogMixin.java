@@ -7,126 +7,161 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.wynnvets.chat.ChatLogger;
-import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.chat.LocalChatDispatch;
+import org.wynnvets.chat.dispatcher.DispatchCoordinator;
 import org.wynnvets.chat.rewriter.EncourageUpdateRewriter;
 import org.wynnvets.chat.rewriter.ServerGuildChatRewriter;
 import org.wynnvets.chat.rewriter.SpoilerRewriter;
 import org.wynnvets.chat.rewriter.StaffChannelMessageRewriter;
 import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
-import org.wynnvets.chat.dispatcher.CommandDispatcher;
+import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.mode.StreamerModeChatDetector;
 
 /**
- * Intercepts all incoming chat messages via {@link ChatComponent#addMessage}.
+ * Intercepts incoming chat messages via {@link ChatComponent#addMessage(Component)}.
+ *
+ * <p>This is the single-argument overload. Vanilla reaches it from
+ * {@code ChatListener.handleSystemMessage} and from
+ * {@code ChatListener.handleDisguisedChatMessage}; every player-chat
+ * packet, signed or not, goes to the three-argument overload instead.
+ * That is not a guarantee that player chat never arrives here —
+ * {@code @Mixin} targets the
+ * class, so every {@code ChatComponent} instance carries this hook, and
+ * Wynntils' Chat Tabs feature (enabled in its default config profile)
+ * replaces {@code minecraft.gui.chat} with a {@code WrappingChatComponent}
+ * that hands each message, three-argument player chat included, to its
+ * chat-tab service, which re-adds it to the receiving tabs' own
+ * {@code ChatComponent}s through this one-argument overload. So the hook can
+ * see player chat, and can run more than once for the same message
+ * (filed: {@code chat-log-mixin-runs-once-per-chat-tab}). A system
+ * message Wynntils cancels in its {@code handleSystemMessage} wrapper never
+ * reaches it at all.</p>
  *
  * <p>This is the primary chat pipeline hook. It performs, in order:
- * logging to file, guild state detection, mod-initiated message suppression,
- * staff outbound feedback suppression,
- * and chat rewriting (staff alerts, staff channel, supporter gradients).
- * Messages generated internally by the mod are passed through unmodified.</p>
+ * <b>streamer-mode observation</b> ({@code StreamerModeChatDetector.observe},
+ * which runs first, before any logging and before the internal-dispatch
+ * check), logging to file, mod-initiated guild-check suppression, guild state
+ * detection, staff-rank-check suppression, {@code /v} outbound feedback
+ * suppression, {@code /find} response suppression, the internal-dispatch early
+ * return, and then the five-rewriter chain: encourage-update, staff alerts,
+ * staff channel, rank remaps and supporter gradients, spoilers. Messages
+ * generated internally by the mod are passed through unmodified.</p>
+ *
+ * <p>{@code vetsmod_chat_pipeline.md} §"ChatLogMixin — the single-argument
+ * addMessage hook" is the owning statement and enumerates the steps
+ * individually.</p>
  */
 @Mixin(ChatComponent.class)
 public class ChatLogMixin {
-  @Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;)V", at = @At("HEAD"), cancellable = true)
-  private void onChatMessage(Component message, CallbackInfo ci) {
-    String messageString = message.getString();
+    @Inject(
+            method = "addMessage(Lnet/minecraft/network/chat/Component;)V",
+            at = @At("HEAD"),
+            cancellable = true)
+    private void onChatMessage(Component message, CallbackInfo ci) {
+        String messageString = message.getString();
 
-    // /stream-mode chat-line detector — belt-and-braces backup for
-    // Wynntils' Models.StreamerMode signal (boss-bar.md §3 Option B
-    // mitigation 1). Auto-flips an active anni mode to silent on
-    // detected stream-on.
-    StreamerModeChatDetector.observe(message);
+        // /stream-mode chat-line detector — belt-and-braces backup for
+        // Wynntils' Models.StreamerMode signal (boss-bar.md §3 Option B
+        // mitigation 1). Auto-flips an active anni mode to silent on
+        // detected stream-on.
+        StreamerModeChatDetector.observe(message);
 
-    // Skip logging for mod-injected messages (bridge display, rewritten chat, etc.)
-    // to prevent a feedback loop where displayed bridge messages are re-sent to the API.
-    boolean isInternalDispatch = ChatUtils.isInternalDispatch();
+        // Skip logging for mod-injected messages (bridge display, rewritten chat, etc.).
+        // ChatLogger writes only the local debug file; the guards that keep displayed
+        // bridge messages from being re-sent to the API are in WynntilsEventListener.
+        boolean isInternalDispatch = LocalChatDispatch.isInternalDispatch();
 
-    if (!isInternalDispatch) {
-      // Only log externally-sourced chat messages to file and API
-      ChatLogger.logMessage(messageString);
+        if (!isInternalDispatch) {
+            // Only log externally-sourced chat messages to the debug file
+            ChatLogger.logMessage(messageString);
+        }
+
+        // Process guild check messages first — may suppress /gu stats output
+        if (!isInternalDispatch && GuildStateManager.processGuildCheckMessage(messageString)) {
+            VetsLogger.debug("Suppressing mod-initiated guild check message");
+            ci.cancel();
+            return;
+        }
+
+        // Check if this is a staff rank-check response BEFORE processing
+        boolean isStaffRankCheck =
+                GuildStateManager.isProcessingModStaffRankCheck()
+                        && isStaffRankCheckMessage(messageString);
+
+        // Process the message for staff rank detection
+        GuildStateManager.processMessage(message, messageString);
+
+        // Hide staff rank check output if it was initiated by the mod (not the user)
+        if (isStaffRankCheck) {
+            VetsLogger.debug("Suppressing mod-initiated staff rank check message");
+            ci.cancel();
+            return;
+        }
+
+        // Suppress server feedback for /msg fanout generated by /v.
+        if (DispatchCoordinator.shouldSuppressFeedback(messageString)) {
+            VetsLogger.debug("Suppressed /v outbound feedback line");
+            ci.cancel();
+            return;
+        }
+
+        // Suppress server responses to /find commands generated by /wv list world.
+        if (DispatchCoordinator.shouldSuppressFindResponse(messageString)) {
+            VetsLogger.debug("Suppressed /find response line");
+            ci.cancel();
+            return;
+        }
+
+        // Avoid recursively rewriting mod-injected chat messages.
+        if (isInternalDispatch) {
+            return;
+        }
+
+        // Rewrite encourage-update messages (⚠⚠⚠ ... ⚠⚠⚠) into version status output.
+        if (EncourageUpdateRewriter.tryRewrite(message, messageString)) {
+            ci.cancel();
+            return;
+        }
+
+        // Rewrite/suppress staff guild alerts (‼ prefixed) into shout-style local output.
+        if (StaffGuildAlertRewriter.tryRewrite(message, messageString)) {
+            ci.cancel();
+            return;
+        }
+
+        // Rewrite lock-prefixed direct messages into /v-style staff chat output.
+        if (StaffChannelMessageRewriter.tryRewrite(message, messageString)) {
+            ci.cancel();
+            return;
+        }
+
+        // Rewrite VETS guild chat lines whose sender's rank pill needs a display remap,
+        // or whose sender is a supporter and this client shows glints (gradient pill).
+        // Re-entry is blocked by LocalChatDispatch's internal dispatch guard above.
+        if (ServerGuildChatRewriter.tryRewrite(message, messageString)) {
+            ci.cancel();
+            return;
+        }
+
+        // Rewrite remaining messages carrying PUA-encoded spoiler blocks (the encoded
+        // form of ||spoiler|| markers). Lines ServerGuildChatRewriter consumed above
+        // (rank remaps, and supporters while glints are shown) never reach this point.
+        if (SpoilerRewriter.tryRewrite(message, messageString)) {
+            ci.cancel();
+        }
     }
 
-    // Process guild check messages first — may suppress /gu stats output
-    if (!isInternalDispatch && GuildStateManager.processGuildCheckMessage(messageString)) {
-      VetsLogger.debug("Suppressing mod-initiated guild check message");
-      ci.cancel();
-      return;
+    /**
+     * Checks if a message is part of the /gu rank staff-check output.
+     */
+    private boolean isStaffRankCheckMessage(String message) {
+        String trimmed = message.trim();
+        String normalized = trimmed.toLowerCase();
+        return (normalized.contains("you must be a")
+                        && normalized.contains("captain")
+                        && normalized.contains("to use this command"))
+                || (normalized.contains("invalid arguments, try:")
+                        && normalized.contains("rank [name] [rank]"));
     }
-
-    // Check if this is a staff rank-check response BEFORE processing
-    boolean isStaffRankCheck = GuildStateManager.isProcessingModStaffRankCheck() && isStaffRankCheckMessage(messageString);
-
-    // Process the message for staff rank detection
-    GuildStateManager.processMessage(message, messageString);
-
-    // Hide staff rank check output if it was initiated by the mod (not the user)
-    if (isStaffRankCheck) {
-      VetsLogger.debug("Suppressing mod-initiated staff rank check message");
-      ci.cancel();
-      return;
-    }
-
-    // Suppress server feedback for /msg fanout generated by /v.
-    if (CommandDispatcher.shouldSuppressFeedback(messageString)) {
-      VetsLogger.debug("Suppressed /v outbound feedback line");
-      ci.cancel();
-      return;
-    }
-
-    // Suppress server responses to /find commands generated by /wv list world.
-    if (CommandDispatcher.shouldSuppressFindResponse(messageString)) {
-      VetsLogger.debug("Suppressed /find response line");
-      ci.cancel();
-      return;
-    }
-
-    // Avoid recursively rewriting mod-injected chat messages.
-    if (isInternalDispatch) {
-      return;
-    }
-
-    // Rewrite encourage-update messages (⚠⚠⚠ ... ⚠⚠⚠) into version status output.
-    if (EncourageUpdateRewriter.tryRewrite(message, messageString)) {
-      ci.cancel();
-      return;
-    }
-
-    // Rewrite/suppress staff guild alerts (‼ prefixed) into shout-style local output.
-    if (StaffGuildAlertRewriter.tryRewrite(message, messageString)) {
-      ci.cancel();
-      return;
-    }
-
-    // Rewrite lock-prefixed direct messages into /v-style staff chat output.
-    if (StaffChannelMessageRewriter.tryRewrite(message, messageString)) {
-      ci.cancel();
-      return;
-    }
-
-    // Rewrite server guild chat messages from supporters with gradient pill styling.
-    // Re-entry is blocked by ChatUtils internal dispatch guard above.
-    if (ServerGuildChatRewriter.tryRewrite(message, messageString)) {
-      ci.cancel();
-      return;
-    }
-
-    // Rewrite guild chat messages containing ||spoiler|| markers (non-supporters).
-    // Supporter messages are already processed above via ServerGuildChatRewriter.
-    if (SpoilerRewriter.tryRewrite(message, messageString)) {
-      ci.cancel();
-    }
-  }
-
-
-  /**
-   * Checks if a message is part of the /gu rank staff-check output.
-   */
-  private boolean isStaffRankCheckMessage(String message) {
-    String trimmed = message.trim();
-    String normalized = trimmed.toLowerCase();
-    return (normalized.contains("you must be a") && normalized.contains("captain") && normalized.contains("to use this command")) ||
-        (normalized.contains("invalid arguments, try:") && normalized.contains("rank [name] [rank]"));
-  }
 }

@@ -1,35 +1,36 @@
 package org.wynnvets.mwe.anni.network;
 
 import com.google.gson.JsonObject;
-
-import org.wynnvets.api.V1ApiManager;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.TimeUnit;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.TimeUnit;
 
 /**
  * S6 single-flight client for the {@code anni_rsvp} in-game RSVP frame.
  *
  * <p>Clone of {@link AnniScrollspotClient}: FIFO callback queue, the next
  * incoming {@code anni_rsvp_response} frame resolves the head future. The
- * V1 protocol has no per-frame correlation IDs, so rapid back-to-back calls
- * would interleave arbitrarily; the per-command UX deliberately blocks on
- * the previous future so this never matters in practice.</p>
+ * V1 protocol has no per-frame correlation IDs, and temporary-server answers in
+ * send order, so the FIFO mis-pairs only on a lost or late reply or when two concurrent
+ * calls send in the opposite order to their enqueues; the per-command UX deliberately
+ * blocks on the previous future so this never matters in practice.</p>
  *
  * <p>The future resolves to an immutable {@link Ack} record with
  * {@code (ok, detail)}; callers render the detail on failure. A 5-second
- * deadline applies — temp-server's own forward to vets-anni uses a 3-5 s
- * timeout, so 5 s here covers the round-trip plus jitter.</p>
- *
- * <p>{@link #lastAttemptedNotice()} / {@link #lastAck()} / {@link
- * #pendingCount()} are exposed for the {@code /wv debug trigger rsvpDump}
- * diagnostic. Race-prone (static volatiles, no per-call correlation) but
- * honest enough for a debug-only view.</p>
+ * deadline applies. ⚠️ temp-server's own forward to vets-anni is a flat
+ * <b>5 s</b> — {@code set_rsvp} and {@code set_scroll_spot} reuse the anni
+ * snapshot poller's client, whose timeout is
+ * {@code ANNI_SNAPSHOT_REQUEST_TIMEOUT_SECONDS = 5.0} — not the "3-5 s" this
+ * sentence used to claim, and not the 3 s that
+ * {@link AnniQueryClient}'s deadline is correctly sized against. So the 5 s
+ * here has <b>zero slack</b> over the forward rather than covering
+ * round-trip plus jitter; a forward that uses its full budget cannot produce
+ * an ack this client is still waiting for. Filed as
+ * {@code ack-clients-timeout-has-zero-slack-over-the-server-forward}.</p>
  */
 public final class AnniRsvpClient {
 
@@ -39,20 +40,44 @@ public final class AnniRsvpClient {
     private static final ConcurrentLinkedDeque<CompletableFuture<Ack>> pending =
             new ConcurrentLinkedDeque<>();
 
-    /** Last attempted notice ("hard"/"soft"/"revoke") — for {@code rsvpDump}. */
+    /**
+     * Last attempted notice — for {@code rsvpDump}.
+     *
+     * <p>⚠️ This is the <b>outbound command</b> vocabulary — {@code "hard"} /
+     * {@code "soft"} / {@code "revoke"} — and it is not the inbound notice
+     * vocabulary a snapshot carries. Three sets are in play, which is why this
+     * keeps being got wrong:</p>
+     * <ul>
+     *   <li>what this client <em>sends</em>: {@code hard}, {@code soft},
+     *       {@code revoke};</li>
+     *   <li>vets-anni's {@code AttendanceNotice} enum, four values —
+     *       {@code attend_early}, {@code rsvp_hard}, {@code rsvp_soft},
+     *       {@code attend_late} — which a snapshot's
+     *       {@code attendance.notice_effective} carries raw;</li>
+     *   <li>a snapshot's {@code rsvp.notice}, which the server normalises to a
+     *       bare {@code hard} / {@code soft}.</li>
+     * </ul>
+     *
+     * <p>So the outbound set overlaps the <em>normalised</em> spelling on two
+     * words and the raw enum on none, and {@code revoke} is a verb this client
+     * sends, never a state any snapshot reports. ⚠️ The enum is owned by
+     * {@code ../vets-anni/app/constants.py} and cannot be checked from this
+     * repo; do not re-derive it from a client switch's arm count, which is how
+     * four earlier audits got a key space that does not exist.</p>
+     */
     private static volatile String lastAttemptedNotice;
+
     /** Last completed ack — for {@code rsvpDump}. May be null on first run. */
     private static volatile Ack lastAck;
 
-    private AnniRsvpClient() {
-    }
+    private AnniRsvpClient() {}
 
     /** Send an {@code anni_rsvp} frame with the given notice. */
     public static CompletableFuture<Ack> send(String notice) {
         lastAttemptedNotice = notice;
         CompletableFuture<Ack> future = new CompletableFuture<>();
         pending.addLast(future);
-        boolean dispatched = V1ApiManager.sendAnniRsvp(notice);
+        boolean dispatched = AnniWsSender.sendAnniRsvp(notice);
         if (!dispatched) {
             pending.remove(future);
             Ack ack = new Ack(false, "not connected");
@@ -61,10 +86,11 @@ public final class AnniRsvpClient {
             return future;
         }
         future.orTimeout(ACK_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                .exceptionally(ex -> {
-                    pending.remove(future);
-                    return null;  // already-resolved branch swallowed
-                });
+                .exceptionally(
+                        ex -> {
+                            pending.remove(future);
+                            return null; // already-resolved branch swallowed
+                        });
         return future;
     }
 
@@ -76,35 +102,23 @@ public final class AnniRsvpClient {
             VetsLogger.debug("anni_rsvp_response with empty queue: {}", json);
             return;
         }
-        String status = json.has("status") && !json.get("status").isJsonNull()
-                ? json.get("status").getAsString() : "error";
-        String detail = json.has("detail") && !json.get("detail").isJsonNull()
-                ? json.get("detail").getAsString() : null;
+        String status =
+                json.has("status") && !json.get("status").isJsonNull()
+                        ? json.get("status").getAsString()
+                        : "error";
+        String detail =
+                json.has("detail") && !json.get("detail").isJsonNull()
+                        ? json.get("detail").getAsString()
+                        : null;
         Ack ack = new Ack("ok".equals(status), detail);
         lastAck = ack;
         head.complete(ack);
     }
 
-    /** Diagnostic accessor — last notice string passed to {@link #send}. */
-    public static String lastAttemptedNotice() {
-        return lastAttemptedNotice;
-    }
-
-    /** Diagnostic accessor — last completed ack. */
-    public static Ack lastAck() {
-        return lastAck;
-    }
-
-    /** Diagnostic accessor — currently-in-flight queue depth. */
-    public static int pendingCount() {
-        return pending.size();
-    }
-
     /** Server ack — {@code ok} flag + optional human-readable {@code detail}
      *  surfaced from vets-anni on failure (e.g. "RSVP is closed (within 90
      *  min of anni)"). */
-    public record Ack(boolean ok, String detail) {
-    }
+    public record Ack(boolean ok, String detail) {}
 
     /** Debug entry — dump current auth state, in-flight queue depth, last
      *  attempt + last ack, and the snapshot's current rsvp block. Mirrors
@@ -112,7 +126,8 @@ public final class AnniRsvpClient {
      *  / {@code ghostsPromptDump} family. */
     public static void debugDump() {
         VetsLogger.info("--- rsvpDump ---");
-        VetsLogger.info("authenticated_this_session={} pending={} last_attempt={} last_ack={}",
+        VetsLogger.info(
+                "authenticated_this_session={} pending={} last_attempt={} last_ack={}",
                 GuildStateManager.isAuthenticatedThisSession(),
                 pending.size(),
                 lastAttemptedNotice,
@@ -126,8 +141,11 @@ public final class AnniRsvpClient {
         if (r == null) {
             VetsLogger.info("snapshot.rsvp=null (no active RSVP)");
         } else {
-            VetsLogger.info("snapshot.rsvp.notice={} updated_at={} revoked={}",
-                    r.notice(), r.updatedAt(), r.revoked());
+            VetsLogger.info(
+                    "snapshot.rsvp.notice={} updated_at={} revoked={}",
+                    r.notice(),
+                    r.updatedAt(),
+                    r.revoked());
         }
     }
 }

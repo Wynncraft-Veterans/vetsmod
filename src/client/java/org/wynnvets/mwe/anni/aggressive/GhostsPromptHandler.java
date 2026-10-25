@@ -1,6 +1,7 @@
 package org.wynnvets.mwe.anni.aggressive;
 
 import com.wynntils.core.components.Models;
+import com.wynntils.utils.mc.McUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -13,29 +14,32 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
 import org.wynnvets.mwe.anni.zone.AnniZone;
 
 /**
- * S5 — clickable "Suggest /toggle ghosts none" prompt on first zone entry
- * per stamp_epoch.
+ * S5 — clickable "Suggest /toggle ghosts none" prompt on a zone-entry rising
+ * edge: on every such entry when its scan sees a ghost-flagged player, else at
+ * most once per stamp_epoch.
  *
  * <p>Per the parent plan §S5: ghost players (other-world phased players)
  * are a major source of visual noise during anni. Wynncraft's
  * {@code /toggle ghosts off|none} hides them. We nag the user to set it
- * once per anni, suppressed when we can prove they've already set it.</p>
+ * on every zone entry where the scan sees a ghost, and otherwise at most once
+ * per anni, since a scan that sees none can't tell ghosts-off from an empty
+ * area.</p>
  *
  * <p><b>Detection (decision-locked this session):</b> walk
- * {@link Minecraft#level}.players(); if ANY player returns
- * {@link com.wynntils.models.players.PlayerModel#isPlayerGhost(net.minecraft.world.entity.player.Player)
- * true}, ghosts must be ON (otherwise Wynncraft wouldn't have sent the
- * client those players in the first place). Show the prompt
+ * {@code Minecraft.level.players()}; if ANY player returns {@code true} from
+ * {@code Models.Player.isPlayerGhost}, ghosts must be ON (otherwise Wynncraft wouldn't have sent
+ * the client those players in the first place). Show the prompt
  * unconditionally in that case — it's useful info. If zero visible
  * players are ghosts, it's ambiguous (could be off, could just be an
  * empty area); fall back to a per-stamp_epoch sentinel
- * ({@link VetsConfig#VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP}) so we
+ * ({@link VetsConfigKeys#VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP}) so we
  * prompt at most once per anni in that branch.</p>
  *
  * <p><b>Trigger:</b> rising edge of {@link AnniZone#isInZone(double, double)}
@@ -52,8 +56,7 @@ public final class GhostsPromptHandler {
     /** Last-observed zone state for rising-edge detection. */
     private static volatile boolean lastInZone = false;
 
-    private GhostsPromptHandler() {
-    }
+    private GhostsPromptHandler() {}
 
     public static void register() {
         if (registered) return;
@@ -78,11 +81,11 @@ public final class GhostsPromptHandler {
             lastInZone = false;
             return;
         }
-        if (!VetsConfig.get(VetsConfig.VETS_ANNI_GHOSTS_PROMPT)) {
+        if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT)) {
             return;
         }
 
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;
@@ -105,14 +108,13 @@ public final class GhostsPromptHandler {
         // to the per-stamp_epoch sentinel.
         long stamp = currentStampEpoch();
         if (stamp <= 0L) return;
-        String shownFor = VetsConfig.getString(
-                VetsConfig.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
+        String shownFor =
+                VetsConfig.getString(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
         if (shownFor == null) shownFor = "";
         String stampStr = Long.toString(stamp);
         if (stampStr.equals(shownFor)) return;
         firePrompt();
-        VetsConfig.setString(
-                VetsConfig.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP, stampStr);
+        VetsConfig.setString(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP, stampStr);
     }
 
     private static boolean anyVisibleGhost(ClientLevel level, LocalPlayer self) {
@@ -121,8 +123,15 @@ public final class GhostsPromptHandler {
             try {
                 if (Models.Player.isPlayerGhost(other)) return true;
             } catch (Exception e) {
-                // Wynntils not initialised or transient model failure —
-                // treat as "no info"; fall through.
+                // Wynntils not initialised or transient model failure.
+                // ⚠️ This does NOT fall through to the next player: the
+                // return abandons the whole scan and reports "no ghost
+                // seen". A throw at or before the first ghost in iteration
+                // order therefore downgrades a confirmed-ghosts result to the
+                // ambiguous branch; after it, the return true has already won.
+                // Filed
+                // as ghosts-prompt-scan-aborts-on-first-exception; the
+                // catch belongs outside the loop, or should continue.
                 return false;
             }
         }
@@ -139,30 +148,36 @@ public final class GhostsPromptHandler {
     }
 
     private static void firePrompt() {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
-        mc.execute(() -> {
-            MutableComponent suggestion = Component.literal("[Suggest: /toggle ghosts none]")
-                    .withStyle(s -> s
-                            .withColor(ChatFormatting.GOLD)
-                            .withUnderlined(true)
-                            .withClickEvent(new ClickEvent.SuggestCommand(
-                                    "/toggle ghosts none"))
-                            .withHoverEvent(new HoverEvent.ShowText(
-                                    Component.literal(
-                                            "Hides phased players from other worlds. "
-                                                    + "Less visual noise during anni."))));
-            MutableComponent msg = Component.literal("Anni starting soon — ")
-                    .withStyle(ChatFormatting.AQUA)
-                    .append(suggestion);
-            ChatUtils.sendLocalMessage(msg);
-        });
+        mc.execute(
+                () -> {
+                    MutableComponent suggestion =
+                            Component.literal("[Suggest: /toggle ghosts none]")
+                                    .withStyle(
+                                            s ->
+                                                    s.withColor(ChatFormatting.GOLD)
+                                                            .withUnderlined(true)
+                                                            .withClickEvent(
+                                                                    new ClickEvent.SuggestCommand(
+                                                                            "/toggle ghosts none"))
+                                                            .withHoverEvent(
+                                                                    new HoverEvent.ShowText(
+                                                                            Component.literal(
+                                                                                    "Hides phased players from other worlds. "
+                                                                                            + "Less visual noise during anni."))));
+                    MutableComponent msg =
+                            Component.literal("Anni starting soon — ")
+                                    .withStyle(ChatFormatting.AQUA)
+                                    .append(suggestion);
+                    ChatUtils.sendLocalMessage(msg);
+                });
     }
 
     /** Debug entry — report whether the prompt would fire right now.
      *  Walks the player list and dumps the per-player ghost flag. */
     public static void debugDump() {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) {
             VetsLogger.info("ghostsPromptDump: no Minecraft");
             return;
@@ -175,14 +190,19 @@ public final class GhostsPromptHandler {
         }
         boolean inZone = AnniZone.isInZone(self.getX(), self.getZ());
         boolean aggro = AnniAggressiveTicker.isAggressiveActive();
-        boolean toggleOn = VetsConfig.get(VetsConfig.VETS_ANNI_GHOSTS_PROMPT);
+        boolean toggleOn = VetsConfig.get(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT);
         long stamp = currentStampEpoch();
-        String shownFor = VetsConfig.getString(
-                VetsConfig.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
+        String shownFor =
+                VetsConfig.getString(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
 
         VetsLogger.info("--- ghostsPromptDump ---");
-        VetsLogger.info("aggressive_active={} toggle_on={} in_zone={} stamp={} shown_for={}",
-                aggro, toggleOn, inZone, stamp, shownFor);
+        VetsLogger.info(
+                "aggressive_active={} toggle_on={} in_zone={} stamp={} shown_for={}",
+                aggro,
+                toggleOn,
+                inZone,
+                stamp,
+                shownFor);
 
         int total = 0;
         int ghosts = 0;
@@ -196,14 +216,18 @@ public final class GhostsPromptHandler {
                 isGhost = false;
             }
             if (isGhost) ghosts++;
-            String name = other.getGameProfile() != null
-                    ? other.getGameProfile().name() : "?";
+            String name = other.getGameProfile() != null ? other.getGameProfile().name() : "?";
             VetsLogger.info("  player={} ghost={}", name, isGhost);
         }
-        boolean wouldFire = aggro && toggleOn && inZone && (
-                ghosts > 0
-                || (stamp > 0 && !Long.toString(stamp).equals(shownFor)));
-        VetsLogger.info("visible_players={} ghosts={} would_fire_on_rising_edge={}",
-                total, ghosts, wouldFire);
+        boolean wouldFire =
+                aggro
+                        && toggleOn
+                        && inZone
+                        && (ghosts > 0 || (stamp > 0 && !Long.toString(stamp).equals(shownFor)));
+        VetsLogger.info(
+                "visible_players={} ghosts={} would_fire_on_rising_edge={}",
+                total,
+                ghosts,
+                wouldFire);
     }
 }

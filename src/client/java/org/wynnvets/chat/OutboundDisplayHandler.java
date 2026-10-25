@@ -1,14 +1,6 @@
 package org.wynnvets.chat;
 
 import com.google.gson.JsonObject;
-import org.wynnvets.api.V1ApiManager;
-import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
-import org.wynnvets.chat.rewriter.WarningRewriter;
-import org.wynnvets.config.VetsConfig;
-import org.wynnvets.guild.GuildStateManager;
-import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.queue.QueueStateManager;
-
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
@@ -16,19 +8,41 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.chat.rewriter.StaffGuildAlertRewriter;
+import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
+import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.queue.QueueStateManager;
+import org.wynnvets.util.Json;
 
 /**
  * Handles outbound messages received from the v1 WebSocket and displays them
  * in the player's chat HUD.
  *
  * <p>Replaces the old polling fetchers ({@code ChatMessageFetcher} and
- * {@code BridgeMessageFetcher}) with a push-based approach. Messages are
- * displayed based on the player's current state:
+ * {@code BridgeMessageFetcher}) with a push-based approach. A
+ * {@code "warning"} frame goes to {@link WarningFrameRenderer} ahead of every
+ * gate below. Any other frame displays only while
+ * {@link VetsConfigKeys#PRINT_BRIDGE_MESSAGES} is on, and only for (see
+ * {@code shouldDisplayMessages()}):
  * <ul>
- *   <li>Returners members: all guild and bridge messages</li>
- *   <li>Waitlist-unlocked users: all guild and bridge messages</li>
- *   <li>Honourary-unlocked users: all guild and bridge messages</li>
+ *   <li>Returners members &mdash; except, outside a world queue, their
+ *       {@code "guild"} frames, which the Wynncraft server already delivers</li>
+ *   <li>guildless, waitlist-unlocked users</li>
+ *   <li>honourary-unlocked users</li>
  * </ul>
+ *
+ * <p>Apart from that Returners exception, these gates test this client's own
+ * settings and state, not the frame's {@code type}; which types arrive is
+ * meant to be temporary-server's tier filter's call. Today that filter does
+ * not apply, because vetsmod never authenticates this socket
+ * ({@code outbound-socket-never-authenticated}): no {@code warning} frame
+ * arrives, and every chat type does while the server's {@code unauth} toggle
+ * is on (none with it off). So a Returner also renders {@code waitlist} and
+ * {@code honourary} relays, and the other viewers above also render
+ * {@code guild} and {@code queue} chat.</p>
  *
  * <p>Self-message suppression prevents echo of messages the player just sent.
  * Server-side dedup handles guild message fingerprinting.</p>
@@ -48,19 +62,21 @@ public final class OutboundDisplayHandler {
     private static Consumer<JsonObject> registeredListener;
 
     // UUID-based dedup: prevents duplicate display when the same outbound
-    // message is delivered more than once (e.g. dual WebSocket connections).
+    // message is delivered more than once, e.g. over two overlapping outbound
+    // sockets during a reconnect.
     private static final int MAX_RECENT_UUIDS = 200;
     private static final long UUID_TTL_MS = TimeUnit.SECONDS.toMillis(10);
     private static final LinkedHashMap<String, Long> recentUuids =
             new LinkedHashMap<>(MAX_RECENT_UUIDS + 1, 0.75f, false);
     private static final Object recentUuidLock = new Object();
 
-    private OutboundDisplayHandler() {
-    }
+    private OutboundDisplayHandler() {}
 
     /**
-     * Registers the outbound listener with the V1ApiManager.
-     * Should be called once during initialization, after V1ApiManager.connect().
+     * Registers the outbound listener with the V1ApiManager; a call while already
+     * registered is a no-op. Called at client init and again on every server join
+     * (the disconnect handler unregisters it), each time after
+     * {@link V1ApiManager#connect() V1ApiManager.connect()}.
      */
     public static void register() {
         if (registeredListener != null) {
@@ -118,8 +134,6 @@ public final class OutboundDisplayHandler {
         }
     }
 
-
-
     private static void onOutboundMessage(JsonObject json) {
         // Staff-pushed private warning / eject frames (v1_protocol.md §2.5)
         // bypass every display gate -- the warned player must always see
@@ -127,12 +141,15 @@ public final class OutboundDisplayHandler {
         // aren't a tier that normally renders outbound chat. Targeting is
         // enforced server-side by mc_uuid match before the frame is
         // pushed, so receiving the frame here implies it's for us.
-        if ("warning".equals(getStringOrEmpty(json, "type"))) {
-            WarningRewriter.render(json);
+        // Today this branch never runs: the server pushes warning frames only to an
+        // authenticated outbound socket, and vetsmod never authenticates that socket
+        // (outbound-socket-never-authenticated).
+        if ("warning".equals(Json.stringOrEmpty(json, "type"))) {
+            WarningFrameRenderer.render(json);
             return;
         }
 
-        if (!VetsConfig.get(VetsConfig.PRINT_BRIDGE_MESSAGES)) {
+        if (!VetsConfig.get(VetsConfigKeys.PRINT_BRIDGE_MESSAGES)) {
             return;
         }
 
@@ -141,21 +158,24 @@ public final class OutboundDisplayHandler {
         }
 
         // UUID dedup: skip messages already processed within the TTL window.
-        // Guards against duplicate delivery from dual WebSocket connections or
-        // network-level frame duplication.
-        String uuid = getStringOrEmpty(json, "uuid");
+        // Guards against the same frame arriving twice, e.g. over two
+        // overlapping outbound sockets during a reconnect.
+        String uuid = Json.stringOrEmpty(json, "uuid");
         if (!uuid.isEmpty() && isDuplicateUuid(uuid)) {
             VetsLogger.debug("onOutboundMessage: duplicate UUID suppressed [{}]", uuid);
             return;
         }
 
-        String type = getStringOrEmpty(json, "type");
-        String rawRank = getStringOrEmpty(json, "rank");
+        String type = Json.stringOrEmpty(json, "type");
+        String rawRank = Json.stringOrEmpty(json, "rank");
         // ``pill_display`` is the 2026-07 additive field carrying the
         // client-facing label ("Steward"/"Returner"). Prefer it when the
-        // server sent it; otherwise remap the raw rank locally so pre-
-        // 2026-07 servers still get the display rewrite for new clients.
-        String pillDisplay = getStringOrEmpty(json, "pill_display");
+        // server sent it; otherwise remap the raw rank locally.
+        // temporary-server sets it only on the bridge frames its Discord bot
+        // relays (app/discord/bot.py; v1_protocol.md §2.3 agrees), so every
+        // relayed non-bridge frame with a rank takes the local remap too, as
+        // does every frame from a pre-2026-07 server.
+        String pillDisplay = Json.stringOrEmpty(json, "pill_display");
         String rank;
         if (!pillDisplay.isEmpty()) {
             rank = pillDisplay;
@@ -164,8 +184,8 @@ public final class OutboundDisplayHandler {
         } else {
             rank = "";
         }
-        String username = getStringOrEmpty(json, "username");
-        String message = getStringOrEmpty(json, "message");
+        String username = Json.stringOrEmpty(json, "username");
+        String message = Json.stringOrEmpty(json, "message");
 
         if (username.isEmpty() || message.isEmpty()) {
             return;
@@ -177,10 +197,11 @@ public final class OutboundDisplayHandler {
         }
 
         // Returners members already receive guild chat from the Wynncraft
-        // server with proper pill rendering, nicknames, and supporter
-        // gradients — normally we suppress outbound guild echoes to avoid
-        // double-display.  While queued, however, the game-server channel
-        // is silent, so we must render WS-delivered guild chat ourselves.
+        // server, with its own pills and nicknames (which
+        // ServerGuildChatRewriter may restyle on that path) — normally we
+        // suppress outbound guild echoes to avoid double-display.  While
+        // queued, however, the game-server channel is silent, so we must
+        // render WS-delivered guild chat ourselves.
         if (GuildStateManager.isReturners()
                 && "guild".equals(type)
                 && !QueueStateManager.isInQueue()) {
@@ -188,18 +209,20 @@ public final class OutboundDisplayHandler {
         }
 
         // Record bridge messages for echo suppression in onGuildChat.
-        // When the mod displays a bridge message, isInternalDispatch can
-        // fail for wrapped multi-line messages, causing Wynntils to re-fire
-        // the event.  Recording the message here lets onGuildChat detect
-        // and suppress the re-fire.
+        // isInternalDispatch covers only work that runs synchronously inside
+        // LocalChatDispatch's own displayClientMessage call; a Wynntils build that
+        // replays a line on a later tick would escape it. Recording the
+        // message here lets onGuildChat catch such a replay, and any
+        // Wynncraft server echo of it.
         if ("bridge".equals(type)) {
             recordBridgeOutbound(message);
         }
 
-        // Staff alert display: rewrite ‼-prefixed guild messages from staff
-        // into the shout-style ALERT box.  For Returners this is handled by
-        // StaffGuildAlertRewriter via ChatLogMixin on the server message;
-        // for waitlist/honourary users it must be handled here instead.
+        // Staff alert display: rewrite ‼-prefixed guild/queue frames from
+        // staff into the shout-style ALERT box. The copy a Returner reads in
+        // the game's own guild channel is handled by StaffGuildAlertRewriter
+        // via ChatLogMixin instead; this branch tries every guild- or
+        // queue-typed frame that gets past the checks above.
         if (("guild".equals(type) || "queue".equals(type))
                 && StaffGuildAlertRewriter.tryRewriteOutbound(username, message)) {
             return;
@@ -213,7 +236,8 @@ public final class OutboundDisplayHandler {
     }
 
     private static boolean shouldDisplayMessages() {
-        // Returners members see outbound messages (bridge messages)
+        // Returners members see outbound messages (onOutboundMessage still
+        // drops their "guild" frames unless they are queued)
         if (GuildStateManager.isReturners()) {
             return true;
         }
@@ -230,7 +254,8 @@ public final class OutboundDisplayHandler {
 
     private static boolean shouldSuppressSelfMessage(String username, String message, String type) {
         // Only suppress game-sourced messages (sent by this client through the temp server).
-        // Covers guild (Returners), waitlist (guildless relay), and honourary relay types.
+        // Covers guild (Returners), queue (queued Returners), waitlist
+        // (guildless relay), and honourary relay types.
         if (!"guild".equals(type)
                 && !"queue".equals(type)
                 && !"waitlist".equals(type)
@@ -245,7 +270,8 @@ public final class OutboundDisplayHandler {
             Iterator<PendingSelfMessage> it = pendingSelfMessages.iterator();
             while (it.hasNext()) {
                 PendingSelfMessage pending = it.next();
-                if (pending.username.equalsIgnoreCase(username) && pending.message.equals(message)) {
+                if (pending.username.equalsIgnoreCase(username)
+                        && pending.message.equals(message)) {
                     it.remove();
                     return true;
                 }
@@ -300,11 +326,15 @@ public final class OutboundDisplayHandler {
 
     /**
      * Checks whether a guild-chat message is an echo of a recently displayed
-     * bridge outbound message.  Comparison strips all whitespace and PUA
-     * characters so that Wynncraft line-wrap artefacts (spaces injected at
-     * wrap points) do not prevent a match.
+     * bridge outbound message.  Comparison strips whitespace and every
+     * codepoint {@link PillCodec#isCustomGlyph(int)} accepts, so that
+     * Wynncraft line-wrap artefacts (spaces injected at wrap points) do not
+     * prevent a match.
      *
-     * @param message the guild-chat message text extracted by Wynntils
+     * @param message the guild-chat message text
+     *     {@link org.wynnvets.listeners.WynntilsEventListener#onGuildChat
+     *     WynntilsEventListener.onGuildChat} extracted from a Wynntils
+     *     guild-chat event
      * @return true if the message matches a recent bridge outbound
      */
     public static boolean wasBridgeEcho(String message) {
@@ -340,9 +370,11 @@ public final class OutboundDisplayHandler {
     }
 
     /**
-     * Normalizes a message for bridge echo dedup by stripping all whitespace
-     * and PUA/unassigned codepoints.  This allows matching despite Wynncraft
-     * line-wrap spaces and PUA badge/pill differences.
+     * Normalizes a message for bridge echo dedup by stripping whitespace
+     * ({@link Character#isWhitespace(int)}) and every codepoint
+     * {@link PillCodec#isCustomGlyph(int)} classifies as resource-pack glyph
+     * art. This allows matching despite Wynncraft line-wrap spaces and PUA
+     * badge/pill differences.
      */
     private static String normalizeBridgeDedup(String text) {
         if (text == null) return "";
@@ -352,10 +384,7 @@ public final class OutboundDisplayHandler {
             int cp = text.codePointAt(i);
             int charCount = Character.charCount(cp);
             if (!Character.isWhitespace(cp)) {
-                int type = Character.getType(cp);
-                boolean isCustomGlyph = type == Character.PRIVATE_USE
-                        || (type == Character.UNASSIGNED && cp > 0xFFFF);
-                if (!isCustomGlyph) {
+                if (!PillCodec.isCustomGlyph(cp)) {
                     sb.appendCodePoint(cp);
                 }
             }
@@ -372,13 +401,6 @@ public final class OutboundDisplayHandler {
             }
             recentBridgeMessages.pollFirst();
         }
-    }
-
-    private static String getStringOrEmpty(JsonObject json, String key) {
-        if (json.has(key) && !json.get(key).isJsonNull()) {
-            return json.get(key).getAsString();
-        }
-        return "";
     }
 
     private static final class PendingSelfMessage {

@@ -6,28 +6,31 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Chat Pipeline — In-Depth Reference
 
-The vetsmod chat system is a multi-stage pipeline that intercepts every chat message, classifies it, suppresses mod-initiated echoes, rewrites through a chain, and dispatches formatted output. It is coupled to an outbound WebSocket handler for server-pushed messages, a dispatcher system for staff fanout, and a PUA-based spoiler codec.
+The vetsmod chat system is a multi-stage pipeline that intercepts each chat message that reaches the single-argument `ChatComponent.addMessage(Component)` overload (the path vanilla uses for system and disguised chat; vanilla sends player chat to the three-argument overload instead, but Wynntils' Chat Tabs — enabled by default, and vetsmod hard-depends on Wynntils — re-adds each line through the single-argument overload on every matching tab's own `ChatComponent`, so player chat reaches this hook too), classifies it, suppresses mod-initiated echoes, rewrites through a chain, and dispatches formatted output. It is coupled to an outbound WebSocket handler for server-pushed messages, a dispatcher system for staff fanout, and a PUA-based spoiler codec.
 
 ## 1. High-level flow
 
-**Incoming (server → client):** vanilla `ChatComponent.addMessage()` → `ChatLogMixin` HEAD → log → guild state detection → suppression checks (/g, /gu rank, /find) → rewriter chain → fall through to vanilla (or cancelled if a rewriter consumed it).
+**Incoming (server → client):** vanilla `ChatComponent.addMessage(Component)` (the single-argument overload; a `ClientboundPlayerChatPacket` reaches vanilla's three-argument overload instead, never this one — but Wynntils' Chat Tabs, on by default, re-adds *every* message handed to `mc.gui.chat`, player chat included, to each matching tab's own `ChatComponent` through the single-argument overload, so this hook can see player chat and can fire more than once for the same message) → `ChatLogMixin` HEAD → streamer-mode observation → log → guild state detection → suppression checks (/gu stats, /gu rank, /v, /find) → rewriter chain → fall through to vanilla (or cancelled if a rewriter consumed it).
 
-**Outbound (user → server):** `ClientPacketListener.sendCommand()` → `GuildChatCommandMixin` HEAD → `GuildChatDispatcher.intercept()` for `/g`, `/wg`, `/v`, `/msg`.
+**Outbound (user → server):** `ClientPacketListener.sendCommand()` → `GuildChatCommandMixin` HEAD → `GuildChatDispatcher.intercept()` for the prefixes in [vetsmod_commands.md](vetsmod_commands.md) §2's table, `/g`, `/wg` and `/v` among them. `/msg` is not among them.
 
-**Remote push (WebSocket → client):** `V1ApiManager` outbound listener → `OutboundDisplayHandler.onOutboundMessage()` → UUID dedup + self + bridge echo suppression → `ChatUtils.sendGuildChatMessage()`.
+**Remote push (WebSocket → client):** `V1ApiManager` outbound listener → `OutboundDisplayHandler.onOutboundMessage()` → display gates, UUID dedup, self suppression, Returners' own `guild` frames dropped outside a queue → `ChatUtils.sendHonouraryChatMessage()` when this client is honourary-unlocked, else `ChatUtils.sendGuildChatMessage()`. A `warning` frame branches off to `WarningFrameRenderer` before the gates (none arrives today: bug `outbound-socket-never-authenticated`), and a staff `‼` alert to `StaffGuildAlertRewriter` after them; `bridge` frames are only recorded here, for `WynntilsEventListener`'s echo check. Full order in §5.
 
-## 2. ChatLogMixin — the chokepoint
+## 2. ChatLogMixin — the single-argument addMessage hook
 
-[src/client/java/org/wynnvets/mixin/client/chat/ChatLogMixin.java:30-125](src/client/java/org/wynnvets/mixin/client/chat/ChatLogMixin.java#L30-L125)
+[ChatLogMixin](../src/client/java/org/wynnvets/mixin/client/chat/ChatLogMixin.java)
 
 `@Mixin(ChatComponent.class) @Inject(method="addMessage", at=@At("HEAD"), cancellable=true)` — runs in order:
 
-1. `ChatLogger.logMessage(message)` unless `ChatUtils.INTERNAL_CHAT_DISPATCH` ThreadLocal is set
-2. `GuildStateManager.processGuildCheckMessage(msg)` (pulls `/gu stats` responses out of chat)
-3. Suppress if `GuildStateManager.isProcessingModGuildCheck()` or staff-rank-check is active
-4. Suppress via `CommandDispatcher.shouldSuppressFeedback()` (`/v` echo)
-5. Suppress via `CommandDispatcher.shouldSuppressFindResponse()` (`/find` result)
-6. Rewriter chain (only when NOT internally dispatched):
+1. `StreamerModeChatDetector.observe(message)` — runs first, before any logging
+2. `ChatLogger.logMessage(...)` unless `LocalChatDispatch.isInternalDispatch()` is true (the `INTERNAL_CHAT_DISPATCH` ThreadLocal is private to `LocalChatDispatch`; the mixin reads it through that accessor)
+3. `GuildStateManager.processGuildCheckMessage(msg)` (pulls `/gu stats` responses out of chat)
+4. Compute `isStaffRankCheck` = `GuildStateManager.isProcessingModStaffRankCheck()` AND the line looks like a staff-rank-check response
+5. `GuildStateManager.processMessage(message, messageString)` — unconditional, and it runs *before* the suppression below, so a suppressed rank-check line is still processed
+6. Suppress if `isStaffRankCheck`
+7. Suppress via `DispatchCoordinator.shouldSuppressFeedback()` (`/v` echo)
+8. Suppress via `DispatchCoordinator.shouldSuppressFindResponse()` (`/find` result)
+9. Rewriter chain (only when NOT internally dispatched):
    1. `EncourageUpdateRewriter.tryRewrite()`
    2. `StaffGuildAlertRewriter.tryRewrite()`
    3. `StaffChannelMessageRewriter.tryRewrite()`
@@ -36,38 +39,93 @@ The vetsmod chat system is a multi-stage pipeline that intercepts every chat mes
 
 Each rewriter returns `true` to cancel the vanilla event (consumed).
 
-## 3. Rewriters
+`WarningFrameRenderer` is not part of this chain: `OutboundDisplayHandler` calls it for server-pushed `warning` frames (§5).
+
+## 3. Rewriters and their shared helpers
 
 ### EncourageUpdateRewriter
-[src/client/java/org/wynnvets/chat/rewriter/EncourageUpdateRewriter.java:32-269](src/client/java/org/wynnvets/chat/rewriter/EncourageUpdateRewriter.java#L32-L269)
+[EncourageUpdateRewriter](../src/client/java/org/wynnvets/chat/rewriter/EncourageUpdateRewriter.java)
 
 Pattern: `⚠⚠⚠ If you are using vetsmod, it's outdated (current version ([0-9]+(?:\.[0-9]+)*)) ⚠⚠⚠`.
 Parses staff-broadcast version, compares to local; outdated → obfuscated red; up-to-date → rainbow.
 
 ### StaffGuildAlertRewriter
-[src/client/java/org/wynnvets/chat/rewriter/StaffGuildAlertRewriter.java:21-255](src/client/java/org/wynnvets/chat/rewriter/StaffGuildAlertRewriter.java#L21-L255)
+[StaffGuildAlertRewriter](../src/client/java/org/wynnvets/chat/rewriter/StaffGuildAlertRewriter.java)
 
-Triggers on `‼` prefix. Builds purple shout prefix + "ALERT" pill + body (bold if `!!`). Has `tryRewrite()` for in-game Component and `tryRewriteOutbound()` for WebSocket JSON. Resolves real usernames from hover text "X's real name is Y".
+Triggers on a `‼` (U+203C) prefix from a sender `StaffRanksPoller.confirmedRankFor` knows as staff. Builds purple shout prefix + "ALERT" pill + body; the body is bold when a further `!` follows the prefix. Has `tryRewrite()` for in-game Component and `tryRewriteOutbound()` for WebSocket JSON. Resolves real usernames from hover text "X's real name is Y".
 
 ### StaffChannelMessageRewriter
-[src/client/java/org/wynnvets/chat/rewriter/StaffChannelMessageRewriter.java:21-218](src/client/java/org/wynnvets/chat/rewriter/StaffChannelMessageRewriter.java#L21-L218)
+[StaffChannelMessageRewriter](../src/client/java/org/wynnvets/chat/rewriter/StaffChannelMessageRewriter.java)
 
-Triggers on `🔐` lock prefix in private messages (the `/v` fanout discriminator).
-Extracts sender from: click event (`/msg <name>`), hover text ("real name is"), or username regex at end. Displays via `ChatUtils.sendStaffChannelMessage()`.
+Triggers on `🔐` lock prefix in private messages (the `/v` fan-out marker).
+Extracts sender from: click event (`/msg <name>`), hover text (via `NickResolver.flattenComponent` + `realUsernameFromHover`), or username regex at end. Displays via `ChatUtils.sendStaffChannelMessage()`.
 
 ### ServerGuildChatRewriter
-[src/client/java/org/wynnvets/chat/rewriter/ServerGuildChatRewriter.java:28-312](src/client/java/org/wynnvets/chat/rewriter/ServerGuildChatRewriter.java#L28-L312)
+[ServerGuildChatRewriter](../src/client/java/org/wynnvets/chat/rewriter/ServerGuildChatRewriter.java)
 
-Detects server guild chat from supporters (via `SupportersPoller.isSupporter()`). Re-renders with animated gradient pill: walks component tree for `banner/pill` font fragments, marks background glyphs with animation sentinel color (replaced at render time by `AnimatedChatMixin`), preserves dark letters.
+Rewrites VETS guild chat lines (gated on `GuildStateManager.isVetsGuildChat()`) whose sender's raw rank pill maps to a different display label (`RankDisplayMap.displayFor`), or whose sender is a supporter (via `SupportersPoller.isSupporter()`) while `showSupporterGlints` is on. The supporter path without a remap re-renders with animated gradient pill: flattens the component tree through `NickResolver.flattenComponent`, keeps the leaves whose resolved style uses the `banner/pill` font, marks background glyphs with animation sentinel color (replaced at render time by `AnimatedChatMixin`), preserves dark letters. Which span carries the font is what that selection turns on, so the inheritance direction is pinned in `NickResolverTest`, not assumed.
 
 ### SpoilerRewriter
-[src/client/java/org/wynnvets/chat/rewriter/SpoilerRewriter.java:27-242](src/client/java/org/wynnvets/chat/rewriter/SpoilerRewriter.java#L27-L242)
+[SpoilerRewriter](../src/client/java/org/wynnvets/chat/rewriter/SpoilerRewriter.java)
 
-Two paths: fast (single fragment contains complete PUA spoiler block) and cross-fragment (spans fragments / server-wrapped). Cross-fragment path preserves pill+name+colon prefix, accumulates body, processes through `ChatUtils.formatMessageBody()` which strips continuation markers.
+Flattens through `NickResolver.flattenComponent`, then takes one of two paths: fast (single fragment contains complete PUA spoiler block) or cross-fragment (spans fragments / server-wrapped). Cross-fragment path preserves pill+name+colon prefix, accumulates body, processes through `MessageBodyFormatter.formatMessageBody()` which strips continuation markers.
+
+### GuildChatLine
+[GuildChatLine](../src/client/java/org/wynnvets/chat/GuildChatLine.java)
+
+Splits `<rank pill glyphs> <display name>: <body>`. One shared header scan —
+find the last custom-font glyph before the first colon, the trimmed run up to
+the colon is the name — and two public entry points over it:
+
+| | `parse` | `parseServerLine` |
+|---|---|---|
+| callers | `EncourageUpdateRewriter`, `StaffGuildAlertRewriter` | `ServerGuildChatRewriter` |
+| `null` input | returns `null` | throws, no guard |
+| the body | trimmed substring | char offset the caller slices |
+| rank indicator | discarded | returned, carries the pill |
+| after the colon | `trim()`, so `<= U+0020` at both ends — not `strip()` | past literal `' '` only, leading only |
+
+The four differences are deliberate, not drift, and the class Javadoc carries
+the same table. `ServerGuildChatRewriter` rebuilds its line from the original
+`Component` tree, so it needs an offset that still lines up with the tree's own
+character positions — which a trimmed substring cannot give it. Pinned by
+`GuildChatLineTest`; the body-offset row only shows up when the character after
+the colon is a tab or a newline.
+
+### NickResolver
+[NickResolver](../src/client/java/org/wynnvets/chat/NickResolver.java)
+
+The repo's real-name and component-flattening authority. **Five** rewriters call
+it and none keeps a copy: all of §3's five. Three reach `flattenComponent`
+directly (`ServerGuildChatRewriter`, `SpoilerRewriter`,
+`StaffChannelMessageRewriter`); the other two arrive through
+`realUsernameOrFallback`.
+
+- `realUsernameOrFallback(root, fallback)` — first hover matching
+  `REAL_NAME_PATTERN` wins, else the fallback. `EncourageUpdateRewriter`,
+  `StaffGuildAlertRewriter`, `ServerGuildChatRewriter`.
+- `realUsernameFromHover(hover)` — the same match against one hover.
+  `StaffChannelMessageRewriter`, which walks the tree itself because it wants
+  the click event too.
+- `realNameSpanStyleOrFallback(root, fallback)` — the *style* of that span, so a
+  rebuilt name span keeps the nick's italic, colour and hover.
+- `flattenComponent(component, inherited, out)` — the tree walk, into
+  `FlatPart(text, style)`. Resolution is `child.applyTo(inherited)`: child fields
+  win, the ancestor fills gaps.
+
+That orientation is load bearing in two directions and both are pinned in
+`NickResolverTest`. A hover on an ancestor must not mask a `"real name is …"`
+hover on a descendant. And a span with no font of its own must inherit one, or
+`ServerGuildChatRewriter` selects no pill fragments at all.
+
+This walk itself was never wrong. What was wrong was
+`EncourageUpdateRewriter`'s **private copy** of it, which had receiver and
+argument swapped — that is what made a nicked staff sender fail the staff gate,
+and it affected only that one rewriter. The copy is gone.
 
 ## 4. Spoiler PUA codec
 
-[src/client/java/org/wynnvets/chat/spoiler/SpoilerCodec.java:23-194](src/client/java/org/wynnvets/chat/spoiler/SpoilerCodec.java#L23-L194) — mirrors [temporary-server/app/parsers/spoiler_codec.py](../../temporary-server/app/parsers/spoiler_codec.py).
+[SpoilerCodec](../src/client/java/org/wynnvets/chat/spoiler/SpoilerCodec.java) — mirrors [temporary-server/app/parsers/spoiler_codec.py](../../temporary-server/app/parsers/spoiler_codec.py).
 
 - `\uF600` block start, `\uF601` block end
 - `\uF602–\uF6FF` = direct 1:1 encoding for chars 0-253 (base = 0xF602)
@@ -76,119 +134,150 @@ Two paths: fast (single fragment contains complete PUA spoiler block) and cross-
 
 Pipe regex: `\|\|(.+?)\|\|` (non-greedy). Predicates: `containsPipeSpoiler()`, `containsEncodedSpoiler()`.
 
-`SpoilerFormatter.appendWithSpoilers()` renders PUA blocks as green `[Spoiler]` labels with hover text showing decoded content. Gated by `VetsConfig.HANDLE_SPOILERS` (tri-state: null=default=on).
+`SpoilerFormatter.appendWithSpoilers()` renders PUA blocks as green `[Spoiler]` labels with hover text showing decoded content. Gated by `VetsConfigKeys.HANDLE_SPOILERS` (tri-state: null=default=on).
 
 ## 5. OutboundDisplayHandler
 
-[src/client/java/org/wynnvets/chat/OutboundDisplayHandler.java](src/client/java/org/wynnvets/chat/OutboundDisplayHandler.java)
+[OutboundDisplayHandler](../src/client/java/org/wynnvets/chat/OutboundDisplayHandler.java)
 
-Receives all server-pushed messages from `V1ApiManager`.
+Receives the outbound frames `V1ApiManager` fans out to its outbound listeners. It is one of them, and `V1ApiManager` routes `server_info` and `staff_online`/`staff_offline` away before the fan-out.
 
 State:
 - `pendingSelfMessages` Deque (max 50, 30s TTL) — echo-suppress messages user just sent
-- `recentBridgeMessages` Deque (max 200, 10s TTL) — bridge-echo dedup via normalized-text compare (strips whitespace + PUA)
+- `recentBridgeMessages` Deque (max 200, 10s TTL) — bridge-echo dedup via normalized-text compare (strips whitespace and every `PillCodec.isCustomGlyph` codepoint)
 - `recentUuids` LinkedHashMap (max 200, 10s TTL) — UUID-based dedup
 
-Flow: message → UUID dedup → self suppression → bridge echo check → display via `ChatUtils.sendGuildChatMessage()`.
+Flow: a `warning` frame → `WarningFrameRenderer.render`, skipping every step after it (today none arrives: bug `outbound-socket-never-authenticated`). Any other frame → `PRINT_BRIDGE_MESSAGES` gate → audience gate (`shouldDisplayMessages`) → UUID dedup → dropped if `username` or `message` is empty → self suppression → Returners' `guild` frames dropped unless queued → `bridge` frames recorded for `WynntilsEventListener.onGuildChat`'s echo check (`wasBridgeEcho`) → for a `guild` or `queue` frame, a staff `‼` alert via `StaffGuildAlertRewriter.tryRewriteOutbound` → otherwise display via `ChatUtils.sendHonouraryChatMessage()` (honourary-unlocked viewer) or `ChatUtils.sendGuildChatMessage()`.
 
-## 6. ChatUtils — the formatting engine
+## 6. The formatting engine
 
-[src/client/java/org/wynnvets/chat/ChatUtils.java:34-660](src/client/java/org/wynnvets/chat/ChatUtils.java#L34-L660)
+### ChatUtils
 
-Key entry points:
-- `sendGuildChatMessage()` line 127 — `<badge> <pill> <username>: <body>`
-- `sendGuildChatMessageRed()` line 166 — admin-locked red styling
-- `sendStaffChannelMessage()` line 255 — staff-style with special pill
-- `formatMessageBody()` line 333 — strips server continuation markers, makes URLs clickable, formats spoilers
-- `stripServerContinuations()` line 406 — removes `\n + marker` sequences
-- `wrapBlockMessage()` line 539 — word-wrap with continuation block markers
-- `dispatchToChat()` line 641 — thread-safe dispatch
-- `dispatchAnimatedChat()` line 607 — dispatch with gradient animation context
+[ChatUtils](../src/client/java/org/wynnvets/chat/ChatUtils.java)
 
-URL regex: `https?://\S+` (line 64).
+Key methods:
+- `sendGuildChatMessage()` — `<badge> <pill> <username>: <body>`
+- `sendGuildChatMessageRed()` — red guild-chat styling; reached only through `sendStaffChannelMessage()` (the `/v` staff-channel look)
+- `sendStaffChannelMessage()` — staff-style with special pill
 
-Styles: `RANK_STYLE` = aqua, `NAME_STYLE` = dark aqua, `ADMIN_RANK_STYLE` = red, `CHAT_PREFIX_STYLE` references custom `chat/prefix` font for glyphs.
+Styles: `RANK_STYLE` = aqua, `NAME_STYLE` = dark aqua, `ADMIN_RANK_STYLE` = red.
+
+### MessageBodyFormatter
+
+[MessageBodyFormatter](../src/client/java/org/wynnvets/chat/MessageBodyFormatter.java) formats a message body for the senders above and for the rewriters that rebuild a server line.
+
+Key methods (`stripServerContinuations` is a helper, package-private only for its test, not an entry point):
+- `formatMessageBody()` — strips server continuation markers, makes URLs clickable, formats spoilers
+- `stripServerContinuations()` — removes `\n + marker` sequences
+- `isWrapStructure()` — whether a fragment is only wrap structure (a lone newline or a prefix marker)
+
+URL regex (`URL_PATTERN`, case-insensitive): `(?<!§)(https?://\S+|[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+/\S*)` — it also matches schemeless `domain.tld/path`, and the lookbehind keeps it off section-sign colour codes.
+
+`CHAT_PREFIX_STYLE` references custom `chat/prefix` font for the inline separator and the continuation markers.
+
+`MessageBodyFormatterTest` pins `formatMessageBody` on bodies made only of markers and URLs, because any other text reaches `VetsConfig` through the spoiler formatter, and pins `stripServerContinuations` directly, including a check over every short string of marker pieces that no newline is left before a marker.
+
+### LegacyTextParser
+
+[LegacyTextParser](../src/client/java/org/wynnvets/chat/LegacyTextParser.java)`.literalWithUrls()` builds a component from text carrying legacy `§` codes (the MOTD bodies `MotdFetcher` fetches): each code styles the text after it, and URLs and encoded spoilers go through `MessageBodyFormatter`'s URL and spoiler handling. A colour code resets to the base style plus the colour, where vanilla clears the format flags; the two agree when the base style carries none. `LegacyTextParserTest` pins every code on a body that is codes and a URL only.
+
+### LocalChatDispatch
+
+[LocalChatDispatch](../src/client/java/org/wynnvets/chat/LocalChatDispatch.java) puts a built line on the chat HUD: `ChatUtils`' senders hand their lines to it, and the rewriters that rebuild a whole line call it directly.
+
+Key methods (`wrapBlockMessage` is a private helper, not an entry point):
+- `wrapBlockMessage()` — word-wrap with continuation block markers
+- `dispatchToChat()` — thread-safe dispatch
+- `dispatchAnimatedChat()` — dispatch with gradient animation context
 
 `INTERNAL_CHAT_DISPATCH` ThreadLocal marks mod-generated messages (skip re-logging + rewriter chain).
 
 ## 7. PillFormatter
 
-[src/client/java/org/wynnvets/chat/PillFormatter.java:24-127](src/client/java/org/wynnvets/chat/PillFormatter.java#L24-L127)
+[PillFormatter](../src/client/java/org/wynnvets/chat/PillFormatter.java)
 
-Formats rank "pill" (badge) component with supporter gradient.
+Formats rank "pill" (badge) component from the caller's supporter determination. When the sender is a supporter and `SHOW_SUPPORTER_GLINTS` is on, the pill takes the animation sentinel color; otherwise it takes the flat base style.
 
-- PUA pills (server-rendered `chat/prefix` font): whole component gets single marker color (gradient-per-character breaks composite font glyph)
-- ASCII pills (bridge messages): each character gets marker color
-- If `SHOW_SUPPORTER_GLINTS` enabled and supporter → animation sentinel color
+- PUA pills (vetsmod's own encoded pill, from `PillCodec.encodeRemote` — every pill `formatPill` currently receives): whole component gets the single marker color, because a per-character gradient would break the composite glyphs. Renders in the default font, not `chat/prefix`.
+- A plain-text label would get the marker color per character instead, but no current caller passes one.
 
 ## 8. Prepend (badge dedup)
 
-[src/client/java/org/wynnvets/chat/Prepend.java:19-124](src/client/java/org/wynnvets/chat/Prepend.java#L19-L124)
+[Prepend](../src/client/java/org/wynnvets/chat/Prepend.java)
 
-Enum: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge, compact block marker for consecutive messages within 18 lines), `EMPTY`. Mirrors native Wynncraft behaviour.
+Enum, four constants: `DEFAULT` (gold vetsmod badge), `GUILD` (aqua guild badge, compact block marker for consecutive messages within 18 lines), `GUILD_HONOURARY`, `EMPTY`. Mirrors native Wynncraft behaviour.
 
 ## 9. Dispatcher system (staff chat + /find)
 
-Solves: serialize command dispatch on a single-threaded executor and wait for server feedback before next send.
+Solves, for the three executor-backed classes below: serialize command dispatch on a single-threaded executor and wait for server feedback before next send.
 
-### CommandDispatcher
-[src/client/java/org/wynnvets/chat/dispatcher/CommandDispatcher.java:101-150](src/client/java/org/wynnvets/chat/dispatcher/CommandDispatcher.java#L101-L150)
+`GuildChatDispatcher`, also in `chat/dispatcher/`, has no executor. It is the synchronous prefix router that `GuildChatCommandMixin` calls at the head of `ClientPacketListener.sendCommand`, for each command that reaches that hook (§1, outbound; a command another `HEAD` hook cancels first never does, and [vetsmod_mixins.md](vetsmod_mixins.md) owns the hooks), and it reaches this section only through `DispatchCoordinator`'s staff gate: `/v` via `dispatchStaffChatWithEligibilityGate`, `/a` and `/encourage` via `executeWithStaffEligibilityGate`.
 
-Single-threaded `DISPATCH_EXECUTOR`. `/msg` batches drain first (priority), then `/find`. Provides `shouldSuppressFeedback()` and `shouldSuppressFindResponse()` used by ChatLogMixin.
+### DispatchCoordinator
+[DispatchCoordinator](../src/client/java/org/wynnvets/chat/dispatcher/DispatchCoordinator.java)
+
+Gates `/v`, `/a` and `/encourage` on staff eligibility, and owns the single-threaded `DISPATCH_EXECUTOR` that serializes the `/v` fan-out (sent as `/msg`) and the `/find` batches (those are enqueued on `FindDispatcher` directly, not here). `/msg` takes priority: each pass handles queued `/msg` first, then every queued `/find` batch, including ones queued during that phase. Today a `/msg` arriving mid-`/find` waits for the next pass (bug `find-phase-does-not-yield-to-queued-msg`). Provides `shouldSuppressFeedback()` and `shouldSuppressFindResponse()` used by ChatLogMixin.
 
 ### MessageFanoutDispatcher
-[src/client/java/org/wynnvets/chat/dispatcher/MessageFanoutDispatcher.java:27-532](src/client/java/org/wynnvets/chat/dispatcher/MessageFanoutDispatcher.java#L27-L532)
+[MessageFanoutDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/MessageFanoutDispatcher.java)
 
-Fans `/v` out as `/msg <recipient> 🔐 <message>` to every online staff member. Constants:
-- `LOCK_PREFIX = "🔐"` (unique `/v` discriminator)
+Fans `/v` out as `/msg <recipient> 🔐<message>` (no space after the lock) to every online staff member in the feed except yourself. Constants:
+- `DispatchCoordinator.LOCK_PREFIX = "🔐"` (the `/v` fan-out marker, and one of the echo-matching signals; declared there, not here)
 - `SUPPRESSION_TTL_MS = 15_000`
 - `OFFLINE_GUIDANCE_SUPPRESSION_WINDOW_MS = 4_000`
 - `INTER_SEND_DELAY_MS = 600`
 - `MAX_DISPATCH_RETRIES = 3`
 
-Multi-strategy feedback matching (called from ChatLogMixin on incoming messages):
+Multi-strategy feedback matching in `MessageFanoutDispatcher.shouldSuppressFeedback` (reached from ChatLogMixin; the direct caller is `DispatchCoordinator.shouldSuppressFeedback`):
 1. Offline-guidance blanket-suppression (4s window after offline error)
-2. Direct echo match (exact normalized payload + recipient or lock prefix)
-3. Lock-prefix + recipient fallback (Wynntils rewrote coordinates)
-4. Censored variant (non-`*` chars align with payload)
-5. Token subsequence (last resort)
+2. Payload echo (plain match, then censored variant, then token subsequence; needs the recipient or the lock prefix too)
+3. Lock-prefix + recipient fallback, when the payload test fails (e.g. Wynntils rewrote coordinates)
+4. Offline-recipient error for the pending recipient (reports offline, opens the guidance window)
+
+Steps 2–4 are tried against each pending send in turn, oldest first; the first match wins.
 
 ### FindDispatcher
-[src/client/java/org/wynnvets/chat/dispatcher/FindDispatcher.java:26-273](src/client/java/org/wynnvets/chat/dispatcher/FindDispatcher.java#L26-L273)
+[FindDispatcher](../src/client/java/org/wynnvets/chat/dispatcher/FindDispatcher.java)
 
-Batch `/find <username>` dispatcher. `enqueueFindBatch()` returns `CompletableFuture<Map<username,server>>`. Parses responses: "currently on server XX##", "currently on a private server" (sentinel `"PRIVATE"`), "not currently online" (null). `FIND_RESPONSE_WAIT_MS = 6_000`.
+Batch `/find <username>` dispatcher. `enqueueFindBatch(usernames, resultFuture)` completes the caller-supplied `CompletableFuture<Map<username, server>>`; `WorldListFetcher` calls it. Parses responses: "currently on server XX##" (server stored lower-cased), "currently on a private server" (sentinel `"PRIVATE"`), "not currently online" (null); a lookup with no matching reply within `FIND_RESPONSE_WAIT_MS = 6_000` is null too.
 
 ## 10. AnimatedChatMixin
 
-[src/client/java/org/wynnvets/mixin/client/chat/AnimatedChatMixin.java:25-65](src/client/java/org/wynnvets/mixin/client/chat/AnimatedChatMixin.java#L25-L65)
+[AnimatedChatMixin](../src/client/java/org/wynnvets/mixin/client/chat/AnimatedChatMixin.java)
 
-`@Mixin(ChatComponent.class)` on `addMessageToDisplayQueue` HEAD + RETURN. Snapshots line count before insertion, wraps newly inserted lines with `AnimatedGradientSequence` when `AnimatedGradientSequence.beginAnimation()` is in effect on the current thread.
+`@Mixin(ChatComponent.class)` on `addMessageToDisplayQueue` HEAD + RETURN. Snapshots the *identity* of the current first line at HEAD, then at RETURN walks forward to that same reference to count what was prepended and wraps those lines with `AnimatedGradientSequence`. The wrapper is built from `AnimatedGradientSequence`'s effective defaults, not from the `beginAnimation()` ThreadLocal — colours passed to `beginAnimation` do not reach it.
 
 ## 11. Custom fonts / PUA glyphs
 
 | Font | Used for | Glyphs |
 |------|----------|--------|
-| `chat/prefix` | Guild badge, alerts, block markers, rank letters | `\uDAFF\uDFFC` (guild badge), `\uE030–\uE059` (rank letters) |
+| `chat/prefix` | Guild badge, alerts, block markers | `\uDAFF\uDFFC` (guild badge) |
 | `banner/pill` | Server-rendered rank pills | background (aqua) + foreground (dark) composite |
 | Spoiler PUA | Encoded spoilers | `\uF600`/`\uF601` delimiters, `\uF602–\uF700` content |
 
+Rank-letter glyphs aren't `chat/prefix`: vetsmod's own pills render in the default font (uppercase `\uE040–\uE059`), and the server's rank pill uses `banner/pill`. See [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
+
+`PillCodec` owns both halves of this: the pill sequences, and the predicate for whether a codepoint is glyph art at all — `isCustomGlyph(int)`, seven call sites across six classes, three deliberate non-callers. Both are documented in [vetsmod_pua_pills.md](vetsmod_pua_pills.md).
+
+**Top-level `chat/` classes described elsewhere.** `DiscordTimestamps`, which expands Discord's `<t:EPOCH:STYLE>` markup client-side, is described with its one caller, `/wv return`, in [vetsmod_commands.md](vetsmod_commands.md) §1. `RankDisplayMap` maps a raw Wynncraft guild rank to what vetsmod shows for it: `displayFor` gives the display label from the 2026-07 permission restructure (Returner, Steward) and returns a rank it does not know unchanged, and `vTagFor` gives the tag on a `/v` staff-channel pill (`ChatUtils.buildStaffPillComponent`). [vetsmod_pua_pills.md](vetsmod_pua_pills.md) §"Where decoding happens" shows where `ServerGuildChatRewriter` applies it, after the pill decode that tries `ChatLogger`'s rank map first. `ChatLogger`'s logging is step 2 of §2's list, and `WarningFrameRenderer` is the `warning`-frame path in §5.
+
 ## 12. Regex quick reference
 
-| Pattern | File:line | Purpose |
+| Pattern | Constant | Purpose |
 |---------|-----------|---------|
-| `https?://\S+` | ChatUtils.java:64 | URL detection |
-| `\|\|(.+?)\|\|` | SpoilerCodec.java:51 | Pipe spoilers |
-| `real\s+name\s+is\s+([A-Za-z0-9_]{1,16})` | multiple rewriters | Hover→real-name |
-| `/msg\s+([A-Za-z0-9_]{1,16})` | StaffChannelMessageRewriter.java:26 | Click→recipient |
-| `([A-Za-z0-9_]{1,16})\s*$` | StaffChannelMessageRewriter.java:25 | Username-at-end |
-| `⚠⚠⚠ If you are using vetsmod.*` | EncourageUpdateRewriter.java:34 | Version nag |
+| `(?<!§)(https?://\S+\|[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+/\S*)` | `MessageBodyFormatter.URL_PATTERN` | URL detection (scheme or schemeless) |
+| `\|\|(.+?)\|\|` | `SpoilerCodec.PIPE_SPOILER` | Pipe spoilers |
+| `real\s+name\s+is\s+([A-Za-z0-9_]{1,16})` | `NickResolver.REAL_NAME_PATTERN` | Hover→real-name (one copy; `EncourageUpdateRewriter`'s private duplicate was deleted) |
+| `/msg\s+([A-Za-z0-9_]{1,16})` | `StaffChannelMessageRewriter.MSG_COMMAND_PATTERN` | Click→recipient |
+| `([A-Za-z0-9_]{1,16})\s*$` | `StaffChannelMessageRewriter.USERNAME_AT_END` | Username-at-end |
+| `⚠⚠⚠ If you are using vetsmod.*` | `EncourageUpdateRewriter.ENCOURAGE_PATTERN` | Version nag |
 
 ## 13. Thread safety
 
-All rewriters + ChatLogMixin run on the render thread. Dispatcher serializes outbound commands via a single-threaded executor. Suppression state protected by `Object` locks (`SUPPRESSION_ACK_LOCK`, `FIND_RESPONSE_LOCK`). Dedup caches use `ConcurrentLinkedQueue` + synchronized blocks.
+`ChatLogMixin` and its rewriter chain run on the render thread. `WarningFrameRenderer.render` and `StaffGuildAlertRewriter.tryRewriteOutbound` do not: `OutboundDisplayHandler` calls them on the thread that delivers the outbound socket's frames, and their output reaches chat only through `LocalChatDispatch`'s own `Minecraft.execute` bounce to the render thread. `DispatchCoordinator` serializes the `/v` fan-out and the `/find` lookups on a single-threaded executor; each command itself is queued from the render thread. Suppression state protected by `Object` locks (`SUPPRESSION_ACK_LOCK`, `FIND_RESPONSE_LOCK`). Dedup caches are plain collections read and written inside `synchronized` blocks (`OutboundDisplayHandler`'s three each have their own lock object).
 
 ## 14. Feature gates
 
-- `PRINT_BRIDGE_MESSAGES` — enable bridge message display (default true)
+- `PRINT_BRIDGE_MESSAGES` — display of all WebSocket-relayed chat, not only bridge; server-pushed `warning` frames bypass it (default true)
 - `SHOW_SUPPORTER_GLINTS` — enable animated gradient pill (default true)
 - `HANDLE_SPOILERS` — tri-state: null=default(on)/true/false

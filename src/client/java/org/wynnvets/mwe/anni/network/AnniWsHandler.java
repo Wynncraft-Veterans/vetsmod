@@ -1,7 +1,6 @@
 package org.wynnvets.mwe.anni.network;
 
 import com.google.gson.JsonObject;
-
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
@@ -11,13 +10,15 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * WebSocket frame router for the MWE/anni subsystem.
  *
  * <p>Subscribes to {@link V1ApiManager#addOutboundListener(java.util.function.Consumer)}
- * and demultiplexes two frame types — every other type is left for other
- * listeners to handle (the V1 API outbound channel is a fan-out, not an
- * exclusive consumer model):</p>
+ * and to the inbound channel, and demultiplexes one outbound and three
+ * inbound frame types plus a fourth it only logs — every other type is
+ * left for other listeners to handle (the V1 API outbound channel is a
+ * fan-out, not an exclusive consumer model):</p>
  *
  * <ul>
- *   <li>{@code anni_state} (outbound channel): server-initiated push.
- *       Snapshot is dropped into
+ *   <li>{@code anni_state} (outbound channel): server-initiated push, sent only to an
+ *       authenticated outbound socket, so today it never arrives
+ *       ({@code outbound-socket-never-authenticated}). Snapshot is dropped into
  *       {@link AnniSnapshotCache#update(AnniSnapshot)} so all subscribed
  *       surfaces re-render.</li>
  *   <li>{@code anni_query_response} (inbound channel): ack for an
@@ -25,11 +26,23 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *       future in the query client's single-flight queue. Lives on the
  *       inbound channel because it's a request/response pair on the
  *       same WS the request went out on.</li>
+ *   <li>{@code anni_scrollspot_response} and {@code anni_rsvp_response}
+ *       (inbound channel): the same request/response shape, routed to
+ *       {@link AnniScrollspotClient#onResponse} and
+ *       {@link AnniRsvpClient#onResponse}.</li>
+ *   <li>{@code anni_party_observation_response} (inbound channel):
+ *       debug-logged inline. The report is fire-and-forget, so there is
+ *       no single-flight queue and no consumer state.</li>
  * </ul>
+ *
+ * <p>{@link #register()} additionally installs a post-connect
+ * {@link AnniQueryClient#query()} re-pull. It runs on the first inbound
+ * connect as well as on every reconnect, so each connection asks for a
+ * fresh snapshot.</p>
  *
  * <p>Idempotent registration via the static {@link #register()} method —
  * call from {@link org.wynnvets.VetsmodClient#onInitializeClient()} after
- * {@code V1ApiManager.connect()}. Calling twice is a no-op. Subscribes
+ * {@link V1ApiManager#connect()}. Calling twice is a no-op. Subscribes
  * to both inbound and outbound channels via
  * {@link org.wynnvets.api.V1ApiManager#addInboundListener(java.util.function.Consumer)}
  * and {@code addOutboundListener(...)}.</p>
@@ -38,8 +51,7 @@ public final class AnniWsHandler {
 
     private static volatile boolean registered = false;
 
-    private AnniWsHandler() {
-    }
+    private AnniWsHandler() {}
 
     /** Wire up the inbound + outbound listeners. Safe to call repeatedly. */
     public static void register() {
@@ -50,13 +62,14 @@ public final class AnniWsHandler {
         V1ApiManager.addInboundListener(AnniWsHandler::onInbound);
         V1ApiManager.addOutboundListener(AnniWsHandler::onOutbound);
         // Re-pull a fresh snapshot on every inbound (re)connect — the
-        // server only pushes anni_state on certain events, so a world
-        // transfer that drops the socket would otherwise leave the
-        // cache frozen on whatever was current at the previous connect
-        // until the next server-initiated push (which may never come
-        // for the user's own RSVP/role edits). Cheap on cold start
-        // (single-flight queue collapses with the StampFetcher cold
-        // path), correct on reconnect.
+        // server pushes anni_state only on certain events (and today not to
+        // vetsmod at all: outbound-socket-never-authenticated), so a socket drop
+        // would otherwise leave the cache frozen on whatever was current at the
+        // previous connect until another pull refreshes it (AnniSnapshotPoller only
+        // runs inside the anni window; a push may never come for the user's own
+        // RSVP/role edits, and today none arrives). Cheap on cold start: one small
+        // frame, possibly alongside StampFetcher's world-join pull (queries are
+        // queued FIFO, not coalesced). Correct on reconnect.
         V1ApiManager.addInboundPostConnectListener(AnniQueryClient::query);
         VetsLogger.debug("AnniWsHandler registered");
     }
@@ -85,15 +98,16 @@ public final class AnniWsHandler {
             // S7 ack — debug-logged only; no client-side single-flight queue.
             // The frame fires fire-and-forget from PartyRosterListener; if a
             // future debug surface needs ack diagnostics, mirror S6's
-            // AnniRsvpClient (lastAck / pendingCount).
+            // AnniRsvpClient.debugDump().
             String status = json.has("status") ? json.get("status").getAsString() : "?";
-            String detail = json.has("detail") && !json.get("detail").isJsonNull()
-                    ? json.get("detail").getAsString() : null;
+            String detail =
+                    json.has("detail") && !json.get("detail").isJsonNull()
+                            ? json.get("detail").getAsString()
+                            : null;
             if ("ok".equals(status)) {
                 VetsLogger.debug("anni_party_observation_response: ok");
             } else {
-                VetsLogger.debug(
-                        "anni_party_observation_response: {} — {}", status, detail);
+                VetsLogger.debug("anni_party_observation_response: {} — {}", status, detail);
             }
         }
     }

@@ -1,5 +1,7 @@
 package org.wynnvets.mwe.anni.zone;
 
+import com.wynntils.utils.mc.McUtils;
+import java.util.List;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -7,10 +9,9 @@ import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
 import net.minecraft.world.phys.Vec3;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.aggressive.AnniAggressiveTicker;
-
-import java.util.List;
 
 /**
  * S5 — draws the union of {@link AnniZone}'s 48-block disc circumferences
@@ -28,12 +29,25 @@ import java.util.List;
  * ring positions as the player moves vertically.</p>
  *
  * <p><b>Gate:</b> {@link AnniAggressiveTicker#isAggressiveActive()} AND
- * {@link VetsConfig#VETS_ANNI_ZONE_LINES}. No zone-presence check — per
- * the S5 design, aggressive features are window-scoped and visible
- * regardless of player position so users flying in can see the boundary.</p>
+ * {@link VetsConfigKeys#VETS_ANNI_ZONE_LINES}. No zone-presence check — per
+ * the S5 design, aggressive features are window-scoped, not
+ * location-scoped, so standing outside the zone does not switch them off.</p>
  *
- * <p>Distance culling: discs whose centre is more than ~200 blocks from
- * the player are skipped (cheap squared-distance test). Matches the
+ * <p>⚠️ <b>That is a statement about the gate, not about visibility.</b> The
+ * lines are not "visible regardless of player position": the culling below
+ * skips any disc whose centre is more than {@code 200} blocks away
+ * horizontally, and with {@link AnniZone}'s 48-block radius a ring's near edge
+ * is therefore still culled beyond roughly <b>152 blocks</b> — so the lines can
+ * only show up on final approach, not on the flight in. 152 is a ceiling, not a
+ * promise: whether a ring is actually drawn at that range also depends on the
+ * client's render distance, which at 8 chunks is shorter than the cull. The gate and the draw distance are two independent
+ * limits and only the first was decided in S5 planning.
+ * {@code vetsmod_mwe_anni.md} §"Aggressive mode" states it this way; an
+ * earlier version of this paragraph and of
+ * {@link AnniAggressiveTicker}'s class doc both promised the opposite.</p>
+ *
+ * <p>Distance culling: the cheap squared-distance test named above, measured
+ * to the disc <em>centre</em> and on the X/Z plane only. Matches the
  * spirit of TerritoryLineRenderer's culling discipline; the zone is
  * small (1-2 discs total in practice) so culling rarely fires, but it
  * keeps the renderer cheap if vets-anni ever splits the event.</p>
@@ -44,7 +58,7 @@ public final class AnniZoneLineRenderer {
     private static final double CULL_DISTANCE_SQ = 200.0 * 200.0;
 
     /** ARGB — translucent magenta to differentiate from green/red
-     *  territory lines and from the magenta scroll-spot beacon. Bright
+     *  territory lines and from the dark-red scroll-spot beacon. Bright
      *  enough to see at distance, alpha 0xAA so it doesn't overwhelm. */
     private static final int LINE_COLOR_ARGB = 0xAAFF55FF;
 
@@ -62,8 +76,7 @@ public final class AnniZoneLineRenderer {
 
     private static volatile boolean registered = false;
 
-    private AnniZoneLineRenderer() {
-    }
+    private AnniZoneLineRenderer() {}
 
     public static void register() {
         if (registered) return;
@@ -74,9 +87,9 @@ public final class AnniZoneLineRenderer {
 
     private static void render() {
         if (!AnniAggressiveTicker.isAggressiveActive()) return;
-        if (!VetsConfig.get(VetsConfig.VETS_ANNI_ZONE_LINES)) return;
+        if (!VetsConfig.get(VetsConfigKeys.VETS_ANNI_ZONE_LINES)) return;
 
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         LocalPlayer player = mc.player;
         if (player == null) return;
@@ -90,8 +103,7 @@ public final class AnniZoneLineRenderer {
         // Snap to the nearest Y_STEP so the ring positions stay stable
         // as the player moves vertically — otherwise the rings jitter
         // every block-tick of altitude change.
-        long baseY = Math.floorDiv((long) Math.floor(ppos.y), (long) Y_STEP)
-                * (long) Y_STEP;
+        long baseY = Math.floorDiv((long) Math.floor(ppos.y), (long) Y_STEP) * (long) Y_STEP;
 
         for (AnniZone.Disc disc : discs) {
             double dx = ppos.x - disc.x();
@@ -99,11 +111,7 @@ public final class AnniZoneLineRenderer {
             if (dx * dx + dz * dz > CULL_DISTANCE_SQ) continue;
             for (int level = -LEVELS_EITHER_SIDE; level <= LEVELS_EITHER_SIDE; level++) {
                 double y = baseY + (long) level * (long) Y_STEP;
-                Gizmos.circle(
-                        new Vec3(disc.x(), y, disc.z()),
-                        (float) disc.radius(),
-                        style
-                );
+                Gizmos.circle(new Vec3(disc.x(), y, disc.z()), (float) disc.radius(), style);
             }
         }
     }

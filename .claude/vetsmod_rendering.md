@@ -1,17 +1,17 @@
 ---
 name: vetsmod Rendering System
-description: Non-legacy rendering — territory lines, nametag animator, animated gradient sequence, gradient text builder, shader color palette
+description: Non-legacy rendering — territory lines, nametag animator, animated gradient sequence, gradient text builder, shader color palette, and the transferable render-pipeline lessons
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Rendering System
 
-Package: [src/client/java/org/wynnvets/rendering/](src/client/java/org/wynnvets/rendering/). 6 files across two sub-packages.
+Package: [org.wynnvets.rendering](../src/client/java/org/wynnvets/rendering/). 7 files across three sub-packages.
 
 ## 1. Territory subpackage
 
 ### TerritoryLineRenderer
-[src/client/java/org/wynnvets/rendering/territory/TerritoryLineRenderer.java:24-78](src/client/java/org/wynnvets/rendering/territory/TerritoryLineRenderer.java#L24-L78)
+[TerritoryLineRenderer](../src/client/java/org/wynnvets/rendering/territory/TerritoryLineRenderer.java)
 
 Draws territory boundary outlines using Minecraft's Gizmos API.
 - Green = player inside territory
@@ -22,38 +22,39 @@ Draws territory boundary outlines using Minecraft's Gizmos API.
 Credit: inspired by avomod2's `TerritoryOutlineRenderer` by Avicia (Yarn→Mojang mapping adapted).
 
 ### TerritoryLineManager
-[src/client/java/org/wynnvets/rendering/territory/TerritoryLineManager.java:29-141](src/client/java/org/wynnvets/rendering/territory/TerritoryLineManager.java#L29-L141)
+[TerritoryLineManager](../src/client/java/org/wynnvets/rendering/territory/TerritoryLineManager.java)
 
 - Toggle state: `ConcurrentHashMap<String, Boolean> activeLines`
-- Aliases: `church` → Forest of Eyes, `scrap` → Corkus Sea Cove
+- Aliases (`TerritoryLineManager.LINE_ALIASES`, five entries): `church` → Forest of Eyes, `scrap` → Corkus Sea Cove, `bat` → Royal Barracks, `hegea` → Fort Hegea, `lighthouse` → Contested District
 - Fetches territory data from `https://api.wynncraft.com/v3/guild/list/territory` on activation
 - Normalizes bounds `[startX, startZ, endX, endZ]` with min/max
 
-Used by `/wv line <church|scrap>` command.
+Used by the `/wv line <church|scrap|bat|hegea|lighthouse>` command.
 
 ## 2. Nametag subpackage
 
 ### NametagAnimator
-[src/client/java/org/wynnvets/rendering/nametag/NametagAnimator.java:29-256](src/client/java/org/wynnvets/rendering/nametag/NametagAnimator.java#L29-L256)
+[NametagAnimator](../src/client/java/org/wynnvets/rendering/nametag/NametagAnimator.java)
 
 Animated gradient for supporter usernames in nametags.
 
 Animation mechanics:
 - Cycle: 3000ms ping-pong
-- Lighten factor: 0.65 — blends toward light lavender (255, 225, 255)
+- Lighten factor: 0.65 — blends toward light lavender (255, 225, 255) outside colour-blind mode; in colour-blind mode the wave runs from a darkened copy (`CV_DARKEN_FACTOR`) to a blend toward white (`CV_LIGHTEN_FACTOR`) instead
 - Per-character phase: `charPhase = idx / (usernameLen - 1)`, then `phase = (charPhase + time) % 1.0`
-- Wave formula matches `AnimatedGradientSequence`
+- Wave formula matches `AnimatedGradientSequence`; the RGB interpolation underneath it is shared code, `ColorMath.interpolateRgb`
+- `mixToward` / `lighten` / `darken` do **not** share `ColorMath` — they clamp each channel into `0..255`, and `ColorMath` deliberately does not
 
 Features:
 - Case-insensitive username location (searches from END for last occurrence)
 - Handles Wynncraft nametag format: `[colour1][symbol] [colour2][prefix] username` with PUA chars
 - Segment boundary handling for split username parts
-- Called every render frame from `NametagMixin` — no external tick
+- Called every render frame from `NametagMixin` — no external tick — through `applyOverride`'s supporter branch, which the anni nametag branch pre-empts while it fires (highlight gate open and `vetsAnniNametagsEnabled` on). With wynnmod loaded the `extractRenderState` TAIL path returns before the supporter branch (`WYNNMOD_PRESENT`) and only the `submitNameTag` `@WrapOperation` animates, re-glinting inside wynnmod's badge. Without wynnmod both injectors reach it; the second pass is meant to leave the glint as the first drew it, but today it re-animates the already-glinted name, so the glint is animated twice per frame (bug `nametag-supporter-glint-reanimated-without-wynnmod`)
 
 ## 3. Colors subpackage
 
 ### AnimatedGradientSequence
-[src/client/java/org/wynnvets/rendering/colors/AnimatedGradientSequence.java:33-157](src/client/java/org/wynnvets/rendering/colors/AnimatedGradientSequence.java#L33-L157)
+[AnimatedGradientSequence](../src/client/java/org/wynnvets/rendering/colors/AnimatedGradientSequence.java)
 
 `FormattedCharSequence` wrapper that applies animated two-colour gradient to chars with marker colour.
 
@@ -61,10 +62,10 @@ Marker colors (sentinels; replaced at render time):
 - `MARKER_COLOR = 0x00DEAD` — normal animation
 - `GREY_MARKER_COLOR = 0x00DEAF` — grey animation
 
-Defaults:
-- Start: Dark Aqua `0x55FFFF`
-- End: Light aqua `0xAADDFF`
-- Grey: `0x888888 → 0xBBBBBB`
+Defaults. All four resolve through `effectiveDefaultStart()` / `effectiveDefaultEnd()` / `effectiveGreyStart()` / `effectiveGreyEnd()`, which swap in the `CV_*` pairs when `colorBlindMode` is on — but at different times: the grey pair is read per-frame inside `accept()`, while the default pair is read once by the caller and frozen into the sequence's `startColor`/`endColor` at construction, so toggling `colorBlindMode` only reaches already-wrapped lines through the grey path.
+- Start: Dark Aqua `0x55FFFF` — `CV_DEFAULT_START_COLOR = 0x6699BB`
+- End: Light aqua `0xAADDFF` — `CV_DEFAULT_END_COLOR = 0xDDF0FF`
+- Grey: `0x888888 → 0xBBBBBB` — `CV_GREY_START_COLOR = 0x666666`, `CV_GREY_END_COLOR = 0xCCCCCC`
 - Cycle: 3000ms
 
 `ThreadLocal<AnimConfig>` for context-safe setup/teardown. Usage:
@@ -81,35 +82,58 @@ Ping-pong formula:
 ```
 phase = (charPhase + time) % 1.0
 t = phase < 0.5 ? phase * 2.0 : 2.0 - phase * 2.0  // oscillates 0→1→0
-color = start + (end - start) * t                   // linear RGB interp
+color = ColorMath.interpolateRgb(start, end, t)     // linear RGB interp, shared
 ```
 
-`AnimatedChatMixin` picks up the ThreadLocal config at insert-time and wraps newly-inserted lines.
+`AnimatedChatMixin` wraps newly-inserted lines at insert time. It does **not** read the ThreadLocal config — it builds every wrapper from the `effective*()` defaults above, so custom colours handed to `beginAnimation` are dropped. The one real caller, `LocalChatDispatch.dispatchAnimatedChat`, passes exactly those defaults, which is why nothing looks wrong.
 
 ### GradientTextBuilder
-[src/client/java/org/wynnvets/rendering/colors/GradientTextBuilder.java:14-123](src/client/java/org/wynnvets/rendering/colors/GradientTextBuilder.java#L14-L123)
+[GradientTextBuilder](../src/client/java/org/wynnvets/rendering/colors/GradientTextBuilder.java)
 
 Static utility for static (non-animated) gradient text components.
-- Splits into code points, interpolates RGB per character
+- Splits into code points, interpolates RGB per character through `ColorMath.interpolateRgb`
 - PUA / supplementary-plane glyphs are grouped (preserves composite badge glyphs); colour applied at group midpoint
 - Handles surrogate pairs properly
 - Accepts `baseStyle` to inherit non-colour properties (font, etc.)
 - Single code point → uses start colour directly
 
+### ColorMath
+[ColorMath](../src/client/java/org/wynnvets/rendering/colors/ColorMath.java)
+
+The mod's one RGB lerp. `public static int interpolateRgb(int startRgb, int endRgb, float t)` —
+each of the three channels interpolated independently, `Math.round` (so the midpoint of
+black→white is `0x808080`, not `0x7F7F7F`), an alpha byte on either input discarded.
+
+Four call sites: `AnimatedGradientSequence` ×1, `GradientTextBuilder` ×2, `NametagAnimator` ×1.
+It was those three classes' own package-private copies, identical apart from local variable names and how many declarations share a line — `AnimatedGradientSequence` and `NametagAnimator` both packed `int r1 = …, g1 = …, b1 = …;` onto one line where `GradientTextBuilder`, and now `ColorMath`, write three statements.
+
+**`t` is not clamped, and that is the contract.** Outside `[0, 1]` a channel rounds past
+`0..255` and the shift-and-or recombination bleeds it into the neighbouring channel or the sign
+bit — `t = 1.5` on black→white gives `0x017F7F7F`, `t = 2` gives `0x01FFFFFE`, `t = -0.5` gives
+`0xFFFFFF81`. All three copies did this; `ColorMathTest` pins the literals so a clamp has to be
+argued rather than tidied in. Every current caller feeds a normalised `t`, so none of it is
+reachable today — which is a property of the callers, not of the method.
+
+**Not a resident:** `NametagAnimator`'s `mixToward`, the `darken` built on it, and the standalone `lighten` — only `darken` delegates; `lighten` unpacks the channels itself and blends toward the literal (255, 225, 255).
+Same weighted average, then a clamp per channel. Folding them in would silently clamp
+`ColorMath`'s four call sites or silently unclamp their four.
+
+No static fields, no supertypes — so no `<clinit>`, and `ColorMathTest` loads zero Minecraft.
+
 ### ShaderColorPalette
-[src/client/java/org/wynnvets/rendering/colors/ShaderColorPalette.java:10-39](src/client/java/org/wynnvets/rendering/colors/ShaderColorPalette.java#L10-L39)
+[ShaderColorPalette](../src/client/java/org/wynnvets/rendering/colors/ShaderColorPalette.java)
 
 Colour constants including Wynncraft resource-pack shader sentinel colours.
 
-Gradient/util:
-- `AQUA = 0xC7FFE5`
-- `DARK_AQUA = 0x55FFFF`
+Plain colours:
+- `AQUA = 0xC7FFE5` — no code reader today
+- `DARK_AQUA = 0x55FFFF` — `AnimatedGradientSequence`'s default start colour for the chat supporter shimmer
 
 Resource-pack shader sentinels (GPU-animated by server pack shader):
 - `RAINBOW = 0x00F000` — rainbow cycle
 - `GRADIENT = 0x00F004` — #f56217 → #0b486b
-- `FADE = 0x00F008` — #5af082 → black
-- `BLINK = 0x00F00C` — #e63232 ↔ black
+- `FADE = 0x00F008` — #5af082 (Wynntils describes the far end as transparent)
+- `BLINK = 0x00F00C` — #e63232 (Wynntils describes the other phase as transparent)
 - `GRADIENT_2 = 0x00F010` — #560505 → #8a0303
 - `SHINE = 0x00F014` — #a3cc52 → #ffffd2
 
@@ -118,7 +142,7 @@ Resource-pack shader sentinels (GPU-animated by server pack shader):
 Three-stage handoff used across the codebase:
 1. **Set intent:** Caller calls `AnimatedGradientSequence.beginAnimation(...)` to configure colours + cycle.
 2. **Mark chars:** Caller sets `MARKER_COLOR` or `GREY_MARKER_COLOR` on components that should animate. The marker is a unique-looking sentinel that won't appear in real content.
-3. **Replace at render:** `AnimatedChatMixin` wraps new lines in `AnimatedGradientSequence`, which substitutes the actual animated colour per-char per-frame when a marker is hit.
+3. **Replace at render:** `AnimatedChatMixin` wraps new lines in `AnimatedGradientSequence`, which substitutes the actual animated colour per-char per-frame when a marker is hit — using the `effective*()` defaults, not whatever stage 1 configured.
 
 This lets e.g. `PillFormatter` compose components in one pass and have animation applied without coupling composition to the render loop.
 
@@ -126,10 +150,26 @@ This lets e.g. `PillFormatter` compose components in one pass and have animation
 
 | Subsystem | Uses |
 |-----------|------|
-| `PillFormatter` | Marker colour + AnimatedGradientSequence for supporter pills |
-| `ChatUtils.dispatchAnimatedChat` | Begin/end animation context around a dispatch |
+| `PillFormatter` | Marker colour + AnimatedGradientSequence for supporter pills (a plain-text pill, which no current caller passes, would go through `GradientTextBuilder.linear`) |
+| `LocalChatDispatch.dispatchAnimatedChat` | Begin/end animation context around a dispatch |
 | `ServerGuildChatRewriter` | Marker colour on server-rendered pill backgrounds |
 | `NametagMixin` | `NametagAnimator.tryAnimate()` |
-| `ListFetcher` / `WorldListFetcher` | `GradientTextBuilder` for static supporter gradient on list entries |
+| `ListFetcher` | Marker colour (`MARKER_COLOR` / `GREY_MARKER_COLOR`) on supporter names, for the animated glint |
 | `EncourageUpdateRewriter` | `ComponentUtils.makeRainbowStyle()` for up-to-date case |
 | `/wv line` | `TerritoryLineRenderer` + `TerritoryLineManager` |
+
+The `mwe/anni/` render components — `AnniZoneLineRenderer` (a Gizmos peer of `TerritoryLineRenderer`), `ScrollSpotMarkerProvider`, the outline trio (`AnniOutlineTicker`/`Registry`/`Palette`), the boss-bar classes, and the component renderers under `mwe/anni/render/` — are documented in [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md), beside the subsystem they belong to. What generalises out of building them is §6 below.
+
+## 6. Render-pipeline lessons
+
+Collected while building the `mwe/anni/` render stack; they apply to any new render mixin or per-tick render component, not just to anni. Mixin-authoring constraints and per-mixin injection points live in [vetsmod_mixins.md](vetsmod_mixins.md); Wynntils-side API behaviour lives in [project_wynntils.md](project_wynntils.md).
+
+1. **Wynncraft's resource pack overrides specific vanilla sprites.** `boss_bar/pink_background.png` is fully transparent (so PINK/PROGRESS bars render as text-only HUD strips). Other vanilla GUI sprites *may* be similarly overridden; if a vanilla render component goes unexpectedly invisible, blame the resource pack first. Stick to `{PURPLE, RED, GREEN, YELLOW, BLUE, WHITE}` for any new boss-bar colour and don't assume vanilla sprite paths are intact. Only four of those are exercised today — `VetsBossBarContentBuilder.colorFor` never emits BLUE or WHITE, so treat that pair as untested against the pack and PINK as known-suppressed.
+
+2. **`isOutlineSuppressionActive()` / `isAggressiveActive()` are the cheap public flags** for "are we doing the anni-active rendering thing right now". Each is a `volatile boolean` — safe to query from render-thread mixins without extra locking. Their freshness differs, and **the difference is a failure mode, not just a write pattern**. `AnniAggressiveTicker.tick` recomputes unconditionally and **fails closed** — its catch assigns `aggressiveActive = false`. `AnniOutlineTicker.tick`'s catch assigns nothing, so on an exception `suppressionActive` **keeps its previous value**: it fails *stale*, not closed, and a tick that throws while the gate is open leaves the mixins believing anni rendering is still on. `tickInner` writes the flag on three paths — the player/level-null branch clears it, a false gate clears it, a true gate sets it — and on none of the other two: an exception, and the `mc == null` early return, which precedes the clearing branch. (The earlier wording here said it writes "only on the paths that reach the gate evaluation", which the player/level-null branch already contradicts.) Expose a parallel flag from any new ticker with its own gate semantics, and decide deliberately which of the two failure modes it should have.
+
+3. **`Gizmos.circle` exists.** The zone-line renderer uses it. Centre is `Vec3(disc.x, snappedY, disc.z)` — the disc geometry is 2D in `AnniZone` so Y is unspecified; snapping to multiples of `Y_STEP` lets the cylinder-cage stack stay anchored as the player moves. The rest of `net.minecraft.gizmos.Gizmos`' public static surface: `cuboid` (four overloads), `line`, `arrow`, `rect`, `point`, `billboardTextOverBlock`, `billboardTextOverMob`, `billboardText`, plus `addGizmo` and `withCollector`. Nothing special is needed to reach them — the whole project compiles against `loom.officialMojangMappings()` under Loom `1.15-SNAPSHOT`, so `net.minecraft.gizmos.*` resolves by plain import like any other vanilla class.
+
+4. **MarkerProvider lifecycle.** `Models.Marker.registerMarkerProvider(...)` is one-shot, from `VetsmodClient.onClientStarted()` (the `CLIENT_STARTED` phase of the bootstrap). The provider's `isEnabled()` is what gates per-tick visibility — do NOT call `registerMarkerProvider` from a snapshot listener or reconnect handler (the registration list would grow on every reconnect). `ScrollSpotMarkerProvider.register()` is idempotent via a static flag. The flag guards three things, not one: the `registerMarkerProvider` call, an `AnniSnapshotCache.addListener` subscription, and a priming `onSnapshot(AnniSnapshotCache.latest())` so a marker appears immediately rather than at the next push. Today no `anni_state` push reaches vetsmod (bug `outbound-socket-never-authenticated`), so without the priming it would wait for the next cache update: a pull that returns a snapshot, or a debug command. The listener subscription is what makes the flag matter — a second call would double-subscribe.
+
+5. **Wynntils `BeaconBeamFeature` has no per-marker skip.** Every marker that survives `MarkerModel.getAllMarkers()`' `filter(MarkerProvider::isEnabled)` gets a beam; the feature itself is user-disableable, but your own `isEnabled()` is the only lever you control. `marker.beaconColor()` is called and `.withAlpha(float).asInt()` invoked on it: null → render-thread NPE → "Pose stack not empty" next-frame crash; `CustomColor.NONE` → fallback to user-config beacon (still visible); custom 0-alpha → ignored, since Wynntils recomputes alpha as 1f and distance-fades it toward 0 only within 7 blocks of the camera. A colour equal to `WynncraftShaderColor.RAINBOW.color` is additionally swapped for the feature's animated rainbow. Conclusion: if you register a MarkerProvider, you ship a beacon. Pick a colour you can live with.

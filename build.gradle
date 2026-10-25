@@ -1,6 +1,7 @@
 plugins {
 	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
 	id 'maven-publish'
+	id 'com.diffplug.spotless' version "${spotless_version}"
 }
 
 version = project.mod_version
@@ -22,6 +23,13 @@ repositories {
 		name = 'Modrinth'
 		url = 'https://api.modrinth.com/maven'
 	}
+
+	// Spotless resolves google-java-format from the *project* repositories at
+	// task time, not from settings.gradle's pluginManagement block (which only
+	// resolves the plugin itself). Loom injects mavenCentral today — junit-bom
+	// resolves and is on no other declared repo — but loom_version is a
+	// SNAPSHOT, so don't depend on that staying true.
+	mavenCentral()
 }
 
 loom {
@@ -36,6 +44,16 @@ loom {
 		}
 	}
 
+	// In production, Fabric Loader orders mods by id, so vetsmod's client entrypoint runs before
+	// Wynntils' and finds Wynntils' event bus still null. A dev launch shuffles the mod order
+	// unless this property is set. With it, dev launches use production's order, so a Wynntils
+	// event-bus registration misplaced into onInitializeClient crashes every dev launch, as it
+	// would every production one. It reaches Loom's dev runs only, never the jar.
+	runs {
+		client {
+			vmArg "-Dfabric.debug.disableModShuffle=true"
+		}
+	}
 }
 
 dependencies {
@@ -66,6 +84,21 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
 	it.options.release = 21
+
+	// Several files carry raw UTF-8 bytes inside string and char literals: PUA
+	// glyphs in chat/, items/ and listeners/, a raw '§' in chat/, distribute/,
+	// items/ and listeners/, and both in tests. That
+	// compiles today only because JEP 400 pins javac's default charset to
+	// UTF-8; native.encoding on a Windows box is still Cp1252. Pin it.
+	it.options.encoding = 'UTF-8'
+
+	// Javadoc reference gate — a mechanical gate alongside the Spotless format gate below.
+	// `reference` checks {@link}, @see, {@value} and @throws targets plus
+	// @param name matching. Deliberately not `all` and not `html`: PillCodec's
+	// class Javadoc has a hand-built <table border="1"> that -Xdoclint:html
+	// rejects, and `missing` would light up most of the repo. /private sets
+	// the access level explicitly rather than inheriting javac's default.
+	it.options.compilerArgs.add('-Xdoclint:reference/private')
 }
 
 java {
@@ -85,6 +118,54 @@ sourceSets {
 	test {
 		compileClasspath += sourceSets.client.output + sourceSets.client.compileClasspath
 		runtimeClasspath += sourceSets.client.output + sourceSets.client.runtimeClasspath
+	}
+}
+
+// Format gate. `./gradlew spotlessApply` rewrites; `spotlessCheck` is wired
+// into `check` — and so into `build` — by the plugin itself.
+spotless {
+	encoding 'UTF-8'
+
+	// The default is LineEnding.GIT_ATTRIBUTES_FAST_ALLSAME, which resolves
+	// through core.autocrlf=true to CRLF on Windows and LF on the ubuntu
+	// runner. This and the `*.java text eol=lf` rule in .gitattributes solve
+	// different halves: that one stops git handing Spotless a CRLF worktree,
+	// this one stops Spotless caring what git said.
+	lineEndings = com.diffplug.spotless.LineEnding.UNIX
+
+	java {
+		// Explicit, so the target never drifts with Loom's source-set setup
+		// and never picks up generated sources under build/.
+		target 'src/main/java/**/*.java',
+				'src/client/java/**/*.java',
+				'src/test/java/**/*.java'
+
+		// AOSP: 4-space block indent, 8-space continuation, 100 columns.
+		//
+		// formatJavadoc(false) — the default is TRUE. Left on it reflows 1,153
+		// Javadoc blocks across 162 of 167 files inside a commit whose whole
+		// value is being mechanical, and rewrites PillCodec's hand-built
+		// <table>/<pre> diagrams. Blocks still re-indent with their
+		// declaration; only the prose is spared.
+		//
+		// reflowLongStrings stays false (the default): it splits long literals
+		// into concatenations, which is a token change, not formatting.
+		//
+		// reorderImports is left at its default, and it is counter-intuitive:
+		// it does not decide *whether* gjf's ImportOrderer runs — it always
+		// runs — it decides which style. false => Style.GOOGLE => one
+		// ASCII-sorted block, statics first. We want AOSP code style with
+		// Google import order, which is exactly the default.
+		//
+		// google-java-format also removes unused imports unconditionally, with
+		// no opt-out on this step. An import referenced only from a Javadoc
+		// {@link} survives, because gjf's remover is DocTree-aware - though
+		// house style is to write such a reference fully qualified instead (see
+		// .claude/CLAUDE.md, Mechanical gates).
+		googleJavaFormat("${google_java_format_version}")
+				.aosp()
+				.formatJavadoc(false)
+				.reflowLongStrings(false)
 	}
 }
 

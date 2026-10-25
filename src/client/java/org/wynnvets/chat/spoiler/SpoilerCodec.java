@@ -17,8 +17,11 @@ import org.wynnvets.logging.VetsLogger;
  * </ul>
  *
  * <p>For ASCII spoiler content (the common case), each character maps to exactly
- * one PUA char, and the delimiters add only 2 chars (vs 4 for {@code ||...||}),
- * so the encoded form is always at least as compact as the original.</p>
+ * one PUA char and the two delimiters stand in for the four {@code |}.
+ * {@link #encodeSpoilers} also adds the visible {@link #WRAPPER_PREFIX}/
+ * {@link #WRAPPER_SUFFIX} framing, so a message containing a spoiler comes out
+ * longer than it went in, and a caller enforcing a length limit must check the
+ * encoded form.</p>
  */
 public final class SpoilerCodec {
 
@@ -34,6 +37,7 @@ public final class SpoilerCodec {
      * invisible PUA characters.
      */
     public static final String WRAPPER_PREFIX = "[Spoiler: ";
+
     public static final String WRAPPER_SUFFIX = "]";
 
     /** Base codepoint for direct character encoding (chars 0–253). */
@@ -94,7 +98,9 @@ public final class SpoilerCodec {
             encodeContent(matcher.group(1), sb);
             sb.append(SPOILER_END);
             sb.append(WRAPPER_SUFFIX);
-            VetsLogger.debug("SpoilerCodec.encodeSpoilers: encoded spoiler content=\"{}\"", matcher.group(1));
+            VetsLogger.debug(
+                    "SpoilerCodec.encodeSpoilers: encoded spoiler content=\"{}\"",
+                    matcher.group(1));
             lastEnd = matcher.end();
         }
         sb.append(message, lastEnd, message.length());
@@ -123,14 +129,20 @@ public final class SpoilerCodec {
                     sb.append((char) (DIRECT_MAX + 1 + d0 + d1 * RADIX + d2 * RADIX * RADIX));
                     i += 4;
                 } else {
-                    VetsLogger.debug("SpoilerCodec.decodeContent: truncated escape at index {}, remaining={}", i, encoded.length() - i);
+                    VetsLogger.debug(
+                            "SpoilerCodec.decodeContent: truncated escape at index {}, remaining={}",
+                            i,
+                            encoded.length() - i);
                     i++;
                 }
             } else if (ch >= ENCODE_BASE && ch < ESCAPE) {
                 sb.append((char) (ch - ENCODE_BASE));
                 i++;
             } else {
-                VetsLogger.debug("SpoilerCodec.decodeContent: unexpected char U+{} at index {}", String.format("%04X", (int) ch), i);
+                VetsLogger.debug(
+                        "SpoilerCodec.decodeContent: unexpected char U+{} at index {}",
+                        String.format("%04X", (int) ch),
+                        i);
                 i++;
             }
         }

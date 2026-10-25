@@ -2,67 +2,75 @@ package org.wynnvets.mwe.anni.outline;
 
 import com.wynntils.mc.extension.EntityExtension;
 import com.wynntils.utils.colors.CustomColor;
+import com.wynntils.utils.mc.McUtils;
+import java.time.Instant;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import org.wynnvets.config.VetsConfig;
+import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.mode.AnniMode;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
+import org.wynnvets.mwe.anni.state.AnniWindows;
 import org.wynnvets.mwe.anni.zone.AnniZone;
-
-import java.time.Instant;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * Per-tick driver for the S4 player highlight overlay.
  *
- * <p>Mirrors {@code VetsBossBarManager}'s tick + register conventions
- * (subscribes {@link ClientTickEvents#END_CLIENT_TICK} once at init;
- * catches all per-tick exceptions to never break the render loop).</p>
+ * <p>Mirrors {@link org.wynnvets.mwe.anni.bossbar.VetsBossBarManager VetsBossBarManager}'s tick +
+ * register conventions (subscribes {@link ClientTickEvents#END_CLIENT_TICK} once at init; catches
+ * all per-tick exceptions to never break the render loop).</p>
  *
- * <p>Activation gate, all four required:</p>
+ * <p>Activation gate, all four required, <b>listed in the order
+ * {@code gateHolds} actually evaluates them</b> — cheapest and most
+ * commonly false first, so a silent-mode or toggles-off client never
+ * touches the snapshot cache or the clock:</p>
  * <ol>
  *   <li>{@link AnniModeManager#current()} != {@link AnniMode#SILENT}</li>
+ *   <li>At least one of {@link VetsConfigKeys#VETS_ANNI_OUTLINES_ENABLED} or
+ *       {@link VetsConfigKeys#VETS_ANNI_NAMETAGS_ENABLED} is true (so users
+ *       who want neither half see no S4 effect at all)</li>
  *   <li>Snapshot stamp epoch present AND {@code T-2h ≤ now ≤ T+30m}</li>
  *   <li>{@link AnniZone#isInZone(double, double)} returns true (or the
  *       debug {@link #forceInZone} override is on)</li>
- *   <li>At least one of {@link VetsConfig#VETS_ANNI_OUTLINES_ENABLED} or
- *       {@link VetsConfig#VETS_ANNI_NAMETAGS_ENABLED} is true (so users
- *       who want neither half see no S4 effect at all)</li>
  * </ol>
  *
- * <p>While the gate holds, this ticker walks {@code level.players()} and
- * for each player either applies their registry-tier glow colour or
- * clears it to {@link CustomColor#NONE}. The "anni nametag mode" flag
- * {@link #isOutlineSuppressionActive()} flips true so the
- * {@code NametagMixin} anni branch and {@code EntityTeamColorMixin}
- * read-side filter both turn on for the same tick.</p>
+ * <p>While the gate holds, this ticker walks {@code level.players()} and for each player either
+ * applies their registry-tier glow colour or clears it to {@link CustomColor#NONE}. The "anni
+ * nametag mode" flag {@link #isOutlineSuppressionActive()} flips true so the
+ * {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} anni branch and
+ * {@link org.wynnvets.mixin.client.EntityOutlineColorMixin EntityOutlineColorMixin}'s outsider
+ * clobber become eligible on the same tick — each still checks its own config toggle, and the
+ * gate needs only one of the two.</p>
  *
  * <p>Tracks every username we've applied a non-NONE glow to so that when
  * the gate closes (or a player falls off the registry), the cleanup walk
  * resets only what we touched — vanilla / Wynntils entities the user
  * has their own reason to colour aren't disturbed.</p>
  *
- * <p>Spec window (per parent plan): T-2h to T+30m. Tighter than the
- * boss-bar window (which uses 90 m OR in-zone) because highlights are
- * the high-intrusiveness UI — outline + nametag recolour on every
- * nearby player is reserved for the strictest spec interpretation.</p>
+ * <p>Spec window (per parent plan): T-2h to T+30m. ⚠️ <b>On the timer
+ * axis this is the <em>wider</em> of the two</b> — T-2h opens half an
+ * hour before the boss bar's T-90m. What makes the highlight gate the
+ * stricter one is the conjunction, not the window: here in-zone is an
+ * {@code AND}, whereas the bar activates on
+ * {@code inWindow || AnniZone.isInZone(…)}. So the bar can appear out
+ * of the window and highlights cannot, which is the intended asymmetry
+ * — outline + nametag recolour on every nearby player is the
+ * high-intrusiveness UI and is reserved for the strictest spec
+ * interpretation. The old wording said "tighter" of the window itself,
+ * which is the opposite of true and reads as a contradiction unless you
+ * already know about the {@code AND}.</p>
  */
 public final class AnniOutlineTicker {
-
-    /** Activation window — 2 hours before stamp through 30 minutes after.
-     *  Matches spec §"Player Highlights": "WITHIN 2h of an anni, OR
-     *  within 30 mins after an anni". */
-    private static final long WINDOW_BEFORE_SECONDS = 2L * 60L * 60L;   // 2 h
-    private static final long WINDOW_AFTER_SECONDS  = 30L * 60L;        // 30 m
 
     private static volatile boolean registered = false;
     private static volatile boolean suppressionActive = false;
@@ -78,8 +86,7 @@ public final class AnniOutlineTicker {
      *  without a lock; mutations are infrequent (per-tick at most). */
     private static final Set<String> appliedUsernames = new CopyOnWriteArraySet<>();
 
-    private AnniOutlineTicker() {
-    }
+    private AnniOutlineTicker() {}
 
     /** Idempotent registration. */
     public static void register() {
@@ -89,10 +96,11 @@ public final class AnniOutlineTicker {
         VetsLogger.debug("AnniOutlineTicker registered");
     }
 
-    /** {@code true} while the S4 activation gate holds. Read by
-     *  {@code EntityTeamColorMixin} (to decide whether to suppress native
-     *  team colour for outsiders) and {@code NametagMixin}'s anni branch
-     *  (to decide whether to recolour). */
+    /** {@code true} while the S4 activation gate holds. The two
+     *  behavioural readers are {@link org.wynnvets.mixin.client.EntityOutlineColorMixin
+     *  EntityOutlineColorMixin} (which zeroes an outsider's already-extracted {@code
+     *  state.outlineColor}) and {@link org.wynnvets.mixin.client.NametagMixin NametagMixin}'s anni
+     *  branch (to decide whether to recolour); two debug dumps also report it. */
     public static boolean isOutlineSuppressionActive() {
         return suppressionActive;
     }
@@ -103,10 +111,6 @@ public final class AnniOutlineTicker {
     public static void setForceInZone(boolean value) {
         forceInZone = value;
         VetsLogger.debug("AnniOutlineTicker.forceInZone = {}", value);
-    }
-
-    public static boolean isForceInZone() {
-        return forceInZone;
     }
 
     // ── Per-tick driver ────────────────────────────────────────────────
@@ -120,7 +124,7 @@ public final class AnniOutlineTicker {
     }
 
     private static void tickInner() {
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc = McUtils.mc();
         if (mc == null) return;
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;
@@ -178,8 +182,8 @@ public final class AnniOutlineTicker {
         AnniMode mode = AnniModeManager.current();
         if (mode == AnniMode.SILENT) return false;
 
-        boolean outlines = VetsConfig.get(VetsConfig.VETS_ANNI_OUTLINES_ENABLED);
-        boolean nametags = VetsConfig.get(VetsConfig.VETS_ANNI_NAMETAGS_ENABLED);
+        boolean outlines = VetsConfig.get(VetsConfigKeys.VETS_ANNI_OUTLINES_ENABLED);
+        boolean nametags = VetsConfig.get(VetsConfigKeys.VETS_ANNI_NAMETAGS_ENABLED);
         if (!outlines && !nametags) return false;
 
         AnniSnapshot snapshot = AnniSnapshotCache.latest();
@@ -192,7 +196,7 @@ public final class AnniOutlineTicker {
         long now = Instant.now().getEpochSecond();
         long delta = stamp - now;
         // delta positive = anni in future; negative = anni in past.
-        boolean inWindow = delta >= -WINDOW_AFTER_SECONDS && delta <= WINDOW_BEFORE_SECONDS;
+        boolean inWindow = AnniWindows.inHotWindow(delta);
         if (!inWindow) return false;
 
         boolean inZone = forceInZone || AnniZone.isInZone(player.getX(), player.getZ());
