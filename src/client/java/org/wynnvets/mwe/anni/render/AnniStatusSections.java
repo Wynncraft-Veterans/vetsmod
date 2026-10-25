@@ -98,32 +98,16 @@ final class AnniStatusSections {
     }
 
     /** Build the parenthetical upgrade prompt:
-     *  {@code &7(Buttons to upgrade your \rsvp: &3[&bHard&3] &2[&aSoft&2]&7)}.
+     *  {@code &7(Change? &3[&bHard&3] &2[&aSoft&2]&7)}.
      *
      *  <p>Each button's bracket+label is its own click-to-suggest
-     *  surface; the {@code \rsvp} word inside the parenthetical is
-     *  hoverable (no click) to explain the Discord equivalent.</p> */
+     *  surface.</p> */
     // Package-private for unit tests. See AnniStatusSectionsTest.
     static MutableComponent rsvpUpgradePrompt() {
         Style gray = Style.EMPTY.withColor(ChatFormatting.GRAY);
 
-        Component rsvpWord =
-                Component.literal("\\rsvp")
-                        .withStyle(
-                                Style.EMPTY
-                                        .withColor(ChatFormatting.GRAY)
-                                        .withHoverEvent(
-                                                new HoverEvent.ShowText(
-                                                        Component.literal(
-                                                                "\\rsvp is a Discord command in vetscord's"
-                                                                        + " #annihilation channel.\n"
-                                                                        + "It does the same thing as /wv anni rsvp"
-                                                                        + " - entirely optional from in-game."))));
-
         MutableComponent out = Component.literal("").withStyle(gray);
-        out.append(Component.literal("(Buttons to upgrade your ").withStyle(gray));
-        out.append(rsvpWord);
-        out.append(Component.literal(": ").withStyle(gray));
+        out.append(Component.literal("(Change? ").withStyle(gray));
         out.append(
                 rsvpUpgradeButton(
                         "Hard",

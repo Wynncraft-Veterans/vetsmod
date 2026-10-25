@@ -172,12 +172,7 @@ class AnniStatusSectionsTest {
     @Test
     void upgradePrompt_offersHardThenSoft() {
         assertEquals(
-                "empty[style={color=gray}, siblings=[literal{(Buttons to upgrade your "
-                        + "}[style={color=gray}], literal{\\rsvp}[style={color=gray,"
-                        + "hoverEvent=ShowText[value=literal{\\rsvp is a Discord command in "
-                        + "vetscord's #annihilation channel.\nIt does the same thing as /wv anni "
-                        + "rsvp - entirely optional from in-game.}]}], "
-                        + "literal{: }[style={color=gray}], "
+                "empty[style={color=gray}, siblings=[literal{(Change? }[style={color=gray}], "
                         + "empty[style={clickEvent=SuggestCommand[command=/wv anni rsvp hard],"
                         + "hoverEvent=ShowText[value=literal{HRSVP - confirms you WILL be "
                         + "there.\nRequirement: arrive at least 20 mins before anni starts, "

@@ -39,14 +39,22 @@ final class AnniOnboardingBlocks {
      *    <li><b>Has roles</b> — {@code null}: nothing under the prediction.</li>
      *  </ul> */
     static MutableComponent vetsNotAnnouncedRegistrationBlock(AnniSnapshot snapshot) {
-        AnniSnapshot.Registration reg = snapshot.registration();
-        if (reg == null || !reg.registered()) {
+        if (showsUnregisteredNudge(snapshot)) {
             return unregisteredNudgeBlock();
         }
-        if (reg.roles().isEmpty()) {
+        if (snapshot.registration().roles().isEmpty()) {
             return fillOnlyExplainerBlock();
         }
         return null;
+    }
+
+    /** Whether {@link #vetsNotAnnouncedRegistrationBlock} is the unregistered nudge: no
+     *  registration, or one not marked registered. The nudge carries its own
+     *  anni.wynnvets.org/me link, so the not-announced render then leaves out the dashboard link
+     *  line above it. */
+    static boolean showsUnregisteredNudge(AnniSnapshot snapshot) {
+        AnniSnapshot.Registration reg = snapshot.registration();
+        return reg == null || !reg.registered();
     }
 
     /** The {@code Eligible Roles} line for a registered vets user with roles, which the
@@ -138,9 +146,11 @@ final class AnniOnboardingBlocks {
         out.append(Component.literal("anni.wynnvets.org/me").withStyle(yellowBoldUnderlinedLink));
         out.append(Component.literal("!").withStyle(redPlain));
         out.append(Component.literal("\n"));
+        // Broken after the comma: unbroken, the default chat width wraps "organise" onto a
+        // line of its own.
         out.append(
                 Component.literal(
-                                "Doing so unlocks all sorts of features, and helps us organise vets guild annis!")
+                                "Doing so unlocks all sorts of features,\nand helps us organise vets guild annis!")
                         .withStyle(darkRedItalic));
         return out;
     }

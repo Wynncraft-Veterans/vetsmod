@@ -169,23 +169,26 @@ public final class AnniCommandRenderer {
         } else {
             // Vets users: the headline alone, so it fits one chat line, then the
             // dashboard link (to manage RSVP / registration) with the player's
-            // roles beside it when they have any.
+            // roles beside it when they have any. A player shown the unregistered
+            // nudge has no roles and gets its anni.wynnvets.org/me link instead.
             out.append(line(ChatFormatting.WHITE, "Next annihilation not yet announced."));
-            out.append(Component.literal("\n"));
-            out.append(
-                    AnniHoverBuilder.linkBadge(
-                            "anni.wynnvets.org",
-                            "https://anni.wynnvets.org",
-                            "Open anni.wynnvets.org",
-                            ChatFormatting.DARK_AQUA));
-            MutableComponent roles = AnniOnboardingBlocks.vetsNotAnnouncedRoles(snapshot);
-            if (roles != null) {
-                out.append(Component.literal(" "));
+            if (!AnniOnboardingBlocks.showsUnregisteredNudge(snapshot)) {
+                out.append(Component.literal("\n"));
                 out.append(
-                        Component.literal("|")
-                                .withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD));
-                out.append(Component.literal(" "));
-                out.append(roles);
+                        AnniHoverBuilder.linkBadge(
+                                "anni.wynnvets.org",
+                                "https://anni.wynnvets.org",
+                                "Open anni.wynnvets.org",
+                                ChatFormatting.DARK_AQUA));
+                MutableComponent roles = AnniOnboardingBlocks.vetsNotAnnouncedRoles(snapshot);
+                if (roles != null) {
+                    out.append(Component.literal(" "));
+                    out.append(
+                            Component.literal("|")
+                                    .withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD));
+                    out.append(Component.literal(" "));
+                    out.append(roles);
+                }
             }
         }
 

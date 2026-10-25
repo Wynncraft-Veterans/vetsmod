@@ -1,7 +1,9 @@
 package org.wynnvets.mwe.anni.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
@@ -20,10 +22,11 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
  *
  * <p>For a player with roles the block is {@code null}, since the roles go beside the dashboard
  * link, and {@link AnniOnboardingBlocks#vetsNotAnnouncedRoles} is {@code null} for everyone else;
- * both are pinned. Not covered: the roles line itself. Its role chips come from
- * {@code AnniHoverBuilder.roleChip}, which reads the role style (through {@code displayRole}) and
- * whether hover details are on from {@code VetsConfig}, and {@code VetsConfig} cannot initialise
- * in a test.</p>
+ * both are pinned, as is {@link AnniOnboardingBlocks#showsUnregisteredNudge}, which tells the
+ * render to leave out its dashboard link line above the nudge. Not covered: the roles line
+ * itself. Its role chips come from {@code AnniHoverBuilder.roleChip}, which reads the role style
+ * (through {@code displayRole}) and whether hover details are on from {@code VetsConfig}, and
+ * {@code VetsConfig} cannot initialise in a test.</p>
  */
 class AnniOnboardingBlocksTest {
 
@@ -36,7 +39,7 @@ class AnniOnboardingBlocksTest {
                     + "siblings=[literal{anni.wynnvets.org/me}[style={color=yellow,bold,"
                     + "underlined,clickEvent=OpenUrl[uri=https://anni.wynnvets.org/me]}], "
                     + "literal{!}[style={color=red,!bold}], literal{\n}, "
-                    + "literal{Doing so unlocks all sorts of features, "
+                    + "literal{Doing so unlocks all sorts of features,\n"
                     + "and helps us organise vets guild annis!}[style={color=dark_red,!bold,"
                     + "italic}]]]";
 
@@ -54,6 +57,17 @@ class AnniOnboardingBlocksTest {
         assertEquals(
                 UNREGISTERED_NUDGE,
                 AnniOnboardingBlocks.vetsNotAnnouncedRegistrationBlock(notRegistered).toString());
+    }
+
+    @Test
+    void showsUnregisteredNudge_onlyWithoutARegistration() {
+        assertTrue(AnniOnboardingBlocks.showsUnregisteredNudge(snapshot("{}")));
+        assertTrue(
+                AnniOnboardingBlocks.showsUnregisteredNudge(
+                        snapshot("{\"registration\": {\"registered\": false}}")));
+        assertFalse(
+                AnniOnboardingBlocks.showsUnregisteredNudge(
+                        snapshot("{\"registration\": {\"registered\": true, \"roles\": []}}")));
     }
 
     @Test
