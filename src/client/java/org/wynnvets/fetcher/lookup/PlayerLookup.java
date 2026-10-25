@@ -119,8 +119,16 @@ public final class PlayerLookup {
             return CompletableFuture.completedFuture(LookupResult.exhausted(reason));
         }
         LookupProvider provider = it.next();
-        return provider.lookup(name)
-                .exceptionally(
+        CompletableFuture<ProviderOutcome> attempt;
+        try {
+            attempt = provider.lookup(name);
+        } catch (RuntimeException e) {
+            // A provider that throws instead of failing its future would otherwise end the whole
+            // cascade ALL_PROVIDERS_TRANSIENT through runCascade's exceptionally, discarding what
+            // the providers before it said; count it as one transient miss like a failed future.
+            attempt = CompletableFuture.failedFuture(e);
+        }
+        return attempt.exceptionally(
                         e -> {
                             VetsLogger.debug(
                                     "Provider {} threw for '{}': {}",

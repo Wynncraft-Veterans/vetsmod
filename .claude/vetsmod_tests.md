@@ -14,7 +14,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 ## Packages
 
 - [`org.wynnvets`](#orgwynnvets) — [`LocaleFoldTripwireTest`](#localefoldtripwiretest)
-- [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`PendingAcksTest`](#pendingackstest), [`SerializedSenderTest`](#serializedsendertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest), [`V1ApiManagerOutboundAuthTest`](#v1apimanageroutboundauthtest), [`WsClientLossTest`](#wsclientlosstest)
+- [`org.wynnvets.api`](#orgwynnvetsapi) — [`InboundAckRouterTest`](#inboundackroutertest), [`MojangApiTest`](#mojangapitest), [`PendingAcksTest`](#pendingackstest), [`SerializedSenderTest`](#serializedsendertest), [`V1ApiManagerFramesTest`](#v1apimanagerframestest), [`V1ApiManagerOutboundAuthTest`](#v1apimanageroutboundauthtest), [`WsClientLossTest`](#wsclientlosstest)
 - [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`ChatHookGateTest`](#chathookgatetest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`OutboundDisplayHandlerTest`](#outbounddisplayhandlertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
 - [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`DispatchCoordinatorTest`](#dispatchcoordinatortest), [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
 - [`org.wynnvets.chat.spoiler`](#orgwynnvetschatspoiler) — [`SpoilerCodecTest`](#spoilercodectest)
@@ -111,6 +111,19 @@ Test: [`InboundAckRouterTest.java`](../src/test/java/org/wynnvets/api/InboundAck
   - `calls` equals `["head " + {"status":"would_trigger","trigger":"warning"}]`; `serverEchoesReq()` is false.
 - **`anEchoedAckIsAnsweredOnce`**: Routing the same echoed ack twice answers its callback once.
   - `calls` equals the single entry `["head " + {"status":"ok","total_points":3,"req":"<head>"}]`.
+
+### `MojangApiTest`
+
+Test: [`MojangApiTest.java`](../src/test/java/org/wynnvets/api/MojangApiTest.java) · Subject: [`MojangApi`](../src/client/java/org/wynnvets/api/MojangApi.java)
+
+`MojangApi.getUserUUID` builds the legacy Mojang name-lookup URL that `MojangLegacyProvider` asks. The name is URL-encoded into the path, as the other lookup providers encode theirs: raw, a space or `|` made `URI.create` throw and a `#` or `?` cut the name short. Each case compares the URI's `toString()` with `https://api.mojang.com/users/profiles/minecraft/` plus the expected path segment.
+
+- **`plainName_isUnchanged`**: An ordinary name passes through.
+  - `getUserUUID("Wenweia")` ends `Wenweia`.
+- **`spaceAndPipe_areEncodedInsteadOfThrowing`**: A space and a `|` are encoded.
+  - `getUserUUID("Foo Bar")` ends `Foo+Bar`; `getUserUUID("Foo|")` ends `Foo%7C`.
+- **`hashAndQuestionMark_stayPartOfTheName`**: `#` and `?` are encoded, so they no longer start a fragment or query.
+  - `getUserUUID("Foo#Bar")` ends `Foo%23Bar`; `getUserUUID("Foo?Bar")` ends `Foo%3FBar`.
 
 ### `PendingAcksTest`
 
@@ -1749,6 +1762,9 @@ Test: [`PlayerLookupTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/Pla
   - The providers asked equal `["first", "second"]`, for providers answering definite, hit, definite.
 - **`providerThrowing_countsTransient`**: A provider whose future fails counts as a transient miss.
   - `r.failureReason()` equals `ALL_PROVIDERS_TRANSIENT`, for providers answering definite, a failed future, definite.
+- **`providerThrowingSynchronously_countsTransient_andTheCascadeGoesOn`**: A provider whose `lookup` throws instead of returning a future (as `MojangLegacyProvider` once did for a name with a space) counts as one transient miss, and the providers after it are still asked.
+  - For definite, throwing, definite: `ALL_PROVIDERS_TRANSIENT`.
+  - For transient, throwing, authoritative definite: `PLAYER_NOT_FOUND`.
 - **`outcomeFlags_areMutuallyExclusive`**: The three miss outcomes set exactly their own flag.
   - `notFound()`: `isDefiniteMiss()` is true and `isAbstain()` is false.
   - `transientMiss()`: both are false.

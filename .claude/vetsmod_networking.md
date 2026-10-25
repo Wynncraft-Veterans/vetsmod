@@ -114,7 +114,7 @@ Also: `GUILD_UUID = "a36bd64c-c053-4727-872d-b0d0729f474a"` (Returners).
 - `guildInfo(String name)` → `https://api.wynncraft.com/v3/guild/{url-encoded}`
 
 [MojangApi](../src/client/java/org/wynnvets/api/MojangApi.java):
-- `getUserUUID(name)` → `https://api.mojang.com/users/profiles/minecraft/{name}`
+- `getUserUUID(name)` → `https://api.mojang.com/users/profiles/minecraft/{name}`, the name URL-encoded
 
 ### The shared client
 

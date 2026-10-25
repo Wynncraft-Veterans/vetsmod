@@ -162,6 +162,21 @@ class PlayerLookupTest {
     }
 
     @Test
+    void providerThrowingSynchronously_countsTransient_andTheCascadeGoesOn() {
+        // A raw name with a space once made MojangApi's URI.create throw inside lookup itself.
+        LookupProvider throwing =
+                name -> {
+                    throw new IllegalArgumentException("Illegal character in path");
+                };
+        assertEquals(
+                FailureReason.ALL_PROVIDERS_TRANSIENT,
+                run(fake(NOT_FOUND), throwing, fake(NOT_FOUND)).failureReason());
+        assertEquals(
+                FailureReason.PLAYER_NOT_FOUND,
+                run(fake(TRANSIENT), throwing, authoritative(NOT_FOUND)).failureReason());
+    }
+
+    @Test
     void outcomeFlags_areMutuallyExclusive() {
         assertTrue(NOT_FOUND.isDefiniteMiss());
         assertFalse(NOT_FOUND.isAbstain());
