@@ -55,7 +55,7 @@ mwe/anni/
 └── render/
     ├── AnniHoverBuilder.java      — colour tokens, role chips, rsvp badges, link/click/hover helpers
     ├── AnniCommandRenderer.java   — /wv anni payload builder; returns List<MutableComponent>
-    ├── AnniOnboardingBlocks.java  — the not-announced registration block: unregistered nudge, fill-only explainer, has-roles affirmation
+    ├── AnniOnboardingBlocks.java  — the not-announced registration block: unregistered nudge, fill-only explainer, and the roles line beside the dashboard link
     ├── AnniStatusSections.java    — the announced body's status lines: role, RSVP type and upgrade prompt, attendance, party
     └── AnniMotdRenderer.java      — world-join anni-motd (two-line "Annihilation returns in X.Yh! / You have been assigned …")
 
@@ -961,7 +961,7 @@ Listed in `AnniDebugSuggestions.PRESETS`.
 |--|--|
 | `empty` | Known player, no `AnniEvent` on file — `event` and `rsvp` null, unregistered, unplaced, band 1 |
 | `external_no_anni` | External + not announced (lean external render) |
-| `member_no_anni` | Vets + not announced + registered with roles (all-set affirmation) |
+| `member_no_anni` | Vets + not announced + registered with roles (roles beside the dashboard link, no block under the prediction) |
 | `member_no_anni_fill` | Vets + not announced + registered but no specific roles (4-line fill explainer) |
 | `member_no_anni_unregistered` | Vets + not announced + registered=false (red unregistered nudge) |
 | `member_announced` | Vets + announced (NOW+8h) + unassigned (attendance bar) |
