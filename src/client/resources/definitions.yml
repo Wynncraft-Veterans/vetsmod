@@ -60,7 +60,6 @@ definitions:
   - "(?i)^Hotline.*$"
   - "(?i)^Impure Morph Gold.*$"
   - "(?i)^Legendary Medallion.*$"
-  - "(?i)^Llevigar Pinot.*$"
   - "(?i)^Orc Mask.*$"
   - "(?i)^Poinsettia.*$"
   - "^Potion Of Healing.*$"
