@@ -470,8 +470,8 @@ for the member tier), else the red one, so a player who was in Returners at logi
 30 s have passed, is not told to retry. The typed command stays cancelled and nothing is sent. It then resolves the
 name. If no lookup source can be reached, it prints a yellow
 notice and sends the invite; a name that no source knows is refused, in red, with "Unable to find a player
-named '<name>', check spelling?" (the Vets snapshot step abstains rather than miss transiently, so the
-other sources decide that). Otherwise it gathers the target's Wynncraft
+named '<name>', check spelling?" (a Mojang host saying no such profile decides that on its own, whatever the
+third-party sources answered; the Vets snapshot step abstains rather than miss transiently). Otherwise it gathers the target's Wynncraft
 profile, dazebot's membership snapshot and, for a player who is not confirmed staff, the Returners guild's
 size and level, and decides, in this order:
 

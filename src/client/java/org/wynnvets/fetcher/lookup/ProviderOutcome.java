@@ -11,7 +11,8 @@ package org.wynnvets.fetcher.lookup;
  * a transient miss, does not stop the cascade ending in
  * {@link FailureReason#PLAYER_NOT_FOUND}). The orchestrator needs the
  * distinction to pick between {@link FailureReason#PLAYER_NOT_FOUND} (the
- * answering providers all definite) and
+ * answering providers all definite, or an
+ * {@linkplain LookupProvider#authoritative() authoritative} one definite) and
  * {@link FailureReason#ALL_PROVIDERS_TRANSIENT} (at least one transient, or no
  * provider gave any evidence) when every provider misses.</p>
  */

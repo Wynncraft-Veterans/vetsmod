@@ -23,12 +23,17 @@ import org.wynnvets.util.Json;
  *
  * <p>Permissive rate limits relative to Mojang; used before falling back
  * to Mojang. Response shape:
- * {@code {success: true, data: {player: {id: "<dashed-uuid>", raw_id: "<undashed>"}}}}.</p>
+ * {@code {success: true, data: {player: {id: "<dashed-uuid>", raw_id: "<undashed>"}}}}.
+ * An unknown name answers HTTP 400 with {@code {code: "minecraft.invalid_username", success:
+ * false}} (seen 2026-10-25), which is a definite miss; any other 400 is not.</p>
  */
 public final class PlayerDbProvider implements LookupProvider {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
     private static final String USER_AGENT = "vetsmod (+https://wynnvets.org)";
+
+    /** The 400 body's {@code code} for a name no Minecraft account holds. */
+    private static final String UNKNOWN_NAME_CODE = "minecraft.invalid_username";
 
     private final HttpClient httpClient;
 
@@ -66,15 +71,24 @@ public final class PlayerDbProvider implements LookupProvider {
     }
 
     private ProviderOutcome translate(HttpResponse<String> resp) {
-        int code = resp.statusCode();
+        return translate(resp.statusCode(), resp.body());
+    }
+
+    // Package-private for unit tests. See PlayerDbProviderTest.
+    static ProviderOutcome translate(int code, String body) {
         if (code == HttpURLConnection.HTTP_NOT_FOUND) {
             return ProviderOutcome.notFound();
+        }
+        if (code == HttpURLConnection.HTTP_BAD_REQUEST) {
+            return UNKNOWN_NAME_CODE.equals(errorCode(body))
+                    ? ProviderOutcome.notFound()
+                    : ProviderOutcome.transientMiss();
         }
         if (code != HttpURLConnection.HTTP_OK) {
             return ProviderOutcome.transientMiss();
         }
         try {
-            JsonElement parsed = Json.GSON.fromJson(resp.body(), JsonElement.class);
+            JsonElement parsed = Json.GSON.fromJson(body, JsonElement.class);
             if (parsed == null || !parsed.isJsonObject()) return ProviderOutcome.transientMiss();
             JsonObject obj = parsed.getAsJsonObject();
             boolean success =
@@ -106,6 +120,18 @@ public final class PlayerDbProvider implements LookupProvider {
         } catch (RuntimeException e) {
             VetsLogger.debug("PlayerDB 200 parse failed: {}", e.getMessage());
             return ProviderOutcome.transientMiss();
+        }
+    }
+
+    /** The {@code code} string of an error body, or {@code null} if it has none or is not JSON. */
+    private static String errorCode(String body) {
+        try {
+            JsonElement parsed = Json.GSON.fromJson(body, JsonElement.class);
+            if (parsed == null || !parsed.isJsonObject()) return null;
+            JsonElement code = parsed.getAsJsonObject().get("code");
+            return code != null && code.isJsonPrimitive() ? code.getAsString() : null;
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 }

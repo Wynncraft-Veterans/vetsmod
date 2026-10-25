@@ -14,8 +14,9 @@ import org.junit.jupiter.api.Test;
 /**
  * Tests for {@link PlayerLookup}'s cascade ending, run through {@code runCascade(List, String)}
  * with fake providers: which {@link FailureReason} an exhausted cascade reports for each mix of
- * definite misses, transient misses and abstentions, and that a hit stops it. The real
- * providers' HTTP calls and {@code resolve}'s single-flight map are not covered.
+ * definite misses, transient misses and abstentions, from ordinary and authoritative providers,
+ * and that a hit stops it. The real providers' HTTP calls and {@code resolve}'s single-flight map
+ * are not covered.
  */
 class PlayerLookupTest {
 
@@ -34,6 +35,28 @@ class PlayerLookupTest {
 
     private static LookupProvider fake(ProviderOutcome outcome) {
         return fake(outcome, new ArrayList<>(), "fake");
+    }
+
+    /** A fake provider that is {@linkplain LookupProvider#authoritative() authoritative}, as
+     *  Mojang's two are. */
+    private static LookupProvider authoritative(
+            ProviderOutcome outcome, List<String> asked, String id) {
+        return new LookupProvider() {
+            @Override
+            public CompletableFuture<ProviderOutcome> lookup(String name) {
+                asked.add(id);
+                return CompletableFuture.completedFuture(outcome);
+            }
+
+            @Override
+            public boolean authoritative() {
+                return true;
+            }
+        };
+    }
+
+    private static LookupProvider authoritative(ProviderOutcome outcome) {
+        return authoritative(outcome, new ArrayList<>(), "authoritative");
     }
 
     private static LookupResult run(LookupProvider... providers) {
@@ -62,9 +85,45 @@ class PlayerLookupTest {
 
     @Test
     void anyTransientAmongOthers_endsTransient() {
-        // The legacy Mojang provider's cooldown miss is transient and forces fail-open.
+        // With no authoritative definite miss, one transient miss forces fail-open (in production
+        // the legacy Mojang cooldown, when Mojang Services did not answer 404).
         LookupResult r = run(fake(NOT_FOUND), fake(ABSTAIN), fake(NOT_FOUND), fake(TRANSIENT));
         assertEquals(FailureReason.ALL_PROVIDERS_TRANSIENT, r.failureReason());
+    }
+
+    @Test
+    void authoritativeDefinite_amongTransients_endsPlayerNotFound() {
+        // The live shape on 2026-10-25: Wynncraft 404, Vets abstains, PlayerDB and Ashcon fail,
+        // Mojang Services 404. The cascade stops there, so Mojang legacy is never asked.
+        List<String> asked = new ArrayList<>();
+        LookupResult r =
+                run(
+                        fake(NOT_FOUND),
+                        fake(ABSTAIN),
+                        fake(TRANSIENT),
+                        fake(TRANSIENT),
+                        authoritative(NOT_FOUND, asked, "mojang-services"),
+                        authoritative(TRANSIENT, asked, "mojang-legacy"));
+        assertEquals(FailureReason.PLAYER_NOT_FOUND, r.failureReason());
+        assertEquals(List.of("mojang-services"), asked);
+    }
+
+    @Test
+    void authoritativeTransient_doesNotSettleIt() {
+        // Mojang failing says nothing; another provider's transient miss still decides.
+        LookupResult r = run(fake(NOT_FOUND), fake(TRANSIENT), authoritative(TRANSIENT));
+        assertEquals(FailureReason.ALL_PROVIDERS_TRANSIENT, r.failureReason());
+    }
+
+    @Test
+    void authoritativeAbstain_doesNotSettleIt() {
+        LookupResult r = run(fake(TRANSIENT), authoritative(ABSTAIN));
+        assertEquals(FailureReason.ALL_PROVIDERS_TRANSIENT, r.failureReason());
+    }
+
+    @Test
+    void providersAreNotAuthoritativeByDefault() {
+        assertFalse(fake(NOT_FOUND).authoritative());
     }
 
     @Test

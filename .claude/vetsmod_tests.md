@@ -27,7 +27,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.distribute.distributor`](#orgwynnvetsdistributedistributor) — [`GraidsDistributorTest`](#graidsdistributortest), [`MemberSlotPresserTest`](#memberslotpressertest), [`ObjectivesDistributorTest`](#objectivesdistributortest), [`RandomDistributorTest`](#randomdistributortest), [`SplitDistributorTest`](#splitdistributortest)
 - [`org.wynnvets.distribute.recipients`](#orgwynnvetsdistributerecipients) — [`NameResolverTest`](#nameresolvertest), [`NoAspectsFilterTest`](#noaspectsfiltertest)
 - [`org.wynnvets.fetcher.lookup`](#orgwynnvetsfetcherlookup) — [`MojangCooldownTest`](#mojangcooldowntest), [`PlayerLookupTest`](#playerlookuptest)
-- [`org.wynnvets.fetcher.lookup.providers`](#orgwynnvetsfetcherlookupproviders) — [`VetsSnapshotProviderTest`](#vetssnapshotprovidertest)
+- [`org.wynnvets.fetcher.lookup.providers`](#orgwynnvetsfetcherlookupproviders) — [`PlayerDbProviderTest`](#playerdbprovidertest), [`VetsSnapshotProviderTest`](#vetssnapshotprovidertest)
 - [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`CheckReportRendererTest`](#checkreportrenderertest), [`OnlineMemberServiceTest`](#onlinememberservicetest), [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
 - [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
 - [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`GuildCheckerOwnerTest`](#guildcheckerownertest), [`RegistrationTierTest`](#registrationtiertest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
@@ -1718,7 +1718,7 @@ Test: [`MojangCooldownTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/M
 
 Test: [`PlayerLookupTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/PlayerLookupTest.java) · Subject: [`PlayerLookup`](../src/client/java/org/wynnvets/fetcher/lookup/PlayerLookup.java)
 
-`PlayerLookup` runs a name through a provider cascade and, when nothing hits, reports why. The suite drives `runCascade(List, String)` with fake providers that return fixed `ProviderOutcome`s, and pins the failure reason for each mix of definite misses (`notFound`), transient misses and abstentions (`abstain`), and that a hit stops the cascade. The real providers' HTTP calls and `resolve`'s single-flight map are not covered. `run(...)` joins the cascade's future.
+`PlayerLookup` runs a name through a provider cascade and, when nothing hits, reports why. The suite drives `runCascade(List, String)` with fake providers that return fixed `ProviderOutcome`s, and pins the failure reason for each mix of definite misses (`notFound`), transient misses and abstentions (`abstain`), from ordinary providers and from `authoritative()` ones (Mojang's two in production; `authoritative(...)` builds such a fake), and that a hit stops the cascade. The real providers' HTTP calls and `resolve`'s single-flight map are not covered. `run(...)` joins the cascade's future.
 
 - **`allDefiniteMisses_endsPlayerNotFound`**: Three definite misses end the cascade `PLAYER_NOT_FOUND`.
   - `r.isSuccess()` is false.
@@ -1727,8 +1727,17 @@ Test: [`PlayerLookupTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/Pla
   - `r.failureReason()` equals `PLAYER_NOT_FOUND`, for providers answering definite, abstain, definite, definite.
 - **`vetsTransient_othersDefinite_endsTransient`**: A transient miss among definite ones ends it `ALL_PROVIDERS_TRANSIENT`.
   - `r.failureReason()` equals `ALL_PROVIDERS_TRANSIENT`, for providers answering definite, transient, definite.
-- **`anyTransientAmongOthers_endsTransient`**: A late transient miss (the legacy Mojang cooldown case) still ends it transient, whatever abstained before.
+- **`anyTransientAmongOthers_endsTransient`**: With no authoritative definite miss, a late transient miss still ends it transient, whatever abstained before (in production the legacy Mojang cooldown, when Mojang Services did not answer 404).
   - `r.failureReason()` equals `ALL_PROVIDERS_TRANSIENT`, for providers answering definite, abstain, definite, transient.
+- **`authoritativeDefinite_amongTransients_endsPlayerNotFound`**: An authoritative provider's definite miss ends the cascade `PLAYER_NOT_FOUND` at once, whatever the earlier providers answered (the live shape on 2026-10-25, when PlayerDB's and Ashcon's misses read as transient).
+  - `r.failureReason()` equals `PLAYER_NOT_FOUND`, for providers answering definite, abstain, transient, transient, authoritative definite (`mojang-services`), authoritative transient (`mojang-legacy`).
+  - The authoritative providers asked equal `["mojang-services"]`: the cascade stopped before `mojang-legacy`.
+- **`authoritativeTransient_doesNotSettleIt`**: An authoritative provider that fails says nothing, so another provider's transient miss still ends it transient.
+  - `r.failureReason()` equals `ALL_PROVIDERS_TRANSIENT`, for providers answering definite, transient, authoritative transient.
+- **`authoritativeAbstain_doesNotSettleIt`**: An authoritative abstention does not settle it either.
+  - `r.failureReason()` equals `ALL_PROVIDERS_TRANSIENT`, for providers answering transient, authoritative abstain.
+- **`providersAreNotAuthoritativeByDefault`**: `LookupProvider.authoritative()` defaults to false.
+  - `fake(NOT_FOUND).authoritative()` is false.
 - **`allAbstain_endsTransient`**: A cascade where every provider abstained learned nothing, so it ends transient, not `PLAYER_NOT_FOUND`.
   - `r.failureReason()` equals `ALL_PROVIDERS_TRANSIENT`, for two abstaining providers.
 - **`emptyCascade_endsTransient`**: A cascade with no providers ends transient.
@@ -1746,6 +1755,25 @@ Test: [`PlayerLookupTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/Pla
   - `abstain()`: `isDefiniteMiss()` is false, `isAbstain()` is true and `isHit()` is false.
 
 ## `org.wynnvets.fetcher.lookup.providers`
+
+### `PlayerDbProviderTest`
+
+Test: [`PlayerDbProviderTest.java`](../src/test/java/org/wynnvets/fetcher/lookup/providers/PlayerDbProviderTest.java) · Subject: [`PlayerDbProvider`](../src/client/java/org/wynnvets/fetcher/lookup/providers/PlayerDbProvider.java)
+
+`PlayerDbProvider.translate(int, String)` turns a PlayerDB reply (status and body) into a cascade outcome. PlayerDB answers an unknown name with HTTP 400 and `code: "minecraft.invalid_username"`, which must read as a definite miss, not an outage. `UNKNOWN_NAME_BODY` is that reply as captured on 2026-10-25. `lookup`'s HTTP call is not covered.
+
+- **`unknownName400_isDefiniteMiss`**: A 400 carrying `minecraft.invalid_username` is a definite miss.
+  - `translate(400, UNKNOWN_NAME_BODY)` is the `ProviderOutcome.notFound()` singleton.
+- **`other400_isTransient`**: Any other 400 is a transient miss.
+  - `translate(400, …)` is `transientMiss()` for a `minecraft.api_failure` body, a non-JSON body and an empty body.
+- **`notFound404_isDefiniteMiss`**: A 404 is a definite miss.
+  - `translate(404, "")` is `notFound()`.
+- **`serverErrorAndRateLimit_areTransient`**: A 500 (even with the unknown-name body) and a 429 are transient.
+  - `translate(500, UNKNOWN_NAME_BODY)` and `translate(429, "")` are `transientMiss()`.
+- **`ok200WithPlayer_isHit`**: A 200 with a player is a hit with its UUID and name.
+  - `outcome.isHit()` is true; `outcome.hit().uuid()` equals the body's id; `outcome.hit().canonicalName()` equals `"Wenweia"`.
+- **`ok200WithSuccessFalse_isDefiniteMiss`**: A 200 whose `success` is false is a definite miss.
+  - `outcome.isDefiniteMiss()` is true and `outcome.isHit()` is false.
 
 ### `VetsSnapshotProviderTest`
 

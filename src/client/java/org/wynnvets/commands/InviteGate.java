@@ -62,11 +62,11 @@ import org.wynnvets.util.Json;
  *
  * <p>Name → UUID resolution runs through {@link PlayerLookup}, which
  * tries Wynncraft / temporary-server / PlayerDB / Ashcon / Mojang
- * Services / Mojang legacy in that order. If no source hits and one
- * fails transiently (or none gives any answer) the gate fails open
- * (dispatches the invite anyway with a warning); if none fails
- * transiently and at least one returns a definite 404 the gate blocks
- * with a "no such player" message.</p>
+ * Services / Mojang legacy in that order. If a Mojang host says no such
+ * profile, or no source fails transiently and at least one returns a
+ * definite 404, the gate blocks with a "no such player" message; if no
+ * source hits otherwise (one failed transiently, or none gave any answer)
+ * it fails open (dispatches the invite anyway with a warning).</p>
  */
 public final class InviteGate {
 

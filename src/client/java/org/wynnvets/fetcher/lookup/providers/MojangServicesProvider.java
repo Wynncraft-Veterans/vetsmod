@@ -42,6 +42,11 @@ public final class MojangServicesProvider implements LookupProvider {
     }
 
     @Override
+    public boolean authoritative() {
+        return true;
+    }
+
+    @Override
     public CompletableFuture<ProviderOutcome> lookup(String name) {
         URI uri =
                 URI.create(

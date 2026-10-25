@@ -24,11 +24,13 @@ import org.wynnvets.util.Uuids;
  * Last-resort resolver: legacy {@code api.mojang.com/users/profiles/minecraft/{name}}.
  *
  * <p>Self-gates via {@link MojangCooldown}: returns transient-miss without
- * any HTTP work when the cooldown is active, so a 429-triggered cooldown
- * naturally lets the cascade settle on
+ * any HTTP work when the cooldown is active, rather than burning the same
+ * Mojang quota repeatedly. It is asked only when no earlier provider hit and
+ * Mojang Services did not say no such profile (that ends the cascade), so a
+ * cooldown then
+ * leaves the cascade on
  * {@link org.wynnvets.fetcher.lookup.FailureReason#ALL_PROVIDERS_TRANSIENT}
- * ({@link org.wynnvets.commands.InviteGate InviteGate}'s fail-open case)
- * rather than burning the same Mojang quota repeatedly.</p>
+ * ({@link org.wynnvets.commands.InviteGate InviteGate}'s fail-open case).</p>
  *
  * <p>On 429, parses {@code Retry-After} (seconds or HTTP-date) into
  * {@link MojangCooldown#record429(Duration)} so future requests skip this
@@ -47,6 +49,11 @@ public final class MojangLegacyProvider implements LookupProvider {
     @Override
     public String id() {
         return "mojang-legacy";
+    }
+
+    @Override
+    public boolean authoritative() {
+        return true;
     }
 
     @Override

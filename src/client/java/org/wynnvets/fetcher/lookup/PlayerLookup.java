@@ -32,7 +32,11 @@ import org.wynnvets.util.HttpClients;
  *       {@link MojangCooldown}</li>
  * </ol>
  *
- * <p>If every provider misses, the result distinguishes
+ * <p>An {@linkplain LookupProvider#authoritative() authoritative} provider's definite miss (one
+ * of Mojang's saying no such profile) ends the cascade at once with
+ * {@link FailureReason#PLAYER_NOT_FOUND}, whatever the earlier providers answered: Ashcon
+ * answers 429 to every name, and would otherwise make a misspelled name read as an outage.
+ * Otherwise, if every provider misses, the result distinguishes
  * {@link FailureReason#PLAYER_NOT_FOUND} (every miss was definite, or an
  * {@linkplain ProviderOutcome#abstain() abstention}, and at least one was
  * definite) from {@link FailureReason#ALL_PROVIDERS_TRANSIENT} (at least one
@@ -106,7 +110,8 @@ public final class PlayerLookup {
             String name, Iterator<LookupProvider> it, boolean anyTransient, boolean anyDefinite) {
         if (!it.hasNext()) {
             // PLAYER_NOT_FOUND needs evidence: at least one definite miss and no transient one.
-            // A cascade where every provider abstained learned nothing.
+            // A cascade where every provider abstained learned nothing. (An authoritative
+            // definite miss ended the cascade before it got here.)
             FailureReason reason =
                     !anyTransient && anyDefinite
                             ? FailureReason.PLAYER_NOT_FOUND
@@ -130,6 +135,19 @@ public final class PlayerLookup {
                                 VetsLogger.debug(
                                         "Lookup '{}' resolved via {}", name, provider.id());
                                 return CompletableFuture.completedFuture(outcome.hit());
+                            }
+                            VetsLogger.debug(
+                                    "Lookup '{}' missed at {}: {}",
+                                    name,
+                                    provider.id(),
+                                    outcome.isDefiniteMiss()
+                                            ? "definite"
+                                            : outcome.isAbstain() ? "abstain" : "transient");
+                            if (outcome.isDefiniteMiss() && provider.authoritative()) {
+                                // Mojang said no such profile: no later provider can know
+                                // better, and asking the next Mojang host spends its quota.
+                                return CompletableFuture.completedFuture(
+                                        LookupResult.exhausted(FailureReason.PLAYER_NOT_FOUND));
                             }
                             boolean nextTransient =
                                     anyTransient

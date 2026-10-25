@@ -202,7 +202,7 @@ Reliability ladder: `ashcon < wynncraft < playerdb < mojang`.
 
 | Provider | Accuracy | Rate limit |
 |---|---|---|
-| ashcon | low (frequently stale) | very permissive |
+| ashcon | low (frequently stale; answered 429 to every name, real or not, on 2026-10-25) | very permissive |
 | PlayerDB | medium | medium-permissive (not unlimited) |
 | Wynncraft `/v3/player` | only authoritative for Wynncraft-internal state | shared with the user's other traffic |
 | Mojang | source of truth | very restrictive |
@@ -211,6 +211,6 @@ Reliability ladder: `ashcon < wynncraft < playerdb < mojang`.
 
 Implementation: [`org.wynnvets.fetcher.lookup.PlayerLookup`](../src/client/java/org/wynnvets/fetcher/lookup/PlayerLookup.java) already does this. Its cascade is `WynncraftProvider → VetsSnapshotProvider → PlayerDbProvider → AshconProvider → MojangServicesProvider → MojangLegacyProvider`, with Mojang as the last resort. Preserve that ordering; do **not** promote Mojang earlier without a strong reason.
 
-The cascade's support types live beside it: `LookupProvider` (one source in the cascade), `ProviderOutcome` (a provider's hit, definite miss, abstain or transient miss; an abstention, such as `VetsSnapshotProvider` when it cannot be asked or has no snapshot, says nothing about the name), `LookupResult` (the cascade's outcome: the UUID plus any profile or snapshot the winning provider already fetched, or a `FailureReason`), `FailureReason` (`PLAYER_NOT_FOUND` when at least one provider said no such player and none could not answer, `ALL_PROVIDERS_TRANSIENT` when at least one could not answer or every provider abstained) and `MojangCooldown` (the client-wide back-off for the legacy Mojang host after a 429, which `MojangLegacyProvider` honours by skipping itself).
+The cascade's support types live beside it: `LookupProvider` (one source in the cascade, and whether its definite miss is `authoritative()`: true only for Mojang's two providers), `ProviderOutcome` (a provider's hit, definite miss, abstain or transient miss; an abstention, such as `VetsSnapshotProvider` when it cannot be asked or has no snapshot, says nothing about the name), `LookupResult` (the cascade's outcome: the UUID plus any profile or snapshot the winning provider already fetched, or a `FailureReason`), `FailureReason` (`PLAYER_NOT_FOUND` when a Mojang provider said no such player, which ends the cascade whatever the earlier providers answered, or when at least one provider said so and none could not answer; `ALL_PROVIDERS_TRANSIENT` otherwise: at least one could not answer, or every provider abstained) and `MojangCooldown` (the client-wide back-off for the legacy Mojang host after a 429, which `MojangLegacyProvider` honours by skipping itself).
 
 When a permissive provider returns a player record, treat its `username` field as potentially stale (we've observed PlayerDB and ashcon both returning old names long after Mojang has the rename live). If you need to write a name to a long-lived cache, confirm against Mojang first; if that fails, skip the cache write rather than persisting a known-stale value.
