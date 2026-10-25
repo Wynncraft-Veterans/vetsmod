@@ -1,6 +1,9 @@
 package org.wynnvets.mwe.anni.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
@@ -17,10 +20,13 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
  * part of what the render produces. The string form is Minecraft 1.21.11's, so a Minecraft update
  * that changes {@code Component.toString()} will need the goldens regenerated.</p>
  *
- * <p>Not covered here: the has-roles shape. Its role chips come from
- * {@code AnniHoverBuilder.roleChip}, which reads the role style (through {@code displayRole}) and
- * whether hover details are on from {@code VetsConfig}, and {@code VetsConfig} cannot initialise
- * in a test.</p>
+ * <p>For a player with roles the block is {@code null}, since the roles go beside the dashboard
+ * link, and {@link AnniOnboardingBlocks#vetsNotAnnouncedRoles} is {@code null} for everyone else;
+ * both are pinned, as is {@link AnniOnboardingBlocks#showsUnregisteredNudge}, which tells the
+ * render to leave out its dashboard link line above the nudge. Not covered: the roles line
+ * itself. Its role chips come from {@code AnniHoverBuilder.roleChip}, which reads the role style
+ * (through {@code displayRole}) and whether hover details are on from {@code VetsConfig}, and
+ * {@code VetsConfig} cannot initialise in a test.</p>
  */
 class AnniOnboardingBlocksTest {
 
@@ -29,11 +35,11 @@ class AnniOnboardingBlocksTest {
     }
 
     private static final String UNREGISTERED_NUDGE =
-            "literal{You have not yet opened }[style={color=red,bold}, "
+            "literal{You have not yet chosen your roles on }[style={color=red,bold}, "
                     + "siblings=[literal{anni.wynnvets.org/me}[style={color=yellow,bold,"
                     + "underlined,clickEvent=OpenUrl[uri=https://anni.wynnvets.org/me]}], "
                     + "literal{!}[style={color=red,!bold}], literal{\n}, "
-                    + "literal{Doing so unlocks all sorts of features, "
+                    + "literal{Doing so unlocks all sorts of features,\n"
                     + "and helps us organise vets guild annis!}[style={color=dark_red,!bold,"
                     + "italic}]]]";
 
@@ -51,6 +57,17 @@ class AnniOnboardingBlocksTest {
         assertEquals(
                 UNREGISTERED_NUDGE,
                 AnniOnboardingBlocks.vetsNotAnnouncedRegistrationBlock(notRegistered).toString());
+    }
+
+    @Test
+    void showsUnregisteredNudge_onlyWithoutARegistration() {
+        assertTrue(AnniOnboardingBlocks.showsUnregisteredNudge(snapshot("{}")));
+        assertTrue(
+                AnniOnboardingBlocks.showsUnregisteredNudge(
+                        snapshot("{\"registration\": {\"registered\": false}}")));
+        assertFalse(
+                AnniOnboardingBlocks.showsUnregisteredNudge(
+                        snapshot("{\"registration\": {\"registered\": true, \"roles\": []}}")));
     }
 
     @Test
@@ -76,5 +93,26 @@ class AnniOnboardingBlocksTest {
                         + "clickEvent=OpenUrl[uri=https://anni.wynnvets.org/me]}], "
                         + "literal{!}[style={color=white,bold,italic}]]]",
                 AnniOnboardingBlocks.vetsNotAnnouncedRegistrationBlock(fillOnly).toString());
+    }
+
+    @Test
+    void registrationBlock_withRoles_isNull() {
+        AnniSnapshot withRoles =
+                snapshot(
+                        "{\"registration\": {\"registered\": true, \"roles\": [{\"role\":"
+                                + " \"TANK\"}]}}");
+
+        assertNull(AnniOnboardingBlocks.vetsNotAnnouncedRegistrationBlock(withRoles));
+    }
+
+    @Test
+    void rolesLine_isNullWithoutRoles() {
+        assertNull(AnniOnboardingBlocks.vetsNotAnnouncedRoles(snapshot("{}")));
+        assertNull(
+                AnniOnboardingBlocks.vetsNotAnnouncedRoles(
+                        snapshot("{\"registration\": {\"registered\": false}}")));
+        assertNull(
+                AnniOnboardingBlocks.vetsNotAnnouncedRoles(
+                        snapshot("{\"registration\": {\"registered\": true, \"roles\": []}}")));
     }
 }

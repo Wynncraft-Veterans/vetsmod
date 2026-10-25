@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
  */
 class LegacyTextParserTest {
 
-    private static final String URL = "https://a.b/";
+    private static final String URL = "https://wynnvets.org/";
     private static final Style BASE = Style.EMPTY.withColor(ChatFormatting.GOLD).withItalic(true);
 
     private static String parse(String text, Style base) {
@@ -34,9 +34,9 @@ class LegacyTextParserTest {
      * The golden for {@link #URL} alone, linked, in a style whose other fields are {@code style}.
      */
     private static String linked(String style) {
-        return "empty[siblings=[literal{https://a.b/}[style={"
+        return "empty[siblings=[literal{https://wynnvets.org/}[style={"
                 + (style.isEmpty() ? "" : style + ",")
-                + "clickEvent=OpenUrl[uri=https://a.b/]}]]]";
+                + "clickEvent=OpenUrl[uri=https://wynnvets.org/]}]]]";
     }
 
     @Test
@@ -82,7 +82,7 @@ class LegacyTextParserTest {
     @Test
     void literalWithUrls_unknownCode_isDroppedAndKeepsTheStyle() {
         assertEquals(
-                "empty[siblings=[literal{https://a.b/}[style={clickEvent=OpenUrl[uri=https://a.b/]}"
+                "empty[siblings=[literal{https://wynnvets.org/}[style={clickEvent=OpenUrl[uri=https://wynnvets.org/]}"
                         + "]]]",
                 parse("\u00A7z" + URL, Style.EMPTY));
         // the style so far, not the base style
@@ -92,40 +92,40 @@ class LegacyTextParserTest {
     @Test
     void literalWithUrls_upperCaseCode_actsAsLowerCase() {
         assertEquals(
-                "empty[siblings=[literal{https://a.b/}[style={color=green,"
-                        + "clickEvent=OpenUrl[uri=https://a.b/]}]]]",
+                "empty[siblings=[literal{https://wynnvets.org/}[style={color=green,"
+                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/]}]]]",
                 parse("\u00A7A" + URL, Style.EMPTY));
     }
 
     @Test
     void literalWithUrls_colourCodeAfterAFormatCode_resetsToTheBaseStylePlusTheColour() {
         assertEquals(
-                "empty[siblings=[literal{https://a.b/}[style={color=green,"
-                        + "clickEvent=OpenUrl[uri=https://a.b/]}]]]",
+                "empty[siblings=[literal{https://wynnvets.org/}[style={color=green,"
+                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/]}]]]",
                 parse("\u00A7l\u00A7a" + URL, Style.EMPTY));
         assertEquals(
-                "empty[siblings=[literal{https://a.b/}[style={color=green,italic,"
-                        + "clickEvent=OpenUrl[uri=https://a.b/]}]]]",
+                "empty[siblings=[literal{https://wynnvets.org/}[style={color=green,italic,"
+                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/]}]]]",
                 parse("\u00A7l\u00A7a" + URL, BASE));
     }
 
     @Test
     void literalWithUrls_resetAfterCodesThatChangedTheStyle_returnsToTheBaseStyle() {
         assertEquals(
-                "empty[siblings=[literal{https://a.b/}[style={clickEvent=OpenUrl[uri=https://a.b/]}"
+                "empty[siblings=[literal{https://wynnvets.org/}[style={clickEvent=OpenUrl[uri=https://wynnvets.org/]}"
                         + "]]]",
                 parse("\u00A7a\u00A7l\u00A7r" + URL, Style.EMPTY));
         assertEquals(
-                "empty[siblings=[literal{https://a.b/}[style={color=gold,italic,"
-                        + "clickEvent=OpenUrl[uri=https://a.b/]}]]]",
+                "empty[siblings=[literal{https://wynnvets.org/}[style={color=gold,italic,"
+                        + "clickEvent=OpenUrl[uri=https://wynnvets.org/]}]]]",
                 parse("\u00A7a\u00A7l\u00A7r" + URL, BASE));
     }
 
     @Test
     void literalWithUrls_sectionSignWithNoCodeAfterIt_staysInTheText() {
         assertEquals(
-                "empty[siblings=[literal{https://a.b/\u00A7}[style={clickEvent=OpenUrl[uri=https://"
-                        + "a.b/\u00A7]}]]]",
+                "empty[siblings=[literal{https://wynnvets.org/\u00A7}[style={clickEvent=OpenUrl[uri=https://"
+                        + "wynnvets.org/\u00A7]}]]]",
                 parse(URL + "\u00A7", Style.EMPTY));
     }
 }

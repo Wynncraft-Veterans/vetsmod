@@ -1,121 +1,144 @@
-unenchanted:
-  - "^\?\?\?$"
-  - "^Ability Shard$"
-  - "^Breathing Helmet .*"
-  - "^Battlemaster's Crest$"
-  - "^Cycle$"
-  - "^.*Liquid Emerald.*$"
-  - "^.*Mythic Everlasting Pufferfish.*$"
-  - "^Shiny .*"
-  - "^.*Transcriber$"
-  - "^.*The Axe of Llevigar$"
----
+# Item lists for legacy-item detection, loaded once at startup by ItemDefinitions.
+#
+# Format:
+# - One section per key below, each a list of entries. Each section appears once (a
+#   repeated one fails the build). A section name the code does not know is ignored,
+#   so check the spelling.
+# - Every entry is a Java regular expression that must match the WHOLE name, not part
+#   of it. Item names are compared with colour codes, Wynncraft's glyphs and the trade
+#   market's trailing "À" removed; screen titles with colour codes removed. (The
+#   exception is enchant_excluded_items, which lists plain Minecraft item ids.)
+# - Matching is case-sensitive unless the pattern starts with (?i).
+# - Quote every entry. Use single quotes when the pattern contains a backslash
+#   ('^\?$'), and write an apostrophe inside single quotes as ''. Inside double quotes
+#   only YAML escapes such as \u00e9 are allowed.
+# - Order does not matter, and an empty entry is ignored.
+
+# ---- Legacy items ------------------------------------------------------------
+
+# Legacy by name, whatever the lore says.
 definitions:
-  - "(?i)^.*Boat Pass$"
-  - "(?i)^Crunkle's Autograph.*$"
-  - "(?i)^Dakota's Autograph.*$"
-  - "(?i)^Grian's Trusty Ocean Map.*$"
-  - "(?i)^Grian's Autograph.*$"
-  - "(?i)^Salted's Trusty Poop.*$"
-  - "(?i)^Salted's Autograph.*$"
+  - "^A Washer$"
+  - "(?i)^.*Animal Key$"
+  - "(?i)^Animal Key.*$"
   - "(?i)^Average Golden .*$"
-  - "(?i)^Average Golden Chestplate.*$"
-  - "(?i)^Average Golden Helmet.*$"
-  - "(?i)^Average Golden Leggings.*$"
+  - "(?i)^Ba'al's Betrayal.*$"
+  - "(?i)^Block Of Red Wool.*$"
+  - "(?i)^.*Boat Pass$"
   - "(?i)^Chipped Leather Boots.*$"
   - "(?i)^Chipped Leather Cap.*$"
   - "(?i)^Chipped Leather Pants.*$"
   - "(?i)^Chipped Leather Tunic.*$"
+  - "(?i)^Cleaned Saccharum.*$"
+  - "^Corrupted Treasure$"
+  - "(?i)^Cow Pass.*$"
+  - "(?i)^Crunkle's Autograph.*$"
+  - "(?i)^Dakota's Autograph.*$"
   - "(?i)^Digested Corpse.*$"
+  - "(?i)^Drawing of the Spirits.*$"
+  - "(?i)^Factory Helmet.*$"
+  - "(?i)^Faded.*.Teleportation Scroll$"
+  - "(?i)^Feather$"
+  - "(?i)^Female Pirate Wig.*$"
   - "(?i)^Flawed Golden Chestplate.*$"
   - "(?i)^Flawed Golden Leggings.*$"
   - "(?i)^Flawed Leather Boots.*$"
   - "(?i)^Flawed Leather Cap.*$"
   - "(?i)^Flawless Chain Boots.*$"
-  #- "(?i)^Ghostly Boots.*$" // Don't detect ghostly until we implement proper dye detection
-  #- "(?i)^Ghostly Cap.*$"
-  #- "(?i)^Ghostly Pants.*$"
-  #- "(?i)^Ghostly Tunic.*$"
   - "(?i)^Flawless Chain Chestplate.*$"
   - "(?i)^Flawless Chain Helmet.*$"
   - "(?i)^Flawless Chain Leggings.*$"
+  - '(?i)^Galleon''s Graveyard Pass(?! for \d).*$'
+  - "(?i)^Gert Mask.*$"
+  - "(?i)^Grian's Autograph.*$"
+  - "(?i)^Grian's Trusty Ocean Map.*$"
+  - "(?i)^Hallowynn Mask.*$"
+  - "(?i)^Harmstick.*$"
+  - "(?i)^Helmet Of Shimmering Light.*$"
+  - "(?i)^Hide N' Seek Helmet.*$"
+  - "(?i)^Hide N' Seek Token.*$"
+  - "(?i)^Hotline.*$"
+  - "(?i)^Impure Morph Gold.*$"
+  - "(?i)^Legendary Medallion.*$"
+  - "(?i)^Orc Mask.*$"
+  - "(?i)^Poinsettia.*$"
+  - "^Potion Of Healing.*$"
+  - "(?i)^Potion of Hunger.*$"
+  - "(?i)^Pumpkin Helmet.*$"
   - "(?i)^Pure Diamond Chestplate.*$"
   - "(?i)^Pure Iron Boots.*$"
   - "(?i)^Pure Iron Helmet.*$"
   - "(?i)^Pure Iron Leggings.*$"
-  - "(?i)^Quicksand Crossers.*$"
   - "(?i)^Refined Chainmail Helmet.*$"
   - "(?i)^Refined Iron Boots.*$"
   - "(?i)^Refined Iron Chainmail.*$"
   - "(?i)^Refined Iron Leggings.*$"
-  - "(?i)^Sacred$"
-  - "(?i)^The Juggernaut.*$"
-  - "(?i)^Factory Helmet.*$"
-  - "(?i)^Female Pirate Wig.*$"
-  - "(?i)^Gert Mask.*$"
-  - "(?i)^Helmet Of Shimmering Light.*$"
-  - "(?i)^Orc Mask.*$"
-  - "(?i)^Pumpkin Helmet.*$"
+  - "(?i)^Repair Scrap.*$"
   - "(?i)^Restored Ancient Helmet.*$"
-  - "(?i)^Sound Proof Earmuff.*$"
-  - "(?i)^Veekhat .*$"
-  - "(?i)^Impure Morph Gold.*$"
-  - "(?i)^Ba'al's Betrayal.*$"
-  - "^Corrupted Treasure$"
-  #- "^Pigman Meat$" // Why was this even there to begin with.
-  - "^Wolf Fang$"
-  - "(?i)^Santa's.*$"
-  - "(?i)^Santa.*$" # Apparently the helmet and boots are santa items, the chestplate and leggings are santa's.
   - "(?i)^Rusted Lost Sanctuary Key.*$"
-  - "(?i)^Animal Key.*$"
-  - "(?i)^Silverfish Key.*$"
-  - "(?i)^Skeleton Key.*$"
-  - "(?i)^Spider Key.*$"
-  - "(?i)^Zombie Key.*$"
-  - "(?i)^.*Animal Key$"
+  - "(?i)^Salted's Autograph.*$"
+  - "(?i)^Salted's Trusty Poop.*$"
+  - "(?i)^Santa.*$"
+  - "(?i)^Seeker's Aid.*$"
   - "(?i)^.*Silverfish Key$"
+  - "(?i)^Silverfish Key.*$"
   - "(?i)^.*Skeleton Key$"
+  - "(?i)^Skeleton Key.*$"
+  - "(?i)^Sketchy Potion of Healing.*$"
+  - "(?i)^Skill Reset Scroll.*$"
+  - "(?i)^Sound Proof Earmuff.*$"
   - "(?i)^.*Spider Key$"
-  - "(?i)^.*Zombie Key$"
+  - "(?i)^Spider Key.*$"
   - "(?i)^Treat.*$"
   - "(?i)^Trick$"
-  - "(?i)^Wynnter Fair.*$"
-  - "(?i)^(Replica )?Hallowynn Mask.*$"
-  - "(?i)^Seeker's Aid.*$"
-  - "(?i)^Drawing of the Spirits.*$"
-  - "(?i)^Hide N' Seek Helmet.*$"
-  - "(?i)^Hide N' Seek Token.*$"
-  - "(?i)^Legendary Medallion.*$"
-  - "(?i)^Warm Cinders.*$"
-  - "(?i)^Repair Scrap.*$"
-  - "(?i)^Llevigar Pinot.*$"
-  - "(?i)^Sketchy Potion of Healing.*$"
-  - "^Potion Of Healing.*$"
-  - "(?i)^Zhight Potion.*$"
-  - "(?i)^Potion of Hunger.*$"
-  - "(?i)^Block Of Red Wool.*$"
-  - "(?i)^Feather$"
-  - "(?i)^Cow Pass.*$"
-  - "(?i)^Galleon's Graveyard Pass.*$" # Apparently this boat pass is a "Pass" instead of a boat pass. Inconsistent.
-  - "(?i)^Faded.*.Teleportation Scroll$"
-  - "(?i)^Skill Reset Scroll.*$"
   - "(?i)^(Tutorial )?Unprocessed.*$"
-  - "(?i)^Cleaned Saccharum.*$"
-  - "^A Washer$"
-  #- "(?i)^Foehn Wind.*$" // Obtainable in nesaak merchant
-  - "(?i)^Harmstick.*$"
-  - "(?i)^Hotline.*$"
-  - "(?i)^Poinsettia.*$"
-  #- "(?i)^Short Cutter.*$" // These are obtainable in the Regular Island cave
-  #- "(?i)^Silver Short Spear.*$" // These are obtainable in the Regular Island cave
----
-# Items that are legacy ONLY when they have no lore lines.
-# Unlike the "definitions" section (which matches regardless of lore), items here
-# must ALSO have an empty lore to be treated as legacy.  This covers old keys,
-# vanilla materials, holiday items, and other confirmed loreless legacy items.
-# Items that also appear in "definitions" are normally caught by the earlier
-# definitions check first; a new_format_override name on a new-format item skips
-# that check and can still match here (e.g. a loreless new-format Skeleton Key).
+  - "(?i)^Veekhat .*$"
+  - "(?i)^Vibrant Augment$"
+  - "(?i)^Warm Cinders.*$"
+  - "(?i)^Warped Mount$"
+  - "^Wolf Fang$"
+  - "(?i)^Wynnter Fair.*$"
+  - "(?i)^Zhight Potion.*$"
+  - "(?i)^.*Zombie Key$"
+  - "(?i)^Zombie Key.*$"
+
+# Legacy only when the lore also has a "Misc. Item" rarity line, which tells an old
+# misc item from a current one with the same name.
+misc_definitions:
+  - "(?i)^Aqua Dust$"
+  - "(?i)^Broken Amulet$"
+  - "(?i)^Carved Quartz Block.*$"
+  - "(?i)^Cobblestone$"
+  - "(?i)^Cralozide Crystal$"
+  - "(?i)^Crystal Of Destiny.*$"
+  - "(?i)^Firefly Wing.*$"
+  - "(?i)^Flamingo Feather$"
+  - "(?i)^Glass Bottle.*$"
+  - "(?i)^Golden Root.*$"
+  - "(?i)^Gunpowder.*$"
+  - "(?i)^Illuminated Mushroom.*$"
+  - "(?i)^Lava Essence$"
+  - "(?i)^Light Aura.*$"
+  - "(?i)^Light Residue.*$"
+  - "(?i)^Mauvelli Mushroom.*$"
+  - "(?i)^Melon Slice.*$"
+  - "(?i)^Mundane Potion.*$"
+  - "(?i)^Passport.*$"
+  - "(?i)^Pigman Meat$"
+  - "(?i)^Quartz Block.*$"
+  - "(?i)^Quartz Pillar.*$"
+  - "(?i)^Scorched Root.*$"
+  - "(?i)^Shattered Crystal$"
+  - "(?i)^Shiny Melon.*$"
+  - "(?i)^Stitched Flesh$"
+  - "(?i)^Strange Mushroom.*$"
+  - "(?i)^Sunflower Seeds$"
+  - "(?i)^Uncraftable Potion$"
+  - "(?i)^Warm Blood.*$"
+  - "(?i)^Wheat$"
+  - "(?i)^Wybel Plushie.*$"
+
+# Legacy only when the item has no lore at all (old keys, bare vanilla materials).
 no_lore_legacy:
   - "(?i)^Animal Key$"
   - "(?i)^Block of Quartz$"
@@ -134,73 +157,70 @@ no_lore_legacy:
   - "(?i)^Skeleton Key$"
   - "(?i)^Spider Key$"
   - "(?i)^Wheat$"
+  - "(?i)^Wolf['\u2019]s Fang$"
   - "(?i)^Zombie Key$"
----
-misc_definitions:
-  - "(?i)^Carved Quartz Block.*$"
-  - "(?i)^Crystal Of Destiny.*$"
-  - "(?i)^Firefly Wing.*$" # Is this still obtainable?
-  - "(?i)^Wybel Plushie.*$"
-  - "(?i)^Glass Bottle.*$"
-  - "(?i)^Golden Root.*$"
-  - "(?i)^Gunpowder.*$"
-  - "(?i)^Illuminated Mushroom.*$"
-  - "(?i)^Light Aura.*$"
-  - "(?i)^Light Residue.*$"
-  - "(?i)^Mauvelli Mushroom.*$"
-  - "(?i)^Melon Slice.*$"
-  - "(?i)^Mundane Potion.*$"
-  - "(?i)^Passport.*$"
-  - "(?i)^Quartz Block.*$"
-  - "(?i)^Quartz Pillar.*$"
-  #- "(?i)^Raw Cod.*$" // This is obtainable?
-  - "(?i)^Scorched Root.*$"
-  - "(?i)^Shiny Melon.*$"
-  - "(?i)^Strange Mushroom.*$"
-  - "(?i)^Warm Blood.*$"
-  - "(?i)^Wheat$"
----
-# Items whose names match these patterns are never routed through the
-# pedestal-wiped detection branch. Useful for preventing loreless GUI
-# components from ending up as pedestal items.
-not_pedestal:
-  - "(?i)^.*Merchant.*$"
----
-notjunk:
-  - "(?i)^Leather$"
-  - "^Tanned Sunfish$"
-  - "^Dusty Rum Bottle$"
-  - "^.*Vine.*$"
-  - "^Ghostly .*"
-  - "^Roasted Flesh$"
-  - "^Rubble$"
-  - "^Golden Teeth$"
----
-enchant_excluded_items:
-  - "minecraft:experience_bottle"
-  - "minecraft:enchanted_book"
----
-# Items whose names collide with legacy patterns but also exist as current
-# new-format items.  When a name matches here AND the item uses the new
-# display format (a code point at U+10000 or above in custom_name), its
-# definitions and misc_definitions matches are suppressed; the other checks,
-# no_lore_legacy included, still apply.
+
+# ---- Exceptions --------------------------------------------------------------
+
+# Names used by both a legacy item and a current item. On an item in Wynncraft's
+# current name format, the definitions and misc_definitions matches are skipped;
+# no_lore_legacy still applies.
 new_format_override:
   - "(?i)^Skeleton Key$"
   - "(?i)^Wolf Fang$"
----
-# Screen titles where legacy-item processing is skipped entirely.  Some
-# Wynncraft menus apply enchantment glints as UI selectors and reuse vanilla
-# armour shells as toggles, both of which the foil/pedestal detectors
-# misidentify as legacy items.  Patterns are matched against the formatting-
-# stripped screen title.
+
+# Current items that carry the enchantment glint, so the glint alone does not make
+# them legacy. A name in definitions stays legacy either way.
+unenchanted:
+  - '^\?\?\?$'
+  - "^Ability Shard$"
+  - "^Battlemaster's Crest$"
+  - "^Breathing Helmet .*"
+  - "^Cycle$"
+  - "^.*Liquid Emerald.*$"
+  - "^.*Mythic Everlasting Pufferfish.*$"
+  - "^Shiny .*"
+  - "^.*The Axe of Llevigar$"
+  - "^.*Transcriber$"
+
+# Minecraft item ids (not patterns) whose glint is vanilla.
+enchant_excluded_items:
+  - "minecraft:enchanted_book"
+  - "minecraft:experience_bottle"
+
+# Current items with a "Junk Item" rarity line, so that line alone does not make
+# them legacy.
+notjunk:
+  - "^Dusty Rum Bottle$"
+  - "^Ghostly .*"
+  - "^Golden Teeth$"
+  - "(?i)^Leather$"
+  - "^Roasted Flesh$"
+  - "^Rubble$"
+  - "^Tanned Sunfish$"
+  - "^.*Vine.*$"
+
+# Never treated as a pedestal-wiped item (a bare armour or weapon shell with a
+# coloured name and no lore): merchants and other NPC icons look like one.
+not_pedestal:
+  - "(?i)^.*Merchant.*$"
+
+# ---- Where detection is off --------------------------------------------------
+
+# Screen titles in which no item is treated as legacy: menus that reuse glints and
+# armour shells as buttons.
 blocked_screen_titles:
-  - "^Island Settings$"
-  - "^Island Rules$"
-  - "^Island Weather$"
+  - "^Available .* Locations$"
   - "^Background Song$"
-  - "^Select a Song$"
+  - "^Island Rules$"
+  - "^Island Settings$"
+  - "^Island Weather$"
+  - "^Move here!$"
   - "^Permission Groups$"
   - "^Permissions for .*$"
-  - "^Available .* Locations$"
-  - "^Move here!$"
+  - "^Select a Song$"
+
+# Items that switch detection off for every item while one is anywhere in the
+# player's inventory (the Block Bank is carried in housing edit mode).
+inventory_suppressors:
+  - "^Block Bank$"

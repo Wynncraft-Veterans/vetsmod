@@ -11,8 +11,9 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.guild.GuildStateManager;
 
 /**
- * Intercepts the {@code /unlock <key>} command on the client side so the key
- * is consumed by vetsmod instead of being sent to the Wynncraft server.
+ * Intercepts the {@code /unlock <key>} command, in any letter case, on the
+ * client side so the key is consumed by vetsmod instead of being sent to the
+ * Wynncraft server.
  *
  * <p>The key is a bearer token issued by dazebot's {@code /vetsmod} Discord
  * command. Storing it sends an {@code auth} frame immediately — dropped
@@ -28,7 +29,9 @@ public class UnlockCommandMixin {
 
     @Inject(method = "sendCommand", at = @At("HEAD"), cancellable = true)
     private void onSendCommand(String command, CallbackInfo ci) {
-        if (!command.startsWith("unlock")) {
+        // Case-insensitive, like GuildChatDispatcher's prefixes: "/Unlock <key>"
+        // must not send the key to the server either.
+        if (!command.regionMatches(true, 0, "unlock", 0, 6)) {
             return;
         }
         // Match exactly "/unlock" or "/unlock <something>" — anything else is a
@@ -45,7 +48,7 @@ public class UnlockCommandMixin {
             ChatUtils.sendLocalMessage(
                     Component.literal(
                                     "Usage: /unlock <key>  (run ~vetsmod in #bot-commands "
-                                            + "at https://wynnvets.org/discord to get a key)")
+                                            + "at wynnvets.org/discord to get a key)")
                             .withStyle(ChatFormatting.RED));
             return;
         }
@@ -66,13 +69,12 @@ public class UnlockCommandMixin {
         switch (result) {
             case STORED_VERIFYING ->
                     ChatUtils.sendLocalMessage(
-                            Component.literal(
-                                            "⏳ Saved your vetsmod key. Verifying with the server…")
+                            Component.literal("Saved your key. Verifying with the server…")
                                     .withStyle(ChatFormatting.YELLOW));
             case MALFORMED ->
                     ChatUtils.sendLocalMessage(
                             Component.literal(
-                                            "❌ That doesn't look like a vetsmod key. "
+                                            "That doesn't look like a vetsmod key. "
                                                     + "Run ~vetsmod in #bot-commands at https://wynnvets.org/discord "
                                                     + "to get one.")
                                     .withStyle(ChatFormatting.RED));

@@ -1,12 +1,14 @@
 package org.wynnvets.chat.dispatcher;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link FindDispatcher}'s response sanitiser — the one pure leaf of
- * the {@code /find} path.
+ * Tests for {@link FindDispatcher}'s two pure leaves of the {@code /find} path: the response
+ * sanitiser, and {@code parseFindReply}, which reads a sanitised reply line for the awaited
+ * name (see the cases at the bottom).
  *
  * <p>Its strip is <b>deliberately wider</b> than
  * {@code org.wynnvets.chat.PillCodec#isCustomGlyph}: it adds {@code SURROGATE}
@@ -58,8 +60,8 @@ class FindDispatcherTest {
     @Test
     void strip_leavesOrdinaryProseAlone() {
         assertEquals(
-                "Alice is currently on server WC12",
-                FindDispatcher.stripFormattingAndPua("Alice is currently on server WC12"));
+                "Metrafish is currently on server WC12",
+                FindDispatcher.stripFormattingAndPua("Metrafish is currently on server WC12"));
     }
 
     @Test
@@ -103,5 +105,41 @@ class FindDispatcherTest {
                 "ab",
                 FindDispatcher.stripFormattingAndPua("a" + LONE_SURROGATE + "b"),
                 "SURROGATE is not in the canonical predicate at all");
+    }
+
+    // ----- parseFindReply -----
+
+    @Test
+    void reply_readsTheServerAfterTheGlyphRunsSpace() {
+        // The sanitiser strips the leading glyph run and leaves its trailing space.
+        assertEquals(
+                "wc12",
+                FindDispatcher.parseFindReply(
+                        FindDispatcher.stripFormattingAndPua(
+                                PUA + " Metrafish is currently on server WC12"),
+                        "metrafish"));
+    }
+
+    @Test
+    void reply_readsPrivateAndOffline() {
+        assertEquals(
+                FindDispatcher.PRIVATE_SERVER,
+                FindDispatcher.parseFindReply(
+                        "Holidaze is currently on a private server.", "holidaze"));
+        assertEquals(
+                "", FindDispatcher.parseFindReply("Wenweia is not currently online", "wenweia"));
+    }
+
+    @Test
+    void reply_aLongerNameEndingWithTheTargetIsSomeoneElses() {
+        assertNull(FindDispatcher.parseFindReply("Metrafish is currently on server WC12", "fish"));
+        assertNull(FindDispatcher.parseFindReply("Metrafish is not currently online", "fish"));
+    }
+
+    @Test
+    void reply_aLineThatOnlyMentionsTheTargetIsNotAReply() {
+        assertNull(
+                FindDispatcher.parseFindReply(
+                        "Nazzae says Metrafish is currently on server WC12", "metrafish"));
     }
 }

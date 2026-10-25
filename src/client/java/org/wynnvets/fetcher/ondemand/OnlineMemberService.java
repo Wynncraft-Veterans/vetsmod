@@ -12,13 +12,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.api.VetsApi;
@@ -27,6 +30,7 @@ import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
+import org.wynnvets.util.Uuids;
 
 /**
  * Shared service for fetching and merging online guild member data.
@@ -69,16 +73,17 @@ final class OnlineMemberService {
      */
     static CompletableFuture<GatherResult> gatherOnlinePlayers() {
         // 1. Read tab list immediately (synchronous, local state).
+        // The tab list's guild column belongs to whichever guild the local player is in, so
+        // honourary or waitlist users who happen to be in some other guild would otherwise
+        // list that guild's online players as Returners members. Only a Returners member's
+        // column is read: both the forward to the server and the merge below use this list.
+        boolean returners = GuildStateManager.isReturners();
         List<TabListGuildParser.GuildEntry> tabEntries =
-                TabListGuildParser.parseOnlineGuildMembers();
+                trustedTabEntries(returners, TabListGuildParser::parseOnlineGuildMembers);
         VetsLogger.debug("Tab list returned {} guild entries", tabEntries.size());
 
         // Forward tab list to the server so !list can use it too.
-        // Only Returners members are safe to forward from: the tab list
-        // reflects whichever guild the local player is in, so honourary or
-        // waitlist users who happen to be in some other guild would
-        // otherwise leak that guild's roster into the vets dataset.
-        if (!tabEntries.isEmpty() && GuildStateManager.isReturners()) {
+        if (!tabEntries.isEmpty()) {
             V1ApiManager.sendTabList(
                     tabEntries.stream()
                             .map(e -> new V1ApiManager.TabListEntry(e.server(), e.username()))
@@ -112,7 +117,18 @@ final class OnlineMemberService {
 
         // 4. Combine all three results.
         return serverFuture.thenCombine(
-                guildFuture, (connected, guildInfo) -> merge(connected, guildInfo, tabEntries));
+                guildFuture,
+                (connected, guildInfo) -> merge(connected, guildInfo, tabEntries, returners));
+    }
+
+    /**
+     * The tab list's guild entries when the local player is a Returners member, else an empty
+     * list without reading the tab list at all: the guild column shows the viewer's own guild,
+     * whichever it is, so for anyone else it is another guild's online players.
+     */
+    // Package-private for unit tests. See OnlineMemberServiceTest.
+    static <T> List<T> trustedTabEntries(boolean returners, Supplier<List<T>> parse) {
+        return returners ? parse.get() : List.of();
     }
 
     /**
@@ -189,10 +205,96 @@ final class OnlineMemberService {
 
     // ── Merge ───────────────────────────────────────────────────────
 
+    /**
+     * Lays the server's polled roster (UUID to current username) over the Wynntils-derived maps.
+     * The roster is authoritative: its names override Wynncraft's possibly stale ones. Its keys
+     * are canonicalised through {@link Uuids#parse} to the dashed lowercase spelling
+     * {@code UUID.toString()} gives, which is how the Wynntils entries are keyed, so the server's
+     * spelling (undashed, upper case) cannot add a second entry for the same player. A key that
+     * does not parse as a UUID is kept as it is, so it can still never collide with one that
+     * does. An entry with a null or blank name is skipped.
+     */
+    // Package-private for unit tests. See OnlineMemberServiceTest.
+    static void overlayRoster(
+            Map<String, String> uuidToUsername,
+            Map<String, String> usernameToUuid,
+            Map<String, String> roster) {
+        for (Map.Entry<String, String> entry : roster.entrySet()) {
+            String name = entry.getValue();
+            if (name == null || name.isBlank()) {
+                continue;
+            }
+            UUID parsed = Uuids.parse(entry.getKey());
+            String uuid = parsed != null ? parsed.toString() : entry.getKey();
+            uuidToUsername.put(uuid, name);
+            usernameToUuid.put(name.toLowerCase(Locale.ROOT), uuid);
+        }
+    }
+
+    /**
+     * Adds the server's connected vetsmod users to the name maps for UUIDs the Wynntils and roster
+     * data does not know. {@code uuidToUsername}, which supplies display names, takes every tier.
+     * {@code usernameToUuid}, which resolves a tab-list name to a Returners member, takes only
+     * guild-tier users: a connected honourary or waitlist user is not a guild member, so a tab
+     * name equal to theirs (another guild's honourary, or the viewer) must stay unresolved and
+     * not be listed under the guild.
+     */
+    // Package-private for unit tests. See OnlineMemberServiceTest.
+    static void supplementConnected(
+            Map<String, String> uuidToUsername,
+            Map<String, String> usernameToUuid,
+            List<ConnectedUser> connected) {
+        for (ConnectedUser cu : connected) {
+            uuidToUsername.putIfAbsent(cu.uuid(), cu.username());
+            if (TIER_GUILD.equals(cu.tier())) {
+                usernameToUuid.putIfAbsent(cu.username().toLowerCase(Locale.ROOT), cu.uuid());
+            }
+        }
+    }
+
+    /**
+     * The names {@link OnlineGuildCache} may keep listed as guild members after they vanish: the
+     * guild-tier players, with or without a UUID. Honourary and waitlist players are left out,
+     * because the cache re-lists a name as guild tier and would show one who has logged off
+     * under "Guild".
+     */
+    // Package-private for unit tests. See OnlineMemberServiceTest.
+    static Set<String> graceCandidates(List<OnlinePlayer> players) {
+        Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (OnlinePlayer p : players) {
+            if (TIER_GUILD.equals(p.tier())) {
+                names.add(p.username());
+            }
+        }
+        return names;
+    }
+
+    /**
+     * The grace names to list again as guild members: those not online now, and none at all for
+     * a viewer outside Returners. The cache is static for the whole game, so a name remembered
+     * while the viewer was wrongly taken for a Returners member (a stale guild check) must not
+     * come back once the viewer is known not to be one.
+     */
+    // Package-private for unit tests. See OnlineMemberServiceTest.
+    static List<String> graceReadds(
+            boolean returners, Collection<String> graceNames, Set<String> online) {
+        if (!returners) {
+            return List.of();
+        }
+        List<String> readds = new ArrayList<>();
+        for (String name : graceNames) {
+            if (!online.contains(name)) {
+                readds.add(name);
+            }
+        }
+        return readds;
+    }
+
     private static GatherResult merge(
             List<ConnectedUser> connected,
             GuildInfo guildInfo,
-            List<TabListGuildParser.GuildEntry> tabEntries) {
+            List<TabListGuildParser.GuildEntry> tabEntries,
+            boolean returners) {
 
         // Index connected users by UUID.
         Map<String, ConnectedUser> modByUuid = new LinkedHashMap<>();
@@ -224,16 +326,9 @@ final class OnlineMemberService {
         }
         // Overlay resolved roster names (from Minecraft Services API via tempserver).
         // These are authoritative and override potentially stale Wynncraft API names.
-        Map<String, String> resolvedRoster = PolledJsonMap.GUILD_ROSTER.snapshot();
-        for (Map.Entry<String, String> entry : resolvedRoster.entrySet()) {
-            uuidToUsername.put(entry.getKey(), entry.getValue());
-            usernameToUuid.put(entry.getValue().toLowerCase(Locale.ROOT), entry.getKey());
-        }
+        overlayRoster(uuidToUsername, usernameToUuid, PolledJsonMap.GUILD_ROSTER.snapshot());
         // Supplement with vetsmod usernames for UUIDs the API doesn't know.
-        for (ConnectedUser cu : connected) {
-            uuidToUsername.putIfAbsent(cu.uuid(), cu.username());
-            usernameToUuid.putIfAbsent(cu.username().toLowerCase(Locale.ROOT), cu.uuid());
-        }
+        supplementConnected(uuidToUsername, usernameToUuid, connected);
 
         // Renamed players: the server's GuildRosterPoller reads legacyName from the
         // v3.8 guild payload and populates /v1/outbound/aliases; PolledJsonMap.WYNN_ALIASES
@@ -299,17 +394,22 @@ final class OnlineMemberService {
             }
         }
 
-        // Record all currently-known online names, then pull in grace-period names.
+        // Record the guild-tier names as seen, then pull in grace-period names. Every listed
+        // name still excludes a grace re-add, but only guild-tier names are remembered: the
+        // cache stores no tier and re-lists a name as a guild member, so an honourary or
+        // waitlister who logged off would otherwise reappear under "Guild".
         Set<String> allCurrentlyOnline = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         for (OnlinePlayer p : result) {
             allCurrentlyOnline.add(p.username());
         }
-        OnlineGuildCache.markSeen(allCurrentlyOnline);
+        OnlineGuildCache.markSeen(graceCandidates(result));
 
-        for (String graceName : OnlineGuildCache.getGracePeriodNames(allCurrentlyOnline)) {
-            if (!allCurrentlyOnline.contains(graceName)) {
-                result.add(new OnlinePlayer(graceName, "", TIER_GUILD));
-            }
+        for (String graceName :
+                graceReadds(
+                        returners,
+                        OnlineGuildCache.getGracePeriodNames(allCurrentlyOnline),
+                        allCurrentlyOnline)) {
+            result.add(new OnlinePlayer(graceName, "", TIER_GUILD));
         }
 
         return new GatherResult(result, modGuildUuids, queuedUuids, guildInfo != null);

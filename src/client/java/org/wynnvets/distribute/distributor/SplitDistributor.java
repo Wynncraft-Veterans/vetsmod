@@ -8,6 +8,7 @@ import java.util.Random;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.DistributeRuns;
 
 /**
  * Implements {@code /wv distribute @split <resource> <count>}: divides
@@ -39,10 +40,11 @@ import org.wynnvets.chat.ChatUtils;
  * that finds no recipients (empty graid log, no objective completers)
  * doesn't stall the chain. The next phase starts about
  * {@link #PHASE_DELAY_TICKS} after the previous reports done. A phase
- * can still end without reporting &mdash; {@code members-list-walker-drops-completion},
- * {@code member-slot-presser-drops-completion}, and the rows of
- * {@code vetsmod_distribute.md} §7 whose callback column says no
- * &mdash; and the chain stalls behind it.</p>
+ * that stops (it lost its menu or stalled) or is refused (a precondition
+ * unmet, such as {@code @graids} without Wynntils' Custom Guild Log Screen)
+ * does not report, by design, and the whole chain ends with it. Every phase
+ * either reports done, stops or refuses ({@code vetsmod_distribute.md}
+ * §7).</p>
  *
  * <h2>Skipping zero-count phases</h2>
  * <p>For very small {@code count} values (e.g. {@code 1} or {@code 2}),
@@ -57,11 +59,10 @@ public final class SplitDistributor {
     /** Settle gap. Belt-and-braces on top of
      *  {@code Handlers.Command.queueCommand}'s built-in 7-tick command
      *  spacing: a short scheduler delay before each objectives or random
-     *  phase starts. A phase that ends on the Members menu gives it no
-     *  close packet to wait for: it dismisses the menu client-side through
-     *  {@link MemberSlotPresser#closeMembersScreen()}, which sends no
-     *  {@code ServerboundContainerClosePacket} (see
-     *  {@code close-members-screen-sends-no-close-packet}). */
+     *  phase starts. A phase that ends on the Members menu closes it
+     *  through {@link org.wynnvets.distribute.MembersGui#closeIfOpen()
+     *  MembersGui.closeIfOpen()}, which sends the server a close packet;
+     *  the gap also gives that packet time to land. */
     private static final int PHASE_DELAY_TICKS = 10;
 
     private SplitDistributor() {}
@@ -91,19 +92,25 @@ public final class SplitDistributor {
         // in a settle delay (see PHASE_DELAY_TICKS), even when an empty
         // graids pool makes it the first to run; the graids phase is not.
         final Runnable terminal =
-                () ->
-                        ChatUtils.sendLocalMessage(
-                                Component.literal("Split distribution complete.")
-                                        .withStyle(ChatFormatting.GREEN));
+                () -> {
+                    ChatUtils.sendLocalMessage(
+                            Component.literal("Split distribution complete.")
+                                    .withStyle(ChatFormatting.GREEN));
+                    DistributeRuns.finished();
+                };
 
+        final int generation = DistributeRuns.generation();
         final Runnable randomPhase =
                 pools[2] > 0
-                        ? delayed(() -> RandomDistributor.dispatch(pools[2], resource, terminal))
+                        ? delayed(
+                                generation,
+                                () -> RandomDistributor.dispatch(pools[2], resource, terminal))
                         : terminal;
 
         final Runnable objectivesPhase =
                 pools[1] > 0
                         ? delayed(
+                                generation,
                                 () ->
                                         ObjectivesDistributor.dispatch(
                                                 pools[1], resource, randomPhase))
@@ -119,9 +126,13 @@ public final class SplitDistributor {
 
     /** Wraps {@code body} in a {@link #PHASE_DELAY_TICKS}-tick scheduler
      *  call, so the phase starts about that long after it is invoked &mdash;
-     *  normally from the previous phase's {@code onComplete}. */
-    private static Runnable delayed(Runnable body) {
-        return () -> Managers.TickScheduler.scheduleLater(body, PHASE_DELAY_TICKS);
+     *  normally from the previous phase's {@code onComplete} &mdash; unless a
+     *  disconnect came since the run read {@code generation}
+     *  ({@link DistributeRuns#fenced}). */
+    private static Runnable delayed(int generation, Runnable body) {
+        return () ->
+                Managers.TickScheduler.scheduleLater(
+                        DistributeRuns.fenced(generation, body), PHASE_DELAY_TICKS);
     }
 
     /**

@@ -91,10 +91,10 @@ class NameOrSelectorArgumentTest {
 
     @Test
     void parse_resumesOnTheNextTokenAfterTheSeparator() throws CommandSyntaxException {
-        StringReader reader = new StringReader("Alice Bob");
-        assertEquals("Alice", TYPE.parse(reader));
+        StringReader reader = new StringReader("Metrafish Holidaze");
+        assertEquals("Metrafish", TYPE.parse(reader));
         reader.skip(); // brigadier eats the separator between arguments
-        assertEquals("Bob", TYPE.parse(reader));
+        assertEquals("Holidaze", TYPE.parse(reader));
     }
 
     // ── Rejected shapes ───────────────────────────────────────────────

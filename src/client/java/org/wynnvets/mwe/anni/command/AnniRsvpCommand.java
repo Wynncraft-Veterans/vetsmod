@@ -2,6 +2,7 @@ package org.wynnvets.mwe.anni.command;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.wynntils.utils.mc.McUtils;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -40,7 +41,7 @@ import org.wynnvets.mwe.anni.render.AnniHoverBuilder;
  * UX-only — the server-side trust chain is the actual gate.</p>
  *
  * <p>Unauthenticated message uses spec wording per the S6 plan:
- * <em>"Use \rsvp on discord — or run ~vetsmod first."</em> Surfaces both
+ * <em>"You aren't authenticated (~vetsmod on vetscord). For now, use the discord \rsvp on discord (or use ~vetsmod)."</em> Surfaces both
  * the Discord fallback and the in-game link path so users who can't or
  * won't run {@code ~vetsmod} still know where to go.</p>
  */
@@ -65,54 +66,47 @@ public final class AnniRsvpCommand {
     private static int dispatch(String notice) {
         if (!ensureAuthenticated()) return 0;
         reply("Sending " + label(notice) + " RSVP…", ChatFormatting.GRAY);
-        AnniRsvpClient.send(notice)
-                .whenComplete((ack, throwable) -> renderAck(notice, ack, throwable));
+        AnniRsvpClient.send(notice).thenAccept(ack -> renderAck(notice, ack));
         return 1;
     }
 
     private static boolean ensureAuthenticated() {
         if (GuildStateManager.isAuthenticatedThisSession()) return true;
-        reply("Use \\rsvp on discord — or run ~vetsmod first.", ChatFormatting.RED);
+        reply(
+                "You aren't authenticated (~vetsmod on vetscord). For now, use the discord \\rsvp on discord (or use ~vetsmod).",
+                ChatFormatting.RED);
         return false;
     }
 
     /**
      * Render the ack on the main thread.
      *
-     * <p>⚠️ The opening {@code throwable != null || ack == null} arm is not
-     * belt-and-braces: it is the reason this command still works. The client's
-     * future completes <em>exceptionally</em> on its deadline rather than with
-     * {@code null}, because {@code CompletableFuture#orTimeout} returns
-     * {@code this} and the {@code .exceptionally} stage derived from it is
-     * discarded. This site and its twin in the sibling command are the two
-     * consumers written against the real behaviour, which is what settles
-     * which side of the contradiction is wrong. Filed as
-     * {@code anni-ack-clients-ortimeout-completes-exceptionally}; whichever way
-     * that is resolved, this arm moves with it — if the contract becomes
-     * "completes with null", the {@code throwable} half becomes dead.</p>
+     * <p>The client's future never completes exceptionally: it resolves
+     * {@code null} when its deadline passes with no reply, which the opening
+     * arm reports as a failed request.</p>
      */
-    private static void renderAck(String notice, AnniRsvpClient.Ack ack, Throwable throwable) {
+    private static void renderAck(String notice, AnniRsvpClient.Ack ack) {
         Minecraft mc = McUtils.mc();
         if (mc == null) return;
         mc.execute(
                 () -> {
-                    if (throwable != null || ack == null) {
-                        reply("RSVP request failed (no response).", ChatFormatting.RED);
-                        VetsLogger.debug(
-                                "rsvp ack threw or null: {}",
-                                throwable != null ? throwable.getMessage() : "null");
+                    if (ack == null) {
+                        reply("Vets API error: RSVP request failed.", ChatFormatting.RED);
+                        VetsLogger.debug("rsvp ack null: no reply before the deadline");
                         return;
                     }
                     if (ack.ok()) {
-                        ChatUtils.sendLocalMessage(successComponent(notice));
+                        ChatUtils.sendLocalMessage(successComponent(notice, ack));
+                        // A revoke of nothing still pulls: it usually means the cached snapshot
+                        // shows an RSVP the server no longer has (withdrawn on Discord).
                         // Outside the T-2h hot window the push poller runs at 5-min
                         // cadence, so without a fire-and-forget refresh here the
                         // cached snapshot would still report the pre-RSVP state
-                        // (e.g. "EARLY WALK-IN") for up to 5 minutes — confusing
-                        // immediately after the user committed. Today no anni_state
-                        // push reaches vetsmod (outbound-socket-never-authenticated),
-                        // so without this refresh the pre-RSVP state would last until
-                        // the next pull. The query() pull
+                        // (e.g. a yellow "RSVP-NONE") for up to 5 minutes — confusing
+                        // immediately after the user committed. A player whose outbound
+                        // socket is not authenticated gets no anni_state push at all,
+                        // so for them the pre-RSVP state would last until the next
+                        // pull. The query() pull
                         // hits temp-server's anni_query handler, which serves a
                         // cached snapshot if <15s old or re-fetches from vets-anni
                         // synchronously. Either way the new RSVP shows up on the
@@ -128,7 +122,10 @@ public final class AnniRsvpCommand {
     /**
      * Build the success line.
      *
-     * <p>Two shapes, not one. {@code hard} and {@code soft} render
+     * <p>Three shapes, not one. A {@code revoke} whose ack says
+     * {@code nothing_to_withdraw} renders a flat gray "You had no active RSVP to withdraw."
+     * (the Discord cog's own wording); an older server sends no {@code result}, so its
+     * revoke keeps the line below. {@code hard} and {@code soft} render
      * "You have &lt;TOKEN&gt; RSVP'd for the next anni.", with the token coloured
      * via {@link AnniHoverBuilder#noticeColor(String)} and the rest of the line
      * gray. {@code revoke} returns early with a flat gray
@@ -137,7 +134,12 @@ public final class AnniRsvpCommand {
      * correct, because {@code revoke} is a verb this command sends and not a
      * notice state any snapshot reports.</p>
      */
-    private static MutableComponent successComponent(String notice) {
+    // Package-private for unit tests. See AnniRsvpCommandTest.
+    static MutableComponent successComponent(String notice, AnniRsvpClient.Ack ack) {
+        if (isNothingToWithdraw(notice, ack)) {
+            return Component.literal("You had no active RSVP to withdraw.")
+                    .withStyle(ChatFormatting.GRAY);
+        }
         if ("revoke".equals(notice)) {
             return Component.literal("Your RSVP has been withdrawn.")
                     .withStyle(ChatFormatting.GRAY);
@@ -152,10 +154,15 @@ public final class AnniRsvpCommand {
                                 .withStyle(ChatFormatting.GRAY));
     }
 
+    /** A revoke the server answered with {@code result == "nothing_to_withdraw"}. */
+    private static boolean isNothingToWithdraw(String notice, AnniRsvpClient.Ack ack) {
+        return "revoke".equals(notice) && ack != null && "nothing_to_withdraw".equals(ack.result());
+    }
+
     private static String label(String notice) {
         if ("hard".equals(notice)) return "HARD";
         if ("soft".equals(notice)) return "SOFT";
-        return notice == null ? "?" : notice.toUpperCase();
+        return notice == null ? "?" : notice.toUpperCase(Locale.ROOT);
     }
 
     private static void reply(String text, ChatFormatting style) {

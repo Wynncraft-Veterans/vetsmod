@@ -1,5 +1,6 @@
 package org.wynnvets.mwe.anni.mode;
 
+import java.util.Locale;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 
@@ -8,10 +9,8 @@ import org.wynnvets.config.VetsConfigKeys;
  *
  * <ul>
  *   <li>{@link #SILENT} — strict no-op. Boss-bar pipeline disengaged,
- *       outline/waypoint hooks inert. Today the flash-sound pings
- *       ({@link VetsConfigKeys#VETS_ANNI_FLASH_SOUND}) still play on a snapshot
- *       change in this mode ({@code anni-flash-pings-play-while-bar-is-down}).
- *       This is the only mode allowed
+ *       outline/waypoint hooks inert, and no flash-sound ping plays on a
+ *       snapshot change. This is the only mode allowed
  *       while {@code /stream} is active (spec §3.1, "ONLY mode allowed
  *       when the vanilla /stream is enabled").</li>
  *   <li>{@link #PASSIVE} — synthetic boss bar driven by the snapshot;
@@ -45,10 +44,12 @@ public enum AnniMode {
     }
 
     /** Convert a config-shaped string back into the enum. {@code null}
-     *  or unknown → {@link #SILENT}. Case-insensitive. */
+     *  or unknown → {@link #SILENT}. Case-insensitive. A dotless {@code ı} reads as {@code i}:
+     *  an older build folded with the JVM's default locale, so under a Turkish or Azeri
+     *  default it wrote {@code passıve} and {@code aggressıve}. */
     public static AnniMode fromString(String value) {
         if (value == null) return SILENT;
-        switch (value.toLowerCase()) {
+        switch (value.toLowerCase(Locale.ROOT).replace('\u0131', 'i')) {
             case "passive":
                 return PASSIVE;
             case "aggressive":
@@ -64,6 +65,6 @@ public enum AnniMode {
      *  rename without coordinating with the config validator and the
      *  {@code /wv anni <mode>} command parser. */
     public String toConfigValue() {
-        return name().toLowerCase();
+        return name().toLowerCase(Locale.ROOT);
     }
 }

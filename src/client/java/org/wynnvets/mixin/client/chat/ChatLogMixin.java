@@ -6,6 +6,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.wynnvets.chat.ChatHookGate;
 import org.wynnvets.chat.ChatLogger;
 import org.wynnvets.chat.LocalChatDispatch;
 import org.wynnvets.chat.dispatcher.DispatchCoordinator;
@@ -32,9 +33,9 @@ import org.wynnvets.mwe.anni.mode.StreamerModeChatDetector;
  * replaces {@code minecraft.gui.chat} with a {@code WrappingChatComponent}
  * that hands each message, three-argument player chat included, to its
  * chat-tab service, which re-adds it to the receiving tabs' own
- * {@code ChatComponent}s through this one-argument overload. So the hook can
- * see player chat, and can run more than once for the same message
- * (filed: {@code chat-log-mixin-runs-once-per-chat-tab}). A system
+ * {@code ChatComponent}s through this one-argument overload. The hook
+ * therefore runs once, on the HUD component ({@code minecraft.gui.chat}), and
+ * {@link ChatHookGate} skips those per-tab re-adds. A system
  * message Wynntils cancels in its {@code handleSystemMessage} wrapper never
  * reaches it at all.</p>
  *
@@ -59,6 +60,10 @@ public class ChatLogMixin {
             at = @At("HEAD"),
             cancellable = true)
     private void onChatMessage(Component message, CallbackInfo ci) {
+        if (!ChatHookGate.shouldRun(this, message)) {
+            return;
+        }
+
         String messageString = message.getString();
 
         // /stream-mode chat-line detector — belt-and-braces backup for
@@ -149,19 +154,17 @@ public class ChatLogMixin {
         // (rank remaps, and supporters while glints are shown) never reach this point.
         if (SpoilerRewriter.tryRewrite(message, messageString)) {
             ci.cancel();
+            return;
         }
+
+        // The line stays on screen: count it toward the Prepend badge dedup.
+        LocalChatDispatch.countServerLine(message);
     }
 
     /**
      * Checks if a message is part of the /gu rank staff-check output.
      */
     private boolean isStaffRankCheckMessage(String message) {
-        String trimmed = message.trim();
-        String normalized = trimmed.toLowerCase();
-        return (normalized.contains("you must be a")
-                        && normalized.contains("captain")
-                        && normalized.contains("to use this command"))
-                || (normalized.contains("invalid arguments, try:")
-                        && normalized.contains("rank [name] [rank]"));
+        return GuildStateManager.isStaffRankReply(message);
     }
 }

@@ -1,6 +1,7 @@
 package org.wynnvets.chat.rewriter;
 
 import com.wynntils.utils.mc.ComponentUtils;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.fabricmc.loader.api.FabricLoader;
@@ -11,6 +12,7 @@ import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.GuildChatLine;
 import org.wynnvets.chat.NickResolver;
 import org.wynnvets.chat.PillCodec;
+import org.wynnvets.chat.RankDisplayMap;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.logging.VetsLogger;
 
@@ -18,8 +20,10 @@ import org.wynnvets.logging.VetsLogger;
  * Rewrites incoming guild chat "encourage update" messages from staff.
  *
  * <p>When a staff member sends {@code /encourage <version>}, it appears in guild
- * chat as {@code ⚠⚠⚠ If you are using vetsmod, it's outdated (current version <version>) ⚠⚠⚠}.
- * This rewriter intercepts that message and, for vetsmod users, replaces it with
+ * chat as {@code ⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in
+ * #bot-commands on vetscord. (v<version>) ⚠⚠⚠}. Staff on older builds still send the earlier
+ * {@code ⚠⚠⚠ If you are using vetsmod, it's outdated (current version <version>) ⚠⚠⚠}, which is
+ * matched too. This rewriter intercepts either message and, for vetsmod users, replaces it with
  * a version-comparison result:</p>
  *
  * <ul>
@@ -30,6 +34,12 @@ import org.wynnvets.logging.VetsLogger;
 public final class EncourageUpdateRewriter {
 
     private static final Pattern ENCOURAGE_PATTERN =
+            Pattern.compile(
+                    "⚠⚠⚠ If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in"
+                            + " #bot-commands on vetscord\\. \\(v([0-9]+(?:\\.[0-9]+)*)\\) ⚠⚠⚠");
+
+    /** The wording sent by staff on builds from before {@link #ENCOURAGE_PATTERN}'s. */
+    private static final Pattern LEGACY_ENCOURAGE_PATTERN =
             Pattern.compile(
                     "⚠⚠⚠ If you are using vetsmod, it's outdated \\(current version ([0-9]+(?:\\.[0-9]+)*)\\) ⚠⚠⚠");
 
@@ -52,14 +62,18 @@ public final class EncourageUpdateRewriter {
         // attached as a hover event on the name span.
         String senderUsername = NickResolver.realUsernameOrFallback(message, parsed.username());
 
-        if (!isCurrentStaffSender(senderUsername)) {
+        Optional<String> senderRank = confirmedRank(senderUsername);
+        if (senderRank.isEmpty()) {
             return false;
         }
 
         String cleanedMessage = stripWrapArtifacts(parsed.message());
         Matcher matcher = ENCOURAGE_PATTERN.matcher(cleanedMessage);
         if (!matcher.matches()) {
-            return false;
+            matcher = LEGACY_ENCOURAGE_PATTERN.matcher(cleanedMessage);
+            if (!matcher.matches()) {
+                return false;
+            }
         }
 
         String announcedVersion = matcher.group(1);
@@ -68,8 +82,6 @@ public final class EncourageUpdateRewriter {
         VetsLogger.debug(
                 "Encourage update: announced={}, local={}", announcedVersion, localVersion);
 
-        String senderRank = resolveStaffRank(senderUsername);
-
         MutableComponent body;
         if (isVersionLessThan(localVersion, announcedVersion)) {
             body = ComponentUtils.makeObfuscated("Your vetsmod is outdated", 0.08f, 0.04f);
@@ -77,7 +89,8 @@ public final class EncourageUpdateRewriter {
             body = ComponentUtils.makeRainbowStyle("You have up to date vetsmod", true);
         }
 
-        ChatUtils.sendGuildChatMessageWithBody(senderRank, senderUsername, body);
+        ChatUtils.sendGuildChatMessageWithBody(
+                RankDisplayMap.displayFor(senderRank.get()), senderUsername, body);
         return true;
     }
 
@@ -144,45 +157,30 @@ public final class EncourageUpdateRewriter {
         return sb.toString().replaceAll("\\s+", " ").trim();
     }
 
-    private static String resolveStaffRank(String username) {
+    /**
+     * The sender's raw rank from {@code StaffRanksPoller}'s confirmed roster: the whole name
+     * first, then each {@code /}-separated part, or empty when none is staff. One lookup both
+     * decides whether to rewrite and labels the pill, so a roster update between the two cannot
+     * leave a confirmed sender without a rank.
+     */
+    private static Optional<String> confirmedRank(String username) {
         if (username == null || username.isBlank()) {
-            return "Captain";
+            return Optional.empty();
         }
-
         String normalized = username.trim();
-        return StaffRanksPoller.confirmedRankFor(normalized)
-                .or(
-                        () -> {
-                            for (String variant : normalized.split("/")) {
-                                String candidate = variant.trim();
-                                if (!candidate.isEmpty()) {
-                                    var rank = StaffRanksPoller.confirmedRankFor(candidate);
-                                    if (rank.isPresent()) return rank;
-                                }
-                            }
-                            return java.util.Optional.empty();
-                        })
-                .orElse("Captain");
-    }
-
-    private static boolean isCurrentStaffSender(String username) {
-        if (username == null || username.isBlank()) {
-            return false;
+        Optional<String> rank = StaffRanksPoller.confirmedRankFor(normalized);
+        if (rank.isPresent()) {
+            return rank;
         }
-
-        String normalized = username.trim();
-        if (StaffRanksPoller.confirmedRankFor(normalized).isPresent()) {
-            return true;
-        }
-
-        String[] variants = normalized.split("/");
-        for (String variant : variants) {
+        for (String variant : normalized.split("/")) {
             String candidate = variant.trim();
-            if (!candidate.isEmpty() && StaffRanksPoller.confirmedRankFor(candidate).isPresent()) {
-                return true;
+            if (!candidate.isEmpty()) {
+                rank = StaffRanksPoller.confirmedRankFor(candidate);
+                if (rank.isPresent()) {
+                    return rank;
+                }
             }
         }
-
-        return false;
+        return Optional.empty();
     }
 }

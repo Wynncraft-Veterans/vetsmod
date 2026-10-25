@@ -12,20 +12,22 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 
 **Detection / tooltip logic:**
 - [ItemDefinitions](../src/client/java/org/wynnvets/items/ItemDefinitions.java) — YAML loader + regex cache
-- [LegacyItemHandler](../src/client/java/org/wynnvets/items/LegacyItemHandler.java) — `isLegacyItem()` 8-branch cascade + state fields
-- [LegacyTooltipRenderer](../src/client/java/org/wynnvets/items/LegacyTooltipRenderer.java) — 9-branch tooltip rewriter
+- [LegacyItemHandler](../src/client/java/org/wynnvets/items/LegacyItemHandler.java) — `isLegacyItem()` 9-branch cascade + state fields
+- [LegacyTooltipRenderer](../src/client/java/org/wynnvets/items/LegacyTooltipRenderer.java) — 10-branch tooltip rewriter
 - [NewFormatRenderer](../src/client/java/org/wynnvets/items/NewFormatRenderer.java) — PUA / new-format component-tree manipulation
 - [LegacyHighlightPainter](../src/client/java/org/wynnvets/items/LegacyHighlightPainter.java) — `paintIfLegacy()`, the guard-and-paint both highlight sites call (§5)
 - [LegacyEnchantmentRenderer](../src/client/java/org/wynnvets/items/LegacyEnchantmentRenderer.java) — names the specific enchantment a legacy item carries (§4)
+- [LegacyLoreText](../src/client/java/org/wynnvets/items/LegacyLoreText.java) — string-level tooltip/lore rules split out of the two classes above so the unit tests can reach them (neither can be class-loaded under test: both initialise `ItemStack`)
 - [LegacyScreenshotHandler](../src/client/java/org/wynnvets/items/LegacyScreenshotHandler.java) — re-renders the modified tooltip to the clipboard (§4)
 
 **Data:**
-- [definitions.yml](../src/client/resources/definitions.yml) — 9 sections
+- [definitions.yml](../src/client/resources/definitions.yml) — 10 sections
 
 **Config:**
 - [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java)
 - [VetsConfigKeys](../src/client/java/org/wynnvets/config/VetsConfigKeys.java) — the config key names
-- [VetsConfigSchema](../src/client/java/org/wynnvets/config/VetsConfigSchema.java) — the `/wv config` key lists, valid-value lists (`VALID_SPRITES`) and `reset` defaults
+- [VetsConfigSchema](../src/client/java/org/wynnvets/config/VetsConfigSchema.java) — the `/wv config` key lists and valid-value lists (`VALID_SPRITES`)
+- [VetsConfigDefaults](../src/client/java/org/wynnvets/config/VetsConfigDefaults.java) — the first-run defaults, the gradient, sprite and opacity ones included, which the jar's generated `config.yml` carries for `/wv config <key> default` ([ShippedConfig](../src/client/java/org/wynnvets/config/ShippedConfig.java) reads it)
 - [LegacyItemStyle](../src/client/java/org/wynnvets/config/LegacyItemStyle.java) — resolves gradient/sprite from config
 - [NamedColor](../src/client/java/org/wynnvets/config/NamedColor.java) — colour-name → RGB + alpha packing
 
@@ -46,12 +48,12 @@ vetsmod visually highlights old-format Wynncraft items ("legacy items") with a g
 Guard conditions (return `false` early):
 - `VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING` disabled
 - `stack.isEmpty()`
-- `isBlockedScreen()` — true whenever Wynntils reports `Models.Housing.isInEditMode()`, and otherwise when the screen title matches one of the 9 `blocked_screen_titles` patterns in `definitions.yml` (housing/island menus that abuse enchant glint as a UI selector)
+- `isDetectionSuppressed()` — true when `isBlockedScreen()` is (whenever Wynntils reports `Models.Housing.isInEditMode()`, and otherwise when the screen title matches one of the 9 `blocked_screen_titles` patterns in `definitions.yml`: housing/island menus that abuse enchant glint as a UI selector), or when an item named in `inventory_suppressors` (the `Block Bank`) is anywhere in the player's inventory (scanned at most every 250 ms). `processTooltip` opens with the same guard
 
 Name is normalized via `ChatFormatting.stripFormatting()` then `normalizeName()` (`stripSupplementaryPua()` plus the trade-market trailing `À` strip) before matching. The `newFormatOverridden` flag suppresses the `definitions` and `misc_definitions` name matches (branches 1 & 2) when the item is new-format AND its name is in `new_format_override`; branch 3's `no_lore_legacy` match and the other branches still apply.
 
-Eight independent branches — **any one** triggers legacy. The numbering matches
-the `// 1.` … `// 8.` comments in the method body:
+Nine independent branches — **any one** triggers legacy. The numbering matches
+the `// 1.` … `// 9.` comments in the method body:
 
 | # | Branch | Source | Extra gate |
 |---|--------|--------|-----------|
@@ -59,32 +61,36 @@ the `// 1.` … `// 8.` comments in the method body:
 | 2 | `isMiscLegacy(name)` + `hasMiscRarity(lore)` | `misc_definitions` | not newFormatOverridden, lore contains "Misc. Item" |
 | 3 | `isNoLoreLegacy(name)` | `no_lore_legacy` | `lore.isEmpty()` |
 | 4 | `isPedestalWipedItem(stack)` | item ID + custom name | vanilla armour/weapon shell, no lore, `§a`/`§b`/`§d`/`§e` name prefix, name not in `not_pedestal` |
-| 5 | `hasBetaLegacyMarker(lore)` | lore | gold "Lv. min: N" line |
+| 5 | `hasBetaLegacyMarker(lore)` | lore | gold "Lv. min: N" line, either capitalisation of `min` |
 | 6 | `stack.hasFoil()` | NBT | not in `enchant_excluded_items`, name not in `unenchanted` |
 | 7 | `hasJunkRarity(lore)` | lore | name not in `notjunk` |
 | 8 | `hasCraftingRarity(lore)` | lore | — |
+| 9 | `hasVintageBanner(lore)` | lore | the VINTAGE ribbon, read only from text in the `banner/ribbon` font |
 
-## 3. definitions.yml — the 9 sections
+## 3. definitions.yml — the 10 sections
 
-File: [definitions.yml](../src/client/resources/definitions.yml). Parsed by `ItemDefinitions.parse()` — simple state machine: `---` section delimiters, headers end with `:`, patterns prefixed `- "…"`. All patterns are pre-compiled to `java.util.regex.Pattern` once at startup. **No runtime reload** — requires restart to pick up edits.
+File: [definitions.yml](../src/client/resources/definitions.yml). Its header comment describes the format and each section, so it can be edited without reading the code. Parsed by `ItemDefinitions.parse()` with SnakeYAML's safe loader: one mapping from section name to a list of entries, in the order of the table below (`---`-separated documents also load, and add up). Every entry but `enchant_excluded_items`' is a regex that must match the whole name; a pattern holding a regex backslash goes in single quotes (`'^\?\?\?$'`), since inside double quotes only YAML's own escapes are legal. A section repeated within one mapping is a parse error (so the build's real-file test fails); an empty entry, an unknown section, or a document that is not a mapping is ignored, and every name and title predicate (all but `isEnchantExcludedItem`) answers false for `null`. All patterns are pre-compiled to `java.util.regex.Pattern` once at startup. **No runtime reload** — requires restart to pick up edits.
 
 | Section | Purpose | Gate logic |
 |---------|---------|-----------|
-| `unenchanted` | Items that legitimately have foil in modern Wynncraft (e.g. ???, Ability Shard, Breathing Helmet, Mythic Everlasting Pufferfish, Liquid Emerald, Shiny, Transcriber) | exclusion in branch 6 |
-| `definitions` | Primary legacy name list — old armor tiers, keys, holiday items, autographs, potions | branch 1 |
-| `no_lore_legacy` | Legacy items that lost their lore (old keys, vanilla materials, Grian's Ocean Map) — only legacy when lore is empty | branch 3 |
-| `misc_definitions` | Items requiring "Misc. Item" rarity (Carved Quartz Block, Firefly Wing, Mushrooms) — collides with modern misc | branch 2 |
-| `not_pedestal` | Names that must never be treated as a pedestal-wiped shell (merchant items) | exclusion in branch 4 |
-| `notjunk` | Modern junk-tier items (e.g. Leather, Tanned Sunfish, Ghostly, Roasted Flesh, Vines, Rubble) | exclusion in branch 7 |
-| `enchant_excluded_items` | Minecraft namespaced IDs (`minecraft:experience_bottle`, `minecraft:enchanted_book`) — always have vanilla foil | exclusion in branch 6 |
+| `definitions` | Primary legacy name list — old armor tiers, keys, holiday items, autographs, potions, and modern-format items Wynncraft has since removed (Vibrant Augment, the broken Warped Mount saddles) | branch 1 |
+| `misc_definitions` | Items requiring "Misc. Item" rarity (Carved Quartz Block, Firefly Wing, Mushrooms, and the exact-name Misc Bucket items Stitched Flesh, Aqua Dust, Flamingo Feather, Uncraftable Potion, Cralozide Crystal, Sunflower Seeds, Pigman Meat, Broken Amulet, Shattered Crystal, Cobblestone, Lava Essence) — collides with modern misc | branch 2 |
+| `no_lore_legacy` | Legacy items that lost their lore (old keys, vanilla materials, Grian's Ocean Map, the loreless Wolf's Fang) — only legacy when lore is empty | branch 3 |
 | `new_format_override` | Names that exist in both old & new formats (e.g. Skeleton Key) — when item is new-format, its `definitions` / `misc_definitions` name match is suppressed (`no_lore_legacy` still applies) | gate on branches 1 & 2 |
+| `unenchanted` | Items that legitimately have foil in modern Wynncraft (e.g. ???, Ability Shard, Breathing Helmet, Mythic Everlasting Pufferfish, Liquid Emerald, Shiny, Transcriber) | exclusion in branch 6 |
+| `enchant_excluded_items` | Minecraft namespaced IDs (`minecraft:experience_bottle`, `minecraft:enchanted_book`) — always have vanilla foil | exclusion in branch 6 |
+| `notjunk` | Modern junk-tier items (e.g. Leather, Tanned Sunfish, Ghostly, Roasted Flesh, Vines, Rubble) | exclusion in branch 7 |
+| `not_pedestal` | Names that must never be treated as a pedestal-wiped shell (merchant items) | exclusion in branch 4 |
 | `blocked_screen_titles` | Screen titles where the whole system bails (housing/island menus that abuse enchant glint as a UI selector) | `isBlockedScreen()` guard |
+| `inventory_suppressors` | Names of items (the housing `Block Bank`) whose presence anywhere in the player's inventory makes the whole system bail, in the inventory and in any open container | `isDetectionSuppressed()` guard |
 
-`ItemDefinitions` responsibilities: YAML parsing, regex pre-compilation into 8 static `List<Pattern>` fields plus one `Set<String>` (`enchantExcludedItems`), and 9 lookup predicates (`isLegacy`, `isMiscLegacy`, `isNoLoreLegacy`, `isUnenchanted`, `isEnchantExcludedItem`, `isNotPedestal`, `isNotJunk`, `isNewFormatOverride`, `isBlockedScreenTitle`). Loaded from `VetsmodClient.onInitializeClient()` after `VetsConfig.load()`.
+**Deliberately not listed** (checked and kept out; re-check before adding one): The Juggernaut, Sacred and Quicksand Crossers; the Replica Hallowynn Mask, a current item (so the Hallowynn Mask's entry has no optional `Replica ` prefix); Ghostly armour (Boots, Cap, Pants, Tunic), until dye colours can be told apart; Foehn Wind (sold by a Nesaak merchant); Short Cutter and Silver Short Spear (found in the Regular Island cave). Unconfirmed: Raw Cod is left out of `misc_definitions` as possibly still obtainable, and Firefly Wing is in it although it may be too.
+
+`ItemDefinitions` responsibilities: YAML parsing, regex pre-compilation into 9 static `List<Pattern>` fields plus one `Set<String>` (`enchantExcludedItems`), and 10 lookup predicates (`isLegacy`, `isMiscLegacy`, `isNoLoreLegacy`, `isUnenchanted`, `isEnchantExcludedItem`, `isNotPedestal`, `isNotJunk`, `isNewFormatOverride`, `isBlockedScreenTitle`, `isInventorySuppressor`). Loaded from `VetsmodClient.onInitializeClient()` after `VetsConfig.load()`.
 
 ## 4. Tooltip rewriting — `LegacyTooltipRenderer.processTooltip()`
 
-Entry point: called from `LegacyItemTooltipMixin` via `LegacyItemHandler.processTooltip()` at render time. 9 branches after the guard bail, **first match wins**:
+Entry point: called from `LegacyItemTooltipMixin` via `LegacyItemHandler.processTooltip()` at render time. 10 branches after the guard bail, **first match wins**:
 
 | # | Trigger | Action |
 |---|---------|--------|
@@ -98,14 +104,15 @@ Entry point: called from `LegacyItemTooltipMixin` via `LegacyItemHandler.process
 | 6 | `hasFoil` + not excluded/unenchanted | prepend "Enchanted" in gold (old-format: `buildGoldName` adds a white ⬡ before it; new-format: `NewFormatRenderer.deepEnchantName` rewrites the name literal) + rarity swap (old-format; new-format inserts the LEGACY box instead) |
 | 7 | junk rarity + not in `notjunk` | gold name + rarity swap |
 | 8 | crafting rarity | gold name + rarity swap |
+| 9 | `hasVintageBanner(tooltipLines)` | same as branch 2 (an enchanted item has already been taken by branch 6) |
 
 **Rarity swap** (`replaceRarityLines`): scans lore bottom-up for regex matching `^(Mythic\|Fabled\|Set\|Legendary\|Rare\|Unique\|Normal\|Junk\|Misc\.\|Crafting) [Ii]tem(?: (\[\d+\]))?$`, captures tier + optional count. Falls back to the `tooltip_style` component path (mapped: common, unique, rare, set, legendary, fabled, mythic, crafted) when no lore rarity is present. Label built as `"Legacy Item (Tier)"` in `ChatFormatting.GOLD`, inserted at `debugLinesStart()` — above F3+H item-id/component-count lines.
 
 **Wynntils percentage suffix** (e.g. `[61.7%]`) is extracted and re-appended to preserve Wynntils stat output.
 
-**The new-format rewrite and the enchantment, by branch.** `tryNewFormatRewrite(modified, plainText)` is branches 2, 3 and 6's new-format path. If `NewFormatRenderer.isNewFormatItem` says the tooltip is new-format, it gives the name line the "Enchanted" treatment (`applyEnchantedToNewFormatNameLine`) or the gold recolour (`recolorNewFormatNameLine`), inserts the LEGACY box (`insertLegacyBoxLine`) and, for an enchanted item, calls `appendEnchantmentBlock`. It returns `true` only once the box is in; otherwise the branch goes on to its old-format rewrite. Branch 1 runs the same steps inline for a new-format legacy item whose line 0 is blank. An item counts as enchanted when it has foil, its item id is not on the `enchant_excluded_items` list (both are folded into `LegacyItemHandler.currentItemHasFoil`), and its name is not on the `unenchanted` list. That is the test branch 6 opens on.
+**The new-format rewrite and the enchantment, by branch.** `rewriteLegacy` is the rewrite of branches 2, 3, 6 and 9. If `NewFormatRenderer.isNewFormatItem` says the tooltip is new-format, `rewriteNewFormat` gives the name line the "Enchanted" treatment (`applyEnchantedToNewFormatNameLine`) or the gold recolour (`recolorNewFormatNameLine`), inserts the LEGACY box (`insertLegacyBoxLine`) and, for an enchanted item, calls `appendEnchantmentBlock`. It returns `true` only once the box is in; otherwise `rewriteLegacy` goes on to the old-format rewrite (`rewriteOldFormat`). Branch 1 calls `rewriteNewFormat` alone, for a new-format legacy item whose line 0 is blank. An item counts as enchanted (`isEnchanted`) when it has foil, its item id is not on the `enchant_excluded_items` list (both are folded into `LegacyItemHandler.currentItemHasFoil`), and its name is not on the `unenchanted` list. That is the test branch 6 opens on.
 
-`appendEnchantmentBlock` returns at once while `legacyItemShowEnchantments` is off (§6) and otherwise hands the tooltip to `LegacyEnchantmentRenderer.showEnchantment` (below). It runs only once a branch has decided the item is enchanted and legacy: from branch 1 and `tryNewFormatRewrite` for an enchanted item, from branches 2, 3 and 5's old-format rewrites under the same test, and unconditionally from branch 6's old-format rewrite. Branches 4, 4b, 7 and 8 never call it.
+`appendEnchantmentBlock` returns at once while `legacyItemShowEnchantments` is off (§6) and otherwise hands the tooltip to `LegacyEnchantmentRenderer.showEnchantment` (below). It runs only once a branch has decided the item is enchanted and legacy: `rewriteNewFormat` calls it under the `isEnchanted` test and `rewriteOldFormat` when its caller passes that test's result, so it runs from branches 1, 2, 3 and 5 for an enchanted item and from branch 6 always. Branches 4, 4b, 7 and 8 never call it, and branch 9 never reaches it: an enchanted item has already been taken by branch 6.
 
 **New-format tooltip rewriting** (`NewFormatRenderer`): detects items via presence of `tooltip/emblem/frame` or `banner/box` fonts. `isNewFormatItem` sets the sticky `newTooltipStylesAvailable` flag as a side effect. The LEGACY chip, built by `legacyBox()` (a gold `banner/box` run of `LEGACY_BOX_BACKGROUND` with the black lettering `LEGACY_BOX_FOREGROUND` as a nested child), is inserted, with a delimiter node, before the first rarity box in the Component tree via a 3-phase recursive descent (direct child → banner/symbol-sibling heuristic → recursive).
 
@@ -117,7 +124,7 @@ Only the §3 lists come from YAML; the remaining detection rules (e.g. lore line
 
 [LegacyEnchantmentRenderer](../src/client/java/org/wynnvets/items/LegacyEnchantmentRenderer.java) names the specific vanilla enchantment a legacy item carries, read from the stack's `minecraft:enchantments` component. Wynncraft hides that component from new-format tooltips through `tooltip_display`, but it stays on the stack, and modern items carry it with an empty map, so a non-empty map is itself a legacy signal. `showEnchantment` tries these forms, in order:
 
-1. **A paged new-format item:** a `LEGACY ENCHANTMENTS` block on the powder page, under Wynncraft's POWDER SOCKETS block and drawn like it: a boxed header with a right-aligned `1/1` count, a blank line, then one socket-sprite entry such as `◈ Knockback I`.
+1. **A paged new-format item:** a `LEGACY ENCHANTMENTS` block on the powder page (found by its socket sprites, or, for an item with no sockets at all (0/0), which draws none, by reading the POWDER SOCKETS header's glyphs back; the block then goes after the last content line above the page indicator), under Wynncraft's POWDER SOCKETS block and drawn like it: a boxed header with a right-aligned `1/1` count, a blank line, then one socket-sprite entry such as `◈ Knockback I`.
 2. **A V2-era item**, which has no pages and leaves `minecraft:enchantments` visible: Minecraft already draws an enchantment line without its numeral, and the level is added to that line in place.
 3. **An unidentified item**, new-format but pageless: a plain `- Legacy:` / `- Enchantment: …` pair at the end of the tooltip's content, shaped like Wynntils' item-guess block.
 
@@ -125,7 +132,7 @@ The boxed header uses the PUA box alphabets `NewFormatRenderer.LEGACY_BOX_BACKGR
 
 ### `LegacyScreenshotHandler`
 
-[LegacyScreenshotHandler](../src/client/java/org/wynnvets/items/LegacyScreenshotHandler.java) replaces Wynntils' item screenshot of a legacy item. Wynntils' `ItemScreenshotFeature` captures the tooltip before vetsmod rewrites it, so its image has no gold name and no LEGACY box. When Wynntils' screenshot keybind is pressed in an inventory, `LegacyTooltipEventListener` sets a one-shot flag (`LegacyItemHandler.notifyScreenshotKeyPressed`). On the next tooltip pass that rewrites a legacy item, `LegacyItemTooltipMixin` calls `LegacyItemHandler.screenshotIfRequested`, which consumes the flag, renders the final tooltip offscreen and copies the image to the clipboard 250 ms later, after Wynntils' own copy. A pass that rewrites nothing does not make that call, and a press over an empty slot or over no slot brings no tooltip pass at all, so any press that is not over a tooltip vetsmod rewrites stays latched until the next legacy tooltip, whose image then replaces the clipboard (bug `legacy-screenshot-latch-survives-non-legacy-press`).
+[LegacyScreenshotHandler](../src/client/java/org/wynnvets/items/LegacyScreenshotHandler.java) replaces Wynntils' item screenshot of a legacy item. Wynntils' `ItemScreenshotFeature` captures the tooltip before vetsmod rewrites it, so its image has no gold name and no LEGACY box. When Wynntils' screenshot keybind is pressed in an inventory, `LegacyTooltipEventListener` arms a one-shot latch (`LegacyItemHandler.notifyScreenshotKeyPressed`), but only if the hovered slot holds a legacy item (`LegacyItemHandler.isLegacyItem`); a press over an empty slot, no slot or a non-legacy item arms nothing. On the next tooltip pass that rewrites a legacy item, `LegacyItemTooltipMixin` calls `LegacyItemHandler.screenshotIfRequested`, which consumes the latch, renders the final tooltip offscreen and copies the image to the clipboard 250 ms later, after Wynntils' own copy. The latch (`ScreenshotLatch`) expires one second after the press, so a press that no rewriting pass picks up, such as a legacy item shown in the compare view, which bypasses the mixin, cannot fire on a later tooltip. The render uses Wynntils' own capture geometry: the tooltip is drawn at (10, 10), and the measured size gets 12 more units on each axis for the background sprite's reach (3 padding plus a 9 margin). Wynntils 4.2.13 and later forces its (10, 10) positioner onto every tooltip drawn while its own capture's readback is in flight, which always includes this one, so any other position would be overridden; at the old (4, 4) the override cut off the image's right edge and last line.
 
 ## 5. Visual rendering — gradient + sprite
 
@@ -168,11 +175,11 @@ Registered in `VetsConfigSchema.USER_CONFIG_KEYS`. Validation goes through `Lega
 
 **Startup:** `VetsmodClient.onInitializeClient()` → `VetsConfig.load()` → … → `ItemDefinitions.load()` (compiles regex); then, once the game has started, `VetsmodClient.onClientStarted()` → `WynntilsEventListener.register()`, which registers the legacy tooltip and highlight listeners on Wynntils' event bus.
 
-**Hotbar frame:** vanilla `Gui.renderSlot()` → `LegacyHotbarMixin` HEAD → `LegacyHighlightPainter.paintIfLegacy()` → `isLegacyItem()` → 8-branch cascade → if true draw gradient + sprite → vanilla continues.
+**Hotbar frame:** vanilla `Gui.renderSlot()` → `LegacyHotbarMixin` HEAD → `LegacyHighlightPainter.paintIfLegacy()` → `isLegacyItem()` → 9-branch cascade → if true draw gradient + sprite → vanilla continues.
 
 **Container frame:** `AbstractContainerScreen.renderSlot()` runs → `LegacyHighlightMixin` HEAD sets `newTooltipStylesAvailable` if the slot's item has a `tooltip_style` component (the mixin captures hover state in its separate `renderTooltip` HEAD hook) → Wynntils `SlotRenderEvent.Pre` fires → `LegacyHighlightEventListener` (LOWEST) → `LegacyHighlightPainter.paintIfLegacy()` → gradient + sprite.
 
-**Tooltip frame:** `GuiGraphics.setTooltipForNextFrame()` → `LegacyItemTooltipMixin` HEAD → reentry guard → `LegacyTooltipRenderer.processTooltip()` → 9-branch cascade → if modified: cancel vanilla + re-invoke with modified list, set gold border (only if `newTooltipStylesAvailable`).
+**Tooltip frame:** `GuiGraphics.setTooltipForNextFrame()` → `LegacyItemTooltipMixin` HEAD → reentry guard → `LegacyTooltipRenderer.processTooltip()` → 10-branch cascade → if modified: cancel vanilla + re-invoke with modified list, set gold border (only if `newTooltipStylesAvailable`).
 
 **Caching:** regex patterns compiled once; colour/sprite resolution runs every frame (cheap — concurrent hash map lookups); PUA/new-format detection runs every tooltip (no memoization).
 
@@ -185,12 +192,15 @@ Registered in `VetsConfigSchema.USER_CONFIG_KEYS`. Validation goes through `Lega
 
 - **`new_format_override`**: an item like Skeleton Key exists in old (legacy) and new (modern) formats with the same display name. When `isNewFormatItem(stack)` (any supplementary code point in custom name, `cp >= 0x10000`) AND the name is in this list, `isLegacyItem`'s branches 1 & 2 (`processTooltip`'s Branches 2 & 3) are skipped; `no_lore_legacy` still applies.
 - **`enchant_excluded_items`**: `minecraft:experience_bottle` / `minecraft:enchanted_book` always have vanilla foil — excluded by Minecraft registry ID, not name.
+- **Seaskipper ticket UI element**: the V.S.S. Seaskipper menu draws each destination's ticket as a `name_tag` named e.g. "Galleon's Graveyard Pass for 16<coin>", with lore "Click to fast-travel to ...". It is a UI element, not an item, so the `definitions` entry for the Galleon pass carries a `(?! for \d)` lookahead that rejects the cost suffix, while a real pass ("Galleon's Graveyard Pass", or any `... Boat Pass`) stays legacy.
 - **`notjunk`**: modern junk-tier farming materials (e.g. Leather, Tanned Sunfish, Roasted Flesh, Vines, Rubble, Ghostly*, Dusty Rum Bottle, Golden Teeth) — excluded from branch 7.
 - **`unenchanted`**: items that legitimately have foil in modern Wynncraft — e.g. `???`, Ability Shard, `Breathing Helmet *`, `*Liquid Emerald*`, `*Mythic Everlasting Pufferfish*`, `Shiny *`, `*Transcriber` (a `*` marks where the pattern's wildcard sits) — bypass branch 6.
-- **Alpha vs Beta legacy**: both triggered by gold "Lv. min: N" lore line. Alpha = no standard rarity line present; Beta = has one. Label differs accordingly.
+- **Alpha vs Beta legacy**: both triggered by gold "Lv. min: N" lore line (the `min` is matched case-insensitively: Dental Floss reads "Lv. Min: 26"; the modern "Combat Lv. Min: N" never matches, the pattern being anchored at `Lv`). Alpha = no standard rarity line present; Beta = has one. Label differs accordingly.
+- **VINTAGE ribbon**: Wynncraft opens a legacy item's lore with a ribbon spelling VINTAGE (seen on the Llevigar Pinot). Two items share that name: the legacy one, which carries the ribbon and "Heal: 1000", and a modern one with "Right-Click to drink", "Heal: 500" and "Emergency Heal: 2000", which is not legacy (user, 2026-10-25). So the Pinot has no `definitions` name entry, and this branch alone marks the legacy one. The line is a `banner/ribbon` run (caps U+E060 and U+E062, one glyph per letter at U+E030 + index, a U+CFFFF kern before each) under a black default-font overlay of the same word at U+E000 + index. `hasVintageBanner` reads only the `banner/ribbon` text and `LegacyLoreText.isVintageRibbon` decodes it, so the word in plain lore text, or the same glyphs in the `banner/box` fill run, never count. Branch 9 of both cascades, so an item no name list covers is still caught. `/wv debug` item dumps report it as `hasVintageBanner`.
 - **Unidentified gear**: name contains BMP PUA lock icon; `stripSupplementaryPua()` normalises it before name matching. No separate identified-vs-unidentified branching.
 - **"Crafted" items (player-made with durability)**: never legacy — early bail in branch 0 of tooltip renderer.
 - **Wynntils `ItemStatInfoFeature` rebuild**: can blank out line 0. Branch 1 of tooltip renderer recovers the name from `currentItemStack.getHoverName()` and attempts new-format LEGACY-box insertion.
+- **Block Bank (housing edit mode)**: the `Block Bank` (an `ender_chest` named "Block Bank", lore "A portable version of the block bank") is the housing editing tool and is carried in the inventory while in edit mode. If one is in the player's inventory, nothing is legacy, in the inventory or in any open container: `isDetectionSuppressed()` returns true for every item. This is the dependable signal for housing edit mode because Wynntils' `isInEditMode()` is set from a chat line ("You are now in housing edit mode") and stays false when edit mode was entered without that line reaching it (the likeliest reason a Block of Quartz was highlighted in a reported edit-mode screenshot, whose inventory shows a Block Bank). The inventory scan needs live `ItemStack`s and cannot run under test; the name match (`ItemDefinitions.isInventorySuppressor`) is tested.
 - **Blocked screens**: housing edit mode (`Models.Housing.isInEditMode()`) is checked first, then the screen title against `definitions.yml`'s `blocked_screen_titles` (9 patterns — Island Settings/Rules/Weather, Background Song, Select a Song, Permission Groups, `Permissions for …`, `Available … Locations`, `Move here!`). These menus abuse enchant glint as UI selectors, so the whole system bails on them.
 - **Old-server compat**: `newTooltipStylesAvailable` starts false; set true as soon as any item with `tooltip_style` or new-format font is seen. Gold tooltip border is suppressed until then to avoid garish fallback colours on pre-update servers. Reset on disconnect.
 - **Wynntils percentage suffix** (`[61.7%]`): detected via `\s*(\[\d+\.?\d*%\])$`, extracted before rewriting, re-appended after.

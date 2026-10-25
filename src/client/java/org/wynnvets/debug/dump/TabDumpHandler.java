@@ -31,7 +31,7 @@ public final class TabDumpHandler {
         }
 
         ChatUtils.sendLocalMessage(
-                Component.literal("——— Tab List Dump (" + entries.size() + " entries) ———")
+                Component.literal("--- Tab List Dump (" + entries.size() + " entries) ---")
                         .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
 
         String[] columnLabels = {"Friends", "Island Members", "Island Info", "Guild"};
@@ -46,7 +46,7 @@ public final class TabDumpHandler {
                     Component.literal(
                                     "\n▸ Column "
                                             + col
-                                            + " — "
+                                            + " - "
                                             + label
                                             + " (indices "
                                             + start
@@ -75,7 +75,7 @@ public final class TabDumpHandler {
         // Also show parsed guild members as a summary
         List<TabListGuildParser.GuildEntry> guild = TabListGuildParser.parseOnlineGuildMembers();
         ChatUtils.sendLocalMessage(
-                Component.literal("\n——— Parsed Guild Members (" + guild.size() + ") ———")
+                Component.literal("\n--- Parsed Guild Members (" + guild.size() + ") ---")
                         .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD));
 
         if (guild.isEmpty()) {

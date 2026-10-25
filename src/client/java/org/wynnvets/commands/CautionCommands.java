@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wynntils.utils.mc.McUtils;
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.ClickEvent;
@@ -13,7 +14,6 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
-import org.wynnvets.chat.Prepend;
 import org.wynnvets.chat.dispatcher.GuildChatDispatcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
@@ -93,10 +93,11 @@ public final class CautionCommands {
 
     /**
      * {@code /caution-go <username> [message]} -- explicit confirm path.
-     * Always commits (no preflight). Used by the clickable confirmation
-     * suggestions that {@link #renderCautionPreflightOrCommit} prints
-     * when the preflight returns {@code would_trigger}, and whenever
-     * staff want to skip the preflight.
+     * Always commits (no preflight). Used by the confirmation buttons that
+     * {@link #renderCautionPreflightOrCommit} prints when the preflight returns
+     * {@code would_trigger} (they fill the chat box and staff press Enter, so the
+     * command reaches the dispatcher's intercept), and whenever staff want to skip the
+     * preflight.
      */
     public static void runCautionGo(String args) {
         ParsedArgs parsed = parseTwoPart(args);
@@ -238,57 +239,50 @@ public final class CautionCommands {
 
             MutableComponent line =
                     Component.literal("⚠ ")
-                            .withStyle(ChatFormatting.GOLD)
+                            .withStyle(ChatFormatting.RED)
                             .append(
-                                    Component.literal("Adding this caution would trigger a formal ")
+                                    Component.literal("Adding this caution will trigger a formal ")
                                             .withStyle(ChatFormatting.YELLOW))
                             .append(
-                                    Component.literal(trigger.toUpperCase())
-                                            .withStyle(ChatFormatting.RED))
+                                    Component.literal(trigger.toUpperCase(Locale.ROOT))
+                                            .withStyle(ChatFormatting.GOLD))
                             .append(Component.literal(" against ").withStyle(ChatFormatting.YELLOW))
-                            .append(Component.literal(resolved).withStyle(ChatFormatting.AQUA))
+                            .append(Component.literal(resolved).withStyle(ChatFormatting.GOLD))
                             .append(
                                     Component.literal(" (currently " + currentPoints + " pts).")
                                             .withStyle(ChatFormatting.GRAY));
             ChatUtils.sendLocalMessage(line);
 
-            // If staff already typed a reason, carry it into both buttons so
-            // the click commits (or pre-fills the chat box) with the reason
-            // attached -- the server dropped the message when it returned
+            // Every button only fills the chat box (SuggestCommand); staff press Enter.
+            // A RunCommand click would skip GuildChatDispatcher.intercept, which is
+            // the only handler for /caution-go (bug caution-confirm-click-bypasses-
+            // intercept). If staff already typed a reason, the single green button
+            // carries it: the server dropped the message when it returned
             // would_trigger, so the only place it still lives is here.
             boolean haveReason = !requestedMessage.isEmpty();
-            String confirmCmd =
-                    haveReason
-                            ? "/caution-go " + resolved + " " + requestedMessage
-                            : "/caution-go " + resolved;
-            String editCmd =
-                    haveReason
-                            ? "/caution-go " + resolved + " " + requestedMessage
-                            : "/caution-go " + resolved + " ";
-            MutableComponent prompt =
-                    Component.literal("  ")
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(
-                                    clickRun(
-                                            haveReason
-                                                    ? "[Confirm and send]"
-                                                    : "[Send generic warning]",
-                                            confirmCmd,
-                                            haveReason
-                                                    ? "Click to commit this caution with your typed reason."
-                                                    : "Click to commit this caution and send a generic warning DM.",
-                                            ChatFormatting.GREEN))
-                            .append(Component.literal("  ").withStyle(ChatFormatting.GRAY))
-                            .append(
-                                    clickSuggest(
-                                            haveReason
-                                                    ? "[Edit reason]"
-                                                    : "[Type a custom warning]",
-                                            editCmd,
-                                            haveReason
-                                                    ? "Click to edit your reason before sending."
-                                                    : "Click to fill in a /caution-go command, then type your warning text.",
-                                            ChatFormatting.AQUA));
+            MutableComponent prompt = Component.literal("  ").withStyle(ChatFormatting.GRAY);
+            if (haveReason) {
+                prompt.append(
+                        clickSuggest(
+                                "[Confirm and send]",
+                                "/caution-go " + resolved + " " + requestedMessage,
+                                "Click to fill /caution-go with your reason, then press Enter to send.",
+                                ChatFormatting.GREEN));
+            } else {
+                prompt.append(
+                                clickSuggest(
+                                        "[Send generic warning]",
+                                        "/caution-go " + resolved,
+                                        "Click to fill /caution-go, then press Enter to send a generic warning DM.",
+                                        ChatFormatting.GREEN))
+                        .append(Component.literal("  ").withStyle(ChatFormatting.GRAY))
+                        .append(
+                                clickSuggest(
+                                        "[Type a custom warning]",
+                                        "/caution-go " + resolved + " ",
+                                        "This will fill /caution-go, which you can use to type your warning-text.",
+                                        ChatFormatting.AQUA));
+            }
             ChatUtils.sendLocalMessage(prompt);
             return;
         }
@@ -301,6 +295,15 @@ public final class CautionCommands {
 
     private static void renderCommitResult(
             String requestedKind, String target, String requestedMessage, JsonObject ack) {
+        // The socket was lost or no reply came: the commit may have landed, and a retry would
+        // add points and send another DM, so say to check rather than "failed".
+        String unknownCause = Json.stringOrNull(ack, "outcome_unknown");
+        if (unknownCause != null) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal(unknownOutcomeLine(requestedKind, target, unknownCause))
+                            .withStyle(ChatFormatting.RED));
+            return;
+        }
         String status = Json.optString(ack, "status", "error");
         if (!"ok".equals(status)) {
             String detail = Json.optString(ack, "detail", "unknown error");
@@ -364,17 +367,30 @@ public final class CautionCommands {
         }
     }
 
+    /**
+     * The line for a commit whose outcome is unknown (its socket was lost, or no reply came in
+     * time), with {@code cause} as the ack's {@code outcome_unknown} gives it. Nothing is
+     * dispatched in game: an eject that went through has to be acted on by hand.
+     */
+    // Package-private for unit tests. See CautionCommandsTest.
+    static String unknownOutcomeLine(String kind, String target, String cause) {
+        String line = "[" + kind + "] Outcome unknown (" + cause + ") - run /wv check " + target;
+        return "eject".equals(kind)
+                ? line + "; if it went through, kick or demote them yourself"
+                : line + " before retrying";
+    }
+
     private static void renderCautionHistory(String requestedUsername, JsonObject ack) {
         // Mark the start of a new render block so the first line re-extends
         // the badge (compact-indicator dedup resumes from line 2).
-        Prepend.resetDedup();
+        ChatUtils.beginNewBlock();
 
         String status = Json.optString(ack, "status", "error");
         if (!"ok".equals(status)) {
             String detail = Json.optString(ack, "detail", "unknown error");
             ChatUtils.sendLocalMessage(
                     Component.literal("Caution history lookup failed: " + detail)
-                            .withStyle(ChatFormatting.RED));
+                            .withStyle(ChatFormatting.GRAY));
             return;
         }
 
@@ -475,7 +491,7 @@ public final class CautionCommands {
                     Component.literal(
                                     "Dispatching /gu rank "
                                             + target
-                                            + " recruit (chiefs will see a kick notice in #rank-alerts).")
+                                            + " recruit (owners will see a kick ping on discord).")
                             .withStyle(ChatFormatting.RED));
         } else {
             VetsLogger.warn("Eject dispatch: unknown suggestion {}", suggested);
@@ -498,16 +514,6 @@ public final class CautionCommands {
         int sp = trimmed.indexOf(' ');
         if (sp < 0) return new ParsedArgs(trimmed, "");
         return new ParsedArgs(trimmed.substring(0, sp), trimmed.substring(sp + 1).trim());
-    }
-
-    private static MutableComponent clickRun(
-            String text, String command, String hover, ChatFormatting color) {
-        Style style =
-                Style.EMPTY
-                        .withColor(color)
-                        .withClickEvent(new ClickEvent.RunCommand(command))
-                        .withHoverEvent(new HoverEvent.ShowText(Component.literal(hover)));
-        return Component.literal(text).withStyle(style);
     }
 
     private static MutableComponent clickSuggest(

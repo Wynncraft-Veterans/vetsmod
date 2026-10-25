@@ -3,9 +3,10 @@ package org.wynnvets.config;
 /**
  * The names of VetsMod's configuration keys. Each constant's value is the name the setting is
  * stored under in {@code vetsmod/storage/config.json}, so changing a value is a file-format
- * change. {@link VetsConfig} holds the values and reads and writes the file, and
- * {@link VetsConfigSchema} holds the key lists, valid-value lists and {@code reset} defaults
- * that describe them.
+ * change. {@link VetsConfig} holds the values and reads and writes the file,
+ * {@link VetsConfigSchema} the key lists and valid-value lists that describe them, and
+ * {@link VetsConfigDefaults} their first-run defaults, whose shipped copy
+ * {@link ShippedConfig} reads for {@code /wv config <key> default}.
  *
  * <p>Keys fall into these categories:</p>
  * <ul>
@@ -22,40 +23,20 @@ package org.wynnvets.config;
  * </ul>
  */
 public final class VetsConfigKeys {
-    // ── Internal configuration keys (not user-facing, except VETS_ANNI_ENABLED) ────
+    // ── Internal configuration keys (not user-facing) ────
     public static final String VETS_AUTOMESSAGE = "vetsAutomessage";
     public static final String VETS_IS_STAFF = "vetsIsStaff";
     public static final String VETS_LAST_STAFF_CHECK = "vetsLastStaffCheck";
-    public static final String VETS_WAITLIST_UNLOCK_TIME = "vetsWaitlistUnlockTime";
-    public static final String VETS_HONOURARY_UNLOCK_TIME = "vetsHonouraryUnlockTime";
     public static final String VETS_GUILD_CHECK_RESULT = "vetsGuildCheckResult";
     public static final String VETS_LAST_GUILD_CHECK = "vetsLastGuildCheck";
-    public static final String VETS_DEBUG_ENABLED_AT = "vetsDebugEnabledAt";
 
-    /** Gates the snapshot-driven render paths in
-     *  {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}: with it off, the world-join
-     *  anni-motd and {@code /wv anni} take the legacy stamp path, and each skips its own cold-cache
-     *  {@link org.wynnvets.mwe.anni.network.AnniQueryClient#query() AnniQueryClient#query()} pull.
-     *  It does not gate the boss bar, the highlights or the aggressive components (those key off
-     *  {@link #VETS_ANNI_MODE}), and it is independent of the anni mode itself
-     *  ({@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager} never reads it).
-     *  {@link org.wynnvets.mwe.anni.network.AnniWsHandler AnniWsHandler}'s post-connect re-pull and
-     *  {@link org.wynnvets.fetcher.polling.AnniSnapshotPoller AnniSnapshotPoller} read neither key.
-     *  {@link #PRINT_ANNI} suppresses the world-join line earlier, before {@code StampFetcher}
-     *  runs. Off by default.
-     *  <p>Meant to give vets players the enriched view without a manual toggle. Today
-     *  {@link org.wynnvets.api.InboundAckRouter InboundAckRouter} sets it {@code true}
-     *  whenever an ok auth ack with tier member, waitlist or honourary finds it {@code false}, so
-     *  a vets-tier opt-out lasts only until the next ack. Anyone can opt in with
-     *  {@code /wv config vetsAnniEnabled true}, but the pull it enables asks for the authenticated
-     *  session's own snapshot
-     *  ({@link org.wynnvets.mwe.anni.network.AnniWsSender#sendAnniQuery()
-     *  AnniWsSender#sendAnniQuery()} names
-     *  no UUID), so, per temporary-server (at ffd8c17), until an {@code /unlock} key has
-     *  authenticated the inbound socket it resolves
-     *  to no snapshot and both callers fall back to the legacy path. Slated for retirement
-     *  ({@code vets-anni-enabled-to-be-retired}).</p> */
-    public static final String VETS_ANNI_ENABLED = "vetsAnniEnabled";
+    /** Username of the Minecraft account that made the stored guild check result, written
+     *  with it. Empty for a result stored before the key existed, or none. The result is kept
+     *  per install, so this lets a world join by a different account discard it
+     *  ({@link org.wynnvets.guild.GuildChecker GuildChecker}). */
+    public static final String VETS_GUILD_CHECK_OWNER = "vetsGuildCheckOwner";
+
+    public static final String VETS_DEBUG_ENABLED_AT = "vetsDebugEnabledAt";
 
     // ── Vetsmod /unlock <key> auth state ─────────────────────────────────
     /** Bearer key issued by dazebot's /vetsmod command and stored on disk so
@@ -96,8 +77,8 @@ public final class VetsConfigKeys {
     /** Whether the MOTD is automatically printed on world join. */
     public static final String PRINT_MOTD = "printMOTD";
 
-    /** Whether the annihilation stamp (the anni-motd, when
-     *  {@link #VETS_ANNI_ENABLED} and a cached snapshot allow it) is
+    /** Whether the annihilation stamp (the anni-motd, when a cached
+     *  snapshot allows it) is
      *  printed automatically on world join. vetsmod makes that print only
      *  for Returners guild members; see
      *  {@link org.wynnvets.guild.GuildLifecycle GuildLifecycle}. */
@@ -191,10 +172,9 @@ public final class VetsConfigKeys {
      *  is {@code passive} or {@code aggressive} — silent is a strict
      *  no-op regardless. Lets advanced users keep the rest of the
      *  passive/aggressive subsystem (outlines, waypoint, alerts) while
-     *  opting out of the boss bar specifically. Today neither this key nor
-     *  silent mode stops the flash-sound pings ({@link #VETS_ANNI_FLASH_SOUND}),
-     *  which still play on a snapshot change while the bar is down
-     *  ({@code anni-flash-pings-play-while-bar-is-down}). */
+     *  opting out of the boss bar specifically. With the bar off, a
+     *  snapshot change plays no flash-sound ping ({@link #VETS_ANNI_FLASH_SOUND})
+     *  either. */
     public static final String VETS_ANNI_BOSSBAR_ENABLED = "vetsAnniBossbarEnabled";
 
     /** Boss-bar pulse intensity controlling the {@code &l ↔ &n&l} flash
@@ -206,14 +186,12 @@ public final class VetsConfigKeys {
      *  rate at which the bold/underline alternates. */
     public static final String VETS_ANNI_FLASH_INTENSITY = "vetsAnniFlashIntensity";
 
-    /** Whether a role, party, RSVP or world change in the snapshot plays a two-ping sound. Spec
-     *  §3.1.1 asked for the Wynntils name-mention sound, played twice; today the ping is
-     *  {@code SoundEvents.EXPERIENCE_ORB_PICKUP}
-     *  ({@code anni-flash-ping-is-not-the-wynntils-mention-sound}). The pings are meant to go with
-     *  the boss bar's flashes, but today their queueing ignores the mode,
-     *  {@link #VETS_ANNI_BOSSBAR_ENABLED} and the bar window, so they still play while the bar is
-     *  down, {@code silent} included ({@code anni-flash-pings-play-while-bar-is-down}); of the
-     *  config keys, only this one stops them. On by default. */
+    /** Whether a role, party, RSVP or world change in the snapshot plays a two-ping sound: the
+     *  Wynntils chat-mention ding ({@code SoundEvents.NOTE_BLOCK_PLING}), played twice, as spec
+     *  §3.1.1 asks. The pings go with the boss bar's flashes, so they play only while the bar is
+     *  up: {@code silent} mode, {@link #VETS_ANNI_BOSSBAR_ENABLED} off, and being outside both the
+     *  bar's window and the anni zone all stop them too. A debug {@code flash} pings whenever this
+     *  is on. On by default. */
     public static final String VETS_ANNI_FLASH_SOUND = "vetsAnniFlashSound";
 
     /** S4 — Toggle for the per-player outline overlay: role-coloured glow on own-party members,
@@ -224,10 +202,9 @@ public final class VetsConfigKeys {
      *  {@link org.wynnvets.mwe.anni.outline.AnniOutlineTicker AnniOutlineTicker} (mode not silent,
      *  at least one of this and {@link #VETS_ANNI_NAMETAGS_ENABLED} on, T-2h..T+30m, in the anni
      *  zone), which reads it right after the mode check, whether or not the rest of the gate then
-     *  holds. Past the gate, today it gates only the outsider-outline suppression: the
-     *  registry-tier glow is applied whenever the gate holds, so with this off and nametags on,
-     *  registry members still glow and the nametags-only half can't be had
-     *  ({@code outlines-toggle-does-not-gate-registry-glow}). Default {@code true}.</p> */
+     *  holds. Past the gate, it gates both halves of the outline overlay: the registry-tier glow,
+     *  which the ticker applies only while this is on, and the outsider-outline suppression.
+     *  Default {@code true}.</p> */
     public static final String VETS_ANNI_OUTLINES_ENABLED = "vetsAnniOutlinesEnabled";
 
     /** S4 — Master toggle for the per-player nametag overlay (role colour

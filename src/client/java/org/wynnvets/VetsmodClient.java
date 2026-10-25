@@ -3,7 +3,6 @@ package org.wynnvets;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
-import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.OutboundDisplayHandler;
 import org.wynnvets.commands.CommandRegistry;
 import org.wynnvets.config.VetsConfig;
@@ -49,9 +48,11 @@ import org.wynnvets.rendering.territory.TerritoryLineRenderer;
  * <ol>
  *   <li>{@link #onInitializeClient()} runs during the game's start-up, before Wynntils' own
  *       entrypoint in production: configuration and guild state, item definitions, the
- *       WebSockets and their listeners, the pollers, the tick, render and server-connection
- *       hooks, and the callback through which Fabric builds the {@code /wv} command tree (via
- *       {@link CommandRegistry}).</li>
+ *       WebSocket listeners, the pollers, the tick, render and server-connection hooks, and the
+ *       callback through which Fabric builds the {@code /wv} command tree (via
+ *       {@link org.wynnvets.commands.CommandRegistry CommandRegistry}). The WebSockets
+ *       themselves open only at a Wynncraft join
+ *       ({@link org.wynnvets.listeners.ServerConnectionListener ServerConnectionListener}).</li>
  *   <li>{@link #onClientStarted()} runs once the game has started: the steps that need
  *       Wynntils' event bus or one of its core components, with {@code AnniPartyReporter} and
  *       {@code QueueStatusReporter} beside them. Its Javadoc says why the two phases are kept
@@ -62,9 +63,9 @@ import org.wynnvets.rendering.territory.TerritoryLineRenderer;
  * {@code VetsConfig.load()}, the debug-logging restore and
  * {@code GuildStateManager.loadPersistedState()} each read what the one before set up;
  * {@code AnniAggressiveTicker} registers before the {@code END_CLIENT_TICK} listeners that read
- * its flag; and the socket listeners register straight after {@code V1ApiManager.connect()},
- * which only starts the first connect, and rely on being in place before its handshake
- * completes. The rest is today's order, kept as it is.</p>
+ * its flag; and the socket listeners register here, before any server join can open a socket,
+ * so they are in place before the first handshake completes. The rest is today's order, kept as
+ * it is.</p>
  */
 public class VetsmodClient implements ClientModInitializer {
 
@@ -84,7 +85,6 @@ public class VetsmodClient implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> onClientStarted());
         ItemDefinitions.load();
 
-        V1ApiManager.connect();
         OutboundDisplayHandler.register();
         AnniWsHandler.register();
         AnniWindowWatcher.register();
@@ -166,17 +166,17 @@ public class VetsmodClient implements ClientModInitializer {
         // race is lost, `Managers.<clinit>` fails, `Managers` stays unusable and
         // Wynntils' own init dies, as the client did on 2026-06-18.
         ScrollSpotMarkerProvider.register();
-        // S7 — AnniPartyReporter.register() itself touches no Wynntils class,
-        // but its snapshot listener reaches Models.Party (through
-        // PartyRosterListener.requestRecapture()), and a snapshot could arrive
-        // before Wynntils' entrypoint has run, so it subscribes here rather
-        // than in onInitializeClient
-        // (mod-init-snapshot-listeners-can-reach-wynntils-before-its-init). The
-        // reporter subscribes to AnniSnapshotCache and fires
-        // PartyRosterListener.requestRecapture() on organiser-set transitions,
-        // meant to stop a window-open mid-static-party going silent. Today a
-        // window opening with an unchanged organiser set fires nothing
-        // (party-reporter-window-open-not-a-trigger).
+        // S7 — AnniPartyReporter.register() itself touches no Wynntils class, and
+        // its snapshot listener reaches Models.Party only through
+        // PartyRosterListener.requestRecapture(), which defers the read to a
+        // render-thread task. Snapshots arrive only over the sockets, which open
+        // at a Wynncraft join, or from a /wv debug tree anni command, both after
+        // CLIENT_STARTED, so this placement is kept beside the
+        // other Wynntils-facing registrations rather than needed. The reporter
+        // subscribes to AnniSnapshotCache and fires
+        // PartyRosterListener.requestRecapture() on organiser-set transitions
+        // and on the first snapshot update inside the anni window, so a
+        // window-open mid-static-party does not go silent.
         org.wynnvets.mwe.anni.AnniPartyReporter.register();
         QueueStatusReporter.register();
     }

@@ -8,21 +8,19 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link StaffRankChecker}'s two response predicates — the pure half
- * of the {@code /gu rank} handshake.
+ * Tests for {@link StaffRankChecker}'s three response predicates and its flag-clearing decision —
+ * the pure half of the {@code /gu rank} handshake.
  *
- * <p>Both are unordered substring tests, not a parse: three fragments for the
- * unauthorized reply, two for the authorized one, each checked with
- * {@code contains} against the whole lower-cased line. Nothing constrains
+ * <p>All three are unordered substring tests, not a parse: three fragments for the
+ * unauthorized reply, two for the authorized one, one for the not-in-a-guild one, each checked
+ * with {@code contains} against the whole lower-cased line. Nothing constrains
  * their order or adjacency, so the false-positive surface pinned below is real
  * behaviour rather than a hypothetical.</p>
  *
- * <p>KNOWN BUG (pinned, not fixed): both fold case with the no-argument
- * {@code toLowerCase()}. See the filed bug
- * {@code default-locale-case-folding-cluster}.
- * This site is the one place in that cluster where the defect is reachable with
- * the server's real wording rather than only in theory — see the locale section
- * at the bottom.</p>
+ * <p>Both fold case with {@link Locale#ROOT}. With the JVM's default locale instead, a
+ * Turkish or Azeri default turned the server's real "Invalid" into "ınvalid", so a staff
+ * player was never recognised — the locale section at the bottom pins that it no longer
+ * does.</p>
  *
  * <p>NOTE: only the predicates are exercised. {@code processMessage},
  * {@code reset} and {@code loadPersistedState} all reach {@code VetsConfig},
@@ -41,6 +39,9 @@ class StaffRankCheckerTest {
     /** What it sends a staff player: the argument-usage hint, because
      *  {@code /gu rank} with no arguments is incomplete rather than forbidden. */
     private static final String AUTHORIZED = "Invalid arguments, try: /gu rank [name] [rank]";
+
+    /** What it sends a player in no guild (captured in game, aqua). */
+    private static final String NOT_IN_GUILD = "You must be in a guild to use this.";
 
     private static final Locale TURKISH = Locale.forLanguageTag("tr");
 
@@ -82,7 +83,7 @@ class StaffRankCheckerTest {
                 "without the trailing clause it is not the /gu rank refusal");
         assertFalse(
                 StaffRankChecker.isStaffRankUnauthorizedResponse(
-                        "Captain Bob asked you to use this command"),
+                        "Captain Holidaze asked you to use this command"),
                 "without the opening clause either");
     }
 
@@ -125,7 +126,7 @@ class StaffRankCheckerTest {
         // data. A line with the placeholders filled in does not match.
         assertFalse(
                 StaffRankChecker.isStaffRankAuthorizedResponse(
-                        "Invalid arguments, try: /gu rank Alice Captain"));
+                        "Invalid arguments, try: /gu rank Metrafish Captain"));
     }
 
     @Test
@@ -134,7 +135,50 @@ class StaffRankCheckerTest {
         assertFalse(StaffRankChecker.isStaffRankAuthorizedResponse(""));
     }
 
-    // ----- The two are disjoint on real input -----
+    // ----- isNotInGuildResponse -----
+
+    @Test
+    void notInGuild_matchesTheCapturedLine() {
+        assertTrue(StaffRankChecker.isNotInGuildResponse(NOT_IN_GUILD));
+    }
+
+    @Test
+    void notInGuild_foldsCase() {
+        assertTrue(StaffRankChecker.isNotInGuildResponse("YOU MUST BE IN A GUILD TO USE THIS."));
+    }
+
+    @Test
+    void notInGuild_rejectsTheOtherTwoRepliesAndNoise() {
+        assertFalse(StaffRankChecker.isNotInGuildResponse(UNAUTHORIZED));
+        assertFalse(StaffRankChecker.isNotInGuildResponse(AUTHORIZED));
+        assertFalse(StaffRankChecker.isNotInGuildResponse("You must be a member to use this."));
+        assertFalse(StaffRankChecker.isNotInGuildResponse(null));
+        assertFalse(StaffRankChecker.isNotInGuildResponse(""));
+    }
+
+    // ----- isStaffRankReply -----
+
+    @Test
+    void staffRankReply_coversAllThreeRepliesAndNothingElse() {
+        assertTrue(StaffRankChecker.isStaffRankReply(UNAUTHORIZED));
+        assertTrue(StaffRankChecker.isStaffRankReply(AUTHORIZED));
+        assertTrue(StaffRankChecker.isStaffRankReply(NOT_IN_GUILD));
+        assertFalse(StaffRankChecker.isStaffRankReply("Guild Since: 2020-01-01"));
+        assertFalse(StaffRankChecker.isStaffRankReply(null));
+        assertFalse(StaffRankChecker.isStaffRankReply(""));
+    }
+
+    // ----- shouldClearStaffFlag -----
+
+    @Test
+    void clearsTheFlagOnlyForACachedStaffMemberAndTheSignal() {
+        assertTrue(StaffRankChecker.shouldClearStaffFlag(true, true));
+        assertFalse(StaffRankChecker.shouldClearStaffFlag(true, false), "no signal");
+        assertFalse(StaffRankChecker.shouldClearStaffFlag(false, true), "nothing cached to clear");
+        assertFalse(StaffRankChecker.shouldClearStaffFlag(false, false));
+    }
+
+    // ----- The three are disjoint on real input -----
 
     @Test
     void theTwoPredicatesDoNotBothFireOnEitherRealLine() {
@@ -142,32 +186,31 @@ class StaffRankCheckerTest {
         // else-branch, so an overlap would silently resolve to "not staff".
         assertFalse(StaffRankChecker.isStaffRankAuthorizedResponse(UNAUTHORIZED));
         assertFalse(StaffRankChecker.isStaffRankUnauthorizedResponse(AUTHORIZED));
+        assertFalse(StaffRankChecker.isStaffRankUnauthorizedResponse(NOT_IN_GUILD));
+        assertFalse(StaffRankChecker.isStaffRankAuthorizedResponse(NOT_IN_GUILD));
     }
 
-    // ----- Default-locale case folding (bug, pinned as-is) -----
+    // ----- Default-locale case folding -----
 
     @Test
-    void authorized_failsUnderATurkishDefaultLocaleOnTheRealServerLine() {
-        // "Invalid" starts with an uppercase I, which folds to the dotless
-        // U+0131 under a Turkish default. The lower-cased line then no longer
-        // contains "invalid arguments, try:" and a staff player is never
-        // recognised as staff. Reachable with the server's actual wording, not
-        // just in theory. Fixing it means passing Locale.ROOT; this assertion
-        // flips to assertTrue when that lands.
+    void authorized_survivesATurkishDefaultLocaleOnTheRealServerLine() {
+        // "Invalid" starts with an uppercase I, which a Turkish default folds to
+        // the dotless U+0131. Folding with the default locale left the line
+        // without "invalid arguments, try:", so a staff player was never
+        // recognised as staff. Locale.ROOT keeps the I an i.
         Locale.setDefault(TURKISH);
-        assertFalse(StaffRankChecker.isStaffRankAuthorizedResponse(AUTHORIZED));
+        assertTrue(StaffRankChecker.isStaffRankAuthorizedResponse(AUTHORIZED));
     }
 
     @Test
-    void unauthorized_survivesATurkishDefaultLocaleOnlyBecauseItsWordingHasNoCapitalI() {
-        // Same defect, no symptom: every I in the refusal is already lowercase.
-        // That asymmetry is why the cluster has to be fixed as a cluster — a
-        // site-by-site pass would find nothing wrong here and stop.
+    void unauthorized_survivesATurkishDefaultLocaleEvenShouted() {
+        // Every I in the refusal is already lowercase, so this one survived the
+        // default-locale fold too. Its upper-cased form did not.
         Locale.setDefault(TURKISH);
         assertTrue(StaffRankChecker.isStaffRankUnauthorizedResponse(UNAUTHORIZED));
-        assertFalse(
+        assertTrue(
                 StaffRankChecker.isStaffRankUnauthorizedResponse(
                         UNAUTHORIZED.toUpperCase(Locale.ROOT)),
-                "shout the same line and the fold breaks it too");
+                "a shouted line folds back with its I intact");
     }
 }

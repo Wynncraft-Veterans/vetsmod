@@ -6,14 +6,18 @@ import com.wynntils.core.text.StyledText;
 import com.wynntils.mc.event.ContainerSetContentEvent;
 import com.wynntils.mc.event.ContainerSetSlotEvent;
 import com.wynntils.mc.event.MenuEvent;
+import com.wynntils.mc.event.ScreenClosedEvent;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import net.neoforged.bus.api.SubscribeEvent;
+import org.wynnvets.distribute.DistributeRuns;
 import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.ContainerScreens;
@@ -26,35 +30,47 @@ import org.wynnvets.util.ContainerScreens;
  * reads the {@code Guild Objective:} lore lines to decide who qualifies.
  *
  * <p>Built on the same event triple as {@link MembersListSearcher}
- * (MenuOpen / SetContent / SetSlot) and, like it, defers the rescan by a
- * scheduler delay &mdash; but the two are not interchangeable. This class
- * uses a one-tick scheduler delay and filters {@link #onSetSlot} down to
- * {@link MembersGui#NEXT_PAGE_SLOT}; the searcher uses
- * {@code SCAN_DELAY_TICKS} (a different value, for the reason recorded on
- * that constant) and also triggers on every in-bounds tile. And they
- * debounce differently: this class latches on the <em>first</em> trigger
- * and scans after its delay, ignoring later triggers until then, where
- * the searcher's scan waits a delay after the <em>last</em>. So here the
- * wait for straggling slot updates is fixed by the first trigger and is
- * not extended by later ones. Instead of stopping on a match it
+ * (MenuOpen / SetContent / SetSlot), plus the same screen-close nudge
+ * ({@link #onScreenClosed}), and the same scan debounce: {@link #onSetSlot}
+ * triggers on the Next Page slot and on every in-bounds tile, and the scan
+ * runs {@link #SCAN_DELAY_TICKS} after the <em>last</em> trigger, so a
+ * page whose {@code SetSlot} packets cross a tick boundary is scanned once
+ * it has finished arriving. Instead of stopping on a match it
  * forward-paginates exhaustively,
  * collecting every bounded player-head into {@link #collected} along the
  * way. When the Next Page button disappears, it invokes
  * {@link Completion#onComplete(List)} with the accumulated list.</p>
  *
+ * <p>A walk that loses its menu, or makes no progress for
+ * {@link #STALL_TICKS}, never calls back: it stops the run through
+ * {@link org.wynnvets.distribute.DistributeRuns#stop(String) DistributeRuns.stop}, with one
+ * yellow line, and disarms, so a later Members menu cannot bind a stale walk.</p>
+ *
  * <p>Forward-only: the walk is meant to start on a freshly-opened Members
  * menu (page 1), so there's never anything backward to cover. Its one
  * caller pairs {@link #armWalk(Completion)} with a fresh
  * {@link org.wynnvets.distribute.opener.GuildManageOpener#openManageMembers()
- * GuildManageOpener.openManageMembers()}. That assumes no Members menu is already open at arm time:
- * if one is, {@code armWalk}'s fast path binds that menu instead, from whatever page it is on, and
- * the walk does not follow the fresh menu the caller then opens
- * ({@code members-list-fast-path-binds-a-menu-about-to-be-replaced}).</p>
+ * GuildManageOpener.openManageMembers()}, and the walk always binds on that menu's
+ * {@code MenuOpenedEvent.Pre}: a Members menu already open at arm time is about to be
+ * replaced, so it is ignored.</p>
  */
 public final class MembersListWalker {
 
     /** Hard cap on page clicks per walk to bound runaway loops. */
     private static final int MAX_PAGES = 30;
+
+    /** A walk that has not moved on &mdash; armed, bound to its menu, or clicked a page
+     *  &mdash; for this many ticks has stalled and stops the run. ~10 s. Chosen when the
+     *  watchdog was added rather than sized against observed behaviour: well above a page
+     *  turn's round trip, and the same bound as {@code GuildLogWalker}'s overall timeout. */
+    private static final int STALL_TICKS = 200;
+
+    /** Debounce delay before {@link #scanAndPaginate()} runs: each trigger bumps
+     *  {@link #scanToken}, so the scan runs this many ticks after the <em>last</em> one. Copied
+     *  from {@code MembersListSearcher}'s constant of the same name, for the same reason: a
+     *  page's {@code SetSlot} packets can cross a tick boundary, and a scan before they finish
+     *  reads a half-updated page. */
+    private static final int SCAN_DELAY_TICKS = 2;
 
     /** One member tile's worth of data captured during the walk. */
     public record MemberEntry(String legacyName, List<String> loreLines) {}
@@ -70,9 +86,21 @@ public final class MembersListWalker {
     private static volatile boolean active = false;
     private static volatile int membersContainerId = -1;
     private static volatile int pagesClicked = 0;
-    private static volatile boolean scanScheduled = false;
+
+    /** Bumped by every {@link #scheduleScan()} and every {@link #stop()}; a scheduled scan
+     *  runs only if it is still the latest. */
+    private static volatile int scanToken = 0;
+
     private static volatile Completion completion = null;
     private static final List<MemberEntry> collected = new ArrayList<>();
+
+    /** The page the last Next click was made from, tile slot to name, or {@code null} before
+     *  the first click; see {@link #advanceOrFinish}. */
+    private static volatile Map<Integer, String> tilesAtLastClick = null;
+
+    /** Bumped by every {@link #armStallWatchdog()} and every {@link #stop()}, so only the
+     *  latest watchdog of a live walk can fire. */
+    private static volatile int stallToken = 0;
 
     private MembersListWalker() {}
 
@@ -81,33 +109,34 @@ public final class MembersListWalker {
         VetsLogger.debug("Registered MembersListWalker on Wynntils event bus");
     }
 
+    /** Disarms the walk without running any callback, for
+     *  {@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()} on a
+     *  disconnect. */
+    public static void cancel() {
+        stop();
+    }
+
     /**
      * Arms the walker for the next Members menu open. The callback fires
      * once the walk reaches a page with no Next Page button (or the
      * {@link #MAX_PAGES} cap), with the members it collected: meant to be
      * the whole roster when the walk ends on the last page (see the class
      * Javadoc and {@link #collectVisiblePage} for ways a page can be
-     * missed), and only the pages reached when it ends at the cap.
+     * missed), and only the pages reached when it ends at the cap. A walk
+     * that loses its menu or stalls stops the run instead, and the callback
+     * never fires.
      */
     public static void armWalk(Completion onComplete) {
         active = true;
         completion = onComplete;
         pagesClicked = 0;
-        scanScheduled = false;
+        scanToken++;
         collected.clear();
-
-        // Fast path mirroring MembersListSearcher's: if a Members menu is
-        // already open, bind to its container id and start scanning. The
-        // walker has no re-arm flow, and its caller opens a fresh menu
-        // right after arming, so if this ever fires it binds a menu that
-        // is about to be replaced (see the class Javadoc).
-        AbstractContainerScreen<?> open = MembersGui.currentByTitle();
-        if (open != null) {
-            membersContainerId = open.getMenu().containerId;
-            scheduleScan();
-        } else {
-            membersContainerId = -1;
-        }
+        tilesAtLastClick = null;
+        // Bind only on the next MenuOpenedEvent.Pre: the caller opens a fresh
+        // menu right after arming, so one already open is about to be replaced.
+        membersContainerId = -1;
+        armStallWatchdog();
     }
 
     private static void stop() {
@@ -115,8 +144,36 @@ public final class MembersListWalker {
         completion = null;
         membersContainerId = -1;
         pagesClicked = 0;
-        scanScheduled = false;
+        scanToken++;
         collected.clear();
+        tilesAtLastClick = null;
+        stallToken++;
+    }
+
+    /**
+     * Ends the walk without its callback and stops the run with {@code reason}, closing the
+     * Members menu first when {@code closeMenu} is set and one is still on top.
+     */
+    private static void abandon(String reason, boolean closeMenu) {
+        VetsLogger.debug(
+                "MembersListWalker: abandoning walk ({}) after {} members",
+                reason,
+                collected.size());
+        stop();
+        if (closeMenu) MembersGui.closeIfOpen();
+        DistributeRuns.stop(reason);
+    }
+
+    /** (Re)starts the {@link #STALL_TICKS} watchdog; a later call or {@link #stop()}
+     *  supersedes it. */
+    private static void armStallWatchdog() {
+        final int myToken = ++stallToken;
+        Managers.TickScheduler.scheduleLater(
+                () -> {
+                    if (myToken != stallToken || !active) return;
+                    abandon("the objectives walk timed out", true);
+                },
+                STALL_TICKS);
     }
 
     @SubscribeEvent
@@ -126,29 +183,30 @@ public final class MembersListWalker {
         if (!StyledText.fromComponent(event.getTitle()).matches(MembersGui.TITLE_PATTERN)) return;
         membersContainerId = event.getContainerId();
         VetsLogger.debug("MembersListWalker: bound to menu id={}", membersContainerId);
+        armStallWatchdog();
     }
 
     @SubscribeEvent
     public void onMenuClose(MenuEvent.MenuClosedEvent event) {
         if (!active) return;
         if (event.getContainerId() != membersContainerId) return;
-        VetsLogger.debug("MembersListWalker: menu closed mid-walk, abandoning");
         // A clientbound close for the bound menu (Wynntils posts
-        // MenuClosedEvent only from its handleContainerClose hook). No
-        // callback on abandon, and no chat line either — this path is
-        // silent. There is no watchdog here at all. The searcher's
-        // WATCHDOG_TICKS is the nearest equivalent, and note it does not
-        // cover MembersListSearcher's own onMenuClose either — that calls
-        // stop(), which bumps watchdogToken and disarms it. stop() below
-        // clears the walker, so the @objectives run never resumes and any
-        // @split phase after it never starts. Same for scanAndPaginate's
-        // screen-gone path. A client-side close (the player's Esc) posts
-        // nothing here: the walk then takes that screen-gone path if a
-        // scan is pending or a late SetContent, or SetSlot on the Next
-        // Page slot, for the bound id schedules one, and otherwise waits
-        // armed with nothing scheduled.
-        // See members-list-walker-drops-completion.
-        stop();
+        // MenuClosedEvent only from its handleContainerClose hook), so the
+        // server closed it: stop the run. A client-side close (the player's
+        // Esc) posts nothing here; onScreenClosed notices that one.
+        abandon("the Members menu closed", false);
+    }
+
+    /**
+     * Notices a client-side close of the bound menu, such as the player's Esc, which posts no
+     * {@link MenuEvent.MenuClosedEvent}: any screen closing during a bound walk schedules the
+     * usual scan, which then finds the menu gone and stops the run.
+     */
+    @SubscribeEvent
+    public void onScreenClosed(ScreenClosedEvent.Post event) {
+        if (!active) return;
+        if (membersContainerId == -1) return;
+        scheduleScan();
     }
 
     @SubscribeEvent
@@ -162,41 +220,47 @@ public final class MembersListWalker {
     public void onSetSlot(ContainerSetSlotEvent.Post event) {
         if (!active) return;
         if (event.getContainerId() != membersContainerId) return;
-        if (event.getSlot() != MembersGui.NEXT_PAGE_SLOT) return;
+        int slot = event.getSlot();
+        if (slot != MembersGui.NEXT_PAGE_SLOT && !MembersGui.isTileSlot(slot)) return;
         scheduleScan();
     }
 
+    /** Schedules a scan {@link #SCAN_DELAY_TICKS} from now, superseding any scan not yet run.
+     *  Each call posts its own lambda: the scheduler keys tasks by their {@code Runnable}. */
     private static void scheduleScan() {
-        if (scanScheduled) return;
-        scanScheduled = true;
-        Managers.TickScheduler.scheduleLater(MembersListWalker::scanAndPaginate, 1);
+        final int myToken = ++scanToken;
+        Managers.TickScheduler.scheduleLater(
+                () -> {
+                    if (myToken != scanToken) return;
+                    scanAndPaginate();
+                },
+                SCAN_DELAY_TICKS);
     }
 
     private static void scanAndPaginate() {
-        scanScheduled = false;
         if (!active) return;
 
         AbstractContainerScreen<?> screen = ContainerScreens.currentWithId(membersContainerId);
         if (screen == null) {
-            stop();
+            abandon("the Members menu is not open", true);
             return;
         }
 
         List<ItemStack> items = screen.getMenu().getItems();
 
-        collectVisiblePage(items);
-        advanceOrFinish(items);
+        Map<Integer, String> pageTiles = collectVisiblePage(items);
+        advanceOrFinish(items, pageTiles);
     }
 
     /**
      * Appends every {@linkplain MembersGui#isTileSlot(int) player-head tile}
-     * on the current page to {@link #collected}. Names are deduped by legacyName so re-scans
-     * of the same page (rare, but possible if a trigger for the page
-     * arrives after its scan has run) don't double-count. The re-scan also re-runs
-     * {@link #advanceOrFinish}, though, so it can click Next a second time
-     * ({@code members-list-walker-rescan-double-clicks-next}).
+     * on the current page to {@link #collected}, and returns the page, tile slot to name. Names are
+     * deduped by legacyName so re-scans of the same page (rare, but possible if a trigger for
+     * the page arrives after its scan has run) don't double-count, and a re-scan of the page a
+     * Next click was made from does not click again (see {@link #advanceOrFinish}).
      */
-    private static void collectVisiblePage(List<ItemStack> items) {
+    private static Map<Integer, String> collectVisiblePage(List<ItemStack> items) {
+        Map<Integer, String> pageTiles = new HashMap<>();
         for (int slot = 0; slot < items.size(); slot++) {
             if (!MembersGui.isTileSlot(slot)) continue;
 
@@ -205,10 +269,12 @@ public final class MembersListWalker {
 
             String name =
                     StyledText.fromComponent(stack.getHoverName()).getStringWithoutFormatting();
+            pageTiles.put(slot, name);
             if (anyMatchesName(name)) continue;
 
             collected.add(new MemberEntry(name, readLore(stack)));
         }
+        return pageTiles;
     }
 
     /**
@@ -222,8 +288,17 @@ public final class MembersListWalker {
      * {@link MembersGui#clickPaginationIfPresent} does not distinguish
      * them and neither did this method — both said {@code finishWalk()}
      * and neither logged.</p>
+     *
+     * <p>After a click it does neither until {@link MembersGui#pageTurned} says the page has
+     * changed, so a re-scan of the old page, or of one only partly updated, waits for the next
+     * scan instead of clicking Next again. A click that never lands ends the walk through the
+     * stall watchdog.</p>
      */
-    private static void advanceOrFinish(List<ItemStack> items) {
+    private static void advanceOrFinish(List<ItemStack> items, Map<Integer, String> pageTiles) {
+        if (tilesAtLastClick != null && !MembersGui.pageTurned(tilesAtLastClick, pageTiles)) {
+            VetsLogger.debug("MembersListWalker: page not turned yet, not clicking again");
+            return;
+        }
         if (pagesClicked >= MAX_PAGES) {
             finishWalk();
             return;
@@ -240,6 +315,8 @@ public final class MembersListWalker {
             return;
         }
         pagesClicked++;
+        tilesAtLastClick = pageTiles;
+        armStallWatchdog();
     }
 
     private static boolean anyMatchesName(String name) {

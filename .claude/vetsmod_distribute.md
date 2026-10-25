@@ -8,7 +8,7 @@ type: project
 `distribute/` drives the Wynncraft Guild Management GUI from a client
 command: it sends `/guild manage`, clicks through to Manage Members or
 Guild Log, paginates to a named player's tile, and synthesises the hotbar
-presses that hand them Aspects, Guild Tomes or Emeralds.
+presses that hand them Aspects, Tomes or Emeralds.
 
 It is one state machine with a shared tail and five heads, spread over
 five sub-packages. This doc exists because the tick constants and the
@@ -32,10 +32,11 @@ skipped.
   `StringArgumentType.string()` restricts unquoted input to
   `[0-9A-Za-z_.+-]`, so `@random` fails to parse at the `@`. The type
   deliberately does **not** enforce the selector set — that lives in one
-  table (§10).
+  table (§10). The executor refuses an `@` token that matches no row, with
+  a red line, before any lookup or menu (§7).
 - **`<resource>`** — three literals mapping to `MemberSlotPresser.Resource`
   hotbar button indices: `aspects`→0, `tomes`→1, `emeralds`→2. The
-  server interprets one press as 1 Aspect, 1 Guild Tome, or 1024
+  server interprets one press as 1 Aspect, 1 Tome, or 1024
   Emeralds respectively.
 - **`<count>`** — `IntegerArgumentType.integer(COUNT_MIN, COUNT_MAX)`,
   i.e. 1–255. What a count *means* differs per head (§5).
@@ -47,9 +48,10 @@ Two gates, reading two different confirmed-side signals:
 | Visibility (`.requires`) | `GuildStateManager.isStaffOfAnyGuild()` | `isConfirmedStaff()`, a boolean | `Models.Guild.getGuildRank()` ordinal ≥ `CAPTAIN` |
 | Execution (`DistributeCommands.ensureChief`) | `GuildStateManager.isChiefOfAnyGuild()` | `confirmedStaffRank()`, a string matched against `"chief"`/`"owner"` | rank is `CHIEF` or `OWNER` |
 
-As of this writing each predicate has exactly one call site, both in
-`DistributeCommands` — nothing enforces that, so re-grep before relying
-on it. A strategist sees the command in autocomplete and gets a red error
+As of this writing `isChiefOfAnyGuild` has one call site, in
+`DistributeCommands`, and `isStaffOfAnyGuild` two: the `.requires` there
+and `HelpCommands.help`, which shows the `/wv distribute` index row on
+the same gate. Nothing enforces that, so re-grep before relying on it. A strategist sees the command in autocomplete and gets a red error
 on execute; a Returners captain is visible only through the Wynntils
 fallback, because captain is no longer confirmed staff at all —
 the server retired it in the 2026-07 permission restructure and simply
@@ -59,12 +61,13 @@ enforcement.
 ## 2. Package layout
 
 All of it lives under `org.wynnvets.distribute.*` —
-[distribute/](../src/client/java/org/wynnvets/distribute/), 16 files
+[distribute/](../src/client/java/org/wynnvets/distribute/), 17 files
 across 5 sub-packages:
 
 ```
 distribute/
 ├── DistributeCommands.java           — brigadier tree, both gates, selector dispatch
+├── DistributeRuns.java               — one run at a time: start, queue, finish, stop, refuse (§7)
 ├── MembersGui.java                   — the Members menu's shape: title, page buttons, tiles
 ├── command/
 │   ├── NameOrSelectorArgument.java   — one-token argument type so `@x` parses
@@ -90,7 +93,8 @@ distribute/
 `MembersGui` sits at the package root rather than in `walker/` because
 both Members-menu classes in `walker/` (`MembersListSearcher`,
 `MembersListWalker`) and
-`distributor/`'s `MemberSlotPresser` read from it; a distributor should not import from the walker package to
+`distributor/`'s `MemberSlotPresser` read from it, and `DistributeCommands`, two `distributor/`
+classes and `MembersListWalker` close the menu through its `closeIfOpen()`; a distributor should not import from the walker package to
 learn the GUI's shape. (`opener/` does not — `GuildManageOpener` drives
 the *Manage* menu and reads only `ContainerScreens`.) It describes the *layout* (mirroring
 Wynntils' `GuildMemberListContainer`), not the subset ≥2 callers share,
@@ -103,8 +107,9 @@ menu and so is not Members-specific. Its third predicate, `current()`, discrimin
 and nothing in this package uses it. See §6 point 2.
 
 `DistributionQueue` is in `distributor/` rather than beside `MembersGui`
-because it calls `MemberSlotPresser.closeMembersScreen()`, which is
-package-private. It owns the drive loop and nothing else: who is owed what
+because the three heads that build its queues are there, and it, its
+`Distribution` record and `processNext` are package-private to them (§10).
+It owns the drive loop and nothing else: who is owed what
 stays with each head, and so do the two things that look shared and are
 not — the arming order, and whether a no-recipient early-out closes the
 menu (§5, and the class Javadoc).
@@ -131,7 +136,8 @@ requirement (`WynntilsMod.registerEventListener` needs the event bus that
 `WynntilsMod.init` creates) — a requirement all five share, since each
 makes that same call.
 
-The remaining eleven files need no bus registration. Ten are static-only
+The remaining twelve files need no Wynntils bus registration. (`DistributeRuns` is reset from
+`ServerConnectionListener`'s Fabric disconnect callback.) Eleven are static-only
 with private constructors; `NameOrSelectorArgument` is the exception — a
 private-constructor singleton with instance methods, because Brigadier's
 `ArgumentType` is an interface.
@@ -142,10 +148,12 @@ Every head converges on the same sequence once it has a recipient name
 in **legacy form** (the name Wynncraft freezes onto the GUI tile, which
 is what the searcher matches). Each step names the class that owns it:
 
-1. **`GuildManageOpener.openManageMembers`** sets `target = MEMBERS` and
-   sends `guild manage` through `OutboundCommand.queueFront` (§8).
+1. **`GuildManageOpener.openManageMembers`** sets `target = MEMBERS`,
+   stamped with the time, and sends `guild manage` through
+   `OutboundCommand.queueFront` (§8). An arm older than `ARM_TTL_MS` is
+   cleared, unused, when the next menu opens.
 2. **`GuildManageOpener.onMenuOpenPre`** sees the `"<guild>: Manage"`
-   title, calls `event.setCanceled(true)` so the Manage GUI never
+   title (any other menu passes through and leaves the arm in place), calls `event.setCanceled(true)` so the Manage GUI never
    visually flashes, synthesises an empty container from the event's
    menu type, and left-clicks `MEMBERS_SLOT` (0), the top-left "Manage
    Members" tile. Mirrors Wynntils' `GuildBankHotkeyFeature` approach.
@@ -155,7 +163,8 @@ is what the searcher matches). Each step names the class that owns it:
    result and so `getMenu().getItems()` reflects what the server sent.
    In a multi-recipient chain the menu is already open, and
    `armSearch`'s re-arm fast path binds the id and schedules a scan
-   directly instead.
+   directly instead. A search armed just before its run opens the menu
+   (`bindOpenMenu` false) never takes the fast path.
 5. **`MembersListSearcher.onSetContent` / `.onSetSlot`** call
    `scheduleScan()`, which is tail-debounced through `scanToken`: every
    call posts its own task and bumps the token, and only the
@@ -187,14 +196,17 @@ is what the searcher matches). Each step names the class that owns it:
    token-guarded `REFRESH_TIMEOUT_TICKS` timeout backs it.
 10. **`MemberSlotPresser.onRefreshObserved`** waits `PRESS_DELAY_TICKS`,
     then either fires the next press or completes.
-11. On completion `pendingOnComplete` runs — for the literal head that
-    is `MemberSlotPresser.closeMembersScreen`; for the three pool heads
+11. On completion `pendingOnComplete` runs — for the literal head it
+    closes the menu (`MembersGui.closeIfOpen`, which sends the close packet)
+    and ends the run (`DistributeRuns.finished`); for the three pool heads
     it is `DistributionQueue.processNext`, which all three share and
     none of them declares. `SplitDistributor` has none either: it chains
     whole phases, so under `@split` the callback is still that same
     loop. `processNext` arms the searcher for the next recipient with
     the menu left open — and on its terminal invocation, when the queue
-    is empty, calls `MemberSlotPresser.closeMembersScreen` itself.
+    is empty, calls `MembersGui.closeIfOpen` itself. Each pop after the
+    first checks that the Members menu is still open, and stops the run
+    if it is not (§7).
 
 **The searcher's scan, step by step.** `MembersListSearcher.scanAndPaginate` runs
 `SCAN_DELAY_TICKS` after the last event that triggers it (§6 point 3) and takes the
@@ -215,36 +227,48 @@ first of these that applies:
 5. **No click is possible**, so the sweep is exhausted: a forward run ended with no
    Previous to turn to, or a backward run reached page 1. If the retry is unused
    (`MAX_RETRY_ATTEMPTS`), it resets the page count and the direction and schedules a
-   fresh scan about `RETRY_DELAY_TICKS` later, from the page it is on. Otherwise a
+   fresh scan about `RETRY_DELAY_TICKS` later, from the page it is on, unless that search
+   has ended by then (the hop checks the watchdog token, as the watchdog does). Otherwise a
    yellow "Could not find <name> in members list." and `invokeNotFound`.
 
 `invokeNotFound` stops the search and runs the not-found handler, if one was armed;
-`DistributionQueue` arms one to move on to the next recipient. The watchdog
+`DistributionQueue` arms one that moves on to the next recipient while the Members
+menu is still up, and stops the run when it is not (§7). The watchdog
 (`WATCHDOG_TICKS`, counted from `armSearch`) also ends a search through
-`invokeNotFound`, after a yellow "Search for <name> timed out — advancing." A
-server-sent close for the bound id ends a search through `onMenuClose`, which runs
-no handler.
+`invokeNotFound`, after a yellow "Search for <name> timed out.". A server-sent close
+for the bound id (`onMenuClose`) stops the run instead (§7): Wynntils posts it before
+vanilla tears the screen down, so a not-found handler run then would still see the
+menu. A client-side close, such as the
+player's Esc, posts no close event: `onScreenClosed` schedules a scan instead, and the
+scan's first step ends the search.
 
 ## 5. The five heads
 
 ### Literal name
 
-`DistributeCommands.distribute` fans out two lookups in parallel —
+A token starting with `@` that matches no `SELECTORS` row never gets here: a Minecraft
+username can't contain `@`, so it is refused as a mistyped selector, with no request
+and no menu. For a real name, `DistributeCommands.distribute` fans out two lookups in parallel —
 `NameResolver.resolveLegacyName` and
-`NoAspectsFilter.fetchExcludedLegacyNames`, up to three requests (§9) —
-and `thenCombine`s them.
-The combined callback runs on a background HTTP-completion thread, so it
-marshals back onto the tick thread with a `scheduleLater(..., 0)` hop before
-touching any menu or bus state. `dispatchSingleTarget` then rejects the
-send with a red chat line if *either* the literal input or the resolved
-name is on the opt-out list, arms the searcher with the literal input,
+`NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects())`, up to
+three requests on an aspects run (§9) — and `thenCombine`s them. On a tomes or
+emeralds run the opt-out set is empty and already complete, and no opt-out
+request is made.
+The combined callback usually runs on a background HTTP-completion thread, so
+it marshals back onto the tick thread with a `scheduleLater(..., 0)` hop before
+touching any menu or bus state. (When both futures are already complete, as on
+a tomes or emeralds run whose wapi read short-circuited, it runs inline on the
+command's thread and the hop is a same-thread deferral.) `dispatchSingleTarget`
+then rejects the send with a red chat line if *either* the literal input or the
+resolved name is on the opt-out list, arms the searcher with the literal input,
 adds the resolved name via `MembersListSearcher.addAlternative` when a
 rename is detected, and opens the menu.
 
-`<count>` here means **presses to that one player**. This head arms with
-the two-argument `armSearch`, so `notFoundHandler` stays null: a
-not-found still prints its chat line, but nothing closes the Members
-menu afterwards.
+`<count>` here means **presses to that one player**. This head's not-found
+handler closes the Members menu and ends the run when the search gave up
+with the menu still up, after printing its chat line, if any, and stops
+the run when the menu is gone (§7). Its send's completion does the same:
+it closes and ends the run, or stops it when the send lost the menu.
 
 The wait-before-arming is deliberate and costs a round trip up front —
 rejecting an opted-out target after the menu has already opened would be
@@ -253,13 +277,14 @@ worse UX than the delay.
 ### `@random` — `RandomDistributor`
 
 Guards on `GuildStateManager.isWynntilsReady()`, then combines
-`NameResolver.fetchAllLegacyNames` with the opt-out set, filters, hops
+`NameResolver.fetchAllLegacyNames` with the opt-out set (empty unless the run is
+aspects), filters, hops
 to the tick thread, and `beginPicks` shuffles and takes
 `min(count, roster.size())`. `<count>` means **recipients**: one of the
-resource per pick, picks being distinct roster entries — though two
-members sharing a tile name can make one tile the target twice, giving
-one member two and the other none
-(`random-distributor-can-target-one-tile-twice`).
+resource per pick, picks being distinct tile names
+(`RandomDistributor.distinctIgnoringCase`, folded with `Locale.ROOT`): two
+members whose tile names coincide are one tile in the Members GUI, so only
+the first stays in the pool.
 
 Picks come from the wapi legacy-name roster rather than
 `Models.Guild.getGuildMembers()` on purpose: the former is already in
@@ -269,19 +294,21 @@ before their resolve does.
 
 `beginPicks` calls `DistributionQueue.processNext` for the first pick
 **before** `openManageMembers()` — the searcher must be armed by the time
-`MenuOpenedEvent.Pre` fires, so that it can bind on that event (a Members
-menu already open at arm time is bound by the fast path instead —
-`members-list-fast-path-binds-a-menu-about-to-be-replaced`). Later picks re-arm through the fast path
+`MenuOpenedEvent.Pre` fires, so that it can bind on that event; this pop
+arms with `bindOpenMenu` false, so a Members menu already open at arm time,
+which the open is about to replace, is ignored. Later picks re-arm through the fast path
 while the menu is still open, and the searcher's bidirectional
 pagination lets a pick on an earlier page be reached without reopening.
 
 ### `@objectives` — `ObjectivesDistributor`
 
-Fires the opt-out fetch, arms `MembersListWalker` for a full forward
+Fires the opt-out fetch (aspects only; any other run gets an empty set at
+once), arms `MembersListWalker` for a full forward
 sweep, and opens the menu. The walker collects one `MemberEntry`
 (legacy name + de-formatted lore lines) per bounded tile per page,
 deduping by name, and calls back when the Next Page button is gone or
-`MAX_PAGES` is hit.
+`MAX_PAGES` is hit. A walk that loses its menu, or makes no progress for
+`STALL_TICKS`, stops the run instead (§7).
 
 `hasCompletedObjective` scans forward from the `Guild Objective:` header
 to the first **non-blank** line, matches it against
@@ -306,11 +333,12 @@ the *entry* into the chain.
 
 ### `@graids` — `GraidsDistributor`
 
-Combines `NameResolver.fetchNameIndex` with the opt-out set (excluded
-members are stripped from *both* index keys so their username token can
+Combines `NameResolver.fetchNameIndex` with the opt-out set (empty unless the
+run is aspects; excluded members are stripped from *both* index keys so their username token can
 never match), then arms `GuildLogWalker` and calls
 `GuildManageOpener.openGuildLog()` — the Manage route, not `/guild log`
-(§6).
+(§6). Before any of that it refuses in red, with nothing opened, when
+Wynntils' Custom Guild Log Screen feature is off (§6 point 4).
 
 Entries containing the literal substring `and claimed` are treated as
 graid completions. Within one, every token matching
@@ -343,7 +371,8 @@ objectives or random phase is wrapped in `PHASE_DELAY_TICKS`, even when
 an empty graids pool makes it the first to run; the graids phase is not.
 Every underlying dispatcher fires its `onComplete` on the no-recipients
 and roster-failure paths too, so an empty pool advances the chain rather
-than ending it.
+than ending it. A phase that stops (§7) does not fire it, so a stop in one
+phase ends the whole chain.
 
 ## 6. Why the numbers and routes are what they are
 
@@ -357,7 +386,8 @@ observed Wynncraft behaviour first, then the code shape it forces.
    and navigates: `onMenuOpenPost` binds the Manage container,
    `onSetContent` scans every item for the hover name matching
    Wynntils' `CustomGuildLogScreenFeature.GUILD_LOG_ITEM_PATTERN`
-   (`§7§lGuild Log`), and clicks that slot. The tile's index is not
+   (`§7§lGuild Log`), and clicks that slot; a Manage menu without that
+   tile is closed again. The tile's index is not
    hardcoded anywhere in Wynntils and Wynncraft has shifted the Manage
    layout before, which is why this path can't use the Members path's
    cancel-and-click-slot-0 trick.
@@ -377,15 +407,15 @@ observed Wynncraft behaviour first, then the code shape it forces.
    the package and they are not interchangeable.
    `MembersGui.currentByTitle()` ignores the container id, which is what
    survives the refresh — `MemberSlotPresser` goes by title throughout:
-   every press, the close guard and the `SetContent` refresh check find
+   every press and the `SetContent` refresh check find
    the screen via `currentByTitle()`, and the reopen check matches the
-   event title,
-   and the searcher and walker use it in their re-arm fast paths and the
-   searcher's mid-search rebind, where there is no *usable* bound id —
-   none yet in the fast paths, a stale one in the rebind. `ContainerScreens.currentWithId(int)` takes the caller's bound id
+   event title; so does the close at the end of a run (`MembersGui.closeIfOpen`),
+   and the searcher uses it in its re-arm fast path and its mid-search
+   rebind, where there is no *usable* bound id — none yet in the fast
+   path, a stale one in the rebind. `ContainerScreens.currentWithId(int)` takes the caller's bound id
    and nothing else, because for the scan that drives pagination a
    mismatch is the *signal* that the bound menu is gone — the searcher
-   rebinds on it, the walker abandons. `GuildManageOpener` uses the same
+   rebinds on it, the walker stops the run. `GuildManageOpener` uses the same
    id predicate on the Manage menu. Swapping either for the other changes
    behaviour on exactly the path it exists for. The full table is on
    `MembersGui`'s class Javadoc.
@@ -398,18 +428,23 @@ observed Wynncraft behaviour first, then the code shape it forces.
    pagination buttons, and `SCAN_DELAY_TICKS = 2` tail-debounces the
    burst into one scan, run once no triggering packet has arrived for
    about that long; a stream that pauses longer can still be scanned
-   half-updated. `MembersListWalker` did not
-   receive the same treatment — its `onSetSlot` still triggers only on
-   `MembersGui.NEXT_PAGE_SLOT`, and its `scheduleScan` is a leading-edge
-   boolean latch with a fixed 1-tick delay rather than a token debounce.
+   half-updated. `MembersListWalker` has the same two changes: its
+   `onSetSlot` triggers on the Next Page slot and any tile, and its
+   `scheduleScan` is the same token debounce, with its own copy of
+   `SCAN_DELAY_TICKS`. After a Next click it also waits until a scan shows
+   no tile slot still holding the name it held before the click
+   (`MembersGui.pageTurned`) before clicking again, so a re-scan of the old
+   page cannot click twice. It compares slot by slot because tile names are
+   not unique (§5, `@random`).
 4. **Wynntils' `GuildLogHolder` gives no completion signal we can
    subscribe to.** It auto-paginates the log and accumulates the items,
    but the state driving its stop decision is private and no `Models`
    API surfaces the holder, so `GuildLogWalker` cannot ask whether the
    walk is done. It infers completion from a settle timer instead —
    and that timer is the one place in the package driven by
-   `@SubscribeEvent onTick(TickEvent)` against
-   `McUtils.player().tickCount`, not by `Managers.TickScheduler`.
+   `@SubscribeEvent onTick(TickEvent)`, not by `Managers.TickScheduler`.
+   It counts its own ticks from the arm: the player entity's
+   `tickCount` restarts on a respawn or world change.
 
    ⚠️ **The auto-pagination itself is conditional.** `GuildLogHolder` is
    on Wynntils' event bus only while Wynntils has *wrapped* the log
@@ -420,10 +455,14 @@ observed Wynncraft behaviour first, then the code shape it forces.
    gated by its shift-behaviour setting, which it compares against a
    shift flag that only a click through the game's own container-click
    path updates; `GuildManageOpener`'s tile click is a raw packet and
-   does not. Unwrapped, nothing auto-paginates, the walk ends on whatever
-   has arrived, and `GuildLogWalker.finishWalk`'s `setScreen(null)` sends
-   no close packet for the log. Filed as
-   `graids-log-walk-depends-on-wynntils-log-screen-feature`.
+   does not. Unwrapped, nothing would auto-paginate and the walk would end
+   on whatever had arrived. So `GraidsDistributor.dispatch` refuses in red,
+   before opening anything, when `GuildLogWalker.wynntilsLogScreenEnabled()`
+   says the feature is off, and the walker checks `WRAP_CHECK_TICKS` after
+   binding (or at the overall cap, if that comes first) that the screen on top
+   is Wynntils' wrap of the bound log. If the unwrapped log is on top (the
+   shift case), it closes it and refuses in red; if no log is on top any more
+   (the player's Esc), it stops the run as "the guild log closed".
 5. **The guild log caps at roughly 100 most-recent entries.** Aspect
    sends write log entries of their own, so distributing anything before
    reading the log pushes graid records off the back of the window.
@@ -443,7 +482,10 @@ Every "why" below is the claim made by that constant's own comment —
 or, for two, by the comment it leans on: `COUNT_MAX` shares `COUNT_MIN`'s
 "Bounds on `<count>`" Javadoc, and `MAX_REBIND_ATTEMPTS`' reason is on the
 `rebindAttempts` field and in `scanAndPaginate`. None is an extrapolation
-from behaviour observed elsewhere. Values are current.
+from behaviour observed elsewhere, except the walker's `SCAN_DELAY_TICKS`,
+copied from the searcher's, and `QUEUE_GAP_TICKS`, copied from
+`PHASE_DELAY_TICKS`; and two, `STALL_TICKS` and `ARM_TTL_MS`, were chosen
+rather than observed, as their comments say. Values are current.
 
 | Constant | Class | Value | Why |
 |---|---|---|---|
@@ -457,92 +499,103 @@ from behaviour observed elsewhere. Values are current.
 | `MAX_RETRY_ATTEMPTS` | `MembersListSearcher` | 1 | One retry catches the stale-data false negative; more would only delay the not-found verdict |
 | `WATCHDOG_TICKS` | `MembersListSearcher` | 300 | ~15 s hard bound per search; a 4-page guild swept both ways with a retry is expected under 10 s |
 | `MAX_PAGES` | `MembersListWalker` | 30 | Runaway-loop bound — that is the whole of its comment. **No sizing rationale is recorded** for 30, unlike the searcher's 60. Don't infer one from the walk being forward-only |
+| `SCAN_DELAY_TICKS` | `MembersListWalker` | 2 | Copied from the searcher's, for the same reason (point 3 above); the scan runs this long after the last trigger |
+| `STALL_TICKS` | `MembersListWalker` | 200 | ~10 s with no progress (arming, binding or a page click) ⇒ the walk has stalled and stops the run. Chosen, not observed: well above a page turn's round trip, and the same bound as `OVERALL_TIMEOUT_TICKS` |
+| `ARM_TTL_MS` | `GuildManageOpener` | 10 s | An open whose `/guild manage` went unanswered for this long has given up, so the next menu clears its arm instead of using it. Below the searcher's 15 s watchdog. Chosen, not observed; the only constant here in milliseconds, checked lazily against `System.nanoTime()` |
 | `SETTLE_TICKS` | `GuildLogWalker` | 40 | No new log item for this long ⇒ done. The comment attributes the sizing to Wynntils' own `REQUEST_TIMEOUT = 5` plus `FORCED_LOAD_DELAY = 20` |
 | `OVERALL_TIMEOUT_TICKS` | `GuildLogWalker` | 200 | ~10 s hard cap on the whole log walk |
-| `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Belt-and-braces settle gap before each objectives or random phase starts, on top of `queueCommand`'s 7-tick spacing. A phase that ends on the Members menu gives it no close packet to wait for: it dismisses the menu through `MemberSlotPresser.closeMembersScreen`, which sends none (`close-members-screen-sends-no-close-packet`) |
+| `WRAP_CHECK_TICKS` | `GuildLogWalker` | 2 | Wynntils wraps the log on the same `MenuOpenedEvent.Post` the walk binds on, in no defined order, so the wrap check waits until that event has certainly finished |
+| `QUEUE_GAP_TICKS` | `DistributeRuns` | 10 | Gap between one run finishing and the next queued run starting; the same 10 ticks, for the same reason, as `PHASE_DELAY_TICKS` |
+| `PHASE_DELAY_TICKS` | `SplitDistributor` | 10 | Belt-and-braces settle gap before each objectives or random phase starts, on top of `queueCommand`'s 7-tick spacing. A phase that ends on the Members menu closes it through `MembersGui.closeIfOpen`, whose close packet the gap also gives time to land |
 
-`distribute/` makes 11 of the repo's 12 `Managers.TickScheduler.scheduleLater`
-calls, across 8 of its 16 files, and calls the scheduler directly. The twelfth
+`distribute/` makes 13 of the repo's 14 `Managers.TickScheduler.scheduleLater`
+calls, across 9 of its 17 files, and calls the scheduler directly. The fourteenth
 is in `util.TickDelays`, the mod-wide helper for delayed work on the client
-thread. Four of the 11 are delay-0 marshalling
-hops back onto the tick thread, not delays — three always off a
+thread. Four of the 13 are delay-0 marshalling
+hops back onto the tick thread, not delays — three off a
 background HTTP-completion thread, and `ObjectivesDistributor.dispatch`'s whenever its
 opt-out fetch outlasts the walk (when it does not, that call is a
-same-thread deferral through the scheduler instead). Treat
+same-thread deferral through the scheduler instead). A tomes or emeralds run
+makes no opt-out fetch, so its `@objectives` hop is always that deferral, and the
+other three are too when their wapi read short-circuited (§9). Treat
 the counts as a snapshot rather than a design invariant; nothing stops
 another package from scheduling.
 
 ## 7. Failure and stall matrix
 
-Not every failure path advances the chain. Some rows below say **no**;
-they are real, and a matrix claiming otherwise would be false.
+Not every failure path advances the chain. A row whose callback column says
+**no** ends the run instead, by design (`DistributeRuns`), and nothing it
+armed calls back. A stop prints one yellow "Distribution stopped: …" line
+and cancels the queue; a refusal (a precondition unmet) prints a red line
+and lets the queue go on.
 
 | Trigger | Detected by | Chat output | Callback fires? |
 |---|---|---|---|
 | Executor run by non-chief | `DistributeCommands.ensureChief` | red "You must be a guild Chief or Owner…" | n/a — nothing armed |
-| Target on the opt-out list | `DistributeCommands.dispatchSingleTarget` | red "… is on the NoAspects list…" | n/a — nothing armed |
+| `@` token matching no selector | `DistributeCommands.distribute` | red "Unknown selector @x. Choose from @graids, @objectives, @random, @split." | n/a — nothing armed |
+| Target on the opt-out list (aspects only) | `DistributeCommands.dispatchSingleTarget` | red "… has opted out of receiving aspects…" | n/a — nothing armed |
+| Wynntils' Custom Guild Log Screen off (`@graids`, and `@split`'s graids phase) | `GraidsDistributor.dispatch` | red "Graid-based distribution requires a Wynntils feature that is currently disabled (Custom Guild Log Screen)." | no: nothing armed, and under `@split` nothing is sent |
 | Wynntils not ready (`@random`) | `RandomDistributor.dispatch` | red "Wynntils isn't ready yet…" | yes |
 | Empty wapi roster / name index | `RandomDistributor.beginPicks`, `GraidsDistributor.beginWalk` | yellow "Could not read guild roster from wapi…" | yes |
+| Every roster member opted out (aspects only) | `RandomDistributor.beginPicks`, `GraidsDistributor.beginWalk` | yellow "All eligible recipients have opted out of receiving aspects." | yes |
 | No objective completers | `ObjectivesDistributor.onWalkComplete` | yellow "No members have completed…" | yes |
+| Every objective completer opted out (aspects only) | `ObjectivesDistributor.onWalkComplete` | yellow "All eligible recipients have opted out of receiving aspects." | yes |
 | No graid entries in the window | `GraidsDistributor.onLogReady` | yellow "No graid completions found…" | yes |
+| Every graid participant in the window opted out (aspects only) | `GraidsDistributor.onLogReady` | yellow "All eligible recipients have opted out of receiving aspects." | yes |
 | Name absent after both sweeps and the retry | `MembersListSearcher.stopNotFound` | yellow "Could not find X in members list." | yes † |
 | `MAX_PAGES` reached | `MembersListSearcher.scanAndPaginate` | yellow "Could not find X (reached page limit)." | yes † |
-| Bound Members menu gone, and no rebind possible (none open, or rebinds exhausted) | `MembersListSearcher.scanAndPaginate` | none | yes † |
-| Search stalls with no event arriving | `MembersListSearcher`'s watchdog, 300 ticks | yellow "Search for X timed out — advancing." | yes † |
+| Bound Members menu gone, and no rebind possible (none open, or rebinds exhausted) | `MembersListSearcher.scanAndPaginate` | none from the searcher | yes † |
+| Search stalls with no event arriving | `MembersListSearcher`'s watchdog, 300 ticks | yellow "Search for X timed out." | yes † |
+| Members menu closed by the server mid-search | `MembersListSearcher.onMenuClose` | yellow "Distribution stopped: the Members menu closed." | no, by design: the run stops |
+| Members menu gone when the next recipient is popped | `DistributionQueue.processNext` | yellow "Distribution stopped: the Members menu is not open." | no, by design: the run stops, and any later `@split` phase never starts |
 | Refresh never observed after a press | `MemberSlotPresser.armRefreshTimeout`, 40 ticks | yellow "Send timed out after N/M…" | yes |
-| Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | none | yes, with whatever was collected |
-| Log walk exceeds 200 ticks | `GuildLogWalker.onTick` | none | yes, possibly with an empty list |
-| Log screen never reached — for example no Guild Log tile, `/guild manage` unanswered, or the tile click going nowhere (a case of the row above) | `GuildLogWalker.onTick`'s overall timeout | none from the walker; the empty list then reaches `GraidsDistributor.onLogReady`'s yellow "No graid completions found…", which reads as an empty log (`graids-log-never-reached-reported-as-empty-log`) | yes, with an empty list; a Manage menu may stay open |
-| **Members menu closed by the server mid-search** | `MembersListSearcher.onMenuClose` | none | **no** |
-| **Members menu closed by the server mid-walk** | `MembersListWalker.onMenuClose` | none | **no** |
-| **Bound Members menu gone when the walker's scan runs** | `MembersListWalker.scanAndPaginate` | none | **no** |
-| **Walker waits on an event that never arrives** — for example a Members menu that never opens, a Next Page click whose reply the walker never sees, or a player's Esc with nothing further for the bound id | nothing: `MembersListWalker` has no watchdog | none | **not while it waits** — the walker stays armed, and a later Members menu can bind a stale unbound arm and run its callback then (`distribute-concurrent-runs-clobber-shared-state`) |
-| **Members screen gone when the next press in a batch fires** | `MemberSlotPresser.sendPressAndArm` | none | **no** |
+| Guild log menu closed by the server mid-walk | `GuildLogWalker.onMenuClose` | yellow "Distribution stopped: the guild log closed." | no, by design: the run stops; nothing is sent from the partial log |
+| Guild log opened but not wrapped by Wynntils, `WRAP_CHECK_TICKS` after the bind or at the cap | `GuildLogWalker.checkWrapped` | red "Graid-based distribution requires a Wynntils feature that did not open the guild log (Custom Guild Log Screen)." | no: the log is closed and the run ends |
+| Bound log walk exceeds 200 ticks | `GuildLogWalker.onTick` | none | yes, with whatever was collected; the log is closed first |
+| Guild log no longer on top at the wrap check, or when the walk settles or times out — the player's Esc, a respawn | `GuildLogWalker.checkWrapped`, `GuildLogWalker.finishWalk` | yellow "Distribution stopped: the guild log closed." | no, by design: the run stops, and nothing is closed |
+| Log screen never reached — for example no Guild Log tile (the opener then closes that Manage menu), `/guild manage` unanswered, or the tile click going nowhere | `GuildLogWalker.onTick`'s overall timeout, 200 ticks | yellow "Distribution stopped: the guild log did not open." | no, by design: the run stops |
+| Members menu closed by the server mid-walk | `MembersListWalker.onMenuClose` | yellow "Distribution stopped: the Members menu closed." | no, by design: the run stops |
+| Bound Members menu gone when the walker's scan runs | `MembersListWalker.scanAndPaginate` | yellow "Distribution stopped: the Members menu is not open." (a Members menu still on top is closed first) | no, by design: the run stops |
+| Walk makes no progress for 200 ticks — for example a Members menu that never opens, or a Next Page click whose reply the walker never sees | `MembersListWalker`'s stall watchdog | yellow "Distribution stopped: the objectives walk timed out." | no, by design: the run stops, and the walker disarms, so a later Members menu cannot bind it |
+| Members screen gone when the next press in a batch fires | `MemberSlotPresser.sendPressAndArm` | yellow "Send stopped after N/M: the Members menu is not open." | yes, and the run then stops: a multi-recipient run at its next pop, the literal-name head in its completion |
 
 † All four searcher rows end in `MembersListSearcher.invokeNotFound`,
 which runs whatever `notFoundHandler` was armed. Every selector-run
 search is armed by `DistributionQueue.processNext`, which always passes
-one. The **literal-name head does not** — it uses the
-two-argument `armSearch` — so on those rows it prints the row's chat line,
-if any, clears state, and stops there without closing anything; a Members
-menu that is still open stays open.
-
-The three walker rows are `members-list-walker-drops-completion`; the
-presser row is `member-slot-presser-drops-completion`.
+one: it moves on to the next recipient if the Members menu is still up,
+and otherwise stops the run (the `DistributionQueue.processNext` row). The
+**literal-name head** passes its own: on those rows it prints the row's chat
+line, if any, and closes a Members menu that is still open, or stops the
+run as `DistributionQueue` does if none is.
 
 **"Closed by the server" is literal.** Wynntils posts `MenuClosedEvent`
 only from its `handleContainerClose` hook — a *clientbound* close — so
 every `onMenuClose` in the package sees the server closing a menu, never
 the player. A player's Esc sends only a serverbound close and posts no
-`MenuClosedEvent` (Wynntils posts `ContainerCloseEvent` and
-`ScreenClosedEvent` for it; nothing in the package subscribes to either).
-Where an Esc then ends a run depends first on what the client already
-has pending: a scheduled scan (or the searcher's retry hop) finds no
-screen and ends the search through the "Bound Members menu gone" row, and
-a press already scheduled finds no screen and drops the callback (the
-presser's `no` row). Otherwise it depends on what the server sends for
-that menu afterwards — a close of its own, a reopen, slot updates
-answering a click already in flight — and none of that is verifiable
-from any repo.
-What the code does settle is the case where the run moves on to its next recipient
-with no Members menu open: unless one is reopened, that head's remaining
-queue drains at one watchdog timeout per recipient
-(`distribute-escape-mid-run-drains-through-watchdog`). Under `@split`,
-the next phase reopens the menu for itself.
+`MenuClosedEvent`; Wynntils posts `ContainerCloseEvent` and
+`ScreenClosedEvent` for it. `MembersListSearcher.onScreenClosed` and
+`MembersListWalker.onScreenClosed` subscribe to the second: a bound search
+or walk schedules a scan when any screen closes, and the scan finds the
+menu gone — the search ends through the "Bound Members menu gone" row and
+the run stops (a multi-recipient run at its next pop, the literal-name head
+in its not-found handler), and the walk stops the run itself. Nothing
+else in the package subscribes to either. A press batch has no such
+listener: a press already scheduled finds no screen, says so and runs the
+callback, so the run stops (at its next pop, or in the literal-name head's
+completion; the presser's screen-gone row); otherwise the batch waits on
+the refresh timeout. What the server
+sends for a menu after an Esc — a close of its own, a reopen, slot
+updates answering a click already in flight — is not verifiable from any
+repo.
 
-The `no` rows are not one shape, and none is rescued by design:
+The searcher's and the walker's watchdogs both cover the stall where no
+matching event arrives:
 
-- **The two `onMenuClose` rows and the walker's scan-time row are one
-  shape.** Each calls `stop()` without invoking the handler. In the
-  searcher's case `stop()` also
-  bumps `watchdogToken`, and its own comment says the bump exists so a
-  pending watchdog task "fires into the void" — so the 300-tick backstop
-  does **not** cover this path.
-- **What the watchdog does cover** is the other stall shape: one where
-  `stop()` is never called at all, because no matching event reaches the
+- **The searcher's** covers one where `stop()` is never called at all,
+  because no matching event reaches the
   searcher. A Members menu that never opens, a dropped pagination click,
-  a player's Esc with no scan pending and nothing further arriving for
-  the bound id (above)
+  a Members menu replaced by another screen, which posts neither close
+  event
   — or a close event whose container id doesn't match the bound
   one, since `onMenuClose` returns early on that comparison and never
   reaches `stop()`. That last case is precisely why a close arriving
@@ -552,26 +605,26 @@ The `no` rows are not one shape, and none is rescued by design:
   not removed: it re-runs every tick until a run returns normally, and
   each throw aborts that tick's pass over the task map — whether the
   watchdog still counts down meanwhile depends on map order.
-- **The walker's waiting row is that shape with no watchdog.** It waits
-  armed for an event that never comes, and nothing times it out. The stale
-  arm stays live after the run stalls — see
-  `distribute-concurrent-runs-clobber-shared-state` for what a later
-  Members menu does with it.
-- **`MemberSlotPresser.sendPressAndArm` is a third shape.** Finding no
-  Members screen, it calls `clearPending()`, which nulls
-  `pendingOnComplete` without running it, and returns before arming a
-  timeout. With the field nulled, no later timeout or refresh can run the
-  callback. Contrast `MemberSlotPresser.armRefreshTimeout`,
-  which captures the callback into a local **before** `clearPending()`
-  and then runs it. Same class, two paths, one contract.
+- **The walker's** restarts on every sign of progress — arming, binding,
+  each page click — and so ends a walk whose menu never opens or whose
+  click is never answered, then disarms it.
 
-**One run at a time.** All of this machine's state is static, and
-nothing refuses a second `/wv distribute` while a run is in flight. The
-second run overwrites whatever shared state its path uses (searcher,
-walkers, presser, opener); callbacks of the first run stored there are
-dropped unrun, an `@split` chain included. One it leaves in place can
-still fire later, into the second run
-(`distribute-concurrent-runs-clobber-shared-state`).
+**One run at a time.** All of this machine's state is static, so
+`DistributeRuns` lets one run hold it at a time. A `/wv distribute` that
+passes its checks while another run holds it is queued, with a gray
+"Queued: starts when the current distribution finishes.", and starts
+`QUEUE_GAP_TICKS` after that run finishes or is refused. A run that stops
+cancels everything queued behind it, with "Cancelled N queued
+distributions." (or "distribution." for one). Every run ends in exactly one
+of `DistributeRuns.finished`, `stop` or `refuse`. A disconnect ends it
+silently instead: `DistributeRuns.reset` drops the queue, disarms the
+searcher, both walkers, the presser and the opener (each has a `cancel()`
+for it; the opener's also drops a `guild manage` still in Wynntils' queue,
+which outlives a disconnect) and frees the gate. Every step a head hands to
+an HTTP callback or a later tick (its next step after a wapi fetch, `@split`'s
+phase gap, a queued run's start) is wrapped in `DistributeRuns.fenced`, which
+reset's generation bump turns into a no-op. So no stale watchdog or late
+fetch can stop or drive the next session's run.
 
 ## 8. `OutboundCommand` — the mod's only reflection
 
@@ -588,12 +641,11 @@ already elapsed, the command waits for the next on-world `TickEvent`. (The
 
 The contract worth preserving is **cache the failure, warn, degrade**:
 
-- `lookupField()` sanity-checks that the field's value is a `Queue`,
-  which catches a non-`Queue` value (or a null) once, rather than on every
-  call. It does **not** catch a swap to a `Queue` that is not a
-  `Deque`: that passes, is cached as a good handle, and `obtainDeque()`
-  then falls back per call at debug level — uncached and never warned
-  (`outbound-command-queue-check-accepts-non-deque`).
+- `lookupField()` sanity-checks that the field's value is a `Deque`,
+  which `addFirst` needs, so a swap to anything else (a `Queue` that is
+  not a `Deque`, a non-`Queue` value, or a null) is caught once rather
+  than on every call. `obtainDeque()`'s per-call `Deque` check stays as
+  the backstop.
 - On either of its two failure paths `lookupField()` logs at **warn**
   and returns the `FIELD_LOOKUP_FAILED` sentinel — itself a
   self-reflected field of `OutboundCommand`, so it can never be confused
@@ -604,7 +656,11 @@ The contract worth preserving is **cache the failure, warn, degrade**:
   nothing breaks.
 
 Two call sites, both in `GuildManageOpener`: `openManageMembers()` and
-`openGuildLog()`, each queueing `guild manage`.
+`openGuildLog()`, each queueing `guild manage`. `dropQueued(String)` uses
+the same handle to remove a command again: `GuildManageOpener.cancel()`
+drops a `guild manage` still waiting when a disconnect ends the run, since
+Wynntils keeps its queue across one and sends at the next session's first
+on-world tick. Without the handle it does nothing.
 
 As of this writing, this is the only `java.lang.reflect` usage in the mod's
 own code (`src/client`, `src/main`); `VetsConfigKeysTest` reads
@@ -612,8 +668,10 @@ own code (`src/client`, `src/main`); `VetsConfigKeysTest` reads
 
 ## 9. HTTP surface
 
-Two endpoints, both read fresh on every command, with no caching layer
-of any kind:
+Two endpoints, with no caching layer of any kind, each read fresh whenever a
+run needs it: the wapi guild API by every run except a tomes or emeralds
+`@objectives`, which makes no request at all, and the opt-out list by every
+aspects run and never by a tomes or emeralds one:
 
 | Endpoint | Builder | Reader |
 |---|---|---|
@@ -655,15 +713,17 @@ Request counts are **up to**, not exact: `NameResolver` short-circuits to
 an already-completed future when Wynntils isn't ready or the guild name
 is empty (that short-circuit now lives in `fetchGuildJson`, so one place
 covers all four entry points; the counts themselves are unchanged), and
-`@split` elides zero-count pools entirely. A single-target send costs up
-to three requests (two wapi, one vets); `@random` and
+`@split` elides zero-count pools entirely. On an aspects run a single-target
+send costs up to three requests (two wapi, one vets); `@random` and
 `@graids` up to three each; `@objectives` up to two; `@split` up to the
-sum of the phases it actually runs.
+sum of the phases it actually runs. A tomes or emeralds run skips the opt-out
+lookup (one vets request and its wapi read): a single-target send costs up to
+one request, `@random` and `@graids` up to one each, and `@objectives` none.
 
 **`NameResolver`, written out.** Each entry point makes its own `fetchGuildJson` call, a
 fresh `GET /v3/guild/<the player's guild>` that completes with the body or with the
-`null` described above, so a single-target send's two wapi requests are two of these
-calls. `forEachGuildMember` walks
+`null` described above, so an aspects single-target send's two wapi requests are two of
+these calls. `forEachGuildMember` walks
 `members.<rank>.<currentName>`, skipping the `total` key and any rank bucket that is
 not an object. It hands each member's current name and JSON object (`null` when the
 value is missing or not an object) to a callback that can stop the walk, and a parse
@@ -689,26 +749,30 @@ or @selector", is not a chat call; the chat screen's command hint shows it.
 Two edits, both local:
 
 1. A row in `DistributeCommands.SELECTORS`: the token, and a method
-   reference to the head's `dispatch(int, Resource)`. Dispatch and
-   tab-completion both read that one table, so the row covers both. Row
-   position carries no meaning — dispatch matches a whole token
+   reference to the head's `dispatch(int, Resource)`, which the executor
+   submits as a run (`DistributeRuns.submit`). Dispatch,
+   tab-completion and the unknown-selector refusal's token list all read
+   that one table, so the row covers all three. Row position carries no
+   meaning — the refusal sorts its list, and dispatch matches a whole token
    case-insensitively, so no row can shadow another, and Brigadier's
    `Suggestions.create` HashSets and case-insensitively sorts the
    suggestion list before the client ever sees it. The selectors are
    offered regardless of Wynntils readiness (prefix-filtered only) — none
    of the dispatchers reads `Models.Guild.getGuildMembers()`, so they
    don't depend on the member cache the name suggestions need.
-2. A distributor exposing `dispatch(int, Resource)` — plus the
+2. A distributor exposing `dispatch(int, Resource)`, which must end the run
+   (`DistributeRuns.finished`, `stop` or `refuse`) on every path — plus the
    `dispatch(int, Resource, Runnable)` overload **if the new selector is
    to be chainable from `@split`** (plus a phase in `SplitDistributor`
    to call it), firing that callback on every exit
    the head itself owns. The three pool distributors all carry both
    overloads; `SplitDistributor` itself carries only the two-argument
-   form, because nothing chains it. A path of the head's own that returns
-   without invoking the callback stalls the whole chain. Code the head
-   does not own still ends some runs without it — §7's `no` rows, among
-   them `member-slot-presser-drops-completion` and, for a head that walks,
-   `members-list-walker-drops-completion`.
+   form, because nothing chains it. An exit the head owns may skip the
+   callback only if it ends the run itself, through `DistributeRuns.stop`
+   or `refuse`, as `@graids`' Wynntils-feature refusal does; a path of the
+   head's own that does neither stalls the whole chain. Code the head does
+   not own still ends some runs without it — a stopped or refused run, by
+   design (§7).
 
 If the new head visits more than one recipient it does not write a drive
 loop: it builds a `Deque<DistributionQueue.Distribution>` and hands it to

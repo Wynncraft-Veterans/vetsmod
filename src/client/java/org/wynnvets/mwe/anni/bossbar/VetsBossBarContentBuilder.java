@@ -1,5 +1,6 @@
 package org.wynnvets.mwe.anni.bossbar;
 
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -43,18 +44,24 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  *       {@code &3anni.wynnvets.org&8: &cANNI IN &f&lAAs&8 | &d&l&nSCROLLS IN BBs&d!}</li>
  *   <li><b>Assigned</b> — when {@link #isAssigned} holds: the board
  *       carries a party or a role, <em>or</em> {@code registration.roles}
- *       carries any non-FILL entry. ⚠️ That last arm reads
+ *       carries any non-FILL entry. That last arm reads
  *       {@code registration}, not {@code board}, while all three chips
- *       below read {@code board} only — so a registered-but-unplaced
- *       player selects this variant and renders
- *       {@code Role: TBD | Party TBD | World: TBD}. Filed, not fixed:
- *       {@code boss-bar-assigned-variant-renders-all-tbd}. Spec §3.1.1.2:
+ *       below read {@code board} only — so a player registered for a
+ *       specific role but not yet placed renders
+ *       {@code Role: TBD | Party TBD | World: TBD}. That is intended: they
+ *       have committed to a slot the board has not filled yet. Spec §3.1.1.2:
  *       {@code &3anni.wynnvets.org/me&8: &7Role: <ROLE>&8 | &7Party <N>&8 | &7World: <W>}</li>
- *   <li><b>Seeking</b> — otherwise. Spec §3.1.1.1:
- *       {@code &7Seeking a <RSVP> <SLOT> &7for &3&nanni.wynnvets.org&7 in &f&l<XX>&fmin}</li>
+ *   <li><b>Seeking</b> — otherwise:
+ *       {@code &3&nanni.wynnvets.org &8(&f&l<XX>&7mins&8) &7| <RSVP> &7for <FILL|CORE>}
+ *       ({@code min} for one minute),
+ *       reworded from spec §3.1.1.1's {@code Seeking a <RSVP> <SLOT> for …}. A player the board
+ *       will not assign ({@code board.state} {@code wont_assign}) gets
+ *       {@code &3anni.wynnvets.org&8: &7You won't be assigned} instead, with no chip and no
+ *       {@code wont_reason}, which the bar has no room for (chat shows it); the bar is already red
+ *       ({@link #colorFor}).</li>
  * </ul>
  *
- * <p>The flash decoration ({@code &l ↔ &n&l}) is applied per-field via
+ * <p>The flash decoration (an {@code &n} underline toggled on and off) is applied per-field via
  * {@link FlashTracker#styleFor} to four chips: role, party and world in
  * the assigned variant, rsvp in the seeking one.</p>
  *
@@ -71,7 +78,13 @@ public final class VetsBossBarContentBuilder {
      *  the manager calls {@code deactivate()} and Wynntils' anni health
      *  bar takes over unobstructed. Also doubles as the offset from
      *  anni-time to scroll-time: scrolls happen this many seconds
-     *  before anni starts. */
+     *  before anni starts. {@link VetsBossBarManager}'s
+     *  {@code DROP_DEAD_SECONDS_BEFORE_ANNI} is the other T-20s gate and
+     *  holds the same 20. Neither constant reads the other, on purpose;
+     *  change both together. If they differ, the larger alone decides
+     *  when the bar goes, silently shadowing the other gate, and this
+     *  constant's scroll countdown no longer ends where the manager's
+     *  progress ramp does. */
     private static final long T_MINUS_20_GATE_SECONDS = 20L;
 
     /** Switch from the assigned/seeking variant to the countdown
@@ -116,7 +129,9 @@ public final class VetsBossBarContentBuilder {
         if (snapshot == null) return BossEvent.BossBarColor.PURPLE;
         AnniSnapshot.Board board = snapshot.board();
         String state =
-                (board != null && board.state() != null) ? board.state().toLowerCase() : null;
+                (board != null && board.state() != null)
+                        ? board.state().toLowerCase(Locale.ROOT)
+                        : null;
         // PURPLE rather than PINK — pink is suppressed by Wynncraft's
         // resource pack; see the class-level javadoc for the empirical
         // evidence.
@@ -300,17 +315,15 @@ public final class VetsBossBarContentBuilder {
 
     // ── Variant: seeking ────────────────────────────────────────────────
 
-    /** Spec §3.1.1.1 — "Seeking a {RSVP} {SLOT} for anni.wynnvets.org in {MIN}min". */
+    /** "anni.wynnvets.org ({MIN}mins) | {RSVP} for {FILL|CORE}", reworded from spec §3.1.1.1;
+     *  or the won't-be-assigned line. Reached only when {@link #isAssigned} is false,
+     *  so a registered player who is sitting out keeps the assigned variant's TBD bar. */
     private static MutableComponent buildSeeking(AnniSnapshot snapshot, long secondsUntilAnni) {
-        MutableComponent out = Component.literal("Seeking a ").withStyle(ChatFormatting.GRAY);
-
-        // RSVP / WALKIN / LATE chip
-        out.append(rsvpChip(snapshot));
-        out.append(Component.literal(" ").withStyle(ChatFormatting.GRAY));
-
-        // CORE / FILL slot chip
-        out.append(slotChip(snapshot));
-        out.append(Component.literal(" for ").withStyle(ChatFormatting.GRAY));
+        AnniSnapshot.Board board = snapshot.board();
+        if (board != null && "wont_assign".equalsIgnoreCase(board.state())) {
+            return buildWontAssign();
+        }
+        MutableComponent out = Component.empty();
 
         // Link badge
         out.append(
@@ -319,13 +332,40 @@ public final class VetsBossBarContentBuilder {
                                 Style.EMPTY
                                         .withColor(ChatFormatting.DARK_AQUA)
                                         .withUnderlined(true)));
-        out.append(Component.literal(" in ").withStyle(ChatFormatting.GRAY));
 
-        // Minutes remaining (ceil)
+        // Minutes remaining (ceil), in brackets
         long minutes = Math.max(1, (secondsUntilAnni + 59) / 60);
-        Style minStyle = Style.EMPTY.withColor(ChatFormatting.WHITE).withBold(true);
-        out.append(Component.literal(Long.toString(minutes)).withStyle(minStyle));
-        out.append(Component.literal("min").withStyle(ChatFormatting.WHITE));
+        out.append(Component.literal(" (").withStyle(ChatFormatting.DARK_GRAY));
+        out.append(
+                Component.literal(Long.toString(minutes))
+                        .withStyle(Style.EMPTY.withColor(ChatFormatting.WHITE).withBold(true)));
+        out.append(Component.literal(minutesUnit(minutes)).withStyle(ChatFormatting.GRAY));
+        out.append(Component.literal(")").withStyle(ChatFormatting.DARK_GRAY));
+        out.append(Component.literal(" | ").withStyle(ChatFormatting.GRAY));
+
+        // HrdRSVP / SftRSVP / NotRSVP chip
+        out.append(rsvpChip(snapshot));
+        out.append(Component.literal(" for ").withStyle(ChatFormatting.GRAY));
+
+        // CORE / FILL slot chip
+        out.append(slotChip(snapshot));
+        return out;
+    }
+
+    /** {@code "min"} for one minute, {@code "mins"} otherwise. */
+    // Package-private for unit tests. See VetsBossBarContentBuilderTest.
+    static String minutesUnit(long minutes) {
+        return minutes == 1 ? "min" : "mins";
+    }
+
+    /** "anni.wynnvets.org: You won't be assigned". The board's {@code wont_reason} is left off:
+     *  the bar has no room for it, and the world-join MOTD and {@code /wv anni} show it. */
+    private static MutableComponent buildWontAssign() {
+        MutableComponent out =
+                Component.literal("anni.wynnvets.org")
+                        .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA));
+        out.append(Component.literal(": ").withStyle(ChatFormatting.DARK_GRAY));
+        out.append(Component.literal("You won't be assigned").withStyle(ChatFormatting.GRAY));
         return out;
     }
 
@@ -335,13 +375,12 @@ public final class VetsBossBarContentBuilder {
         // the same four states: rsvp.notice is normalised server-side to
         // a bare "hard"/"soft", while attendance.notice_effective is the
         // raw AttendanceNotice value -- attend_early, rsvp_hard,
-        // rsvp_soft, attend_late. Only the first of those two spellings
-        // matches an arm below, which is why a walk-in renders as a grey
-        // ATTEND_EARLY/ATTEND_LATE passthrough. Filed, not fixed:
-        // boss-bar-rsvp-chip-recognises-four-of-nine-notices -- whose slug
-        // preserves the "nine wire keys" count that this comment refutes.
-        // The id is a stable identifier, not a claim; the file itself
-        // carries the corrected four-states-two-spellings reading.
+        // rsvp_soft, attend_late. Both spellings have an arm below. A walk-in
+        // has no RSVP either, so it shares NotRSVP with "no notice from either
+        // block" (a tier that can't be tracked without one); the colour tells
+        // the three apart. The labels are the bar's own short forms; chat
+        // spells them out (AnniHoverBuilder). The colours are chat's
+        // (AnniHoverBuilder.noticeColor).
         AnniSnapshot.Rsvp rsvp = snapshot.rsvp();
         String notice = (rsvp != null && !rsvp.revoked()) ? rsvp.notice() : null;
         if (notice == null) {
@@ -352,28 +391,28 @@ public final class VetsBossBarContentBuilder {
         String label;
         ChatFormatting color;
         if (notice == null) {
-            label = "WALKIN";
-            color = ChatFormatting.YELLOW;
+            label = "NotRSVP";
+            color = ChatFormatting.GRAY;
         } else {
-            switch (notice.toLowerCase()) {
-                case "hard":
-                    label = "HRSVP";
-                    color = ChatFormatting.BLUE;
+            switch (notice.toLowerCase(Locale.ROOT)) {
+                case "hard", "rsvp_hard":
+                    label = "HrdRSVP";
+                    color = ChatFormatting.AQUA;
                     break;
-                case "soft":
-                    label = "SRSVP";
+                case "soft", "rsvp_soft":
+                    label = "SftRSVP";
                     color = ChatFormatting.GREEN;
                     break;
-                case "walkin":
-                    label = "WALKIN";
+                case "attend_early":
+                    label = "NotRSVP";
                     color = ChatFormatting.YELLOW;
                     break;
-                case "late":
-                    label = "LATE";
+                case "attend_late":
+                    label = "NotRSVP";
                     color = ChatFormatting.RED;
                     break;
                 default:
-                    label = notice.toUpperCase();
+                    label = notice.toUpperCase(Locale.ROOT);
                     color = ChatFormatting.GRAY;
             }
         }
@@ -385,7 +424,10 @@ public final class VetsBossBarContentBuilder {
     private static MutableComponent slotChip(AnniSnapshot snapshot) {
         // CORE if any specific (non-FILL) role appears in registration;
         // FILL otherwise. Mirrors {@link #isAssigned} but capped to
-        // the "seeking" path's needs.
+        // the "seeking" path's needs. Since isAssigned already takes the
+        // assigned variant for a non-FILL registration, the CORE arm is
+        // unreachable in practice and the seeking bar says FILL. The
+        // " SLOT" the spec appends is dropped: the bar has no room for it.
         AnniSnapshot.Registration reg = snapshot.registration();
         boolean core = false;
         if (reg != null) {
@@ -397,11 +439,9 @@ public final class VetsBossBarContentBuilder {
             }
         }
         if (core) {
-            return Component.literal("CORE SLOT")
-                    .withStyle(Style.EMPTY.withColor(ChatFormatting.GREEN));
+            return Component.literal("CORE").withStyle(Style.EMPTY.withColor(ChatFormatting.GREEN));
         }
-        return Component.literal("FILL SLOT")
-                .withStyle(Style.EMPTY.withColor(ChatFormatting.YELLOW));
+        return Component.literal("FILL").withStyle(Style.EMPTY.withColor(ChatFormatting.YELLOW));
     }
 
     // ── Role label / colour helpers ─────────────────────────────────────
@@ -425,7 +465,7 @@ public final class VetsBossBarContentBuilder {
      *  canonical {@code SECONDARY/TERTIARY} / {@code HEALER} / etc. into
      *  the boss-bar abbreviations. */
     private static String toShortLabel(String roleCode) {
-        switch (roleCode.toUpperCase()) {
+        switch (roleCode.toUpperCase(Locale.ROOT)) {
             case "TANK":
                 return "TANK";
             case "HEAL":
@@ -446,14 +486,14 @@ public final class VetsBossBarContentBuilder {
             case "FILL":
                 return "FILL";
             default:
-                return roleCode.toUpperCase();
+                return roleCode.toUpperCase(Locale.ROOT);
         }
     }
 
     /** Spec §3.1.1.2 mapping — TANK=&9, HEAL=&a, PRIM=&c, SUNK=&e,
      *  MOBK=&d, FILL=&3. Distinct from S4's outline colours. */
     private static ChatFormatting roleColor(String roleCode) {
-        switch (roleCode.toUpperCase()) {
+        switch (roleCode.toUpperCase(Locale.ROOT)) {
             case "TANK":
                 return ChatFormatting.BLUE; // &9
             case "HEAL":

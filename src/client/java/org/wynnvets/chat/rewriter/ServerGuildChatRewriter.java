@@ -126,9 +126,8 @@ public final class ServerGuildChatRewriter {
             // this style; remote chat lines (the relayed chat
             // OutboundDisplayHandler renders as ordinary chat) still get
             // the light-on-dark remote pill via ChatUtils.encodePillIfAscii.
-            // Today EncourageUpdateRewriter's rewrite of a guild-channel
-            // line takes the remote pill too
-            // (raw-rank-pills-bypass-display-remap).
+            // EncourageUpdateRewriter's rewrite of a guild-channel line
+            // takes the remote pill too.
             Style frameStyle =
                     isSupporter
                             ? ChatUtils.RANK_STYLE
@@ -150,8 +149,6 @@ public final class ServerGuildChatRewriter {
             pill = buildGradientPill(pillFragments);
         }
 
-        MutableComponent badge = Prepend.GUILD.get();
-
         MutableComponent messageBody =
                 extractBodyComponent(component, parsed.bodyCharStart(), ChatUtils.RANK_STYLE);
 
@@ -161,18 +158,13 @@ public final class ServerGuildChatRewriter {
 
         MutableComponent body =
                 Component.empty()
-                        .append(badge)
                         .append(pill)
                         .append(" ")
                         .append(Component.literal(parsed.username()).setStyle(nameStyle))
                         .append(Component.literal(": ").setStyle(ChatUtils.RANK_STYLE))
                         .append(messageBody);
 
-        if (isSupporter) {
-            LocalChatDispatch.dispatchAnimatedChat(body, badge.getStyle());
-        } else {
-            LocalChatDispatch.dispatchToChat(body, badge.getStyle());
-        }
+        LocalChatDispatch.dispatchBadged(Prepend.GUILD, body, isSupporter, false);
         return true;
     }
 

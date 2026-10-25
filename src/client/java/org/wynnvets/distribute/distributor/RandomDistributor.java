@@ -5,12 +5,15 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 import java.util.Set;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.DistributeRuns;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.recipients.NameResolver;
 import org.wynnvets.distribute.recipients.NoAspectsFilter;
@@ -25,9 +28,9 @@ import org.wynnvets.guild.GuildStateManager;
  *
  * <h2>Count semantics</h2>
  * <p>For {@code @random}, {@code <count>} is the <em>number of
- * recipients to pick</em>, capped at the pool size &mdash; distinct roster
- * entries, though two members sharing a tile name can make one tile the
- * target twice ({@code random-distributor-can-target-one-tile-twice}); each
+ * recipients to pick</em>, capped at the pool size &mdash; distinct tile
+ * names ({@link #distinctIgnoringCase}), since two members whose tile names
+ * coincide are one tile in the Members GUI; each
  * pick is sent one of the resource. This differs
  * from the single-user form where {@code <count>} is "presses sent to
  * that one user", but matches what a raffle-style giveaway needs.</p>
@@ -53,9 +56,10 @@ import org.wynnvets.guild.GuildStateManager;
  * <p>If a picked member can't be located (e.g. they were just kicked
  * between the wapi fetch and the menu open), the searcher's not-found
  * callback advances the queue so the remaining picks still proceed.
- * Same for {@link MemberSlotPresser}'s refresh-timeout path. Most of
+ * Same for {@link MemberSlotPresser}'s refresh-timeout path. If the
+ * Members menu itself is gone, the next pick stops the run instead. Most of
  * those failures print a chat line; the silent ones, and the paths that
- * stall the queue instead of advancing it, appear among the rows of
+ * end the run instead of advancing it (a stop or a refusal), appear among the rows of
  * {@code vetsmod_distribute.md} §7.</p>
  */
 public final class RandomDistributor {
@@ -68,12 +72,15 @@ public final class RandomDistributor {
      * Fetches the guild's legacy-name roster from wapi, picks
      * {@code count} random members, and sends one of {@code resource} to
      * each. No-op (with a chat hint) if Wynntils isn't ready, or if no
-     * member is left after the wapi fetch and the NoAspects filter &mdash;
-     * which, when everyone is opted out, prints the roster-read-failure
-     * line ({@code all-opted-out-reported-as-roster-read-failure}).
+     * member is left after the wapi fetch and, on an aspects run, the
+     * NoAspects filter &mdash; a roster that read empty and one whose every member
+     * has opted out get different lines.
+     * The command's entry point: the run ends
+     * ({@link org.wynnvets.distribute.DistributeRuns#finished() DistributeRuns.finished()})
+     * when this head does.
      */
     public static void dispatch(int count, MemberSlotPresser.Resource resource) {
-        dispatch(count, resource, null);
+        dispatch(count, resource, DistributeRuns::finished);
     }
 
     /**
@@ -81,35 +88,47 @@ public final class RandomDistributor {
      * this head's own exits &mdash; Wynntils not ready, an empty pool, and
      * the send loop draining &mdash; so multi-phase chains like
      * {@link SplitDistributor} can advance to the next phase without
-     * stalling on a partial failure. The shared send loop can still end a
-     * run without it: see {@code member-slot-presser-drops-completion} and the
-     * searcher and presser {@code no} rows of {@code vetsmod_distribute.md} §7.
+     * stalling on a partial failure. The shared send loop ends a run without
+     * it only when the run stops (the Members menu lost mid-run, by design).
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
         if (!GuildStateManager.isWynntilsReady()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Wynntils isn't ready yet — cannot read guild roster.")
+                    Component.literal("Wynntils isn't ready yet - cannot read guild roster.")
                             .withStyle(ChatFormatting.RED));
             if (onComplete != null) onComplete.run();
             return;
         }
 
-        // Fetch the guild roster and the NoAspects opt-out list in
-        // parallel; combine into a filtered legacy-name pool before
-        // dispatching. Per-command refresh keeps the list responsive to
+        // Fetch the guild roster and, on an aspects run, the NoAspects
+        // opt-out list in parallel; combine into a filtered legacy-name pool
+        // before dispatching. Per-command refresh keeps the list responsive to
         // staff mutations (see NoAspectsFilter for fail-open semantics).
+        int generation = DistributeRuns.generation();
         NameResolver.fetchAllLegacyNames()
-                .thenCombine(
-                        NoAspectsFilter.fetchExcludedLegacyNames(), RandomDistributor::filterNames)
-                .thenAccept(
-                        legacyNames ->
-                                // Hop back to the Minecraft tick thread before touching the
-                                // menu / event-bus state. The HTTP completion callback runs
-                                // on a background thread, not the tick thread.
-                                Managers.TickScheduler.scheduleLater(
-                                        () -> beginPicks(legacyNames, count, resource, onComplete),
-                                        0));
+                .thenAcceptBoth(
+                        NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects()),
+                        (roster, exclude) -> {
+                            List<String> legacyNames = filterNames(roster, exclude);
+                            // The read worked and everyone on it opted out: a retry can't help.
+                            boolean allOptedOut = legacyNames.isEmpty() && !roster.isEmpty();
+                            // Hop back to the Minecraft tick thread before touching the
+                            // menu / event-bus state. The HTTP completion callback
+                            // usually runs on a background thread; when both futures
+                            // were already complete it runs inline on the command's.
+                            Managers.TickScheduler.scheduleLater(
+                                    DistributeRuns.fenced(
+                                            generation,
+                                            () ->
+                                                    beginPicks(
+                                                            legacyNames,
+                                                            allOptedOut,
+                                                            count,
+                                                            resource,
+                                                            onComplete)),
+                                    0);
+                        });
     }
 
     /** Drops opted-out names from the roster. Returns {@code names} itself when
@@ -125,20 +144,39 @@ public final class RandomDistributor {
         return out;
     }
 
+    /** Keeps each name once, ignoring case (folded with {@link Locale#ROOT}), in its first
+     *  spelling and position. Two members whose tile names coincide are one tile: the searcher
+     *  stops at the first that matches, so picking both would send that tile two and the other
+     *  member none. */
+    // Package-private for unit tests. See RandomDistributorTest.
+    static List<String> distinctIgnoringCase(List<String> names) {
+        Set<String> seen = new HashSet<>();
+        List<String> out = new ArrayList<>(names.size());
+        for (String name : names) {
+            if (seen.add(name.toLowerCase(Locale.ROOT))) out.add(name);
+        }
+        return out;
+    }
+
     private static void beginPicks(
             List<String> legacyNames,
+            boolean allOptedOut,
             int count,
             MemberSlotPresser.Resource resource,
             Runnable onComplete) {
         if (legacyNames.isEmpty()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Could not read guild roster from wapi — try again.")
+                    Component.literal(
+                                    allOptedOut
+                                            ? "All eligible recipients have opted out of"
+                                                    + " receiving aspects."
+                                            : "Could not read guild roster from wapi - try again.")
                             .withStyle(ChatFormatting.YELLOW));
             if (onComplete != null) onComplete.run();
             return;
         }
 
-        List<String> shuffled = new ArrayList<>(legacyNames);
+        List<String> shuffled = distinctIgnoringCase(legacyNames);
         Collections.shuffle(shuffled, RNG);
         int picks = Math.min(count, shuffled.size());
         // <count> is recipients here, not presses, so every entry carries a
@@ -161,7 +199,7 @@ public final class RandomDistributor {
         // is armed by the time MenuOpenedEvent.Pre fires for the Members
         // GUI, and binds on it. Later picks normally re-arm via the fast
         // path while the menu is still open.
-        DistributionQueue.processNext(queue, resource, onComplete, "RandomDistributor");
+        DistributionQueue.processNext(queue, resource, onComplete, "RandomDistributor", false);
         GuildManageOpener.openManageMembers();
     }
 }

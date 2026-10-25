@@ -45,7 +45,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * <p><b>Visual:</b> {@link Texture#MAP} (the 14×14 generic map icon —
  * <i>not</i> {@code MAP_ICON}, which is the 21×38 content-book tab — the
  * enum names are a known footgun: {@code vetsmod_mwe_anni.md}, "Aggressive mode", locked
- * decision #5).
+ * decision #5).</p>
  *
  * <p>Originally specced as "no beacon beam, icon only" but Wynntils'
  * {@code BeaconBeamFeature.onRenderLevelLast} unconditionally calls
@@ -103,9 +103,9 @@ public final class ScrollSpotMarkerProvider implements MarkerProvider<MarkerPoi>
         AnniSnapshotCache.addListener(INSTANCE::onSnapshot);
         // Apply the current cache, if any, so a marker shows up
         // immediately on registration instead of waiting for the next
-        // snapshot push. Today no anni_state push reaches vetsmod
-        // (outbound-socket-never-authenticated), so the wait would be for the
-        // next cache update: a pull that returns a snapshot, or a debug command.
+        // snapshot push. A push reaches only an authenticated outbound socket, so the
+        // wait can be for the next cache update: a pull that returns a snapshot, or a
+        // debug command.
         INSTANCE.onSnapshot(AnniSnapshotCache.latest());
         VetsLogger.debug("ScrollSpotMarkerProvider registered with Wynntils");
     }

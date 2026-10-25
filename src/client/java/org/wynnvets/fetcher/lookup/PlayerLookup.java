@@ -32,14 +32,19 @@ import org.wynnvets.util.HttpClients;
  *       {@link MojangCooldown}</li>
  * </ol>
  *
- * <p>If every provider misses, the result distinguishes
- * {@link FailureReason#PLAYER_NOT_FOUND} (every miss was definite) from
- * {@link FailureReason#ALL_PROVIDERS_TRANSIENT} (at least one was
- * transient, {@link org.wynnvets.commands.InviteGate InviteGate}'s
- * fail-open case). Today every exhausted cascade ends in
- * {@code ALL_PROVIDERS_TRANSIENT}, because {@link VetsSnapshotProvider}
- * never reports a definite miss (see
- * {@code vets-snapshot-provider-makes-player-not-found-unreachable}).</p>
+ * <p>An {@linkplain LookupProvider#authoritative() authoritative} provider's definite miss (one
+ * of Mojang's saying no such profile) ends the cascade at once with
+ * {@link FailureReason#PLAYER_NOT_FOUND}, whatever the earlier providers answered: Ashcon
+ * answers 429 to every name, and would otherwise make a misspelled name read as an outage.
+ * Otherwise, if every provider misses, the result distinguishes
+ * {@link FailureReason#PLAYER_NOT_FOUND} (every miss was definite, or an
+ * {@linkplain ProviderOutcome#abstain() abstention}, and at least one was
+ * definite) from {@link FailureReason#ALL_PROVIDERS_TRANSIENT} (at least one
+ * was transient, or every provider abstained, {@link
+ * org.wynnvets.commands.InviteGate InviteGate}'s fail-open case).
+ * {@link VetsSnapshotProvider} abstains rather than miss transiently when it
+ * cannot speak to existence, since the independent providers around it
+ * decide that.</p>
  *
  * <p>Single-flight: concurrent {@link #resolve(String)} calls for the
  * same lowercased name share one underlying cascade.</p>
@@ -86,7 +91,12 @@ public final class PlayerLookup {
     }
 
     private static CompletableFuture<LookupResult> runCascade(String name) {
-        return runCascadeStep(name, PROVIDERS.iterator(), false)
+        return runCascade(PROVIDERS, name);
+    }
+
+    // Package-private for unit tests. See PlayerLookupTest.
+    static CompletableFuture<LookupResult> runCascade(List<LookupProvider> providers, String name) {
+        return runCascadeStep(name, providers.iterator(), false, false)
                 .orTimeout(OVERALL_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
                 .exceptionally(
                         e -> {
@@ -97,17 +107,28 @@ public final class PlayerLookup {
     }
 
     private static CompletableFuture<LookupResult> runCascadeStep(
-            String name, Iterator<LookupProvider> it, boolean anyTransient) {
+            String name, Iterator<LookupProvider> it, boolean anyTransient, boolean anyDefinite) {
         if (!it.hasNext()) {
+            // PLAYER_NOT_FOUND needs evidence: at least one definite miss and no transient one.
+            // A cascade where every provider abstained learned nothing. (An authoritative
+            // definite miss ended the cascade before it got here.)
             FailureReason reason =
-                    anyTransient
-                            ? FailureReason.ALL_PROVIDERS_TRANSIENT
-                            : FailureReason.PLAYER_NOT_FOUND;
+                    !anyTransient && anyDefinite
+                            ? FailureReason.PLAYER_NOT_FOUND
+                            : FailureReason.ALL_PROVIDERS_TRANSIENT;
             return CompletableFuture.completedFuture(LookupResult.exhausted(reason));
         }
         LookupProvider provider = it.next();
-        return provider.lookup(name)
-                .exceptionally(
+        CompletableFuture<ProviderOutcome> attempt;
+        try {
+            attempt = provider.lookup(name);
+        } catch (RuntimeException e) {
+            // A provider that throws instead of failing its future would otherwise end the whole
+            // cascade ALL_PROVIDERS_TRANSIENT through runCascade's exceptionally, discarding what
+            // the providers before it said; count it as one transient miss like a failed future.
+            attempt = CompletableFuture.failedFuture(e);
+        }
+        return attempt.exceptionally(
                         e -> {
                             VetsLogger.debug(
                                     "Provider {} threw for '{}': {}",
@@ -123,8 +144,24 @@ public final class PlayerLookup {
                                         "Lookup '{}' resolved via {}", name, provider.id());
                                 return CompletableFuture.completedFuture(outcome.hit());
                             }
-                            boolean nextTransient = anyTransient || !outcome.isDefiniteMiss();
-                            return runCascadeStep(name, it, nextTransient);
+                            VetsLogger.debug(
+                                    "Lookup '{}' missed at {}: {}",
+                                    name,
+                                    provider.id(),
+                                    outcome.isDefiniteMiss()
+                                            ? "definite"
+                                            : outcome.isAbstain() ? "abstain" : "transient");
+                            if (outcome.isDefiniteMiss() && provider.authoritative()) {
+                                // Mojang said no such profile: no later provider can know
+                                // better, and asking the next Mojang host spends its quota.
+                                return CompletableFuture.completedFuture(
+                                        LookupResult.exhausted(FailureReason.PLAYER_NOT_FOUND));
+                            }
+                            boolean nextTransient =
+                                    anyTransient
+                                            || (!outcome.isDefiniteMiss() && !outcome.isAbstain());
+                            boolean nextDefinite = anyDefinite || outcome.isDefiniteMiss();
+                            return runCascadeStep(name, it, nextTransient, nextDefinite);
                         });
     }
 }

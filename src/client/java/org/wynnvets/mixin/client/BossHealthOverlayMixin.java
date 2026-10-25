@@ -36,9 +36,8 @@ import org.wynnvets.mwe.anni.bossbar.VetsBossBarManager;
  * render through their own paths and aren't affected.</p>
  *
  * <p>Priority 500 isn't load-bearing here — this is a {@code @Redirect},
- * so there is no HEAD cancellation order to win against Wynntils. It is kept
- * only for symmetry with {@link QueueTitleMixin}'s ranking, and that ranking
- * does not do what its own Javadoc used to claim. 500 means applied
+ * so there is no HEAD cancellation order to win against Wynntils. The 500 matches
+ * {@link QueueTitleMixin}'s, whose own HEAD inject needs it to run first. 500 means applied
  * <em>first</em>, which for a redirect is not headroom: two redirects on one
  * instruction collide at apply time rather than one losing gracefully, so
  * being early buys nothing. (The exact failure mode is unverified — there is

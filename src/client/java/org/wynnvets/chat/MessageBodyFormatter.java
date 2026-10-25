@@ -13,11 +13,11 @@ import net.minecraft.resources.Identifier;
 import org.wynnvets.chat.spoiler.SpoilerFormatter;
 
 /**
- * Formats a chat message body: joins the lines the server wrapped by stripping its continuation
- * markers, draws an inline prefix marker as the separator glyph, renders encoded spoilers and makes
- * URLs clickable. It also holds the prefix-marker glyphs, the {@code chat/prefix} style the
- * separator and continuation markers are drawn in, and the test for a fragment that is only wrap
- * structure.
+ * Formats a chat message body: drops {@link BannedChars}' hard set, joins the lines the server
+ * wrapped by stripping its continuation markers, draws an inline prefix marker as the separator
+ * glyph, renders encoded spoilers and makes URLs clickable. It also holds the prefix-marker
+ * glyphs, the {@code chat/prefix} style the separator and continuation markers are drawn in, and
+ * the test for a fragment that is only wrap structure.
  */
 public final class MessageBodyFormatter {
 
@@ -60,16 +60,20 @@ public final class MessageBodyFormatter {
     // ── Message-body formatting ────────────────────────────────────────
 
     /**
-     * Formats a raw message body into a styled component: strips server wrap
-     * continuations, replaces inline prefix markers, renders encoded spoilers (unless
-     * spoiler handling is off) and converts URLs into clickable links.
+     * Formats a raw message body into a styled component: drops {@link BannedChars}' hard
+     * set, strips server wrap continuations, replaces inline prefix markers, renders encoded
+     * spoilers (unless spoiler handling is off) and converts URLs into clickable links. The
+     * hard-set strip covers chat bodies only; names, pills and other server text don't pass
+     * through here.
      *
      * @param message   the raw message text (may be {@code null})
      * @param textStyle the default style applied to non-marker text
      * @return a fully formatted component ready for display
      */
     public static MutableComponent formatMessageBody(String message, Style textStyle) {
-        String bodyText = message == null ? "" : message;
+        // Hard set only: the soft set holds glyphs Wynncraft's own lines use, and those
+        // lines are formatted here too.
+        String bodyText = message == null ? "" : BannedChars.stripHard(message);
         bodyText = stripServerContinuations(bodyText);
         MutableComponent formatted = Component.empty();
         int cursor = 0;
@@ -160,9 +164,6 @@ public final class MessageBodyFormatter {
      */
     // Package-private for LegacyTextParser, which links each run of legacy-styled text.
     static void appendTextWithUrls(MutableComponent parent, String text, Style textStyle) {
-        if (text.isEmpty()) {
-            return;
-        }
         Matcher matcher = URL_PATTERN.matcher(text);
         int lastEnd = 0;
         while (matcher.find()) {

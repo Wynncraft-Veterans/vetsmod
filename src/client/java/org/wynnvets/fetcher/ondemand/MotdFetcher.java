@@ -11,6 +11,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.chat.LegacyTextParser;
+import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.HttpClients;
 
 /**
@@ -21,6 +22,11 @@ import org.wynnvets.util.HttpClients;
  */
 public final class MotdFetcher {
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();
+
+    /** Shown in place of the MOTD when the request fails or the API answers with an error.
+     *  Non-empty on purpose: the callers' empty-guild-MOTD fallback must not fire for it. */
+    private static final String UNAVAILABLE_LINE =
+            "MOTD Unavailable: Unable to reach the vets API, which may be down.";
 
     private MotdFetcher() {}
 
@@ -55,12 +61,17 @@ public final class MotdFetcher {
                                 return LegacyTextParser.literalWithUrls(
                                         response.body(), Style.EMPTY);
                             } else {
-                                return Component.literal(
-                                        "Failed to fetch MOTD (Status: "
-                                                + response.statusCode()
-                                                + ")");
+                                VetsLogger.debug(
+                                        "MOTD fetch from {} returned status {}",
+                                        uri,
+                                        response.statusCode());
+                                return Component.literal(UNAVAILABLE_LINE);
                             }
                         })
-                .exceptionally(e -> Component.literal("Error fetching MOTD: " + e.getMessage()));
+                .exceptionally(
+                        e -> {
+                            VetsLogger.debug("MOTD fetch from {} failed: {}", uri, e.toString());
+                            return Component.literal(UNAVAILABLE_LINE);
+                        });
     }
 }

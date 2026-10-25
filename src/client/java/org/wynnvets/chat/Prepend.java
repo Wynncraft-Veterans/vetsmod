@@ -15,6 +15,13 @@ import net.minecraft.resources.Identifier;
  * When the same badge is used for consecutive messages (within {@value #MAX_LINES_BEFORE_REBADGE}
  * chat lines), a compact block indicator is shown instead of the full badge to reduce visual
  * clutter — mirroring Wynncraft's native guild chat behavior.</p>
+ *
+ * <p>{@link #get()} advances that dedup state, so it is only for a badge that is drawn;
+ * {@link #blockIndicatorStyle()} reads a badge's style without touching it.</p>
+ *
+ * <p>The dedup state is plain static state, so it is for the render thread only: senders pass the
+ * {@code Prepend} to {@link LocalChatDispatch#dispatchBadged}, which chooses the badge inside its
+ * {@code minecraft.execute} task. See {@link LocalChatDispatch}.</p>
  */
 public enum Prepend {
     DEFAULT(
@@ -66,6 +73,27 @@ public enum Prepend {
                                                     Identifier.parse("chat/prefix")))
                                     .withColor(ChatFormatting.BLUE)
                                     .withoutShadow())),
+    /** The {@code /v} staff-channel badge: {@link #GUILD}'s glyphs in red, deduplicated apart
+     *  from it, so a {@code /v} line after a guild line still gets its full badge. */
+    STAFF_CHANNEL(
+            Component.literal("\uDAFF\uDFFC\uE006\uDAFF\uDFFF\uE002\uDAFF\uDFFE")
+                    .append(" ")
+                    .setStyle(
+                            Style.EMPTY
+                                    .withFont(
+                                            new FontDescription.Resource(
+                                                    Identifier.parse("chat/prefix")))
+                                    .withColor(ChatFormatting.RED)
+                                    .withoutShadow()),
+            Component.literal("\uDAFF\uDFFC\uE001\uDB00\uDC06")
+                    .append(" ")
+                    .setStyle(
+                            Style.EMPTY
+                                    .withFont(
+                                            new FontDescription.Resource(
+                                                    Identifier.parse("chat/prefix")))
+                                    .withColor(ChatFormatting.RED)
+                                    .withoutShadow())),
     EMPTY(Component.empty());
 
     private static final int MAX_LINES_BEFORE_REBADGE = 18;
@@ -96,6 +124,10 @@ public enum Prepend {
      * <p>If this prepend was used recently (within the last {@value #MAX_LINES_BEFORE_REBADGE}
      * lines), returns the compact block indicator instead of the full badge.</p>
      *
+     * <p>Every call counts as a drawn badge: the next call on this prepend within that many lines
+     * returns the indicator. Call it only for a badge that is appended to a line; for the style
+     * alone, use {@link #blockIndicatorStyle()}.</p>
+     *
      * @return a fresh copy of the badge or block indicator component
      */
     public MutableComponent get() {
@@ -105,6 +137,17 @@ public enum Prepend {
         lastPrepend = this;
         linesSinceBadge = 0;
         return badge.copy();
+    }
+
+    /**
+     * The style of this prepend's compact block indicator: the {@code chat/prefix} font and the
+     * badge colour, without shadow ({@link #EMPTY}'s is empty). Unlike {@link #get()}, it never
+     * touches the dedup state.
+     *
+     * @return the indicator's root style
+     */
+    public Style blockIndicatorStyle() {
+        return blockIndicator.getStyle();
     }
 
     /**

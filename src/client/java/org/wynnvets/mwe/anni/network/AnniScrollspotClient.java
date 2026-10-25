@@ -11,29 +11,27 @@ import org.wynnvets.logging.VetsLogger;
  *
  * <p>Mirrors {@link AnniQueryClient}: a FIFO callback queue, the next
  * incoming {@code anni_scrollspot_response} frame resolves the head future.
- * No correlation IDs — same trade-off the rest of the V1 protocol made.
+ * The frame carries no {@code req} request id, the same trade-off as the other anni frames.
  * temporary-server answers in send order, so concurrent
  * {@code /wv debug tree anni scrollspot} invocations mis-pair only on a lost or late reply
- * or when two send in the opposite order to their enqueues; the per-command UX
- * deliberately blocks on the previous call so this never matters in practice.</p>
+ * or when two send in the opposite order to their enqueues. Nothing waits for the previous
+ * call: each invocation sends at once, so two sent close together carry that risk.</p>
  *
  * <p>The future resolves to an immutable {@link Ack} record with
- * {@code (ok, detail)}; callers render the detail on failure. A 5-second
- * deadline applies. ⚠️ temp-server's own forward to vets-anni is a flat
- * <b>5 s</b> — {@code set_rsvp} and {@code set_scroll_spot} reuse the anni
- * snapshot poller's client, whose timeout is
- * {@code ANNI_SNAPSHOT_REQUEST_TIMEOUT_SECONDS = 5.0} — not the "3-5 s" this
- * sentence used to claim, and not the 3 s that
- * {@link AnniQueryClient}'s deadline is correctly sized against. So the 5 s
- * here has <b>zero slack</b> over the forward rather than covering
- * round-trip plus jitter; a forward that uses its full budget cannot produce
- * an ack this client is still waiting for. Filed as
- * {@code ack-clients-timeout-has-zero-slack-over-the-server-forward}.</p>
+ * {@code (ok, detail)}, or to {@code null} at the deadline; callers render
+ * the detail on failure. The deadline is 8 s, the same as
+ * {@link AnniQueryClient}'s. temp-server forwards {@code set_rsvp} and
+ * {@code set_scroll_spot} to vets-anni on the anni snapshot poller's httpx
+ * client, whose {@code ANNI_SNAPSHOT_REQUEST_TIMEOUT_SECONDS = 5.0} bounds
+ * each phase of the request (connect, read, write, pool), not the forward as
+ * a whole. 8 s leaves about 3 s for the round trip and jitter over a
+ * forward that finishes within one such budget: it covers the usual case,
+ * but it is not a hard bound on what the server can take.</p>
  */
 public final class AnniScrollspotClient {
 
     /** Hard deadline for the round-trip. */
-    private static final long ACK_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5);
+    private static final long ACK_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(8);
 
     private static final ConcurrentLinkedDeque<CompletableFuture<Ack>> pending =
             new ConcurrentLinkedDeque<>();
@@ -59,13 +57,15 @@ public final class AnniScrollspotClient {
             future.complete(new Ack(false, "not connected"));
             return future;
         }
-        future.orTimeout(ACK_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        // Hand back the exceptionally stage: orTimeout returns this future
+        // unchanged, and the stage is what resolves the caller's future with
+        // null at the deadline.
+        return future.orTimeout(ACK_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                 .exceptionally(
                         ex -> {
                             pending.remove(future);
-                            return null; // already-resolved branch swallowed
+                            return null;
                         });
-        return future;
     }
 
     /** Called by {@link AnniWsHandler} for every received

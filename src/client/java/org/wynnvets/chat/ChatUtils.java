@@ -1,5 +1,6 @@
 package org.wynnvets.chat;
 
+import com.wynntils.utils.mc.McUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -72,8 +73,17 @@ public final class ChatUtils {
      * indicator as usual.
      */
     public static void sendLocalMessageNewBlock(Component message) {
-        Prepend.resetDedup();
-        sendLocalMessage(message, Prepend.DEFAULT);
+        LocalChatDispatch.dispatchBadged(Prepend.DEFAULT, message, false, true);
+    }
+
+    /**
+     * Marks the start of a new render block for a run of {@link #sendLocalMessage} lines that
+     * follows: the next badge is the full one ({@link Prepend#resetDedup()}). The reset is queued
+     * on the render thread, so it stays in order with the dispatches that follow it, which a
+     * direct {@code Prepend.resetDedup()} from a worker thread would not.
+     */
+    public static void beginNewBlock() {
+        McUtils.mc().execute(Prepend::resetDedup);
     }
 
     /**
@@ -83,10 +93,7 @@ public final class ChatUtils {
      * @param prepend the badge to prepend
      */
     public static void sendLocalMessage(Component message, Prepend prepend) {
-        MutableComponent badge = prepend.get();
-        MutableComponent full = Component.empty().append(badge).append(message);
-
-        LocalChatDispatch.dispatchToChat(full, badge.getStyle());
+        LocalChatDispatch.dispatchBadged(prepend, message, false, false);
     }
 
     // ── Guild-style messages (<badge> <pill> <username>: <message>) ───
@@ -100,7 +107,6 @@ public final class ChatUtils {
      * @param message     the chat message body
      */
     public static void sendGuildChatMessage(String rank, String displayName, String message) {
-        MutableComponent badge = Prepend.GUILD.get();
         String normalizedRank = rank == null ? "" : rank.trim();
 
         // Convert an ASCII rank label (e.g. "Returner", as OutboundDisplayHandler passes it) to PUA
@@ -120,14 +126,7 @@ public final class ChatUtils {
                 .append(Component.literal(": ").setStyle(RANK_STYLE))
                 .append(MessageBodyFormatter.formatMessageBody(message, RANK_STYLE));
 
-        MutableComponent full = Component.empty().append(badge).append(body);
-
-        Style badgeStyle = badge.getStyle();
-        if (isSupporter) {
-            LocalChatDispatch.dispatchAnimatedChat(full, badgeStyle);
-        } else {
-            LocalChatDispatch.dispatchToChat(full, badgeStyle);
-        }
+        LocalChatDispatch.dispatchBadged(Prepend.GUILD, body, isSupporter, false);
     }
 
     /**
@@ -141,18 +140,18 @@ public final class ChatUtils {
      * {@link OutboundDisplayHandler} renders as ordinary chat &mdash; a choice
      * keyed on the viewer's own unlock state, not on the frame's
      * {@code type}. An honourary socket would get only {@code honourary} and
-     * {@code bridge} chat from temporary-server's tier filter. Today no filter
-     * applies, because vetsmod never authenticates its outbound socket
-     * ({@code outbound-socket-never-authenticated}): while the server's
-     * {@code unauth} toggle is on, an honourary-unlocked client can render any
-     * relayed chat type here, and an {@code honourary} frame that another
-     * viewer displays goes through {@link #sendGuildChatMessage} instead. The
+     * {@code bridge} chat from an older temporary-server's tier filter, but the outbound
+     * socket authenticates only against a server whose {@code server_info} carries
+     * {@code chat_tiers: "all"}, which gives every member tier every chat type, so an
+     * honourary-unlocked client can render any relayed chat type here. (A client with no
+     * key, or tier {@code other}, is unauthenticated on that socket and receives chat only
+     * while the server's {@code unauth} toggle is on.) An {@code honourary} frame that
+     * another viewer displays goes through {@link #sendGuildChatMessage} instead. The
      * badge uses the {@code U+E013} glyph instead of the regular
      * {@code U+E006}, and the colour scheme inverts the rank/name relationship
      * so honourary chat is distinguishable from Returners guild chat.</p>
      */
     public static void sendHonouraryChatMessage(String rank, String displayName, String message) {
-        MutableComponent badge = Prepend.GUILD_HONOURARY.get();
         String normalizedRank = rank == null ? "" : rank.trim();
 
         String pillText = normalizedRank.isEmpty() ? "" : encodePillIfAscii(normalizedRank);
@@ -172,25 +171,16 @@ public final class ChatUtils {
                 .append(Component.literal(": ").setStyle(HONOURARY_RANK_STYLE))
                 .append(MessageBodyFormatter.formatMessageBody(message, HONOURARY_RANK_STYLE));
 
-        MutableComponent full = Component.empty().append(badge).append(body);
-
-        Style badgeStyle = badge.getStyle();
-        if (isSupporter) {
-            LocalChatDispatch.dispatchAnimatedChat(full, badgeStyle);
-        } else {
-            LocalChatDispatch.dispatchToChat(full, badgeStyle);
-        }
+        LocalChatDispatch.dispatchBadged(Prepend.GUILD_HONOURARY, body, isSupporter, false);
     }
 
     /**
      * Sends a guild-chat–style message in the red {@code /v} staff-channel styling with a
-     * custom pre-styled rank pill component.
+     * custom pre-styled rank pill component. The badge is {@link Prepend#STAFF_CHANNEL}, whose
+     * dedup is separate from {@link Prepend#GUILD}'s.
      */
     public static void sendGuildChatMessageRed(
             Component rankComponent, String displayName, String message) {
-        MutableComponent badge =
-                Prepend.GUILD.get().withStyle(style -> style.withColor(ChatFormatting.RED));
-
         MutableComponent body = Component.empty();
 
         if (rankComponent != null && !rankComponent.getString().trim().isEmpty()) {
@@ -201,9 +191,7 @@ public final class ChatUtils {
                 .append(Component.literal(": ").setStyle(ADMIN_RANK_STYLE))
                 .append(MessageBodyFormatter.formatMessageBody(message, ADMIN_RANK_STYLE));
 
-        MutableComponent full = Component.empty().append(badge).append(body);
-
-        LocalChatDispatch.dispatchToChat(full, badge.getStyle());
+        LocalChatDispatch.dispatchBadged(Prepend.STAFF_CHANNEL, body, false, false);
     }
 
     /**
@@ -217,7 +205,6 @@ public final class ChatUtils {
      */
     public static void sendGuildChatMessageWithBody(
             String rank, String displayName, Component bodyComponent) {
-        MutableComponent badge = Prepend.GUILD.get();
         String normalizedRank = rank == null ? "" : rank.trim();
 
         String pillText = normalizedRank.isEmpty() ? "" : encodePillIfAscii(normalizedRank);
@@ -234,9 +221,7 @@ public final class ChatUtils {
                 .append(Component.literal(": ").setStyle(RANK_STYLE))
                 .append(bodyComponent);
 
-        MutableComponent full = Component.empty().append(badge).append(body);
-
-        LocalChatDispatch.dispatchToChat(full, badge.getStyle());
+        LocalChatDispatch.dispatchBadged(Prepend.GUILD, body, false, false);
     }
 
     /**
@@ -256,8 +241,9 @@ public final class ChatUtils {
      * ({@code staff} for strategists, {@code owner} for chiefs / owners).
      * Falls back to {@code "staff"} for any rank that isn't a known staff tier: {@code /v}
      * chat is meant to be staff-only, so every participant should qualify for at least the
-     * baseline Staff tag. Today the receive path does not check that a lock-prefixed sender
-     * is staff; see {@code staff-channel-rewriter-renders-unverified-senders-as-staff}.</p>
+     * baseline Staff tag. The receive path only renders a line from a sender in the
+     * confirmed-staff cache, so the fallback is reached from the sender's own {@code /v} echo,
+     * whose rank may not be known yet.</p>
      */
     public static Component buildStaffPillComponent(String rank) {
         String vTag = RankDisplayMap.vTagFor(rank);
@@ -275,9 +261,9 @@ public final class ChatUtils {
      * chat rewriter can produce a local dark-on-light pill for chat
      * that arrived via Wynncraft's actual guild channel (as opposed to the light-on-dark remote
      * pill, also PUA-encoded, that {@link #encodePillIfAscii(String)} builds for chat relayed over
-     * vetsmod's WebSocket; see {@link PillCodec} for both styles). Today
-     * {@link org.wynnvets.chat.rewriter.EncourageUpdateRewriter EncourageUpdateRewriter} gives a
-     * guild-channel line that pill too ({@code raw-rank-pills-bypass-display-remap}).</p>
+     * vetsmod's WebSocket; see {@link PillCodec} for both styles).
+     * {@link org.wynnvets.chat.rewriter.EncourageUpdateRewriter EncourageUpdateRewriter} is the
+     * exception: it gives a guild-channel line the remote pill.</p>
      *
      * @param label       the ASCII label rendered inside the frame (case-insensitive)
      * @param frameStyle  the style applied to the frame glyphs; the

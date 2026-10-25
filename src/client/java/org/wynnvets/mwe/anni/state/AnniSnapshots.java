@@ -29,9 +29,9 @@ package org.wynnvets.mwe.anni.state;
  * per-tick path, and its extractor was the only one of the eight bodies to carry
  * the guard. Without it, one debug command turns the world-mismatch flash into an NPE
  * on every client tick until the next snapshot replaces the cleared value, swallowed into a
- * debug log: a silently dead flash with no error the user can see. Today no
- * {@code anni_state} push reaches vetsmod ({@code outbound-socket-never-authenticated}), so
- * only a pull or a debug injection that stores a snapshot would end it. The other thirteen
+ * debug log: a silently dead flash with no error the user can see. Only a push, a pull
+ * or a debug injection that stores a snapshot would end it; a push reaches only an
+ * authenticated outbound socket. The other thirteen
  * sites are
  * behind a null check of their own, so the guard is inert for them and the diff
  * proves it. All four accessors take it anyway: this is a public seam that new

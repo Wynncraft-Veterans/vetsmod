@@ -19,6 +19,7 @@ import org.wynnvets.fetcher.ondemand.StampFetcher;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.fetcher.ondemand.WorldListFetcher;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.command.AnniRsvpCommand;
 import org.wynnvets.mwe.anni.mode.AnniMode;
 import org.wynnvets.mwe.anni.mode.AnniModeManager;
@@ -37,6 +38,10 @@ import org.wynnvets.rendering.territory.TerritoryLineManager;
  * every login, so the tree is built afresh, into a new dispatcher, each time.</p>
  */
 public final class CommandRegistry {
+
+    /** How recently a staff-rank check must have finished for {@code /wv list world} to refuse
+     *  a non-steward rather than check again. */
+    private static final long LIST_WORLD_RECHECK_WINDOW_MS = 60_000L;
 
     private CommandRegistry() {}
 
@@ -123,7 +128,6 @@ public final class CommandRegistry {
                         // /wv return
                         .then(
                                 ClientCommandManager.literal("return")
-                                        .requires(CommandRegistry::userIsVet)
                                         .executes(CommandRegistry::returnInfo))
 
                         // /wv list
@@ -143,10 +147,7 @@ public final class CommandRegistry {
                                         .executes(CommandRegistry::staff))
 
                         // /wv motd
-                        .then(
-                                ClientCommandManager.literal("motd")
-                                        .requires(CommandRegistry::userIsVet)
-                                        .executes(CommandRegistry::motd))
+                        .then(ClientCommandManager.literal("motd").executes(CommandRegistry::motd))
 
                         // /wv anni — base form runs the dispatcher; mode subcommands
                         // route through AnniModeManager.transitionTo so the /stream
@@ -271,9 +272,7 @@ public final class CommandRegistry {
     private static int check(CommandContext<FabricClientCommandSource> ctx) {
         if (!GuildStateManager.isConfirmedStaff()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal(
-                                    "You must be confirmed staff (vetsmod authenticated) "
-                                            + "to use /wv check.")
+                    Component.literal("/wv check is restricted to authenticated stewards.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -287,18 +286,21 @@ public final class CommandRegistry {
     private static int inviteForce(CommandContext<FabricClientCommandSource> ctx) {
         if (!GuildStateManager.isConfirmedStaff()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("You must be confirmed staff to use /wv invite-force.")
+                    Component.literal("/wv invite-force is restricted to authenticated stewards.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
         String playerName = StringArgumentType.getString(ctx, "playerName");
         InviteGate.forceDispatch(playerName);
         ChatUtils.sendLocalMessage(
-                Component.literal(
-                                "Dispatching /gu invite "
-                                        + playerName
-                                        + " (vetsmod gate bypassed).")
-                        .withStyle(ChatFormatting.YELLOW));
+                Component.literal("Dispatching ")
+                        .withStyle(ChatFormatting.GOLD)
+                        .append(
+                                Component.literal("/gu invite " + playerName)
+                                        .withStyle(ChatFormatting.YELLOW))
+                        .append(
+                                Component.literal(" (vetsmod gate bypassed).")
+                                        .withStyle(ChatFormatting.GOLD)));
         return 1;
     }
 
@@ -331,6 +333,12 @@ public final class CommandRegistry {
     }
 
     private static int returnInfo(CommandContext<FabricClientCommandSource> ctx) {
+        if (!GuildStateManager.areFeaturesEnabled()) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal("/wv return is restricted to vets members.")
+                            .withStyle(ChatFormatting.RED));
+            return 0;
+        }
         ReturnFetcher.fetchReturn()
                 .thenAccept(returnInfo -> ChatUtils.sendLocalMessageNewBlock(returnInfo));
         return 1;
@@ -339,7 +347,7 @@ public final class CommandRegistry {
     private static int staff(CommandContext<FabricClientCommandSource> ctx) {
         if (!GuildStateManager.isUnlocked()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("You must be unlocked to use /wv staff.")
+                    Component.literal("/wv staff is restricted to vets members.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -352,7 +360,7 @@ public final class CommandRegistry {
     private static int list(CommandContext<FabricClientCommandSource> ctx) {
         if (!GuildStateManager.isUnlocked()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("You must be unlocked to use /wv list.")
+                    Component.literal("/wv list is restricted to vets members.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -370,18 +378,28 @@ public final class CommandRegistry {
 
     private static int listWorld(CommandContext<FabricClientCommandSource> ctx) {
         boolean isCurrentlyStaff = GuildStateManager.isStaff();
-        boolean refreshStarted = GuildStateManager.refreshStaffStatusIfNeeded(!isCurrentlyStaff);
+        // A non-steward's call forces a re-check, so a fresh promotion is caught, unless a
+        // check finished within the last minute: that call gets the refusal below instead
+        // of another "still checking".
+        boolean refreshStarted =
+                GuildStateManager.refreshStaffStatusIfNeeded(
+                        !isCurrentlyStaff
+                                && !GuildStateManager.staffCheckedWithin(
+                                        LIST_WORLD_RECHECK_WINDOW_MS));
 
         if (refreshStarted || GuildStateManager.isCheckingStaffStatus()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Checking staff permissions, please retry in a moment.")
+                    Component.literal(
+                                    "We are still checking your permissions, please retry in a moment.")
                             .withStyle(ChatFormatting.YELLOW));
             return 0;
         }
 
-        if (!GuildStateManager.isStaff()) {
+        // The cached staff flag is not tracked per guild (see StaffRankChecker), so staff
+        // also has to be in Returners: the flag alone is not enough.
+        if (!GuildStateManager.isStaff() || !GuildStateManager.isReturners()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("You must be staff to use /wv list world.")
+                    Component.literal("/wv list world is restricted to stewards.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -392,6 +410,13 @@ public final class CommandRegistry {
 
     private static int anni(CommandContext<FabricClientCommandSource> ctx) {
         StampFetcher.fetchStampAndCreateAnniCommandMessage()
+                // A failed stage would otherwise skip thenAccept and print nothing;
+                // fold it into the "unavailable" line instead.
+                .exceptionally(
+                        ex -> {
+                            VetsLogger.warn("/wv anni failed: {}", ex.getMessage());
+                            return null;
+                        })
                 .thenAccept(
                         blocks -> {
                             if (blocks == null || blocks.isEmpty()) {
@@ -422,7 +447,7 @@ public final class CommandRegistry {
     private static int lineToggle(CommandContext<FabricClientCommandSource> ctx, String alias) {
         if (!GuildStateManager.areFeaturesEnabled()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("You must be a Returners guild member to use /wv line.")
+                    Component.literal("/wv line is restricted to vets members.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }

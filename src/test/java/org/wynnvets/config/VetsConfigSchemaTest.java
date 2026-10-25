@@ -2,31 +2,28 @@ package org.wynnvets.config;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
  * Pins the tables in {@link VetsConfigSchema}: the keys {@code /wv config} accepts and the order
  * of {@code USER_CONFIG_KEYS}, which is the order {@code configList} prints them in; the key lists
- * that decide how {@code /wv config} types a key; the valid-value lists; and the defaults
- * {@code reset} writes. Every expected table is a frozen literal, not read from the class; the
- * predicate check below is the exception.
+ * that decide how {@code /wv config} types a key; the valid-value lists and which keys
+ * {@code fixedValuesOf} maps to them. The defaults are pinned in
+ * {@code VetsConfigDefaultsTest}. Every expected table
+ * is a frozen literal, not read from the class; the predicate check and the string-key guard
+ * below are the exceptions.
  *
  * <p>The {@code is*Key} predicates are checked against the arrays they scan, for every key name
  * plus a debug key ({@code itemDump}) and an unknown name, so a predicate pointed at the wrong
- * array fails here.</p>
- *
- * <p>KNOWN BUG (pinned, not fixed): fixing any of these may change a table pinned below.
- * {@code vets-anni-enabled-to-be-retired} removes {@code vetsAnniEnabled} from
- * {@code USER_CONFIG_KEYS}. {@code config-commands-anni-mode-suggestion-arm-unreachable} concerns
- * {@code vetsAnniMode}'s absence from {@code USER_CONFIG_KEYS} and its place in
- * {@code STRING_CONFIG_KEYS}.
- * {@code config-set-rejects-role-style-and-flash-intensity} concerns the role-style and
- * flash-intensity value lists, which {@code /wv config} does not yet validate against.</p>
+ * array fails here. The string-key guard reads {@code STRING_CONFIG_KEYS} so that a new string
+ * key that is neither a colour key nor the sprite key fails until it declares a fixed value list,
+ * instead of being validated as a colour name.</p>
  */
 class VetsConfigSchemaTest {
 
@@ -35,12 +32,10 @@ class VetsConfigSchemaTest {
                     "vetsAutomessage",
                     "vetsIsStaff",
                     "vetsLastStaffCheck",
-                    "vetsWaitlistUnlockTime",
-                    "vetsHonouraryUnlockTime",
                     "vetsGuildCheckResult",
                     "vetsLastGuildCheck",
+                    "vetsGuildCheckOwner",
                     "vetsDebugEnabledAt",
-                    "vetsAnniEnabled",
                     "vetsAuthKey",
                     "vetsAuthTier",
                     "vetsAuthVerifiedAt",
@@ -94,7 +89,6 @@ class VetsConfigSchemaTest {
                     "legacyItemForegroundColor",
                     "printMOTD",
                     "printANNI",
-                    "vetsAnniEnabled",
                     "vetsAnniShowHoverDetails",
                     "vetsAnniPromptRsvp",
                     "vetsAnniShowPrediction",
@@ -128,7 +122,6 @@ class VetsConfigSchemaTest {
                     "legacyItemForegroundSprite",
                     "legacyItemForegroundColor",
                     "vetsAnniRoleStyle",
-                    "vetsAnniMode",
                     "vetsAnniFlashIntensity"
                 },
                 VetsConfigSchema.STRING_CONFIG_KEYS);
@@ -142,9 +135,6 @@ class VetsConfigSchemaTest {
 
     @Test
     void validValueLists() {
-        assertArrayEquals(
-                new String[] {"silent", "passive", "aggressive"},
-                VetsConfigSchema.VALID_ANNI_MODES);
         assertArrayEquals(
                 new String[] {"descriptive", "short", "formal"},
                 VetsConfigSchema.VALID_ROLE_STYLES);
@@ -168,49 +158,48 @@ class VetsConfigSchemaTest {
     }
 
     @Test
-    void resetDefaults() {
-        assertEquals(
-                Long.valueOf(69L),
-                VetsConfigSchema.getIntDefault("legacyItemBackgroundGradientTopOpacity"));
-        assertEquals(
-                Long.valueOf(100L),
-                VetsConfigSchema.getIntDefault("legacyItemBackgroundGradientBottomOpacity"));
-        assertEquals(
-                "orange", VetsConfigSchema.getStringDefault("legacyItemBackgroundGradientTop"));
-        assertEquals(
-                "crimson", VetsConfigSchema.getStringDefault("legacyItemBackgroundGradientBottom"));
-        assertEquals(
-                "box_gradient_2", VetsConfigSchema.getStringDefault("legacyItemForegroundSprite"));
-        assertEquals("orange", VetsConfigSchema.getStringDefault("legacyItemForegroundColor"));
-        assertEquals("descriptive", VetsConfigSchema.getStringDefault("vetsAnniRoleStyle"));
-        assertEquals("silent", VetsConfigSchema.getStringDefault("vetsAnniMode"));
-        assertEquals("normal", VetsConfigSchema.getStringDefault("vetsAnniFlashIntensity"));
+    void fixedValuesOf_mapsOnlyRoleStyleAndFlashIntensity() {
+        for (String name : ALL_NAMES) {
+            String[] fixed = VetsConfigSchema.fixedValuesOf(name);
+            if (name.equals("vetsAnniRoleStyle")) {
+                assertArrayEquals(new String[] {"descriptive", "short", "formal"}, fixed);
+            } else if (name.equals("vetsAnniFlashIntensity")) {
+                assertArrayEquals(new String[] {"subtle", "normal", "strong"}, fixed);
+            } else {
+                assertNull(fixed, name);
+            }
+        }
     }
 
     @Test
-    void resetDefaults_nullForEveryOtherName() {
-        Map<String, Long> ints =
-                Map.of(
-                        "legacyItemBackgroundGradientTopOpacity",
-                        69L,
-                        "legacyItemBackgroundGradientBottomOpacity",
-                        100L);
-        List<String> strings =
+    void isFixedValue_acceptsTheListedLowercaseValuesOnly() {
+        for (String v : new String[] {"descriptive", "short", "formal"}) {
+            assertTrue(VetsConfigSchema.isFixedValue("vetsAnniRoleStyle", v), v);
+        }
+        for (String v : new String[] {"subtle", "normal", "strong"}) {
+            assertTrue(VetsConfigSchema.isFixedValue("vetsAnniFlashIntensity", v), v);
+        }
+        assertFalse(VetsConfigSchema.isFixedValue("vetsAnniRoleStyle", "red"));
+        assertFalse(VetsConfigSchema.isFixedValue("vetsAnniRoleStyle", "SHORT"));
+        assertFalse(VetsConfigSchema.isFixedValue("vetsAnniRoleStyle", ""));
+        assertFalse(VetsConfigSchema.isFixedValue("vetsAnniRoleStyle", null));
+        assertFalse(VetsConfigSchema.isFixedValue("vetsAnniFlashIntensity", "short"));
+        assertFalse(VetsConfigSchema.isFixedValue("legacyItemForegroundColor", "orange"));
+        assertFalse(VetsConfigSchema.isFixedValue("noSuchKey", "normal"));
+    }
+
+    @Test
+    void everyStringKey_isAColourKeyTheSpriteKeyOrHasAFixedList() {
+        List<String> colourOrSprite =
                 List.of(
                         "legacyItemBackgroundGradientTop",
                         "legacyItemBackgroundGradientBottom",
-                        "legacyItemForegroundSprite",
                         "legacyItemForegroundColor",
-                        "vetsAnniRoleStyle",
-                        "vetsAnniMode",
-                        "vetsAnniFlashIntensity");
-        for (String name : ALL_NAMES) {
-            if (!ints.containsKey(name)) {
-                assertNull(VetsConfigSchema.getIntDefault(name), name);
-            }
-            if (!strings.contains(name)) {
-                assertNull(VetsConfigSchema.getStringDefault(name), name);
-            }
+                        "legacyItemForegroundSprite");
+        for (String key : VetsConfigSchema.STRING_CONFIG_KEYS) {
+            assertTrue(
+                    colourOrSprite.contains(key) || VetsConfigSchema.fixedValuesOf(key) != null,
+                    key);
         }
     }
 

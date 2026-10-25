@@ -104,138 +104,194 @@ class HelpCommandsTest {
      * the production order so that regrouping the table by gate fails here.
      */
     private static List<String> expectedRows(
-            boolean vet, boolean unlocked, boolean featuresEnabled, boolean staff) {
+            boolean unlocked,
+            boolean staff,
+            boolean staffOfAnyGuild,
+            boolean featuresEnabled,
+            boolean confirmedStaff) {
         List<String> rows = new ArrayList<>();
         rows.add("/wv help");
         rows.add("/wv anni");
         rows.add("/wv config [<key> [<value>]]");
-        if (vet) {
-            rows.add("/wv motd");
-        }
+        rows.add("/wv motd");
         if (unlocked) {
             rows.add("/wv list");
+        }
+        if (staff) {
+            rows.add("/wv list world");
+        }
+        if (unlocked) {
             rows.add("/wv staff");
+        }
+        if (staffOfAnyGuild) {
+            rows.add("/wv distribute <name|@selector> <type> <count>");
         }
         if (featuresEnabled) {
             rows.add("/wv return");
             rows.add("/wv line <church|scrap|bat|hegea|lighthouse>");
         }
-        if (staff) {
+        if (confirmedStaff) {
             rows.add("/wv check <player>");
         }
         rows.add("/wv debug");
         return rows;
     }
 
-    private static String describe(
-            boolean vet, boolean unlocked, boolean featuresEnabled, boolean staff) {
-        return "vet="
-                + vet
+    private static String describe(int mask) {
+        return "anniTools="
+                + ((mask & 1) != 0)
                 + " unlocked="
-                + unlocked
-                + " featuresEnabled="
-                + featuresEnabled
+                + ((mask & 2) != 0)
                 + " staff="
-                + staff;
+                + ((mask & 4) != 0)
+                + " staffOfAnyGuild="
+                + ((mask & 8) != 0)
+                + " featuresEnabled="
+                + ((mask & 16) != 0)
+                + " confirmedStaff="
+                + ((mask & 32) != 0);
     }
 
-    // ----- help(): the index page and its four gates -----
+    /** {@code buildHelp} with bit {@code 1 << i} of {@code mask} as its {@code i}th gate. */
+    private static MutableComponent helpFor(int mask) {
+        return HelpCommands.buildHelp(
+                (mask & 1) != 0,
+                (mask & 2) != 0,
+                (mask & 4) != 0,
+                (mask & 8) != 0,
+                (mask & 16) != 0,
+                (mask & 32) != 0);
+    }
+
+    // ----- help(): the index page and its six gates -----
 
     /** Every gate true — the widest the page ever gets. */
     @Test
-    void helpPage_withEveryGateTrue_pinsItsTwentyFiveSiblings() {
+    void helpPage_withEveryGateTrue_pinsItsThirtySiblings() {
         assertPage(
-                HelpCommands.buildHelp(true, true, true, true),
+                HelpCommands.buildHelp(true, true, true, true, true, true),
                 boldSib(ChatFormatting.GOLD, "Commands\n"),
                 sib(
                         ChatFormatting.GRAY,
                         "Use /wv help <command> for details on a specific command.\n\n"),
                 sib(ChatFormatting.YELLOW, "/wv help"),
-                sib(ChatFormatting.GRAY, " — Show this help message\n"),
+                sib(ChatFormatting.GRAY, " - Show this help message\n"),
                 sib(ChatFormatting.YELLOW, "/wv anni"),
-                sib(ChatFormatting.GRAY, " — Show annihilation timer\n"),
+                sib(ChatFormatting.GRAY, " - Show anni timer; /wv help anni for modes & RSVP\n"),
                 sib(ChatFormatting.YELLOW, "/wv config "),
                 sib(ChatFormatting.GOLD, "[<key> [<value>]]"),
-                sib(ChatFormatting.GRAY, " — View or change mod settings\n"),
+                sib(ChatFormatting.GRAY, " - View or change mod settings\n"),
                 sib(ChatFormatting.YELLOW, "/wv motd"),
-                sib(ChatFormatting.GRAY, " — Show the message of the day\n"),
+                sib(ChatFormatting.GRAY, " - Show the message of the day\n"),
                 sib(ChatFormatting.YELLOW, "/wv list"),
-                sib(ChatFormatting.GRAY, " — Show online members and VetsMod status\n"),
+                sib(ChatFormatting.GRAY, " - Show online guild members\n"),
+                sib(ChatFormatting.YELLOW, "/wv list world"),
+                sib(ChatFormatting.GRAY, " - Show online members by world\n"),
                 sib(ChatFormatting.YELLOW, "/wv staff"),
-                sib(ChatFormatting.GRAY, " — Show online staff members\n"),
+                sib(ChatFormatting.GRAY, " - Show online stewards\n"),
+                sib(ChatFormatting.YELLOW, "/wv distribute "),
+                sib(ChatFormatting.GOLD, "<name|@selector> <type> <count>"),
+                sib(ChatFormatting.GRAY, " - Send guild rewards (Chief/Owner)\n"),
                 sib(ChatFormatting.YELLOW, "/wv return"),
-                sib(ChatFormatting.GRAY, " — Show info about this week's event\n"),
+                sib(ChatFormatting.GRAY, " - Show info about this week's event\n"),
                 sib(ChatFormatting.YELLOW, "/wv line "),
                 sib(ChatFormatting.GOLD, "<church|scrap|bat|hegea|lighthouse>"),
-                sib(ChatFormatting.GRAY, " — Toggle gxp boundary lines\n"),
+                sib(ChatFormatting.GRAY, " - Toggle gxp boundary lines\n"),
                 sib(ChatFormatting.YELLOW, "/wv check "),
                 sib(ChatFormatting.GOLD, "<player>"),
-                sib(ChatFormatting.GRAY, " — Look up a player's eligibility\n"),
+                sib(ChatFormatting.GRAY, " - Look up a potential recruit's info\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug"),
-                sib(ChatFormatting.GRAY, " — Diagnostics & debug tools"));
+                sib(ChatFormatting.GRAY, " - Diagnostics & debug tools"));
     }
 
-    /** Every gate false — only the four unconditional rows survive. */
+    /** Every gate false — only the five unconditional rows survive. */
     @Test
-    void helpPage_withNoGate_pinsItsElevenSiblings() {
+    void helpPage_withNoGate_pinsItsThirteenSiblings() {
         assertPage(
-                HelpCommands.buildHelp(false, false, false, false),
+                HelpCommands.buildHelp(false, false, false, false, false, false),
                 boldSib(ChatFormatting.GOLD, "Commands\n"),
                 sib(
                         ChatFormatting.GRAY,
                         "Use /wv help <command> for details on a specific command.\n\n"),
                 sib(ChatFormatting.YELLOW, "/wv help"),
-                sib(ChatFormatting.GRAY, " — Show this help message\n"),
+                sib(ChatFormatting.GRAY, " - Show this help message\n"),
                 sib(ChatFormatting.YELLOW, "/wv anni"),
-                sib(ChatFormatting.GRAY, " — Show annihilation timer\n"),
+                sib(ChatFormatting.GRAY, " - Show anni timer\n"),
                 sib(ChatFormatting.YELLOW, "/wv config "),
                 sib(ChatFormatting.GOLD, "[<key> [<value>]]"),
-                sib(ChatFormatting.GRAY, " — View or change mod settings\n"),
+                sib(ChatFormatting.GRAY, " - View or change mod settings\n"),
+                sib(ChatFormatting.YELLOW, "/wv motd"),
+                sib(ChatFormatting.GRAY, " - Show the message of the day\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug"),
-                sib(ChatFormatting.GRAY, " — Diagnostics & debug tools"));
+                sib(ChatFormatting.GRAY, " - Diagnostics & debug tools"));
     }
 
     /**
-     * All sixteen gate combinations, each against its exact ordered row set. Row
-     * order is gate-interleaved — three unconditional rows, then the gated ones,
-     * then {@code /wv debug} — so grouping a table by gate would reorder the page
-     * and fail here rather than in review.
+     * All sixty-four gate combinations, each against its exact ordered row set.
+     * Row order is gate-interleaved — four unconditional rows, then the gated
+     * ones, then {@code /wv debug}; {@code /wv list world} sits between the two
+     * unlocked rows — so grouping a table by gate would reorder the page and fail
+     * here rather than in review. {@code anniTools} changes only a row's text,
+     * which {@link #anniRowPointsAtTheAnniPageOnlyWithAnniTools} pins.
      */
     @Test
-    void gateMatrix_allSixteenCombinationsProduceTheirExactRowSet() {
-        for (int mask = 0; mask < 16; mask++) {
-            boolean vet = (mask & 1) != 0;
-            boolean unlocked = (mask & 2) != 0;
-            boolean featuresEnabled = (mask & 4) != 0;
-            boolean staff = (mask & 8) != 0;
+    void gateMatrix_allSixtyFourCombinationsProduceTheirExactRowSet() {
+        for (int mask = 0; mask < 64; mask++) {
             assertEquals(
-                    expectedRows(vet, unlocked, featuresEnabled, staff),
-                    rowsOf(HelpCommands.buildHelp(vet, unlocked, featuresEnabled, staff)),
-                    describe(vet, unlocked, featuresEnabled, staff));
+                    expectedRows(
+                            (mask & 2) != 0,
+                            (mask & 4) != 0,
+                            (mask & 8) != 0,
+                            (mask & 16) != 0,
+                            (mask & 32) != 0),
+                    rowsOf(helpFor(mask)),
+                    describe(mask));
+        }
+    }
+
+    /** The {@code /wv anni} row's description, the sibling after its head. */
+    private static String anniRowText(MutableComponent page) {
+        List<Component> siblings = page.getSiblings();
+        for (int i = 0; i < siblings.size() - 1; i++) {
+            if (siblings.get(i).getString().equals("/wv anni")) {
+                return siblings.get(i + 1).getString();
+            }
+        }
+        throw new AssertionError("no /wv anni row");
+    }
+
+    /**
+     * A vet or an authenticated player is pointed at the modes and RSVP; an
+     * unauthenticated non-member keeps the plain timer row (the 2026-10-22
+     * ruling), whatever the other gates say.
+     */
+    @Test
+    void anniRowPointsAtTheAnniPageOnlyWithAnniTools() {
+        for (int mask = 0; mask < 64; mask++) {
+            assertEquals(
+                    (mask & 1) != 0
+                            ? " - Show anni timer; /wv help anni for modes & RSVP\n"
+                            : " - Show anni timer\n",
+                    anniRowText(helpFor(mask)),
+                    describe(mask));
         }
     }
 
     /**
      * Commit {@code be482b1} is the fix this protects: {@code /wv list} was
      * printed twice, and advertised on the vet predicate rather than on
-     * {@code isUnlocked()}. Across all sixteen combinations it must appear exactly
-     * once when unlocked and never otherwise.
+     * {@code isUnlocked()}. Across all sixty-four combinations it must appear
+     * exactly once when unlocked and never otherwise; the {@code /wv list world}
+     * row is a different row and is not counted.
      */
     @Test
     void wvListIsAdvertisedExactlyOnceWhenUnlockedAndNeverOtherwise() {
-        for (int mask = 0; mask < 16; mask++) {
-            boolean vet = (mask & 1) != 0;
-            boolean unlocked = (mask & 2) != 0;
-            boolean featuresEnabled = (mask & 4) != 0;
-            boolean staff = (mask & 8) != 0;
-            long advertised =
-                    rowsOf(HelpCommands.buildHelp(vet, unlocked, featuresEnabled, staff)).stream()
-                            .filter("/wv list"::equals)
-                            .count();
+        for (int mask = 0; mask < 64; mask++) {
+            long advertised = rowsOf(helpFor(mask)).stream().filter("/wv list"::equals).count();
             assertEquals(
-                    unlocked ? 1L : 0L,
+                    (mask & 2) != 0 ? 1L : 0L,
                     advertised,
-                    "/wv list advert count for " + describe(vet, unlocked, featuresEnabled, staff));
+                    "/wv list advert count for " + describe(mask));
         }
     }
 
@@ -251,19 +307,29 @@ class HelpCommandsTest {
         assertPage(
                 HelpCommands.buildHelpConfig(),
                 boldSib(ChatFormatting.GOLD, "Config Options\n"),
-                sib(ChatFormatting.GRAY, "Toggle with: /wv config <key> <true|false>\n\n"),
-                sib(ChatFormatting.YELLOW, "legacyItemHighlighting\n"),
                 sib(
                         ChatFormatting.GRAY,
-                        "  Show legacy item highlighting in tooltips and inventory\n"),
+                        "Toggle with /wv config <key> <default|true|false>.\n"
+                                + "These are the common toggles; /wv config lists every key.\n\n"),
+                sib(ChatFormatting.YELLOW, "legacyItemHighlighting\n"),
+                sib(ChatFormatting.GRAY, "  Highlights old items when in your inventory\n"),
                 sib(ChatFormatting.YELLOW, "printMOTD\n"),
                 sib(ChatFormatting.GRAY, "  Auto-print the message of the day on world join\n"),
                 sib(ChatFormatting.YELLOW, "printANNI\n"),
-                sib(ChatFormatting.GRAY, "  Auto-print the annihilation timer on world join\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "  Auto-print the annihilation timer on world join"
+                                + " (Returners members only)\n"),
                 sib(ChatFormatting.YELLOW, "printBridgeMessages\n"),
-                sib(ChatFormatting.GRAY, "  Show bridge (guild chat relay) messages in chat\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "  Show messages delivered through the bridge, including discord,"
+                                + " queue, waitlist, and honourary chats.\n"),
                 sib(ChatFormatting.YELLOW, "showSupporterGlints\n"),
-                sib(ChatFormatting.GRAY, "  Show supporter animated gradient glints on nametags\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "  Show supporter animated gradient glints on nametags,"
+                                + " chat pills and /wv list\n"),
                 sib(ChatFormatting.YELLOW, "colorBlindMode\n"),
                 sib(
                         ChatFormatting.GRAY,
@@ -272,14 +338,15 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "handleSpoilers\n"),
                 sib(
                         ChatFormatting.GRAY,
-                        "  Render ||spoiler|| markers as hoverable spoiler labels\n"),
+                        "  Encode ||spoiler|| markers in your /g and /wg,"
+                                + " and render them as hoverable labels\n"),
                 sib(ChatFormatting.YELLOW, "moreReliableGuildCheck\n"),
                 sib(
                         ChatFormatting.GRAY,
-                        "  Run /gu stats on world join to detect guild membership,"),
+                        "  Run /gu stats on world join to detect your membership,"),
                 sib(
                         ChatFormatting.GRAY,
-                        " instead of relying solely on Wynntils (which can stay null)"));
+                        " instead of relying solely on Wynntils (it can lag on join)"));
     }
 
     @Test
@@ -288,9 +355,7 @@ class HelpCommandsTest {
                 HelpCommands.buildHelpCheck(HelpCommands.Access.CONFIRMED),
                 sib(ChatFormatting.YELLOW, "/wv check "),
                 sib(ChatFormatting.GOLD, "<player>\n"),
-                sib(
-                        ChatFormatting.GRAY,
-                        "Look up a player's guild membership and unlock status.\n"),
+                sib(ChatFormatting.GRAY, "Look up someone's vets membership and client status.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.AQUA, "Staff"));
     }
@@ -300,10 +365,7 @@ class HelpCommandsTest {
         assertPage(
                 HelpCommands.buildHelpReturn(HelpCommands.Access.CONFIRMED),
                 sib(ChatFormatting.YELLOW, "/wv return\n"),
-                sib(
-                        ChatFormatting.GRAY,
-                        "Display information about this week's scheduled event, "
-                                + "as fetched from the guild-announcements channel.\n"),
+                sib(ChatFormatting.GRAY, "Display information about this week's event.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.AQUA, "Returners guild member"));
     }
@@ -313,7 +375,7 @@ class HelpCommandsTest {
         assertPage(
                 HelpCommands.buildHelpStaff(HelpCommands.Access.CONFIRMED),
                 sib(ChatFormatting.YELLOW, "/wv staff\n"),
-                sib(ChatFormatting.GRAY, "Show a list of currently online staff members.\n"),
+                sib(ChatFormatting.GRAY, "Show a list of currently online stewards.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.AQUA, "Unlocked"));
     }
@@ -330,8 +392,7 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "/wv list\n"),
                 sib(
                         ChatFormatting.GRAY,
-                        "Show online Returners members, grouped by VetsMod usage, "
-                                + "honourary, and waitlist status.\n"),
+                        "Show online Returners members and some basic info about them.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.AQUA, "Veteran (Returners, waitlist, or honourary)"));
     }
@@ -339,25 +400,59 @@ class HelpCommandsTest {
     @Test
     void helpMotdPage_pinsItsFourSiblings() {
         assertPage(
-                HelpCommands.buildHelpMotd(HelpCommands.Access.CONFIRMED),
+                HelpCommands.buildHelpMotd(),
                 sib(ChatFormatting.YELLOW, "/wv motd\n"),
                 sib(
                         ChatFormatting.GRAY,
-                        "Show the guild message of the day. Also available as "
+                        "Show the message of the day. Also available as "
                                 + "a standalone /motd command.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
-                sib(ChatFormatting.AQUA, "Veteran (Returners, waitlist, or honourary)"));
+                sib(ChatFormatting.WHITE, "None (public)"));
     }
 
+    /** Unauthenticated: the timer and the modes, with no rsvp row. */
     @Test
-    void helpAnniPage_pinsItsFourSiblings() {
+    void helpAnniPage_unauthenticated_pinsItsSevenSiblings() {
         assertPage(
-                HelpCommands.buildHelpAnni(),
+                HelpCommands.buildHelpAnni(false),
                 sib(ChatFormatting.YELLOW, "/wv anni\n"),
                 sib(
                         ChatFormatting.GRAY,
                         "Show how long until the next annihilation event, "
                                 + "if one has been announced.\n"),
+                sib(ChatFormatting.YELLOW, "/wv anni "),
+                sib(ChatFormatting.GOLD, "<silent|passive|aggressive>\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Set your anni mode: silent turns anni features off, passive suits folks"
+                                + " experienced at attending vets-annis, and aggressive suits"
+                                + " folks attending their first.\n"),
+                sib(ChatFormatting.GRAY, "Requires: "),
+                sib(ChatFormatting.WHITE, "None (public)"));
+    }
+
+    /** Authenticated: the rsvp row follows the modes, and the footer stays public. */
+    @Test
+    void helpAnniPage_authenticated_pinsItsTenSiblings() {
+        assertPage(
+                HelpCommands.buildHelpAnni(true),
+                sib(ChatFormatting.YELLOW, "/wv anni\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Show how long until the next annihilation event, "
+                                + "if one has been announced.\n"),
+                sib(ChatFormatting.YELLOW, "/wv anni "),
+                sib(ChatFormatting.GOLD, "<silent|passive|aggressive>\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Set your anni mode: silent turns anni features off, passive suits folks"
+                                + " experienced at attending vets-annis, and aggressive suits"
+                                + " folks attending their first.\n"),
+                sib(ChatFormatting.YELLOW, "/wv anni rsvp "),
+                sib(ChatFormatting.GOLD, "<hard|soft|revoke>\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Send a hard or soft RSVP for the next anni, or revoke yours.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.WHITE, "None (public)"));
     }
@@ -390,16 +485,16 @@ class HelpCommandsTest {
                 sib(ChatFormatting.GOLD, "Subcommands:\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug "),
                 sib(ChatFormatting.GOLD, "<boolean>"),
-                sib(ChatFormatting.GRAY, " — Toggle debug logging\n"),
+                sib(ChatFormatting.GRAY, " - Toggle debug logging\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug set "),
                 sib(ChatFormatting.GOLD, "<key> <value>"),
-                sib(ChatFormatting.GRAY, " — Manage debug config keys\n"),
+                sib(ChatFormatting.GRAY, " - Manage debug config keys\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug trigger "),
                 sib(ChatFormatting.GOLD, "<action>"),
-                sib(ChatFormatting.GRAY, " — Run a one-shot debug action\n"),
+                sib(ChatFormatting.GRAY, " - Run a one-shot debug action\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug tree "),
                 sib(ChatFormatting.GOLD, "<subsystem>"),
-                sib(ChatFormatting.GRAY, " — Open a subsystem-specific debug tree (e.g. anni)\n\n"),
+                sib(ChatFormatting.GRAY, " - Open a subsystem-specific debug tree (e.g. anni)\n\n"),
                 sib(ChatFormatting.DARK_GRAY, "Use /wv help debug <set|trigger> for details.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.WHITE, "None (public)"));
@@ -419,16 +514,16 @@ class HelpCommandsTest {
                 sib(ChatFormatting.GRAY, "Manage debug-only configuration keys.\n\n"),
                 sib(ChatFormatting.GOLD, "Usage:\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug set"),
-                sib(ChatFormatting.GRAY, " — List all debug config keys and their values\n"),
+                sib(ChatFormatting.GRAY, " - List all debug config keys and their values\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug set "),
                 sib(ChatFormatting.GOLD, "<key>"),
-                sib(ChatFormatting.GRAY, " — Show the current value of a key\n"),
+                sib(ChatFormatting.GRAY, " - Show the current value of a key\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug set "),
                 sib(ChatFormatting.GOLD, "<key> <true|false>"),
-                sib(ChatFormatting.GRAY, " — Set a debug key to true or false\n\n"),
+                sib(ChatFormatting.GRAY, " - Set a debug key to true or false\n\n"),
                 sib(ChatFormatting.GOLD, "Available keys:\n"),
                 sib(ChatFormatting.YELLOW, "itemDump"),
-                sib(ChatFormatting.GRAY, " — Dump an item's full component tree\n"),
+                sib(ChatFormatting.GRAY, " - Dump an item's full component tree\n"),
                 sib(ChatFormatting.DARK_GRAY, "  When on, press numpad + while hovering it\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.WHITE, "None (public)"));
@@ -436,14 +531,14 @@ class HelpCommandsTest {
 
     /**
      * Every row here is a GRAY description followed by a DARK_GRAY clarification,
-     * and the colour boundary is a sentence boundary on all three. A description
+     * and the colour boundary is a sentence boundary on all eight. A description
      * too long for one chat line wraps into a second GRAY fragment —
      * {@code forceChecks} is the one that does — rather than spilling into the
      * DARK_GRAY run mid-sentence, which is what the colour change would then be
      * announcing.
      */
     @Test
-    void helpDebugTriggerPage_pinsItsNineteenSiblings() {
+    void helpDebugTriggerPage_pinsItsFortySiblings() {
         assertPage(
                 HelpCommands.buildHelpDebugTrigger(),
                 sib(ChatFormatting.YELLOW, "/wv debug trigger "),
@@ -457,12 +552,33 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "/wv debug trigger forceChecks\n"),
                 sib(ChatFormatting.GRAY, "  Force a re-check of guild membership, rank,\n"),
                 sib(ChatFormatting.GRAY, "  and staff status.\n"),
-                sib(ChatFormatting.DARK_GRAY, "  Runs /gu stats and /gu rank via Wynntils'\n"),
-                sib(ChatFormatting.DARK_GRAY, "  command queue, then reports state to chat.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  Reports guild and staff state to chat, then\n"),
+                sib(ChatFormatting.DARK_GRAY, "  re-runs /gu rank and /gu stats, skipping\n"),
+                sib(ChatFormatting.DARK_GRAY, "  either if one is already in flight.\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug trigger tabDump\n"),
                 sib(ChatFormatting.GRAY, "  Dump the raw tab list to chat.\n"),
                 sib(ChatFormatting.DARK_GRAY, "  Split into labelled columns, then shows the\n"),
                 sib(ChatFormatting.DARK_GRAY, "  parsed guild members.\n"),
+                sib(ChatFormatting.YELLOW, "/wv debug trigger bossBarsDump\n"),
+                sib(ChatFormatting.GRAY, "  Dump the boss bars on screen to chat.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  Order, id, name, colour, overlay and progress\n"),
+                sib(ChatFormatting.DARK_GRAY, "  of each, with vetsmod's own bar marked.\n"),
+                sib(ChatFormatting.YELLOW, "/wv debug trigger nametagsDump\n"),
+                sib(ChatFormatting.GRAY, "  Dump each player's nametag diagnostics.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  Anni gate, registry hit, tier and role, the\n"),
+                sib(ChatFormatting.DARK_GRAY, "  display name, and the colour it would get.\n"),
+                sib(ChatFormatting.YELLOW, "/wv debug trigger ghostsPromptDump\n"),
+                sib(ChatFormatting.GRAY, "  Log the ghosts-prompt inputs.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  To the log, not chat: the gate, each player's\n"),
+                sib(ChatFormatting.DARK_GRAY, "  ghost flag, and whether the prompt would fire.\n"),
+                sib(ChatFormatting.YELLOW, "/wv debug trigger zoneLinesDump\n"),
+                sib(ChatFormatting.GRAY, "  Dump the zone-line renderer's inputs.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  Gate, toggle and cache state, then each zone\n"),
+                sib(ChatFormatting.DARK_GRAY, "  disc and its distance from you.\n"),
+                sib(ChatFormatting.YELLOW, "/wv debug trigger rsvpDump\n"),
+                sib(ChatFormatting.GRAY, "  Log the RSVP client's state.\n"),
+                sib(ChatFormatting.DARK_GRAY, "  To the log, not chat: auth, queue depth, the\n"),
+                sib(ChatFormatting.DARK_GRAY, "  last attempt and ack, and the rsvp block.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.WHITE, "None (public)"));
     }
@@ -509,11 +625,6 @@ class HelpCommandsTest {
                     "Veteran (Returners, waitlist, or honourary)",
                     context + "list");
             assertRequirement(
-                    HelpCommands.buildHelpMotd(access),
-                    expected,
-                    "Veteran (Returners, waitlist, or honourary)",
-                    context + "motd");
-            assertRequirement(
                     HelpCommands.buildHelpLine(access),
                     expected,
                     "Returners guild member",
@@ -539,18 +650,25 @@ class HelpCommandsTest {
     }
 
     /**
-     * The four ungated pages keep WHITE, and that is a third state rather than an
+     * The five ungated pages keep WHITE, and that is a third state rather than an
      * oversight: there is no permission to hold or lack, so a GREEN here would be
      * claiming one was granted.
      */
     @Test
-    void requiresFooter_staysWhiteOnTheFourPagesWithNoGate() {
+    void requiresFooter_staysWhiteOnTheFivePagesWithNoGate() {
         assertEquals(
                 ChatFormatting.WHITE,
                 ACCESS_COLOURS.getOrDefault(HelpCommands.Access.PUBLIC, ChatFormatting.WHITE),
                 "PUBLIC is deliberately outside the met/confirmed ladder");
         assertRequirement(
-                HelpCommands.buildHelpAnni(), ChatFormatting.WHITE, "None (public)", "anni");
+                HelpCommands.buildHelpMotd(), ChatFormatting.WHITE, "None (public)", "motd");
+        assertRequirement(
+                HelpCommands.buildHelpAnni(false), ChatFormatting.WHITE, "None (public)", "anni");
+        assertRequirement(
+                HelpCommands.buildHelpAnni(true),
+                ChatFormatting.WHITE,
+                "None (public)",
+                "anni, authenticated");
         assertRequirement(
                 HelpCommands.buildHelpDebug(), ChatFormatting.WHITE, "None (public)", "debug");
         assertRequirement(

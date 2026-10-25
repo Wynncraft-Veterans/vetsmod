@@ -16,6 +16,7 @@ import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
+import org.wynnvets.fetcher.polling.AnniSnapshotPoller;
 import org.wynnvets.fetcher.polling.SupportersPoller;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
@@ -65,6 +66,7 @@ public final class DiagnosticsHandler {
                                             .withStyle(ChatFormatting.YELLOW)));
         } else if (arg.equalsIgnoreCase("false")) {
             VetsLogger.setDebugEnabled(false);
+            AnniSnapshotPoller.setDebugHold(false);
             VetsConfig.setLong(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, 0L);
             ChatUtils.sendLocalMessage(
                     Component.literal("Debug logging ")
@@ -94,8 +96,8 @@ public final class DiagnosticsHandler {
      * client; world state and name from Wynntils' {@code Models.WorldState},
      * left as {@code "unknown"} if that throws.</p>
      *
-     * <p>The log report also carries the player name, the can-execute and
-     * debug-guildless-override flags, the persisted tier and the raw
+     * <p>The log report also carries the player name, the can-execute
+     * flag, the persisted tier and the raw
      * verification timestamp, none of which reach chat, plus the loaded-mod
      * count and a line listing every loaded mod's id and version — chat
      * carries only five of those versions (vetsmod, Minecraft, Fabric
@@ -115,7 +117,6 @@ public final class DiagnosticsHandler {
         boolean isStaff = GuildStateManager.isStaff();
         String selfRank = GuildStateManager.selfStaffRank();
         boolean canExecute = GuildStateManager.canExecuteCommands();
-        boolean debugOverride = GuildStateManager.isDebugForceGuildlessUnlocked();
         boolean automessageEnabled = VetsConfig.get(VetsConfigKeys.VETS_AUTOMESSAGE);
         boolean debugLogging = VetsLogger.isDebugEnabled();
         String playerName = GuildStateManager.playerName();
@@ -126,7 +127,6 @@ public final class DiagnosticsHandler {
         boolean authVerified = GuildStateManager.isAuthenticatedThisSession();
         String authTier = GuildStateManager.currentAuthTier();
         String authFailureReason = GuildStateManager.lastAuthFailureReason();
-        boolean hasLegacyUnlock = GuildStateManager.hasLegacyPasswordUnlock();
         long authVerifiedAt = VetsConfig.getLong(VetsConfigKeys.VETS_AUTH_VERIFIED_AT);
         String persistedTier = VetsConfig.getString(VetsConfigKeys.VETS_AUTH_TIER);
 
@@ -216,10 +216,6 @@ public final class DiagnosticsHandler {
                     Component.literal(formatRelative(authVerifiedAt) + " ago")
                             .withStyle(ChatFormatting.WHITE));
         }
-        if (hasLegacyUnlock) {
-            chatMsg.append(Component.literal(" | Legacy unlock: ").withStyle(ChatFormatting.GRAY));
-            chatMsg.append(Component.literal("yes").withStyle(ChatFormatting.YELLOW));
-        }
 
         ChatUtils.sendLocalMessageNewBlock(chatMsg);
 
@@ -243,19 +239,17 @@ public final class DiagnosticsHandler {
                 canExecute);
         VetsLogger.info("Staff: {}, rank={}", isStaff, selfRank.isEmpty() ? "none" : selfRank);
         VetsLogger.info(
-                "Config: automessage={}, debugLogging={}, debugGuildlessOverride={}, supporter={}",
+                "Config: automessage={}, debugLogging={}, supporter={}",
                 automessageEnabled,
                 debugLogging,
-                debugOverride,
                 isSupporter);
         VetsLogger.info(
-                "Auth: hasKey={}, verifiedThisSession={}, tier={}, persistedTier={}, verifiedAt={}, legacyUnlock={}, lastFailure={}",
+                "Auth: hasKey={}, verifiedThisSession={}, tier={}, persistedTier={}, verifiedAt={}, lastFailure={}",
                 hasAuthKey,
                 authVerified,
                 authTier.isEmpty() ? "none" : authTier,
                 persistedTier == null || persistedTier.isEmpty() ? "none" : persistedTier,
                 authVerifiedAt == 0L ? "never" : Long.toString(authVerifiedAt),
-                hasLegacyUnlock,
                 authFailureReason.isEmpty() ? "none" : authFailureReason);
 
         // Mod list

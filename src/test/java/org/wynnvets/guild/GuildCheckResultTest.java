@@ -1,7 +1,9 @@
 package org.wynnvets.guild;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.wynnvets.guild.GuildChecker.GuildCheckResult;
@@ -66,4 +68,46 @@ class GuildCheckResultTest {
     // The parameter is a primitive long, so there is no null or empty case to
     // cover — and no toPersistedValue() inverse exists; readers use the bare
     // field asserted above.
+
+    // ── contradicts ───────────────────────────────────────────────────
+
+    /** What the recheck poll keeps: each stored result against the Wynntils data it agrees with. */
+    @Test
+    void contradicts_isFalseWhenWynntilsAgrees() {
+        assertFalse(GuildCheckResult.RETURNERS.contradicts(true, "Returners"));
+        assertFalse(GuildCheckResult.OTHER_GUILD.contradicts(true, "Some Other Guild"));
+        assertFalse(GuildCheckResult.GUILDLESS.contradicts(false, ""));
+    }
+
+    /** What the recheck poll clears: a result from a guild change while disconnected. */
+    @Test
+    void contradicts_isTrueWhenWynntilsDisagrees() {
+        assertTrue(GuildCheckResult.RETURNERS.contradicts(false, ""), "left Returners");
+        assertTrue(GuildCheckResult.RETURNERS.contradicts(true, "Some Other Guild"), "moved");
+        assertTrue(GuildCheckResult.OTHER_GUILD.contradicts(false, ""), "left the guild");
+        assertTrue(GuildCheckResult.OTHER_GUILD.contradicts(true, "Returners"), "joined us");
+        assertTrue(GuildCheckResult.GUILDLESS.contradicts(true, "Returners"), "joined a guild");
+    }
+
+    @Test
+    void contradicts_unknownDisagreesWithNothing() {
+        assertFalse(GuildCheckResult.UNKNOWN.contradicts(true, "Returners"));
+        assertFalse(GuildCheckResult.UNKNOWN.contradicts(false, ""));
+    }
+
+    // ── isDefinitive ──────────────────────────────────────────────────
+
+    /** What lets a finished check retract a guild registration: it says the player is not ours. */
+    @Test
+    void isDefinitive_isTrueForOtherGuildAndGuildless() {
+        assertTrue(GuildCheckResult.OTHER_GUILD.isDefinitive());
+        assertTrue(GuildCheckResult.GUILDLESS.isDefinitive());
+    }
+
+    /** What never retracts: a Returners answer, and no answer (a timeout or a parse miss). */
+    @Test
+    void isDefinitive_isFalseForReturnersAndUnknown() {
+        assertFalse(GuildCheckResult.RETURNERS.isDefinitive());
+        assertFalse(GuildCheckResult.UNKNOWN.isDefinitive());
+    }
 }

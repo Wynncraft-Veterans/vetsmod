@@ -245,6 +245,7 @@ public final class ItemDumpHandler {
                 "hasCraftingRarity", LegacyItemHandler.hasCraftingRarity(lore.lines()));
         analysis.addProperty(
                 "hasBetaLegacyMarker", LegacyItemHandler.hasBetaLegacyMarker(lore.lines()));
+        analysis.addProperty("hasVintageBanner", LegacyItemHandler.hasVintageBanner(lore.lines()));
         analysis.addProperty("hasRarityLine", LegacyItemHandler.hasRarityLine(lore.lines()));
         analysis.addProperty("tooltipStyleRarity", LegacyItemHandler.getTooltipStyleRarity(stack));
         analysis.addProperty("isLegacyItem_result", LegacyItemHandler.isLegacyItem(stack));

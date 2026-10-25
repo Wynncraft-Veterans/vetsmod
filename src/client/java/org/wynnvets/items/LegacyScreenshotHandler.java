@@ -36,40 +36,51 @@ import org.wynnvets.logging.VetsLogger;
  * level (before our mixin runs), so its screenshot lacks our gold names and
  * LEGACY boxes.  This handler re-renders the final tooltip after all
  * modifications and copies the result to the clipboard, silently replacing
- * Wynntils' version.</p>
+ * Wynntils' version.  It acts only on a key press latched over a legacy item
+ * (see {@link ScreenshotLatch}).</p>
  */
 final class LegacyScreenshotHandler {
 
+    /**
+     * Draws the tooltip 10 units in, where Wynntils' own capture draws it. Wynntils 4.2.13 and
+     * later forces that position onto every tooltip drawn until its capture's readback
+     * completes, a frame or more after the press, and this capture always runs in that window, so
+     * any other position here would be overridden anyway; the capture size computed in
+     * {@code takeScreenshot} assumes this position.
+     */
     private static final ClientTooltipPositioner SCREENSHOT_POSITIONER =
             (screenWidth, screenHeight, mouseX, mouseY, tooltipWidth, tooltipHeight) ->
-                    new Vector2i(4, 4);
+                    new Vector2i(10, 10);
 
     /** Delay before clipboard write so we overwrite Wynntils' async copy. */
     private static final Executor DELAYED_EXECUTOR =
             CompletableFuture.delayedExecutor(250, TimeUnit.MILLISECONDS);
 
+    /**
+     * Armed by {@link #notifyKeyPressed()} when Wynntils' screenshot keybind is pressed over a
+     * legacy item. Consumed by the next call to {@link #isScreenshotRequested()}, or dropped if
+     * no tooltip pass consumes it within {@link ScreenshotLatch#LIFETIME_MS}.
+     */
+    private static final ScreenshotLatch LATCH = new ScreenshotLatch();
+
     private LegacyScreenshotHandler() {}
 
-    /**
-     * Set by the {@link org.wynnvets.listeners.LegacyTooltipEventListener
-     * LegacyTooltipEventListener} when Wynntils'
-     * {@code InventoryKeyPressEvent} fires with a key matching the
-     * screenshot keybind.  Consumed (reset to false) on the next call
-     * to {@link #isScreenshotRequested()}.
-     */
-    static volatile boolean screenshotKeyPressed = false;
+    /** Arms the latch for one screenshot, valid for about a second. */
+    static void notifyKeyPressed() {
+        LATCH.press(nowMs());
+    }
 
     /**
-     * Returns {@code true} exactly once after the screenshot key was pressed.
-     * Resets the flag so subsequent tooltip renders on the same frame don't
-     * re-trigger.
+     * Returns {@code true} exactly once per press, and only if the press is under a second old.
+     * Always disarms the latch, so subsequent tooltip renders on the same frame don't re-trigger
+     * and a stale press never fires on a later tooltip.
      */
     static boolean isScreenshotRequested() {
-        if (screenshotKeyPressed) {
-            screenshotKeyPressed = false;
-            return true;
-        }
-        return false;
+        return LATCH.consume(nowMs());
+    }
+
+    private static long nowMs() {
+        return System.nanoTime() / 1_000_000L;
     }
 
     /**
@@ -91,6 +102,22 @@ final class LegacyScreenshotHandler {
         if (tooltip.size() > 1) {
             height += 2 + (tooltip.size() - 1) * 10;
         }
+
+        // The background sprite reaches 12 units past the text on each side (3 padding plus a
+        // 9 margin, TooltipRenderUtil), so pad both axes by 12, as Wynntils' capture does.
+        width += 12;
+        height += 12;
+
+        // The framebuffer is twice this size; the screen is what the render is scaled from.
+        VetsLogger.debug(
+                "Legacy screenshot: captured {}x{}, screen {}x{}, window {}x{}, gui scale {}",
+                width,
+                height,
+                screen.width,
+                screen.height,
+                McUtils.mc().getWindow().getWidth(),
+                McUtils.mc().getWindow().getHeight(),
+                McUtils.mc().getWindow().getGuiScale());
 
         List<ClientTooltipComponent> rendered =
                 tooltip.stream()

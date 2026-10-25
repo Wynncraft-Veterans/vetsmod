@@ -1,5 +1,6 @@
 package org.wynnvets.chat;
 
+import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -69,11 +70,11 @@ import net.minecraft.network.chat.Style;
  * A light label on a dark rounded field. Used for chat that travels over
  * vetsmod's WebSocket rather than through Wynncraft's own guild channel: the
  * relayed lines {@link OutboundDisplayHandler} renders as ordinary chat, and
- * the local echo of a line a queued Returner sends. Today
+ * the local echo of a line a queued Returner sends.
  * {@link org.wynnvets.chat.rewriter.EncourageUpdateRewriter EncourageUpdateRewriter}
- * also uses it for a line that arrived through the guild channel, and both
- * that rewrite and the queued echo put the sender's raw rank in the pill
- * rather than a display label ({@code raw-rank-pills-bypass-display-remap}).
+ * also uses it for a line that arrived through the guild channel. The queued
+ * echo and that rewrite label it with {@link RankDisplayMap#displayFor}, while
+ * the queued frame keeps the raw rank on the wire.
  * Returns a plain {@code String} because the entire sequence is one colour,
  * which lets {@link PillFormatter} decide that colour per message (flat, or
  * the supporter gradient marker).</p>
@@ -183,7 +184,7 @@ public final class PillCodec {
         }
         StringBuilder sb = new StringBuilder();
         sb.append(REMOTE_FRAME_OPEN);
-        for (char c : label.toUpperCase().toCharArray()) {
+        for (char c : label.toUpperCase(Locale.ROOT).toCharArray()) {
             if (c >= 'A' && c <= 'Z') {
                 sb.append((char) (UPPER_ALPHABET_BASE + (c - 'A')));
             }
@@ -208,7 +209,7 @@ public final class PillCodec {
         MutableComponent component = Component.empty();
         component.append(Component.literal(LOCAL_FRAME_OPEN).setStyle(frameStyle));
 
-        String upper = label == null ? "" : label.toUpperCase();
+        String upper = label == null ? "" : label.toUpperCase(Locale.ROOT);
         for (int i = 0; i < upper.length(); i++) {
             char letter = upper.charAt(i);
             if (letter < 'A' || letter > 'Z') {

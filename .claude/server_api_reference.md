@@ -17,10 +17,10 @@ sends, which ack shapes it has to parse, and what the REST surface offers.
 Duplicating the spec is what let this doc drift.
 
 ⚠️ Some things the spec does **not** cover, so they are documented here rather
-than deferred: `check_membership` and the `server_info` hello frame (neither
-string appears in `v1_protocol.md` at all), and `tablist` / `queue_status`,
-which the spec names in passing but never gives a section. Deferring those
-would produce a pointer to nothing.
+than deferred: `tablist` / `queue_status`, which the spec names in passing but never gives a section.
+Deferring those would produce a pointer to nothing. `check_membership` and the `server_info` hello
+used to be on this list; the spec covers them since temporary-server `e540a01` (§1.10) and `eacb4da`
+(§2.1), and this doc keeps their vetsmod-side detail.
 
 ## 1. WebSocket endpoints
 
@@ -33,6 +33,17 @@ string, so it caps characters, not bytes. Inbound acks are
 frame family defines its own typed response below. An optional `?version=`
 query param is logged for client-version tracking and never enforced.
 
+**Request ids.** Any inbound frame may carry `req`, a string of 1 to 64
+characters (temporary-server `e93fda9`, spec §1.2). The server pops it as soon
+as the frame parses, so it is never recorded, bridged or broadcast, and every
+reply sent after parsing, typed responses included, echoes it as its last key
+(§1.3). A `req` that is not such a string is ignored. The outbound
+`server_info` advertises the feature as `req_echo: true`. An older server does
+not pop it and broadcasts a chat frame's unknown keys to every outbound client,
+so vetsmod always sends `req` on the staff-action frames, which read named keys
+only, and on its waitlist, queue and honourary relays only once the server
+echoes; see [vetsmod_networking.md](vetsmod_networking.md) §1.
+
 ### Frame inventory
 
 Everything `/v1/inbound` accepts, with the handler that serves it and where the
@@ -44,29 +55,31 @@ subsection), §7 and §7.1.
 |---|---|---|---|
 | chat (`guild`/`queue`/`waitlist`/`honourary`) | chat pipeline | generic ack | §1.2 (shape), §1.4 (pipeline) |
 | `register` | `_handle_register` | `{"status":"ok"}` (sent even when an invalid registration is silently ignored) | §1.7 |
+| `unregister` | `_handle_unregister` | `{"status":"ok"}`, also for a socket that never registered (temporary-server `0f097cf`; the outbound `server_info` advertises it as `unregister: true`, and an older server answers the unknown type with a `Missing required fields` error) | §1.7 |
 | `tablist` | `_handle_tablist` | `{"status":"ok"}` | **not specified** — named in passing only |
 | `queue_status` | `_handle_queue_status` | `{"status":"ok"}` | **not specified** — named in passing only |
 | `auth` | `_handle_auth` | auth ack (below) | §1.8 |
 | `rank_change` | `_handle_rank_change` | `{"status":"ok"}` (even when a validation failure drops it); an "Authentication required" error when `unauth` is disabled and the session is unauthenticated | §1.9 |
 | `caution_check` | `_handle_caution_check` | history ack | §1.10 |
 | `caution_add` / `warn_add` / `eject_add` | `_handle_staff_commit` | commit ack, or a `would_trigger` preflight | §1.10 |
-| `check_membership` | `_handle_check_membership` | membership ack | **not in spec** |
+| `check_membership` | `_handle_check_membership` | membership ack, or a member's invite verdict | §1.10 |
 | `anni_query` | `_handle_anni_query` | `anni_query_response` | §1.11 |
 | `anni_scrollspot_set` | `_handle_anni_scrollspot_set` | `anni_scrollspot_response` | §1.12 |
 | `anni_rsvp` | `_handle_anni_rsvp` | `anni_rsvp_response` | §1.13 |
 | `anni_party_observation` | `_handle_anni_party_observation` | `anni_party_observation_response` | §1.14 |
 
-⚠️ **Clearing the scroll spot sends no `scroll_spot` key.** vetsmod builds the clear with a JSON null,
-and the shared `Gson` drops null members, so the frame is `{"type":"anni_scrollspot_set"}`. §1.12
-says a missing key is rejected as malformed, but `_handle_anni_scrollspot_set` reads it with
-`data.get`, as null, and clears (bug `anni-scrollspot-clear-frame-omits-scroll-spot-key`).
+**Clearing the scroll spot sends `"scroll_spot": null`.** `AnniWsSender` builds the clear with a
+JSON null, and `WsClient` serialises frames with null members kept (`WsClient.toWire`), as §1.12 asks.
+Clients before that change sent `{"type":"anni_scrollspot_set"}` with no key; `_handle_anni_scrollspot_set`
+reads it with `data.get`, as null, and clears, and the server keeps accepting it for them.
 
 Server-initiated frames on `/v1/outbound`: broadcast chat and `bridge`,
 `anni_state` (§1.15), `staff_online` / `staff_offline` (§2.6), the targeted
 `warning` frame, and `server_info`. Of these, a socket that has not sent its own
 `auth` frame receives only `server_info` and the broadcast chat (the chat only while
-`unauth` is on). vetsmod never authenticates its outbound socket, so it is always
-such a socket (bug `outbound-socket-never-authenticated`).
+`unauth` is on). vetsmod authenticates its outbound socket only for a member tier and
+only against a server whose `server_info` carries `chat_tiers: "all"`
+([vetsmod_networking.md](vetsmod_networking.md) §1); otherwise it stays such a socket.
 
 `rank_change` acks `ok` even when the handler silently drops the frame on a
 validation failure, so a client cannot tell accepted from discarded.
@@ -82,7 +95,9 @@ as its snapshot for `!list`, after dropping an entry whose `server` or
 `username` is empty or whose `username` is not 3 to 16 characters of
 `[A-Za-z0-9_]`. A frame whose `entries` is not a list is dropped whole. vetsmod
 sends it only for a Returners member, and only when the tab list yielded
-entries.
+entries. The same gate covers the client's own use of the column: a viewer who
+is not a Returners member never reads it, since it holds their own guild's
+online players.
 
 `{"type":"queue_status","queued":true,"world":"NA30"}` reports the sender entering
 (`queued` true) or leaving (`queued` false) a world queue; `queued` is a
@@ -112,10 +127,12 @@ behaviour are in `v1_protocol.md` §1.9.
 ### The staff-action family
 
 Five frame types, not the four the spec's §1.10 title implies —
-`check_membership` was added later and the spec was never updated. All five
-share one gate, `_staff_session_or_error`, which is the extracted helper the
-family is built around: it returns the session when the connection is both
-authenticated *and* `is_staff`, otherwise the error payload to send back.
+`check_membership` was added later and documented at the end of §1.10. All
+five share one gate, `_staff_session_or_error`, which is the extracted helper
+the family is built around: it returns the session when the connection is both
+authenticated *and* `is_staff`, otherwise the error payload to send back. The
+one exception is `check_membership` from an authenticated non-staff session of
+tier `member`, which skips that gate and gets the invite verdict below.
 
 The gate is the same for all five: **auth always required** regardless of the
 `unauth` toggle, `is_staff` required, the `inbound` disabled-toggle bypassed,
@@ -130,7 +147,7 @@ Two contract details vetsmod has to implement:
 - On the commit ack, `kind` is the *internal* kind, not the frame name:
   `warn_add` returns `"warning"` and `eject_add` returns `"eject"`.
 
-`check_membership`, since the spec omits it, in full. The request mirrors
+`check_membership` in full (the spec's own copy is at the end of §1.10). The request mirrors
 `caution_check` — `{"type": "check_membership", "target_username": "<name or uuid>"}` —
 and the ack returns the snapshot **inline at top level** rather than nested,
 deliberately, so vetsmod's ack classifier can match it on `target_uuid`
@@ -147,9 +164,32 @@ exactly like a `caution_check` ack:
   "blocklist_reason":   null,
   "in_returners_guild": false,
   "waitlist_count":     0,
-  "cult":               null
+  "cult":               null,
+  "last_seen_observed": null
 }
 ```
+
+`last_seen_observed` is `null` or `{"ts": <unix seconds>, "server_at_observation": <str|null>,
+"observed_at": <int|null>}`: dazebot's best guess of the last activity it recorded for the
+player, not necessarily a server change. An older temporary-server omits the key; vetsmod reads
+that as `null`.
+
+**The invite verdict.** A non-staff session of tier `member` (temporary-server `49d12e2`) gets only
+what the `/gu invite` gate needs, so a Returners member can invite without seeing the blocklist:
+
+```json
+{
+  "status":          "ok",
+  "target_uuid":     "<uuid>",
+  "target_username": "<canonical mc username>",
+  "may_invite":      true,
+  "waitlist_count":  0
+}
+```
+
+`may_invite` is false exactly when the target is blocklisted. vetsmod reads it through
+`MembershipSnapshot.getMayInvite` / `blocksInvite`; the cascade's Vets step does not send for a
+non-staff session (`VetsSnapshotProvider.sendsLookup`), and `InviteGate` fetches the verdict itself.
 
 ### The MWE anni frames
 
@@ -200,32 +240,36 @@ staff ranks all map there. Old clients ignore the key and keep reading
 
 Authenticated chat is tier-gated: `guild` may send `guild`+`queue`, `waitlist`
 only `waitlist`, `honourary` only `honourary`. There is no `queue` tier — it is
-a guild-tier privilege. The same `auth` frame is accepted on `/v1/outbound`,
-where the resulting tier filters what the client receives. vetsmod does not send it
-there, so no tier filter applies to what vetsmod receives
-(`outbound-socket-never-authenticated`).
+a guild-tier privilege. The same `auth` frame is accepted on `/v1/outbound`, with
+the same staff resolution and ack (temporary-server `app/chat/auth_session.py`, since
+`eacb4da`), where the resulting tier filters what the client receives: every member
+tier gets every chat type, and a null `ws_tier` gets none. vetsmod sends it there
+only for a member tier (see "`server_info` hello" below).
 
 ### `server_info` hello
 
-Undocumented in the spec. Pushed once on `/v1/outbound` connect, before the
+Documented in `v1_protocol.md` §2.1 since temporary-server `eacb4da` (undocumented before). Pushed once on `/v1/outbound` connect, before the
 receive loop:
 
 ```json
-{"type": "server_info", "unauth_enabled": true}
+{"type": "server_info", "unauth_enabled": true, "chat_tiers": "all"}
 ```
 
 `unauth_enabled` is true when `unauth` is *not* in `disabled_components`.
 vetsmod uses it to phrase its session-start warning correctly
 (allowed-but-unauthenticated vs blocked-and-unauthenticated) and routes it
 straight to `SessionAuthWarning.onServerInfo()` ahead of the outbound
-listeners. Old clients see a frame with no `username`/`message` and ignore it.
+listeners. `chat_tiers` (from temporary-server `eacb4da`) advertises the
+all-tiers receive map; vetsmod authenticates its outbound socket only when it
+is `"all"`. Old clients see a frame with no `username`/`message` and ignore it.
 
 ### `/v1/outbound` broadcast
 
 Clients register in the outbound manager's connection set and receive processed
 messages from the FIFO `state.outbound_queue`, filtered per socket: an authenticated
-socket gets its tier's chat types plus `bridge`, and an unauthenticated one gets
-everything while `unauth` is on and nothing while it is off. Client `auth` frames are
+socket of a member tier gets every chat type (`guild`, `queue`, `waitlist`,
+`honourary`, `bridge`) and one with a null `ws_tier` gets none, and an
+unauthenticated one gets everything while `unauth` is on and nothing while it is off. Client `auth` frames are
 honoured (see "Auth frame and ack"); every other client frame is read and silently
 dropped. Dead
 connections are pruned. The broadcaster loop dequeues, records traffic, checks
@@ -311,7 +355,7 @@ exactly it.
 Errors are `{"status": "error", "detail": "..."}` and the connection stays
 open. Detail strings, verbatim:
 
-- `"Payload too large"`, `"Invalid JSON"`
+- `"Payload too large"`, `"Invalid JSON"` (also for a body that parses but is not a JSON object)
 - `"Missing required fields: <names>"` — validation errors surface `str(exc)` verbatim
 - `"Invalid message type '<x>'. Expected one of: guild, queue, waitlist, honourary"`
 - `"<Type> message rejected: invalid rank '<r>'. Expected one of: <sorted set>"`

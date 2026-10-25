@@ -60,10 +60,12 @@ import org.wynnvets.logging.VetsLogger;
  *       detected stream-on via {@link Source#AUTO_STREAM_ACTIVATED},
  *       and auto-restores {@link #preferredMode()} on stream-off via
  *       {@link Source#AUTO_STREAM_DEACTIVATED}.</li>
- *   <li>{@link #applyStartupDefaultIfNeeded()} at world-join /
- *       guild-info-updated via {@link Source#AUTO_STARTUP_DEFAULT}
- *       promotes still-default users from SILENT to PASSIVE once
- *       enrichment eligibility is confirmed.</li>
+ *   <li>{@link #applyStartupDefaultIfNeeded()} at world-join, on a guild-info
+ *       update, a {@code /gu stats} result and an ok auth ack, via
+ *       {@link Source#AUTO_STARTUP_DEFAULT},
+ *       re-applies the eligibility default to a user who never chose a
+ *       mode, in either direction: PASSIVE while enrichment-eligible,
+ *       SILENT otherwise.</li>
  * </ul>
  */
 public final class AnniModeManager {
@@ -85,7 +87,8 @@ public final class AnniModeManager {
          *  auto-restores the user's preferred mode via
          *  {@link #preferredMode()}. */
         AUTO_STREAM_DEACTIVATED,
-        /** Fired once at world-join / on guild-info update to apply the
+        /** Fired at world-join, on a guild-info update, a {@code /gu stats} result and an ok
+         *  auth ack, to apply the
          *  eligibility-based default (PASSIVE for enrichment-eligible
          *  users, SILENT otherwise) — but only while
          *  {@link VetsConfigKeys#VETS_ANNI_MODE_USER_SET} is {@code false}. */
@@ -113,8 +116,8 @@ public final class AnniModeManager {
      * untouched.</p>
      *
      * <p><b>Whether anything is printed depends entirely on the source, in both
-     * directions.</b> Only {@link Source#USER_COMMAND} sees the spec's "stream is
-     * suboptimal — try /toggle ghosts NONE" guidance on a refusal; the four
+     * directions.</b> Only {@link Source#USER_COMMAND} sees the spec's "/stream
+     * is incompatible; we would strongly prefer you use /toggle ghosts NONE" guidance on a refusal; the four
      * {@code AUTO_*} sources decline with a debug log and nothing user-visible.
      * Symmetrically, only {@code USER_COMMAND} and {@link Source#DEBUG_BYPASS_MUTEX}
      * print the generic "Anni mode: X (was Y)" confirmation on success — the four
@@ -144,19 +147,21 @@ public final class AnniModeManager {
             // decline. Debug bypasses the mutex above so never reaches here.
             if (source == Source.USER_COMMAND) {
                 ChatUtils.sendLocalMessage(
-                        Component.literal("Anni mode change refused: ")
-                                .withStyle(ChatFormatting.GRAY)
+                        Component.literal(
+                                        "You have /stream, which is incompatible with vetsmod anni"
+                                                + " features, active.")
+                                .withStyle(ChatFormatting.RED)
                                 .append(
-                                        Component.literal("/stream is active")
-                                                .withStyle(ChatFormatting.RED))
-                                .append(
-                                        Component.literal(". Stream is suboptimal for anni — try ")
+                                        Component.literal(" We would strongly prefer you use ")
                                                 .withStyle(ChatFormatting.GRAY))
                                 .append(
                                         Component.literal("/toggle ghosts NONE")
                                                 .withStyle(ChatFormatting.AQUA))
                                 .append(
-                                        Component.literal(" instead.")
+                                        Component.literal(
+                                                        " instead, which does the same thing"
+                                                                + " without hiding you from"
+                                                                + " organisers!")
                                                 .withStyle(ChatFormatting.GRAY)));
             } else {
                 VetsLogger.debug(
@@ -241,13 +246,11 @@ public final class AnniModeManager {
      * Idempotent — becomes a no-op forever once the user picks a mode.
      *
      * <p>Called from {@link org.wynnvets.guild.GuildLifecycle#onEnteredWorld
-     * GuildLifecycle#onEnteredWorld} and
-     * {@code onGuildInfoUpdated}, so that an eligibility change re-derives the default for a
-     * still-unset user: PASSIVE if enrichment-eligible, SILENT otherwise. Today only a change
-     * that reaches one of them (a world join, a Wynntils guild join or leave, or Wynntils'
-     * guild data turning up after a join) does; one from an auth ack or failure, a newly
-     * stored key, or a {@code /gu stats} result waits for the next world join
-     * ({@code anni-default-not-reapplied-on-auth-tier-flip}). Routes
+     * GuildLifecycle#onEnteredWorld}, {@code onGuildInfoUpdated} and
+     * {@code onGuildCheckCompleted}, and on an ok auth ack, so that an eligibility change
+     * re-derives the default for a still-unset user: PASSIVE if enrichment-eligible, SILENT
+     * otherwise. An auth failure or a newly stored key waits for the next of those, so a
+     * transient failure can't flicker the bar mid-anni. Routes
      * through {@link #transitionTo} so the
      * {@code /stream} mutex is honoured — if streaming, the transition
      * is silently refused and {@link StreamerModeChatDetector} will

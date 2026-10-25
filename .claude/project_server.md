@@ -10,7 +10,7 @@ type: project
 
 **Three pillars:**
 1. `/v1/inbound` WebSocket — receives messages from mod clients, validates/deduplicates/relays. Inbound chat types: `guild`, `queue`, `waitlist`, `honourary` (`queue` covers guild messages from a sender stuck in a Wynncraft world queue — see `v1_protocol.md` for why). Accepts fourteen control frame types — `register`, `tablist`, `queue_status`, `auth`, `rank_change`, the five staff-action frames and the four MWE anni frames. Full inventory in [server_api_reference.md](server_api_reference.md).
-2. `/v1/outbound` WebSocket — pushes processed chat to connected clients (FIFO queue, broadcast; tier-filtered for an authenticated socket, and unauthenticated sockets get it only while `unauth` is on). Outbound types add `bridge` (Discord relay). Pushes a `server_info` hello frame on connect; accepts `auth` frames from the client, and sends the targeted and control frames only to sockets that have sent one. vetsmod never does (bug `outbound-socket-never-authenticated`).
+2. `/v1/outbound` WebSocket — pushes processed chat to connected clients (FIFO queue, broadcast; tier-filtered for an authenticated socket, and unauthenticated sockets get it only while `unauth` is on). Outbound types add `bridge` (Discord relay). Pushes a `server_info` hello frame on connect; accepts `auth` frames from the client, and sends the targeted and control frames only to sockets that have sent one. vetsmod sends one only for a confirmed member tier, against a server whose `server_info` carries `chat_tiers: "all"`.
 3. Discord bot — bridges game↔Discord, handles admin commands (incl. `!disable unauth` toggle).
 4. (auxiliary) HTTP introspection client → dazebot's `POST /api/auth/introspect` validates each `auth` frame's key. 60s LRU cache, serve-stale-on-error during dazebot outages.
 
@@ -83,7 +83,7 @@ app/
 Naming is inconsistent in source and is not normalised here: `no-aspects` and `anni-snapshot` are hyphenated while `donor_pool` and `guild_motd` are underscored.
 
 **Deduplication (`app/services/dedup.py`):**
-- Fingerprint: `username_lower\x00message_stripped` (strips PUA glyphs)
+- Fingerprint: `username_lower\x00message` with PUA glyphs and every whitespace character removed, so copies whose spaces fell differently collide; the length gates count the text as sent
 - 35-second sliding window for exact matches (`DEDUP_WINDOW_SECONDS`)
 - Also handles: prefix match (item-encoded dual events), truncation match (soft-wrap), cross-user alias (nickname vs real name)
 - Alias TTL: 30s. Cleanup every 60s, amortized onto the next `is_duplicate()` call rather than scheduled — on an idle bridge it simply does not run.

@@ -86,7 +86,13 @@ public final class VetsBossBarManager {
      *  is left without the user having to read the countdown text. */
     private static final long PROGRESS_FULL_AT_SECONDS = 100L * 60L; // 100 min
 
-    /** Hard T-20s gate — independent of the content builder. */
+    /** Hard T-20s gate — independent of the content builder, whose
+     *  {@code VetsBossBarContentBuilder.T_MINUS_20_GATE_SECONDS} is the
+     *  other T-20s gate and holds the same 20. Neither constant reads the
+     *  other, on purpose; change both together. If they differ, the larger
+     *  alone decides when the bar goes, silently shadowing the other gate,
+     *  and this constant's progress ramp no longer ends where the builder's
+     *  scroll countdown does. */
     private static final long DROP_DEAD_SECONDS_BEFORE_ANNI = 20L;
 
     /** Failsafe: deactivate after this many ms regardless of mode. */
@@ -132,11 +138,12 @@ public final class VetsBossBarManager {
         VetsLogger.debug("VetsBossBarManager registered");
     }
 
-    /** Whether the synthetic bar is currently rendered. <b>Two</b>
+    /** Whether the synthetic bar is currently rendered. <b>Three</b>
      *  readers: {@link org.wynnvets.mixin.client.BossHealthOverlayMixin}
      *  gates packet swallowing on it — when false, vanilla boss bars
-     *  pass through unmolested — and {@code DebugCommands}' boss-bar
-     *  dump reports it. Only the first is behavioural; change the
+     *  pass through unmolested — {@link FlashTracker} queues a
+     *  snapshot-change ping only while it holds, and {@code DebugCommands}'
+     *  boss-bar dump reports it. The first two are behavioural; change the
      *  semantics and the dump's line needs re-reading too. */
     public static boolean isActive() {
         return active;
@@ -168,10 +175,8 @@ public final class VetsBossBarManager {
     }
 
     private static void tickInner() {
-        // Mode gate. SILENT is a strict no-op (per spec). Today this gate stops the bar only:
-        // tick() runs FlashTracker.tick() after tickInner returns, early or not, so pings that
-        // FlashTracker's snapshot listener queued still play
-        // (anni-flash-pings-play-while-bar-is-down).
+        // Mode gate. SILENT is a strict no-op (per spec). It also stops the snapshot pings,
+        // since FlashTracker queues one only while the bar is up.
         AnniMode mode = AnniModeManager.current();
         if (mode == AnniMode.SILENT) {
             if (active) deactivate();
@@ -313,17 +318,15 @@ public final class VetsBossBarManager {
      *
      *  <p>The 89.97% is derived, not observed, so it is re-checkable:
      *  {@code (5400 - 20) / (6000 - 20) = 0.89967}. It moves if either
-     *  constant does. Note also that {@code usable} is floored with
-     *  {@code Math.max(0L, …)}, so the {@code p < 0f} arm below cannot
-     *  fire — filed as
-     *  {@code vets-boss-bar-unreachable-negative-guard}, dead line, no
-     *  behaviour.</p> */
+     *  constant does. Only the upper clamp is needed: {@code usable} is
+     *  floored with {@code Math.max(0L, …)} and {@code window} is positive
+     *  past its guard, so {@code p} cannot go negative. Keep that floor —
+     *  it is the lower clamp.</p> */
     private static float progressFor(long secondsUntilAnni) {
         long window = PROGRESS_FULL_AT_SECONDS - DROP_DEAD_SECONDS_BEFORE_ANNI;
         long usable = Math.max(0L, secondsUntilAnni - DROP_DEAD_SECONDS_BEFORE_ANNI);
         if (window <= 0) return 0f;
         float p = (float) usable / (float) window;
-        if (p < 0f) return 0f;
         if (p > 1f) return 1f;
         return p;
     }

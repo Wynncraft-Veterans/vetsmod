@@ -2,6 +2,7 @@ package org.wynnvets.debug.anni;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -52,7 +53,7 @@ final class AnniHighlightDebugCommands {
         ChatUtils.sendLocalMessage(
                 Component.literal(
                                 "anni zone "
-                                        + action.toLowerCase()
+                                        + action.toLowerCase(Locale.ROOT)
                                         + ": forceInZone="
                                         + enter
                                         + " (S4 highlights gate)")
@@ -100,8 +101,8 @@ final class AnniHighlightDebugCommands {
         ChatFormatting fmt = entry.nametagFormatting();
         String roleLabel =
                 entry.role() == null
-                        ? entry.tier().name().toLowerCase()
-                        : entry.role().toUpperCase();
+                        ? entry.tier().name().toLowerCase(Locale.ROOT)
+                        : entry.role().toUpperCase(Locale.ROOT);
         Component msg =
                 Component.literal("anni registry set: ")
                         .withStyle(ChatFormatting.GREEN)
@@ -120,7 +121,7 @@ final class AnniHighlightDebugCommands {
                     msg.copy()
                             .append(
                                     Component.literal(
-                                                    "  [gate INACTIVE — flip outlines/nametags on, set a non-silent mode, "
+                                                    "  [gate INACTIVE - flip outlines/nametags on, set a non-silent mode, "
                                                             + "inject a snapshot, and /wv debug tree anni zone enter]")
                                             .withStyle(ChatFormatting.YELLOW));
         }
@@ -145,11 +146,10 @@ final class AnniHighlightDebugCommands {
 
     /** {@code /wv debug tree anni registry clearall} — drop every entry,
      *  including any naturally-derived from the current snapshot. The
-     *  next snapshot push (or {@code snapshot refresh}) rebuilds. Today no
-     *  {@code anni_state} push reaches vetsmod
-     *  ({@code outbound-socket-never-authenticated}); the rebuild comes with
-     *  the next cache write, which is a pull that returns a snapshot (a
-     *  successful {@code snapshot refresh}, say) or a debug command. */
+     *  next snapshot push (or {@code snapshot refresh}) rebuilds. A push arrives only on an
+     *  authenticated outbound socket; without one the rebuild comes with the next cache
+     *  write, which is a pull that returns a snapshot (a successful
+     *  {@code snapshot refresh}, say) or a debug command. */
     static int registryClearAll(CommandContext<FabricClientCommandSource> ctx) {
         int gate = AnniDebugCommands.requireDebug(ctx);
         if (gate == 0) return 0;

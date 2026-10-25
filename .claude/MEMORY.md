@@ -11,13 +11,14 @@
 - [Guild / Unlock / Staff-Rank System](vetsmod_guild_system.md) — GuildStateManager facade, GuildLifecycle (world join, disconnect reset), GuildChecker (3-day cache), StaffRankChecker (24h cache), UnlockManager (bearer-key auth, replaces SHA-256), SessionAuthWarning
 - [Config Reference](vetsmod_config.md) — All config keys (internal + user-facing) including new vetsAuth* fields, defaults, validation, persistence format
 - [Networking (WebSocket + Fetchers + Polling)](vetsmod_networking.md) — V1ApiManager (incl. sendAuth; frame builders in V1Frames; auth-ack routing in InboundAckRouter), WsClient reconnection/ping, on-demand HTTP fetchers, polling services
-- [Legacy Items System](project_legacy_items.md) — 8-branch detection cascade, 9-branch tooltip rewriter, YAML definitions, mixins, config, edge cases
+- [Legacy Items System](project_legacy_items.md) — 9-branch detection cascade, 10-branch tooltip rewriter, YAML definitions, mixins, config, edge cases
 - [Mixins Reference](vetsmod_mixins.md) — All 14 registered entries (13 mixins + 1 accessor): target class, inject point, purpose, rationale (UnlockCommandMixin intercepts `/unlock <key>`; QueueTitleMixin/CommandSuggestionsMixin handle queue UX)
 - [Queue subsystem](project_vetsmod.md) — `org.wynnvets.queue` package + how the `queue` chat type routes guild messages while the game server drops `/g`. Covered by that doc's `org.wynnvets.queue` bullet; it carries no headings, so there is no anchor to link.
 - [Rendering System](vetsmod_rendering.md) — Territory lines, NametagAnimator, AnimatedGradientSequence, GradientTextBuilder, ShaderColorPalette, and the render-pipeline lessons (sprite overrides, gate flags, Gizmos, MarkerProvider/beacon lifecycle)
 - [MWE / Annihilation](vetsmod_mwe_anni.md) — The whole `mwe/anni/` subsystem: snapshot cache, mode gates, boss bar, outlines and nametags, zone lines, scroll-spot waypoint, RSVP, party back-report, one complete config-key table and one complete `/wv debug tree anni` harness listing
 - [PUA Rank Pills](vetsmod_pua_pills.md) — How invisible PUA rank pills are framed and decoded, why a codepoint's meaning is frame-scoped, and `PillCodec` as the single encode/decode authority
 - [Guild Resource Distribution](vetsmod_distribute.md) — /wv distribute, the Manage-Members GUI automation state machine, the five modes, the NoAspects opt-out, front-of-queue command reflection
+- [Unit Tests](vetsmod_tests.md) — Every JUnit class under src/test/java, by package: its subject, what the suite pins down, and per @Test a summary plus one bullet per assertion statement (expression, relation, exact expected value)
 
 ## temporary-server (FastAPI Python backend)
 - [temporary-server Architecture](project_server.md) — Stack, three pillars plus the auxiliary dazebot HTTP introspection client, file structure (every service module), REST endpoints, dedup summary, Discord command surface

@@ -24,18 +24,17 @@ import org.wynnvets.mwe.anni.state.AnniSnapshots;
  * toggle it between {@code &l} and {@code &n&l}." World changes get
  * the additional "flash indefinitely until the user is on that world"
  * — that's modelled as a live mismatch predicate, not a one-shot
- * timed flash window. Today the ping is
- * {@code SoundEvents.EXPERIENCE_ORB_PICKUP}, not the Wynntils mention
- * sound the quote asks for
- * ({@code anni-flash-ping-is-not-the-wynntils-mention-sound}).</p>
+ * timed flash window. The ping is {@code SoundEvents.NOTE_BLOCK_PLING},
+ * the sound Wynntils' ChatMentionFeature plays for a mention, but at full
+ * volume ({@link #PING_VOLUME}) where Wynntils plays it at a quarter.</p>
  *
  * <p>Two ping/flash models:</p>
  * <ul>
  *   <li><b>Role / party / RSVP</b> — diff on snapshot push, latch a
  *       timed flash window sized by {@code vetsAnniFlashIntensity}, ping
- *       2× per change. Today no {@code anni_state} push reaches vetsmod
- *       ({@code outbound-socket-never-authenticated}), so the diff runs on
- *       each non-null snapshot a pull or a debug command stores. First
+ *       2× per change while the bar is up. The diff runs on each non-null snapshot an
+ *       {@code anni_state} push (authenticated outbound socket only), a pull or a debug
+ *       command stores. First
  *       observation is skipped (login-with-existing-state shouldn't bing
  *       on every reconnect). ⚠️ That
  *       config value is a <em>name</em>, not a millisecond count:
@@ -45,9 +44,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshots;
  *       unrecognised setting.</li>
  *   <li><b>World</b> — flash is live state ({@code party.world != null
  *       AND user is not on it}); the user walking on/off the right
- *       world toggles it silently. The ping fires on a different
- *       trigger: the snapshot's {@code party.world} value changes
- *       (assignment / reassignment). Position movement never bings.
+ *       world toggles it silently. The ping, which plays only while
+ *       the bar is up, fires on a different trigger: the snapshot's
+ *       {@code party.world} value changes (assignment /
+ *       reassignment). Position movement never bings.
  *       First observation is skipped (no bing on login).</li>
  * </ul>
  *
@@ -73,8 +73,15 @@ public final class FlashTracker {
      *  to a single 2-ping burst rather than 4+ sounds. */
     private static final int SOUNDS_CAP = 2;
 
-    /** Delay between the two sound plays so the second isn't masked. */
-    private static final long SOUND_INTER_DELAY_MS = 110L;
+    /** Minimum gap between the two plays. The queue drains on the 50 ms client tick, so the
+     *  second ping starts 300 to 350 ms after the first; at 110 ms the two fused into one. */
+    private static final long SOUND_INTER_DELAY_MS = 300L;
+
+    /** Volume of each ping: the most a sound instance can ask for, since {@code SoundEngine}
+     *  clamps it to 0 to 1 before the UI and Master sliders scale it. {@code forUI}'s
+     *  two-argument form, which Wynntils' mention ding uses, plays at 0.25, which was too quiet
+     *  in game. */
+    private static final float PING_VOLUME = 1.0f;
 
     // Per-field timed flashes for role/party/rsvp.
     private static volatile long flashRoleUntil = 0L;
@@ -90,7 +97,7 @@ public final class FlashTracker {
     // value is null" — distinct from "never observed", which is what
     // the *Observed sentinels track. The first observation in a session
     // is silent; every subsequent transition (including null → set and
-    // set → null) flashes and pings.
+    // set → null) flashes, and pings while the bar is up.
     private static volatile String lastRole = null;
     private static volatile Integer lastParty = null;
     private static volatile String lastRsvp = null;
@@ -172,7 +179,8 @@ public final class FlashTracker {
 
     /** Debug entry — force the named field into its flash window.
      *  For world, sets the mismatch flag directly (cleared on the next
-     *  tick if the live state disagrees). */
+     *  tick if the live state disagrees). Its ping does not wait for the
+     *  bar: it plays in any mode while {@code vetsAnniFlashSound} is on. */
     public static void forceFlash(String fieldKey) {
         long until = System.currentTimeMillis() + flashDurationMs();
         switch (fieldKey) {
@@ -234,7 +242,8 @@ public final class FlashTracker {
     }
 
     /** Diff the new snapshot against last-seen values. All four
-     *  field-change pings live here (role / party / RSVP / world).
+     *  field-change pings live here (role / party / RSVP / world), and
+     *  queue only while {@link VetsBossBarManager#isActive()} holds.
      *  World's mismatch FLASH state is separately recomputed each tick
      *  in {@link #updateWorldMismatch()} so position movement toggles
      *  the flash silently. */
@@ -279,7 +288,10 @@ public final class FlashTracker {
         worldObserved = true;
         lastWorld = worldCode;
 
-        if (anyChange) queuePingSounds();
+        // Pings go with the bar's flashes: none while it is down. The diff above still runs,
+        // so the baseline stays fresh. isActive() is the last tick's state, so a change
+        // that itself brings the bar up does not ping.
+        if (anyChange && VetsBossBarManager.isActive()) queuePingSounds();
     }
 
     /** Per-tick: recompute the live world-mismatch flag from the
@@ -326,7 +338,9 @@ public final class FlashTracker {
         if (mc == null || mc.getSoundManager() == null) return;
         try {
             mc.getSoundManager()
-                    .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
+                    .play(
+                            SimpleSoundInstance.forUI(
+                                    SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, PING_VOLUME));
         } catch (Exception e) {
             VetsLogger.debug("FlashTracker.playPingSound failed: {}", e.getMessage());
         }

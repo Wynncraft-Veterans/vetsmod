@@ -202,32 +202,45 @@ public final class FindDispatcher {
             return false;
         }
 
-        String sanitized = stripFormattingAndPua(message).toLowerCase(Locale.ROOT);
         String target = awaiting.usernameLower;
+        String reply = parseFindReply(stripFormattingAndPua(message), target);
+        if (reply == null) {
+            return false;
+        }
+        signalFindResponse(target, reply.isEmpty() ? null : reply);
+        return true;
+    }
+
+    /**
+     * What a sanitised {@code /find} reply line says about {@code target} (lower case): the
+     * server, lower-cased; {@link #PRIVATE_SERVER}; {@code ""} for not online (or no server
+     * given); or {@code null} when the line is not a reply about {@code target}. A reply opens
+     * with the queried name (after the space the stripped glyph run leaves), so the line must
+     * start with {@code target}: a longer name that merely ends with it is another player's
+     * reply.
+     */
+    // Package-private for unit tests. See FindDispatcherTest.
+    static String parseFindReply(String sanitized, String target) {
+        String line = sanitized.stripLeading().toLowerCase(Locale.ROOT);
 
         // "username is currently on server XX##"
         String onlineMarker = target + " is currently on server ";
-        int onlineIdx = sanitized.indexOf(onlineMarker);
-        if (onlineIdx >= 0) {
-            String afterMarker = sanitized.substring(onlineIdx + onlineMarker.length()).trim();
-            String server = afterMarker.split("\\s")[0];
-            signalFindResponse(target, server.isEmpty() ? null : server);
-            return true;
+        if (line.startsWith(onlineMarker)) {
+            String afterMarker = line.substring(onlineMarker.length()).trim();
+            return afterMarker.split("\\s")[0];
         }
 
         // "username is currently on a private server."
-        if (sanitized.contains(target + " is currently on a private server")) {
-            signalFindResponse(target, PRIVATE_SERVER);
-            return true;
+        if (line.startsWith(target + " is currently on a private server")) {
+            return PRIVATE_SERVER;
         }
 
         // "username is not currently online"
-        if (sanitized.contains(target + " is not currently online")) {
-            signalFindResponse(target, null);
-            return true;
+        if (line.startsWith(target + " is not currently online")) {
+            return "";
         }
 
-        return false;
+        return null;
     }
 
     private static void signalFindResponse(String usernameLower, String server) {

@@ -2,6 +2,7 @@ package org.wynnvets.mwe.anni.aggressive;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.utils.mc.McUtils;
+import java.time.Instant;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -48,6 +49,10 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * <p>Click action is a {@code suggestCommand} (not run-direct) so the
  * user has to actively confirm — avoids accidental toggle on stray
  * clicks.</p>
+ *
+ * <p>The prompt opens with "Anni starting soon - " before the stamp and "Anni underway - "
+ * from it on, since the aggressive gate's hot window runs past the start
+ * ({@link #promptLead}).</p>
  */
 public final class GhostsPromptHandler {
 
@@ -97,23 +102,24 @@ public final class GhostsPromptHandler {
 
         if (!rising) return;
 
+        long stamp = currentStampEpoch();
+        String lead = promptLead(stamp, Instant.now().getEpochSecond());
         boolean anyGhost = anyVisibleGhost(level, player);
         if (anyGhost) {
             // Ghosts confirmed on → prompt unconditionally.
-            firePrompt();
+            firePrompt(lead);
             return;
         }
 
         // Ambiguous: could be ghosts off, could be empty area. Fall back
         // to the per-stamp_epoch sentinel.
-        long stamp = currentStampEpoch();
         if (stamp <= 0L) return;
         String shownFor =
                 VetsConfig.getString(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP);
         if (shownFor == null) shownFor = "";
         String stampStr = Long.toString(stamp);
         if (stampStr.equals(shownFor)) return;
-        firePrompt();
+        firePrompt(lead);
         VetsConfig.setString(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP, stampStr);
     }
 
@@ -123,16 +129,11 @@ public final class GhostsPromptHandler {
             try {
                 if (Models.Player.isPlayerGhost(other)) return true;
             } catch (Exception e) {
-                // Wynntils not initialised or transient model failure.
-                // ⚠️ This does NOT fall through to the next player: the
-                // return abandons the whole scan and reports "no ghost
-                // seen". A throw at or before the first ghost in iteration
-                // order therefore downgrades a confirmed-ghosts result to the
-                // ambiguous branch; after it, the return true has already won.
-                // Filed
-                // as ghosts-prompt-scan-aborts-on-first-exception; the
-                // catch belongs outside the loop, or should continue.
-                return false;
+                // Wynntils not initialised or transient model failure —
+                // treat this player as "no info" and check the rest. Keep
+                // the catch inside the loop: outside it, one throw would
+                // abandon the whole scan.
+                continue;
             }
         }
         return false;
@@ -147,16 +148,25 @@ public final class GhostsPromptHandler {
         return stamp != null ? stamp : 0L;
     }
 
-    private static void firePrompt() {
+    /**
+     * The prompt's opening words: "Anni underway - " once {@code now} (epoch seconds) has reached
+     * a known {@code stamp}, else "Anni starting soon - " (also when the stamp is unknown, 0).
+     */
+    // Package-private for unit tests. See GhostsPromptHandlerTest.
+    static String promptLead(long stamp, long now) {
+        return stamp > 0L && now >= stamp ? "Anni underway - " : "Anni starting soon - ";
+    }
+
+    private static void firePrompt(String lead) {
         Minecraft mc = McUtils.mc();
         if (mc == null) return;
         mc.execute(
                 () -> {
                     MutableComponent suggestion =
-                            Component.literal("[Suggest: /toggle ghosts none]")
+                            Component.literal("[We suggest: /toggle ghosts none]")
                                     .withStyle(
                                             s ->
-                                                    s.withColor(ChatFormatting.GOLD)
+                                                    s.withColor(ChatFormatting.GRAY)
                                                             .withUnderlined(true)
                                                             .withClickEvent(
                                                                     new ClickEvent.SuggestCommand(
@@ -164,10 +174,9 @@ public final class GhostsPromptHandler {
                                                             .withHoverEvent(
                                                                     new HoverEvent.ShowText(
                                                                             Component.literal(
-                                                                                    "Hides phased players from other worlds. "
-                                                                                            + "Less visual noise during anni."))));
+                                                                                    "Hides players from other worlds, easier to see."))));
                     MutableComponent msg =
-                            Component.literal("Anni starting soon — ")
+                            Component.literal(lead)
                                     .withStyle(ChatFormatting.AQUA)
                                     .append(suggestion);
                     ChatUtils.sendLocalMessage(msg);

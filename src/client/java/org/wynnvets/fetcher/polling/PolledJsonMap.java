@@ -64,9 +64,8 @@ public final class PolledJsonMap {
      * members. The VetsMod server resolves each member's UUID against the Minecraft Services
      * API and exposes the corrected mapping here. Keys are UUIDs and are stored exactly as the
      * server spells them — no normalization, as the roster cache did.
-     * {@code OnlineMemberService.merge()} relies on that spelling matching
-     * {@code UUID.toString()}, which per temporary-server it does today; filed as
-     * {@code online-member-service-roster-overlay-assumes-uuid-spelling}.</p>
+     * {@code OnlineMemberService.merge()} canonicalises the keys itself when it overlays the
+     * roster, so the server's spelling does not matter to it.</p>
      */
     public static final PolledJsonMap GUILD_ROSTER =
             new PolledJsonMap(

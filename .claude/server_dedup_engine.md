@@ -89,13 +89,20 @@ Both have the shape `{resolved_username}\x00{content}`.
 - Null-byte separator — it cannot appear after sanitization, which strips
   control characters.
 - The full fingerprint's content is the message with every supplementary PUA
-  codepoint (`ord >= 0xF0000`) removed, then stripped. **If that leaves an
-  empty string it falls back to the raw message** — a pure-PUA item share
-  would otherwise collapse to `{username}\x00` and dedup every distinct item
-  a player posted.
-- The prefix fingerprint is the text before the first PUA codepoint,
-  right-stripped, and is only produced when that text is non-empty — an empty
-  prefix would `startswith`-match everything.
+  codepoint (`ord >= 0xF0000`) and every whitespace character removed (from
+  temporary-server `1d257b5`). **If that leaves an empty string it falls back
+  to the raw message** — a pure-PUA item share would otherwise collapse to
+  `{username}\x00` and dedup every distinct item a player posted. Removing
+  whitespace makes copies of one line collide however their spaces fell: an
+  `exact_text` client's `.../me Then more` and an older client's repaired
+  `.../meThen more`, or a URL Wynncraft broke in place, whole from one client
+  and in pieces from another.
+- The prefix fingerprint is the text before the first PUA codepoint, with
+  whitespace removed, and is only produced when that text is non-empty — an
+  empty prefix would `startswith`-match everything.
+- The length gates of strategies 3 and 4 count the message as sent (PUA
+  removed, spaces kept): `_content_length`, kept per fingerprint in
+  `_seen_len`, so squashing the fingerprint does not shrink them.
 
 ## Matching strategies
 
@@ -126,14 +133,14 @@ strategy with **no length threshold**.
 
 Scans in-window `_seen` entries **from the same resolved user**. Both the
 incoming body and the seen body must be at least `DEDUP_MIN_PREFIX_LENGTH`
-(20) characters, and either may be a prefix of the other — the test is
+(20) characters as sent, spaces included, and either may be a prefix of the other — the test is
 bidirectional. Handles Wynncraft's line-wrap artifacts, where one client sees
 `"hello worl"` and another sees `"hello world"`.
 
 ### 4. Cross-username alias (nickname vs real name)
 
 Gated on the **incoming** body being at least `DEDUP_MIN_CROSS_USER_LENGTH`
-(20) characters — note the asymmetry with strategy 3, which checks both
+(20) characters as sent, spaces included — note the asymmetry with strategy 3, which checks both
 sides. Scans in-window `_seen` entries from a *different* resolved user for an
 **exact** body equality. On a hit it self-heals by calling `register_alias`
 for the pair, logs at debug level, and reports the duplicate.
@@ -212,7 +219,7 @@ nothing to collapse.
 - **Line wrapping:** truncation match (≥20 chars)
 - **Pure-PUA item shares:** the raw-message fallback in `_fingerprint`
 - **Profanity censoring:** NOT handled (would require fuzzy matching) — each censored variant is distinct
-- **URLs with spaces:** the vetsmod client repairs these before relay; since 2026-07, `sanitize_inbound` repeats the same repair server-side too, so this is no longer client-only
+- **URLs with spaces:** the vetsmod client joins a URL Wynncraft hard-broke across lines from the raw line breaks (`UrlWrapJoiner`, [vetsmod_networking.md](vetsmod_networking.md) §6) and marks its `register` frame `exact_text: true`; `sanitize_inbound` still runs a token-guessing repair for older clients and unregistered sockets, and skips it for an `exact_text` socket; the whitespace-free fingerprint (above) makes the two kinds of copy collide
 
 ## Edge cases NOT handled (by design)
 

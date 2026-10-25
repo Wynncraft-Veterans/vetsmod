@@ -4,6 +4,8 @@ import java.util.Deque;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.DistributeRuns;
+import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.logging.VetsLogger;
 
@@ -18,7 +20,8 @@ import org.wynnvets.logging.VetsLogger;
  * {@code MemberSlotPresser.fire} on whatever slot it matches, with the next
  * {@link #processNext} threaded through <em>both</em> the send's completion and the
  * searcher's not-found callback &mdash; so a member who cannot be located costs the queue
- * one entry rather than the whole run. The recursion is the loop; there is no other driver.
+ * one entry rather than the whole run. A lost Members menu does cost the whole run: the next
+ * pop finds it gone and stops. The recursion is the loop; there is no other driver.
  *
  * <h2>Why no name resolution happens here</h2>
  *
@@ -62,13 +65,14 @@ import org.wynnvets.logging.VetsLogger;
  *   <li><b>The arming order.</b> {@link RandomDistributor} and {@link GraidsDistributor}
  *       call {@link #processNext} <em>before</em>
  *       {@link org.wynnvets.distribute.opener.GuildManageOpener#openManageMembers()
- *       GuildManageOpener.openManageMembers()}, so the searcher is armed by the time
+ *       GuildManageOpener.openManageMembers()}, passing {@code menuOpen = false}, so the
+ *       searcher is armed, ignoring any Members menu already open, by the time
  *       {@code MenuOpenedEvent.Pre} fires and binds on it. {@link ObjectivesDistributor}
  *       calls it with the Members menu already open &mdash; its walk ended there &mdash; and
  *       so takes the searcher's re-arm fast path instead. Only the <em>first</em> pop
  *       differs: a later one normally re-arms into a menu the previous send left open,
- *       whichever head queued it. (If that menu has gone by then, nothing here reopens it;
- *       see {@code distribute-escape-mid-run-drains-through-watchdog}.)</li>
+ *       whichever head queued it. (If that menu has gone by then, nothing here reopens it:
+ *       the run stops.)</li>
  *   <li><b>Closing the menu on an early out.</b> Of this loop's own paths, only the
  *       {@code queue.isEmpty()} terminal below closes the Members menu. Each head's own
  *       no-recipient exits answer that question separately, and all three answers are
@@ -77,8 +81,7 @@ import org.wynnvets.logging.VetsLogger;
  *       {@link GraidsDistributor} does not, because none of its early-outs has opened the
  *       Members menu, so there is no Members menu for it to close &mdash; the Guild Log, if
  *       {@link org.wynnvets.distribute.walker.GuildLogWalker GuildLogWalker} bound it, the walker
- *       closes itself, and a Manage menu the Log route left open is a different menu
- *       ({@code graids-log-never-reached-reported-as-empty-log});
+ *       closes itself, and the opener closes a Manage menu that has no Guild Log tile;
  *       {@link RandomDistributor} does not,
  *       because at that point it has opened nothing at all.</li>
  * </ul>
@@ -97,29 +100,46 @@ final class DistributionQueue {
     /**
      * Sends to the head of {@code queue} and re-enters itself when that send finishes, or
      * finishes the run when the queue is empty: green {@code "Distribution complete."},
-     * {@link MemberSlotPresser#closeMembersScreen()}, then {@code onComplete}.
+     * {@link org.wynnvets.distribute.MembersGui#closeIfOpen() MembersGui.closeIfOpen()}, then
+     * {@code onComplete}. A pop that expects the Members menu already open first checks that it
+     * is still there, and stops the run if it is not &mdash; the player pressed Esc, or the
+     * server closed it &mdash; rather than search for each remaining recipient in a menu that
+     * is not there.
      *
      * @param queue drained in place; the caller keeps no other reference to it
      * @param resource which hotbar button the presser synthesises
      * @param onComplete fired at most once, after the terminal close, and only if the queue
-     *     drains &mdash; a send or search that ends without calling back ends the run without it
-     *     ({@code member-slot-presser-drops-completion}, and the searcher and presser
-     *     {@code no} rows of {@code vetsmod_distribute.md} §7); may be {@code null} for the
-     *     heads' two-argument
-     *     {@code dispatch} entry points, which chain nothing
+     *     drains &mdash; a stopped run ends without it. The heads' two-argument
+     *     {@code dispatch} entry points pass
+     *     {@link org.wynnvets.distribute.DistributeRuns#finished() DistributeRuns.finished()};
+     *     may be {@code null}
      * @param logTag prefix for this run's debug lines &mdash; the calling head's simple
      *     class name, so an {@code @split} run's three phases stay distinguishable in the
      *     log
+     * @param menuOpen whether this pop expects the Members menu already open: {@code true} for
+     *     every pop after a send or search, and for {@code @objectives}' first, whose walk ends
+     *     in the menu. {@code false} for a first pop armed before its head opens the menu
+     *     ({@code @random}, {@code @graids}); the searcher then ignores a Members menu that is
+     *     already open, about to be replaced, and binds the one the head opens.
      */
     static void processNext(
             Deque<Distribution> queue,
             MemberSlotPresser.Resource resource,
             Runnable onComplete,
-            String logTag) {
+            String logTag,
+            boolean menuOpen) {
+        if (menuOpen && MembersGui.currentByTitle() == null) {
+            VetsLogger.debug(
+                    "{}: Members menu gone with {} recipients left, stopping",
+                    logTag,
+                    queue.size());
+            DistributeRuns.stop("the Members menu is not open");
+            return;
+        }
         if (queue.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal("Distribution complete.").withStyle(ChatFormatting.GREEN));
-            MemberSlotPresser.closeMembersScreen();
+            MembersGui.closeIfOpen();
             if (onComplete != null) onComplete.run();
             return;
         }
@@ -142,7 +162,8 @@ final class DistributionQueue {
                                 resource,
                                 d.count(),
                                 d.legacyName(),
-                                () -> processNext(queue, resource, onComplete, logTag)),
-                () -> processNext(queue, resource, onComplete, logTag));
+                                () -> processNext(queue, resource, onComplete, logTag, true)),
+                () -> processNext(queue, resource, onComplete, logTag, true),
+                menuOpen);
     }
 }

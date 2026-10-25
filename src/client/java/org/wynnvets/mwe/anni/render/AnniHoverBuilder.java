@@ -1,6 +1,7 @@
 package org.wynnvets.mwe.anni.render;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
@@ -93,12 +94,13 @@ public final class AnniHoverBuilder {
      *  up unannounced" — unannounced-but-on-time is
      *  {@code attend_early}, and that is the yellow arm. So {@code null}
      *  and any unrecognised key both fall to GRAY — though
-     *  {@link #rsvpBadge} labels only the {@code null} case
-     *  {@code NO RSVP}, and renders an unrecognised key as the raw
-     *  string upper-cased, in the same gray. The boss
-     *  bar's {@code VetsBossBarContentBuilder.rsvpChip} paints a
-     *  {@code null} notice yellow instead; that is a filed defect on the
-     *  bar, not a second opinion about the rule.</p> */
+     *  {@link #rsvpBadge} labels the {@code null} case {@code RSVP-NONE},
+     *  as it does both walk-ins, so only the colour tells those three
+     *  apart, and renders an unrecognised key as the raw string
+     *  upper-cased, in the same gray. The boss
+     *  bar's {@code VetsBossBarContentBuilder.rsvpChip} agrees on every
+     *  notice the server sends; it has no arms for the three defensive
+     *  aliases, which it shows upper-cased in gray.</p> */
     public static ChatFormatting noticeColor(String noticeEffective) {
         if (noticeEffective == null) return ChatFormatting.GRAY;
         switch (noticeEffective.toLowerCase(Locale.ROOT)) {
@@ -143,6 +145,24 @@ public final class AnniHoverBuilder {
     }
 
     // ── Component widgets ───────────────────────────────────────────────
+
+    /** The {@code Eligible Roles} label followed by one {@link #roleChip(AnniSnapshot.RoleEntry)
+     *  role chip} per entry, joined by dark-gray middle dots. The not-announced render (beside its
+     *  dashboard link, through {@link AnniOnboardingBlocks#vetsNotAnnouncedRoles}) and the
+     *  announced registration section ({@link AnniStatusSections}) render the same line, so it
+     *  lives here once. */
+    static MutableComponent eligibleRolesLine(List<AnniSnapshot.RoleEntry> roles) {
+        MutableComponent line = label("Eligible Roles", ChatFormatting.GRAY);
+        boolean first = true;
+        for (AnniSnapshot.RoleEntry role : roles) {
+            if (!first) {
+                line.append(Component.literal(" · ").withStyle(ChatFormatting.DARK_GRAY));
+            }
+            line.append(roleChip(role));
+            first = false;
+        }
+        return line;
+    }
 
     /** Role chip — coloured role label, clickable to its docs anchor,
      *  hover-describing the role title. */
@@ -255,30 +275,29 @@ public final class AnniHoverBuilder {
             noticeKey = attendance.noticeEffective();
         }
         // Long form for chat-space callers (this badge). The short forms
-        // (HRSVP / SRSVP / WALKIN / LATE) exist for boss-bar style
-        // space-constrained UI surfaces and live with whichever
-        // future renderer needs them; chat has space to spell it out.
+        // (HrdRSVP / SftRSVP / NotRSVP) are the boss bar's, emitted by
+        // VetsBossBarContentBuilder.rsvpChip; chat has space to spell it out.
         String label;
+        // A walk-in has no RSVP either, so both walk-ins share RSVP-NONE with the
+        // no-notice case; noticeColor tells the three apart.
         if (noticeKey == null) {
-            label = "NO RSVP";
+            label = "RSVP-NONE";
         } else {
             switch (noticeKey.toLowerCase(Locale.ROOT)) {
                 case "hard":
                 case "rsvp_hard":
-                    label = "HARD RSVP";
+                    label = "RSVP-HARD";
                     break;
                 case "soft":
                 case "rsvp_soft":
-                    label = "SOFT RSVP";
+                    label = "RSVP-SOFT";
                     break;
                 case "attend_early":
                 case "walkin":
                 case "walk_in":
-                    label = "EARLY WALK-IN";
-                    break;
                 case "attend_late":
                 case "late":
-                    label = "LATE WALK-IN";
+                    label = "RSVP-NONE";
                     break;
                 default:
                     label = noticeKey.toUpperCase(Locale.ROOT);
@@ -289,7 +308,7 @@ public final class AnniHoverBuilder {
         if (showHovers()) {
             String hoverBody =
                     noticeKey == null
-                            ? "You haven't RSVP'd to this anni.\nClick to /wv anni rsvp."
+                            ? "You haven't RSVP'd to this anni.\nClick to open the RSVP guide."
                             : "Effective notice: " + noticeKey + "\nClick to open the RSVP guide.";
             style =
                     style.withHoverEvent(
@@ -322,7 +341,7 @@ public final class AnniHoverBuilder {
                     "Band "
                             + band
                             + "/6"
-                            + (attendance.label() != null ? " — " + attendance.label() : "")
+                            + (attendance.label() != null ? " - " + attendance.label() : "")
                             + "\nMirrors the anni.wynnvets.org/me attendance bar.";
             barStyle =
                     barStyle.withHoverEvent(

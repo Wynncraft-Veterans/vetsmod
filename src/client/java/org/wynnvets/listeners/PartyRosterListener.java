@@ -4,6 +4,7 @@ import com.wynntils.core.WynntilsMod;
 import com.wynntils.core.components.Models;
 import com.wynntils.models.players.event.PartyEvent;
 import com.wynntils.models.worlds.event.WorldStateEvent;
+import com.wynntils.utils.mc.McUtils;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -12,6 +13,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import net.minecraft.client.Minecraft;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.network.AnniWsSender;
@@ -37,9 +39,17 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * {@code PartyEvent.Listed}, which {@link #onListed} catches. The capture that follows is empty,
  * and {@link #shouldSend}'s organiser-overlap rule suppresses an empty capture, so no "not in a
  * party" frame is sent; per vets-anni, its receiver also returns early on an empty leader. Today
- * vetsmod therefore reports no leave, and vets-anni keeps the departed member's pairing, counting
- * it fresh while any client keeps reporting; see
- * {@code party-observation-lapses-within-vets-anni-freshness}.</p>
+ * vetsmod therefore reports no leave. vets-anni keeps a departed member's pairing only until
+ * the next observation of that party whose names all resolve (its receiver replaces the
+ * leader's roster on such an observation, from any client) or until the member's own entry
+ * expires: it stamps every member each observation lists and ages entries out per member after
+ * its TTL (90 s), and clears the whole map at the grace-wipe.</p>
+ *
+ * <p>So that a quiet static party stays fresh, a flush that passed {@link #shouldSend} re-arms a
+ * heartbeat: {@link #HEARTBEAT_MS} later it recaptures and, while the gate still holds, sends
+ * again, so vetsmod re-sends every 30 s while in an organiser's party. A real event cancels the
+ * pending heartbeat by capturing afresh, and a suppressed flush (left the party, window over, no
+ * organiser) does not re-arm, so heartbeats stop by themselves.</p>
  *
  * <p>S7 gate: send iff the anni stamp is within {@link
  * #ACTIVE_WINDOW_SEC} of {@code now} AND the snapshot's
@@ -48,25 +58,32 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * organiser and every party host, so "any party member is an organiser" is a cheap pre-filter;
  * vets-anni itself upgrades {@code ONLINE_WORLD → ONLINE_PARTY} only when the reported party
  * leader is that member's assigned host. Snapshot-driven recaptures
- * ({@link #requestRecapture()}) are meant to cover the "anni window opens while parked in a party"
- * case, where no {@link PartyEvent} would fire on its own. Today they fire when the organiser set
- * changes, not when the window opens, so a set that was already complete before the window opened
- * triggers nothing then; see {@code party-reporter-window-open-not-a-trigger}.</p>
+ * ({@link #requestRecapture()}) cover the "anni window opens while parked in a party" case,
+ * where no {@link PartyEvent} would fire on its own: {@link
+ * org.wynnvets.mwe.anni.AnniPartyReporter AnniPartyReporter} requests one when the organiser set
+ * changes, and once when a snapshot update first finds the stamp inside the window
+ * ({@link #inActiveWindow}). The window is read on snapshot updates, so that recapture comes with
+ * the first update after T-2h, at about T-90m unless an earlier pull lands.</p>
  *
- * <p>Threading: the design captures a defensively-copied snapshot on the render thread, where
- * Wynntils events arrive, so the send can't race a concurrent {@code PartyModel} mutation. Today
- * {@link #requestRecapture()} captures on whichever thread called {@link AnniSnapshotCache#update}:
- * the one delivering WebSocket frames, or, for a debug injection, the render thread that runs
- * client commands. The first reads {@code PartyModel} off the render thread; see
- * {@code party-roster-recapture-reads-party-model-off-thread}. Either way, the send then runs on a
- * daemon single-thread scheduler. The scheduler thread sends through
- * {@link AnniWsSender#sendAnniPartyObservation}, which is not serialised against other
- * senders: a send that overlaps another frame on the same socket is dropped
- * ({@code ws-client-send-ignores-send-pending-failure}).</p>
+ * <p>Threading: every capture takes a defensively-copied snapshot on the render thread, where
+ * Wynntils events arrive, so the send can't race a concurrent {@code PartyModel} mutation.
+ * {@link #requestRecapture()} is called on whichever thread called
+ * {@link AnniSnapshotCache#update} (the one delivering WebSocket frames, or the render thread for a
+ * debug injection), so it hands the capture to the render thread with {@code Minecraft.execute},
+ * which queues it for the next task drain, a command typed on the render thread included. The send
+ * then runs on a daemon single-thread scheduler. The scheduler thread sends through
+ * {@link AnniWsSender#sendAnniPartyObservation}; {@code WsClient} queues that write behind any
+ * other frame on the same socket, so a concurrent send no longer drops it.</p>
  */
 public final class PartyRosterListener {
 
     private static final long DEBOUNCE_MS = 300L;
+
+    /** How long after a flush that passed {@link #shouldSend} the next observation is re-sent
+     *  if no event comes first. vets-anni expires a member 90 s after the last observation that
+     *  listed them, so this outlasts one lost beat; beats land a little over 30 s apart (the
+     *  debounce and the render-thread hop), so a second lost one can let the pairing lapse. */
+    static final long HEARTBEAT_MS = 30_000L;
 
     /** Send {@code anni_party_observation} only when the announced anni
      *  is within this many seconds of {@code now} on either side. Outside
@@ -83,6 +100,11 @@ public final class PartyRosterListener {
 
     private static final Object scheduleLock = new Object();
     private static ScheduledFuture<?> pending;
+
+    /** Bumped by each {@link #captureAndSchedule}, under {@link #scheduleLock}, so a flush can
+     *  tell that a newer capture owns {@link #pending} before it re-arms the heartbeat. */
+    private static long scheduleGeneration;
+
     private static volatile Snapshot latest = Snapshot.EMPTY;
 
     private static final PartyRosterListener INSTANCE = new PartyRosterListener();
@@ -141,25 +163,24 @@ public final class PartyRosterListener {
     /**
      * Trigger a synthetic recapture from outside the Wynntils event bus.
      * Used by {@link org.wynnvets.mwe.anni.AnniPartyReporter AnniPartyReporter} when an
-     * incoming snapshot's {@code organiser_usernames} list changes — meant for
-     * window-open, when the local party may have been static for ages and no
-     * {@link PartyEvent} would fire on its own. Today a window opening with an
-     * unchanged organiser set calls nothing here
-     * ({@code party-reporter-window-open-not-a-trigger}). The capture runs on the
-     * caller's thread; see Threading in the class doc.
+     * incoming snapshot's {@code organiser_usernames} list changes, and when the first snapshot
+     * update finds the anni stamp inside the window. The second case is for the window
+     * opening, when the local party may have been static for ages and no
+     * {@link PartyEvent} would fire on its own. The capture runs on the
+     * render thread; see Threading in the class doc.
      */
     public static void requestRecapture() {
-        captureAndSchedule();
+        Minecraft mc = McUtils.mc();
+        if (mc == null) return;
+        mc.execute(PartyRosterListener::captureAndSchedule);
     }
 
     // --- snapshot + send ---------------------------------------------------
 
     private static void captureAndSchedule() {
-        // Capture on the calling thread, meant to be the render thread, where PartyModel reads
-        // are consistent. Today a snapshot-driven recapture runs on whichever thread called
-        // AnniSnapshotCache.update, which for a pulled snapshot is not the render thread
-        // (party-roster-recapture-reads-party-model-off-thread). The send runs from the
-        // scheduler thread off this snapshot.
+        // Capture on the render thread, where PartyModel reads are consistent: Wynntils events
+        // arrive there, and requestRecapture hops there. The send runs from the scheduler
+        // thread off this snapshot.
         Snapshot snap;
         if (Models.Party.isInParty()) {
             String leader = Models.Party.getPartyLeader().orElse("");
@@ -174,18 +195,19 @@ public final class PartyRosterListener {
             if (pending != null && !pending.isDone()) {
                 pending.cancel(false);
             }
+            long generation = ++scheduleGeneration;
             pending =
-                    SCHEDULER.schedule(
-                            PartyRosterListener::flush, DEBOUNCE_MS, TimeUnit.MILLISECONDS);
+                    SCHEDULER.schedule(() -> flush(generation), DEBOUNCE_MS, TimeUnit.MILLISECONDS);
         }
     }
 
-    private static void flush() {
+    private static void flush(long generation) {
         Snapshot toSend = latest;
         AnniSnapshot snapshot = AnniSnapshotCache.latest();
         long stamp = snapshotStamp(snapshot);
         long now = System.currentTimeMillis() / 1000L;
-        if (!shouldSend(toSend, snapshot, stamp, now)) {
+        boolean gatePassed = shouldSend(toSend, snapshot, stamp, now);
+        if (!gatePassed) {
             VetsLogger.debug(
                     "anni_party_observation suppressed (no organiser in party / out of window)");
             return;
@@ -196,6 +218,35 @@ public final class PartyRosterListener {
         } catch (Exception e) {
             VetsLogger.debug("anni_party_observation send failed: {}", e.getMessage());
         }
+        // Re-armed on the gate, not on the send's success, so heartbeats survive a socket
+        // reconnect (a send while the socket is down is simply lost).
+        armHeartbeat(generation, heartbeatDelayMs(gatePassed));
+    }
+
+    /**
+     * Schedules the heartbeat into {@link #pending}, unless a real event's capture has taken the
+     * slot since the flush that is re-arming it was scheduled ({@code generation} is stale). The
+     * heartbeat is {@link #requestRecapture()}, which re-reads {@code Models.Party} on the render
+     * thread and so goes through {@link #captureAndSchedule} like any event: that cancels
+     * whatever is pending and flushes again, which re-arms if the gate still holds.
+     */
+    private static void armHeartbeat(long generation, long delayMs) {
+        if (delayMs < 0) return;
+        synchronized (scheduleLock) {
+            if (generation != scheduleGeneration) return;
+            pending =
+                    SCHEDULER.schedule(
+                            PartyRosterListener::requestRecapture, delayMs, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /**
+     * Pure: how long after a flush the heartbeat recapture runs. {@link #HEARTBEAT_MS} when the
+     * flush passed {@link #shouldSend}, {@code -1} (no heartbeat) when it was suppressed.
+     */
+    // Package-private for unit tests. See PartyRosterListenerTest.
+    static long heartbeatDelayMs(boolean gatePassed) {
+        return gatePassed ? HEARTBEAT_MS : -1L;
     }
 
     /**
@@ -206,7 +257,7 @@ public final class PartyRosterListener {
      * anni stamp from temp-server. Returns {@code 0} when no stamp is available, which suppresses
      * the send.
      */
-    private static long snapshotStamp(AnniSnapshot snapshot) {
+    public static long snapshotStamp(AnniSnapshot snapshot) {
         if (snapshot == null || snapshot.event() == null) return 0L;
         Long stamp = snapshot.event().stampEpoch();
         return stamp != null ? stamp : 0L;
@@ -235,9 +286,7 @@ public final class PartyRosterListener {
      */
     static boolean shouldSend(Snapshot snap, AnniSnapshot snapshot, long stamp, long now) {
         // (1) Anni window — quietest possible default.
-        if (stamp == 0) return false;
-        long delta = stamp - now;
-        if (delta < -ACTIVE_WINDOW_SEC || delta > ACTIVE_WINDOW_SEC) return false;
+        if (!inActiveWindow(stamp, now)) return false;
 
         // (2) Snapshot present and has organiser usernames.
         if (snapshot == null) return false;
@@ -263,6 +312,21 @@ public final class PartyRosterListener {
             }
         }
         return false;
+    }
+
+    /**
+     * Pure predicate (no statics, no I/O): is the anni stamp inside the active window? True when
+     * {@code stamp != 0} and {@code |stamp - now| <= ACTIVE_WINDOW_SEC}, both edges inclusive.
+     * {@link #shouldSend} applies it as rule 1, and {@link org.wynnvets.mwe.anni.AnniPartyReporter
+     * AnniPartyReporter} reads it to spot the window opening.
+     *
+     * @param stamp anni epoch-seconds (0 = none announced)
+     * @param now   current wall-clock epoch-seconds
+     */
+    public static boolean inActiveWindow(long stamp, long now) {
+        if (stamp == 0) return false;
+        long delta = stamp - now;
+        return delta >= -ACTIVE_WINDOW_SEC && delta <= ACTIVE_WINDOW_SEC;
     }
 
     record Snapshot(String leader, List<String> members) {

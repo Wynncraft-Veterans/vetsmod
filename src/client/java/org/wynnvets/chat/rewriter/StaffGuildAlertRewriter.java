@@ -49,10 +49,10 @@ public final class StaffGuildAlertRewriter {
      * gates: chat this client does not also see in Wynncraft's own guild
      * channel. For a Returner that is queue relays, plus guild frames while
      * queued; a waitlist- or honourary-unlocked user gets both types. Those
-     * users get them today only because vetsmod never authenticates its
-     * outbound socket, so temporary-server's tier filter, which would withhold
-     * both types from them, does not apply
-     * ({@code outbound-socket-never-authenticated}).</p>
+     * users get them because the outbound socket authenticates only against a server
+     * advertising {@code chat_tiers: "all"}, which gives every member tier every chat
+     * type; an older temporary-server's tier filter would have withheld both types
+     * from them.</p>
      *
      * @param username the sender's username (already resolved by the server)
      * @param message  the message body (may start with {@code ‼})

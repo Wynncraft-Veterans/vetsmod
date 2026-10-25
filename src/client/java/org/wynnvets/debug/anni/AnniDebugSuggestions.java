@@ -4,6 +4,7 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.stream.Stream;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 
@@ -39,7 +40,7 @@ final class AnniDebugSuggestions {
 
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_MODES =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 for (String mode : new String[] {"silent", "passive", "aggressive"}) {
                     if (mode.startsWith(partial)) {
                         builder.suggest(mode);
@@ -50,7 +51,7 @@ final class AnniDebugSuggestions {
 
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_ZONE_ACTIONS =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 for (String action : new String[] {"enter", "exit"}) {
                     if (action.startsWith(partial)) {
                         builder.suggest(action);
@@ -61,7 +62,7 @@ final class AnniDebugSuggestions {
 
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_DUMP_FILES =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 if (!Files.isDirectory(AnniSnapshotDebugCommands.SNAPSHOTS_DIR)) {
                     return builder.buildFuture();
                 }
@@ -72,7 +73,7 @@ final class AnniDebugSuggestions {
                                         String n = p.getFileName().toString();
                                         return n.substring(0, n.length() - ".json".length());
                                     })
-                            .filter(n -> n.toLowerCase().startsWith(partial))
+                            .filter(n -> n.toLowerCase(Locale.ROOT).startsWith(partial))
                             .sorted()
                             .forEach(builder::suggest);
                 } catch (IOException ignored) {
@@ -83,7 +84,7 @@ final class AnniDebugSuggestions {
 
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_PRESETS =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 for (String name : PRESETS) {
                     if (name.startsWith(partial)) {
                         builder.suggest(name);
@@ -94,7 +95,7 @@ final class AnniDebugSuggestions {
 
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_EXTERNAL_MODES =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 for (String m : new String[] {"auto", "true", "false"}) {
                     if (m.startsWith(partial)) {
                         builder.suggest(m);
@@ -107,7 +108,7 @@ final class AnniDebugSuggestions {
      *  imminent / far-out / not-announced render branches. */
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_TIME_OFFSETS =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 for (String s :
                         new String[] {
                             "60", // 1m  — within T-5m boss-bar window (S3)
@@ -129,7 +130,7 @@ final class AnniDebugSuggestions {
 
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_FLASH_FIELDS =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 for (String field : new String[] {"role", "world", "party", "rsvp"}) {
                     if (field.startsWith(partial)) {
                         builder.suggest(field);
@@ -148,7 +149,7 @@ final class AnniDebugSuggestions {
      *  tier (light grey, role-agnostic). */
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_REGISTRY_ROLES =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 for (String role :
                         new String[] {
                             "PRIMARY", // red    (§c) — the canonical "red highlight + red nametag"
@@ -159,7 +160,7 @@ final class AnniDebugSuggestions {
                             "FILL", // white  (§f)
                             "other", // grey   (§7) — OTHER_VETS_PARTY tier
                         }) {
-                    if (role.toLowerCase().startsWith(partial)) {
+                    if (role.toLowerCase(Locale.ROOT).startsWith(partial)) {
                         builder.suggest(role);
                     }
                 }
@@ -170,7 +171,7 @@ final class AnniDebugSuggestions {
      *  AggressiveAlertDispatcher#forceAlert} accepts. */
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_ALERT_FIELDS =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 for (String field :
                         new String[] {"role", "world", "party", "rsvp", "zone", "world_ready"}) {
                     if (field.startsWith(partial)) {

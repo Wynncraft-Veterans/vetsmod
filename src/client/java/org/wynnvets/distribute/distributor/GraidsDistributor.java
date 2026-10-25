@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.DistributeRuns;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.recipients.NameResolver;
 import org.wynnvets.distribute.recipients.NoAspectsFilter;
@@ -42,9 +43,10 @@ import org.wynnvets.logging.VetsLogger;
  * only when Wynntils has wrapped the log screen (see that class) &mdash;
  * and we just collect each {@link GuildLogItem} as it streams in via
  * {@code ContainerSetSlot} and stop on a quiescence timer. Without the
- * wrap nothing auto-paginates, so only the entries that arrive without a
- * page turn are counted
- * ({@code graids-log-walk-depends-on-wynntils-log-screen-feature}).</p>
+ * wrap nothing would page the log, so the run refuses rather than count
+ * only its first page: up front, before anything opens, when Wynntils'
+ * Custom Guild Log Screen feature is off, and once the log opens if
+ * Wynntils did not wrap it anyway.</p>
  *
  * <h2>What counts as a graid</h2>
  * <p>Graid-completion entries follow the shape
@@ -85,37 +87,61 @@ public final class GraidsDistributor {
 
     /**
      * Kicks off the full @graids flow: fetch the name index, open the
-     * log, walk it, compute per-user shares, then dispatch.
+     * log, walk it, compute per-user shares, then dispatch. The command's
+     * entry point: the run ends
+     * ({@link org.wynnvets.distribute.DistributeRuns#finished() DistributeRuns.finished()})
+     * when this head does.
      */
     public static void dispatch(int count, MemberSlotPresser.Resource resource) {
-        dispatch(count, resource, null);
+        dispatch(count, resource, DistributeRuns::finished);
     }
 
     /**
      * Variant with a completion callback. Fires on each of this head's own
-     * exits &mdash; no roster, no graids, nothing to send, and the send loop
-     * draining &mdash; so multi-phase chains like {@link SplitDistributor}
+     * exits &mdash; no roster, everyone opted out, no graids, nothing to send,
+     * and the send loop draining &mdash; so multi-phase chains like {@link SplitDistributor}
      * advance even when this phase finds no graids or fails to read the
-     * roster. The shared send loop can still end a run without it: see
-     * {@code member-slot-presser-drops-completion} and the searcher and
-     * presser {@code no} rows of {@code vetsmod_distribute.md} §7.
+     * roster. Its one exit without it is the refusal when Wynntils' Custom
+     * Guild Log Screen is off, which ends the run itself. The log walk and
+     * the shared send loop end a run without it too, by design, when they
+     * stop it (a lost or unopened log, a lost Members menu) or the walk
+     * refuses it (a log Wynntils did not wrap).
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
-        // Fetch the name index and the NoAspects opt-out list in
-        // parallel; strip excluded legacy names from the index so they
-        // never match a graid-log username token. Per-command refresh,
+        // A refusal, not an empty pool: onComplete does not run, so under
+        // @split, whose first phase this is, nothing is sent at all.
+        if (!GuildLogWalker.wynntilsLogScreenEnabled()) {
+            DistributeRuns.refuse(
+                    "Graid-based distribution requires a Wynntils feature that is currently"
+                            + " disabled (Custom Guild Log Screen).");
+            return;
+        }
+        // Fetch the name index and, on an aspects run, the NoAspects opt-out
+        // list in parallel; beginWalk strips excluded legacy names from the index
+        // so they never match a graid-log username token, and keeps the unfiltered
+        // index to tell an all-opted-out pool from a failed read. Per-command refresh,
         // fail-open via NoAspectsFilter on any HTTP error. The trailing
         // scheduleLater(..., 0) is a hop back to the tick thread — the
-        // combined future completes on a background thread, not the tick
-        // thread — not a delay.
+        // combined future usually completes on a background thread, or
+        // inline on the calling thread when both were already complete —
+        // not a delay.
+        int generation = DistributeRuns.generation();
         NameResolver.fetchNameIndex()
-                .thenCombine(
-                        NoAspectsFilter.fetchExcludedLegacyNames(), GraidsDistributor::filterIndex)
-                .thenAccept(
-                        index ->
+                .thenAcceptBoth(
+                        NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects()),
+                        (index, exclude) ->
                                 Managers.TickScheduler.scheduleLater(
-                                        () -> beginWalk(index, count, resource, onComplete), 0));
+                                        DistributeRuns.fenced(
+                                                generation,
+                                                () ->
+                                                        beginWalk(
+                                                                index,
+                                                                exclude,
+                                                                count,
+                                                                resource,
+                                                                onComplete)),
+                                        0));
     }
 
     /** Drops index entries whose canonical legacy name is opted out. Returns
@@ -138,13 +164,23 @@ public final class GraidsDistributor {
     }
 
     private static void beginWalk(
-            Map<String, String> nameIndex,
+            Map<String, String> fullIndex,
+            Set<String> excludeNames,
             int count,
             MemberSlotPresser.Resource resource,
             Runnable onComplete) {
+        if (fullIndex.isEmpty()) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal("Could not read guild roster from wapi - try again.")
+                            .withStyle(ChatFormatting.YELLOW));
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+        Map<String, String> nameIndex = filterIndex(fullIndex, excludeNames);
         if (nameIndex.isEmpty()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Could not read guild roster from wapi — try again.")
+                    Component.literal(
+                                    "All eligible recipients have opted out of receiving aspects.")
                             .withStyle(ChatFormatting.YELLOW));
             if (onComplete != null) onComplete.run();
             return;
@@ -153,7 +189,7 @@ public final class GraidsDistributor {
                 Component.literal("Reading guild log…").withStyle(ChatFormatting.GRAY));
 
         GuildLogWalker.armWalk(
-                entries -> onLogReady(entries, nameIndex, count, resource, onComplete));
+                entries -> onLogReady(entries, fullIndex, nameIndex, count, resource, onComplete));
         // Open via /guild manage → click Log tile rather than direct
         // /guild log. Empirically Wynncraft drops /guild log if it
         // lands while there's any session state left over from a
@@ -167,6 +203,7 @@ public final class GraidsDistributor {
 
     private static void onLogReady(
             List<GuildLogItem> entries,
+            Map<String, String> fullIndex,
             Map<String, String> nameIndex,
             int count,
             MemberSlotPresser.Resource resource,
@@ -178,8 +215,15 @@ public final class GraidsDistributor {
                 freq.size());
 
         if (freq.isEmpty()) {
+            // If the unfiltered index finds graids, they were all opted-out members'.
+            // With nothing excluded the indexes are one map, so the recount is empty.
+            boolean allOptedOut = !countGraidFrequencies(entries, fullIndex).isEmpty();
             ChatUtils.sendLocalMessage(
-                    Component.literal("No graid completions found in the log window.")
+                    Component.literal(
+                                    allOptedOut
+                                            ? "All eligible recipients have opted out of"
+                                                    + " receiving aspects."
+                                            : "No graid completions found in the log window.")
                             .withStyle(ChatFormatting.YELLOW));
             if (onComplete != null) onComplete.run();
             return;
@@ -209,7 +253,7 @@ public final class GraidsDistributor {
                                         + " total participations)…")
                         .withStyle(ChatFormatting.AQUA));
 
-        DistributionQueue.processNext(queue, resource, onComplete, "GraidsDistributor");
+        DistributionQueue.processNext(queue, resource, onComplete, "GraidsDistributor", false);
         GuildManageOpener.openManageMembers();
     }
 

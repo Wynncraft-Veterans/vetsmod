@@ -2,8 +2,9 @@ package org.wynnvets.fetcher.ondemand;
 
 import com.wynntils.utils.mc.McUtils;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Locale;
-import java.util.Optional;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -48,23 +49,16 @@ final class CheckReportRenderer {
             UserUUID uuid,
             User user,
             ReturnersRosterProbe.ReturnersMembership returners,
-            MembershipSnapshot snapshot,
-            // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-            // Reason: /v3/player/{uuid}.guild ~12h stale for offline players.
-            // Remove: when Wynncraft invalidates the player endpoint on
-            //   officer-write events, or exposes a webhook, or an offline-player
-            //   spot-check shows <10min staleness.
-            // Imports used only by this workaround: java.util.Optional and
-            // org.wynnvets.guild.GuildStateManager.
-            Optional<String> confirmedNonReturnersRank
-            // <<< PATCH END: WYNN-STALE-WORKAROUND
-            ) {
+            // The roster answer for the guild the payload names when that is not Returners;
+            // null when none was asked.
+            ReturnersRosterProbe.ReturnersMembership otherGuild,
+            MembershipSnapshot snapshot) {
         // Mark the start of a new render block so the first line re-extends
         // the badge — this is what gives staff a visual divider between two
         // back-to-back /wv check responses (and between this snapshot block
         // and the preceding caution-history block, which arrive on separate
         // WS frames).
-        Prepend.resetDedup();
+        ChatUtils.beginNewBlock();
 
         String displayName =
                 (user != null && user.getUsername() != null) ? user.getUsername() : requestedName;
@@ -89,13 +83,10 @@ final class CheckReportRenderer {
 
         // Self-check: the local player is treated as online, since they are
         // the one running /wv check (normally from Wynncraft; the command does
-        // not check which server the client is on). Skips the whole
-        // signal-aggregation dance below and avoids the "Wynn's cached
+        // not check which server the client is on). Avoids the "Wynn's cached
         // online=false for the local player" trap.
         String localName = (McUtils.player() != null) ? McUtils.playerName() : null;
         boolean isSelf = localName != null && localName.equalsIgnoreCase(displayName);
-
-        boolean currentlyOnline = isCurrentlyOnline(user, snapshot, tabListServer, isSelf);
 
         // Item 0: username + UUID
         ChatUtils.sendLocalMessage(
@@ -127,61 +118,24 @@ final class CheckReportRenderer {
             renderWynnLines(user, snapshot, tabListServer, isSelf);
         }
 
-        renderGuildLine(
-                user,
-                returners,
-                snapshot,
-                // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-                confirmedNonReturnersRank,
-                tabListConfirmsReturners
-                // <<< PATCH END: WYNN-STALE-WORKAROUND
-                );
+        GuildEvidence evidence = new GuildEvidence(returners, otherGuild, tabListConfirmsReturners);
+        ChatUtils.sendLocalMessage(guildLine(user, evidence, snapshot));
         renderVeteranLine(user);
         renderBlocklistLine(snapshot);
-        renderDiscordLinkLine(snapshot, currentlyOnline);
+        ChatUtils.sendLocalMessage(discordLinkLine(snapshot, user, evidence));
         renderStage2Line(snapshot);
         renderCultLine(snapshot);
     }
 
-    /**
-     * Aggregates "is this player on Wynncraft right now?" across four
-     * signals, in order of authoritativeness: true for self (the local
-     * player is treated as online), then local tab list (live), then Wynn's
-     * {@code online} field (2-min CDN cache, can lag), then a recent
-     * ({@literal <}10 min) {@code last_seen_observed.ts}: dazebot's
-     * best-guess last-online time, which several dazebot paths keep
-     * current, its {@code server_watcher} among them. Today this fourth
-     * signal cannot fire, because temporary-server's ack does not carry
-     * {@code last_seen_observed} (see
-     * {@code check-membership-ack-drops-last-seen-observed}). Used to
-     * qualify the {@code (hiatus)} discord-line annotation: a positive
-     * signal is meant to tell staff the role state may be stale. Today
-     * being online is not evidence of that, since dazebot's HIATUS means a
-     * guildless ex-member (see
-     * {@code wv-check-hiatus-stale-hint-keys-off-online}).
-     */
-    private static boolean isCurrentlyOnline(
-            User user, MembershipSnapshot snapshot, String tabListServer, boolean isSelf) {
-        if (isSelf) {
-            return true;
-        }
-        if (tabListServer != null) {
-            return true;
-        }
-        if (user != null && Boolean.TRUE.equals(user.getOnline())) {
-            return true;
-        }
-        MembershipSnapshot.LastSeenObserved obs =
-                snapshot != null ? snapshot.getLastSeenObserved() : null;
-        if (obs != null && obs.getTs() > 0) {
-            long ageSec = Instant.now().getEpochSecond() - obs.getTs();
-            return ageSec >= 0 && ageSec < 600;
-        }
-        return false;
-    }
-
     private static void renderWynnLines(
             User user, MembershipSnapshot snapshot, String tabListServer, boolean isSelf) {
+        // Both join times are cut to the viewer's local date and labelled against the viewer's
+        // own today, so the label and the parenthetical agree with the viewer's calendar.
+        // A time that does not parse as an instant falls back to the API's own date text,
+        // labelled against today.
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate today = LocalDate.now(zone);
+
         // Item 1: first seen. Show coarse "N years ago" as the headline value
         // (raw days are unreadable for old accounts) with the ISO date as the
         // muted parenthetical.
@@ -189,35 +143,44 @@ final class CheckReportRenderer {
         if (firstJoin == null) {
             ChatUtils.sendLocalMessage(label("First seen on Wynncraft: ").append(hidden()));
         } else {
+            Instant firstInstant = user.getFirstJoinInstant();
+            LocalDate firstDate =
+                    firstInstant == null ? null : TimeLabels.toLocalDate(firstInstant, zone);
+            String firstLabel =
+                    firstDate == null
+                            ? TimeLabels.toCoarseRelativeDateLabel(firstJoin)
+                            : TimeLabels.toCoarseRelativeDateLabel(firstDate, today);
+            String firstShown = firstDate == null ? firstJoin : firstDate.toString();
             ChatUtils.sendLocalMessage(
                     label("First seen on Wynncraft: ")
+                            .append(Component.literal(firstLabel).setStyle(VALUE_STYLE))
                             .append(
-                                    Component.literal(
-                                                    TimeLabels.toCoarseRelativeDateLabel(firstJoin))
-                                            .setStyle(VALUE_STYLE))
-                            .append(
-                                    Component.literal("  (" + firstJoin + ")")
+                                    Component.literal("  (" + firstShown + ")")
                                             .setStyle(MUTED_STYLE)));
         }
 
         // Item 2: last seen. When the Wynn API hides lastJoin (privacy on), fall
         // back to self, then the tab list, then dazebot's last_seen_observed
         // best guess (several dazebot paths keep it current); `(hidden)` only
-        // when we have nothing at all. Today the dazebot fallback never fires
-        // because temporary-server drops last_seen_observed (see
-        // check-membership-ack-drops-last-seen-observed).
+        // when we have nothing at all.
         String lastJoin = user.getLastJoinDate();
         if (lastJoin != null) {
+            Instant lastInstant = user.getLastJoinInstant();
+            LocalDate lastDate =
+                    lastInstant == null ? null : TimeLabels.toLocalDate(lastInstant, zone);
+            String lastLabel =
+                    lastDate == null
+                            ? TimeLabels.toRelativeDateLabel(lastJoin)
+                            : TimeLabels.toRelativeDateLabel(lastDate, today);
+            String lastShown = lastDate == null ? lastJoin : lastDate.toString();
             ChatUtils.sendLocalMessage(
                     label("Last seen on Wynncraft: ")
+                            .append(Component.literal(lastLabel).setStyle(VALUE_STYLE))
                             .append(
-                                    Component.literal(TimeLabels.toRelativeDateLabel(lastJoin))
-                                            .setStyle(VALUE_STYLE))
-                            .append(
-                                    Component.literal("  (" + lastJoin + ")")
+                                    Component.literal("  (" + lastShown + ")")
                                             .setStyle(MUTED_STYLE)));
         } else {
-            renderLastSeenFallback(snapshot, tabListServer, isSelf);
+            ChatUtils.sendLocalMessage(lastSeenFallbackLine(snapshot, tabListServer, isSelf));
         }
 
         // Item 3: playtime
@@ -233,53 +196,41 @@ final class CheckReportRenderer {
         }
 
         // Item 3b: currently online. Surfaced between playtime and guild because
-        // it's the most actionable signal for a staff vetting decision. The
-        // Discord line's `(hiatus)` qualifier asks a related question through
-        // isCurrentlyOnline, which differs only in letting a recent
-        // last_seen_observed outrank Wynncraft's online=false. Today that field
-        // never arrives, so that case cannot occur (see
-        // check-membership-ack-drops-last-seen-observed).
+        // it's the most actionable signal for a staff vetting decision.
         renderOnlineLine(user, snapshot, tabListServer, isSelf);
     }
 
-    private static void renderLastSeenFallback(
+    /**
+     * The "Last seen" line for a target whose Wynncraft {@code lastJoin} is hidden: now for self
+     * and for a tab-list hit, else dazebot's {@code last_seen_observed} as "N ago (best guess)",
+     * else "(hidden)". The observation's {@code ts} is dazebot's last recorded activity of any
+     * kind, not necessarily a server change, so the label claims nothing more than a guess.
+     */
+    // Package-private for unit tests. See CheckReportRendererTest.
+    static MutableComponent lastSeenFallbackLine(
             MembershipSnapshot snapshot, String tabListServer, boolean isSelf) {
         MutableComponent line = label("Last seen on Wynncraft: ");
         if (isSelf) {
-            line.append(Component.literal("now").setStyle(HIDDEN_STYLE))
+            return line.append(Component.literal("now").setStyle(HIDDEN_STYLE))
                     .append(Component.literal("  (self)").setStyle(MUTED_STYLE));
-            ChatUtils.sendLocalMessage(line);
-            return;
         }
         if (tabListServer != null) {
             // Tab list is "right now" by construction.
-            line.append(Component.literal("now").setStyle(HIDDEN_STYLE))
+            return line.append(Component.literal("now").setStyle(HIDDEN_STYLE))
                     .append(
                             Component.literal("  (tab-list: " + tabListServer + ")")
                                     .setStyle(MUTED_STYLE));
-            ChatUtils.sendLocalMessage(line);
-            return;
         }
         MembershipSnapshot.LastSeenObserved obs =
                 snapshot != null ? snapshot.getLastSeenObserved() : null;
         if (obs != null && obs.getTs() > 0) {
             long ageSec = Instant.now().getEpochSecond() - obs.getTs();
-            line.append(
+            return line.append(
                             Component.literal(TimeLabels.humanizeAge(ageSec) + " ago")
                                     .setStyle(HIDDEN_STYLE))
-                    .append(
-                            Component.literal("  (best guess — server-change observed")
-                                    .setStyle(MUTED_STYLE));
-            if (obs.getServerAtObservation() != null && !obs.getServerAtObservation().isEmpty()) {
-                line.append(
-                        Component.literal(" on " + obs.getServerAtObservation())
-                                .setStyle(MUTED_STYLE));
-            }
-            line.append(Component.literal(")").setStyle(MUTED_STYLE));
-        } else {
-            line.append(hidden());
+                    .append(Component.literal("  (best guess)").setStyle(MUTED_STYLE));
         }
-        ChatUtils.sendLocalMessage(line);
+        return line.append(hidden());
     }
 
     private static void renderOnlineLine(
@@ -333,8 +284,7 @@ final class CheckReportRenderer {
             return;
         }
 
-        // Wynn hidden — try the last_seen_observed best guess (today never
-        // present; see check-membership-ack-drops-last-seen-observed).
+        // Wynn hidden — try the last_seen_observed best guess.
         MembershipSnapshot.LastSeenObserved obs =
                 snapshot != null ? snapshot.getLastSeenObserved() : null;
         if (obs != null && obs.getTs() > 0) {
@@ -343,13 +293,9 @@ final class CheckReportRenderer {
                 line.append(
                         Component.literal("~" + TimeLabels.humanizeAge(ageSec) + " ago")
                                 .setStyle(HIDDEN_STYLE));
-                if (obs.getServerAtObservation() != null
-                        && !obs.getServerAtObservation().isEmpty()) {
-                    line.append(
-                            Component.literal(
-                                            "  (" + obs.getServerAtObservation() + ", best guess)")
-                                    .setStyle(MUTED_STYLE));
-                }
+                // The same bare hedge as the Last seen line (the user's wording): the recorded
+                // world can be older than the time, so it is not named.
+                line.append(Component.literal("  (best guess)").setStyle(MUTED_STYLE));
                 ChatUtils.sendLocalMessage(line);
                 return;
             }
@@ -363,26 +309,26 @@ final class CheckReportRenderer {
         return String.format(Locale.ROOT, "%,.1f", hours);
     }
 
-    private static void renderGuildLine(
-            User user,
-            ReturnersRosterProbe.ReturnersMembership returners,
-            MembershipSnapshot snapshot,
-            // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-            // Reason/Remove: see the first workaround block in this class.
-            Optional<String> confirmedNonReturnersRank,
-            boolean tabListConfirmsReturners
-            // <<< PATCH END: WYNN-STALE-WORKAROUND
-            ) {
+    /**
+     * The Guild line. A guild named by Wynncraft's payload is shown only as far as a roster
+     * backs it: a roster that lists the target gives the rank (the roster's, never the payload's,
+     * which can lag); one that answered "not a member" gives "guildless" with a catching-up note;
+     * one that could not be read leaves the payload's guild with a yellow "(cached)" tail and no
+     * rank. The tab list also vouches for Returners. See {@link GuildEvidence}.
+     */
+    // Package-private for unit tests. See CheckReportRendererTest.
+    static MutableComponent guildLine(
+            User user, GuildEvidence evidence, MembershipSnapshot snapshot) {
         MutableComponent line = label("Guild: ");
 
         if (user == null) {
-            line.append(Component.literal("(no Wynncraft profile)").setStyle(HIDDEN_STYLE));
-            ChatUtils.sendLocalMessage(line);
-            return;
+            return line.append(Component.literal("(no Wynncraft profile)").setStyle(HIDDEN_STYLE));
         }
 
         Guild guild = user.getGuild();
-        boolean inVets = user.isInVets() && (returners == null || returners.inGuild());
+        ReturnersRosterProbe.ReturnersMembership returners = evidence.returners();
+        ReturnersRosterProbe.ReturnersMembership otherGuild = evidence.otherGuild();
+
         // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
         // Reason/Remove: see the first workaround block in this class.
         // Any single fresh signal is enough to render Returners: the roster
@@ -390,61 +336,40 @@ final class CheckReportRenderer {
         // client state, same-tick). Catches the rejoin case where the payload
         // briefly names a non-Returners guild but the target is provably back
         // in Returners.
-        boolean rosterConfirmsReturners = returners != null && returners.inGuild();
-        boolean confirmedReturners = rosterConfirmsReturners || tabListConfirmsReturners;
-        // <<< PATCH END: WYNN-STALE-WORKAROUND
-
-        if (inVets
-                // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-                || confirmedReturners
-        // <<< PATCH END: WYNN-STALE-WORKAROUND
-        ) {
+        if (evidence.confirmsReturners()) {
             line.append(Component.literal("Returners").setStyle(VALUE_STYLE));
-            String rank = returners != null ? returners.rank() : null;
-            // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-            // Reason/Remove: see the first workaround block in this class.
+            String rank = returners.rank();
             // Suppressed original fallback: `if (rank == null && guild != null) rank =
             // guild.getRank();`
             // — guild.getRank() from the stale payload can silently re-introduce
             // staleness (payload can claim RECRUITER for a former member who was
             // already kicked). Roster-only until upstream fixes invalidation.
-            // <<< PATCH END: WYNN-STALE-WORKAROUND
             if (rank != null && !rank.isEmpty()) {
-                line.append(Component.literal("  —  ").setStyle(LABEL_STYLE))
-                        .append(
-                                Component.literal(rank)
-                                        .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
+                line.append(rankTail(rank));
             }
-            ChatUtils.sendLocalMessage(line);
-            return;
+            return line;
         }
 
-        // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-        // Reason/Remove: see the first workaround block in this class.
-        // Cross-signal mismatch: either (a) Wynncraft's payload says Returners
-        // but the roster disagrees (falls out of the inVets branch above with
-        // guild.name == "Returners"), or (b) Wynncraft names some non-Returners
-        // guild but that guild's own roster doesn't list the UUID. Both mean
-        // the payload is behind — render "guildless" + a hint rather than the
-        // misleading stale value.
-        boolean returnersMismatch = user.isInVets() && returners != null && !returners.inGuild();
-        boolean otherGuildMismatch =
-                guild != null
-                        && guild.getName() != null
-                        && !"Returners".equals(guild.getName())
-                        && confirmedNonReturnersRank.isEmpty();
-        if (returnersMismatch || otherGuildMismatch) {
-            line.append(Component.literal("guildless").setStyle(HIDDEN_STYLE))
-                    .append(
-                            Component.literal("  —  Wynncraft profile still catching up")
-                                    .setStyle(HIDDEN_STYLE));
-            ChatUtils.sendLocalMessage(line);
-            return;
+        // The payload names a guild and nothing above confirmed Returners. Every branch is
+        // roster-rank-only: a roster that lists the target supplies the rank; one that answered
+        // "not a member" means the payload is behind, so "guildless" plus a hint rather than the
+        // misleading stale value; one that failed to answer leaves the payload's guild as the
+        // best available fact, marked "(cached)", with no rank.
+        if (user.isInVets()) {
+            if (returners.verdict() == ReturnersRosterProbe.RosterVerdict.NOT_IN_ROSTER) {
+                return line.append(catchingUpTail());
+            }
+            return line.append(Component.literal("Returners").setStyle(VALUE_STYLE))
+                    .append(cachedTail());
         }
-        // <<< PATCH END: WYNN-STALE-WORKAROUND
 
         if (guild != null && guild.getName() != null) {
-            // Player is in a non-Returners guild.
+            // A non-Returners guild. otherGuild is null only for a payload guild named
+            // Returners without Returners' UUID, which no roster was asked about.
+            if (otherGuild != null
+                    && otherGuild.verdict() == ReturnersRosterProbe.RosterVerdict.NOT_IN_ROSTER) {
+                return line.append(catchingUpTail());
+            }
             line.append(Component.literal(guild.getName()).setStyle(VALUE_STYLE));
             if (guild.getPrefix() != null && !guild.getPrefix().isEmpty()) {
                 line.append(Component.literal("  [").setStyle(LABEL_STYLE))
@@ -453,26 +378,19 @@ final class CheckReportRenderer {
                                         .setStyle(Style.EMPTY.withColor(ChatFormatting.GOLD)))
                         .append(Component.literal("]").setStyle(LABEL_STYLE));
             }
-            // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-            // Reason/Remove: see the first workaround block in this class.
-            // Original block used guild.getRank() directly; now prefer the
-            // confirming roster's rank when present (the payload rank can lag
-            // even for a still-in-guild member after a promotion/demotion).
-            // Today the payload fallback is effectively unreachable: for any
-            // guild not named Returners, the mismatch block above has already
-            // returned when that rank is absent (see
-            // wv-check-guild-line-conflates-roster-failure-with-absence).
-            String rankText = confirmedNonReturnersRank.orElse(guild.getRank());
-            if (rankText != null && !rankText.isEmpty()) {
-                line.append(Component.literal("  —  ").setStyle(LABEL_STYLE))
-                        .append(
-                                Component.literal(rankText)
-                                        .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
+            if (otherGuild != null) {
+                if (otherGuild.verdict() == ReturnersRosterProbe.RosterVerdict.IN_ROSTER) {
+                    String rank = otherGuild.rank();
+                    if (rank != null && !rank.isEmpty()) {
+                        line.append(rankTail(rank));
+                    }
+                } else {
+                    line.append(cachedTail());
+                }
             }
-            // <<< PATCH END: WYNN-STALE-WORKAROUND
-            ChatUtils.sendLocalMessage(line);
-            return;
+            return line;
         }
+        // <<< PATCH END: WYNN-STALE-WORKAROUND
 
         // Player is guildless according to Wynn — annotate with dazebot's
         // membership state so we surface "guildless but on the vets roster".
@@ -482,25 +400,46 @@ final class CheckReportRenderer {
         if ("member".equals(tier)) {
             line.append(Component.literal("guildless").setStyle(HIDDEN_STYLE))
                     .append(
-                            Component.literal("  —  appears in vets roster (cached)")
+                            Component.literal("  -  appears in vets roster (cached)")
                                     .setStyle(HIDDEN_STYLE));
         } else if ("waitlist".equals(tier)) {
             line.append(Component.literal("guildless").setStyle(VALUE_STYLE))
-                    .append(Component.literal("  —  on waitlist").setStyle(VALUE_STYLE));
+                    .append(Component.literal("  -  on waitlist").setStyle(VALUE_STYLE));
         } else if ("honourary".equals(tier)) {
             line.append(Component.literal("guildless").setStyle(VALUE_STYLE))
-                    .append(Component.literal("  —  honourary").setStyle(VALUE_STYLE));
+                    .append(Component.literal("  -  honourary").setStyle(VALUE_STYLE));
         } else if (hiatus) {
             line.append(
                             Component.literal("guildless")
                                     .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)))
                     .append(
-                            Component.literal("  —  hiatus")
+                            Component.literal("  -  hiatus")
                                     .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
         } else {
             line.append(Component.literal("guildless").setStyle(LABEL_STYLE));
         }
-        ChatUtils.sendLocalMessage(line);
+        return line;
+    }
+
+    private static MutableComponent rankTail(String rank) {
+        return Component.literal("  -  ")
+                .setStyle(LABEL_STYLE)
+                .append(
+                        Component.literal(rank)
+                                .setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_AQUA)));
+    }
+
+    private static MutableComponent catchingUpTail() {
+        return Component.literal("guildless")
+                .setStyle(HIDDEN_STYLE)
+                .append(
+                        Component.literal("  -  Wynncraft profile still catching up")
+                                .setStyle(HIDDEN_STYLE));
+    }
+
+    /** The roster call failed, so the payload's guild stands unverified. */
+    private static MutableComponent cachedTail() {
+        return Component.literal("  (cached)").setStyle(HIDDEN_STYLE);
     }
 
     private static void renderVeteranLine(User user) {
@@ -536,7 +475,7 @@ final class CheckReportRenderer {
                             .setStyle(Style.EMPTY.withColor(ChatFormatting.RED)));
             String reason = snapshot.getBlocklistReason();
             if (reason != null && !reason.isEmpty()) {
-                line.append(Component.literal("  —  \"").setStyle(LABEL_STYLE))
+                line.append(Component.literal("  -  \"").setStyle(LABEL_STYLE))
                         .append(
                                 Component.literal(reason)
                                         .setStyle(
@@ -553,19 +492,22 @@ final class CheckReportRenderer {
         ChatUtils.sendLocalMessage(line);
     }
 
-    private static void renderDiscordLinkLine(
-            MembershipSnapshot snapshot, boolean currentlyOnline) {
+    /**
+     * The Discord link line. A {@code (hiatus)} role is annotated "role may be stale" only when
+     * the guild evidence puts the target back in a guild: Returners (roster or tab list) or, by
+     * its own roster, the guild the payload names. dazebot's HIATUS means a guildless ex-member,
+     * so being online says nothing about the role, and a roster that did not answer gives no hint.
+     */
+    // Package-private for unit tests. See CheckReportRendererTest.
+    static MutableComponent discordLinkLine(
+            MembershipSnapshot snapshot, User user, GuildEvidence evidence) {
         MutableComponent line = label("Discord link: ");
         MembershipSnapshot.Discord disc = snapshot != null ? snapshot.getDiscord() : null;
         if (disc == null) {
-            line.append(Component.literal("(snapshot unavailable)").setStyle(MUTED_STYLE));
-            ChatUtils.sendLocalMessage(line);
-            return;
+            return line.append(Component.literal("(snapshot unavailable)").setStyle(MUTED_STYLE));
         }
         if (!disc.isLinked()) {
-            line.append(Component.literal("not linked").setStyle(LABEL_STYLE));
-            ChatUtils.sendLocalMessage(line);
-            return;
+            return line.append(Component.literal("not linked").setStyle(LABEL_STYLE));
         }
 
         String display = disc.getDiscDisplay();
@@ -606,7 +548,7 @@ final class CheckReportRenderer {
         if (discUuid != null && !discUuid.isEmpty()) {
             line.append(Component.literal("  (" + discUuid + ")").setStyle(MUTED_STYLE));
         }
-        line.append(Component.literal("  —  ").setStyle(LABEL_STYLE))
+        line.append(Component.literal("  -  ").setStyle(LABEL_STYLE))
                 .append(Component.literal(tierLabel).setStyle(tierStyle));
 
         if (disc.isWaitlistedModifier() && !"waitlist".equals(tier)) {
@@ -617,20 +559,38 @@ final class CheckReportRenderer {
         if (disc.isHiatus()) {
             // dazebot attempts (best-effort) a guild re-read and role
             // reconciliation during the snapshot fetch, before it reports
-            // HIATUS. The qualifier below is meant to flag a HIATUS role that
-            // is stale; today it keys off being online, which dazebot's HIATUS
-            // (a guildless ex-member) does not rule out, so it can flag a correct
-            // role and miss a stale one (see wv-check-hiatus-stale-hint-keys-off-online).
+            // HIATUS, so a stale HIATUS role is one the target has since
+            // outgrown by rejoining a guild; the evidence is what says so.
             Style hiatusStyle = Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
             line.append(Component.literal("  (hiatus").setStyle(hiatusStyle));
-            if (currentlyOnline) {
+            String nowIn = guildNowIn(user, evidence);
+            if (nowIn != null) {
                 line.append(
-                        Component.literal(" — but currently online; role may be stale")
-                                .setStyle(Style.EMPTY.withColor(ChatFormatting.YELLOW)));
+                        Component.literal(" - now in " + nowIn + "; role may be stale")
+                                .setStyle(Style.EMPTY.withColor(ChatFormatting.AQUA)));
             }
             line.append(Component.literal(")").setStyle(hiatusStyle));
         }
-        ChatUtils.sendLocalMessage(line);
+        return line;
+    }
+
+    /**
+     * The guild the evidence puts the target in, or {@code null} when it puts them in none:
+     * {@code "Returners"} when the roster or the tab list confirms it, else the payload's guild
+     * name when that guild's own roster lists the target.
+     */
+    private static String guildNowIn(User user, GuildEvidence evidence) {
+        if (evidence.confirmsReturners()) {
+            return "Returners";
+        }
+        Guild guild = user != null ? user.getGuild() : null;
+        if (guild != null
+                && guild.getName() != null
+                && evidence.otherGuild() != null
+                && evidence.otherGuild().inGuild()) {
+            return guild.getName();
+        }
+        return null;
     }
 
     private static void renderStage2Line(MembershipSnapshot snapshot) {

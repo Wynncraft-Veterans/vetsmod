@@ -22,8 +22,8 @@ import org.wynnvets.api.V1ApiManager;
  * predicates below it gates on.</p>
  *
  * <p>Delegates staff-rank detection to {@link StaffRankChecker}, the {@code /gu stats}
- * guild check to {@link GuildChecker}, and bearer-key auth state (with the legacy unlock
- * markers) to {@link UnlockManager}. Callers outside this package reach the three through this
+ * guild check to {@link GuildChecker}, and bearer-key auth state to
+ * {@link UnlockManager}. Callers outside this package reach the three through this
  * class or through {@link GuildLifecycle}, which calls them directly, except that
  * {@link org.wynnvets.debug.diagnostics.GuildDiagnostics GuildDiagnostics} calls
  * {@code GuildChecker} itself, to read its result and start a check.</p>
@@ -98,7 +98,8 @@ public final class GuildStateManager {
      *
      * <p>Used by {@code /wv distribute}'s {@code .requires(...)} predicate
      * so brigadier surfaces it in autocomplete reliably for staff without
-     * leaking it to non-staff.</p>
+     * leaking it to non-staff, and by {@code /wv help} to show the
+     * {@code /wv distribute} row to the same players.</p>
      */
     public static boolean isStaffOfAnyGuild() {
         if (isConfirmedStaff()) return true;
@@ -140,10 +141,7 @@ public final class GuildStateManager {
      * vets community member whose in-game guild is somewhere else — fails it for the same reason
      * any other outsider does: the channel they're reading isn't ours. Genuine vets chat reaches them
      * over the WebSocket bridge instead, where {@link org.wynnvets.chat.OutboundDisplayHandler
-     * OutboundDisplayHandler} keeps the full treatment. Note that {@link #isHonouraryUnlocked()} is
-     * <em>not</em> usable as a faster negative signal here: it ORs in a legacy on-disk unlock marker
-     * that is never cleared, so an honourary member who later joined Returners would keep failing
-     * forever.</p>
+     * OutboundDisplayHandler} keeps the full treatment.</p>
      *
      * <p>{@link #isReturners()} resolves in this order: the
      * {@link GuildChecker} cache (persisted, 3-day expiry, so instant when
@@ -173,9 +171,6 @@ public final class GuildStateManager {
      * @return true if player is not in a guild, false otherwise
      */
     public static boolean isGuildless() {
-        if (UnlockManager.isDebugForceGuildlessUnlocked()) {
-            return true;
-        }
         if (GuildChecker.hasValidResult()) {
             return GuildChecker.getResult() == GuildChecker.GuildCheckResult.GUILDLESS;
         }
@@ -189,19 +184,14 @@ public final class GuildStateManager {
      * @return true if mod is unlocked, false otherwise
      */
     public static boolean isUnlocked() {
-        if (UnlockManager.isDebugForceGuildlessUnlocked()) {
-            return true;
-        }
         return isReturners()
                 || UnlockManager.isWaitlistUnlocked()
                 || UnlockManager.isHonouraryUnlocked();
     }
 
     /**
-     * Whether the player counts as waitlist-unlocked: a waitlist-tier auth this session,
-     * or a legacy on-disk waitlist marker. The marker arm is meant to go
-     * ({@code legacy-unlock-markers-still-grant-client-unlock}). Does not check
-     * guildlessness itself; callers that mean the waitlist tier pair it with
+     * Whether the player counts as waitlist-unlocked: a waitlist-tier auth this session.
+     * Does not check guildlessness itself; callers that mean the waitlist tier pair it with
      * {@link #isGuildless()}.
      *
      * @return true if waitlist-unlocked, false otherwise
@@ -212,8 +202,7 @@ public final class GuildStateManager {
 
     /**
      * Whether the player counts as honourary-unlocked: an honourary-tier auth this
-     * session, or a legacy on-disk honourary marker. The marker arm is meant to go
-     * ({@code legacy-unlock-markers-still-grant-client-unlock}).
+     * session.
      *
      * @return true if honourary-unlocked, false otherwise
      */
@@ -229,8 +218,10 @@ public final class GuildStateManager {
      * {@link org.wynnvets.mwe.anni.render.AnniCommandRenderer AnniCommandRenderer}'s "external vs
      * vets" test (enriched printout vs the legacy stamp-only fallback), and it drives the
      * eligibility-based default anni mode (PASSIVE if eligible, SILENT otherwise) in
-     * {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}. {@code /wv help}
-     * also uses it as the vet gate.</p>
+     * {@link org.wynnvets.mwe.anni.mode.AnniModeManager AnniModeManager}. {@code /wv help} also
+     * reads it, with {@link #isAuthenticatedThisSession()}, to pick its {@code /wv anni} row's
+     * text, and {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher} sends its
+     * cold-cache snapshot pulls only while it holds.</p>
      *
      * @return true if eligible for enrichment, false otherwise
      */
@@ -238,26 +229,6 @@ public final class GuildStateManager {
         if (isReturners()) return true;
         if (isGuildless() && isWaitlistUnlocked()) return true;
         return isHonouraryUnlocked();
-    }
-
-    /**
-     * Enable/disable debug override that forces the user to be treated as guildless and unlocked.
-     * Nothing in vetsmod calls this today, so the override is never on
-     * ({@code unlock-debug-flag-tier-asymmetry}).
-     *
-     * @param enabled true to force guildless+unlocked behavior, false to use normal state
-     */
-    public static void setDebugForceGuildlessUnlocked(boolean enabled) {
-        UnlockManager.setDebugForceGuildlessUnlocked(enabled);
-    }
-
-    /**
-     * Check if debug override is active.
-     *
-     * @return true when guildless+unlocked override is enabled
-     */
-    public static boolean isDebugForceGuildlessUnlocked() {
-        return UnlockManager.isDebugForceGuildlessUnlocked();
     }
 
     /**
@@ -411,6 +382,11 @@ public final class GuildStateManager {
         return StaffRankChecker.refreshStaffStatusIfNeeded(forceRefresh);
     }
 
+    /** Whether a staff-rank check finished within the last {@code ms} milliseconds. */
+    public static boolean staffCheckedWithin(long ms) {
+        return StaffRankChecker.checkedWithin(ms);
+    }
+
     /**
      * Process incoming chat messages to detect staff rank-check responses, capturing the
      * local player name on the first call that has a player.
@@ -428,6 +404,15 @@ public final class GuildStateManager {
         }
 
         StaffRankChecker.processMessage(message);
+    }
+
+    /**
+     * Whether a chat line is a reply to {@code /gu rank}, whichever of the three
+     * ({@code StaffRankChecker.isStaffRankReply}). {@code ChatLogMixin} hides it with this while
+     * a mod-initiated check runs.
+     */
+    public static boolean isStaffRankReply(String message) {
+        return StaffRankChecker.isStaffRankReply(message);
     }
 
     /**
@@ -504,10 +489,10 @@ public final class GuildStateManager {
         return UnlockManager.hasStoredKey();
     }
 
-    /** @return {@code true} if the player has any legacy SHA-256 unlock state
-     *  (waitlist or honourary) on disk from before the migration. */
-    public static boolean hasLegacyPasswordUnlock() {
-        return UnlockManager.legacyWaitlistMarker() || UnlockManager.legacyHonouraryMarker();
+    /** @return {@code true} when an auth ack has rejected the stored key (a verdict on the key,
+     *  not a transient failure); a newly stored {@code /unlock} key clears it */
+    public static boolean isStoredKeyRejected() {
+        return UnlockManager.keyRejectedByAuthAck();
     }
 
     /** @return the tier from the latest ok auth ack (e.g. {@code "member"},
@@ -516,6 +501,27 @@ public final class GuildStateManager {
      *  stored {@code /unlock} key or a disconnect. */
     public static String currentAuthTier() {
         return UnlockManager.currentTier();
+    }
+
+    /** @return {@code true} when the standing auth tier is {@code member} (see
+     *  {@link #currentAuthTier()}) */
+    public static boolean isAuthTierMember() {
+        return UnlockManager.TIER_MEMBER.equals(UnlockManager.currentTier());
+    }
+
+    /** @return {@code true} while a Returners join's re-auth is still in progress
+     *  ({@link ReturnersReauth#isInProgress()}: within its retry and the retry's ack of the join)
+     *  and {@link ReturnersReauth} would still re-send the auth frame (a stored, unrejected key,
+     *  the inbound socket up and a tier other than {@code member}). For a Returners player it means
+     *  the member tier may still be on its way; once the retry has come and gone, or for a player
+     *  who was in Returners at login, it is not. */
+    public static boolean isReturnersReauthDue() {
+        return ReturnersReauth.isInProgress()
+                && ReturnersReauth.shouldReauth(
+                        UnlockManager.hasStoredKey(),
+                        V1ApiManager.isInboundConnected(),
+                        UnlockManager.currentTier(),
+                        UnlockManager.keyRejectedByAuthAck());
     }
 
     /** @return the standing auth-failure reason from the server, or empty string when
@@ -541,6 +547,11 @@ public final class GuildStateManager {
      * &mdash; five callers. {@link #tryUnlock} is <b>not</b> one of them; it is a
      * pure delegate to {@link UnlockManager#tryUnlock(String)} and calls nothing
      * else here.</p>
+     *
+     * <p>A player who is not eligible is a no-op here: this cannot tell "not eligible" from
+     * "guild state not known yet" (a world join before Wynntils' scan lands), so it never
+     * retracts. Retraction is {@link #reconcileRegistration}'s, called only from events that
+     * mark a loss.</p>
      */
     public static void sendRegistrationIfReady() {
         LocalPlayer player = McUtils.player();
@@ -549,17 +560,69 @@ public final class GuildStateManager {
         String uuid = player.getUUID().toString();
         String username = player.getName().getString();
 
-        String tier;
-        if (isReturners()) {
-            tier = "guild";
-        } else if (isHonouraryUnlocked()) {
-            tier = "honourary";
-        } else if (isGuildless() && isWaitlistUnlocked()) {
-            tier = "waitlist";
-        } else {
+        String tier =
+                registrationTier(
+                        isReturners(), isHonouraryUnlocked(), isGuildless(), isWaitlistUnlocked());
+        if (tier == null) {
             return; // not eligible for registration
         }
 
         V1ApiManager.sendRegistration(uuid, username, tier);
+    }
+
+    /**
+     * The presence-registration tier for the given eligibility, in priority order: Returners is
+     * {@code guild}, an unlocked honourary is {@code honourary}, a guildless waitlist unlock is
+     * {@code waitlist}, and anything else is {@code null} (no registration).
+     */
+    // Package-private for unit tests. See RegistrationTierTest.
+    static String registrationTier(
+            boolean returners,
+            boolean honouraryUnlocked,
+            boolean guildless,
+            boolean waitlistUnlocked) {
+        if (returners) return "guild";
+        if (honouraryUnlocked) return "honourary";
+        if (guildless && waitlistUnlocked) return "waitlist";
+        return null;
+    }
+
+    /**
+     * Whether a cached registration should be retracted: the player is no longer eligible
+     * ({@code tierNow} is {@code null}) and a registration is cached. An unknown guild state is
+     * not ineligibility, so a cached {@code guild} registration is retracted only when
+     * {@code definitive} (the caller knows the guild state has changed, as a left or joined
+     * event does); a waitlist or honourary one depends on the auth tier alone, so it is
+     * retracted whatever {@code definitive} says.
+     */
+    // Package-private for unit tests. See RegistrationTierTest.
+    static boolean shouldRetract(String tierNow, String cachedTier, boolean definitive) {
+        return tierNow == null && cachedTier != null && (definitive || !"guild".equals(cachedTier));
+    }
+
+    /**
+     * Retracts the cached presence registration if the player is no longer eligible for it
+     * ({@link #shouldRetract}), through {@link V1ApiManager#sendUnregistration}. Called on the
+     * client thread by {@link GuildLifecycle#onGuildLeft()} and
+     * {@link GuildLifecycle#onGuildJoined()} (guild state changed, so {@code definitive}) and by
+     * {@link UnlockManager} after an auth ack or failure (not definitive: only a waitlist or
+     * honourary registration can go), and by {@link GuildLifecycle#onGuildCheckCompleted()}
+     * after a {@code /gu stats} check (definitive only when the check found the player in
+     * another guild or none: {@link GuildChecker.GuildCheckResult#isDefinitive()}).
+     * A player who qualifies again re-registers through {@link #sendRegistrationIfReady()}.
+     *
+     * @param definitive whether the guild state is known to have changed
+     * @param reason for the debug log: {@code left}, {@code joined}, {@code auth} or
+     *     {@code guild-check}
+     */
+    public static void reconcileRegistration(boolean definitive, String reason) {
+        String cached = V1ApiManager.registeredTier();
+        if (cached == null) return;
+        String tierNow =
+                registrationTier(
+                        isReturners(), isHonouraryUnlocked(), isGuildless(), isWaitlistUnlocked());
+        if (shouldRetract(tierNow, cached, definitive)) {
+            V1ApiManager.sendUnregistration(reason);
+        }
     }
 }

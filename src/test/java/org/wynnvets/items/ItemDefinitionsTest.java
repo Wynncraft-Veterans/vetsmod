@@ -9,41 +9,40 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.error.YAMLException;
 
 /**
- * Tests for {@link ItemDefinitions}' eight testable query methods — seven that
+ * Tests for {@link ItemDefinitions}' nine testable query methods — eight that
  * take an item name plus {@code isBlockedScreenTitle}, which takes a screen
  * title — driven against the real {@code definitions.yml} plus small parsed-in
  * fixtures.
  *
  * <p>The file is the contract, not a stub: {@code src/client/resources} is on
  * the test runtime classpath, so {@code load()} reads exactly what production
- * reads. Four behaviours here are invisible from the Java side and would be
- * silently normalised by a table-driven rewrite, which is why they are pinned:
- * per-pattern case-sensitivity via inline {@code (?i)}, the empty-guard
- * asymmetry between the five guarded sections and the four unguarded ones,
- * {@code isUnenchanted}'s {@code isLegacy} veto, and the fact that inline
- * {@code #} comments are stripped as a side effect of quote handling rather
- * than by any comment logic.</p>
+ * reads. The suite pins per-pattern case-sensitivity via inline {@code (?i)},
+ * {@code isUnenchanted}'s {@code isLegacy} veto, which YAML quoting keeps a regex
+ * backslash, and the parser's handling of empty entries, null and repeated
+ * sections. The file is standard YAML, parsed by SnakeYAML, so comments,
+ * quoting and {@code ---} document breaks follow YAML's rules.</p>
  *
  * <p>{@code isEnchantExcludedItem(ItemStack)} is not covered — it resolves
  * {@code BuiltInRegistries.ITEM}, which needs {@code Bootstrap.bootStrap()}.
- * It is the ninth public query and the only untestable one.</p>
+ * It is the tenth public query and the only untestable one.</p>
  *
  * <p>NOTE: {@link ItemDefinitions} imports {@code BuiltInRegistries} and
- * {@code ItemStack}, but its static state is nine empty collections, so nothing
- * loads during class-init. If a future contributor adds a static initializer
+ * {@code ItemStack}, but its static state is empty collections and the section
+ * table, so nothing loads during class-init. If a future contributor adds a static initializer
  * that touches the registries, this test starts failing at class-init time.</p>
  */
 class ItemDefinitionsTest {
 
     // The mod calls load() during init; the harness does not. Load once here so
-    // the predicates have the real 203-line file behind them.
+    // the predicates have the real file behind them.
     static {
         ItemDefinitions.load();
     }
 
-    // Test-only: load() clears all nine collections before refilling, so it
+    // Test-only: load() clears all ten collections before refilling, so it
     // doubles as the reset that undoes any fixture a test parsed in.
     @AfterEach
     void reloadRealDefinitions() {
@@ -86,8 +85,8 @@ class ItemDefinitionsTest {
 
     @Test
     void predicatesRequireAFullMatchNotASubstring() throws IOException {
-        // Every loop uses matcher.matches(). Against the real file that choice
-        // is almost invisible — all 158 patterns are anchored with ^ and the few
+        // matchesAny uses matcher.matches(). Against the real file that choice
+        // is almost invisible — every pattern is anchored with ^ and the few
         // without a trailing $ end in a greedy .* — so an anchored fixture would
         // behave identically under find() and pin nothing. The discriminating
         // input is an UNANCHORED pattern, which the file happens not to contain
@@ -116,9 +115,8 @@ class ItemDefinitionsTest {
 
     @Test
     void isUnenchanted_isVetoedByIsLegacy() throws IOException {
-        // The only place one category consults another. A name in both lists is
-        // legacy, not unenchanted — collapsing the eight predicates into one
-        // table-driven lookup drops this edge unless it is carried explicitly.
+        // The only place one section consults another: a name in both lists is
+        // legacy, not unenchanted.
         parseFixture(
                 """
                 definitions:
@@ -137,74 +135,145 @@ class ItemDefinitionsTest {
                 "the same list still answers for a name that is not legacy");
     }
 
-    // ----- The empty-guard asymmetry -----
+    // ----- Empty entries -----
 
     @Test
-    void unguardedSectionsAcceptAnEmptyPatternAndGuardedOnesDropIt() throws IOException {
-        // definitions, no_lore_legacy, misc_definitions and unenchanted have no
-        // isEmpty() check; not_pedestal, notjunk, new_format_override,
-        // enchant_excluded_items and blocked_screen_titles do. Almost certainly
-        // unintentional — pinned so a later pass has to choose a direction
-        // rather than normalise it by accident.
-        assertFalse(ItemDefinitions.isLegacy(""), "precondition: no empty pattern is loaded yet");
-        assertFalse(ItemDefinitions.isNotPedestal(""));
-
+    void everySectionDropsAnEmptyEntry() throws IOException {
+        // Under matches() an empty pattern matches only the empty name, so an empty
+        // entry could only make a nameless item count as listed. Every section drops it.
         parseFixture(
                 """
                 definitions:
+                  - ""
+                misc_definitions:
+                  - ""
+                no_lore_legacy:
+                  - ""
+                new_format_override:
+                  - ""
+                unenchanted:
+                  - ""
+                notjunk:
                   - ""
                 not_pedestal:
                   - ""
-                """);
-
-        assertTrue(
-                ItemDefinitions.isLegacy(""),
-                "the unguarded section compiled the empty pattern, which matches the empty"
-                        + " name");
-        assertFalse(
-                ItemDefinitions.isNotPedestal(""),
-                "the guarded section dropped it before Pattern.compile");
-    }
-
-    @Test
-    void anEmptyPatternMatchesOnlyTheEmptyName() throws IOException {
-        // Worth stating because "an empty regex" reads like "matches
-        // everything". Under matches() it is the opposite: it matches nothing
-        // but the empty string.
-        parseFixture(
-                """
-                definitions:
+                blocked_screen_titles:
                   - ""
+                inventory_suppressors:
+                  - ""
+                  - "^SuppressorProbe$"
                 """);
 
-        assertTrue(ItemDefinitions.isLegacy(""));
-        assertFalse(ItemDefinitions.isLegacy("x"));
+        assertFalse(ItemDefinitions.isLegacy(""));
+        assertFalse(ItemDefinitions.isMiscLegacy(""));
+        assertFalse(ItemDefinitions.isNoLoreLegacy(""));
+        assertFalse(ItemDefinitions.isNewFormatOverride(""));
+        assertFalse(ItemDefinitions.isUnenchanted(""));
+        assertFalse(ItemDefinitions.isNotJunk(""));
+        assertFalse(ItemDefinitions.isNotPedestal(""));
+        assertFalse(ItemDefinitions.isBlockedScreenTitle(""));
+        assertFalse(ItemDefinitions.isInventorySuppressor(""));
+        assertTrue(
+                ItemDefinitions.isInventorySuppressor("SuppressorProbe"),
+                "the section's other entries still load");
     }
 
-    // ----- Inline comment stripping is accidental -----
+    // ----- Comments and quoting follow YAML -----
 
     @Test
-    void trailingCommentsAreStrippedOnlyBecauseTheValueIsQuoted() throws IOException {
-        // extractQuotedString takes the substring between the first two quotes.
-        // Nothing in the parser knows what a '#' is, so an unquoted entry keeps
-        // its comment and compiles it into the pattern.
+    void trailingCommentsAreStrippedFromQuotedAndPlainEntriesAlike() throws IOException {
+        // YAML drops a trailing comment after a quoted or a bare entry.
         parseFixture(
                 """
                 definitions:
                   - "^QuotedProbe$" # this comment is discarded
-                  - ^BareProbe$ # this comment becomes part of the regex
+                  - ^BareProbe$ # and so is this one
                 """);
 
         assertTrue(ItemDefinitions.isLegacy("QuotedProbe"));
-        assertFalse(
-                ItemDefinitions.isLegacy("BareProbe"),
-                "the unquoted entry compiled as '^BareProbe$ # ...' and matches nothing");
+        assertTrue(ItemDefinitions.isLegacy("BareProbe"));
+    }
+
+    @Test
+    void aRegexBackslashSurvivesInSingleQuotes() throws IOException {
+        // Single quotes keep a backslash as it is, so the regex sees an escaped '?'.
+        // The real file's '^\?\?\?$' depends on this.
+        parseFixture(
+                """
+                definitions:
+                  - '^Q\\?$'
+                """);
+
+        assertTrue(ItemDefinitions.isLegacy("Q?"));
+        assertFalse(ItemDefinitions.isLegacy("Q"));
+        assertTrue(ItemDefinitions.isUnenchanted("???"), "the real file's entry");
+    }
+
+    @Test
+    void theRealFileParsesWithoutError() throws IOException {
+        // load() logs a parse error rather than failing client init, so a broken
+        // definitions.yml would load only part of it, or none. Parsing it here, with
+        // nothing catching, is what turns a bad edit into a failed build.
+        try (var in = ItemDefinitionsTest.class.getResourceAsStream("/definitions.yml")) {
+            ItemDefinitions.parse(in);
+        }
+    }
+
+    @Test
+    void aDoubleQuotedBackslashThatIsNotAYamlEscapeFailsTheParse() {
+        // Inside double quotes only YAML's own escapes are legal, so a regex escape
+        // such as \? there is a syntax error, not a silent change to the pattern.
+        assertThrows(
+                YAMLException.class,
+                () ->
+                        parseFixture(
+                                """
+                                definitions:
+                                  - "^Q\\?$"
+                                """));
+    }
+
+    @Test
+    void aRepeatedSectionFailsTheParse() {
+        // In one mapping a repeated key would otherwise silently replace the earlier
+        // section's list.
+        assertThrows(
+                YAMLException.class,
+                () ->
+                        parseFixture(
+                                """
+                                definitions:
+                                  - "^FirstProbe$"
+                                definitions:
+                                  - "^SecondProbe$"
+                                """));
+        assertFalse(ItemDefinitions.isLegacy("FirstProbe"), "nothing from the document loads");
+        assertFalse(ItemDefinitions.isLegacy("SecondProbe"));
+    }
+
+    @Test
+    void aYamlEscapeInDoubleQuotesIsDecodedBeforeTheRegexSeesIt() throws IOException {
+        // YAML's \_ is a no-break space, while the regex would read \_ as a plain '_'. So
+        // this entry matches one name or the other depending on which of the two decoded it.
+        parseFixture(
+                """
+                definitions:
+                  - "^A\\_B$"
+                """);
+        assertTrue(ItemDefinitions.isLegacy("A\u00A0B"), "YAML decoded the escape");
+        assertFalse(ItemDefinitions.isLegacy("A_B"), "the regex never saw it");
+
+        // The real file's "(?i)^Fiert\u00e9$": YAML turns the escape into the letter,
+        // which matches the same names the regex escape did.
+        assertTrue(ItemDefinitions.isNoLoreLegacy("Fiert\u00e9"));
+        assertTrue(
+                ItemDefinitions.isNoLoreLegacy("fiert\u00e9"),
+                "(?i) still folds the ASCII letters");
     }
 
     @Test
     void wholeLineCommentsAreSkippedByTheParserItself() throws IOException {
-        // A leading '#' is handled, including the commented-out list entries the
-        // real file uses to park disabled patterns.
+        // A leading '#' is handled, including on a commented-out list entry.
         parseFixture(
                 """
                 definitions:
@@ -220,8 +289,9 @@ class ItemDefinitionsTest {
 
     @Test
     void sectionsEndAtTheDocumentSeparator() throws IOException {
-        // "---" resets currentSection to null, so entries after it with no new
-        // header are dropped rather than appended to the previous section.
+        // "---" starts a new YAML document. One that is a bare list rather than a
+        // mapping names no category, so its entries are dropped rather than
+        // appended to the previous section.
         parseFixture(
                 """
                 definitions:
@@ -247,28 +317,20 @@ class ItemDefinitionsTest {
         assertFalse(ItemDefinitions.isLegacy("TypoProbe"));
     }
 
-    // ----- Null handling is inconsistent -----
+    // ----- Null -----
 
     @Test
-    void onlyIsBlockedScreenTitleGuardsNull() {
-        // The screen-title predicate takes a nullable title from the screen
-        // handler; the seven name predicates do not guard, and Matcher rejects
-        // a null CharSequence.
-        //
-        // Note what this depends on: the NPE comes from inside the loop, so it
-        // only fires while the list is non-empty. not_pedestal has exactly one
-        // pattern in the real file — delete that line and isNotPedestal(null)
-        // silently becomes false, breaking a test whose subject is null
-        // handling rather than data.
+    void noPredicateMatchesNull() {
+        // A null name or title is on no list; no predicate throws for it.
+        assertFalse(ItemDefinitions.isLegacy(null));
+        assertFalse(ItemDefinitions.isMiscLegacy(null));
+        assertFalse(ItemDefinitions.isNoLoreLegacy(null));
+        assertFalse(ItemDefinitions.isNewFormatOverride(null));
+        assertFalse(ItemDefinitions.isUnenchanted(null));
+        assertFalse(ItemDefinitions.isNotJunk(null));
+        assertFalse(ItemDefinitions.isNotPedestal(null));
         assertFalse(ItemDefinitions.isBlockedScreenTitle(null));
-
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isLegacy(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isNoLoreLegacy(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isMiscLegacy(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isUnenchanted(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isNotPedestal(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isNotJunk(null));
-        assertThrows(NullPointerException.class, () -> ItemDefinitions.isNewFormatOverride(null));
+        assertFalse(ItemDefinitions.isInventorySuppressor(null));
     }
 
     // ----- The real file answers for each remaining category -----
@@ -282,6 +344,7 @@ class ItemDefinitionsTest {
         assertTrue(ItemDefinitions.isNotJunk("Rubble"));
         assertTrue(ItemDefinitions.isNewFormatOverride("Skeleton Key"));
         assertTrue(ItemDefinitions.isBlockedScreenTitle("Permissions for Bob"));
+        assertTrue(ItemDefinitions.isInventorySuppressor("Block Bank"));
     }
 
     @Test
@@ -292,6 +355,149 @@ class ItemDefinitionsTest {
         assertFalse(ItemDefinitions.isNoLoreLegacy("Corrupted Treasure"));
         assertFalse(ItemDefinitions.isMiscLegacy("Corrupted Treasure"));
         assertFalse(ItemDefinitions.isNotJunk("Corrupted Treasure"));
+    }
+
+    // ----- Misc Bucket items -----
+
+    @Test
+    void miscBucketNamesAreMiscLegacyAndOnlyMiscLegacy() {
+        // Each needs the Misc. Item rarity line (the misc_definitions gate), so none
+        // may also sit in the unconditional list.
+        for (String name :
+                new String[] {
+                    "Stitched Flesh",
+                    "Aqua Dust",
+                    "Flamingo Feather",
+                    "Uncraftable Potion",
+                    "Cralozide Crystal",
+                    "Sunflower Seeds",
+                    "Pigman Meat",
+                    "Broken Amulet",
+                    "Shattered Crystal",
+                    "Cobblestone",
+                    "Lava Essence"
+                }) {
+            assertTrue(ItemDefinitions.isMiscLegacy(name), name + " is misc legacy");
+            assertFalse(ItemDefinitions.isLegacy(name), name + " is not matched by name alone");
+        }
+    }
+
+    @Test
+    void miscBucketNamesAreExactAndCaseFolded() {
+        assertTrue(ItemDefinitions.isMiscLegacy("aqua dust"), "(?i)");
+        assertFalse(ItemDefinitions.isMiscLegacy("Aqua Dust Shard"), "full match only");
+        assertFalse(ItemDefinitions.isMiscLegacy("Cobblestone Slab"));
+        assertFalse(ItemDefinitions.isMiscLegacy("Mossy Cobblestone"));
+        assertFalse(ItemDefinitions.isMiscLegacy("Flamingo"), "a prefix is not the item");
+        assertFalse(ItemDefinitions.isMiscLegacy("Lava"));
+    }
+
+    @Test
+    void wolfsFangIsNoLoreLegacyInBothApostropheForms() {
+        assertTrue(ItemDefinitions.isNoLoreLegacy("Wolf's Fang"));
+        assertTrue(ItemDefinitions.isNoLoreLegacy("Wolf\u2019s Fang"), "typographic apostrophe");
+        assertFalse(
+                ItemDefinitions.isLegacy("Wolf's Fang"),
+                "only legacy when loreless, never by name alone");
+        assertFalse(
+                ItemDefinitions.isNoLoreLegacy("Wolf Fang"),
+                "the existing definitions entry is a different name and stays name-only");
+        assertFalse(ItemDefinitions.isNoLoreLegacy("Wolf's Fangs"));
+    }
+
+    // ----- Removed modern items -----
+
+    @Test
+    void vibrantAugmentIsLegacyByNameAlone() {
+        assertTrue(ItemDefinitions.isLegacy("Vibrant Augment"));
+        assertTrue(ItemDefinitions.isLegacy("vibrant augment"), "(?i)");
+        assertFalse(ItemDefinitions.isLegacy("Vibrant Augments"), "full match only");
+        assertFalse(ItemDefinitions.isLegacy("Vibrant"), "a prefix is not the item");
+        assertFalse(ItemDefinitions.isLegacy("Augment"), "the stem alone is not the removed item");
+    }
+
+    @Test
+    void warpedMountIsLegacyButWorkingMountNamesAreNot() {
+        assertTrue(ItemDefinitions.isLegacy("Warped Mount"));
+        assertTrue(ItemDefinitions.isLegacy("warped mount"), "(?i)");
+        assertFalse(ItemDefinitions.isLegacy("Warped Mount of Wynn"), "full match only");
+        // Working mounts have names of their own.
+        assertFalse(ItemDefinitions.isLegacy("Horse Saddle"));
+        assertFalse(ItemDefinitions.isLegacy("Meteor's Saddle"));
+        assertFalse(ItemDefinitions.isMiscLegacy("Horse Saddle"));
+        assertFalse(ItemDefinitions.isNoLoreLegacy("Meteor's Saddle"));
+    }
+
+    // ----- Confirmed not legacy -----
+
+    @Test
+    void itemsConfirmedNotLegacyAreInNoNameList() {
+        for (String name :
+                new String[] {
+                    "The Juggernaut",
+                    "Sacred",
+                    "Quicksand Crossers",
+                    "Quicksand Crossers [30.0%]",
+                    "Replica Hallowynn Mask"
+                }) {
+            assertFalse(ItemDefinitions.isLegacy(name), name + " is not legacy");
+            assertFalse(ItemDefinitions.isMiscLegacy(name), name);
+            assertFalse(ItemDefinitions.isNoLoreLegacy(name), name);
+        }
+    }
+
+    @Test
+    void theHallowynnMaskItselfStaysLegacy() {
+        assertTrue(ItemDefinitions.isLegacy("Hallowynn Mask"));
+        assertTrue(ItemDefinitions.isLegacy("hallowynn mask"), "(?i)");
+        assertFalse(
+                ItemDefinitions.isLegacy("Replica Hallowynn Mask"),
+                "the replica is a current item and must not ride on the original's entry");
+    }
+
+    // ----- Boat passes versus the Seaskipper menu's ticket UI element -----
+
+    @Test
+    void galleonsGraveyardPassIsLegacyButTheSeaskipperTicketElementIsNot() {
+        assertTrue(ItemDefinitions.isLegacy("Galleon's Graveyard Pass"), "a real pass");
+        assertTrue(ItemDefinitions.isLegacy("galleon's graveyard pass"), "(?i)");
+        // The menu element's normalised name: the cost is a number plus a coin glyph
+        // (U+00B2).
+        assertFalse(ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 16\u00B2"));
+        assertFalse(ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 16"));
+        assertFalse(ItemDefinitions.isLegacy("Galleon's Graveyard Pass for 4"));
+    }
+
+    @Test
+    void otherBoatPassesStayLegacy() {
+        assertTrue(ItemDefinitions.isLegacy("Selchar Boat Pass"), "a real pass");
+        assertTrue(ItemDefinitions.isLegacy("Some Island Boat Pass"));
+        assertFalse(
+                ItemDefinitions.isLegacy("Selchar Boat Pass for 16\u00B2"),
+                "a cost suffix ends the name past 'Boat Pass', so the suffix-anchored entry "
+                        + "never matched a ticket element either");
+    }
+
+    // ----- Inventory suppressors (Block Bank) -----
+
+    @Test
+    void blockBankIsAnInventorySuppressor() {
+        assertTrue(ItemDefinitions.isInventorySuppressor("Block Bank"));
+        assertFalse(ItemDefinitions.isInventorySuppressor("block bank"), "case-sensitive entry");
+        assertFalse(ItemDefinitions.isInventorySuppressor("Block Banker"), "full match only");
+        assertFalse(ItemDefinitions.isInventorySuppressor("Block of Quartz"));
+        assertFalse(ItemDefinitions.isInventorySuppressor("Bank"));
+        assertFalse(ItemDefinitions.isInventorySuppressor("Account Bank"));
+    }
+
+    @Test
+    void inventorySuppressorsAreAnIndependentCategory() {
+        // The housing item is not itself legacy in any list, and the suppressor list does
+        // not leak into the legacy lists.
+        assertFalse(ItemDefinitions.isLegacy("Block Bank"));
+        assertFalse(ItemDefinitions.isMiscLegacy("Block Bank"));
+        assertFalse(ItemDefinitions.isNoLoreLegacy("Block Bank"));
+        assertFalse(ItemDefinitions.isInventorySuppressor("Skeleton Key"));
     }
 
     // ----- load() is the reset -----

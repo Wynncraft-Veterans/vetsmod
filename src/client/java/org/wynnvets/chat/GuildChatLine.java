@@ -7,7 +7,7 @@ package org.wynnvets.chat;
  * <p>Every guild chat line arrives as {@code <rank pill glyphs> <display name>:
  * <body>}. The rank indicator is a run of custom-font glyphs; the display name
  * is whatever sits between the <em>last</em> such glyph and the first colon,
- * trimmed — it may contain spaces, e.g. {@code "EYAL5555/First Mage"}. That
+ * trimmed — it may contain spaces, e.g. {@code "Salted/Some Nickname"}. That
  * header scan is shared, and the private {@code rankIndicatorEnd} is the only
  * copy of it.</p>
  *

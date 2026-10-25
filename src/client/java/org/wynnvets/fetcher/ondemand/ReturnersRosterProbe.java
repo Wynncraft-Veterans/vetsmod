@@ -3,13 +3,13 @@ package org.wynnvets.fetcher.ondemand;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.wynnvets.api.WynnCraftApi;
 import org.wynnvets.util.HttpClients;
@@ -20,18 +20,41 @@ import org.wynnvets.util.Uuids;
  * Guild-roster cross-checks against Wynncraft's {@code /v3/guild} endpoint. For Returners it
  * reports whether a UUID is in the roster and, where the roster gives them, its rank and legacy
  * name; for any other guild, only the rank the roster lists for the UUID. A failed or unreadable
- * fetch gives the same result as absence.
+ * fetch is reported as {@link RosterVerdict#UNKNOWN}, never as absence.
  */
 final class ReturnersRosterProbe {
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
+    /** What a roster call established about one UUID. */
+    enum RosterVerdict {
+        /** The roster answered and lists the UUID. */
+        IN_ROSTER,
+        /** The roster answered and does not list the UUID. */
+        NOT_IN_ROSTER,
+        /** No usable answer: a failed request, a non-200 or an unreadable body. */
+        UNKNOWN
+    }
+
     /**
      * Lightweight result of a guild-roster cross-check; {@link #analyzeRoster}
-     * also produces it for guilds other than Returners.
+     * also produces it for guilds other than Returners. {@code rank} and
+     * {@code legacyName} are only ever set for {@link RosterVerdict#IN_ROSTER}, and may be
+     * {@code null} there when the roster lists the UUID in a shape that gives neither.
      */
-    record ReturnersMembership(boolean inGuild, String legacyName, String rank) {
+    record ReturnersMembership(RosterVerdict verdict, String legacyName, String rank) {
+        /** True only when the roster answered and lists the UUID. */
+        boolean inGuild() {
+            return verdict == RosterVerdict.IN_ROSTER;
+        }
+
+        /** The roster answered and does not list the UUID. */
         static ReturnersMembership notInGuild() {
-            return new ReturnersMembership(false, null, null);
+            return new ReturnersMembership(RosterVerdict.NOT_IN_ROSTER, null, null);
+        }
+
+        /** The roster call failed, so absence is not established. */
+        static ReturnersMembership unknown() {
+            return new ReturnersMembership(RosterVerdict.UNKNOWN, null, null);
         }
     }
 
@@ -81,11 +104,9 @@ final class ReturnersRosterProbe {
      * is {@link #containsUuid}'s answer: a shape-agnostic walk of the whole
      * payload, which is what defends against Wynncraft API shape changes.
      * {@link #analyzeRoster}'s structured {@code members.<rank>.<name>}
-     * walk only supplies the rank and {@code legacyName}. Today a non-200,
-     * failed or unparseable fetch also yields
-     * {@link ReturnersMembership#notInGuild()}, indistinguishable from
-     * absence (see
-     * {@code wv-check-guild-line-conflates-roster-failure-with-absence}).
+     * walk only supplies the rank and {@code legacyName}. A non-200, failed
+     * or unparseable fetch yields {@link ReturnersMembership#unknown()}, so
+     * the caller can tell it from a roster that answered "not a member".
      */
     static CompletableFuture<ReturnersMembership> returnersMembership(String uuid) {
         HttpRequest request =
@@ -100,16 +121,34 @@ final class ReturnersRosterProbe {
         return HTTP_CLIENT
                 .sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(
-                        response -> {
-                            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-                                return ReturnersMembership.notInGuild();
-                            }
+                        response ->
+                                membershipFromResponse(
+                                        response.statusCode(), response.body(), normalizedUuid))
+                .exceptionally(e -> ReturnersMembership.unknown());
+    }
 
-                            JsonElement payload =
-                                    Json.GSON.fromJson(response.body(), JsonElement.class);
-                            return analyzeRoster(payload, normalizedUuid);
-                        })
-                .exceptionally(e -> ReturnersMembership.notInGuild());
+    /**
+     * The pure step after the HTTP call, shared by {@link #returnersMembership} and
+     * {@link #otherGuildMembership}: a status other than 200, an unparseable body or one that is
+     * not a JSON object is {@link RosterVerdict#UNKNOWN}; anything else is
+     * {@link #analyzeRoster}'s answer.
+     */
+    // Package-private for unit tests. See ReturnersRosterProbeTest.
+    static ReturnersMembership membershipFromResponse(
+            int status, String body, String normalizedUuid) {
+        if (status != HttpURLConnection.HTTP_OK) {
+            return ReturnersMembership.unknown();
+        }
+        JsonElement payload;
+        try {
+            payload = Json.GSON.fromJson(body, JsonElement.class);
+        } catch (JsonParseException e) {
+            return ReturnersMembership.unknown();
+        }
+        if (payload == null || !payload.isJsonObject()) {
+            return ReturnersMembership.unknown();
+        }
+        return analyzeRoster(payload, normalizedUuid);
     }
 
     // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
@@ -117,17 +156,15 @@ final class ReturnersRosterProbe {
     // Remove: when Wynncraft invalidates the player endpoint on
     //   officer-write events, or exposes a webhook, or an offline-player
     //   spot-check shows <10min staleness.
-    // Imports used only by this workaround: java.util.Optional.
     /**
-     * Fetches {@code guildName}'s roster and returns the rank it lists for
-     * {@code normalizedUuid}. Empty on a non-200, a timeout or other failed
-     * request, a malformed response or an absent UUID. It is also empty when the UUID is present
-     * but no rank could be read, so an empty result does not by itself mean
-     * "not a member"; today {@link CheckReportRenderer#renderGuildLine} reads it as one (see
-     * {@code wv-check-guild-line-conflates-roster-failure-with-absence}).
+     * Fetches {@code guildName}'s roster and reports what it says about
+     * {@code normalizedUuid}: {@link RosterVerdict#IN_ROSTER} with the rank it lists (which may be
+     * {@code null}, a member whose rank could not be read), {@link RosterVerdict#NOT_IN_ROSTER}
+     * when it answered without the UUID, or {@link RosterVerdict#UNKNOWN} on a non-200, a timeout
+     * or other failed request, or an unreadable response.
      * Mirrors {@link #returnersMembership} and reuses {@link #analyzeRoster}.
      */
-    static CompletableFuture<Optional<String>> confirmArbitraryGuildRank(
+    static CompletableFuture<ReturnersMembership> otherGuildMembership(
             String guildName, String normalizedUuid) {
         HttpRequest request =
                 HttpRequest.newBuilder()
@@ -138,18 +175,10 @@ final class ReturnersRosterProbe {
         return HTTP_CLIENT
                 .sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(
-                        response -> {
-                            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-                                return Optional.<String>empty();
-                            }
-                            JsonElement payload =
-                                    Json.GSON.fromJson(response.body(), JsonElement.class);
-                            ReturnersMembership hit = analyzeRoster(payload, normalizedUuid);
-                            return hit.inGuild()
-                                    ? Optional.ofNullable(hit.rank())
-                                    : Optional.<String>empty();
-                        })
-                .exceptionally(e -> Optional.<String>empty());
+                        response ->
+                                membershipFromResponse(
+                                        response.statusCode(), response.body(), normalizedUuid))
+                .exceptionally(e -> ReturnersMembership.unknown());
     }
 
     // <<< PATCH END: WYNN-STALE-WORKAROUND
@@ -193,7 +222,7 @@ final class ReturnersRosterProbe {
                 }
             }
         }
-        return new ReturnersMembership(true, legacyName, rank);
+        return new ReturnersMembership(RosterVerdict.IN_ROSTER, legacyName, rank);
     }
 
     private static String capitalizeRank(String rank) {

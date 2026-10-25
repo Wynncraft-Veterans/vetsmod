@@ -52,7 +52,7 @@ public final class StaffFetcher {
                             if (response.statusCode() != HttpURLConnection.HTTP_OK) {
                                 VetsLogger.debug("Staff fetch failed: {}", response.statusCode());
                                 return Component.literal(
-                                                "Failed to fetch staff (Status: "
+                                                "Failed to fetch stewards (Status: "
                                                         + response.statusCode()
                                                         + ")")
                                         .withStyle(ChatFormatting.RED);
@@ -61,20 +61,20 @@ public final class StaffFetcher {
                             try {
                                 List<StaffEntry> onlineStaff = parseOnlineStaff(response.body());
                                 if (onlineStaff.isEmpty()) {
-                                    return Component.literal("No guild staff are currently online.")
+                                    return Component.literal("No stewards are currently online.")
                                             .withStyle(ChatFormatting.YELLOW);
                                 }
 
                                 return formatOnlineStaff(onlineStaff);
                             } catch (Exception e) {
                                 return Component.literal(
-                                                "Error parsing staff data: " + e.getMessage())
+                                                "Error parsing steward data: " + e.getMessage())
                                         .withStyle(ChatFormatting.RED);
                             }
                         })
                 .exceptionally(
                         e ->
-                                Component.literal("Error fetching staff: " + e.getMessage())
+                                Component.literal("Error fetching steward data: " + e.getMessage())
                                         .withStyle(ChatFormatting.RED));
     }
 
@@ -118,7 +118,7 @@ public final class StaffFetcher {
 
     private static MutableComponent formatOnlineStaff(List<StaffEntry> onlineStaff) {
         MutableComponent message =
-                Component.literal("Online guild staff (" + onlineStaff.size() + "): ")
+                Component.literal("Online stewards (" + onlineStaff.size() + "): ")
                         .withStyle(ChatFormatting.GREEN);
 
         for (int i = 0; i < onlineStaff.size(); i++) {

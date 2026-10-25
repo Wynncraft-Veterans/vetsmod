@@ -14,28 +14,28 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *
  * <p>Clone of {@link AnniScrollspotClient}: FIFO callback queue, the next
  * incoming {@code anni_rsvp_response} frame resolves the head future. The
- * V1 protocol has no per-frame correlation IDs, and temporary-server answers in
+ * frame carries no {@code req} request id, and temporary-server answers in
  * send order, so the FIFO mis-pairs only on a lost or late reply or when two concurrent
- * calls send in the opposite order to their enqueues; the per-command UX deliberately
- * blocks on the previous future so this never matters in practice.</p>
+ * calls send in the opposite order to their enqueues. Nothing waits for the previous
+ * call: {@code /wv anni rsvp} sends at once, so two RSVPs sent close together carry
+ * that risk.</p>
  *
  * <p>The future resolves to an immutable {@link Ack} record with
- * {@code (ok, detail)}; callers render the detail on failure. A 5-second
- * deadline applies. ⚠️ temp-server's own forward to vets-anni is a flat
- * <b>5 s</b> — {@code set_rsvp} and {@code set_scroll_spot} reuse the anni
- * snapshot poller's client, whose timeout is
- * {@code ANNI_SNAPSHOT_REQUEST_TIMEOUT_SECONDS = 5.0} — not the "3-5 s" this
- * sentence used to claim, and not the 3 s that
- * {@link AnniQueryClient}'s deadline is correctly sized against. So the 5 s
- * here has <b>zero slack</b> over the forward rather than covering
- * round-trip plus jitter; a forward that uses its full budget cannot produce
- * an ack this client is still waiting for. Filed as
- * {@code ack-clients-timeout-has-zero-slack-over-the-server-forward}.</p>
+ * {@code (ok, detail, result)}, or to {@code null} at the deadline; callers render
+ * the detail on failure and use {@code result} to tell a revoke that withdrew an RSVP from
+ * one that found none. The deadline is 8 s, the same as
+ * {@link AnniQueryClient}'s. temp-server forwards {@code set_rsvp} and
+ * {@code set_scroll_spot} to vets-anni on the anni snapshot poller's httpx
+ * client, whose {@code ANNI_SNAPSHOT_REQUEST_TIMEOUT_SECONDS = 5.0} bounds
+ * each phase of the request (connect, read, write, pool), not the forward as
+ * a whole. 8 s leaves about 3 s for the round trip and jitter over a
+ * forward that finishes within one such budget: it covers the usual case,
+ * but it is not a hard bound on what the server can take.</p>
  */
 public final class AnniRsvpClient {
 
     /** Hard deadline for the round-trip. */
-    private static final long ACK_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5);
+    private static final long ACK_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(8);
 
     private static final ConcurrentLinkedDeque<CompletableFuture<Ack>> pending =
             new ConcurrentLinkedDeque<>();
@@ -85,13 +85,15 @@ public final class AnniRsvpClient {
             future.complete(ack);
             return future;
         }
-        future.orTimeout(ACK_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        // Hand back the exceptionally stage: orTimeout returns this future
+        // unchanged, and the stage is what resolves the caller's future with
+        // null at the deadline.
+        return future.orTimeout(ACK_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                 .exceptionally(
                         ex -> {
                             pending.remove(future);
-                            return null; // already-resolved branch swallowed
+                            return null;
                         });
-        return future;
     }
 
     /** Called by {@link AnniWsHandler} for every received
@@ -102,23 +104,47 @@ public final class AnniRsvpClient {
             VetsLogger.debug("anni_rsvp_response with empty queue: {}", json);
             return;
         }
-        String status =
-                json.has("status") && !json.get("status").isJsonNull()
-                        ? json.get("status").getAsString()
-                        : "error";
-        String detail =
-                json.has("detail") && !json.get("detail").isJsonNull()
-                        ? json.get("detail").getAsString()
-                        : null;
-        Ack ack = new Ack("ok".equals(status), detail);
+        Ack ack = parseAck(json);
         lastAck = ack;
         head.complete(ack);
     }
 
-    /** Server ack — {@code ok} flag + optional human-readable {@code detail}
-     *  surfaced from vets-anni on failure (e.g. "RSVP is closed (within 90
-     *  min of anni)"). */
-    public record Ack(boolean ok, String detail) {}
+    /**
+     * Reads an {@code anni_rsvp_response} frame: {@code status} ({@code ok} or anything else,
+     * a missing one counting as an error), the optional {@code detail} and the optional string
+     * {@code result}. Each optional field reads as {@code null} when absent, JSON null or not
+     * a string, which is what an older server sends for {@code result}.
+     */
+    // Package-private for unit tests. See AnniRsvpClientTest.
+    static Ack parseAck(JsonObject json) {
+        String status = optionalString(json, "status");
+        return new Ack(
+                "ok".equals(status),
+                optionalString(json, "detail"),
+                optionalString(json, "result"));
+    }
+
+    private static String optionalString(JsonObject json, String key) {
+        return json.has(key)
+                        && json.get(key).isJsonPrimitive()
+                        && json.get(key).getAsJsonPrimitive().isString()
+                ? json.get(key).getAsString()
+                : null;
+    }
+
+    /**
+     * Server ack: the {@code ok} flag, an optional human-readable {@code detail} surfaced from
+     * vets-anni on failure (e.g. "RSVP is closed (within 90 min of anni)"), and an optional
+     * {@code result} on success: {@code "recorded"}, {@code "withdrawn"} or
+     * {@code "nothing_to_withdraw"} (a revoke with no active RSVP). {@code result} is
+     * {@code null} from a server that predates the field.
+     */
+    public record Ack(boolean ok, String detail, String result) {
+        /** An ack with no {@code result}, as an older server or a local failure gives. */
+        public Ack(boolean ok, String detail) {
+            this(ok, detail, null);
+        }
+    }
 
     /** Debug entry — dump current auth state, in-flight queue depth, last
      *  attempt + last ack, and the snapshot's current rsvp block. Mirrors

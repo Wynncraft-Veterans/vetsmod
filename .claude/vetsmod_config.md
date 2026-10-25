@@ -8,7 +8,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 
 Single-file JSON config at `vetsmod/storage/config.json` (resolved via `FabricLoader.getInstance().getGameDir()`).
 
-Implementation: [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java), the store; [VetsConfigKeys](../src/client/java/org/wynnvets/config/VetsConfigKeys.java), the key names; and [VetsConfigSchema](../src/client/java/org/wynnvets/config/VetsConfigSchema.java), the `/wv config` key lists, valid-value lists and `reset` defaults.
+Implementation: [VetsConfig](../src/client/java/org/wynnvets/config/VetsConfig.java), the store; [VetsConfigKeys](../src/client/java/org/wynnvets/config/VetsConfigKeys.java), the key names; [VetsConfigSchema](../src/client/java/org/wynnvets/config/VetsConfigSchema.java), the `/wv config` key lists and valid-value lists; [VetsConfigDefaults](../src/client/java/org/wynnvets/config/VetsConfigDefaults.java), the first-run defaults; and [ShippedConfig](../src/client/java/org/wynnvets/config/ShippedConfig.java), the shipped `config.yml` that `/wv config <key> default` restores from.
 
 Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-null). All coexist in one flat JSON object — no nesting, no version field, no migration logic.
 
@@ -19,13 +19,12 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `vetsAutomessage` | bool | Global gate for auto-messages (MOTD, ANNI) |
 | `vetsIsStaff` | bool | Cached staff status |
 | `vetsLastStaffCheck` | long | Timestamp of last `/gu rank` check |
-| `vetsAuthKey` | string | Bearer key from `/unlock <key>` (43-char base64url issued by dazebot's `/vetsmod`). Sent in `auth` frame on every (re)connect of the inbound WS. |
+| `vetsAuthKey` | string | Bearer key from `/unlock <key>` (43-char base64url issued by dazebot's `/vetsmod`). Sent in `auth` frame on every (re)connect of the inbound WS, and again when the player joins Returners mid-session ([vetsmod_guild_system.md](vetsmod_guild_system.md) §4). |
 | `vetsAuthTier` | string | Tier (`member`/`waitlist`/`honourary`/`other`) the last successful auth ack reported, written by `InboundAckRouter`. Never cleared, so after a new `/unlock` key or a rejection it can belong to an earlier key. Read only by the diagnostics dump; nothing gates on it. |
 | `vetsAuthVerifiedAt` | long | Epoch millis of the last successful auth-frame ack, written by `InboundAckRouter`. Display-only (diagnostics). |
-| `vetsWaitlistUnlockTime` | long | **legacy SHA-256 unlock marker** — meant solely as a "this user used the old system" signal for the SessionAuthWarning. Today it still grants client-side unlock: `UnlockManager`'s tier predicates OR it in (bug `legacy-unlock-markers-still-grant-client-unlock`). |
-| `vetsHonouraryUnlockTime` | long | Same — legacy marker, same caveat. |
 | `vetsGuildCheckResult` | long | Cached `/gu stats` result enum (0=UNKNOWN,1=RETURNERS,2=OTHER_GUILD,3=GUILDLESS) |
 | `vetsLastGuildCheck` | long | Timestamp of last `/gu stats` (3-day TTL) |
+| `vetsGuildCheckOwner` | string | Username of the Minecraft account whose `/gu stats` made `vetsGuildCheckResult`, written with it by `GuildChecker.setResult` and cleared when the result is forgotten. Empty for a result stored before the key existed, which the next world join adopts. `GuildLifecycle.onEnteredWorld()` forgets the result when this names a different account than the one that joined (`GuildChecker.ownedByOtherAccount`), since the config is per install, not per account. |
 | `vetsDebugEnabledAt` | long | When `/wv debug true` set the debug flag (0 when off). Read only at client init, which restores the flag if under three days old and otherwise zeroes this key. The age is not rechecked later, so a running session keeps debug on |
 | `vetsAnniModeUserSet` | bool | Set by a `/wv anni <mode>` pick (an `AnniModeManager.transitionTo` with `Source.USER_COMMAND`). Read by `AnniModeManager.preferredMode()` and `applyStartupDefaultIfNeeded()`; [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md) §Mode state owns what it changes. Installs from before the key existed lack it, so their earlier `vetsAnniMode` is replaced by the default. |
 | `vetsAnniUserMode` | string | The user's last explicit anni-mode pick, written with `vetsAnniModeUserSet` and kept apart from `vetsAnniMode`, so a `/stream`-forced silent does not overwrite it. Empty until the first pick. |
@@ -40,23 +39,22 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `legacyItemShowEnchantments` | true | Name the specific enchantment on legacy items the enchant branch already highlights: a LEGACY ENCHANTMENTS block on the powder page of paged tooltips, or in the tooltip text on items with no pages (`LegacyEnchantmentRenderer.showEnchantment` picks the form). No effect unless `legacyItemHighlighting` is on. |
 | `printMOTD` | true | Auto-print MOTD on world join |
 | `printANNI` | true | Auto-print annihilation timer on world join, for Returners guild members only |
-| `vetsAnniEnabled` | false | Gates the snapshot-driven `/wv anni` renderer and anni-motd (through `StampFetcher.anniIntegrationActive`), and their cold-cache pulls; the boss bar and outlines don't read it — they follow `vetsAnniMode` instead. Meant to give vets-tier users the enriched view without a manual toggle; today a vets-tier (member/waitlist/honourary) auth ack sets it `true` whenever it finds it off, so a vets-tier user's opt-out lasts only until the next ack. Anyone can opt in manually, but the pull names no UUID, so per temporary-server (at ffd8c17) it resolves to no snapshot until an `/unlock` key has authenticated the inbound socket (bug `vets-anni-enabled-to-be-retired`). |
 | `vetsAnniShowHoverDetails` | true | Populate descriptive hover tooltips on `/wv anni` and motd widgets (role chips, RSVP badge, attendance bar, party world chip). When off, lines render with no hover but keep click-to-open URLs. |
 | `vetsAnniPromptRsvp` | true | Show the placement / RSVP status line under the countdown on the auto-displayed anni-motd; off means the countdown line alone. `/wv anni`'s RSVP widgets don't read this key. |
 | `vetsAnniShowPrediction` | true | Show the `\guess`-style prediction line (the median, with a ± from the window) in `/wv anni` when no anni stamp is announced. The auto-motd never shows the prediction unsolicited regardless of this flag. |
-| `vetsAnniBossbarEnabled` | true | Master kill-switch for the synthetic vets-anni boss bar (S3). Only consulted when `vetsAnniMode` is `passive`/`aggressive`; silent mode is a strict no-op regardless. Lets advanced users keep outline/waypoint behaviours while opting out of the boss bar specifically. Today neither this key nor silent mode stops the flash-sound pings (`vetsAnniFlashSound`), which still play on a snapshot change while the bar is down (bug `anni-flash-pings-play-while-bar-is-down`). |
-| `vetsAnniFlashSound` | true | Whether a role/party/RSVP/world change in the snapshot plays a two-ping sound. Spec §3.1.1 asked for the Wynntils name-mention sound, played twice; today it is `SoundEvents.EXPERIENCE_ORB_PICKUP` (bug `anni-flash-ping-is-not-the-wynntils-mention-sound`). Meant to go with the boss bar's flashes, but today the queueing ignores the mode, `vetsAnniBossbarEnabled` and the bar window, so pings still play while the bar is down, silent included (bug `anni-flash-pings-play-while-bar-is-down`); of the config keys, only this one stops them. |
-| `vetsAnniOutlinesEnabled` | true | Toggle for the S4 outline overlay: role-coloured glow on own-party members, light-grey (`§7`) glow on other-vets-party members, and suppression of native Wynncraft team outlines on outsiders. Separable from `vetsAnniNametagsEnabled` so you can take one half without the other. Counts toward the highlight gate (`vetsAnniMode != silent` AND at least one of this and `vetsAnniNametagsEnabled` AND T-2h..T+30m AND in the anni zone), which reads it right after the mode check, whether or not the rest of the gate then holds. Past the gate, today it gates only the outsider-outline suppression — registry members get their tier glow whenever the gate holds — so with this off and `vetsAnniNametagsEnabled` on, the nametags-only half can't be had (bug `outlines-toggle-does-not-gate-registry-glow`). |
+| `vetsAnniBossbarEnabled` | true | Master kill-switch for the synthetic vets-anni boss bar (S3). Only consulted when `vetsAnniMode` is `passive`/`aggressive`; silent mode is a strict no-op regardless. Lets advanced users keep outline/waypoint behaviours while opting out of the boss bar specifically. With the bar off, a snapshot change plays no flash-sound ping (`vetsAnniFlashSound`) either. |
+| `vetsAnniFlashSound` | true | Whether a role/party/RSVP/world change in the snapshot plays a two-ping sound: the Wynntils chat-mention ding (`SoundEvents.NOTE_BLOCK_PLING`), played twice, as spec §3.1.1 asks. The pings go with the boss bar's flashes, so they play only while the bar is up: silent mode, `vetsAnniBossbarEnabled` off, and being outside both the bar's window and the anni zone all stop them too. A debug `flash` pings whenever this is on. |
+| `vetsAnniOutlinesEnabled` | true | Toggle for the S4 outline overlay: role-coloured glow on own-party members, light-grey (`§7`) glow on other-vets-party members, and suppression of native Wynncraft team outlines on outsiders. Separable from `vetsAnniNametagsEnabled` so you can take one half without the other. Counts toward the highlight gate (`vetsAnniMode != silent` AND at least one of this and `vetsAnniNametagsEnabled` AND T-2h..T+30m AND in the anni zone), which reads it right after the mode check, whether or not the rest of the gate then holds. Past the gate, it gates both halves of the outline overlay, the registry-tier glow and the outsider suppression. |
 | `vetsAnniNametagsEnabled` | true | Master toggle for the S4 nametag overlay — role colour on own-party members, light-grey on other-vets-party members, dark-grey (`§8`) on outsiders. Same gate as `vetsAnniOutlinesEnabled`. Runs as a branch in `NametagMixin`'s TAIL injector before the supporter glint branch, so a supporter on a vets-anni party gets the role colour during the highlight gate and the supporter glint reverts afterwards. (`NametagMixin` has two injectors; with wynnmod present the TAIL path returns early and its `@WrapOperation` owns the glint — see [vetsmod_mixins.md](vetsmod_mixins.md).) |
 | `vetsAnniZoneLines` | true | S5 — master toggle for the in-world zone-line renderer (the union of 48-block disc circumferences from `AnniZone`, drawn via `Gizmos.circle`). Gated on `vetsAnniMode == aggressive` AND within T-2h..T+30m. No zone gate, but `AnniZoneLineRenderer`'s distance cull means a ring appears on final approach rather than for the whole flight in (see `AnniAggressiveTicker`). |
 | `vetsAnniScrollWaypoint` | true | S5 — master toggle for the Scroll Spot waypoint (Wynntils `MarkerProvider`). Pinned coord is sourced from `board.party.scroll_spot`; falls back to `345 45 -1315` when the host hasn't set one, but **only while the player is in a party** — `computeEntry` returns null on a null `board.party()` before it reads the spot. Renders a **dark-red beacon** (`ChatFormatting.DARK_RED`, §4) plus a `Texture.MAP` icon. Gated on aggressive + window. |
 | `vetsAnniChatAlerts` | true | S5 — master toggle for diff-aware chat alerts. Fires on role / world / party / RSVP transitions (5s per-field cooldown, silent first-observation), plus T-10m world-mismatch and T-5m zone-absence readiness alerts (each at most once per stamp_epoch). Gated on aggressive + window. |
-| `vetsAnniGhostsPrompt` | true | S5 — master toggle for the clickable `[Suggest: /toggle ghosts none]` prompt on a zone-entry rising edge. Detection uses `Models.Player.isPlayerGhost` — if any visible player is ghost-flagged, ghosts must be on and the prompt fires unconditionally; otherwise per-stamp_epoch sentinel (`vetsAnniGhostsPromptShownForStamp`) suppresses re-fires. Gated on aggressive + window. |
+| `vetsAnniGhostsPrompt` | true | S5 — master toggle for the clickable `[We suggest: /toggle ghosts none]` prompt on a zone-entry rising edge. Detection uses `Models.Player.isPlayerGhost` — if any visible player is ghost-flagged, ghosts must be on and the prompt fires unconditionally; otherwise per-stamp_epoch sentinel (`vetsAnniGhostsPromptShownForStamp`) suppresses re-fires. Gated on aggressive + window. |
 | `printBridgeMessages` | true | Display WebSocket-relayed chat: bridge messages and every other relayed type; server-pushed `warning` frames bypass it |
-| `printSuccessfulAuth` | true | Show the `✅ vetsmod authentication verified` ack. Latched to `false` after one config-driven render and reset to `true` by `onAuthFailure`, so the *reconnect* ack appears at most once per error→recovery cycle. A `/unlock <key>` run sets a separate one-shot flag that forces the next ack to render regardless of this key, and does not re-latch it. |
+| `printSuccessfulAuth` | true | Show the `Authentication verified` ack. Latched to `false` after one config-driven render and reset to `true` by `onAuthFailure` (not by a quiet re-auth's transient failure), so the *reconnect* ack appears at most once per error→recovery cycle. A `/unlock <key>` run sets a separate one-shot flag that forces the next ack to render regardless of this key, and does not re-latch it. |
 | `showSupporterGlints` | true | Animated gradient glints on nametags, pills, and `/wv list` roster names |
 | `colorBlindMode` | false | Chat (pills and `/wv list` names): swap the supporter shimmer's cyan and grey colour pairs for higher-luminance-delta variants of the same families. Nametags: pulse between a darkened and a strongly lightened copy of the nametag's own colour. Either way the aim is a shimmer visible under protan/deutan CVD. |
-| `moreReliableGuildCheck` | true | Run `/gu stats` on world join for guild detection |
+| `moreReliableGuildCheck` | true | Run `/gu stats` about 5 s after world join for guild detection, instead of relying only on Wynntils' guild name, which is empty until Wynntils' own scan fills it |
 
 ### Strings (colour names, sprite names, or the values listed per key)
 | Key | Default | Valid values |
@@ -67,8 +65,6 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 | `legacyItemForegroundSprite` | `box_gradient_2` | `wynn`, `tag`, `circle_transparent`, `circle_opaque`, `circle_outline_large`, `circle_outline_small`, `box_transparent`, `box_opaque`, `box_gradient_1`, `box_gradient_2` |
 | `vetsAnniRoleStyle` | `descriptive` | `descriptive` (TANK/HEALER/SUNKILL/MOBKILL/BOSSKILL/FILL — action-flavoured), `short` (TANK/HEAL/SUNK/MOBK/PRIM/FILL — 4-char compact), `formal` (TANK/HEALER/SECONDARY/TERTIARY/PRIMARY/FILL — spec-canonical) |
 | `vetsAnniFlashIntensity` | `normal` | `subtle` (5s flash window), `normal` (10s), `strong` (20s). Controls the per-field on-change flash duration; the bold↔underline pulse half-period (250ms) is fixed. |
-
-Today `/wv config` validates `vetsAnniRoleStyle` and `vetsAnniFlashIntensity` as colour names, so it refuses every value listed for them and accepts colour names instead, which `AnniHoverBuilder.displayRole` and `FlashTracker.flashDurationMs` treat as the default (bug `config-set-rejects-role-style-and-flash-intensity`).
 
 ### Integers (0–100 opacity)
 | Key | Default |
@@ -87,7 +83,7 @@ Default 69 for top opacity approximates the old `0xB0` alpha byte.
 
 ## 3. API (static methods, all public except `save()`)
 
-The first column names the class that declares each method. `VetsConfigKeys` holds only the key-name constants, and the colour and sprite rows are `LegacyItemStyle`'s, which `/wv config` calls directly. Every method in the table takes a key except `load()`, `save()` and `getColorNames()`, which take nothing, and `isValidColor(name)` / `isValidSprite(name)`, which take a value. The setters return false when the key is not registered in their map; none validates the value.
+The first column names the class that declares each method. `VetsConfigKeys` holds only the key-name constants, and the colour and sprite rows are `LegacyItemStyle`'s, which `/wv config` calls directly. Every method in the table takes a key except `load()`, `save()` and `getColorNames()`, which take nothing, and `isValidColor(name)` / `isValidSprite(name)`, which take a value; `isFixedValue(key,value)` takes both, and `VetsConfigDefaults`' methods take the four maps, nothing, or the output path. The setters return false when the key is not registered in their map; none validates the value.
 
 | Class | Method | Notes |
 |-------|--------|-------|
@@ -97,17 +93,19 @@ The first column names the class that declares each method. `VetsConfigKeys` hol
 | `VetsConfig` | `getString(key)` / `setString(key,value)` | string map |
 | `VetsConfigSchema` | `isUserConfigKey(key)` | scans `USER_CONFIG_KEYS` |
 | `VetsConfigSchema` | `isTriStateKey(key)` / `isStringKey(key)` / `isIntKey(key)` | scan `TRISTATE_KEYS` / `STRING_CONFIG_KEYS` / `INT_CONFIG_KEYS` |
-| `VetsConfigSchema` | `getIntDefault(key)` / `getStringDefault(key)` | from INT_DEFAULTS/STRING_DEFAULTS maps |
+| `VetsConfigDefaults` | `seed(maps)` / `firstRunValues()` / `main(args)` | the first-run defaults `VetsConfig` seeds from, and the build's writer of `config.yml` (§5); `seed` and `firstRunValues` are package-private |
+| `ShippedConfig` | `bool(key)` / `number(key)` / `string(key)` | the key's value in the shipped `config.yml`, or `null`; read once, from vetsmod's own mod container |
+| `VetsConfigSchema` | `fixedValuesOf(key)` / `isFixedValue(key,value)` | `VALID_ROLE_STYLES` for `vetsAnniRoleStyle`, `VALID_FLASH_INTENSITIES` for `vetsAnniFlashIntensity`; `null` / false for every other key |
 | `VetsConfig` | `registerDefault(key, defaultValue)` | for subsystems; boolean keys only, must run before `load()` |
-| `VetsConfig` | `load()` | creates the file from defaults when absent |
-| `VetsConfig` | `save()` | **private**; called by every setter and by `load()` |
+| `VetsConfig` | `load()` | creates the file from defaults when absent; a file that can't be parsed is moved aside and the defaults are used (§6) |
+| `VetsConfig` | `save()` | **private** and `synchronized`; called by every setter and by `load()`; writes through `config.json.tmp` |
 | `LegacyItemStyle` | `isValidColor(name)` | delegates to `NamedColor.isValid`, which reads `NamedColor`'s private `COLORS` map |
 | `LegacyItemStyle` | `isValidSprite(name)` | matches against the `VetsConfigSchema.VALID_SPRITES` array — there is no sprite enum |
 | `LegacyItemStyle` | `getColorNames()` | for command suggestion |
 
 ## 4. USER_CONFIG_KEYS order (for /wv config listing)
 
-Declared by [VetsConfigSchema.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/config/VetsConfigSchema.java) — **30 entries**, in this order:
+Declared by [VetsConfigSchema.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/config/VetsConfigSchema.java) — **29 entries**, in this order:
 
 1. `legacyItemHighlighting`
 2. `legacyItemShowEnchantments`
@@ -119,42 +117,40 @@ Declared by [VetsConfigSchema.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/
 8. `legacyItemForegroundColor`
 9. `printMOTD`
 10. `printANNI`
-11. `vetsAnniEnabled`
-12. `vetsAnniShowHoverDetails`
-13. `vetsAnniPromptRsvp`
-14. `vetsAnniShowPrediction`
-15. `vetsAnniRoleStyle`
-16. `vetsAnniBossbarEnabled`
-17. `vetsAnniFlashIntensity`
-18. `vetsAnniFlashSound`
-19. `vetsAnniOutlinesEnabled`
-20. `vetsAnniNametagsEnabled`
-21. `vetsAnniZoneLines`
-22. `vetsAnniScrollWaypoint`
-23. `vetsAnniChatAlerts`
-24. `vetsAnniGhostsPrompt`
-25. `printBridgeMessages`
-26. `printSuccessfulAuth`
-27. `showSupporterGlints`
-28. `colorBlindMode`
-29. `handleSpoilers`
-30. `moreReliableGuildCheck`
+11. `vetsAnniShowHoverDetails`
+12. `vetsAnniPromptRsvp`
+13. `vetsAnniShowPrediction`
+14. `vetsAnniRoleStyle`
+15. `vetsAnniBossbarEnabled`
+16. `vetsAnniFlashIntensity`
+17. `vetsAnniFlashSound`
+18. `vetsAnniOutlinesEnabled`
+19. `vetsAnniNametagsEnabled`
+20. `vetsAnniZoneLines`
+21. `vetsAnniScrollWaypoint`
+22. `vetsAnniChatAlerts`
+23. `vetsAnniGhostsPrompt`
+24. `printBridgeMessages`
+25. `printSuccessfulAuth`
+26. `showSupporterGlints`
+27. `colorBlindMode`
+28. `handleSpoilers`
+29. `moreReliableGuildCheck`
 
 ## 5. Static defaults
 
-Two classes hold the defaults of the keys in `VetsConfigKeys`; the debug keys get theirs from `registerDefault` (§8).
+`VetsConfigDefaults` holds the defaults of the keys in `VetsConfigKeys`, and `ShippedConfig` reads the build's copy of them from the jar's `config.yml`; the debug keys get theirs from `DebugConfigManager.DEFAULTS` through `registerDefault` (§8).
 
-`VetsConfig`'s static initializer sets the first-run default of every key in `VetsConfigKeys`. Booleans default there, and not all of them are true: `vetsIsStaff`, `vetsAnniEnabled`, `vetsAnniModeUserSet` and `colorBlindMode` default `false`. Timestamp/count longs default `0L`.
+`VetsConfigDefaults.seed` sets the first-run default of every key in `VetsConfigKeys`, and `VetsConfig`'s static initializer calls it. Booleans default there, and not all of them are true: `vetsIsStaff`, `vetsAnniModeUserSet` and `colorBlindMode` default `false`. Timestamp/count longs default `0L`.
 HANDLE_SPOILERS default: null.
 
-`VetsConfigSchema` holds a second copy of seven of the string defaults and both int defaults, which `/wv config <key> reset` writes (`reset` never reaches its `vetsAnniMode` entry, since `/wv config` refuses that key):
-INT_DEFAULTS: opacity values.
-STRING_DEFAULTS: seven entries — the four colour/sprite keys plus `vetsAnniRoleStyle` (`descriptive`), `vetsAnniMode` (`silent`) and `vetsAnniFlashIntensity` (`normal`).
-The two copies agree; nothing checks that they keep agreeing.
+**The shipped `config.yml`.** The build's `generateConfigYml` task runs `VetsConfigDefaults.main`, which writes `firstRunValues()` to `config.yml` in the jar: the pairs a first-run `config.json` holds, the debug keys `DebugConfigManager.DEFAULTS` registers included and an unset tri-state left out. Its one reader is `ShippedConfig`, behind `/wv config <key> default`, which every key takes (string and int keys keep `reset` as an alias; a tri-state's `default` clears it instead). `ShippedConfig` reads the file from vetsmod's own mod container, so another mod's `config.yml` cannot stand in for it, and a missing file makes `default` refuse with "There is no shipped default for <key>.". The file is generated from the same `seed`, so it cannot drift from the code; `ShippedConfigTest` checks the copy on the test classpath. SnakeYAML, bundled in the jar with Loom's `include`, writes and reads it.
 
 ## 6. Persistence
 
 JSON pretty-printed via GSON. Parent dir created if missing. Missing keys use in-memory defaults. IO exceptions logged as `warn`.
+
+**A file that can't be parsed** (malformed JSON, a number out of range, bytes that aren't UTF-8) no longer stops the game from starting. `load()` logs it at `warn`, moves it aside as `config.json.bad-<epoch>` before any setter's `save()` can overwrite it, and runs on the defaults, keeping any keys it had already applied. The player loses their settings and stored `/unlock` key until that file is repaired and moved back. `save()` is synchronized, so concurrent saves can't interleave, and writes `config.json.tmp` before moving it over `config.json` (atomically where the file system allows), so a crash mid-write leaves the old file whole.
 
 **Type strictness on load:** Only correctly-typed JSON values are accepted — a string where a boolean is expected is ignored.
 
@@ -182,4 +178,4 @@ Must call `DebugConfigManager.init()` before `VetsConfig.load()`: `load()` reads
 - **No migration:** Adding new keys requires shipping with a sensible default; old configs just gain the new key on next save.
 - **Tri-state `handleSpoilers`:** null/default means "on", and the user can explicitly set false to disable.
 - **Integer opacity 0-100:** stored as long in JSON; multiplied by 2.55 and packed into ARGB alpha byte.
-- **String validation:** `isValidColor()` / `isValidSprite()` accept lowercase names; keys should match exactly (case-sensitive in JSON).
+- **String validation:** `isValidColor()` / `isValidSprite()` and `VetsConfigSchema.isFixedValue()` accept lowercase names; keys should match exactly (case-sensitive in JSON).

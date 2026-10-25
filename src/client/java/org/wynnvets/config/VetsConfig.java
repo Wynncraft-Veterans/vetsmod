@@ -5,8 +5,11 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.io.IOException;
+import java.nio.charset.CharacterCodingException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,8 +24,10 @@ import org.wynnvets.logging.VetsLogger;
  * persisted as JSON to {@code vetsmod/storage/config.json}.  Apart from the
  * debug keys, the key names are declared in {@link VetsConfigKeys}, whose
  * class doc describes the internal, user-facing and debug kinds; the
- * {@code /wv config} key lists, valid-value lists and {@code reset} defaults
- * are in {@link VetsConfigSchema}.</p>
+ * {@code /wv config} key lists and valid-value lists are in
+ * {@link VetsConfigSchema}. The first-run defaults are in
+ * {@link VetsConfigDefaults}, and the copy {@code /wv config <key> default}
+ * restores from is {@link ShippedConfig}.</p>
  */
 public final class VetsConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -36,70 +41,10 @@ public final class VetsConfig {
             Collections.synchronizedMap(new HashMap<>());
     private static final Map<String, String> stringConfig = new ConcurrentHashMap<>();
 
-    // Default values
+    // Default values. VetsConfigDefaults holds them, and the build writes the same values to
+    // the config.yml that /wv config <key> default reads (ShippedConfig).
     static {
-        // Internal defaults
-        config.put(VetsConfigKeys.VETS_AUTOMESSAGE, true);
-        config.put(VetsConfigKeys.VETS_IS_STAFF, false);
-        longConfig.put(VetsConfigKeys.VETS_LAST_STAFF_CHECK, 0L);
-        longConfig.put(VetsConfigKeys.VETS_WAITLIST_UNLOCK_TIME, 0L);
-        longConfig.put(VetsConfigKeys.VETS_HONOURARY_UNLOCK_TIME, 0L);
-        longConfig.put(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, 0L);
-        longConfig.put(VetsConfigKeys.VETS_LAST_GUILD_CHECK, 0L);
-        longConfig.put(VetsConfigKeys.VETS_DEBUG_ENABLED_AT, 0L);
-        config.put(VetsConfigKeys.VETS_ANNI_ENABLED, false);
-        config.put(VetsConfigKeys.VETS_ANNI_MODE_USER_SET, false);
-
-        // /unlock <key> auth state — keys are persisted strings, the timestamp
-        // is a long. Defaults to empty key + epoch=0 = "never authenticated".
-        stringConfig.put(VetsConfigKeys.VETS_AUTH_KEY, "");
-        stringConfig.put(VetsConfigKeys.VETS_AUTH_TIER, "");
-        longConfig.put(VetsConfigKeys.VETS_AUTH_VERIFIED_AT, 0L);
-
-        // User-facing BOOLEAN defaults — all true except colorBlindMode.
-        // (moreReliableGuildCheck is true, despite what this comment used to say.)
-        // This block holds 20 of the 30 USER_CONFIG_KEYS. The other ten default
-        // outside it: vetsAnniEnabled (false, with the internal keys above), the
-        // tri-state handleSpoilers (null = on) and the six string plus two int
-        // user-facing keys, all just below.
-        config.put(VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING, true);
-        config.put(VetsConfigKeys.LEGACY_ITEM_SHOW_ENCHANTMENTS, true);
-        config.put(VetsConfigKeys.PRINT_MOTD, true);
-        config.put(VetsConfigKeys.PRINT_ANNI, true);
-        config.put(VetsConfigKeys.VETS_ANNI_SHOW_HOVER_DETAILS, true);
-        config.put(VetsConfigKeys.VETS_ANNI_PROMPT_RSVP, true);
-        config.put(VetsConfigKeys.VETS_ANNI_SHOW_PREDICTION, true);
-        config.put(VetsConfigKeys.VETS_ANNI_BOSSBAR_ENABLED, true);
-        config.put(VetsConfigKeys.VETS_ANNI_FLASH_SOUND, true);
-        config.put(VetsConfigKeys.VETS_ANNI_OUTLINES_ENABLED, true);
-        config.put(VetsConfigKeys.VETS_ANNI_NAMETAGS_ENABLED, true);
-        config.put(VetsConfigKeys.VETS_ANNI_ZONE_LINES, true);
-        config.put(VetsConfigKeys.VETS_ANNI_SCROLL_WAYPOINT, true);
-        config.put(VetsConfigKeys.VETS_ANNI_CHAT_ALERTS, true);
-        config.put(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT, true);
-        config.put(VetsConfigKeys.PRINT_BRIDGE_MESSAGES, true);
-        config.put(VetsConfigKeys.PRINT_SUCCESSFUL_AUTH, true);
-        config.put(VetsConfigKeys.SHOW_SUPPORTER_GLINTS, true);
-        config.put(VetsConfigKeys.COLOR_BLIND_MODE, false);
-        config.put(VetsConfigKeys.MORE_RELIABLE_GUILD_CHECK, true);
-
-        // Tri-state defaults (null = use default behaviour)
-        triStateConfig.put(VetsConfigKeys.HANDLE_SPOILERS, null);
-
-        // String defaults
-        stringConfig.put(VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP, "orange");
-        stringConfig.put(VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM, "crimson");
-        stringConfig.put(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE, "box_gradient_2");
-        stringConfig.put(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_COLOR, "orange");
-        stringConfig.put(VetsConfigKeys.VETS_ANNI_ROLE_STYLE, "descriptive");
-        stringConfig.put(VetsConfigKeys.VETS_ANNI_MODE, "silent");
-        stringConfig.put(VetsConfigKeys.VETS_ANNI_FLASH_INTENSITY, "normal");
-        stringConfig.put(VetsConfigKeys.VETS_ANNI_GHOSTS_PROMPT_SHOWN_FOR_STAMP, "");
-        stringConfig.put(VetsConfigKeys.VETS_ANNI_USER_MODE, "");
-
-        // Int defaults (stored as long)
-        longConfig.put(VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY, 69L);
-        longConfig.put(VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY, 100L);
+        VetsConfigDefaults.seed(config, longConfig, triStateConfig, stringConfig);
     }
 
     private VetsConfig() {}
@@ -222,6 +167,11 @@ public final class VetsConfig {
     /**
      * Load configuration from file
      * Should be called during mod initialization
+     *
+     * <p>A file that can't be parsed (malformed JSON, an out-of-range number, bytes that aren't
+     * UTF-8) never stops the game from starting: it is logged at warn, moved aside as
+     * {@code config.json.bad-<epoch>}, and the defaults are used. So the player's settings and
+     * stored {@code /unlock} key are lost until that file is repaired and moved back.</p>
      */
     public static void load() {
         if (!Files.exists(CONFIG_FILE)) {
@@ -289,12 +239,37 @@ public final class VetsConfig {
 
                 VetsLogger.debug("Configuration loaded");
             }
+        } catch (RuntimeException | CharacterCodingException e) {
+            // The file doesn't parse (a hand edit's typo, a number out of range, bytes that
+            // aren't UTF-8). Move it aside before any setter's save() can overwrite it, and run
+            // on the defaults, keeping any keys already applied.
+            VetsLogger.warn(
+                    "Config file {} could not be read ({}); using defaults",
+                    CONFIG_FILE,
+                    e.toString());
+            quarantineBadConfig();
         } catch (IOException e) {
             VetsLogger.warn("Failed to load config: {}", e.getMessage());
         }
     }
 
-    private static void save() {
+    private static void quarantineBadConfig() {
+        Path aside = CONFIG_FILE.resolveSibling("config.json.bad-" + System.currentTimeMillis());
+        try {
+            Files.move(CONFIG_FILE, aside);
+            VetsLogger.warn("Moved the unreadable config file to {}", aside);
+        } catch (IOException | RuntimeException e) {
+            VetsLogger.warn("Could not move the unreadable config file aside: {}", e.toString());
+        }
+    }
+
+    /**
+     * Writes every value to {@code config.json}. Synchronized, so two threads' saves (setters run
+     * on the client thread, the WebSocket thread and the pollers) can't interleave; and written to
+     * a sibling {@code config.json.tmp} first, then moved over the file, atomically where the file
+     * system allows, so a crash mid-write leaves the old file whole rather than a truncated one.
+     */
+    private static synchronized void save() {
         try {
             // Ensure the config directory exists
             Files.createDirectories(CONFIG_FILE.getParent());
@@ -307,9 +282,12 @@ public final class VetsConfig {
             for (Map.Entry<String, Long> entry : longConfig.entrySet()) {
                 serialized.addProperty(entry.getKey(), entry.getValue());
             }
-            for (Map.Entry<String, Boolean> entry : triStateConfig.entrySet()) {
-                if (entry.getValue() != null) {
-                    serialized.addProperty(entry.getKey(), entry.getValue());
+            // A synchronizedMap: iterating it needs its own lock.
+            synchronized (triStateConfig) {
+                for (Map.Entry<String, Boolean> entry : triStateConfig.entrySet()) {
+                    if (entry.getValue() != null) {
+                        serialized.addProperty(entry.getKey(), entry.getValue());
+                    }
                 }
             }
             for (Map.Entry<String, String> entry : stringConfig.entrySet()) {
@@ -317,7 +295,17 @@ public final class VetsConfig {
             }
 
             String json = GSON.toJson(serialized);
-            Files.writeString(CONFIG_FILE, json);
+            Path tmp = CONFIG_FILE.resolveSibling("config.json.tmp");
+            Files.writeString(tmp, json);
+            try {
+                Files.move(
+                        tmp,
+                        CONFIG_FILE,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tmp, CONFIG_FILE, StandardCopyOption.REPLACE_EXISTING);
+            }
             VetsLogger.debug("Configuration saved");
         } catch (IOException e) {
             VetsLogger.warn("Failed to save config: {}", e.getMessage());

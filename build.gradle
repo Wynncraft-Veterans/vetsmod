@@ -68,6 +68,12 @@ dependencies {
 	// Wynntils dependency (compile only - users must have Wynntils installed separately)
 	modCompileOnly "maven.modrinth:wynntils:v4.1.17-fabric"
 
+	// SnakeYAML writes the shipped config.yml at build time (VetsConfigDefaults.main) and, in
+	// game, reads it (ShippedConfig) and definitions.yml (ItemDefinitions). include bundles it
+	// inside vetsmod's jar.
+	implementation "org.yaml:snakeyaml:${project.snakeyaml_version}"
+	include "org.yaml:snakeyaml:${project.snakeyaml_version}"
+
 	// Test harness (pure-logic unit tests, no Minecraft boot)
 	testImplementation platform('org.junit:junit-bom:5.11.4')
 	testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -120,6 +126,20 @@ sourceSets {
 		runtimeClasspath += sourceSets.client.output + sourceSets.client.runtimeClasspath
 	}
 }
+
+// config.yml: what config.json holds on first startup, written from VetsConfigDefaults so it
+// cannot drift from the code. Its one reader is /wv config <key> default (ShippedConfig). The
+// classpath takes the client classes, not sourceSets.client.output, whose resources would make
+// processClientResources depend on this task's own output.
+def configYmlDir = layout.buildDirectory.dir('generated/configYml')
+def generateConfigYml = tasks.register('generateConfigYml', JavaExec) {
+	classpath = sourceSets.client.output.classesDirs + configurations.clientRuntimeClasspath
+	mainClass = 'org.wynnvets.config.VetsConfigDefaults'
+	def configYml = configYmlDir.get().file('config.yml').asFile
+	args configYml.absolutePath
+	outputs.file(configYml)
+}
+sourceSets.client.resources.srcDir(files(configYmlDir).builtBy(generateConfigYml))
 
 // Format gate. `./gradlew spotlessApply` rewrites; `spotlessCheck` is wired
 // into `check` — and so into `build` — by the plugin itself.

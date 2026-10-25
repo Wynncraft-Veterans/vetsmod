@@ -45,15 +45,18 @@ import org.wynnvets.mwe.anni.zone.AnniZone;
  * </ol>
  *
  * <p>While the gate holds, this ticker walks {@code level.players()} and for each player either
- * applies their registry-tier glow colour or clears it to {@link CustomColor#NONE}. The "anni
- * nametag mode" flag {@link #isOutlineSuppressionActive()} flips true so the
+ * applies their registry-tier glow colour, while
+ * {@link org.wynnvets.config.VetsConfigKeys#VETS_ANNI_OUTLINES_ENABLED VETS_ANNI_OUTLINES_ENABLED}
+ * is on, or clears it to {@link com.wynntils.utils.colors.CustomColor#NONE CustomColor#NONE}.
+ * The "anni nametag mode" flag {@link #isOutlineSuppressionActive()} flips true so the
  * {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} anni branch and
  * {@link org.wynnvets.mixin.client.EntityOutlineColorMixin EntityOutlineColorMixin}'s outsider
  * clobber become eligible on the same tick — each still checks its own config toggle, and the
  * gate needs only one of the two.</p>
  *
  * <p>Tracks every username we've applied a non-NONE glow to so that when
- * the gate closes (or a player falls off the registry), the cleanup walk
+ * the gate closes (or a player falls off the registry, or outlines are
+ * turned off), the cleanup walk
  * resets only what we touched — vanilla / Wynntils entities the user
  * has their own reason to colour aren't disturbed.</p>
  *
@@ -145,6 +148,8 @@ public final class AnniOutlineTicker {
             return;
         }
         suppressionActive = true;
+        // The gate also holds for nametags alone; the glow itself is the outlines toggle's.
+        boolean outlinesOn = VetsConfig.get(VetsConfigKeys.VETS_ANNI_OUTLINES_ENABLED);
 
         // Walk every player on the world; either apply the registry entry
         // or clear any leftover glow we previously applied. Don't touch
@@ -157,13 +162,13 @@ public final class AnniOutlineTicker {
             String key = name.toLowerCase(Locale.ROOT);
             AnniOutlineRegistry.Entry entry = AnniOutlineRegistry.getEntry(name);
             EntityExtension ext = (EntityExtension) other;
-            if (entry != null) {
+            if (entry != null && outlinesOn) {
                 ext.setGlowColor(entry.outlineColor());
                 stillApplied.add(key);
             } else if (appliedUsernames.contains(key)) {
                 // Was coloured by us last tick but is no longer on a vets
-                // party (or fell out of render range and came back) —
-                // restore default.
+                // party, outlines were turned off, or it fell out of render
+                // range and came back — restore default.
                 ext.setGlowColor(CustomColor.NONE);
             }
         }

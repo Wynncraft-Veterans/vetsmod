@@ -164,20 +164,35 @@ public final class AnniCommandRenderer {
         if (external) {
             // Lean external form: red headline only — no anni.wynnvets.org link.
             out.append(
-                    Component.literal("Next annihilation is not yet announced!")
+                    Component.literal("The next annihilation has not yet been announced!")
                             .withStyle(ChatFormatting.RED));
         } else {
-            // Vets users keep the linked header so they can click through
-            // to the dashboard to manage RSVP / registration.
-            out.append(
-                    header(
-                            "anni.wynnvets.org",
-                            ChatFormatting.DARK_AQUA,
-                            "Next annihilation is not yet announced."));
+            // Vets users: the headline alone, so it fits one chat line, then the
+            // dashboard link (to manage RSVP / registration) with the player's
+            // roles beside it when they have any. A player shown the unregistered
+            // nudge has no roles and gets its anni.wynnvets.org/me link instead.
+            out.append(line(ChatFormatting.WHITE, "Next annihilation not yet announced."));
+            if (!AnniOnboardingBlocks.showsUnregisteredNudge(snapshot)) {
+                out.append(Component.literal("\n"));
+                out.append(
+                        AnniHoverBuilder.linkBadge(
+                                "anni.wynnvets.org",
+                                "https://anni.wynnvets.org",
+                                "Open anni.wynnvets.org",
+                                ChatFormatting.DARK_AQUA));
+                MutableComponent roles = AnniOnboardingBlocks.vetsNotAnnouncedRoles(snapshot);
+                if (roles != null) {
+                    out.append(Component.literal(" "));
+                    out.append(
+                            Component.literal("|")
+                                    .withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD));
+                    out.append(Component.literal(" "));
+                    out.append(roles);
+                }
+            }
         }
 
         // Prediction line (gated by vetsAnniShowPrediction).
-        boolean appendedPrediction = false;
         if (VetsConfig.get(VetsConfigKeys.VETS_ANNI_SHOW_PREDICTION)) {
             AnniSnapshot.Prediction prediction = event == null ? null : event.prediction();
             if (prediction != null
@@ -186,25 +201,26 @@ public final class AnniCommandRenderer {
                     && prediction.latestEpoch() != null) {
                 out.append(Component.literal("\n"));
                 out.append(predictionLine(prediction));
-                appendedPrediction = true;
             } else {
                 out.append(Component.literal("\n"));
                 out.append(
                         line(
                                 ChatFormatting.GRAY,
-                                "Prediction window unavailable — no recent anchor."));
-                appendedPrediction = true;
+                                "Prediction window unavailable (probably a vetsmod API error)."));
             }
         }
 
         if (!external) {
-            // Vets users see prediction + a registration block whose
-            // shape depends on whether they're registered, fill-only,
-            // or have specific role capabilities. We deliberately do
-            // NOT surface the board state here: with no announced anni
-            // there's no placement to talk about.
-            if (appendedPrediction) out.append(Component.literal("\n"));
-            out.append(AnniOnboardingBlocks.vetsNotAnnouncedRegistrationBlock(snapshot));
+            // A vets user with no roles also gets a registration block under
+            // the prediction: the nudge to register, or the fill-only
+            // explainer. We deliberately do NOT surface the board state
+            // here: with no announced anni there's no placement to talk about.
+            MutableComponent block =
+                    AnniOnboardingBlocks.vetsNotAnnouncedRegistrationBlock(snapshot);
+            if (block != null) {
+                out.append(Component.literal("\n"));
+                out.append(block);
+            }
         }
         return out;
     }
@@ -414,7 +430,7 @@ public final class AnniCommandRenderer {
                         ChatFormatting.GREEN,
                         ChatFormatting.DARK_GREEN,
                         "/wv anni passive",
-                        "Anni features recommended for most folks attending a vets-anni"));
+                        "Anni features recommended for most folks experienced at attending vets-annis"));
         line2.append(Component.literal(" | ").withStyle(ChatFormatting.DARK_GRAY));
         line2.append(
                 modeButton(
@@ -496,7 +512,7 @@ public final class AnniCommandRenderer {
         root.append(
                 AnniHoverBuilder.linkBadge(
                         prefix, "https://" + prefix, "Open " + prefix, prefixColor));
-        root.append(Component.literal(" — ").withStyle(ChatFormatting.DARK_GRAY));
+        root.append(Component.literal(" - ").withStyle(ChatFormatting.DARK_GRAY));
         root.append(Component.literal(subtitle).withStyle(ChatFormatting.WHITE));
         return root;
     }

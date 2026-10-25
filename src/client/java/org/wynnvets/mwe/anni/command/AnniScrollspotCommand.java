@@ -29,10 +29,8 @@ import org.wynnvets.mwe.anni.network.AnniScrollspotClient;
  * not hide it from tab-complete. An earlier version
  * of this paragraph called the class an "S5 brigadier handler for
  * {@code /wv anni scrollspot set|here|clear}", which is a path that does not
- * resolve. ⚠️ <b>This file still advertises that path to the user at
- * runtime</b>: {@code ensureAuthenticated}'s refusal line names it. That is a
- * chat string rather than a comment, so it is filed
- * ({@code anni-debug-chat-strings-omit-tree-literal}) rather than fixed here.</p>
+ * resolve. {@code ensureAuthenticated}'s refusal line names no path at all: the
+ * player cannot reach it without already knowing the real one.</p>
  *
  * <ul>
  *   <li><b>set &lt;x&gt; &lt;y&gt; &lt;z&gt;</b> — pin the coord.</li>
@@ -87,7 +85,7 @@ public final class AnniScrollspotCommand {
         Minecraft mc = McUtils.mc();
         LocalPlayer player = mc != null ? mc.player : null;
         if (player == null) {
-            reply("Can't read your position right now.", ChatFormatting.RED);
+            reply("Location Error: We can't figure out where you are.", ChatFormatting.RED);
             return 0;
         }
         BlockPos pos = player.blockPosition();
@@ -97,8 +95,7 @@ public final class AnniScrollspotCommand {
     public static int clear(CommandContext<FabricClientCommandSource> ctx) {
         if (!ensureAuthenticated()) return 0;
         reply("Clearing scroll spot…", ChatFormatting.GRAY);
-        AnniScrollspotClient.clear()
-                .whenComplete((ack, throwable) -> renderAck(ack, throwable, null));
+        AnniScrollspotClient.clear().thenAccept(ack -> renderAck(ack, null));
         return 1;
     }
 
@@ -106,44 +103,33 @@ public final class AnniScrollspotCommand {
 
     private static int dispatchSet(int x, int y, int z) {
         if (!ensureAuthenticated()) return 0;
-        reply("Pinning scroll spot at " + x + " " + y + " " + z + "…", ChatFormatting.GRAY);
+        reply("Pinning scroll spot to " + x + " " + y + " " + z + "…", ChatFormatting.GRAY);
         String coord = x + " " + y + " " + z;
-        AnniScrollspotClient.set(x, y, z)
-                .whenComplete((ack, throwable) -> renderAck(ack, throwable, coord));
+        AnniScrollspotClient.set(x, y, z).thenAccept(ack -> renderAck(ack, coord));
         return 1;
     }
 
     private static boolean ensureAuthenticated() {
         if (GuildStateManager.isAuthenticatedThisSession()) return true;
-        reply("Run ~vetsmod to authenticate before using /wv anni scrollspot.", ChatFormatting.RED);
+        reply("You aren't authenticated (~vetsmod on vetscord).", ChatFormatting.RED);
         return false;
     }
 
     /**
      * Render the ack on the main thread.
      *
-     * <p>⚠️ The opening {@code throwable != null || ack == null} arm is not
-     * belt-and-braces: it is the reason this command still works. The client's
-     * future completes <em>exceptionally</em> on its deadline rather than with
-     * {@code null}, because {@code CompletableFuture#orTimeout} returns
-     * {@code this} and the {@code .exceptionally} stage derived from it is
-     * discarded. This site and its twin in the sibling command are the two
-     * consumers written against the real behaviour, which is what settles
-     * which side of the contradiction is wrong. Filed as
-     * {@code anni-ack-clients-ortimeout-completes-exceptionally}; whichever way
-     * that is resolved, this arm moves with it — if the contract becomes
-     * "completes with null", the {@code throwable} half becomes dead.</p>
+     * <p>The client's future never completes exceptionally: it resolves
+     * {@code null} when its deadline passes with no reply, which the opening
+     * arm reports as a failed request.</p>
      */
-    private static void renderAck(AnniScrollspotClient.Ack ack, Throwable throwable, String coord) {
+    private static void renderAck(AnniScrollspotClient.Ack ack, String coord) {
         Minecraft mc = McUtils.mc();
         if (mc == null) return;
         mc.execute(
                 () -> {
-                    if (throwable != null || ack == null) {
-                        reply("Scroll spot request failed (no response).", ChatFormatting.RED);
-                        VetsLogger.debug(
-                                "scrollspot ack threw or null: {}",
-                                throwable != null ? throwable.getMessage() : "null");
+                    if (ack == null) {
+                        reply("Vets API error: Scroll spot request failed.", ChatFormatting.RED);
+                        VetsLogger.debug("scrollspot ack null: no reply before the deadline");
                         return;
                     }
                     if (ack.ok()) {

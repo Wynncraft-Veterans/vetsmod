@@ -5,7 +5,6 @@ import com.wynntils.core.components.Managers;
 import com.wynntils.core.text.StyledText;
 import com.wynntils.mc.event.ContainerSetContentEvent;
 import com.wynntils.mc.event.MenuEvent;
-import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.List;
 import net.minecraft.ChatFormatting;
@@ -43,11 +42,12 @@ import org.wynnvets.logging.VetsLogger;
 public final class MemberSlotPresser {
 
     /** Maps a resource label to the hotbar button index used by the
-     *  {@code ClickType.SWAP} click. */
+     *  {@code ClickType.SWAP} click, and says whether the NoAspects opt-out
+     *  list gates it ({@link #gatedByNoAspects()}). */
     public enum Resource {
         ASPECTS(0, "Aspect"),
-        TOMES(1, "Guild Tome"),
-        EMERALDS(2, "Emerald payment");
+        TOMES(1, "Tome"),
+        EMERALDS(2, "Emerald");
 
         private final int hotbarButton;
         private final String displayName;
@@ -63,6 +63,12 @@ public final class MemberSlotPresser {
 
         public String displayName() {
             return displayName;
+        }
+
+        /** Whether the NoAspects opt-out list applies to this resource: {@code true} for
+         *  {@link #ASPECTS} only. Opted-out members still get tomes and emeralds. */
+        public boolean gatedByNoAspects() {
+            return this == ASPECTS;
         }
     }
 
@@ -93,12 +99,12 @@ public final class MemberSlotPresser {
     /** Monotonic token so a stale scheduled timeout doesn't trip a later run. */
     private static volatile int timeoutToken;
 
-    /** Callback invoked when the full press batch finishes — on success
-     *  (last press confirmed) or on timeout. Lets {@link DistributionQueue}
-     *  chain the next recipient instead of closing the Members menu
-     *  between sends. Not invoked when {@code sendPressAndArm} finds no
-     *  Members screen open: {@code clearPending()} nulls it without running
-     *  it ({@code member-slot-presser-drops-completion}). */
+    /** Callback invoked when the press batch ends — on success (last press
+     *  confirmed), on timeout, or when the Members screen is gone for the
+     *  next press. Lets {@link DistributionQueue} chain the next recipient
+     *  instead of closing the Members menu between sends. Every exit takes
+     *  it through {@link #takePendingOnComplete()}, so none can clear it
+     *  unrun. */
     private static volatile Runnable pendingOnComplete;
 
     private MemberSlotPresser() {}
@@ -108,38 +114,29 @@ public final class MemberSlotPresser {
         VetsLogger.debug("Registered MemberSlotPresser on Wynntils event bus");
     }
 
-    /**
-     * Fires {@code count} consecutive {@code pressKeyOnSlot} packets
-     * against {@code slot} in the currently-open Members container, each
-     * one gated by the menu-refresh observed after the previous press.
-     * Can stop early. If no Members screen is open when a press
-     * is due &mdash; checked by title, so a Members menu reopened under a
-     * new id still counts &mdash; the batch ends silently and the callback
-     * does not run ({@code member-slot-presser-drops-completion}). If a press's
-     * refresh is not observed within {@link #REFRESH_TIMEOUT_TICKS}, a
-     * yellow chat line prints and the callback runs.
-     *
-     * <p>Equivalent to
-     * {@link #fire(int, Resource, int, String, Runnable) fire(..., closeMembersScreen)}
-     * &mdash; the single-user command closes the GUI when done.</p>
-     */
-    public static void fire(int slot, Resource resource, int count, String recipientName) {
-        fire(slot, resource, count, recipientName, MemberSlotPresser::closeMembersScreen);
+    /** Disarms the press batch without running any callback, for
+     *  {@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()} on a
+     *  disconnect. */
+    public static void cancel() {
+        clearPending();
     }
 
     /**
-     * Variant with a completion callback invoked {@link #PRESS_DELAY_TICKS}
-     * after the last press is confirmed by a refresh event, OR when the
-     * refresh wait times out,
-     * OR at once when {@code count} is not positive. It is not invoked
-     * when the batch ends because no Members screen is open for a press
-     * &mdash; see the four-argument overload. The screen is intentionally
-     * left open so the callback can chain the next recipient &mdash; used
-     * by {@link DistributionQueue} to visit multiple recipients in one
-     * menu session. For the single-user "close when done" behaviour, the
-     * four-argument overload passes {@link #closeMembersScreen()}, which
-     * is package-private; outside {@code distributor/}, call that
-     * overload.
+     * Fires {@code count} consecutive {@code pressKeyOnSlot} packets
+     * against {@code slot} in the currently-open Members container, each
+     * one gated by the menu-refresh observed after the previous press,
+     * and invokes {@code onComplete} {@link #PRESS_DELAY_TICKS} after the
+     * last press is confirmed by a refresh event. Can stop early: if no
+     * Members screen is open when a press is due &mdash; checked by title,
+     * so a Members menu reopened under a new id still counts &mdash; or a
+     * press's refresh is not observed within {@link #REFRESH_TIMEOUT_TICKS},
+     * a yellow chat line says how many presses went out and the callback
+     * runs then. A {@code count} that is not positive runs it at once.
+     *
+     * <p>The screen is intentionally left open so the callback can chain the
+     * next recipient &mdash; used by {@link DistributionQueue} to visit
+     * multiple recipients in one menu session. The single-target command
+     * passes one that closes the menu instead.</p>
      */
     public static void fire(
             int slot, Resource resource, int count, String recipientName, Runnable onComplete) {
@@ -166,7 +163,18 @@ public final class MemberSlotPresser {
         if (screen == null) {
             VetsLogger.debug(
                     "MemberSlotPresser: members screen gone after {}/{} presses", sent, total);
-            clearPending();
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    "Send stopped after "
+                                            + sent
+                                            + "/"
+                                            + total
+                                            + ": the Members menu is not open.")
+                            .withStyle(ChatFormatting.YELLOW));
+            // Run the callback, as the timeout does: a chained caller
+            // (DistributionQueue) then finds the menu gone and stops the run.
+            Runnable cb = takePendingOnComplete();
+            if (cb != null) cb.run();
             return;
         }
 
@@ -207,11 +215,10 @@ public final class MemberSlotPresser {
                                                     + total
                                                     + " (server didn't refresh the menu).")
                                     .withStyle(ChatFormatting.YELLOW));
-                    // Capture and invoke onComplete so chained callers (e.g.
+                    // Invoke onComplete so chained callers (e.g.
                     // DistributionQueue) advance past the timed-out recipient
                     // rather than stalling.
-                    Runnable cb = pendingOnComplete;
-                    clearPending();
+                    Runnable cb = takePendingOnComplete();
                     if (cb != null) cb.run();
                 },
                 REFRESH_TIMEOUT_TICKS);
@@ -262,14 +269,21 @@ public final class MemberSlotPresser {
                     if (sent >= total) {
                         VetsLogger.debug(
                                 "MemberSlotPresser: completed {} presses on slot {}", total, slot);
-                        Runnable cb = pendingOnComplete;
-                        clearPending();
+                        Runnable cb = takePendingOnComplete();
                         if (cb != null) cb.run();
                     } else {
                         sendPressAndArm(slot, resource, total, sent);
                     }
                 },
                 PRESS_DELAY_TICKS);
+    }
+
+    /** Captures the batch's callback, then tears the batch down; the caller runs what this
+     *  returns. Every exit goes through here, so the teardown can never drop the callback. */
+    private static Runnable takePendingOnComplete() {
+        Runnable cb = pendingOnComplete;
+        clearPending();
+        return cb;
     }
 
     private static void clearPending() {
@@ -279,31 +293,5 @@ public final class MemberSlotPresser {
         // Bumping the token cancels any in-flight timeout for the
         // run we're tearing down.
         timeoutToken++;
-    }
-
-    /**
-     * Dismisses the Members GUI client-side only. {@code setScreen(null)}
-     * runs {@code AbstractContainerScreen.removed()}, which calls just
-     * {@code menu.removed(player)} &mdash; a no-op for a client player
-     * &mdash; so no {@code ServerboundContainerClosePacket} is sent and
-     * {@code player.containerMenu} is not reset, as
-     * {@code LocalPlayer.closeContainer()} would do. (Wynntils' own
-     * screen-close hook sends a close only for its wrapped screens, which
-     * the Members menu is not.) What the server makes of a container it
-     * was never told is closed has not been observed; see
-     * {@code close-members-screen-sends-no-close-packet}. Guarded so it never
-     * closes an unrelated screen the user happens to have open by the
-     * time we get here.
-     *
-     * <p>Package-private so the rest of the package can use it:
-     * {@link DistributionQueue} as the final step when a multi-recipient
-     * queue drains, {@link ObjectivesDistributor} on the two early-outs
-     * where its walk has left the menu open, and this class's own
-     * 4-argument {@link #fire(int, Resource, int, String)}, which passes
-     * it as the single-user command's {@code onComplete}.</p>
-     */
-    static void closeMembersScreen() {
-        if (MembersGui.currentByTitle() == null) return;
-        McUtils.setScreen(null);
     }
 }

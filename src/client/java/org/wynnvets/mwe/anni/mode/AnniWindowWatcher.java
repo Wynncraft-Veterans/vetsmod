@@ -1,6 +1,8 @@
 package org.wynnvets.mwe.anni.mode;
 
+import com.wynntils.utils.mc.McUtils;
 import java.time.Instant;
+import net.minecraft.client.Minecraft;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
@@ -11,7 +13,11 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * the anni window closes (T+30 min after the announced stamp).
  *
  * <p>Subscribes to {@link AnniSnapshotCache}; every push or pull that
- * lands a snapshot checks whether the window has closed. temporary-server
+ * lands a snapshot checks whether the window has closed. The listener runs on
+ * whichever thread stored the snapshot, so it only queues the check as a
+ * client-thread task ({@code McUtils.mc().execute}, as {@code FlashTracker} and
+ * {@code AggressiveAlertDispatcher} do). Every anni-mode write then happens on the
+ * client thread, alongside the command and {@code /stream} writers. temporary-server
  * checks for changed snapshots every ~10 s in its own hot window and ~5 min outside it,
  * pushing {@code anni_state} only for a snapshot that changed, and vetsmod's
  * {@link org.wynnvets.fetcher.polling.AnniSnapshotPoller AnniSnapshotPoller} adds a
@@ -19,11 +25,11 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * reset was meant to land on whichever push arrives first, typically within ~10 s. The
  * bar window has closed by then; this is the slower safety net.</p>
  *
- * <p>Today no push arrives: the server sends {@code anni_state} only to an authenticated
- * outbound socket, and vetsmod never authenticates that socket
- * ({@code outbound-socket-never-authenticated}). {@code AnniSnapshotPoller} stops once the
- * announced stamp passes, so the reset waits for the next snapshot pull, in practice the
- * next inbound (re)connect.</p>
+ * <p>The server sends {@code anni_state} only to an authenticated outbound socket, which
+ * vetsmod opens only for a confirmed member tier. A player with no key, or tier
+ * {@code other}, gets no push: {@code AnniSnapshotPoller} stops once the announced stamp
+ * passes, so their reset waits for the next snapshot pull, in practice the next inbound
+ * (re)connect.</p>
  *
  * <p>Delegates the target selection to
  * {@link AnniModeManager#preferredMode()} rather than hard-coding
@@ -37,9 +43,11 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * key the window-close check off that, otherwise the renderer would
  * lose its anchor the moment the anni began.</p>
  *
- * <p>One-shot per anni cycle: {@link #lastKnownStamp} is cleared as soon as
- * {@link AnniWindows#hotWindowClosed} returns true, <b>whether or not a
- * transition was attempted and whether or not it succeeded</b> — the clear sits
+ * <p>One-shot per anni cycle: {@link #lastKnownStamp} is cleared, inside the
+ * client-thread task, as soon as
+ * {@link org.wynnvets.mwe.anni.state.AnniWindows#hotWindowClosed AnniWindows#hotWindowClosed}
+ * returns true, <b>whether or not a transition was attempted and whether or not it
+ * succeeded</b> — the clear sits
  * after the {@code if}, not inside it. So a reset that {@code transitionTo}
  * refuses (the {@code /stream} mutex) is not retried on the next snapshot; the
  * anchor is already gone. Nothing fires again until the NEXT anni is announced
@@ -65,6 +73,14 @@ public final class AnniWindowWatcher {
 
     private static void onSnapshot(AnniSnapshot snapshot) {
         if (snapshot == null) return;
+        Minecraft mc = McUtils.mc();
+        if (mc == null) return;
+        mc.execute(() -> apply(snapshot));
+    }
+
+    /** The window-close check, on the client thread. Tasks run in the order queued, so
+     *  snapshots are checked in the order they were stored. */
+    private static void apply(AnniSnapshot snapshot) {
         AnniSnapshot.Event event = snapshot.event();
         Long stamp = event != null ? event.stampEpoch() : null;
         if (stamp != null) {

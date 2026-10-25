@@ -3,6 +3,7 @@ package org.wynnvets.commands;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -11,6 +12,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.config.LegacyItemStyle;
+import org.wynnvets.config.ShippedConfig;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.config.VetsConfigSchema;
@@ -34,9 +36,9 @@ final class ConfigCommands {
 
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_CONFIG_KEYS =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 for (String key : VetsConfigSchema.USER_CONFIG_KEYS) {
-                    if (key.toLowerCase().startsWith(partial)) {
+                    if (key.toLowerCase(Locale.ROOT).startsWith(partial)) {
                         builder.suggest(key);
                     }
                 }
@@ -45,10 +47,12 @@ final class ConfigCommands {
 
     static final SuggestionProvider<FabricClientCommandSource> SUGGEST_CONFIG_VALUES =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 try {
                     String key = StringArgumentType.getString(ctx, "key");
                     if (VetsConfigSchema.isIntKey(key)) {
+                        // default, and reset as its older alias
+                        if ("default".startsWith(partial)) builder.suggest("default");
                         if ("reset".startsWith(partial)) builder.suggest("reset");
                         for (String v : new String[] {"0", "25", "50", "69", "75", "100"}) {
                             if (v.startsWith(partial)) builder.suggest(v);
@@ -56,32 +60,29 @@ final class ConfigCommands {
                         return builder.buildFuture();
                     }
                     if (VetsConfigSchema.isStringKey(key)) {
-                        // Always suggest "reset" for string keys
+                        // default, and reset as its older alias
+                        if ("default".startsWith(partial)) builder.suggest("default");
                         if ("reset".startsWith(partial)) builder.suggest("reset");
+                        String[] fixed = VetsConfigSchema.fixedValuesOf(key);
                         if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)) {
                             for (String s : VetsConfigSchema.VALID_SPRITES) {
                                 if (s.startsWith(partial)) builder.suggest(s);
                             }
-                        } else if (key.equals(VetsConfigKeys.VETS_ANNI_ROLE_STYLE)) {
-                            for (String s : VetsConfigSchema.VALID_ROLE_STYLES) {
-                                if (s.startsWith(partial)) builder.suggest(s);
-                            }
-                        } else if (key.equals(VetsConfigKeys.VETS_ANNI_MODE)) {
-                            for (String s : VetsConfigSchema.VALID_ANNI_MODES) {
+                        } else if (fixed != null) {
+                            // Role style and flash intensity
+                            for (String s : fixed) {
                                 if (s.startsWith(partial)) builder.suggest(s);
                             }
                         } else {
-                            // Colour name keys (gradient top/bottom, foreground color);
-                            // today vetsAnniFlashIntensity, which has no arm of its
-                            // own, lands here too
-                            // (config-set-rejects-role-style-and-flash-intensity).
+                            // Colour name keys (gradient top/bottom, foreground color)
                             for (String name : LegacyItemStyle.getColorNames()) {
                                 if (name.startsWith(partial)) builder.suggest(name);
                             }
                         }
                         return builder.buildFuture();
                     }
-                    if (VetsConfigSchema.isTriStateKey(key) && "default".startsWith(partial)) {
+                    // Boolean and tri-state keys take default too
+                    if (VetsConfigSchema.isUserConfigKey(key) && "default".startsWith(partial)) {
                         builder.suggest("default");
                     }
                 } catch (IllegalArgumentException ignored) {
@@ -189,9 +190,17 @@ final class ConfigCommands {
     // ── Boolean-config helpers ──────────────────────────────────────────
 
     private static int handleBooleanConfigSet(String key, String rawValue) {
+        if ("default".equalsIgnoreCase(rawValue)) {
+            Boolean defaultVal = ShippedConfig.bool(key);
+            if (defaultVal == null) return noShippedDefault(key);
+            VetsConfig.set(key, defaultVal);
+            ChatUtils.sendLocalMessage(
+                    ConfigValueText.booleanLine(Form.SINGLE, key, Verb.RESET_TO, defaultVal));
+            return 1;
+        }
         if (!"true".equalsIgnoreCase(rawValue) && !"false".equalsIgnoreCase(rawValue)) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Value must be 'true' or 'false'.")
+                    Component.literal("Value must be 'true', 'false', or 'default'.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -202,6 +211,18 @@ final class ConfigCommands {
         ChatUtils.sendLocalMessage(
                 ConfigValueText.booleanLine(Form.SINGLE, key, Verb.SET_TO, value));
         return 1;
+    }
+
+    /**
+     * The refusal for {@code default} on a key that vetsmod's shipped {@code config.yml} has no
+     * value of the key's kind for. That happens only when the file is missing or unreadable, or a
+     * key was added without a default.
+     */
+    private static int noShippedDefault(String key) {
+        ChatUtils.sendLocalMessage(
+                Component.literal("There is no shipped default for " + key + ".")
+                        .withStyle(ChatFormatting.RED));
+        return 0;
     }
 
     // ── TriState-config helpers ─────────────────────────────────────────
@@ -229,21 +250,20 @@ final class ConfigCommands {
     // ── String-config helpers ───────────────────────────────────────────
 
     private static Component formatStringConfigValue(String key, String value) {
-        if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)) {
+        if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)
+                || VetsConfigSchema.fixedValuesOf(key) != null) {
             return Component.literal(value).withStyle(ChatFormatting.AQUA);
         }
-        // All other string keys are treated as colour names; today that
-        // wrongly includes vetsAnniRoleStyle and vetsAnniFlashIntensity
-        // (config-set-rejects-role-style-and-flash-intensity).
+        // The other string keys are colour names, shown in their own colour.
         int rgb = LegacyItemStyle.getColorRgb(value);
         return Component.literal(value).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(rgb)));
     }
 
     private static int handleStringConfigSet(String key, String rawValue) {
-        // Handle reset for all string keys
-        if ("reset".equalsIgnoreCase(rawValue)) {
-            String defaultVal = VetsConfigSchema.getStringDefault(key);
-            if (defaultVal == null) return 0;
+        // default restores the shipped value for every string key; reset is its older alias.
+        if ("default".equalsIgnoreCase(rawValue) || "reset".equalsIgnoreCase(rawValue)) {
+            String defaultVal = ShippedConfig.string(key);
+            if (defaultVal == null) return noShippedDefault(key);
             VetsConfig.setString(key, defaultVal);
             ChatUtils.sendLocalMessage(
                     ConfigValueText.stringLine(
@@ -255,7 +275,7 @@ final class ConfigCommands {
         }
 
         if (key.equals(VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE)) {
-            String lower = rawValue.toLowerCase();
+            String lower = rawValue.toLowerCase(Locale.ROOT);
             if (!LegacyItemStyle.isValidSprite(lower)) {
                 ChatUtils.sendLocalMessage(
                         Component.literal(
@@ -271,15 +291,31 @@ final class ConfigCommands {
             return 1;
         }
 
-        // Colour name keys (gradient top/bottom, foreground color); today
-        // this arm also wrongly matches vetsAnniRoleStyle and
-        // vetsAnniFlashIntensity (config-set-rejects-role-style-and-flash-intensity).
-        String lower = rawValue.toLowerCase();
-        if (!LegacyItemStyle.isValidColor(lower)) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Unknown colour name. Tab-complete to see options.")
-                            .withStyle(ChatFormatting.RED));
-            return 0;
+        String[] fixed = VetsConfigSchema.fixedValuesOf(key);
+        String lower;
+        if (fixed != null) {
+            // Role style and flash intensity. Locale.ROOT, so a Turkish locale still folds
+            // DESCRIPTIVE to descriptive.
+            lower = rawValue.toLowerCase(Locale.ROOT);
+            if (!VetsConfigSchema.isFixedValue(key, lower)) {
+                ChatUtils.sendLocalMessage(
+                        Component.literal(
+                                        "Unknown value for "
+                                                + key
+                                                + ". Valid options: "
+                                                + String.join(", ", fixed))
+                                .withStyle(ChatFormatting.RED));
+                return 0;
+            }
+        } else {
+            // Colour name keys (gradient top/bottom, foreground color)
+            lower = rawValue.toLowerCase(Locale.ROOT);
+            if (!LegacyItemStyle.isValidColor(lower)) {
+                ChatUtils.sendLocalMessage(
+                        Component.literal("Unknown colour name. Tab-complete to see options.")
+                                .withStyle(ChatFormatting.RED));
+                return 0;
+            }
         }
         VetsConfig.setString(key, lower);
         ChatUtils.sendLocalMessage(
@@ -291,9 +327,10 @@ final class ConfigCommands {
     // ── Int-config helpers ──────────────────────────────────────────────
 
     private static int handleIntConfigSet(String key, String rawValue) {
-        if ("reset".equalsIgnoreCase(rawValue)) {
-            Long defaultVal = VetsConfigSchema.getIntDefault(key);
-            if (defaultVal == null) return 0;
+        // default restores the shipped value; reset is its older alias.
+        if ("default".equalsIgnoreCase(rawValue) || "reset".equalsIgnoreCase(rawValue)) {
+            Long defaultVal = ShippedConfig.number(key);
+            if (defaultVal == null) return noShippedDefault(key);
             VetsConfig.setLong(key, defaultVal);
             ChatUtils.sendLocalMessage(
                     ConfigValueText.intLine(Form.SINGLE, key, Verb.RESET_TO, defaultVal));
@@ -305,7 +342,7 @@ final class ConfigCommands {
             parsed = Long.parseLong(rawValue);
         } catch (NumberFormatException e) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("Value must be a number (0\u2013100) or 'reset'.")
+                    Component.literal("Value must be a number (0\u2013100) or 'default'.")
                             .withStyle(ChatFormatting.RED));
             return 0;
         }

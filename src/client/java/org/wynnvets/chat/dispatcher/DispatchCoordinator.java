@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wynntils.utils.mc.McUtils;
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -41,9 +42,8 @@ import org.wynnvets.util.Json;
  * A command whose wait times out is abandoned, not cancelled, so its reply can still
  * arrive while a later command is being awaited. A retry resends the same recipient
  * and payload, so a late echo of the earlier {@code /msg} attempt, arriving while the
- * retry is awaited, is taken as the retry's. Today a late {@code /find} reply is also
- * credited to the awaited name when the reply's name ends with it
- * ({@code find-response-matches-username-as-substring}).</p>
+ * retry is awaited, is taken as the retry's. A late {@code /find} reply counts only for the
+ * name it opens with, so it is credited to the awaited name only if it is that name's.</p>
  *
  * <p>{@code /v} fan-out and both chat-hook suppression checks are entered through this
  * class. {@code /find} batches are not: callers outside this package enqueue them on
@@ -110,9 +110,10 @@ import org.wynnvets.util.Json;
  *   <li>At most one command awaiting its reply at a time (single-threaded executor
  *       plus {@link MessageFanoutDispatcher}'s and {@link FindDispatcher}'s bounded waits).</li>
  *   <li>/msg broadcasts take priority over /find batches: each dispatch pass handles
- *       queued /msg broadcasts before it starts on queued /find batches. Today a /msg
- *       that arrives while a pass is working through /find batches waits for that pass
- *       to finish ({@code find-phase-does-not-yield-to-queued-msg}).</li>
+ *       queued /msg broadcasts before it starts on queued /find batches. A /msg that
+ *       arrives while a pass is working through /find batches waits for that pass to
+ *       finish, by design: {@code /wv list world} queues one batch for every name, so a
+ *       yield between batches would not shorten the wait.</li>
  *   <li>Echo matching pairs signals: the payload with either the recipient named in
  *       the line's header or the 🔐 lock prefix, or the prefix with the recipient. The
  *       prefix alone is not enough, but a plain payload match always carries it, since
@@ -129,9 +130,6 @@ import org.wynnvets.util.Json;
 public final class DispatchCoordinator {
 
     static final String LOCK_PREFIX = "🔐";
-
-    private static final String STAFF_CHAT_WAIT_ONLINE_STATUS_MESSAGE =
-            "Please wait until the server updates your online status before using staff chat.";
 
     private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
@@ -167,6 +165,53 @@ public final class DispatchCoordinator {
     private static volatile boolean selfSeenInStaffFeedThisWorld;
     private static final AtomicBoolean SELF_PRESENCE_CHECK_IN_FLIGHT = new AtomicBoolean(false);
 
+    /**
+     * Why a {@code /v} broadcast reached nobody. The notice is yellow and names the cause, so
+     * the player is not told the API is down when it is not.
+     */
+    enum NoRecipientsCause {
+        /**
+         * The staff list was empty once the player was removed, every listed member was offline,
+         * or the {@code /msg} got no reply from anyone.
+         */
+        NOBODY_HERE("Nobody saw your message (nobody here)"),
+        /** The staff feed could not be read, so nobody could be sent to. */
+        API_UNREACHABLE("Nobody saw your message (API unreachable)");
+
+        private final String message;
+
+        NoRecipientsCause(String message) {
+            this.message = message;
+        }
+
+        /** The notice text, without styling. */
+        String message() {
+            return message;
+        }
+    }
+
+    /**
+     * Why a gated staff command was dropped before the player was confirmed as staff. The
+     * notice is yellow and names the cause.
+     */
+    enum StaffWaitCause {
+        /** Another eligibility check is running, or the feed does not list the player yet. */
+        IN_PROGRESS("Message not deliverable (permission verification in progress)"),
+        /** The eligibility check threw: the feed was unreachable or unreadable. */
+        UNSUCCESSFUL("Message not deliverable (permission verification unsuccessful)");
+
+        private final String message;
+
+        StaffWaitCause(String message) {
+            this.message = message;
+        }
+
+        /** The notice text, without styling. */
+        String message() {
+            return message;
+        }
+    }
+
     private DispatchCoordinator() {}
 
     // ──────────────────────────── Public API ────────────────────────────
@@ -178,8 +223,9 @@ public final class DispatchCoordinator {
      * ({@link #resetStaffChatEligibilityCache()}). Otherwise, unless another check is
      * already running, the WV online staff feed is checked on a background thread
      * ({@code VetsMod-StaffPresenceCheck}), which sends the message if the player is
-     * listed. The message is dropped with a wait notice if another check is running, the
-     * player is not listed, or the check fails.
+     * listed. The message is dropped, with a notice naming the cause
+     * ({@link StaffWaitCause}), if another check is running or the player is not listed yet
+     * (in progress), or the check fails (unsuccessful).
      */
     public static void dispatchStaffChatWithEligibilityGate(
             String displayName, String message, String rank) {
@@ -191,11 +237,12 @@ public final class DispatchCoordinator {
         // session as staff against the canonical roster. Skip the WAPI-probe
         // wait entirely -- the recipient-side rewriter consults its own
         // (push-fed) staff cache, so as long as auth succeeded, fanout will
-        // be transformed correctly on the receiver. Today that cache is fed only by
-        // StaffRanksPoller's fetches, the 2-minute poll and the refresh on the receiver's own
-        // auth ack (no staff_online push reaches vetsmod:
-        // outbound-socket-never-authenticated), so a receiver can lack a newly
-        // authenticated sender's rank until its next poll.
+        // be transformed correctly on the receiver. A receiver whose outbound socket is
+        // authenticated gets the sender's staff_online push at once. One whose socket is not
+        // (no key, or a non-member tier) has only StaffRanksPoller's fetches, the 2-minute
+        // poll and the refresh on its own auth ack, so it can lack a newly authenticated
+        // sender's rank until its next poll, and shows that sender's lines as plain private
+        // messages until then.
         if (V1ApiManager.isConfirmedStaff()) {
             selfSeenInStaffFeedThisWorld = true;
             ChatUtils.sendStaffChannelMessage(displayName, message, rank);
@@ -210,7 +257,7 @@ public final class DispatchCoordinator {
         }
 
         if (!SELF_PRESENCE_CHECK_IN_FLIGHT.compareAndSet(false, true)) {
-            showStaffOnlineStatusWaitMessage();
+            showStaffOnlineStatusWaitMessage(StaffWaitCause.IN_PROGRESS);
             return;
         }
 
@@ -221,7 +268,7 @@ public final class DispatchCoordinator {
                                         selfSeenInStaffFeedThisWorld
                                                 || isSelfListedInOnlineStaffFeed();
                                 if (!listed) {
-                                    showStaffOnlineStatusWaitMessage();
+                                    showStaffOnlineStatusWaitMessage(StaffWaitCause.IN_PROGRESS);
                                     return;
                                 }
 
@@ -232,7 +279,7 @@ public final class DispatchCoordinator {
                                 VetsLogger.warn(
                                         "Failed to verify online staff status for /v: {}",
                                         e.getMessage());
-                                showStaffOnlineStatusWaitMessage();
+                                showStaffOnlineStatusWaitMessage(StaffWaitCause.UNSUCCESSFUL);
                             } finally {
                                 SELF_PRESENCE_CHECK_IN_FLIGHT.set(false);
                             }
@@ -244,8 +291,9 @@ public final class DispatchCoordinator {
     /**
      * Runs the given action once this player is known to be staff, by the same tests and
      * the same cache as {@link #dispatchStaffChatWithEligibilityGate}, and drops it with the
-     * same wait notice in the same cases. When the feed has to be checked, the action is
-     * scheduled back on the render thread; otherwise it runs on the caller's thread.
+     * same {@link StaffWaitCause} notice in the same cases. When the feed has to be checked,
+     * the action is scheduled back on the render thread; otherwise it runs on the caller's
+     * thread.
      */
     public static void executeWithStaffEligibilityGate(Runnable action) {
         // Fast path: same rationale as dispatchStaffChatWithEligibilityGate.
@@ -261,7 +309,7 @@ public final class DispatchCoordinator {
         }
 
         if (!SELF_PRESENCE_CHECK_IN_FLIGHT.compareAndSet(false, true)) {
-            showStaffOnlineStatusWaitMessage();
+            showStaffOnlineStatusWaitMessage(StaffWaitCause.IN_PROGRESS);
             return;
         }
 
@@ -272,7 +320,7 @@ public final class DispatchCoordinator {
                                         selfSeenInStaffFeedThisWorld
                                                 || isSelfListedInOnlineStaffFeed();
                                 if (!listed) {
-                                    showStaffOnlineStatusWaitMessage();
+                                    showStaffOnlineStatusWaitMessage(StaffWaitCause.IN_PROGRESS);
                                     return;
                                 }
 
@@ -281,7 +329,7 @@ public final class DispatchCoordinator {
                             } catch (Exception e) {
                                 VetsLogger.warn(
                                         "Failed to verify online staff status: {}", e.getMessage());
-                                showStaffOnlineStatusWaitMessage();
+                                showStaffOnlineStatusWaitMessage(StaffWaitCause.UNSUCCESSFUL);
                             } finally {
                                 SELF_PRESENCE_CHECK_IN_FLIGHT.set(false);
                             }
@@ -370,34 +418,28 @@ public final class DispatchCoordinator {
     // ──────────────────────────── Helpers (some package-private, for
     // MessageFanoutDispatcher) ────────────────────────────
 
-    static void showNoRecipientsWarning() {
+    static void showNoRecipientsWarning(NoRecipientsCause cause) {
         ChatUtils.sendLocalMessage(
-                Component.literal("Nobody saw your message, the vets api is probably restarting")
-                        .withStyle(ChatFormatting.YELLOW));
+                Component.literal(cause.message()).withStyle(ChatFormatting.YELLOW));
     }
 
-    private static void showStaffOnlineStatusWaitMessage() {
+    private static void showStaffOnlineStatusWaitMessage(StaffWaitCause cause) {
         ChatUtils.sendLocalMessage(
-                Component.literal(STAFF_CHAT_WAIT_ONLINE_STATUS_MESSAGE)
-                        .withStyle(ChatFormatting.YELLOW));
+                Component.literal(cause.message()).withStyle(ChatFormatting.YELLOW));
     }
 
+    /**
+     * Whether the online staff feed lists the local player. A transport failure is not "not
+     * listed": a non-200 reply or a body that is not a JSON array throws, so the caller's
+     * exception arm reports it as an unsuccessful check.
+     */
     private static boolean isSelfListedInOnlineStaffFeed() throws Exception {
         LocalPlayer selfPlayer = McUtils.player();
         if (selfPlayer == null) {
             return false;
         }
 
-        HttpResponse<String> response =
-                HTTP_CLIENT.send(STAFF_REQUEST, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-            return false;
-        }
-
-        JsonArray staffMembers = Json.GSON.fromJson(response.body(), JsonArray.class);
-        if (staffMembers == null) {
-            return false;
-        }
+        JsonArray staffMembers = fetchStaffFeed();
 
         for (JsonElement element : staffMembers) {
             if (!element.isJsonObject()) {
@@ -423,21 +465,31 @@ public final class DispatchCoordinator {
     }
 
     /**
-     * Fetches staff usernames from the API, dropping entries marked offline (by an
-     * {@code online}, {@code isOnline} or {@code status} field); an entry with none
-     * of those fields is kept.
+     * Reads the staff feed as a JSON array. Throws {@link IOException} on a non-200 reply or a
+     * body that is not a JSON array, so no transport problem reads as an empty or unlisted feed.
      */
-    static List<String> fetchOnlineStaffUsernames() throws Exception {
+    private static JsonArray fetchStaffFeed() throws Exception {
         HttpResponse<String> response =
                 HTTP_CLIENT.send(STAFF_REQUEST, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-            return new ArrayList<>();
+            throw new IOException("staff feed returned HTTP " + response.statusCode());
         }
 
         JsonArray staffMembers = Json.GSON.fromJson(response.body(), JsonArray.class);
         if (staffMembers == null) {
-            return new ArrayList<>();
+            throw new IOException("staff feed body was not a JSON array");
         }
+        return staffMembers;
+    }
+
+    /**
+     * Fetches staff usernames from the API, dropping entries marked offline (by an
+     * {@code online}, {@code isOnline} or {@code status} field); an entry with none
+     * of those fields is kept. Throws {@link IOException} when the feed cannot be read (see
+     * {@link #fetchStaffFeed}), so the caller can tell an unreachable feed from an empty one.
+     */
+    static List<String> fetchOnlineStaffUsernames() throws Exception {
+        JsonArray staffMembers = fetchStaffFeed();
 
         List<String> usernames = new ArrayList<>();
         for (JsonElement element : staffMembers) {

@@ -9,6 +9,7 @@ import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.List;
 import java.util.regex.Pattern;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -47,12 +48,14 @@ import org.wynnvets.util.ContainerScreens;
  * <h2>No outcome is reported</h2>
  * <p>Neither open method reports whether it worked: both are
  * {@code void}, with no callback. This class records a failed open at
- * most as a debug line, and the only visible sign may be a Manage menu
- * left on screen. The arm can be spent on the wrong menu or stay live
- * indefinitely ({@code guild-manage-opener-arm-consumed-early}). A caller
- * learns of failure only downstream &mdash; from the searcher's watchdog or
- * the log walker's overall cap; the Members walker has neither &mdash; and
- * none of those disarms a live arm here.</p>
+ * most as a debug line; a Manage menu with no Guild Log tile is closed
+ * again. An arm survives other menus opening in between, and
+ * expires {@link #ARM_TTL_MS} after the open call if its
+ * {@code /guild manage} goes unanswered. A caller
+ * learns of failure only downstream &mdash; from the searcher's watchdog,
+ * the Members walker's stall watchdog or the log walker's overall cap
+ * &mdash; and none of those disarms a live arm here; only a disconnect does, through
+ * {@link #cancel()}.</p>
  */
 public final class GuildManageOpener {
 
@@ -67,6 +70,12 @@ public final class GuildManageOpener {
     /** Top-left slot of the Manage GUI — the "Manage Members" key icon. */
     private static final int MEMBERS_SLOT = 0;
 
+    /** An arm older than this is cleared, unused, when the next menu opens: its
+     *  {@code /guild manage} went unanswered. 10 s, below the searcher's 15 s watchdog, so an
+     *  arm a run has given up on cannot catch a much later Manage menu. Chosen, not observed.
+     *  Checked lazily, so no timer runs. */
+    private static final long ARM_TTL_MS = 10_000;
+
     private enum Target {
         MEMBERS,
         LOG
@@ -75,14 +84,15 @@ public final class GuildManageOpener {
     private static final GuildManageOpener INSTANCE = new GuildManageOpener();
 
     /** What we're trying to navigate to, or null. {@code MEMBERS} is
-     *  consumed by the next {@code MenuOpenedEvent.Pre} of any title &mdash;
-     *  before the title check, so an unrelated menu can spend it
-     *  ({@code guild-manage-opener-arm-consumed-early}). {@code LOG} is
-     *  cleared once a Manage menu's content has been scanned. Neither
-     *  expires, so an arm whose {@code /guild manage} is never answered
-     *  stays live until a menu consumes it or the next open call replaces
-     *  it. */
+     *  consumed by the next Manage menu's {@code MenuOpenedEvent.Pre}; other
+     *  menus pass through and leave it armed. {@code LOG} is cleared once a
+     *  Manage menu's content has been scanned. Either expires
+     *  {@link #ARM_TTL_MS} after the open call that set it, checked when the
+     *  next menu opens. */
     private static volatile Target target = null;
+
+    /** {@link System#nanoTime()} when {@link #target} was last set. */
+    private static volatile long armedAtNanos;
 
     /** Container id of the Manage menu we're driving (Log path only). */
     private static volatile int manageContainerId = -1;
@@ -101,12 +111,21 @@ public final class GuildManageOpener {
         VetsLogger.debug("Registered GuildManageOpener on Wynntils event bus");
     }
 
+    /** Disarms the open without running any callback, and drops a {@code /guild manage} still
+     *  waiting in Wynntils' queue, for
+     *  {@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()} on a
+     *  disconnect. */
+    public static void cancel() {
+        target = null;
+        manageContainerId = -1;
+        OutboundCommand.dropQueued("guild manage");
+    }
+
     /**
      * Sends {@code /guild manage} and arms the Pre-intercept: the next
-     * menu to open consumes the arm, and if its title is a Manage title it
-     * is cancelled and {@link #MEMBERS_SLOT} auto-clicked, transitioning
-     * straight to the Members GUI
-     * ({@code guild-manage-opener-arm-consumed-early}).
+     * Manage menu to open within {@link #ARM_TTL_MS} consumes the arm, is
+     * cancelled and has {@link #MEMBERS_SLOT} auto-clicked, transitioning
+     * straight to the Members GUI.
      *
      * <p>Routes through {@link OutboundCommand#queueFront(String)} so the
      * command sits at the head of Wynntils' rate-limited outbound queue.
@@ -115,13 +134,14 @@ public final class GuildManageOpener {
      */
     public static void openManageMembers() {
         target = Target.MEMBERS;
+        armedAtNanos = System.nanoTime();
         manageContainerId = -1;
         OutboundCommand.queueFront("guild manage");
     }
 
     /**
      * Sends {@code /guild manage} and arms the post-render scan so the
-     * next Manage menu auto-clicks the Guild Log tile (whichever slot
+     * next Manage menu within {@link #ARM_TTL_MS} auto-clicks the Guild Log tile (whichever slot
      * holds the {@code §7§lGuild Log} item), transitioning to the Log
      * GUI. Used by {@link org.wynnvets.distribute.distributor.GraidsDistributor GraidsDistributor}.
      *
@@ -129,24 +149,35 @@ public final class GuildManageOpener {
      */
     public static void openGuildLog() {
         target = Target.LOG;
+        armedAtNanos = System.nanoTime();
         manageContainerId = -1;
         OutboundCommand.queueFront("guild manage");
+    }
+
+    /** Whether an arm is live, clearing one older than {@link #ARM_TTL_MS}. */
+    private static boolean armLive() {
+        if (target == null) return false;
+        if (System.nanoTime() - armedAtNanos <= ARM_TTL_MS * 1_000_000L) return true;
+        VetsLogger.debug("GuildManageOpener: {} arm expired unanswered", target);
+        target = null;
+        manageContainerId = -1;
+        return false;
     }
 
     @SubscribeEvent
     public void onMenuOpenPre(MenuEvent.MenuOpenedEvent.Pre event) {
         // Only the Members path uses the Pre intercept (hardcoded slot 0).
         // The Log path can't because the log tile's slot isn't fixed.
-        if (target != Target.MEMBERS) return;
-        target = null;
+        if (!armLive() || target != Target.MEMBERS) return;
 
         StyledText title = StyledText.fromComponent(event.getTitle());
         if (!title.matches(MANAGE_TITLE_PATTERN)) {
             VetsLogger.debug(
-                    "GuildManageOpener: title [{}] did not match Manage pattern",
+                    "GuildManageOpener: title [{}] did not match Manage pattern; arm kept",
                     title.getString());
             return;
         }
+        target = null;
 
         event.setCanceled(true);
 
@@ -161,7 +192,7 @@ public final class GuildManageOpener {
 
     @SubscribeEvent
     public void onMenuOpenPost(MenuEvent.MenuOpenedEvent.Post event) {
-        if (target != Target.LOG) return;
+        if (!armLive() || target != Target.LOG) return;
         if (manageContainerId != -1) return;
         StyledText title = StyledText.fromComponent(event.getTitle());
         if (!title.matches(MANAGE_TITLE_PATTERN)) return;
@@ -193,7 +224,11 @@ public final class GuildManageOpener {
                 return;
             }
         }
-        VetsLogger.debug("GuildManageOpener: Guild Log tile not found in Manage items");
+        // No tile to click: close the Manage menu we opened rather than leave
+        // it on screen. The log walker's overall timeout then stops the run.
+        VetsLogger.debug("GuildManageOpener: Guild Log tile not found in Manage items, closing");
+        LocalPlayer player = McUtils.player();
+        if (player != null) player.closeContainer();
         target = null;
         manageContainerId = -1;
     }

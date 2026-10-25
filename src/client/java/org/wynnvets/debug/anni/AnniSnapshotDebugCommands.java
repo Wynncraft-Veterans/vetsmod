@@ -16,11 +16,13 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.fetcher.polling.AnniSnapshotPoller;
 import org.wynnvets.mwe.anni.network.AnniQueryClient;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
@@ -35,8 +37,10 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  * {@code anni_query} through {@link AnniQueryClient#query()}, whose response handler writes the
  * cache when the reply carries a snapshot. {@code snapshot dump} writes the cached snapshot under
  * the game directory, where {@code inject file} reads it back. Whatever these commands put in the
- * cache lasts only until the next pull that returns a snapshot, and inside the boss-bar window the
- * snapshot poller pulls on a schedule ({@code anni-poller-erases-injected-debug-state}).</p>
+ * cache lasts until the next pull that returns a snapshot. Inject and {@code time} hold the
+ * snapshot poller's scheduled pull ({@code AnniSnapshotPoller.setDebugHold}) until
+ * {@code snapshot clear}, {@code snapshot refresh}, {@code guess} or debug mode off releases it;
+ * other pulls, such as the post-connect re-pull, still replace an injected snapshot.</p>
  *
  * <p>{@code external} and a successful {@code snapshot inject preset} write
  * {@code AnniCommandRenderer}'s external override.</p>
@@ -181,7 +185,7 @@ final class AnniSnapshotDebugCommands {
             // anything else (e.g. "empty") clears the override back to
             // auto. Explicit `/wv debug tree anni external …` after the
             // inject still wins.
-            String lower = name.toLowerCase();
+            String lower = name.toLowerCase(Locale.ROOT);
             Boolean override;
             String reason;
             if (lower.startsWith("external")) {
@@ -200,7 +204,7 @@ final class AnniSnapshotDebugCommands {
                             ? "auto (rank signals)"
                             : ("forced " + (override ? "external" : "vets"));
             ChatUtils.sendLocalMessage(
-                    Component.literal("(external override → " + summary + " — " + reason + ")")
+                    Component.literal("(external override → " + summary + " - " + reason + ")")
                             .withStyle(ChatFormatting.DARK_GRAY));
         }
         return result;
@@ -252,6 +256,7 @@ final class AnniSnapshotDebugCommands {
             return 0;
         }
         AnniSnapshotCache.update(snapshot);
+        AnniSnapshotPoller.setDebugHold(true);
         ChatUtils.sendLocalMessage(
                 Component.literal(
                                 "anni snapshot injected from "
@@ -372,9 +377,8 @@ final class AnniSnapshotDebugCommands {
      *  the local cache does NOT trigger a re-push. The cache stays empty
      *  until something refills it, such as a {@code refresh} or any other
      *  client-side {@code anni_query} that returns a snapshot (a cold-cache
-     *  {@code /wv anni} can issue one). A server-side change was meant to
-     *  refill it too, but today no {@code anni_state} push reaches vetsmod
-     *  ({@code outbound-socket-never-authenticated}).
+     *  {@code /wv anni} can issue one), or a server-side change pushed as
+     *  {@code anni_state} to an authenticated outbound socket.
      *  Use this command to test the no-snapshot rendering branch; use
      *  {@code refresh} to undo synthetic injects and re-pull real data —
      *  it replaces the cache only when the query returns a snapshot.</p> */
@@ -382,11 +386,11 @@ final class AnniSnapshotDebugCommands {
         int gate = AnniDebugCommands.requireDebug(ctx);
         if (gate == 0) return 0;
         AnniSnapshotCache.update(null);
+        AnniSnapshotPoller.setDebugHold(false);
         ChatUtils.sendLocalMessage(
                 Component.literal(
                                 "anni snapshot cleared (cache is null; "
-                                        + "run `/wv debug anni snapshot refresh` to re-pull, "
-                                        + "or wait for server-side changes)")
+                                        + "run `/wv debug tree anni snapshot refresh` to re-pull)")
                         .withStyle(ChatFormatting.GREEN));
         return 1;
     }
@@ -410,9 +414,8 @@ final class AnniSnapshotDebugCommands {
      *  state from the server. Only a non-null snapshot replaces the cache:
      *  if the query times out, the WS is down, or the response carries no
      *  parseable snapshot, the synthetic one stays until a later pull
-     *  replaces it (an {@code anni_state} push would too, but today none
-     *  reaches vetsmod: {@code outbound-socket-never-authenticated}), and
-     *  the failure line does not say so.</p> */
+     *  replaces it (an {@code anni_state} push would too, when the outbound socket is
+     *  authenticated), and the failure line does not say so.</p> */
     static int snapshotRefresh(CommandContext<FabricClientCommandSource> ctx) {
         int gate = AnniDebugCommands.requireDebug(ctx);
         if (gate == 0) return 0;
@@ -421,31 +424,13 @@ final class AnniSnapshotDebugCommands {
                 Component.literal("anni snapshot refreshing… (anni_query in flight)")
                         .withStyle(ChatFormatting.GRAY));
 
+        AnniSnapshotPoller.setDebugHold(false);
         AnniQueryClient.query()
-                .whenComplete(
-                        (snapshot, throwable) -> {
+                .thenAccept(
+                        snapshot -> {
                             McUtils.mc()
                                     .execute(
                                             () -> {
-                                                if (throwable != null) {
-                                                    // TimeoutException's getMessage() is null —
-                                                    // substitute
-                                                    // the class name so the user can tell what
-                                                    // failed.
-                                                    String detail = throwable.getMessage();
-                                                    if (detail == null || detail.isEmpty()) {
-                                                        detail =
-                                                                throwable
-                                                                        .getClass()
-                                                                        .getSimpleName();
-                                                    }
-                                                    ChatUtils.sendLocalMessage(
-                                                            Component.literal(
-                                                                            "anni snapshot refresh: query failed: "
-                                                                                    + detail)
-                                                                    .withStyle(ChatFormatting.RED));
-                                                    return;
-                                                }
                                                 if (snapshot == null) {
                                                     // Three possible causes: inbound WS down, a
                                                     // response whose snapshot is missing, null
@@ -504,18 +489,19 @@ final class AnniSnapshotDebugCommands {
                 Component.literal("anni guess: querying fishbot prediction…")
                         .withStyle(ChatFormatting.GRAY));
 
+        AnniSnapshotPoller.setDebugHold(false);
         AnniQueryClient.query()
-                .whenComplete(
-                        (snapshot, throwable) -> {
+                .thenAccept(
+                        snapshot -> {
                             McUtils.mc()
                                     .execute(
                                             () -> {
-                                                if (throwable != null || snapshot == null) {
+                                                if (snapshot == null) {
                                                     AnniSnapshot stale = AnniSnapshotCache.latest();
                                                     if (stale != null) {
                                                         ChatUtils.sendLocalMessage(
                                                                 Component.literal(
-                                                                                "anni guess (stale cache — pull failed): ")
+                                                                                "anni guess (stale cache - pull failed): ")
                                                                         .withStyle(
                                                                                 ChatFormatting
                                                                                         .YELLOW)
@@ -523,17 +509,9 @@ final class AnniSnapshotDebugCommands {
                                                                                 formatGuess(
                                                                                         stale)));
                                                     } else {
-                                                        String reason =
-                                                                throwable != null
-                                                                                && throwable
-                                                                                                .getMessage()
-                                                                                        != null
-                                                                        ? throwable.getMessage()
-                                                                        : "no snapshot returned";
                                                         ChatUtils.sendLocalMessage(
                                                                 Component.literal(
-                                                                                "anni guess: "
-                                                                                        + reason)
+                                                                                "anni guess: no snapshot returned")
                                                                         .withStyle(
                                                                                 ChatFormatting
                                                                                         .RED));
@@ -616,7 +594,7 @@ final class AnniSnapshotDebugCommands {
     static int externalSet(CommandContext<FabricClientCommandSource> ctx) {
         int gate = AnniDebugCommands.requireDebug(ctx);
         if (gate == 0) return 0;
-        String mode = StringArgumentType.getString(ctx, "mode").toLowerCase();
+        String mode = StringArgumentType.getString(ctx, "mode").toLowerCase(Locale.ROOT);
         Boolean override;
         switch (mode) {
             case "auto":
@@ -682,7 +660,8 @@ final class AnniSnapshotDebugCommands {
             ChatUtils.sendLocalMessage(
                     Component.literal(
                                     "anni time: no snapshot in cache "
-                                            + "(inject one first with `/wv debug anni snapshot inject preset …`)")
+                                            + "(inject one first with "
+                                            + "`/wv debug tree anni snapshot inject preset …`)")
                             .withStyle(ChatFormatting.YELLOW));
             return 0;
         }
@@ -730,6 +709,7 @@ final class AnniSnapshotDebugCommands {
             return 0;
         }
         AnniSnapshotCache.update(updated);
+        AnniSnapshotPoller.setDebugHold(true);
         String summary =
                 secondsFromNow > 0
                         ? ("stamp_epoch=NOW+"

@@ -6,6 +6,7 @@ import com.wynntils.core.text.StyledText;
 import com.wynntils.mc.event.ContainerSetContentEvent;
 import com.wynntils.mc.event.ContainerSetSlotEvent;
 import com.wynntils.mc.event.MenuEvent;
+import com.wynntils.mc.event.ScreenClosedEvent;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -16,6 +17,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.DistributeRuns;
 import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.ContainerScreens;
@@ -46,13 +48,16 @@ import org.wynnvets.util.ContainerScreens;
  * in one menu session without resetting to page 1 between them.</p>
  *
  * <h2>Re-arming while the menu is open</h2>
- * <p>An {@link #armSearch} made while no Members menu is open waits for
- * {@code MenuOpenedEvent.Pre} to bind the container id. One made while a
- * Members menu is open binds it and schedules a scan straight away, so
- * the pick starts searching from whatever page that menu is on &mdash;
- * normally every later pick of a multi-recipient run, since the previous
- * pick leaves the menu open, and {@code @objectives}' first pick, since
- * its walk ends in the menu.</p>
+ * <p>An {@link #armSearch} whose caller is about to open a fresh Members
+ * menu ({@code bindOpenMenu} false: the literal head, and the first pick of
+ * {@code @random} and {@code @graids}) always waits for
+ * {@code MenuOpenedEvent.Pre} to bind the container id, so a Members menu
+ * already open, which that open is about to replace, is never bound. One
+ * made with {@code bindOpenMenu} true while a Members menu is open binds it
+ * and schedules a scan straight away, so the pick starts searching from
+ * whatever page that menu is on &mdash; every later pick of a
+ * multi-recipient run, since the previous pick leaves the menu open, and
+ * {@code @objectives}' first pick, since its walk ends in the menu.</p>
  *
  * <h2>Name matching</h2>
  * <p>Each player-head's hover name is the member's tile name: wapi's
@@ -106,8 +111,10 @@ public final class MembersListSearcher {
      *  in under 10s; 15s gives margin without the user noticing if a
      *  search completes normally. If we hit this, something is genuinely
      *  stuck (dropped click, server stopped responding, etc.) and the
-     *  watchdog force-advances the chain so distribution can continue.
-     *  Counted from {@link #armSearch}, so when a search is armed before
+     *  watchdog ends the search through the not-found handler: a
+     *  multi-recipient run then goes on to its next recipient if the
+     *  Members menu is still up, and stops if it is not. Counted from
+     *  {@link #armSearch}, so when a search is armed before
      *  the menu opens (the literal head, and the first pick of
      *  {@code @random} and {@code @graids}) it also covers opening the
      *  menu. */
@@ -155,11 +162,11 @@ public final class MembersListSearcher {
 
     /** Monotonic token bumped on every {@link #armSearch} and every
      *  {@link #stop()}; the per-search watchdog task captures it at arm
-     *  time and bails at fire time if it has moved on. So once a search
-     *  ends by any path &mdash; a match, a not-found exit, or
-     *  {@link #onMenuClose} &mdash; its watchdog is disarmed without
-     *  needing to know, which is why a server-sent mid-search close is
-     *  not covered by the watchdog. */
+     *  time and bails at fire time if it has moved on, and the sweep-retry
+     *  hop does the same with the value it sees when scheduled. So once a search
+     *  ends by any path &mdash; a match, a not-found exit, or a server-sent
+     *  close ({@link #onMenuClose}) &mdash; its watchdog is disarmed
+     *  without needing to know. */
     private static volatile int watchdogToken = 0;
 
     /** Callback invoked when the armed name is located. */
@@ -168,8 +175,8 @@ public final class MembersListSearcher {
     /** Optional callback run through {@link #invokeNotFound()} when the
      *  search gives up: both directions and the retry exhausted, the page
      *  cap reached, no screen with the bound id when a scan runs and no
-     *  rebind possible, or the watchdog firing. {@link #onMenuClose} ends
-     *  a search without it. */
+     *  rebind possible, or the watchdog firing. A server-sent close of the
+     *  bound menu ({@link #onMenuClose}) stops the run instead. */
     private static volatile Runnable notFoundHandler = null;
 
     /** Callback fired by {@link #scanAndPaginate()} when one of the armed
@@ -190,26 +197,32 @@ public final class MembersListSearcher {
         VetsLogger.debug("Registered MembersListSearcher on Wynntils event bus");
     }
 
-    /**
-     * Arms the searcher to scan the next {@code "<guild>: Members"} menu
-     * for {@code name} and invoke {@code handler} once it's located.
-     * Overwrites any previous armed query, discarding its handlers without
-     * running them and superseding its watchdog
-     * ({@code distribute-concurrent-runs-clobber-shared-state}).
-     *
-     * @param handler invoked on match; must be non-null. Passing null
-     *                will NPE when a match is found.
-     */
-    public static void armSearch(String name, SlotMatchHandler handler) {
-        armSearch(name, handler, null);
+    /** Disarms the search without running any callback, for
+     *  {@link org.wynnvets.distribute.DistributeRuns#reset() DistributeRuns.reset()} on a
+     *  disconnect. */
+    public static void cancel() {
+        stop();
     }
 
     /**
-     * Variant with a not-found callback. Used by the multi-recipient send
-     * loop ({@code DistributionQueue}) so the queue can advance to the next
-     * recipient when one cannot be located on any page.
+     * Arms the searcher to scan the next {@code "<guild>: Members"} menu
+     * for {@code name} and invoke {@code handler} once it's located, or
+     * {@code onNotFound} once the search gives up.
+     * Overwrites any previous armed query, discarding its handlers without
+     * running them and superseding its watchdog; only one run arms it at a
+     * time ({@link org.wynnvets.distribute.DistributeRuns DistributeRuns}).
+     *
+     * @param handler invoked on match; must be non-null. Passing null
+     *                will NPE when a match is found.
+     * @param onNotFound run when the search gives up (see {@link #notFoundHandler}), or
+     *     {@code null}. The multi-recipient send loop ({@code DistributionQueue}) passes one
+     *     that moves on to the next recipient, and the single-target command one that closes
+     *     the Members menu.
+     * @param bindOpenMenu whether a Members menu already open may be bound at once. {@code false}
+     *     when the caller is about to open a fresh one, which would replace it.
      */
-    public static void armSearch(String name, SlotMatchHandler handler, Runnable onNotFound) {
+    public static void armSearch(
+            String name, SlotMatchHandler handler, Runnable onNotFound, boolean bindOpenMenu) {
         displayQuery = name;
         queryLower.clear();
         if (name != null && !name.isEmpty()) {
@@ -227,9 +240,9 @@ public final class MembersListSearcher {
         // task — no explicit cancellation needed. The watchdog is the
         // backstop for a stall where no further event arrives, before
         // binding (the Members menu never opens) or after (a dropped
-        // pagination click, or the menu going away without a
-        // MenuClosedEvent for our id — the player's own Esc posts none,
-        // see onMenuClose). It is not a reliable backstop for a task that
+        // pagination click, or the menu replaced by another screen, which
+        // posts neither a MenuClosedEvent for our id nor a screen close —
+        // see onMenuClose and onScreenClosed). It is not a reliable backstop for a task that
         // throws: Wynntils' TickSchedulerManager does not catch, so a
         // throwing task is not removed and re-runs every tick until a run
         // returns normally, and whether this watchdog still counts down
@@ -244,20 +257,17 @@ public final class MembersListSearcher {
                             displayQuery,
                             WATCHDOG_TICKS);
                     ChatUtils.sendLocalMessage(
-                            Component.literal(
-                                            "Search for "
-                                                    + displayQuery
-                                                    + " timed out — advancing.")
+                            Component.literal("Search for " + displayQuery + " timed out.")
                                     .withStyle(ChatFormatting.YELLOW));
                     invokeNotFound();
                 },
                 WATCHDOG_TICKS);
 
         // Re-arm fast-path: when the Members menu is already open (multi-user
-        // flow), bind to its container id and kick off a scan now. Otherwise
-        // leave membersContainerId at -1 and wait for the next
-        // MenuOpenedEvent.Pre to bind.
-        AbstractContainerScreen<?> open = MembersGui.currentByTitle();
+        // flow), bind to its container id and kick off a scan now. Otherwise,
+        // or when the caller is about to open a fresh menu, leave
+        // membersContainerId at -1 and wait for the next MenuOpenedEvent.Pre.
+        AbstractContainerScreen<?> open = bindOpenMenu ? MembersGui.currentByTitle() : null;
         if (open != null) {
             membersContainerId = open.getMenu().containerId;
             scheduleScan();
@@ -324,16 +334,30 @@ public final class MembersListSearcher {
         if (event.getContainerId() != membersContainerId) return;
         // A clientbound close for our bound id — Wynntils posts
         // MenuClosedEvent only from its handleContainerClose hook, so this
-        // is the server closing the menu. Abandon quietly. A client-side
-        // close (the player's Esc) sends only a serverbound close and posts
-        // nothing here. What ends that search then depends first on what is
-        // already pending: a scheduled scan (or the retry hop) finds no
-        // screen and ends it through scanAndPaginate's lost-menu branch.
-        // Otherwise it depends on what the server sends for the menu
-        // afterwards, and a search that stalls is ended by the watchdog.
+        // is the server closing the menu: stop the run, as the walker does.
+        // Not through the not-found handler: the event fires before vanilla
+        // tears the screen down, so the handler would still see a Members
+        // menu, and would skip to the next recipient, or finish the run green
+        // and send a close back for a menu the server just closed. A
+        // client-side close (the player's Esc) sends only a serverbound close
+        // and posts nothing here; onScreenClosed notices it.
         VetsLogger.debug(
-                "MembersListSearcher: menu closed mid-search, abandoning [{}]", displayQuery);
+                "MembersListSearcher: menu closed mid-search, stopping [{}]", displayQuery);
         stop();
+        DistributeRuns.stop("the Members menu closed");
+    }
+
+    /**
+     * Notices a client-side close of the bound menu, such as the player's Esc, which posts no
+     * {@link MenuEvent.MenuClosedEvent}: any screen closing while a search is bound schedules the
+     * usual scan, whose lost-menu branch then ends the search about {@link #SCAN_DELAY_TICKS}
+     * later. A close of some other screen just costs one scan of the page.
+     */
+    @SubscribeEvent
+    public void onScreenClosed(ScreenClosedEvent.Post event) {
+        if (displayQuery == null) return;
+        if (membersContainerId == -1) return;
+        scheduleScan();
     }
 
     @SubscribeEvent
@@ -425,11 +449,14 @@ public final class MembersListSearcher {
                 return;
             }
             // No Members menu open at all, or we've exhausted rebinds.
-            // Invoke not-found so the chained caller (DistributionQueue)
-            // advances its queue rather than silently stalling with the
-            // menu open.
+            // Invoke not-found. With no Members menu open, a chained caller
+            // (DistributionQueue, or the literal head) finds none and stops
+            // the run, rather than search for each remaining recipient in
+            // turn. With rebinds exhausted a Members menu is still up, so the
+            // caller skips this recipient and goes on (the literal head
+            // closes the menu and ends).
             VetsLogger.debug(
-                    "MembersListSearcher: lost Members menu mid-search for [{}], advancing",
+                    "MembersListSearcher: lost Members menu mid-search for [{}], giving up",
                     displayQuery);
             invokeNotFound();
             return;
@@ -466,8 +493,16 @@ public final class MembersListSearcher {
                 // throttled by the MAX_PAGES cap.
                 pagesClicked = 0;
                 direction = Direction.FORWARD;
+                // Capture the live token, without bumping it (that would disarm
+                // this search's own watchdog): if the search ends inside the
+                // delay, the hop must not scan whatever search armed next.
+                final int myWatchdog = watchdogToken;
                 Managers.TickScheduler.scheduleLater(
-                        MembersListSearcher::scheduleScan, RETRY_DELAY_TICKS);
+                        () -> {
+                            if (myWatchdog != watchdogToken) return;
+                            scheduleScan();
+                        },
+                        RETRY_DELAY_TICKS);
                 return;
             }
             stopNotFound();

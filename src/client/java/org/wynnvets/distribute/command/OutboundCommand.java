@@ -4,7 +4,6 @@ import com.wynntils.core.components.Handlers;
 import com.wynntils.handlers.command.CommandHandler;
 import java.lang.reflect.Field;
 import java.util.Deque;
-import java.util.Queue;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -88,6 +87,21 @@ public final class OutboundCommand {
         Handlers.Command.queueCommand(command);
     }
 
+    /**
+     * Removes every queued copy of {@code command} from Wynntils' outbound queue. Wynntils keeps
+     * that queue across a disconnect and sends what is left at the next session's first on-world
+     * tick, so a run ended by one would otherwise open a menu nobody asked for. Does nothing when
+     * the queue can't be reached, as on {@link #queueFront}'s fallback path.
+     *
+     * <p>Client thread only, as {@link #queueFront}.</p>
+     */
+    public static void dropQueued(String command) {
+        Deque<String> deque = obtainDeque();
+        if (deque != null && deque.removeIf(command::equals)) {
+            VetsLogger.debug("OutboundCommand: dropped a queued {}", command);
+        }
+    }
+
     private static Deque<String> obtainDeque() {
         Field field = commandQueueField;
         if (field == null) {
@@ -115,17 +129,15 @@ public final class OutboundCommand {
         try {
             Field field = CommandHandler.class.getDeclaredField("commandQueue");
             field.setAccessible(true);
-            // Sanity-check that what we got is actually queue-shaped, so a
-            // value that is not a Queue at all (or a null) is caught, warned
-            // about and cached once here rather than on every call. It does not
-            // catch a swap to a Queue that is not a Deque: that passes,
-            // is cached as a good handle, and obtainDeque then falls back
-            // per call at debug level
-            // (outbound-command-queue-check-accepts-non-deque).
+            // Sanity-check that what we got is a Deque, which addFirst needs,
+            // so a value that is not one (a Queue that is not a Deque, a
+            // non-queue, or a null) is caught, warned about and cached once
+            // here rather than on every call. obtainDeque's per-call check
+            // stays as the backstop.
             Object value = field.get(Handlers.Command);
-            if (!(value instanceof Queue<?>)) {
+            if (!(value instanceof Deque<?>)) {
                 VetsLogger.warn(
-                        "OutboundCommand: Wynntils commandQueue is not a Queue ({}), using fallback",
+                        "OutboundCommand: Wynntils commandQueue is not a Deque ({}), using fallback",
                         value == null ? "null" : value.getClass().getName());
                 return FIELD_LOOKUP_FAILED;
             }

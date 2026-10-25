@@ -5,6 +5,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.wynntils.utils.mc.McUtils;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
@@ -61,7 +62,8 @@ import org.wynnvets.util.ConfigValueText.Verb;
  *   <li>{@code /wv debug trigger bossBarsDump} — dump current {@code BossHealthOverlay#events} state (iteration order, per-bar UUID/name/color/overlay/progress, ours marker)</li>
  *   <li>{@code /wv debug trigger nametagsDump} — dump per-player nametag diagnostics (reads
  *       {@link org.wynnvets.mwe.anni.outline.AnniOutlineRegistry AnniOutlineRegistry} directly;
- *       reports the gate, registry hit, tier and role, and the colour
+ *       reports the gate, registry hit, tier and role, the display name with section signs
+ *       shown as {@code &}, and the colour
  *       {@link org.wynnvets.mixin.client.NametagMixin NametagMixin}'s anni override would
  *       resolve to, or that it would not override)</li>
  *   <li>{@code /wv debug trigger ghostsPromptDump} — log (not chat) the ghosts-prompt gate
@@ -85,9 +87,9 @@ public final class DebugCommands {
     /** Tab-completion provider that suggests debug-configurable key names. */
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_DEBUG_CONFIG_KEYS =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 for (String key : DebugConfigManager.DEBUG_CONFIG_KEYS) {
-                    if (key.toLowerCase().startsWith(partial)) {
+                    if (key.toLowerCase(Locale.ROOT).startsWith(partial)) {
                         builder.suggest(key);
                     }
                 }
@@ -97,7 +99,7 @@ public final class DebugCommands {
     /** Tab-completion provider that suggests "true" / "false". */
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_BOOLEAN_VALUES =
             (ctx, builder) -> {
-                String partial = builder.getRemaining().toLowerCase();
+                String partial = builder.getRemaining().toLowerCase(Locale.ROOT);
                 if ("true".startsWith(partial)) builder.suggest("true");
                 if ("false".startsWith(partial)) builder.suggest("false");
                 return builder.buildFuture();
@@ -342,6 +344,9 @@ public final class DebugCommands {
      *   <li>their gameProfile username;</li>
      *   <li>whether {@link org.wynnvets.mwe.anni.outline.AnniOutlineRegistry} has
      *       an entry for them and the resolved tier / nametag {@link net.minecraft.ChatFormatting};</li>
+     *   <li>their display name as {@code original=}: {@code getDisplayName()}, the component
+     *       vanilla copies into {@code state.nameTag}, with each section sign shown as
+     *       {@code &} so Wynncraft's embedded team-colour prefix stays visible;</li>
      *   <li>what colour the {@link org.wynnvets.mixin.client.NametagMixin NametagMixin} TAIL-of-{@code extractRenderState}
      *       branch <em>would</em> resolve to for them right now.</li>
      * </ul>
@@ -364,7 +369,7 @@ public final class DebugCommands {
 
         ChatUtils.sendLocalMessageNewBlock(
                 Component.literal(
-                                "S4 nametag dump — outlineSuppressionActive="
+                                "S4 nametag dump - outlineSuppressionActive="
                                         + gate
                                         + ", vetsAnniNametagsEnabled="
                                         + nametagsEnabled
@@ -384,8 +389,10 @@ public final class DebugCommands {
 
             org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.Entry entry =
                     org.wynnvets.mwe.anni.outline.AnniOutlineRegistry.getEntry(username);
-            String tier = (entry != null) ? entry.tier().name() : "—";
-            String role = (entry != null && entry.role() != null) ? entry.role() : "—";
+            String tier = (entry != null) ? entry.tier().name() : "-";
+            String role = (entry != null && entry.role() != null) ? entry.role() : "-";
+            // Escaped, or the font would parse the very codes this column exists to show.
+            String original = p.getDisplayName().getString().replace('\u00A7', '&');
             net.minecraft.ChatFormatting fmt;
             String fmtSource;
             if (gate && nametagsEnabled) {
@@ -398,7 +405,7 @@ public final class DebugCommands {
                 }
             } else {
                 fmt = null;
-                fmtSource = "(gate off — no override)";
+                fmtSource = "(gate off - no override)";
             }
 
             MutableComponent line =
@@ -417,7 +424,10 @@ public final class DebugCommands {
                                             .withStyle(ChatFormatting.GRAY))
                             .append(
                                     Component.literal("  role=" + role)
-                                            .withStyle(ChatFormatting.GRAY));
+                                            .withStyle(ChatFormatting.GRAY))
+                            .append(
+                                    Component.literal("  original=" + original)
+                                            .withStyle(ChatFormatting.DARK_GRAY));
             if (fmt != null) {
                 line.append(Component.literal("  → ").withStyle(ChatFormatting.DARK_GRAY))
                         .append(Component.literal(username).withStyle(fmt))
@@ -484,7 +494,7 @@ public final class DebugCommands {
 
         ChatUtils.sendLocalMessageNewBlock(
                 Component.literal(
-                                "BossHealthOverlay events dump — "
+                                "BossHealthOverlay events dump - "
                                         + events.size()
                                         + " entr"
                                         + (events.size() == 1 ? "y" : "ies")
@@ -571,7 +581,7 @@ public final class DebugCommands {
 
         ChatUtils.sendLocalMessageNewBlock(
                 Component.literal(
-                                "AnniZoneLineRenderer dump — aggressive_active="
+                                "AnniZoneLineRenderer dump - aggressive_active="
                                         + aggro
                                         + " toggle_on="
                                         + toggle
@@ -589,7 +599,7 @@ public final class DebugCommands {
         if (discs.isEmpty()) {
             ChatUtils.sendLocalMessage(
                     Component.literal(
-                                    "  (no discs cached — anni event missing from world-events API?)")
+                                    "  (no discs cached - anni event missing from world-events API?)")
                             .withStyle(ChatFormatting.DARK_GRAY));
             return;
         }

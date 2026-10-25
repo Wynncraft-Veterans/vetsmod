@@ -2,6 +2,7 @@ package org.wynnvets.api;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonObject;
@@ -14,15 +15,19 @@ import org.junit.jupiter.api.Test;
 import org.wynnvets.util.Json;
 
 /**
- * Tests for {@link InboundAckRouter#route}'s non-auth routing: which acks pop the head of
- * {@link V1ApiManager}'s staff-action callback queue, in what order, and which leave it alone.
+ * Tests for {@link InboundAckRouter#route}'s non-auth routing: which acks answer a pending
+ * staff-action callback in {@link V1ApiManager#pendingAcks}, which callback, and which leave the
+ * pending callbacks alone. An ack that echoes a request id goes to that id's callback only; the
+ * eldest-first pairing for a server that does not echo ids (legacy mode) is pinned by the tests
+ * that leave both echo flags false.
  *
  * <p>The auth-ok and auth-failure branches are not driven: they reach {@code VetsConfig}, whose
  * class initialisation fails outside a game launch. So the orphan rule's {@code !wasAuthAck} and
  * non-empty-queue terms are not pinned here: their discriminating inputs lead into the
- * auth-failure branch, or, for a plain error with an empty queue, change only what is logged. A
+ * auth-failure branch, or, for a plain error with nothing pending, change only what is logged. A
  * throwing callback is not driven either, since every callback here only records. Every test
- * starts and ends with no auth ack awaited, not confirmed staff, and an empty callback queue.</p>
+ * starts and ends with no auth ack awaited, not confirmed staff, no pending callback and both echo
+ * flags false (legacy mode).</p>
  */
 class InboundAckRouterTest {
 
@@ -36,7 +41,9 @@ class InboundAckRouterTest {
         SessionAuthState.expectingAuthAck = false;
         SessionAuthState.confirmedStaff = false;
         SessionAuthState.confirmedStaffRank = "";
-        V1ApiManager.staffActionCallbacks.clear();
+        V1ApiManager.pendingAcks.drainAll();
+        V1ApiManager.helloEchoesReq = false;
+        V1ApiManager.ackEchoedReq = false;
     }
 
     /** A callback that records which callback got which ack. It never throws. */
@@ -44,11 +51,16 @@ class InboundAckRouterTest {
         return ack -> calls.add(name + " " + Json.GSON.toJson(ack));
     }
 
+    /** Registers a recording callback named {@code name}; returns its request id. */
+    private String pending(String name) {
+        return V1ApiManager.pendingAcks.register(callback(name), 1, PendingAcks.Kind.READ);
+    }
+
     private static JsonObject ack(String json) {
         return Json.GSON.fromJson(json, JsonObject.class);
     }
 
-    // ----- staff-action-shaped acks pop the head callback -----
+    // ----- legacy mode: staff-action-shaped acks answer the eldest callback -----
 
     @Test
     void eachStaffActionShapeRoutesToTheHeadCallback() {
@@ -61,17 +73,17 @@ class InboundAckRouterTest {
         };
         for (String shape : shapes) {
             calls.clear();
-            V1ApiManager.staffActionCallbacks.addLast(callback("head"));
+            pending("head");
             InboundAckRouter.route(ack(shape));
             assertEquals(List.of("head " + shape), calls, shape);
-            assertTrue(V1ApiManager.staffActionCallbacks.isEmpty(), shape);
+            assertTrue(V1ApiManager.pendingAcks.isEmpty(), shape);
         }
     }
 
     @Test
     void twoPendingCallbacksResolveInSendOrder() {
-        V1ApiManager.staffActionCallbacks.addLast(callback("first"));
-        V1ApiManager.staffActionCallbacks.addLast(callback("second"));
+        pending("first");
+        pending("second");
         InboundAckRouter.route(ack("{\"status\":\"ok\",\"total_points\":1}"));
         InboundAckRouter.route(ack("{\"status\":\"ok\",\"total_points\":2}"));
         assertEquals(
@@ -81,14 +93,14 @@ class InboundAckRouterTest {
                 calls);
     }
 
-    // ----- error acks -----
+    // ----- legacy mode: error acks -----
 
     @Test
     void anOrphanErrorPopsThePendingCallback() {
-        V1ApiManager.staffActionCallbacks.addLast(callback("head"));
+        pending("head");
         InboundAckRouter.route(ack("{\"status\":\"error\",\"detail\":\"no such player\"}"));
         assertEquals(List.of("head {\"status\":\"error\",\"detail\":\"no such player\"}"), calls);
-        assertTrue(V1ApiManager.staffActionCallbacks.isEmpty());
+        assertTrue(V1ApiManager.pendingAcks.isEmpty());
     }
 
     @Test
@@ -98,7 +110,7 @@ class InboundAckRouterTest {
         // confirmed staff state is left as it was.
         SessionAuthState.confirmedStaff = true;
         SessionAuthState.confirmedStaffRank = "chief";
-        V1ApiManager.staffActionCallbacks.addLast(callback("head"));
+        pending("head");
         InboundAckRouter.route(ack("{\"status\":\"error\",\"detail\":\"auth rejected: x\"}"));
         assertEquals(List.of("head {\"status\":\"error\",\"detail\":\"auth rejected: x\"}"), calls);
         assertTrue(SessionAuthState.confirmedStaff);
@@ -131,31 +143,129 @@ class InboundAckRouterTest {
         assertEquals("chief", SessionAuthState.confirmedStaffRank);
     }
 
-    // ----- acks that leave a pending callback queued -----
+    // ----- legacy mode: acks that leave a pending callback queued -----
 
     @Test
     void aTierKeyKeepsAWouldTriggerAckOutOfTheQueue() {
         // The tier key marks an auth ack. Its status is neither ok (an auth success) nor error
         // (the orphan rule would claim it), so it ends in the plain-error warn, not the queue.
-        V1ApiManager.staffActionCallbacks.addLast(callback("head"));
+        pending("head");
         InboundAckRouter.route(ack("{\"status\":\"would_trigger\",\"tier\":\"member\"}"));
         assertTrue(calls.isEmpty());
-        assertEquals(1, V1ApiManager.staffActionCallbacks.size());
+        assertEquals(1, V1ApiManager.pendingAcks.size());
     }
 
     @Test
     void aFrameWithoutStatusIsIgnored() {
-        V1ApiManager.staffActionCallbacks.addLast(callback("head"));
+        pending("head");
         InboundAckRouter.route(ack("{\"kind\":\"caution\"}"));
         assertTrue(calls.isEmpty());
-        assertEquals(1, V1ApiManager.staffActionCallbacks.size());
+        assertEquals(1, V1ApiManager.pendingAcks.size());
     }
 
     @Test
     void aPlainOkAckLeavesAPendingCallbackQueued() {
-        V1ApiManager.staffActionCallbacks.addLast(callback("head"));
+        pending("head");
         InboundAckRouter.route(ack("{\"status\":\"ok\"}"));
         assertTrue(calls.isEmpty());
-        assertEquals(1, V1ApiManager.staffActionCallbacks.size());
+        assertEquals(1, V1ApiManager.pendingAcks.size());
+    }
+
+    // ----- echoed request ids -----
+
+    @Test
+    void anErrorCarryingAReqAnswersOnlyThatCallback() {
+        // The bug: without ids an error ack to some other frame went to the eldest callback.
+        V1ApiManager.helloEchoesReq = true;
+        pending("first");
+        String second = pending("second");
+        String error =
+                "{\"status\":\"error\",\"detail\":\"no such player\",\"req\":\"" + second + "\"}";
+        InboundAckRouter.route(ack(error));
+        assertEquals(List.of("second " + error), calls);
+        assertEquals(1, V1ApiManager.pendingAcks.size(), "first is still waiting");
+    }
+
+    @Test
+    void anAckCarryingAReqIsMatchedByIdEvenWithoutTheHelloFlag() {
+        String head = pending("head");
+        String reply = "{\"status\":\"ok\",\"total_points\":3,\"req\":\"" + head + "\"}";
+        InboundAckRouter.route(ack(reply));
+        assertEquals(List.of("head " + reply), calls);
+        assertTrue(V1ApiManager.ackEchoedReq, "an echoed id proves the server echoes");
+        assertTrue(V1ApiManager.serverEchoesReq());
+    }
+
+    @Test
+    void anAckForAnUnknownReqIsDroppedWithoutTouchingThePendingCallback() {
+        pending("head");
+        InboundAckRouter.route(ack("{\"status\":\"ok\",\"total_points\":3,\"req\":\"zzzzzzzz\"}"));
+        InboundAckRouter.route(ack("{\"status\":\"error\",\"detail\":\"x\",\"req\":\"zzzzzzzz\"}"));
+        assertTrue(calls.isEmpty());
+        assertEquals(1, V1ApiManager.pendingAcks.size());
+    }
+
+    @Test
+    void aReqlessErrorPopsNothingOnceTheServerEchoesIds() {
+        // A guild forward refused while inbound processing is disabled: its error carries no req,
+        // so it must not reach the staff command waiting for its own ack.
+        V1ApiManager.helloEchoesReq = true;
+        pending("head");
+        JsonObject refused =
+                ack("{\"status\":\"error\",\"detail\":\"Inbound processing is disabled\"}");
+        assertDoesNotThrow(() -> InboundAckRouter.route(refused));
+        assertTrue(calls.isEmpty());
+        assertEquals(1, V1ApiManager.pendingAcks.size());
+    }
+
+    @Test
+    void aRelaysAckReachesItsOwnCallback() {
+        V1ApiManager.helloEchoesReq = true;
+        pending("staff");
+        String relay =
+                V1ApiManager.pendingAcks.register(callback("relay"), 1, PendingAcks.Kind.RELAY);
+        String refusal =
+                "{\"status\":\"error\",\"detail\":\"Inbound processing is disabled\",\"req\":\""
+                        + relay
+                        + "\"}";
+        InboundAckRouter.route(ack(refusal));
+        assertEquals(List.of("relay " + refusal), calls);
+        assertEquals(1, V1ApiManager.pendingAcks.size(), "the staff callback is still waiting");
+    }
+
+    @Test
+    void theLegacyPairingNeverAnswersARelay() {
+        // A relay registered while the server echoed ids must not take a staff-action ack if the
+        // client falls back to eldest-first pairing.
+        V1ApiManager.pendingAcks.register(callback("relay"), 1, PendingAcks.Kind.RELAY);
+        pending("staff");
+        String reply = "{\"status\":\"ok\",\"total_points\":3}";
+        InboundAckRouter.route(ack(reply));
+        assertEquals(List.of("staff " + reply), calls);
+        calls.clear();
+        InboundAckRouter.route(ack("{\"status\":\"error\",\"detail\":\"no such player\"}"));
+        assertTrue(calls.isEmpty(), "with only a relay pending, the orphan rule does not fire");
+        assertEquals(1, V1ApiManager.pendingAcks.size());
+    }
+
+    @Test
+    void anIdlessStaffShapedAckProvesTheServerDoesNotEchoIds() {
+        // A rollback to an older server before its hello arrived: the hello flag is stale.
+        V1ApiManager.helloEchoesReq = true;
+        V1ApiManager.ackEchoedReq = true;
+        pending("head");
+        String preflight = "{\"status\":\"would_trigger\",\"trigger\":\"warning\"}";
+        InboundAckRouter.route(ack(preflight));
+        assertEquals(List.of("head " + preflight), calls, "paired eldest first, not dropped");
+        assertFalse(V1ApiManager.serverEchoesReq());
+    }
+
+    @Test
+    void anEchoedAckIsAnsweredOnce() {
+        String head = pending("head");
+        String reply = "{\"status\":\"ok\",\"total_points\":3,\"req\":\"" + head + "\"}";
+        InboundAckRouter.route(ack(reply));
+        InboundAckRouter.route(ack(reply));
+        assertEquals(List.of("head " + reply), calls, "the second copy finds no callback");
     }
 }

@@ -44,11 +44,11 @@ import org.wynnvets.logging.VetsLogger;
  * <table border="1">
  *   <caption>Policy per site, before</caption>
  *   <tr><th>Site</th><th>Missing or JSON-null</th><th>Wrong type</th><th>Null receiver</th></tr>
- *   <tr><td>{@code CommandDispatcher.stringOrNull}</td><td>null</td>
+ *   <tr><td>{@code CommandDispatcher.stringOrNull} (now {@code DispatchCoordinator})</td><td>null</td>
  *       <td>swallowed to null</td><td>NPE</td></tr>
  *   <tr><td>{@code StaffFetcher.stringOrNull}</td><td>null</td>
  *       <td>swallowed to null</td><td>NPE</td></tr>
- *   <tr><td>{@code WarningRewriter.optString}</td><td>fallback</td>
+ *   <tr><td>{@code WarningRewriter.optString} (now {@code WarningFrameRenderer})</td><td>fallback</td>
  *       <td>throws</td><td>NPE</td></tr>
  *   <tr><td>{@code CautionCommands.optString}</td><td>fallback</td>
  *       <td>throws</td><td>tolerated</td></tr>
@@ -125,7 +125,7 @@ import org.wynnvets.logging.VetsLogger;
  * <p><b>Scope.</b> These four are what those seven declarations collapse onto, along with three
  * more reads &mdash; {@code NameResolver}'s {@code legacyName} and {@code uuid} (formerly via
  * two private helpers) and {@code WarningFrameRenderer}'s inline {@code points_after}. The
- * other thirty-one inlined
+ * other thirty inlined
  * {@code isJsonNull()} reads across the client are deliberately out of scope, and that is a
  * boundary rather than a gap: most of them throw on a wrong type today, so each conversion is
  * its own behaviour change and belongs in its own commit.</p>
@@ -135,6 +135,7 @@ public final class Json {
     /**
      * The shared parser/serialiser. {@code new Gson()} with no builder, so HTML-escaping and
      * null-suppression are both at their defaults, exactly as all twenty-one copies had them.
+     * Outgoing WebSocket frames use {@code WsClient}'s own serialiser instead, which keeps nulls.
      */
     public static final Gson GSON = new Gson();
 
@@ -175,8 +176,12 @@ public final class Json {
      * {@link #optString} with {@code null} as the fallback.
      *
      * <p>Exists so the call sites that never supplied a fallback did not grow an argument
-     * &mdash; twelve when this was written, <b>seventeen</b> once {@code NameResolver}'s five
-     * member-field reads joined them. {@code null} <i>is</i> a fallback; this is not a fourth policy.</p>
+     * &mdash; twelve when this was written, seventeen once {@code NameResolver}'s five
+     * member-field reads joined them, twenty with the outbound socket's three
+     * ({@code server_info}'s {@code chat_tiers}, the auth ack's {@code ws_tier} and a staff
+     * presence frame's {@code uuid}), twenty-one with an inbound ack's echoed {@code req},
+     * <b>twenty-two</b> with a staff-action ack's {@code outcome_unknown}. {@code null} <i>is</i>
+     * a fallback; this is not a fourth policy.</p>
      *
      * @param obj the object to read; a {@code null} is tolerated and warns
      * @param key the field name
@@ -191,9 +196,9 @@ public final class Json {
      *
      * <p>Note what this collapses: "absent", "present but JSON-null", "wrongly typed" and
      * "present and empty" all read as {@code ""}, and the caller cannot tell them apart. Most
-     * of its eleven call sites gate on {@code isEmpty()} on the next line and do not care; the
-     * ones that do not ({@code type}, {@code tier}) feed an {@code equals} comparison or a
-     * display field where {@code ""} is already the neutral value.</p>
+     * of its fourteen call sites gate on {@code isEmpty()} on the next line and do not care; the
+     * ones that do not ({@code type}, {@code tier}, {@code status}) feed an {@code equals}
+     * comparison or a display field where {@code ""} is already the neutral value.</p>
      *
      * @param obj the object to read; a {@code null} is tolerated and warns
      * @param key the field name

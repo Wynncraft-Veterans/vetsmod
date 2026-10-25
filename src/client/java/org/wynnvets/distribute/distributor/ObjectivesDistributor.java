@@ -14,6 +14,8 @@ import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.distribute.DistributeRuns;
+import org.wynnvets.distribute.MembersGui;
 import org.wynnvets.distribute.opener.GuildManageOpener;
 import org.wynnvets.distribute.recipients.NoAspectsFilter;
 import org.wynnvets.distribute.walker.MembersListWalker;
@@ -64,10 +66,13 @@ public final class ObjectivesDistributor {
     /**
      * Opens the Members menu, walks it to collect everyone who's
      * completed their guild objective, computes the per-recipient
-     * counts, and dispatches each in sequence.
+     * counts, and dispatches each in sequence. The command's entry point:
+     * the run ends
+     * ({@link org.wynnvets.distribute.DistributeRuns#finished() DistributeRuns.finished()})
+     * when this head does.
      */
     public static void dispatch(int count, MemberSlotPresser.Resource resource) {
-        dispatch(count, resource, null);
+        dispatch(count, resource, DistributeRuns::finished);
     }
 
     /**
@@ -75,10 +80,9 @@ public final class ObjectivesDistributor {
      * exits &mdash; no completers, nothing to send, and the send loop
      * draining &mdash; so multi-phase chains like {@link SplitDistributor}
      * can advance past an empty pool. It only gets that far if the walk
-     * calls back, and {@link MembersListWalker} can abandon or stall a walk without
-     * doing so ({@code members-list-walker-drops-completion}); the shared send loop
-     * can end a run without it too ({@code member-slot-presser-drops-completion}).
-     * {@code vetsmod_distribute.md} §7 has the rows.
+     * calls back: a {@link MembersListWalker} walk that loses its menu or stalls
+     * stops the run instead, and so does the shared send loop when the Members menu
+     * is lost mid-run, both by design. {@code vetsmod_distribute.md} §7 has the rows.
      */
     public static void dispatch(
             int count, MemberSlotPresser.Resource resource, Runnable onComplete) {
@@ -91,20 +95,25 @@ public final class ObjectivesDistributor {
         // background thread completes the fetch if it finishes after the
         // walk, and inline on the walker's tick-thread callback if it
         // finished first. Either way the 0 is there for the thread, not as
-        // a settle delay.
-        CompletableFuture<Set<String>> excludeF = NoAspectsFilter.fetchExcludedLegacyNames();
+        // a settle delay. A run other than aspects makes no fetch: its set is
+        // empty and already complete, so it always takes the inline arm.
+        int generation = DistributeRuns.generation();
+        CompletableFuture<Set<String>> excludeF =
+                NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects());
         MembersListWalker.armWalk(
                 members ->
                         excludeF.thenAccept(
                                 excludeNames ->
                                         Managers.TickScheduler.scheduleLater(
-                                                () ->
-                                                        onWalkComplete(
-                                                                members,
-                                                                count,
-                                                                resource,
-                                                                onComplete,
-                                                                excludeNames),
+                                                DistributeRuns.fenced(
+                                                        generation,
+                                                        () ->
+                                                                onWalkComplete(
+                                                                        members,
+                                                                        count,
+                                                                        resource,
+                                                                        onComplete,
+                                                                        excludeNames)),
                                                 0)));
         GuildManageOpener.openManageMembers();
     }
@@ -115,19 +124,21 @@ public final class ObjectivesDistributor {
             MemberSlotPresser.Resource resource,
             Runnable onComplete,
             Set<String> excludeNames) {
+        // Completion first, then the opt-out, so a pool of only opted-out
+        // completers is told apart from one nobody completed.
         List<String> completers = new ArrayList<>();
-        int skippedOptOut = 0;
+        int optedOutCompleters = 0;
         for (MembersListWalker.MemberEntry m : members) {
+            if (!hasCompletedObjective(m.loreLines())) continue;
             if (excludeNames.contains(m.legacyName())) {
-                skippedOptOut++;
-                continue;
-            }
-            if (hasCompletedObjective(m.loreLines())) {
+                optedOutCompleters++;
+            } else {
                 completers.add(m.legacyName());
             }
         }
-        if (skippedOptOut > 0) {
-            VetsLogger.debug("ObjectivesDistributor: skipped {} opted-out members", skippedOptOut);
+        if (optedOutCompleters > 0) {
+            VetsLogger.debug(
+                    "ObjectivesDistributor: skipped {} opted-out completers", optedOutCompleters);
         }
         VetsLogger.debug(
                 "ObjectivesDistributor: {} / {} members completed their objective",
@@ -136,9 +147,13 @@ public final class ObjectivesDistributor {
 
         if (completers.isEmpty()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal("No members have completed their guild objective.")
+                    Component.literal(
+                                    optedOutCompleters > 0
+                                            ? "All eligible recipients have opted out of"
+                                                    + " receiving aspects."
+                                            : "No members have completed their guild objective.")
                             .withStyle(ChatFormatting.YELLOW));
-            MemberSlotPresser.closeMembersScreen();
+            MembersGui.closeIfOpen();
             if (onComplete != null) onComplete.run();
             return;
         }
@@ -147,7 +162,7 @@ public final class ObjectivesDistributor {
         if (queue.isEmpty()) {
             // Can happen if count == 0 (excluded by brigadier bounds, but
             // defensive); nothing to send.
-            MemberSlotPresser.closeMembersScreen();
+            MembersGui.closeIfOpen();
             if (onComplete != null) onComplete.run();
             return;
         }
@@ -163,7 +178,7 @@ public final class ObjectivesDistributor {
                                         + " objective-completers…")
                         .withStyle(ChatFormatting.AQUA));
 
-        DistributionQueue.processNext(queue, resource, onComplete, "ObjectivesDistributor");
+        DistributionQueue.processNext(queue, resource, onComplete, "ObjectivesDistributor", true);
     }
 
     /**

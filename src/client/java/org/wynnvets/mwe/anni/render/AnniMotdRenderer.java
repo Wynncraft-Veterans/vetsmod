@@ -26,7 +26,7 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
  * You have been assigned to TANK with Party 2 on EU5
  * </pre>
  *
- * <p>The short-form RSVP codes (HRSVP / SRSVP / WALKIN / LATE) and
+ * <p>The short-form RSVP codes (HrdRSVP / SftRSVP / NotRSVP) and
  * compact party chips were the wrong call here — those abbreviations
  * exist for boss-bar space limits and out of place in chat. Chat has
  * room to spell things out.</p>
@@ -163,7 +163,7 @@ public final class AnniMotdRenderer {
         AnniSnapshot.Board board = snapshot.board();
         String reason = board != null ? board.wontReason() : null;
         if (reason != null && !reason.isEmpty()) {
-            return Component.literal("You won't be assigned — " + reason + ".")
+            return Component.literal("You won't be assigned - " + reason + ".")
                     .withStyle(ChatFormatting.GRAY);
         }
         return Component.literal("You won't be assigned to this anni.")

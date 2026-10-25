@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
@@ -49,10 +50,10 @@ import org.wynnvets.guild.GuildStateManager;
  * translates current&rarr;legacy via the Wynncraft API so renamed players
  * are locatable by either form.</p>
  *
- * <p>Members on the NoAspects opt-out list (see {@link NoAspectsFilter})
- * are refused with a red chat line on the literal-name path and skipped
- * by every selector &mdash; today for every resource, though the list is
- * meant to gate aspects only ({@code no-aspects-opt-out-withholds-every-resource}).</p>
+ * <p>On an aspects run, members on the NoAspects opt-out list (see
+ * {@link org.wynnvets.distribute.recipients.NoAspectsFilter NoAspectsFilter}) are refused with a
+ * red chat line on the literal-name path and skipped by every selector. Tomes and emeralds go
+ * to them as to anyone.</p>
  *
  * <h2>{@code @-selectors}</h2>
  * <ul>
@@ -75,6 +76,13 @@ import org.wynnvets.guild.GuildStateManager;
  *       necessity, not by accident &mdash; see {@link SplitDistributor}
  *       for why reordering the phases loses graid records.</li>
  * </ul>
+ *
+ * <p>Any other token starting with {@code @} is refused in red as an unknown
+ * selector, before any lookup: a Minecraft username can't contain one.</p>
+ *
+ * <p>A command that passes these checks becomes a run, handed to
+ * {@link DistributeRuns#submit}: it starts at once, or queues behind a run already in
+ * progress.</p>
  *
  * <h2>Gating</h2>
  * <p>Visibility ({@code .requires}) uses
@@ -186,39 +194,57 @@ public final class DistributeCommands {
         // business. See SELECTORS.
         for (Selector selector : SELECTORS) {
             if (selector.token().equalsIgnoreCase(name)) {
-                selector.head().dispatch(count, resource);
+                DistributeRuns.submit(() -> selector.head().dispatch(count, resource));
                 return 1;
             }
         }
+        // A Minecraft username can't contain '@', so an unmatched '@' token is a mistyped
+        // selector: refuse it here, before any lookup or menu.
+        if (name.startsWith("@")) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal(unknownSelectorMessage(name)).withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        DistributeRuns.submit(() -> startSingleTarget(name, resource, count));
+        return 1;
+    }
 
+    /** The literal-name run: its lookups, then {@link #dispatchSingleTarget}. */
+    private static void startSingleTarget(
+            String name, MemberSlotPresser.Resource resource, int count) {
         // Fan out two lookups in parallel: legacy-name resolution (so we
         // know the canonical tile name for renamed targets) and the
         // NoAspects opt-out list (so we can reject before opening the menu).
-        // That is up to three requests, not two: the opt-out lookup makes
-        // its own wapi roster read to translate its UUIDs.
+        // On an aspects run that is up to three requests, not two: the opt-out
+        // lookup makes its own wapi roster read to translate its UUIDs. On any
+        // other run the opt-out set is empty and already complete.
         // We deliberately wait on both before arming the searcher — even
         // though it costs ~200-500ms upfront, rejecting after the menu has
         // already opened would be a confusing UX. Per-command refresh and
         // fail-open semantics (see NoAspectsFilter) keep this safe.
+        int generation = DistributeRuns.generation();
         CompletableFuture<String> resolveF = NameResolver.resolveLegacyName(name);
-        CompletableFuture<Set<String>> excludeF = NoAspectsFilter.fetchExcludedLegacyNames();
+        CompletableFuture<Set<String>> excludeF =
+                NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects());
         resolveF.thenCombine(
                 excludeF,
                 (resolved, excludeNames) -> {
                     Managers.TickScheduler.scheduleLater(
-                            () ->
-                                    dispatchSingleTarget(
-                                            name, resolved, excludeNames, resource, count),
+                            DistributeRuns.fenced(
+                                    generation,
+                                    () ->
+                                            dispatchSingleTarget(
+                                                    name, resolved, excludeNames, resource, count)),
                             0);
                     return null;
                 });
-        return 1;
     }
 
     /**
      * Runs on the Minecraft tick thread. Rejects the dispatch with a chat
      * line if either the literal input or the wapi-resolved name is on
-     * the NoAspects opt-out list; otherwise arms the searcher (with both
+     * the NoAspects opt-out list, which is empty unless the resource is
+     * aspects; otherwise arms the searcher (with both
      * forms when a rename is detected) and opens the Members menu.
      */
     private static void dispatchSingleTarget(
@@ -238,24 +264,66 @@ public final class DistributeCommands {
         if (excludeNames.contains(name)) optedOutForm = name;
         else if (resolved != null && excludeNames.contains(resolved)) optedOutForm = resolved;
         if (optedOutForm != null) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal(
-                                    optedOutForm
-                                            + " is on the NoAspects list. Ask staff to run !noaspects remove "
-                                            + optedOutForm
-                                            + " if this is in error.")
-                            .withStyle(ChatFormatting.RED));
+            DistributeRuns.refuse(
+                    optedOutForm
+                            + " has opted out of receiving aspects. !noaspects remove "
+                            + optedOutForm
+                            + " can fix that if it is an error.");
             return;
         }
         // Arm with the literal input — covers the case where the user
         // already typed the legacy name. addAlternative covers the rename
         // case where the wapi resolution returns a different canonical name.
+        // A search that gives up closes the Members menu it was searching.
         MembersListSearcher.armSearch(
-                name, slot -> MemberSlotPresser.fire(slot, resource, count, name));
+                name,
+                slot ->
+                        MemberSlotPresser.fire(
+                                slot, resource, count, name, DistributeCommands::endSingleTarget),
+                DistributeCommands::endSingleTargetSearch,
+                false);
         if (resolved != null && !resolved.equalsIgnoreCase(name)) {
             MembersListSearcher.addAlternative(resolved);
         }
         GuildManageOpener.openManageMembers();
+    }
+
+    /**
+     * The single-target send's completion: close the Members menu and end the run. A send that
+     * lost the menu (the presser's "Send stopped" exit) stops the run instead, as the
+     * multi-recipient send loop's next pop does.
+     */
+    private static void endSingleTarget() {
+        if (MembersGui.currentByTitle() == null) {
+            DistributeRuns.stop("the Members menu is not open");
+            return;
+        }
+        MembersGui.closeIfOpen();
+        DistributeRuns.finished();
+    }
+
+    /**
+     * The single-target search's not-found handler. A search that gave up with the Members menu
+     * still up closes it and ends the run; one that lost the menu stops the run, as the
+     * multi-recipient send loop does.
+     */
+    private static void endSingleTargetSearch() {
+        if (MembersGui.currentByTitle() == null) {
+            DistributeRuns.stop("the Members menu is not open");
+            return;
+        }
+        endSingleTarget();
+    }
+
+    /**
+     * The refusal for an {@code @} token that matches no {@link #SELECTORS} row. The tokens are
+     * listed sorted, as tab-completion shows them, so a row's position in the table stays
+     * meaningless.
+     */
+    private static String unknownSelectorMessage(String typed) {
+        String valid =
+                SELECTORS.stream().map(Selector::token).sorted().collect(Collectors.joining(", "));
+        return "Unknown selector " + typed + ". Choose from " + valid + ".";
     }
 
     // ── Suggestion providers ─────────────────────────────────────────────

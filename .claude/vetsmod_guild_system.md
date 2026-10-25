@@ -6,7 +6,7 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Guild State System
 
-`GuildStateManager` is the central facade for the player's guild, staff and unlock status, over three collaborators: `GuildChecker` (guild membership), `StaffRankChecker` (captain+ detection) and `UnlockManager` (bearer-key auth + legacy unlock markers). `GuildLifecycle` runs the world-join flow and the disconnect reset: it calls the three directly, schedules `SessionAuthWarning` (per-session nag for unauthenticated users), and starts `WorldJoinAnnouncer`'s MOTD and anni-stamp prints.
+`GuildStateManager` is the central facade for the player's guild, staff and unlock status, over three collaborators: `GuildChecker` (guild membership), `StaffRankChecker` (captain+ detection) and `UnlockManager` (bearer-key auth). `GuildLifecycle` runs the world-join flow and the disconnect reset: it calls the three directly, schedules `SessionAuthWarning` (per-session nag for unauthenticated users), and starts `WorldJoinAnnouncer`'s MOTD and anni-stamp prints.
 
 ## 1. GuildStateManager facade
 
@@ -19,10 +19,9 @@ Key public methods (all package-level or client-facing):
 | `isReturners()` | Check if in Returners guild |
 | `isGuildless()` | Check player not in any guild |
 | `isUnlocked()` | Any unlock (Returners or waitlist/honourary auth) |
-| `isWaitlistUnlocked()` / `isHonouraryUnlocked()` | Delegated to UnlockManager — true when auth-frame succeeded with that tier OR legacy SHA-256 marker still present |
+| `isWaitlistUnlocked()` / `isHonouraryUnlocked()` | Delegated to UnlockManager — true when the auth frame succeeded with that tier this session |
 | `isAuthenticatedThisSession()` | True from an ok auth-frame ack until an auth failure, a newly stored key, or a disconnect clears it |
 | `hasStoredAuthKey()` | True when `vetsAuthKey` is non-empty (regardless of validation) |
-| `hasLegacyPasswordUnlock()` | True if any pre-migration `vets*UnlockTime` marker exists |
 | `tryUnlock(key)` | Store + dispatch auth frame for a `/unlock` key |
 | `onAuthSuccess(tier)` / `onAuthFailure(detail)` | Auth-frame ack callbacks (called by InboundAckRouter) |
 | `isStaff()` | Delegated to StaffRankChecker |
@@ -30,9 +29,10 @@ Key public methods (all package-level or client-facing):
 | `canExecuteCommands()` | World entered at least once |
 | `playerName()` | Local player username |
 | `selfStaffRank()` | "captain"/"strategist"/"chief"/"owner" |
-| `loadPersistedState()` | Restore from `VetsConfig` on startup |
+| `loadPersistedState()` | Restore from `VetsConfig` on startup and on each disconnect reset, then forget a result another account made (the logged-in account, `getUser().getName()`), since the hub and class selection read `isReturners()` before any world join |
 | `refreshStaffStatusIfNeeded(forceRefresh)` | Staff rank refresh |
-| `sendRegistrationIfReady()` | Push presence frame on inbound WS |
+| `sendRegistrationIfReady()` | Push presence frame on inbound WS; a no-op for an ineligible player (it cannot tell "not eligible" from "guild state not known yet"), see `reconcileRegistration` |
+| `reconcileRegistration(definitive, reason)` | Retract the cached presence registration when the player no longer qualifies (below) |
 
 The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` and `isChiefOfAnyGuild()`;
 [vetsmod_commands.md](vetsmod_commands.md) §1's gate table describes them with the other command gates.
@@ -41,19 +41,41 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 
 | Method | Purpose |
 |--------|---------|
-| `onEnteredWorld()` | World-join trigger; schedules SessionAuthWarning |
-| `onGuildInfoUpdated()` | Wynntils `GuildEvent` callback; also called by the post-world-join recheck poll |
+| `onEnteredWorld()` | World-join trigger. First forgets a stored `GuildChecker` result that another account made (`clearResultIfOwnedByOtherAccount`) or a `RETURNERS` result for which Wynntils names another guild (`worldJoinShouldClear`, then `clearResultIfContradicted`; a `GUILDLESS` or `OTHER_GUILD` result is left to `/gu stats`, since Wynntils' name can be left from an earlier scan); then schedules SessionAuthWarning, registration and the follow-up checks, and after a contradicted clear retracts the `guild` registration it caused |
+| `onGuildInfoUpdated()` | The first half of `onGuildJoined()`: clears the `GuildChecker` cache, then re-evaluates guild state (the post-world-join recheck poll re-evaluates without the unconditional clear) |
+| `onGuildJoined()` | Wynntils `GuildEvent.Joined` callback: `onGuildInfoUpdated()`, then, if the guild is Returners, `ReturnersReauth.onJoinedReturners()` (§4), then `reconcileRegistration(true, "joined")` |
+| `onGuildLeft()` | Wynntils `GuildEvent.Left` callback: clears the `GuildChecker` cache and a cached staff flag (`StaffRankChecker.clearForGuildChange`) at once, then on the next tick (`TickDelays.runAfter(0, ...)`) re-evaluates guild state and calls `reconcileRegistration(true, "left")` |
 | `reset()` | Disconnect reset of the per-connection state |
 
 `/wv debug trigger forceChecks`'s readout is [GuildDiagnostics](../src/client/java/org/wynnvets/debug/diagnostics/GuildDiagnostics.java)`.forceGuildRecheck()`, in `org.wynnvets.debug.diagnostics`.
 
+### Presence registration and its retraction
+
+`sendRegistrationIfReady()` registers the player with the server for presence (`!list`, `/v1/outbound/list`, staff visibility) under `GuildStateManager.registrationTier(...)`: `guild` for Returners, else `honourary` for an unlocked honourary, else `waitlist` for a guildless waitlist unlock, else none. It is called from the five places its Javadoc lists; for an ineligible player it does nothing, because it cannot tell ineligible from "guild state not known yet" (a world join before Wynntils' scan lands), so it never retracts.
+
+Retraction is `reconcileRegistration(definitive, reason)`, called on the client thread from events that mark a loss, and only when a registration is cached: if the tier now is none (`shouldRetract`) it calls `V1ApiManager.sendUnregistration(reason)`, which clears the cache and, against a server that advertises `unregister`, sends the frame ([vetsmod_networking.md](vetsmod_networking.md) §1). A cached `guild` registration is retracted only when `definitive` is true (unknown is not ineligible); a `waitlist` or `honourary` one depends on the auth tier alone, so it goes either way. The triggers:
+
+- **Left** (`GuildLifecycle.onGuildLeft()`, `definitive`, reason `left`): Wynntils posts `GuildEvent.Left` before it clears its guild name, in the same call, so the handler defers the re-evaluation and the reconcile one tick (`TickDelays.runAfter(0, ...)`). Re-evaluating at once would still read Returners and even re-send a `guild` registration.
+- **Joined** (end of `onGuildJoined()`, `definitive`, reason `joined`): retracts a waitlist registration when the player joins another guild.
+- **Guild check** (end of `GuildLifecycle.onGuildCheckCompleted()`, after `sendRegistrationIfReady()`; `definitive` is `GuildCheckResult.isDefinitive()` of the stored result, reason `guild-check`): a finished `/gu stats` check that found the player in another guild or none (`OTHER_GUILD`, `GUILDLESS`) retracts a `guild` registration. This is the path for an ex-member kicked while offline, whose persisted RETURNERS result (3-day TTL) registered them as `guild` at world join and for which no `Left` event fired. `RETURNERS` and `UNKNOWN` (a parse miss) are not definitive. A timeout stores nothing and re-reports the previous result, so it retracts only if an earlier check already found the player outside Returners. An honourary is not retracted: `sendRegistrationIfReady()` has just re-registered them as `honourary`, so the tier now is not none.
+- **Contradicted** (`GuildLifecycle.onEnteredWorld` and the recheck poll, `definitive`, reason `contradicted`): when a stored `RETURNERS` result is cleared because Wynntils names another guild, `sendRegistrationIfReady()` re-registers the player for what they are now (an honourary as one) and the reconcile retracts the `guild` registration the stale result caused.
+- **Auth** (`UnlockManager.onAuthFailure`, and `showAuthSuccess` after `sendRegistrationIfReady()`; not definitive, reason `auth`): a failure ends the server session and clears the tier, and an ok ack with tier `other` is not a waitlist or honourary tier, so a cached waitlist or honourary registration goes. A guild registration stays. The failure's reconcile hops to the client thread and runs before any quiet return.
+
+A player who qualifies again re-registers through `sendRegistrationIfReady()`, which overwrites. A register that an inbound reconnect re-sends could cross a retraction on the wire; the window is tiny and the next reconnect corrects it.
+
 ### Guild membership flow on world join
 
-`isReturners()` / `isGuildless()` prefer a valid `GuildChecker` result (the persisted `/gu stats` cache, 3-day expiry), else read Wynntils' `Models.Guild` live (the name is empty, not null, until Wynntils' character-info scan or a guild-join message fills it). `GuildLifecycle.onEnteredWorld()` then schedules two follow-ups:
-1. a `/gu stats` check about 5 s after world join, while `MORE_RELIABLE_GUILD_CHECK` is on (the default);
-2. when Wynntils reports no guild yet, the recheck poll (`GUILD_RECHECK_*` constants), which calls `onGuildInfoUpdated()` once a guild appears.
+`isReturners()` / `isGuildless()` prefer a valid `GuildChecker` result (the persisted `/gu stats` cache, 3-day expiry), else read Wynntils' `Models.Guild` live (the name is empty, not null, until Wynntils' character-info scan or a guild-join message fills it). The cached result is per install, not per account, so `GuildLifecycle.onEnteredWorld()` first stops trusting one that cannot be this player's, before it registers or reads `isReturners()`:
+- the result's owner (`vetsGuildCheckOwner`, the username of the account whose `/gu stats` made it, written by `GuildChecker.setResult`) is another account: `GuildChecker.ownedByOtherAccount(owner, current)` is `!owner.isEmpty() && !owner.equalsIgnoreCase(current)`, and the result is forgotten, so an alt in another guild does not inherit the main's `RETURNERS` (and its `guild` registration). An empty owner, a result stored before the key existed, is adopted by the account that joins, so a Returners member upgrading sees no change;
+- Wynntils is ready and reports a guild, and the result contradicts it (`clearResultIfContradicted(true, name)`, the same test the recheck poll uses): forgotten. Wynntils' guild data may not have landed yet at world join, so the owner check is the one that does not wait for it.
 
-`GuildLifecycle.onGuildInfoUpdated()` invalidates the `GuildChecker` cache. It runs on Wynntils' `GuildEvent.Joined` / `.Left` and from that recheck poll, where no event fired (bug `guild-recheck-poll-clears-gu-stats-cache`).
+Forgetting a result clears the owner too. It then schedules two follow-ups:
+1. a `/gu stats` check about 5 s after world join, while `MORE_RELIABLE_GUILD_CHECK` is on (the default);
+2. when Wynntils reports no guild yet, the recheck poll (`GUILD_RECHECK_*` constants), which re-evaluates guild state once a guild appears.
+
+Each kind is numbered when scheduled, and a task that finds a newer number stops, so a quick world hop runs only the latest join's check and poll.
+
+`GuildLifecycle.onGuildInfoUpdated()` invalidates the `GuildChecker` cache. It runs on Wynntils' `GuildEvent.Joined`; `onGuildLeft()` clears the cache the same way on `.Left`. The recheck poll, where no event fired, clears it only when it contradicts Wynntils' guild data (`GuildChecker.clearResultIfContradicted`, through `GuildCheckResult.contradicts`), so a `/gu stats` answer that landed before Wynntils' scan survives, and one left from a guild change while disconnected does not.
 
 ## 2. GuildChecker
 
@@ -69,6 +91,8 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 | OTHER_GUILD | 2 |
 | GUILDLESS | 3 |
 
+`isDefinitive()` is true for `OTHER_GUILD` and `GUILDLESS`: a result that says the player is not in Returners, and so may retract a `guild` registration (see Presence registration and its retraction). `contradicts(inGuild, guildName)` is the separate test against Wynntils' live data.
+
 **Parsing approach:**
 - Sends `/gu stats` via `Handlers.Command.queueCommand()`
 - Listens for response lines, stores last non-empty candidate
@@ -79,9 +103,9 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 
 **Caching:**
 - `GUILD_CHECK_EXPIRY_DAYS = 3`
-- Persisted: `VETS_GUILD_CHECK_RESULT` (long) and `VETS_LAST_GUILD_CHECK` (long timestamp)
+- Persisted: `VETS_GUILD_CHECK_RESULT` (long), `VETS_LAST_GUILD_CHECK` (long timestamp) and `VETS_GUILD_CHECK_OWNER` (string, the account's username, written with the result by `setResult` and cleared with it)
 - `GUILD_CHECK_TIMEOUT_MS = 10_000L`
-- Suppression grace: 2 seconds after completion
+- Suppression grace: 2 seconds after completion; a new check started inside it ends it, so the old grace's pending clear can't end the new check's suppression
 
 ## 3. StaffRankChecker
 
@@ -93,12 +117,17 @@ The table omits the command gates `isConfirmedStaff()`, `isStaffOfAnyGuild()` an
 - Sends `/gu rank` (no args) via `Handlers.Command.queueCommand()`
 - Unauthorized response: "you must be a captain to use this command" → NOT staff
 - Authorized response: "invalid arguments, try: rank [name] [rank]" → IS staff
+- Not-in-a-guild response: "You must be in a guild to use this." (aqua, captured in game) → NOT staff, like the unauthorized one
+- `isStaffRankReply(message)` is true for any of the three; `GuildStateManager.isStaffRankReply` hands it to `ChatLogMixin`, which hides the reply of a mod-initiated check with it
 - `STAFF_RANK_TIMEOUT_MS = 10_000L`
 
 **Caching:**
 - `STAFF_CHECK_COOLDOWN_MS = 24 * 60 * 60 * 1000` (24 hours)
 - Persisted: `VETS_IS_STAFF` (boolean), `VETS_LAST_STAFF_CHECK` (long)
 - Grace: 500ms after check to suppress trailing output
+- A check that times out keeps the cached flag and still stamps `VETS_LAST_STAFF_CHECK`, so a slow command queue does not demote a real staff member and a reply nothing recognises is not re-requested at every world join
+- `clearForGuildChange()` sets the flag false (persisted) and resets the last-check stamp, field and `VETS_LAST_STAFF_CHECK`, to 0 so the next `refreshStaffStatusIfNeeded` rechecks. It acts only on a cached staff flag (`shouldClearStaffFlag`). Called from `GuildLifecycle.onGuildLeft()` (a leave or a kick seen online) and from `GuildChecker.setResult` when the result becomes `GUILDLESS` (which covers a kick while offline); not on `OTHER_GUILD`. A wrongly cleared steward is recognised again by the next check, which `GuildChatDispatcher.staffOrRefresh` forces on the next `/v`
+- The flag is not tracked per guild: an `OTHER_GUILD` result leaves it, so it can still be true for a player now in another guild; `/wv list world` therefore also requires `GuildStateManager.isReturners()`
 
 On disconnect, `reset()` reloads persisted state from config (not in-memory clear).
 
@@ -108,7 +137,7 @@ On disconnect, `reset()` reloads persisted state from config (not in-memory clea
 
 **Purpose:** Manage the player's vetsmod auth state. Owns the persisted bearer key and the transient session-auth flags.
 
-The legacy SHA-256 password matching has been removed. The two legacy markers (`vetsWaitlistUnlockTime`, `vetsHonouraryUnlockTime`: long timestamps from the old unlock, not hashes) are meant to survive on disk *only* as a "this user used the old system" signal for the session-start warning copy, and no longer grant access. **Today they still do**: `isWaitlistUnlocked()` / `isHonouraryUnlocked()` each OR their own positive marker in and nothing clears them, so a pre-migration user stays client-side unlocked (bug `legacy-unlock-markers-still-grant-client-unlock`). The §1 table and the bullets below describe the code as it is.
+The legacy SHA-256 password matching has been removed, and so have its two on-disk markers (`vetsWaitlistUnlockTime`, `vetsHonouraryUnlockTime`), so a pre-migration user with no key is a keyless player like any other. `VetsConfig.load` reads only the keys it knows, so an old `config.json`'s markers are ignored and dropped at the next save.
 
 **Constants:**
 - `MIN_KEY_LENGTH = 32`, `MAX_KEY_LENGTH = 200`
@@ -123,17 +152,18 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 - `currentTier` — populated by the server's auth-frame ack
 - `authVerifiedThisSession` — boolean set true by each ok auth ack; cleared by an auth failure, a newly stored key, or a disconnect
 - `lastAuthFailureReason` — set by `onAuthFailure`: an auth rejection, or another error ack `InboundAckRouter` classes as an auth failure, such as an "Authentication required" refusal of a non-auth frame. Cleared by a later ok auth ack, a newly stored key, or a disconnect. Used by SessionAuthWarning (case 2)
+- `keyRejectedByAuthAck` — set by `onAuthFailure` when the detail starts with `auth rejected` (temporary-server's reply to a bad key), false for any other failure and for a quiet re-auth's transient one (below); cleared with `lastAuthFailureReason`. Used by SessionAuthWarning (case 2) to tell a rejected key from an unverified one
 
 **Public API (package-level):**
 - `tryUnlock(key)` returns `GuildStateManager.UnlockAttemptResult` (`MISSING_KEY` / `MALFORMED` / `STORED_VERIFYING`). Stores the key, clears stale tier state, and calls `V1ApiManager.sendAuth(key)`, which sends the auth frame now if the inbound WS is up or otherwise leaves it to go out on the next (re)connect.
 - `onAuthSuccess(tier)` / `onAuthFailure(detail)` — reached from `InboundAckRouter.route`, which `V1ApiManager`'s inbound handler calls for every untyped frame; the direct caller is `GuildStateManager.onAuthSuccess` / `.onAuthFailure`, which delegate here when the auth ack arrives.
-- `isWaitlistUnlocked()` / `isHonouraryUnlocked()` — true when (auth verified + matching tier this session) OR (legacy marker present; see the paragraph above).
-- `legacyWaitlistMarker()` / `legacyHonouraryMarker()` — raw read of the pre-migration timestamps.
+- `reauth(quiet)` — re-sends the stored key's auth frame while the inbound WS is up, for `ReturnersReauth` (below). With `quiet`, the ack's failure is logged only, without a chat line, the `printSuccessfulAuth` re-arm or a key rejection, when it is transient (`ReturnersReauth.isTransient`: temporary-server couldn't reach or read dazebot's introspection); a definitive rejection still prints. It is never set while an `/unlock` result is pending, and a newly stored key and either ack clear it.
+- `isWaitlistUnlocked()` / `isHonouraryUnlocked()` — true when auth verified + matching tier this session.
 - `loadPersistedState()`, `reset()`.
 
-**What the player sees.** `onAuthSuccess` shows `✅ vetsmod authentication verified — tier: <tier>` (green) when there is a local player and either `tryUnlock` has armed its one-shot `pendingUnlockNotify` flag since the last ack or disconnect (`reset` clears it), or `printSuccessfulAuth` is on; it clears the one-shot flag either way. The line goes to chat while a screen is open, through `ChatUtils.sendLocalMessage`, which hands the display to the client thread, and otherwise to the action bar, straight from the thread the ack arrived on (bug `auth-success-toast-rendered-off-render-thread`). [vetsmod_config.md](vetsmod_config.md)'s `printSuccessfulAuth` row has how that setting latches. `onAuthFailure` always prints a red `❌ vetsmod authentication failed: <reason>.` line in chat, which tells the player to run `~vetsmod` in #bot-commands for a new key.
+**What the player sees.** `onAuthSuccess` records the verdict on the thread the ack arrived on, then hands the rest to the client thread in one task (`showAuthSuccess`): it shows `Authentication verified - tier: <tier>` (green) when there is a local player and either `tryUnlock` has armed its one-shot `pendingUnlockNotify` flag since the last ack (a disconnect does not clear it, so a key typed off Wynncraft still shows its result at the next Wynncraft join), or `printSuccessfulAuth` is on, and clears the one-shot flag only when it shows the line; then it refreshes the presence registration and re-applies the default anni mode (`AnniModeManager.applyStartupDefaultIfNeeded`). A line that answers `/unlock` always goes to chat, as the failure line does: on Wynncraft the action bar is redrawn with the health and mana bar at once, so a toast there is unreadable. A config-driven line goes to chat while a screen is open and otherwise to the action bar. [vetsmod_config.md](vetsmod_config.md)'s `printSuccessfulAuth` row has how that setting latches. `onAuthFailure` prints a red `Authentication failed: <reason>.` line in chat, also from the client thread, which suggests the player try `~vetsmod` in #bot-commands for a new key; the one exception is a quiet re-auth's transient failure, below.
 
-**Debug override:** `setDebugForceGuildlessUnlocked(boolean)` — meant to force guildless+unlocked for testing; nothing calls it today, so the override is never on (bug `unlock-debug-flag-tier-asymmetry`).
+**Re-auth on joining Returners.** temporary-server fixes a session's tier when it handles the auth frame, which vetsmod sends when the inbound WS (re)connects, so a waitlister who joins Returners mid-session would keep the waitlist tier server-side until the next connection, and the server would refuse their world-queue `/g` (a refusal the relay reports with a red "Not delivered" line, [vetsmod_commands.md](vetsmod_commands.md) §2). [ReturnersReauth](../src/client/java/org/wynnvets/guild/ReturnersReauth.java) closes that gap: on a Returners `GuildEvent.Joined`, `GuildLifecycle.onGuildJoined()` has it re-send the frame through `reauth`, once at once (quiet) and once `RETRY_DELAY_MS` (330 s) later, past the slow end of dazebot's 2 to 5 minute role-sync loops, since dazebot re-resolves the tier from Discord roles on each auth. Each attempt sends only while there is a stored, unrejected key, the inbound WS is up, the player has entered a world and the tier is not `member`; the retry also needs `isReturners()` still. temporary-server overwrites the session on a good frame and drops it on a failed one, so only the immediate attempt is quiet: the retry reports any failure through the usual line. A success is an ordinary ack: no extra chat line unless `printSuccessfulAuth`'s latch or `pendingUnlockNotify` asks for one, the `Auth verified by server: tier=<tier>` log line, and the registration refresh. `GuildLifecycle.reset()` bumps `ReturnersReauth`'s generation, so a retry scheduled before a disconnect does nothing. SessionAuthWarning, latched once per session, is not re-run. The join also opens an in-progress window that lasts until 30 s after the retry runs (`ReturnersReauth.isInProgress`; `reset()` closes it), which the `/gu invite` gate reads through `GuildStateManager.isReturnersReauthDue` to tell an authenticated non-member to retry in a moment rather than that vetsmod is running unauthenticated.
 
 ## 5. SessionAuthWarning
 
@@ -143,11 +173,16 @@ The legacy SHA-256 password matching has been removed. The two legacy markers (`
 
 **Cases:**
 1. Authenticated this session → silent.
-2. Stored key but server rejected → "Your stored vetsmod key was rejected (<reason>). Run ~vetsmod in #bot-commands to issue a new one." (red). Today this fires whenever a stored key has no ok ack about 5 s after world join, rejected or not (bug `session-auth-warning-reports-rejection-without-one`).
-3. Plausible VETS user (in Returners or has legacy unlock marker) with no stored key:
+2. Stored key, not verified about 5 s after world join:
+   - an auth reply rejected it (`keyRejectedByAuthAck`) → "Your stored vetsmod key was rejected (<reason>). Run ~vetsmod in #bot-commands to issue a new one." (red)
+   - the inbound socket is down → "Couldn't verify your vetsmod key: Unable to reach the vets API, which may be down." (yellow, no Discord link)
+   - connected, no verdict yet → silent; the auth reply prints its own line when it lands
+3. In Returners, with no stored key:
    - if server's `unauth_enabled=true` → "vetsmod is running unauthenticated. Vets chat still works for now, but authentication will become mandatory soon. Run ~vetsmod in #bot-commands to /unlock." (yellow)
-   - if server's `unauth_enabled=false` → "You aren't authenticated, so vetsmod cannot send or receive VETS chat or use guild-specific features until you /unlock. Run ~vetsmod in #bot-commands to get a key." (red)
-4. Plain non-VETS user → silent.
+   - if server's `unauth_enabled=false` → "You aren't authenticated. Vetsmod cannot send or receive VETS chat or use guild-specific features until you /unlock. Run ~vetsmod in #bot-commands to get a key." (red)
+4. Not in Returners, with no stored key → silent.
+
+The clickable aqua `[https://wynnvets.org/discord]` suffix is built by the public `SessionAuthWarning.withDiscordLink(text, color)` (its `DISCORD_INVITE_URL` is public too); `InviteGate` reuses it for its unauthenticated line.
 
 **`unauth_enabled` discovery:** The temporary-server pushes a `{type:"server_info", unauth_enabled: bool}` frame on outbound connect. `V1ApiManager` routes it directly to `SessionAuthWarning.onServerInfo()`. Defaults to `true` if the frame hasn't arrived yet (warning fires about 5 s after world join).
 
@@ -172,18 +207,17 @@ All state persists in `vetsmod/storage/config.json` under the player's Minecraft
 |-----|------|------------|
 | `vetsGuildCheckResult` | long (enum) | GuildChecker |
 | `vetsLastGuildCheck` | long (ts) | GuildChecker |
+| `vetsGuildCheckOwner` | string | GuildChecker |
 | `vetsIsStaff` | bool | StaffRankChecker |
 | `vetsLastStaffCheck` | long (ts) | StaffRankChecker |
 | `vetsAuthKey` | string | UnlockManager |
 | `vetsAuthTier` | string | InboundAckRouter |
 | `vetsAuthVerifiedAt` | long (ts) | InboundAckRouter |
-| `vetsWaitlistUnlockTime` | long (ts) | **legacy** — meant only as a "previously unlocked under SHA-256 system" marker for warnings; today it still unlocks (§4) |
-| `vetsHonouraryUnlockTime` | long (ts) | same — legacy marker; same caveat |
 
 ## 8. Edge cases
 
 - **Returners guild members need to /unlock** under the new system once the server's `unauth` toggle is off. While it is on, unauthenticated sessions are exempt from the tier gate (back-compat); when it is off, their chat frames are rejected. Authenticated sessions can only send the chat types their tier allows. Pre-migration users discover this via the SessionAuthWarning.
-- **`GuildDiagnostics.forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears **neither** cache — it prints diagnostics and re-runs both checks (`refreshStaffStatusIfNeeded(true)` and `GuildChecker.refreshGuildStatus()`). Not clearing is deliberate and commented twice in `GuildDiagnostics`: `GuildChecker` is cleared only by `onGuildInfoUpdated()`, which fires from Wynntils' `GuildEvent.Joined`/`.Left` handlers and from the post-world-join recheck poll once guild info turns up. It also does *not* re-auth; that happens automatically on every inbound WS reconnect.
+- **`GuildDiagnostics.forceGuildRecheck()`** from `/wv debug trigger forceChecks` clears **neither** cache — it prints diagnostics and re-runs both checks (`refreshStaffStatusIfNeeded(true)` and `GuildChecker.refreshGuildStatus()`). Not clearing is deliberate and commented twice in `GuildDiagnostics`: `GuildChecker` is cleared by `onGuildInfoUpdated()` (from Wynntils' `GuildEvent.Joined` handler) and by `onGuildLeft()` (its `.Left` handler), and by the post-world-join recheck poll only when its result contradicts Wynntils. It also does *not* re-auth; that happens automatically on every inbound WS reconnect.
 - **Wynntils `GuildEvent`** is authoritative — when it fires, `GuildChecker` cache is invalidated.
 - **`/gu stats` vs Wynntils** — a valid `/gu stats` result (`GuildChecker`) takes precedence; Wynntils' `Models.Guild` is the live fallback while there is none. Wynntils usually lands first in time. `MORE_RELIABLE_GUILD_CHECK` schedules the `/gu stats` check that refreshes the cache.
 - **Rotating a leaked key:** a staff member runs dazebot's staff-only `/change rotate key <target>` (users cannot self-rotate); the old key fails introspection on the next WS connect (subject to temporary-server's 60 s introspection cache). The mod surfaces the failure via `onAuthFailure()` and the SessionAuthWarning prompts them to `/unlock` again.

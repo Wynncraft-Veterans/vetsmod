@@ -1,11 +1,13 @@
 package org.wynnvets.guild;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import org.wynnvets.api.V1ApiManager;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.TickDelays;
@@ -18,16 +20,16 @@ import org.wynnvets.util.TickDelays;
  *
  * <ol>
  *   <li><b>Authenticated</b> — no warning.</li>
- *   <li><b>Has stored key, server rejected it</b> — show a "your key was
- *       rejected, run ~vetsmod" warning regardless of unauth toggle. Today it fires
- *       whenever a stored key has no ok ack about {@link #WARNING_DELAY_MS} after world join,
- *       rejected or not ({@code session-auth-warning-reports-rejection-without-one}).</li>
- *   <li><b>No stored key, but plausibly a VETS user</b> (in Returners or has
- *       legacy unlock markers from the old SHA-256 system) — show one of
+ *   <li><b>Has stored key, not verified</b> — if an auth reply rejected it, a red "your key
+ *       was rejected, run ~vetsmod" warning regardless of unauth toggle; if the vets API
+ *       socket is down, a yellow "couldn't verify your key" line instead; if it is up but no
+ *       verdict has arrived, nothing, since the auth reply prints its own line when it
+ *       lands.</li>
+ *   <li><b>No stored key, in Returners</b> — show one of
  *       two warnings depending on whether unauth chat is currently allowed
  *       (server tells us via a {@code server_info} frame on outbound
  *       connect; default-true assumption while we wait for that frame).</li>
- *   <li><b>Plain non-VETS player</b> — no warning. They'd just see noise.</li>
+ *   <li><b>No stored key, not in Returners</b> — no warning. They'd just see noise.</li>
  * </ol>
  *
  * <p>The warning fires once per session, after a short delay so the
@@ -46,8 +48,12 @@ public final class SessionAuthWarning {
     /** Once-per-session latch. Reset by {@link GuildLifecycle#reset()}. */
     private static final AtomicBoolean firedThisSession = new AtomicBoolean(false);
 
+    /** Bumped by every {@link #reset()}, so a warning scheduled before a disconnect cannot
+     *  fire into the next session's state. */
+    private static final AtomicInteger generation = new AtomicInteger();
+
     /** Discord URL used in warning copy — same one used elsewhere in the mod. */
-    private static final String DISCORD_INVITE_URL = "https://wynnvets.org/discord";
+    public static final String DISCORD_INVITE_URL = "https://wynnvets.org/discord";
 
     /** How long after world join we wait before showing the warning, giving
      *  the auth round-trip + server_info frame a chance to land. */
@@ -68,6 +74,7 @@ public final class SessionAuthWarning {
     public static void reset() {
         firedThisSession.set(false);
         unauthEnabled = true;
+        generation.incrementAndGet();
     }
 
     /**
@@ -78,10 +85,12 @@ public final class SessionAuthWarning {
         if (!firedThisSession.compareAndSet(false, true)) {
             return;
         }
+        final int myGeneration = generation.get();
         TickDelays.runAfter(
                 WARNING_DELAY_MS,
                 "Session-auth warning",
                 () -> {
+                    if (myGeneration != generation.get()) return;
                     try {
                         fireWarningIfApplicable();
                     } catch (Exception e) {
@@ -98,40 +107,47 @@ public final class SessionAuthWarning {
 
         boolean hasKey = GuildStateManager.hasStoredAuthKey();
         boolean inReturners = GuildStateManager.isReturners();
-        boolean hasLegacy = GuildStateManager.hasLegacyPasswordUnlock();
-        boolean plausibleVetsUser = inReturners || hasLegacy;
 
-        // Case 2: meant for "stored key but server rejected it". Always show,
-        // regardless of unauth toggle — the user explicitly tried to authenticate
-        // and failed, and the path to fix it is the same in both modes. Today it
-        // fires whenever a stored key has no ok ack about 5 s after world join, rejected
-        // or not (session-auth-warning-reports-rejection-without-one).
+        // Case 2: a stored key, not verified. Only an auth reply that rejected it
+        // earns the "rejected" warning, shown regardless of unauth toggle — the user
+        // explicitly tried to authenticate and failed, and the path to fix it is the
+        // same in both modes. With the socket down nothing could verify it, so say
+        // that instead; connected with no verdict yet, the auth reply will print
+        // its own line when it lands.
         if (hasKey) {
-            String reason = UnlockManager.lastAuthFailureReason();
-            String reasonSuffix = reason.isEmpty() ? "" : " (" + reason + ")";
-            ChatUtils.sendLocalMessage(
-                    makeWarning(
-                            "Your stored vetsmod key was rejected"
-                                    + reasonSuffix
-                                    + ". Run ~vetsmod in #bot-commands to issue a new one.",
-                            ChatFormatting.RED));
+            if (UnlockManager.keyRejectedByAuthAck()) {
+                String reason = UnlockManager.lastAuthFailureReason();
+                String reasonSuffix = reason.isEmpty() ? "" : " (" + reason + ")";
+                ChatUtils.sendLocalMessage(
+                        withDiscordLink(
+                                "Your stored vetsmod key was rejected"
+                                        + reasonSuffix
+                                        + ". Run ~vetsmod in #bot-commands to issue a new one.",
+                                ChatFormatting.RED));
+            } else if (!V1ApiManager.isInboundConnected()) {
+                ChatUtils.sendLocalMessage(
+                        Component.literal(
+                                        "Couldn't verify your vetsmod key: Unable to reach the"
+                                                + " vets API, which may be down.")
+                                .withStyle(ChatFormatting.YELLOW));
+            }
             return;
         }
 
-        // Case 3: plausibly a VETS user, no key. Wording branches on the
-        // server's current unauth toggle.
-        if (plausibleVetsUser) {
+        // Case 3: in Returners, no key. Wording branches on the server's
+        // current unauth toggle.
+        if (inReturners) {
             if (unauthEnabled) {
                 ChatUtils.sendLocalMessage(
-                        makeWarning(
+                        withDiscordLink(
                                 "vetsmod is running unauthenticated. Vets chat still works "
                                         + "for now, but authentication will become mandatory soon. "
                                         + "Run ~vetsmod in #bot-commands to /unlock.",
                                 ChatFormatting.YELLOW));
             } else {
                 ChatUtils.sendLocalMessage(
-                        makeWarning(
-                                "You aren't authenticated, so vetsmod cannot send or receive "
+                        withDiscordLink(
+                                "You aren't authenticated. Vetsmod cannot send or receive "
                                         + "VETS chat or use guild-specific features until you "
                                         + "/unlock. Run ~vetsmod in #bot-commands to get a key.",
                                 ChatFormatting.RED));
@@ -142,8 +158,11 @@ public final class SessionAuthWarning {
         // Case 4: not a VETS user. Stay quiet — the warning would be noise.
     }
 
-    private static MutableComponent makeWarning(String text, ChatFormatting color) {
-        // Make the discord URL clickable so users don't have to copy-paste.
+    /**
+     * {@code text} in {@code color}, followed by the clickable aqua {@link #DISCORD_INVITE_URL},
+     * so users don't have to copy-paste it. Also used by {@code InviteGate}.
+     */
+    public static MutableComponent withDiscordLink(String text, ChatFormatting color) {
         MutableComponent body = Component.literal(text).withStyle(color);
         MutableComponent link =
                 Component.literal(" [" + DISCORD_INVITE_URL + "]")

@@ -121,7 +121,7 @@ public final class ListFetcher {
         // Guild with vetsmod
         if (!withMod.isEmpty()) {
             msg.append(
-                    Component.literal("\nGuild — with VetsMod (" + withMod.size() + "):\n")
+                    Component.literal("\nGuild - with VetsMod (" + withMod.size() + "):\n")
                             .withStyle(ChatFormatting.GREEN));
             appendPlayerList(msg, withMod, ChatFormatting.AQUA, false);
         }
@@ -129,7 +129,7 @@ public final class ListFetcher {
         // Guild with vetsmod, in queue
         if (!withModQueued.isEmpty()) {
             msg.append(
-                    Component.literal("\nGuild — in Queue (" + withModQueued.size() + "):\n")
+                    Component.literal("\nGuild - in Queue (" + withModQueued.size() + "):\n")
                             .withStyle(ChatFormatting.GREEN));
             appendPlayerList(msg, withModQueued, ChatFormatting.LIGHT_PURPLE, false);
         }
@@ -137,7 +137,7 @@ public final class ListFetcher {
         // Guild without vetsmod
         if (!withoutMod.isEmpty()) {
             msg.append(
-                    Component.literal("\nGuild — without VetsMod (" + withoutMod.size() + "):\n")
+                    Component.literal("\nGuild - without VetsMod (" + withoutMod.size() + "):\n")
                             .withStyle(ChatFormatting.YELLOW));
             appendPlayerList(msg, withoutMod, ChatFormatting.GRAY, false);
         }
@@ -160,14 +160,13 @@ public final class ListFetcher {
         if (!waitlist.isEmpty()) {
             msg.append(
                     Component.literal("\nWaitlist (" + waitlist.size() + "):\n")
-                            .withStyle(ChatFormatting.BLUE));
+                            .withStyle(ChatFormatting.DARK_AQUA));
             appendPlayerList(msg, waitlist, ChatFormatting.AQUA, true);
         }
 
         if (!result.wynntilsAvailable()) {
             msg.append(
-                    Component.literal(
-                                    "\n⚠ Wynncraft API unavailable — guild list may be incomplete.")
+                    Component.literal("\n⚠ APIs unavailable - guild list may be incomplete.")
                             .withStyle(ChatFormatting.YELLOW));
         }
 

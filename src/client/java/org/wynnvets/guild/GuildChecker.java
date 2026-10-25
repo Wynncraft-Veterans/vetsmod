@@ -1,6 +1,9 @@
 package org.wynnvets.guild;
 
 import com.wynntils.core.components.Handlers;
+import com.wynntils.utils.mc.McUtils;
+import java.util.Locale;
+import net.minecraft.client.player.LocalPlayer;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.logging.VetsLogger;
@@ -13,7 +16,8 @@ import org.wynnvets.util.TickDelays;
  * <p>Unlike Wynntils' {@code Models.Guild} (which learns the guild from its character-menu
  * scan and from guild chat lines, and whose guild name can stay empty for extended
  * periods), this checker queries the server directly and caches the result for
- * {@value #GUILD_CHECK_EXPIRY_DAYS} days. While that result is valid it takes precedence
+ * {@value #GUILD_CHECK_EXPIRY_DAYS} days, with the username of the account that made it
+ * ({@link #clearResultIfOwnedByOtherAccount}). While that result is valid it takes precedence
  * over Wynntils in {@link GuildStateManager#isReturners()} and
  * {@link GuildStateManager#isGuildless()}.</p>
  *
@@ -49,6 +53,34 @@ public final class GuildChecker {
                 if (r.persistedValue == value) return r;
             }
             return UNKNOWN;
+        }
+
+        /**
+         * Whether this stored result disagrees with Wynntils' live guild data: {@code RETURNERS}
+         * when Wynntils reports no guild or another one, {@code OTHER_GUILD} when it reports none
+         * or Returners, {@code GUILDLESS} when it reports a guild. {@code UNKNOWN} disagrees with
+         * nothing. {@link GuildLifecycle}'s recheck poll clears the result only on disagreement
+         * ({@link #clearResultIfContradicted}).
+         */
+        boolean contradicts(boolean inGuild, String guildName) {
+            return switch (this) {
+                case UNKNOWN -> false;
+                case RETURNERS -> !inGuild || !RETURNERS_GUILD_NAME.equals(guildName);
+                case OTHER_GUILD -> !inGuild || RETURNERS_GUILD_NAME.equals(guildName);
+                case GUILDLESS -> inGuild;
+            };
+        }
+
+        /**
+         * Whether this result says the player is not in Returners: {@code OTHER_GUILD} or
+         * {@code GUILDLESS}. {@code RETURNERS} is not, and {@code UNKNOWN} (what a parse miss
+         * stores; a timeout stores nothing, so the previous result stays) says nothing.
+         * {@link GuildLifecycle#onGuildCheckCompleted()} passes it as the {@code definitive}
+         * flag of {@link GuildStateManager#reconcileRegistration}, so only a check that found
+         * the player outside Returners can retract a {@code guild} registration.
+         */
+        boolean isDefinitive() {
+            return this == OTHER_GUILD || this == GUILDLESS;
         }
     }
 
@@ -143,6 +175,11 @@ public final class GuildChecker {
                 "GuildChecker loaded: result={}, age={}s",
                 cachedResult,
                 lastGuildCheckTime > 0 ? (now - lastGuildCheckTime) / 1000 : "n/a");
+
+        // The logged-in account is known before any world join, and the hub and class selection
+        // already read isReturners() (the guild-chat and rank-change relays, /wv list): a result
+        // another account made must not count there either. onEnteredWorld checks again.
+        clearResultIfOwnedByOtherAccount(McUtils.mc().getUser().getName());
     }
 
     static void reset() {
@@ -158,17 +195,102 @@ public final class GuildChecker {
 
     /**
      * Clears the in-memory and persisted result. Reached through
-     * {@link GuildLifecycle#onGuildInfoUpdated()}, which runs on Wynntils' guild
-     * join/leave events and also when the post-world-join recheck finds Wynntils' guild
-     * data populated, where no event fired ({@code guild-recheck-poll-clears-gu-stats-cache});
-     * the real-time data is treated as authoritative over our cached check.
+     * {@link GuildLifecycle#onGuildInfoUpdated()} on Wynntils' guild join event and
+     * {@link GuildLifecycle#onGuildLeft()} on its leave event: a guild change makes the cached
+     * check stale, and the real-time data is treated as authoritative.
      */
     static void clearResult() {
+        forgetResult();
+        VetsLogger.debug("GuildChecker result cleared (Wynntils guild event)");
+    }
+
+    /**
+     * Clears the result only if it {@linkplain GuildCheckResult#contradicts contradicts}
+     * Wynntils' guild data, for the post-world-join recheck poll (where no guild event fired) and
+     * for {@link GuildLifecycle#onEnteredWorld()}'s narrower check
+     * ({@link #worldJoinShouldClear}). A result that agrees, such as a {@code /gu stats} answer
+     * that landed before Wynntils' own scan, is kept; one left from a guild change while
+     * disconnected is not.
+     *
+     * @return whether the result was cleared, so the caller can withdraw a registration it caused
+     */
+    static boolean clearResultIfContradicted(boolean inGuild, String guildName) {
+        GuildCheckResult result = cachedResult;
+        if (!result.contradicts(inGuild, guildName)) {
+            VetsLogger.debug("GuildChecker result {} kept: Wynntils' guild data agrees", result);
+            return false;
+        }
+        forgetResult();
+        VetsLogger.debug(
+                "GuildChecker result {} cleared: Wynntils reports {}",
+                result,
+                inGuild ? guildName : "no guild");
+        return true;
+    }
+
+    /**
+     * Whether {@link GuildLifecycle#onEnteredWorld()} should clear the stored result on Wynntils'
+     * word: only a {@code RETURNERS} result, and only when Wynntils names another guild. At world
+     * join Wynntils' guild name can be left over from an earlier scan (it is not reset on a
+     * disconnect, and a guildless player's scan never overwrites it), so a {@code GUILDLESS} or
+     * {@code OTHER_GUILD} result is left to the {@code /gu stats} check rather than undone by
+     * stale data.
+     */
+    // Package-private for unit tests. See GuildCheckerOwnerTest.
+    static boolean worldJoinShouldClear(
+            GuildCheckResult stored, boolean wynntilsInGuild, String wynntilsGuildName) {
+        return stored == GuildCheckResult.RETURNERS
+                && wynntilsInGuild
+                && !RETURNERS_GUILD_NAME.equals(wynntilsGuildName);
+    }
+
+    /**
+     * Whether a stored result's owner is a different account from the current one: the owner is
+     * known (not empty) and is not {@code current}, ignoring case. An empty owner is a result
+     * stored before the owner was recorded, which is adopted rather than doubted, so a Returners
+     * member upgrading sees no change.
+     */
+    // Package-private for unit tests. See GuildCheckerOwnerTest.
+    static boolean ownedByOtherAccount(String owner, String current) {
+        return !owner.isEmpty() && !owner.equalsIgnoreCase(current);
+    }
+
+    /**
+     * For {@link GuildLifecycle#onEnteredWorld()}: forgets a stored result that another account
+     * made. The result and its owner are kept per install, not per account, so after a switch to
+     * an alt the main's {@code RETURNERS} would otherwise make the alt a Returners member (for
+     * {@link GuildStateManager#isReturners()} and its registration) until the next
+     * {@code /gu stats} check, or for the full {@value #GUILD_CHECK_EXPIRY_DAYS} days if that
+     * check times out. A result with no recorded owner is adopted by {@code currentName}.
+     *
+     * @param currentName the username of the account that just joined a world; blank is ignored
+     */
+    static void clearResultIfOwnedByOtherAccount(String currentName) {
+        if (currentName == null
+                || currentName.isEmpty()
+                || cachedResult == GuildCheckResult.UNKNOWN) {
+            return;
+        }
+        String owner = VetsConfig.getString(VetsConfigKeys.VETS_GUILD_CHECK_OWNER);
+        if (ownedByOtherAccount(owner, currentName)) {
+            GuildCheckResult result = cachedResult;
+            forgetResult();
+            VetsLogger.debug(
+                    "GuildChecker result {} cleared: made by {}, not {}",
+                    result,
+                    owner,
+                    currentName);
+        } else if (owner.isEmpty()) {
+            VetsConfig.setString(VetsConfigKeys.VETS_GUILD_CHECK_OWNER, currentName);
+        }
+    }
+
+    private static void forgetResult() {
         cachedResult = GuildCheckResult.UNKNOWN;
         lastGuildCheckTime = 0;
         VetsConfig.setLong(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, 0L);
         VetsConfig.setLong(VetsConfigKeys.VETS_LAST_GUILD_CHECK, 0L);
-        VetsLogger.debug("GuildChecker result cleared (Wynntils guild event)");
+        VetsConfig.setString(VetsConfigKeys.VETS_GUILD_CHECK_OWNER, "");
     }
 
     // ── Refresh logic ──────────────────────────────────────────────────
@@ -187,6 +309,9 @@ public final class GuildChecker {
 
         waitingForGuildCheck = true;
         isModInitiatedGuildCheck = true;
+        // A new check ends any earlier check's grace, so that grace's pending clear, which
+        // compares this value, leaves the new check's flag alone.
+        guildCheckSuppressUntil = 0;
         guildCheckRequestTime = System.currentTimeMillis();
         lastNonEmptyCandidate = null;
 
@@ -226,7 +351,7 @@ public final class GuildChecker {
         }
 
         String trimmed = safeMessage.trim();
-        String lower = trimmed.toLowerCase();
+        String lower = trimmed.toLowerCase(Locale.ROOT);
 
         // ── Guildless response ──────────────────────────────────────
         if (lower.contains("you must be in a guild")) {
@@ -282,6 +407,15 @@ public final class GuildChecker {
         lastGuildCheckTime = System.currentTimeMillis();
         VetsConfig.setLong(VetsConfigKeys.VETS_GUILD_CHECK_RESULT, result.persistedValue);
         VetsConfig.setLong(VetsConfigKeys.VETS_LAST_GUILD_CHECK, lastGuildCheckTime);
+        LocalPlayer player = McUtils.player();
+        VetsConfig.setString(
+                VetsConfigKeys.VETS_GUILD_CHECK_OWNER,
+                player == null ? "" : player.getName().getString());
+        if (result == GuildCheckResult.GUILDLESS) {
+            // A cached staff flag cannot hold for a player in no guild (a kick while offline
+            // sends no Left event). Not on OTHER_GUILD, which says nothing about the rank.
+            StaffRankChecker.clearForGuildChange();
+        }
     }
 
     private static void completeCheck() {
@@ -309,7 +443,7 @@ public final class GuildChecker {
     }
 
     private static boolean isGuildStatsOutputLine(String message) {
-        String lower = message.trim().toLowerCase();
+        String lower = message.trim().toLowerCase(Locale.ROOT);
         return lower.startsWith("guild since:")
                 || lower.startsWith("owner:")
                 || lower.startsWith("guild level:")
@@ -324,7 +458,7 @@ public final class GuildChecker {
      * candidate guild name during a concurrent guild check.
      */
     private static boolean isStaffRankCheckResponse(String message) {
-        String lower = message.trim().toLowerCase();
+        String lower = message.trim().toLowerCase(Locale.ROOT);
         return (lower.contains("you must be a")
                         && lower.contains("captain")
                         && lower.contains("to use this command"))

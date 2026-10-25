@@ -1,12 +1,16 @@
 package org.wynnvets.distribute;
 
 import com.wynntils.core.text.StyledText;
+import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.wynn.ContainerUtils;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.ItemStack;
 import org.lwjgl.glfw.GLFW;
+import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.util.ContainerScreens;
 
 /**
@@ -31,8 +35,7 @@ import org.wynnvets.util.ContainerScreens;
  *   <tr><th>Caller</th><th>Job</th><th>Predicate</th><th>Why</th></tr>
  *   <tr>
  *     <td>{@link org.wynnvets.distribute.distributor.MemberSlotPresser MemberSlotPresser}</td>
- *     <td>every press in a batch, the refresh-confirmation gate, and the close-when-done
- *         guard</td>
+ *     <td>every press in a batch and the refresh-confirmation gate</td>
  *     <td><b>title</b></td>
  *     <td>Wynncraft refreshes the Members menu after every send, and that refresh sometimes
  *         arrives as a reopen under a <em>new</em> container id. Matching on id would
@@ -40,20 +43,27 @@ import org.wynnvets.util.ContainerScreens;
  *         {@code vetsmod_distribute.md} §6 point 2 for the other refresh shape.</td>
  *   </tr>
  *   <tr>
+ *     <td>{@link #closeIfOpen()}</td>
+ *     <td>the close at the end of a run</td>
+ *     <td><b>title</b></td>
+ *     <td>The run's last send may have refreshed the menu under a new id. What the close must
+ *         rule out is a screen the player has opened since, not a different Members id.</td>
+ *   </tr>
+ *   <tr>
  *     <td>{@link org.wynnvets.distribute.walker.MembersListSearcher MembersListSearcher},
  *         {@link org.wynnvets.distribute.walker.MembersListWalker MembersListWalker}</td>
  *     <td>the scan that drives pagination</td>
  *     <td><b>id</b></td>
  *     <td>They bound an id when the menu opened, and a mismatch is their <em>signal</em> that
- *         the menu they bound is gone — the searcher rebinds on it, the walker abandons.
+ *         the menu they bound is gone — the searcher rebinds on it, the walker stops the
+ *         run.
  *         Matching on title would hide the very event they are testing for.</td>
  *   </tr>
  *   <tr>
- *     <td>{@link org.wynnvets.distribute.walker.MembersListSearcher MembersListSearcher},
- *         {@link org.wynnvets.distribute.walker.MembersListWalker MembersListWalker}</td>
- *     <td>the re-arm fast path, and the searcher's mid-search rebind</td>
+ *     <td>{@link org.wynnvets.distribute.walker.MembersListSearcher MembersListSearcher}</td>
+ *     <td>the re-arm fast path, and the mid-search rebind</td>
  *     <td><b>title</b></td>
- *     <td>Neither has a <em>usable</em> bound id — none yet in the fast paths, and a stale
+ *     <td>Neither has a <em>usable</em> bound id — none yet in the fast path, and a stale
  *         one in the rebind, which is precisely what made
  *         {@link ContainerScreens#currentWithId(int)} return null and trigger it. Finding the
  *         menu again is the point.</td>
@@ -61,10 +71,9 @@ import org.wynnvets.util.ContainerScreens;
  * </table>
  *
  * <p>The tick constants the presser and the searcher own stay on those classes: they are
- * timing, not layout. The walker owns none &mdash; its one-tick scan delay is an inline
- * literal, and it differs from the searcher's {@code SCAN_DELAY_TICKS} because the
- * tick-boundary fix ({@code vetsmod_distribute.md} §6 point 3) went to the searcher only; no
- * reason for leaving the walker out is recorded.</p>
+ * timing, not layout. So do the walker's two: its stall watchdog's, and the copy of the
+ * searcher's {@code SCAN_DELAY_TICKS} that the tick-boundary fix ({@code vetsmod_distribute.md}
+ * §6 point 3) uses there too.</p>
  */
 public final class MembersGui {
 
@@ -121,6 +130,24 @@ public final class MembersGui {
     }
 
     /**
+     * Whether a Next or Previous click has landed: {@code now}, the page as scanned (tile slot to
+     * name), is non-empty and no slot in it still holds the name it held in {@code before}, the
+     * page the click was made from. A slot keeping its name means the old page, or one only partly
+     * updated, is still showing.
+     *
+     * <p>Slot by slot rather than by name set, because tile names are not unique: one member's
+     * legacy name can be another's current name, and the two tiles can sit on consecutive pages.
+     * Only the same name in the same slot on consecutive pages still reads as not turned.</p>
+     */
+    public static boolean pageTurned(Map<Integer, String> before, Map<Integer, String> now) {
+        if (now.isEmpty()) return false;
+        for (Map.Entry<Integer, String> tile : now.entrySet()) {
+            if (tile.getValue().equals(before.get(tile.getKey()))) return false;
+        }
+        return true;
+    }
+
+    /**
      * The open Members screen by {@link #TITLE_PATTERN}, regardless of container id, or
      * {@code null} if the screen on top is something else.
      *
@@ -129,6 +156,30 @@ public final class MembersGui {
      */
     public static AbstractContainerScreen<?> currentByTitle() {
         return ContainerScreens.currentWithTitle(TITLE_PATTERN);
+    }
+
+    /**
+     * Closes the Members menu if it is the screen on top, found by {@link #currentByTitle()},
+     * and does nothing otherwise &mdash; so it never closes a screen the player has opened since.
+     * {@code LocalPlayer.closeContainer()} sends the {@code ServerboundContainerClosePacket} for
+     * {@code player.containerMenu}, resets that menu and dismisses the screen, so the server
+     * hears the menu close and a later inventory click is not refused as one in a mismatching
+     * container.
+     *
+     * <p>Called when a single-target send ends or its search gives up
+     * ({@link DistributeCommands}), when the multi-recipient send loop runs dry, on
+     * {@code @objectives}' two early-outs, where its walk has left the menu open, and when an
+     * {@code @objectives} walk stops the run with its menu still up.</p>
+     */
+    public static void closeIfOpen() {
+        AbstractContainerScreen<?> screen = currentByTitle();
+        LocalPlayer player = McUtils.player();
+        if (screen == null || player == null) return;
+        VetsLogger.debug(
+                "MembersGui: closing the Members menu (screen id={}, containerMenu id={})",
+                screen.getMenu().containerId,
+                player.containerMenu.containerId);
+        player.closeContainer();
     }
 
     /**

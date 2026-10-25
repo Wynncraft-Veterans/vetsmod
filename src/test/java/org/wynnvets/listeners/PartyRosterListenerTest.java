@@ -1,5 +1,6 @@
 package org.wynnvets.listeners;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,7 +18,9 @@ import org.wynnvets.mwe.anni.state.AnniSnapshot;
  * <p>S7 rule: send iff (a) the anni stamp is in-window AND (b) the
  * snapshot's {@code organiser_usernames} list contains the captured
  * party's leader or any member name (case-insensitive). The predicate
- * has no statics or I/O; all inputs are passed in.</p>
+ * has no statics or I/O; all inputs are passed in. Rule (a) is {@link
+ * PartyRosterListener#inActiveWindow}, which {@code AnniPartyReporter} also reads, so its
+ * boundaries are tested on their own.</p>
  */
 class PartyRosterListenerTest {
 
@@ -73,6 +76,21 @@ class PartyRosterListenerTest {
         AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW - 30 * 60;
         assertTrue(PartyRosterListener.shouldSend(snap("Organiser", "M1"), anni, stamp, NOW));
+    }
+
+    // ── inActiveWindow ────────────────────────────────────────────────
+
+    @Test
+    void inActiveWindow_edgesAreInclusiveAndZeroIsNever() {
+        long twoHours = 2 * 60 * 60;
+        assertTrue(PartyRosterListener.inActiveWindow(NOW, NOW));
+        assertTrue(PartyRosterListener.inActiveWindow(NOW + twoHours, NOW));
+        assertFalse(PartyRosterListener.inActiveWindow(NOW + twoHours + 1, NOW));
+        assertTrue(PartyRosterListener.inActiveWindow(NOW - twoHours, NOW));
+        assertFalse(PartyRosterListener.inActiveWindow(NOW - twoHours - 1, NOW));
+        // No stamp announced: never in the window, even when now is itself 0.
+        assertFalse(PartyRosterListener.inActiveWindow(0L, NOW));
+        assertFalse(PartyRosterListener.inActiveWindow(0L, 0L));
     }
 
     // ── Snapshot presence ─────────────────────────────────────────────
@@ -151,6 +169,15 @@ class PartyRosterListenerTest {
         AnniSnapshot anni = anniWithOrganisers("Organiser");
         long stamp = NOW + 60 * 60;
         assertFalse(PartyRosterListener.shouldSend(Snapshot.EMPTY, anni, stamp, NOW));
+    }
+
+    // ── Heartbeat ─────────────────────────────────────────────────────
+
+    @Test
+    void heartbeatDelay_isThirtySecondsWhenTheGatePassedAndNoneWhenSuppressed() {
+        assertEquals(30_000L, PartyRosterListener.heartbeatDelayMs(true));
+        assertEquals(PartyRosterListener.HEARTBEAT_MS, PartyRosterListener.heartbeatDelayMs(true));
+        assertEquals(-1L, PartyRosterListener.heartbeatDelayMs(false));
     }
 
     @Test

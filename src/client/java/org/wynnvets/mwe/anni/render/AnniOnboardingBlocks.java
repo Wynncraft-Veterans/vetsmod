@@ -4,86 +4,68 @@ import java.net.URI;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
 
 /**
- * The registration block of the not-announced {@code /wv anni} render for a vets-tier user: the
- * unregistered nudge, the fill-only explainer, or the role chips with the has-roles affirmation.
+ * The registration part of the not-announced {@code /wv anni} render for a vets-tier user: the
+ * role chips, shown beside the dashboard link, or, for a player without roles, the unregistered
+ * nudge or the fill-only explainer under the prediction.
  *
- * <p>The registration in the snapshot picks the shape. The nudge, the explainer and the affirmation
- * are fixed prose, each with its own colours and links.</p>
+ * <p>The registration in the snapshot picks the shape. The nudge and the explainer are fixed
+ * prose, each with its own colours and links.</p>
  */
 final class AnniOnboardingBlocks {
 
     private AnniOnboardingBlocks() {}
 
-    /** The not-announced vets-user registration block — three shapes
-     *  depending on the snapshot's {@code registration} field.
+    /** The not-announced vets-user registration block under the prediction — two shapes
+     *  depending on the snapshot's {@code registration} field, and none for a player with
+     *  roles, whose roles ride on the link line ({@link #vetsNotAnnouncedRoles}).
      *
      *  <ul>
      *    <li><b>Unregistered</b> — no registration, or one not marked
      *        registered. vets-anni marks a registration registered only
      *        when the player holds a role capability, so a player with
      *        none lands here; a player with no AnniPlayer row gets no
-     *        snapshot at all. Red prose nudging them to open
-     *        anni.wynnvets.org/me.</li>
+     *        snapshot at all. Red prose nudging them to choose their roles
+     *        on anni.wynnvets.org/me.</li>
      *    <li><b>Fill-only</b> — registered but no specific role
      *        capabilities, which vets-anni does not send today.
      *        Multi-line gold/grey explainer about how fill slots work +
      *        a click-through to claim a role.</li>
-     *    <li><b>Has roles</b> — the existing role-chip line plus a
-     *        dark-green affirmation pointing at the #annihilation
-     *        Discord channel.</li>
+     *    <li><b>Has roles</b> — {@code null}: nothing under the prediction.</li>
      *  </ul> */
     static MutableComponent vetsNotAnnouncedRegistrationBlock(AnniSnapshot snapshot) {
-        AnniSnapshot.Registration reg = snapshot.registration();
-        if (reg == null || !reg.registered()) {
+        if (showsUnregisteredNudge(snapshot)) {
             return unregisteredNudgeBlock();
         }
-        if (reg.roles().isEmpty()) {
+        if (snapshot.registration().roles().isEmpty()) {
             return fillOnlyExplainerBlock();
         }
-        MutableComponent line = AnniHoverBuilder.label("Eligible Roles", ChatFormatting.GRAY);
-        boolean first = true;
-        for (AnniSnapshot.RoleEntry role : reg.roles()) {
-            if (!first) {
-                line.append(Component.literal(" · ").withStyle(ChatFormatting.DARK_GRAY));
-            }
-            line.append(AnniHoverBuilder.roleChip(role));
-            first = false;
-        }
-        line.append(Component.literal("\n"));
-        line.append(allSetAffirmation());
-        return line;
+        return null;
     }
 
-    /** Dark-green italic affirmation appended after the role chips
-     *  when the user is registered + has roles + no announced anni.
-     *  Links to the #annihilation Discord channel. */
-    private static MutableComponent allSetAffirmation() {
-        Style base = Style.EMPTY.withColor(ChatFormatting.DARK_GREEN).withItalic(true);
-        // Link gets the Discord-channel dark-aqua to read as a channel
-        // reference rather than blending into the dark-green affirmation.
-        Style link =
-                Style.EMPTY
-                        .withColor(ChatFormatting.DARK_AQUA)
-                        .withItalic(true)
-                        .withUnderlined(true)
-                        .withClickEvent(
-                                new ClickEvent.OpenUrl(
-                                        URI.create(
-                                                "https://discord.com/channels/1313769181321236490/1339393368672702567")))
-                        .withHoverEvent(
-                                new HoverEvent.ShowText(
-                                        Component.literal("Open #annihilation in Discord")
-                                                .withStyle(ChatFormatting.GRAY)));
-        return Component.literal("You're all set for the next ")
-                .withStyle(base)
-                .append(Component.literal("#Annihilation").withStyle(link));
+    /** Whether {@link #vetsNotAnnouncedRegistrationBlock} is the unregistered nudge: no
+     *  registration, or one not marked registered. The nudge carries its own
+     *  anni.wynnvets.org/me link, so the not-announced render then leaves out the dashboard link
+     *  line above it. */
+    static boolean showsUnregisteredNudge(AnniSnapshot snapshot) {
+        AnniSnapshot.Registration reg = snapshot.registration();
+        return reg == null || !reg.registered();
+    }
+
+    /** The {@code Eligible Roles} line for a registered vets user with roles, which the
+     *  not-announced render puts beside the dashboard link; {@code null} for anyone else, who
+     *  gets {@link #vetsNotAnnouncedRegistrationBlock} under the prediction instead. */
+    static MutableComponent vetsNotAnnouncedRoles(AnniSnapshot snapshot) {
+        AnniSnapshot.Registration reg = snapshot.registration();
+        if (reg == null || !reg.registered() || reg.roles().isEmpty()) {
+            return null;
+        }
+        return AnniHoverBuilder.eligibleRolesLine(reg.roles());
     }
 
     /** Four-line prose for the registered-but-fill-only case. */
@@ -140,10 +122,9 @@ final class AnniOnboardingBlocks {
         return out;
     }
 
-    /** Two-line prose for the Unregistered arm: written for a vets-tier
-     *  user who has not opened anni.wynnvets.org/me at all, though today
-     *  it also reaches one who has but holds no role capability
-     *  ({@code anni-roleless-registration-shows-the-unregistered-nudge}). */
+    /** Two-line prose for the Unregistered arm: true of every vets-tier user without a role
+     *  capability, whether or not they have opened anni.wynnvets.org/me, since vets-anni
+     *  marks a registration registered only when it holds a role. */
     private static MutableComponent unregisteredNudgeBlock() {
         Style redBold = Style.EMPTY.withColor(ChatFormatting.RED).withBold(true);
         Style yellowBoldUnderlinedLink =
@@ -154,19 +135,22 @@ final class AnniOnboardingBlocks {
                         .withClickEvent(
                                 new ClickEvent.OpenUrl(URI.create("https://anni.wynnvets.org/me")));
         // Both styles below explicitly clear bold so they don't inherit
-        // the redBold flag from the root "You have not yet opened "
+        // the redBold flag from the root "You have not yet chosen your roles on "
         // component — the user spec is &c! and &4&o, not &c&l! / &4&l&o.
         Style redPlain = Style.EMPTY.withColor(ChatFormatting.RED).withBold(false);
         Style darkRedItalic =
                 Style.EMPTY.withColor(ChatFormatting.DARK_RED).withBold(false).withItalic(true);
 
-        MutableComponent out = Component.literal("You have not yet opened ").withStyle(redBold);
+        MutableComponent out =
+                Component.literal("You have not yet chosen your roles on ").withStyle(redBold);
         out.append(Component.literal("anni.wynnvets.org/me").withStyle(yellowBoldUnderlinedLink));
         out.append(Component.literal("!").withStyle(redPlain));
         out.append(Component.literal("\n"));
+        // Broken after the comma: unbroken, the default chat width wraps "organise" onto a
+        // line of its own.
         out.append(
                 Component.literal(
-                                "Doing so unlocks all sorts of features, and helps us organise vets guild annis!")
+                                "Doing so unlocks all sorts of features,\nand helps us organise vets guild annis!")
                         .withStyle(darkRedItalic));
         return out;
     }

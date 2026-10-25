@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 
@@ -55,9 +54,7 @@ final class ComponentDumps {
                 styleObj.addProperty("shadowColor", shadowColor);
                 styleObj.addProperty("shadowColor_hex", String.format("#%08X", shadowColor));
             }
-            if (style.getFont() != null) {
-                styleObj.addProperty("font", style.getFont().toString());
-            }
+            styleObj.addProperty("font", style.getFont().toString());
             obj.add("style", styleObj);
         }
 
@@ -127,16 +124,16 @@ final class ComponentDumps {
     }
 
     /**
-     * Walks a Component tree and collects every distinct font identifier
-     * encountered (including the implicit minecraft:default for unstyled
-     * nodes). Order is insertion order to make diffs stable.
+     * Walks a Component tree and collects the distinct {@code FontDescription}
+     * {@code toString()} values encountered (an unstyled node carries
+     * {@code FontDescription.DEFAULT}, so it reports that record's text, not a bare
+     * {@code minecraft:default} identifier). Order is insertion order to make diffs stable.
      */
     static JsonArray collectFontsAsArray(Component root) {
         Set<String> fonts = new LinkedHashSet<>();
         root.visit(
                 (Style style, String text) -> {
-                    FontDescription fd = style.getFont();
-                    fonts.add(fd != null ? fd.toString() : "<inherited>");
+                    fonts.add(style.getFont().toString());
                     return Optional.empty();
                 },
                 Style.EMPTY);
@@ -158,9 +155,7 @@ final class ComponentDumps {
             boolean[] hit = {false};
             line.visit(
                     (Style style, String text) -> {
-                        FontDescription fd = style.getFont();
-                        if (fd == null) return Optional.empty();
-                        String s = fd.toString();
+                        String s = style.getFont().toString();
                         if (s.contains("tooltip/emblem/frame") || s.contains("banner/box")) {
                             hit[0] = true;
                             return Optional.of(Boolean.TRUE);

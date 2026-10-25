@@ -1,9 +1,11 @@
 package org.wynnvets.debug.anni;
 
+import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.wynntils.utils.mc.McUtils;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
@@ -20,13 +22,16 @@ import org.wynnvets.mwe.anni.state.AnniSnapshotCache;
  *
  * <p>Anni is infrequent and hard to test against live events; these commands
  * let a developer reproduce every render branch without waiting for a real
- * anni cycle. Gated by {@link VetsLogger#isDebugEnabled()} (not
- * {@code vetsAnniEnabled}, which gates only the snapshot-driven render paths in
- * {@link org.wynnvets.fetcher.ondemand.StampFetcher StampFetcher}) so the whole subsystem stays
+ * anni cycle. Gated by {@link VetsLogger#isDebugEnabled()} so the whole subsystem stays
  * testable while still being accidentally-safe (debug logging is off by
  * default, is opt-in via {@code /wv debug true}, and is not restored at
  * startup once three days have passed since it was switched on — that check
  * runs only at client init, so a session left running keeps it on).</p>
+ *
+ * <p>The 18 nodes that still need an argument print their own red usage line when typed bare
+ * ({@code usage}), so a command missing an argument never reaches the server as "Invalid
+ * command". A bare container literal that needs a subcommand ({@code snapshot}, {@code mode},
+ * {@code scrollspot}, {@code rsvp}, {@code registry}) still goes to the server.</p>
  *
  * <p>Two gates, and only one of them restricts who may call. All 24 handlers
  * open with {@code requireDebug}, which tests
@@ -57,7 +62,8 @@ public final class AnniDebugCommands {
     /** Build the {@code anni} literal, which the caller mounts under
      *  {@code /wv debug tree} — so every path here is
      *  {@code /wv debug tree anni …}. 11 top-level literals, 24 executable
-     *  leaves, one handler per leaf, in this class or a sibling handler class.
+     *  leaves, one handler per leaf, in this class or a sibling handler class,
+     *  and 18 inner nodes whose command is a usage line.
      *  Caller is {@link org.wynnvets.debug.DebugCommands#buildCommandTree()
      *  DebugCommands#buildCommandTree()}. */
     public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommandTree() {
@@ -66,12 +72,18 @@ public final class AnniDebugCommands {
                         ClientCommandManager.literal("snapshot")
                                 .then(
                                         ClientCommandManager.literal("inject")
+                                                .executes(
+                                                        usage(
+                                                                "snapshot inject file <name> | preset <name> | <json>"))
                                                 // Literal branches are tried before the
                                                 // greedyString fallback, so `inject file …`
                                                 // and `inject preset …` resolve cleanly even
                                                 // though the inline form accepts anything.
                                                 .then(
                                                         ClientCommandManager.literal("file")
+                                                                .executes(
+                                                                        usage(
+                                                                                "snapshot inject file <name>"))
                                                                 .then(
                                                                         ClientCommandManager
                                                                                 .argument(
@@ -86,6 +98,9 @@ public final class AnniDebugCommands {
                                                                                                 ::snapshotInjectFile)))
                                                 .then(
                                                         ClientCommandManager.literal("preset")
+                                                                .executes(
+                                                                        usage(
+                                                                                "snapshot inject preset <name>"))
                                                                 .then(
                                                                         ClientCommandManager
                                                                                 .argument(
@@ -122,6 +137,7 @@ public final class AnniDebugCommands {
                                 .executes(AnniSnapshotDebugCommands::guess))
                 .then(
                         ClientCommandManager.literal("external")
+                                .executes(usage("external <auto|true|false>"))
                                 .then(
                                         ClientCommandManager.argument(
                                                         "mode", StringArgumentType.word())
@@ -130,6 +146,7 @@ public final class AnniDebugCommands {
                                                 .executes(AnniSnapshotDebugCommands::externalSet)))
                 .then(
                         ClientCommandManager.literal("time")
+                                .executes(usage("time <seconds>"))
                                 .then(
                                         ClientCommandManager.argument(
                                                         "seconds", StringArgumentType.word())
@@ -137,6 +154,7 @@ public final class AnniDebugCommands {
                                                 .executes(AnniSnapshotDebugCommands::timeSet)))
                 .then(
                         ClientCommandManager.literal("zone")
+                                .executes(usage("zone <enter|exit>"))
                                 .then(
                                         ClientCommandManager.argument(
                                                         "action", StringArgumentType.word())
@@ -144,6 +162,7 @@ public final class AnniDebugCommands {
                                                 .executes(AnniHighlightDebugCommands::zone)))
                 .then(
                         ClientCommandManager.literal("flash")
+                                .executes(usage("flash <role|party|world|rsvp>"))
                                 .then(
                                         ClientCommandManager.argument(
                                                         "field", StringArgumentType.word())
@@ -153,6 +172,9 @@ public final class AnniDebugCommands {
                         ClientCommandManager.literal("mode")
                                 .then(
                                         ClientCommandManager.literal("set")
+                                                .executes(
+                                                        usage(
+                                                                "mode set <silent|passive|aggressive>"))
                                                 .then(
                                                         ClientCommandManager.argument(
                                                                         "mode",
@@ -173,6 +195,7 @@ public final class AnniDebugCommands {
                         ClientCommandManager.literal("scrollspot")
                                 .then(
                                         ClientCommandManager.literal("set")
+                                                .executes(usage("scrollspot set <x> <y> <z>"))
                                                 .then(
                                                         ClientCommandManager.argument(
                                                                         "x",
@@ -180,6 +203,9 @@ public final class AnniDebugCommands {
                                                                                 .arguments
                                                                                 .IntegerArgumentType
                                                                                 .integer())
+                                                                .executes(
+                                                                        usage(
+                                                                                "scrollspot set <x> <y> <z>"))
                                                                 .then(
                                                                         ClientCommandManager
                                                                                 .argument(
@@ -189,6 +215,9 @@ public final class AnniDebugCommands {
                                                                                                 .arguments
                                                                                                 .IntegerArgumentType
                                                                                                 .integer())
+                                                                                .executes(
+                                                                                        usage(
+                                                                                                "scrollspot set <x> <y> <z>"))
                                                                                 .then(
                                                                                         ClientCommandManager
                                                                                                 .argument(
@@ -210,6 +239,8 @@ public final class AnniDebugCommands {
                                                 .executes(AnniDebugCommands::scrollspotClear))
                                 .then(
                                         ClientCommandManager.literal("localinject")
+                                                .executes(
+                                                        usage("scrollspot localinject <x> <y> <z>"))
                                                 .then(
                                                         ClientCommandManager.argument(
                                                                         "x",
@@ -217,6 +248,9 @@ public final class AnniDebugCommands {
                                                                                 .arguments
                                                                                 .IntegerArgumentType
                                                                                 .integer())
+                                                                .executes(
+                                                                        usage(
+                                                                                "scrollspot localinject <x> <y> <z>"))
                                                                 .then(
                                                                         ClientCommandManager
                                                                                 .argument(
@@ -226,6 +260,9 @@ public final class AnniDebugCommands {
                                                                                                 .arguments
                                                                                                 .IntegerArgumentType
                                                                                                 .integer())
+                                                                                .executes(
+                                                                                        usage(
+                                                                                                "scrollspot localinject <x> <y> <z>"))
                                                                                 .then(
                                                                                         ClientCommandManager
                                                                                                 .argument(
@@ -247,6 +284,7 @@ public final class AnniDebugCommands {
                 // cooldown so back-to-back invocations work.
                 .then(
                         ClientCommandManager.literal("alert")
+                                .executes(usage("alert <role|world|party|rsvp|zone|world_ready>"))
                                 .then(
                                         ClientCommandManager.argument(
                                                         "field", StringArgumentType.word())
@@ -278,10 +316,14 @@ public final class AnniDebugCommands {
                         ClientCommandManager.literal("registry")
                                 .then(
                                         ClientCommandManager.literal("set")
+                                                .executes(usage("registry set <username> <role>"))
                                                 .then(
                                                         ClientCommandManager.argument(
                                                                         "username",
                                                                         StringArgumentType.word())
+                                                                .executes(
+                                                                        usage(
+                                                                                "registry set <username> <role>"))
                                                                 .then(
                                                                         ClientCommandManager
                                                                                 .argument(
@@ -296,6 +338,7 @@ public final class AnniDebugCommands {
                                                                                                 ::registrySet))))
                                 .then(
                                         ClientCommandManager.literal("clear")
+                                                .executes(usage("registry clear <username>"))
                                                 .then(
                                                         ClientCommandManager.argument(
                                                                         "username",
@@ -310,6 +353,18 @@ public final class AnniDebugCommands {
                                                                 ::registryClearAll)));
     }
 
+    /** The command for a node typed without the argument it needs: a red usage line, rather than
+     *  the incomplete command going to the server, which answers "Invalid command". No
+     *  {@code requireDebug}: the usage is the same with debug logging on or off. */
+    private static Command<FabricClientCommandSource> usage(String rest) {
+        return ctx -> {
+            ChatUtils.sendLocalMessage(
+                    Component.literal("Usage: /wv debug tree anni " + rest)
+                            .withStyle(ChatFormatting.RED));
+            return 0;
+        };
+    }
+
     // ──────────────────────────────────────────────────────────── gating
 
     /** Print a "debug logging required" notice and return 0; used by every
@@ -321,7 +376,7 @@ public final class AnniDebugCommands {
         }
         ChatUtils.sendLocalMessage(
                 Component.literal(
-                                "anni debug commands require debug logging — run /wv debug true first")
+                                "anni debug commands require debug logging - run /wv debug true first")
                         .withStyle(ChatFormatting.RED));
         return 0;
     }
@@ -375,7 +430,7 @@ public final class AnniDebugCommands {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
         String field = StringArgumentType.getString(ctx, "field");
-        String normalised = field == null ? "" : field.toLowerCase();
+        String normalised = field == null ? "" : field.toLowerCase(Locale.ROOT);
         switch (normalised) {
             case "role":
             case "party":
@@ -487,7 +542,7 @@ public final class AnniDebugCommands {
     private static int alert(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
-        String field = StringArgumentType.getString(ctx, "field").toLowerCase();
+        String field = StringArgumentType.getString(ctx, "field").toLowerCase(Locale.ROOT);
         org.wynnvets.mwe.anni.aggressive.AggressiveAlertDispatcher.forceAlert(field);
         ChatUtils.sendLocalMessage(
                 Component.literal("anni alert " + field + " triggered")
@@ -501,7 +556,7 @@ public final class AnniDebugCommands {
     private static int modeSet(CommandContext<FabricClientCommandSource> ctx) {
         int gate = requireDebug(ctx);
         if (gate == 0) return 0;
-        String mode = StringArgumentType.getString(ctx, "mode").toLowerCase();
+        String mode = StringArgumentType.getString(ctx, "mode").toLowerCase(Locale.ROOT);
         if (!"silent".equals(mode) && !"passive".equals(mode) && !"aggressive".equals(mode)) {
             ChatUtils.sendLocalMessage(
                     Component.literal("anni mode set: mode must be silent|passive|aggressive")

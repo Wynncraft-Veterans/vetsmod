@@ -41,6 +41,11 @@ public final class ReturnFetcher {
     private static final String RETURN_CHANNEL_URL =
             "https://discord.com/channels/1313769181321236490/1320597026118828112";
 
+    /** Shown in place of the post when the request fails, the API answers with an error, or the
+     *  post can't be read. Worded like {@link MotdFetcher}'s line for the same outage. */
+    private static final String UNAVAILABLE_LINE =
+            "Return Unavailable: Unable to reach the vets API, which may be down.";
+
     private ReturnFetcher() {}
 
     /**
@@ -76,10 +81,6 @@ public final class ReturnFetcher {
                                                                             JsonOps.INSTANCE),
                                                             json)
                                                     .getOrThrow();
-                                    if (component == null) {
-                                        return Component.literal(
-                                                "Error: Received null component from API");
-                                    }
                                     // The post is authored in Discord, so it carries Discord's
                                     // <t:...> timestamp markup — expand it into the reader's local
                                     // time before display.
@@ -91,27 +92,30 @@ public final class ReturnFetcher {
                                     return rendered.append(Component.literal("\n\n"))
                                             .append(announcementFooter());
                                 } catch (Exception e) {
-                                    return Component.literal(
-                                            "Error parsing return data: " + e.getMessage());
+                                    VetsLogger.warn(
+                                            "Return post could not be read: {}", e.toString());
+                                    return Component.literal(UNAVAILABLE_LINE);
                                 }
                             } else {
-                                return Component.literal(
-                                        "Failed to fetch return (Status: "
-                                                + response.statusCode()
-                                                + ")");
+                                VetsLogger.debug(
+                                        "Return fetch returned status {}", response.statusCode());
+                                return Component.literal(UNAVAILABLE_LINE);
                             }
                         })
-                .exceptionally(e -> Component.literal("Error fetching return: " + e.getMessage()));
+                .exceptionally(
+                        e -> {
+                            VetsLogger.debug("Return fetch failed: {}", e.toString());
+                            return Component.literal(UNAVAILABLE_LINE);
+                        });
     }
 
     /**
      * Closing line of a {@code /wv return} printout, pointing at the Discord
-     * channel the post was mirrored from (see {@link #RETURN_CHANNEL_URL}). Today its
-     * hover text says it opens the announcement post (see
-     * {@code return-footer-hover-says-it-opens-the-post}).
+     * channel the post was mirrored from (see {@link #RETURN_CHANNEL_URL}), and its
+     * hover text says so.
      *
-     * <p>Spec is {@code &6&oFor more info, click &e&n&ohere &6for the
-     * announcement post!} — note the trailing {@code &6}, which under vanilla
+     * <p>Spec is {@code &6&oFor more info, see the original announcement
+     * post in &e&n&othis &6discord channel!} — note the trailing {@code &6}, which under vanilla
      * legacy-code semantics resets the italic and underline, so the tail renders
      * plain gold.</p>
      */
@@ -125,14 +129,14 @@ public final class ReturnFetcher {
                         .withClickEvent(new ClickEvent.OpenUrl(URI.create(RETURN_CHANNEL_URL)))
                         .withHoverEvent(
                                 new HoverEvent.ShowText(
-                                        Component.literal("Open the announcement post in Discord")
+                                        Component.literal("Open the return channel in Discord")
                                                 .withStyle(ChatFormatting.GRAY)));
         Style gold =
                 Style.EMPTY.withColor(ChatFormatting.GOLD).withItalic(false).withUnderlined(false);
 
-        return Component.literal("For more info, click ")
+        return Component.literal("For more info, see the original announcement post in ")
                 .setStyle(goldItalic)
-                .append(Component.literal("here").setStyle(linkStyle))
-                .append(Component.literal(" for the announcement post!").setStyle(gold));
+                .append(Component.literal("this").setStyle(linkStyle))
+                .append(Component.literal(" discord channel!").setStyle(gold));
     }
 }

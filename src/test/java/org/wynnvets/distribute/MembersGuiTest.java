@@ -4,11 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link MembersGui} — the tile-bounds predicate, and the literals that claim to
- * mirror Wynntils' {@code GuildMemberListContainer}.
+ * Tests for {@link MembersGui} — the tile-bounds predicate, the page-turn check the walker
+ * waits on, and the literals that claim to mirror Wynntils' {@code GuildMemberListContainer}.
  *
  * <p>The table is a boundary sweep over {@link MembersGui#isTileSlot(int)}: one either side of
  * every edge of the rows 0–4 × cols 2–8 area, plus the two page-button slots, which are the
@@ -145,5 +146,41 @@ class MembersGuiTest {
                 10,
                 MembersGui.PREVIOUS_PAGE_SLOT,
                 "GuildMemberListContainer.getPreviousItemSlot()");
+    }
+
+    // ----- pageTurned -----
+
+    /** The page a click was made from: slots 2 and 3, the first two tiles of row 0. */
+    private static final Map<Integer, String> OLD_PAGE = Map.of(2, "Metrafish", 3, "Holidaze");
+
+    @Test
+    void pageTurned_falseWhileTheOldPageIsStillShowing() {
+        assertFalse(MembersGui.pageTurned(OLD_PAGE, OLD_PAGE));
+    }
+
+    @Test
+    void pageTurned_trueOnceEveryTileIsNew() {
+        assertTrue(MembersGui.pageTurned(OLD_PAGE, Map.of(2, "Wenweia", 3, "Nazzae")));
+    }
+
+    @Test
+    void pageTurned_falseOnAPartlyUpdatedPage() {
+        assertFalse(
+                MembersGui.pageTurned(OLD_PAGE, Map.of(2, "Wenweia", 3, "Holidaze")),
+                "a slot still holding its old name means the page has not finished turning");
+    }
+
+    @Test
+    void pageTurned_trueWhenATileNameRecursInAnotherSlot() {
+        // Tile names are not unique: one member's legacy name can be another's current
+        // name. On the turned page the shared name sits in a different slot.
+        assertTrue(MembersGui.pageTurned(OLD_PAGE, Map.of(2, "Wenweia", 3, "Metrafish")));
+    }
+
+    @Test
+    void pageTurned_falseOnAnEmptyPage() {
+        assertFalse(
+                MembersGui.pageTurned(OLD_PAGE, Map.of()),
+                "an empty scan proves nothing: the tiles may be mid-update");
     }
 }

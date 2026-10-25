@@ -25,9 +25,7 @@ import org.wynnvets.mwe.anni.outline.AnniOutlinePalette;
  * <p>The two copies disagreed under a Turkish or Azeri default until the fold was fixed:
  * the palette folded with the no-argument {@code toUpperCase()} while this side
  * has always passed {@link Locale#ROOT}, so {@code fill} / {@code primary} /
- * {@code tertiary} produced one colour in chat and another in the outline. See
- * the filed bug {@code default-locale-case-folding-cluster}, where that row is
- * struck and the remaining 64 sites are not.</p>
+ * {@code tertiary} produced one colour in chat and another in the outline.</p>
  *
  * <p>{@link #roleColor_agreesWithTheOutlinePaletteUnderLocaleRoot} and
  * {@link #roleColor_agreesWithTheOutlinePaletteUnderATurkishDefaultLocale} are

@@ -160,11 +160,12 @@ final class HelpCommands {
      * The {@link Access} for a gate whose only server-side confirmation is that
      * the session is authenticated at all.
      *
-     * <p>Five of the six gated pages are this shape. Their requirement — vet,
+     * <p>Four of the five gated pages are this shape. Their requirement —
      * unlocked, Returners — is decided locally from a cache the mod fills on world
      * join, and the only thing the server independently vouches for is that this
-     * session presented a key and was acked. {@code /wv check} is the exception
-     * and resolves its own pair.</p>
+     * session presented a key and was acked. {@code /wv check} is the exception:
+     * its gate is the server's staff roster itself, which it passes as both
+     * signals.</p>
      */
     private static Access sessionBacked(boolean met) {
         return access(met, met && GuildStateManager.isAuthenticatedThisSession());
@@ -184,51 +185,83 @@ final class HelpCommands {
     static int help(CommandContext<FabricClientCommandSource> ctx) {
         ChatUtils.sendLocalMessageNewBlock(
                 buildHelp(
-                        GuildStateManager.isEligibleForEnrichment(),
+                        GuildStateManager.isEligibleForEnrichment()
+                                || GuildStateManager.isAuthenticatedThisSession(),
                         GuildStateManager.isUnlocked(),
+                        GuildStateManager.isStaff(),
+                        GuildStateManager.isStaffOfAnyGuild(),
                         GuildStateManager.areFeaturesEnabled(),
-                        GuildStateManager.isStaff()));
+                        GuildStateManager.isConfirmedStaff()));
         return 1;
     }
 
     /**
      * Builds the bare {@code /wv help} index page.
      *
-     * <p>The four gates arrive as parameters rather than being read from
+     * <p>The six gates arrive as parameters rather than being read from
      * {@link GuildStateManager} here: the rows they guard are interleaved with
      * the unconditional ones, so the page is only enumerable when the gates are
      * inputs.  Reading them once, together, at the call site also stops the
      * page straddling a {@code GuildChecker} cache expiry mid-build.</p>
+     *
+     * <p>Each staff row takes the gate its command checks: {@code /wv list world}
+     * refuses unless {@code isStaff()}, {@code /wv distribute}'s node requires
+     * {@code isStaffOfAnyGuild()} (running it also needs Chief or Owner, which the
+     * row says), and {@code /wv check} needs {@code isConfirmedStaff()}.
+     * {@code anniTools} — a vet, or authenticated — only changes the
+     * {@code /wv anni} row's text, pointing at the modes and RSVP on
+     * {@code /wv help anni}; an unauthenticated non-member keeps the plain row.
+     * {@code /wv invite-force} is deliberately never listed.</p>
      */
     static MutableComponent buildHelp(
-            boolean vet, boolean unlocked, boolean featuresEnabled, boolean staff) {
+            boolean anniTools,
+            boolean unlocked,
+            boolean staff,
+            boolean staffOfAnyGuild,
+            boolean featuresEnabled,
+            boolean confirmedStaff) {
         MutableComponent msg = Component.empty();
         title(msg, "Commands\n");
         line(
                 msg,
                 ChatFormatting.GRAY,
                 "Use /wv help <command> for details on a specific command.\n\n");
-        row(msg, "/wv help", gray(" — Show this help message\n"));
-        row(msg, "/wv anni", gray(" — Show annihilation timer\n"));
-        row(msg, "/wv config [<key> [<value>]]", gray(" — View or change mod settings\n"));
-        if (vet) {
-            row(msg, "/wv motd", gray(" — Show the message of the day\n"));
+        row(msg, "/wv help", gray(" - Show this help message\n"));
+        row(
+                msg,
+                "/wv anni",
+                gray(
+                        anniTools
+                                ? " - Show anni timer; /wv help anni for modes & RSVP\n"
+                                : " - Show anni timer\n"));
+        row(msg, "/wv config [<key> [<value>]]", gray(" - View or change mod settings\n"));
+        row(msg, "/wv motd", gray(" - Show the message of the day\n"));
+        if (unlocked) {
+            row(msg, "/wv list", gray(" - Show online guild members\n"));
+        }
+        if (staff) {
+            row(msg, "/wv list world", gray(" - Show online members by world\n"));
         }
         if (unlocked) {
-            row(msg, "/wv list", gray(" — Show online members and VetsMod status\n"));
-            row(msg, "/wv staff", gray(" — Show online staff members\n"));
+            row(msg, "/wv staff", gray(" - Show online stewards\n"));
+        }
+        if (staffOfAnyGuild) {
+            row(
+                    msg,
+                    "/wv distribute <name|@selector> <type> <count>",
+                    gray(" - Send guild rewards (Chief/Owner)\n"));
         }
         if (featuresEnabled) {
-            row(msg, "/wv return", gray(" — Show info about this week's event\n"));
+            row(msg, "/wv return", gray(" - Show info about this week's event\n"));
             row(
                     msg,
                     "/wv line <church|scrap|bat|hegea|lighthouse>",
-                    gray(" — Toggle gxp boundary lines\n"));
+                    gray(" - Toggle gxp boundary lines\n"));
         }
-        if (staff) {
-            row(msg, "/wv check <player>", gray(" — Look up a player's eligibility\n"));
+        if (confirmedStaff) {
+            row(msg, "/wv check <player>", gray(" - Look up a potential recruit's info\n"));
         }
-        row(msg, "/wv debug", gray(" — Diagnostics & debug tools"));
+        row(msg, "/wv debug", gray(" - Diagnostics & debug tools"));
         return msg;
     }
 
@@ -240,21 +273,34 @@ final class HelpCommands {
     static MutableComponent buildHelpConfig() {
         MutableComponent msg = Component.empty();
         title(msg, "Config Options\n");
-        line(msg, ChatFormatting.GRAY, "Toggle with: /wv config <key> <true|false>\n\n");
+        line(
+                msg,
+                ChatFormatting.GRAY,
+                "Toggle with /wv config <key> <default|true|false>.\n"
+                        + "These are the common toggles; /wv config lists every key.\n\n");
         row(
                 msg,
                 "legacyItemHighlighting\n",
-                gray("  Show legacy item highlighting in tooltips and inventory\n"));
+                gray("  Highlights old items when in your inventory\n"));
         row(msg, "printMOTD\n", gray("  Auto-print the message of the day on world join\n"));
-        row(msg, "printANNI\n", gray("  Auto-print the annihilation timer on world join\n"));
+        row(
+                msg,
+                "printANNI\n",
+                gray(
+                        "  Auto-print the annihilation timer on world join"
+                                + " (Returners members only)\n"));
         row(
                 msg,
                 "printBridgeMessages\n",
-                gray("  Show bridge (guild chat relay) messages in chat\n"));
+                gray(
+                        "  Show messages delivered through the bridge, including discord,"
+                                + " queue, waitlist, and honourary chats.\n"));
         row(
                 msg,
                 "showSupporterGlints\n",
-                gray("  Show supporter animated gradient glints on nametags\n"));
+                gray(
+                        "  Show supporter animated gradient glints on nametags,"
+                                + " chat pills and /wv list\n"));
         row(
                 msg,
                 "colorBlindMode\n",
@@ -264,17 +310,19 @@ final class HelpCommands {
         row(
                 msg,
                 "handleSpoilers\n",
-                gray("  Render ||spoiler|| markers as hoverable spoiler labels\n"));
+                gray(
+                        "  Encode ||spoiler|| markers in your /g and /wg,"
+                                + " and render them as hoverable labels\n"));
         row(
                 msg,
                 "moreReliableGuildCheck\n",
-                gray("  Run /gu stats on world join to detect guild membership,"),
-                gray(" instead of relying solely on Wynntils (which can stay null)"));
+                gray("  Run /gu stats on world join to detect your membership,"),
+                gray(" instead of relying solely on Wynntils (it can lag on join)"));
         return msg;
     }
 
     /**
-     * The shape shared by the seven {@code /wv help <command>} detail pages: a
+     * The shape shared by the six {@code /wv help <command>} detail pages: a
      * usage line, a line of prose, and the {@code Requires:} footer.
      *
      * <p>The trailing newlines stay in {@code usage} and {@code prose} rather
@@ -292,27 +340,24 @@ final class HelpCommands {
     }
 
     static int helpCheck(CommandContext<FabricClientCommandSource> ctx) {
-        ChatUtils.sendLocalMessageNewBlock(
-                buildHelpCheck(
-                        access(GuildStateManager.isStaff(), GuildStateManager.isConfirmedStaff())));
+        boolean confirmed = GuildStateManager.isConfirmedStaff();
+        ChatUtils.sendLocalMessageNewBlock(buildHelpCheck(access(confirmed, confirmed)));
         return 1;
     }
 
     /**
-     * The one page whose CONFIRMED signal is a permission of its own rather than
-     * the session's: {@code isStaff()} is the cached {@code /gu rank} answer and
-     * {@code isConfirmedStaff()} is the roster answer the server returned on the
-     * auth ack. Both entry points gate on the latter, so a GRANTED footer here
-     * means the rank looks right and the command will still refuse.
-     *
-     * <p>That gap is filed as {@code help-advertises-wv-check-on-a-weaker-gate}
-     * and is not fixed here — the index row still advertises on {@code isStaff()}.
-     * This footer only reports both signals where it used to report neither.</p>
+     * The one page whose gate is a permission of its own rather than the
+     * session's: {@code isConfirmedStaff()}, the roster answer the server returned
+     * on the auth ack, which both entry points gate on. {@link #helpCheck} passes
+     * it as both signals, so the footer is AQUA or RED, never GREEN: the cached
+     * {@code /gu rank} answer ({@code isStaff()}) can say Captain+ while the
+     * command still refuses, and neither this footer nor the index row reads
+     * it.
      */
     static MutableComponent buildHelpCheck(Access access) {
         return detailPage(
                 "/wv check <player>\n",
-                "Look up a player's guild membership and unlock status.\n",
+                "Look up someone's vets membership and client status.\n",
                 access,
                 "Staff");
     }
@@ -325,8 +370,7 @@ final class HelpCommands {
     static MutableComponent buildHelpReturn(Access access) {
         return detailPage(
                 "/wv return\n",
-                "Display information about this week's scheduled event, "
-                        + "as fetched from the guild-announcements channel.\n",
+                "Display information about this week's event.\n",
                 access,
                 "Returners guild member");
     }
@@ -339,10 +383,7 @@ final class HelpCommands {
 
     static MutableComponent buildHelpStaff(Access access) {
         return detailPage(
-                "/wv staff\n",
-                "Show a list of currently online staff members.\n",
-                access,
-                "Unlocked");
+                "/wv staff\n", "Show a list of currently online stewards.\n", access, "Unlocked");
     }
 
     static int helpList(CommandContext<FabricClientCommandSource> ctx) {
@@ -354,39 +395,59 @@ final class HelpCommands {
     static MutableComponent buildHelpList(Access access) {
         return detailPage(
                 "/wv list\n",
-                "Show online Returners members, grouped by VetsMod usage, "
-                        + "honourary, and waitlist status.\n",
+                "Show online Returners members and some basic info about them.\n",
                 access,
                 "Veteran (Returners, waitlist, or honourary)");
     }
 
     static int helpMotd(CommandContext<FabricClientCommandSource> ctx) {
-        ChatUtils.sendLocalMessageNewBlock(
-                buildHelpMotd(sessionBacked(GuildStateManager.isEligibleForEnrichment())));
+        ChatUtils.sendLocalMessageNewBlock(buildHelpMotd());
         return 1;
     }
 
-    static MutableComponent buildHelpMotd(Access access) {
+    static MutableComponent buildHelpMotd() {
         return detailPage(
                 "/wv motd\n",
-                "Show the guild message of the day. Also available as "
-                        + "a standalone /motd command.\n",
-                access,
-                "Veteran (Returners, waitlist, or honourary)");
+                "Show the message of the day. Also available as a standalone /motd command.\n",
+                Access.PUBLIC,
+                "None (public)");
     }
 
     static int helpAnni(CommandContext<FabricClientCommandSource> ctx) {
-        ChatUtils.sendLocalMessageNewBlock(buildHelpAnni());
+        ChatUtils.sendLocalMessageNewBlock(
+                buildHelpAnni(GuildStateManager.isAuthenticatedThisSession()));
         return 1;
     }
 
-    static MutableComponent buildHelpAnni() {
-        return detailPage(
+    /**
+     * The {@code /wv anni} page: the timer, the three modes, and {@code rsvp} when
+     * the session is authenticated, the only gate {@code AnniRsvpCommand} checks.
+     * The modes have no gate, so the footer stays public. The mode prose is the
+     * audience wording of {@code AnniCommandRenderer}'s mode buttons.
+     */
+    static MutableComponent buildHelpAnni(boolean authenticated) {
+        MutableComponent msg = Component.empty();
+        row(
+                msg,
                 "/wv anni\n",
-                "Show how long until the next annihilation event, "
-                        + "if one has been announced.\n",
-                Access.PUBLIC,
-                "None (public)");
+                gray(
+                        "Show how long until the next annihilation event, "
+                                + "if one has been announced.\n"));
+        row(
+                msg,
+                "/wv anni <silent|passive|aggressive>\n",
+                gray(
+                        "Set your anni mode: silent turns anni features off, passive suits folks"
+                                + " experienced at attending vets-annis, and aggressive suits"
+                                + " folks attending their first.\n"));
+        if (authenticated) {
+            row(
+                    msg,
+                    "/wv anni rsvp <hard|soft|revoke>\n",
+                    gray("Send a hard or soft RSVP for the next anni, or revoke yours.\n"));
+        }
+        requires(msg, Access.PUBLIC, "None (public)");
+        return msg;
     }
 
     static int helpLine(CommandContext<FabricClientCommandSource> ctx) {
@@ -414,13 +475,13 @@ final class HelpCommands {
         MutableComponent msg = Component.empty();
         row(msg, "/wv debug\n", gray("Run diagnostics and dump mod state to chat and log.\n\n"));
         heading(msg, "Subcommands:\n");
-        row(msg, "/wv debug <boolean>", gray(" — Toggle debug logging\n"));
-        row(msg, "/wv debug set <key> <value>", gray(" — Manage debug config keys\n"));
-        row(msg, "/wv debug trigger <action>", gray(" — Run a one-shot debug action\n"));
+        row(msg, "/wv debug <boolean>", gray(" - Toggle debug logging\n"));
+        row(msg, "/wv debug set <key> <value>", gray(" - Manage debug config keys\n"));
+        row(msg, "/wv debug trigger <action>", gray(" - Run a one-shot debug action\n"));
         row(
                 msg,
                 "/wv debug tree <subsystem>",
-                gray(" — Open a subsystem-specific debug tree (e.g. anni)\n\n"));
+                gray(" - Open a subsystem-specific debug tree (e.g. anni)\n\n"));
         line(msg, ChatFormatting.DARK_GRAY, "Use /wv help debug <set|trigger> for details.\n");
         requires(msg, Access.PUBLIC, "None (public)");
         return msg;
@@ -438,17 +499,17 @@ final class HelpCommands {
                 "/wv debug set [<key> [<value>]]\n",
                 gray("Manage debug-only configuration keys.\n\n"));
         heading(msg, "Usage:\n");
-        row(msg, "/wv debug set", gray(" — List all debug config keys and their values\n"));
-        row(msg, "/wv debug set <key>", gray(" — Show the current value of a key\n"));
+        row(msg, "/wv debug set", gray(" - List all debug config keys and their values\n"));
+        row(msg, "/wv debug set <key>", gray(" - Show the current value of a key\n"));
         row(
                 msg,
                 "/wv debug set <key> <true|false>",
-                gray(" — Set a debug key to true or false\n\n"));
+                gray(" - Set a debug key to true or false\n\n"));
         heading(msg, "Available keys:\n");
         row(
                 msg,
                 "itemDump",
-                gray(" — Dump an item's full component tree\n"),
+                gray(" - Dump an item's full component tree\n"),
                 dim("  When on, press numpad + while hovering it\n"));
         requires(msg, Access.PUBLIC, "None (public)");
         return msg;
@@ -474,14 +535,45 @@ final class HelpCommands {
                 "/wv debug trigger forceChecks\n",
                 gray("  Force a re-check of guild membership, rank,\n"),
                 gray("  and staff status.\n"),
-                dim("  Runs /gu stats and /gu rank via Wynntils'\n"),
-                dim("  command queue, then reports state to chat.\n"));
+                dim("  Reports guild and staff state to chat, then\n"),
+                dim("  re-runs /gu rank and /gu stats, skipping\n"),
+                dim("  either if one is already in flight.\n"));
         row(
                 msg,
                 "/wv debug trigger tabDump\n",
                 gray("  Dump the raw tab list to chat.\n"),
                 dim("  Split into labelled columns, then shows the\n"),
                 dim("  parsed guild members.\n"));
+        row(
+                msg,
+                "/wv debug trigger bossBarsDump\n",
+                gray("  Dump the boss bars on screen to chat.\n"),
+                dim("  Order, id, name, colour, overlay and progress\n"),
+                dim("  of each, with vetsmod's own bar marked.\n"));
+        row(
+                msg,
+                "/wv debug trigger nametagsDump\n",
+                gray("  Dump each player's nametag diagnostics.\n"),
+                dim("  Anni gate, registry hit, tier and role, the\n"),
+                dim("  display name, and the colour it would get.\n"));
+        row(
+                msg,
+                "/wv debug trigger ghostsPromptDump\n",
+                gray("  Log the ghosts-prompt inputs.\n"),
+                dim("  To the log, not chat: the gate, each player's\n"),
+                dim("  ghost flag, and whether the prompt would fire.\n"));
+        row(
+                msg,
+                "/wv debug trigger zoneLinesDump\n",
+                gray("  Dump the zone-line renderer's inputs.\n"),
+                dim("  Gate, toggle and cache state, then each zone\n"),
+                dim("  disc and its distance from you.\n"));
+        row(
+                msg,
+                "/wv debug trigger rsvpDump\n",
+                gray("  Log the RSVP client's state.\n"),
+                dim("  To the log, not chat: auth, queue depth, the\n"),
+                dim("  last attempt and ack, and the rsvp block.\n"));
         requires(msg, Access.PUBLIC, "None (public)");
         return msg;
     }

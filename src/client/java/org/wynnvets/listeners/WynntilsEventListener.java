@@ -15,6 +15,7 @@ import com.wynntils.utils.mc.StyledTextUtils;
 import com.wynntils.utils.type.Pair;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -110,29 +111,30 @@ public final class WynntilsEventListener {
     /**
      * Handles the player joining a guild.
      *
-     * <p>Delegates to {@link GuildLifecycle#onGuildInfoUpdated()} to
-     * re-evaluate guild membership and feature gates.
+     * <p>Delegates to {@link GuildLifecycle#onGuildJoined()}, which re-evaluates guild
+     * membership and feature gates and, for a Returners join, re-sends the auth frame.
      *
      * @param event the guild joined event
      */
     @SubscribeEvent
     public void onGuildJoined(GuildEvent.Joined event) {
         VetsLogger.debug("GuildEvent.Joined: {}", event.getGuildName());
-        GuildLifecycle.onGuildInfoUpdated();
+        GuildLifecycle.onGuildJoined();
     }
 
     /**
      * Handles the player leaving a guild.
      *
-     * <p>Delegates to {@link GuildLifecycle#onGuildInfoUpdated()} to
-     * re-evaluate guild membership and feature gates.
+     * <p>Delegates to {@link GuildLifecycle#onGuildLeft()}, which re-evaluates guild
+     * membership and feature gates one tick later (Wynntils clears its guild name after posting
+     * this event) and retracts the presence registration.
      *
      * @param event the guild left event
      */
     @SubscribeEvent
     public void onGuildLeft(GuildEvent.Left event) {
         VetsLogger.debug("GuildEvent.Left: {}", event.getGuildName());
-        GuildLifecycle.onGuildInfoUpdated();
+        GuildLifecycle.onGuildLeft();
     }
 
     /**
@@ -172,6 +174,19 @@ public final class WynntilsEventListener {
         }
 
         StyledText styledMessage = event.getMessage();
+
+        // The line as it arrives, before unwrap folds hard breaks inside a URL and typed spaces
+        // together. UrlWrapJoiner reads these breaks below; the debug line stays so an in-game
+        // check can compare it with what was sent
+        // (url-repair-merges-following-non-lowercase-token). Only for lines with a URL, to keep
+        // the log quiet.
+        String rawPlain = styledMessage.getStringWithoutFormatting();
+        if (rawPlain.contains("://")) {
+            VetsLogger.debug(
+                    "onGuildChat raw [{}] codepoints [{}]",
+                    rawPlain.replace("\n", "\\n"),
+                    toCodepoints(rawPlain));
+        }
 
         // Unwrap soft-wrapped lines from Wynncraft
         StyledText unwrapped = StyledTextUtils.unwrap(styledMessage).stripAlignment();
@@ -243,14 +258,10 @@ public final class WynntilsEventListener {
             return;
         }
 
-        // Repair URLs broken by Wynncraft line-wrapping (spaces injected at
-        // wrap points within a URL). Today it also glues each following word
-        // onto the URL until one is all-lowercase ASCII
-        // (url-repair-merges-following-non-lowercase-token). temporary-server's
-        // sanitize_inbound repeats the same repair as a safety net for older
-        // clients, so this pass is not the only one that keeps Discord links
-        // clickable.
-        String repairedMessage = repairWrappedUrls(messageContent);
+        // Join a URL Wynncraft hard-broke across lines, from the raw line breaks. The
+        // register frame carries exact_text, so temporary-server skips its own wrapped-URL
+        // guess for this client and what is sent here is what reaches Discord.
+        String repairedMessage = UrlWrapJoiner.join(rawPlain, messageContent);
 
         VetsLogger.debug(
                 "onGuildChat SENDING rank=[{}] user=[{}] msg=[{}]",
@@ -397,11 +408,11 @@ public final class WynntilsEventListener {
         if (decoded == null || decoded.isEmpty()) {
             return "";
         }
-        String upper = decoded.toUpperCase();
+        String upper = decoded.toUpperCase(Locale.ROOT);
         for (String rankName :
                 new String[] {"OWNER", "CHIEF", "STRATEGIST", "CAPTAIN", "RECRUITER", "RECRUIT"}) {
             if (upper.equals(rankName)) {
-                return rankName.charAt(0) + rankName.substring(1).toLowerCase();
+                return rankName.charAt(0) + rankName.substring(1).toLowerCase(Locale.ROOT);
             }
         }
         return "";
@@ -444,7 +455,7 @@ public final class WynntilsEventListener {
                 normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
                         ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS)
                         : normalizedMsg;
-        String fp = username.toLowerCase() + "\0" + truncated;
+        String fp = username.toLowerCase(Locale.ROOT) + "\0" + truncated;
         synchronized (sentDedupLock) {
             long now = System.currentTimeMillis();
             pruneSentFingerprints(now);
@@ -468,7 +479,7 @@ public final class WynntilsEventListener {
                 normalizedMsg.length() > DEDUP_FINGERPRINT_MAX_CHARS
                         ? normalizedMsg.substring(0, DEDUP_FINGERPRINT_MAX_CHARS)
                         : normalizedMsg;
-        String fp = username.toLowerCase() + "\0" + truncated;
+        String fp = username.toLowerCase(Locale.ROOT) + "\0" + truncated;
         synchronized (sentDedupLock) {
             long now = System.currentTimeMillis();
             pruneSentFingerprints(now);
@@ -499,81 +510,6 @@ public final class WynntilsEventListener {
             this.hadItemPua = hadItemPua;
             this.createdAtMs = createdAtMs;
         }
-    }
-
-    // ── URL repair ─────────────────────────────────────────────────
-
-    private static final Pattern URL_START = Pattern.compile("https?://\\S+");
-
-    /**
-     * Repairs URLs broken by Wynncraft line-wrapping.  When a long guild
-     * message is wrapped, spaces are inserted at wrap points — including
-     * inside URLs.  This method detects URL patterns followed by space +
-     * continuation tokens that look like URL fragments (contain digits,
-     * uppercase, or URL-special characters) and merges them.
-     */
-    private static String repairWrappedUrls(String text) {
-        if (text == null || !text.contains("://")) {
-            return text;
-        }
-        Matcher m = URL_START.matcher(text);
-        if (!m.find()) {
-            return text;
-        }
-
-        StringBuilder result = new StringBuilder(text.length());
-        int lastEnd = 0;
-
-        do {
-            result.append(text, lastEnd, m.start());
-            // Emit the initial URL portion up front. Wrapped continuations
-            // are appended token-by-token below so the intermediate spaces
-            // are dropped instead of copied through a single range append.
-            result.append(text, m.start(), m.end());
-
-            int urlEnd = m.end();
-            while (urlEnd < text.length() && text.charAt(urlEnd) == ' ') {
-                int spaceEnd = urlEnd;
-                while (spaceEnd < text.length() && text.charAt(spaceEnd) == ' ') {
-                    spaceEnd++;
-                }
-                if (spaceEnd >= text.length()) break;
-
-                // Find the next non-space token
-                int tokenEnd = spaceEnd;
-                while (tokenEnd < text.length() && text.charAt(tokenEnd) != ' ') {
-                    tokenEnd++;
-                }
-                String token = text.substring(spaceEnd, tokenEnd);
-                if (looksLikeUrlContinuation(token)) {
-                    result.append(token);
-                    urlEnd = tokenEnd;
-                } else {
-                    break;
-                }
-            }
-            lastEnd = urlEnd;
-        } while (m.find(lastEnd));
-
-        result.append(text, lastEnd, text.length());
-        return result.toString();
-    }
-
-    /**
-     * Returns true if the token looks like a URL fragment rather than a
-     * regular English word.  All-lowercase ASCII tokens are treated as
-     * natural words; anything else (mixed case, digits, URL-special chars)
-     * is treated as a URL continuation.
-     */
-    private static boolean looksLikeUrlContinuation(String token) {
-        if (token.isEmpty()) return false;
-        for (int i = 0; i < token.length(); i++) {
-            char c = token.charAt(i);
-            if (!(c >= 'a' && c <= 'z')) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**

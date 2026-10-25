@@ -21,7 +21,7 @@ The six repos in this workspace make up one auth/chat ecosystem (the seventh sib
 - `../temporary-server` — FastAPI Python backend at `wss://api.wynnvets.org/`. Owns the v1 inbound/outbound WebSockets that vetsmod connects to. Validates `/unlock` keys via HTTP introspection against dazebot.
 - `../dazebot` — In-house Discord bot. Issues vetsmod auth keys via the `/vetsmod` slash command (DM with `/unlock <key>` body), exposes `POST /api/auth/introspect` for temporary-server to validate keys, owns the `VerifyKey` ORM table.
 - `../auth-stack` — Fork of [PicoLimbo](https://github.com/Quozul/PicoLimbo) at `verify.wynnvets.org:25565`. Forwards every chat line on its mini-server to dazebot's `/api/auth/{uuid}/{msg}` for the link-code consumption flow (separate from vetsmod auth — handles the Discord↔Minecraft account *link*, not the vetsmod *unlock*).
-- `../vets-anni` — Annihilation-event app at `anni.wynnvets.org` (FastAPI web board + **fishbot**). Owns RSVP, party/role assignment and the MWE snapshots temporary-server polls and pushes to vetsmod over the `anni_*` frames; today vetsmod gets them only by pulling (`anni_query`), since the `anni_state` push never reaches it (bug `outbound-socket-never-authenticated`). See [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md).
+- `../vets-anni` — Annihilation-event app at `anni.wynnvets.org` (FastAPI web board + **fishbot**). Owns RSVP, party/role assignment and the MWE snapshots temporary-server polls and pushes to vetsmod over the `anni_*` frames; vetsmod pulls them (`anni_query`) and also receives the `anni_state` push once its outbound socket is authenticated, which it is only for a confirmed member tier ([vetsmod_networking.md](vetsmod_networking.md) §1). See [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md).
 - `../vets-deploy` — Docker stack definitions + ops docs for the VPS at `timasca.wynnvets.org`. Where the five above actually run.
 - `../Wynntils` — Read-only reference copy of the Wynntils mod source. Do not edit.
 
@@ -51,7 +51,8 @@ VetsmodClient (entry point)
   ├── VetsConfig              JSON config at vetsmod/storage/config.json
   ├── ItemDefinitions         YAML regex patterns (src/client/resources/definitions.yml)
   ├── GuildStateManager       Guild/staff/unlock status; facade over GuildChecker, StaffRankChecker, UnlockManager
-  ├── GuildLifecycle          World join, guild updates, disconnect reset; drives SessionAuthWarning, WorldJoinAnnouncer
+  ├── GuildLifecycle          World join, guild updates, disconnect reset; drives SessionAuthWarning, WorldJoinAnnouncer,
+  │                           and ReturnersReauth (re-sends the auth frame on a mid-session Returners join)
   ├── V1ApiManager            Dual WebSocket (inbound + outbound) to api.wynnvets.org
   │                           Sends `auth` frame after inbound connect using the stored /unlock key
   ├── OutboundDisplayHandler  Receives WS messages, deduplicates, displays in chat
@@ -65,13 +66,14 @@ VetsmodClient (entry point)
   ├── CommandRegistry         /wv command tree
   ├── items/                  ItemDefinitions plus LegacyItemHandler, LegacyTooltipRenderer,
   │                           NewFormatRenderer, LegacyEnchantmentRenderer, LegacyScreenshotHandler,
+  │                           ScreenshotLatch (its pure press latch),
   │                           LegacyHighlightPainter (the slot highlight both draw sites call)
   ├── mwe/anni/               MWE/annihilation subsystem — snapshot cache, boss bar, outlines,
   │                           zone lines, waypoint, RSVP
   ├── distribute/             /wv distribute — Guild Management GUI automation: sends
   │                           `/guild manage`, walks Manage Members / Guild Log, presses
   │                           the send slot. Visible to staff, executable by chief+
-  │                           (16 files, 5 sub-packages)
+  │                           (17 files, 5 sub-packages)
   ├── rendering/              Territory lines, nametag animator, gradient/colour helpers
   ├── datamodels/             Guild, User, UserUUID, MembershipSnapshot DTOs
   ├── debug/                  /wv debug tree, DebugConfigManager, diagnostics, dumps;
@@ -85,13 +87,13 @@ VetsmodClient (entry point)
 
 ## WebSocket protocol
 
-Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `auth` frame re-sent on each inbound reconnect. The outbound socket sends neither, ever, so the server never authenticates it: `staff_online`/`staff_offline`, `anni_state` and the targeted `warning` frame never reach vetsmod, and relayed chat arrives without the server's tier filter while its `unauth` toggle is on (bug `outbound-socket-never-authenticated`; [vetsmod_networking.md](vetsmod_networking.md) §1).
+Both connections open only on a Wynncraft join ([vetsmod_networking.md](vetsmod_networking.md) §6), and auto-reconnect (3s) with 30s pings. Registration frame *and* `auth` frame re-sent on each inbound reconnect. The outbound socket sends no `register` frame, and sends its own `auth` frame only once the inbound ack has confirmed a member tier and the outbound `server_info` carried `chat_tiers: "all"`; `staff_online`/`staff_offline`, `anni_state` and the targeted `warning` frame reach only such an authenticated socket, so a player with no key, or tier `other`, receives none of them and gets relayed chat only while the server's `unauth` toggle is on ([vetsmod_networking.md](vetsmod_networking.md) §1).
 
 - **Inbound** `wss://api.wynnvets.org/v1/inbound` — client sends messages; the server's replies come back on it
 - **Outbound** `wss://api.wynnvets.org/v1/outbound` — server pushes: relayed chat to every client (to an unauthenticated one only while `unauth` is on), the `server_info` hello to every socket on connect, and the rest only to authenticated sockets
 
 **Control frames** (sent by client) — the four below are the presence/identity set; `/v1/inbound` accepts fourteen in all, adding `rank_change`, the five staff-action frames and the four MWE anni frames. Full inventory in [server_api_reference.md](server_api_reference.md).
-- `register` — presence (uuid, username, tier)
+- `register` — presence (uuid, username, tier, and `exact_text: true` from clients that send exact chat text)
 - `tablist` — guild tab snapshot for `!list`
 - `queue_status` — `{queued, world}`: the sender entering (`true`) or leaving (`false`) a Wynncraft world queue (presence side-channel; orthogonal to the `queue` chat type)
 - `auth` — `{type:"auth", key:"<43-char base64url>"}` proves identity. Server replies `{status:"ok", tier, ws_tier, ...}` or `{status:"error", detail:"auth rejected: ..."}`.
@@ -101,13 +103,13 @@ Both connections auto-reconnect (3s) with 30s pings. Registration frame *and* `a
 
 **Chat message fields:** `uuid`, `type` (`guild`|`queue`|`waitlist`|`honourary`|`bridge`), `timestamp`, `rank`, `username`, `message`. `queue` carries guild chat originated by a sender stuck in a world queue (the game server drops `/g` while queued); semantically a guild message but routed via the WS so it still reaches the rest of the guild. Inbound dedup is skipped for `queue` since only the queued sender originates it.
 
-**Tier gating:** when authenticated, the mod can only send/receive chat types its tier permits — `guild`-tier covers `guild`+`queue`, `waitlist`/`honourary` cover only their own type. `bridge` is visible to every authenticated tier. Unauthenticated sessions get unrestricted access *only* while the server's `unauth` toggle is enabled (see `../../temporary-server/v1_protocol.md` §3). Today only the send half applies to vetsmod: temporary-server filters what a socket receives by that socket's own `auth`, and vetsmod never authenticates its outbound socket, so it receives every chat type while `unauth` is on and none with it off (bug `outbound-socket-never-authenticated`).
+**Tier gating:** when authenticated, the mod can only *send* the chat types its tier permits — `guild`-tier sends `guild`+`queue`, `waitlist`/`honourary` only their own type. On the receive side every authenticated member tier receives `guild`, `queue`, `waitlist`, `honourary` and `bridge`, and an authenticated tier `other` receives nothing (bridge included). Unauthenticated sessions get unrestricted access *only* while the server's `unauth` toggle is enabled (see `../../temporary-server/v1_protocol.md` §3). temporary-server filters what a socket receives by that socket's own `auth`: vetsmod authenticates its outbound socket for a confirmed member tier against a server advertising `chat_tiers: "all"` (which gives every member tier every chat type, temporary-server `eacb4da`), so such a viewer receives every chat type, while a player with no key, or tier `other`, stays unauthenticated and receives chat only while `unauth` is on.
 
 ### API boundary — vetsmod talks to temporary-server, NOT to dazebot
 
 vetsmod MUST NOT call dazebot directly. All vets-backend interactions go through **temporary-server** at `https://api.wynnvets.org` or the WebSockets `wss://api.wynnvets.org/v1/{inbound,outbound}`. dazebot's `/api/internal/*` endpoints are network-gated to the private `verify` Docker network and would reject a vetsmod client anyway; on top of that, vetsmod `/unlock` keys are per-user bearer tokens, not credentials for hitting dazebot's internal control plane.
 
-When designing a new vetsmod feature that needs data from dazebot, route it through a temporary-server WS frame (`V1ApiManager.sendStaffActionFrame`, `sendInbound`, etc.) — the existing `check_membership` staff-action frame is the canonical pattern (vetsmod → `wss://api.wynnvets.org/v1/inbound` → temporary-server forwards to dazebot's `/api/internal/check-snapshot` → ack flows back through the same WebSocket).
+When designing a new vetsmod feature that needs data from dazebot, route it through a temporary-server WS frame (`V1ApiManager.sendStaffActionFrame`, `sendInbound`, etc.) — the existing `check_membership` staff-action frame (the full snapshot for confirmed staff, an invite verdict for a non-staff Returners member) is the canonical pattern (vetsmod → `wss://api.wynnvets.org/v1/inbound` → temporary-server forwards to dazebot's `/api/internal/check-snapshot` → ack flows back through the same WebSocket).
 
 In vetsmod-side docs, name the **immediate counterparty** (temporary-server / `api.wynnvets.org`), not the eventual upstream (dazebot). Calling the upstream by name in vetsmod-side docs invites the wrong mental model and the wrong implementation.
 
@@ -115,7 +117,7 @@ Allowed-from-vetsmod surface: anything fronted by `api.wynnvets.org` or `wss://a
 
 ## User tiers (brief)
 
-`member` / `waitlist` / `honourary` / `other`. Tier is **resolved server-side** from Discord roles + linked MC account; the mod gets it back in the `auth` frame ack and uses it for the client-side unlock predicates (`GuildStateManager.isUnlocked` and the waitlist/honourary checks that route chat and gate commands) as well as display and warning copy; the server's own tier gate decides what the session may send. Staff status is orthogonal to tier and comes from two signals: `GuildStateManager.isStaff()` — Captain+ by an in-game `/gu rank` probe, in whatever guild last answered it, cached 24 h (a cached `true` may outlive leaving the guild: bug `staff-rank-cache-survives-leaving-guild`), a client-side UX gate — and `isConfirmedStaff()`, the server's `is_staff` on the auth ack, which the server does not grant to captains since the 2026-07 restructure and which is the signal that gates `/caution`, `/warn` and `/eject`.
+`member` / `waitlist` / `honourary` / `other`. Tier is **resolved server-side** from Discord roles + linked MC account; the mod gets it back in the `auth` frame ack and uses it for the client-side unlock predicates (`GuildStateManager.isUnlocked` and the waitlist/honourary checks that route chat and gate commands) as well as display and warning copy; the server's own tier gate decides what the session may send. Staff status is orthogonal to tier and comes from two signals: `GuildStateManager.isStaff()` — Captain+ by an in-game `/gu rank` probe, in whatever guild last answered it, cached 24 h (a cached `true` is cleared on a guild-left event or a guildless guild check but is not tracked per guild, so `/wv list world` also requires `isReturners()`), a client-side UX gate — and `isConfirmedStaff()`, the server's `is_staff` on the auth ack, which the server does not grant to captains since the 2026-07 restructure and which is the signal that gates `/caution`, `/warn` and `/eject`.
 
 Auth detail (the `/unlock <key>` flow, key persistence, ack routing, `SessionAuthWarning`) is in [vetsmod_guild_system.md](vetsmod_guild_system.md). Wire-level tier gating is in [vetsmod_networking.md §8](vetsmod_networking.md).
 
@@ -130,13 +132,14 @@ ChatMessageEvent.Match                     // chat interception (.Edit is unused
 WorldStateEvent                            // world join trigger
 StyledText, ComponentUtils, McUtils
 McUtils.mc() / .player() / .screen()       // client access; see project_wynntils.md, McUtils
+Managers.Connection.getConnectionState()   // on Wynncraft? gates the v1 sockets and GuildChatDispatcher's prefix intercept, not UnlockCommandMixin's /unlock (ServerConnectionListener.onWynncraft)
 ```
 
 ## Config keys
 
-**User-facing (via `/wv config`):** 30 keys. `VetsConfigSchema.USER_CONFIG_KEYS` order — which is also the order `/wv config` prints them in; tab-completion is alphabetical — is: the eight `legacyItem*` keys (highlighting, enchantment naming, gradient colours/opacity, sprite), `printMOTD`, `printANNI`, the 14 `vetsAnni*` keys, `printBridgeMessages`, `printSuccessfulAuth`, `showSupporterGlints`, `colorBlindMode`, `handleSpoilers`, `moreReliableGuildCheck`. Full table in [vetsmod_config.md](vetsmod_config.md).
+**User-facing (via `/wv config`):** 29 keys. `VetsConfigSchema.USER_CONFIG_KEYS` order — which is also the order `/wv config` prints them in; tab-completion is alphabetical — is: the eight `legacyItem*` keys (highlighting, enchantment naming, gradient colours/opacity, sprite), `printMOTD`, `printANNI`, the 13 `vetsAnni*` keys, `printBridgeMessages`, `printSuccessfulAuth`, `showSupporterGlints`, `colorBlindMode`, `handleSpoilers`, `moreReliableGuildCheck`. Full table in [vetsmod_config.md](vetsmod_config.md). The first-run defaults live in `VetsConfigDefaults`; the build also writes them to the jar's `config.yml` (SnakeYAML, bundled), whose one reader is `/wv config <key> default`.
 
-**Internal — vetsmod auth state:** `vetsAuthKey` (string), `vetsAuthTier` (string), `vetsAuthVerifiedAt` (long). Old `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` longs are meant to survive only as a "legacy unlock marker" for the session-start warning; today they also still unlock client-side (bug `legacy-unlock-markers-still-grant-client-unlock`).
+**Internal — vetsmod auth state:** `vetsAuthKey` (string), `vetsAuthTier` (string), `vetsAuthVerifiedAt` (long). The old system's `vetsWaitlistUnlockTime` / `vetsHonouraryUnlockTime` markers are gone; an old `config.json`'s copies are ignored and dropped at the next save.
 
 ## Chat pipeline
 
@@ -150,13 +153,13 @@ Rank pills are invisible PUA sequences, not images. A codepoint's meaning is **f
 
 ## Guild resource distribution
 
-`/wv distribute <name|@selector> <aspects|tomes|emeralds> <count>` automates the Wynncraft Guild Management GUI: from its entry point [`DistributeCommands`](../src/client/java/org/wynnvets/distribute/DistributeCommands.java), the package sends `/guild manage`, navigates to Manage Members or Guild Log, paginates to a player's tile and synthesises the hotbar presses that hand over the resource. Visible to staff (`isStaffOfAnyGuild`), executable by chief+ (`isChiefOfAnyGuild`). Four `@`-selectors — `@random`, `@objectives`, `@graids`, `@split` — pick the recipient set; a `NoAspects` opt-out list filters all of them and refuses a literal-name send to an opted-out member — today for every resource, though it is meant to gate aspects only.
+`/wv distribute <name|@selector> <aspects|tomes|emeralds> <count>` automates the Wynncraft Guild Management GUI: from its entry point [`DistributeCommands`](../src/client/java/org/wynnvets/distribute/DistributeCommands.java), the package sends `/guild manage`, navigates to Manage Members or Guild Log, paginates to a player's tile and synthesises the hotbar presses that hand over the resource. Visible to staff (`isStaffOfAnyGuild`), executable by chief+ (`isChiefOfAnyGuild`). Four `@`-selectors — `@random`, `@objectives`, `@graids`, `@split` — pick the recipient set; on an aspects run a `NoAspects` opt-out list filters all of them and refuses a literal-name send to an opted-out member; tomes and emeralds runs never read it.
 
 **Don't retune the tick constants or reroute the menu navigation from the code alone.** Each was chosen against observed server behaviour — `/guild log` being dropped after a menu close, the Members menu refreshing after every send (the presser accepts either a new-container-id reopen or a same-id in-place refresh as proof it landed), a page's `SetSlot` packets crossing a tick boundary, the guild log capping at ~100 entries — and the failure mode when one is wrong is silent. The behaviour-to-code-shape record is [vetsmod_distribute.md §6](vetsmod_distribute.md).
 
 ## Item definitions
 
-`src/client/resources/definitions.yml` — 9 categories: `definitions`, `no_lore_legacy`, `misc_definitions`, `unenchanted`, `not_pedestal`, `notjunk`, `new_format_override`, `blocked_screen_titles` (all compiled to regex) plus `enchant_excluded_items`, which is a literal-string set of Minecraft item IDs matched by exact equality. Edit this file to add/change item patterns without touching Java.
+`src/client/resources/definitions.yml` — 10 sections: `definitions`, `misc_definitions`, `no_lore_legacy`, `new_format_override`, `unenchanted`, `notjunk`, `not_pedestal`, `blocked_screen_titles`, `inventory_suppressors` (all compiled to regex) plus `enchant_excluded_items`, which is a literal-string set of Minecraft item IDs matched by exact equality. Edit this file to add/change item patterns without touching Java; its header comment describes the format and each section. It is standard YAML, read with SnakeYAML: put a pattern that holds a regex backslash in single quotes, because inside double quotes only YAML's own escapes are legal (the build's tests load the real file, so a bad escape fails them).
 
 ## Building
 
@@ -189,6 +192,7 @@ Consequences worth knowing before you edit:
 - **No import exists only for a Javadoc `{@link}`.** The next rule is why: a cross-package reference is written fully qualified, so an IDE "optimize imports" strips nothing a Javadoc needs. An import that only a `{@link}` uses is a defect to convert: an optimizer that does not read Javadoc strips it, and the reference gate then fails the build.
 - **Cross-package Javadoc references are fully qualified with a label** — `{@link org.wynnvets.p.Foo Foo}` — rather than resolved by adding an import. A doc-only import would assert a dependency edge that no code has. Renders identically.
 - **Moving or renaming a class breaks every Javadoc reference to it, loudly.** Fix the references as part of the move; there is no sweep afterwards.
+- **Every case fold passes `Locale.ROOT`.** A unit test, `LocaleFoldTripwireTest`, fails the build on a bare `toLowerCase()` or `toUpperCase()` anywhere under `src/main/java` or `src/client/java`, comments included. Under a Turkish or Azeri default locale the bare fold turns `I` into a dotless `ı` and `i` into a dotted `İ`.
 - **Changing `org.gradle.jvmargs` needs `./gradlew --stop`** or you are testing the old daemon's flags.
 - **`git blame` over the reformat.** `.git-blame-ignore-revs` holds the reformat commit, but git only honours it once per clone: `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 
@@ -198,7 +202,7 @@ Reliability ladder: `ashcon < wynncraft < playerdb < mojang`.
 
 | Provider | Accuracy | Rate limit |
 |---|---|---|
-| ashcon | low (frequently stale) | very permissive |
+| ashcon | low (frequently stale; answered 429 to every name, real or not, on 2026-10-25) | very permissive |
 | PlayerDB | medium | medium-permissive (not unlimited) |
 | Wynncraft `/v3/player` | only authoritative for Wynncraft-internal state | shared with the user's other traffic |
 | Mojang | source of truth | very restrictive |
@@ -206,5 +210,7 @@ Reliability ladder: `ashcon < wynncraft < playerdb < mojang`.
 **This repo is client-side.** The Mojang rate-limit bucket is shared with whatever else the user has installed (Wynntils, other mods), so the remaining budget is unpredictable. Be conservative — try permissive sources first.
 
 Implementation: [`org.wynnvets.fetcher.lookup.PlayerLookup`](../src/client/java/org/wynnvets/fetcher/lookup/PlayerLookup.java) already does this. Its cascade is `WynncraftProvider → VetsSnapshotProvider → PlayerDbProvider → AshconProvider → MojangServicesProvider → MojangLegacyProvider`, with Mojang as the last resort. Preserve that ordering; do **not** promote Mojang earlier without a strong reason.
+
+The cascade's support types live beside it: `LookupProvider` (one source in the cascade, and whether its definite miss is `authoritative()`: true only for Mojang's two providers), `ProviderOutcome` (a provider's hit, definite miss, abstain or transient miss; an abstention, such as `VetsSnapshotProvider` when it cannot be asked or has no snapshot, says nothing about the name), `LookupResult` (the cascade's outcome: the UUID plus any profile or snapshot the winning provider already fetched, or a `FailureReason`), `FailureReason` (`PLAYER_NOT_FOUND` when a Mojang provider said no such player, which ends the cascade whatever the earlier providers answered, or when at least one provider said so and none could not answer; `ALL_PROVIDERS_TRANSIENT` otherwise: at least one could not answer, or every provider abstained) and `MojangCooldown` (the client-wide back-off for the legacy Mojang host after a 429, which `MojangLegacyProvider` honours by skipping itself).
 
 When a permissive provider returns a player record, treat its `username` field as potentially stale (we've observed PlayerDB and ashcon both returning old names long after Mojang has the rename live). If you need to write a name to a long-lived cache, confirm against Mojang first; if that fails, skip the cache write rather than persisting a known-stale value.

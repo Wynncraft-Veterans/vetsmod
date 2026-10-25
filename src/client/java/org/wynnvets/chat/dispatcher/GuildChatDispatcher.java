@@ -1,5 +1,6 @@
 package org.wynnvets.chat.dispatcher;
 
+import com.google.gson.JsonObject;
 import com.wynntils.core.components.Models;
 import com.wynntils.models.guild.type.GuildRank;
 import com.wynntils.utils.mc.McUtils;
@@ -7,8 +8,10 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.api.V1ApiManager;
+import org.wynnvets.chat.BannedChars;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.chat.OutboundDisplayHandler;
+import org.wynnvets.chat.RankDisplayMap;
 import org.wynnvets.chat.spoiler.SpoilerCodec;
 import org.wynnvets.commands.CautionCommands;
 import org.wynnvets.commands.InviteGate;
@@ -17,8 +20,10 @@ import org.wynnvets.config.VetsConfigKeys;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.listeners.ServerConnectionListener;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.queue.QueueStateManager;
+import org.wynnvets.util.Json;
 
 /**
  * Handles outbound chat-command interception for guild chat ({@code /g}),
@@ -26,7 +31,8 @@ import org.wynnvets.queue.QueueStateManager;
  * ({@code /a}), and the encourage command ({@code /encourage}).
  *
  * <p><b>Not exhaustive</b> — {@link #intercept} matches twelve prefixes; read
- * it for the full list. {@code /msg} is not one of them.</p>
+ * it for the full list. {@code /msg} is not one of them. All of them are
+ * intercepted only on Wynncraft.</p>
  *
  * <p>Called from {@link org.wynnvets.mixin.client.chat.GuildChatCommandMixin}
  * to keep mixin code minimal. Each handler returns {@code true} when the
@@ -71,22 +77,27 @@ public final class GuildChatDispatcher {
     }
 
     /**
-     * Attempts to intercept an outbound chat command.
+     * Attempts to intercept an outbound chat command. Off Wynncraft (by
+     * {@link org.wynnvets.listeners.ServerConnectionListener#onWynncraft()
+     * ServerConnectionListener#onWynncraft()}) every command passes
+     * through to the server, so the prefixes keep their meaning there.
      *
      * @param command the command string (without leading {@code /})
      * @return {@code true} if the command was handled and should be cancelled;
      *         {@code false} to let it pass through to the server
      */
     public static boolean intercept(String command) {
-        if (BYPASS.get()) return false;
-        // /g: handler already falls through to vanilla for non-vets users
+        // Off Wynncraft (another server, singleplayer) these prefixes belong to that server,
+        // so nothing is intercepted.
+        if (BYPASS.get() || !ServerConnectionListener.onWynncraft()) return false;
+        // /g: on Wynncraft, the handler falls through to vanilla for non-vets users
         // via its internal isReturners / isWaitlistUnlocked / queue checks.
         if (command.regionMatches(true, 0, "g ", 0, 2)) {
             return handleGuildChat(command.substring(2));
         }
 
-        // Past /g, vetsmod stays out of the way for users who aren't part
-        // of the vets community at all -- Wynncraft handles these commands
+        // Past /g, vetsmod stays out of the way on Wynncraft for users who aren't
+        // part of the vets community at all -- Wynncraft handles these commands
         // as if the mod weren't installed.
         if (!GuildStateManager.isUnlocked()) {
             return false;
@@ -99,30 +110,31 @@ public final class GuildChatDispatcher {
         // /v, /a and /encourage are gated on the local rank cache: passthrough
         // silently when it doesn't show staff, opportunistically refreshing
         // so the next attempt has a chance to succeed.
-        if (command.regionMatches(true, 0, "v ", 0, 2)) {
+        // The staff commands below match their bare word too (argsAfter): typed
+        // chat arrives trimmed, so a bare /v must reach its handler's usage line.
+        String args;
+        if ((args = argsAfter(command, "v")) != null) {
             if (!staffOrRefresh()) return false;
-            return handleStaffChat(command.substring(2).trim());
+            return handleStaffChat(args.trim());
         }
-        if (command.regionMatches(true, 0, "a ", 0, 2)) {
+        if ((args = argsAfter(command, "a")) != null) {
             if (!staffOrRefresh()) return false;
-            return handleAnnounce(command.substring(2).trim());
+            return handleAnnounce(args.trim());
         }
-        if (command.regionMatches(true, 0, "encourage ", 0, 10)) {
+        if ((args = argsAfter(command, "encourage")) != null) {
             if (!staffOrRefresh()) return false;
-            return handleEncourage(command.substring(10).trim());
+            return handleEncourage(args.trim());
         }
         // The chat-path /wv check is gated on isConfirmedStaff() instead, and
         // refuses with a message rather than passing through.
-        if (command.regionMatches(true, 0, "wv check ", 0, 9)) {
+        if ((args = argsAfter(command, "wv check")) != null) {
             if (!GuildStateManager.isConfirmedStaff()) {
                 ChatUtils.sendLocalMessage(
-                        Component.literal(
-                                        "You must be confirmed staff (vetsmod authenticated) "
-                                                + "to use /wv check.")
+                        Component.literal("/wv check is restricted to authenticated stewards.")
                                 .withStyle(ChatFormatting.RED));
                 return true;
             }
-            return handleWvCheck(command.substring(9).trim());
+            return handleWvCheck(args.trim());
         }
 
         // /gu invite + /guild invite gate. Only Returners members can
@@ -151,35 +163,54 @@ public final class GuildChatDispatcher {
         // Caution / warning / eject system. The /caution path runs a
         // server-side preflight that may reply "would_trigger" with a
         // clickable confirm prompt rendered by CautionCommands; the
-        // /caution-go path skips the preflight (used by the click
-        // handler) and is also the manual-bypass entry point.
+        // /caution-go path skips the preflight (the prompt's buttons fill the
+        // chat box with it and staff press Enter, since a click would skip this
+        // intercept) and is also the manual-bypass entry point.
         //
         // These can dispatch real /gu kick / /gu rank commands (when a commit's
         // ack reports an eject), so they can't trust the local rank cache -- the
         // WS-auth-derived
         // isConfirmedStaff() is the only signal that gates them.
         // Passthrough silently when not confirmed staff.
-        if (command.regionMatches(true, 0, "caution-go ", 0, 11)) {
+        if ((args = argsAfter(command, "caution-go")) != null) {
             if (!GuildStateManager.isConfirmedStaff()) return false;
-            CautionCommands.runCautionGo(command.substring(11));
+            CautionCommands.runCautionGo(args);
             return true;
         }
-        if (command.regionMatches(true, 0, "caution ", 0, 8)) {
+        if ((args = argsAfter(command, "caution")) != null) {
             if (!GuildStateManager.isConfirmedStaff()) return false;
-            CautionCommands.runCaution(command.substring(8));
+            CautionCommands.runCaution(args);
             return true;
         }
-        if (command.regionMatches(true, 0, "warn ", 0, 5)) {
+        if ((args = argsAfter(command, "warn")) != null) {
             if (!GuildStateManager.isConfirmedStaff()) return false;
-            CautionCommands.runWarn(command.substring(5));
+            CautionCommands.runWarn(args);
             return true;
         }
-        if (command.regionMatches(true, 0, "eject ", 0, 6)) {
+        if ((args = argsAfter(command, "eject")) != null) {
             if (!GuildStateManager.isConfirmedStaff()) return false;
-            CautionCommands.runEject(command.substring(6));
+            CautionCommands.runEject(args);
             return true;
         }
         return false;
+    }
+
+    /**
+     * The arguments after {@code word} in a typed command, ignoring case: {@code ""} when the
+     * command is the bare word, the rest after {@code word + " "}, or {@code null} when it is
+     * some other command. {@code "caution-go x"} is therefore not {@code "caution"}, and
+     * {@code "vote"} is not {@code "v"}.
+     */
+    // Package-private for unit tests. See GuildChatDispatcherTest.
+    static String argsAfter(String command, String word) {
+        if (command.equalsIgnoreCase(word)) return "";
+        int n = word.length();
+        if (command.length() > n
+                && command.charAt(n) == ' '
+                && command.regionMatches(true, 0, word, 0, n)) {
+            return command.substring(n + 1);
+        }
+        return null;
     }
 
     private static boolean staffOrRefresh() {
@@ -203,10 +234,13 @@ public final class GuildChatDispatcher {
 
     /**
      * Handles {@code /g <message>}. Waitlist users, and Returners sitting in a
-     * world queue, are relayed over the WebSocket; any other Returner's line goes
+     * world queue, are relayed over the WebSocket, or refused in red while it is
+     * down ({@link #relayConnected()}) or, for a queued Returner, while the guild
+     * rank is unknown; any other Returner's line goes
      * to the game server (refused if encoding its spoilers would pass 253
      * characters). Unless spoiler handling is off, spoiler markers are encoded on
-     * all three paths.
+     * all three paths. The two relays also strip the banned characters
+     * ({@link #relayText(String)}).
      *
      * @return {@code true} to cancel the original command
      */
@@ -266,7 +300,10 @@ public final class GuildChatDispatcher {
             relayHonouraryChat(outMessage);
         } else {
             ChatUtils.sendLocalMessage(
-                    Component.literal("You must unlock with an honourary password to use /wg.")
+                    Component.literal(
+                                    "This feature is restricted to honourary users. If you think you"
+                                            + " should have /wg, follow ~vetsmod in #bot-commands"
+                                            + " to fix your perms.")
                             .withStyle(ChatFormatting.RED));
         }
         return true;
@@ -328,7 +365,7 @@ public final class GuildChatDispatcher {
         DispatchCoordinator.executeWithStaffEligibilityGate(
                 () ->
                         sendCommandBypassed(
-                                "g \u26A0\u26A0\u26A0 If you are using vetsmod, it's outdated (current version "
+                                "g \u26A0\u26A0\u26A0 If you had vetsmod, you would see a rainbow! For more info, use ~vetsmod in #bot-commands on vetscord. (v"
                                         + version
                                         + ") \u26A0\u26A0\u26A0"));
         return true;
@@ -355,14 +392,116 @@ public final class GuildChatDispatcher {
 
     // ── Shared helpers ──────────────────────────────────────────────────
 
+    /**
+     * Strips {@link org.wynnvets.chat.BannedChars BannedChars}' hard and soft sets from a relay's
+     * typed text. A relay line skips Wynncraft's chat filter, and its local echo skips the
+     * server's too, so vetsmod is the only filter the echo has. Unless spoiler handling is off,
+     * the text arrives already spoiler-encoded: this strips the plain parts, and
+     * {@code SpoilerCodec} strips spoiler content as it encodes, so keep this after
+     * {@code encodeSpoilers}. With spoiler handling off, the raw text, spoilers included, is
+     * stripped here whole. Never applied to the rank, whose pill legitimately uses soft-set
+     * glyphs.
+     *
+     * @return the text to relay, or {@code null} when nothing but whitespace is left, in which
+     *     case the relay sends and echoes nothing
+     */
+    private static String relayText(String message) {
+        String text = BannedChars.stripAll(message);
+        if (text.isBlank()) {
+            VetsLogger.debug("Dropped a relay line left blank by the banned-character strip");
+            return null;
+        }
+        return text;
+    }
+
+    /**
+     * Refuses a relay while the inbound socket is down, with a red line saying the message was not
+     * sent. {@link org.wynnvets.api.V1ApiManager#sendInbound V1ApiManager#sendInbound} drops a
+     * frame silently then, so without this check the local echo would show a line nobody
+     * received. The check is of the socket only. The queue relay also refuses while the guild rank
+     * is unknown. A frame the server refuses after the echo (for the sender's tier, say) is
+     * followed by a red "Not delivered" line ({@link #onRelayAck}), against a server that echoes
+     * request ids.
+     *
+     * @return {@code true} when the relay may go ahead
+     */
+    private static boolean relayConnected() {
+        if (V1ApiManager.isInboundConnected()) return true;
+        ChatUtils.sendLocalMessage(
+                Component.literal(
+                                "Not sent: vetsmod is not connected to the vets API right now."
+                                        + " Try again in a few seconds.")
+                        .withStyle(ChatFormatting.RED));
+        return false;
+    }
+
     private static void relayWaitlistChat(String message) {
         Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
+        if (!relayConnected()) return;
+        String text = relayText(message);
+        if (text == null) return;
 
         String username = resolveUsername(minecraft);
-        OutboundDisplayHandler.queuePendingSelfMessage(username, message);
-        ChatUtils.sendGuildChatMessage(GUILDLESS_SELF_RANK, username, message);
-        V1ApiManager.sendInbound("waitlist", "Waitlist", username, message);
+        OutboundDisplayHandler.queuePendingSelfMessage(username, text);
+        ChatUtils.sendGuildChatMessage(GUILDLESS_SELF_RANK, username, text);
+        V1ApiManager.sendInbound(
+                "waitlist", "Waitlist", username, text, ack -> onRelayAck(username, text, ack));
+    }
+
+    /**
+     * Reports a refused relay: the line was echoed at once, so a server refusal is followed by a
+     * red line, and the queued self-message is dropped so it cannot swallow a later identical
+     * line. Silent on ok and on an outcome-unknown ack (a lost socket or no reply: the line may
+     * well have been delivered). Runs on whichever thread answered the ack, so it hops to the
+     * client thread.
+     */
+    private static void onRelayAck(String username, String text, JsonObject ack) {
+        String refusal = relayRefusalLine(ack);
+        if (refusal == null) return;
+        VetsLogger.debug("Relay refused by the server: {}", ack);
+        McUtils.mc()
+                .execute(
+                        () -> {
+                            OutboundDisplayHandler.dropPendingSelfMessage(username, text);
+                            ChatUtils.sendLocalMessage(
+                                    Component.literal(refusal).withStyle(ChatFormatting.RED));
+                        });
+    }
+
+    /**
+     * The red line for a relay's ack: {@code Not delivered (<reason>)} for a refusal, or
+     * {@code null} for an ok ack or one whose outcome is unknown. The reason names the known
+     * server and client details briefly; any other detail is shown as sent, without a trailing
+     * period and cut to 80 characters.
+     */
+    // Package-private for unit tests. See GuildChatDispatcherTest.
+    static String relayRefusalLine(JsonObject ack) {
+        if ("ok".equals(Json.optString(ack, "status", "error"))
+                || Json.optString(ack, "outcome_unknown", null) != null) {
+            return null;
+        }
+        return "Not delivered (" + refusalReason(Json.optString(ack, "detail", "")) + ")";
+    }
+
+    private static final int REFUSAL_DETAIL_MAX = 80;
+
+    private static String refusalReason(String detail) {
+        if (detail.equals("Inbound processing is disabled")) return "relay paused";
+        if (detail.startsWith("Authentication required") || detail.startsWith("auth rejected")) {
+            return "not authenticated";
+        }
+        if (detail.startsWith("Your tier (")) return "not allowed for your tier";
+        if (detail.equals("Server busy")) return "server busy";
+        if (detail.equals("Connection closed before reply.")
+                || detail.equals("Inbound WebSocket not connected.")) {
+            return "connection closed";
+        }
+        String reason = detail.endsWith(".") ? detail.substring(0, detail.length() - 1) : detail;
+        if (reason.isBlank()) return "refused";
+        return reason.length() > REFUSAL_DETAIL_MAX
+                ? reason.substring(0, REFUSAL_DETAIL_MAX - 1) + "\u2026"
+                : reason;
     }
 
     /**
@@ -370,7 +509,10 @@ public final class GuildChatDispatcher {
      * client is sitting in a world queue.  The Wynncraft game server ignores
      * {@code /g} commands in this state, so the message never touches the
      * guild chat channel — we instead mimic the game-server delivery locally
-     * and push the message via the v1 inbound WebSocket.
+     * and push the message via the v1 inbound WebSocket, only while that
+     * socket is up ({@link #relayConnected()}) and the player's guild rank is
+     * known: temporary-server rejects a {@code queue} frame without one, so an
+     * unknown rank gets a red "Not sent" line and no echo.
      *
      * <p>The message is sent with {@code type="queue"}, a distinct protocol
      * type that semantically equals a guild message but skips the
@@ -380,12 +522,13 @@ public final class GuildChatDispatcher {
      * wherever they render relayed guild chat at all (see
      * {@link OutboundDisplayHandler}'s display gates). Per
      * temporary-server's outbound tier filter ({@code app/chat/outbound.py};
-     * v1_protocol.md §2.4 agrees) an authenticated waitlist or honourary socket
-     * would get no queue frames; today, because vetsmod never authenticates its
-     * outbound socket ({@code outbound-socket-never-authenticated}), that gate
-     * does not apply: while the server's {@code unauth} toggle is on, a waitlist
-     * or honourary viewer receives and renders them too (with it off, no chat
-     * arrives).</p>
+     * v1_protocol.md §2.4 agrees) a server before {@code chat_tiers: "all"} would
+     * withhold queue frames from an authenticated waitlist or honourary socket.
+     * vetsmod authenticates the outbound socket only against a server that
+     * advertises {@code chat_tiers: "all"}, which gives every member tier every chat
+     * type, so a waitlist or honourary viewer receives and renders them too. A viewer
+     * with no key, or tier {@code other}, is unauthenticated and receives chat only
+     * while the server's {@code unauth} toggle is on.</p>
      *
      * <p>Receivers:</p>
      * <ul>
@@ -404,19 +547,33 @@ public final class GuildChatDispatcher {
     private static void relayQueuedReturnersChat(String message) {
         Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
+        if (!relayConnected()) return;
+        String text = relayText(message);
+        if (text == null) return;
+
+        String rank = resolveReturnersRank();
+        if (rank.isEmpty()) {
+            ChatUtils.sendLocalMessage(
+                    Component.literal(
+                                    "Not sent: your guild rank isn't known yet."
+                                            + " Try again in a few seconds.")
+                            .withStyle(ChatFormatting.RED));
+            return;
+        }
 
         String username = resolveUsername(minecraft);
-        String rank = resolveReturnersRank();
-        OutboundDisplayHandler.queuePendingSelfMessage(username, message);
-        ChatUtils.sendGuildChatMessage(rank, username, message);
-        V1ApiManager.sendInbound("queue", rank, username, message);
+        OutboundDisplayHandler.queuePendingSelfMessage(username, text);
+        // The echo's pill shows the display label; the frame keeps the raw rank, which
+        // older clients whitelist and receivers remap (RankDisplayMap).
+        ChatUtils.sendGuildChatMessage(RankDisplayMap.displayFor(rank), username, text);
+        V1ApiManager.sendInbound(
+                "queue", rank, username, text, ack -> onRelayAck(username, text, ack));
     }
 
     /**
      * Resolves the local player's Wynncraft guild rank using the Wynntils
      * guild model.  Falls back to an empty string when the rank is not
-     * available, which {@link ChatUtils#sendGuildChatMessage(String, String, String)}
-     * handles gracefully (no pill rendered).
+     * available yet, on which {@link #relayQueuedReturnersChat} refuses.
      */
     private static String resolveReturnersRank() {
         GuildRank guildRank = Models.Guild.getGuildRank();
@@ -429,16 +586,23 @@ public final class GuildChatDispatcher {
     private static void relayHonouraryChat(String message) {
         Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
+        if (!relayConnected()) return;
+        String text = relayText(message);
+        if (text == null) return;
 
         String username = resolveUsername(minecraft);
-        OutboundDisplayHandler.queuePendingSelfMessage(username, message);
-        ChatUtils.sendHonouraryChatMessage(HONOURARY_SELF_RANK, username, message);
-        V1ApiManager.sendInbound("honourary", "Honourary", username, message);
+        OutboundDisplayHandler.queuePendingSelfMessage(username, text);
+        ChatUtils.sendHonouraryChatMessage(HONOURARY_SELF_RANK, username, text);
+        V1ApiManager.sendInbound(
+                "honourary", "Honourary", username, text, ack -> onRelayAck(username, text, ack));
     }
 
-    private static void dispatchStaffChat(String message) {
+    private static void dispatchStaffChat(String typed) {
         Minecraft minecraft = McUtils.mc();
         if (minecraft.player == null) return;
+        // The /v echo renders this text locally, so drop the hard set here too; the /msg
+        // payload and the echo then agree. DispatchCoordinator refuses a blank result.
+        String message = BannedChars.stripHard(typed);
 
         String username = resolveUsername(minecraft);
         // Captain was retired in the 2026-07 permission restructure; fall

@@ -10,8 +10,9 @@ import org.wynnvets.util.Json;
 /**
  * Renders a {@code "warning"} frame from the outbound WebSocket -- a server-pushed
  * formal-warning or eject notice routed only to the warned player's authenticated
- * outbound sockets (see v1_protocol.md §2.5). Today it never reaches vetsmod, which
- * does not authenticate that socket ({@code outbound-socket-never-authenticated}).
+ * outbound sockets (see v1_protocol.md §2.5). It reaches vetsmod once the outbound socket
+ * authenticates (a confirmed member tier against a server advertising
+ * {@code chat_tiers: "all"}); a player with no key, or tier {@code other}, never gets it.
  *
  * <p>Formerly {@code chat.rewriter.WarningRewriter}.</p>
  *
@@ -68,7 +69,7 @@ public final class WarningFrameRenderer {
                     .append(".");
         }
         if (isEject) {
-            tail.append(" You have been added to the dazebot blocklist.");
+            tail.append(" You have been added to the blocklist.");
         }
         line.append(Component.literal(tail.toString()).withStyle(ChatFormatting.GRAY));
 

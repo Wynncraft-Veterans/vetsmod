@@ -1,32 +1,25 @@
 package org.wynnvets.config;
 
-import java.util.Map;
-
 /**
  * What is known about the keys in {@link VetsConfigKeys} beyond their names: which ones the player
  * can set with {@code /wv config}, how that command types them, the valid values of the keys that
- * take a fixed set of names other than colours (colour names are {@link NamedColor}'s), and the
- * defaults its {@code reset} restores. {@link VetsConfig} holds the stored values and their
- * first-run defaults.
+ * take a fixed set of names other than colours (colour names are {@link NamedColor}'s).
+ * {@link VetsConfig} holds the stored values, {@link VetsConfigDefaults} their first-run defaults,
+ * and {@link ShippedConfig} the shipped copy of those that {@code /wv config <key> default}
+ * restores.
  */
 public final class VetsConfigSchema {
-    /** Valid values for {@link VetsConfigKeys#VETS_ANNI_MODE}. */
-    public static final String[] VALID_ANNI_MODES = {
-        "silent", "passive", "aggressive",
-    };
-
     /** Valid values for {@link VetsConfigKeys#VETS_ANNI_ROLE_STYLE}; the first is the
      *  default. Brigadier sorts suggestions alphabetically, so
-     *  tab-completion does not show this order. Today {@code /wv config}
-     *  suggests these values but refuses to set any of them
-     *  ({@code config-set-rejects-role-style-and-flash-intensity}). */
+     *  tab-completion does not show this order. {@code /wv config} sets
+     *  only these values, through {@link #fixedValuesOf}. */
     public static final String[] VALID_ROLE_STYLES = {
         "descriptive", "short", "formal",
     };
 
-    /** Valid values for {@link VetsConfigKeys#VETS_ANNI_FLASH_INTENSITY}. Today nothing in
-     *  the mod reads this array, and {@code /wv config} refuses to set any of these values
-     *  ({@code config-set-rejects-role-style-and-flash-intensity}). */
+    /** Valid values for {@link VetsConfigKeys#VETS_ANNI_FLASH_INTENSITY}; the default is
+     *  {@code normal}. {@code /wv config} sets only these values, through
+     *  {@link #fixedValuesOf}. */
     public static final String[] VALID_FLASH_INTENSITIES = {
         "subtle", "normal", "strong",
     };
@@ -47,7 +40,6 @@ public final class VetsConfigSchema {
         VetsConfigKeys.LEGACY_ITEM_FOREGROUND_COLOR,
         VetsConfigKeys.PRINT_MOTD,
         VetsConfigKeys.PRINT_ANNI,
-        VetsConfigKeys.VETS_ANNI_ENABLED,
         VetsConfigKeys.VETS_ANNI_SHOW_HOVER_DETAILS,
         VetsConfigKeys.VETS_ANNI_PROMPT_RSVP,
         VetsConfigKeys.VETS_ANNI_SHOW_PREDICTION,
@@ -73,33 +65,31 @@ public final class VetsConfigSchema {
      * Subset of user-facing keys that support tri-state values: {@code true},
      * {@code false}, or {@code null} (meaning "use default behaviour").
      */
-    public static final String[] TRISTATE_KEYS = {
+    static final String[] TRISTATE_KEYS = {
         VetsConfigKeys.HANDLE_SPOILERS,
     };
 
     /**
      * String-valued keys for {@code /wv config}'s type dispatch: the
-     * user-facing string keys, plus {@link VetsConfigKeys#VETS_ANNI_MODE}, which is not
-     * user-facing (bug
-     * {@code config-commands-anni-mode-suggestion-arm-unreachable}; see
-     * {@code vetsmod_config.md}, the "vetsAnniMode is not in this list"
-     * note). Not a list of every string key — persistence types a key by
-     * its backing map, not by this array.
+     * user-facing string keys. Not a list of every string key — persistence
+     * types a key by its backing map, not by this array, and
+     * {@link VetsConfigKeys#VETS_ANNI_MODE} is a string key that is absent here
+     * because it is not user-facing (see {@code vetsmod_config.md}, the
+     * "vetsAnniMode is not in this list" note).
      */
-    public static final String[] STRING_CONFIG_KEYS = {
+    static final String[] STRING_CONFIG_KEYS = {
         VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP,
         VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM,
         VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE,
         VetsConfigKeys.LEGACY_ITEM_FOREGROUND_COLOR,
         VetsConfigKeys.VETS_ANNI_ROLE_STYLE,
-        VetsConfigKeys.VETS_ANNI_MODE,
         VetsConfigKeys.VETS_ANNI_FLASH_INTENSITY,
     };
 
     /**
      * Subset of user-facing keys that store an integer value (persisted as long).
      */
-    public static final String[] INT_CONFIG_KEYS = {
+    static final String[] INT_CONFIG_KEYS = {
         VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY,
         VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY,
     };
@@ -120,39 +110,30 @@ public final class VetsConfigSchema {
         "box_gradient_2",
     };
 
-    // ── Int config defaults (for reset) ─────────────────────────────────
-
-    private static final Map<String, Long> INT_DEFAULTS =
-            Map.of(
-                    VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY, 69L,
-                    VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM_OPACITY, 100L);
-
     /**
-     * Returns the default value for an int config key, or {@code null} if
-     * the key is not an int config key.
+     * The fixed value list of a string key that takes neither a colour nor a sprite name:
+     * {@link #VALID_ROLE_STYLES} for {@link VetsConfigKeys#VETS_ANNI_ROLE_STYLE},
+     * {@link #VALID_FLASH_INTENSITIES} for {@link VetsConfigKeys#VETS_ANNI_FLASH_INTENSITY}, and
+     * {@code null} for every other key. {@code /wv config} validates, suggests and colours these
+     * keys' values from it.
      */
-    public static Long getIntDefault(String key) {
-        return INT_DEFAULTS.get(key);
+    public static String[] fixedValuesOf(String key) {
+        if (VetsConfigKeys.VETS_ANNI_ROLE_STYLE.equals(key)) return VALID_ROLE_STYLES;
+        if (VetsConfigKeys.VETS_ANNI_FLASH_INTENSITY.equals(key)) return VALID_FLASH_INTENSITIES;
+        return null;
     }
 
-    // ── String config defaults (for reset) ──────────────────────────────
-
-    private static final Map<String, String> STRING_DEFAULTS =
-            Map.of(
-                    VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP, "orange",
-                    VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM, "crimson",
-                    VetsConfigKeys.LEGACY_ITEM_FOREGROUND_SPRITE, "box_gradient_2",
-                    VetsConfigKeys.LEGACY_ITEM_FOREGROUND_COLOR, "orange",
-                    VetsConfigKeys.VETS_ANNI_ROLE_STYLE, "descriptive",
-                    VetsConfigKeys.VETS_ANNI_MODE, "silent",
-                    VetsConfigKeys.VETS_ANNI_FLASH_INTENSITY, "normal");
-
     /**
-     * Returns the default value for a string config key, or {@code null} if
-     * the key is not a string config key.
+     * Whether {@code value} is one of {@code key}'s {@link #fixedValuesOf fixed values}. The
+     * match is exact, so the caller lower-cases first; {@code false} for a key with no list.
      */
-    public static String getStringDefault(String key) {
-        return STRING_DEFAULTS.get(key);
+    public static boolean isFixedValue(String key, String value) {
+        String[] fixed = fixedValuesOf(key);
+        if (fixed == null) return false;
+        for (String v : fixed) {
+            if (v.equals(value)) return true;
+        }
+        return false;
     }
 
     public static boolean isUserConfigKey(String key) {

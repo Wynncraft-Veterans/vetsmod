@@ -66,19 +66,19 @@ cd "$(dirname "$0")/.." || exit 2
 SRC=src/client/java
 # symbol|expected|note   -- expected is the live call-site count at HEAD.
 MANIFEST='
-Json.optString|17|no prose states it - pinned with Json.optInt so the 28-of-50 split in JsonTest and vetsmod_networking.md stays derivable
+Json.optString|26|no prose states it - pinned with Json.optInt so the 36-of-67 split in JsonTest and vetsmod_networking.md stays derivable
 Json.optInt|5|no prose states it - see the Json.optString row
-Json.stringOrNull|17|Json.java: "seventeen once NameResolver s five joined"
-Json.stringOrEmpty|11|Json.java: "eleven call sites"
+Json.stringOrNull|22|Json.java: "twenty-two with a staff-action ack s outcome_unknown"
+Json.stringOrEmpty|14|Json.java: "fourteen call sites"
 ColorMath.interpolateRgb|4|vetsmod_rendering.md + ColorMath.java, stated 3x
-ConfigValueText.booleanLine|5|ConfigValueTextTest
+ConfigValueText.booleanLine|6|ConfigValueTextTest
 ConfigValueText.intLine|3|ConfigValueTextTest
 ConfigValueText.stringLine|4|ConfigValueTextTest
 ConfigValueText.triStateLine|2|ConfigValueTextTest
 AnniOutlinePalette.chatFormattingForRole|2|AnniOutlinePalette + AnniHoverBuilder#roleColor: "Two callers"
 AnniOutlineRegistry.clearAll|1|AnniOutlineRegistry: "its only caller is AnniHighlightDebugCommands#registryClearAll"
 AnniOutlineTicker.isOutlineSuppressionActive|4|AnniOutlineTicker: "two behavioural readers" + "two debug dumps"
-VetsBossBarManager.isActive|2|VetsBossBarManager: mixin gate + DebugCommands dump
+VetsBossBarManager.isActive|3|VetsBossBarManager: mixin gate + FlashTracker ping gate + DebugCommands dump
 VetsBossBarManager.barUuid|2|VetsBossBarManager: mixin filter + DebugCommands dump
 FlashTracker.styleFor|4|VetsBossBarContentBuilder class doc: "four chips"
 FlashTracker.reset|1|FlashTracker: "One caller: VetsBossBarManager deactivate"
@@ -93,18 +93,17 @@ DebugCommands.buildCommandTree|1|DebugCommands class doc: CommandRegistry is the
 AnniDebugCommands.buildCommandTree|1|AnniDebugCommands#buildCommandTree: caller is DebugCommands
 DebugConfigManager.isDebugConfigKey|2|DebugConfigManager#isDebugConfigKey: the two /wv debug set handlers
 AnimatedGradientSequence.beginAnimation|1|vetsmod_rendering.md: the one real caller, LocalChatDispatch.dispatchAnimatedChat
-GuildStateManager.isStaffOfAnyGuild|1|vetsmod_distribute.md sec 1: each gate predicate has exactly one call site
+GuildStateManager.isStaffOfAnyGuild|2|vetsmod_distribute.md sec 1: the .requires in DistributeCommands and the /wv distribute row in HelpCommands.help
 GuildStateManager.isChiefOfAnyGuild|1|vetsmod_distribute.md sec 1; isChiefOfAnyGuild names ensureChief as its call site
 V1ApiManager.confirmedStaffRank|1|V1ApiManager#confirmedStaffRank: One consumer, via the GuildStateManager delegate
 OutboundCommand.queueFront|2|vetsmod_distribute.md sec 8: Two call sites, both in GuildManageOpener
 GuildManageOpener.openGuildLog|1|GuildManageOpener#openGuildLog: Used by GraidsDistributor (names the class, pinned as one site)
 GuildLogWalker.armWalk|1|GuildLogWalker#armWalk: The only caller today, GraidsDistributor
 MembersListWalker.armWalk|1|MembersListWalker class doc: its one caller pairs armWalk with openManageMembers
-Managers.TickScheduler.scheduleLater|12|vetsmod_distribute.md sec 6: 11 in distribute plus the one in util.TickDelays
+Managers.TickScheduler.scheduleLater|14|vetsmod_distribute.md sec 6: 13 in distribute plus the one in util.TickDelays
 Minecraft.getInstance|0|project_wynntils.md McUtils section: no code calls Minecraft.getInstance
 NameResolver.fetchAllLegacyNames|1|NameResolver#fetchAllLegacyNames: Used by RandomDistributor (names the class, pinned as one site)
 NameResolver.fetchUuidToLegacyName|1|NameResolver#fetchUuidToLegacyName: Used by NoAspectsFilter (names the class, pinned as one site)
-GuildStateManager.setDebugForceGuildlessUnlocked|0|GuildStateManager#setDebugForceGuildlessUnlocked: Nothing in vetsmod calls this today (in-class half in PATTERNS)
 GuildStateManager.isProcessingModGuildCheck|0|GuildStateManager#isProcessingModGuildCheck: Nothing calls it at present (in-class half in PATTERNS)
 StaffRanksPoller.refreshNow|1|StaffRanksPoller#refreshNow: called on each successful inbound auth ack, the one InboundAckRouter site
 ChatUtils.encodePillIfAscii|0|ChatUtils#encodePillIfAscii: Within vetsmod only this class calls it
@@ -112,7 +111,7 @@ ChatUtils.sendGuildChatMessageRed|0|vetsmod_chat_pipeline.md sec 6: reached only
 QueueDetector.handleTitleText|1|QueueDetector#handleTitleText: the TitleSetTextEvent handler and QueueTitleMixin; the mixin is the qualified site (in-class half in PATTERNS)
 RankDisplayMap.vTagFor|1|RankDisplayMap#vTagFor: the label of a /v staff-channel pill, read by ChatUtils.buildStaffPillComponent
 AnniStampPoller.getLatestStamp|1|AnniStampPoller class doc: the only reader today is the StampFetcher legacy fallback (in-class half in PATTERNS)
-AnniStampPoller.updateFromExternalFetch|1|AnniStampPoller class doc: called only from the StampFetcher legacy fetch (in-class half in PATTERNS)
+AnniStampPoller.updateFromExternalFetch|2|AnniStampPoller class doc: called only from the StampFetcher legacy fetch, once for a parsed stamp and once for an empty body (in-class half in PATTERNS)
 '
 
 # file (under $SRC)|fixed string|expected occurrences on non-comment lines|note
@@ -121,15 +120,13 @@ org/wynnvets/debug/anni/AnniDebugCommands.java|requireDebug(ctx)|11|AnniDebugCom
 org/wynnvets/debug/anni/AnniSnapshotDebugCommands.java|requireDebug(ctx)|9|AnniSnapshotDebugCommands class doc: every handler opens with requireDebug; 9 of the 24 are here
 org/wynnvets/debug/anni/AnniHighlightDebugCommands.java|requireDebug(ctx)|4|AnniHighlightDebugCommands class doc: every handler opens with requireDebug; 4 of the 24 are here
 org/wynnvets/debug/anni/AnniDebugCommands.java|requireStaffOrOrganiser(ctx)|5|AnniDebugCommands class doc: the five scrollspot handlers
-org/wynnvets/guild/GuildStateManager.java|setDebugForceGuildlessUnlocked(|2|no-caller claim, in-class half: the declaration plus its UnlockManager delegate call
 org/wynnvets/guild/GuildStateManager.java|isProcessingModGuildCheck(|2|no-caller claim, in-class half: the declaration plus its GuildChecker delegate call
 org/wynnvets/chat/ChatUtils.java|sendGuildChatMessageRed(|2|one-caller claim, in-class half: the declaration plus the one sendStaffChannelMessage call
 org/wynnvets/queue/QueueDetector.java|handleTitleText(|2|two-caller claim, in-class half: the declaration plus the TitleSetTextEvent handler call
 org/wynnvets/fetcher/polling/AnniStampPoller.java|getLatestStamp(|1|only-reader claim, in-class half: the declaration alone
 org/wynnvets/fetcher/polling/AnniStampPoller.java|updateFromExternalFetch(|1|only-caller claim, in-class half: the declaration alone
-org/wynnvets/fetcher/ondemand/StampFetcher.java|anniIntegrationActive(|3|VetsConfigKeys#VETS_ANNI_ENABLED: its one reader, called by the world-join and /wv anni paths (declaration plus two calls)
-org/wynnvets/commands/HelpCommands.java|sessionBacked(|6|vetsmod_commands.md: five of the six gated pages take sessionBacked (declaration plus five calls; /wv check is the sixth)
-org/wynnvets/chat/dispatcher/GuildChatDispatcher.java|regionMatches(|12|the twelve intercepted prefixes in vetsmod_commands.md section 2
+org/wynnvets/commands/HelpCommands.java|sessionBacked(|5|vetsmod_commands.md: four of the five gated pages take sessionBacked (declaration plus four calls; /wv check is the fifth)
+org/wynnvets/chat/dispatcher/GuildChatDispatcher.java|regionMatches(|5|vetsmod_commands.md section 2: four prefixes need the trailing space, plus the one in argsAfter
 '
 
 # Count non-comment call sites of Class.method( across the client source set.

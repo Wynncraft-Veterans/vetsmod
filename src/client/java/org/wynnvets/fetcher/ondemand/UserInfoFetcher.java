@@ -7,7 +7,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.wynnvets.api.WynnCraftApi;
@@ -40,16 +39,17 @@ public final class UserInfoFetcher {
 
     private UserInfoFetcher() {}
 
-    private static MembershipSnapshot snapshotUnavailable(String detail) {
+    private static MembershipSnapshot snapshotUnavailable() {
         // GSON-deserialise from a synthetic JSON object so optional fields
         // default cleanly. The renderer keys off `discord == null` to decide
-        // whether the snapshot succeeded.
+        // whether the snapshot succeeded. No blocklist_reason: the renderer
+        // would print it after "(snapshot unavailable", and the real failure
+        // detail is dropped before it gets here.
         JsonObject stub = new JsonObject();
         stub.addProperty("target_uuid", "");
         stub.addProperty("target_username", "");
         stub.addProperty("stage_2_active", false);
         stub.addProperty("blocklisted", false);
-        stub.addProperty("blocklist_reason", detail == null ? "snapshot unavailable" : detail);
         stub.addProperty("in_returners_guild", false);
         // discord intentionally omitted -> null
         return Json.GSON.fromJson(stub, MembershipSnapshot.class);
@@ -65,10 +65,9 @@ public final class UserInfoFetcher {
      *
      * <p>Failures are surfaced as a single error line; partial results
      * (e.g. Wynn fetch succeeds but the snapshot doesn't) still render the
-     * portions that resolved. Today, while a snapshot request's callback goes
-     * unanswered, the whole block stays unrendered, with no error line, since
-     * nothing bounds that wait (see
-     * {@code staff-action-queue-not-drained-on-socket-reconnect}).</p>
+     * portions that resolved. A snapshot request always completes: a lost socket, or no
+     * reply within its deadline, completes it empty, and the block renders with
+     * "(snapshot unavailable)".</p>
      */
     public static void checkUser(String playerName) {
         PlayerLookup.resolve(playerName)
@@ -80,16 +79,15 @@ public final class UserInfoFetcher {
                             }
                             if (lookup.failureReason() == FailureReason.PLAYER_NOT_FOUND) {
                                 CheckReportRenderer.renderError(
-                                        "No player named '"
+                                        "No lookup source returned anyone named '"
                                                 + playerName
-                                                + "' on any lookup source.");
+                                                + "'.");
                                 return;
                             }
                             CheckReportRenderer.renderError(
                                     "Could not look up '"
                                             + playerName
-                                            + "' — all UUID sources unavailable (Mojang rate-limited / Wynncraft "
-                                            + "down). Try again shortly.");
+                                            + "'. All APIs appear to be down?");
                         });
     }
 
@@ -104,8 +102,7 @@ public final class UserInfoFetcher {
         // one is requested afresh through VetsSnapshotProvider.requestSnapshot, a
         // new check_membership frame. A null result becomes the
         // snapshotUnavailable sentinel, which the renderer shows as "(snapshot
-        // unavailable)"; today the Blocklist line doubles that phrase (see
-        // wv-check-blocklist-line-doubles-snapshot-unavailable).
+        // unavailable)".
         CompletableFuture<User> wynnFuture =
                 lookup.wynnProfile() != null
                         ? CompletableFuture.completedFuture(lookup.wynnProfile())
@@ -115,12 +112,7 @@ public final class UserInfoFetcher {
                 lookup.vetsSnapshot() != null
                         ? CompletableFuture.completedFuture(lookup.vetsSnapshot())
                         : VetsSnapshotProvider.requestSnapshot(canonical)
-                                .thenApply(
-                                        s ->
-                                                s != null
-                                                        ? s
-                                                        : snapshotUnavailable(
-                                                                "snapshot unavailable"));
+                                .thenApply(s -> s != null ? s : snapshotUnavailable());
 
         wynnFuture.thenCompose(
                 user -> {
@@ -129,8 +121,7 @@ public final class UserInfoFetcher {
                     // Remove: when Wynncraft invalidates the player endpoint on
                     //   officer-write events, or exposes a webhook, or an offline-player
                     //   spot-check shows <10min staleness.
-                    // Imports used only by this workaround: java.util.Optional and
-                    // org.wynnvets.datamodels.Guild.
+                    // Imports used only by this workaround: org.wynnvets.datamodels.Guild.
                     // Original gated on `user.isInVets()` (payload claims Returners).
                     // Drop the isInVets() gate so we crosscheck the Returners roster
                     // whenever there is a Wynncraft profile -- needed to catch the
@@ -142,51 +133,51 @@ public final class UserInfoFetcher {
                             (user != null)
                                     ? ReturnersRosterProbe.returnersMembership(synthUuid.id)
                                     : CompletableFuture.completedFuture(
-                                            ReturnersRosterProbe.ReturnersMembership.notInGuild());
+                                            ReturnersRosterProbe.ReturnersMembership.unknown());
                     // <<< PATCH END: WYNN-STALE-WORKAROUND
                     // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
                     // Reason/Remove: see the first workaround block in this class.
                     // Fire the roster crosscheck alongside returners + snapshot only when
                     // the payload names a non-Returners guild (Returners is already
-                    // crosschecked via returnersFuture above).
+                    // crosschecked via returnersFuture above). A null answer means none
+                    // was asked.
                     Guild payloadGuild = user != null ? user.getGuild() : null;
-                    CompletableFuture<Optional<String>> confirmedNonReturnersRankFuture =
+                    CompletableFuture<ReturnersRosterProbe.ReturnersMembership> otherGuildFuture =
                             (payloadGuild != null
                                             && payloadGuild.getName() != null
                                             && !"Returners".equals(payloadGuild.getName()))
-                                    ? ReturnersRosterProbe.confirmArbitraryGuildRank(
+                                    ? ReturnersRosterProbe.otherGuildMembership(
                                             payloadGuild.getName(), synthUuid.id)
-                                    : CompletableFuture.completedFuture(Optional.<String>empty());
+                                    : CompletableFuture.completedFuture(null);
                     // <<< PATCH END: WYNN-STALE-WORKAROUND
-                    return returnersFuture.thenCombine(
-                            snapFuture,
-                            (returners, snapshot) -> {
-                                // >>> PATCH BEGIN: WYNN-STALE-WORKAROUND (2026-07-11)
-                                // Reason/Remove: see the first workaround block in this class.
-                                // Join the roster crosscheck before render. The helper's 5s
-                                // request timeout bounds the wait for response headers (in JDK
-                                // 21's implementation, not the body read), and it returns
-                                // Optional.empty() on failure. Today, while the crosscheck is
-                                // still pending, the join blocks whichever thread completed the
-                                // later of returnersFuture and snapFuture, such as a
-                                // CompletableFuture default-pool thread or the thread that
-                                // delivers inbound WebSocket frames (see
-                                // user-info-fetcher-join-blocks-completing-thread).
-                                Optional<String> confirmedNonReturnersRank =
-                                        confirmedNonReturnersRankFuture.join();
-                                // <<< PATCH END: WYNN-STALE-WORKAROUND
-                                McUtils.mc()
-                                        .execute(
-                                                () ->
-                                                        CheckReportRenderer.renderCheck(
-                                                                requestedName,
-                                                                synthUuid,
-                                                                user,
-                                                                returners,
-                                                                snapshot,
-                                                                confirmedNonReturnersRank));
-                                return null;
-                            });
+                    // Render once all three have completed, so the joins below never block
+                    // whichever thread completed the last of them, such as the one that
+                    // delivers inbound WebSocket frames. An exceptional input skips the
+                    // render, as before.
+                    return CompletableFuture.allOf(returnersFuture, snapFuture, otherGuildFuture)
+                            .thenApply(
+                                    ignored -> {
+                                        // The roster helpers' 5s request timeout bounds the wait
+                                        // for response headers (in JDK 21's implementation, not
+                                        // the body read), and they report a failure as an
+                                        // UNKNOWN verdict, never as absence.
+                                        ReturnersRosterProbe.ReturnersMembership returners =
+                                                returnersFuture.join();
+                                        ReturnersRosterProbe.ReturnersMembership otherGuild =
+                                                otherGuildFuture.join();
+                                        MembershipSnapshot snapshot = snapFuture.join();
+                                        McUtils.mc()
+                                                .execute(
+                                                        () ->
+                                                                CheckReportRenderer.renderCheck(
+                                                                        requestedName,
+                                                                        synthUuid,
+                                                                        user,
+                                                                        returners,
+                                                                        otherGuild,
+                                                                        snapshot));
+                                        return null;
+                                    });
                 });
     }
 

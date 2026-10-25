@@ -28,9 +28,13 @@ import org.wynnvets.util.Json;
  * count, etc.) — so a Vets hit lets a caller that needs the snapshot skip
  * its own snapshot fetch.</p>
  *
- * <p>Skipped when the inbound WebSocket isn't connected: the frame would
- * synthesise a connection-closed error ack and we'd treat that as
- * transient anyway, but short-circuiting saves the WS round-trip cost.</p>
+ * <p>This provider is not an independent existence check: dazebot resolves the name
+ * through the same Wynncraft and Mojang/PlayerDB sources the cascade asks directly. Its job is
+ * to supply a snapshot on a hit, so on any non-hit it
+ * {@linkplain ProviderOutcome#abstain() abstains} and leaves PLAYER_NOT_FOUND to the other
+ * providers. It abstains without sending when the inbound WebSocket isn't connected, saving
+ * the round trip the connection-closed ack would cost; a malformed answer or a thrown error
+ * stays a transient miss, since the server did speak.</p>
  */
 public final class VetsSnapshotProvider implements LookupProvider {
 
@@ -38,12 +42,12 @@ public final class VetsSnapshotProvider implements LookupProvider {
      * Sends a {@code check_membership} frame and adapts the single-use ack
      * callback into a future. Used by this provider AND by InviteGate /
      * UserInfoFetcher for their secondary "snapshot only" fetch path (when
-     * the cascade's hit didn't already provide one). The frame is staff-only:
-     * temporary-server (at ffd8c17) rejects it from any session it has not
-     * confirmed as staff. This sends it without checking
-     * {@code isConfirmedStaff()}; today, for any such session, the rejection
-     * completes the future with {@code null} (see
-     * {@code vets-snapshot-provider-skips-confirmed-staff-check}).
+     * the cascade's hit didn't already provide one). temporary-server answers a confirmed-staff
+     * session with the full snapshot and an authenticated non-staff Returners member with the
+     * invite verdict only ({@code may_invite} and {@code waitlist_count}; see
+     * {@link MembershipSnapshot#getMayInvite()}). Any other session gets an error ack, which
+     * completes the future with {@code null}. So does a lost socket or a reply that does not come
+     * in time ({@link V1ApiManager#sendStaffActionFrame}), so the future always completes.
      */
     public static CompletableFuture<MembershipSnapshot> requestSnapshot(String target) {
         CompletableFuture<MembershipSnapshot> cf = new CompletableFuture<>();
@@ -77,11 +81,11 @@ public final class VetsSnapshotProvider implements LookupProvider {
 
     @Override
     public CompletableFuture<ProviderOutcome> lookup(String name) {
-        if (!V1ApiManager.isInboundConnected()) {
-            return CompletableFuture.completedFuture(ProviderOutcome.transientMiss());
+        if (!sendsLookup(V1ApiManager.isInboundConnected(), V1ApiManager.isConfirmedStaff())) {
+            return CompletableFuture.completedFuture(ProviderOutcome.abstain());
         }
         return requestSnapshot(name)
-                .thenApply(this::translate)
+                .thenApply(VetsSnapshotProvider::translate)
                 .exceptionally(
                         e -> {
                             VetsLogger.debug(
@@ -90,15 +94,24 @@ public final class VetsSnapshotProvider implements LookupProvider {
                         });
     }
 
-    private ProviderOutcome translate(MembershipSnapshot snap) {
+    /**
+     * Whether the cascade's Vets step sends a frame at all. It needs a connected socket and a
+     * confirmed-staff session: a non-staff session gets at most the invite verdict, which
+     * InviteGate fetches itself, so for the cascade the step abstains without a round trip.
+     */
+    // Package-private for unit tests. See VetsSnapshotProviderTest.
+    static boolean sendsLookup(boolean connected, boolean confirmedStaff) {
+        return connected && confirmedStaff;
+    }
+
+    // Package-private for unit tests. See VetsSnapshotProviderTest.
+    static ProviderOutcome translate(MembershipSnapshot snap) {
         if (snap == null) {
-            // Could be "no such player" or a transient WS failure; the ack
-            // shape doesn't reliably distinguish, so call it transient and
-            // let later providers settle the question. Today they can settle it
-            // only with a hit: this transient miss keeps the cascade from ever
-            // ending PLAYER_NOT_FOUND (see
-            // vets-snapshot-provider-makes-player-not-found-unreachable).
-            return ProviderOutcome.transientMiss();
+            // Could be "no such player", a rejection, or a WS failure; the ack
+            // shape doesn't reliably distinguish. Abstain rather than miss
+            // transiently, so the independent providers decide whether the
+            // name exists and the cascade can still end PLAYER_NOT_FOUND.
+            return ProviderOutcome.abstain();
         }
         String uuidStr = snap.getTargetUuid();
         if (uuidStr == null || uuidStr.isBlank()) {
