@@ -93,7 +93,7 @@ public class LegacyItemTooltipMixin {
                         LegacyItemHandler.lastProcessedWasLegacy);
                 ((GuiGraphics) (Object) this)
                         .setTooltipForNextFrame(font, modified, image, mouseX, mouseY, border);
-                LegacyItemHandler.screenshotIfRequested(font, modified);
+                LegacyItemHandler.screenshotIfRequested(font, modified, border);
             } finally {
                 vetsmod$processing = false;
             }

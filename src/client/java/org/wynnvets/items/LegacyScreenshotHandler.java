@@ -25,6 +25,7 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositione
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.fog.FogRenderer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import org.joml.Vector2i;
 import org.wynnvets.logging.VetsLogger;
 
@@ -86,8 +87,12 @@ final class LegacyScreenshotHandler {
     /**
      * Renders the given tooltip to an offscreen framebuffer and copies the
      * resulting image to the system clipboard.
+     *
+     * @param border the tooltip style the tooltip was drawn in, or {@code null} for the default
+     *     one; Wynntils' capture reads the item's own {@code tooltip_style} instead, so this is
+     *     what puts the gold border in the image
      */
-    static void takeScreenshot(Font font, List<Component> tooltip) {
+    static void takeScreenshot(Font font, List<Component> tooltip, Identifier border) {
         Screen screen = McUtils.screen();
         if (screen == null) return;
 
@@ -125,7 +130,7 @@ final class LegacyScreenshotHandler {
                         .map(ClientTooltipComponent::create)
                         .toList();
 
-        renderToFramebuffer(screen, rendered, width, height)
+        renderToFramebuffer(screen, rendered, border, width, height)
                 .thenApplyAsync(
                         nativeImage -> {
                             if (nativeImage == null) return null;
@@ -151,7 +156,11 @@ final class LegacyScreenshotHandler {
     }
 
     private static CompletableFuture<NativeImage> renderToFramebuffer(
-            Screen screen, List<ClientTooltipComponent> tooltip, int width, int height) {
+            Screen screen,
+            List<ClientTooltipComponent> tooltip,
+            Identifier border,
+            int width,
+            int height) {
         TextureTarget framebuffer =
                 new TextureTarget("VetsMod Legacy Screenshot", width * 2, height * 2, true);
         RenderSystem.getDevice()
@@ -180,7 +189,7 @@ final class LegacyScreenshotHandler {
 
         guiGraphics.pose().pushMatrix();
         guiGraphics.pose().scale(scalew, scaleh);
-        guiGraphics.renderTooltip(mc.font, tooltip, 0, 0, SCREENSHOT_POSITIONER, null);
+        guiGraphics.renderTooltip(mc.font, tooltip, 0, 0, SCREENSHOT_POSITIONER, border);
         guiGraphics.pose().popMatrix();
 
         bufferSource.endBatch();

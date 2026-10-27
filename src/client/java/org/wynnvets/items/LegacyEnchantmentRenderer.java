@@ -74,8 +74,7 @@ import org.wynnvets.logging.VetsLogger;
 final class LegacyEnchantmentRenderer {
 
     private static final FontDescription BANNER_BOX_FONT = NewFormatRenderer.BANNER_BOX_FONT;
-    private static final FontDescription SPACE_FONT =
-            new FontDescription.Resource(Identifier.parse("space"));
+    private static final FontDescription SPACE_FONT = NewFormatRenderer.SPACE_FONT;
     private static final FontDescription SOCKET_FONT =
             new FontDescription.Resource(Identifier.parse("tooltip/socket"));
     private static final FontDescription PAGE_FONT =
