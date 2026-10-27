@@ -29,7 +29,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.fetcher.lookup`](#orgwynnvetsfetcherlookup) — [`MojangCooldownTest`](#mojangcooldowntest), [`PlayerLookupTest`](#playerlookuptest)
 - [`org.wynnvets.fetcher.lookup.providers`](#orgwynnvetsfetcherlookupproviders) — [`PlayerDbProviderTest`](#playerdbprovidertest), [`VetsSnapshotProviderTest`](#vetssnapshotprovidertest)
 - [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`CheckReportRendererTest`](#checkreportrenderertest), [`OnlineMemberServiceTest`](#onlinememberservicetest), [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
-- [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
+- [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PolledJsonTest`](#polledjsontest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
 - [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`GuildCheckerOwnerTest`](#guildcheckerownertest), [`RegistrationTierTest`](#registrationtiertest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`LegacyLoreTextTest`](#legacyloretexttest), [`ScreenshotLatchTest`](#screenshotlatchtest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest), [`UrlWrapJoinerTest`](#urlwrapjoinertest)
@@ -2079,6 +2079,28 @@ Test: [`PolledJsonMapTest.java`](../src/test/java/org/wynnvets/fetcher/polling/P
   - `GUILD_ROSTER.get(k)` is null for `k` = null and `""`.
 - **`nonPrimitiveAndEmptyValuesAreDropped`**: Of four entries, only the non-empty string value survives; the empty string, nested object and array are dropped.
   - `GUILD_ROSTER.snapshot()` equals `Map.of("uuid-1", "Metrafish")` after parsing `{"uuid-1": "Metrafish", "uuid-2": "", "uuid-3": {"nested": 1}, "uuid-4": [1, 2]}`: the empty string, object and array values are dropped.
+
+### `PolledJsonTest`
+
+Test: [`PolledJsonTest.java`](../src/test/java/org/wynnvets/fetcher/polling/PolledJsonTest.java) · Subject: [`PolledJson`](../src/client/java/org/wynnvets/fetcher/polling/PolledJson.java)
+
+`PolledJson` is the package-private poller under `PolledJsonMap` and `SupportersPoller`: it fetches one endpoint on a schedule, parses the body with a caller-supplied function and publishes the immutable result as a snapshot. The suite pins the rule both callers rely on, that a snapshot is replaced only by a parse that returns a value, and that a `null` result or a thrown exception leaves it alone. Only `publish(String)` and `snapshot()` are exercised, on instances built by the `poller` factory (a `List<String>` snapshot, never started), so there is no network and no thread.
+
+- **`aColdInstanceHoldsTheInitialValue`**: Before any parse, `snapshot()` returns the initial value it was built with.
+  - `poller(initial, parser).snapshot()` is the same instance as `initial`, where `initial` is `List.of("initial")`.
+- **`aColdInstanceMayHoldNull`**: A `null` initial value is legal, so a holder can tell "not fetched yet" from an empty value.
+  - `cold.snapshot()` is null, where `cold` is built with a `null` initial value and has never been published to.
+- **`aParsedBodyIsPublished`**: Each published body replaces the snapshot with the parser's result.
+  - `poll.snapshot()` equals `List.of("first")` after `publish("first")`.
+  - `poll.snapshot()` equals `List.of("second")` after `publish("second")`.
+- **`aNullResultKeepsTheSnapshot`**: A body the parser answers with `null` leaves the published value in place.
+  - `poll.snapshot()` is the same instance as the value read before, after `publish("reject")` follows `publish("good")`.
+- **`aThrowingParserKeepsTheSnapshotAndRecovers`**: A body that makes the parser throw leaves the published value in place, and the next good body publishes normally.
+  - `poll.snapshot()` is the same instance as the value read before, after `publish("boom")` follows `publish("good")`.
+  - `poll.snapshot()` equals `List.of("recovered")` after the following `publish("recovered")`.
+- **`snapshotHandsBackOneStableReference`**: Two reads between publishes are the same instance, and a held snapshot is unchanged after the next publish.
+  - `poll.snapshot()` is the same instance as `held`, the first read after `publish("first")`, with no publish in between.
+  - `held` still equals `List.of("first")` after `publish("second")`.
 
 ### `PollingServiceTest`
 

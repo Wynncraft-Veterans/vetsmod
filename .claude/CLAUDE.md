@@ -58,11 +58,13 @@ VetsmodClient (entry point)
   ├── OutboundDisplayHandler  Receives WS messages, deduplicates, displays in chat
   ├── QueueStateManager       In-queue state + listeners; fed by QueueDetector (title/world/disconnect/timeout)
   │                           also cleared directly by WynntilsEventListener on native guild chat
-  ├── fetcher/polling/ (6)    Six schedules over five classes, one PollingService lifecycle:
+  ├── fetcher/polling/ (7)    Six schedules over five classes, one PollingService lifecycle:
   │                           SupportersPoller 5m, StaffRanksPoller 2m, AnniStampPoller 5m,
   │                           AnniSnapshotPoller 30s (only inside the anni window), and
-  │                           PolledJsonMap's GUILD_ROSTER + WYNN_ALIASES 5m. AnniZone (60s)
-  │                           is a further scheduled fetcher, but lives under mwe/anni/zone/
+  │                           PolledJsonMap's GUILD_ROSTER + WYNN_ALIASES 5m; PolledJson is
+  │                           the HTTP + JSON snapshot poller under SupportersPoller and
+  │                           PolledJsonMap. AnniZone (60s) is a further scheduled fetcher,
+  │                           but lives under mwe/anni/zone/
   ├── CommandRegistry         /wv command tree; CommandCompletionSync keeps its tab completion in
   │                           step with the .requires gates, CommandUsage prints usage lines
   ├── items/                  ItemDefinitions plus LegacyItemHandler, LegacyTooltipRenderer,

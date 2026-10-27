@@ -2,18 +2,10 @@ package org.wynnvets.fetcher.polling;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import java.net.HttpURLConnection;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import org.wynnvets.api.VetsApi;
-import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
 /**
@@ -27,35 +19,22 @@ import org.wynnvets.util.Json;
  */
 public final class SupportersPoller {
     private static final int REFRESH_INTERVAL_MINUTES = 5;
+    private static final int REQUEST_TIMEOUT_SECONDS = 5;
 
-    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
-
-    private static final HttpRequest SUPPORTERS_REQUEST =
-            HttpRequest.newBuilder()
-                    .uri(VetsApi.SUPPORTERS)
-                    .timeout(Duration.ofSeconds(5))
-                    .GET()
-                    .build();
-
-    private static volatile Set<String> supporterUsernames = Set.of();
-    private static final PollingService SERVICE =
-            new PollingService(
+    private static final PolledJson<Set<String>> POLL =
+            new PolledJson<>(
+                    VetsApi.SUPPORTERS,
                     "VetsMod-SupportersFetcher",
-                    () -> {
-                        try {
-                            fetchSupporters();
-                        } catch (Exception e) {
-                            VetsLogger.warn("Error fetching supporters: {}", e.getMessage());
-                        }
-                    },
-                    0,
+                    "supporters",
                     REFRESH_INTERVAL_MINUTES,
-                    TimeUnit.MINUTES);
+                    REQUEST_TIMEOUT_SECONDS,
+                    Set.of(),
+                    SupportersPoller::parseSupporters);
 
     private SupportersPoller() {}
 
     public static void start() {
-        SERVICE.start();
+        POLL.start();
     }
 
     /**
@@ -75,7 +54,7 @@ public final class SupportersPoller {
             return false;
         }
 
-        Set<String> snapshot = supporterUsernames;
+        Set<String> snapshot = POLL.snapshot();
 
         if (snapshot.contains(normalized)) {
             return true;
@@ -104,35 +83,18 @@ public final class SupportersPoller {
                 .toLowerCase(Locale.ROOT);
     }
 
-    private static void fetchSupporters() {
-        try {
-            HttpResponse<String> response =
-                    HTTP_CLIENT.send(SUPPORTERS_REQUEST, HttpResponse.BodyHandlers.ofString());
+    private static Set<String> parseSupporters(String jsonResponse) {
+        JsonArray supporters = Json.GSON.fromJson(jsonResponse, JsonArray.class);
+        Set<String> newSet = new HashSet<>();
 
-            if (response.statusCode() == HttpURLConnection.HTTP_OK) {
-                parseSupporters(response.body());
+        for (int i = 0; i < supporters.size(); i++) {
+            JsonObject supporter = supporters.get(i).getAsJsonObject();
+            String username = supporter.get("username").getAsString();
+            if (username != null && !username.isEmpty()) {
+                newSet.add(username.toLowerCase(Locale.ROOT));
             }
-        } catch (Exception e) {
-            VetsLogger.debug("Failed to fetch supporters: {}", e.getMessage());
         }
-    }
 
-    private static void parseSupporters(String jsonResponse) {
-        try {
-            JsonArray supporters = Json.GSON.fromJson(jsonResponse, JsonArray.class);
-            Set<String> newSet = new HashSet<>();
-
-            for (int i = 0; i < supporters.size(); i++) {
-                JsonObject supporter = supporters.get(i).getAsJsonObject();
-                String username = supporter.get("username").getAsString();
-                if (username != null && !username.isEmpty()) {
-                    newSet.add(username.toLowerCase(Locale.ROOT));
-                }
-            }
-
-            supporterUsernames = Set.copyOf(newSet);
-        } catch (Exception e) {
-            VetsLogger.debug("Error parsing supporters: {}", e.getMessage());
-        }
+        return Set.copyOf(newSet);
     }
 }

@@ -2,32 +2,25 @@ package org.wynnvets.fetcher.polling;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.function.UnaryOperator;
 import org.wynnvets.api.VetsApi;
 import org.wynnvets.logging.VetsLogger;
-import org.wynnvets.util.HttpClients;
 import org.wynnvets.util.Json;
 
 /**
  * A flat {@code string -> string} JSON map, fetched from the VetsMod server on a schedule and
  * published as an immutable snapshot.
  *
- * <p>{@code GuildRosterCache} and {@code WynnAliasCache} were this class twice over. Their
- * fetch wrappers, status gate, error policy, {@link ConcurrentHashMap} build buffer,
- * {@link Map#copyOf} publication and volatile swap were structurally identical; the only logic that
- * differed between them was whether keys were case-folded, at ingest and at lookup alike.
- * The two meanings survive as the two constants below, which is what keeps this a
- * parameterisation rather than a flattening.</p>
+ * <p>{@code GuildRosterCache} and {@code WynnAliasCache} were this class twice over: the only
+ * logic that differed between them was whether keys were case-folded, at ingest and at lookup
+ * alike. The two meanings survive as the two constants below, which is what keeps this a
+ * parameterisation rather than a flattening. The fetch, status gate, error policy and volatile
+ * snapshot are {@link PolledJson}'s, shared with {@link SupportersPoller}; this class keeps the
+ * flat-map parse and the key normalizer.</p>
  *
  * <p><b>The key normalizer is applied at ingest and at lookup, from one field.</b>
  * {@link #WYNN_ALIASES} folds to {@link Locale#ROOT} on both sides, as the alias cache did;
@@ -42,20 +35,18 @@ import org.wynnvets.util.Json;
  * failed fetch, or a body that does not parse to a JSON object, never changes the published
  * snapshot, empty or not.</p>
  *
- * <p><b>{@link #snapshot()} hands back one stable reference</b>, read from the volatile field
- * once. {@code merge()} iterates it and relies on intra-loop consistency; recomputing the read
- * per access would let one merge see two generations of the roster.</p>
+ * <p><b>{@link #snapshot()} hands back one stable reference.</b> {@code merge()} iterates it and
+ * relies on intra-loop consistency; recomputing the read per access would let one merge see two
+ * generations of the roster.</p>
  *
- * <p>The {@code ConcurrentHashMap} in {@link #parse(String)} is a build buffer, not a
+ * <p>The {@code ConcurrentHashMap} in {@link #parseEntries(String)} is a build buffer, not a
  * concurrency mechanism — it is filled single-threaded on the poller thread and handed
- * straight to {@code Map.copyOf}. The volatile swap is what makes the read safe.</p>
+ * straight to {@code Map.copyOf}.</p>
  */
 public final class PolledJsonMap {
 
     private static final int REFRESH_INTERVAL_MINUTES = 5;
     private static final int REQUEST_TIMEOUT_SECONDS = 5;
-
-    private static final HttpClient HTTP_CLIENT = HttpClients.standard();
 
     /**
      * UUID → current username, from {@code GET /v1/outbound/roster}.
@@ -95,13 +86,10 @@ public final class PolledJsonMap {
                     REFRESH_INTERVAL_MINUTES,
                     REQUEST_TIMEOUT_SECONDS);
 
-    private final HttpRequest request;
     private final UnaryOperator<String> keyNormalizer;
     private final String label;
     private final String itemNoun;
-    private final PollingService service;
-
-    private volatile Map<String, String> values = Map.of();
+    private final PolledJson<Map<String, String>> poll;
 
     /**
      * Builds one polled map. Only the two constants above are meant to exist.
@@ -129,33 +117,23 @@ public final class PolledJsonMap {
             String itemNoun,
             int periodMinutes,
             int timeoutSeconds) {
-        this.request =
-                HttpRequest.newBuilder()
-                        .uri(uri)
-                        .timeout(Duration.ofSeconds(timeoutSeconds))
-                        .GET()
-                        .build();
         this.keyNormalizer = keyNormalizer;
         this.label = label;
         this.itemNoun = itemNoun;
-        this.service =
-                new PollingService(
+        this.poll =
+                new PolledJson<>(
+                        uri,
                         threadName,
-                        () -> {
-                            try {
-                                fetch();
-                            } catch (Exception e) {
-                                VetsLogger.warn("Error fetching {}: {}", label, e.getMessage());
-                            }
-                        },
-                        0,
+                        label,
                         periodMinutes,
-                        TimeUnit.MINUTES);
+                        timeoutSeconds,
+                        Map.of(),
+                        this::parseEntries);
     }
 
     /** Starts the periodic fetch. Idempotent. */
     public void start() {
-        service.start();
+        poll.start();
     }
 
     /**
@@ -165,7 +143,7 @@ public final class PolledJsonMap {
      *     so the returned reference does not change under an iterating caller.
      */
     public Map<String, String> snapshot() {
-        return values;
+        return poll.snapshot();
     }
 
     /**
@@ -179,46 +157,32 @@ public final class PolledJsonMap {
         if (key == null || key.isEmpty()) {
             return null;
         }
-        return values.get(keyNormalizer.apply(key));
-    }
-
-    private void fetch() {
-        try {
-            HttpResponse<String> response =
-                    HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == HttpURLConnection.HTTP_OK) {
-                parse(response.body());
-            } else {
-                VetsLogger.debug("{} fetch failed: {}", label, response.statusCode());
-            }
-        } catch (Exception e) {
-            VetsLogger.debug("Failed to fetch {}: {}", label, e.getMessage());
-        }
+        return poll.snapshot().get(keyNormalizer.apply(key));
     }
 
     // Package-private for unit tests. See PolledJsonMapTest.
     void parse(String jsonResponse) {
-        try {
-            JsonObject obj = Json.GSON.fromJson(jsonResponse, JsonObject.class);
-            if (obj == null) {
-                return;
-            }
+        poll.publish(jsonResponse);
+    }
 
-            Map<String, String> newValues = new ConcurrentHashMap<>();
-            for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
-                if (entry.getValue().isJsonPrimitive()) {
-                    String value = entry.getValue().getAsString();
-                    if (value != null && !value.isEmpty()) {
-                        newValues.put(keyNormalizer.apply(entry.getKey()), value);
-                    }
+    private Map<String, String> parseEntries(String jsonResponse) {
+        JsonObject obj = Json.GSON.fromJson(jsonResponse, JsonObject.class);
+        if (obj == null) {
+            return null;
+        }
+
+        Map<String, String> newValues = new ConcurrentHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
+            if (entry.getValue().isJsonPrimitive()) {
+                String value = entry.getValue().getAsString();
+                if (value != null && !value.isEmpty()) {
+                    newValues.put(keyNormalizer.apply(entry.getKey()), value);
                 }
             }
-
-            values = Map.copyOf(newValues);
-            VetsLogger.debug("{} loaded: {} {}", label, values.size(), itemNoun);
-        } catch (Exception e) {
-            VetsLogger.debug("Error parsing {}: {}", label, e.getMessage());
         }
+
+        Map<String, String> values = Map.copyOf(newValues);
+        VetsLogger.debug("{} loaded: {} {}", label, values.size(), itemNoun);
+        return values;
     }
 }
