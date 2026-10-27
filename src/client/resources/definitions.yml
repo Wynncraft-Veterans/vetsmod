@@ -8,6 +8,8 @@
 #   of it. Item names are compared with colour codes, Wynncraft's glyphs and the trade
 #   market's trailing "À" removed; screen titles with colour codes removed. (The
 #   exception is enchant_excluded_items, which lists plain Minecraft item ids.)
+# - min_rerolls entries are pairs rather than bare patterns: a filter pattern and a
+#   threshold, a whole number above 0.
 # - Matching is case-sensitive unless the pattern starts with (?i).
 # - Quote every entry. Use single quotes when the pattern contains a backslash
 #   ('^\?$'), and write an apostrophe inside single quotes as ''. Inside double quotes
@@ -160,6 +162,17 @@ no_lore_legacy:
   - "(?i)^Wheat$"
   - "(?i)^Wolf['\u2019]s Fang$"
   - "(?i)^Zombie Key$"
+
+# Items that can no longer be obtained with fewer rerolls than threshold. A copy below
+# it is legacy, named "Underrolled"; an unidentified copy counts as 0 rerolls. When
+# several filters match, the highest threshold applies.
+min_rerolls:
+  - filter: "^Solidified Chestplate$"
+    threshold: 2
+  - filter: "^Battle Leggings$"
+    threshold: 2
+  - filter: "^Plains Runner$"
+    threshold: 2
 
 # ---- Exceptions --------------------------------------------------------------
 

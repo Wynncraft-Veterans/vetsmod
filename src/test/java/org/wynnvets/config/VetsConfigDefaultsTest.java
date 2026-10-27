@@ -29,6 +29,7 @@ class VetsConfigDefaultsTest {
             Map.ofEntries(
                     entry("legacyItemHighlighting", true),
                     entry("legacyItemShowEnchantments", true),
+                    entry("legacyItemUnderrolling", true),
                     entry("legacyItemBackgroundGradientTop", "orange"),
                     entry("legacyItemBackgroundGradientTopOpacity", 69L),
                     entry("legacyItemBackgroundGradientBottom", "crimson"),

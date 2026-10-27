@@ -37,6 +37,7 @@ Four type-distinct backing maps: boolean, long, string, tri-state (Boolean-or-nu
 |-----|---------|---------|
 | `legacyItemHighlighting` | true | Show legacy/enchanted/junk highlighting + tooltip rewrite |
 | `legacyItemShowEnchantments` | true | Name the specific enchantment on legacy items the enchant branch already highlights: a LEGACY ENCHANTMENTS block on the powder page of paged tooltips, or in the tooltip text on items with no pages (`LegacyEnchantmentRenderer.showEnchantment` picks the form). No effect unless `legacyItemHighlighting` is on. |
+| `legacyItemUnderrolling` | true | Count an item named in `definitions.yml`'s `min_rerolls` and rerolled fewer times than its threshold as legacy: highlighted, named "Underrolled <Name>" ("Enchanted Underrolled" when also enchanted), with its page-1 reroll box and badge drawn gold (a gold 0 box when an identified copy has none). An unidentified copy counts as 0 rerolls. The item dump's `vetsmodAnalysis.underroll` line shows the verdict either way. No effect unless `legacyItemHighlighting` is on. |
 | `printMOTD` | true | Auto-print MOTD on world join |
 | `printANNI` | true | Auto-print annihilation timer on world join, for Returners guild members only |
 | `vetsAnniShowHoverDetails` | true | Populate descriptive hover tooltips on `/wv anni` and motd widgets (role chips, RSVP badge, attendance bar, party world chip). When off, lines render with no hover but keep click-to-open URLs. |
@@ -105,37 +106,38 @@ The first column names the class that declares each method. `VetsConfigKeys` hol
 
 ## 4. USER_CONFIG_KEYS order (for /wv config listing)
 
-Declared by [VetsConfigSchema.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/config/VetsConfigSchema.java) — **29 entries**, in this order:
+Declared by [VetsConfigSchema.USER_CONFIG_KEYS](../src/client/java/org/wynnvets/config/VetsConfigSchema.java) — **30 entries**, in this order:
 
 1. `legacyItemHighlighting`
 2. `legacyItemShowEnchantments`
-3. `legacyItemBackgroundGradientTop`
-4. `legacyItemBackgroundGradientTopOpacity`
-5. `legacyItemBackgroundGradientBottom`
-6. `legacyItemBackgroundGradientBottomOpacity`
-7. `legacyItemForegroundSprite`
-8. `legacyItemForegroundColor`
-9. `printMOTD`
-10. `printANNI`
-11. `vetsAnniShowHoverDetails`
-12. `vetsAnniPromptRsvp`
-13. `vetsAnniShowPrediction`
-14. `vetsAnniRoleStyle`
-15. `vetsAnniBossbarEnabled`
-16. `vetsAnniFlashIntensity`
-17. `vetsAnniFlashSound`
-18. `vetsAnniOutlinesEnabled`
-19. `vetsAnniNametagsEnabled`
-20. `vetsAnniZoneLines`
-21. `vetsAnniScrollWaypoint`
-22. `vetsAnniChatAlerts`
-23. `vetsAnniGhostsPrompt`
-24. `printBridgeMessages`
-25. `printSuccessfulAuth`
-26. `showSupporterGlints`
-27. `colorBlindMode`
-28. `handleSpoilers`
-29. `moreReliableGuildCheck`
+3. `legacyItemUnderrolling`
+4. `legacyItemBackgroundGradientTop`
+5. `legacyItemBackgroundGradientTopOpacity`
+6. `legacyItemBackgroundGradientBottom`
+7. `legacyItemBackgroundGradientBottomOpacity`
+8. `legacyItemForegroundSprite`
+9. `legacyItemForegroundColor`
+10. `printMOTD`
+11. `printANNI`
+12. `vetsAnniShowHoverDetails`
+13. `vetsAnniPromptRsvp`
+14. `vetsAnniShowPrediction`
+15. `vetsAnniRoleStyle`
+16. `vetsAnniBossbarEnabled`
+17. `vetsAnniFlashIntensity`
+18. `vetsAnniFlashSound`
+19. `vetsAnniOutlinesEnabled`
+20. `vetsAnniNametagsEnabled`
+21. `vetsAnniZoneLines`
+22. `vetsAnniScrollWaypoint`
+23. `vetsAnniChatAlerts`
+24. `vetsAnniGhostsPrompt`
+25. `printBridgeMessages`
+26. `printSuccessfulAuth`
+27. `showSupporterGlints`
+28. `colorBlindMode`
+29. `handleSpoilers`
+30. `moreReliableGuildCheck`
 
 ## 5. Static defaults
 

@@ -1,5 +1,6 @@
 package org.wynnvets.items;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -12,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.error.YAMLException;
 
 /**
- * Tests for {@link ItemDefinitions}' nine testable query methods — eight that
+ * Tests for {@link ItemDefinitions}' ten testable query methods — nine that
  * take an item name plus {@code isBlockedScreenTitle}, which takes a screen
  * title — driven against the real {@code definitions.yml} plus small parsed-in
  * fixtures.
@@ -27,7 +28,7 @@ import org.yaml.snakeyaml.error.YAMLException;
  *
  * <p>{@code isEnchantExcludedItem(ItemStack)} is not covered — it resolves
  * {@code BuiltInRegistries.ITEM}, which needs {@code Bootstrap.bootStrap()}.
- * It is the tenth public query and the only untestable one.</p>
+ * It is the eleventh public query and the only untestable one.</p>
  *
  * <p>NOTE: {@link ItemDefinitions} imports {@code BuiltInRegistries} and
  * {@code ItemStack}, but its static state is empty collections and the section
@@ -42,7 +43,7 @@ class ItemDefinitionsTest {
         ItemDefinitions.load();
     }
 
-    // Test-only: load() clears all ten collections before refilling, so it
+    // Test-only: load() clears all eleven collections before refilling, so it
     // doubles as the reset that undoes any fixture a test parsed in.
     @AfterEach
     void reloadRealDefinitions() {
@@ -497,6 +498,89 @@ class ItemDefinitionsTest {
         assertFalse(ItemDefinitions.isMiscLegacy("Block Bank"));
         assertFalse(ItemDefinitions.isNoLoreLegacy("Block Bank"));
         assertFalse(ItemDefinitions.isInventorySuppressor("Skeleton Key"));
+    }
+
+    // ----- min_rerolls -----
+
+    @Test
+    void minRerolls_givesTheThresholdOfAMatchingFilter() throws IOException {
+        parseFixture(
+                """
+                min_rerolls:
+                  - filter: "^RerollProbe$"
+                    threshold: 3
+                """);
+
+        assertEquals(3, ItemDefinitions.minRerolls("RerollProbe"));
+        assertEquals(0, ItemDefinitions.minRerolls("Unlisted Probe"), "unlisted names have none");
+        assertEquals(0, ItemDefinitions.minRerolls(null));
+    }
+
+    @Test
+    void minRerolls_takesTheHighestThresholdOfOverlappingFilters() throws IOException {
+        parseFixture(
+                """
+                min_rerolls:
+                  - filter: "^Overlap.*$"
+                    threshold: 2
+                  - filter: "^Overlap Probe$"
+                    threshold: 5
+                  - filter: "(?i)^overlap probe$"
+                    threshold: 4
+                """);
+
+        assertEquals(5, ItemDefinitions.minRerolls("Overlap Probe"));
+        assertEquals(2, ItemDefinitions.minRerolls("Overlap Other"));
+    }
+
+    @Test
+    void minRerolls_skipsMalformedEntriesAndKeepsTheRest() throws IOException {
+        parseFixture(
+                """
+                min_rerolls:
+                  - "^BareStringProbe$"
+                  - filter: "^NoThresholdProbe$"
+                  - threshold: 2
+                  - filter: "^TextThresholdProbe$"
+                    threshold: "2"
+                  - filter: "^ZeroThresholdProbe$"
+                    threshold: 0
+                  - filter: "^NegativeThresholdProbe$"
+                    threshold: -1
+                  - filter: ""
+                    threshold: 2
+                  - filter: "^ValidProbe$"
+                    threshold: 2
+                    note: an extra key is ignored
+                """);
+
+        assertEquals(0, ItemDefinitions.minRerolls("BareStringProbe"));
+        assertEquals(0, ItemDefinitions.minRerolls("NoThresholdProbe"));
+        assertEquals(0, ItemDefinitions.minRerolls("TextThresholdProbe"));
+        assertEquals(0, ItemDefinitions.minRerolls("ZeroThresholdProbe"));
+        assertEquals(0, ItemDefinitions.minRerolls("NegativeThresholdProbe"));
+        assertEquals(0, ItemDefinitions.minRerolls(""), "an empty filter is dropped");
+        assertEquals(2, ItemDefinitions.minRerolls("ValidProbe"), "the valid entry still loads");
+    }
+
+    @Test
+    void minRerolls_filterMustMatchTheWholeName() throws IOException {
+        parseFixture(
+                """
+                min_rerolls:
+                  - filter: "Partial Probe"
+                    threshold: 2
+                """);
+
+        assertEquals(2, ItemDefinitions.minRerolls("Partial Probe"));
+        assertEquals(0, ItemDefinitions.minRerolls("A Partial Probe Chestplate"));
+    }
+
+    @Test
+    void theRealFileListsTheSolidifiedChestplate() {
+        // No current Solidified Chestplate has fewer than 2 rerolls (user, 2026-10-27).
+        assertEquals(2, ItemDefinitions.minRerolls("Solidified Chestplate"));
+        assertEquals(0, ItemDefinitions.minRerolls("Solidified Chestplates"));
     }
 
     // ----- load() is the reset -----

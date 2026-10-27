@@ -148,8 +148,7 @@ public final class LegacyItemHandler {
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack held = inventory.getItem(i);
             if (held.isEmpty()) continue;
-            String name =
-                    normalizeName(ChatFormatting.stripFormatting(held.getHoverName().getString()));
+            String name = normalizedHoverName(held);
             if (name != null && ItemDefinitions.isInventorySuppressor(name)) return true;
         }
         return false;
@@ -188,7 +187,7 @@ public final class LegacyItemHandler {
     /**
      * Returns {@code true} if {@code stack} is a legacy item: never for an empty stack or a
      * player-crafted one ({@link #isCraftedItem}), while {@code legacyItemHighlighting} is off
-     * or while {@link #isDetectionSuppressed}, and otherwise when any of the nine numbered
+     * or while {@link #isDetectionSuppressed}, and otherwise when any of the ten numbered
      * checks in the body matches.
      *
      * <p>A new-format stack whose name is in {@code new_format_override} skips checks 1 and 2,
@@ -200,8 +199,7 @@ public final class LegacyItemHandler {
         if (isDetectionSuppressed()) return false;
         if (isCraftedItem(stack)) return false;
 
-        String name =
-                normalizeName(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
+        String name = normalizedHoverName(stack);
         boolean newFormatOverridden =
                 name != null && isNewFormatItem(stack) && ItemDefinitions.isNewFormatOverride(name);
 
@@ -242,6 +240,9 @@ public final class LegacyItemHandler {
         // 9. Wynncraft's VINTAGE ribbon, for an item no name list covers
         if (hasVintageBanner(lore)) return true;
 
+        // 10. Underrolled: fewer rerolls than definitions.yml's min_rerolls allows
+        if (UnderrollDetector.isUnderrolled(stack)) return true;
+
         return false;
     }
 
@@ -262,6 +263,11 @@ public final class LegacyItemHandler {
             result = result.substring(0, result.length() - 1).stripTrailing();
         }
         return result;
+    }
+
+    /** {@code stack}'s hover name without colour codes, normalized by {@link #normalizeName}. */
+    public static String normalizedHoverName(ItemStack stack) {
+        return normalizeName(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
     }
 
     /**
@@ -335,12 +341,14 @@ public final class LegacyItemHandler {
     }
 
     /**
-     * Copies a screenshot of {@code tooltip}, as rewritten, to the clipboard over Wynntils'
-     * screenshot of the original, when the last processed tooltip was legacy and a press of
-     * Wynntils' screenshot keybind is latched ({@link #notifyScreenshotKeyPressed}). The latch
-     * is consumed either way; see {@link LegacyScreenshotHandler}.
+     * Copies a screenshot of {@code tooltip}, as rewritten and drawn in {@code border}, to the
+     * clipboard over Wynntils' screenshot of the original, when the last processed tooltip was
+     * legacy and a press of Wynntils' screenshot keybind is latched
+     * ({@link #notifyScreenshotKeyPressed}). The latch is consumed either way; see
+     * {@link LegacyScreenshotHandler}.
      */
-    public static void screenshotIfRequested(Font font, List<Component> tooltip) {
+    public static void screenshotIfRequested(
+            Font font, List<Component> tooltip, Identifier border) {
         boolean requested = LegacyScreenshotHandler.isScreenshotRequested();
         if (requested) {
             VetsLogger.info(
@@ -349,7 +357,7 @@ public final class LegacyItemHandler {
                     tooltip.size());
         }
         if (lastProcessedWasLegacy && requested) {
-            LegacyScreenshotHandler.takeScreenshot(font, tooltip);
+            LegacyScreenshotHandler.takeScreenshot(font, tooltip, border);
         }
     }
 
@@ -516,6 +524,16 @@ public final class LegacyItemHandler {
      */
     public static String getEnchantmentLabel(ItemStack stack) {
         return LegacyEnchantmentRenderer.enchantmentLabel(stack);
+    }
+
+    /**
+     * Returns the underroll verdict for the item as one line, for the item-dump tool: the
+     * verdict, where the reroll count came from (page 1, remembered from page 1, unidentified,
+     * or why the item was skipped), the count and the item's {@code min_rerolls} threshold.
+     * Computed whether or not {@code legacyItemUnderrolling} is on.
+     */
+    public static String getUnderrollSummary(ItemStack stack) {
+        return UnderrollDetector.summary(stack);
     }
 
     /**

@@ -32,6 +32,7 @@ public final class VetsConfigSchema {
     public static final String[] USER_CONFIG_KEYS = {
         VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING,
         VetsConfigKeys.LEGACY_ITEM_SHOW_ENCHANTMENTS,
+        VetsConfigKeys.LEGACY_ITEM_UNDERROLLING,
         VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP,
         VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_TOP_OPACITY,
         VetsConfigKeys.LEGACY_ITEM_BACKGROUND_GRADIENT_BOTTOM,

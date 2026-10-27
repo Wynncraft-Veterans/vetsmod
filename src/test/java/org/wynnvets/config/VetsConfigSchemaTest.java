@@ -41,6 +41,7 @@ class VetsConfigSchemaTest {
                     "vetsAuthVerifiedAt",
                     "legacyItemHighlighting",
                     "legacyItemShowEnchantments",
+                    "legacyItemUnderrolling",
                     "printMOTD",
                     "printANNI",
                     "vetsAnniShowHoverDetails",
@@ -81,6 +82,7 @@ class VetsConfigSchemaTest {
                 new String[] {
                     "legacyItemHighlighting",
                     "legacyItemShowEnchantments",
+                    "legacyItemUnderrolling",
                     "legacyItemBackgroundGradientTop",
                     "legacyItemBackgroundGradientTopOpacity",
                     "legacyItemBackgroundGradientBottom",

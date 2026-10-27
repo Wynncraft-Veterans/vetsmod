@@ -1,5 +1,8 @@
 package org.wynnvets.items;
 
+import com.wynntils.core.text.fonts.FontManager;
+import com.wynntils.core.text.fonts.wynnfonts.BannerBoxFont;
+import com.wynntils.utils.colors.CustomColor;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.ChatFormatting;
@@ -15,9 +18,10 @@ import org.wynnvets.logging.VetsLogger;
  * New-format (PUA-encoded) tooltip manipulation for legacy items.
  *
  * <p>Handles Component tree operations on Wynncraft's new tooltip format:
- * LEGACY box insertion, name line recoloring, enchanted name rewriting,
- * and font-based tree traversal. Orchestration and old-format fallback
- * remain in {@link LegacyTooltipRenderer}.</p>
+ * LEGACY box insertion, name line recoloring, name prefixing ("Enchanted",
+ * "Underrolled"), the gold reroll box of an underrolled item and font-based
+ * tree traversal. Orchestration and old-format fallback remain in
+ * {@link LegacyTooltipRenderer}.</p>
  *
  * <p>A new-format tooltip is recognised by its fonts rather than by line
  * position: the name line is drawn in {@code tooltip/emblem/frame}, and the
@@ -37,6 +41,30 @@ final class NewFormatRenderer {
     /** Font used by Wynncraft's banner/symbol tier indicators (e.g. ★★★ on ingredients). */
     private static final FontDescription BANNER_SYMBOL_FONT =
             new FontDescription.Resource(Identifier.parse("banner/symbol"));
+
+    /** Font of the dividers between a tooltip's sections. */
+    static final FontDescription DIVIDER_FONT =
+            new FontDescription.Resource(Identifier.parse("tooltip/divider"));
+
+    /** Font whose glyphs only move the cursor ({@link FontManager#calculateOffset}). */
+    static final FontDescription SPACE_FONT =
+            new FontDescription.Resource(Identifier.parse("space"));
+
+    /** Font of the reroll badge drawn after the reroll count's box. */
+    private static final FontDescription TOOLTIP_BANNER_FONT =
+            new FontDescription.Resource(Identifier.parse("tooltip/banner"));
+
+    /** Left half of the reroll badge, in {@link #TOOLTIP_BANNER_FONT}. */
+    private static final char REROLL_BADGE_LEFT = (char) 0xE005;
+
+    /**
+     * Right half of the reroll badge, and so the last glyph of the reroll line. Wynntils'
+     * {@code WynnItemParser} finds the line by it too.
+     */
+    private static final char REROLL_BADGE_RIGHT = (char) 0xF005;
+
+    /** How far right Wynncraft starts a reroll line with a one-digit count, in pixels. */
+    private static final int REROLL_INDENT = 123;
 
     /**
      * Box half of the gold LEGACY chip in the {@code banner/box} font. Its
@@ -203,42 +231,44 @@ final class NewFormatRenderer {
 
     /**
      * Modifies the new-format name line (see {@link #findNameLine}) to show
-     * "Enchanted [name]" in gold, preserving font structure and PUA spacing.
+     * {@code prefix + name} in gold ("Enchanted Leech Bow", "Underrolled Solidified Chestplate"),
+     * preserving font structure and PUA spacing.
      */
-    static void applyEnchantedToNewFormatNameLine(List<Component> lines, String itemName) {
+    static void applyPrefixToNewFormatNameLine(
+            List<Component> lines, String itemName, String prefix) {
         int i = findNameLine(lines);
         if (i < 0) {
             VetsLogger.debug(
-                    "applyEnchantedToNewFormatNameLine: NO emblem/frame line found for '{}'",
+                    "applyPrefixToNewFormatNameLine: NO emblem/frame line found for '{}'",
                     itemName);
             return;
         }
         VetsLogger.debug(
-                "applyEnchantedToNewFormatNameLine: found emblem/frame at line {}, itemName='{}'",
+                "applyPrefixToNewFormatNameLine: found emblem/frame at line {}, itemName='{}'",
                 i,
                 itemName);
         Component before = lines.get(i);
-        lines.set(i, deepEnchantName(before, itemName, GOLD));
+        lines.set(i, deepPrefixName(before, itemName, prefix, GOLD));
         VetsLogger.debug(
-                "applyEnchantedToNewFormatNameLine: before='{}' after='{}'",
+                "applyPrefixToNewFormatNameLine: before='{}' after='{}'",
                 before.getString(),
                 lines.get(i).getString());
     }
 
     /**
      * Deep-copies a Component tree, finding the literal containing the exact
-     * item name and replacing it with "Enchanted [name]" in the target color.
+     * item name and replacing it with {@code prefix + name} in the target color.
      * Other components (sprites, spacers, fonts) are preserved unchanged.
      */
-    static MutableComponent deepEnchantName(
-            Component component, String originalName, TextColor targetColor) {
+    private static MutableComponent deepPrefixName(
+            Component component, String originalName, String prefix, TextColor targetColor) {
         MutableComponent copy;
         Style style = component.getStyle();
 
         if (isNameLiteral(component, originalName)) {
             VetsLogger.debug(
-                    "deepEnchantName MATCH: '{}' -> 'Enchanted {}'", originalName, originalName);
-            copy = Component.literal("Enchanted " + originalName);
+                    "deepPrefixName MATCH: '{}' -> '{}{}'", originalName, prefix, originalName);
+            copy = Component.literal(prefix + originalName);
             style = style.withColor(targetColor);
         } else {
             copy = component.plainCopy();
@@ -246,7 +276,7 @@ final class NewFormatRenderer {
 
         copy.setStyle(style);
         for (Component sibling : component.getSiblings()) {
-            copy.append(deepEnchantName(sibling, originalName, targetColor));
+            copy.append(deepPrefixName(sibling, originalName, prefix, targetColor));
         }
         return copy;
     }
@@ -366,5 +396,88 @@ final class NewFormatRenderer {
                 index,
                 Component.literal("\uDB00\uDC01").setStyle(Style.EMPTY.withFont(BANNER_BOX_FONT)));
         siblings.add(index, legacyBox());
+    }
+
+    /**
+     * Recolours the reroll line's box and badge gold, keeping the count's black digits and the
+     * badge's untinted right half as they are. Returns {@code false} when no line ends in the
+     * reroll badge: any page but 1, or a count of 0, which Wynncraft draws no line for.
+     */
+    static boolean recolorRerollBox(List<Component> lines) {
+        for (int i = 0; i < lines.size(); i++) {
+            String text = lines.get(i).getString();
+            if (!text.isEmpty() && text.charAt(text.length() - 1) == REROLL_BADGE_RIGHT) {
+                lines.set(i, deepRecolorReroll(lines.get(i), FontDescription.DEFAULT));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Deep-copies a Component tree, recolouring gold each node that draws the box (a
+     * {@code banner/box} node whose own text holds a box glyph: the boxed alphabet and digits
+     * and the caps, U+E030 to U+E062) or the badge's tinted left half. The digits drawn over
+     * the box (U+E020 up) are below that range, so they keep their colour. A node that sets no
+     * font draws in {@code inherited}, its parent's.
+     */
+    private static MutableComponent deepRecolorReroll(
+            Component component, FontDescription inherited) {
+        Style style = component.getStyle();
+        FontDescription font =
+                FontDescription.DEFAULT.equals(style.getFont()) ? inherited : style.getFont();
+        MutableComponent copy = component.plainCopy();
+        String text = copy.getString();
+        boolean box =
+                BANNER_BOX_FONT.equals(font)
+                        && text.chars().anyMatch(c -> c >= 0xE030 && c <= 0xE062);
+        boolean badge = TOOLTIP_BANNER_FONT.equals(font) && text.indexOf(REROLL_BADGE_LEFT) >= 0;
+        if (box || badge) style = style.withColor(GOLD);
+        copy.setStyle(style);
+        for (Component sibling : component.getSiblings()) {
+            copy.append(deepRecolorReroll(sibling, font));
+        }
+        return copy;
+    }
+
+    /**
+     * Inserts a reroll line reading 0, its box and badge gold, after the last section
+     * divider: where Wynncraft draws the line on page 1 when the count is above 0. Does nothing
+     * when the tooltip has no divider.
+     */
+    static void insertZeroRerollLine(List<Component> lines) {
+        int divider = -1;
+        for (int i = 0; i < lines.size(); i++) {
+            if (containsFont(lines.get(i), DIVIDER_FONT)) divider = i;
+        }
+        if (divider >= 0) lines.add(divider + 1, zeroRerollLine());
+    }
+
+    /**
+     * Builds the reroll line for a count of 0, laid out as Wynncraft lays out a one-digit
+     * count: an indent, the boxed count (Wynntils' {@link BannerBoxFont#buildMessage}, then a
+     * 2 px gap), and the badge's two halves. The left half is the tinted one, gold here; the
+     * right half is drawn untinted, as Wynncraft draws it.
+     */
+    private static MutableComponent zeroRerollLine() {
+        Style space = Style.EMPTY.withFont(SPACE_FONT);
+        Style badge = Style.EMPTY.withFont(TOOLTIP_BANNER_FONT).withShadowColor(BOX_SHADOW);
+        return Component.empty()
+                .append(
+                        Component.literal(FontManager.calculateOffset(0, REROLL_INDENT))
+                                .setStyle(space))
+                .append(
+                        BannerBoxFont.buildMessage(
+                                "0",
+                                CustomColor.fromChatFormatting(ChatFormatting.GOLD),
+                                CustomColor.fromChatFormatting(ChatFormatting.BLACK),
+                                FontManager.calculateOffset(0, 2)))
+                .append(Component.literal(FontManager.calculateOffset(0, -1)).setStyle(space))
+                .append(
+                        Component.literal(String.valueOf(REROLL_BADGE_LEFT))
+                                .setStyle(badge.withColor(GOLD)))
+                .append(
+                        Component.literal(FontManager.calculateOffset(0, -10) + REROLL_BADGE_RIGHT)
+                                .setStyle(badge));
     }
 }

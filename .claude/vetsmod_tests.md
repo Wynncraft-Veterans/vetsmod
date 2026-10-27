@@ -1249,9 +1249,9 @@ Test: [`VetsConfigDefaultsTest.java`](../src/test/java/org/wynnvets/config/VetsC
 `VetsConfigDefaults` holds the values `config.json` starts from; they also feed the shipped `config.yml` and `/wv config <key> default`. The suite pins every user-facing default against a frozen literal table in the test, and checks that each user key in `VetsConfigSchema.USER_CONFIG_KEYS` has a default of the right Java type, with the tri-state `handleSpoilers` left unset. It needs no running client because `VetsConfigDefaults` has no static state and does not load `VetsConfig`.
 
 - **`userDefaults_areTheFirstRunValues`**: Each entry in the frozen user-default table (for example `printMOTD` true, `colorBlindMode` false, `legacyItemBackgroundGradientTopOpacity` 69) equals the value in `firstRunValues()`.
-  - For each `(key, expected)` in the test's 28-entry `USER_DEFAULTS` table, from `legacyItemHighlighting` (true) to `moreReliableGuildCheck` (true): `VetsConfigDefaults.firstRunValues().get(key)` equals `expected`. Non-true entries: `colorBlindMode` false, `legacyItemBackgroundGradientTopOpacity` 69L, `legacyItemBackgroundGradientBottomOpacity` 100L, `vetsAnniRoleStyle` `"descriptive"`, `vetsAnniFlashIntensity` `"normal"`, `legacyItemBackgroundGradientTop` `"orange"`, `legacyItemBackgroundGradientBottom` `"crimson"`, `legacyItemForegroundSprite` `"box_gradient_2"`, `legacyItemForegroundColor` `"orange"`.
+  - For each `(key, expected)` in the test's 29-entry `USER_DEFAULTS` table, from `legacyItemHighlighting` (true) to `moreReliableGuildCheck` (true): `VetsConfigDefaults.firstRunValues().get(key)` equals `expected`. Non-true entries: `colorBlindMode` false, `legacyItemBackgroundGradientTopOpacity` 69L, `legacyItemBackgroundGradientBottomOpacity` 100L, `vetsAnniRoleStyle` `"descriptive"`, `vetsAnniFlashIntensity` `"normal"`, `legacyItemBackgroundGradientTop` `"orange"`, `legacyItemBackgroundGradientBottom` `"crimson"`, `legacyItemForegroundSprite` `"box_gradient_2"`, `legacyItemForegroundColor` `"orange"`.
 - **`everyUserKeyHasADefaultOfItsKind_andTheTriStateIsLeftOut`**: The pinned keys plus `handleSpoilers` equal `USER_CONFIG_KEYS`; tri-state keys have no default entry, int keys are `Long`, string keys are `String`, and the rest are `Boolean`.
-  - `Set.copyOf(List.of(VetsConfigSchema.USER_CONFIG_KEYS))` equals `pinned`, the 28 `USER_DEFAULTS` keys plus `handleSpoilers`: 29 names, so `USER_CONFIG_KEYS` holds exactly those and no others.
+  - `Set.copyOf(List.of(VetsConfigSchema.USER_CONFIG_KEYS))` equals `pinned`, the 29 `USER_DEFAULTS` keys plus `handleSpoilers`: 30 names, so `USER_CONFIG_KEYS` holds exactly those and no others.
   - For each `key` in `USER_CONFIG_KEYS` where `isTriStateKey(key)` (only `handleSpoilers`): `values` does not contain `key`, where `values` is `firstRunValues()`.
   - For each `key` where `isIntKey(key)` (the two `legacyItemBackgroundGradient*Opacity` keys): `values.get(key)` is a `Long`.
   - For each `key` where `isStringKey(key)` (the keys of `STRING_CONFIG_KEYS`): `values.get(key)` is a `String`.
@@ -1266,7 +1266,7 @@ Test: [`VetsConfigKeysTest.java`](../src/test/java/org/wynnvets/config/VetsConfi
 `VetsConfigKeys` is the list of string constants naming each setting as stored in `config.json`. Those names are the file format: renaming one makes existing values unreadable and they are dropped at the next save. The suite compares the constants against a frozen constant-to-name table, read by reflection over all public static final `String` fields, so an added, removed or renamed key fails, and it checks the on-disk names are distinct.
 
 - **`everyKeyConstant_hasItsOnDiskName`**: The reflected map of constant name to string value equals the frozen expected table, in both content and key set.
-  - `keyConstants()`, the sorted map of every public static final `String` field of `VetsConfigKeys` (constant name to value), equals `new TreeMap<>(EXPECTED)`: the 43 frozen pairs from `VETS_AUTOMESSAGE` to `vetsAutomessage` through `LEGACY_ITEM_FOREGROUND_COLOR` to `legacyItemForegroundColor`.
+  - `keyConstants()`, the sorted map of every public static final `String` field of `VetsConfigKeys` (constant name to value), equals `new TreeMap<>(EXPECTED)`: the 44 frozen pairs from `VETS_AUTOMESSAGE` to `vetsAutomessage` through `LEGACY_ITEM_FOREGROUND_COLOR` to `legacyItemForegroundColor`.
 - **`onDiskNames_areDistinct`**: No two constants share the same on-disk name.
   - For each `name` in the values of `keyConstants()`: `seen.add(name)` is true, meaning no earlier constant has the same on-disk name.
 
@@ -1277,7 +1277,7 @@ Test: [`VetsConfigSchemaTest.java`](../src/test/java/org/wynnvets/config/VetsCon
 `VetsConfigSchema` holds the key tables behind `/wv config`: which keys users may set, their print order, which keys are tri-state, string or int, and the valid-value lists for fixed-choice keys. The suite pins each table against a frozen literal and checks that the `is*Key` predicates and `fixedValuesOf`/`isFixedValue` agree with those arrays across every known key name plus a debug key and an unknown name. The string-key guard reads the live `STRING_CONFIG_KEYS`, so a new string key must be a colour key, the sprite key or declare a fixed list.
 
 - **`userConfigKeys_inPrintOrder`**: `USER_CONFIG_KEYS` equals the expected array in exactly that order, which is the order `configList` prints.
-  - `VetsConfigSchema.USER_CONFIG_KEYS` equals, in order, the 29 names from `legacyItemHighlighting` (first) to `moreReliableGuildCheck` (last). `handleSpoilers` is 28th.
+  - `VetsConfigSchema.USER_CONFIG_KEYS` equals, in order, the 30 names from `legacyItemHighlighting` (first) to `moreReliableGuildCheck` (last). `legacyItemUnderrolling` is 3rd and `handleSpoilers` 29th.
 - **`typeLists`**: `TRISTATE_KEYS` is `handleSpoilers`, `STRING_CONFIG_KEYS` is the four colour/sprite keys plus role style and flash intensity, and `INT_CONFIG_KEYS` is the two gradient opacity keys.
   - `TRISTATE_KEYS` equals `["handleSpoilers"]`.
   - `STRING_CONFIG_KEYS` equals, in order, `legacyItemBackgroundGradientTop`, `legacyItemBackgroundGradientBottom`, `legacyItemForegroundSprite`, `legacyItemForegroundColor`, `vetsAnniRoleStyle`, `vetsAnniFlashIntensity`.
@@ -1287,7 +1287,7 @@ Test: [`VetsConfigSchemaTest.java`](../src/test/java/org/wynnvets/config/VetsCon
   - `VALID_FLASH_INTENSITIES` equals, in order, `subtle`, `normal`, `strong`.
   - `VALID_SPRITES` equals, in order, the 10 names from `wynn` (first) to `box_gradient_2` (last).
 - **`fixedValuesOf_mapsOnlyRoleStyleAndFlashIntensity`**: For every known name, `fixedValuesOf` returns the role-style or flash-intensity list for those two keys and `null` for all others.
-  - For `name` = `vetsAnniRoleStyle` in `ALL_NAMES` (45 names, `vetsAutomessage` first, `noSuchKey` last): `fixedValuesOf(name)` equals `descriptive`, `short`, `formal`.
+  - For `name` = `vetsAnniRoleStyle` in `ALL_NAMES` (46 names, `vetsAutomessage` first, `noSuchKey` last): `fixedValuesOf(name)` equals `descriptive`, `short`, `formal`.
   - For `name` = `vetsAnniFlashIntensity`: `fixedValuesOf(name)` equals `subtle`, `normal`, `strong`.
   - For every other name in `ALL_NAMES`: `fixedValuesOf(name)` is null.
 - **`isFixedValue_acceptsTheListedLowercaseValuesOnly`**: Listed lowercase values pass for their key; wrong-list values, upper case `SHORT`, empty, `null`, colour keys and unknown keys fail.
@@ -2301,7 +2301,7 @@ Test: [`StaffRankCheckerTest.java`](../src/test/java/org/wynnvets/guild/StaffRan
 
 Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefinitionsTest.java) · Subject: [`ItemDefinitions`](../src/client/java/org/wynnvets/items/ItemDefinitions.java), [`definitions.yml`](../src/client/resources/definitions.yml)
 
-`ItemDefinitions` loads per-category lists of item-name regexes (legacy, no-lore legacy, misc legacy, unenchanted, not-pedestal, not-junk, new-format override, blocked screen titles, inventory suppressors) from `definitions.yml` and answers name-matching queries against them. The suite pins per-pattern case sensitivity, full-match semantics, every section dropping an empty entry, the `isLegacy` veto in `isUnenchanted`, every name and title predicate answering false for null, a repeated section failing the parse, and how YAML quoting and comments reach the regex. It loads the real `definitions.yml` from the classpath in a static initialiser, appends small YAML fixtures through the package-private `parse(InputStream)`, and reloads the real file after every test, since `load()` clears all collections.
+`ItemDefinitions` loads per-category lists of item-name regexes (legacy, no-lore legacy, misc legacy, unenchanted, not-pedestal, not-junk, new-format override, blocked screen titles, inventory suppressors), plus the `min_rerolls` filter/threshold pairs, from `definitions.yml` and answers name-matching queries against them. The suite pins per-pattern case sensitivity, full-match semantics, every section dropping an empty entry, the `isLegacy` veto in `isUnenchanted`, every name and title predicate answering false for null, a repeated section failing the parse, and how YAML quoting and comments reach the regex. It loads the real `definitions.yml` from the classpath in a static initialiser, appends small YAML fixtures through the package-private `parse(InputStream)`, and reloads the real file after every test, since `load()` clears all collections.
 
 - **`isLegacy_caseSensitivityIsPerPatternNotPerCategory`**: "SANTA HAT" and "santa hat" match the `(?i)` Santa Hat entry, while "Wolf Fang" and "Corrupted Treasure" match only in their exact case.
   - `ItemDefinitions.isLegacy("SANTA HAT")` is true (the real file's `(?i)^Santa Hat.*$` entry folds case)
@@ -2433,6 +2433,23 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - `ItemDefinitions.isMiscLegacy("Block Bank")` is false
   - `ItemDefinitions.isNoLoreLegacy("Block Bank")` is false
   - `ItemDefinitions.isInventorySuppressor("Skeleton Key")` is false
+- **`minRerolls_givesTheThresholdOfAMatchingFilter`**: A `min_rerolls` entry's threshold is returned for a name its filter matches, and 0 for an unlisted name or null.
+  - After parsing a fixture with filter `^RerollProbe$` and threshold 3, `ItemDefinitions.minRerolls("RerollProbe")` equals 3
+  - `ItemDefinitions.minRerolls("Unlisted Probe")` equals 0
+  - `ItemDefinitions.minRerolls(null)` equals 0
+- **`minRerolls_takesTheHighestThresholdOfOverlappingFilters`**: When several filters match one name, the highest threshold applies, whatever the entry order.
+  - With filters `^Overlap.*$` (2), `^Overlap Probe$` (5) and `(?i)^overlap probe$` (4): `ItemDefinitions.minRerolls("Overlap Probe")` equals 5
+  - `ItemDefinitions.minRerolls("Overlap Other")` equals 2 (only the first filter matches)
+- **`minRerolls_skipsMalformedEntriesAndKeepsTheRest`**: A `min_rerolls` entry that is a bare string, lacks `filter` or `threshold`, or has a quoted, zero, negative threshold or an empty filter is dropped; a valid entry beside them, with an extra key, still loads.
+  - `ItemDefinitions.minRerolls(name)` equals 0 for "BareStringProbe", "NoThresholdProbe", "TextThresholdProbe" (threshold `"2"`), "ZeroThresholdProbe" and "NegativeThresholdProbe" (5 assertions)
+  - `ItemDefinitions.minRerolls("")` equals 0 (the empty filter is dropped)
+  - `ItemDefinitions.minRerolls("ValidProbe")` equals 2 (its extra `note` key is ignored)
+- **`minRerolls_filterMustMatchTheWholeName`**: An unanchored filter still has to match the whole name, as in every other section.
+  - With filter `Partial Probe` (threshold 2): `ItemDefinitions.minRerolls("Partial Probe")` equals 2
+  - `ItemDefinitions.minRerolls("A Partial Probe Chestplate")` equals 0
+- **`theRealFileListsTheSolidifiedChestplate`**: The real file gives the Solidified Chestplate a threshold of 2 (no current copy has fewer rerolls), and only for that exact name.
+  - `ItemDefinitions.minRerolls("Solidified Chestplate")` equals 2
+  - `ItemDefinitions.minRerolls("Solidified Chestplates")` equals 0
 - **`load_isIdempotentAndDiscardsParsedInFixtures`**: After parsing a "ReloadProbe" fixture and calling `load()`, the probe no longer matches, "Wolf Fang" matches, and a second `load()` leaves that unchanged.
   - After parsing a fixture with `^ReloadProbe$` under `definitions`, `ItemDefinitions.isLegacy("ReloadProbe")` is true
   - After `ItemDefinitions.load()`, `ItemDefinitions.isLegacy("ReloadProbe")` is false (`load()` clears before refilling)

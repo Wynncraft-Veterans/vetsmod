@@ -24,11 +24,14 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  * <p>The file is standard YAML, read with SnakeYAML's safe loader: a mapping from section
  * name to a list of entries, in which a repeated section is a parse error (several
  * {@code ---}-separated documents are also accepted, and add up). Every section except
- * {@code enchant_excluded_items} holds regular expressions that must match the whole name.
- * The file's header describes the format and each section; an empty entry and an unknown
- * section name are ignored.</p>
+ * {@code enchant_excluded_items} holds regular expressions that must match the whole name;
+ * {@code min_rerolls} pairs each one, as {@code filter}, with a {@code threshold}. The file's
+ * header describes the format and each section; an empty entry and an unknown section name
+ * are ignored.</p>
  */
 public final class ItemDefinitions {
+    private record MinRerolls(Pattern filter, int threshold) {}
+
     private static final List<Pattern> legacyPatterns = new ArrayList<>();
     private static final List<Pattern> miscPatterns = new ArrayList<>();
     private static final List<Pattern> noLoreLegacyPatterns = new ArrayList<>();
@@ -41,6 +44,9 @@ public final class ItemDefinitions {
 
     /** {@code enchant_excluded_items}: plain item ids such as {@code minecraft:enchanted_book}. */
     private static final Set<String> enchantExcludedItems = new HashSet<>();
+
+    /** {@code min_rerolls}: name filters with the fewest rerolls a current copy can have. */
+    private static final List<MinRerolls> minRerollEntries = new ArrayList<>();
 
     /** The pattern sections, by their name in the file. */
     private static final Map<String, List<Pattern>> patternSections = new LinkedHashMap<>();
@@ -63,6 +69,7 @@ public final class ItemDefinitions {
     public static void load() {
         patternSections.values().forEach(List::clear);
         enchantExcludedItems.clear();
+        minRerollEntries.clear();
 
         try (InputStream is = ItemDefinitions.class.getResourceAsStream("/definitions.yml")) {
             if (is == null) {
@@ -73,6 +80,7 @@ public final class ItemDefinitions {
             Map<String, Integer> counts = new LinkedHashMap<>();
             patternSections.forEach((section, patterns) -> counts.put(section, patterns.size()));
             counts.put("enchant_excluded_items", enchantExcludedItems.size());
+            counts.put("min_rerolls", minRerollEntries.size());
             VetsLogger.debug("Loaded definitions.yml: {}", counts);
         } catch (IOException | RuntimeException e) {
             // A YAML or regex syntax error is a RuntimeException; log it rather than fail
@@ -98,10 +106,31 @@ public final class ItemDefinitions {
                     continue;
                 }
                 for (Object entry : entries) {
-                    if (entry != null) add(name, String.valueOf(entry));
+                    if (entry == null) continue;
+                    if (name.equals("min_rerolls")) {
+                        addMinRerolls(entry);
+                    } else {
+                        add(name, String.valueOf(entry));
+                    }
                 }
             }
         }
+    }
+
+    /**
+     * Adds a {@code min_rerolls} entry: a mapping with a non-empty {@code filter} string and a
+     * {@code threshold} above 0. Anything else is skipped, and other keys are ignored.
+     */
+    private static void addMinRerolls(Object entry) {
+        if (entry instanceof Map<?, ?> fields
+                && fields.get("filter") instanceof String filter
+                && !filter.isEmpty()
+                && fields.get("threshold") instanceof Integer threshold
+                && threshold > 0) {
+            minRerollEntries.add(new MinRerolls(Pattern.compile(filter), threshold));
+            return;
+        }
+        VetsLogger.debug("definitions.yml: skipped a min_rerolls entry: {}", entry);
     }
 
     private static void add(String section, String entry) {
@@ -175,6 +204,22 @@ public final class ItemDefinitions {
      */
     public static boolean isInventorySuppressor(String itemName) {
         return matchesAny(inventorySuppressorPatterns, itemName);
+    }
+
+    /**
+     * {@code min_rerolls}: the fewest rerolls a current copy of {@code itemName} can have, the
+     * highest threshold among the filters that match it; 0 when none does, or for {@code null}.
+     * A copy below it is underrolled (see {@link UnderrollDetector}).
+     */
+    public static int minRerolls(String itemName) {
+        if (itemName == null) return 0;
+        int min = 0;
+        for (MinRerolls entry : minRerollEntries) {
+            if (entry.filter().matcher(itemName).matches()) {
+                min = Math.max(min, entry.threshold());
+            }
+        }
+        return min;
     }
 
     /** Whether any pattern matches the whole of {@code text}; never for {@code null}. */

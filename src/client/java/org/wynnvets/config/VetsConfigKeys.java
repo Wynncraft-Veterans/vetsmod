@@ -74,6 +74,14 @@ public final class VetsConfigKeys {
      *  Has no effect unless {@link #LEGACY_ITEM_HIGHLIGHTING} is on. */
     public static final String LEGACY_ITEM_SHOW_ENCHANTMENTS = "legacyItemShowEnchantments";
 
+    /** Whether an item named in definitions.yml's min_rerolls, rerolled fewer
+     *  times than its threshold, counts as legacy: highlighted, named
+     *  "Underrolled", and its reroll box and badge drawn gold (see {@link
+     *  org.wynnvets.items.LegacyItemHandler#getUnderrollSummary
+     *  LegacyItemHandler#getUnderrollSummary}).
+     *  Has no effect unless {@link #LEGACY_ITEM_HIGHLIGHTING} is on. */
+    public static final String LEGACY_ITEM_UNDERROLLING = "legacyItemUnderrolling";
+
     /** Whether the MOTD is automatically printed on world join. */
     public static final String PRINT_MOTD = "printMOTD";
 

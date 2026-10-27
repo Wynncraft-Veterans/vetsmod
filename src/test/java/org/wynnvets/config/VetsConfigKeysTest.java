@@ -43,6 +43,7 @@ class VetsConfigKeysTest {
         EXPECTED.put("VETS_AUTH_VERIFIED_AT", "vetsAuthVerifiedAt");
         EXPECTED.put("LEGACY_ITEM_HIGHLIGHTING", "legacyItemHighlighting");
         EXPECTED.put("LEGACY_ITEM_SHOW_ENCHANTMENTS", "legacyItemShowEnchantments");
+        EXPECTED.put("LEGACY_ITEM_UNDERROLLING", "legacyItemUnderrolling");
         EXPECTED.put("PRINT_MOTD", "printMOTD");
         EXPECTED.put("PRINT_ANNI", "printANNI");
         EXPECTED.put("VETS_ANNI_SHOW_HOVER_DETAILS", "vetsAnniShowHoverDetails");

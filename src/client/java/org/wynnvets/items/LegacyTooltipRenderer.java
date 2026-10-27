@@ -38,6 +38,8 @@ import org.wynnvets.config.VetsConfigKeys;
  *   <li><b>7</b> — a "Junk Item" whose name is not in {@code notjunk}.</li>
  *   <li><b>8</b> — a "Crafting Item".</li>
  *   <li><b>9</b> — Wynncraft's VINTAGE lore ribbon.</li>
+ *   <li><b>10</b> — underrolled ({@link UnderrollDetector}): the name gains an "Underrolled"
+ *       prefix, and on a new-format tooltip the reroll box turns gold.</li>
  * </ul>
  *
  * <h2>Old format and new format</h2>
@@ -49,11 +51,12 @@ import org.wynnvets.config.VetsConfigKeys;
  *       {@code tooltip_style} component. {@link NewFormatRenderer} recolours the name line gold
  *       and inserts the LEGACY box before the rarity box ({@link #rewriteNewFormat}).</li>
  * </ul>
- * <p>Branches 2, 3, 6 and 9 try the new format first and fall back to the old
+ * <p>Branches 2, 3, 6, 9 and 10 try the new format first and fall back to the old
  * ({@link #rewriteLegacy}); branch 1 tries only the new format; the others rewrite in the old
  * format only. An enchanted item rewritten by branches 1, 2, 3, 5 or 6 also gets its
  * enchantment named while {@code legacyItemShowEnchantments} is on
- * ({@link LegacyEnchantmentRenderer}).</p>
+ * ({@link LegacyEnchantmentRenderer}). The name prefixes add up ({@link #namePrefix}): an item
+ * both enchanted and underrolled reads "Enchanted Underrolled", whichever branch took it.</p>
  */
 final class LegacyTooltipRenderer {
 
@@ -106,9 +109,7 @@ final class LegacyTooltipRenderer {
         // Branch 1: Wynntils' ItemStatInfoFeature rebuilds identified gear with a blank spacer
         // as line 0, so the name is taken from the hovered stack instead.
         if ((plainText == null || plainText.isBlank()) && !stack.isEmpty()) {
-            String hoverName =
-                    LegacyItemHandler.normalizeName(
-                            ChatFormatting.stripFormatting(stack.getHoverName().getString()));
+            String hoverName = LegacyItemHandler.normalizedHoverName(stack);
             if (hoverName != null) hoverName = stripPercentSuffix(hoverName);
             if (hoverName != null && !hoverName.isBlank()) plainText = hoverName;
             List<Component> modified = new ArrayList<>(tooltipLines);
@@ -186,6 +187,11 @@ final class LegacyTooltipRenderer {
             return rewriteLegacy(tooltipLines, plainText, raritySuffix);
         }
 
+        // Branch 10: underrolled.
+        if (isUnderrolled() && plainText != null) {
+            return rewriteLegacy(tooltipLines, plainText, raritySuffix);
+        }
+
         return tooltipLines;
     }
 
@@ -209,7 +215,20 @@ final class LegacyTooltipRenderer {
     }
 
     /**
-     * The rewrite of branches 2, 3, 6 and 9: the new-format rewrite on a new-format tooltip,
+     * Returns {@code true} if the hovered item is underrolled and {@code legacyItemUnderrolling}
+     * is on; see {@link UnderrollDetector}.
+     */
+    private static boolean isUnderrolled() {
+        return UnderrollDetector.isUnderrolled(LegacyItemHandler.currentItemStack);
+    }
+
+    /** The name prefix: "Enchanted ", "Underrolled ", both, or empty. */
+    private static String namePrefix(boolean enchanted, boolean underrolled) {
+        return (enchanted ? "Enchanted " : "") + (underrolled ? "Underrolled " : "");
+    }
+
+    /**
+     * The rewrite of branches 2, 3, 6, 9 and 10: the new-format rewrite on a new-format tooltip,
      * else (or if the LEGACY box could not be placed) the old-format one.
      */
     private static List<Component> rewriteLegacy(
@@ -222,9 +241,10 @@ final class LegacyTooltipRenderer {
     }
 
     /**
-     * Rewrites a new-format tooltip in place: the name line goes gold (with an "Enchanted"
-     * prefix for an enchanted item), the LEGACY box goes before the rarity box, and an enchanted
-     * item gets its enchantment named.
+     * Rewrites a new-format tooltip in place: the name line goes gold (prefixed as in
+     * {@link #namePrefix}), the LEGACY box goes before the rarity box, an enchanted item gets
+     * its enchantment named, and an underrolled item its reroll box turned gold
+     * ({@link #markRerollBox}).
      *
      * <p>The target lines are found by font, not by index: Wynntils' layout keeps a custom-name
      * placeholder at line 0 and the name line at line 1, while other tooltip processors (such
@@ -234,22 +254,38 @@ final class LegacyTooltipRenderer {
      */
     private static boolean rewriteNewFormat(List<Component> modified, String plainText) {
         boolean enchanted = isEnchanted(plainText);
+        boolean underrolled = isUnderrolled();
         if (plainText != null) {
-            if (enchanted) {
-                NewFormatRenderer.applyEnchantedToNewFormatNameLine(modified, plainText);
-            } else {
+            String prefix = namePrefix(enchanted, underrolled);
+            if (prefix.isEmpty()) {
                 NewFormatRenderer.recolorNewFormatNameLine(modified, plainText);
+            } else {
+                NewFormatRenderer.applyPrefixToNewFormatNameLine(modified, plainText, prefix);
             }
         }
         if (!NewFormatRenderer.insertLegacyBoxLine(modified)) return false;
         if (enchanted) appendEnchantmentBlock(modified);
+        if (underrolled) markRerollBox(modified);
         return true;
     }
 
     /**
+     * Turns an underrolled item's reroll box gold on page 1: its own box, or, on an identified
+     * item with no rerolls, which Wynncraft draws no box for, a gold box reading 0.
+     */
+    private static void markRerollBox(List<Component> modified) {
+        if (NewFormatRenderer.recolorRerollBox(modified)) return;
+        UnderrollDetector.Result result =
+                UnderrollDetector.evaluate(LegacyItemHandler.currentItemStack);
+        if (result.fromStatsPage() && result.rerolls() == 0) {
+            NewFormatRenderer.insertZeroRerollLine(modified);
+        }
+    }
+
+    /**
      * Rewrites an old-format tooltip in place and returns it marked legacy: a gold name on
-     * line 0, the rarity line swapped for a gold label ({@link #replaceRarityLines}), and, for
-     * an enchanted item, the enchantment named.
+     * line 0 (prefixed as in {@link #namePrefix}), the rarity line swapped for a gold label
+     * ({@link #replaceRarityLines}), and, for an enchanted item, the enchantment named.
      *
      * @param prefix the label's era prefix ("Alpha" or "Beta"), or {@code null}
      */
@@ -259,7 +295,10 @@ final class LegacyTooltipRenderer {
             Component raritySuffix,
             String prefix,
             boolean enchanted) {
-        if (plainText != null) modified.set(0, buildGoldName(plainText, enchanted, raritySuffix));
+        if (plainText != null) {
+            String namePrefix = namePrefix(enchanted, isUnderrolled());
+            modified.set(0, buildGoldName(plainText, namePrefix, raritySuffix));
+        }
         replaceRarityLines(modified, prefix);
         if (enchanted) appendEnchantmentBlock(modified);
         return markLegacy(modified);
@@ -272,7 +311,7 @@ final class LegacyTooltipRenderer {
     private static List<Component> rewriteWithLabel(
             List<Component> tooltipLines, String plainText, Component raritySuffix, String label) {
         List<Component> modified = new ArrayList<>(tooltipLines);
-        modified.set(0, buildGoldName(plainText, false, raritySuffix));
+        modified.set(0, buildGoldName(plainText, "", raritySuffix));
         modified.add(
                 debugLinesStart(modified), Component.literal(label).withStyle(ChatFormatting.GOLD));
         return markLegacy(modified);
@@ -290,18 +329,19 @@ final class LegacyTooltipRenderer {
     }
 
     /**
-     * Builds the gold name for an old-format rewrite, prefixed with a white ⬡ and a gold
-     * "Enchanted " when {@code enchanted}.
+     * Builds the gold name for an old-format rewrite, led by a white ⬡ when it has a prefix.
+     *
+     * @param namePrefix "Enchanted ", "Underrolled ", both, or empty; see {@link #namePrefix}
      */
     private static MutableComponent buildGoldName(
-            String plainText, boolean enchanted, Component raritySuffix) {
+            String plainText, String namePrefix, Component raritySuffix) {
         MutableComponent name;
-        if (enchanted) {
+        if (!namePrefix.isEmpty()) {
             name =
                     Component.literal("\u2B21 ")
                             .withStyle(ChatFormatting.WHITE)
                             .append(
-                                    Component.literal("Enchanted " + plainText)
+                                    Component.literal(namePrefix + plainText)
                                             .withStyle(ChatFormatting.GOLD));
         } else {
             name = Component.literal(plainText).withStyle(ChatFormatting.GOLD);
