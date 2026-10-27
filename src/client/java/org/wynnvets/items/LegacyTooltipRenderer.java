@@ -22,8 +22,8 @@ import org.wynnvets.config.VetsConfigKeys;
  * tooltip. The numbers are the {@code Branch N} comments in the method body.</p>
  * <ul>
  *   <li><b>0</b> — highlighting off, an empty tooltip, detection suppressed
- *       ({@link LegacyItemHandler#isDetectionSuppressed}) or a player-crafted item: no
- *       rewrite.</li>
+ *       ({@link LegacyItemHandler#isDetectionSuppressed}) or a player-crafted item
+ *       ({@link LegacyItemHandler#isCraftedItem}): no rewrite.</li>
  *   <li><b>1</b> — line 0 is blank (Wynntils' {@code ItemStatInfoFeature} layout) and a stack
  *       is hovered: the name comes from that stack, the item is legacy if
  *       {@link LegacyItemHandler#isLegacyItem} says so, and only the new-format rewrite is
@@ -68,11 +68,6 @@ final class LegacyTooltipRenderer {
     private static final Pattern PERCENT_SUFFIX_PATTERN =
             Pattern.compile("\\s*(\\[\\d+\\.?\\d*%\\])$");
 
-    /** Matches a player-crafted item's line ("Crafted Helmet [30/30 Durability]"): never legacy. */
-    private static final Pattern CRAFTED_PATTERN =
-            Pattern.compile(
-                    "^Crafted (?:Helmet|Chestplate|Pants|Boots|Ring|Potion|Scroll|Food|Wand|Spear|Relik|Bow|Dagger|by .+) \\[\\d+/\\d+ Durability\\]$");
-
     private LegacyTooltipRenderer() {}
 
     /**
@@ -89,9 +84,9 @@ final class LegacyTooltipRenderer {
         if (!VetsConfig.get(VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING)) return tooltipLines;
         if (tooltipLines.isEmpty()) return tooltipLines;
         if (LegacyItemHandler.isDetectionSuppressed()) return tooltipLines;
-        if (isCraftedItem(tooltipLines)) return tooltipLines;
-
         ItemStack stack = LegacyItemHandler.currentItemStack;
+        if (LegacyItemHandler.isCraftedItem(stack)) return tooltipLines;
+
         Component firstLine = tooltipLines.get(0);
         String plainText =
                 LegacyItemHandler.normalizeName(
@@ -313,18 +308,6 @@ final class LegacyTooltipRenderer {
         }
         if (raritySuffix != null) name.append(raritySuffix);
         return name;
-    }
-
-    /**
-     * Returns {@code true} if the tooltip belongs to a player-crafted item.
-     * Crafted items are never legacy and are skipped before any detection logic.
-     */
-    private static boolean isCraftedItem(List<Component> lines) {
-        for (Component line : lines) {
-            String plain = ChatFormatting.stripFormatting(line.getString());
-            if (plain != null && CRAFTED_PATTERN.matcher(plain).matches()) return true;
-        }
-        return false;
     }
 
     /**

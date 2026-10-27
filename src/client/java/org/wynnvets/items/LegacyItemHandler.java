@@ -176,9 +176,20 @@ public final class LegacyItemHandler {
     }
 
     /**
-     * Returns {@code true} if {@code stack} is a legacy item: never for an empty stack, while
-     * {@code legacyItemHighlighting} is off or while {@link #isDetectionSuppressed}, and
-     * otherwise when any of the nine numbered checks in the body matches.
+     * Returns {@code true} if {@code stack} is a new-format player-crafted item, one with the
+     * {@code minecraft:crafted} {@code tooltip_style}. Such an item is never legacy: its crafter
+     * chooses its name, so a name list can match it by accident. An old-format crafted item
+     * would be legacy, so none is excluded here (none is known to exist).
+     */
+    public static boolean isCraftedItem(ItemStack stack) {
+        return "Crafted".equals(getTooltipStyleRarity(stack));
+    }
+
+    /**
+     * Returns {@code true} if {@code stack} is a legacy item: never for an empty stack or a
+     * player-crafted one ({@link #isCraftedItem}), while {@code legacyItemHighlighting} is off
+     * or while {@link #isDetectionSuppressed}, and otherwise when any of the nine numbered
+     * checks in the body matches.
      *
      * <p>A new-format stack whose name is in {@code new_format_override} skips checks 1 and 2,
      * since that name also belongs to a modern item.</p>
@@ -187,6 +198,7 @@ public final class LegacyItemHandler {
         if (!VetsConfig.get(VetsConfigKeys.LEGACY_ITEM_HIGHLIGHTING)) return false;
         if (stack.isEmpty()) return false;
         if (isDetectionSuppressed()) return false;
+        if (isCraftedItem(stack)) return false;
 
         String name =
                 normalizeName(ChatFormatting.stripFormatting(stack.getHoverName().getString()));

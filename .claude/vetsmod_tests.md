@@ -2373,9 +2373,9 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
   - `ItemDefinitions.isNoLoreLegacy("Corrupted Treasure")` is false
   - `ItemDefinitions.isMiscLegacy("Corrupted Treasure")` is false
   - `ItemDefinitions.isNotJunk("Corrupted Treasure")` is false
-- **`miscBucketNamesAreMiscLegacyAndOnlyMiscLegacy`**: Each of the eleven Misc Bucket names is in `misc_definitions` and not in `definitions`.
-  - for each of "Stitched Flesh", "Aqua Dust", "Flamingo Feather", "Uncraftable Potion", "Cralozide Crystal", "Sunflower Seeds", "Pigman Meat", "Broken Amulet", "Shattered Crystal", "Cobblestone" and "Lava Essence", `ItemDefinitions.isMiscLegacy(name)` is true (11 assertions)
-  - for the same eleven names, `ItemDefinitions.isLegacy(name)` is false (a name match alone must not flag them; the Misc. Item rarity line is required) (11 assertions)
+- **`miscBucketNamesAreMiscLegacyAndOnlyMiscLegacy`**: Each of the ten Misc Bucket names is in `misc_definitions` and not in `definitions`.
+  - for each of "Stitched Flesh", "Aqua Dust", "Flamingo Feather", "Uncraftable Potion", "Cralozide Crystal", "Sunflower Seeds", "Pigman Meat", "Broken Amulet", "Shattered Crystal" and "Cobblestone", `ItemDefinitions.isMiscLegacy(name)` is true (10 assertions)
+  - for the same ten names, `ItemDefinitions.isLegacy(name)` is false (a name match alone must not flag them; the Misc. Item rarity line is required) (10 assertions)
 - **`miscBucketNamesAreExactAndCaseFolded`**: The new entries fold case but need a full match, so lookalike and prefix names do not match.
   - `ItemDefinitions.isMiscLegacy("aqua dust")` is true (the entry has `(?i)`)
   - `ItemDefinitions.isMiscLegacy("Aqua Dust Shard")` is false

@@ -60,7 +60,7 @@ class ItemDefinitionsTest {
     @Test
     void isLegacy_caseSensitivityIsPerPatternNotPerCategory() {
         // Most entries carry an inline (?i); a handful deliberately do not, and
-        // nothing in the Java distinguishes them. "(?i)^Santa.*$" folds case;
+        // nothing in the Java distinguishes them. "(?i)^Santa Hat.*$" folds case;
         // "^Wolf Fang$" and "^Corrupted Treasure$" do not.
         assertTrue(ItemDefinitions.isLegacy("SANTA HAT"), "(?i) entry folds case");
         assertTrue(ItemDefinitions.isLegacy("santa hat"));
@@ -374,8 +374,7 @@ class ItemDefinitionsTest {
                     "Pigman Meat",
                     "Broken Amulet",
                     "Shattered Crystal",
-                    "Cobblestone",
-                    "Lava Essence"
+                    "Cobblestone"
                 }) {
             assertTrue(ItemDefinitions.isMiscLegacy(name), name + " is misc legacy");
             assertFalse(ItemDefinitions.isLegacy(name), name + " is not matched by name alone");

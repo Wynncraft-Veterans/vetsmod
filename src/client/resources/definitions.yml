@@ -53,7 +53,6 @@ definitions:
   - "(?i)^Grian's Autograph.*$"
   - "(?i)^Grian's Trusty Ocean Map.*$"
   - "(?i)^Hallowynn Mask.*$"
-  - "(?i)^Harmstick.*$"
   - "(?i)^Helmet Of Shimmering Light.*$"
   - "(?i)^Hide N' Seek Helmet.*$"
   - "(?i)^Hide N' Seek Token.*$"
@@ -78,7 +77,10 @@ definitions:
   - "(?i)^Rusted Lost Sanctuary Key.*$"
   - "(?i)^Salted's Autograph.*$"
   - "(?i)^Salted's Trusty Poop.*$"
-  - "(?i)^Santa.*$"
+  - "(?i)^Santa Boots.*$"
+  - "(?i)^Santa Hat.*$"
+  - "(?i)^Santa's Coat.*$"
+  - "(?i)^Santa's Pants.*$"
   - "(?i)^Seeker's Aid.*$"
   - "(?i)^.*Silverfish Key$"
   - "(?i)^Silverfish Key.*$"
@@ -117,7 +119,6 @@ misc_definitions:
   - "(?i)^Golden Root.*$"
   - "(?i)^Gunpowder.*$"
   - "(?i)^Illuminated Mushroom.*$"
-  - "(?i)^Lava Essence$"
   - "(?i)^Light Aura.*$"
   - "(?i)^Light Residue.*$"
   - "(?i)^Mauvelli Mushroom.*$"
@@ -182,6 +183,7 @@ unenchanted:
   - "^Shiny .*"
   - "^.*The Axe of Llevigar$"
   - "^.*Transcriber$"
+  - "^.*Iridescent Leaves$"
 
 # Minecraft item ids (not patterns) whose glint is vanilla.
 enchant_excluded_items:

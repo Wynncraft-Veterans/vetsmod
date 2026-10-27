@@ -248,6 +248,7 @@ public final class ItemDumpHandler {
         analysis.addProperty("hasVintageBanner", LegacyItemHandler.hasVintageBanner(lore.lines()));
         analysis.addProperty("hasRarityLine", LegacyItemHandler.hasRarityLine(lore.lines()));
         analysis.addProperty("tooltipStyleRarity", LegacyItemHandler.getTooltipStyleRarity(stack));
+        analysis.addProperty("isCraftedItem", LegacyItemHandler.isCraftedItem(stack));
         analysis.addProperty("isLegacyItem_result", LegacyItemHandler.isLegacyItem(stack));
         root.add("vetsmodAnalysis", analysis);
 
