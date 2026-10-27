@@ -17,6 +17,7 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.commands.CommandUsage;
 import org.wynnvets.distribute.command.NameOrSelectorArgument;
 import org.wynnvets.distribute.distributor.GraidsDistributor;
 import org.wynnvets.distribute.distributor.MemberSlotPresser;
@@ -88,7 +89,9 @@ import org.wynnvets.guild.GuildStateManager;
  * <p>Visibility ({@code .requires}) uses
  * {@link GuildStateManager#isStaffOfAnyGuild()} so the command surfaces in
  * autocomplete reliably for vets-confirmed staff (server-confirmed, stable
- * across world transitions). Execution is gated more tightly by
+ * across world transitions). Autocomplete reads a copy of the tree, which
+ * {@link org.wynnvets.commands.CommandCompletionSync CommandCompletionSync}
+ * rebuilds when the gate changes. Execution is gated more tightly by
  * {@link GuildStateManager#isChiefOfAnyGuild()} via {@link #ensureChief()}
  * &mdash; a strategist, say, sees the command but gets a red error if
  * they try to run it. (A Returners captain has not been confirmed staff
@@ -106,6 +109,12 @@ public final class DistributeCommands {
 
     /** Common counts surfaced in the {@code <count>} suggester. */
     private static final int[] COMMON_COUNTS = {1, 5, 10, 25, 50, 100};
+
+    /** The usage lines' shared start, up to the resource. */
+    private static final String USAGE_PREFIX = "/wv distribute <name|@selector> ";
+
+    /** The usage line for a node above the resource. */
+    private static final String USAGE = USAGE_PREFIX + "<aspects|tomes|emeralds> <count>";
 
     /**
      * Dispatch signature shared by the selector heads: every one of them exposes a
@@ -150,18 +159,26 @@ public final class DistributeCommands {
 
     private DistributeCommands() {}
 
+    /**
+     * Builds the {@code distribute} literal. Each node short of {@code <count>} prints a red usage
+     * line when typed bare ({@link org.wynnvets.commands.CommandUsage CommandUsage}), so an
+     * unfinished command stays on the client instead of going to the server.
+     */
     public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommandTree() {
         return ClientCommandManager.literal("distribute")
                 // Visibility tier: any staff (Captain+) in any guild, with a
-                // vets-confirmed-staff bypass so the command shows reliably in
-                // autocomplete for Returners staff even when Wynntils' live
-                // guild model is briefly null after a world transition.
+                // vets-confirmed-staff bypass so the command shows for Returners
+                // staff even when Wynntils' live guild model is briefly null
+                // after a world transition. Tab completion follows the gate as
+                // it changes (CommandCompletionSync).
                 // Execution is still gated to Chief/Owner via ensureChief().
                 .requires(src -> GuildStateManager.isStaffOfAnyGuild())
+                .executes(CommandUsage.usage(USAGE))
                 .then(
                         ClientCommandManager.argument(
                                         "name", NameOrSelectorArgument.nameOrSelector())
                                 .suggests(DistributeCommands::suggestGuildMembers)
+                                .executes(CommandUsage.usage(USAGE))
                                 .then(resourceLeaf("aspects", MemberSlotPresser.Resource.ASPECTS))
                                 .then(resourceLeaf("tomes", MemberSlotPresser.Resource.TOMES))
                                 .then(
@@ -173,6 +190,7 @@ public final class DistributeCommands {
     private static LiteralArgumentBuilder<FabricClientCommandSource> resourceLeaf(
             String literal, MemberSlotPresser.Resource resource) {
         return ClientCommandManager.literal(literal)
+                .executes(CommandUsage.usage(USAGE_PREFIX + literal + " <count>"))
                 .then(
                         ClientCommandManager.argument(
                                         "count", IntegerArgumentType.integer(COUNT_MIN, COUNT_MAX))

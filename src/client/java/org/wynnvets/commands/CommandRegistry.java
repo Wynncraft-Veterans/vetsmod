@@ -36,12 +36,19 @@ import org.wynnvets.rendering.territory.TerritoryLineManager;
  * <p>{@link org.wynnvets.VetsmodClient#onInitializeClient() VetsmodClient#onInitializeClient()}
  * registers {@link #register} as a {@code ClientCommandRegistrationCallback}. Fabric calls it on
  * every login, so the tree is built afresh, into a new dispatcher, each time.</p>
+ *
+ * <p>Tab completion reads a copy of the tree that Fabric takes when a command-tree packet arrives,
+ * leaving out the nodes whose {@code .requires} fails at that moment.
+ * {@link CommandCompletionSync} rebuilds the copy when a gate has changed since.</p>
  */
 public final class CommandRegistry {
 
     /** How recently a staff-rank check must have finished for {@code /wv list world} to refuse
      *  a non-steward rather than check again. */
     private static final long LIST_WORLD_RECHECK_WINDOW_MS = 60_000L;
+
+    /** The {@code /wv} root literal, which {@link CommandCompletionSync} also looks up. */
+    static final String WV = "wv";
 
     private CommandRegistry() {}
 
@@ -59,7 +66,7 @@ public final class CommandRegistry {
         dispatcher.register(ClientCommandManager.literal("motd").executes(CommandRegistry::motd));
 
         dispatcher.register(
-                ClientCommandManager.literal("wv")
+                ClientCommandManager.literal(WV)
                         // /wv help
                         .then(
                                 ClientCommandManager.literal("help")

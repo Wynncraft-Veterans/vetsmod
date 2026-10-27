@@ -63,7 +63,8 @@ VetsmodClient (entry point)
   │                           AnniSnapshotPoller 30s (only inside the anni window), and
   │                           PolledJsonMap's GUILD_ROSTER + WYNN_ALIASES 5m. AnniZone (60s)
   │                           is a further scheduled fetcher, but lives under mwe/anni/zone/
-  ├── CommandRegistry         /wv command tree
+  ├── CommandRegistry         /wv command tree; CommandCompletionSync keeps its tab completion in
+  │                           step with the .requires gates, CommandUsage prints usage lines
   ├── items/                  ItemDefinitions plus LegacyItemHandler, LegacyTooltipRenderer,
   │                           NewFormatRenderer, LegacyEnchantmentRenderer, LegacyScreenshotHandler,
   │                           ScreenshotLatch (its pure press latch),

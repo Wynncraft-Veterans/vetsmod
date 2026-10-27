@@ -12,6 +12,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
+import org.wynnvets.commands.CommandUsage;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.state.AnniSnapshot;
@@ -353,16 +354,12 @@ public final class AnniDebugCommands {
                                                                 ::registryClearAll)));
     }
 
-    /** The command for a node typed without the argument it needs: a red usage line, rather than
-     *  the incomplete command going to the server, which answers "Invalid command". No
-     *  {@code requireDebug}: the usage is the same with debug logging on or off. */
+    /** The command for a node typed without the argument it needs:
+     *  {@link org.wynnvets.commands.CommandUsage#usage CommandUsage#usage}'s red usage line, with
+     *  this tree's prefix. No {@code requireDebug}: the usage is the same with debug logging on
+     *  or off. */
     private static Command<FabricClientCommandSource> usage(String rest) {
-        return ctx -> {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("Usage: /wv debug tree anni " + rest)
-                            .withStyle(ChatFormatting.RED));
-            return 0;
-        };
+        return CommandUsage.usage("/wv debug tree anni " + rest);
     }
 
     // ──────────────────────────────────────────────────────────── gating

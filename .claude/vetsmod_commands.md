@@ -31,7 +31,15 @@ Those classes are the only builders. The classes their nodes call into, such as 
 `AnniHighlightDebugCommands` and `AnniDebugSuggestions`, register nothing.
 
 `VetsmodClient.onInitializeClient` only adds `register` as a `ClientCommandRegistrationCallback`. Fabric
-calls it on every login, with a new dispatcher, so the whole tree is rebuilt on each server join.
+calls it on every login, with a new dispatcher, so the whole tree is rebuilt on each server join. It also
+registers `CommandCompletionSync`'s tick listener, which keeps tab completion in step with the tree's
+gates (see Gates).
+
+A node with children but no command of its own goes to the server when typed bare, which answers
+"Invalid command". `/wv distribute` and the anni debug harness give each such node
+[`CommandUsage.usage`](../src/client/java/org/wynnvets/commands/CommandUsage.java) as its command, a red
+"Usage: …" line instead. The rest of the tree does not: a bare `/wv line` or `/wv anni rsvp` still goes
+to the server.
 
 ### Gates
 
@@ -44,8 +52,13 @@ The tables name these kinds of gate:
   changes between parse and run.
   Tab completion reads a copy instead: Fabric copies the client tree into the vanilla dispatcher only
   when a `minecraft:commands` packet arrives, leaving out each node whose `.requires` fails at that
-  moment, and vetsmod never calls `ClientCommandManager.refreshCommandCompletions()`. So a node is
-  suggested or hidden as its gate stood at the last such packet. A typed `/wv check` can also meet
+  moment. A join's packet arrives before the auth ack, so on its own the copy would hide
+  `/wv distribute` and `/wv check` from confirmed staff (the chat box marks them red as an incorrect
+  argument) until the next packet.
+  [`CommandCompletionSync`](../src/client/java/org/wynnvets/commands/CommandCompletionSync.java)
+  checks the `/wv` copy against every gate each client tick and calls
+  `ClientCommandManager.refreshCommandCompletions()` when they disagree, so completion follows a gate
+  within a tick of its change. A typed `/wv check` can also meet
   `GuildChatDispatcher`'s intercept before Fabric's hook sees it (below).
 - **Runtime gate:** the handler's own test, which prints a refusal and returns.
 
@@ -282,8 +295,8 @@ It automates the Guild Management GUI to hand a resource to guild members.
 | `/wv distribute <name\|@selector> <aspects\|tomes\|emeralds> <count>` | `isStaffOfAnyGuild()` | `isChiefOfAnyGuild()`, via `DistributeCommands.ensureChief`: "You must be a guild Chief or Owner to use /wv distribute." | `DistributeCommands.distribute` | Hands the resource out by pressing buttons in the Guild Management GUI, to one player or to a selector's recipient set | in-game `/guild manage` and GUI clicks; HTTP to the Wynncraft guild API (`NameResolver`) and, on an aspects run, the NoAspects opt-out list (`VetsApi.NO_ASPECTS`) | none |
 
 **Two gates, deliberately different tiers.** The parse gate, `isStaffOfAnyGuild()` (server-confirmed staff,
-or captain+ by Wynntils' live rank), lets staff autocomplete the command (as the gate stood at the last
-command-tree packet; see Gates); the runtime gate,
+or captain+ by Wynntils' live rank), lets staff autocomplete the command (see Gates for how completion
+follows it); the runtime gate,
 `ensureChief()` → `isChiefOfAnyGuild()`, is the only Chief/Owner check in vetsmod for this command. A
 strategist sees the command and gets the red refusal on run. That is **not** the shape of `/wv check` and
 `/wv invite-force`, which re-check the same predicate their `.requires` uses; here the two gates use
@@ -297,6 +310,10 @@ different predicates, so the red line is the normal path for staff below chief.
   0/1/2. One press sends 1 Aspect, 1 Tome, or 1024 Emeralds.
 - `<count>` — `IntegerArgumentType.integer(1, 255)`. The upper bound is an unsigned-byte cap against
   typo'd bulk sends.
+
+Typed short of `<count>`, the command prints a red usage line rather than going to the server:
+"Usage: /wv distribute <name|@selector> <aspects|tomes|emeralds> <count>" for a bare `distribute` or
+`<name>`, and the same with the resource filled in after a resource literal.
 
 The `@`-selectors decide the recipient set, each one row of the `SELECTORS` table in
 `DistributeCommands`, matched before the literal-name fan-out. An `@` token matching no row is refused in
@@ -550,6 +567,8 @@ A key `/wv config` does not accept, such as a hand-typed `vetsAnniMode`, falls t
 
 - Register a new `/wv` subcommand in `CommandRegistry.register()` with Brigadier's literal and argument builders, or give a whole subtree its own `buildCommandTree()` and mount it with `.then(…)`, as `/wv debug` and `/wv distribute` are.
 - Gate with a real predicate. `CommandRegistry`'s own `userIsCaptain`/`userIsVet` are all-true stubs; the gated commands call one of the gates in §1's table directly. A `.requires` is a parse gate, so a handler that re-tests it refuses only if the gate's state changes between parse and run: a refusal that should explain itself belongs in the handler.
+- Keep a `.requires` predicate under `/wv` cheap and free of side effects: `CommandCompletionSync` tests every one of them each client tick. A gate whose state changes needs nothing more for tab completion to follow it.
+- Give a node that needs an argument after it `.executes(CommandUsage.usage("/wv …"))`, so typing it bare prints a usage line instead of going to the server.
 - Avoid heavy work on the main thread; use `CompletableFuture` from `HttpClient`.
 - Chat output: use `ChatUtils.sendLocalMessage(Component)` (or `sendLocalMessageNewBlock` for the first line of a new response). Both prepend the vetsmod badge by handing the `Prepend` to `LocalChatDispatch.dispatchBadged(Prepend, Component, boolean, boolean)`, which is thread-safe, chooses the badge on the render thread and marks the dispatch internal so the chat pipeline skips re-logging and the rewriter chain. Calling `dispatchToChat` directly skips that badge; some chat rewriters do so for lines they rebuild themselves. The badge's full or compact form follows the chat lines already shown: vetsmod's own lines are counted when they are dispatched, and server lines are counted by `ChatLogMixin` through `LocalChatDispatch.countServerLine`.
 - Tab completion: use Brigadier `SuggestionProvider`s, with `ConfigCommands.SUGGEST_CONFIG_KEYS` / `SUGGEST_CONFIG_VALUES` as templates.

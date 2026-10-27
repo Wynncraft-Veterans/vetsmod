@@ -18,7 +18,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.chat`](#orgwynnvetschat) — [`BannedCharsTest`](#bannedcharstest), [`ChatHookGateTest`](#chathookgatetest), [`GuildChatLineTest`](#guildchatlinetest), [`LegacyTextParserTest`](#legacytextparsertest), [`MessageBodyFormatterTest`](#messagebodyformattertest), [`NickResolverTest`](#nickresolvertest), [`OutboundDisplayHandlerTest`](#outbounddisplayhandlertest), [`PillCodecTest`](#pillcodectest), [`PrependTest`](#prependtest), [`RankDisplayMapTest`](#rankdisplaymaptest)
 - [`org.wynnvets.chat.dispatcher`](#orgwynnvetschatdispatcher) — [`DispatchCoordinatorTest`](#dispatchcoordinatortest), [`FindDispatcherTest`](#finddispatchertest), [`GuildChatDispatcherTest`](#guildchatdispatchertest), [`MessageFanoutDispatcherTest`](#messagefanoutdispatchertest)
 - [`org.wynnvets.chat.spoiler`](#orgwynnvetschatspoiler) — [`SpoilerCodecTest`](#spoilercodectest)
-- [`org.wynnvets.commands`](#orgwynnvetscommands) — [`CautionCommandsTest`](#cautioncommandstest), [`HelpCommandsTest`](#helpcommandstest), [`InviteGateTest`](#invitegatetest)
+- [`org.wynnvets.commands`](#orgwynnvetscommands) — [`CautionCommandsTest`](#cautioncommandstest), [`CommandCompletionSyncTest`](#commandcompletionsynctest), [`HelpCommandsTest`](#helpcommandstest), [`InviteGateTest`](#invitegatetest)
 - [`org.wynnvets.config`](#orgwynnvetsconfig) — [`NamedColorTest`](#namedcolortest), [`ShippedConfigTest`](#shippedconfigtest), [`VetsConfigDefaultsTest`](#vetsconfigdefaultstest), [`VetsConfigKeysTest`](#vetsconfigkeystest), [`VetsConfigSchemaTest`](#vetsconfigschematest)
 - [`org.wynnvets.datamodels`](#orgwynnvetsdatamodels) — [`UserTest`](#usertest)
 - [`org.wynnvets.debug.anni`](#orgwynnvetsdebuganni) — [`AnniDebugCommandsTest`](#annidebugcommandstest)
@@ -1030,6 +1030,23 @@ A staff commit whose socket was lost, or that got no reply in time, may still ha
   - `unknownOutcomeLine("caution", "Steve", "no reply")` equals `[caution] Outcome unknown (no reply) - run /wv check Steve before retrying`.
 - **`anEjectWithAnUnknownOutcomeSaysToActByHand`**: For an eject the line ends with the instruction to act by hand, since nothing is dispatched.
   - `unknownOutcomeLine("eject", "Steve", "no reply")` equals `[eject] Outcome unknown (no reply) - run /wv check Steve; if it went through, kick or demote them yourself`.
+
+### `CommandCompletionSyncTest`
+
+Test: [`CommandCompletionSyncTest.java`](../src/test/java/org/wynnvets/commands/CommandCompletionSyncTest.java) · Subject: [`CommandCompletionSync`](../src/client/java/org/wynnvets/commands/CommandCompletionSync.java)
+
+Tab completion reads a copy of the client tree that Fabric took at the last command-tree packet, leaving out each node whose gate failed then. The suite pins `isStale`, the walk that decides the copy needs rebuilding: it reports a node whose gate opened or closed since the copy, at any depth, and passes a copy that matches. Each copy is built by hand, and the source is a plain `Object` that no gate reads. Two helpers build the trees: `tree(gatePasses)` is the client tree `wv → open, gated` with only `gated` gated, and `copy(children…)` is `wv` with a childless literal per name.
+
+- **`aCopyThatMatchesTheGatesIsNotStale`**: A copy holding exactly the nodes whose gates pass is current, whether the gate passes or fails.
+  - `isStale(tree(true), copy("open", "gated"), SOURCE)` is false.
+  - `isStale(tree(false), copy("open"), SOURCE)` is false.
+- **`aGateThatOpenedSinceTheCopyMakesItStale`**: The reported bug's shape: the gate passes now but the copy left the node out.
+  - `isStale(tree(true), copy("open"), SOURCE)` is true.
+- **`aGateThatClosedSinceTheCopyMakesItStale`**: The gate fails now but the copy still holds the node.
+  - `isStale(tree(false), copy("open", "gated"), SOURCE)` is true.
+- **`theWalkReachesNestedGatesButNotBelowANodeTheCopyLacks`**: The client tree is `wv → outer → inner` beside `wv → closed → below`, where `closed` always fails its gate. A copy missing `inner` is stale; one holding it is current, though neither holds `closed` or `below`, since the walk does not descend under a node the copy lacks.
+  - `isStale(nested, copyWithoutInner, SOURCE)` is true, where `copyWithoutInner` is `wv → outer`.
+  - `isStale(nested, copyWithInner, SOURCE)` is false, where `copyWithInner` is `wv → outer → inner`.
 
 ### `HelpCommandsTest`
 
@@ -2286,8 +2303,8 @@ Test: [`ItemDefinitionsTest.java`](../src/test/java/org/wynnvets/items/ItemDefin
 
 `ItemDefinitions` loads per-category lists of item-name regexes (legacy, no-lore legacy, misc legacy, unenchanted, not-pedestal, not-junk, new-format override, blocked screen titles, inventory suppressors) from `definitions.yml` and answers name-matching queries against them. The suite pins per-pattern case sensitivity, full-match semantics, every section dropping an empty entry, the `isLegacy` veto in `isUnenchanted`, every name and title predicate answering false for null, a repeated section failing the parse, and how YAML quoting and comments reach the regex. It loads the real `definitions.yml` from the classpath in a static initialiser, appends small YAML fixtures through the package-private `parse(InputStream)`, and reloads the real file after every test, since `load()` clears all collections.
 
-- **`isLegacy_caseSensitivityIsPerPatternNotPerCategory`**: "SANTA HAT" and "santa hat" match the `(?i)` Santa entry, while "Wolf Fang" and "Corrupted Treasure" match only in their exact case.
-  - `ItemDefinitions.isLegacy("SANTA HAT")` is true (the real file's `(?i)^Santa.*$` entry folds case)
+- **`isLegacy_caseSensitivityIsPerPatternNotPerCategory`**: "SANTA HAT" and "santa hat" match the `(?i)` Santa Hat entry, while "Wolf Fang" and "Corrupted Treasure" match only in their exact case.
+  - `ItemDefinitions.isLegacy("SANTA HAT")` is true (the real file's `(?i)^Santa Hat.*$` entry folds case)
   - `ItemDefinitions.isLegacy("santa hat")` is true
   - `ItemDefinitions.isLegacy("Wolf Fang")` is true (real-file entry `^Wolf Fang$`, no `(?i)`)
   - `ItemDefinitions.isLegacy("wolf fang")` is false

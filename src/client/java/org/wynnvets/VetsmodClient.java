@@ -4,6 +4,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import org.wynnvets.chat.OutboundDisplayHandler;
+import org.wynnvets.commands.CommandCompletionSync;
 import org.wynnvets.commands.CommandRegistry;
 import org.wynnvets.config.VetsConfig;
 import org.wynnvets.config.VetsConfigKeys;
@@ -117,6 +118,7 @@ public class VetsmodClient implements ClientModInitializer {
 
         // Register the /wv command tree (and standalone /motd alias)
         ClientCommandRegistrationCallback.EVENT.register(CommandRegistry::register);
+        CommandCompletionSync.register();
 
         VetsLogger.info("Client initialized");
     }

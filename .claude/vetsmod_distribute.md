@@ -41,6 +41,9 @@ skipped.
 - **`<count>`** — `IntegerArgumentType.integer(COUNT_MIN, COUNT_MAX)`,
   i.e. 1–255. What a count *means* differs per head (§5).
 
+A command typed short of `<count>` prints a red usage line
+(`CommandUsage.usage`) instead of going to the server.
+
 Two gates, reading two different confirmed-side signals:
 
 | Gate | Predicate | Confirmed source | Wynntils fallback |
@@ -51,7 +54,9 @@ Two gates, reading two different confirmed-side signals:
 As of this writing `isChiefOfAnyGuild` has one call site, in
 `DistributeCommands`, and `isStaffOfAnyGuild` two: the `.requires` there
 and `HelpCommands.help`, which shows the `/wv distribute` index row on
-the same gate. Nothing enforces that, so re-grep before relying on it. A strategist sees the command in autocomplete and gets a red error
+the same gate. Nothing enforces that, so re-grep before relying on it. Autocomplete follows the
+visibility gate within a tick of its change (`CommandCompletionSync`; see
+[vetsmod_commands.md](vetsmod_commands.md) §1, Gates). A strategist sees the command in autocomplete and gets a red error
 on execute; a Returners captain is visible only through the Wynntils
 fallback, because captain is no longer confirmed staff at all —
 the server retired it in the 2026-07 permission restructure and simply
