@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.resources.Identifier;
 import org.wynnvets.fetcher.polling.LaurelPoller;
+import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.logging.VetsLogger;
 
 /**
@@ -21,6 +22,9 @@ import org.wynnvets.logging.VetsLogger;
  * {@code -(1 + column)}, which no Wynntils badge can have, and the row goes in {@code vOffset}
  * as Wynntils does. {@link #isLaurel(float)} and {@link #sheetU(float)} decode it at draw time.
  * See {@code vetsmod_laurels.md}.</p>
+ *
+ * <p><b>Vets only.</b> Laurels are drawn only for a local player who is a vet
+ * ({@link #viewerMaySee()}); anyone else sees Wynntils' badges alone.</p>
  *
  * <p><b>Render thread only.</b> The lookup is rebuilt lazily when
  * {@link LaurelPoller#standings()} returns a new reference, so no field here is shared with the
@@ -58,11 +62,12 @@ public final class LaurelBadges {
      *
      * @param wynntils the list Wynntils got for the player, which is never modified
      * @param uuid the player, which may be {@code null}
-     * @return {@code wynntils} itself when there is nothing to add, our own list when it was
-     *     empty, and a new list of theirs then ours otherwise
+     * @return {@code wynntils} itself when there is nothing to add or the local player may not
+     *     see laurels ({@link #viewerMaySee()}), our own list when it was empty, and a new list of
+     *     theirs then ours otherwise
      */
     public static List<LeaderboardBadge> withLaurels(List<LeaderboardBadge> wynntils, UUID uuid) {
-        if (disabled || uuid == null) {
+        if (disabled || uuid == null || !viewerMaySee()) {
             return wynntils;
         }
         if (awaitingDraw) {
@@ -84,6 +89,17 @@ public final class LaurelBadges {
         List<LeaderboardBadge> merged = new ArrayList<>(wynntils);
         merged.addAll(ours);
         return merged;
+    }
+
+    /**
+     * Whether the local player may see laurels: in the Returners guild in game, or holding a
+     * waitlist, honourary or member key this session. The member tier also covers a member on an
+     * alt, or before the guild check has landed. A hiatus-only player is left out, because their
+     * key resolves to the same tier as an outsider's. Only the drawing is gated; the standings
+     * stay public at {@code /v1/outbound/laurels}.
+     */
+    private static boolean viewerMaySee() {
+        return GuildStateManager.isUnlocked() || GuildStateManager.isAuthTierMember();
     }
 
     /** Called by the draw hook before every badge Wynntils draws, ours or theirs. */

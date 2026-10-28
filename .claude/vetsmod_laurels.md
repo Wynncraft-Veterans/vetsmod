@@ -1,11 +1,11 @@
 ---
 name: vetsmod Laurels
-description: The vets laurels drawn on Wynntils' nametag badge bar — the standings model and poller, the negative-uOffset encoding, LaurelBarMixin and the Wynntils gates it inherits, the failure modes and guard, the bump-time check, the sheet's asset notice, the /wv laurels command, the temporary in-game streak fallback and how to retire it
+description: The vets laurels drawn on Wynntils' nametag badge bar — the standings model and poller, the negative-uOffset encoding, LaurelBarMixin, the Wynntils gates it inherits and the vets-only viewer gate, the failure modes and guard, the bump-time check, the sheet's asset notice, the /wv laurels command, the temporary in-game streak fallback and how to retire it
 type: project
 ---
 # vetsmod Laurels
 
-The top 3 Returners in each of four metrics get a laurel above their nametag, seen by every vetsmod user. Wynntils calls the same thing a **leaderboard badge** (the word "laurel" appears nowhere in its code): vetsmod appends its own badges to Wynntils' badge bar and swaps in its own sheet when one is drawn, so the laurels get Wynntils' layout, rotation and gates for free.
+The top 3 Returners in each of four metrics get a laurel above their nametag, seen by every vetsmod user who is a vet (§4, "Who sees them"). Wynntils calls the same thing a **leaderboard badge** (the word "laurel" appears nowhere in its code): vetsmod appends its own badges to Wynntils' badge bar and swaps in its own sheet when one is drawn, so the laurels get Wynntils' layout, rotation and gates for free.
 
 | Piece | Where |
 |---|---|
@@ -48,12 +48,14 @@ A Wynntils `LeaderboardBadge` is `(uOffset, vOffset)` into its own sheet and not
 
 `LaurelBarMixin` targets Wynntils' `CustomNametagRendererFeature.drawBadges` (`remap = false`, since the class is not Mojang's) with two `@WrapOperation`s, both `require = 0`:
 
-1. Around `LeaderboardService.getPlayerBadges(UUID)`: `LaurelBadges.withLaurels(original, uuid)`. A null uuid or a player with no laurels gets Wynntils' list back; an empty list gets ours; otherwise a new list of theirs then ours. Ours therefore rotate with theirs once a player holds more than `badgeCount`.
+1. Around `LeaderboardService.getPlayerBadges(UUID)`: `LaurelBadges.withLaurels(original, uuid)`. A null uuid, a player with no laurels, or a local player who may not see laurels (below) gets Wynntils' list back; an empty list gets ours; otherwise a new list of theirs then ours. Ours therefore rotate with theirs once a player holds more than `badgeCount`.
 2. Around `RenderUtils.renderLeaderboardBadge`: calls `LaurelBadges.onBadgeDrawn()`, then rewrites the texture, `uOffset` and size for one of ours before the original call. Name-only target, because the descriptor holds Minecraft types that `remap = false` would not remap.
 
 **Inherited gates.** Our laurels draw only where Wynntils' badges would: its "Nametag Rendering" feature on, `showLeaderboardBadges` on, `badgeCount` above 0, the player not an NPC, and the nametag not hidden. They dim while the player sneaks and sit above any gear lines. A user who turns Wynntils' badges off loses ours. There is deliberately no vetsmod config key.
 
-**Per-frame cost.** `withLaurels` runs once per visible player per frame: a volatile read and a map lookup, and an allocation only for a player who holds both kinds.
+**Who sees them.** Only a vet: `LaurelBadges.viewerMaySee()` is `GuildStateManager.isUnlocked()` (in the Returners guild in game, or a waitlist or honourary key this session) or `isAuthTierMember()` (a member key, which also covers a member on an alt, or before the guild check lands). A hiatus-only player is left out, because dazebot resolves their key to `other`, the same tier as an outsider's; including them would need a hiatus signal from dazebot on the auth ack. Only the drawing is gated: the poller runs for everyone, and `/v1/outbound/laurels` stays a public URL like every other `/v1/outbound` route.
+
+**Per-frame cost.** `withLaurels` runs once per visible player per frame: the viewer check's few field reads, a volatile read and a map lookup, and an allocation only for a player who holds both kinds.
 
 ## 5. Failure modes
 
