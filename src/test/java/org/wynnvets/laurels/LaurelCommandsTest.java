@@ -12,15 +12,17 @@ import java.util.Set;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
+import org.wynnvets.distribute.DistributeRuns;
 
 /**
  * The pure parts of {@link LaurelCommands}: which steps {@code update} runs for the server's
  * {@code collect} list, how it chains them, the fields of the frames it sends, and the chat lines
  * an ack turns into.
  *
- * <p>The command tree, the submission to {@code DistributeRuns} and the network send are not
- * exercised. {@code runSteps} ends in {@code DistributeRuns.finished()}, which returns at once
- * when no run is active, so the chain is run on its own. An ack is built with {@code ack(json)},
+ * <p>The command tree and the network send are not exercised. {@code runSteps} ends in {@code
+ * DistributeRuns.finished()}, which returns at once when no run is active, so the chain is mostly
+ * run on its own; one case runs it inside a real {@code DistributeRuns.submit} to show that the
+ * last step frees the gate for the next run. An ack is built with {@code ack(json)},
  * and a lines list is read with {@code texts(lines)}; the colour of a line is checked where it
  * carries meaning.</p>
  */
@@ -104,6 +106,22 @@ class LaurelCommandsTest {
         LaurelCommands.runSteps(List.of(first, second), 0);
 
         assertEquals(List.of("first"), ran);
+    }
+
+    @Test
+    void theLastStepEndsTheRunSoTheNextRunStartsAtOnce() {
+        List<String> ran = new ArrayList<>();
+        LaurelCommands.Step only = recordingStep(ran, "step", true);
+
+        DistributeRuns.submit("laurels update", () -> LaurelCommands.runSteps(List.of(only), 0));
+        DistributeRuns.submit(
+                "laurels update",
+                () -> {
+                    ran.add("next run");
+                    DistributeRuns.finished();
+                });
+
+        assertEquals(List.of("step", "next run"), ran);
     }
 
     // ----- frame fields -----

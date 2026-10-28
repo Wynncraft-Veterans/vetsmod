@@ -2623,7 +2623,7 @@ Test: [`ScreenshotLatchTest.java`](../src/test/java/org/wynnvets/items/Screensho
 
 Test: [`LaurelCommandsTest.java`](../src/test/java/org/wynnvets/laurels/LaurelCommandsTest.java) · Subject: [`LaurelCommands`](../src/client/java/org/wynnvets/laurels/LaurelCommands.java)
 
-`LaurelCommands` is `/wv laurels`. The suite pins its pure parts: which steps `update` runs for the server's `collect` list, how `runSteps` chains them, the fields of the frames it sends, and the chat lines an ack becomes. The command tree, the submission to `DistributeRuns` and the network send are not exercised; `runSteps` ends in `DistributeRuns.finished()`, which returns at once when no run is active. `ack(json)` parses an ack object, `texts(lines)` reads a lines list as strings and `assertColour` compares a line's colour with a `ChatFormatting`. Two steps (`XP_STEP` and `STREAK_STEP`, with an empty body) stand in for `LaurelCommands.STEPS`, and `recordingStep(ran, name, handsBack)` builds a step that appends its name to `ran` and calls `next` only when `handsBack` is true.
+`LaurelCommands` is `/wv laurels`. The suite pins its pure parts: which steps `update` runs for the server's `collect` list, how `runSteps` chains them, the fields of the frames it sends, and the chat lines an ack becomes. The command tree and the network send are not exercised. `runSteps` ends in `DistributeRuns.finished()`, which returns at once when no run is active, so the chain is mostly run on its own; one case runs it inside a real `DistributeRuns.submit`. `ack(json)` parses an ack object, `texts(lines)` reads a lines list as strings and `assertColour` compares a line's colour with a `ChatFormatting`. Two steps (`XP_STEP` and `STREAK_STEP`, with an empty body) stand in for `LaurelCommands.STEPS`, and `recordingStep(ran, name, handsBack)` builds a step that appends its name to `ran` and calls `next` only when `handsBack` is true.
 
 - **`beforeTheFirstFetchEveryStepRuns`**: A `null` `collect` keeps every step.
   - `selectSteps(steps, null)` is the same list instance as `steps`.
@@ -2636,6 +2636,8 @@ Test: [`LaurelCommandsTest.java`](../src/test/java/org/wynnvets/laurels/LaurelCo
   - `ran` equals `[first, second]` after `runSteps([first, second], 0)`, where both steps hand back.
 - **`aStepThatNeverHandsBackStopsTheStepsAfterIt`**: A step that does not call `next` ends the chain there.
   - `ran` equals `[first]` after `runSteps([first, second], 0)`, where `first` never hands back.
+- **`theLastStepEndsTheRunSoTheNextRunStartsAtOnce`**: Running off the last step calls `DistributeRuns.finished()`, so the gate is free for the next run.
+  - After `submit("laurels update", runSteps([step], 0))` and then a second `submit` that records `next run` and finishes, `ran` equals `[step, next run]`. Without the `finished()` call the second run would queue instead.
 - **`aReturnFrameNamesThePlaceAndThePlayer`**: The `return` fields carry the metric, then one entry.
   - `returnFields(2, "Steve").toString()` equals `{"metric":"return","entries":[{"place":2,"name":"Steve"}]}`.
 - **`aClearFrameCarriesOnlyTheMetricAndTheFlag`**: The clear fields are the metric and `clear: true`.
