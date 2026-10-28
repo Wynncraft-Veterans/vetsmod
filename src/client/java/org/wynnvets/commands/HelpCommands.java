@@ -26,7 +26,7 @@ final class HelpCommands {
 
     // ----- page primitives -----
     //
-    // A page is a title or opening row, then rows, then — on ten of the twelve
+    // A page is a title or opening row, then rows, then — on eleven of the thirteen
     // — the Requires: footer. A row is a head — YELLOW, plus a GOLD run for its
     // arguments if it takes any — followed by an ordered list of description
     // fragments: not a (command, description) pair, because the
@@ -160,12 +160,12 @@ final class HelpCommands {
      * The {@link Access} for a gate whose only server-side confirmation is that
      * the session is authenticated at all.
      *
-     * <p>Four of the five gated pages are this shape. Their requirement —
+     * <p>Four of the six gated pages are this shape. Their requirement —
      * unlocked, Returners — is decided locally from a cache the mod fills on world
      * join, and the only thing the server independently vouches for is that this
-     * session presented a key and was acked. {@code /wv check} is the exception:
-     * its gate is the server's staff roster itself, which it passes as both
-     * signals.</p>
+     * session presented a key and was acked. {@code /wv check} and {@code /wv laurels}
+     * are the exceptions: their gate is the server's staff roster itself, which each
+     * passes as both signals.</p>
      */
     private static Access sessionBacked(boolean met) {
         return access(met, met && GuildStateManager.isAuthenticatedThisSession());
@@ -176,7 +176,7 @@ final class HelpCommands {
         return GuildStateManager.areFeaturesEnabled();
     }
 
-    /** The {@code Requires:} footer that closes ten of the twelve pages. */
+    /** The {@code Requires:} footer that closes eleven of the thirteen pages. */
     private static void requires(MutableComponent msg, Access access, String requirementLabel) {
         msg.append(Component.literal("Requires: ").withStyle(ChatFormatting.GRAY));
         msg.append(Component.literal(requirementLabel).withStyle(access.colour));
@@ -207,7 +207,8 @@ final class HelpCommands {
      * <p>Each staff row takes the gate its command checks: {@code /wv list world}
      * refuses unless {@code isStaff()}, {@code /wv distribute}'s node requires
      * {@code isStaffOfAnyGuild()} (running it also needs Chief or Owner, which the
-     * row says), and {@code /wv check} needs {@code isConfirmedStaff()}.
+     * row says), and {@code /wv check} and {@code /wv laurels} need
+     * {@code isConfirmedStaff()}.
      * {@code anniTools} — a vet, or authenticated — only changes the
      * {@code /wv anni} row's text, pointing at the modes and RSVP on
      * {@code /wv help anni}; an unauthenticated non-member keeps the plain row.
@@ -260,6 +261,7 @@ final class HelpCommands {
         }
         if (confirmedStaff) {
             row(msg, "/wv check <player>", gray(" - Look up a potential recruit's info\n"));
+            row(msg, "/wv laurels <update|return>", gray(" - Manage the vets laurels\n"));
         }
         row(msg, "/wv debug", gray(" - Diagnostics & debug tools"));
         return msg;
@@ -327,7 +329,7 @@ final class HelpCommands {
      *
      * <p>The trailing newlines stay in {@code usage} and {@code prose} rather
      * than being supplied here. They are what separates one line from the next,
-     * they are not uniform across the twelve pages, and a template that owned
+     * they are not uniform across the thirteen pages, and a template that owned
      * them would quietly be a different template for any page that needed
      * otherwise.</p>
      */
@@ -346,13 +348,12 @@ final class HelpCommands {
     }
 
     /**
-     * The one page whose gate is a permission of its own rather than the
-     * session's: {@code isConfirmedStaff()}, the roster answer the server returned
-     * on the auth ack, which both entry points gate on. {@link #helpCheck} passes
-     * it as both signals, so the footer is AQUA or RED, never GREEN: the cached
-     * {@code /gu rank} answer ({@code isStaff()}) can say Captain+ while the
-     * command still refuses, and neither this footer nor the index row reads
-     * it.
+     * One of the two pages whose gate is a permission of its own rather than the
+     * session's (the other is {@link #buildHelpLaurels}): {@code isConfirmedStaff()}, the
+     * roster answer the server returned on the auth ack, which both entry points gate on.
+     * {@link #helpCheck} passes it as both signals, so the footer is AQUA or RED, never
+     * GREEN: the cached {@code /gu rank} answer ({@code isStaff()}) can say Captain+ while the
+     * command still refuses, and neither this footer nor the index row reads it.
      */
     static MutableComponent buildHelpCheck(Access access) {
         return detailPage(
@@ -360,6 +361,35 @@ final class HelpCommands {
                 "Look up someone's vets membership and client status.\n",
                 access,
                 "Staff");
+    }
+
+    static int helpLaurels(CommandContext<FabricClientCommandSource> ctx) {
+        boolean confirmed = GuildStateManager.isConfirmedStaff();
+        ChatUtils.sendLocalMessageNewBlock(buildHelpLaurels(access(confirmed, confirmed)));
+        return 1;
+    }
+
+    /**
+     * The {@code /wv laurels} page: its three commands, and the footer of a page gated on
+     * {@code isConfirmedStaff()}, which {@link #helpLaurels} passes as both signals like
+     * {@link #helpCheck} does. {@code update} also needs the Returners guild, which its prose
+     * says.
+     */
+    static MutableComponent buildHelpLaurels(Access access) {
+        MutableComponent msg = Component.empty();
+        row(
+                msg,
+                "/wv laurels update\n",
+                gray(
+                        "Read what only a game client can see, for the laurels the server cannot"
+                                + " work out itself, and upload it. Returners guild only.\n"));
+        row(
+                msg,
+                "/wv laurels return <1|2|3> <player>\n",
+                gray("Put a player on a place of the weekly return podium.\n"));
+        row(msg, "/wv laurels return clear\n", gray("Empty the weekly return podium.\n"));
+        requires(msg, access, "Staff");
+        return msg;
     }
 
     static int helpReturn(CommandContext<FabricClientCommandSource> ctx) {

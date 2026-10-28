@@ -22,7 +22,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.config`](#orgwynnvetsconfig) — [`NamedColorTest`](#namedcolortest), [`ShippedConfigTest`](#shippedconfigtest), [`VetsConfigDefaultsTest`](#vetsconfigdefaultstest), [`VetsConfigKeysTest`](#vetsconfigkeystest), [`VetsConfigSchemaTest`](#vetsconfigschematest)
 - [`org.wynnvets.datamodels`](#orgwynnvetsdatamodels) — [`UserTest`](#usertest)
 - [`org.wynnvets.debug.anni`](#orgwynnvetsdebuganni) — [`AnniDebugCommandsTest`](#annidebugcommandstest)
-- [`org.wynnvets.distribute`](#orgwynnvetsdistribute) — [`MembersGuiTest`](#membersguitest)
+- [`org.wynnvets.distribute`](#orgwynnvetsdistribute) — [`DistributeRunsTest`](#distributerunstest), [`MembersGuiTest`](#membersguitest)
 - [`org.wynnvets.distribute.command`](#orgwynnvetsdistributecommand) — [`NameOrSelectorArgumentTest`](#nameorselectorargumenttest)
 - [`org.wynnvets.distribute.distributor`](#orgwynnvetsdistributedistributor) — [`GraidsDistributorTest`](#graidsdistributortest), [`MemberSlotPresserTest`](#memberslotpressertest), [`ObjectivesDistributorTest`](#objectivesdistributortest), [`RandomDistributorTest`](#randomdistributortest), [`SplitDistributorTest`](#splitdistributortest)
 - [`org.wynnvets.distribute.recipients`](#orgwynnvetsdistributerecipients) — [`NameResolverTest`](#nameresolvertest), [`NoAspectsFilterTest`](#noaspectsfiltertest)
@@ -32,7 +32,7 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`LaurelPollerTest`](#laurelpollertest), [`PolledJsonMapTest`](#polledjsonmaptest), [`PolledJsonTest`](#polledjsontest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
 - [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`GuildCheckerOwnerTest`](#guildcheckerownertest), [`RegistrationTierTest`](#registrationtiertest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`LegacyLoreTextTest`](#legacyloretexttest), [`ScreenshotLatchTest`](#screenshotlatchtest)
-- [`org.wynnvets.laurels`](#orgwynnvetslaurels) — [`LaurelMetricTest`](#laurelmetrictest)
+- [`org.wynnvets.laurels`](#orgwynnvetslaurels) — [`LaurelCommandsTest`](#laurelcommandstest), [`LaurelMetricTest`](#laurelmetrictest), [`StreakCrawlTest`](#streakcrawltest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest), [`UrlWrapJoinerTest`](#urlwrapjoinertest)
 - [`org.wynnvets.logging`](#orgwynnvetslogging) — [`VetsLoggerTest`](#vetsloggertest)
 - [`org.wynnvets.mwe.anni`](#orgwynnvetsmweanni) — [`AnniPartyReporterTest`](#annipartyreportertest)
@@ -145,7 +145,7 @@ Test: [`PendingAcksTest.java`](../src/test/java/org/wynnvets/api/PendingAcksTest
 - **`aLostSocketFailsItsOwnAndOlderEntriesOnly`**: With entries sent on generations 1, 2 and 3, `failGeneration(2)` returns the first two in order and leaves the third.
   - The failed ids equal `[older, lost]`; `size()` is 1 and `complete(newer)` returns it.
 - **`anEntryFailedByALostSocketCannotBeCompleted`**: After `failGeneration(1)` took it, `complete` returns `null` and a second `failGeneration(1)` returns an empty list.
-- **`readsWaitFifteenSecondsAndCommitsFortyFive`**: `kindFor` maps `caution_check` and `check_membership` to `READ`, and `caution_add`, `warn_add` and `eject_add` to `COMMIT`; `READ.timeoutMs` is 15000, `COMMIT.timeoutMs` 45000 and `RELAY.timeoutMs` 15000.
+- **`readsWaitFifteenSecondsAndCommitsFortyFive`**: `kindFor` maps `caution_check` and `check_membership` to `READ`, and `caution_add`, `warn_add`, `eject_add` and `laurels_set` to `COMMIT`; `READ.timeoutMs` is 15000, `COMMIT.timeoutMs` 45000 and `RELAY.timeoutMs` 15000.
 - **`anEntrySentInEchoModeExpiresWhateverTheFlagsSayLater`**: `expire(req, echoNow)` takes an entry registered with `echoed` true even when `echoNow` is false, takes a legacy entry only when `echoNow` is true, and takes each once.
   - The echoed entry is returned with `echoNow` false; the legacy one is not (`null`, size still 1), then is with `echoNow` true, and a second `expire` returns `null`.
 - **`theLegacyPairingSkipsRelays`**: With only a relay pending, `hasStaff()` is false and `pollEldestStaff()` returns `null`; once a read is registered, `hasStaff()` is true, `pollEldestStaff()` returns the read, and the relay can still be completed by its id.
@@ -1062,12 +1062,12 @@ Asserting helpers:
 
 Tests:
 
-- **`helpPage_withEveryGateTrue_pinsItsThirtySiblings`**: With all six gates true, the index page matches the expected sibling tree, including bold gold heading, gray hint, yellow command and gold argument runs, and gray descriptions.
-  - `HelpCommands.buildHelp(true, true, true, true, true, true)` has exactly 30 siblings, all non-bold except the first, in this order (colour: text; trailing `\n` is part of the text): GOLD bold `Commands\n`; GRAY `Use /wv help <command> for details on a specific command.\n\n`; then command rows, each a YELLOW command then GRAY description: `/wv help` / ` - Show this help message\n`; `/wv anni` / ` - Show anni timer; /wv help anni for modes & RSVP\n`; `/wv config ` + GOLD `[<key> [<value>]]` + GRAY ` - View or change mod settings\n`; `/wv motd` / ` - Show the message of the day\n`; `/wv list` / ` - Show online guild members\n`; `/wv list world` / ` - Show online members by world\n`; `/wv staff` / ` - Show online stewards\n`; `/wv distribute ` + GOLD `<name|@selector> <type> <count>` + GRAY ` - Send guild rewards (Chief/Owner)\n`; `/wv return` / ` - Show info about this week's event\n`; `/wv line ` + GOLD `<church|scrap|bat|hegea|lighthouse>` + GRAY ` - Toggle gxp boundary lines\n`; `/wv check ` + GOLD `<player>` + GRAY ` - Look up a potential recruit's info\n`; `/wv debug` / ` - Diagnostics & debug tools` (last row has no trailing newline).
+- **`helpPage_withEveryGateTrue_pinsItsThirtyThreeSiblings`**: With all six gates true, the index page matches the expected sibling tree, including bold gold heading, gray hint, yellow command and gold argument runs, and gray descriptions.
+  - `HelpCommands.buildHelp(true, true, true, true, true, true)` has exactly 33 siblings, all non-bold except the first, in this order (colour: text; trailing `\n` is part of the text): GOLD bold `Commands\n`; GRAY `Use /wv help <command> for details on a specific command.\n\n`; then command rows, each a YELLOW command then GRAY description: `/wv help` / ` - Show this help message\n`; `/wv anni` / ` - Show anni timer; /wv help anni for modes & RSVP\n`; `/wv config ` + GOLD `[<key> [<value>]]` + GRAY ` - View or change mod settings\n`; `/wv motd` / ` - Show the message of the day\n`; `/wv list` / ` - Show online guild members\n`; `/wv list world` / ` - Show online members by world\n`; `/wv staff` / ` - Show online stewards\n`; `/wv distribute ` + GOLD `<name|@selector> <type> <count>` + GRAY ` - Send guild rewards (Chief/Owner)\n`; `/wv return` / ` - Show info about this week's event\n`; `/wv line ` + GOLD `<church|scrap|bat|hegea|lighthouse>` + GRAY ` - Toggle gxp boundary lines\n`; `/wv check ` + GOLD `<player>` + GRAY ` - Look up a potential recruit's info\n`; `/wv laurels ` + GOLD `<update|return>` + GRAY ` - Manage the vets laurels\n`; `/wv debug` / ` - Diagnostics & debug tools` (last row has no trailing newline).
 - **`helpPage_withNoGate_pinsItsThirteenSiblings`**: With all gates false, only the heading, hint, `help`, `anni`, `config`, `motd` and `debug` rows remain, each with exact text and colour.
   - `HelpCommands.buildHelp(false, false, false, false, false, false)` has exactly 13 siblings: GOLD bold `Commands\n`; GRAY `Use /wv help <command> for details on a specific command.\n\n`; YELLOW `/wv help` + GRAY ` - Show this help message\n`; YELLOW `/wv anni` + GRAY ` - Show anni timer\n`; YELLOW `/wv config ` + GOLD `[<key> [<value>]]` + GRAY ` - View or change mod settings\n`; YELLOW `/wv motd` + GRAY ` - Show the message of the day\n`; YELLOW `/wv debug` + GRAY ` - Diagnostics & debug tools`. No list, list world, staff, distribute, return, line or check rows.
 - **`gateMatrix_allSixtyFourCombinationsProduceTheirExactRowSet`**: For every combination of the six gates, the ordered command rows equal an independently restated list, so regrouping rows by gate fails.
-  - For each `mask` from 0 to 63 (bits 1, 2, 4, 8, 16, 32 give `anniTools`, `unlocked`, `staff`, `staffOfAnyGuild`, `featuresEnabled`, `confirmedStaff`, in `buildHelp`'s parameter order, so all 64 combinations): `rowsOf(buildHelp(...))` equals `expectedRows(...)` of the last five; `anniTools` changes only a row's text. `rowsOf` collects each YELLOW sibling's text and appends a directly-following non-bold GOLD argument run to the same row. `expectedRows` is, in order: `/wv help`, `/wv anni`, `/wv config [<key> [<value>]]`, `/wv motd`, then `/wv list` if `unlocked`, `/wv list world` if `staff`, `/wv staff` if `unlocked`, `/wv distribute <name|@selector> <type> <count>` if `staffOfAnyGuild`, `/wv return` and `/wv line <church|scrap|bat|hegea|lighthouse>` if `featuresEnabled`, `/wv check <player>` if `confirmedStaff`, then `/wv debug`.
+  - For each `mask` from 0 to 63 (bits 1, 2, 4, 8, 16, 32 give `anniTools`, `unlocked`, `staff`, `staffOfAnyGuild`, `featuresEnabled`, `confirmedStaff`, in `buildHelp`'s parameter order, so all 64 combinations): `rowsOf(buildHelp(...))` equals `expectedRows(...)` of the last five; `anniTools` changes only a row's text. `rowsOf` collects each YELLOW sibling's text and appends a directly-following non-bold GOLD argument run to the same row. `expectedRows` is, in order: `/wv help`, `/wv anni`, `/wv config [<key> [<value>]]`, `/wv motd`, then `/wv list` if `unlocked`, `/wv list world` if `staff`, `/wv staff` if `unlocked`, `/wv distribute <name|@selector> <type> <count>` if `staffOfAnyGuild`, `/wv return` and `/wv line <church|scrap|bat|hegea|lighthouse>` if `featuresEnabled`, `/wv check <player>` and `/wv laurels <update|return>` if `confirmedStaff`, then `/wv debug`.
 - **`anniRowPointsAtTheAnniPageOnlyWithAnniTools`**: The `/wv anni` row points at `/wv help anni` for the modes and RSVP exactly when `anniTools` is true, whatever the other gates say.
   - For each `mask` from 0 to 63 (as the gate matrix): the sibling after the YELLOW `/wv anni` head is ` - Show anni timer; /wv help anni for modes & RSVP\n` when bit 1 (`anniTools`) is set, else ` - Show anni timer\n`.
 - **`wvListIsAdvertisedExactlyOnceWhenUnlockedAndNeverOtherwise`**: Across all gate combinations the `/wv list` row appears once when unlocked and not at all otherwise. Regression guard for a fix where it printed twice and keyed off the vet predicate.
@@ -1076,6 +1076,8 @@ Tests:
   - `HelpCommands.buildHelpConfig()` has exactly 19 siblings: GOLD bold `Config Options\n`; GRAY `Toggle with /wv config <key> <default|true|false>.\nThese are the common toggles; /wv config lists every key.\n\n`; then seven YELLOW key (`legacyItemHighlighting\n`, `printMOTD\n`, `printANNI\n`, `printBridgeMessages\n`, `showSupporterGlints\n`, `colorBlindMode\n`, `handleSpoilers\n`), each followed by one GRAY description starting with two spaces and ending `\n` (highlights old items in inventory; auto-print the message of the day on join; auto-print the annihilation timer on join (Returners members only); show bridge messages incl. discord, queue, waitlist and honourary chats; supporter animated gradient glints on nametags, chat pills and /wv list; higher-contrast colour pair for supporter glints for red/green colour-blind users; encode ||spoiler|| markers in /g and /wg and render as hoverable labels); last row YELLOW `moreReliableGuildCheck\n` followed by two separate GRAY siblings, `  Run /gu stats on world join to detect your membership,` and ` instead of relying solely on Wynntils (it can lag on join)`, neither ending in a newline.
 - **`helpCheckPage_pinsItsFiveSiblings`**: The `/wv check` page, built with `CONFIRMED` access, matches its tree and ends with an aqua `Staff` requirement.
   - `buildHelpCheck(Access.CONFIRMED)` has exactly 5 siblings: YELLOW `/wv check `; GOLD `<player>\n`; GRAY `Look up someone's vets membership and client status.\n`; GRAY `Requires: `; AQUA `Staff`.
+- **`helpLaurelsPage_pinsItsNineSiblings`**: The `/wv laurels` page, built with `CONFIRMED` access, lists its three commands and ends with an aqua `Staff` requirement.
+  - `buildHelpLaurels(Access.CONFIRMED)` has exactly 9 siblings: YELLOW `/wv laurels update\n`; GRAY `Read what only a game client can see, for the laurels the server cannot work out itself, and upload it. Returners guild only.\n`; YELLOW `/wv laurels return ` + GOLD `<1|2|3> <player>\n`; GRAY `Put a player on a place of the weekly return podium.\n`; YELLOW `/wv laurels return clear\n`; GRAY `Empty the weekly return podium.\n`; GRAY `Requires: `; AQUA `Staff`.
 - **`helpReturnPage_pinsItsFourSiblings`**: The `/wv return` page matches its tree and ends with an aqua `Returners guild member` requirement.
   - `buildHelpReturn(Access.CONFIRMED)` has exactly 4 siblings: YELLOW `/wv return\n`; GRAY `Display information about this week's event.\n`; GRAY `Requires: `; AQUA `Returners guild member`.
 - **`helpStaffPage_pinsItsFourSiblings`**: The `/wv staff` page matches its tree and ends with an aqua `Unlocked` requirement.
@@ -1096,8 +1098,9 @@ Tests:
   - `buildHelpDebugSet()` has exactly 18 siblings: YELLOW `/wv debug set `; GOLD `[<key> [<value>]]\n`; GRAY `Manage debug-only configuration keys.\n\n`; GOLD `Usage:\n`; three usage rows: YELLOW `/wv debug set` + GRAY ` - List all debug config keys and their values\n`; YELLOW `/wv debug set ` + GOLD `<key>` + GRAY ` - Show the current value of a key\n`; YELLOW `/wv debug set ` + GOLD `<key> <true|false>` + GRAY ` - Set a debug key to true or false\n\n`; GOLD `Available keys:\n`; YELLOW `itemDump`; GRAY ` - Dump an item's full component tree\n`; DARK_GRAY `  When on, press numpad + while hovering it\n`; GRAY `Requires: `; WHITE `None (public)`.
 - **`helpDebugTriggerPage_pinsItsFortySiblings`**: The `/wv debug trigger` page lists all eight actions; each has a gray description then dark-gray clarification, and long lines wrap into extra fragments of the same colour.
   - `buildHelpDebugTrigger()` has exactly 40 siblings: YELLOW `/wv debug trigger `; GOLD `<action>\n`; GRAY `Run a one-shot debug action.\n\n`; GOLD `Actions:\n`; then eight actions, each YELLOW name line then GRAY description then DARK_GRAY clarification, with wrapped lines as separate siblings: `charDump\n` / GRAY `  Render PUA characters U+E001`, an en dash (U+2013), then `U+E040 in chat.\n` / two DARK_GRAY (`  Drawn as badge-style sequences in the resource\n`, `  pack's chat/prefix font.\n`); `forceChecks\n` / two GRAY (`  Force a re-check of guild membership, rank,\n`, `  and staff status.\n`) / three DARK_GRAY (`  Reports guild and staff state to chat, then\n`, `  re-runs /gu rank and /gu stats, skipping\n`, `  either if one is already in flight.\n`); `tabDump\n` / GRAY `  Dump the raw tab list to chat.\n` / two DARK_GRAY (`  Split into labelled columns, then shows the\n`, `  parsed guild members.\n`); `bossBarsDump\n` / GRAY `  Dump the boss bars on screen to chat.\n` / two DARK_GRAY (`  Order, id, name, colour, overlay and progress\n`, `  of each, with vetsmod's own bar marked.\n`); `nametagsDump\n` / GRAY `  Dump each player's nametag diagnostics.\n` / two DARK_GRAY (`  Anni gate, registry hit, tier and role, the\n`, `  display name, and the colour it would get.\n`); `ghostsPromptDump\n` / GRAY `  Log the ghosts-prompt inputs.\n` / two DARK_GRAY (`  To the log, not chat: the gate, each player's\n`, `  ghost flag, and whether the prompt would fire.\n`); `zoneLinesDump\n` / GRAY `  Dump the zone-line renderer's inputs.\n` / two DARK_GRAY (`  Gate, toggle and cache state, then each zone\n`, `  disc and its distance from you.\n`); `rsvpDump\n` / GRAY `  Log the RSVP client's state.\n` / two DARK_GRAY (`  To the log, not chat: auth, queue depth, the\n`, `  last attempt and ack, and the rsvp block.\n`); then GRAY `Requires: ` and WHITE `None (public)`. Action heads are written `/wv debug trigger <name>\n`.
-- **`requiresFooter_coloursEachAccessStateOnEveryGatedPage`**: For each of `DENIED`, `GRANTED` and `CONFIRMED`, the last sibling of the check, return, staff, list and line pages has the right label and red, green or aqua colour.
+- **`requiresFooter_coloursEachAccessStateOnEveryGatedPage`**: For each of `DENIED`, `GRANTED` and `CONFIRMED`, the last sibling of the check, laurels, return, staff, list and line pages has the right label and red, green or aqua colour.
   - For each `access` in `ACCESS_COLOURS` (DENIED to RED, GRANTED to GREEN, CONFIRMED to AQUA; `expected` is that colour): the last sibling of `buildHelpCheck(access)` is `Staff` in the `expected` colour.
+  - For the same three `access` values: the last sibling of `buildHelpLaurels(access)` is `Staff` in the `expected` colour.
   - For the same three `access` values: the last sibling of `buildHelpReturn(access)` is `Returners guild member` in the `expected` colour.
   - For the same three `access` values: the last sibling of `buildHelpStaff(access)` is `Unlocked` in the `expected` colour.
   - For the same three `access` values: the last sibling of `buildHelpList(access)` is `Veteran (Returners, waitlist, or honourary)` in the `expected` colour.
@@ -1346,6 +1349,29 @@ Test: [`AnniDebugCommandsTest.java`](../src/test/java/org/wynnvets/debug/anni/An
   - `commandNodes(anni, false)` equals 18: inner nodes (with children) with a non-null command.
 
 ## `org.wynnvets.distribute`
+
+### `DistributeRunsTest`
+
+Test: [`DistributeRunsTest.java`](../src/test/java/org/wynnvets/distribute/DistributeRunsTest.java) · Subject: [`DistributeRuns`](../src/client/java/org/wynnvets/distribute/DistributeRuns.java)
+
+`DistributeRuns` names a run in its chat lines by the noun it was submitted with. The suite pins the three line builders: `/wv distribute` submits `"distribution"` and its queued, stop and cancelled lines are asserted byte for byte as they were before the noun was a parameter, then the same lines for a `"laurels update"` run and a queue of mixed runs. Only the package-private builders are exercised; the run state is static and moves through the tick scheduler, which a test cannot boot.
+
+- **`aRunQueuedBehindADistributionSaysItStartsWhenThatDistributionFinishes`**: The queued line names the current run, here a distribution.
+  - `queuedLine("distribution")` equals `Queued: starts when the current distribution finishes.`
+- **`aRunQueuedBehindALaurelsUpdateNamesTheUpdate`**: The queued line follows the current run's noun.
+  - `queuedLine("laurels update")` equals `Queued: starts when the current laurels update finishes.`
+- **`aStoppedDistributionStillSaysDistributionStopped`**: A distribution's stop line is unchanged.
+  - `stopLine("distribution", "the Members menu is not open")` equals `Distribution stopped: the Members menu is not open.`
+- **`aStoppedLaurelsUpdateIsCapitalisedAndNamed`**: The noun is capitalised at the start of the stop line.
+  - `stopLine("laurels update", "the streak walk timed out")` equals `Laurels update stopped: the streak walk timed out.`
+- **`cancelledDistributionsAreCountedAndPluralised`**: A distribution's cancelled line is unchanged: singular for one, plural for more.
+  - `cancelledLine(["distribution"])` equals `Cancelled 1 queued distribution.`
+  - `cancelledLine(["distribution", "distribution"])` equals `Cancelled 2 queued distributions.`
+- **`cancelledRunsOfOneKindAreNamedByIt`**: Queued runs that share a noun are named by it, pluralised.
+  - `cancelledLine(["laurels update", "laurels update", "laurels update"])` equals `Cancelled 3 queued laurels updates.`
+- **`cancelledRunsOfMixedKindsAreJustRuns`**: Queued runs of different nouns are called runs.
+  - `cancelledLine(["distribution", "laurels update"])` equals `Cancelled 2 queued runs.`
+  - `cancelledLine(["laurels update", "distribution", "laurels update"])` equals `Cancelled 3 queued runs.`
 
 ### `MembersGuiTest`
 
@@ -2593,6 +2619,45 @@ Test: [`ScreenshotLatchTest.java`](../src/test/java/org/wynnvets/items/Screensho
 
 ## `org.wynnvets.laurels`
 
+### `LaurelCommandsTest`
+
+Test: [`LaurelCommandsTest.java`](../src/test/java/org/wynnvets/laurels/LaurelCommandsTest.java) · Subject: [`LaurelCommands`](../src/client/java/org/wynnvets/laurels/LaurelCommands.java)
+
+`LaurelCommands` is `/wv laurels`. The suite pins its pure parts: which steps `update` runs for the server's `collect` list, the fields of the frames it sends, and the chat lines an ack becomes. The command tree, the run and the network send are not exercised. `ack(json)` parses an ack object, `texts(lines)` reads a lines list as strings and `assertColour` compares a line's colour with a `ChatFormatting`. Two steps (`XP_STEP` and `STREAK_STEP`, with an empty body) stand in for `LaurelCommands.STEPS`.
+
+- **`beforeTheFirstFetchEveryStepRuns`**: A `null` `collect` keeps every step.
+  - `selectSteps(steps, null)` is the same list instance as `steps`.
+- **`anEmptyCollectListSelectsNothing`**: An empty `collect` selects no step.
+  - `selectSteps([XP_STEP, STREAK_STEP], {})` equals an empty list.
+- **`onlyTheStepsTheServerAsksForRunInTheirOwnOrder`**: A step is kept when its metric is in `collect`, in the order the steps were given.
+  - `selectSteps([XP_STEP, STREAK_STEP], {STREAK})` equals `[STREAK_STEP]`.
+  - `selectSteps([XP_STEP, STREAK_STEP], {STREAK, XP, RETURN})` equals `[XP_STEP, STREAK_STEP]`.
+- **`aReturnFrameNamesThePlaceAndThePlayer`**: The `return` fields carry the metric, then one entry.
+  - `returnFields(2, "Steve").toString()` equals `{"metric":"return","entries":[{"place":2,"name":"Steve"}]}`.
+- **`aClearFrameCarriesOnlyTheMetricAndTheFlag`**: The clear fields are the metric and `clear: true`.
+  - `returnClearFields().toString()` equals `{"metric":"return","clear":true}`.
+- **`aStreakFrameCarriesTheEntriesItWasGiven`**: The streak fields hold the entries array.
+  - `streakFields(new JsonArray()).toString()` equals `{"metric":"streak","entries":[]}`.
+- **`anAckWithAnUnknownOutcomeIsRedAndSaysItIsSafeToRunAgain`**: An `outcome_unknown` ack is red and never reaches the ok lines.
+  - `texts(ackLines(ack, …))` equals `[[laurels] Outcome unknown (no reply) - it is safe to run it again.]`, for `{"outcome_unknown":"no reply","status":"error"}` and an ok-lines function that throws `AssertionError`.
+  - The line's colour is RED.
+- **`anErrorAckIsRedWithTheServersDetail`**: An error ack prints its detail in red.
+  - `texts(ackLines(ack, …))` equals `[[laurels] failed: laurels store write failed]`, for `{"status":"error","detail":"laurels store write failed"}` and an ok-lines function that throws `AssertionError`.
+  - The line's colour is RED.
+- **`anAckWithNoStatusIsAnUnknownError`**: An ack with no `status` is an error with the default detail.
+  - `texts(ackLines(ack("{}"), …))` equals `[[laurels] failed: unknown error]`.
+- **`anOkAckIsLeftToTheCallersLines`**: An ok ack is handed to the ok-lines function and its result returned.
+  - `texts(ackLines(okAck, received -> [literal("seen " + (received == okAck))]))` equals `[seen true]`.
+- **`aPlacedPlayerIsGreen`**: A placed player is reported in green.
+  - `texts(returnSetLines(1, "Steve", ack))` equals `[Steve is #1 on the return podium.]`, for `{"status":"ok","accepted":1,"unresolved":[]}`.
+  - The line's colour is GREEN.
+- **`aNameTheServerCouldNotResolveIsRedNotFound`**: `accepted: 0` is a red not-found line.
+  - `texts(returnSetLines(3, "Nobody", ack))` equals `[No player named Nobody was found.]`, for `{"status":"ok","accepted":0,"unresolved":["Nobody"]}`.
+  - The line's colour is RED.
+- **`aClearedPodiumIsGreen`**: A clear is reported in green.
+  - `texts(returnClearLines(ack))` equals `[Return podium cleared.]`.
+  - The line's colour is GREEN.
+
 ### `LaurelMetricTest`
 
 Test: [`LaurelMetricTest.java`](../src/test/java/org/wynnvets/laurels/LaurelMetricTest.java) · Subject: [`LaurelMetric`](../src/client/java/org/wynnvets/laurels/LaurelMetric.java)
@@ -2607,6 +2672,49 @@ Test: [`LaurelMetricTest.java`](../src/test/java/org/wynnvets/laurels/LaurelMetr
   - `LaurelMetric.fromWire(metric.wireName())` equals `metric`, for every metric.
 - **`fromWireIsNullForAnythingElse`**: Only an exact wire name matches.
   - `fromWire` is null for `null`, `""`, `"kills"`, `"XP"` and `" xp"`.
+
+### `StreakCrawlTest`
+
+Test: [`StreakCrawlTest.java`](../src/test/java/org/wynnvets/laurels/StreakCrawlTest.java) · Subject: [`StreakCrawl`](../src/client/java/org/wynnvets/laurels/StreakCrawl.java)
+
+`StreakCrawl` reads each Members tile's `- Streak: N` lore line and uploads the numbers. The suite pins the pure parts: `parseStreak` (what counts as the line), `streakEntries` (the frame's entries) and `okLines` (the chat lines for the server's ack). The walk itself (`run`) drives the Members menu and is not exercised. `tile(name, lore…)` builds a `MemberEntry`, `ack(json)` parses an ack, and `texts` and `assertColour` are as in `LaurelCommandsTest`.
+
+- **`theStreakLineOfATypicalTileIsRead`**: The streak line is found among the other lore lines.
+  - `parseStreak` equals `OptionalInt.of(76)` for `Rank: Chief`, `Guild Objective:`, `- Gather Ores: 200/200`, `- Streak: 76`.
+- **`aStreakLineIsReadWhateverComesBeforeIt`**: No objective header is needed.
+  - `parseStreak(["- Streak: 3"])` equals `OptionalInt.of(3)`.
+- **`aZeroStreakIsAStreak`**: A zero is a value, not a miss.
+  - `parseStreak(["- Streak: 0"])` equals `OptionalInt.of(0)`.
+- **`theFirstStreakLineWins`**: The first match is used.
+  - `parseStreak(["- Streak: 5", "- Streak: 9"])` equals `OptionalInt.of(5)`.
+- **`aTileWithoutAStreakLineHasNone`**: A tile with no streak line gives empty.
+  - `parseStreak([])` equals `OptionalInt.empty()`.
+  - `parseStreak(["Guild Objective:", "- Gather Ores: 200/200"])` equals `OptionalInt.empty()`.
+- **`aStreakLineThatIsNotJustDigitsIsNotAStreak`**: The line is anchored and digits only.
+  - `parseStreak` equals `OptionalInt.empty()` for `- Streak: `, `- Streak: many`, `- Streak: 7 weeks`, `- Streak: -2` and `Streak: 4`, each as a single line.
+- **`aStreakTooBigForAnIntIsNone`**: A number that overflows an `int` gives empty rather than throwing.
+  - `parseStreak(["- Streak: 99999999999"])` equals `OptionalInt.empty()`.
+- **`entriesFollowTheMenuOrderAndSkipTilesWithoutAStreak`**: One `{name, streak}` per tile with a streak, in menu order.
+  - `streakEntries([Alpha "- Streak: 4", Beta "Guild Objective:", Gamma "- Streak: 0"]).toString()` equals `[{"name":"Alpha","streak":4},{"name":"Gamma","streak":0}]`.
+- **`noTilesGiveNoEntries`**: Nothing to upload is an empty array.
+  - `streakEntries([])` is empty.
+  - `streakEntries([tile("Alpha")])` is empty.
+- **`anUploadThatWasStoredAndShownIsOneGreenLine`**: A normal ack is the matched count in green.
+  - `texts(okLines(ack))` equals `[Read objective streaks: 98 matched to members.]`, for `accepted` 98, no unresolved names, `replaced` and `active` true.
+  - The line's colour is GREEN.
+- **`membersTheServerDidNotMatchAreListedInYellow`**: Unmatched names follow in yellow.
+  - `texts(okLines(ack))` equals `[Read objective streaks: 2 matched to members., Not matched to a member: Alpha, Beta.]`, for `unresolved` `["Alpha","Beta"]`.
+  - Line 1's colour is YELLOW.
+- **`onlyTheFirstTenUnmatchedNamesAreListed`**: Past ten, the rest are counted.
+  - Line 1 of `texts(okLines(ack))` equals `Not matched to a member: a, b, c, d, e, f, g, h, i, j and 2 more.`, for twelve unresolved names `a` to `l`.
+- **`anUploadTheServerDidNotStoreSaysSoInGray`**: `replaced: false` adds a gray note.
+  - `texts(okLines(ack))` equals `[Read objective streaks: 10 matched to members., Too few members matched, so the server kept its previous streaks.]`, for `replaced` false.
+  - Line 1's colour is GRAY.
+- **`anUploadTheApiHasSupersededSaysItIsStoredButNotShown`**: `active: false` adds a gray note.
+  - `texts(okLines(ack))` equals `[Read objective streaks: 98 matched to members., The server reads streaks from the Wynncraft API now, so this upload is stored but not shown.]`, for `replaced` true and `active` false.
+  - Line 1's colour is GRAY.
+- **`anAckMissingItsOptionalFieldsIsJustTheCount`**: Absent fields default quietly.
+  - `texts(okLines(ack("{}")))` equals `[Read objective streaks: 0 matched to members.]`.
 
 ## `org.wynnvets.listeners`
 

@@ -12,7 +12,7 @@ import net.minecraft.network.chat.MutableComponent;
 import org.junit.jupiter.api.Test;
 
 /**
- * Golden pins for the twelve {@code /wv help} pages.
+ * Golden pins for the thirteen {@code /wv help} pages.
  *
  * <p>These exist to make the consolidation that follows reviewable. Each page is
  * pinned as a <em>tree</em> — sibling count, each sibling's exact string, each
@@ -132,6 +132,7 @@ class HelpCommandsTest {
         }
         if (confirmedStaff) {
             rows.add("/wv check <player>");
+            rows.add("/wv laurels <update|return>");
         }
         rows.add("/wv debug");
         return rows;
@@ -167,7 +168,7 @@ class HelpCommandsTest {
 
     /** Every gate true — the widest the page ever gets. */
     @Test
-    void helpPage_withEveryGateTrue_pinsItsThirtySiblings() {
+    void helpPage_withEveryGateTrue_pinsItsThirtyThreeSiblings() {
         assertPage(
                 HelpCommands.buildHelp(true, true, true, true, true, true),
                 boldSib(ChatFormatting.GOLD, "Commands\n"),
@@ -200,6 +201,9 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "/wv check "),
                 sib(ChatFormatting.GOLD, "<player>"),
                 sib(ChatFormatting.GRAY, " - Look up a potential recruit's info\n"),
+                sib(ChatFormatting.YELLOW, "/wv laurels "),
+                sib(ChatFormatting.GOLD, "<update|return>"),
+                sib(ChatFormatting.GRAY, " - Manage the vets laurels\n"),
                 sib(ChatFormatting.YELLOW, "/wv debug"),
                 sib(ChatFormatting.GRAY, " - Diagnostics & debug tools"));
     }
@@ -295,7 +299,7 @@ class HelpCommandsTest {
         }
     }
 
-    // ----- the eleven remaining pages -----
+    // ----- the twelve remaining pages -----
 
     /**
      * The second index page. Its last row is three siblings, not two — a YELLOW
@@ -356,6 +360,24 @@ class HelpCommandsTest {
                 sib(ChatFormatting.YELLOW, "/wv check "),
                 sib(ChatFormatting.GOLD, "<player>\n"),
                 sib(ChatFormatting.GRAY, "Look up someone's vets membership and client status.\n"),
+                sib(ChatFormatting.GRAY, "Requires: "),
+                sib(ChatFormatting.AQUA, "Staff"));
+    }
+
+    @Test
+    void helpLaurelsPage_pinsItsNineSiblings() {
+        assertPage(
+                HelpCommands.buildHelpLaurels(HelpCommands.Access.CONFIRMED),
+                sib(ChatFormatting.YELLOW, "/wv laurels update\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Read what only a game client can see, for the laurels the server cannot"
+                                + " work out itself, and upload it. Returners guild only.\n"),
+                sib(ChatFormatting.YELLOW, "/wv laurels return "),
+                sib(ChatFormatting.GOLD, "<1|2|3> <player>\n"),
+                sib(ChatFormatting.GRAY, "Put a player on a place of the weekly return podium.\n"),
+                sib(ChatFormatting.YELLOW, "/wv laurels return clear\n"),
+                sib(ChatFormatting.GRAY, "Empty the weekly return podium.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.AQUA, "Staff"));
     }
@@ -612,6 +634,8 @@ class HelpCommandsTest {
             String context = access + " ";
             assertRequirement(
                     HelpCommands.buildHelpCheck(access), expected, "Staff", context + "check");
+            assertRequirement(
+                    HelpCommands.buildHelpLaurels(access), expected, "Staff", context + "laurels");
             assertRequirement(
                     HelpCommands.buildHelpReturn(access),
                     expected,

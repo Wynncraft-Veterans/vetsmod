@@ -101,6 +101,7 @@ public final class ObjectivesDistributor {
         CompletableFuture<Set<String>> excludeF =
                 NoAspectsFilter.fetchExcludedLegacyNames(resource.gatedByNoAspects());
         MembersListWalker.armWalk(
+                "the objectives walk timed out",
                 members ->
                         excludeF.thenAccept(
                                 excludeNames ->

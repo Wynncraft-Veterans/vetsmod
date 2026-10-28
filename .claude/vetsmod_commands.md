@@ -19,13 +19,15 @@ Where another doc owns the detail, the entry links it rather than restating it.
 ### Registration
 
 [`CommandRegistry.register`](../src/client/java/org/wynnvets/commands/CommandRegistry.java) registers the
-roots `/motd` and `/wv` on the dispatcher it is given. `/wv`'s `debug` and `distribute` subtrees are built
-elsewhere and mounted with `.then(…)`: `/wv debug` by
+roots `/motd` and `/wv` on the dispatcher it is given. `/wv`'s `debug`, `distribute` and `laurels` subtrees
+are built elsewhere and mounted with `.then(…)`: `/wv debug` by
 [`DebugCommands.buildCommandTree`](../src/client/java/org/wynnvets/debug/DebugCommands.java), whose `tree`
 literal mounts
 [`AnniDebugCommands.buildCommandTree`](../src/client/java/org/wynnvets/debug/anni/AnniDebugCommands.java),
-and `/wv distribute` by
-[`DistributeCommands.buildCommandTree`](../src/client/java/org/wynnvets/distribute/DistributeCommands.java).
+`/wv distribute` by
+[`DistributeCommands.buildCommandTree`](../src/client/java/org/wynnvets/distribute/DistributeCommands.java),
+and `/wv laurels` by
+[`LaurelCommands.buildCommandTree`](../src/client/java/org/wynnvets/laurels/LaurelCommands.java).
 Those classes are the only builders. The classes their nodes call into, such as `HelpCommands`,
 `ConfigCommands`, `AnniRsvpCommand`, `AnniScrollspotCommand`, `AnniSnapshotDebugCommands`,
 `AnniHighlightDebugCommands` and `AnniDebugSuggestions`, register nothing.
@@ -36,7 +38,7 @@ registers `CommandCompletionSync`'s tick listener, which keeps tab completion in
 gates (see Gates).
 
 A node with children but no command of its own goes to the server when typed bare, which answers
-"Invalid command". `/wv distribute` and the anni debug harness give each such node
+"Invalid command". `/wv distribute`, `/wv laurels` and the anni debug harness give each such node
 [`CommandUsage.usage`](../src/client/java/org/wynnvets/commands/CommandUsage.java) as its command, a red
 "Usage: …" line instead. The rest of the tree does not: a bare `/wv line` or `/wv anni rsvp` still goes
 to the server.
@@ -53,7 +55,7 @@ The tables name these kinds of gate:
   Tab completion reads a copy instead: Fabric copies the client tree into the vanilla dispatcher only
   when a `minecraft:commands` packet arrives, leaving out each node whose `.requires` fails at that
   moment. A join's packet arrives before the auth ack, so on its own the copy would hide
-  `/wv distribute` and `/wv check` from confirmed staff (the chat box marks them red as an incorrect
+  `/wv distribute`, `/wv check` and `/wv laurels` from confirmed staff (the chat box marks them red as an incorrect
   argument) until the next packet.
   [`CommandCompletionSync`](../src/client/java/org/wynnvets/commands/CommandCompletionSync.java)
   checks the `/wv` copy against every gate each client tick and calls
@@ -96,8 +98,8 @@ What each gate checks:
 
 | Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
 |---|---|---|---|---|---|---|
-| `/wv help` | none | none | `HelpCommands.help` → `buildHelp` | The index page. `/wv help`, `/wv anni`, `/wv config`, `/wv motd` and `/wv debug` always; `/wv list` and `/wv staff` when `isUnlocked()`; `/wv list world` when `isStaff()`; `/wv distribute` when `isStaffOfAnyGuild()`, its node's gate (the row adds "(Chief/Owner)", which running it needs); `/wv return` and `/wv line` when `areFeaturesEnabled()`; `/wv check` when `isConfirmedStaff()`. The `/wv anni` row points at `/wv help anni` for the modes and RSVP when the player is a vet (`isEligibleForEnrichment()`) or authenticated, and is the plain timer row otherwise. `/wv invite-force` is deliberately not listed | chat only | none |
-| `/wv help config`, `check`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger` | none | none | `HelpCommands.helpX` → `buildHelpX` | One detail page each. Most are a usage line, a line of prose and a `Requires:` footer; the config page lists its keys with no footer, the anni page adds the three modes and, when `isAuthenticatedThisSession()`, `rsvp hard`/`soft`/`revoke` under the timer line, and the debug pages list their subcommands, keys or actions above the footer | chat only | none |
+| `/wv help` | none | none | `HelpCommands.help` → `buildHelp` | The index page. `/wv help`, `/wv anni`, `/wv config`, `/wv motd` and `/wv debug` always; `/wv list` and `/wv staff` when `isUnlocked()`; `/wv list world` when `isStaff()`; `/wv distribute` when `isStaffOfAnyGuild()`, its node's gate (the row adds "(Chief/Owner)", which running it needs); `/wv return` and `/wv line` when `areFeaturesEnabled()`; `/wv check` and `/wv laurels <update|return>` when `isConfirmedStaff()` (the laurels row has no suffix: running either needs no more than seeing it, bar `update`'s Returners check). The `/wv anni` row points at `/wv help anni` for the modes and RSVP when the player is a vet (`isEligibleForEnrichment()`) or authenticated, and is the plain timer row otherwise. `/wv invite-force` is deliberately not listed | chat only | none |
+| `/wv help config`, `check`, `laurels`, `return`, `staff`, `list`, `motd`, `anni`, `line`, `debug`, `debug set`, `debug trigger` | none | none | `HelpCommands.helpX` → `buildHelpX` | One detail page each. Most are a usage line, a line of prose and a `Requires:` footer; the laurels page lists its three commands above the footer; the config page lists its keys with no footer, the anni page adds the three modes and, when `isAuthenticatedThisSession()`, `rsvp hard`/`soft`/`revoke` under the timer line, and the debug pages list their subcommands, keys or actions above the footer | chat only | none |
 
 Every page is a `buildX` returning the page plus a `helpX` that sends it, so a page is a value a
 test can compare: `HelpCommandsTest` pins each one as a tree. The pages are assembled from `HelpCommands`'
@@ -122,11 +124,11 @@ site that wrote it:
   `access(met, confirmed)`, in which `confirmed` wins outright so a stale local cache cannot report
   DENIED on a permission the server has granted. `access` never returns `PUBLIC`; the motd, anni,
   debug, debug set and debug trigger pages pass it as a constant. GREEN means *this should work*; AQUA means
-  *the server agrees*. Four of the five gated pages take `sessionBacked(met)`, whose confirmation is
+  *the server agrees*. Four of the six gated pages take `sessionBacked(met)`, whose confirmation is
   `met && isAuthenticatedThisSession()` (so an authenticated viewer who fails the local gate still sees
-  DENIED). `/wv check` is the exception: its gate is `isConfirmedStaff()`, the server's roster answer,
-  which it passes as both signals, so its footer is AQUA or RED and never GREEN, and the index row
-  advertises it on the same gate. The detail builders take an `Access` rather than reading
+  DENIED). `/wv check` and `/wv laurels` are the exceptions: their gate is `isConfirmedStaff()`, the
+  server's roster answer, which each passes as both signals, so their footers are AQUA or RED and never
+  GREEN, and the index rows advertise them on the same gate. The detail builders take an `Access` rather than reading
   `GuildStateManager`, for the same reason `buildHelp` takes its gates as parameters.
 
 ### `/wv check` and `/wv invite-force`
@@ -284,6 +286,23 @@ file under `vetsmod/dumps/anni/`), `snapshot refresh` and `guess` (`anni_query`)
 and `clear` (`anni_scrollspot_set`), `rsvp hard`, `soft` and `revoke` (the same as `/wv anni rsvp`), and
 `mode set` (writes `vetsAnniMode`, bypassing the `/stream` mutex). Each leaf is described in
 [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md) §Debug harness.
+
+### `/wv laurels`
+
+Tree built in [`LaurelCommands.buildCommandTree()`](../src/client/java/org/wynnvets/laurels/LaurelCommands.java).
+It feeds the vets laurels what the server cannot compute; [vetsmod_laurels.md](vetsmod_laurels.md) §8 owns the
+behaviour.
+
+| Command | Parse gate | Runtime gate | Handler | What it does | Side effects | Bugs |
+|---|---|---|---|---|---|---|
+| `/wv laurels update` | `isConfirmedStaff()` (on the `laurels` node) | `isConfirmedStaff()` again, "/wv laurels is restricted to authenticated stewards.", then `isReturners()`, "/wv laurels update is restricted to the Returners guild." | `LaurelCommands.update` | Submits a `DistributeRuns` run (noun "laurels update") that runs the steps the server's `collect` list asks for: today the Members-menu streak crawl. Prints "Nothing for this client to collect in-game." when no step is left | in-game `/guild manage` and Members-menu clicks; a `laurels_set` frame | none |
+| `/wv laurels return <1\|2\|3> <playerName>` | `isConfirmedStaff()` | `isConfirmedStaff()` again, the same red line | `LaurelCommands.setPlace` | Puts the player on that place of the weekly-return podium | a `laurels_set` frame | none |
+| `/wv laurels return clear` | `isConfirmedStaff()` | `isConfirmedStaff()` again, the same red line | `LaurelCommands.clear` | Empties the podium | a `laurels_set` frame | none |
+
+The places are literal children (`1`, `2`, `3`), so completion offers them, and `<playerName>` is read with
+`StringArgumentType.string()` like `/wv check`'s. Each node short of a finished command prints a red usage
+line (`/wv laurels <update|return>`, then the `return` forms). The gate is `isConfirmedStaff()` on both
+sides because the frame is refused from any session the server does not treat as staff.
 
 ### `/wv distribute <name|@selector> <aspects|tomes|emeralds> <count>`
 
@@ -565,7 +584,7 @@ A key `/wv config` does not accept, such as a hand-typed `vetsAnniMode`, falls t
 
 ## 4. Things to know when adding commands
 
-- Register a new `/wv` subcommand in `CommandRegistry.register()` with Brigadier's literal and argument builders, or give a whole subtree its own `buildCommandTree()` and mount it with `.then(…)`, as `/wv debug` and `/wv distribute` are.
+- Register a new `/wv` subcommand in `CommandRegistry.register()` with Brigadier's literal and argument builders, or give a whole subtree its own `buildCommandTree()` and mount it with `.then(…)`, as `/wv debug`, `/wv distribute` and `/wv laurels` are.
 - Gate with a real predicate. `CommandRegistry`'s own `userIsCaptain`/`userIsVet` are all-true stubs; the gated commands call one of the gates in §1's table directly. A `.requires` is a parse gate, so a handler that re-tests it refuses only if the gate's state changes between parse and run: a refusal that should explain itself belongs in the handler.
 - Keep a `.requires` predicate under `/wv` cheap and free of side effects: `CommandCompletionSync` tests every one of them each client tick. A gate whose state changes needs nothing more for tab completion to follow it.
 - Give a node that needs an argument after it `.executes(CommandUsage.usage("/wv …"))`, so typing it bare prints a usage line instead of going to the server.

@@ -80,7 +80,8 @@ VetsmodClient (entry point)
   │                           (17 files, 5 sub-packages)
   ├── rendering/              Territory lines, nametag animator, gradient/colour helpers
   ├── laurels/                Vets laurels on Wynntils' nametag badge bar: the standings model,
-  │                           LaurelBadges (the only class touching Wynntils' badge types);
+  │                           LaurelBadges (the only class touching Wynntils' badge types),
+  │                           LaurelCommands (/wv laurels) and the temporary StreakCrawl;
   │                           see vetsmod_laurels.md
   ├── datamodels/             Guild, User, UserUUID, MembershipSnapshot DTOs
   ├── debug/                  /wv debug tree, DebugConfigManager, diagnostics, dumps;
@@ -100,7 +101,7 @@ Both connections open only on a Wynncraft join ([vetsmod_networking.md](vetsmod_
 - **Inbound** `wss://api.wynnvets.org/v1/inbound` — client sends messages; the server's replies come back on it
 - **Outbound** `wss://api.wynnvets.org/v1/outbound` — server pushes: relayed chat to every client (to an unauthenticated one only while `unauth` is on), the `server_info` hello to every socket on connect, and the rest only to authenticated sockets
 
-**Control frames** (sent by client) — the four below are the presence/identity set; `/v1/inbound` accepts fourteen in all, adding `rank_change`, the five staff-action frames and the four MWE anni frames. Full inventory in [server_api_reference.md](server_api_reference.md).
+**Control frames** (sent by client) — the four below are the presence/identity set; `/v1/inbound` accepts fifteen in all, adding `rank_change`, the six staff-action frames and the four MWE anni frames. Full inventory in [server_api_reference.md](server_api_reference.md).
 - `register` — presence (uuid, username, tier, and `exact_text: true` from clients that send exact chat text)
 - `tablist` — guild tab snapshot for `!list`
 - `queue_status` — `{queued, world}`: the sender entering (`true`) or leaving (`false`) a Wynncraft world queue (presence side-channel; orthogonal to the `queue` chat type)

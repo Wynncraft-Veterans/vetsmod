@@ -24,12 +24,13 @@ import org.wynnvets.util.Uuids;
  * {@value #REFRESH_INTERVAL_MINUTES} minutes.
  *
  * <p>The fetch, error policy and volatile snapshot are {@link PolledJson}'s; this class keeps
- * the parse. The one reader is {@link org.wynnvets.laurels.LaurelBadges LaurelBadges}, on the
- * render thread. {@link #standings()} is {@code null} until the first fetch succeeds, which an
- * empty {@code collect} set cannot say: the snapshot is a holder for "not fetched yet" as well
- * as for the standings. The server answers 503 until it has its first guild data, which counts
- * as a failed fetch, so a cold start simply stays {@code null}. See {@code vetsmod_laurels.md}
- * for the model.</p>
+ * the parse. {@link org.wynnvets.laurels.LaurelBadges LaurelBadges} reads the players' laurels on
+ * the render thread, and {@link org.wynnvets.laurels.LaurelCommands LaurelCommands} reads
+ * {@code collect} on the client thread. {@link #standings()} is {@code null} until the first
+ * fetch succeeds, which an empty {@code collect} set cannot say: the snapshot is a holder for
+ * "not fetched yet" as well as for the standings. The server answers 503 until it has its first
+ * guild data, which counts as a failed fetch, so a cold start simply stays {@code null}. See
+ * {@code vetsmod_laurels.md} for the model.</p>
  */
 public final class LaurelPoller {
     private static final int REFRESH_INTERVAL_MINUTES = 5;

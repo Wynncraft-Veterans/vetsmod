@@ -168,8 +168,9 @@ public final class MembersGui {
      *
      * <p>Called when a single-target send ends or its search gives up
      * ({@link DistributeCommands}), when the multi-recipient send loop runs dry, on
-     * {@code @objectives}' two early-outs, where its walk has left the menu open, and when an
-     * {@code @objectives} walk stops the run with its menu still up.</p>
+     * {@code @objectives}' two early-outs, where its walk has left the menu open, when an
+     * {@code @objectives} walk stops the run with its menu still up, and when the
+     * {@link org.wynnvets.laurels.StreakCrawl StreakCrawl} walk completes.</p>
      */
     public static void closeIfOpen() {
         AbstractContainerScreen<?> screen = currentByTitle();

@@ -72,7 +72,7 @@ across 5 sub-packages:
 ```
 distribute/
 ├── DistributeCommands.java           — brigadier tree, both gates, selector dispatch
-├── DistributeRuns.java               — one run at a time: start, queue, finish, stop, refuse (§7)
+├── DistributeRuns.java               — one run at a time: start, queue, finish, stop, refuse (§7); also the laurels update's
 ├── MembersGui.java                   — the Members menu's shape: title, page buttons, tiles
 ├── command/
 │   ├── NameOrSelectorArgument.java   — one-token argument type so `@x` parses
@@ -81,7 +81,7 @@ distribute/
 │   └── GuildManageOpener.java        — /guild manage → Manage Members | Guild Log tile
 ├── walker/
 │   ├── MembersListSearcher.java      — bidirectional page search for one name
-│   ├── MembersListWalker.java        — forward-only full-roster collect, with lore
+│   ├── MembersListWalker.java        — forward-only full-roster collect, with lore (also the laurels streak crawl's)
 │   └── GuildLogWalker.java           — piggybacks Wynntils' log auto-pagination, when Wynntils wraps the log
 ├── distributor/
 │   ├── MemberSlotPresser.java        — refresh-gated hotbar presses on one slot
@@ -99,7 +99,7 @@ distribute/
 both Members-menu classes in `walker/` (`MembersListSearcher`,
 `MembersListWalker`) and
 `distributor/`'s `MemberSlotPresser` read from it, and `DistributeCommands`, two `distributor/`
-classes and `MembersListWalker` close the menu through its `closeIfOpen()`; a distributor should not import from the walker package to
+classes, `MembersListWalker` and the laurels `StreakCrawl` close the menu through its `closeIfOpen()`; a distributor should not import from the walker package to
 learn the GUI's shape. (`opener/` does not — `GuildManageOpener` drives
 the *Manage* menu and reads only `ContainerScreens`.) It describes the *layout* (mirroring
 Wynntils' `GuildMemberListContainer`), not the subset ≥2 callers share,
@@ -532,7 +532,10 @@ Not every failure path advances the chain. A row whose callback column says
 **no** ends the run instead, by design (`DistributeRuns`), and nothing it
 armed calls back. A stop prints one yellow "Distribution stopped: …" line
 and cancels the queue; a refusal (a precondition unmet) prints a red line
-and lets the queue go on.
+and lets the queue go on. The lines are named for the run that stopped:
+`/wv laurels update` submits as a "laurels update" run, and the same
+stop reads "Laurels update stopped: …" (`DistributeRuns.stopLine`). The
+rows below show the distribution form.
 
 | Trigger | Detected by | Chat output | Callback fires? |
 |---|---|---|---|
@@ -561,7 +564,7 @@ and lets the queue go on.
 | Log screen never reached — for example no Guild Log tile (the opener then closes that Manage menu), `/guild manage` unanswered, or the tile click going nowhere | `GuildLogWalker.onTick`'s overall timeout, 200 ticks | yellow "Distribution stopped: the guild log did not open." | no, by design: the run stops |
 | Members menu closed by the server mid-walk | `MembersListWalker.onMenuClose` | yellow "Distribution stopped: the Members menu closed." | no, by design: the run stops |
 | Bound Members menu gone when the walker's scan runs | `MembersListWalker.scanAndPaginate` | yellow "Distribution stopped: the Members menu is not open." (a Members menu still on top is closed first) | no, by design: the run stops |
-| Walk makes no progress for 200 ticks — for example a Members menu that never opens, or a Next Page click whose reply the walker never sees | `MembersListWalker`'s stall watchdog | yellow "Distribution stopped: the objectives walk timed out." | no, by design: the run stops, and the walker disarms, so a later Members menu cannot bind it |
+| Walk makes no progress for 200 ticks — for example a Members menu that never opens, or a Next Page click whose reply the walker never sees | `MembersListWalker`'s stall watchdog | yellow "Distribution stopped: the objectives walk timed out." (the reason is the one the caller passed to `armWalk`: `StreakCrawl` passes "the streak walk timed out") | no, by design: the run stops, and the walker disarms, so a later Members menu cannot bind it |
 | Members screen gone when the next press in a batch fires | `MemberSlotPresser.sendPressAndArm` | yellow "Send stopped after N/M: the Members menu is not open." | yes, and the run then stops: a multi-recipient run at its next pop, the literal-name head in its completion |
 
 † All four searcher rows end in `MembersListSearcher.invokeNotFound`,
@@ -620,7 +623,13 @@ passes its checks while another run holds it is queued, with a gray
 "Queued: starts when the current distribution finishes.", and starts
 `QUEUE_GAP_TICKS` after that run finishes or is refused. A run that stops
 cancels everything queued behind it, with "Cancelled N queued
-distributions." (or "distribution." for one). Every run ends in exactly one
+distributions." (or "distribution." for one).
+`/wv laurels update` shares the gate (it drives the same Members menu), so
+it queues behind a distribution and the other way round. Each run is
+submitted with the noun its lines use (`DistributeRuns.submit(noun, run)`:
+"distribution", or "laurels update"): the queued line names the *current*
+run, the stop line the run that stopped, and the cancelled line the
+queued runs' shared noun, pluralised, or "runs" when they differ. Every run ends in exactly one
 of `DistributeRuns.finished`, `stop` or `refuse`. A disconnect ends it
 silently instead: `DistributeRuns.reset` drops the queue, disarms the
 searcher, both walkers, the presser and the opener (each has a `cancel()`

@@ -31,7 +31,8 @@ final class PendingAcks {
         /** {@code caution_check}, {@code check_membership}: one dazebot read. */
         READ(15_000L),
         /** {@code caution_add}, {@code warn_add}, {@code eject_add}: a preflight and a commit,
-         *  each a dazebot call, behind any frame the server is still answering on the socket. */
+         *  each a dazebot call, behind any frame the server is still answering on the socket.
+         *  {@code laurels_set}: a store write, behind a name lookup. */
         COMMIT(45_000L),
         /** A waitlist, queue or honourary chat relay ({@code GuildChatDispatcher}). Never answered
          *  by the eldest-first pairing, which is for staff-action acks only. */

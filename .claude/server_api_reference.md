@@ -63,6 +63,7 @@ subsection), §7 and §7.1.
 | `caution_check` | `_handle_caution_check` | history ack | §1.10 |
 | `caution_add` / `warn_add` / `eject_add` | `_handle_staff_commit` | commit ack, or a `would_trigger` preflight | §1.10 |
 | `check_membership` | `_handle_check_membership` | membership ack, or a member's invite verdict | §1.10 |
+| `laurels_set` | `_handle_laurels_set` | `{"status":"ok","kind":"laurels_set","metric",…}` ack, below | §1.16 |
 | `anni_query` | `_handle_anni_query` | `anni_query_response` | §1.11 |
 | `anni_scrollspot_set` | `_handle_anni_scrollspot_set` | `anni_scrollspot_response` | §1.12 |
 | `anni_rsvp` | `_handle_anni_rsvp` | `anni_rsvp_response` | §1.13 |
@@ -126,15 +127,16 @@ behaviour are in `v1_protocol.md` §1.9.
 
 ### The staff-action family
 
-Five frame types, not the four the spec's §1.10 title implies —
-`check_membership` was added later and documented at the end of §1.10. All
-five share one gate, `_staff_session_or_error`, which is the extracted helper
+Six frame types, not the four the spec's §1.10 title implies —
+`check_membership` was added later and documented at the end of §1.10, and
+`laurels_set` has its own section, §1.16. All
+six share one gate, `_staff_session_or_error`, which is the extracted helper
 the family is built around: it returns the session when the connection is both
 authenticated *and* `is_staff`, otherwise the error payload to send back. The
 one exception is `check_membership` from an authenticated non-staff session of
 tier `member`, which skips that gate and gets the invite verdict below.
 
-The gate is the same for all five: **auth always required** regardless of the
+The gate is the same for all six: **auth always required** regardless of the
 `unauth` toggle, `is_staff` required, the `inbound` disabled-toggle bypassed,
 and the tier gate bypassed (these are not chat).
 
@@ -146,6 +148,24 @@ Two contract details vetsmod has to implement:
   commit. `warn_add` and `eject_add` never preflight.
 - On the commit ack, `kind` is the *internal* kind, not the frame name:
   `warn_add` returns `"warning"` and `eject_add` returns `"eject"`.
+
+`laurels_set` is handled by the server itself and never forwarded to dazebot. It feeds the vets
+laurels (vetsmod's `/wv laurels`; [vetsmod_laurels.md](vetsmod_laurels.md) §8) and has two payloads,
+told apart by `metric`:
+
+- `{"type":"laurels_set","metric":"return","entries":[{"place":1,"name":"<mc username or uuid>"}]}`
+  (1 to 3 entries) or `{"type":"laurels_set","metric":"return","clear":true}` sets or empties the
+  weekly-return podium. A name the server cannot resolve is not an error: the ack is ok with
+  `accepted: 0` and the name in `unresolved`.
+- `{"type":"laurels_set","metric":"streak","entries":[{"name":"<mc username>","streak":7}]}` (or
+  `uuid` in place of `name`) replaces the stored in-game objective streaks. Temporary, for as long
+  as the Wynncraft API's `weekly.streak` is empty.
+
+The ack is `{"status":"ok","kind":"laurels_set","metric":…,"accepted":<int>,"unresolved":[…]}`, plus
+`replaced` and `active` on a `streak` ack (`active` only when `replaced` is true). A malformed entry
+makes the whole frame an error ack. The exact validation, limits and error strings are
+[`v1_protocol.md` §1.16](../../temporary-server/v1_protocol.md). The ack class is the default commit
+(45 s) in `PendingAcks.kindFor`.
 
 `check_membership` in full (the spec's own copy is at the end of §1.10). The request mirrors
 `caution_check` — `{"type": "check_membership", "target_username": "<name or uuid>"}` —

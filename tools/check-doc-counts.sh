@@ -66,9 +66,9 @@ cd "$(dirname "$0")/.." || exit 2
 SRC=src/client/java
 # symbol|expected|note   -- expected is the live call-site count at HEAD.
 MANIFEST='
-Json.optString|26|no prose states it - pinned with Json.optInt so the 38-of-69 split in JsonTest and vetsmod_networking.md stays derivable
-Json.optInt|6|no prose states it - see the Json.optString row
-Json.stringOrNull|24|Json.java: "twenty-four with LaurelPoller s uuid and metric"
+Json.optString|28|no prose states it - pinned with Json.optInt so the 39-of-75 split in JsonTest and vetsmod_networking.md stays derivable
+Json.optInt|8|no prose states it - see the Json.optString row
+Json.stringOrNull|25|Json.java: "twenty-five with the laurels ack s own outcome_unknown"
 Json.stringOrEmpty|14|Json.java: "fourteen call sites"
 ColorMath.interpolateRgb|4|vetsmod_rendering.md + ColorMath.java, stated 3x
 ConfigValueText.booleanLine|6|ConfigValueTextTest
@@ -99,7 +99,7 @@ V1ApiManager.confirmedStaffRank|1|V1ApiManager#confirmedStaffRank: One consumer,
 OutboundCommand.queueFront|2|vetsmod_distribute.md sec 8: Two call sites, both in GuildManageOpener
 GuildManageOpener.openGuildLog|1|GuildManageOpener#openGuildLog: Used by GraidsDistributor (names the class, pinned as one site)
 GuildLogWalker.armWalk|1|GuildLogWalker#armWalk: The only caller today, GraidsDistributor
-MembersListWalker.armWalk|1|MembersListWalker class doc: its one caller pairs armWalk with openManageMembers
+MembersListWalker.armWalk|2|MembersListWalker class doc: each caller (ObjectivesDistributor, StreakCrawl) pairs armWalk with openManageMembers
 Managers.TickScheduler.scheduleLater|14|vetsmod_distribute.md sec 6: 13 in distribute plus the one in util.TickDelays
 Minecraft.getInstance|0|project_wynntils.md McUtils section: no code calls Minecraft.getInstance
 NameResolver.fetchAllLegacyNames|1|NameResolver#fetchAllLegacyNames: Used by RandomDistributor (names the class, pinned as one site)
@@ -125,7 +125,7 @@ org/wynnvets/chat/ChatUtils.java|sendGuildChatMessageRed(|2|one-caller claim, in
 org/wynnvets/queue/QueueDetector.java|handleTitleText(|2|two-caller claim, in-class half: the declaration plus the TitleSetTextEvent handler call
 org/wynnvets/fetcher/polling/AnniStampPoller.java|getLatestStamp(|1|only-reader claim, in-class half: the declaration alone
 org/wynnvets/fetcher/polling/AnniStampPoller.java|updateFromExternalFetch(|1|only-caller claim, in-class half: the declaration alone
-org/wynnvets/commands/HelpCommands.java|sessionBacked(|5|vetsmod_commands.md: four of the five gated pages take sessionBacked (declaration plus four calls; /wv check is the fifth)
+org/wynnvets/commands/HelpCommands.java|sessionBacked(|5|vetsmod_commands.md: four of the six gated pages take sessionBacked (declaration plus four calls; /wv check and /wv laurels are the other two)
 org/wynnvets/chat/dispatcher/GuildChatDispatcher.java|regionMatches(|5|vetsmod_commands.md section 2: four prefixes need the trailing space, plus the one in argsAfter
 '
 

@@ -863,11 +863,11 @@ public final class V1ApiManager {
 
     /**
      * Sends a staff-action control frame (the caution/warn/eject family --
-     * caution_check / caution_add / warn_add / eject_add -- or check_membership) and
-     * registers a callback for the matching server ack. The frame carries a fresh request id
-     * ({@code req}), which the server echoes, so the ack reaches this callback and no other; a
-     * server that does not echo has its staff-action acks paired with callbacks eldest first
-     * ({@link #pendingAcks}).
+     * caution_check / caution_add / warn_add / eject_add -- or check_membership or
+     * laurels_set) and registers a callback for the matching server ack. The frame carries a
+     * fresh request id ({@code req}), which the server echoes, so the ack reaches this callback
+     * and no other; a server that does not echo has its staff-action acks paired with callbacks
+     * eldest first ({@link #pendingAcks}).
      *
      * <p>A session the server does not treat as staff gets an error ack, which normally
      * resolves this frame's callback like any other ack; callers that want to spare
@@ -886,7 +886,7 @@ public final class V1ApiManager {
      * {@link #disconnect()} drains it -- bounce to the main thread for game-state work.</p>
      *
      * @param type     the staff-action frame type (e.g. "caution_check", "eject_add",
-     *                 "check_membership")
+     *                 "check_membership", "laurels_set")
      * @param fields   frame-specific fields (e.g. target_username, message, confirm)
      * @param callback invoked once, normally with the server's ack JSON and otherwise
      *                 with a client-built error ack (socket down, socket lost, no reply in

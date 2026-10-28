@@ -158,7 +158,7 @@ Show components and their enabled/disabled state (✅/❌).
 
 ### `!enable <component>` / `!disable <component>`
 Toggleable components: `inbound`, `outbound`, `staff`, `bridge`, `unauth`.
-- `inbound` disabled → reject chat messages from clients. Every control frame still works — not just `auth`/`register`/`tablist`/`queue_status` but `rank_change` and the five staff-action frames too, which are dispatched above the disabled gate
+- `inbound` disabled → reject chat messages from clients. Every control frame still works — not just `auth`/`register`/`tablist`/`queue_status` but `rank_change` and the six staff-action frames too, which are dispatched above the disabled gate
 - `outbound` disabled → drop messages from broadcast queue
 - `staff` disabled → skip staff roster polling
 - `bridge` disabled → skip Discord relay of game messages
@@ -196,7 +196,9 @@ metric was last updated and where the streak comes from. `return <place>
 metric staff set by hand; the name resolves through `name_resolver`, as
 `!noaspects` does. The data is `laurels_store`, and the standings are served at
 `GET /v1/outbound/laurels`. Wire shape, `updated_at` and `collect`:
-temporary-server `v1_protocol.md` §5.2.
+temporary-server `v1_protocol.md` §5.2. In-game staff set the same podium, and
+upload the temporary streak fallback, with the `laurels_set` staff-action
+frame (`v1_protocol.md` §1.16; vetsmod's `/wv laurels`).
 
 ## 7. Public commands
 

@@ -3,8 +3,10 @@ package org.wynnvets.distribute;
 import com.wynntils.core.components.Managers;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import org.apache.commons.lang3.StringUtils;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.distribute.distributor.MemberSlotPresser;
 import org.wynnvets.distribute.opener.GuildManageOpener;
@@ -14,7 +16,8 @@ import org.wynnvets.distribute.walker.MembersListWalker;
 import org.wynnvets.logging.VetsLogger;
 
 /**
- * How a {@code /wv distribute} run starts, waits its turn, and ends.
+ * How a {@code /wv distribute} run, or a {@code /wv laurels update} run, starts, waits its turn,
+ * and ends.
  *
  * <p>All of the package's state is static, so only one run may hold it at a time.
  * {@link #submit} starts a run at once, or queues it behind the one in progress; each run then
@@ -34,6 +37,9 @@ import org.wynnvets.logging.VetsLogger;
  * <p>A recipient who cannot be found while the Members menu is still up ends none of these: the
  * run skips them and goes on. {@code vetsmod_distribute.md} §7 lists which exit does which.</p>
  *
+ * <p>A run's chat lines name it by the noun it was submitted with: {@code "distribution"} for
+ * {@code /wv distribute}, {@code "laurels update"} for the other.</p>
+ *
  * <p>Every method runs on the client thread, as everything that calls them does.</p>
  */
 public final class DistributeRuns {
@@ -47,8 +53,16 @@ public final class DistributeRuns {
      *  across the gap before a queued run starts. */
     private static boolean running = false;
 
+    /** A run waiting its turn, and the noun its chat lines name it by. */
+    private record Queued(String noun, Runnable run) {}
+
     /** Runs waiting for the current one to end, oldest first. */
-    private static final Deque<Runnable> queued = new ArrayDeque<>();
+    private static final Deque<Queued> queued = new ArrayDeque<>();
+
+    /** The noun of the run holding the package's state, for {@link #stop}'s line and the next
+     *  queued run's "Queued" line. Set when a run starts or is dequeued, cleared by
+     *  {@link #reset()}. */
+    private static String currentNoun = null;
 
     /** Bumped by {@link #reset()}. A step a run scheduled before a disconnect checks it through
      *  {@link #fenced} and does nothing after one: a queued run already scheduled in the gap, or a
@@ -61,29 +75,33 @@ public final class DistributeRuns {
      * Starts {@code run} now if no run holds the package's state, and otherwise queues it, with a
      * gray line, to start once the current run finishes or is refused. {@code run} must end in
      * exactly one of {@link #finished()}, {@link #stop(String)} or {@link #refuse(String)}.
+     *
+     * @param noun what the run's chat lines call it, lower case and singular, e.g.
+     *     {@code "distribution"}
      */
-    public static void submit(Runnable run) {
+    public static void submit(String noun, Runnable run) {
         if (running) {
-            queued.add(run);
+            queued.add(new Queued(noun, run));
             ChatUtils.sendLocalMessage(
-                    Component.literal("Queued: starts when the current distribution finishes.")
-                            .withStyle(ChatFormatting.GRAY));
+                    Component.literal(queuedLine(currentNoun)).withStyle(ChatFormatting.GRAY));
             return;
         }
         running = true;
+        currentNoun = noun;
         run.run();
     }
 
     /** Ends the run normally, and starts the next queued one {@link #QUEUE_GAP_TICKS} later. */
     public static void finished() {
         if (!running) return;
-        Runnable next = queued.poll();
+        Queued next = queued.poll();
         if (next == null) {
             running = false;
             return;
         }
+        currentNoun = next.noun();
         VetsLogger.debug("DistributeRuns: starting the next queued run, {} left", queued.size());
-        Managers.TickScheduler.scheduleLater(fenced(generation, next), QUEUE_GAP_TICKS);
+        Managers.TickScheduler.scheduleLater(fenced(generation, next.run()), QUEUE_GAP_TICKS);
     }
 
     /** The disconnect count, for a run to capture before it hands a step to an HTTP callback or a
@@ -110,7 +128,7 @@ public final class DistributeRuns {
     }
 
     /**
-     * Ends the run with a yellow {@code Distribution stopped: <reason>.}, and cancels every
+     * Ends the run with a yellow {@code <Noun> stopped: <reason>.}, and cancels every
      * queued run. The caller has already disarmed whatever it armed, and must not run its
      * completion callback.
      *
@@ -120,20 +138,37 @@ public final class DistributeRuns {
     public static void stop(String reason) {
         VetsLogger.debug("DistributeRuns: stopped ({})", reason);
         ChatUtils.sendLocalMessage(
-                Component.literal("Distribution stopped: " + reason + ".")
-                        .withStyle(ChatFormatting.YELLOW));
-        int cancelled = queued.size();
+                Component.literal(stopLine(currentNoun, reason)).withStyle(ChatFormatting.YELLOW));
+        List<String> cancelled = queued.stream().map(Queued::noun).toList();
         queued.clear();
         running = false;
-        if (cancelled > 0) {
+        if (!cancelled.isEmpty()) {
             ChatUtils.sendLocalMessage(
-                    Component.literal(
-                                    "Cancelled "
-                                            + cancelled
-                                            + " queued distribution"
-                                            + (cancelled == 1 ? "." : "s."))
-                            .withStyle(ChatFormatting.YELLOW));
+                    Component.literal(cancelledLine(cancelled)).withStyle(ChatFormatting.YELLOW));
         }
+    }
+
+    /** The gray line for a run queued behind the run named {@code currentNoun}. */
+    // Package-private for unit tests. See DistributeRunsTest.
+    static String queuedLine(String currentNoun) {
+        return "Queued: starts when the current " + currentNoun + " finishes.";
+    }
+
+    /** The yellow line for the run named {@code noun} ending in {@link #stop}. */
+    // Package-private for unit tests. See DistributeRunsTest.
+    static String stopLine(String noun, String reason) {
+        return StringUtils.capitalize(noun) + " stopped: " + reason + ".";
+    }
+
+    /**
+     * The yellow line for the queued runs a stop cancelled, {@code nouns} being non-empty: their
+     * shared noun, pluralised, or "runs" when they differ.
+     */
+    // Package-private for unit tests. See DistributeRunsTest.
+    static String cancelledLine(List<String> nouns) {
+        int count = nouns.size();
+        String noun = nouns.stream().distinct().count() == 1 ? nouns.get(0) : "run";
+        return "Cancelled " + count + " queued " + noun + (count == 1 ? "." : "s.");
     }
 
     /**
@@ -164,6 +199,7 @@ public final class DistributeRuns {
         }
         queued.clear();
         running = false;
+        currentNoun = null;
         generation++;
         MembersListSearcher.cancel();
         MembersListWalker.cancel();

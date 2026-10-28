@@ -212,7 +212,8 @@ public final class DistributeCommands {
         // business. See SELECTORS.
         for (Selector selector : SELECTORS) {
             if (selector.token().equalsIgnoreCase(name)) {
-                DistributeRuns.submit(() -> selector.head().dispatch(count, resource));
+                DistributeRuns.submit(
+                        "distribution", () -> selector.head().dispatch(count, resource));
                 return 1;
             }
         }
@@ -223,7 +224,7 @@ public final class DistributeCommands {
                     Component.literal(unknownSelectorMessage(name)).withStyle(ChatFormatting.RED));
             return 0;
         }
-        DistributeRuns.submit(() -> startSingleTarget(name, resource, count));
+        DistributeRuns.submit("distribution", () -> startSingleTarget(name, resource, count));
         return 1;
     }
 

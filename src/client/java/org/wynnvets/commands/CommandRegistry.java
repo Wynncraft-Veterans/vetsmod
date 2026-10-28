@@ -19,6 +19,7 @@ import org.wynnvets.fetcher.ondemand.StampFetcher;
 import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.fetcher.ondemand.WorldListFetcher;
 import org.wynnvets.guild.GuildStateManager;
+import org.wynnvets.laurels.LaurelCommands;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.command.AnniRsvpCommand;
 import org.wynnvets.mwe.anni.mode.AnniMode;
@@ -77,6 +78,9 @@ public final class CommandRegistry {
                                         .then(
                                                 ClientCommandManager.literal("check")
                                                         .executes(HelpCommands::helpCheck))
+                                        .then(
+                                                ClientCommandManager.literal("laurels")
+                                                        .executes(HelpCommands::helpLaurels))
                                         .then(
                                                 ClientCommandManager.literal("return")
                                                         .executes(HelpCommands::helpReturn))
@@ -259,7 +263,10 @@ public final class CommandRegistry {
                         .then(DebugCommands.buildCommandTree())
 
                         // /wv distribute — full sub-tree built by DistributeCommands
-                        .then(DistributeCommands.buildCommandTree()));
+                        .then(DistributeCommands.buildCommandTree())
+
+                        // /wv laurels — full sub-tree built by LaurelCommands
+                        .then(LaurelCommands.buildCommandTree()));
     }
 
     // ── Permission predicates ───────────────────────────────────────────

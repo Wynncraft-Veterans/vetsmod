@@ -126,6 +126,7 @@ class PendingAcksTest {
         assertEquals(PendingAcks.Kind.COMMIT, PendingAcks.kindFor("caution_add"));
         assertEquals(PendingAcks.Kind.COMMIT, PendingAcks.kindFor("warn_add"));
         assertEquals(PendingAcks.Kind.COMMIT, PendingAcks.kindFor("eject_add"));
+        assertEquals(PendingAcks.Kind.COMMIT, PendingAcks.kindFor("laurels_set"));
         assertEquals(15_000L, PendingAcks.Kind.READ.timeoutMs);
         assertEquals(45_000L, PendingAcks.Kind.COMMIT.timeoutMs);
         assertEquals(15_000L, PendingAcks.Kind.RELAY.timeoutMs);

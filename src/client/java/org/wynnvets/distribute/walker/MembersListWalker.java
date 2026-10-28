@@ -24,10 +24,11 @@ import org.wynnvets.util.ContainerScreens;
 
 /**
  * Walks every page of the in-game {@code "<guild>: Members"} GUI and
- * collects an entry for each player-head it sees. Used by selectors
- * whose recipient list depends on per-member tile data &mdash; e.g.
+ * collects an entry for each player-head it sees. Used by callers
+ * whose data depends on per-member tile data &mdash; e.g.
  * {@link org.wynnvets.distribute.distributor.ObjectivesDistributor ObjectivesDistributor}, which
- * reads the {@code Guild Objective:} lore lines to decide who qualifies.
+ * reads the {@code Guild Objective:} lore lines to decide who qualifies, and
+ * {@link org.wynnvets.laurels.StreakCrawl StreakCrawl}, which reads the {@code Streak:} line.
  *
  * <p>Built on the same event triple as {@link MembersListSearcher}
  * (MenuOpen / SetContent / SetSlot), plus the same screen-close nudge
@@ -47,8 +48,8 @@ import org.wynnvets.util.ContainerScreens;
  * yellow line, and disarms, so a later Members menu cannot bind a stale walk.</p>
  *
  * <p>Forward-only: the walk is meant to start on a freshly-opened Members
- * menu (page 1), so there's never anything backward to cover. Its one
- * caller pairs {@link #armWalk(Completion)} with a fresh
+ * menu (page 1), so there's never anything backward to cover. Each caller
+ * pairs {@link #armWalk(String, Completion)} with a fresh
  * {@link org.wynnvets.distribute.opener.GuildManageOpener#openManageMembers()
  * GuildManageOpener.openManageMembers()}, and the walk always binds on that menu's
  * {@code MenuOpenedEvent.Pre}: a Members menu already open at arm time is about to be
@@ -92,6 +93,11 @@ public final class MembersListWalker {
     private static volatile int scanToken = 0;
 
     private static volatile Completion completion = null;
+
+    /** The reason the stall watchdog stops the run with, set by {@link #armWalk} and cleared by
+     *  {@link #stop()}. */
+    private static volatile String timeoutReason = null;
+
     private static final List<MemberEntry> collected = new ArrayList<>();
 
     /** The page the last Next click was made from, tile slot to name, or {@code null} before
@@ -125,10 +131,16 @@ public final class MembersListWalker {
      * missed), and only the pages reached when it ends at the cap. A walk
      * that loses its menu or stalls stops the run instead, and the callback
      * never fires.
+     *
+     * @param timeoutReason what the run is stopped with when the walk stalls, in the form
+     *     {@link org.wynnvets.distribute.DistributeRuns#stop(String) DistributeRuns.stop} takes:
+     *     lower case, without a final full stop, e.g. {@code "the objectives walk timed out"}
+     * @param onComplete called with the members the walk collected
      */
-    public static void armWalk(Completion onComplete) {
+    public static void armWalk(String timeoutReason, Completion onComplete) {
         active = true;
         completion = onComplete;
+        MembersListWalker.timeoutReason = timeoutReason;
         pagesClicked = 0;
         scanToken++;
         collected.clear();
@@ -142,6 +154,7 @@ public final class MembersListWalker {
     private static void stop() {
         active = false;
         completion = null;
+        timeoutReason = null;
         membersContainerId = -1;
         pagesClicked = 0;
         scanToken++;
@@ -171,7 +184,7 @@ public final class MembersListWalker {
         Managers.TickScheduler.scheduleLater(
                 () -> {
                     if (myToken != stallToken || !active) return;
-                    abandon("the objectives walk timed out", true);
+                    abandon(timeoutReason, true);
                 },
                 STALL_TICKS);
     }
