@@ -116,6 +116,7 @@ class HelpCommandsTest {
         rows.add("/wv motd");
         if (unlocked) {
             rows.add("/wv list");
+            rows.add("/wv list <xp|graids>");
         }
         if (staff) {
             rows.add("/wv list world");
@@ -168,7 +169,7 @@ class HelpCommandsTest {
 
     /** Every gate true — the widest the page ever gets. */
     @Test
-    void helpPage_withEveryGateTrue_pinsItsThirtyThreeSiblings() {
+    void helpPage_withEveryGateTrue_pinsItsThirtySixSiblings() {
         assertPage(
                 HelpCommands.buildHelp(true, true, true, true, true, true),
                 boldSib(ChatFormatting.GOLD, "Commands\n"),
@@ -186,6 +187,9 @@ class HelpCommandsTest {
                 sib(ChatFormatting.GRAY, " - Show the message of the day\n"),
                 sib(ChatFormatting.YELLOW, "/wv list"),
                 sib(ChatFormatting.GRAY, " - Show online guild members\n"),
+                sib(ChatFormatting.YELLOW, "/wv list "),
+                sib(ChatFormatting.GOLD, "<xp|graids>"),
+                sib(ChatFormatting.GRAY, " - Rank members by all-time guild XP or raids\n"),
                 sib(ChatFormatting.YELLOW, "/wv list world"),
                 sib(ChatFormatting.GRAY, " - Show online members by world\n"),
                 sib(ChatFormatting.YELLOW, "/wv staff"),
@@ -233,9 +237,9 @@ class HelpCommandsTest {
     /**
      * All sixty-four gate combinations, each against its exact ordered row set.
      * Row order is gate-interleaved — four unconditional rows, then the gated
-     * ones, then {@code /wv debug}; {@code /wv list world} sits between the two
-     * unlocked rows — so grouping a table by gate would reorder the page and fail
-     * here rather than in review. {@code anniTools} changes only a row's text,
+     * ones, then {@code /wv debug}; {@code /wv list world} sits between the
+     * unlocked list rows and {@code /wv staff} — so grouping a table by gate
+     * would reorder the page and fail here rather than in review. {@code anniTools} changes only a row's text,
      * which {@link #anniRowPointsAtTheAnniPageOnlyWithAnniTools} pins.
      */
     @Test
@@ -285,8 +289,8 @@ class HelpCommandsTest {
      * Commit {@code be482b1} is the fix this protects: {@code /wv list} was
      * printed twice, and advertised on the vet predicate rather than on
      * {@code isUnlocked()}. Across all sixty-four combinations it must appear
-     * exactly once when unlocked and never otherwise; the {@code /wv list world}
-     * row is a different row and is not counted.
+     * exactly once when unlocked and never otherwise; the {@code /wv list <xp|graids>}
+     * and {@code /wv list world} rows are different rows and are not counted.
      */
     @Test
     void wvListIsAdvertisedExactlyOnceWhenUnlockedAndNeverOtherwise() {
@@ -405,16 +409,27 @@ class HelpCommandsTest {
     /**
      * The {@code /wv list} <em>detail</em> page, whose heading is {@code "/wv list\n"}.
      * It is a different page from the {@code "/wv list"} row on the index, and the
-     * regression pin above does not count it.
+     * regression pin above does not count it. The rankings row ends on a DARK_GRAY
+     * clarification.
      */
     @Test
-    void helpListPage_pinsItsFourSiblings() {
+    void helpListPage_pinsItsEightSiblings() {
         assertPage(
                 HelpCommands.buildHelpList(HelpCommands.Access.CONFIRMED),
                 sib(ChatFormatting.YELLOW, "/wv list\n"),
                 sib(
                         ChatFormatting.GRAY,
                         "Show online Returners members and some basic info about them.\n"),
+                sib(ChatFormatting.YELLOW, "/wv list "),
+                sib(ChatFormatting.GOLD, "<xp|graids>\n"),
+                sib(
+                        ChatFormatting.GRAY,
+                        "Rank the guild's members by all-time guild XP or guild raids, like /gu"
+                                + " list.\n"),
+                sib(
+                        ChatFormatting.DARK_GRAY,
+                        "XP counts every stint in the guild, so it can be higher than /gu"
+                                + " list's.\n"),
                 sib(ChatFormatting.GRAY, "Requires: "),
                 sib(ChatFormatting.AQUA, "Veteran (Returners, waitlist, or honourary)"));
     }

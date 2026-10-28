@@ -49,7 +49,7 @@ app/
     staff_actions.py        # caution/warn/eject/check_membership → dazebot's staff-action API
     guild_roster_poller.py  # Guild UUID→current-username resolution (Minecraft Services API); also builds the laurels inputs
     name_resolver.py        # Name or UUID → (uuid, username): members from state, else Mojang; shared by !noaspects and !laurels
-    laurels.py              # Vets laurels standings (pure) behind /v1/outbound/laurels
+    laurels.py              # Vets laurels standings (pure) behind /v1/outbound/laurels and /leaderboard/{metric}
     laurels_store.py        # Laurels XP ledger, weekly-return podium and streak upload on disk (LAURELS_FILE)
     username_cache.py       # Minecraft Services username lookup + TTL cache, stale-on-failure
     glinted_poller.py       # dazebot's 8-slot glinted list → /v1/outbound/supporters
@@ -70,7 +70,7 @@ app/
 
 The three disk stores survive a container recreate only because production points them at the `./data` volume: `NO_ASPECTS_FILE`, `LAURELS_FILE` and `WEBHOOK_TIMESTAMP_FILE`, each `/app/data/<name>.json`.
 
-**REST endpoints:** thirteen GETs under `/v1/outbound/`, plus four `/v0/outbound/` legacy routes, `GET /magbot-health` and one secret-gated POST. Full detail in [server_api_reference.md](server_api_reference.md).
+**REST endpoints:** fourteen GETs under `/v1/outbound/`, plus four `/v0/outbound/` legacy routes, `GET /magbot-health` and one secret-gated POST. Full detail in [server_api_reference.md](server_api_reference.md).
 
 - `GET /v1/outbound/motd` — MOTD text
 - `GET /v1/outbound/guild_motd` — alternate staff-editable MOTD
@@ -85,6 +85,7 @@ The three disk stores survive a container recreate only because production point
 - `GET /v1/outbound/aliases` — lowercase stale-Wynncraft-username → UUID map, built from the v3.8 guild payload's `legacyName` (read by vetsmod's `PolledJsonMap.WYNN_ALIASES`)
 - `GET /v1/outbound/no-aspects` — members opted out of aspect distribution, read by vetsmod's `NoAspectsFilter`
 - `GET /v1/outbound/laurels` — the top-3 vets laurels standings, read by vetsmod's `LaurelPoller` (503 until the first guild payload; shape owned by temporary-server `v1_protocol.md` §5.2)
+- `GET /v1/outbound/leaderboard/{metric}` — every member ranked by all-time `xp` or `graids`, the lists the laurel podiums are cut from, read by vetsmod's `LeaderboardFetcher` for `/wv list xp` and `/wv list graids` (404 for any other metric, the same 503; shape owned by temporary-server `v1_protocol.md` §5.3)
 
 Naming is inconsistent in source and is not normalised here: `no-aspects` and `anni-snapshot` are hyphenated while `donor_pool` and `guild_motd` are underscored.
 

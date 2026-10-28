@@ -11,8 +11,10 @@ import org.junit.jupiter.api.Test;
  * The wire names and sheet columns of {@link LaurelMetric}.
  *
  * <p>The names are the server's, and the columns are the layout of {@code laurels.png}; a change
- * to either breaks the other side with no failing fetch, so both are pinned as literals rather
- * than derived from the enum.</p>
+ * to either breaks the other side without failing the laurels fetch (a renamed metric is refused
+ * in a {@code laurels_set} frame, and a renamed {@code xp} or {@code graids} makes
+ * {@code /wv list} 404; a moved column fails nothing), so both are pinned as literals rather than
+ * derived from the enum.</p>
  */
 class LaurelMetricTest {
 

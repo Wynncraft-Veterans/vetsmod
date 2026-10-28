@@ -7,7 +7,9 @@ package org.wynnvets.laurels;
  * <p>The column is a field of its own rather than {@link #ordinal()}, so reordering the constants
  * cannot silently re-map the sheet; the sheet is vetsmod's own asset and this enum is the one
  * place that says which wreath is which. The wire names are the server's
- * ({@code GET /v1/outbound/laurels}), spelled out so a rename on either side is a deliberate edit.
+ * ({@code GET /v1/outbound/laurels}, and for {@code xp} and {@code graids} the path segment of
+ * {@code /v1/outbound/leaderboard/<metric>} that {@code /wv list xp|graids} fetches), spelled out
+ * so a rename on either side is a deliberate edit.
  * See {@code vetsmod_laurels.md}.</p>
  */
 public enum LaurelMetric {

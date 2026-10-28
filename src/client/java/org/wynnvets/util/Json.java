@@ -181,9 +181,9 @@ public final class Json {
      * ({@code server_info}'s {@code chat_tiers}, the auth ack's {@code ws_tier} and a staff
      * presence frame's {@code uuid}), twenty-one with an inbound ack's echoed {@code req},
      * twenty-two with a staff-action ack's {@code outcome_unknown}, twenty-four with
-     * {@code LaurelPoller}'s {@code uuid} and {@code metric}, <b>twenty-five</b> with the
-     * laurels ack's own {@code outcome_unknown}. {@code null} <i>is</i>
-     * a fallback; this is not a fourth policy.</p>
+     * {@code LaurelPoller}'s {@code uuid} and {@code metric}, twenty-five with the laurels
+     * ack's own {@code outcome_unknown}, <b>twenty-six</b> with {@code LeaderboardFetcher}'s
+     * {@code username}. {@code null} <i>is</i> a fallback; this is not a fourth policy.</p>
      *
      * @param obj the object to read; a {@code null} is tolerated and warns
      * @param key the field name

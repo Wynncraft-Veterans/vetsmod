@@ -239,6 +239,10 @@ final class HelpCommands {
         row(msg, "/wv motd", gray(" - Show the message of the day\n"));
         if (unlocked) {
             row(msg, "/wv list", gray(" - Show online guild members\n"));
+            row(
+                    msg,
+                    "/wv list <xp|graids>",
+                    gray(" - Rank members by all-time guild XP or raids\n"));
         }
         if (staff) {
             row(msg, "/wv list world", gray(" - Show online members by world\n"));
@@ -324,7 +328,7 @@ final class HelpCommands {
     }
 
     /**
-     * The shape shared by the six {@code /wv help <command>} detail pages: a
+     * The shape shared by the five {@code /wv help <command>} detail pages: a
      * usage line, a line of prose, and the {@code Requires:} footer.
      *
      * <p>The trailing newlines stay in {@code usage} and {@code prose} rather
@@ -422,12 +426,26 @@ final class HelpCommands {
         return 1;
     }
 
+    /**
+     * The {@code /wv list} page: the online list, and the two all-time rankings that share its
+     * {@code isUnlocked()} gate. The {@code dim} line says why the XP ranking can differ from
+     * {@code /gu list}'s.
+     */
     static MutableComponent buildHelpList(Access access) {
-        return detailPage(
+        MutableComponent msg = Component.empty();
+        row(
+                msg,
                 "/wv list\n",
-                "Show online Returners members and some basic info about them.\n",
-                access,
-                "Veteran (Returners, waitlist, or honourary)");
+                gray("Show online Returners members and some basic info about them.\n"));
+        row(
+                msg,
+                "/wv list <xp|graids>\n",
+                gray(
+                        "Rank the guild's members by all-time guild XP or guild raids, like /gu"
+                                + " list.\n"),
+                dim("XP counts every stint in the guild, so it can be higher than /gu list's.\n"));
+        requires(msg, access, "Veteran (Returners, waitlist, or honourary)");
+        return msg;
     }
 
     static int helpMotd(CommandContext<FabricClientCommandSource> ctx) {

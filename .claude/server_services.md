@@ -38,7 +38,7 @@ Fields by subsystem:
 - `guild_roster_by_uuid: dict` — UUID → current username (Mojang-resolved)
 - `guild_roster_last_updated: float` — epoch timestamp
 - `wynn_name_aliases: dict`, `wynn_aliases_last_updated: float` — backs `/v1/outbound/aliases`
-- `guild_member_stats: dict[str, dict]`, `guild_member_stats_last_updated: float` — per-member laurels inputs from the Returners payload (`0.0` until the first one; `/v1/outbound/laurels` answers 503 until then)
+- `guild_member_stats: dict[str, dict]`, `guild_member_stats_last_updated: float` — per-member laurels inputs from the Returners payload (`0.0` until the first one; `/v1/outbound/laurels` and `/v1/outbound/leaderboard/{metric}` answer 503 until then)
 
 **Glinted slots / donor pool:**
 - `glinted_slots: list[dict | None]`, `glinted_last_updated: float | None`
@@ -294,7 +294,7 @@ Read the source when you need them:
 | `no_aspects_store.py` | Disk-backed opt-out list (`load`/`add`/`remove`/`entries`) behind `!noaspects`; `NO_ASPECTS_FILE`, prod `/app/data/no_aspects.json` |
 | `webhook_timestamp_store.py` | Persists the anni stamp so `/v1/outbound/stamp` survives a restart; `WEBHOOK_TIMESTAMP_FILE`, prod `/app/data/webhook_timestamp.json` |
 | `laurels_store.py` | Laurels data in memory and on disk (XP stint ledger, weekly-return podium, in-game streak upload); `LAURELS_FILE`, prod `/app/data/laurels.json`. Written by `!laurels` and by the `laurels_set` frame |
-| `laurels.py` | Pure standings: `compute_laurels`, `compose_laurels` (the `/v1/outbound/laurels` body), `streak_source`. The body is owned by temporary-server `v1_protocol.md` §5.2 |
+| `laurels.py` | Pure standings: `compute_laurels`, `compose_laurels` (the `/v1/outbound/laurels` body), `compose_leaderboard` (the `/v1/outbound/leaderboard/{metric}` body, the full `xp` or `graids` ranking the podium is cut from), `streak_source`. The bodies are owned by temporary-server `v1_protocol.md` §5.2 and §5.3 |
 | `name_resolver.py` | Name or UUID → `(uuid, username)`: members from local state, else the Mojang API; shared by `!noaspects` and `!laurels` |
 | `pua_decoder.py` | `split_pua_items` — splits a multi-item PUA run |
 | `pua_renderer.py` | `PuaRenderer` — HTTP client for the item-renderer sidecar |

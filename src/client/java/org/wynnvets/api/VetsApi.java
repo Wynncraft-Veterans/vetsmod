@@ -3,7 +3,7 @@ package org.wynnvets.api;
 import java.net.URI;
 
 /**
- * VetsMod API endpoint constants and guild identifiers.
+ * VetsMod API endpoint URIs and guild identifiers.
  *
  * <p>Centralises the WynnVets HTTP endpoint URIs, plus the anni schedule
  * page link and the VETS guild UUID. The WebSocket URIs that carry guild
@@ -45,6 +45,18 @@ public final class VetsApi {
      * {@link org.wynnvets.fetcher.polling.LaurelPoller LaurelPoller}.
      */
     public static final URI LAURELS = URI.create("https://api.wynnvets.org/v1/outbound/laurels");
+
+    /**
+     * Builds the URI to GET every member ranked by an all-time metric, the one endpoint here that
+     * takes a parameter. Read by
+     * {@link org.wynnvets.fetcher.ondemand.LeaderboardFetcher LeaderboardFetcher}.
+     *
+     * @param metric the metric's wire name, {@code xp} or {@code graids}
+     * @return a URI targeting {@code /v1/outbound/leaderboard/<metric>}
+     */
+    public static URI leaderboard(String metric) {
+        return URI.create("https://api.wynnvets.org/v1/outbound/leaderboard/" + metric);
+    }
 
     /** GET the list of currently connected VetsMod users. */
     public static final URI LIST = URI.create("https://api.wynnvets.org/v1/outbound/list");

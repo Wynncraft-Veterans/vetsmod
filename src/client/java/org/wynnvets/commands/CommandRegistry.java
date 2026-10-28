@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.debug.DebugCommands;
 import org.wynnvets.distribute.DistributeCommands;
+import org.wynnvets.fetcher.ondemand.LeaderboardFetcher;
 import org.wynnvets.fetcher.ondemand.ListFetcher;
 import org.wynnvets.fetcher.ondemand.MotdFetcher;
 import org.wynnvets.fetcher.ondemand.ReturnFetcher;
@@ -20,6 +21,7 @@ import org.wynnvets.fetcher.ondemand.UserInfoFetcher;
 import org.wynnvets.fetcher.ondemand.WorldListFetcher;
 import org.wynnvets.guild.GuildStateManager;
 import org.wynnvets.laurels.LaurelCommands;
+import org.wynnvets.laurels.LaurelMetric;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.mwe.anni.command.AnniRsvpCommand;
 import org.wynnvets.mwe.anni.mode.AnniMode;
@@ -141,7 +143,7 @@ public final class CommandRegistry {
                                 ClientCommandManager.literal("return")
                                         .executes(CommandRegistry::returnInfo))
 
-                        // /wv list
+                        // /wv list, /wv list world|xp|graids
                         .then(
                                 ClientCommandManager.literal("list")
                                         .requires(CommandRegistry::userIsVet)
@@ -149,7 +151,22 @@ public final class CommandRegistry {
                                         .then(
                                                 ClientCommandManager.literal("world")
                                                         .requires(CommandRegistry::userIsCaptain)
-                                                        .executes(CommandRegistry::listWorld)))
+                                                        .executes(CommandRegistry::listWorld))
+                                        .then(
+                                                ClientCommandManager.literal("xp")
+                                                        .executes(
+                                                                ctx ->
+                                                                        listLeaderboard(
+                                                                                ctx,
+                                                                                LaurelMetric.XP)))
+                                        .then(
+                                                ClientCommandManager.literal("graids")
+                                                        .executes(
+                                                                ctx ->
+                                                                        listLeaderboard(
+                                                                                ctx,
+                                                                                LaurelMetric
+                                                                                        .GRAIDS))))
 
                         // /wv staff
                         .then(
@@ -371,13 +388,21 @@ public final class CommandRegistry {
         return 1;
     }
 
+    /**
+     * The gate {@code /wv list} and its {@code xp} and {@code graids} rankings share: true when
+     * the player is unlocked, else prints the refusal and returns false. {@code /wv list world}
+     * has a staff gate of its own.
+     */
+    private static boolean listAllowed() {
+        if (GuildStateManager.isUnlocked()) return true;
+        ChatUtils.sendLocalMessage(
+                Component.literal("/wv list is restricted to vets members.")
+                        .withStyle(ChatFormatting.RED));
+        return false;
+    }
+
     private static int list(CommandContext<FabricClientCommandSource> ctx) {
-        if (!GuildStateManager.isUnlocked()) {
-            ChatUtils.sendLocalMessage(
-                    Component.literal("/wv list is restricted to vets members.")
-                            .withStyle(ChatFormatting.RED));
-            return 0;
-        }
+        if (!listAllowed()) return 0;
 
         // "Looking up..." is a transient progress line, not the real response —
         // let it dedup to the compact indicator. The new-block separator is
@@ -387,6 +412,15 @@ public final class CommandRegistry {
 
         ListFetcher.fetchList()
                 .thenAccept(listInfo -> ChatUtils.sendLocalMessageNewBlock(listInfo));
+        return 1;
+    }
+
+    private static int listLeaderboard(
+            CommandContext<FabricClientCommandSource> ctx, LaurelMetric metric) {
+        if (!listAllowed()) return 0;
+
+        LeaderboardFetcher.fetchLeaderboard(metric)
+                .thenAccept(leaderboard -> ChatUtils.sendLocalMessageNewBlock(leaderboard));
         return 1;
     }
 

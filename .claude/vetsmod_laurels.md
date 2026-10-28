@@ -17,6 +17,7 @@ The top 3 Returners in each of four metrics get a laurel above their nametag, se
 | Staff command | [`LaurelCommands`](../src/client/java/org/wynnvets/laurels/LaurelCommands.java): `/wv laurels update` and `return` (§8) |
 | Streak fallback | [`StreakCrawl`](../src/client/java/org/wynnvets/laurels/StreakCrawl.java), temporary (§9) |
 | Sheet | `src/main/resources/assets/vetsmod/textures/nametag/laurels.png`, with its notice beside it |
+| Full rankings | temporary-server, `GET /v1/outbound/leaderboard/{metric}` ([`v1_protocol.md` §5.3](../../temporary-server/v1_protocol.md)): the `xp` and `graids` lists the podiums are cut from, printed by `/wv list xp` and `/wv list graids` through [`LeaderboardFetcher`](../src/client/java/org/wynnvets/fetcher/ondemand/LeaderboardFetcher.java) ([vetsmod_commands.md](vetsmod_commands.md)) |
 
 ## 1. Model
 
