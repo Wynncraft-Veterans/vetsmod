@@ -38,6 +38,7 @@ Fields by subsystem:
 - `guild_roster_by_uuid: dict` — UUID → current username (Mojang-resolved)
 - `guild_roster_last_updated: float` — epoch timestamp
 - `wynn_name_aliases: dict`, `wynn_aliases_last_updated: float` — backs `/v1/outbound/aliases`
+- `guild_member_stats: dict[str, dict]`, `guild_member_stats_last_updated: float` — per-member laurels inputs from the Returners payload (`0.0` until the first one; `/v1/outbound/laurels` answers 503 until then)
 
 **Glinted slots / donor pool:**
 - `glinted_slots: list[dict | None]`, `glinted_last_updated: float | None`
@@ -114,6 +115,7 @@ Fields by subsystem:
 - Build roster via `_build_guild_roster()` (all roles: owner → recruit)
 - Build the alias map via `_build_legacy_name_aliases()` (lowercase v3.8 `legacyName` → UUID)
 - Update `state.guild_roster_by_uuid`; update `state.wynn_name_aliases` (backs `/v1/outbound/aliases`) only when the alias map is non-empty
+- Before the slow name resolution, build `state.guild_member_stats` and fold guild XP into the `laurels_store` ledger (best-effort, so a failure never blocks the roster)
 
 **`_build_guild_roster()`**:
 - Same UUID extraction logic as StaffPoller
@@ -289,8 +291,11 @@ Read the source when you need them:
 | `donor_pool_poller.py` | `DonorPoolPoller` — dazebot's ranked donor candidates |
 | `anni_snapshot_poller.py` | `AnniSnapshotPoller` — vets-anni MWE snapshots; also serves the `anni_*` inbound frames |
 | `world_events_poller.py` | `WorldEventsPoller` — Wynncraft world-events fallback for the anni stamp |
-| `no_aspects_store.py` | Disk-backed opt-out list (`load`/`add`/`remove`/`entries`) behind `!noaspects` |
-| `webhook_timestamp_store.py` | Persists the anni stamp so `/v1/outbound/stamp` survives a restart |
+| `no_aspects_store.py` | Disk-backed opt-out list (`load`/`add`/`remove`/`entries`) behind `!noaspects`; `NO_ASPECTS_FILE`, prod `/app/data/no_aspects.json` |
+| `webhook_timestamp_store.py` | Persists the anni stamp so `/v1/outbound/stamp` survives a restart; `WEBHOOK_TIMESTAMP_FILE`, prod `/app/data/webhook_timestamp.json` |
+| `laurels_store.py` | Laurels data in memory and on disk (XP stint ledger, weekly-return podium, in-game streak upload); `LAURELS_FILE`, prod `/app/data/laurels.json` |
+| `laurels.py` | Pure standings: `compute_laurels`, `compose_laurels` (the `/v1/outbound/laurels` body), `streak_source`. The body is owned by temporary-server `v1_protocol.md` §5.2 |
+| `name_resolver.py` | Name or UUID → `(uuid, username)`: members from local state, else the Mojang API; shared by `!noaspects` and `!laurels` |
 | `pua_decoder.py` | `split_pua_items` — splits a multi-item PUA run |
 | `pua_renderer.py` | `PuaRenderer` — HTTP client for the item-renderer sidecar |
 | `wynnpool_fallback.py` | `WynnpoolFallback.describe` — decodes a shared PUA item through Wynnpool's live API when the item-renderer sidecar cannot draw it, returning an `ItemCard` or `None`; on by default (`WYNNPOOL_API_URL`; empty disables it), but the relay reaches it only when `PUA_RENDERER_URL` configures the sidecar |

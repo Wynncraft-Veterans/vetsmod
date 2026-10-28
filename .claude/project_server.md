@@ -30,7 +30,7 @@ app/
   discord/
     bot.py             # discord.py client, on_message routing, on_presence_update (magbot probe)
     bridge_sender.py   # BridgeSender — single-consumer queue + worker for the bridge channel
-    commands.py        # 9 admin commands + the one public command, !list
+    commands.py        # 10 admin commands + the one public command, !list
     relay.py           # Game→Discord forwarding, staff alerts, PUA item render
     utils.py           # Mention resolution
   parsers/
@@ -47,15 +47,18 @@ app/
     staff_poller.py    # Wynncraft API staff polling (5min roster, 10s per-player probe)
     staff_visibility.py     # Composes WAPI-probed + WS-authenticated staff; owns the /staff sort
     staff_actions.py        # caution/warn/eject/check_membership → dazebot's staff-action API
-    guild_roster_poller.py  # Guild UUID→current-username resolution (Minecraft Services API)
+    guild_roster_poller.py  # Guild UUID→current-username resolution (Minecraft Services API); also builds the laurels inputs
+    name_resolver.py        # Name or UUID → (uuid, username): members from state, else Mojang; shared by !noaspects and !laurels
+    laurels.py              # Vets laurels standings (pure) behind /v1/outbound/laurels
+    laurels_store.py        # Laurels XP ledger, weekly-return podium and streak upload on disk (LAURELS_FILE)
     username_cache.py       # Minecraft Services username lookup + TTL cache, stale-on-failure
     glinted_poller.py       # dazebot's 8-slot glinted list → /v1/outbound/supporters
     donor_pool_poller.py    # dazebot's ranked donor candidates → /v1/outbound/donor_pool
     anni_snapshot_poller.py # vets-anni MWE snapshots; also serves the anni_* inbound frames
     world_events_poller.py  # Wynncraft world-events fallback for the anni stamp
     rank_alerts.py          # rank_change frames → dazebot (ban/kick) or bridge (mote)
-    no_aspects_store.py     # Disk-backed NoAspects opt-out list behind !noaspects
-    webhook_timestamp_store.py  # Persists the anni stamp so it survives a restart
+    no_aspects_store.py     # Disk-backed NoAspects opt-out list behind !noaspects (NO_ASPECTS_FILE)
+    webhook_timestamp_store.py  # Persists the anni stamp so it survives a restart (WEBHOOK_TIMESTAMP_FILE)
     pua_decoder.py          # Splits a multi-item Wynncraft PUA run into individual items
     pua_renderer.py         # HTTP client for the item-renderer sidecar (PUA → PNG card)
     wynnpool_fallback.py    # Wynnpool live-API decode for items the sidecar cannot draw
@@ -65,7 +68,9 @@ app/
 `pua_decoder.py` and `pua_renderer.py` read like parsers but live in
 `services/`; `parsers/` holds only the three files above.
 
-**REST endpoints:** twelve GETs under `/v1/outbound/`, plus four `/v0/outbound/` legacy routes, `GET /magbot-health` and one secret-gated POST. Full detail in [server_api_reference.md](server_api_reference.md).
+The three disk stores survive a container recreate only because production points them at the `./data` volume: `NO_ASPECTS_FILE`, `LAURELS_FILE` and `WEBHOOK_TIMESTAMP_FILE`, each `/app/data/<name>.json`.
+
+**REST endpoints:** thirteen GETs under `/v1/outbound/`, plus four `/v0/outbound/` legacy routes, `GET /magbot-health` and one secret-gated POST. Full detail in [server_api_reference.md](server_api_reference.md).
 
 - `GET /v1/outbound/motd` — MOTD text
 - `GET /v1/outbound/guild_motd` — alternate staff-editable MOTD
@@ -79,6 +84,7 @@ app/
 - `GET /v1/outbound/roster` — guild UUID→current-username map
 - `GET /v1/outbound/aliases` — lowercase stale-Wynncraft-username → UUID map, built from the v3.8 guild payload's `legacyName` (read by vetsmod's `PolledJsonMap.WYNN_ALIASES`)
 - `GET /v1/outbound/no-aspects` — members opted out of aspect distribution, read by vetsmod's `NoAspectsFilter`
+- `GET /v1/outbound/laurels` — the top-3 vets laurels standings, read by vetsmod's `LaurelPoller` (503 until the first guild payload; shape owned by temporary-server `v1_protocol.md` §5.2)
 
 Naming is inconsistent in source and is not normalised here: `no-aspects` and `anni-snapshot` are hyphenated while `donor_pool` and `guild_motd` are underscored.
 
@@ -94,7 +100,7 @@ Naming is inconsistent in source and is not normalised here: `no-aspects` and `a
 
 **Discord admin authorization:** Administrator permission flag — independent of rank. Rank itself comes from `ROLE_MAPPING` (7 role IDs → Chief / Strategist / Recruiter / Honourary / Waitlist, first match in insertion order, defaulting to Recruiter). The 2026-07 permission restructure retired the standalone Strategist and secondary Captain roles into Staff (Steward) `1337993168502788216`; staff eligibility is now `STAFF_TARGET_ROLES = ("owner", "chief", "strategist")`. See [server_discord_bot.md](server_discord_bot.md) §3 for the full table.
 
-**Admin commands (9, Administrator permission):** `!help`, `!status`, `!enable <comp>`, `!disable <comp>`, `!motd [text]`, `!guild_motd [text]`, `!record`, `!config`, `!noaspects [add|remove|list]`. Components that can be toggled: `inbound`, `outbound`, `bridge`, `staff`, `unauth`.
+**Admin commands (10, Administrator permission):** `!help`, `!status`, `!enable <comp>`, `!disable <comp>`, `!motd [text]`, `!guild_motd [text]`, `!record`, `!config`, `!noaspects [add|remove|list]`, `!laurels [return <1|2|3> <ign|uuid>|return clear]`. Components that can be toggled: `inbound`, `outbound`, `bridge`, `staff`, `unauth`.
 
 **Public command (1):** `!list` (and `!list staff`) — the *only* command with no permission check. `try_handle_command` consults the public table before testing for Administrator, so `!list` is reachable by anyone in the bridge channel. A non-admin who types an admin command gets no error: the permission miss returns False and the message falls through to be relayed into game chat as ordinary bridge text.
 

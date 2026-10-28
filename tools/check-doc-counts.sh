@@ -66,9 +66,9 @@ cd "$(dirname "$0")/.." || exit 2
 SRC=src/client/java
 # symbol|expected|note   -- expected is the live call-site count at HEAD.
 MANIFEST='
-Json.optString|26|no prose states it - pinned with Json.optInt so the 36-of-67 split in JsonTest and vetsmod_networking.md stays derivable
-Json.optInt|5|no prose states it - see the Json.optString row
-Json.stringOrNull|22|Json.java: "twenty-two with a staff-action ack s outcome_unknown"
+Json.optString|26|no prose states it - pinned with Json.optInt so the 38-of-69 split in JsonTest and vetsmod_networking.md stays derivable
+Json.optInt|6|no prose states it - see the Json.optString row
+Json.stringOrNull|24|Json.java: "twenty-four with LaurelPoller s uuid and metric"
 Json.stringOrEmpty|14|Json.java: "fourteen call sites"
 ColorMath.interpolateRgb|4|vetsmod_rendering.md + ColorMath.java, stated 3x
 ConfigValueText.booleanLine|6|ConfigValueTextTest

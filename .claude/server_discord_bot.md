@@ -148,9 +148,9 @@ the likely source of the docs that called `!list` an admin command. `_cmd_help`
 is the accurate inventory: it lists `!list` first and annotates it
 *(available to everyone)*.
 
-There are **9 admin commands**: `!help`, `!status`, `!enable`, `!disable`,
-`!motd`, `!guild_motd`, `!record`, `!config`, `!noaspects`. Sub-forms
-(`!list staff`, `!motd clear`, `!noaspects add|remove|list`) are argument
+There are **10 admin commands**: `!help`, `!status`, `!enable`, `!disable`,
+`!motd`, `!guild_motd`, `!record`, `!config`, `!noaspects`, `!laurels`. Sub-forms
+(`!list staff`, `!motd clear`, `!noaspects add|remove|list`, `!laurels return …`) are argument
 branches inside handlers, not separate registrations.
 
 ### `!status`
@@ -184,10 +184,19 @@ Manages the NoAspects opt-out list consumed by vetsmod's `/wv distribute`,
 persisted through `no_aspects_store` and mirrored into `state.no_aspects_uuids`
 / `state.no_aspects_entries`. Serves `GET /v1/outbound/no-aspects`.
 
-`add`/`remove` resolve their argument via `_resolve_to_uuid`, which tries, in
+`add`/`remove` resolve their argument via `name_resolver.resolve_to_uuid`, which tries, in
 order: direct UUID parse, case-insensitive live guild-roster scan, stale-name
 alias lookup, then a Mojang API fallback. The `list` renderer marks entries
 whose UUID has left the guild as `(left guild)`.
+
+### `!laurels [return <1|2|3> <ign|uuid> | return clear]`
+Bridge channel only. No argument shows the vets laurels standings, when each
+metric was last updated and where the streak comes from. `return <place>
+<ign|uuid>` and `return clear` set the weekly-return podium, which is the one
+metric staff set by hand; the name resolves through `name_resolver`, as
+`!noaspects` does. The data is `laurels_store`, and the standings are served at
+`GET /v1/outbound/laurels`. Wire shape, `updated_at` and `collect`:
+temporary-server `v1_protocol.md` §5.2.
 
 ## 7. Public commands
 

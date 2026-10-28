@@ -25,12 +25,12 @@ import org.wynnvets.mwe.anni.state.AnniWindows;
  * anni window (T-90m → anni). Outside the window the poll is a no-op —
  * users running idle hours before anni don't need a 30 s heartbeat.</p>
  *
- * <p><b>Alone among the six schedules, this one waits a full period before
+ * <p><b>Alone among the seven schedules, this one waits a full period before
  * its first tick.</b> It passes {@value #POLL_INTERVAL_SECONDS} as
  * {@code PollingService}'s {@code initialDelay} as well as its
- * {@code period}, where the other five pass {@code 0}; so <em>this</em> poller
+ * {@code period}, where the other six pass {@code 0}; so <em>this</em> poller
  * does not tick for the first {@value #POLL_INTERVAL_SECONDS} seconds of a
- * session, while the other five fire immediately. That delay costs
+ * session, while the other six fire immediately. That delay costs
  * nothing at cold start: {@code tick()} queries only once a snapshot
  * with an in-window stamp is already cached, so this poller never fills
  * a cold cache. Cold-start pulls come from elsewhere, among them {@link

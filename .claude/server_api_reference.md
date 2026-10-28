@@ -287,7 +287,7 @@ an oversight (`/donor_pool` says "No auth (TLS only)"; `/anni-snapshot` says
 knowing that `/roster` dumps the full guild UUID→username map and `/list` every
 connected user with their tier and world.
 
-**Twelve GETs under `/v1/outbound/`** (`app/routes/static.py`):
+**Thirteen GETs under `/v1/outbound/`** (`app/routes/static.py`):
 
 | Route | Returns |
 |---|---|
@@ -303,6 +303,7 @@ connected user with their tier and world.
 | `/roster` | Guild `{uuid: username}` map |
 | `/aliases` | Stale-name → UUID map (`legacyName` from the v3.8 guild payload, lowercased) |
 | `/no-aspects` | `[{uuid, username}]` opted out of aspect distribution |
+| `/laurels` | `{laurels: [{uuid, username, metric, place}], updated_at, sources, collect}`: the top 3 in each of four metrics. 503 until the server has read its first guild payload. Owned by temporary-server `v1_protocol.md` §5.2 |
 
 Naming is inconsistent in source and is not normalised here: `no-aspects` and
 `anni-snapshot` are hyphenated, `donor_pool` and `guild_motd` underscored.
@@ -310,7 +311,7 @@ Naming is inconsistent in source and is not normalised here: `no-aspects` and
 **Four `/v0/outbound/` legacy routes:** `/staff`, `/supporters` and `/stamp`
 serve the same live data through the same helpers as v1. `/motd` does **not**
 — it returns a hardcoded "your vetsmod is too old" banner and ignores config
-entirely. The other eight v1 routes have no v0 counterpart.
+entirely. The other nine v1 routes have no v0 counterpart.
 
 **`GET /magbot-health`** — 503 when the tracked Magbot status is `None`,
 `offline` or `invisible`. Deliberately not `/health`. See

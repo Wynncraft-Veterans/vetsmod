@@ -1,12 +1,12 @@
 ---
 name: vetsmod Mixins Reference
-description: All 14 registered entries (13 mixins + 1 accessor) — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy, accessors) and the top-level mixins.
+description: All 15 registered entries (14 mixins + 1 accessor) across two configs — target, inject point, purpose, rationale. Organized by subpackage (chat, command, legacy, accessors) and the top-level mixins.
 type: project
 originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 ---
 # vetsmod Mixins Reference
 
-14 registered entries — 13 mixins plus one accessor interface — all client-side (under `src/client/java/org/wynnvets/mixin/client/`). Authoritative list: [vetsmod.client.mixins.json](../src/client/resources/vetsmod.client.mixins.json). Grouped by subpackage below.
+15 registered entries — 14 mixins plus one accessor interface — all client-side (under `src/client/java/org/wynnvets/mixin/client/`), in two configs: 14 in [vetsmod.client.mixins.json](../src/client/resources/vetsmod.client.mixins.json) and `LaurelBarMixin` alone in the non-required [vetsmod.laurels.mixins.json](../src/client/resources/vetsmod.laurels.mixins.json). Grouped by subpackage below.
 
 ## Chat (3)
 
@@ -65,9 +65,9 @@ originSessionId: dc63f47a-2d15-4f8d-9b6a-41d3049f0cc2
 - **Purpose:** Calls `LegacyItemHandler.processTooltip()`, a one-line delegate to `LegacyTooltipRenderer.processTooltip()` (11-branch cascade; `LegacyTooltipRenderer` is package-private, so the mixin cannot call it directly). If modified, cancels vanilla and re-invokes with mutable copy + optional gold border
 - **Why:** Tooltip is the last render stage, after Wynntils events; reentry guard prevents loops
 
-## Top-level (6)
+## Top-level (7)
 
-These six live directly under `mixin/client/` rather than a subpackage. They're declared in `vetsmod.client.mixins.json` without a subpackage prefix.
+These seven live directly under `mixin/client/` rather than a subpackage. They're declared in `vetsmod.client.mixins.json` (the first six) and `vetsmod.laurels.mixins.json` (`LaurelBarMixin`) without a subpackage prefix.
 
 ### NametagMixin
 [NametagMixin](../src/client/java/org/wynnvets/mixin/client/NametagMixin.java)
@@ -115,6 +115,13 @@ These six live directly under `mixin/client/` rather than a subpackage. They're 
 - **Why this and not a getTeamColor mixin (first try):** Earlier draft was `EntityTeamColorMixin` — HEAD-cancellable on `Entity.getTeamColor()`, returning `0` for outsiders. It rendered every outsider with an **opaque black** outline because vanilla 1.21.11's `extractRenderState` body does `state.outlineColor = ARGB.opaque(getTeamColor())` and `ARGB.opaque(0)` = `0xFF000000`. The outline buffer happily renders that as a solid black glow. Skipping the wrap entirely by clobbering `state.outlineColor` at TAIL of extract sidesteps the issue. Bonus: tab-list colour for outsiders is **not** affected — only `state.outlineColor` is touched. (A `getTeamColor` filter would not have reached the tab list either: in vanilla 1.21.11 that `extractRenderState` assignment is the only call site of `Entity.getTeamColor()` outside `Display`'s own override, and `PlayerTabOverlay` colours names through `PlayerTeam.formatNameForTeam`.)
 - **Why packet-side never happened:** The original plan called for an `EntityTeamPacketMixin` mutating `ClientboundSetPlayerTeamPacket.color`, requiring an in-dev packet capture to discover Wynncraft's relationship-team patterns. Skipped entirely — the render-side approach needs zero packet inspection and behaves correctly when toggled on/off mid-window (no lingering scoreboard state, no pre-existing-membership leak-through).
 
+### LaurelBarMixin
+[LaurelBarMixin](../src/client/java/org/wynnvets/mixin/client/LaurelBarMixin.java)
+- **Target:** `@Mixin(value = CustomNametagRendererFeature.class, remap = false)` — Wynntils' class, so nothing to remap. The only mixin in `vetsmod.laurels.mixins.json`, a non-required config.
+- **Methods:** two `@WrapOperation`s on `drawBadges`, both `require = 0`: `vetsmod$appendLaurels` around the `LeaderboardService.getPlayerBadges` call, and `vetsmod$drawLaurel` around the `RenderUtils.renderLeaderboardBadge` call (name-only target, because its descriptor holds Minecraft types that `remap = false` would not remap).
+- **Purpose:** The first wrap appends the player's vets laurels to the list Wynntils lays out (`LaurelBadges.withLaurels`). The second recognises one of ours by its negative `uOffset` and substitutes vetsmod's sheet, offset and size before the original draw call.
+- **Why:** The laurels then inherit Wynntils' layout, rotation, sneak dimming and config gates unchanged. The encoding, the two failure modes and the bump-time check are in [vetsmod_laurels.md](vetsmod_laurels.md).
+
 ## Accessors (1)
 
 ### accessors.BossHealthOverlayAccessor
@@ -152,13 +159,14 @@ For event-based integrations, vetsmod uses `@SubscribeEvent(priority=EventPriori
 
 ## Adding new mixins
 
-Mixins are declared in [vetsmod.client.mixins.json](../src/client/resources/vetsmod.client.mixins.json) (client-side). Use subpackage dotted path (e.g. `chat.ChatLogMixin`) or just the class name for top-level mixins.
+Mixins are declared in [vetsmod.client.mixins.json](../src/client/resources/vetsmod.client.mixins.json) (client-side), or in [vetsmod.laurels.mixins.json](../src/client/resources/vetsmod.laurels.mixins.json) for a mixin into another mod whose failure must not stop the game. Use subpackage dotted path (e.g. `chat.ChatLogMixin`) or just the class name for top-level mixins.
 
 Common gotchas:
 - `cancellable=true` is required if the mixin may cancel the vanilla call
 - `INTERNAL_CHAT_DISPATCH` ThreadLocal must be honoured in any new chat-path mixin to avoid feedback loops
 - Check the Mojang mappings (`loom.officialMojangMappings()` in `build.gradle`; the `yarn_mappings` property in `gradle.properties` is read by nothing) — several intrinsic names changed in 1.21.11 (e.g. `submitNameTag`)
 - For hot paths keep logic tight — `renderSlot` runs per slot every frame, and `addMessage` once per chat message
+- **A mixin into another mod's class goes in a non-required config with `require = 0`.** `vetsmod.client.mixins.json` is `required: true` with `defaultRequire: 1`, so a Wynntils refactor of a target there crashes the game at load, and users update Wynntils on their own. `vetsmod.laurels.mixins.json` is `required: false` with `defaultRequire: 0` instead: a handler that does not match is a WARN and the class loads untransformed, which also drops any other mod's mixins into that class. Its price is that mistakes become log lines, so check `latest.log` for `LaurelBarMixin` and "orphaned mixins" on the production jar (see [vetsmod_laurels.md](vetsmod_laurels.md)).
 - **Mixin disallows non-private statics on a mixin class** — both methods and fields. `vetsmod$resetLoggedNametags` crashed mod load with `InvalidMixinException` ("contains non-private static method"); `MixinPreProcessorStandard.validateField` throws the same exception class for a non-private, non-`@Shadow`, non-synthetic static *field*. If you need a public static helper, put it in a sibling helper class. This is plain SpongePowered Mixin, not MixinSquared — vetsmod's only mixin-helper dependency is MixinExtras (`@WrapOperation` in `NametagMixin`); MixinSquared appears only in archived runtime mod-list dumps, shipped by some other installed mod.
 - **Prefer render-side / read-side filtering to packet-side / write-side mutation.** Three working precedents in this file: `BossHealthOverlayMixin` (`@Redirect` on `events.values()`), `EntityOutlineColorMixin` and `NametagMixin` (both TAIL on `extractRenderState`). A fourth, `EntityGlowingMixin` (HEAD-cancellable on `isCurrentlyGlowing`), is read-side in shape, but whether it is still load-bearing in 1.21.11 is unconfirmed — see its entry above. Cancelling has burned us twice, in two directions — cancelling vanilla's `BossHealthOverlay#update` crashed the client, and *being* cancelled by Wynntils short-circuited the nametag override. Keep vanilla bookkeeping intact; intercept what comes out, not what goes in.
 - **Don't trust `state.<field>` to mean what you think** — vanilla often wraps or coerces right before assignment. `state.outlineColor = ARGB.opaque(getTeamColor())` turns a `0` from the getter into opaque black, not transparent (see `EntityOutlineColorMixin` above). Check the assignment site, not just the source value.

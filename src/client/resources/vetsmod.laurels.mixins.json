@@ -1,0 +1,11 @@
+{
+	"required": false,
+	"package": "org.wynnvets.mixin.client",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"LaurelBarMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

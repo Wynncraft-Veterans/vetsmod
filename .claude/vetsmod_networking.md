@@ -99,6 +99,7 @@ When the current socket closes or fails it is uninstalled, the loss hook runs wi
 | `STAMP` | `/v1/outbound/stamp` |
 | `STAFF` | `/v1/outbound/staff` |
 | `SUPPORTERS` | `/v1/outbound/supporters` |
+| `LAURELS` | `/v1/outbound/laurels`, read by `LaurelPoller` |
 | `LIST` | `/v1/outbound/list` |
 | `ROSTER` | `/v1/outbound/roster` |
 | `ALIASES` | `/v1/outbound/aliases`, read by `PolledJsonMap.WYNN_ALIASES` |
@@ -118,7 +119,7 @@ Also: `GUILD_UUID = "a36bd64c-c053-4727-872d-b0d0729f474a"` (Returners).
 
 ### The shared client
 
-[HttpClients](../src/client/java/org/wynnvets/util/HttpClients.java) — one `HttpClient` for the whole mod, built `HTTP_1_1` with a 5 s connect timeout and **no** redirect, proxy, executor, authenticator, cookie-handler or SSL customisation of any kind. These classes hold it in their own `private static final HttpClient HTTP_CLIENT = HttpClients.standard()` field: `DispatchCoordinator`, `InviteGate`, `NameResolver`, `NoAspectsFilter`, `PlayerLookup`, every `fetcher/ondemand` class except those that make no request of their own (`ListFetcher`, which delegates to `OnlineMemberService`; `OnlineMemberService`'s two in-memory helpers, `TabListGuildParser` and `OnlineGuildCache`; `TimeLabels`, which only formats dates and ages; and `CheckReportRenderer`, which only renders), three of the seven `fetcher/polling` classes (`PolledJson`, which `PolledJsonMap` and `SupportersPoller` poll through, `StaffRanksPoller` and `AnniStampPoller`; `AnniSnapshotPoller` goes over the WebSocket and `PollingService` is transport-free by design) and `TerritoryLineManager`. `PlayerLookup` passes its copy down to five of its six lookup providers.
+[HttpClients](../src/client/java/org/wynnvets/util/HttpClients.java) — one `HttpClient` for the whole mod, built `HTTP_1_1` with a 5 s connect timeout and **no** redirect, proxy, executor, authenticator, cookie-handler or SSL customisation of any kind. These classes hold it in their own `private static final HttpClient HTTP_CLIENT = HttpClients.standard()` field: `DispatchCoordinator`, `InviteGate`, `NameResolver`, `NoAspectsFilter`, `PlayerLookup`, every `fetcher/ondemand` class except those that make no request of their own (`ListFetcher`, which delegates to `OnlineMemberService`; `OnlineMemberService`'s two in-memory helpers, `TabListGuildParser` and `OnlineGuildCache`; `TimeLabels`, which only formats dates and ages; and `CheckReportRenderer`, which only renders), three of the eight `fetcher/polling` classes (`PolledJson`, which `PolledJsonMap`, `SupportersPoller` and `LaurelPoller` poll through, `StaffRanksPoller` and `AnniStampPoller`; `AnniSnapshotPoller` goes over the WebSocket and `PollingService` is transport-free by design) and `TerritoryLineManager`. `PlayerLookup` passes its copy down to five of its six lookup providers.
 
 One shared client means one selector thread, one default executor and one connection pool, and the fields now reuse each other's keep-alive connections instead of each holding private idle ones. Reuse is per host, so what matters is that the pool spans **six**: `api.wynnvets.org` (every holder not named next), `api.wynncraft.com` (`InviteGate`, `NameResolver`, `UserInfoFetcher`, `ReturnersRosterProbe`, `TerritoryLineManager`, and `PlayerLookup` via `WynncraftProvider`), and — all five through `PlayerLookup`'s copy — `playerdb.co`, `api.ashcon.app`, `api.minecraftservices.com` and `api.mojang.com`. The saving concentrates on the first two, which is where the repeat traffic is; the four lookup hosts are cascade fallbacks and mostly cold.
 
@@ -139,7 +140,7 @@ String stringOrEmpty(JsonObject obj, String key)  // → optString(obj, key, "")
 int    optInt(JsonObject obj, String key, int fallback)
 ```
 
-Three names for one string function is deliberate. The fallback is not an axis — `null` and `""` *are* fallbacks — and the two conveniences exist so that the call sites which take no fallback do not have to grow an argument — **36 of 67** (`stringOrNull` 22, `stringOrEmpty` 14), up from 23 of 44 when the accessors landed. `Json`'s own Javadoc carries the per-method figures and is the copy to trust.
+Three names for one string function is deliberate. The fallback is not an axis — `null` and `""` *are* fallbacks — and the two conveniences exist so that the call sites which take no fallback do not have to grow an argument — **38 of 69** (`stringOrNull` 24, `stringOrEmpty` 14), up from 23 of 44 when the accessors landed. `Json`'s own Javadoc carries the per-method figures and is the copy to trust.
 
 **The policy, on all three axes: fallback.** A missing key or a JSON null is normal and falls back *silently*. A wrong-typed value or a `null` receiver falls back *and warns* (`VetsLogger.warn`, naming the key and the exception class). The warn is unconditional — no suppression cache, because that would put mutable state in the class, to throttle a condition that previously destroyed a whole payload, or everything after the failing read, wherever it threw. Ceiling: `OnlineMemberService.parseConnectedUsers` reads three fields per connected user, so a wholly malformed `/list` payload costs three warns per entry per `/wv list` or `/wv list world` call.
 
@@ -221,9 +222,9 @@ Styling: Staff underlined (via `StaffRanksPoller.confirmedRankFor()`); supporter
 
 Package: [org.wynnvets.fetcher.polling](../src/client/java/org/wynnvets/fetcher/polling/)
 
-Six fixed-rate schedules live in this package across five classes, all started back-to-back from `VetsmodClient.onInitializeClient`: `SupportersPoller` 5m, `StaffRanksPoller` 2m, `AnniStampPoller` 5m, `AnniSnapshotPoller` 30s, and `PolledJsonMap`'s two instances — `GUILD_ROSTER` 5m and `WYNN_ALIASES` 5m. `AnniSnapshotPoller` is the only gated one — its tick returns early unless the cached snapshot's `stamp_epoch` is in the future and within 90 minutes (it does not read `announced`), and while the debug harness holds it for an injected snapshot (`setDebugHold`). Four of the six have a subsection below; `AnniStampPoller` and `AnniSnapshotPoller` do not.
+Seven fixed-rate schedules live in this package across six classes, all started back-to-back from `VetsmodClient.onInitializeClient`: `SupportersPoller` 5m, `StaffRanksPoller` 2m, `AnniStampPoller` 5m, `AnniSnapshotPoller` 30s, `PolledJsonMap`'s two instances — `GUILD_ROSTER` 5m and `WYNN_ALIASES` 5m — and `LaurelPoller` 5m. `AnniSnapshotPoller` is the only gated one — its tick returns early unless the cached snapshot's `stamp_epoch` is in the future and within 90 minutes (it does not read `announced`), and while the debug harness holds it for an injected snapshot (`setDebugHold`). Five of the seven have a subsection below; `AnniStampPoller` and `AnniSnapshotPoller` do not.
 
-**Initial delay, which no doc stated in full before** — `PollingService`'s own `@param` defines it, the `StaffRanksPoller` bullet below records "scheduled initially immediate" for one of the six, and `PollingServiceTest` pins both directions. What was missing is the column. `PollingService`'s constructor is `(threadName, task, initialDelay, period, unit)`, and the third argument is not the second:
+**Initial delay, which no doc stated in full before** — `PollingService`'s own `@param` defines it, the `StaffRanksPoller` bullet below records "scheduled initially immediate" for one of the seven, and `PollingServiceTest` pins both directions. What was missing is the column. `PollingService`'s constructor is `(threadName, task, initialDelay, period, unit)`, and the third argument is not the second:
 
 | Schedule | Period | Initial delay |
 |---|---|---|
@@ -232,6 +233,7 @@ Six fixed-rate schedules live in this package across five classes, all started b
 | `AnniStampPoller` | 5 min | `0` |
 | `PolledJsonMap.GUILD_ROSTER` | 5 min | `0` |
 | `PolledJsonMap.WYNN_ALIASES` | 5 min | `0` |
+| `LaurelPoller` | 5 min | `0` |
 | **`AnniSnapshotPoller`** | 30 s | **30 s — a full period** |
 | `AnniZone` (outside the package) | 60 s | `0` |
 
@@ -249,7 +251,7 @@ Another scheduled fetcher, `mwe/anni/zone/AnniZone` (60s, Wynncraft world-events
 
 ### PolledJson — the shared JSON poller
 
-[PolledJson](../src/client/java/org/wynnvets/fetcher/polling/PolledJson.java) is the package-private poller under `PolledJsonMap` and `SupportersPoller`: one GET on a `PollingService` schedule (initial delay `0`), the 200 body handed to a caller-supplied parser, and the immutable result published behind a volatile field. A failed fetch, a non-200, a parser that returns `null` and a parser that throws all keep the last good value, and `snapshot()` is one volatile read. `StaffRanksPoller`, `AnniStampPoller` and `AnniSnapshotPoller` do not use it; its class Javadoc says why.
+[PolledJson](../src/client/java/org/wynnvets/fetcher/polling/PolledJson.java) is the package-private poller under `PolledJsonMap`, `SupportersPoller` and `LaurelPoller`: one GET on a `PollingService` schedule (initial delay `0`), the 200 body handed to a caller-supplied parser, and the immutable result published behind a volatile field. A failed fetch, a non-200, a parser that returns `null` and a parser that throws all keep the last good value, and `snapshot()` is one volatile read. `StaffRanksPoller`, `AnniStampPoller` and `AnniSnapshotPoller` do not use it; its class Javadoc says why.
 
 ### PolledJsonMap (2 instances, 5 min each)
 
@@ -259,6 +261,10 @@ Another scheduled fetcher, `mwe/anni/zone/AnniZone` (60s, Wynncraft world-events
 - `WYNN_ALIASES` — `VetsApi.ALIASES`, stale tab-list username → UUID. Used by `OnlineMemberService.merge()` via `get()` to resolve tab entries no current username matches. Keys are folded to `Locale.ROOT`.
 
 The key normalizer is one field applied at **both** ingest and lookup. That is the invariant the class exists to hold: applying it on one side only breaks alias resolution with no failed fetch and no log line. `PolledJsonMapTest` pins it for both instances, along with the cold-cache contract — empty map from `snapshot()`, `null` from `get()` — which `merge()` depends on and has no branch for.
+
+### LaurelPoller (5 min)
+
+[LaurelPoller](../src/client/java/org/wynnvets/fetcher/polling/LaurelPoller.java) polls `VetsApi.LAURELS` through `PolledJson` and publishes an immutable `LaurelStandings`: each player's laurels by uuid, and the `collect` set of metrics the server still wants a game client to gather in-game. `standings()` is `null` until the first successful fetch, which an empty `collect` cannot say, and the server answers 503 until it has its first guild data, which counts as a failed fetch. `parse` is pure and skips a bad entry without losing the rest; `LaurelPollerTest` pins each rule. The one reader is `LaurelBadges`, on the render thread. The model, the response's owner (temporary-server `v1_protocol.md` §5.2) and the drawing are in [vetsmod_laurels.md](vetsmod_laurels.md).
 
 ### StaffRanksPoller (2 min)
 [StaffRanksPoller.start()](../src/client/java/org/wynnvets/fetcher/polling/StaffRanksPoller.java)
@@ -370,5 +376,5 @@ The server validates each key by HTTP introspection against dazebot (`POST /api/
 ## 9. Error handling
 
 - WebSocket errors → `WsClient.onError()` logs, aborts, schedules reconnect
-- HTTP errors are **absorbed, not propagated**, by two different mechanisms. The on-demand fetchers end their `CompletableFuture` chain in `.exceptionally(e -> …)` returning a fallback whose shape is per-fetcher: a red `Component` from `StaffFetcher`, an unstyled one from `MotdFetcher`/`ReturnFetcher`, `null` from `StampFetcher`, and domain values (`ReturnersMembership.unknown()`, `List.of()`) elsewhere. **Five** of the six polling schedules use no futures at all — each calls `HttpClient.send(...)` synchronously inside a `try`/`catch` that only logs, so a failed tick leaves the last successful cache in place and the next tick re-attempts. They are three source lines, not five, because `PolledJson.fetch` serves `PolledJsonMap`'s two instances and `SupportersPoller` alike. `AnniSnapshotPoller` is the sixth schedule and is not one of them: it goes over the WebSocket via `AnniQueryClient` and builds no `HttpClient` at all. Nor is `polling/` the only home of a synchronous send — `DispatchCoordinator.isSelfListedInOnlineStaffFeed`, `DispatchCoordinator.fetchOnlineStaffUsernames` and `AnniZone.refresh` are three more. **Six synchronous call sites in all.** Every one of them catches `Exception`, not `Throwable`; for the scheduled ones `PollingService.guard` (which `AnniZone`'s own schedule uses too) logs anything that escapes, and the schedule goes on; only a `VirtualMachineError` ends it, logged, and `isRunning()` then says so. No fetcher calls `completeExceptionally`; the repo's only use of it is `DispatchCoordinator`'s `/find` batch future
+- HTTP errors are **absorbed, not propagated**, by two different mechanisms. The on-demand fetchers end their `CompletableFuture` chain in `.exceptionally(e -> …)` returning a fallback whose shape is per-fetcher: a red `Component` from `StaffFetcher`, an unstyled one from `MotdFetcher`/`ReturnFetcher`, `null` from `StampFetcher`, and domain values (`ReturnersMembership.unknown()`, `List.of()`) elsewhere. **Six** of the seven polling schedules use no futures at all — each calls `HttpClient.send(...)` synchronously inside a `try`/`catch` that only logs, so a failed tick leaves the last successful cache in place and the next tick re-attempts. They are three source lines, not six, because `PolledJson.fetch` serves `PolledJsonMap`'s two instances, `SupportersPoller` and `LaurelPoller` alike. `AnniSnapshotPoller` is the seventh schedule and is not one of them: it goes over the WebSocket via `AnniQueryClient` and builds no `HttpClient` at all. Nor is `polling/` the only home of a synchronous send — `DispatchCoordinator.isSelfListedInOnlineStaffFeed`, `DispatchCoordinator.fetchOnlineStaffUsernames` and `AnniZone.refresh` are three more. **Six synchronous call sites in all.** Every one of them catches `Exception`, not `Throwable`; for the scheduled ones `PollingService.guard` (which `AnniZone`'s own schedule uses too) logs anything that escapes, and the schedule goes on; only a `VirtualMachineError` ends it, logged, and `isRunning()` then says so. No fetcher calls `completeExceptionally`; the repo's only use of it is `DispatchCoordinator`'s `/find` batch future
 - No retry on HTTP failures; next polling tick re-attempts

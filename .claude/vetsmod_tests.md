@@ -29,9 +29,10 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.fetcher.lookup`](#orgwynnvetsfetcherlookup) — [`MojangCooldownTest`](#mojangcooldowntest), [`PlayerLookupTest`](#playerlookuptest)
 - [`org.wynnvets.fetcher.lookup.providers`](#orgwynnvetsfetcherlookupproviders) — [`PlayerDbProviderTest`](#playerdbprovidertest), [`VetsSnapshotProviderTest`](#vetssnapshotprovidertest)
 - [`org.wynnvets.fetcher.ondemand`](#orgwynnvetsfetcherondemand) — [`CheckReportRendererTest`](#checkreportrenderertest), [`OnlineMemberServiceTest`](#onlinememberservicetest), [`ReturnersRosterProbeTest`](#returnersrosterprobetest), [`TimeLabelsTest`](#timelabelstest)
-- [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`PolledJsonMapTest`](#polledjsonmaptest), [`PolledJsonTest`](#polledjsontest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
+- [`org.wynnvets.fetcher.polling`](#orgwynnvetsfetcherpolling) — [`LaurelPollerTest`](#laurelpollertest), [`PolledJsonMapTest`](#polledjsonmaptest), [`PolledJsonTest`](#polledjsontest), [`PollingServiceTest`](#pollingservicetest), [`StaffRanksPollerTest`](#staffrankspollertest)
 - [`org.wynnvets.guild`](#orgwynnvetsguild) — [`GuildCheckResultTest`](#guildcheckresulttest), [`GuildCheckerOwnerTest`](#guildcheckerownertest), [`RegistrationTierTest`](#registrationtiertest), [`ReturnersReauthTest`](#returnersreauthtest), [`StaffRankCheckerTest`](#staffrankcheckertest)
 - [`org.wynnvets.items`](#orgwynnvetsitems) — [`ItemDefinitionsTest`](#itemdefinitionstest), [`LegacyLoreTextTest`](#legacyloretexttest), [`ScreenshotLatchTest`](#screenshotlatchtest)
+- [`org.wynnvets.laurels`](#orgwynnvetslaurels) — [`LaurelMetricTest`](#laurelmetrictest)
 - [`org.wynnvets.listeners`](#orgwynnvetslisteners) — [`PartyRosterListenerTest`](#partyrosterlistenertest), [`RankChangeListenerTest`](#rankchangelistenertest), [`UrlWrapJoinerTest`](#urlwrapjoinertest)
 - [`org.wynnvets.logging`](#orgwynnvetslogging) — [`VetsLoggerTest`](#vetsloggertest)
 - [`org.wynnvets.mwe.anni`](#orgwynnvetsmweanni) — [`AnniPartyReporterTest`](#annipartyreportertest)
@@ -2048,6 +2049,50 @@ Tests:
 
 ## `org.wynnvets.fetcher.polling`
 
+### `LaurelPollerTest`
+
+Test: [`LaurelPollerTest.java`](../src/test/java/org/wynnvets/fetcher/polling/LaurelPollerTest.java) · Subject: [`LaurelPoller`](../src/client/java/org/wynnvets/fetcher/polling/LaurelPoller.java)
+
+`LaurelPoller.parse` turns the server's `/v1/outbound/laurels` body into an immutable `LaurelStandings`, and the body is untrusted input to a render-thread lookup. The suite pins that a bad entry costs only itself (each skip rule), the first-wins rule for a repeated player and metric, the column order of a player's laurels, the reading of `collect`, and that a body of the wrong shape gives `null` so `PolledJson` keeps its snapshot. Only the package-private `parse(String)` is exercised, so there is no network. The tests use two fixed players, `ALICE` (`11111111-2222-3333-4444-555555555555`) and `BOB` (`66666666-7777-8888-9999-000000000000`); `entry(uuid, metric, place)` builds one laurel object and `body(entries…)` wraps them in `{"laurels":[…]}`.
+
+- **`aResponseBecomesAPerPlayerLookup`**: A full response yields each player's laurels, and an empty `collect` is empty.
+  - `standings.byPlayer().size()` equals 2, for a body holding `ALICE` xp 1, `ALICE` return 3, `BOB` graids 2, plus `updated_at`, `sources` and an empty `collect`.
+  - `standings.byPlayer().get(ALICE)` equals `List.of(new Laurel(XP, 1), new Laurel(RETURN, 3))`.
+  - `standings.byPlayer().get(BOB)` equals `List.of(new Laurel(GRAIDS, 2))`.
+  - `standings.collect()` is empty.
+- **`anEmptyLaurelsArrayIsAnEmptyGenerationNotNull`**: `{"laurels":[]}` is a real generation, not the `null` that means "not fetched yet".
+  - `standings` is not null, where `standings` is `parse(body())`.
+  - `standings.byPlayer()` is empty.
+- **`dashedAndUndashedUuidsAreTheSamePlayer`**: A dashed and a 32-character uuid for the same player land in one entry.
+  - `standings.byPlayer().size()` equals 1, for `ALICE` xp 1 in dashed form and `ALICE` graids 2 as `11111111222233334444555555555555`.
+  - `standings.byPlayer().get(ALICE).size()` equals 2.
+- **`anEntryThatIsNotAnObjectIsSkippedAndTheRestKept`**: Non-object array elements are skipped and the object after them is kept.
+  - `standings.byPlayer().get(ALICE)` equals `List.of(new Laurel(XP, 1))`, for the array `["xp", 7, null, [], <ALICE xp 1>]`.
+- **`anUnparseableUuidIsSkipped`**: An entry whose uuid is not a uuid, or is missing, is skipped.
+  - `standings.byPlayer().keySet()` equals `Set.of(ALICE)`, for entries with uuid `"not-a-uuid"`, no uuid, and `ALICE` graids 1.
+- **`anUnknownOrMissingMetricIsSkipped`**: An unknown metric name, a differently cased one and a missing one are all skipped.
+  - `standings.byPlayer().keySet()` equals `Set.of(BOB)`, for `ALICE` with metrics `"kills"`, `"XP"` and none, and `BOB` xp 1.
+- **`aPlaceOutsideOneToThreeIsSkipped`**: Places 0, 4 and -1, and a missing place, are skipped.
+  - `standings.byPlayer().keySet()` equals `Set.of(BOB)`, for `ALICE` xp 0, graids 4, streak -1 and return with no place, and `BOB` xp 3.
+- **`theFirstOfARepeatedPlayerAndMetricWins`**: A second entry for the same player and metric is ignored.
+  - `standings.byPlayer().get(ALICE)` equals `List.of(new Laurel(XP, 2))`, for `ALICE` xp 2 followed by `ALICE` xp 1.
+- **`aPlayersLaurelsAreOrderedBySheetColumn`**: A player's laurels come out in column order whatever order the server listed them.
+  - `standings.byPlayer().get(ALICE)` equals `Laurel(XP, 3), Laurel(GRAIDS, 1), Laurel(STREAK, 2), Laurel(RETURN, 1)`, for entries listed return, streak, xp, graids.
+- **`collectNamesAreReadAndUnknownOnesDropped`**: `collect` keeps the names this client knows, once each, and drops the rest.
+  - `standings.collect()` equals `Set.of(STREAK)`, for `"collect":["streak","kills",7,null,{},"streak"]`.
+- **`aMissingOrNonArrayCollectIsEmpty`**: No `collect`, a string `collect` and a null `collect` all give an empty set.
+  - `parse("{\"laurels\":[]}").collect()` is empty.
+  - `parse("{\"laurels\":[],\"collect\":\"streak\"}").collect()` is empty.
+  - `parse("{\"laurels\":[],\"collect\":null}").collect()` is empty.
+- **`aBodyThatIsNotTheExpectedShapeIsNull`**: A body that is not an object with a `laurels` array gives `null`.
+  - `parse(body)` is null for `""`, `"null"`, `"[]"`, `"\"laurels\""`, `"{}"`, `{"laurels":{}}` and `{"laurels":null,"collect":["streak"]}`.
+- **`malformedJsonThrowsForPolledJsonToCatch`**: Malformed JSON throws, which `PolledJson` catches and treats as a kept snapshot.
+  - `parse("{\"laurels\":[")` throws `JsonSyntaxException`.
+- **`theResultCannotBeMutatedThroughItsAccessors`**: The published value is deeply immutable.
+  - Adding a `Laurel` to `standings.byPlayer().get(ALICE)` throws `UnsupportedOperationException`.
+  - `standings.byPlayer().clear()` throws `UnsupportedOperationException`.
+  - `standings.collect().add(XP)` throws `UnsupportedOperationException`.
+
 ### `PolledJsonMapTest`
 
 Test: [`PolledJsonMapTest.java`](../src/test/java/org/wynnvets/fetcher/polling/PolledJsonMapTest.java) · Subject: [`PolledJsonMap`](../src/client/java/org/wynnvets/fetcher/polling/PolledJsonMap.java)
@@ -2545,6 +2590,23 @@ Test: [`ScreenshotLatchTest.java`](../src/test/java/org/wynnvets/items/Screensho
 - **`aPressAfterAnExpiredOneArmsAgain`**: After a press has expired and been dropped, a new press works.
   - `consume(T0 + 5000)` is false after `press(T0)`.
   - `consume(T0 + 6100)` is true after then `press(T0 + 6000)`.
+
+## `org.wynnvets.laurels`
+
+### `LaurelMetricTest`
+
+Test: [`LaurelMetricTest.java`](../src/test/java/org/wynnvets/laurels/LaurelMetricTest.java) · Subject: [`LaurelMetric`](../src/client/java/org/wynnvets/laurels/LaurelMetric.java)
+
+`LaurelMetric` pairs each vets metric with the name the server calls it and the column of `laurels.png` that draws it. A change to either side breaks the other with no failing fetch, so the suite pins both as literals rather than deriving them from the enum, plus the lookup by wire name.
+
+- **`eachMetricHasTheServersNameAndItsSheetColumn`**: The four metrics have the server's names and columns 0 to 3.
+  - `wireName()` and `column()` equal `"xp"` and 0 for `XP`, `"graids"` and 1 for `GRAIDS`, `"streak"` and 2 for `STREAK`, `"return"` and 3 for `RETURN`.
+- **`columnsAreDistinct`**: No two metrics share a column.
+  - The number of distinct `column()` values equals `LaurelMetric.values().length`.
+- **`fromWireRoundTripsEveryMetric`**: Each metric is found by its own wire name.
+  - `LaurelMetric.fromWire(metric.wireName())` equals `metric`, for every metric.
+- **`fromWireIsNullForAnythingElse`**: Only an exact wire name matches.
+  - `fromWire` is null for `null`, `""`, `"kills"`, `"XP"` and `" xp"`.
 
 ## `org.wynnvets.listeners`
 

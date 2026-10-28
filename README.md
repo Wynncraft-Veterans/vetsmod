@@ -70,3 +70,7 @@ Currently, it includes the return board, a motd, and a bridge. That's it!
 >   - Some fun models/cosmetics/highlights.
 > - Legacy item highlighting
 > - (optional) legacy textures
+
+## Credits
+
+The wreath frames in the laurels sheet (`laurels.png`) are adapted from [Wynntils](https://github.com/Wynntils/Wynntils)' leaderboard badge sheet, (c) Wynntils. The icons inside the wreaths are the Wynncraft Veterans' own.

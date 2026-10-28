@@ -180,7 +180,8 @@ public final class Json {
      * member-field reads joined them, twenty with the outbound socket's three
      * ({@code server_info}'s {@code chat_tiers}, the auth ack's {@code ws_tier} and a staff
      * presence frame's {@code uuid}), twenty-one with an inbound ack's echoed {@code req},
-     * <b>twenty-two</b> with a staff-action ack's {@code outcome_unknown}. {@code null} <i>is</i>
+     * twenty-two with a staff-action ack's {@code outcome_unknown}, <b>twenty-four</b> with
+     * {@code LaurelPoller}'s {@code uuid} and {@code metric}. {@code null} <i>is</i>
      * a fallback; this is not a fourth policy.</p>
      *
      * @param obj the object to read; a {@code null} is tolerated and warns

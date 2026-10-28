@@ -40,6 +40,12 @@ public final class VetsApi {
     public static final URI SUPPORTERS =
             URI.create("https://api.wynnvets.org/v1/outbound/supporters");
 
+    /**
+     * GET the vets laurel standings: which member holds which place in which metric. Read by
+     * {@link org.wynnvets.fetcher.polling.LaurelPoller LaurelPoller}.
+     */
+    public static final URI LAURELS = URI.create("https://api.wynnvets.org/v1/outbound/laurels");
+
     /** GET the list of currently connected VetsMod users. */
     public static final URI LIST = URI.create("https://api.wynnvets.org/v1/outbound/list");
 

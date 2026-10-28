@@ -17,6 +17,7 @@ import org.wynnvets.distribute.walker.MembersListSearcher;
 import org.wynnvets.distribute.walker.MembersListWalker;
 import org.wynnvets.fetcher.polling.AnniSnapshotPoller;
 import org.wynnvets.fetcher.polling.AnniStampPoller;
+import org.wynnvets.fetcher.polling.LaurelPoller;
 import org.wynnvets.fetcher.polling.PolledJsonMap;
 import org.wynnvets.fetcher.polling.StaffRanksPoller;
 import org.wynnvets.fetcher.polling.SupportersPoller;
@@ -112,6 +113,7 @@ public class VetsmodClient implements ClientModInitializer {
         AnniSnapshotPoller.start();
         PolledJsonMap.GUILD_ROSTER.start();
         PolledJsonMap.WYNN_ALIASES.start();
+        LaurelPoller.start();
         ServerConnectionListener.register();
         TerritoryLineRenderer.register();
         DebugKeyHandler.register();

@@ -158,7 +158,7 @@ This lets e.g. `PillFormatter` compose components in one pass and have animation
 | `EncourageUpdateRewriter` | `ComponentUtils.makeRainbowStyle()` for up-to-date case |
 | `/wv line` | `TerritoryLineRenderer` + `TerritoryLineManager` |
 
-The `mwe/anni/` render components — `AnniZoneLineRenderer` (a Gizmos peer of `TerritoryLineRenderer`), `ScrollSpotMarkerProvider`, the outline trio (`AnniOutlineTicker`/`Registry`/`Palette`), the boss-bar classes, and the component renderers under `mwe/anni/render/` — are documented in [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md), beside the subsystem they belong to. What generalises out of building them is §6 below.
+The `mwe/anni/` render components — `AnniZoneLineRenderer` (a Gizmos peer of `TerritoryLineRenderer`), `ScrollSpotMarkerProvider`, the outline trio (`AnniOutlineTicker`/`Registry`/`Palette`), the boss-bar classes, and the component renderers under `mwe/anni/render/` — are documented in [vetsmod_mwe_anni.md](vetsmod_mwe_anni.md), beside the subsystem they belong to. What generalises out of building them is §6 below. The vets laurels drawn on Wynntils' nametag badge bar are documented in [vetsmod_laurels.md](vetsmod_laurels.md).
 
 ## 6. Render-pipeline lessons
 

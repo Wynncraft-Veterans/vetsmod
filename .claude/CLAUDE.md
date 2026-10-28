@@ -6,7 +6,7 @@ Fabric client mod for the Wynncraft "Returners" veterans guild community. Requir
 
 - **Mod ID:** `vetsmod` | **Version:** see `gradle.properties` (`mod_version`) | **MC:** 1.21.11 | **Java:** 21
 - **Wynntils dependency:** `v4.1.17-fabric` via Modrinth Maven (`modCompileOnly`). `fabric.mod.json` separately declares a runtime floor of `>=4.1.4` — a different number on purpose; don't sync them.
-- Most client code lives under `src/client/`. `src/main/` holds a tiny server stub plus `org.wynnvets.logging.VetsLogger` (shared by both sides).
+- Most client code lives under `src/client/`. `src/main/` holds a tiny server stub plus `org.wynnvets.logging.VetsLogger` (shared by both sides), and the client assets, which sit there so they resolve from the main source set: the mod icon and the laurel sheet.
 - JUnit 5 harness under `src/test/java/`. Run via `./gradlew test` (also runs with `./gradlew build`). This bullet is the single owner of how the harness works — no other doc restates it, and none of them carries a file count. The rules:
   - **Not gated on imports.** `build.gradle` deliberately puts the client compile classpath on the test source set, so tests build real `Component`/`Style`/`HoverEvent` objects. There is no rule against a subject importing `net.minecraft`.
   - **Cannot boot Minecraft**, and Wynntils is `modCompileOnly` so it is absent at test runtime. A class is testable exactly as far as its *exercised path* stays out of both.
@@ -58,13 +58,13 @@ VetsmodClient (entry point)
   ├── OutboundDisplayHandler  Receives WS messages, deduplicates, displays in chat
   ├── QueueStateManager       In-queue state + listeners; fed by QueueDetector (title/world/disconnect/timeout)
   │                           also cleared directly by WynntilsEventListener on native guild chat
-  ├── fetcher/polling/ (7)    Six schedules over five classes, one PollingService lifecycle:
+  ├── fetcher/polling/ (8)    Seven schedules over six classes, one PollingService lifecycle:
   │                           SupportersPoller 5m, StaffRanksPoller 2m, AnniStampPoller 5m,
-  │                           AnniSnapshotPoller 30s (only inside the anni window), and
-  │                           PolledJsonMap's GUILD_ROSTER + WYNN_ALIASES 5m; PolledJson is
-  │                           the HTTP + JSON snapshot poller under SupportersPoller and
-  │                           PolledJsonMap. AnniZone (60s) is a further scheduled fetcher,
-  │                           but lives under mwe/anni/zone/
+  │                           AnniSnapshotPoller 30s (only inside the anni window),
+  │                           PolledJsonMap's GUILD_ROSTER + WYNN_ALIASES 5m, and
+  │                           LaurelPoller 5m; PolledJson is the HTTP + JSON snapshot poller
+  │                           under SupportersPoller, PolledJsonMap and LaurelPoller. AnniZone
+  │                           (60s) is a further scheduled fetcher, but lives under mwe/anni/zone/
   ├── CommandRegistry         /wv command tree; CommandCompletionSync keeps its tab completion in
   │                           step with the .requires gates, CommandUsage prints usage lines
   ├── items/                  ItemDefinitions plus LegacyItemHandler, LegacyTooltipRenderer,
@@ -79,14 +79,18 @@ VetsmodClient (entry point)
   │                           the send slot. Visible to staff, executable by chief+
   │                           (17 files, 5 sub-packages)
   ├── rendering/              Territory lines, nametag animator, gradient/colour helpers
+  ├── laurels/                Vets laurels on Wynntils' nametag badge bar: the standings model,
+  │                           LaurelBadges (the only class touching Wynntils' badge types);
+  │                           see vetsmod_laurels.md
   ├── datamodels/             Guild, User, UserUUID, MembershipSnapshot DTOs
   ├── debug/                  /wv debug tree, DebugConfigManager, diagnostics, dumps;
   │                           debug/anni/, the anni harness (/wv debug tree anni)
   ├── WynntilsEventListener   WorldStateEvent, GuildEvent, ChatMessageEvent
-  └── Mixins (14)             Chat (3), Legacy items (3), Command (1 — UnlockCommandMixin),
-                               top-level (6 — NametagMixin, CommandSuggestionsMixin,
+  └── Mixins (15)             Chat (3), Legacy items (3), Command (1 — UnlockCommandMixin),
+                               top-level (7 — NametagMixin, CommandSuggestionsMixin,
                                QueueTitleMixin, BossHealthOverlayMixin, EntityGlowingMixin,
-                               EntityOutlineColorMixin), accessors (1)
+                               EntityOutlineColorMixin, and LaurelBarMixin in its own
+                               non-required config), accessors (1)
 ```
 
 ## WebSocket protocol

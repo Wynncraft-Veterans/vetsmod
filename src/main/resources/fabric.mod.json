@@ -27,6 +27,10 @@
 		{
 			"config": "vetsmod.client.mixins.json",
 			"environment": "client"
+		},
+		{
+			"config": "vetsmod.laurels.mixins.json",
+			"environment": "client"
 		}
 	],
 	"accessWidener": "vetsmod.accessWidener",

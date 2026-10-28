@@ -1,0 +1,8 @@
+laurels.png - notice
+
+The wreath frames in laurels.png are adapted from Wynntils' leaderboard badge sheet
+(https://github.com/Wynntils/Wynntils), (c) Wynntils. The icons inside the wreaths are the
+Wynncraft Veterans' own.
+
+The sheet is 76x54: four columns (guild XP, guild raids, objective streak, weekly return) by three
+rows (gold, silver, bronze) of 19x18 cells, the cell size Wynntils uses.
