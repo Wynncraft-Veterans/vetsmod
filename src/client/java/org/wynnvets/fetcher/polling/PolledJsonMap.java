@@ -19,8 +19,8 @@ import org.wynnvets.util.Json;
  * logic that differed between them was whether keys were case-folded, at ingest and at lookup
  * alike. The two meanings survive as the two constants below, which is what keeps this a
  * parameterisation rather than a flattening. The fetch, status gate, error policy and volatile
- * snapshot are {@link PolledJson}'s, shared with {@link SupportersPoller}; this class keeps the
- * flat-map parse and the key normalizer.</p>
+ * snapshot are {@link PolledJson}'s, shared with {@link SupportersPoller} and
+ * {@link LaurelPoller}; this class keeps the flat-map parse and the key normalizer.</p>
  *
  * <p><b>The key normalizer is applied at ingest and at lookup, from one field.</b>
  * {@link #WYNN_ALIASES} folds to {@link Locale#ROOT} on both sides, as the alias cache did;

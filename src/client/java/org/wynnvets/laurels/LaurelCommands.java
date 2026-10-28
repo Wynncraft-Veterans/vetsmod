@@ -176,7 +176,8 @@ public final class LaurelCommands {
      * Runs {@code steps} from {@code index}, each one handing back to the next, and ends the
      * run with {@link DistributeRuns#finished()} after the last.
      */
-    private static void runSteps(List<Step> steps, int index) {
+    // Package-private for unit tests. See LaurelCommandsTest.
+    static void runSteps(List<Step> steps, int index) {
         if (index == steps.size()) {
             DistributeRuns.finished();
             return;

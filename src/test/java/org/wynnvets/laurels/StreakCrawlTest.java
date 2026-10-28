@@ -14,7 +14,8 @@ import org.wynnvets.distribute.walker.MembersListWalker.MemberEntry;
 
 /**
  * The pure parts of {@link StreakCrawl}: reading a streak off a Members tile's lore, building the
- * frame's entries from the tiles, and the chat lines an ack to that frame becomes.
+ * frame's entries from the tiles (and setting aside names the server would refuse), and the chat
+ * lines an ack to that frame becomes.
  *
  * <p>The walk itself ({@code run}) drives the Members menu and is not exercised. A tile is built
  * with {@code tile(name, lore…)}, and an ack with {@code ack(json)}.</p>
@@ -101,13 +102,74 @@ class StreakCrawlTest {
                                         tile("Alpha", "- Streak: 4"),
                                         tile("Beta", "Guild Objective:"),
                                         tile("Gamma", "- Streak: 0")))
+                        .entries()
                         .toString());
     }
 
     @Test
     void noTilesGiveNoEntries() {
-        assertTrue(StreakCrawl.streakEntries(List.of()).isEmpty());
-        assertTrue(StreakCrawl.streakEntries(List.of(tile("Alpha"))).isEmpty());
+        assertTrue(StreakCrawl.streakEntries(List.of()).entries().isEmpty());
+        assertTrue(StreakCrawl.streakEntries(List.of(tile("Alpha"))).entries().isEmpty());
+    }
+
+    @Test
+    void aNameTheServerWouldRefuseIsLeftOutAndReported() {
+        StreakCrawl.StreakEntries read =
+                StreakCrawl.streakEntries(
+                        List.of(
+                                tile("Alpha", "- Streak: 4"),
+                                tile("Ab", "- Streak: 1"),
+                                tile("Bad-Name", "- Streak: 2"),
+                                tile("Seventeen_chars_x", "- Streak: 3"),
+                                tile("Gamma", "- Streak: 5")));
+
+        assertEquals(
+                "[{\"name\":\"Alpha\",\"streak\":4},{\"name\":\"Gamma\",\"streak\":5}]",
+                read.entries().toString());
+        assertEquals(List.of("Ab", "Bad-Name", "Seventeen_chars_x"), read.invalidNames());
+    }
+
+    @Test
+    void theShortestAndLongestUsernamesAndUnderscoresAreKept() {
+        StreakCrawl.StreakEntries read =
+                StreakCrawl.streakEntries(
+                        List.of(
+                                tile("Abc", "- Streak: 1"),
+                                tile("Sixteen_chars_xx", "- Streak: 2"),
+                                tile("_a_", "- Streak: 3")));
+
+        assertEquals(3, read.entries().size());
+        assertTrue(read.invalidNames().isEmpty());
+    }
+
+    @Test
+    void aTileWithoutAStreakIsNotReportedForItsName() {
+        StreakCrawl.StreakEntries read =
+                StreakCrawl.streakEntries(List.of(tile("Ab", "Guild Objective:")));
+
+        assertTrue(read.entries().isEmpty());
+        assertTrue(read.invalidNames().isEmpty());
+    }
+
+    // ----- invalidNamesLine -----
+
+    @Test
+    void theNamesLeftOutAreListedInYellow() {
+        Component line = StreakCrawl.invalidNamesLine(List.of("Ab", "Bad-Name"));
+
+        assertEquals("Not uploaded (not a valid username): Ab, Bad-Name.", line.getString());
+        assertColour(ChatFormatting.YELLOW, line);
+    }
+
+    @Test
+    void onlyTheFirstTenNamesLeftOutAreListed() {
+        Component line =
+                StreakCrawl.invalidNamesLine(
+                        List.of("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"));
+
+        assertEquals(
+                "Not uploaded (not a valid username): a, b, c, d, e, f, g, h, i, j and 2 more.",
+                line.getString());
     }
 
     // ----- okLines -----

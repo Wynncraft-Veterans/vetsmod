@@ -18,7 +18,7 @@ import org.wynnvets.util.HttpClients;
  * <p>It owns what every such poller shares: the {@link HttpClient}, the GET, the 200 check, the
  * error policy, the {@link PollingService} and the volatile snapshot. A caller supplies the
  * parser and keeps what is its own: how a body becomes a {@code T}, and what reads the result.
- * {@link PolledJsonMap} and {@link SupportersPoller} are built on it.</p>
+ * {@link PolledJsonMap}, {@link SupportersPoller} and {@link LaurelPoller} are built on it.</p>
  *
  * <p><b>The error policy keeps the last good snapshot.</b> A failed fetch, a non-200 answer, a
  * parser that returns {@code null} and a parser that throws all leave the published snapshot as

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import net.minecraft.ChatFormatting;
@@ -14,11 +15,14 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The pure parts of {@link LaurelCommands}: which steps {@code update} runs for the server's
- * {@code collect} list, the fields of the frames it sends, and the chat lines an ack turns into.
+ * {@code collect} list, how it chains them, the fields of the frames it sends, and the chat lines
+ * an ack turns into.
  *
- * <p>The command tree, the run and the network send are not exercised. An ack is built with
- * {@code ack(json)}, and a lines list is read with {@code texts(lines)}; the colour of a line
- * is checked where it carries meaning.</p>
+ * <p>The command tree, the submission to {@code DistributeRuns} and the network send are not
+ * exercised. {@code runSteps} ends in {@code DistributeRuns.finished()}, which returns at once
+ * when no run is active, so the chain is run on its own. An ack is built with {@code ack(json)},
+ * and a lines list is read with {@code texts(lines)}; the colour of a line is checked where it
+ * carries meaning.</p>
  */
 class LaurelCommandsTest {
 
@@ -27,6 +31,16 @@ class LaurelCommandsTest {
             new LaurelCommands.Step(LaurelMetric.XP, NO_OP);
     private static final LaurelCommands.Step STREAK_STEP =
             new LaurelCommands.Step(LaurelMetric.STREAK, NO_OP);
+
+    private static LaurelCommands.Step recordingStep(
+            List<String> ran, String name, boolean handsBack) {
+        return new LaurelCommands.Step(
+                LaurelMetric.STREAK,
+                next -> {
+                    ran.add(name);
+                    if (handsBack) next.run();
+                });
+    }
 
     private static JsonObject ack(String json) {
         return JsonParser.parseString(json).getAsJsonObject();
@@ -66,6 +80,30 @@ class LaurelCommandsTest {
                 List.of(XP_STEP, STREAK_STEP),
                 LaurelCommands.selectSteps(
                         steps, Set.of(LaurelMetric.STREAK, LaurelMetric.XP, LaurelMetric.RETURN)));
+    }
+
+    // ----- runSteps -----
+
+    @Test
+    void stepsRunInOrderEachHandingBackToTheNext() {
+        List<String> ran = new ArrayList<>();
+        LaurelCommands.Step first = recordingStep(ran, "first", true);
+        LaurelCommands.Step second = recordingStep(ran, "second", true);
+
+        LaurelCommands.runSteps(List.of(first, second), 0);
+
+        assertEquals(List.of("first", "second"), ran);
+    }
+
+    @Test
+    void aStepThatNeverHandsBackStopsTheStepsAfterIt() {
+        List<String> ran = new ArrayList<>();
+        LaurelCommands.Step first = recordingStep(ran, "first", false);
+        LaurelCommands.Step second = recordingStep(ran, "second", true);
+
+        LaurelCommands.runSteps(List.of(first, second), 0);
+
+        assertEquals(List.of("first"), ran);
     }
 
     // ----- frame fields -----

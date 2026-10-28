@@ -30,6 +30,10 @@ import org.wynnvets.util.Json;
  * the first of two tiles whose names collide, so one of the two members' streaks can be lost;
  * the server's wholesale replace then leaves that member without a streak laurel until the next
  * crawl.</p>
+ *
+ * <p>The server refuses a whole {@code streak} frame if any entry's name is not a Minecraft
+ * username, so a tile whose name is not one (a short or oddly spelled legacy name) is left out
+ * and reported instead.</p>
  */
 final class StreakCrawl {
 
@@ -37,8 +41,12 @@ final class StreakCrawl {
      *  formatting by the walker. */
     private static final Pattern STREAK_LINE = Pattern.compile("^- Streak: (\\d+)$");
 
-    /** How many unmatched names {@link #okLines} lists before it counts the rest. */
-    private static final int UNRESOLVED_SHOWN = 10;
+    /** What the server accepts as an entry's {@code name}: a Minecraft username. */
+    private static final Pattern MC_USERNAME = Pattern.compile("[a-zA-Z0-9_]{3,16}");
+
+    /** How many names {@link #okLines} and {@link #invalidNamesLine} list before they count the
+     *  rest. */
+    private static final int NAMES_SHOWN = 10;
 
     private StreakCrawl() {}
 
@@ -46,7 +54,8 @@ final class StreakCrawl {
      * Walks the Members menu, uploads the streaks it read, and then calls {@code next}. A walk
      * that loses its menu or stalls stops the run through the walker and never calls back, so
      * {@code next} does not run. An empty read uploads nothing: the server replaces its stored
-     * streaks wholesale, and an empty list would wipe them.
+     * streaks wholesale, and an empty list would wipe them. That includes a read whose every
+     * name the server would refuse.
      */
     static void run(Runnable next) {
         ChatUtils.sendLocalMessage(
@@ -56,8 +65,11 @@ final class StreakCrawl {
                 "the streak walk timed out",
                 members -> {
                     MembersGui.closeIfOpen();
-                    JsonArray entries = streakEntries(members);
-                    if (entries.isEmpty()) {
+                    StreakEntries read = streakEntries(members);
+                    if (!read.invalidNames().isEmpty()) {
+                        ChatUtils.sendLocalMessage(invalidNamesLine(read.invalidNames()));
+                    }
+                    if (read.entries().isEmpty()) {
                         ChatUtils.sendLocalMessage(
                                 LaurelCommands.line(
                                         ChatFormatting.YELLOW,
@@ -65,7 +77,7 @@ final class StreakCrawl {
                                                 + " uploaded."));
                     } else {
                         LaurelCommands.upload(
-                                LaurelCommands.streakFields(entries), StreakCrawl::okLines);
+                                LaurelCommands.streakFields(read.entries()), StreakCrawl::okLines);
                     }
                     next.run();
                 });
@@ -95,26 +107,52 @@ final class StreakCrawl {
     }
 
     /**
-     * The {@code entries} of a {@code streak} frame: one {@code {name, streak}} per tile that
-     * shows a streak, in menu order. A tile without one (a fresh recruit's) is left out.
+     * What a read of the Members menu gives.
+     *
+     * @param entries the {@code entries} of the {@code streak} frame
+     * @param invalidNames the names of tiles that show a streak but are left out of it, because
+     *     the server would refuse the frame over them
      */
     // Package-private for unit tests. See StreakCrawlTest.
-    static JsonArray streakEntries(List<MemberEntry> members) {
+    record StreakEntries(JsonArray entries, List<String> invalidNames) {}
+
+    /**
+     * The {@code entries} of a {@code streak} frame: one {@code {name, streak}} per tile that
+     * shows a streak, in menu order. A tile without one (a fresh recruit's) is left out, and so
+     * is one whose name is not a Minecraft username, which is reported in
+     * {@link StreakEntries#invalidNames()}.
+     */
+    // Package-private for unit tests. See StreakCrawlTest.
+    static StreakEntries streakEntries(List<MemberEntry> members) {
         JsonArray entries = new JsonArray();
+        List<String> invalidNames = new ArrayList<>();
         for (MemberEntry member : members) {
             OptionalInt streak = parseStreak(member.loreLines());
             if (streak.isEmpty()) continue;
+            if (!MC_USERNAME.matcher(member.legacyName()).matches()) {
+                invalidNames.add(member.legacyName());
+                continue;
+            }
             JsonObject entry = new JsonObject();
             entry.addProperty("name", member.legacyName());
             entry.addProperty("streak", streak.getAsInt());
             entries.add(entry);
         }
-        return entries;
+        return new StreakEntries(entries, invalidNames);
+    }
+
+    /** The yellow line naming the tiles {@link #streakEntries} left out (the first
+     *  {@value #NAMES_SHOWN}). */
+    // Package-private for unit tests. See StreakCrawlTest.
+    static Component invalidNamesLine(List<String> invalidNames) {
+        return LaurelCommands.line(
+                ChatFormatting.YELLOW,
+                namesText("Not uploaded (not a valid username): ", invalidNames));
     }
 
     /**
      * The lines for an ok ack to a {@code streak} frame: how many members it matched, the names
-     * it did not (the first {@value #UNRESOLVED_SHOWN}), and a gray note when the server did not
+     * it did not (the first {@value #NAMES_SHOWN}), and a gray note when the server did not
      * store the upload ({@code replaced: false}) or stored it without showing it
      * ({@code active: false}, the API serving streaks now).
      */
@@ -152,13 +190,18 @@ final class StreakCrawl {
     }
 
     private static String unresolvedText(JsonArray unresolved) {
-        List<String> shown = new ArrayList<>();
+        List<String> names = new ArrayList<>();
         for (JsonElement name : unresolved) {
-            if (shown.size() == UNRESOLVED_SHOWN) break;
-            shown.add(name.getAsString());
+            names.add(name.getAsString());
         }
-        String text = "Not matched to a member: " + String.join(", ", shown);
-        int more = unresolved.size() - shown.size();
+        return namesText("Not matched to a member: ", names);
+    }
+
+    /** {@code label}, the first {@value #NAMES_SHOWN} names, and a count of the rest. */
+    private static String namesText(String label, List<String> names) {
+        List<String> shown = names.subList(0, Math.min(names.size(), NAMES_SHOWN));
+        String text = label + String.join(", ", shown);
+        int more = names.size() - shown.size();
         return more > 0 ? text + " and " + more + " more." : text + ".";
     }
 

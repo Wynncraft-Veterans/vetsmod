@@ -12,11 +12,12 @@ import org.wynnvets.api.VetsApi;
 /**
  * The snapshot and error contract of {@link PolledJson}.
  *
- * <p>{@code PolledJson} is what {@link PolledJsonMap} and {@link SupportersPoller} stand on, so
- * the rule they both rely on is pinned here once: a snapshot is replaced only by a parse that
- * returns a value, and a parse that returns {@code null} or throws leaves it alone. Only
- * {@link PolledJson#publish(String)} and {@link PolledJson#snapshot()} are exercised. The network
- * half is the same untestable shape the rest of the fetcher tree has, and nothing is started.</p>
+ * <p>{@code PolledJson} is what {@link PolledJsonMap}, {@link SupportersPoller} and
+ * {@link LaurelPoller} stand on, so the rule they all rely on is pinned here once: a snapshot
+ * is replaced only by a parse that returns a value, and a parse that returns {@code null} or
+ * throws leaves it alone. Only {@link PolledJson#publish(String)} and
+ * {@link PolledJson#snapshot()} are exercised. The network half is the same untestable shape the
+ * rest of the fetcher tree has, and nothing is started.</p>
  */
 class PolledJsonTest {
 

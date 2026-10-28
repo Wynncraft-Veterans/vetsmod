@@ -1065,7 +1065,7 @@ Tests:
 - **`helpPage_withEveryGateTrue_pinsItsThirtyThreeSiblings`**: With all six gates true, the index page matches the expected sibling tree, including bold gold heading, gray hint, yellow command and gold argument runs, and gray descriptions.
   - `HelpCommands.buildHelp(true, true, true, true, true, true)` has exactly 33 siblings, all non-bold except the first, in this order (colour: text; trailing `\n` is part of the text): GOLD bold `Commands\n`; GRAY `Use /wv help <command> for details on a specific command.\n\n`; then command rows, each a YELLOW command then GRAY description: `/wv help` / ` - Show this help message\n`; `/wv anni` / ` - Show anni timer; /wv help anni for modes & RSVP\n`; `/wv config ` + GOLD `[<key> [<value>]]` + GRAY ` - View or change mod settings\n`; `/wv motd` / ` - Show the message of the day\n`; `/wv list` / ` - Show online guild members\n`; `/wv list world` / ` - Show online members by world\n`; `/wv staff` / ` - Show online stewards\n`; `/wv distribute ` + GOLD `<name|@selector> <type> <count>` + GRAY ` - Send guild rewards (Chief/Owner)\n`; `/wv return` / ` - Show info about this week's event\n`; `/wv line ` + GOLD `<church|scrap|bat|hegea|lighthouse>` + GRAY ` - Toggle gxp boundary lines\n`; `/wv check ` + GOLD `<player>` + GRAY ` - Look up a potential recruit's info\n`; `/wv laurels ` + GOLD `<update|return>` + GRAY ` - Manage the vets laurels\n`; `/wv debug` / ` - Diagnostics & debug tools` (last row has no trailing newline).
 - **`helpPage_withNoGate_pinsItsThirteenSiblings`**: With all gates false, only the heading, hint, `help`, `anni`, `config`, `motd` and `debug` rows remain, each with exact text and colour.
-  - `HelpCommands.buildHelp(false, false, false, false, false, false)` has exactly 13 siblings: GOLD bold `Commands\n`; GRAY `Use /wv help <command> for details on a specific command.\n\n`; YELLOW `/wv help` + GRAY ` - Show this help message\n`; YELLOW `/wv anni` + GRAY ` - Show anni timer\n`; YELLOW `/wv config ` + GOLD `[<key> [<value>]]` + GRAY ` - View or change mod settings\n`; YELLOW `/wv motd` + GRAY ` - Show the message of the day\n`; YELLOW `/wv debug` + GRAY ` - Diagnostics & debug tools`. No list, list world, staff, distribute, return, line or check rows.
+  - `HelpCommands.buildHelp(false, false, false, false, false, false)` has exactly 13 siblings: GOLD bold `Commands\n`; GRAY `Use /wv help <command> for details on a specific command.\n\n`; YELLOW `/wv help` + GRAY ` - Show this help message\n`; YELLOW `/wv anni` + GRAY ` - Show anni timer\n`; YELLOW `/wv config ` + GOLD `[<key> [<value>]]` + GRAY ` - View or change mod settings\n`; YELLOW `/wv motd` + GRAY ` - Show the message of the day\n`; YELLOW `/wv debug` + GRAY ` - Diagnostics & debug tools`. No list, list world, staff, distribute, return, line, check or laurels rows.
 - **`gateMatrix_allSixtyFourCombinationsProduceTheirExactRowSet`**: For every combination of the six gates, the ordered command rows equal an independently restated list, so regrouping rows by gate fails.
   - For each `mask` from 0 to 63 (bits 1, 2, 4, 8, 16, 32 give `anniTools`, `unlocked`, `staff`, `staffOfAnyGuild`, `featuresEnabled`, `confirmedStaff`, in `buildHelp`'s parameter order, so all 64 combinations): `rowsOf(buildHelp(...))` equals `expectedRows(...)` of the last five; `anniTools` changes only a row's text. `rowsOf` collects each YELLOW sibling's text and appends a directly-following non-bold GOLD argument run to the same row. `expectedRows` is, in order: `/wv help`, `/wv anni`, `/wv config [<key> [<value>]]`, `/wv motd`, then `/wv list` if `unlocked`, `/wv list world` if `staff`, `/wv staff` if `unlocked`, `/wv distribute <name|@selector> <type> <count>` if `staffOfAnyGuild`, `/wv return` and `/wv line <church|scrap|bat|hegea|lighthouse>` if `featuresEnabled`, `/wv check <player>` and `/wv laurels <update|return>` if `confirmedStaff`, then `/wv debug`.
 - **`anniRowPointsAtTheAnniPageOnlyWithAnniTools`**: The `/wv anni` row points at `/wv help anni` for the modes and RSVP exactly when `anniTools` is true, whatever the other gates say.
@@ -2155,11 +2155,11 @@ Test: [`PolledJsonMapTest.java`](../src/test/java/org/wynnvets/fetcher/polling/P
 
 Test: [`PolledJsonTest.java`](../src/test/java/org/wynnvets/fetcher/polling/PolledJsonTest.java) · Subject: [`PolledJson`](../src/client/java/org/wynnvets/fetcher/polling/PolledJson.java)
 
-`PolledJson` is the package-private poller under `PolledJsonMap` and `SupportersPoller`: it fetches one endpoint on a schedule, parses the body with a caller-supplied function and publishes the immutable result as a snapshot. The suite pins the rule both callers rely on, that a snapshot is replaced only by a parse that returns a value, and that a `null` result or a thrown exception leaves it alone. Only `publish(String)` and `snapshot()` are exercised, on instances built by the `poller` factory (a `List<String>` snapshot, never started), so there is no network and no thread.
+`PolledJson` is the package-private poller under `PolledJsonMap`, `SupportersPoller` and `LaurelPoller`: it fetches one endpoint on a schedule, parses the body with a caller-supplied function and publishes the immutable result as a snapshot. The suite pins the rule all three rely on, that a snapshot is replaced only by a parse that returns a value, and that a `null` result or a thrown exception leaves it alone. Only `publish(String)` and `snapshot()` are exercised, on instances built by the `poller` factory (a `List<String>` snapshot, never started), so there is no network and no thread.
 
 - **`aColdInstanceHoldsTheInitialValue`**: Before any parse, `snapshot()` returns the initial value it was built with.
   - `poller(initial, parser).snapshot()` is the same instance as `initial`, where `initial` is `List.of("initial")`.
-- **`aColdInstanceMayHoldNull`**: A `null` initial value is legal, so a holder can tell "not fetched yet" from an empty value.
+- **`aColdInstanceMayHoldNull`**: A `null` initial value is legal, so a holder can tell "not fetched yet" from an empty value (`LaurelPoller` starts from `null`).
   - `cold.snapshot()` is null, where `cold` is built with a `null` initial value and has never been published to.
 - **`aParsedBodyIsPublished`**: Each published body replaces the snapshot with the parser's result.
   - `poll.snapshot()` equals `List.of("first")` after `publish("first")`.
@@ -2623,7 +2623,7 @@ Test: [`ScreenshotLatchTest.java`](../src/test/java/org/wynnvets/items/Screensho
 
 Test: [`LaurelCommandsTest.java`](../src/test/java/org/wynnvets/laurels/LaurelCommandsTest.java) · Subject: [`LaurelCommands`](../src/client/java/org/wynnvets/laurels/LaurelCommands.java)
 
-`LaurelCommands` is `/wv laurels`. The suite pins its pure parts: which steps `update` runs for the server's `collect` list, the fields of the frames it sends, and the chat lines an ack becomes. The command tree, the run and the network send are not exercised. `ack(json)` parses an ack object, `texts(lines)` reads a lines list as strings and `assertColour` compares a line's colour with a `ChatFormatting`. Two steps (`XP_STEP` and `STREAK_STEP`, with an empty body) stand in for `LaurelCommands.STEPS`.
+`LaurelCommands` is `/wv laurels`. The suite pins its pure parts: which steps `update` runs for the server's `collect` list, how `runSteps` chains them, the fields of the frames it sends, and the chat lines an ack becomes. The command tree, the submission to `DistributeRuns` and the network send are not exercised; `runSteps` ends in `DistributeRuns.finished()`, which returns at once when no run is active. `ack(json)` parses an ack object, `texts(lines)` reads a lines list as strings and `assertColour` compares a line's colour with a `ChatFormatting`. Two steps (`XP_STEP` and `STREAK_STEP`, with an empty body) stand in for `LaurelCommands.STEPS`, and `recordingStep(ran, name, handsBack)` builds a step that appends its name to `ran` and calls `next` only when `handsBack` is true.
 
 - **`beforeTheFirstFetchEveryStepRuns`**: A `null` `collect` keeps every step.
   - `selectSteps(steps, null)` is the same list instance as `steps`.
@@ -2632,6 +2632,10 @@ Test: [`LaurelCommandsTest.java`](../src/test/java/org/wynnvets/laurels/LaurelCo
 - **`onlyTheStepsTheServerAsksForRunInTheirOwnOrder`**: A step is kept when its metric is in `collect`, in the order the steps were given.
   - `selectSteps([XP_STEP, STREAK_STEP], {STREAK})` equals `[STREAK_STEP]`.
   - `selectSteps([XP_STEP, STREAK_STEP], {STREAK, XP, RETURN})` equals `[XP_STEP, STREAK_STEP]`.
+- **`stepsRunInOrderEachHandingBackToTheNext`**: Each step that calls `next` starts the one after it.
+  - `ran` equals `[first, second]` after `runSteps([first, second], 0)`, where both steps hand back.
+- **`aStepThatNeverHandsBackStopsTheStepsAfterIt`**: A step that does not call `next` ends the chain there.
+  - `ran` equals `[first]` after `runSteps([first, second], 0)`, where `first` never hands back.
 - **`aReturnFrameNamesThePlaceAndThePlayer`**: The `return` fields carry the metric, then one entry.
   - `returnFields(2, "Steve").toString()` equals `{"metric":"return","entries":[{"place":2,"name":"Steve"}]}`.
 - **`aClearFrameCarriesOnlyTheMetricAndTheFlag`**: The clear fields are the metric and `clear: true`.
@@ -2677,7 +2681,7 @@ Test: [`LaurelMetricTest.java`](../src/test/java/org/wynnvets/laurels/LaurelMetr
 
 Test: [`StreakCrawlTest.java`](../src/test/java/org/wynnvets/laurels/StreakCrawlTest.java) · Subject: [`StreakCrawl`](../src/client/java/org/wynnvets/laurels/StreakCrawl.java)
 
-`StreakCrawl` reads each Members tile's `- Streak: N` lore line and uploads the numbers. The suite pins the pure parts: `parseStreak` (what counts as the line), `streakEntries` (the frame's entries) and `okLines` (the chat lines for the server's ack). The walk itself (`run`) drives the Members menu and is not exercised. `tile(name, lore…)` builds a `MemberEntry`, `ack(json)` parses an ack, and `texts` and `assertColour` are as in `LaurelCommandsTest`.
+`StreakCrawl` reads each Members tile's `- Streak: N` lore line and uploads the numbers. The suite pins the pure parts: `parseStreak` (what counts as the line), `streakEntries` (the frame's entries, and the names left out because the server refuses a frame over a name that is not a username), `invalidNamesLine` (the yellow line naming those) and `okLines` (the chat lines for the server's ack). The walk itself (`run`) drives the Members menu and is not exercised. `tile(name, lore…)` builds a `MemberEntry`, `ack(json)` parses an ack, and `texts` and `assertColour` are as in `LaurelCommandsTest`.
 
 - **`theStreakLineOfATypicalTileIsRead`**: The streak line is found among the other lore lines.
   - `parseStreak` equals `OptionalInt.of(76)` for `Rank: Chief`, `Guild Objective:`, `- Gather Ores: 200/200`, `- Streak: 76`.
@@ -2695,10 +2699,21 @@ Test: [`StreakCrawlTest.java`](../src/test/java/org/wynnvets/laurels/StreakCrawl
 - **`aStreakTooBigForAnIntIsNone`**: A number that overflows an `int` gives empty rather than throwing.
   - `parseStreak(["- Streak: 99999999999"])` equals `OptionalInt.empty()`.
 - **`entriesFollowTheMenuOrderAndSkipTilesWithoutAStreak`**: One `{name, streak}` per tile with a streak, in menu order.
-  - `streakEntries([Alpha "- Streak: 4", Beta "Guild Objective:", Gamma "- Streak: 0"]).toString()` equals `[{"name":"Alpha","streak":4},{"name":"Gamma","streak":0}]`.
+  - `streakEntries([Alpha "- Streak: 4", Beta "Guild Objective:", Gamma "- Streak: 0"]).entries().toString()` equals `[{"name":"Alpha","streak":4},{"name":"Gamma","streak":0}]`.
 - **`noTilesGiveNoEntries`**: Nothing to upload is an empty array.
-  - `streakEntries([])` is empty.
-  - `streakEntries([tile("Alpha")])` is empty.
+  - `streakEntries([]).entries()` is empty.
+  - `streakEntries([tile("Alpha")]).entries()` is empty.
+- **`aNameTheServerWouldRefuseIsLeftOutAndReported`**: A tile with a streak but a name that is not 3 to 16 letters, digits or underscores is left out of the entries and listed in `invalidNames`.
+  - `entries().toString()` equals `[{"name":"Alpha","streak":4},{"name":"Gamma","streak":5}]` and `invalidNames()` equals `[Ab, Bad-Name, Seventeen_chars_x]`, for tiles `Alpha`, `Ab` (too short), `Bad-Name` (a hyphen), `Seventeen_chars_x` (17 characters) and `Gamma`, each with a streak.
+- **`theShortestAndLongestUsernamesAndUnderscoresAreKept`**: The length bounds are inclusive and `_` is allowed.
+  - `entries().size()` equals 3 and `invalidNames()` is empty, for `Abc`, `Sixteen_chars_xx` (16 characters) and `_a_`.
+- **`aTileWithoutAStreakIsNotReportedForItsName`**: Only a tile that would have been uploaded is reported.
+  - `entries()` and `invalidNames()` are both empty for `Ab` with only `Guild Objective:` as lore.
+- **`theNamesLeftOutAreListedInYellow`**: The left-out names follow a fixed label.
+  - `invalidNamesLine([Ab, Bad-Name]).getString()` equals `Not uploaded (not a valid username): Ab, Bad-Name.`
+  - The line's colour is YELLOW.
+- **`onlyTheFirstTenNamesLeftOutAreListed`**: Past ten, the rest are counted, as for the unmatched names.
+  - `invalidNamesLine` of twelve names `a` to `l` has text `Not uploaded (not a valid username): a, b, c, d, e, f, g, h, i, j and 2 more.`
 - **`anUploadThatWasStoredAndShownIsOneGreenLine`**: A normal ack is the matched count in green.
   - `texts(okLines(ack))` equals `[Read objective streaks: 98 matched to members.]`, for `accepted` 98, no unresolved names, `replaced` and `active` true.
   - The line's colour is GREEN.
