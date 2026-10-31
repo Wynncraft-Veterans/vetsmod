@@ -1,0 +1,43 @@
+vetsmod credits and third-party notices
+=======================================
+
+vetsmod's own code is licensed under the Mozilla Public License 2.0 (see LICENSE). That license
+does not cover the third-party art described below, which stays under its owners' own terms.
+Licenses differ from one owner to the next.
+
+
+Vanilla Tweaks: https://vanillatweaks.net/
+
+The textures under src/client/resources/retro/vanilla_tweaks (retro/vanilla_tweaks in the jar) come
+from Vanilla Tweaks and ship in vetsmod, unmodified, as part of the larger /wv retro feature. They
+are not covered by vetsmod's license. Vanilla Tweaks' terms: https://vanillatweaks.net/terms
+
+Packs taken from (Vanilla Tweaks 1.21, textures only): OldOres, OldCobblestone, OldGravel,
+OldNetherrack, OldLava, OldLapisTexture, OldIce, OldWater, OldWoolColors, 1.11ShulkerBoxes,
+OldRedstoneTorch, OldEnchantGlint, WitherHearts, ClassicNetheriteArmor, OldPlanks, OarlessBoats,
+ConsistentBambooPlanks.
+
+
+Minecraft: https://www.minecraft.net/ and https://www.mojang.com/
+
+NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
+
+Minecraft and its art belong to Mojang AB and Microsoft. /wv retro reads the present and Programmer
+Art textures from the player's own copy of the game, while the game runs; those are not in
+vetsmod's jar. Some Vanilla Tweaks textures above recreate or build on historical Minecraft art.
+Terms: https://www.minecraft.net/eula
+
+
+Wynncraft: https://wynncraft.com/
+
+Wynncraft's art belongs to Wynncraft. /wv retro reads it from the resource pack the player's own
+game downloaded from the server, while the game runs; none of it is in vetsmod's jar. vetsmod is a
+community project, not made or endorsed by Wynncraft.
+
+
+Wynntils: https://wynntils.net/ and https://github.com/Wynntils/Wynntils
+
+Wynntils is licensed under the GNU Lesser General Public License v3.0 and, unless it says otherwise,
+its assets are (c) Wynntils. /wv retro reads and restyles Wynntils' textures from the player's own
+installed copy, while the game runs. The wreath frames in vetsmod's laurels sheet (laurels.png) are
+adapted from Wynntils' leaderboard badge sheet, (c) Wynntils.

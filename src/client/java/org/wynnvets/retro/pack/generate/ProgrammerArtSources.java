@@ -15,14 +15,15 @@ import org.wynnvets.retro.manifest.RetroSource;
 import org.wynnvets.retro.pack.PackFiles;
 
 /**
- * The packs the retro pack copies art from, one per {@link RetroSource}, read from the player's
- * own game files: the client's built-in {@code programmer_art} pack, which the generator opens,
- * and the client's own textures, Minecraft's shared vanilla pack, which it never closes.
+ * The packs the retro pack copies art from, one per {@link RetroSource}: the Vanilla Tweaks art
+ * the jar bundles ({@link VanillaTweaksPack}), and from the player's own game files the client's
+ * built-in {@code programmer_art} pack, which the generator opens, and the client's own textures,
+ * Minecraft's shared vanilla pack, which it never closes.
  *
  * <p>A missing source simply has no textures: the {@code programmer_art} pack can be absent from
  * the client's pack list, or fail to open, and generation goes on with what is left. Each
- * source's texture ids are listed once, when it opens. {@link #close()} closes only the
- * {@code programmer_art} pack.</p>
+ * source's texture ids are listed once, when it opens. {@link #close()} closes every source but
+ * the vanilla pack.</p>
  */
 public final class ProgrammerArtSources implements AutoCloseable {
 
@@ -32,35 +33,46 @@ public final class ProgrammerArtSources implements AutoCloseable {
     private final Map<RetroSource, PackResources> packs = new EnumMap<>(RetroSource.class);
     private final Map<RetroSource, Set<String>> textures = new EnumMap<>(RetroSource.class);
 
-    /** The pack this class opened, and so closes; {@code null} when none opened. */
-    private PackResources opened;
+    /** The packs this class closes. */
+    private final List<PackResources> owned = new ArrayList<>();
 
     private ProgrammerArtSources() {}
 
     /**
-     * Opens the sources and lists their textures. A {@code programmer_art} pack that cannot be
+     * Opens the sources and lists their textures. A source other than vanilla that cannot be
      * opened or listed is closed again and left out.
      *
      * @param programmerArt the client's {@code programmer_art} pack, or {@code null} when its
      *     pack list has none
+     * @param vanillaTweaks the art the jar bundles, which this now closes, or {@code null} when
+     *     it could not be found
      * @param vanilla Minecraft's vanilla pack, which stays open
      * @return the sources
      */
-    static ProgrammerArtSources open(Pack programmerArt, PackResources vanilla) {
+    static ProgrammerArtSources open(
+            Pack programmerArt, PackResources vanillaTweaks, PackResources vanilla) {
         ProgrammerArtSources sources = new ProgrammerArtSources();
         sources.add(RetroSource.VANILLA, vanilla);
+        if (vanillaTweaks != null) sources.addOwned(RetroSource.VANILLA_TWEAKS, vanillaTweaks);
         if (programmerArt != null) {
-            PackResources pack = null;
             try {
-                pack = programmerArt.open();
-                sources.add(RetroSource.PROGRAMMER_ART, pack);
-                sources.opened = pack;
+                sources.addOwned(RetroSource.PROGRAMMER_ART, programmerArt.open());
             } catch (RuntimeException e) {
-                if (pack != null) pack.close();
                 VetsLogger.warn("Retro pack: could not read the programmer_art pack", e);
             }
         }
         return sources;
+    }
+
+    /** Adds a pack to close later; one that cannot be listed is closed now and left out. */
+    private void addOwned(RetroSource source, PackResources pack) {
+        try {
+            add(source, pack);
+            owned.add(pack);
+        } catch (RuntimeException e) {
+            pack.close();
+            VetsLogger.warn("Retro pack: could not read the {} pack", source.yamlName(), e);
+        }
     }
 
     /** Lists {@code pack}'s textures, then adds it; a pack that cannot be listed is not added. */
@@ -114,9 +126,9 @@ public final class ProgrammerArtSources implements AutoCloseable {
         return pack == null ? null : PackFiles.read(pack.getResource(PackFiles.TYPE, file));
     }
 
-    /** Closes the {@code programmer_art} pack, if this class opened it. */
+    /** Closes every source but the vanilla pack. */
     @Override
     public void close() {
-        if (opened != null) opened.close();
+        owned.forEach(PackResources::close);
     }
 }

@@ -72,3 +72,7 @@ Currently, it includes the return board, a motd, and a bridge. That's it!
 ## Credits
 
 The wreath frames in the laurels sheet (`laurels.png`) are adapted from [Wynntils](https://github.com/Wynntils/Wynntils)' leaderboard badge sheet, (c) Wynntils. The icons inside the wreaths are the Wynncraft Veterans' own.
+
+Vanilla Tweaks: https://vanillatweaks.net/
+
+`/wv retro` bundles textures from Vanilla Tweaks and reads others from the player's own Minecraft, Wynncraft and Wynntils files while the game runs. See [credits.txt](credits.txt) for who owns what and the terms of each: the MPL-2.0 covers vetsmod's code, not this art. Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.

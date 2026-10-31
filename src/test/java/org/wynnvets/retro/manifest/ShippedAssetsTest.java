@@ -203,13 +203,19 @@ class ShippedAssetsTest {
             assertTrue(Atlas.of(copy.getKey()).isPresent(), copy.getKey());
         }
         assertEquals(
-                List.of(RetroSource.PROGRAMMER_ART, RetroSource.VANILLA),
+                List.of(
+                        RetroSource.VANILLA_TWEAKS,
+                        RetroSource.PROGRAMMER_ART,
+                        RetroSource.VANILLA),
                 rules.sourceOrder("minecraft:block/tripwire_hook"),
-                "the keys' hook reads Programmer Art first, as any block texture");
+                "the keys' hook reads as any block texture");
         assertEquals(
-                List.of(RetroSource.PROGRAMMER_ART, RetroSource.VANILLA),
+                List.of(
+                        RetroSource.VANILLA_TWEAKS,
+                        RetroSource.PROGRAMMER_ART,
+                        RetroSource.VANILLA),
                 rules.sourceOrder("minecraft:entity/chest/normal"),
-                "the chest reads Programmer Art first, as any entity texture");
+                "the chest reads as any entity texture");
     }
 
     @Test

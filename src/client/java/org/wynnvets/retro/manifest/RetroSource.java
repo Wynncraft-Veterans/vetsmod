@@ -9,6 +9,8 @@ package org.wynnvets.retro.manifest;
  * supplies them.
  */
 public enum RetroSource {
+    /** The Vanilla Tweaks art the jar bundles, credited in {@code credits.txt}. */
+    VANILLA_TWEAKS("vanilla_tweaks"),
     /** The {@code programmer_art} pack built into the running client. */
     PROGRAMMER_ART("programmer_art"),
     /** The running client's own textures. */

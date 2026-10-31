@@ -43,7 +43,7 @@ class ProgrammerArtSourcesTest {
         MemoryPack art = new MemoryPack("art").texture("minecraft:block/b", PNG);
 
         try (ProgrammerArtSources sources =
-                ProgrammerArtSources.open(new ListedPack(art), vanilla)) {
+                ProgrammerArtSources.open(new ListedPack(art), null, vanilla)) {
             assertEquals(
                     List.of(RetroSource.PROGRAMMER_ART, RetroSource.VANILLA), sources.present());
             assertTrue(sources.has(RetroSource.VANILLA, "minecraft:block/a"));
@@ -56,14 +56,33 @@ class ProgrammerArtSourcesTest {
     }
 
     @Test
-    void closingClosesOnlyThePackItOpened() {
+    void closingClosesEveryPackButVanilla() {
         MemoryPack vanilla = new MemoryPack("vanilla");
         MemoryPack art = new MemoryPack("art");
+        MemoryPack tweaks = new MemoryPack("tweaks");
 
-        ProgrammerArtSources.open(new ListedPack(art), vanilla).close();
+        ProgrammerArtSources.open(new ListedPack(art), tweaks, vanilla).close();
 
         assertTrue(art.closed());
+        assertTrue(tweaks.closed());
         assertFalse(vanilla.closed(), "the vanilla pack is Minecraft's to close");
+    }
+
+    @Test
+    void theBundledArtAnswersAsASourceOfItsOwn() throws IOException {
+        MemoryPack vanilla = new MemoryPack("vanilla");
+        MemoryPack tweaks = new MemoryPack("tweaks").texture("minecraft:block/c", PNG);
+
+        try (ProgrammerArtSources sources = ProgrammerArtSources.open(null, tweaks, vanilla)) {
+            assertEquals(
+                    List.of(RetroSource.VANILLA_TWEAKS, RetroSource.VANILLA), sources.present());
+            assertTrue(sources.has(RetroSource.VANILLA_TWEAKS, "minecraft:block/c"));
+            assertArrayEquals(
+                    PNG,
+                    sources.read(
+                            RetroSource.VANILLA_TWEAKS,
+                            Identifier.parse("minecraft:textures/block/c.png")));
+        }
     }
 
     @Test
@@ -72,14 +91,14 @@ class ProgrammerArtSourcesTest {
 
         assertEquals(
                 List.of(RetroSource.VANILLA),
-                ProgrammerArtSources.open(null, vanilla).present(),
+                ProgrammerArtSources.open(null, null, vanilla).present(),
                 "not in the client's list");
         assertEquals(
                 List.of(RetroSource.VANILLA),
-                ProgrammerArtSources.open(new ListedPack(null), vanilla).present(),
+                ProgrammerArtSources.open(new ListedPack(null), null, vanilla).present(),
                 "cannot be opened");
         assertNull(
-                ProgrammerArtSources.open(null, vanilla)
+                ProgrammerArtSources.open(null, null, vanilla)
                         .read(
                                 RetroSource.PROGRAMMER_ART,
                                 Identifier.parse("minecraft:textures/a.png")),

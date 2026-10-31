@@ -64,6 +64,26 @@ final class ShippedFiles {
         return onClasspath(textureId, "textures", ".png");
     }
 
+    /** Whether the Vanilla Tweaks art the jar bundles has {@code textureId}. */
+    static boolean inVanillaTweaks(String textureId) {
+        return ShippedFiles.class.getResource(vanillaTweaksFile(textureId)) != null;
+    }
+
+    /** The source {@code CLIENT_JAR} reads {@code textureId} from, by the real {@code .*} row. */
+    static RetroSource clientJarSource(String textureId) {
+        return inVanillaTweaks(textureId) ? RetroSource.VANILLA_TWEAKS : RetroSource.VANILLA;
+    }
+
+    /** The classpath file of {@code textureId} in the Vanilla Tweaks art. */
+    static String vanillaTweaksFile(String textureId) {
+        int colon = textureId.indexOf(':');
+        return "/retro/vanilla_tweaks/assets/"
+                + textureId.substring(0, colon)
+                + "/textures/"
+                + textureId.substring(colon + 1)
+                + ".png";
+    }
+
     /** The texture {@code textureId} names, read from the test classpath. */
     static BufferedImage texture(String textureId) throws IOException {
         int colon = textureId.indexOf(':');
@@ -80,8 +100,9 @@ final class ShippedFiles {
     }
 
     /**
-     * The packs as the client jar has them: vanilla holds what the jar holds, the Programmer Art
-     * packs nothing, and Wynncraft ships every texture asked about, none of them blank.
+     * The packs as the client jar has them: vanilla holds what the jar holds, Vanilla Tweaks what
+     * vetsmod bundles, the Programmer Art packs nothing, and Wynncraft ships every texture asked
+     * about, none of them blank.
      */
     static final PackFacts CLIENT_JAR =
             new PackFacts() {
@@ -97,11 +118,18 @@ final class ShippedFiles {
 
                 @Override
                 public boolean has(RetroSource source, String textureId) {
-                    return source == RetroSource.VANILLA && textureInClientJar(textureId);
+                    return switch (source) {
+                        case VANILLA -> textureInClientJar(textureId);
+                        case VANILLA_TWEAKS -> inVanillaTweaks(textureId);
+                        case PROGRAMMER_ART -> false;
+                    };
                 }
             };
 
-    /** Every source has every texture, and Wynncraft ships each one blank. */
+    /**
+     * Every source has every texture, but for Vanilla Tweaks, which has what vetsmod bundles, and
+     * Wynncraft ships each one blank.
+     */
     static final PackFacts EVERYTHING_BLANK =
             new PackFacts() {
                 @Override
@@ -116,7 +144,7 @@ final class ShippedFiles {
 
                 @Override
                 public boolean has(RetroSource source, String textureId) {
-                    return true;
+                    return source != RetroSource.VANILLA_TWEAKS || inVanillaTweaks(textureId);
                 }
             };
 

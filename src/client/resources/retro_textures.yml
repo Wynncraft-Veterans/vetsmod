@@ -87,7 +87,9 @@ parts:
   armour:
     about: 'Armour icons, and armour worn by mobs and stands'
     models: ['minecraft:item/wynn/armor/.*']
-    textures: ['minecraft:entity/equipment/.*']
+    textures:
+      - 'minecraft:entity/equipment/.*'
+      - 'minecraft:misc/enchanted_glint_armor'
   # Only what code draws: accessory_tiers, as RetroAccessories draws it. An empty slot's placeholder
   # is screens', as an empty armour slot's is.
   accessories:
@@ -159,6 +161,7 @@ parts:
 # Texture pattern -> the packs that texture is read from, most preferred first. The first row
 # matching the texture that is read decides (for an alias, that is its target), and the first
 # listed pack that has the texture supplies it, with the .mcmeta beside it. The packs:
+# - vanilla_tweaks: the Vanilla Tweaks art the jar bundles (credits.txt), under retro/vanilla_tweaks.
 # - programmer_art: the Programmer Art pack built into the running client.
 # - vanilla: the running client's own textures.
 sources:
@@ -166,9 +169,11 @@ sources:
   # and a layered entity comes from one source (layer_groups).
   'minecraft:entity/(zombie_)?villager/.*': [vanilla]
   # The UI is today's vanilla: Programmer Art's few GUI files (an anvil, blue highlighted buttons)
-  # would mix two looks.
+  # would mix two looks. Withered hearts are the exception: vanilla's are hard to read at a glance,
+  # and Vanilla Tweaks' WitherHearts are the same hearts made visible.
+  'minecraft:gui/sprites/hud/heart/withered_(half|full)(_blinking)?': [vanilla_tweaks, vanilla]
   'minecraft:gui/.*': [vanilla]
-  '.*': [programmer_art, vanilla]
+  '.*': [vanilla_tweaks, programmer_art, vanilla]
 
 # ---- Keep Wynncraft's ----------------------------------------------------------------------
 
@@ -338,6 +343,8 @@ same_name:
   - 'minecraft:item/.*'
   - 'minecraft:entity/.*'
   - 'minecraft:mob_effect/.*'
+  # The glint on worn armour, which Vanilla Tweaks' OldEnchantGlint restores.
+  - 'minecraft:misc/enchanted_glint_armor'
   # Container backgrounds Wynncraft repaints: the chest (generic_54), hopper, horse and
   # inventory screens, and any it repaints later.
   - 'minecraft:gui/container/.*'
@@ -351,7 +358,7 @@ same_name:
   # The HUD retro draws in place of Wynncraft's (RetroHud): hearts for health, food for mana, and
   # the experience bar, which Wynncraft blanks, and the hotbar, which it repaints under its own
   # frame. Each beats the automatic keep of a blank.
-  - 'minecraft:gui/sprites/hud/heart/(container|half|full|poisoned_half|poisoned_full)'
+  - 'minecraft:gui/sprites/hud/heart/(container|half|full|poisoned_half|poisoned_full|withered_half|withered_full)(_blinking)?'
   - 'minecraft:gui/sprites/hud/food_(empty|half|full)'
   - 'minecraft:gui/sprites/hud/experience_bar_(background|progress)'
   # A mount's jump bar, which takes the experience bar's place while riding, as vanilla's does.

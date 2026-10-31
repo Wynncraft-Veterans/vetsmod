@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.wynnvets.retro.manifest.ShippedFiles.CLIENT_JAR;
+import static org.wynnvets.retro.manifest.ShippedFiles.clientJarSource;
 import static org.wynnvets.retro.manifest.ShippedFiles.model;
 import static org.wynnvets.retro.manifest.ShippedFiles.realModelRules;
 import static org.wynnvets.retro.manifest.ShippedFiles.realTextureRules;
@@ -188,7 +189,7 @@ class ShippedEquipmentTest {
     void everyEquipmentTargetIsAVanillaAssetWhoseTexturesSameNameCopies() throws IOException {
         // The generator copies vanilla's file as it is, so each layer's texture must be one the
         // client jar has (entity/equipment/<layer>/<texture>), and one same_name gives its 2013
-        // art; vanilla stands for every source here.
+        // art; vanilla stands for Programmer Art here, and Vanilla Tweaks has the netherite.
         TextureRules rules = realTextureRules();
         ModelRules models = realModelRules();
         Set<String> targets = new TreeSet<>();
@@ -219,7 +220,7 @@ class ShippedEquipmentTest {
                                     + texture.substring(colon + 1);
                     assertTrue(textureInClientJar(id), target + " " + id);
                     assertEquals(
-                            new TextureDecision.Copy(id, RetroSource.VANILLA),
+                            new TextureDecision.Copy(id, clientJarSource(id)),
                             rules.decide(id, CLIENT_JAR),
                             id);
                 }

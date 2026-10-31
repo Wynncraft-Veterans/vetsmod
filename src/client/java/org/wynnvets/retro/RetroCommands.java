@@ -4,13 +4,16 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import java.net.URI;
 import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Set;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import org.wynnvets.chat.ChatUtils;
 import org.wynnvets.retro.manifest.PartSections;
@@ -19,12 +22,12 @@ import org.wynnvets.retro.manifest.RetroPart;
 /**
  * Builds the {@code /wv retro} client command, which turns retro textures on and off and says
  * what state they are in. It has no gate: the textures are the player's own choice, and are built
- * from their own game files.
+ * from their own game files and the art the jar bundles.
  *
  * <ul>
  *   <li>{@code /wv retro on} and {@code /wv retro off} go through
  *       {@link RetroModeManager#setEnabled}, which reloads resources when that changes what is
- *       loaded.</li>
+ *       loaded. An answer that retro is on ends with where its textures come from, on hover.</li>
  *   <li>A bare {@code /wv retro} says whether it is on, why it stopped if it did, and the parts
  *       that are off. {@code /wv debug trigger retroDump} has the rest.</li>
  *   <li>{@code /wv retro parts} lists the parts; {@code /wv retro parts <part|all> <on|off>} and
@@ -38,6 +41,16 @@ public final class RetroCommands {
     private static final String ALL = "all";
 
     private static final String PART_ARGUMENT = "part";
+
+    /** The README's credits section, which {@code on}'s credits open and which names credits.txt. */
+    private static final URI CREDITS_PAGE =
+            URI.create("https://github.com/Wynncraft-Veterans/vetsmod#credits");
+
+    private static final String CREDITS_HOVER =
+            "This feature relies on present and historical textures from wynntils.net,"
+                    + " wynncraft.com, mojang.com and vanillatweaks.net. Licenses differ where"
+                    + " applicable. For more info, see the Credits section of vetsmod's README:"
+                    + " click to open it.";
 
     private static final SuggestionProvider<FabricClientCommandSource> SUGGEST_PARTS =
             (ctx, builder) -> {
@@ -102,7 +115,27 @@ public final class RetroCommands {
     }
 
     /** The one line {@code on} or {@code off} answers with. */
-    private static Component toggleLine(boolean enabled, RetroModeManager.Outcome outcome) {
+    // Package-private for unit tests. See RetroCommandsTest.
+    static Component toggleLine(boolean enabled, RetroModeManager.Outcome outcome) {
+        Component line = outcomeLine(enabled, outcome);
+        if (!enabled || outcome == RetroModeManager.Outcome.LATCHED) return line;
+        return Component.empty()
+                .append(line)
+                .append(
+                        line(ChatFormatting.GRAY, " (Hover for credits)")
+                                .withStyle(
+                                        style ->
+                                                style.withHoverEvent(
+                                                                new HoverEvent.ShowText(
+                                                                        line(
+                                                                                ChatFormatting.GRAY,
+                                                                                CREDITS_HOVER)))
+                                                        .withClickEvent(
+                                                                new ClickEvent.OpenUrl(
+                                                                        CREDITS_PAGE))));
+    }
+
+    private static Component outcomeLine(boolean enabled, RetroModeManager.Outcome outcome) {
         return switch (outcome) {
             case RELOADING ->
                     line(

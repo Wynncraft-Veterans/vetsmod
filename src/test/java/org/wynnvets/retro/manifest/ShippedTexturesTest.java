@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.wynnvets.retro.manifest.ShippedFiles.CLIENT_JAR;
 import static org.wynnvets.retro.manifest.ShippedFiles.EVERYTHING_BLANK;
+import static org.wynnvets.retro.manifest.ShippedFiles.clientJarSource;
 import static org.wynnvets.retro.manifest.ShippedFiles.inFull;
 import static org.wynnvets.retro.manifest.ShippedFiles.model;
 import static org.wynnvets.retro.manifest.ShippedFiles.onClasspath;
@@ -236,7 +237,7 @@ class ShippedTexturesTest {
     /** A tint from vanilla's {@code minecraft:<from>}, at full strength, with a contrast. */
     private static TextureDecision.Tint calmed(String from, TintFactor factor, double contrast) {
         return new TextureDecision.Tint(
-                "minecraft:" + from, RetroSource.VANILLA, factor, 1, contrast);
+                "minecraft:" + from, clientJarSource("minecraft:" + from), factor, 1, contrast);
     }
 
     /**
@@ -288,14 +289,21 @@ class ShippedTexturesTest {
     }
 
     @Test
-    void theRealSourcesReadProgrammerArtFirstAndTheGuiFromVanilla() throws IOException {
+    void theRealSourcesReadVanillaTweaksFirstAndTheGuiFromVanilla() throws IOException {
         TextureRules rules = realTextureRules();
-        List<RetroSource> all = List.of(RetroSource.PROGRAMMER_ART, RetroSource.VANILLA);
-        List<RetroSource> current = List.of(RetroSource.PROGRAMMER_ART, RetroSource.VANILLA);
+        List<RetroSource> all =
+                List.of(
+                        RetroSource.VANILLA_TWEAKS,
+                        RetroSource.PROGRAMMER_ART,
+                        RetroSource.VANILLA);
 
         assertEquals(all, rules.sourceOrder("minecraft:block/stone"));
         assertEquals(all, rules.sourceOrder("minecraft:item/stick"));
-        assertEquals(current, rules.sourceOrder("minecraft:entity/chest/normal"));
+        assertEquals(all, rules.sourceOrder("minecraft:entity/chest/normal"));
+        assertEquals(
+                List.of(RetroSource.VANILLA_TWEAKS, RetroSource.VANILLA),
+                rules.sourceOrder("minecraft:gui/sprites/hud/heart/withered_full"),
+                "the withered hearts are the GUI's one tweak");
         assertEquals(
                 List.of(RetroSource.VANILLA),
                 rules.sourceOrder("minecraft:gui/container/inventory"),
@@ -397,6 +405,11 @@ class ShippedTexturesTest {
                         "hud/heart/full",
                         "hud/heart/poisoned_half",
                         "hud/heart/poisoned_full",
+                        "hud/heart/container_blinking",
+                        "hud/heart/half_blinking",
+                        "hud/heart/full_blinking",
+                        "hud/heart/poisoned_half_blinking",
+                        "hud/heart/poisoned_full_blinking",
                         "widget/button",
                         "widget/button_highlighted",
                         "hud/food_empty",
@@ -451,7 +464,8 @@ class ShippedTexturesTest {
         for (Map.Entry<String, String> variant : PINNED_VARIANTS.entrySet()) {
             assertEquals(
                     new TextureDecision.Copy(
-                            "minecraft:block/" + variant.getValue(), RetroSource.VANILLA),
+                            "minecraft:block/" + variant.getValue(),
+                            clientJarSource("minecraft:block/" + variant.getValue())),
                     rules.decide("minecraft:block/variants/" + variant.getKey(), CLIENT_JAR),
                     variant.getKey());
         }
@@ -751,6 +765,7 @@ class ShippedTexturesTest {
                         return switch (source) {
                             case PROGRAMMER_ART -> programmerArt.contains(textureId);
                             case VANILLA -> textureInClientJar(textureId);
+                            case VANILLA_TWEAKS -> false;
                         };
                     }
                 };

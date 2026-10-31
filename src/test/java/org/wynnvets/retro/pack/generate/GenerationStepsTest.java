@@ -56,7 +56,7 @@ class GenerationStepsTest {
                 ManifestFixtures.parse(SOURCES + textures, ingredients),
                 List.of(vanilla, wynncraft),
                 1,
-                ProgrammerArtSources.open(null, vanilla),
+                ProgrammerArtSources.open(null, null, vanilla),
                 new PackOutput());
     }
 
@@ -989,7 +989,7 @@ class GenerationStepsTest {
                                 + textures),
                 List.of(vanilla, wynncraft),
                 1,
-                ProgrammerArtSources.open(null, vanilla),
+                ProgrammerArtSources.open(null, null, vanilla),
                 new PackOutput(),
                 RetroPart.allBut(Set.of(off)));
     }

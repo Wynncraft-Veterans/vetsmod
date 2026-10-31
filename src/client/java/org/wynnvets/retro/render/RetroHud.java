@@ -13,11 +13,14 @@ import com.wynntils.models.characterstats.actionbar.segments.MeterTransitionSegm
 import com.wynntils.models.characterstats.actionbar.segments.ProfessionExperienceSegment;
 import com.wynntils.models.characterstats.actionbar.segments.UltimateReadyTransitionSegment;
 import com.wynntils.models.spells.actionbar.segments.UltimateSegment;
+import com.wynntils.models.worlds.type.WorldState;
 import com.wynntils.utils.mc.McUtils;
 import com.wynntils.utils.type.CappedValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
+import java.util.function.IntSupplier;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
@@ -28,6 +31,7 @@ import net.minecraft.client.gui.contextualbar.ContextualBarRenderer;
 import net.minecraft.client.gui.contextualbar.ExperienceBarRenderer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.Util;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import org.wynnvets.listeners.ServerConnectionListener;
@@ -49,7 +53,8 @@ import org.wynnvets.retro.rules.RetroAssetIds;
  *   <li>{@link VanillaHudElements#HEALTH_BAR}: ten hearts from Wynntils' health
  *       ({@code Models.CharacterStats.getHealth()}). Health above its maximum is overhealth: the
  *       same row fills again from the left in orange, then yellow, then green, each a full row per
- *       maximum, in the {@code source_copies} hearts.</li>
+ *       maximum, in the {@code source_copies} hearts. They flash when the row falls
+ *       ({@link RetroHeartFlash}) and shake while it is low, as vanilla's do.</li>
  *   <li>{@link VanillaHudElements#FOOD_BAR}: ten shanks from its mana ({@code getMana()}).</li>
  *   <li>{@link VanillaHudElements#MOUNT_HEALTH}: the same shanks, while the player rides a mount
  *       that has health, when vanilla asks for this in place of food.</li>
@@ -90,12 +95,8 @@ public final class RetroHud {
 
     private static final Identifier HEART_CONTAINER =
             Identifier.withDefaultNamespace("hud/heart/container");
-    private static final Identifier HEART_HALF = Identifier.withDefaultNamespace("hud/heart/half");
-    private static final Identifier HEART_FULL = Identifier.withDefaultNamespace("hud/heart/full");
-    private static final Identifier HEART_POISONED_HALF =
-            Identifier.withDefaultNamespace("hud/heart/poisoned_half");
-    private static final Identifier HEART_POISONED_FULL =
-            Identifier.withDefaultNamespace("hud/heart/poisoned_full");
+    private static final Identifier HEART_CONTAINER_BLINKING =
+            Identifier.withDefaultNamespace("hud/heart/container_blinking");
     private static final List<Identifier> OVERHEALTH_HALF =
             overhealthSprites(RetroAssetIds.HEART_HALF);
     private static final List<Identifier> OVERHEALTH_FULL =
@@ -114,6 +115,20 @@ public final class RetroHud {
     /** The halves of a full row: vanilla's twenty health or food points. */
     // Package-private for unit tests. See RetroHudTest.
     static final int HALVES = 2 * ICONS;
+
+    /** At or below this many halves the hearts shake, as vanilla's do at four points. */
+    private static final int SHAKE_HALVES = 4;
+
+    /** Vanilla's seed for each tick's shake, per tick. */
+    private static final long SHAKE_SEED = 312871L;
+
+    /** A row that stays still. */
+    private static final IntSupplier NO_SHAKE = () -> 0;
+
+    private static final RetroHeartFlash HEART_FLASH = new RetroHeartFlash();
+
+    /** The corrupted bar Wynntils held when the player last left a world; see {@link #hearts}. */
+    private static Object staleCorruptedBar;
 
     /** The side of a heart or shank. */
     private static final int ICON_SIZE = 9;
@@ -159,6 +174,26 @@ public final class RetroHud {
      * @param halves how many of the row's halves it fills ({@link #halves})
      */
     private record Layer(Identifier half, Identifier full, int halves) {}
+
+    /** Vanilla's kinds of heart that retro's draw as. */
+    private enum HeartType {
+        NORMAL(""),
+        POISONED("poisoned_"),
+        WITHERED("withered_");
+
+        private final Identifier half;
+        private final Identifier full;
+        private final Identifier halfBlinking;
+        private final Identifier fullBlinking;
+
+        HeartType(String prefix) {
+            String path = "hud/heart/" + prefix;
+            half = Identifier.withDefaultNamespace(path + "half");
+            full = Identifier.withDefaultNamespace(path + "full");
+            halfBlinking = Identifier.withDefaultNamespace(path + "half_blinking");
+            fullBlinking = Identifier.withDefaultNamespace(path + "full_blinking");
+        }
+    }
 
     /** How full one icon of a row is. */
     // Package-private for unit tests. See RetroHudTest.
@@ -285,26 +320,39 @@ public final class RetroHud {
     }
 
     /**
-     * Wynntils' health as hearts, filled from the left, poisoned while the player has vanilla's
-     * poison effect, which Wynncraft sends, or Wynntils reads Wynncraft's corrupted bar from the
-     * boss bars. Overhealth colours over them, whether or not they are poisoned, as vanilla's
-     * absorption hearts stay gold ({@link #overhealthHalves}).
+     * Wynntils' health as hearts, filled from the left: poisoned while the player has vanilla's
+     * poison effect, which Wynncraft sends, and otherwise withered while Wynntils reads Wynncraft's
+     * corrupted bar from the boss bars, poison first as in vanilla. Wynntils forgets a bar only
+     * when the server removes it, which a dropped connection never does, so a bar from before the
+     * player last left a world does not count ({@link #worldStateChanged}). Overhealth colours over
+     * any of them ({@link #overhealthHalves}), so its amount always shows, though vanilla's
+     * absorption hearts wither. They flash as vanilla's do when the row falls
+     * ({@link RetroHeartFlash}), and shake while it is low.
      */
     private static void hearts(GuiGraphics graphics) {
-        if (!Models.WorldState.onWorld()) return;
-        Optional<CappedValue> health = Models.CharacterStats.getHealth();
-        if (health.isEmpty()) return;
+        Optional<CappedValue> health =
+                Models.WorldState.onWorld() ? Models.CharacterStats.getHealth() : Optional.empty();
+        if (health.isEmpty()) {
+            HEART_FLASH.reset();
+            return;
+        }
         int current = health.get().current();
         int max = health.get().max();
-        boolean poisoned =
+        int halves = halves(current, max);
+        int tick = McUtils.mc().gui.getGuiTicks();
+        HEART_FLASH.update(current, halves, tick, Util.getMillis());
+        boolean flashing = HEART_FLASH.flashing(tick);
+        HeartType type =
                 McUtils.player().hasEffect(MobEffects.POISON)
-                        || Models.Ability.corruptedBar.isActive();
+                        ? HeartType.POISONED
+                        : isCurrentBar(Models.Ability.corruptedBar.getEvent(), staleCorruptedBar)
+                                ? HeartType.WITHERED
+                                : HeartType.NORMAL;
         List<Layer> layers = new ArrayList<>();
-        layers.add(
-                new Layer(
-                        poisoned ? HEART_POISONED_HALF : HEART_HALF,
-                        poisoned ? HEART_POISONED_FULL : HEART_FULL,
-                        halves(current, max)));
+        if (flashing) {
+            layers.add(new Layer(type.halfBlinking, type.fullBlinking, HEART_FLASH.shownHalves()));
+        }
+        layers.add(new Layer(type.half, type.full, halves));
         int over = overhealthHalves(current, max);
         for (int colour = 0; colour < OVERHEALTH_HALF.size(); colour++) {
             layers.add(
@@ -313,7 +361,43 @@ public final class RetroHud {
                             OVERHEALTH_FULL.get(colour),
                             overhealthColourHalves(colour, over)));
         }
-        row(graphics, graphics.guiWidth() / 2 - HALF_HOTBAR, ICON_STEP, HEART_CONTAINER, layers);
+        row(
+                graphics,
+                graphics.guiWidth() / 2 - HALF_HOTBAR,
+                ICON_STEP,
+                flashing ? HEART_CONTAINER_BLINKING : HEART_CONTAINER,
+                layers,
+                halves <= SHAKE_HALVES ? shake(tick) : NO_SHAKE);
+    }
+
+    /**
+     * Notes the corrupted bar Wynntils holds whenever the player is not in a world, for
+     * {@link #hearts} to ignore. Wynntils posts this on a disconnect too.
+     *
+     * @param newState the state Wynntils' world state just became
+     */
+    public static void worldStateChanged(WorldState newState) {
+        if (newState == WorldState.WORLD) return;
+        GUARD.run(() -> staleCorruptedBar = Models.Ability.corruptedBar.getEvent());
+    }
+
+    /**
+     * Whether Wynntils' corrupted bar is one Wynncraft has sent since the player last left a world.
+     * A new bar is always a new object.
+     *
+     * @param bar the bar's event, {@code null} while Wynntils holds none
+     * @param stale the event it held when the player last left a world
+     * @return whether the bar counts
+     */
+    // Package-private for unit tests. See RetroHudTest.
+    static boolean isCurrentBar(Object bar, Object stale) {
+        return bar != null && bar != stale;
+    }
+
+    /** Each icon a pixel down or not, the same for a whole tick, as vanilla shakes its hearts. */
+    private static IntSupplier shake(int tick) {
+        Random random = new Random(tick * SHAKE_SEED);
+        return () -> random.nextInt(2);
     }
 
     /** Wynntils' mana as shanks, filled from the right as vanilla's food is. */
@@ -328,7 +412,8 @@ public final class RetroHud {
                 rightmost,
                 -ICON_STEP,
                 FOOD_EMPTY,
-                List.of(new Layer(FOOD_HALF, FOOD_FULL, halves)));
+                List.of(new Layer(FOOD_HALF, FOOD_FULL, halves)),
+                NO_SHAKE);
     }
 
     /**
@@ -340,13 +425,20 @@ public final class RetroHud {
      * @param step from that icon to the next: positive for a row filled from the left, negative
      *     for one filled from the right
      * @param layers what fills the row, the first drawn first
+     * @param shake how far down the next icon drawn goes
      */
     private static void row(
-            GuiGraphics graphics, int first, int step, Identifier empty, List<Layer> layers) {
-        int y = graphics.guiHeight() - ROWS_ABOVE_BOTTOM;
+            GuiGraphics graphics,
+            int first,
+            int step,
+            Identifier empty,
+            List<Layer> layers,
+            IntSupplier shake) {
+        int top = graphics.guiHeight() - ROWS_ABOVE_BOTTOM;
         for (int drawn = 0; drawn < ICONS; drawn++) {
             int icon = step > 0 ? ICONS - 1 - drawn : drawn;
             int x = first + icon * step;
+            int y = top + shake.getAsInt();
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, empty, x, y, ICON_SIZE, ICON_SIZE);
             for (Layer layer : layers) {
                 Identifier sprite =

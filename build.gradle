@@ -203,6 +203,7 @@ jar {
 	from("LICENSE") {
 		rename { "${it}_${inputs.properties.archivesName}"}
 	}
+	from("credits.txt")
 }
 
 // Optional per-developer extensions (e.g. deploy-to-launcher tasks).

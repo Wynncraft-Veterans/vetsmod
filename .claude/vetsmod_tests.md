@@ -49,10 +49,10 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.rendering.colors`](#orgwynnvetsrenderingcolors) — [`ColorMathTest`](#colormathtest), [`RecoloursTest`](#recolourstest), [`VanillaGuiColorsTest`](#vanillaguicolorstest)
 - [`org.wynnvets.rendering.image`](#orgwynnvetsrenderingimage) — [`PixelDrawingTest`](#pixeldrawingtest), [`PixelsTest`](#pixelstest), [`PngCodecTest`](#pngcodectest)
 - [`org.wynnvets.retro`](#orgwynnvetsretro) — [`LivePackTest`](#livepacktest), [`RetroCommandsTest`](#retrocommandstest), [`RetroModeManagerTest`](#retromodemanagertest), [`WynntilsConfigOverridesTest`](#wynntilsconfigoverridestest)
-- [`org.wynnvets.retro.manifest`](#orgwynnvetsretromanifest) — [`AssetSectionsTest`](#assetsectionstest), [`ManifestParserTest`](#manifestparsertest), [`ModelSectionsTest`](#modelsectionstest), [`PartSectionsTest`](#partsectionstest), [`RetroPartTest`](#retroparttest), [`ScreenSectionsTest`](#screensectionstest), [`ShippedAssetsTest`](#shippedassetstest), [`ShippedEquipmentTest`](#shippedequipmenttest), [`ShippedItemModelsTest`](#shippeditemmodelstest), [`ShippedManifestTest`](#shippedmanifesttest), [`ShippedPartsTest`](#shippedpartstest), [`ShippedPotionsTest`](#shippedpotionstest), [`ShippedScreensTest`](#shippedscreenstest), [`ShippedStacksTest`](#shippedstackstest), [`ShippedTexturesTest`](#shippedtexturestest), [`StackSectionsTest`](#stacksectionstest), [`TextureSectionsTest`](#texturesectionstest)
+- [`org.wynnvets.retro.manifest`](#orgwynnvetsretromanifest) — [`AssetSectionsTest`](#assetsectionstest), [`ManifestParserTest`](#manifestparsertest), [`ModelSectionsTest`](#modelsectionstest), [`PartSectionsTest`](#partsectionstest), [`RetroPartTest`](#retroparttest), [`ScreenSectionsTest`](#screensectionstest), [`ShippedAssetsTest`](#shippedassetstest), [`ShippedEquipmentTest`](#shippedequipmenttest), [`ShippedItemModelsTest`](#shippeditemmodelstest), [`ShippedManifestTest`](#shippedmanifesttest), [`ShippedPartsTest`](#shippedpartstest), [`ShippedPotionsTest`](#shippedpotionstest), [`ShippedScreensTest`](#shippedscreenstest), [`ShippedStacksTest`](#shippedstackstest), [`ShippedTexturesTest`](#shippedtexturestest), [`ShippedVanillaTweaksTest`](#shippedvanillatweakstest), [`StackSectionsTest`](#stacksectionstest), [`TextureSectionsTest`](#texturesectionstest)
 - [`org.wynnvets.retro.pack`](#orgwynnvetsretropack) — [`PackFilesTest`](#packfilestest), [`RetroPackInjectorTest`](#retropackinjectortest), [`RetroPackResourcesTest`](#retropackresourcestest)
-- [`org.wynnvets.retro.pack.generate`](#orgwynnvetsretropackgenerate) — [`DrawnArtTest`](#drawnarttest), [`GenerationStepsTest`](#generationstepstest), [`ModelJsonTest`](#modeljsontest), [`PackOutputTest`](#packoutputtest), [`ProgrammerArtSourcesTest`](#programmerartsourcestest), [`RetroPackGeneratorTest`](#retropackgeneratortest), [`TintFactorsTest`](#tintfactorstest)
-- [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest), [`RetroStacksTest`](#retrostackstest)
+- [`org.wynnvets.retro.pack.generate`](#orgwynnvetsretropackgenerate) — [`DrawnArtTest`](#drawnarttest), [`GenerationStepsTest`](#generationstepstest), [`ModelJsonTest`](#modeljsontest), [`PackOutputTest`](#packoutputtest), [`ProgrammerArtSourcesTest`](#programmerartsourcestest), [`RetroPackGeneratorTest`](#retropackgeneratortest), [`TintFactorsTest`](#tintfactorstest), [`VanillaTweaksPackTest`](#vanillatweakspacktest)
+- [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHeartFlashTest`](#retroheartflashtest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest), [`RetroStacksTest`](#retrostackstest)
 - [`org.wynnvets.retro.rules`](#orgwynnvetsretrorules) — [`ModelRulesTest`](#modelrulestest), [`PartFilterTest`](#partfiltertest), [`RetroAssetIdsTest`](#retroassetidstest), [`RuleUsageTest`](#ruleusagetest), [`TextureRulesTest`](#texturerulestest)
 - [`org.wynnvets.util`](#orgwynnvetsutil) — [`ConfigValueTextTest`](#configvaluetexttest), [`JsonTest`](#jsontest), [`TickDelaysTest`](#tickdelaystest), [`UuidsTest`](#uuidstest)
 
@@ -3576,6 +3576,8 @@ Test: [`RetroCommandsTest.java`](../src/test/java/org/wynnvets/retro/RetroComman
 
 `RetroCommands` builds the Brigadier `/wv retro` tree. The suite builds it and checks the shape its Javadoc documents, and pins what the parts commands work out. No command is run: an answer goes through Wynntils' chat and a stored setting through `VetsConfig`. `names(node)` lists a node's children's names in order.
 
+- **`turningRetroOnEndsWithItsCreditsOnHoverAndAClickToTheReadme`**: `toggleLine(true, RELOADING)` reads `Retro textures on. Reloading resources… (Hover for credits)`; its last sibling's hover names `wynntils.net`, `wynncraft.com`, `mojang.com`, `vanillatweaks.net` and the README's `Credits section`, and its click opens that section on GitHub.
+- **`everyAnswerThatRetroIsOnHasTheCreditsAndOffHasNone`**: `UNCHANGED` and `NO_WYNNCRAFT_PACK` when on end with ` (Hover for credits)`; `RELOADING` and `UNCHANGED` when off do not mention credits.
 - **`treeBuildsWithItsDocumentedShape`**: `buildCommandTree().build()` yields `retro`.
   - `retro.getName()` equals `"retro"`.
   - `retro.getCommand()` is not null: a bare `retro` says its state.
@@ -4240,7 +4242,7 @@ Test: [`ShippedTexturesTest.java`](../src/test/java/org/wynnvets/retro/manifest/
 The shipped texture rows against the client jar: the sources, the aliases, the variants, the tints and the decisions the rows give the textures Wynncraft repaints. `PINNED_TINTS` and `PINNED_VARIANTS` pin the ids taken from the Wynncraft pack.
 
 - **`wynncraftsGreenPlantsTakeItsColourUnderTheBiomesTint`**: `decide` of the fern, large fern, short and tall grass, vine and a short grass variant is a `Tint` with an `Auto` factor.
-- **`theRealSourcesReadProgrammerArtFirstAndTheGuiFromVanilla`**: The shipped `sources` rows.
+- **`theRealSourcesReadVanillaTweaksFirstAndTheGuiFromVanilla`**: The shipped `sources` rows.
   - `sourceOrder("minecraft:block/stone")`, `sourceOrder("minecraft:item/stick")` and `sourceOrder("minecraft:entity/chest/normal")` each equal `[PROGRAMMER_ART, VANILLA]`.
   - `sourceOrder("minecraft:gui/container/inventory")` equals `[VANILLA]`: Programmer Art's GUI files would mix two looks.
   - `sourceOrder("minecraft:gui/sprites/widget/button_highlighted")` equals `[VANILLA]`.
@@ -4310,6 +4312,17 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
   - `onClasspath("minecraft:block/magma", "textures", ".png.mcmeta")` is true.
   - `texture("minecraft:block/magma")`'s height is a multiple of its width: a strip of square frames.
   - Its height is more than its width: more than one frame.
+
+### `ShippedVanillaTweaksTest`
+
+Test: [`ShippedVanillaTweaksTest.java`](../src/test/java/org/wynnvets/retro/manifest/ShippedVanillaTweaksTest.java) · Subject: the art under [`retro/vanilla_tweaks`](../src/client/resources/retro/vanilla_tweaks), against [`retro_textures.yml`](../src/client/resources/retro_textures.yml)
+
+The jar bundles Vanilla Tweaks art, so nothing should ship unused or uncredited. The suite walks the bundled textures on the classpath.
+
+- **`everyBundledTextureIsOneThisGameHas`**: The bundle is not empty and each id is in the 1.21.11 client jar.
+- **`everyBundledTextureIsCopiedFromTheBundle`**: Each id decides `Copy(id, VANILLA_TWEAKS)` over `CLIENT_JAR`: no rule keeps or tints it away.
+- **`witheredHeartsAreTheVisibleOnesAndNoOtherGuiIsTouched`**: Each of `withered_half`, `withered_full` and their `_blinking` forms decides `Copy(id, VANILLA_TWEAKS)` over `EVERYTHING_BLANK`, with bytes other than vanilla's; `hud/heart/full` still decides `VANILLA`.
+- **`creditsCarryTheWordingTheTermsRequire`**: `credits.txt` and `README.md` each contain `Vanilla Tweaks: https://vanillatweaks.net/`.
 
 ### `StackSectionsTest`
 
@@ -4781,10 +4794,11 @@ Test: [`ProgrammerArtSourcesTest.java`](../src/test/java/org/wynnvets/retro/pack
   - `has(VANILLA, "minecraft:block/a")` is true and `has(PROGRAMMER_ART, "minecraft:block/a")` false.
   - `textureIds()` is both packs' textures.
   - `read(PROGRAMMER_ART, block/b.png)` returns the bytes and `read(VANILLA, ...)` of it `null`.
-- **`closingClosesOnlyThePackItOpened`**: `close()` closes the `programmer_art` pack and not Minecraft's vanilla pack.
-  - After `close()`, the art pack `closed()` is true and the vanilla pack's is false.
+- **`closingClosesEveryPackButVanilla`**: `close()` closes the `programmer_art` pack and the bundled art, not Minecraft's vanilla pack.
+  - After `close()`, the art and tweaks packs' `closed()` are true and the vanilla pack's is false.
+- **`theBundledArtAnswersAsASourceOfItsOwn`**: With a tweaks pack, `present()` equals `[VANILLA_TWEAKS, VANILLA]`, and `has` and `read` answer for its texture.
 - **`aMissingOrBrokenProgrammerArtPackLeavesVanillaAlone`**: A `programmer_art` pack that is absent or cannot be opened leaves vanilla as the only source.
-  - `open(null, vanilla).present()` and `open(new ListedPack(null), vanilla).present()` each equal `[VANILLA]`.
+  - `open(null, null, vanilla).present()` and `open(new ListedPack(null), null, vanilla).present()` each equal `[VANILLA]`.
   - Reading `PROGRAMMER_ART` from the absent source gives `null`.
 
 ### `RetroPackGeneratorTest`
@@ -4862,6 +4876,16 @@ Test: [`TintFactorsTest.java`](../src/test/java/org/wynnvets/retro/pack/generate
   - The named texture's `argb()` equals `[0xFFB07D7D, 0xFFE5AFAF]`, as in `aTintChangesTheContrastAfterTheColourAroundTheTintedMean`.
   - The like's `argb()` equals `[0xFFB07D7D, 0xFFE5AFAF, 0xFF654B4B]`: the shared pixels come out as the named texture's, and the mouth moves halfway to the pivot, 101.25 and 75 rounded.
   - The same three pixels tinted around their own mean, `tint(own, [1.5, 1, 1], 0.5)`, give `[0xFF8F6464, 0xFFC39696, 0xFF443232]`: the mouth pulls that mean to (135, 100, 100), so the shared pixels come out otherwise, which the like avoids.
+
+### `VanillaTweaksPackTest`
+
+Test: [`VanillaTweaksPackTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/VanillaTweaksPackTest.java) · Subject: [`VanillaTweaksPack`](../src/client/java/org/wynnvets/retro/pack/generate/VanillaTweaksPack.java)
+
+`VanillaTweaksPack` opens the art the jar bundles. The suite reads the real withered heart through `ProgrammerArtSources`.
+
+- **`readsTheArtFromAFolder`**: Over the classpath folder, as in a development run, `has(VANILLA_TWEAKS, heart)` is true, `has(VANILLA, heart)` false, `read` returns its bytes, and a file it lacks reads `null`.
+- **`readsTheArtFromInsideAZip`**: The same over a temporary zip's file system, as in the mod's jar.
+- **`outsideARunningGameThereIsNoArtToFindAndNothingThrows`**: `open()` returns `null` with no vetsmod mod container under JUnit.
 
 ## `org.wynnvets.retro.render`
 
@@ -4963,12 +4987,27 @@ Test: [`RetroGuardTest.java`](../src/test/java/org/wynnvets/retro/render/RetroGu
 - **`aBodyMayAnswerNull`**: A body that returns `null` is not a failure.
   - `call(() -> null, "fallback")` equals `null`.
 
+### `RetroHeartFlashTest`
+
+Test: [`RetroHeartFlashTest.java`](../src/test/java/org/wynnvets/retro/render/RetroHeartFlashTest.java) · Subject: [`RetroHeartFlash`](../src/client/java/org/wynnvets/retro/render/RetroHeartFlash.java)
+
+`RetroHeartFlash` decides when `RetroHud`'s hearts flash, by vanilla's rules on a row's halves. The suite pins the timing on plain numbers, starting from health 1000 filling 20 halves at tick 100 unless it says otherwise.
+
+- **`theFirstFrameDoesNotFlash`**: No tick up to +30 flashes after the first `update`.
+- **`aFallFlashesForASecondEveryThreeTicks`**: After 900 health at 18 halves, ticks +3 to +5, +9 to +11 and +15 to +17 flash and no others up to +30.
+- **`aRiseDoesNotFlash`**: From 500 at 10 halves to 600 at 12, no tick up to +30 flashes, unlike vanilla.
+- **`healthThatLeavesTheRowAloneDoesNotFlash`**: Overhealth rising to 1500 and falling to 1100, all at 20 halves, never flashes.
+- **`aRowMovedByItsMaximumAloneDoesNotFlash`**: Health staying 1000 while the row goes to 10 halves and back never flashes.
+- **`theRowFromBeforeAChangeIsKeptForASecondAfterTheLastOne`**: After changes at 500 ms and 1400 ms, `shownHalves()` stays 20 through 2400 ms, exactly a second after the last, and is 12 at 2401 ms.
+- **`aResetForgetsTheRowAndAnyFlash`**: A `reset` mid-flash stops it, and the next `update` starts afresh at its own row, unflashing, even though it is lower.
+
 ### `RetroHudTest`
 
 Test: [`RetroHudTest.java`](../src/test/java/org/wynnvets/retro/render/RetroHudTest.java) · Subject: [`RetroHud`](../src/client/java/org/wynnvets/retro/render/RetroHud.java)
 
 `RetroHud` draws vanilla's hearts, food, experience bar and level number from Wynntils' health, mana and combat experience while the retro pack is live on Wynncraft. The suite pins its maths on plain numbers, through the package-private `halves(current, max)` (the halves of a row of ten hearts or shanks a value fills, out of `HALVES`, 20), `fill(icon, halves)` (whether one icon is `Fill.EMPTY`, `HALF` or `FULL`) and `progressWidth(current, max)` (the experience bar's fill in pixels). Drawing, the action bar and the mode need a running client and Wynntils' models, and are not tested; the class's static fields are sprite `Identifier`s and a flag, so loading it builds no Wynntils object.
 
+- **`onlyABarFromSinceTheLastWorldCounts`**: `isCurrentBar(bar, stale)` is false for no bar and for the bar a disconnect left behind, and true for a new bar, with or without one left behind.
 - **`aFullValueFillsTheRowAndNothingLeftFillsNone`**:
   - `halves(100, 100)` and `halves(150, 100)` equal `HALVES`: at or above the maximum.
   - `halves(0, 100)`, `halves(-5, 100)` and `halves(5, 0)` equal 0: nothing left, or no maximum.

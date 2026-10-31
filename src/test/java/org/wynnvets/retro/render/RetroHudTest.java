@@ -1,6 +1,8 @@
 package org.wynnvets.retro.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.wynnvets.retro.render.RetroHud.Fill;
@@ -12,6 +14,18 @@ import org.wynnvets.retro.render.RetroHud.Fill;
  * ids and a flag, so loading it builds no Wynntils object.
  */
 class RetroHudTest {
+
+    @Test
+    void onlyABarFromSinceTheLastWorldCounts() {
+        Object old = new Object();
+        Object fresh = new Object();
+
+        assertFalse(RetroHud.isCurrentBar(null, null), "no bar");
+        assertFalse(RetroHud.isCurrentBar(null, old), "the old one removed");
+        assertFalse(RetroHud.isCurrentBar(old, old), "the one a disconnect left behind");
+        assertTrue(RetroHud.isCurrentBar(fresh, null), "none left behind");
+        assertTrue(RetroHud.isCurrentBar(fresh, old), "a new one after it");
+    }
 
     @Test
     void aFullValueFillsTheRowAndNothingLeftFillsNone() {
