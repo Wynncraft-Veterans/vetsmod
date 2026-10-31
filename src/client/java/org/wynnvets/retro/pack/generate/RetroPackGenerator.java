@@ -113,8 +113,8 @@ public final class RetroPackGenerator {
         PackOutput out = new PackOutput();
         List<RetroSource> present;
         RetroReport.Seen seen;
-        try (ProgrammerArtSources sources =
-                ProgrammerArtSources.open(programmerArt, VanillaTweaksPack.open(), vanilla)) {
+        try (RetroSources sources =
+                RetroSources.open(programmerArt, VanillaTweaksPack.open(), vanilla)) {
             present = sources.present();
             GenerationContext gen =
                     new GenerationContext(manifest, stack, wynncraftIndex, sources, out, partsOn);

@@ -10,8 +10,8 @@ import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.resources.ReloadInstance;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.retro.RetroModeManager;
-import org.wynnvets.retro.pack.generate.ProgrammerArtSources;
 import org.wynnvets.retro.pack.generate.RetroPackGenerator;
+import org.wynnvets.retro.pack.generate.RetroSources;
 
 /**
  * Adds the retro pack to Minecraft's resource reloads.
@@ -88,7 +88,7 @@ public final class RetroPackInjector {
                             packs,
                             wynncraft,
                             mc.getResourcePackRepository()
-                                    .getPack(ProgrammerArtSources.PROGRAMMER_ART_PACK),
+                                    .getPack(RetroSources.PROGRAMMER_ART_PACK),
                             mc.getVanillaPackResources());
             RetroPackResources retro =
                     new RetroPackResources(generator::generate, RetroPackGenerator::staticFiles);

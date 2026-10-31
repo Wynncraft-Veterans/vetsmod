@@ -35,9 +35,8 @@ class VanillaTweaksPackTest {
     }
 
     private static void assertReadsTheHeart(Path root, byte[] png) throws IOException {
-        try (ProgrammerArtSources sources =
-                ProgrammerArtSources.open(
-                        null, VanillaTweaksPack.open(root), new MemoryPack("vanilla"))) {
+        try (RetroSources sources =
+                RetroSources.open(null, VanillaTweaksPack.open(root), new MemoryPack("vanilla"))) {
             assertTrue(sources.has(RetroSource.VANILLA_TWEAKS, HEART));
             assertFalse(sources.has(RetroSource.VANILLA, HEART));
             Identifier file =

@@ -537,8 +537,8 @@ final class HelpCommands {
                                 + " old look, and each weapon class, armour piece and tool shows"
                                 + " as a vanilla item.\n"),
                 dim(
-                        "Built from your own game files whenever resources reload. Also switches"
-                                + " some Wynntils settings.\n"));
+                        "Built from your own game files and bundled art whenever resources reload."
+                                + " Also switches some Wynntils settings.\n"));
         row(
                 msg,
                 "/wv retro off\n",

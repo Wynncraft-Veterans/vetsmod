@@ -51,8 +51,8 @@ When you add, rename or delete a test, or change what it asserts, update its ent
 - [`org.wynnvets.retro`](#orgwynnvetsretro) — [`LivePackTest`](#livepacktest), [`RetroCommandsTest`](#retrocommandstest), [`RetroModeManagerTest`](#retromodemanagertest), [`WynntilsConfigOverridesTest`](#wynntilsconfigoverridestest)
 - [`org.wynnvets.retro.manifest`](#orgwynnvetsretromanifest) — [`AssetSectionsTest`](#assetsectionstest), [`ManifestParserTest`](#manifestparsertest), [`ModelSectionsTest`](#modelsectionstest), [`PartSectionsTest`](#partsectionstest), [`RetroPartTest`](#retroparttest), [`ScreenSectionsTest`](#screensectionstest), [`ShippedAssetsTest`](#shippedassetstest), [`ShippedEquipmentTest`](#shippedequipmenttest), [`ShippedItemModelsTest`](#shippeditemmodelstest), [`ShippedManifestTest`](#shippedmanifesttest), [`ShippedPartsTest`](#shippedpartstest), [`ShippedPotionsTest`](#shippedpotionstest), [`ShippedScreensTest`](#shippedscreenstest), [`ShippedStacksTest`](#shippedstackstest), [`ShippedTexturesTest`](#shippedtexturestest), [`ShippedVanillaTweaksTest`](#shippedvanillatweakstest), [`StackSectionsTest`](#stacksectionstest), [`TextureSectionsTest`](#texturesectionstest)
 - [`org.wynnvets.retro.pack`](#orgwynnvetsretropack) — [`PackFilesTest`](#packfilestest), [`RetroPackInjectorTest`](#retropackinjectortest), [`RetroPackResourcesTest`](#retropackresourcestest)
-- [`org.wynnvets.retro.pack.generate`](#orgwynnvetsretropackgenerate) — [`DrawnArtTest`](#drawnarttest), [`GenerationStepsTest`](#generationstepstest), [`ModelJsonTest`](#modeljsontest), [`PackOutputTest`](#packoutputtest), [`ProgrammerArtSourcesTest`](#programmerartsourcestest), [`RetroPackGeneratorTest`](#retropackgeneratortest), [`TintFactorsTest`](#tintfactorstest), [`VanillaTweaksPackTest`](#vanillatweakspacktest)
-- [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHeartFlashTest`](#retroheartflashtest), [`RetroHudReadingsTest`](#retrohudreadingstest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest), [`RetroStacksTest`](#retrostackstest)
+- [`org.wynnvets.retro.pack.generate`](#orgwynnvetsretropackgenerate) — [`DrawnArtTest`](#drawnarttest), [`GenerationStepsTest`](#generationstepstest), [`ModelJsonTest`](#modeljsontest), [`PackOutputTest`](#packoutputtest), [`RetroPackGeneratorTest`](#retropackgeneratortest), [`RetroSourcesTest`](#retrosourcestest), [`TintFactorsTest`](#tintfactorstest), [`VanillaTweaksPackTest`](#vanillatweakspacktest)
+- [`org.wynnvets.retro.render`](#orgwynnvetsretrorender) — [`IdentityMemoTest`](#identitymemotest), [`RetroAccessoriesTest`](#retroaccessoriestest), [`RetroContainerTitlesTest`](#retrocontainertitlestest), [`RetroGuardTest`](#retroguardtest), [`RetroHeartFlashTest`](#retroheartflashtest), [`RetroHudGlyphsTest`](#retrohudglyphstest), [`RetroHudReadingsTest`](#retrohudreadingstest), [`RetroHudTest`](#retrohudtest), [`RetroInventoryEffectsTest`](#retroinventoryeffectstest), [`RetroSlotIconsTest`](#retrosloticonstest), [`RetroSlotValuesTest`](#retroslotvaluestest), [`RetroSlotsTest`](#retroslotstest), [`RetroStackModelsTest`](#retrostackmodelstest), [`RetroStacksTest`](#retrostackstest)
 - [`org.wynnvets.retro.rules`](#orgwynnvetsretrorules) — [`ModelRulesTest`](#modelrulestest), [`PartFilterTest`](#partfiltertest), [`RetroAssetIdsTest`](#retroassetidstest), [`RuleUsageTest`](#ruleusagetest), [`TextureRulesTest`](#texturerulestest)
 - [`org.wynnvets.util`](#orgwynnvetsutil) — [`ConfigValueTextTest`](#configvaluetexttest), [`JsonTest`](#jsontest), [`TickDelaysTest`](#tickdelaystest), [`UuidsTest`](#uuidstest)
 
@@ -1102,7 +1102,7 @@ Tests:
 - **`helpLinePage_pinsItsFiveSiblings`**: The `/wv line` page matches its tree, including the long gray description naming each territory option, and an aqua `Returners guild member` requirement.
   - `buildHelpLine(Access.CONFIRMED)` has exactly 5 siblings: YELLOW `/wv line `; GOLD `<church|scrap|bat|hegea|lighthouse>\n`; one GRAY description ending `\n` (toggle rendering of territory boundary lines for the specified territory, naming "church" (Witness Church - Forest of Eyes), "scrap" (Scrapyard - Corkus Sea Cove), "bat" (Batcave - Royal Barracks), "hegea" (Training Grounds - Fort Hegea) and "lighthouse" (Lighthouse - Contested District), to pick which boundaries to show); GRAY `Requires: `; AQUA `Returners guild member`.
 - **`helpRetroPage_pinsItsSeventeenSiblings`**: The `/wv retro` page lists its six commands, the `on` row ending on a dark-gray clarification, and ends with a white public requirement.
-  - `buildHelpRetro()` has exactly 17 siblings: YELLOW `/wv retro on\n`; GRAY `Draw Wynncraft in 2013 Minecraft art: blocks, items and mobs get their old look, and each weapon class, armour piece and tool shows as a vanilla item.\n`; DARK_GRAY `Built from your own game files whenever resources reload. Also switches some Wynntils settings.\n`; YELLOW `/wv retro off\n`; GRAY `Go back to Wynncraft's own textures and your Wynntils settings.\n`; YELLOW `/wv retro\n`; GRAY `Show whether retro textures are on, and the parts that are off.\n`; YELLOW `/wv retro parts\n`; GRAY `List the parts of retro, each on or off.\n`; YELLOW `/wv retro parts ` + GOLD `<part|all> <on|off>\n`; GRAY `Turn one part, or all of them, on or off. A part off stays Wynncraft's.\n`; YELLOW `/wv retro only ` + GOLD `<part>\n`; GRAY `Turn one part on and every other off.\n`; GRAY `Requires: `; WHITE `None (public)`.
+  - `buildHelpRetro()` has exactly 17 siblings: YELLOW `/wv retro on\n`; GRAY `Draw Wynncraft in 2013 Minecraft art: blocks, items and mobs get their old look, and each weapon class, armour piece and tool shows as a vanilla item.\n`; DARK_GRAY `Built from your own game files and bundled art whenever resources reload. Also switches some Wynntils settings.\n`; YELLOW `/wv retro off\n`; GRAY `Go back to Wynncraft's own textures and your Wynntils settings.\n`; YELLOW `/wv retro\n`; GRAY `Show whether retro textures are on, and the parts that are off.\n`; YELLOW `/wv retro parts\n`; GRAY `List the parts of retro, each on or off.\n`; YELLOW `/wv retro parts ` + GOLD `<part|all> <on|off>\n`; GRAY `Turn one part, or all of them, on or off. A part off stays Wynncraft's.\n`; YELLOW `/wv retro only ` + GOLD `<part>\n`; GRAY `Turn one part on and every other off.\n`; GRAY `Requires: `; WHITE `None (public)`.
 - **`helpDebugPage_pinsItsEighteenSiblings`**: The `/wv debug` page matches its tree, including the dark-gray pointer line that belongs to no row and a white public requirement.
   - `buildHelpDebug()` has exactly 18 siblings: YELLOW `/wv debug\n`; GRAY `Run diagnostics and dump mod state to chat and log.\n\n`; GOLD `Subcommands:\n`; four subcommand rows of YELLOW head + GOLD args + GRAY description: `/wv debug ` `<boolean>` ` - Toggle debug logging\n`; `/wv debug set ` `<key> <value>` ` - Manage debug config keys\n`; `/wv debug trigger ` `<action>` ` - Run a one-shot debug action\n`; `/wv debug tree ` `<subsystem>` ` - Open a subsystem-specific debug tree (anni or retro)\n\n`; DARK_GRAY `Use /wv help debug <set|trigger> for details.\n`; GRAY `Requires: `; WHITE `None (public)`.
 - **`helpDebugSetPage_pinsItsEighteenSiblings`**: The `/wv debug set` page matches its tree; the `itemDump` row is a yellow head, a gray line and a dark-gray continuation, not flattened to gray.
@@ -3959,7 +3959,7 @@ The shipped asset rows against the client jar: the source copies and recipes, th
   - The copies' sources map `vetsmod:block/retro/tripwire_hook` to `minecraft:block/tripwire_hook` and `vetsmod:block/retro/chest` to `minecraft:entity/chest/normal`.
   - `decide("minecraft:block/tripwire_hook", EVERYTHING_BLANK)` equals `Keep(KEEP_WYNNCRAFT)`: the hook a stub could not draw from its own id.
   - For each copy: `textureInClientJar(original)` is true and, outside `vetsmod:gui/sprites/`, `Atlas.of(copy)` is present: a stub can draw it from an atlas.
-  - `sourceOrder("minecraft:block/tripwire_hook")` and `sourceOrder("minecraft:entity/chest/normal")` each equal `[PROGRAMMER_ART, VANILLA]`: Programmer Art first, as any block or entity texture.
+  - `sourceOrder("minecraft:block/tripwire_hook")` and `sourceOrder("minecraft:entity/chest/normal")` each equal `[VANILLA_TWEAKS, PROGRAMMER_ART, VANILLA]`, as any block or entity texture.
 - **`everyImageEditFitsItsVanillaTextureAndPassesItsGuard`**: The client jar has the 1.21.11 textures the edits are written for (Programmer Art has no container textures, and the GUI reads vanilla only), so a rectangle the guard would refuse in game fails here first.
   - `RetroManifest.load().assets().imageEdits()` is not empty.
   - For each edited texture: `decide(texture, CLIENT_JAR)` equals `Copy(texture, VANILLA)`, so the edits apply.
@@ -4215,7 +4215,7 @@ The shipped screen rows: the titles, the slot fills and their labels, the hidden
   - `realTitle(class)` is not `keep`.
 - **`theAttackSpeedEffectsAreHidden`**: Wynncraft's attack speed is an endless haste or mining fatigue.
   - The patterns of `hiddenInventoryEffects()` equal `["minecraft:(haste|mining_fatigue)"]`.
-- **`theWynntilsSettingsAreTheFiveSeeded`**: `/wynntils config set ItemHighlight highlightTexture tag` and `/wynntils config set CustomPlayerListOverlay userEnabled false`; `/wynntils config set UnidentifiedItemIcon userEnabled false`, whose icon would sit on retro's gear box icons (its texture setting has no "none"); `/wynntils config set MountJumpBar userEnabled false`, whose bar would sit on vanilla's (the feature arrived in 4.2.11, and before that the row is skipped with a warning); and `/wynntils config set WynntilsContentBook shiftBehaviorConfig enabledIfShiftHeld`: the feature's short name (`WynntilsContentBookFeature`), its `Config` field, and `ShiftBehavior.ENABLED_IF_SHIFT_HELD` as `EnumUtils.toJsonFormat` writes it, which `tryParseStringValue` reads back (`fromJsonFormat`), in 4.1.17 and 4.2.16 alike; and nothing else.
+- **`theWynntilsSettingsAreTheFiveSeeded`**: `/wynntils config set ItemHighlight highlightTexture tag` and `/wynntils config set CustomPlayerListOverlay userEnabled false`; `/wynntils config set UnidentifiedItemIcon userEnabled false`, whose icon would sit on retro's gear box icons (its texture setting has no "none"); `/wynntils config set MountJumpBar userEnabled false`, whose bar would sit on vanilla's; and `/wynntils config set WynntilsContentBook shiftBehaviorConfig enabledIfShiftHeld`: the feature's short name (`WynntilsContentBookFeature`), its `Config` field, and `ShiftBehavior.ENABLED_IF_SHIFT_HELD` as `EnumUtils.toJsonFormat` writes it, which `tryParseStringValue` reads back (`fromJsonFormat`), in 4.1.17 and 4.2.16 alike; and nothing else.
   - `wynntilsConfig()` equals `[WynntilsSetting(ItemHighlight, highlightTexture, tag), WynntilsSetting(CustomPlayerListOverlay, userEnabled, false), WynntilsSetting(UnidentifiedItemIcon, userEnabled, false), WynntilsSetting(MountJumpBar, userEnabled, false), WynntilsSetting(WynntilsContentBook, shiftBehaviorConfig, enabledIfShiftHeld)]`.
 
 ### `ShippedStacksTest`
@@ -4243,7 +4243,8 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
 
 - **`wynncraftsGreenPlantsTakeItsColourUnderTheBiomesTint`**: `decide` of the fern, large fern, short and tall grass, vine and a short grass variant is a `Tint` with an `Auto` factor.
 - **`theRealSourcesReadVanillaTweaksFirstAndTheGuiFromVanilla`**: The shipped `sources` rows.
-  - `sourceOrder("minecraft:block/stone")`, `sourceOrder("minecraft:item/stick")` and `sourceOrder("minecraft:entity/chest/normal")` each equal `[PROGRAMMER_ART, VANILLA]`.
+  - `sourceOrder("minecraft:block/stone")`, `sourceOrder("minecraft:item/stick")` and `sourceOrder("minecraft:entity/chest/normal")` each equal `[VANILLA_TWEAKS, PROGRAMMER_ART, VANILLA]`.
+  - `sourceOrder("minecraft:gui/sprites/hud/heart/withered_full")` equals `[VANILLA_TWEAKS, VANILLA]`: the withered hearts are the GUI's one tweak.
   - `sourceOrder("minecraft:gui/container/inventory")` equals `[VANILLA]`: Programmer Art's GUI files would mix two looks.
   - `sourceOrder("minecraft:gui/sprites/widget/button_highlighted")` equals `[VANILLA]`.
 - **`everyAliasRowCoversAPinnedTexture`**: No alias row is a typo or a stale name.
@@ -4259,7 +4260,7 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
   - `decide(silhouette, EVERYTHING_BLANK)` equals `Copy(silhouette, VANILLA)`: `same_name` wins over Wynncraft's blank.
   - For each of `ring`, `bracelet` and `necklace`: `decide("minecraft:wynn/gui/slot/<accessory>", CLIENT_JAR)` equals `Keep(NO_RULE)`.
   - `decide("minecraft:gui/sprites/container/slot/shield", CLIENT_JAR)` equals `Keep(KEEP_WYNNCRAFT)`.
-- **`theHudRetroDrawsBecomesVanillasOverWynncraftsBlanks`**: `RetroHud` draws vanilla's hearts, food, armour, air and experience bar and leaves vanilla's jump bar, all of which Wynncraft (pack `a43ae4e6`) ships fully transparent, over the vanilla hotbar, which it repaints under its ornate frame. A `same_name` copy beats the automatic keep of a blank, and the GUI reads vanilla alone.
+- **`theHudRetroDrawsBecomesVanillasOverWynncraftsBlanks`**: `RetroHud` draws vanilla's hearts, food, armour, air and experience bar and leaves vanilla's jump bar, all of which Wynncraft (pack `a43ae4e6`) ships fully transparent, over the vanilla hotbar, which it repaints under its ornate frame. A `same_name` copy beats the automatic keep of a blank, and the GUI reads vanilla, but for the withered hearts.
   - For each of `hud/heart/container`, `hud/heart/half`, `hud/heart/full`, `hud/heart/poisoned_half`, `hud/heart/poisoned_full`, `hud/heart/container_blinking`, `hud/heart/half_blinking`, `hud/heart/full_blinking`, `hud/heart/poisoned_half_blinking`, `hud/heart/poisoned_full_blinking`, `widget/button`, `widget/button_highlighted`, `hud/food_empty`, `hud/food_half`, `hud/food_full`, `hud/armor_empty`, `hud/armor_half`, `hud/armor_full`, `hud/air`, `hud/air_empty`, `hud/air_bursting`, `hud/experience_bar_background`, `hud/experience_bar_progress`, `hud/jump_bar_background`, `hud/jump_bar_cooldown`, `hud/jump_bar_progress`, `hud/hotbar`, `hud/hotbar_selection`, `hud/hotbar_offhand_left` and `hud/hotbar_offhand_right` under `minecraft:gui/sprites/`: `textureInClientJar(id)` is true.
   - `decide(id, EVERYTHING_BLANK)` equals `Copy(id, VANILLA)`.
   - `decide(id, CLIENT_JAR)` equals `Copy(id, VANILLA)`.
@@ -4783,24 +4784,6 @@ Test: [`PackOutputTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/
 - **`aTextureWithNoMcmetaWritesOneFile`**: With no `.mcmeta`, one file is written and `MCMETA` is not counted.
   - `files.size()` equals 1, and the counts have no `MCMETA`.
 
-### `ProgrammerArtSourcesTest`
-
-Test: [`ProgrammerArtSourcesTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/ProgrammerArtSourcesTest.java) · Subject: [`ProgrammerArtSources`](../src/client/java/org/wynnvets/retro/pack/generate/ProgrammerArtSources.java)
-
-`ProgrammerArtSources` is the packs the generator copies art from, one per `RetroSource`. The suite pins it over `MemoryPack`s and a `ListedPack` that stands for the client's pack list.
-
-- **`eachSourceAnswersForItsOwnTextures`**: Each source lists and reads its own pack's textures.
-  - `present()` equals `[PROGRAMMER_ART, VANILLA]`.
-  - `has(VANILLA, "minecraft:block/a")` is true and `has(PROGRAMMER_ART, "minecraft:block/a")` false.
-  - `textureIds()` is both packs' textures.
-  - `read(PROGRAMMER_ART, block/b.png)` returns the bytes and `read(VANILLA, ...)` of it `null`.
-- **`closingClosesEveryPackButVanilla`**: `close()` closes the `programmer_art` pack and the bundled art, not Minecraft's vanilla pack.
-  - After `close()`, the art and tweaks packs' `closed()` are true and the vanilla pack's is false.
-- **`theBundledArtAnswersAsASourceOfItsOwn`**: With a tweaks pack, `present()` equals `[VANILLA_TWEAKS, VANILLA]`, and `has` and `read` answer for its texture.
-- **`aMissingOrBrokenProgrammerArtPackLeavesVanillaAlone`**: A `programmer_art` pack that is absent or cannot be opened leaves vanilla as the only source.
-  - `open(null, null, vanilla).present()` and `open(new ListedPack(null), null, vanilla).present()` each equal `[VANILLA]`.
-  - Reading `PROGRAMMER_ART` from the absent source gives `null`.
-
 ### `RetroPackGeneratorTest`
 
 Test: [`RetroPackGeneratorTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/RetroPackGeneratorTest.java) · Subject: [`RetroPackGenerator`](../src/client/java/org/wynnvets/retro/pack/generate/RetroPackGenerator.java)
@@ -4821,6 +4804,24 @@ Test: [`RetroPackGeneratorTest.java`](../src/test/java/org/wynnvets/retro/pack/g
 - **`theStaticFilesFollowTheScreensPart`**: `staticFiles(lang, screens)` over one locale and one string.
   - With `screens` on, it has one file.
   - With it off, it is empty.
+
+### `RetroSourcesTest`
+
+Test: [`RetroSourcesTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/RetroSourcesTest.java) · Subject: [`RetroSources`](../src/client/java/org/wynnvets/retro/pack/generate/RetroSources.java)
+
+`RetroSources` is the packs the generator copies art from, one per `RetroSource`. The suite pins it over `MemoryPack`s and a `ListedPack` that stands for the client's pack list.
+
+- **`eachSourceAnswersForItsOwnTextures`**: Each source lists and reads its own pack's textures.
+  - `present()` equals `[PROGRAMMER_ART, VANILLA]`.
+  - `has(VANILLA, "minecraft:block/a")` is true and `has(PROGRAMMER_ART, "minecraft:block/a")` false.
+  - `textureIds()` is both packs' textures.
+  - `read(PROGRAMMER_ART, block/b.png)` returns the bytes and `read(VANILLA, ...)` of it `null`.
+- **`closingClosesEveryPackButVanilla`**: `close()` closes the `programmer_art` pack and the bundled art, not Minecraft's vanilla pack.
+  - After `close()`, the art and tweaks packs' `closed()` are true and the vanilla pack's is false.
+- **`theBundledArtAnswersAsASourceOfItsOwn`**: With a tweaks pack, `present()` equals `[VANILLA_TWEAKS, VANILLA]`, and `has` and `read` answer for its texture.
+- **`aMissingOrBrokenProgrammerArtPackLeavesVanillaAlone`**: A `programmer_art` pack that is absent or cannot be opened leaves vanilla as the only source.
+  - `open(null, null, vanilla).present()` and `open(new ListedPack(null), null, vanilla).present()` each equal `[VANILLA]`.
+  - Reading `PROGRAMMER_ART` from the absent source gives `null`.
 
 ### `TintFactorsTest`
 
@@ -4881,7 +4882,7 @@ Test: [`TintFactorsTest.java`](../src/test/java/org/wynnvets/retro/pack/generate
 
 Test: [`VanillaTweaksPackTest.java`](../src/test/java/org/wynnvets/retro/pack/generate/VanillaTweaksPackTest.java) · Subject: [`VanillaTweaksPack`](../src/client/java/org/wynnvets/retro/pack/generate/VanillaTweaksPack.java)
 
-`VanillaTweaksPack` opens the art the jar bundles. The suite reads the real withered heart through `ProgrammerArtSources`.
+`VanillaTweaksPack` opens the art the jar bundles. The suite reads the real withered heart through `RetroSources`.
 
 - **`readsTheArtFromAFolder`**: Over the classpath folder, as in a development run, `has(VANILLA_TWEAKS, heart)` is true, `has(VANILLA, heart)` false, `read` returns its bytes, and a file it lacks reads `null`.
 - **`readsTheArtFromInsideAZip`**: The same over a temporary zip's file system, as in the mod's jar.
@@ -5001,11 +5002,34 @@ Test: [`RetroHeartFlashTest.java`](../src/test/java/org/wynnvets/retro/render/Re
 - **`theRowFromBeforeAChangeIsKeptForASecondAfterTheLastOne`**: After changes at 500 ms and 1400 ms, `shownHalves()` stays 20 through 2400 ms, exactly a second after the last, and is 12 at 2401 ms.
 - **`aResetForgetsTheRowAndAnyFlash`**: A `reset` mid-flash stops it, and the next `update` starts afresh at its own row, unflashing, even though it is lower.
 
+### `RetroHudGlyphsTest`
+
+Test: [`RetroHudGlyphsTest.java`](../src/test/java/org/wynnvets/retro/render/RetroHudGlyphsTest.java) · Subject: [`RetroHudGlyphs`](../src/client/java/org/wynnvets/retro/render/RetroHudGlyphs.java)
+
+`RetroHudGlyphs` finds Wynncraft's HUD in the action bar's text, for the segment matchers. The suite pins `findLevel(actionBar, inFont)`, `findNumber(actionBar, inFont, health)` and `numberGlyphs(segmentText)` on plain strings; `indicesIn` reads a Wynntils `StyledText`, and is not tested.
+
+- **`eachNumberIsFoundInItsOwnSpacers`**: Health's number, a character, then mana's.
+  - `findNumber(bar, all, true).group()` equals health's number.
+  - `findNumber(bar, all, false)`: `group()` equals mana's number, `start()` is health's length plus 1, and `end()` the bar's length.
+- **`mountEnergyBeforeTheManaNumberIsPassedOver`**: The energy glyph Wynntils' mana matcher gives up on, right before the number. `group()` equals mana's number.
+- **`aDecimalNumberIsFoundThoughWynntilsCannotParseIt`**: A value with a decimal point and a `k`. `group()` equals the whole run.
+- **`nothingElseIsTakenForANumber`**: `findNumber` is empty for the energy glyph alone (no slash), for mana's number sought as health's and health's as mana's, for one in no index of the font, for glyphs with no spacers, and for an empty string.
+- **`aNumbersGlyphsLoseOnlyTheOuterSpacers`**: `numberGlyphs(mana's number)` equals its glyphs with the spacers between them.
+- **`theLevelIsFoundInItsSpacers`**: Level 120 with a character on either side.
+  - `group()` equals the level with its spacers; `start()` is 1 and `end()` is 1 plus its length.
+- **`highMountEnergyBeforeTheLevelIsPassedOver`**: The energy glyph at the digit 0's code point, in its own spacers, right before the level.
+  - `group()` equals the level, and `start()` the energy glyph's length.
+- **`aRunInAnotherFontBeforeTheLevelIsPassedOver`**: A run in spacers just like the level's, right before it, with only the level's indices in the level's font.
+  - `group()` equals the level, and `start()` the other run's length.
+- **`theSpacerClosingARunInAnotherFontMayOpenTheLevel`**: Two digits sharing the one spacer between them, the first out of the level's font.
+  - `group()` equals the second digit with the shared spacer and the closing one.
+- **`nothingElseIsTakenForTheLevel`**: `findLevel` is empty for the energy glyph alone, for digits with no spacers, for an empty string, for the level with no index in the level's font, and for a separator followed by a digit, where taking the separator for the closing spacer would leave a digit behind.
+
 ### `RetroHudReadingsTest`
 
 Test: [`RetroHudReadingsTest.java`](../src/test/java/org/wynnvets/retro/render/RetroHudReadingsTest.java) · Subject: [`RetroHudReadings`](../src/client/java/org/wynnvets/retro/render/RetroHudReadings.java)
 
-`RetroHudReadings` keeps what `RetroHud` last read from the action bar for its armour and bubble rows and the numbers. The suite pins what each bar means for them on plain values, with a bar heard at time 0 unless a test says otherwise.
+`RetroHudReadings` keeps what `RetroActionBar` last read from the action bar for its armour and bubble rows and the numbers. The suite pins what each bar means for them on plain values, with a bar heard at time 0 unless a test says otherwise.
 
 - **`nothingIsDrawnBeforeABarIsRead`**:
   - `armourHalves(0)` and `bubbles(0)` equal `NO_ROW`.
@@ -5027,7 +5051,7 @@ Test: [`RetroHudReadingsTest.java`](../src/test/java/org/wynnvets/retro/render/R
 - **`chargeFillsBubblesRoundedDownButAtLeastOne`**: Out of 22, `bubbles(0)` equals 0 at frame 0, 1 at frame 1, 5 at frame 11 and 9 at frame 21, which is not yet ready.
 - **`onlyAReadyUltimateFillsTheRowEvenOverItsLastFrame`**: After a ready bar that also has frame 21, `bubbles(0)` equals `BUBBLES`.
 - **`aChargeWithNoMaximumDrawsNoBubbles`**: After 0/0, Wynntils' empty `UltimateInfo`, `bubbles(0)` equals `NO_ROW`.
-- **`aChargeThatCannotBeReadEmptiesARowThatWasReady`**: After a ready bar then a 0/0 charge, what `RetroHud` passes when it cannot read one, `bubbles(0)` equals `NO_ROW`, not ten through a recharge.
+- **`aChargeThatCannotBeReadEmptiesARowThatWasReady`**: After a ready bar then a 0/0 charge, what `RetroActionBar` passes when it cannot read one, `bubbles(0)` equals `NO_ROW`, not ten through a recharge.
 - **`theLevelTakesTheBubblesAwayAndOtherFramesHoldThem`**: From frame 11.
   - After a bar with neither charge nor level, `bubbles(0)` equals 5.
   - After a bar with the level, it equals `NO_ROW`.
@@ -5044,25 +5068,9 @@ Test: [`RetroHudReadingsTest.java`](../src/test/java/org/wynnvets/retro/render/R
 
 Test: [`RetroHudTest.java`](../src/test/java/org/wynnvets/retro/render/RetroHudTest.java) · Subject: [`RetroHud`](../src/client/java/org/wynnvets/retro/render/RetroHud.java)
 
-`RetroHud` draws vanilla's hearts, food, armour, air, experience bar and level number from Wynntils' health, mana and combat experience and from the action bar while the retro pack is live on Wynncraft. The suite pins its maths on plain numbers, through the package-private `halves(current, max)` (the halves of a row of ten hearts or shanks a value fills, out of `HALVES`, 20), `fill(icon, halves)` (whether one icon is `Fill.EMPTY`, `HALF` or `FULL`) and `progressWidth(current, max)` (the experience bar's fill in pixels), `findLevel(actionBar, inLevelFont)` (where Wynncraft's level is in the action bar's text, for `RetroLevelSegmentMatcher`), and `findNumber(actionBar, inFont, health)` and `numberGlyphs(segmentText)` (where a health or mana number is, for `RetroNumberSegmentMatcher`, and its glyphs); the matchers are not tested as they need Wynntils. Drawing, the action bar and the mode need a running client and Wynntils' models, and are not tested; the class's static fields are sprite `Identifier`s, patterns, plain holders (`RetroHeartFlash`, `RetroHudReadings`) and guards, so loading it builds no Wynntils object.
+`RetroHud` draws vanilla's hearts, food, armour, air, experience bar and level number from Wynntils' health, mana and combat experience and from the action bar while the retro pack is live on Wynncraft. The suite pins its maths on plain numbers, through the package-private `halves(current, max)` (the halves of a row of ten hearts or shanks a value fills, out of `HALVES`, 20), `fill(icon, halves)` (whether one icon is `Fill.EMPTY`, `HALF` or `FULL`) and `progressWidth(current, max)` (the experience bar's fill in pixels). Drawing, `RetroActionBar`, the segment matchers and the mode need a running client and Wynntils' models, and are not tested; the class's static fields are sprite `Identifier`s, plain holders (`RetroHeartFlash`, `RetroHudReadings`) and a guard, so loading it builds no Wynntils object.
 
 - **`onlyABarFromSinceTheLastWorldCounts`**: `isCurrentBar(bar, stale)` is false for no bar and for the bar a disconnect left behind, and true for a new bar, with or without one left behind.
-- **`eachNumberIsFoundInItsOwnSpacers`**: Health's number, a character, then mana's.
-  - `findNumber(bar, all, true).group()` equals health's number.
-  - `findNumber(bar, all, false)`: `group()` equals mana's number, `start()` is health's length plus 1, and `end()` the bar's length.
-- **`mountEnergyBeforeTheManaNumberIsPassedOver`**: The energy glyph Wynntils' mana matcher gives up on, right before the number. `group()` equals mana's number.
-- **`aDecimalNumberIsFoundThoughWynntilsCannotParseIt`**: A value with a decimal point and a `k`. `group()` equals the whole run.
-- **`nothingElseIsTakenForANumber`**: `findNumber` is empty for the energy glyph alone (no slash), for mana's number sought as health's and health's as mana's, for one in no index of the font, for glyphs with no spacers, and for an empty string.
-- **`aNumbersGlyphsLoseOnlyTheOuterSpacers`**: `numberGlyphs(mana's number)` equals its glyphs with the spacers between them.
-- **`theLevelIsFoundInItsSpacers`**: Level 120 with a character on either side.
-  - `group()` equals the level with its spacers; `start()` is 1 and `end()` is 1 plus its length.
-- **`highMountEnergyBeforeTheLevelIsPassedOver`**: The energy glyph at the digit 0's code point, in its own spacers, right before the level.
-  - `group()` equals the level, and `start()` the energy glyph's length.
-- **`aRunInAnotherFontBeforeTheLevelIsPassedOver`**: A run in spacers just like the level's, right before it, with only the level's indices in the level's font.
-  - `group()` equals the level, and `start()` the other run's length.
-- **`theSpacerClosingARunInAnotherFontMayOpenTheLevel`**: Two digits sharing the one spacer between them, the first out of the level's font.
-  - `group()` equals the second digit with the shared spacer and the closing one.
-- **`nothingElseIsTakenForTheLevel`**: `findLevel` is empty for the energy glyph alone, for digits with no spacers, for an empty string, for the level with no index in the level's font, and for a separator followed by a digit, where taking the separator for the closing spacer would leave a digit behind.
 - **`aFullValueFillsTheRowAndNothingLeftFillsNone`**:
   - `halves(100, 100)` and `halves(150, 100)` equal `HALVES`: at or above the maximum.
   - `halves(0, 100)`, `halves(-5, 100)` and `halves(5, 0)` equal 0: nothing left, or no maximum.

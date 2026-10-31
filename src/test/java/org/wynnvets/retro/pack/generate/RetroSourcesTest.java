@@ -16,8 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.wynnvets.retro.manifest.RetroSource;
 import org.wynnvets.retro.pack.MemoryPack;
 
-/** Tests for {@link ProgrammerArtSources}, over packs held in memory. */
-class ProgrammerArtSourcesTest {
+/** Tests for {@link RetroSources}, over packs held in memory. */
+class RetroSourcesTest {
 
     /** A pack in the client's list, which only ever needs opening here. */
     private static final class ListedPack extends Pack {
@@ -42,8 +42,7 @@ class ProgrammerArtSourcesTest {
         MemoryPack vanilla = new MemoryPack("vanilla").texture("minecraft:block/a", PNG);
         MemoryPack art = new MemoryPack("art").texture("minecraft:block/b", PNG);
 
-        try (ProgrammerArtSources sources =
-                ProgrammerArtSources.open(new ListedPack(art), null, vanilla)) {
+        try (RetroSources sources = RetroSources.open(new ListedPack(art), null, vanilla)) {
             assertEquals(
                     List.of(RetroSource.PROGRAMMER_ART, RetroSource.VANILLA), sources.present());
             assertTrue(sources.has(RetroSource.VANILLA, "minecraft:block/a"));
@@ -61,7 +60,7 @@ class ProgrammerArtSourcesTest {
         MemoryPack art = new MemoryPack("art");
         MemoryPack tweaks = new MemoryPack("tweaks");
 
-        ProgrammerArtSources.open(new ListedPack(art), tweaks, vanilla).close();
+        RetroSources.open(new ListedPack(art), tweaks, vanilla).close();
 
         assertTrue(art.closed());
         assertTrue(tweaks.closed());
@@ -73,7 +72,7 @@ class ProgrammerArtSourcesTest {
         MemoryPack vanilla = new MemoryPack("vanilla");
         MemoryPack tweaks = new MemoryPack("tweaks").texture("minecraft:block/c", PNG);
 
-        try (ProgrammerArtSources sources = ProgrammerArtSources.open(null, tweaks, vanilla)) {
+        try (RetroSources sources = RetroSources.open(null, tweaks, vanilla)) {
             assertEquals(
                     List.of(RetroSource.VANILLA_TWEAKS, RetroSource.VANILLA), sources.present());
             assertTrue(sources.has(RetroSource.VANILLA_TWEAKS, "minecraft:block/c"));
@@ -91,14 +90,14 @@ class ProgrammerArtSourcesTest {
 
         assertEquals(
                 List.of(RetroSource.VANILLA),
-                ProgrammerArtSources.open(null, null, vanilla).present(),
+                RetroSources.open(null, null, vanilla).present(),
                 "not in the client's list");
         assertEquals(
                 List.of(RetroSource.VANILLA),
-                ProgrammerArtSources.open(new ListedPack(null), null, vanilla).present(),
+                RetroSources.open(new ListedPack(null), null, vanilla).present(),
                 "cannot be opened");
         assertNull(
-                ProgrammerArtSources.open(null, null, vanilla)
+                RetroSources.open(null, null, vanilla)
                         .read(
                                 RetroSource.PROGRAMMER_ART,
                                 Identifier.parse("minecraft:textures/a.png")),

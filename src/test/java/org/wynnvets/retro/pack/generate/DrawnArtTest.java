@@ -64,7 +64,7 @@ class DrawnArtTest {
                 manifest,
                 List.of(vanilla, wynncraft),
                 1,
-                ProgrammerArtSources.open(null, null, vanilla),
+                RetroSources.open(null, null, vanilla),
                 new PackOutput(),
                 on);
     }

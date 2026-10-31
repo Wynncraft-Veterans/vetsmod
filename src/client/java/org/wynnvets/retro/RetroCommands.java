@@ -42,7 +42,7 @@ public final class RetroCommands {
 
     private static final String PART_ARGUMENT = "part";
 
-    /** The README's credits section, which {@code on}'s credits open and which names credits.txt. */
+    /** The README's credits section, which {@code on}'s credits open; it names credits.txt. */
     private static final URI CREDITS_PAGE =
             URI.create("https://github.com/Wynncraft-Veterans/vetsmod#credits");
 
@@ -119,20 +119,14 @@ public final class RetroCommands {
     static Component toggleLine(boolean enabled, RetroModeManager.Outcome outcome) {
         Component line = outcomeLine(enabled, outcome);
         if (!enabled || outcome == RetroModeManager.Outcome.LATCHED) return line;
-        return Component.empty()
-                .append(line)
-                .append(
-                        line(ChatFormatting.GRAY, " (Hover for credits)")
-                                .withStyle(
-                                        style ->
-                                                style.withHoverEvent(
-                                                                new HoverEvent.ShowText(
-                                                                        line(
-                                                                                ChatFormatting.GRAY,
-                                                                                CREDITS_HOVER)))
-                                                        .withClickEvent(
-                                                                new ClickEvent.OpenUrl(
-                                                                        CREDITS_PAGE))));
+        return Component.empty().append(line).append(creditsNote());
+    }
+
+    private static Component creditsNote() {
+        HoverEvent hover = new HoverEvent.ShowText(line(ChatFormatting.GRAY, CREDITS_HOVER));
+        ClickEvent click = new ClickEvent.OpenUrl(CREDITS_PAGE);
+        return line(ChatFormatting.GRAY, " (Hover for credits)")
+                .withStyle(style -> style.withHoverEvent(hover).withClickEvent(click));
     }
 
     private static Component outcomeLine(boolean enabled, RetroModeManager.Outcome outcome) {

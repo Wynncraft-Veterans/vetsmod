@@ -37,19 +37,18 @@
 #    not apply.
 # 5. Otherwise Wynncraft's texture stays. One it ships fully transparent counts as a
 #    deliberate blank, not a gap; a blank that should be restored needs a rule above.
-# Then layer_groups can undo the copies and tints of a group (see there), and image_edits
-# paints over a copy or tint. item_models, recipes, materials, content_book_activities, potions,
-# equipment, wynncraft_copies, source_copies, wynntils_textures, blank_textures, lang,
-# outlined_icons, accessory_tiers and block_models write files of their own and change no texture
-# decision above. recipes, materials and content_book_activities write rows of item_models and
-# source_copies more briefly.
-# The sections from container_titles on write no files: the game reads them while it draws (see
-# "Screens and settings" below). The one exception, gear_box_icons, also has the pack copy
-# vanilla's item definition of each item it names.
+# Then layer_groups can undo the copies and tints of a group (see there), and image_edits paints
+# over a copy or tint. The rest of the file changes no texture decision above:
+# - Models and Extra files write files of their own. recipes, materials and
+#   content_book_activities write rows of item_models and source_copies more briefly.
+# - Stacks say what a single stack draws while the game draws it. outlined_icons and accessory_tiers
+#   write the art for that, and gear_box_icons has the pack copy vanilla's item definition of each
+#   item it names.
+# - Screens and settings write no files: the game reads them while it draws.
 # parts, first of all, decides none of this: it says which part of retro each id belongs to, so
 # that a player can turn that part off and leave what it owns as Wynncraft's.
 
-# ---- Parts ---------------------------------------------------------------------------------
+# ---- Parts ----------------------------------------------------------------------------------
 
 # Part -> what it covers. Every part is on until the player turns it off (/wv retro parts, /wv retro
 # only); a part off looks as if retro were not installed, but for art an on part draws too. The name
@@ -115,9 +114,10 @@ parts:
   tooltips:
     about: 'Tooltip frames'
     textures: ['minecraft:gui/sprites/tooltip/.*']
-  # With lang, the titles and backgrounds, the inventory label, slot values, the Ability Tree button's
-  # glint, and the inert slots image_edits leaves. Under gui/, highlights has the tier layer and items
-  # the content book, which a row of item_models draws as one item in the hotbar and the inventory.
+  # With lang, the titles and backgrounds, the inventory label, slot values, the Ability Tree
+  # button's glint, and the inert slots image_edits leaves. Under gui/, highlights has the tier
+  # layer and items the content book, which a row of item_models draws as one item in the hotbar and
+  # the inventory.
   screens:
     about: "Container art, titles, buttons and menu names, and Wynntils' panels"
     textures:
@@ -128,8 +128,8 @@ parts:
       - 'wynntils:.*'
     models: ['minecraft:item/wynn/gui/(?!layer/tier/|player/).*']
     wynntils: ['WynntilsContentBook']
-  # slot_fills: the glass, the accessory edges and the mouse rule for an empty glass slot. It works on
-  # the inventory without screens; a container gets no retro title without screens, so no fills.
+  # slot_fills: the glass, the accessory edges and the mouse rule for an empty glass slot. It works
+  # on the inventory without screens; a container gets no retro title without screens, so no fills.
   glass:
     about: 'Glass on the slots that are not yours to fill'
   # With LegacyHighlightPainter's retro circle.
@@ -157,12 +157,16 @@ parts:
     models: ['minecraft:item/wynn/.*']
     textures: ['minecraft:item/.*']
 
-# ---- Sources -------------------------------------------------------------------------------
+# ==== Textures ===============================================================================
+
+# What decides each texture, by the order at the top of this file, and what is read for it.
+
+# ---- Sources --------------------------------------------------------------------------------
 
 # Texture pattern -> the packs that texture is read from, most preferred first. The first row
 # matching the texture that is read decides (for an alias, that is its target), and the first
 # listed pack that has the texture supplies it, with the .mcmeta beside it. The packs:
-# - vanilla_tweaks: the Vanilla Tweaks art the jar bundles (credits.txt), under retro/vanilla_tweaks.
+# - vanilla_tweaks: the Vanilla Tweaks art the jar bundles (credits.txt), in retro/vanilla_tweaks.
 # - programmer_art: the Programmer Art pack built into the running client.
 # - vanilla: the running client's own textures.
 sources:
@@ -176,7 +180,7 @@ sources:
   'minecraft:gui/.*': [vanilla]
   '.*': [vanilla_tweaks, programmer_art, vanilla]
 
-# ---- Keep Wynncraft's ----------------------------------------------------------------------
+# ---- Keep Wynncraft's -----------------------------------------------------------------------
 
 # Texture pattern: textures Wynncraft blanks or repurposes on purpose. Its texture stays, even
 # where a rule below would replace it.
@@ -207,13 +211,13 @@ keep_wynncraft:
   # (its blanks and coloured glyphs among them), so retro leaves every particle alone.
   - 'minecraft:particle/.*'
 
-# ---- Tints ---------------------------------------------------------------------------------
+# ---- Tints ----------------------------------------------------------------------------------
 
 # Texture pattern -> a texture of a source with each of its red, green and blue multiplied by
 # a factor, then its contrast changed, written in the texture's place with the .mcmeta beside
 # the source. This draws the blocks Wynncraft adds with no vanilla equivalent ("dark" stone,
-# molten rock) in 2013 art, brings a 2013 texture nearer the colour Wynncraft gives its block, and calms a 2013 texture too busy
-# beside the rest. A row has a tint, a contrast or both.
+# molten rock) in 2013 art, brings a 2013 texture nearer the colour Wynncraft gives its block, and
+# calms a 2013 texture too busy beside the rest. A row has a tint, a contrast or both.
 # - source (optional): the texture tinted, read from its sources as a copy would be; the
 #   texture's own id without one.
 # - tint (optional): how each channel's factor is found; without one the source keeps its
@@ -274,12 +278,9 @@ tints:
     source: 'minecraft:block/magma'
     tint: auto
   # Furnaces, dispensers and droppers: the 2013 faces are far busier than the 2013 stone bricks.
-  # The plain faces (the furnace's side and top) take the bricks' colour at under half their
-  # contrast. A dispenser's or dropper's front is the face beside it with a mouth cut in (the
-  # side's art for a front facing sideways, the top's for one facing up or down), so it takes that
-  # face's change exactly, its stone blends into the block and the mouth stays darker. The
-  # furnace's fronts are the same art beside the same side, so they take its change too. The 2013
-  # lit furnace is a still image (Wynncraft's is animated), so it has no .mcmeta to take along.
+  # The plain faces take the bricks' colour at under half their contrast. Each front is the face
+  # beside it with a mouth cut in, so it takes that face's change exactly: its stone blends in and
+  # the mouth stays darker. The 2013 lit furnace is a still image, with no .mcmeta to take along.
   'minecraft:block/furnace_(side|top)':
     tint: {match: 'minecraft:block/stone_bricks'}
     contrast: 0.45
@@ -290,7 +291,7 @@ tints:
   'minecraft:block/furnace_front(_on)?':
     tint: {like: 'minecraft:block/furnace_side'}
 
-# ---- Aliases -------------------------------------------------------------------------------
+# ---- Aliases --------------------------------------------------------------------------------
 
 # Texture pattern -> the texture copied in its place. Wynncraft's own variants of vanilla
 # blocks (block/variants/*, which its blockstates pick at random) get the vanilla block's
@@ -310,14 +311,6 @@ aliases:
   'minecraft:block/variants/grass_top_\d+': 'minecraft:block/grass_block_top'
   'minecraft:block/variants/sunflower_(front|back)': 'minecraft:block/sunflower_$1'
   'minecraft:block/variants/sunflower_bottom_\d+': 'minecraft:block/sunflower_bottom'
-  # Every tooltip style Wynncraft adds (normal, unique, ..., mythic_shiny) gets the vanilla
-  # frame and background, with the .mcmeta that makes them nine-slice sprites. The gold LEGACY
-  # border keeps Wynncraft's unique style through a copy (wynncraft_copies).
-  'minecraft:gui/sprites/tooltip/\w+_(background|frame)': 'minecraft:gui/sprites/tooltip/$1'
-  # An empty armour slot holds a placeholder item of Wynncraft's, drawn with its orange
-  # silhouette of the piece: vanilla's grey one instead. The accessory placeholders have no vanilla
-  # silhouette, so item_models draws vetsmod's own, in the same style.
-  'minecraft:wynn/gui/slot/(helmet|chestplate|leggings|boots)': 'minecraft:gui/sprites/container/slot/$1'
   # The ends of Wynncraft's dirt columns; vanilla dirt is dirt all round.
   'minecraft:block/variants/dirt_top(_\d+)?': 'minecraft:block/dirt'
   # Vanilla's pumpkin uses its top texture for the bottom too.
@@ -326,14 +319,21 @@ aliases:
   'minecraft:block/variants/oak_(fence|planks_flat)': 'minecraft:block/oak_planks'
   # The edges of iron bars, which vanilla cuts from the bars texture itself.
   'minecraft:block/variants/iron_bars_top': 'minecraft:block/iron_bars'
-  # The six-sided piston (2013's block 33:6): the piston's plank face on all six sides, for every
-  # face any piston draws. Wynncraft's pistons are crates: vanilla's piston blockstate, which it
-  # leaves alone, with vanilla's piston textures repainted, and its own sticky_piston blockstate,
-  # whose variants/sticky_piston and variants/sticky_piston_base models draw the variants/ ones.
+  # The six-sided piston (2013's block 33:6): the plank face on every face any piston draws.
+  # Wynncraft's pistons are crates: vanilla's blockstate on its repainted textures, and its own
+  # sticky_piston blockstate on the variants/ ones.
   'minecraft:block/piston_(bottom|inner|side|top_sticky)': 'minecraft:block/piston_top'
   'minecraft:block/variants/piston_(bottom|inner|side_sticky|top_sticky)': 'minecraft:block/piston_top'
+  # Every tooltip style Wynncraft adds (normal, unique, ..., mythic_shiny) gets the vanilla
+  # frame and background, with the .mcmeta that makes them nine-slice sprites. The gold LEGACY
+  # border keeps Wynncraft's unique style through a copy (wynncraft_copies).
+  'minecraft:gui/sprites/tooltip/\w+_(background|frame)': 'minecraft:gui/sprites/tooltip/$1'
+  # An empty armour slot holds a placeholder item of Wynncraft's, drawn with its orange
+  # silhouette of the piece: vanilla's grey one instead. The accessory placeholders have no vanilla
+  # silhouette, so item_models draws vetsmod's own, in the same style.
+  'minecraft:wynn/gui/slot/(helmet|chestplate|leggings|boots)': 'minecraft:gui/sprites/container/slot/$1'
 
-# ---- Same name -----------------------------------------------------------------------------
+# ---- Same name ------------------------------------------------------------------------------
 
 # Texture pattern: a texture it matches is replaced by the texture of the same id. Most of
 # Wynncraft's own textures have no such source and fall through. Wynncraft's other GUI sprites
@@ -369,7 +369,7 @@ same_name:
   - 'minecraft:gui/sprites/hud/jump_bar_(background|cooldown|progress)'
   - 'minecraft:gui/sprites/hud/hotbar(_selection|_offhand_left|_offhand_right)?'
 
-# ---- Layer groups --------------------------------------------------------------------------
+# ---- Layer groups ---------------------------------------------------------------------------
 
 # Texture pattern: the textures one pattern matches are drawn in layers on one model, so they
 # must come from one source. Unless every member Wynncraft ships is copied or tinted in, all
@@ -384,7 +384,34 @@ layer_groups:
   - 'minecraft:entity/(llama/(white|creamy|brown|gray)|equipment/llama_body/\w+)'   # body and decor
   - 'minecraft:entity/sheep/.*'                       # body, wool and undercoat
 
-# ---- Item models ---------------------------------------------------------------------------
+# ---- Image edits ----------------------------------------------------------------------------
+
+# Texture id (not a pattern) -> fills painted on its copy, in order. The texture must be one
+# a rule above copies or tints in; its copy then always ships, even when Wynncraft does not
+# repaint it.
+# - fill: the rectangle painted.
+# - sample: [x, y] of the pixel whose colour it is painted.
+# - palette: the only colours the rectangle may hold. A rectangle holding any other, or a
+#   translucent pixel, is left alone and the report lists it: the texture's layout has
+#   changed, and the rectangle needs checking.
+image_edits:
+  # The inventory has no crafting grid, arrow, result slot or offhand slot (Wynncraft uses
+  # none); they become the panel grey sampled beside the grid, and an inventory slot a fill
+  # painted over takes no mouse. Wynncraft blanks the "Crafting" label itself (lang never
+  # restores it).
+  'minecraft:gui/container/inventory':
+    - fill: [97, 17, 74, 36]    # the 2x2 grid, the arrow and the result slot
+      sample: [172, 17]
+      palette: ['#C6C6C6', '#8B8B8B', '#373737', '#FFFFFF']
+    - fill: [76, 61, 18, 18]    # the offhand slot
+      sample: [172, 17]
+      palette: ['#C6C6C6', '#8B8B8B', '#373737', '#FFFFFF']
+
+# ==== Models =================================================================================
+
+# Item and block models, and the tables that write their rows.
+
+# ---- Item models ----------------------------------------------------------------------------
 
 # Model pattern -> what the retro pack's small stub for that model draws. materials and
 # content_book_activities make rows of this section too, tried before these. A row is one of:
@@ -407,6 +434,7 @@ layer_groups:
 # (white in the dumps, coloured for weapons), whose models take the potion's colour; a texture
 # row draws on a parent no tint reaches, whatever the stack's colour.
 item_models:
+  # -- Gear
   # Weapons: one vanilla item per class, for the plain models and every skin.
   'minecraft:item/wynn/(weapon/\w+/spear_|skin/spear/)\w+': {texture: 'minecraft:item/iron_shovel', parent: handheld}
   'minecraft:item/wynn/(weapon/\w+/wand_|skin/wand/)\w+': {texture: 'minecraft:item/stick', parent: handheld}
@@ -429,9 +457,20 @@ item_models:
   'minecraft:item/wynn/tool/\w+_pickaxe': {texture: 'minecraft:item/iron_pickaxe', parent: handheld}
   'minecraft:item/wynn/tool/\w+_rod': {texture: 'minecraft:item/fishing_rod', parent: handheld_rod}
   'minecraft:item/wynn/tool/\w+_scythe': {texture: 'minecraft:item/iron_hoe', parent: handheld}
+  # Unidentified gear boxes, in the GUI (gui/loot/) and held or dropped (loot/): a 3D chest
+  # of vetsmod's, drawn from the chest's copy (source_copies). The GUI draws the box's gear
+  # type over it (gear_box_icons).
+  'minecraft:item/wynn/(gui/)?loot/(unique|rare|legendary|fabled|mythic|set)': {model: 'vetsmod:item/retro/chest'}
+  # Mastery tomes: the enchanted book, whatever their type; the type is drawn over it in the GUI
+  # (gear_box_icons).
+  'minecraft:item/wynn/mastery_tome/\w+': 'minecraft:item/enchanted_book'
+
+  # -- Other items
   # Keys: the dungeon keys and the corrupted dungeons' broken keys, the tripwire hook. Its own
   # texture is kept (keep_wynncraft), so the stub draws the 2013 hook's copy (source_copies).
   'minecraft:item/wynn/dungeon/key(_broken)?': 'vetsmod:block/retro/tripwire_hook'
+  # Hashr's Crown, the Sand-Swept Tomb's token, corrupted or not.
+  'minecraft:item/wynn/dungeon/token/sand_swept_tomb': 'minecraft:item/golden_helmet'
   # Maps: the teleportation scrolls.
   'minecraft:item/wynn/scroll/\w+': 'minecraft:item/map'
   # Paper: the woodcutting papers and scrolls (crafting paper, crafted scrolls such as a Raid
@@ -455,10 +494,6 @@ item_models:
   'minecraft:item/wynn/mount/horse_whistle': {model: 'vetsmod:item/retro/leather_horse_armor'}
   'minecraft:item/wynn/mount/wyvern_whistle': 'minecraft:item/iron_horse_armor'
   'minecraft:item/wynn/mount/raptor_whistle': 'minecraft:item/copper_horse_armor'
-  # Unidentified gear boxes, in the GUI (gui/loot/) and held or dropped (loot/): a 3D chest
-  # of vetsmod's, drawn from the chest's copy (source_copies). The GUI draws the box's gear
-  # type over it (gear_box_icons).
-  'minecraft:item/wynn/(gui/)?loot/(unique|rare|legendary|fabled|mythic|set)': {model: 'vetsmod:item/retro/chest'}
   # The ingredient pouch, empty, half full or full, and the crafter bags: the bundle, which 2013
   # lacked (vanilla's).
   'minecraft:item/wynn/pouch/(ingredient_(empty|half|full)|crafter_(varied|packed|stuffed))': 'minecraft:item/bundle'
@@ -471,24 +506,8 @@ item_models:
   'minecraft:item/wynn/rune/uth': {model: 'minecraft:item/music_disc_mall'}
   # Wards: the stained glass block of their colour, as vanilla's own block item.
   'minecraft:item/wynn/ward/(black|blue|cyan|green|orange|pink|purple|red|white|yellow)': {model: 'minecraft:block/$1_stained_glass'}
-  # Wynncraft's own tier layer, under the runes and wards in a slot: Wynntils hides this layer
-  # from gear, ingredients, materials and store items and draws its own highlight, but its list
-  # leaves these two out. They get the look of retro's tag highlight, in Wynncraft's colour.
-  'minecraft:item/wynn/gui/layer/tier/(tab|full)': {model: 'vetsmod:item/retro/tier_tag'}
-  # The content book, in the hotbar and on the inventory's own button.
-  'minecraft:item/wynn/(gui/)?player/content_book': 'minecraft:item/knowledge_book'
-  # The ability shard: a lingering potion, its liquid the colour of the shard's name.
-  'minecraft:item/wynn/player/ability_shard': {model: 'vetsmod:item/retro/ability_shard'}
-  # Corkian augments.
-  'minecraft:item/wynn/augment/corkian_amplifier': 'minecraft:item/shulker_shell'
-  'minecraft:item/wynn/augment/corkian_simulator': 'minecraft:item/ender_eye'
-  'minecraft:item/wynn/augment/corkian_insulator': 'minecraft:item/spectral_arrow'
-  # Hashr's Crown, the Sand-Swept Tomb's token, corrupted or not.
-  'minecraft:item/wynn/dungeon/token/sand_swept_tomb': 'minecraft:item/golden_helmet'
   # Powders: 2013's dyes, the dye Wynncraft's own item definitions (items/<colour>_dye.json) send
-  # to each powder. Each size of an element has its own: small and large are told apart by the
-  # dye, as Wynncraft's definitions tell them. Air gray and light gray, earth lime and green,
-  # thunder yellow and orange, water light blue and cyan, fire pink and red.
+  # to each powder, which tell an element's small and large apart as they do there.
   'minecraft:item/wynn/powder/small_air': 'minecraft:item/gray_dye'
   'minecraft:item/wynn/powder/large_air': 'minecraft:item/light_gray_dye'
   'minecraft:item/wynn/powder/small_earth': 'minecraft:item/lime_dye'
@@ -499,6 +518,12 @@ item_models:
   'minecraft:item/wynn/powder/large_water': 'minecraft:item/cyan_dye'
   'minecraft:item/wynn/powder/small_fire': 'minecraft:item/pink_dye'
   'minecraft:item/wynn/powder/large_fire': 'minecraft:item/red_dye'
+  # Corkian augments.
+  'minecraft:item/wynn/augment/corkian_amplifier': 'minecraft:item/shulker_shell'
+  'minecraft:item/wynn/augment/corkian_simulator': 'minecraft:item/ender_eye'
+  'minecraft:item/wynn/augment/corkian_insulator': 'minecraft:item/spectral_arrow'
+  # The ability shard: a lingering potion, its liquid the colour of the shard's name.
+  'minecraft:item/wynn/player/ability_shard': {model: 'vetsmod:item/retro/ability_shard'}
   # Plants whose art is grey: Minecraft colours it through the vanilla item's definition or the
   # world's biome, and these Wynncraft items are potions, whose white tint leaves it grey. They
   # draw green copies (source_copies) instead. A new item on these textures needs adding here.
@@ -509,6 +534,18 @@ item_models:
   'minecraft:item/wynn/ingredient/(?:gert_skin|green_fin|green_foot|green_scale|sludge_parasite)': 'vetsmod:block/retro/green/lily_pad'
   # A grass block, whose top and side overlay are the grey ones.
   'minecraft:item/wynn/outer_void/drop/arable_chunk': {model: 'vetsmod:item/retro/arable_chunk'}
+
+  # -- Interface
+  # Wynncraft's own tier layer, under the runes and wards in a slot: Wynntils hides this layer
+  # from gear, ingredients, materials and store items and draws its own highlight, but its list
+  # leaves these two out. They get the look of retro's tag highlight, in Wynncraft's colour.
+  'minecraft:item/wynn/gui/layer/tier/(tab|full)': {model: 'vetsmod:item/retro/tier_tag'}
+  # The content book, in the hotbar and on the inventory's own button.
+  'minecraft:item/wynn/(gui/)?player/content_book': 'minecraft:item/knowledge_book'
+  # The content book's buttons outside its activities (content_book_activities).
+  'minecraft:item/wynn/gui/content_book/world_event_complete': 'minecraft:item/green_dye'
+  'minecraft:item/wynn/gui/content_book/complete': 'minecraft:item/bone_meal'
+  'minecraft:item/wynn/gui/content_book/locked': 'minecraft:item/gray_dye'
   # An empty accessory slot's placeholder: the outline of its type's art (accessory_tiers), in the
   # style of vanilla's empty armour slots, in place of Wynncraft's orange one.
   'minecraft:item/wynn/gui/slot/(ring|bracelet|necklace)': {model: 'vetsmod:item/retro/accessory/$1_empty'}
@@ -524,15 +561,8 @@ item_models:
   # which every structure_void stack draws, in the two beside it. Blank, so each slot still shows
   # whose side is whose in its tooltip.
   'minecraft:item/wynn/gui/(trade_icon|column)': {model: 'vetsmod:item/retro/blank'}
-  # The content book's buttons outside its activities (content_book_activities).
-  'minecraft:item/wynn/gui/content_book/world_event_complete': 'minecraft:item/green_dye'
-  'minecraft:item/wynn/gui/content_book/complete': 'minecraft:item/bone_meal'
-  'minecraft:item/wynn/gui/content_book/locked': 'minecraft:item/gray_dye'
-  # Mastery tomes: the enchanted book, whatever their type; the type is drawn over it in the GUI
-  # (gear_box_icons).
-  'minecraft:item/wynn/mastery_tome/\w+': 'minecraft:item/enchanted_book'
 
-# ---- Recipes -------------------------------------------------------------------------------
+# ---- Recipes --------------------------------------------------------------------------------
 
 # Recipe name -> a way one piece of art takes a colour. materials and source_copies then ask for
 # that art in a colour by the recipe's name, and code by Recipe.recolour(colour). A row has:
@@ -592,7 +622,7 @@ recipes:
   heart_full: {art: 'minecraft:gui/sprites/hud/heart/full', hue_of: '#FF1313'}
   heart_half: {art: 'minecraft:gui/sprites/hud/heart/half', hue_of: '#FF1313'}
 
-# ---- Materials -----------------------------------------------------------------------------
+# ---- Materials ------------------------------------------------------------------------------
 
 # Family -> the profession materials of one kind, each a model drawn flat, which become rows of
 # item_models and source_copies, tried before their own. A family has:
@@ -708,7 +738,7 @@ materials:
             redwood: '#753630', willow: '#4B5C39', avo: '#C1AD50', pine: '#473928',
             maple: '#E2B2AC'}
 
-# ---- Content book activities ---------------------------------------------------------------
+# ---- Content book activities ----------------------------------------------------------------
 
 # The content book's activities, one art each near the colour Wynncraft gave it, which become rows
 # of item_models and source_copies, tried before their own. The table has:
@@ -739,16 +769,15 @@ content_book_activities:
     time_trial: 'minecraft:item/magenta_dye'
     mount_enclosure: 'minecraft:item/cocoa_beans'
 
-# ---- Potions -------------------------------------------------------------------------------
+# ---- Potions --------------------------------------------------------------------------------
 
 # Potion family -> the colour of its liquid, and the name of Avomod's model of it if it has one.
 # A row covers Wynncraft's item/wynn/potion/<family>_<empty|half|full>, and avomod2:item/<avomod>
-# when Avomod is installed. The retro pack overrides each with the vanilla potion: its liquid, the
-# potion_overlay recipe in that colour at vetsmod:item/retro/potion/<family>, under the bottle
-# (item/potion), on a parent no stack colour reaches. All three of a family are full of liquid in Wynncraft's own art ("empty" is not an
-# empty bottle: a Potion of Dexterity [1/2] draws dexterity_empty), so each is the full vanilla
-# potion. Avomod names its models itself, with its own spelling of defence. A family with no row
-# keeps its model.
+# when Avomod is installed (it spells defence its own way). The retro pack overrides each with the
+# vanilla potion: its liquid, the potion_overlay recipe in that colour at
+# vetsmod:item/retro/potion/<family>, under the bottle, on a parent no stack colour reaches. Each is
+# the full potion, as Wynncraft's art is: a Potion of Dexterity [1/2] draws dexterity_empty, which
+# is full of liquid. A family with no row keeps its model.
 # The colours: the skill point colours for the five skill potions, vanilla's effect colours
 # for healing (instant health), wisdom (luck) and drunkness (nausea), and a vanilla-like blue
 # for mana. A new family:
@@ -764,17 +793,13 @@ potions:
   wisdom: {colour: '#59C106'}
   drunkness: {colour: '#551D4A'}
 
-# ---- Equipment -----------------------------------------------------------------------------
+# ---- Equipment ------------------------------------------------------------------------------
 
-# Equipment asset pattern -> the vanilla asset whose file replaces Wynncraft's, or keep. An
-# equipment asset (equipment/<name>.json) says how worn armour is drawn: which textures under
-# entity/equipment/ each layer takes, and whether the stack's dye tints them. Wynncraft's make
-# every layer dyeable and give its own materials textures of their own, so a texture rule
-# alone cannot draw them as vanilla's; vanilla's file, copied as it is, draws vanilla's layers
-# (which same_name gives their 2013 art) with vanilla's dyeing. Worn armour shows on armour
-# stands and other mobs; a player's own armour is drawn through minecraft:hidden. A Wynncraft
-# asset with no row keeps its own file, as with keep; each material of Wynncraft's own stays
-# so until someone works out its 2013 look.
+# Equipment asset pattern -> the vanilla asset whose file replaces Wynncraft's, or keep. Wynncraft's
+# assets make every layer dyeable and give its own materials textures of their own, so a texture
+# rule alone cannot draw them as vanilla's; vanilla's file draws vanilla's layers, which same_name
+# gives their 2013 art. An asset with no row keeps its own file, as with keep; each material of
+# Wynncraft's own stays so until someone works out its 2013 look.
 equipment:
   'minecraft:hidden': keep                            # the player's own armour: drawn invisible
   'minecraft:(pale_)?leather': 'minecraft:leather'
@@ -790,30 +815,23 @@ equipment:
   'minecraft:phantom': keep
   'minecraft:wings': keep
 
-# ---- Image edits ---------------------------------------------------------------------------
+# ---- Block models ---------------------------------------------------------------------------
 
-# Texture id (not a pattern) -> fills painted on its copy, in order. The texture must be one
-# a rule above copies or tints in; its copy then always ships, even when Wynncraft does not
-# repaint it.
-# - fill: the rectangle painted.
-# - sample: [x, y] of the pixel whose colour it is painted.
-# - palette: the only colours the rectangle may hold. A rectangle holding any other, or a
-#   translucent pixel, is left alone and the report lists it: the texture's layout has
-#   changed, and the rectangle needs checking.
-image_edits:
-  # The inventory has no crafting grid, arrow, result slot or offhand slot (Wynncraft uses
-  # none); they become the panel grey sampled beside the grid, and an inventory slot a fill
-  # painted over takes no mouse. Wynncraft blanks the "Crafting" label itself (lang never
-  # restores it).
-  'minecraft:gui/container/inventory':
-    - fill: [97, 17, 74, 36]    # the 2x2 grid, the arrow and the result slot
-      sample: [172, 17]
-      palette: ['#C6C6C6', '#8B8B8B', '#373737', '#FFFFFF']
-    - fill: [76, 61, 18, 18]    # the offhand slot
-      sample: [172, 17]
-      palette: ['#C6C6C6', '#8B8B8B', '#373737', '#FFFFFF']
+# Block models Wynncraft remakes, drawn from another model instead: the block model to the model
+# it becomes. Wynncraft's redstone torches are its own candles, on a holder when they are on a
+# wall. Vanilla's candle has no wall form, so vetsmod's stands where a wall torch does.
+block_models:
+  'minecraft:block/redstone_torch': 'minecraft:block/candle_one_candle_lit'
+  'minecraft:block/redstone_torch_off': 'minecraft:block/candle_one_candle'
+  'minecraft:block/redstone_wall_torch': 'vetsmod:block/retro/wall_candle_lit'
+  'minecraft:block/redstone_wall_torch_off': 'vetsmod:block/retro/wall_candle'
 
-# ---- Copies of Wynncraft's textures --------------------------------------------------------
+# ==== Extra files ============================================================================
+
+# Files beside the textures and models above: copies at vetsmod's own ids, Wynntils' textures,
+# blanks and language.
+
+# ---- Copies of Wynncraft's textures ---------------------------------------------------------
 
 # vetsmod texture id -> the texture copied there, with its .mcmeta, as the packs below retro show
 # it (Wynncraft's, or the lower packs' when Wynncraft ships none), before the rules above replace
@@ -833,16 +851,14 @@ wynncraft_copies:
   'vetsmod:gui/container/wynncraft/hopper': 'minecraft:gui/container/hopper'
   'vetsmod:gui/container/wynncraft/horse': 'minecraft:gui/container/horse'
 
-# ---- Copies of the sources' textures -------------------------------------------------------
+# ---- Copies of the sources' textures --------------------------------------------------------
 
-# vetsmod texture id -> the texture copied there from its sources, as a copy is read (the
-# first pack of its sources row that has it), with the .mcmeta beside it: art a stub needs at
-# an id of its own, because a rule above keeps the original as Wynncraft's, or because it lives
-# in a folder no item atlas takes, and GUI sprites the HUD draws by id. The atlases stitch a copy
-# as they stitch any pack's texture (a block/ copy into the blocks atlas, an item/ copy into the
-# items atlas, a gui/sprites/ copy into the GUI's), and the copies are in vetsmod's namespace, so
-# they hide nothing. materials, content_book_activities and potions make rows of this section
-# too; a row here may not repeat one. A row is one of:
+# vetsmod texture id -> the texture copied there from its sources, as a copy is read, with the
+# .mcmeta beside it: art a stub needs at an id of its own, because a rule above keeps the original
+# as Wynncraft's or it lives in a folder no item atlas takes, and GUI sprites the HUD draws by id.
+# The atlases stitch a copy by its folder, and in vetsmod's namespace it hides nothing. materials,
+# content_book_activities and potions make rows of this section too; a row here may not repeat one.
+# A row is one of:
 # - a texture id: the file as it is.
 # - {<recipe>: '#RRGGBB'}: the recipe's art in that colour (recipes).
 source_copies:
@@ -881,7 +897,7 @@ source_copies:
   'vetsmod:gui/sprites/retro/heart/green_full': {heart_full: '#13D813'}
   'vetsmod:gui/sprites/retro/heart/green_half': {heart_half: '#13D813'}
 
-# ---- Wynntils textures ---------------------------------------------------------------------
+# ---- Wynntils textures ----------------------------------------------------------------------
 
 # wynntils texture id -> what is drawn in its place, at the size Wynntils' own texture has:
 # - blank: fully transparent.
@@ -903,20 +919,19 @@ wynntils_textures:
     - {source: 'minecraft:gui/sprites/widget/button', border: 3}
     - {source: 'minecraft:gui/sprites/widget/button_highlighted', border: 3}
 
-# ---- Blank textures ------------------------------------------------------------------------
+# ---- Blank textures -------------------------------------------------------------------------
 
 # Textures of Wynncraft's written fully transparent, at their own size: art it draws where vanilla's
 # goes, with no row of its own to take it out.
 blank_textures: []
 
-# ---- Language ------------------------------------------------------------------------------
+# ---- Language -------------------------------------------------------------------------------
 
 # locales: the language codes a file is written for. strings: translation key -> text, written
-# into each of them. Wynncraft blanks or renames
-# these in the five English locales it ships; the retro pack, above it, restores vanilla's.
-# container.inventory is blanked again on a container that keeps Wynncraft's label
-# (container_titles), whose art covers it. Never restore container.crafting: the inventory has
-# no crafting grid (image_edits).
+# into each of them. Wynncraft blanks or renames these in the five English locales it ships; the
+# retro pack, above it, restores vanilla's. container.inventory is blanked again on a container
+# that keeps Wynncraft's label (container_titles), whose art covers it. Never restore
+# container.crafting: the inventory has no crafting grid (image_edits).
 lang:
   locales: ['en_us', 'en_gb', 'en_ca', 'en_au', 'en_nz']
   strings:
@@ -924,7 +939,12 @@ lang:
     'menu.returnToGame': 'Back to Game'
     'menu.game': 'Game Menu'
 
-# ---- Outlined icons ------------------------------------------------------------------------
+# ==== Stacks =================================================================================
+
+# What a single stack draws, chosen while the game draws it, by its Wynntils type or its name,
+# and only while the retro pack is drawn.
+
+# ---- Outlined icons -------------------------------------------------------------------------
 
 # Overlays that need an outline of their own to read over what they are drawn on: Wynntils' gear or
 # tome type -> the texture of the icon. Each group sets:
@@ -955,20 +975,41 @@ outlined_icons:
       'MYSTICISM_TOME': 'minecraft:item/arrow'
       'LOOTRUN_TOME': 'minecraft:block/tripwire_hook'
 
-# ---- Accessory tiers -----------------------------------------------------------------------
+# ---- Gear box icons -------------------------------------------------------------------------
 
-# Rings, bracelets and necklaces show their level as armour shows it. art: Wynntils' gear type ->
-# Wynncraft's texture every accessory of that type is drawn from. tiers: lowest level first, each
-# up to but not including its below, the last with none. A tier's ramp is the colours the art's
-# brightness runs through, evenly from black to white; a pixel darker than outline_below_luma, a
-# brightness from 0 to 255, becomes the grey of its brightness, so the art's outline and first
-# shade are the near-black and dark grey the armour icons start from, in every tier. Each type and
-# tier becomes a texture, a model and an item definition at vetsmod:retro/accessory/<type>_<tier>,
-# which a stack Wynntils knows the level of is drawn with; a stack it does not know stays
-# Wynncraft's. Each type also becomes <type>_empty, the art's outline in the colour of
-# empty_outline, a dark grey that reads on the slot, for its empty slot (item_models), with the
-# pixels inside it darker than empty_lines_below_luma in that colour too: the bracelet's inner
-# circle, which its art only shades.
+# Wynntils gear type -> the vanilla item drawn over an unidentified gear box of that type, at
+# three quarters of the slot, centred, in the inventory, containers and the hotbar: every box is
+# one chest (item_models), so this tells them apart. The key is a name of Wynntils' GearType or
+# TomeType; a type with no row gets no icon. The item is drawn from vanilla's item definition,
+# which the pack copies under vetsmod's namespace, because Wynncraft's own definitions of some
+# vanilla items draw its own items instead.
+gear_box_icons:
+  # The weapons are outlined_icons'. The armour: the iron pieces.
+  'HELMET': 'minecraft:iron_helmet'
+  'CHESTPLATE': 'minecraft:iron_chestplate'
+  'LEGGINGS': 'minecraft:iron_leggings'
+  'BOOTS': 'minecraft:iron_boots'
+  # The accessories, which vanilla has no item for: a nugget for a ring, a lead looped as a
+  # necklace, and a clock, worn on the wrist, for a bracelet.
+  'RING': 'minecraft:gold_nugget'
+  'NECKLACE': 'minecraft:lead'
+  'BRACELET': 'minecraft:clock'
+  # A mastery tome's shield: the real item (outlined_icons has the others, which are flat).
+  'GUILD_TOME': 'minecraft:shield'
+
+# ---- Accessory tiers ------------------------------------------------------------------------
+
+# Rings, bracelets and necklaces show their level as armour shows it. Each type and tier becomes a
+# texture, a model and an item definition at vetsmod:retro/accessory/<type>_<tier>; a stack whose
+# level Wynntils does not know stays Wynncraft's.
+# - art: Wynntils' gear type -> Wynncraft's texture every accessory of that type is drawn from.
+# - tiers: lowest level first, each up to but not including its below, the last with none. A ramp
+#   is the colours the art's brightness runs through, evenly from black to white.
+# - outline_below_luma: a pixel darker than this (0 to 255) becomes the grey of its brightness, so
+#   the outline and first shade are the armour icons' near-black and dark grey in every tier.
+# - empty_outline: the colour of <type>_empty, the art's outline, for its empty slot (item_models).
+# - empty_lines_below_luma: pixels inside that outline darker than this take its colour too: the
+#   bracelet's inner circle, which its art only shades.
 accessory_tiers:
   outline_below_luma: 64
   empty_outline: '#373737'
@@ -985,37 +1026,37 @@ accessory_tiers:
     - {name: diamond, below: 100, ramp: ['#06302C', '#147A70', '#2CCDB1', '#6FF0DC', '#D8FFF8']}
     - {name: netherite, ramp: ['#0C0A0C', '#2C282C', '#463F46', '#625A62', '#8C828C']}
 
-# ---- Block models ---------------------------------------------------------------------------
+# ---- Stack models ---------------------------------------------------------------------------
 
-# Block models Wynncraft remakes, drawn from another model instead: the block model to the model
-# it becomes. Wynncraft's redstone torches are its own candles, on a holder when they are on a
-# wall. Vanilla's candle has no wall form, so vetsmod's stands where a wall torch does.
-block_models:
-  'minecraft:block/redstone_torch': 'minecraft:block/candle_one_candle_lit'
-  'minecraft:block/redstone_torch_off': 'minecraft:block/candle_one_candle'
-  'minecraft:block/redstone_wall_torch': 'vetsmod:block/retro/wall_candle_lit'
-  'minecraft:block/redstone_wall_torch_off': 'vetsmod:block/retro/wall_candle'
+# Single stacks whose look cannot be a model's: a vanilla potion Wynncraft leaves alone, or an
+# item sharing its model with others (the guild's item shares the keys' tripwire hook). Each row
+# needs item (the stack's item model), name (a pattern on its whole name, without formatting)
+# and model (the item model drawn instead). part (optional) is the part it belongs to, items
+# without one.
+stack_models:
+  - {item: 'minecraft:splash_potion', name: 'Active Blesses', model: 'minecraft:nether_star'}
+  - {item: 'minecraft:tripwire_hook', name: '.+ \[Lv\. \d+\]', model: 'minecraft:totem_of_undying'}
+  # Two ingredients as the real shield, whose item model alone draws nothing.
+  - {item: 'minecraft:potion', name: '.*(Butterfly Buckler|Router Shield).*', model: 'minecraft:shield', part: crafting}
 
-# ==== Screens and settings ==================================================================
+# ==== Screens and settings ===================================================================
 
-# The sections below write no files (but for gear_box_icons' item definitions). The game reads
-# them while it draws, and only while the retro pack is drawn, so nothing here paints
-# over art retro did not replace; wynntils_config applies while retro is on and not stopped.
+# The sections below write no files. The game reads them while it draws, and only while the retro
+# pack is drawn, so nothing here paints over art retro did not replace; wynntils_config applies
+# while retro is on and not stopped.
 
-# ---- Container titles ----------------------------------------------------------------------
+# ---- Container titles -----------------------------------------------------------------------
 
 # Wynntils container class -> the title drawn on that container, or keep. Wynncraft writes
 # most container titles as glyphs, which also draw the screen's ornate background; a plain
 # title in their place leaves the vanilla container. The pattern matches the simple name of
-# the class Wynntils' container model gives the open screen (AccountBankContainer, ...: the
-# classes in Wynntils' models/containers/containers/). The first matching row decides:
+# the class Wynntils' container model gives the open screen. The first matching row decides:
 # - a title: drawn in the label's place, in vanilla's label grey.
-# - keep: Wynncraft's label, and the art it draws, stay, on Wynncraft's own container
-#   background (wynncraft_copies).
+# - keep: Wynncraft's label and its art stay, on Wynncraft's own background (wynncraft_copies).
 # With no row, the readable part of Wynncraft's title is drawn: its text in the default font,
 # without glyphs, spacing characters or formatting codes. With nothing readable, Wynncraft's
-# label stays, as with keep. GuildMemberListContainer has no row: Wynntils knows it by its
-# title text, "<guild>: Members", which the readable title keeps.
+# label stays, as with keep. GuildMemberListContainer needs no row: its title's "<guild>: Members"
+# is readable.
 container_titles:
   'AccountBankContainer': 'Account Bank'
   'CharacterBankContainer': 'Character Bank'
@@ -1072,17 +1113,26 @@ glyph_titles:
   'F047': 'Weaponsmithing'
   'F048': 'Woodworking'
 
-# ---- Slot fills ----------------------------------------------------------------------------
+# ---- Slot values ----------------------------------------------------------------------------
 
-# Slots that are not the player's to fill freely. They show white glass, which keeps the slot in
-# sight and says it is special, under their item if they have one. Holding nothing, or Wynncraft's
-# filler (no tooltip, or a name with no letter or digit), they do not highlight or take a click.
-# The player row's accessory slots, which take an accessory by click or drag, stay plain slots under
-# a white edge instead. Rows apply on the inventory and on containers whose title retro draws
-# (container_titles), never on a container that keeps Wynncraft's label and art, nor on Wynntils'
-# full-screen views (the content book, the ability tree), even where retro draws their title:
-# Wynncraft fills their player-inventory part with its own buttons, so the player's slots there are
-# not the player's. Every row that applies paints its slots. Each row is one of:
+# Values Wynncraft prints in a container's title, over a button it draws as nothing. Retro's
+# title drops them, so the value is drawn in the button's slot instead: the first group of the
+# lore pattern, found in the first lore line it matches, on an item of exactly that name. Each
+# row needs container (a pattern on the Wynntils class), name and lore. Only on containers retro
+# relabels. The Buy view's amount is seen in game; the Sell and Order views are assumed to match.
+slot_values:
+  - {container: 'TradeMarket(Buy|Sell|Order)Container', name: 'Set Amount', lore: 'Current: ([\d,]+)'}
+
+# ---- Slot fills -----------------------------------------------------------------------------
+
+# Slots that are not the player's to fill freely. They show white glass under their item if they
+# have one. Holding nothing, or Wynncraft's filler (no tooltip, or a name with no letter or digit),
+# they do not highlight or take a click. The player row's accessory slots, which take an accessory
+# by click or drag, stay plain slots under a white edge instead. Rows apply on the inventory and on
+# containers whose title retro draws (container_titles), never on a container that keeps Wynncraft's
+# label and art, nor on Wynntils' full-screen views, even where retro draws their title: Wynncraft
+# fills their player-inventory part with its own buttons. Every row that applies paints its slots.
+# Each row is one of:
 # - {player: wynntils}: the player's own slots Wynntils names: the compass (7), the content
 #   book (8), the accessories (9-12) and the ingredient pouch (13).
 # - {container: <pattern>, ...}: slots of a container whose Wynntils class matches the
@@ -1137,53 +1187,7 @@ slot_fills:
   # things: the pouches and the reward chests.
   - {title: '.*', slots: all, fallback: true, unless: '(IngredientPouch|EmeraldPouch|ScrapMenu|LootChest|FlyingChest|DailyReward|ChallengeReward|ObjectiveReward|ItemBombReward|IngredientBombReward|Event)Container'}
 
-# ---- Gear box icons ------------------------------------------------------------------------
-
-# Wynntils gear type -> the vanilla item drawn over an unidentified gear box of that type, at
-# three quarters of the slot, centred, in the inventory, containers and the hotbar. Every box
-# is one chest (item_models), whatever its type, so this tells them apart, as Wynntils' own
-# icons do (wynntils_config turns those off). The key is a name of Wynntils' GearType or
-# TomeType (GUILD_TOME is a tome type); a type with no row gets no icon. The item is drawn from
-# vanilla's item definition, which the pack copies under vetsmod's namespace, because Wynncraft's
-# own definitions of some vanilla items draw its own items instead.
-gear_box_icons:
-  # The weapons are outlined_icons'. The armour: the iron pieces.
-  'HELMET': 'minecraft:iron_helmet'
-  'CHESTPLATE': 'minecraft:iron_chestplate'
-  'LEGGINGS': 'minecraft:iron_leggings'
-  'BOOTS': 'minecraft:iron_boots'
-  # The accessories, which vanilla has no item for: a nugget for a ring, a lead looped as a
-  # necklace, and a clock, worn on the wrist, for a bracelet.
-  'RING': 'minecraft:gold_nugget'
-  'NECKLACE': 'minecraft:lead'
-  'BRACELET': 'minecraft:clock'
-  # A mastery tome's shield: the real item (outlined_icons has the others, which are flat).
-  'GUILD_TOME': 'minecraft:shield'
-
-# ---- Stack models ---------------------------------------------------------------------------
-
-# Single stacks whose look cannot be a model's: a vanilla potion Wynncraft leaves alone, or an
-# item sharing its model with others (the guild's item shares the keys' tripwire hook). Each row
-# needs item (the stack's item model), name (a pattern on its whole name, without formatting)
-# and model (the item model drawn instead). part (optional) is the part it belongs to, items
-# without one.
-stack_models:
-  - {item: 'minecraft:splash_potion', name: 'Active Blesses', model: 'minecraft:nether_star'}
-  - {item: 'minecraft:tripwire_hook', name: '.+ \[Lv\. \d+\]', model: 'minecraft:totem_of_undying'}
-  # Two ingredients as the real shield, whose item model alone draws nothing.
-  - {item: 'minecraft:potion', name: '.*(Butterfly Buckler|Router Shield).*', model: 'minecraft:shield', part: crafting}
-
-# ---- Slot values ---------------------------------------------------------------------------
-
-# Values Wynncraft prints in a container's title, over a button it draws as nothing. Retro's
-# title drops them, so the value is drawn in the button's slot instead: the first group of the
-# lore pattern, found in the first lore line it matches, on an item of exactly that name. Each
-# row needs container (a pattern on the Wynntils class), name and lore. Only on containers retro
-# relabels. The Buy view's amount is seen in game; the Sell and Order views are assumed to match.
-slot_values:
-  - {container: 'TradeMarket(Buy|Sell|Order)Container', name: 'Set Amount', lore: 'Current: ([\d,]+)'}
-
-# ---- Hidden inventory effects --------------------------------------------------------------
+# ---- Hidden inventory effects ---------------------------------------------------------------
 
 # Effect id pattern: effects the inventory's effect list leaves out while they last forever.
 # Wynncraft shows a weapon's attack speed as an endless haste or mining fatigue, which the list
@@ -1191,13 +1195,12 @@ slot_values:
 hidden_inventory_effects:
   - 'minecraft:(haste|mining_fatigue)'
 
-# ---- Wynntils settings ---------------------------------------------------------------------
+# ---- Wynntils settings ----------------------------------------------------------------------
 
 # Wynntils feature -> setting -> value, in the words "/wynntils config set <feature> <setting>
-# <value>" takes: settings changed while retro is on and not stopped. Retro saves each setting's
-# value before it first changes it, and puts that value back when retro goes off or stops or the
-# game closes, unless the setting has been changed by hand since. A setting this Wynntils does
-# not have, or a value it cannot read, is skipped with a warning in the log. Quote every value.
+# <value>" takes: settings changed while retro is on and not stopped, and put back after, unless
+# changed by hand since. A setting this Wynntils does not have, or a value it cannot read, is
+# skipped with a warning in the log. Quote every value.
 wynntils_config:
   # The item highlight as Wynntils' tag rather than Wynncraft's ornate frame.
   'ItemHighlight':
@@ -1211,8 +1214,8 @@ wynntils_config:
   'UnidentifiedItemIcon':
     'userEnabled': 'false'
   # Wynntils' own jump bar, which it draws over vanilla's whatever the charge, since Wynncraft
-  # blanks vanilla's: same_name restores that one, which fills as vanilla's does. The feature
-  # arrived in Wynntils 4.2.11; before that this row is skipped, with nothing to cover the bar.
+  # blanks vanilla's: same_name restores that one. The feature arrived in Wynntils 4.2.11; before
+  # that this row is skipped, with nothing to cover the bar.
   'MountJumpBar':
     'userEnabled': 'false'
   # Wynntils' own content book only with shift held, so the book opens as Wynncraft's container,

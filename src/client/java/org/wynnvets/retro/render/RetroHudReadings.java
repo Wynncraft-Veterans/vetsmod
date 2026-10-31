@@ -4,13 +4,14 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * What {@link RetroHud} last read from Wynncraft's action bar for the rows and numbers it draws in
- * place of the level badge: the sprint or breath meter, the ultimate's charge and the health and
- * mana numbers. A bar leaves out what is not showing, and some of its frames show only an animation
- * in place of a value, so these rules say what each bar means for what was there before.
+ * What {@link RetroActionBar} last read from Wynncraft's action bar for the rows and numbers
+ * {@link RetroHud} draws in place of the level badge: the sprint or breath meter, the ultimate's
+ * charge and the health and mana numbers. A bar leaves out what is not showing, and some of its
+ * frames show only an animation in place of a value, so these rules say what each bar means for
+ * what was there before.
  *
- * <p>A charge with no maximum draws no bubbles, which is how {@link RetroHud} says it could not read
- * one. Nothing outlives the action bar: {@link #heard} stamps each bar, and past
+ * <p>A charge with no maximum draws no bubbles, which is how {@link RetroActionBar} says it could
+ * not read one. Nothing outlives the action bar: {@link #heard} stamps each bar, and past
  * {@link #BAR_LIFE_MILLIS} without one there is nothing to draw. Render thread only; on plain
  * values, so unit-tested.</p>
  */
@@ -25,7 +26,7 @@ final class RetroHudReadings {
 
     /** The bubbles in the row, of which only a ready ultimate fills the last. */
     // Package-private for unit tests. See RetroHudReadingsTest.
-    static final int BUBBLES = 10;
+    static final int BUBBLES = RetroHud.ICONS;
 
     /**
      * A value out of its maximum.

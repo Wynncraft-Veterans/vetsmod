@@ -25,7 +25,7 @@ import org.wynnvets.retro.pack.PackFiles;
  * source's texture ids are listed once, when it opens. {@link #close()} closes every source but
  * the vanilla pack.</p>
  */
-public final class ProgrammerArtSources implements AutoCloseable {
+public final class RetroSources implements AutoCloseable {
 
     /** The id of the client's built-in Programmer Art pack. */
     public static final String PROGRAMMER_ART_PACK = "programmer_art";
@@ -36,7 +36,7 @@ public final class ProgrammerArtSources implements AutoCloseable {
     /** The packs this class closes. */
     private final List<PackResources> owned = new ArrayList<>();
 
-    private ProgrammerArtSources() {}
+    private RetroSources() {}
 
     /**
      * Opens the sources and lists their textures. A source other than vanilla that cannot be
@@ -49,9 +49,9 @@ public final class ProgrammerArtSources implements AutoCloseable {
      * @param vanilla Minecraft's vanilla pack, which stays open
      * @return the sources
      */
-    static ProgrammerArtSources open(
+    static RetroSources open(
             Pack programmerArt, PackResources vanillaTweaks, PackResources vanilla) {
-        ProgrammerArtSources sources = new ProgrammerArtSources();
+        RetroSources sources = new RetroSources();
         sources.add(RetroSource.VANILLA, vanilla);
         if (vanillaTweaks != null) sources.addOwned(RetroSource.VANILLA_TWEAKS, vanillaTweaks);
         if (programmerArt != null) {

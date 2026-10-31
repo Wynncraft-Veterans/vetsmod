@@ -7,6 +7,7 @@ import com.wynntils.handlers.actionbar.event.ActionBarUpdatedEvent;
 import com.wynntils.models.worlds.event.WorldStateEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.logging.VetsLogger;
+import org.wynnvets.retro.render.RetroActionBar;
 import org.wynnvets.retro.render.RetroHud;
 import org.wynnvets.retro.render.RetroLevelSegmentMatcher;
 import org.wynnvets.retro.render.RetroNumberSegmentMatcher;
@@ -14,10 +15,11 @@ import org.wynnvets.retro.render.RetroNumberSegmentMatcher;
 /**
  * Subscribes to Wynntils' {@link ActionBarRenderEvent}, which Wynntils posts for each action bar
  * Wynncraft sends, after its models have read it and before it is drawn, so retro can take out of
- * it the bars its own HUD draws in their place ({@link RetroHud#hideWynncraftsBars}). Hands
- * {@link RetroHud#readBar} each {@link ActionBarUpdatedEvent}, for what retro draws from the bar
- * itself. Registers {@link RetroLevelSegmentMatcher} and {@link RetroNumberSegmentMatcher} too, for
- * the level and numbers Wynntils' own matchers can miss, and tells
+ * it the bars its own HUD draws in their place ({@link RetroActionBar#hideWynncraftsBars}).
+ * Hands {@link RetroActionBar#readBar} each {@link ActionBarUpdatedEvent}, for what retro draws
+ * from the bar itself. Registers {@link RetroLevelSegmentMatcher} and
+ * {@link RetroNumberSegmentMatcher} too, for the level and numbers Wynntils' own matchers can miss,
+ * and tells
  * {@link RetroHud#worldStateChanged} of each {@link WorldStateEvent}.
  *
  * <p>Default priority: Wynntils' own listeners ({@code CharacterStatsModel}'s and
@@ -39,12 +41,12 @@ public final class RetroActionBarListener {
 
     @SubscribeEvent
     public void onActionBarRender(ActionBarRenderEvent event) {
-        RetroHud.hideWynncraftsBars(event);
+        RetroActionBar.hideWynncraftsBars(event);
     }
 
     @SubscribeEvent
     public void onActionBarUpdate(ActionBarUpdatedEvent event) {
-        RetroHud.readBar(event);
+        RetroActionBar.readBar(event);
     }
 
     @SubscribeEvent

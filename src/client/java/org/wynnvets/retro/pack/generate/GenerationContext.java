@@ -44,7 +44,7 @@ final class GenerationContext {
     /** The Wynncraft pack and those below it, as the reload would see them without retro. */
     final ResourceManager lower;
 
-    final ProgrammerArtSources sources;
+    final RetroSources sources;
     final PackOutput out;
 
     /** The textures the Wynncraft pack ships. */
@@ -78,7 +78,7 @@ final class GenerationContext {
             RetroManifest manifest,
             List<PackResources> stack,
             int wynncraftIndex,
-            ProgrammerArtSources sources,
+            RetroSources sources,
             PackOutput out) {
         this(manifest, stack, wynncraftIndex, sources, out, RetroPart.all());
     }
@@ -97,7 +97,7 @@ final class GenerationContext {
             RetroManifest manifest,
             List<PackResources> stack,
             int wynncraftIndex,
-            ProgrammerArtSources sources,
+            RetroSources sources,
             PackOutput out,
             Set<RetroPart> partsOn) {
         this.manifest = manifest;

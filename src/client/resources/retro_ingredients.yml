@@ -12,17 +12,15 @@
 # - A stem with no row falls to potions and then item_models in retro_textures.yml, and with no
 #   row there keeps Wynncraft's model too. Almost all of those already parent a vanilla item or
 #   block model, whose textures the retro pack replaces by name (same_name). The rows below cover
-#   the stems whose model parents neither. 'keep' leaves Wynncraft's model: the two shields,
-#   which stack_models draws.
+#   the stems whose model parents neither.
 # - Each stem appears once (a repeat fails the build). Quote every value, and a stem YAML could
 #   read as a number.
 # - Where the 2013 icon differs from the item Wynncraft uses today, the row names the 2013 one:
 #   the vanilla item the ingredient showed before Wynncraft's custom models, which Wynncraft's
 #   item database listed as a 'legacy' icon (a 1.12 item id and damage value).
 ingredients:
-  # Spawn eggs (legacy 383). Wynncraft's models parent item/spawn_egg, which neither 1.21.11 nor
-  # Wynncraft's pack has. The damage value is the 1.12 entity id: 58 enderman, 55 slime,
-  # 120 villager, 5 wither skeleton; 0 named no mob, an all-white egg.
+  # Spawn eggs (legacy 383, its damage value the 1.12 entity id; 0 named no mob, an all-white egg).
+  # Wynncraft's models parent item/spawn_egg, which neither 1.21.11 nor Wynncraft's pack has.
   aspect_of_the_void: 'minecraft:item/enderman_spawn_egg'
   cystic_lard: 'minecraft:item/slime_spawn_egg'
   mountains_heart: 'minecraft:item/villager_spawn_egg'
@@ -30,10 +28,13 @@ ingredients:
   penguin_egg: 'minecraft:item/egg'
   # Wynncraft's water powder art; the legacy icon is light blue dye (351:12).
   rocky_spirit: 'minecraft:item/light_blue_dye'
+  # Wynncraft's sorghum art, on a coat: a rabbit hide instead.
+  fox_coat: 'minecraft:item/rabbit_hide'
   # Wynncraft's armour models. item_models already stubs those; the rows keep the icon from
-  # depending on it.
+  # depending on it. The parka's is leather, drawn here as chainmail.
   gilded_regalia: 'minecraft:item/golden_chestplate'
   winged_helmet: 'minecraft:item/iron_helmet'
+  warm_parka: 'minecraft:item/chainmail_chestplate'
   # Wynncraft's wings on a head model: the elytra.
   cursed_wings: 'minecraft:item/elytra'
   # The accessories' legacy icons (259:n, 278:n) were damage values that only selected Wynncraft's
@@ -48,5 +49,3 @@ ingredients:
   # A shield's item model draws nothing: a special renderer does. stack_models draws the real one.
   butterfly_buckler: keep
   router_shield: keep
-  fox_coat: 'minecraft:item/rabbit_hide'
-  warm_parka: 'minecraft:item/chainmail_chestplate'

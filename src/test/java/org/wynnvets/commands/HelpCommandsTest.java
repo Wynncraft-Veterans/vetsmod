@@ -530,8 +530,8 @@ class HelpCommandsTest {
                                 + " as a vanilla item.\n"),
                 sib(
                         ChatFormatting.DARK_GRAY,
-                        "Built from your own game files whenever resources reload. Also switches"
-                                + " some Wynntils settings.\n"),
+                        "Built from your own game files and bundled art whenever resources reload."
+                                + " Also switches some Wynntils settings.\n"),
                 sib(ChatFormatting.YELLOW, "/wv retro off\n"),
                 sib(
                         ChatFormatting.GRAY,

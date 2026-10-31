@@ -396,7 +396,7 @@ class ShippedTexturesTest {
         // RetroHud draws vanilla's hearts, food, armour, air and experience bar, which Wynncraft
         // (pack a43ae4e6) ships fully transparent, over the vanilla hotbar, which it repaints under
         // its ornate frame. A same_name copy beats the automatic keep of a blank, and the GUI reads
-        // vanilla alone.
+        // vanilla, but for the withered hearts.
         TextureRules rules = realTextureRules();
         for (String sprite :
                 List.of(

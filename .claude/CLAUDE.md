@@ -95,7 +95,8 @@ VetsmodClient (entry point)
   │                           retro/pack/ (RetroPackInjector, RetroPackResources, PackFiles)
   │                           inserts a pack above Wynncraft's at each reload and
   │                           retro/pack/generate/ builds its files from the player's own game
-  │                           files, one GenerationStep each; retro/render/ draws over the
+  │                           files and the Vanilla Tweaks art in the jar, one GenerationStep
+  │                           each; retro/render/ draws over the
   │                           screens while it is live (container titles and backgrounds, glass
   │                           slots, slot values, the attack-speed effect, gear box and tome
   │                           icons, single stacks and accessories, the HUD);

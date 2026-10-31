@@ -202,7 +202,6 @@ class ShippedScreensTest {
         // /wynntils config set UnidentifiedItemIcon userEnabled false: its icon would sit on
         // retro's (gear_box_icons), and its texture setting has no "none".
         // /wynntils config set MountJumpBar userEnabled false: its bar would sit on vanilla's.
-        // The feature arrived in 4.2.11; before that the row is skipped with a warning.
         // /wynntils config set WynntilsContentBook shiftBehaviorConfig enabledIfShiftHeld: the
         // feature's short name (WynntilsContentBookFeature), its Config field and
         // ShiftBehavior.ENABLED_IF_SHIFT_HELD as EnumUtils.toJsonFormat writes it, which
