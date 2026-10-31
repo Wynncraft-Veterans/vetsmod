@@ -436,8 +436,7 @@ class ShippedTexturesTest {
     @Test
     void wynncraftsOtherGuiSpritesStayItsOwn() throws IOException {
         // Its other HUD sprites too, which retro draws nothing new with: armour, air, a mount's
-        // hearts and jump bar, the attack indicators, and the heart and food kinds RetroHud
-        // never draws.
+        // hearts, the attack indicators, and the heart and food kinds RetroHud never draws.
         TextureRules rules = realTextureRules();
         for (String sprite :
                 List.of(

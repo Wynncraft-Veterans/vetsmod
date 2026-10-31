@@ -143,6 +143,7 @@ parts:
     textures:
       - 'minecraft:gui/sprites/hud/.*'
       - 'minecraft:font/hud/.*'
+    wynntils: ['MountJumpBar']
   # With hidden_inventory_effects.
   effects:
     about: 'Effect icons, and no endless Attack Speed beside the inventory'
@@ -336,8 +337,8 @@ aliases:
 
 # Texture pattern: a texture it matches is replaced by the texture of the same id. Most of
 # Wynncraft's own textures have no such source and fall through. Wynncraft's other GUI sprites
-# stay, its other HUD blanks among them (armour, air, a mount's hearts and jump bar, the attack
-# indicators): retro draws nothing new with them.
+# stay, its other HUD blanks among them (armour, air, a mount's hearts, the attack indicators):
+# retro draws nothing new with them.
 same_name:
   - 'minecraft:block/.*'
   - 'minecraft:item/.*'
@@ -903,9 +904,7 @@ wynntils_textures:
 
 # Textures of Wynncraft's written fully transparent, at their own size: art it draws where vanilla's
 # goes, with no row of its own to take it out.
-blank_textures:
-  # The jump meter, under vanilla's jump bar (same_name).
-  - 'minecraft:font/hud/gameplay/default/bottom_middle/jump_bar'
+blank_textures: []
 
 # ---- Language ------------------------------------------------------------------------------
 
@@ -1207,6 +1206,11 @@ wynntils_config:
   # (gear_box_icons). Its texture setting has no "none", so the whole feature goes, and with it
   # the "?" it marks an unidentified item with.
   'UnidentifiedItemIcon':
+    'userEnabled': 'false'
+  # Wynntils' own jump bar, which it draws over vanilla's whatever the charge, since Wynncraft
+  # blanks vanilla's: same_name restores that one, which fills as vanilla's does. The feature
+  # arrived in Wynntils 4.2.11; before that this row is skipped, with nothing to cover the bar.
+  'MountJumpBar':
     'userEnabled': 'false'
   # Wynntils' own content book only with shift held, so the book opens as Wynncraft's container,
   # which container_titles draws as vanilla's. Switching the feature off would take its key binds

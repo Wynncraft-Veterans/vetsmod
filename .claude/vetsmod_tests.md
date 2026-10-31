@@ -4161,8 +4161,8 @@ The shipped `parts` rows: that every part has a row, and that the ids the rule f
   - For each of `wynntils_textures`: `SCREENS`.
   - For each of `image_edits`: `SCREENS`.
 - **`everyWynntilsSettingBelongsToAPart`**:
-  - The features of `wynntils_config` equal `ItemHighlight`, `CustomPlayerListOverlay`, `UnidentifiedItemIcon` and `WynntilsContentBook`.
-  - For each feature and each part: `settingOn` is false with that part off only for `HIGHLIGHTS`, `PLAYER_LIST`, `GEAR_BOXES` and `SCREENS` respectively.
+  - The features of `wynntils_config` equal `ItemHighlight`, `CustomPlayerListOverlay`, `UnidentifiedItemIcon`, `MountJumpBar` and `WynntilsContentBook`.
+  - For each feature and each part: `settingOn` is false with that part off only for `HIGHLIGHTS`, `PLAYER_LIST`, `GEAR_BOXES`, `HUD` and `SCREENS` respectively.
 - **`theShieldsRowIsCraftingsAndTheOtherStackRowsItems`**: For each `stack_models` row: `part()` equals `CRAFTING` for `minecraft:shield`, and `ITEMS` otherwise.
 
 ### `ShippedPotionsTest`
@@ -4215,8 +4215,8 @@ The shipped screen rows: the titles, the slot fills and their labels, the hidden
   - `realTitle(class)` is not `keep`.
 - **`theAttackSpeedEffectsAreHidden`**: Wynncraft's attack speed is an endless haste or mining fatigue.
   - The patterns of `hiddenInventoryEffects()` equal `["minecraft:(haste|mining_fatigue)"]`.
-- **`theWynntilsSettingsAreTheFourSeeded`**: `/wynntils config set ItemHighlight highlightTexture tag` and `/wynntils config set CustomPlayerListOverlay userEnabled false`; `/wynntils config set UnidentifiedItemIcon userEnabled false`, whose icon would sit on retro's gear box icons (its texture setting has no "none"); and `/wynntils config set WynntilsContentBook shiftBehaviorConfig enabledIfShiftHeld`: the feature's short name (`WynntilsContentBookFeature`), its `Config` field, and `ShiftBehavior.ENABLED_IF_SHIFT_HELD` as `EnumUtils.toJsonFormat` writes it, which `tryParseStringValue` reads back (`fromJsonFormat`), in 4.1.17 and 4.2.16 alike; and nothing else.
-  - `wynntilsConfig()` equals `[WynntilsSetting(ItemHighlight, highlightTexture, tag), WynntilsSetting(CustomPlayerListOverlay, userEnabled, false), WynntilsSetting(UnidentifiedItemIcon, userEnabled, false), WynntilsSetting(WynntilsContentBook, shiftBehaviorConfig, enabledIfShiftHeld)]`.
+- **`theWynntilsSettingsAreTheFiveSeeded`**: `/wynntils config set ItemHighlight highlightTexture tag` and `/wynntils config set CustomPlayerListOverlay userEnabled false`; `/wynntils config set UnidentifiedItemIcon userEnabled false`, whose icon would sit on retro's gear box icons (its texture setting has no "none"); `/wynntils config set MountJumpBar userEnabled false`, whose bar would sit on vanilla's (the feature arrived in 4.2.11, and before that the row is skipped with a warning); and `/wynntils config set WynntilsContentBook shiftBehaviorConfig enabledIfShiftHeld`: the feature's short name (`WynntilsContentBookFeature`), its `Config` field, and `ShiftBehavior.ENABLED_IF_SHIFT_HELD` as `EnumUtils.toJsonFormat` writes it, which `tryParseStringValue` reads back (`fromJsonFormat`), in 4.1.17 and 4.2.16 alike; and nothing else.
+  - `wynntilsConfig()` equals `[WynntilsSetting(ItemHighlight, highlightTexture, tag), WynntilsSetting(CustomPlayerListOverlay, userEnabled, false), WynntilsSetting(UnidentifiedItemIcon, userEnabled, false), WynntilsSetting(MountJumpBar, userEnabled, false), WynntilsSetting(WynntilsContentBook, shiftBehaviorConfig, enabledIfShiftHeld)]`.
 
 ### `ShippedStacksTest`
 
@@ -4259,12 +4259,12 @@ The shipped texture rows against the client jar: the sources, the aliases, the v
   - `decide(silhouette, EVERYTHING_BLANK)` equals `Copy(silhouette, VANILLA)`: `same_name` wins over Wynncraft's blank.
   - For each of `ring`, `bracelet` and `necklace`: `decide("minecraft:wynn/gui/slot/<accessory>", CLIENT_JAR)` equals `Keep(NO_RULE)`.
   - `decide("minecraft:gui/sprites/container/slot/shield", CLIENT_JAR)` equals `Keep(KEEP_WYNNCRAFT)`.
-- **`theHudRetroDrawsBecomesVanillasOverWynncraftsBlanks`**: `RetroHud` draws vanilla's hearts, food and experience bar, which Wynncraft (pack `a43ae4e6`) ships fully transparent, over the vanilla hotbar, which it repaints under its ornate frame. A `same_name` copy beats the automatic keep of a blank, and the GUI reads vanilla alone.
-  - For each of `hud/heart/container`, `hud/heart/half`, `hud/heart/full`, `hud/food_empty`, `hud/food_half`, `hud/food_full`, `hud/experience_bar_background`, `hud/experience_bar_progress`, `hud/hotbar`, `hud/hotbar_selection`, `hud/hotbar_offhand_left` and `hud/hotbar_offhand_right` under `minecraft:gui/sprites/`: `textureInClientJar(id)` is true.
+- **`theHudRetroDrawsBecomesVanillasOverWynncraftsBlanks`**: `RetroHud` draws vanilla's hearts, food and experience bar and leaves vanilla's jump bar, all of which Wynncraft (pack `a43ae4e6`) ships fully transparent, over the vanilla hotbar, which it repaints under its ornate frame. A `same_name` copy beats the automatic keep of a blank, and the GUI reads vanilla alone.
+  - For each of `hud/heart/container`, `hud/heart/half`, `hud/heart/full`, `hud/food_empty`, `hud/food_half`, `hud/food_full`, `hud/experience_bar_background`, `hud/experience_bar_progress`, `hud/jump_bar_background`, `hud/jump_bar_cooldown`, `hud/jump_bar_progress`, `hud/hotbar`, `hud/hotbar_selection`, `hud/hotbar_offhand_left` and `hud/hotbar_offhand_right` under `minecraft:gui/sprites/`: `textureInClientJar(id)` is true.
   - `decide(id, EVERYTHING_BLANK)` equals `Copy(id, VANILLA)`.
   - `decide(id, CLIENT_JAR)` equals `Copy(id, VANILLA)`.
-- **`wynncraftsOtherGuiSpritesStayItsOwn`**: No rule covers its other GUI sprites, its other HUD sprites among them, which retro draws nothing new with: armour, air, a mount's hearts and jump bar, the attack indicators, and the heart and food kinds `RetroHud` never draws.
-  - For each of `hud/armor_full`, `hud/air`, `hud/heart/vehicle_full`, `hud/jump_bar_progress`, `hud/hotbar_attack_indicator_progress`, `hud/crosshair_attack_indicator_full`, `hud/heart/poisoned_full`, `hud/food_full_hunger`, `container/slot_highlight_back`, `widget/button` and `boss_bar/white_background` under `minecraft:gui/sprites/`: `decide(id, CLIENT_JAR)` equals `Keep(NO_RULE)`.
+- **`wynncraftsOtherGuiSpritesStayItsOwn`**: No rule covers its other GUI sprites, its other HUD sprites among them, which retro draws nothing new with: armour, air, a mount's hearts, the attack indicators, and the heart and food kinds `RetroHud` never draws.
+  - For each of `hud/armor_full`, `hud/air`, `hud/heart/vehicle_full`, `hud/hotbar_attack_indicator_progress`, `hud/crosshair_attack_indicator_full`, `hud/heart/frozen_full`, `hud/food_full_hunger`, `container/slot_highlight_back` and `boss_bar/white_background` under `minecraft:gui/sprites/`: `decide(id, CLIENT_JAR)` equals `Keep(NO_RULE)`.
 - **`pinnedVariantsBecomeTheirVanillaBlockFromTheClientJar`**: Each pinned variant becomes its vanilla block's texture, and since only vanilla has anything under `CLIENT_JAR`, the target exists in the client jar. The pins include `stone_0` → `stone`, `dirt_top_0` → `dirt`, `grass_top_1` → `grass_block_top`, `pumpkin_bottom` → `pumpkin_top`, `oak_planks_flat` → `oak_planks`, `iron_bars_top` → `iron_bars`, and `piston_bottom`, `piston_inner`, `piston_side_sticky` and `piston_top_sticky` → `piston_top`.
   - For each entry of `PINNED_VARIANTS`: `decide("minecraft:block/variants/<name>", CLIENT_JAR)` equals `Copy("minecraft:block/<block>", VANILLA)`.
 - **`variantsWithNoVanillaBlockKeepWynncraftsTexture`**: Wynncraft's own blocks match no tint or alias, and no source has them by name.

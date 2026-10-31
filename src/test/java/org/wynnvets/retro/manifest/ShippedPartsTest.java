@@ -234,6 +234,7 @@ class ShippedPartsTest {
                         "ItemHighlight", RetroPart.HIGHLIGHTS,
                         "CustomPlayerListOverlay", RetroPart.PLAYER_LIST,
                         "UnidentifiedItemIcon", RetroPart.GEAR_BOXES,
+                        "MountJumpBar", RetroPart.HUD,
                         "WynntilsContentBook", RetroPart.SCREENS);
 
         assertEquals(

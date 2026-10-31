@@ -196,11 +196,13 @@ class ShippedScreensTest {
     }
 
     @Test
-    void theWynntilsSettingsAreTheFourSeeded() throws IOException {
+    void theWynntilsSettingsAreTheFiveSeeded() throws IOException {
         // /wynntils config set ItemHighlight highlightTexture tag
         // /wynntils config set CustomPlayerListOverlay userEnabled false
         // /wynntils config set UnidentifiedItemIcon userEnabled false: its icon would sit on
         // retro's (gear_box_icons), and its texture setting has no "none".
+        // /wynntils config set MountJumpBar userEnabled false: its bar would sit on vanilla's.
+        // The feature arrived in 4.2.11; before that the row is skipped with a warning.
         // /wynntils config set WynntilsContentBook shiftBehaviorConfig enabledIfShiftHeld: the
         // feature's short name (WynntilsContentBookFeature), its Config field and
         // ShiftBehavior.ENABLED_IF_SHIFT_HELD as EnumUtils.toJsonFormat writes it, which
@@ -210,6 +212,7 @@ class ShippedScreensTest {
                         new WynntilsSetting("ItemHighlight", "highlightTexture", "tag"),
                         new WynntilsSetting("CustomPlayerListOverlay", "userEnabled", "false"),
                         new WynntilsSetting("UnidentifiedItemIcon", "userEnabled", "false"),
+                        new WynntilsSetting("MountJumpBar", "userEnabled", "false"),
                         new WynntilsSetting(
                                 "WynntilsContentBook",
                                 "shiftBehaviorConfig",
