@@ -20,7 +20,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.function.IntPredicate;
 import java.util.function.IntSupplier;
+import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
@@ -145,6 +149,16 @@ public final class RetroHud {
     /** Vanilla's experience fill is its progress times this, one more than the bar's width. */
     private static final int PROGRESS_SCALE = ContextualBarRenderer.WIDTH + 1;
 
+    /**
+     * Wynncraft's level in the action bar: up to six digits and the spacers between them, in the
+     * spacers Wynntils' {@code LevelSegmentMatcher} asks of it. Other fonts use the same code
+     * points, so a run of them is the level only in the level's font ({@link #findLevel}).
+     */
+    private static final Pattern LEVEL_GLYPHS =
+            Pattern.compile(
+                    "[\\x{CFC00}-\\x{CFFFF}](?<digits>(?:[\\x{E000}-\\x{E009}]\\x{CFFFE}?+){1,6})"
+                            + "[\\x{CFC00}-\\x{CFFFF}]");
+
     private static final RetroGuard GUARD =
             RetroGuard.stopping("the HUD", "Wynncraft's HUD shows until the game restarts");
 
@@ -239,7 +253,8 @@ public final class RetroHud {
      * with its animations: the vanilla experience bar and level number go there. The health and
      * mana numbers and the spell inputs stay, and so does the ultimate's "F" prompt above them.
      * Wynntils still reads every segment; this only changes what the action bar draws.
-     * {@code setSegmentEnabled} takes out the first segment of each class.
+     * {@code setSegmentEnabled} takes out the first segment of each class. The level is a segment
+     * of {@link RetroLevelSegmentMatcher}'s where high mount energy hides it from Wynntils.
      *
      * @param event the action bar about to be drawn
      */
@@ -253,6 +268,7 @@ public final class RetroHud {
                     event.setSegmentEnabled(CombatExperienceSegment.class, false);
                     event.setSegmentEnabled(ProfessionExperienceSegment.class, false);
                     event.setSegmentEnabled(LevelSegment.class, false);
+                    event.setSegmentEnabled(RetroLevelSegmentMatcher.Segment.class, false);
                     event.setSegmentEnabled(MeterBarSegment.class, false);
                     event.setSegmentEnabled(MeterEdgeAnimationSegment.class, false);
                     event.setSegmentEnabled(MeterTransitionSegment.class, false);
@@ -492,6 +508,25 @@ public final class RetroHud {
         if (!mc.gameMode.hasExperience() || !Models.WorldState.onWorld()) return;
         int level = Models.CombatXp.getCombatLevel().current();
         if (level > 0) ContextualBarRenderer.renderExperienceLevel(graphics, mc.font, level);
+    }
+
+    /**
+     * Where Wynncraft's level is in an action bar's text ({@link RetroLevelSegmentMatcher}).
+     *
+     * @param actionBar the action bar, without formatting
+     * @param inLevelFont whether the character at an index of it is in the level's font
+     * @return the first run in that font, spacers included, or empty when there is none
+     */
+    // Package-private for unit tests. See RetroHudTest.
+    static Optional<MatchResult> findLevel(String actionBar, IntPredicate inLevelFont) {
+        Matcher level = LEVEL_GLYPHS.matcher(actionBar);
+        boolean found = level.find();
+        while (found) {
+            if (inLevelFont.test(level.start("digits"))) return Optional.of(level.toMatchResult());
+            // From its digits: the spacer closing this run may open the next.
+            found = level.find(level.start("digits"));
+        }
+        return Optional.empty();
     }
 
     /**

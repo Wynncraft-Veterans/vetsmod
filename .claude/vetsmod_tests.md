@@ -5005,9 +5005,18 @@ Test: [`RetroHeartFlashTest.java`](../src/test/java/org/wynnvets/retro/render/Re
 
 Test: [`RetroHudTest.java`](../src/test/java/org/wynnvets/retro/render/RetroHudTest.java) · Subject: [`RetroHud`](../src/client/java/org/wynnvets/retro/render/RetroHud.java)
 
-`RetroHud` draws vanilla's hearts, food, experience bar and level number from Wynntils' health, mana and combat experience while the retro pack is live on Wynncraft. The suite pins its maths on plain numbers, through the package-private `halves(current, max)` (the halves of a row of ten hearts or shanks a value fills, out of `HALVES`, 20), `fill(icon, halves)` (whether one icon is `Fill.EMPTY`, `HALF` or `FULL`) and `progressWidth(current, max)` (the experience bar's fill in pixels). Drawing, the action bar and the mode need a running client and Wynntils' models, and are not tested; the class's static fields are sprite `Identifier`s and a flag, so loading it builds no Wynntils object.
+`RetroHud` draws vanilla's hearts, food, experience bar and level number from Wynntils' health, mana and combat experience while the retro pack is live on Wynncraft. The suite pins its maths on plain numbers, through the package-private `halves(current, max)` (the halves of a row of ten hearts or shanks a value fills, out of `HALVES`, 20), `fill(icon, halves)` (whether one icon is `Fill.EMPTY`, `HALF` or `FULL`) and `progressWidth(current, max)` (the experience bar's fill in pixels), and `findLevel(actionBar, inLevelFont)` (where Wynncraft's level is in the action bar's text, for `RetroLevelSegmentMatcher`, which is not tested as it needs Wynntils). Drawing, the action bar and the mode need a running client and Wynntils' models, and are not tested; the class's static fields are sprite `Identifier`s and a flag, so loading it builds no Wynntils object.
 
 - **`onlyABarFromSinceTheLastWorldCounts`**: `isCurrentBar(bar, stale)` is false for no bar and for the bar a disconnect left behind, and true for a new bar, with or without one left behind.
+- **`theLevelIsFoundInItsSpacers`**: Level 120 with a character on either side.
+  - `group()` equals the level with its spacers; `start()` is 1 and `end()` is 1 plus its length.
+- **`highMountEnergyBeforeTheLevelIsPassedOver`**: The energy glyph at the digit 0's code point, in its own spacers, right before the level.
+  - `group()` equals the level, and `start()` the energy glyph's length.
+- **`aRunInAnotherFontBeforeTheLevelIsPassedOver`**: A run in spacers just like the level's, right before it, with only the level's indices in the level's font.
+  - `group()` equals the level, and `start()` the other run's length.
+- **`theSpacerClosingARunInAnotherFontMayOpenTheLevel`**: Two digits sharing the one spacer between them, the first out of the level's font.
+  - `group()` equals the second digit with the shared spacer and the closing one.
+- **`nothingElseIsTakenForTheLevel`**: `findLevel` is empty for the energy glyph alone, for digits with no spacers, for an empty string, for the level with no index in the level's font, and for a separator followed by a digit, where taking the separator for the closing spacer would leave a digit behind.
 - **`aFullValueFillsTheRowAndNothingLeftFillsNone`**:
   - `halves(100, 100)` and `halves(150, 100)` equal `HALVES`: at or above the maximum.
   - `halves(0, 100)`, `halves(-5, 100)` and `halves(5, 0)` equal 0: nothing left, or no maximum.

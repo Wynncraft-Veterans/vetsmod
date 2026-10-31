@@ -1,17 +1,20 @@
 package org.wynnvets.listeners;
 
 import com.wynntils.core.WynntilsMod;
+import com.wynntils.core.components.Handlers;
 import com.wynntils.handlers.actionbar.event.ActionBarRenderEvent;
 import com.wynntils.models.worlds.event.WorldStateEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.wynnvets.logging.VetsLogger;
 import org.wynnvets.retro.render.RetroHud;
+import org.wynnvets.retro.render.RetroLevelSegmentMatcher;
 
 /**
  * Subscribes to Wynntils' {@link ActionBarRenderEvent}, which Wynntils posts for each action bar
  * Wynncraft sends, after its models have read it and before it is drawn, so retro can take out of
- * it the bars its own HUD draws in their place ({@link RetroHud#hideWynncraftsBars}). It tells
- * {@link RetroHud#worldStateChanged} of each {@link WorldStateEvent} too.
+ * it the bars its own HUD draws in their place ({@link RetroHud#hideWynncraftsBars}). Registers
+ * {@link RetroLevelSegmentMatcher} too, for the level Wynntils' own matcher can miss, and tells
+ * {@link RetroHud#worldStateChanged} of each {@link WorldStateEvent}.
  *
  * <p>Default priority: Wynntils' own listeners ({@code CharacterStatsModel}'s and
  * {@code SpellModel}'s among them) only disable segments too, so the order does not matter.</p>
@@ -24,6 +27,7 @@ public final class RetroActionBarListener {
 
     public static void register() {
         WynntilsMod.registerEventListener(INSTANCE);
+        Handlers.ActionBar.registerSegment(new RetroLevelSegmentMatcher());
         VetsLogger.debug("Registered RetroActionBarListener on Wynntils event bus");
     }
 
